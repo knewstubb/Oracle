@@ -245,7 +245,7 @@ export async function POST(request: NextRequest): Promise<Response> {
               ...skeleton.suggestions.map(c => c.card_name),
             ]
             const { data: cardData } = await supabase
-              .from('mtg_cards')
+              .from('mtg_cards' as any)
               .select('name, mana_value, type_line, oracle_text')
               .in('name', allCardNames)
 

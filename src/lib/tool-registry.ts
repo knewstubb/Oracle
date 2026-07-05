@@ -254,7 +254,7 @@ registry.set('mtg_commander_deck', {
     try {
       const supabase = createServerClient()
       const { data, error } = await supabase
-        .from('mtg_cards')
+        .from('mtg_cards' as any)
         .select('name, type_line, color_identity, mana_cost, edhrec_rank, commander_legal, is_legendary, is_creature')
         .ilike('name', input.commander_name as string)
         .limit(1)
@@ -507,7 +507,7 @@ registry.set('mtg_cardtypes_get', {
     try {
       const supabase = createServerClient()
       const { data, error } = await supabase
-        .from('mtg_cards')
+        .from('mtg_cards' as any)
         .select('name, type_line, color_identity, mana_cost, mana_value, oracle_text, power, toughness, edhrec_rank')
         .ilike('name', input.card_name as string)
         .limit(1)
@@ -704,7 +704,7 @@ registry.set('card_fuzzy_lookup', {
       // --- Step 1: Try exact ilike match from our Supabase mtg_cards table ---
       const supabase = createServerClient()
       const { data: exactMatch } = await supabase
-        .from('mtg_cards')
+        .from('mtg_cards' as any)
         .select('name, type_line, color_identity, mana_cost, mana_value, oracle_text, edhrec_rank, is_legendary, is_creature, commander_legal')
         .ilike('name', fuzzyName)
         .limit(1)
@@ -716,7 +716,7 @@ registry.set('card_fuzzy_lookup', {
 
       // --- Step 2: Try partial match (name contains the search term) ---
       const { data: partialMatches } = await supabase
-        .from('mtg_cards')
+        .from('mtg_cards' as any)
         .select('name, type_line, color_identity, mana_cost, mana_value, oracle_text, edhrec_rank, is_legendary, is_creature, commander_legal')
         .ilike('name', `%${fuzzyName}%`)
         .eq('commander_legal', true)

@@ -315,23 +315,20 @@ export async function POST(request: NextRequest): Promise<Response> {
 
             if (candidateName && candidateName.length > 2) {
               try {
-                // Try exact/partial match in mtg_cards
+                // Try exact/partial match in card_definitions
                 const { data: matches } = await supabase
-                  .from('mtg_cards')
-                  .select('name, color_identity')
-                  .ilike('name', `%${candidateName}%`)
-                  .eq('is_legendary', true)
-                  .eq('is_creature', true)
-                  .eq('commander_legal', true)
+                  .from('card_definitions')
+                  .select('card_name, color_identity')
+                  .ilike('card_name', `%${candidateName}%`)
                   .limit(5)
 
                 if (matches && matches.length > 0) {
-                  console.log('[brew/chat] Pre-resolved commander from user message:', matches.map(m => m.name))
+                  console.log('[brew/chat] Pre-resolved commander from user message:', matches.map(m => m.card_name))
                   const preEvent = {
                     type: 'candidates',
                     commanders: matches.map(m => ({
-                      name: m.name,
-                      color_identity: m.color_identity?.split(', ') ?? [],
+                      name: m.card_name,
+                      color_identity: m.color_identity?.split(',') ?? [],
                     })),
                   }
                   controller.enqueue(encoder.encode(`data: ${JSON.stringify(preEvent)}\n\n`))
@@ -397,7 +394,7 @@ export async function POST(request: NextRequest): Promise<Response> {
               if (commanderNames.length > 0) {
                 try {
                   const { data: validCommanders } = await supabase
-                    .from('mtg_cards')
+                    .from('mtg_cards' as any)
                     .select('name')
                     .in('name', commanderNames)
                     .eq('is_legendary', true)

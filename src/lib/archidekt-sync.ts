@@ -15,7 +15,7 @@
  * Validates: Requirements 2.1, 2.3, 2.4, 2.5, 2.6, 3.1, 3.2, 3.3
  */
 
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 import type { AllocationDiff } from './allocation-store'
 import type { AllocationRecord } from './allocation-resolver'
 import { markAsProxy, unmarkAsProxy, PROXY_TAG, PROXY_CATEGORY } from './archidekt-playwright'
@@ -25,13 +25,6 @@ import type { DenormalisationResult } from './ownership-resolver'
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-/**
- * Default user ID for single-user operation.
- * This matches the UUID injected during data migration.
- * Will be replaced by auth-based user ID when multi-user support is added.
- */
-const DEFAULT_USER_ID = process.env.SUPABASE_DEFAULT_USER_ID ?? '00000000-0000-0000-0000-000000000000'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -73,7 +66,8 @@ interface DeckChangeGroup {
  */
 export async function writeAllocationDiffToArchidekt(
   diff: AllocationDiff,
-  client: ArchidektPlaywrightClient
+  client: ArchidektPlaywrightClient,
+  userId: string
 ): Promise<WriteResult[]> {
   // 1. Collect all changed records from the diff
   const changedRecords: AllocationRecord[] = [
@@ -94,7 +88,7 @@ export async function writeAllocationDiffToArchidekt(
   const results: WriteResult[] = []
 
   for (const group of deckGroups) {
-    const result = await processDeckGroup(group, client)
+    const result = await processDeckGroup(group, client, userId)
     results.push(result)
   }
 
@@ -111,16 +105,17 @@ export async function writeAllocationDiffToArchidekt(
  * groups by deck, and attempts to write them.
  */
 export async function retryFailedWrites(
-  client: ArchidektPlaywrightClient
+  client: ArchidektPlaywrightClient,
+  userId: string
 ): Promise<WriteResult[]> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // Find all unwritten allocation records for the current user
   const { data: unwrittenRows, error } = await supabase
     .from('deck_allocations')
     .select('card_name, deck_id, role')
     .eq('written_to_archidekt', false)
-    .eq('user_id', DEFAULT_USER_ID)
+    .eq('user_id', userId)
 
   if (error) {
     throw new Error(`Failed to fetch unwritten allocations: ${error.message}`)
@@ -146,7 +141,7 @@ export async function retryFailedWrites(
   const results: WriteResult[] = []
 
   for (const group of deckGroups) {
-    const result = await processDeckGroup(group, client)
+    const result = await processDeckGroup(group, client, userId)
     results.push(result)
   }
 
@@ -183,7 +178,8 @@ function groupByDeck(records: AllocationRecord[]): DeckChangeGroup[] {
  */
 async function processDeckGroup(
   group: DeckChangeGroup,
-  client: ArchidektPlaywrightClient
+  client: ArchidektPlaywrightClient,
+  userId: string
 ): Promise<WriteResult> {
   const { deckId, changes } = group
 
@@ -220,7 +216,7 @@ async function processDeckGroup(
 
     if (allVerified) {
       // On success: UPDATE deck_allocations SET written_to_archidekt = TRUE, written_at = now
-      const supabase = createServerClient()
+      const supabase = createAdminClient()
       const now = new Date().toISOString()
 
       for (const change of changes) {
@@ -229,7 +225,7 @@ async function processDeckGroup(
           .update({ written_to_archidekt: true, written_at: now })
           .eq('card_name', change.cardName)
           .eq('deck_id', deckId)
-          .eq('user_id', DEFAULT_USER_ID)
+          .eq('user_id', userId)
 
         if (error) {
           console.error(`[archidekt-sync] Failed to mark allocation as written: ${error.message}`, {
@@ -328,7 +324,8 @@ export interface ResolveAndSyncResult {
  */
 export async function resolveAndSync(
   client: ArchidektPlaywrightClient | null,
-  deckId?: number
+  deckId?: number,
+  userId?: string
 ): Promise<ResolveAndSyncResult> {
   // Step 1: Run ownership resolution (allocation + denormalisation)
   let diff: AllocationDiff
@@ -354,7 +351,7 @@ export async function resolveAndSync(
   // Recommendation generation is gated behind ownershipResolved=true
   let tagWriteResults: WriteResult[] | undefined
   if (client && (diff.originalToProxy.length > 0 || diff.proxyToOriginal.length > 0 || diff.added.length > 0)) {
-    tagWriteResults = await writeAllocationDiffToArchidekt(diff, client)
+    tagWriteResults = await writeAllocationDiffToArchidekt(diff, client, userId ?? '')
   }
 
   return {

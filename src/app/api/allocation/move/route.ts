@@ -11,6 +11,7 @@
 import { NextRequest } from 'next/server'
 import { planCardMovement, executeCardMovement } from '@/lib/card-movement'
 import type { MoveCardCommand } from '@/lib/card-movement'
+import { requireAuth } from '@/lib/auth'
 
 interface MoveRequestBody {
   cardName: string
@@ -21,6 +22,10 @@ interface MoveRequestBody {
 }
 
 export async function POST(request: NextRequest) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+  const userId = authResult.id
+
   try {
     const body = (await request.json()) as MoveRequestBody
 
@@ -58,6 +63,7 @@ export async function POST(request: NextRequest) {
       fromDeckId: body.fromDeckId,
       toDeckId: body.toDeckId,
       scryfallId: body.scryfallId,
+      userId,
     }
 
     if (body.confirm) {

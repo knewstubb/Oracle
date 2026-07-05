@@ -5,7 +5,8 @@
 
 import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 import { buildInvestigatorSystemPrompt } from '@/lib/debrief-prompts'
 import type { DebriefBrief } from '@/lib/debrief-types'
 
@@ -28,6 +29,9 @@ interface ConversationMessage {
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest): Promise<Response> {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   try {
     const body = (await request.json()) as InvestigateBody
     const { sessionId, userMessage } = body
@@ -40,7 +44,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       return Response.json({ error: 'userMessage is required' }, { status: 400 })
     }
 
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
 
     // --- Load session ---
     const { data: session, error: fetchErr } = await supabase

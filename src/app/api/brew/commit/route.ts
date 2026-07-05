@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 import type { CommittedCommander } from '@/lib/brew-v2-types'
 
 // ---------------------------------------------------------------------------
@@ -84,7 +85,10 @@ function getArtUrl(card: ScryfallCard): string {
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
-  const supabase = createServerClient()
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
+  const supabase = createAdminClient()
 
   // --- Parse and validate request body ---
   let body: { sessionId: number; commanderName: string; scryfallId?: string }

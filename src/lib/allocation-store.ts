@@ -8,7 +8,7 @@
  * Validates: Requirements 1.3, 1.4, 7.2, 7.3
  */
 
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 import type {
   AllocationInput,
   AllocationOutput,
@@ -43,7 +43,7 @@ export interface AllocationDiff {
 export async function buildAllocationInput(
   externalOverrides?: Map<string, 'pin_original' | 'pin_proxy'>
 ): Promise<AllocationInput> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // 1. Build demandMap: card_name → list of deck IDs
   const demandMap = new Map<string, number[]>()
@@ -146,7 +146,7 @@ export async function buildAllocationInput(
  * Computes the diff against previous state and returns it.
  */
 export async function applyAllocationOutput(output: AllocationOutput): Promise<AllocationDiff> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const diff: AllocationDiff = {
     added: [],
@@ -207,7 +207,7 @@ export async function applyAllocationOutput(output: AllocationOutput): Promise<A
           priority_override: alloc.priorityOverride,
           written_to_archidekt: roleChanged ? false : (existing?.written_to_archidekt ?? false),
           assigned_at: roleChanged ? new Date().toISOString() : (existing?.assigned_at ?? new Date().toISOString()),
-          user_id: existing?.user_id ?? process.env.MIGRATION_USER_ID ?? '00000000-0000-0000-0000-000000000000',
+          user_id: existing?.user_id ?? '',
         },
         { onConflict: 'card_name,deck_id' }
       )
@@ -249,7 +249,7 @@ export async function applyAllocationOutput(output: AllocationOutput): Promise<A
  * Get all allocations for a specific deck.
  */
 export async function getAllocationsForDeck(deckId: number): Promise<AllocationRecord[]> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { data: rows, error } = await supabase
     .from('deck_allocations')
@@ -265,7 +265,7 @@ export async function getAllocationsForDeck(deckId: number): Promise<AllocationR
  * Get all allocations for a specific card name (across all decks).
  */
 export async function getAllocationsForCard(cardName: string): Promise<AllocationRecord[]> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { data: rows, error } = await supabase
     .from('deck_allocations')
@@ -281,7 +281,7 @@ export async function getAllocationsForCard(cardName: string): Promise<Allocatio
  * Get the proxy report: all cards where demand exceeds supply.
  */
 export async function getProxyReport(): Promise<ProxyReportEntry[]> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // Get all cards that have at least one proxy allocation
   const { data: proxyCards, error: proxyErr } = await supabase
@@ -344,8 +344,8 @@ export async function getProxyReport(): Promise<ProxyReportEntry[]> {
 /**
  * Set deck priority ordering.
  */
-export async function setDeckPriority(deckId: number, priority: number): Promise<void> {
-  const supabase = createServerClient()
+export async function setDeckPriority(deckId: number, priority: number, userId: string): Promise<void> {
+  const supabase = createAdminClient()
 
   const { error } = await supabase
     .from('deck_priority')
@@ -354,7 +354,7 @@ export async function setDeckPriority(deckId: number, priority: number): Promise
         deck_id: deckId,
         priority,
         updated_at: new Date().toISOString(),
-        user_id: process.env.MIGRATION_USER_ID ?? '00000000-0000-0000-0000-000000000000',
+        user_id: userId,
       },
       { onConflict: 'deck_id' }
     )
@@ -368,9 +368,10 @@ export async function setDeckPriority(deckId: number, priority: number): Promise
 export async function setPriorityOverride(
   cardName: string,
   deckId: number,
-  override: 'pin_original' | 'pin_proxy'
+  override: 'pin_original' | 'pin_proxy',
+  userId: string
 ): Promise<void> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const role = override === 'pin_original' ? 'original' : 'proxy'
 
   const { error } = await supabase
@@ -383,7 +384,7 @@ export async function setPriorityOverride(
         priority_override: true,
         written_to_archidekt: false,
         assigned_at: new Date().toISOString(),
-        user_id: process.env.MIGRATION_USER_ID ?? '00000000-0000-0000-0000-000000000000',
+        user_id: userId,
       },
       { onConflict: 'card_name,deck_id' }
     )
@@ -431,7 +432,7 @@ function rowToAllocationRecord(row: {
  * Validates: Requirements 9.5
  */
 export async function extractProxyOverridesFromDecks(): Promise<Map<string, 'pin_original' | 'pin_proxy'>> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const overrides = new Map<string, 'pin_original' | 'pin_proxy'>()
 
   const { data: rows, error } = await supabase

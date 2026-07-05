@@ -8,19 +8,13 @@
 // Validates: Requirements 5.1, 5.5
 // ---------------------------------------------------------------------------
 
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 import type {
   BrewSessionState,
   CommittedCommander,
   CommanderOption,
   DecisionLog,
 } from './brew-v2-types'
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const DEFAULT_USER_ID = process.env.SUPABASE_DEFAULT_USER_ID ?? '00000000-0000-0000-0000-000000000000'
 
 // ---------------------------------------------------------------------------
 // Types — Database Row
@@ -170,8 +164,8 @@ export function saveDraft(
  * Creates a new brew session row in Supabase and returns the generated ID.
  * Initializes with 'exploring' status and empty JSON structures.
  */
-export async function createBrewSession(): Promise<number> {
-  const supabase = createServerClient()
+export async function createBrewSession(userId: string): Promise<number> {
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('brew_sessions')
     .insert({
@@ -180,7 +174,7 @@ export async function createBrewSession(): Promise<number> {
       assessment_cache_json: '{}',
       refinement_history_json: '[]',
       conversation_json: '[]',
-      user_id: DEFAULT_USER_ID,
+      user_id: userId,
     })
     .select('id')
     .single()
@@ -197,7 +191,7 @@ export async function createBrewSession(): Promise<number> {
  * Returns null if the session does not exist.
  */
 export async function getBrewSession(sessionId: number): Promise<BrewSessionRow | null> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('brew_sessions')
     .select('*')
@@ -219,7 +213,7 @@ export async function getBrewSessionFields<T extends string>(
   sessionId: number,
   fields: T
 ): Promise<Record<string, unknown> | null> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('brew_sessions')
     .select(fields)
@@ -241,7 +235,7 @@ export async function updateBrewSession(
   sessionId: number,
   fields: Partial<Omit<BrewSessionRow, 'id' | 'created_at' | 'user_id'>>
 ): Promise<void> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updatePayload: any = { ...fields, updated_at: new Date().toISOString() }
   const { error } = await supabase
@@ -260,7 +254,7 @@ export async function updateBrewSession(
  * Throws if the session is not in a deletable state.
  */
 export async function deleteBrewSession(sessionId: number): Promise<void> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // Verify session exists and check status
   const { data: session, error: fetchErr } = await supabase
@@ -294,7 +288,7 @@ export async function deleteBrewSession(sessionId: number): Promise<void> {
 export async function listBrewSessions(
   statusFilter?: string[]
 ): Promise<Pick<BrewSessionRow, 'id' | 'status' | 'commander_name' | 'colour_identity' | 'updated_at'>[]> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   let query = supabase
     .from('brew_sessions')

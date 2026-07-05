@@ -9,19 +9,12 @@
 // Uses Supabase client for all database operations (async).
 // ---------------------------------------------------------------------------
 
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 import type { ActionType, DebriefSummary } from './debrief-types'
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-/**
- * Default user ID for single-user operation.
- * This matches the UUID injected during data migration.
- */
-const DEFAULT_USER_ID =
-  process.env.SUPABASE_DEFAULT_USER_ID ?? '00000000-0000-0000-0000-000000000000'
 
 // ---------------------------------------------------------------------------
 // applyCardSwap
@@ -39,10 +32,11 @@ const DEFAULT_USER_ID =
 export async function applyCardSwap(
   deckId: number,
   cutCard: string,
-  addCard: string
+  addCard: string,
+  userId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
 
     // DELETE the cut card from deck_cards
     const { data: deleted, error: deleteError } = await supabase
@@ -65,7 +59,7 @@ export async function applyCardSwap(
       deck_id: deckId,
       card_name: addCard,
       quantity: 1,
-      user_id: DEFAULT_USER_ID,
+      user_id: userId,
     })
 
     if (insertError) {
@@ -92,9 +86,10 @@ export async function logDebriefAction(
   cutCard: string,
   addCard: string,
   reason: string,
-  notionLogged: boolean
+  notionLogged: boolean,
+  userId: string
 ): Promise<void> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { error } = await supabase.from('debrief_actions').insert({
     session_id: sessionId,
@@ -103,7 +98,7 @@ export async function logDebriefAction(
     add_card: addCard,
     reason,
     notion_logged: notionLogged,
-    user_id: DEFAULT_USER_ID,
+    user_id: userId,
   })
 
   if (error) {
@@ -125,7 +120,7 @@ export async function buildDebriefSummary(
   sessionId: number,
   deckId: number
 ): Promise<DebriefSummary> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { data: rows, error } = await supabase
     .from('debrief_actions')

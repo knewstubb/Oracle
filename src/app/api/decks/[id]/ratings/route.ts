@@ -1,17 +1,21 @@
 import { NextRequest } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   const { id } = await params
   const deckId = parseInt(id, 10)
   if (isNaN(deckId) || deckId <= 0 || String(deckId) !== id) {
     return Response.json({ error: 'Invalid deck ID' }, { status: 400 })
   }
 
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { data: deck, error: deckErr } = await supabase
     .from('decks')

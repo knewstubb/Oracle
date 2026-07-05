@@ -14,7 +14,7 @@
  * Uses Supabase client for all database operations (async).
  */
 
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 
 export interface UpgradeCandidate {
   cardName: string
@@ -57,7 +57,7 @@ export async function classifyUpgradeCandidates(
   deckId: number,
   candidates: UpgradeCandidate[]
 ): Promise<UpgradeStrategyResult> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // Get deck metadata
   const { data: deck, error: deckError } = await supabase

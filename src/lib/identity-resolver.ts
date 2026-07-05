@@ -11,7 +11,7 @@
  * Requirements: 5.1, 5.5
  */
 
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -162,7 +162,7 @@ export function mapFinishToFoil(finish: string): boolean {
 export async function resolveOracleIdFromPrinting(
   scryfallPrintingId: string
 ): Promise<string | null> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('oracle_to_printings')
@@ -188,7 +188,7 @@ export async function resolveOracleIdFromPrinting(
 export async function resolvePrintingsForOracleId(
   oracleId: string
 ): Promise<string[]> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('oracle_to_printings')
@@ -211,7 +211,7 @@ export async function resolvePrintingsForOracleId(
 export async function resolveCardDefinitionByOracleId(
   oracleId: string
 ): Promise<{ id: number; cardName: string; oracleId: string } | null> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('card_definitions')
@@ -262,7 +262,7 @@ export async function batchResolveOracleIds(
 ): Promise<Map<string, string>> {
   if (scryfallPrintingIds.length === 0) return new Map()
 
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const result = new Map<string, string>()
 
   // Process in chunks of 500 to stay within Supabase query limits
@@ -300,7 +300,7 @@ export async function ensureOracleToPrintingMapping(
   oracleId: string,
   scryfallPrintingId: string
 ): Promise<void> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { error } = await supabase
     .from('oracle_to_printings')

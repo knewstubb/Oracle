@@ -8,7 +8,8 @@
  */
 
 import { NextRequest } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 import { serializeCategories } from '@/lib/categoryUtils'
 
 interface CategoriesRequestBody {
@@ -20,6 +21,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; cardId: string }> }
 ) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   try {
     const { id, cardId } = await params
     const deckId = parseInt(id, 10)
@@ -90,7 +94,7 @@ export async function PUT(
     })
 
     // --- Update via Supabase ---
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
     const { data, error } = await supabase
       .from('deck_cards')
       .update({ categories: serialized })

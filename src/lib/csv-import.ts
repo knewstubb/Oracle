@@ -12,7 +12,7 @@
  * Validates: Requirements 5.1, 5.5, 6.5
  */
 
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -20,9 +20,6 @@ import { createServerClient } from '@/lib/supabase'
 
 /** Number of rows to process per batch for Vercel timeout compatibility */
 const BATCH_SIZE = 500
-
-/** Default user ID for single-user operation */
-const DEFAULT_USER_ID = process.env.SUPABASE_DEFAULT_USER_ID ?? '00000000-0000-0000-0000-000000000000'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -206,7 +203,7 @@ function rowKey(row: { name: string; editionCode: string; finish: string }): str
 export async function computeCollectionDelta(
   newRows: CollectionCSVRow[]
 ): Promise<ImportDelta> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // Read current DB state
   const { data: currentDbRows, error } = await supabase
@@ -307,19 +304,20 @@ function chunk<T>(array: T[], size: number): T[][] {
  */
 export async function applyCollectionImport(
   rows: CollectionCSVRow[],
-  options?: { skipDelete?: boolean }
+  options?: { skipDelete?: boolean; userId?: string }
 ): Promise<ImportResult> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const batches: BatchResult[] = []
   const errors: string[] = []
   let totalInserted = 0
+  const userId = options?.userId ?? ''
 
   // Step 1: Delete existing collection data for this user (only on first chunk)
   if (!options?.skipDelete) {
     const { error: deleteError } = await supabase
       .from('collection')
       .delete()
-      .eq('user_id', DEFAULT_USER_ID)
+      .eq('user_id', userId)
 
     if (deleteError) {
       throw new Error(`Failed to clear collection before import: ${deleteError.message}`)
@@ -349,7 +347,7 @@ export async function applyCollectionImport(
         color_identity: row.identities || null,
         types: row.types || null,
         edition_name: row.editionName || null,
-        user_id: DEFAULT_USER_ID,
+        user_id: userId,
       }))
 
       const { error: insertError } = await supabase

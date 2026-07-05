@@ -12,7 +12,7 @@
 // Validates: Requirements 5.1, 5.5
 // ---------------------------------------------------------------------------
 
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 import type { CardAssessment } from './brew-v2-types'
 
 // ---------------------------------------------------------------------------
@@ -105,7 +105,7 @@ export function deserializeCache(
 export async function loadAssessmentCache(
   sessionId: number
 ): Promise<Map<string, CardAssessment>> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('brew_sessions')
     .select('assessment_cache_json')
@@ -131,7 +131,7 @@ export async function persistAssessmentCache(
   sessionId: number,
   cache: Map<string, CardAssessment>
 ): Promise<void> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { error } = await supabase
     .from('brew_sessions')
     .update({

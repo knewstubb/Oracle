@@ -1,11 +1,15 @@
 import { NextRequest } from 'next/server'
 import { getDocumentation, upsertDocumentation } from '@/lib/deck-documentation-store'
+import { requireAuth } from '@/lib/auth'
 import type { DeckDocumentationFields } from '@/lib/deck-documentation-store'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   const { id } = await params
   const deckId = parseInt(id, 10)
   if (isNaN(deckId) || deckId <= 0) {
@@ -20,6 +24,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   const { id } = await params
   const deckId = parseInt(id, 10)
   if (isNaN(deckId) || deckId <= 0) {
@@ -46,7 +53,7 @@ export async function PUT(
   }
 
   try {
-    await upsertDocumentation(deckId, body)
+    await upsertDocumentation(deckId, body, authResult.id)
     const updated = await getDocumentation(deckId)
     return Response.json({ documentation: updated })
   } catch (err: unknown) {

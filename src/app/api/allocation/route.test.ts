@@ -63,7 +63,7 @@ function createMockChain(data: unknown[] | null, error: unknown = null) {
 }
 
 vi.mock('@/lib/supabase', () => ({
-  createServerClient: () => ({
+  createAdminClient: () => ({
     from: (table: string) => {
       if (table === 'deck_cards') {
         // First call: select card_name, deck_id (without joins)

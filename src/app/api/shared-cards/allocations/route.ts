@@ -1,4 +1,4 @@
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 
 /**
  * GET /api/shared-cards/allocations
@@ -8,7 +8,7 @@ import { createServerClient } from '@/lib/supabase'
  */
 export async function GET() {
   try {
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
 
     const { data: rows, error } = await supabase
       .from('proxy_allocations')

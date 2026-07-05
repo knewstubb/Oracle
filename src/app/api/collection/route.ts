@@ -1,8 +1,12 @@
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 import { NextRequest } from 'next/server'
 
 export async function GET(request: NextRequest) {
-  const supabase = createServerClient()
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
+  const supabase = createAdminClient()
 
   const searchParams = request.nextUrl.searchParams
   const search = searchParams.get('search') || ''

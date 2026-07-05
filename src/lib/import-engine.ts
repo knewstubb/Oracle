@@ -18,7 +18,7 @@
  *   10.1, 10.4
  */
 
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 
 import {
   type ParsedCSVRow,
@@ -40,9 +40,6 @@ export type { UnmatchedRowDetail, UnmatchedReason }
 /** Number of rows to process per batch for Vercel timeout compatibility */
 const BATCH_SIZE = 500
 
-/** Default user ID for single-user operation */
-const DEFAULT_USER_ID = process.env.SUPABASE_DEFAULT_USER_ID ?? '00000000-0000-0000-0000-000000000000'
-
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -54,6 +51,8 @@ export interface ImportOptions {
   isFilePath?: boolean
   /** Optional: pre-built bulk index (for testing). If not provided, downloads/loads from cache. */
   bulkIndex?: ScryfallBulkIndex
+  /** User ID for the authenticated user */
+  userId?: string
 }
 
 export interface ImportSummary {
@@ -277,7 +276,7 @@ export async function executeCollectionImport(
     try {
       for (const row of batch) {
         // Ensure card_definition exists for this oracle_id
-        const cardDefinitionId = await ensureCardDefinition(row.oracleId, row.cardName)
+        const cardDefinitionId = await ensureCardDefinition(row.oracleId, row.cardName, options.userId ?? '')
 
         // Set the physical copy state (authoritative overwrite)
         const result = await setPhysicalCopyState({
@@ -286,6 +285,7 @@ export async function executeCollectionImport(
           isFoil: row.isFoil,
           quantity: row.quantity,
           condition: row.condition,
+          userId: options.userId ?? '',
         })
 
         // Track the touched row id for soft-delete exclusion
@@ -321,7 +321,7 @@ export async function executeCollectionImport(
   // on an empty/bad parse)
   if (resolved.length > 0 && touchedIds.size > 0) {
     try {
-      softDeleted = await softDeleteAbsentCopies(touchedIds)
+      softDeleted = await softDeleteAbsentCopies(touchedIds, options.userId ?? '')
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       batchErrors.push(`Soft-delete: ${message}`)
@@ -365,8 +365,8 @@ export async function executeCollectionImport(
  *
  * Returns the total number of rows soft-deleted.
  */
-async function softDeleteAbsentCopies(touchedIds: Set<number>): Promise<number> {
-  const supabase = createServerClient()
+async function softDeleteAbsentCopies(touchedIds: Set<number>, userId: string): Promise<number> {
+  const supabase = createAdminClient()
 
   // Get all non-proxy physical copies with quantity > 0
   const { data: allCopies, error: fetchError } = await supabase
@@ -374,7 +374,7 @@ async function softDeleteAbsentCopies(touchedIds: Set<number>): Promise<number> 
     .select('id')
     .eq('is_proxy', false)
     .gt('quantity', 0)
-    .eq('user_id', DEFAULT_USER_ID)
+    .eq('user_id', userId)
 
   if (fetchError) {
     throw new Error(`Failed to fetch physical copies for soft-delete: ${fetchError.message}`)

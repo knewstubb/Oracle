@@ -5,7 +5,8 @@
 
 import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 import { buildRefinementPrompt } from '@/lib/brew-prompts'
 import type {
   BrewSessionRow,
@@ -35,6 +36,9 @@ interface CollectionRow {
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   try {
     const body = (await request.json()) as RefineBody
     const { sessionId, action } = body
@@ -55,7 +59,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
 
     // --- Load session ---
     const { data: session, error: fetchErr } = await supabase
@@ -360,7 +364,7 @@ function buildCardEntry(cardName: string): CardEntry {
 
 function annotateCardEntry(entry: CardEntry): CardEntry {
   try {
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
     // Note: This is a synchronous-looking call but the function returns immediately
     // For annotation, we'll do a simple non-blocking approach
     // The ownership check will be done by the caller if needed
@@ -372,7 +376,7 @@ function annotateCardEntry(entry: CardEntry): CardEntry {
 
 async function annotateCardEntryAsync(entry: CardEntry): Promise<CardEntry> {
   try {
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
     const { data: row } = await supabase
       .from('collection')
       .select('card_name, quantity')

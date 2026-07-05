@@ -6,6 +6,7 @@ import {
 } from '@/lib/csv-import'
 import { importCollectionAndReallocate } from '@/lib/sync-engine'
 import { executeCollectionImportAsync } from '@/lib/import-engine'
+import { requireAuth } from '@/lib/auth'
 
 /**
  * Determines if an error is a CSV parse error (invalid format, missing columns, etc.).
@@ -21,6 +22,10 @@ function isCsvParseError(err: unknown): boolean {
 }
 
 export async function POST(request: NextRequest) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+  const userId = authResult.id
+
   const searchParams = request.nextUrl.searchParams
   const mode = searchParams.get('mode') || 'upsert'
 
@@ -119,7 +124,7 @@ export async function POST(request: NextRequest) {
     // If reallocate=true, use the full import+reallocation flow
     if (reallocate) {
       try {
-        const result = await importCollectionAndReallocate(csvContent)
+        const result = await importCollectionAndReallocate(csvContent, userId)
         return Response.json({
           delta: result.importDelta,
           applied: true,

@@ -15,13 +15,11 @@
  * Validates: Requirements 5.1, 5.5
  */
 
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-const DEFAULT_USER_ID = process.env.SUPABASE_DEFAULT_USER_ID ?? '00000000-0000-0000-0000-000000000000'
 
 export const RARITY_ORDER = ['common', 'uncommon', 'rare', 'mythic'] as const
 export type Rarity = (typeof RARITY_ORDER)[number]
@@ -265,7 +263,7 @@ function checkBracketMismatch(
  * Returns cards from deck_cards where dead_weight_flag IS NOT NULL.
  */
 export async function getDeadWeightCards(deckId: number): Promise<DeadWeightCard[]> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('deck_cards')
@@ -289,7 +287,7 @@ export async function getDeadWeightCards(deckId: number): Promise<DeadWeightCard
  * Called before recomputing flags.
  */
 export async function clearDeadWeightFlags(deckId: number): Promise<void> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { error } = await supabase
     .from('deck_cards')
@@ -310,7 +308,7 @@ export async function writeDeadWeightFlag(
   flag: DeadWeightFlag,
   reason: string
 ): Promise<void> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { error } = await supabase
     .from('deck_cards')
@@ -335,7 +333,7 @@ export async function writeDeadWeightFlags(
 
   // Supabase doesn't support batch updates with different values per row in one call,
   // so we issue individual updates. For larger batches, consider an RPC function.
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   for (const result of results) {
     const { error } = await supabase
@@ -360,7 +358,7 @@ export async function writeDeadWeightFlags(
  * Get all dismissed card names for a deck.
  */
 export async function getDismissals(deckId: number): Promise<string[]> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('dead_weight_dismissals')
@@ -378,15 +376,15 @@ export async function getDismissals(deckId: number): Promise<string[]> {
  * Dismiss a card (add to dead_weight_dismissals).
  * Returns true if inserted, false if already dismissed (duplicate).
  */
-export async function dismissCard(deckId: number, cardName: string): Promise<boolean> {
-  const supabase = createServerClient()
+export async function dismissCard(deckId: number, cardName: string, userId: string): Promise<boolean> {
+  const supabase = createAdminClient()
 
   const { error } = await supabase
     .from('dead_weight_dismissals')
     .insert({
       deck_id: deckId,
       card_name: cardName,
-      user_id: DEFAULT_USER_ID,
+      user_id: userId,
     })
 
   if (error) {
@@ -404,7 +402,7 @@ export async function dismissCard(deckId: number, cardName: string): Promise<boo
  * Un-dismiss a card (remove from dead_weight_dismissals).
  */
 export async function undismissCard(deckId: number, cardName: string): Promise<void> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { error } = await supabase
     .from('dead_weight_dismissals')

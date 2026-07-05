@@ -8,7 +8,7 @@
 // Validates: Requirements 5.1, 5.5
 // ---------------------------------------------------------------------------
 
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 import type { DeckCard, DeckState, CanvasCardPosition, CategoryHealth, DeckStatus, ArchivedItem } from './brew-v2-types'
 
 // ---------------------------------------------------------------------------

@@ -4,7 +4,8 @@
 // ---------------------------------------------------------------------------
 
 import { NextRequest } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 import type { CanvasCardPosition } from '@/lib/brew-v2-types'
 
 // ---------------------------------------------------------------------------
@@ -28,6 +29,9 @@ interface SkeletonJson {
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   try {
     const body = (await request.json()) as PositionsBody
     const { sessionId, canvasPositions } = body
@@ -41,7 +45,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Invalid canvasPositions' }, { status: 400 })
     }
 
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
 
     // --- Load existing skeleton_json ---
     const { data: row, error: fetchErr } = await supabase

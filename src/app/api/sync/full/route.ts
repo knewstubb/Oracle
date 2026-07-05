@@ -14,6 +14,7 @@
 import { NextRequest } from 'next/server'
 import { runSyncCycle } from '@/lib/sync-engine'
 import { fetchDeck } from '@/lib/archidekt-client'
+import { requireAuth } from '@/lib/auth'
 import type { ArchidektFetcher } from '@/lib/sync-engine'
 
 interface SyncFullRequestBody {
@@ -26,6 +27,10 @@ const archidektFetcher: ArchidektFetcher = {
 }
 
 export async function POST(request: NextRequest) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+  const userId = authResult.id
+
   try {
     const body = (await request.json()) as SyncFullRequestBody
 
@@ -55,7 +60,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const result = await runSyncCycle('manual', archidektFetcher, body.deckIds)
+    const result = await runSyncCycle('manual', archidektFetcher, body.deckIds, userId)
 
     return Response.json({
       success: true,

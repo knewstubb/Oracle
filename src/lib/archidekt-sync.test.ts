@@ -19,7 +19,7 @@ let allocationsStore: Array<{
 
 // Mock the Supabase module
 vi.mock('@/lib/supabase', () => ({
-  createServerClient: () => ({
+  createAdminClient: () => ({
     from: (table: string) => {
       if (table === 'deck_allocations') {
         return {

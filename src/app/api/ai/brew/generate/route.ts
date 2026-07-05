@@ -5,7 +5,8 @@
 
 import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 import { buildSkeletonGenerationPrompt } from '@/lib/brew-prompts'
 import type { BrewSessionRow, StrategyBrief, DeckSkeleton } from '@/types/brew'
 
@@ -33,6 +34,9 @@ interface DeckNameRow {
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   try {
     const body = await request.json()
     const { sessionId } = body as { sessionId: number }
@@ -42,7 +46,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Invalid session ID' }, { status: 400 })
     }
 
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
 
     // --- Load session ---
     const { data: session, error: fetchErr } = await supabase
@@ -152,7 +156,7 @@ async function queryCollectionByColourIdentity(
   commanderCI: string[]
 ): Promise<Array<{ cardName: string; owned: boolean }>> {
   try {
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
     const { data: rows, error } = await supabase
       .from('collection')
       .select('card_name, quantity')
@@ -246,7 +250,7 @@ function parseSkeleton(text: string): DeckSkeleton | null {
  */
 async function annotateSkeleton(skeleton: DeckSkeleton): Promise<void> {
   try {
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
 
     // Get all cards in other decks for proxy conflict detection
     const { data: deckCards } = await supabase.from('deck_cards').select('card_name, deck_id')

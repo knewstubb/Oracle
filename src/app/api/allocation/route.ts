@@ -12,7 +12,8 @@
  */
 
 import { NextRequest } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 import {
   getAllocationsForDeck,
   getAllocationsForCard,
@@ -35,7 +36,7 @@ export interface AllocationCardGroup {
  * When deckId is provided, filters to cards in that deck AND at least one other.
  */
 async function getSharedCardsAllocation(deckId?: number): Promise<AllocationCardGroup[]> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // Step 1: Find card names appearing in 2+ distinct decks
   // We need to query deck_cards grouped by card_name
@@ -107,6 +108,9 @@ async function getSharedCardsAllocation(deckId?: number): Promise<AllocationCard
 }
 
 export async function GET(request: NextRequest) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   try {
     const searchParams = request.nextUrl.searchParams
     const viewParam = searchParams.get('view')

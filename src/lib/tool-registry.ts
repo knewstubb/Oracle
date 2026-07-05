@@ -18,7 +18,7 @@ import { scryfallSearch } from './scryfall-cache'
 import { getCommanderStaples, formatEDHRECResponse } from './edhrec-client'
 import { validateCommander, formatCommanderValidation, searchCards, formatSearchResults } from './scryfall-client'
 import { findCombosForCard, formatComboResults } from './spellbook-client'
-import { createServerClient } from './supabase'
+import { createAdminClient } from './supabase'
 
 // ---------------------------------------------------------------------------
 // Registry Core
@@ -253,7 +253,7 @@ registry.set('mtg_commander_deck', {
   },
   execute: async (input) => {
     try {
-      const supabase = createServerClient()
+      const supabase = createAdminClient()
       const { data, error } = await supabase
         .from('mtg_cards' as any)
         .select('name, type_line, color_identity, mana_cost, edhrec_rank, commander_legal, is_legendary, is_creature')
@@ -506,7 +506,7 @@ registry.set('mtg_cardtypes_get', {
   },
   execute: async (input) => {
     try {
-      const supabase = createServerClient()
+      const supabase = createAdminClient()
       const { data, error } = await supabase
         .from('mtg_cards' as any)
         .select('name, type_line, color_identity, mana_cost, mana_value, oracle_text, power, toughness, edhrec_rank')
@@ -703,7 +703,7 @@ registry.set('card_fuzzy_lookup', {
       const fuzzyName = input.name as string
 
       // --- Step 1: Try exact ilike match from our Supabase mtg_cards table ---
-      const supabase = createServerClient()
+      const supabase = createAdminClient()
       const { data: exactMatch } = await supabase
         .from('mtg_cards' as any)
         .select('name, type_line, color_identity, mana_cost, mana_value, oracle_text, edhrec_rank, is_legendary, is_creature, commander_legal')

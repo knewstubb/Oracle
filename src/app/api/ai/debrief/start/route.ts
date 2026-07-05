@@ -1,8 +1,13 @@
 import { NextRequest } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 import { buildInvestigatorSystemPrompt } from '@/lib/debrief-prompts'
 
 export async function POST(request: NextRequest) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+  const userId = authResult.id
+
   try {
     const body = await request.json()
     const { deckId } = body as { deckId: number }
@@ -12,7 +17,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Invalid deck ID' }, { status: 400 })
     }
 
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
 
     // Verify deck exists
     const { data: deck, error: deckErr } = await supabase
@@ -62,7 +67,7 @@ export async function POST(request: NextRequest) {
       .insert({
         deck_id: deckId,
         status: 'investigating',
-        user_id: '00000000-0000-0000-0000-000000000000',
+        user_id: userId,
       })
       .select('id')
       .single()

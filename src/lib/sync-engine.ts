@@ -12,7 +12,7 @@
  * Validates: Requirements 1.2, 1.3, 2.1, 5.1, 5.2, 5.3, 5.5, 5.6, 5.7, 6.2, 6.4
  */
 
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 import type { ArchidektDeckFull, ArchidektDeckCard } from './archidekt-client'
 import { buildAllocationInput, applyAllocationOutput } from './allocation-store'
 import type { AllocationDiff } from './allocation-store'
@@ -29,8 +29,6 @@ import { recomputePreconModState } from './precon-mod-store'
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-const DEFAULT_USER_ID = process.env.SUPABASE_DEFAULT_USER_ID ?? '00000000-0000-0000-0000-000000000000'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -108,9 +106,10 @@ interface LocalDeckCard {
  */
 export async function reconcileDeck(
   deckId: number,
-  fetcher: ArchidektFetcher
+  fetcher: ArchidektFetcher,
+  userId: string
 ): Promise<number> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // Fetch current state from Archidekt
   const archidektDeck = await fetcher.fetchDeck(deckId)
@@ -164,7 +163,7 @@ export async function reconcileDeck(
           categories: JSON.stringify(archCard.categories),
           tags,
           is_commander: isCommander,
-          user_id: DEFAULT_USER_ID,
+          user_id: userId,
         })
 
       if (insertErr) throw new Error(`Failed to insert deck card ${cardName}: ${insertErr.message}`)
@@ -284,9 +283,10 @@ export async function reconcileDeck(
 export async function runSyncCycle(
   trigger: SyncCycleResult['trigger'],
   fetcher: ArchidektFetcher,
-  deckIds?: number[]
+  deckIds?: number[],
+  userId?: string
 ): Promise<SyncCycleResult> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const startedAt = new Date().toISOString()
   const deckResults: DeckSyncResult[] = []
 
@@ -316,7 +316,7 @@ export async function runSyncCycle(
   // Phase 1: Reconcile each deck (failure-isolated)
   for (const deck of decksToProcess) {
     try {
-      const compositionChanges = await reconcileDeck(deck.id, fetcher)
+      const compositionChanges = await reconcileDeck(deck.id, fetcher, userId ?? '')
 
       // Recompute precon mod state if this is a precon mod deck
       try {
@@ -327,7 +327,7 @@ export async function runSyncCycle(
           .maybeSingle()
 
         if (deckRow?.deck_type === 'Precon Mod') {
-          await recomputePreconModState(deck.id)
+          await recomputePreconModState(deck.id, userId ?? '')
         }
       } catch (preconErr) {
         // Non-blocking: log warning but don't fail the sync cycle
@@ -419,7 +419,7 @@ export async function runSyncCycle(
         const healthOverrides = await getHealthOverrides(deckId)
         const healthResult = computeHealth(cards, classOverrides, healthOverrides)
         healthResult.deckId = deckId
-        await upsertHealthResult(healthResult)
+        await upsertHealthResult(healthResult, userId ?? '')
       } catch (err) {
         // Non-blocking: log warning but don't fail the sync
         console.warn(`[sync] Health recomputation failed for deck ${deckId}:`, err)
@@ -443,7 +443,7 @@ export async function runSyncCycle(
       decks_succeeded: decksSucceeded,
       decks_failed: decksFailed,
       details: JSON.stringify(deckResults),
-      user_id: DEFAULT_USER_ID,
+      user_id: userId ?? '',
     })
 
   if (syncRunErr) {
@@ -517,9 +517,10 @@ export interface ImportAndReallocateResult {
  * Validates: Requirements 6.1, 6.2, 6.3, 6.4, 6.5
  */
 export async function importCollectionAndReallocate(
-  csvContent: string
+  csvContent: string,
+  userId: string
 ): Promise<ImportAndReallocateResult> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // Step 1: Parse CSV
   const rows = parseCollectionCSV(csvContent)
@@ -630,7 +631,7 @@ export async function importCollectionAndReallocate(
       color_identity: row.identities,
       types: row.types,
       edition_name: row.editionName,
-      user_id: DEFAULT_USER_ID,
+      user_id: userId,
     }))
 
     const { error: batchErr } = await supabase
@@ -723,7 +724,7 @@ export async function importCollectionAndReallocate(
       const healthOverrides = await getHealthOverrides(deckId)
       const healthResult = computeHealth(cards, classOverrides, healthOverrides)
       healthResult.deckId = deckId
-      await upsertHealthResult(healthResult)
+      await upsertHealthResult(healthResult, userId)
     } catch (err) {
       // Non-blocking: log warning but don't fail the import
       console.warn(`[sync] Health recomputation failed for deck ${deckId} after collection import:`, err)

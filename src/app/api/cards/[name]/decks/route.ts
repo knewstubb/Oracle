@@ -1,10 +1,14 @@
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 import { NextRequest } from 'next/server'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ name: string }> }
 ) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   const { name } = await params
   const cardName = decodeURIComponent(name)
 
@@ -12,7 +16,7 @@ export async function GET(
     return Response.json({ error: 'Card name is required' }, { status: 400 })
   }
 
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { data: rows, error } = await supabase
     .from('deck_cards')

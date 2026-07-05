@@ -1,21 +1,24 @@
 import { NextRequest } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 import { appendNote } from '@/lib/deck-documentation-store'
 import { formatChangeLogEntry } from '@/lib/upgrade-changelog'
-
-const DEFAULT_USER_ID = process.env.SUPABASE_DEFAULT_USER_ID ?? '00000000-0000-0000-0000-000000000000'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+  const userId = authResult.id
+
   const { id } = await params
   const deckId = parseInt(id, 10)
   if (isNaN(deckId) || deckId <= 0) {
     return Response.json({ error: 'Invalid deck ID' }, { status: 400 })
   }
 
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // Validate deck exists
   const { data: deck, error: deckErr } = await supabase
@@ -58,7 +61,7 @@ export async function POST(
       reason: '',
       skipped: true,
       date: today,
-      user_id: DEFAULT_USER_ID,
+      user_id: userId,
     })
 
   // Remove candidate from active deck_upgrades content
@@ -94,7 +97,7 @@ export async function POST(
   // Fire-and-forget: Log to local notes (don't block response)
   const formattedEntry = formatChangeLogEntry(cut, add, 'skipped', '', today)
   try {
-    await appendNote(deckId, formattedEntry)
+    await appendNote(deckId, formattedEntry, userId)
   } catch (err) {
     console.error('[Note logging failed]', err)
   }

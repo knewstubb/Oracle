@@ -15,7 +15,7 @@
  * Validates: Requirements 2.2, 2.3, 2.4, 2.5
  */
 
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 import type { AllocationOutput } from './allocation-resolver'
 import { computeAllocations } from './allocation-resolver'
 import { buildAllocationInput, applyAllocationOutput, extractProxyOverridesFromDecks } from './allocation-store'
@@ -83,7 +83,7 @@ export async function resolveOwnership(): Promise<{
 export async function denormaliseOwnership(
   output: AllocationOutput
 ): Promise<DenormalisationResult> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   let originalCount = 0
   let proxyCount = 0
   let notOwnedCount = 0
@@ -190,7 +190,7 @@ export async function detectConflict(
   cardName: string,
   targetDeckId: number
 ): Promise<ConflictResult> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // Check if the card exists in the collection
   const { data: supplyRows, error: supplyErr } = await supabase

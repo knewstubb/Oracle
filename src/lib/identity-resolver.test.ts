@@ -9,7 +9,7 @@ import {
 
 // Mock the Supabase client module
 vi.mock('@/lib/supabase', () => ({
-  createServerClient: () => ({
+  createAdminClient: () => ({
     from: () => ({
       select: () => ({
         eq: () => ({

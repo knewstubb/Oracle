@@ -10,7 +10,8 @@
 // ---------------------------------------------------------------------------
 
 import { NextRequest } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 import type { BrewSessionRow, DeckSkeleton, StrategyBrief } from '@/types/brew'
 
 // ---------------------------------------------------------------------------
@@ -27,6 +28,10 @@ interface SaveBody {
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+  const userId = authResult.id
+
   try {
     const body = (await request.json()) as SaveBody
     const { sessionId, deckName } = body
@@ -39,7 +44,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'deckName is required' }, { status: 400 })
     }
 
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
 
     // --- Load session ---
     const { data: session, error: fetchErr } = await supabase
@@ -94,7 +99,7 @@ export async function POST(request: NextRequest) {
           name: deckName.trim(),
           commander_name: skeleton.commanderName,
           colour_identity: skeleton.colourIdentity.join(','),
-          user_id: '00000000-0000-0000-0000-000000000000',
+          user_id: userId,
         })
         .select('id')
         .single()
@@ -113,7 +118,7 @@ export async function POST(request: NextRequest) {
           quantity: 1,
           categories: category.name,
           is_commander: card.cardName.toLowerCase() === skeleton.commanderName.toLowerCase(),
-          user_id: '00000000-0000-0000-0000-000000000000',
+          user_id: userId,
         }))
       )
 
@@ -197,7 +202,7 @@ export async function POST(request: NextRequest) {
 async function populateStrategyCanvas(deckId: number, brief: StrategyBrief): Promise<void> {
   // Check if strategy table/columns exist — gracefully skip if not
   try {
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
     const strategyData = JSON.stringify({
       primaryWinCondition: brief.primaryWinCondition,
       secondaryWinCondition: brief.secondaryWinCondition,

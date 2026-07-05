@@ -1,6 +1,10 @@
 import { getAllPreferences } from '@/lib/generic-land-store'
+import { requireAuth } from '@/lib/auth'
 
 export async function GET() {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   try {
     const preferences = await getAllPreferences()
     return Response.json(preferences)

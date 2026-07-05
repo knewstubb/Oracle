@@ -5,7 +5,8 @@
 
 import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 import { categorizeDecision, DECISION_TYPES } from '@/lib/brew-v2-decisions'
 import type { DecisionEntry, DecisionLog } from '@/lib/brew-v2-types'
 
@@ -73,6 +74,9 @@ Respond ONLY with the JSON array. No markdown fences, no explanation.`
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   try {
     const body = (await request.json()) as ExtractBody
     const { sessionId, responseText } = body
@@ -85,7 +89,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'responseText cannot be empty' }, { status: 400 })
     }
 
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
 
     // --- Load session ---
     const { data: session, error: fetchErr } = await supabase

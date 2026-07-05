@@ -1,6 +1,7 @@
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 import { fetchDeck } from '@/lib/archidekt-client'
 import { importDeck } from '@/lib/sync'
+import { requireAuth } from '@/lib/auth'
 import { NextRequest } from 'next/server'
 
 interface ReimportRequest {
@@ -11,6 +12,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   const { id } = await params
   const deckId = parseInt(id, 10)
 
@@ -18,7 +22,7 @@ export async function POST(
     return Response.json({ error: 'Invalid deck ID' }, { status: 400 })
   }
 
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // Validate that the deck exists and was previously imported
   const { data: deck, error: deckErr } = await supabase
@@ -64,7 +68,7 @@ export async function POST(
   // Confirmed: fetch from Archidekt and re-import
   try {
     const archidektDeck = await fetchDeck(deckId)
-    await importDeck(archidektDeck)
+    await importDeck(archidektDeck, authResult.id)
 
     return Response.json({
       success: true,

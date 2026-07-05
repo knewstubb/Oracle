@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutGrid, Copy, Library, Search, Plus, PanelLeftClose, PanelLeft, RefreshCw, Loader2, Settings } from 'lucide-react'
+import { LayoutGrid, Copy, Library, Search, Plus, PanelLeftClose, PanelLeft, RefreshCw, Loader2, Settings, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -12,6 +12,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from '@/components/ui/tooltip'
+import { logout } from '@/app/actions/auth'
 
 const COLLAPSE_KEY = 'sidebar-collapsed'
 
@@ -64,6 +65,11 @@ export function Sidebar() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
+
+  // Hide sidebar on auth pages (login, auth callback)
+  if (pathname === '/login' || pathname.startsWith('/auth/')) {
+    return null
+  }
 
   function isActive(item: NavItem) {
     if (item.isOverlay) return false
@@ -169,12 +175,13 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Footer — sync */}
+      {/* Footer — sync & logout */}
       <div className={cn(
         'border-t border-border p-2 space-y-1',
         collapsed ? 'flex flex-col items-center' : ''
       )}>
         <SyncButton collapsed={collapsed} />
+        <LogoutButton collapsed={collapsed} />
       </div>
     </aside>
   )
@@ -245,5 +252,45 @@ function SyncButton({ collapsed }: { collapsed: boolean }) {
       )}
       <span className="truncate">{isSyncing ? 'Syncing...' : 'Sync'}</span>
     </button>
+  )
+}
+
+
+function LogoutButton({ collapsed }: { collapsed: boolean }) {
+  if (collapsed) {
+    return (
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <form action={logout}>
+              <Button
+                type="submit"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Log out"
+              />
+            </form>
+          }
+        >
+          <LogOut className="size-4" strokeWidth={1.5} />
+        </TooltipTrigger>
+        <TooltipContent side="right">Log out</TooltipContent>
+      </Tooltip>
+    )
+  }
+
+  return (
+    <form action={logout}>
+      <button
+        type="submit"
+        className={cn(
+          'flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-medium transition-colors duration-150',
+          'text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground'
+        )}
+      >
+        <LogOut className="size-5 shrink-0" strokeWidth={1.5} />
+        <span className="truncate">Log out</span>
+      </button>
+    </form>
   )
 }

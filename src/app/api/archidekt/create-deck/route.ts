@@ -8,8 +8,12 @@
 // ---------------------------------------------------------------------------
 
 import { NextRequest } from 'next/server'
+import { requireAuth } from '@/lib/auth'
 
 export async function POST(_request: NextRequest) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   return Response.json(
     {
       success: false,

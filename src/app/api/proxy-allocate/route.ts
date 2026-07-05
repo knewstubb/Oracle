@@ -9,6 +9,7 @@
 // ---------------------------------------------------------------------------
 
 import { NextRequest } from 'next/server'
+import { requireAuth } from '@/lib/auth'
 import { commitAllocation } from '@/lib/allocation'
 
 interface Allocation {
@@ -34,6 +35,10 @@ interface ProxyAllocateResponse {
 }
 
 export async function POST(request: NextRequest) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+  const userId = authResult.id
+
   try {
     const body = (await request.json()) as ProxyAllocateRequest
 
@@ -83,6 +88,7 @@ export async function POST(request: NextRequest) {
     const result = await commitAllocation({
       cardName: body.cardName,
       allocations: body.allocations,
+      userId,
     })
 
     const response: ProxyAllocateResponse = {

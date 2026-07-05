@@ -12,7 +12,7 @@ const mockDeckCardsInsert = vi.fn()
 const mockDeckCardsDelete = vi.fn()
 
 vi.mock('@/lib/supabase', () => ({
-  createServerClient: () => ({
+  createAdminClient: () => ({
     from: (table: string) => {
       if (table === 'brew_sessions') {
         return {

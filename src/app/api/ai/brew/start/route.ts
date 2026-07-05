@@ -4,10 +4,15 @@
 // ---------------------------------------------------------------------------
 
 import { NextRequest } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 import { buildBrewInvestigatorPrompt } from '@/lib/brew-prompts'
 
 export async function POST(request: NextRequest) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+  const userId = authResult.id
+
   try {
     const body = await request.json()
     const { pathType, commanderName, conceptDescription } = body as {
@@ -43,7 +48,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
 
     // --- Insert new brew session ---
     const { data: newSession, error: insertErr } = await supabase
@@ -53,7 +58,7 @@ export async function POST(request: NextRequest) {
         path_type: pathType,
         commander_name: pathType === 'commander' ? commanderName!.trim() : null,
         concept_description: pathType === 'concept' ? conceptDescription!.trim() : null,
-        user_id: '00000000-0000-0000-0000-000000000000',
+        user_id: userId,
       })
       .select('id')
       .single()

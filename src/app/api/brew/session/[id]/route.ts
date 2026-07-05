@@ -9,6 +9,7 @@
 // ---------------------------------------------------------------------------
 
 import { NextRequest } from 'next/server'
+import { requireAuth } from '@/lib/auth'
 import { getBrewSession, updateBrewSession } from '@/lib/brew-v2-session'
 
 // ---------------------------------------------------------------------------
@@ -78,6 +79,9 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   try {
     // --- Validate path param ---
     const { id } = await params

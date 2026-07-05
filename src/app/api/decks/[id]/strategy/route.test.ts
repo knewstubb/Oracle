@@ -72,7 +72,7 @@ function createQueryMock(table: string) {
 }
 
 vi.mock('@/lib/supabase', () => ({
-  createServerClient: () => ({
+  createAdminClient: () => ({
     from: (table: string) => createQueryMock(table),
   }),
 }))

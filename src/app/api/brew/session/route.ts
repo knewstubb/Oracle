@@ -3,24 +3,27 @@
 // ---------------------------------------------------------------------------
 
 import { NextRequest } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
-
-const DEFAULT_USER_ID = process.env.SUPABASE_DEFAULT_USER_ID ?? '00000000-0000-0000-0000-000000000000'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 
 // POST — Create a new brew session
 export async function POST(request: NextRequest) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+  const userId = authResult.id
+
   try {
     const body = await request.json().catch(() => ({}))
     const action = body?.action ?? 'create'
 
     if (action === 'create') {
-      const supabase = createServerClient()
+      const supabase = createAdminClient()
       const { data, error } = await supabase
         .from('brew_sessions')
         .insert({
           status: 'exploring',
           decision_log_json: '{"strategy":[],"parameters":[],"constraints":[]}',
-          user_id: DEFAULT_USER_ID,
+          user_id: userId,
         })
         .select('id')
         .single()
@@ -41,6 +44,9 @@ export async function POST(request: NextRequest) {
 // Returns all persistable fields needed for session hydration (autosave loader)
 // Validates: Requirements 7.1, 7.3
 export async function GET(request: NextRequest) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   try {
     const { searchParams } = new URL(request.url)
     const sessionId = searchParams.get('id')
@@ -54,7 +60,7 @@ export async function GET(request: NextRequest) {
       return Response.json({ error: 'Invalid session ID' }, { status: 400 })
     }
 
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
     const { data: session, error } = await supabase
       .from('brew_sessions')
       .select('id, conversation_json, decision_log_json, skeleton_json, status, commander_name, colour_identity, path_type, model_id, updated_at, created_at')

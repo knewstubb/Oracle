@@ -1,5 +1,6 @@
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 import { getOwnedValuation } from '@/lib/price-store'
+import { requireAuth } from '@/lib/auth'
 import { NextRequest } from 'next/server'
 
 export interface DeckUsageEntry {
@@ -29,6 +30,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ cardDefinitionId: string }> }
 ) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   const { cardDefinitionId: rawId } = await params
   const cardDefinitionId = parseInt(rawId, 10)
 
@@ -36,7 +40,7 @@ export async function GET(
     return Response.json({ error: 'Card not found' }, { status: 404 })
   }
 
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // Verify the card_definition exists
   const { data: cardDef, error: cdErr } = await supabase

@@ -10,13 +10,7 @@
  * Validates: Requirements 5.1, 5.2, 5.5
  */
 
-import { createServerClient } from '@/lib/supabase'
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const DEFAULT_USER_ID = process.env.SUPABASE_DEFAULT_USER_ID ?? '00000000-0000-0000-0000-000000000000'
+import { createAdminClient } from '@/lib/supabase'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -50,7 +44,7 @@ export interface DeckNote {
  * Returns null if no documentation exists yet.
  */
 export async function getDocumentation(deckId: number): Promise<DeckDocumentation | null> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('deck_documentation')
     .select('deck_id, strategy_playstyle, synergy_lines, strengths_weaknesses, matchup_notes, mulligan_guide, updated_at')
@@ -71,7 +65,8 @@ export async function getDocumentation(deckId: number): Promise<DeckDocumentatio
  */
 export async function upsertDocumentation(
   deckId: number,
-  fields: Partial<DeckDocumentationFields>
+  fields: Partial<DeckDocumentationFields>,
+  userId: string
 ): Promise<void> {
   // Validate synergy_lines if provided and non-null
   if (fields.synergy_lines !== undefined && fields.synergy_lines !== null) {
@@ -109,7 +104,7 @@ export async function upsertDocumentation(
     ? fields.mulligan_guide
     : (existing?.mulligan_guide ?? null)
 
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { error } = await supabase
     .from('deck_documentation')
     .upsert({
@@ -119,7 +114,7 @@ export async function upsertDocumentation(
       strengths_weaknesses,
       matchup_notes,
       mulligan_guide,
-      user_id: DEFAULT_USER_ID,
+      user_id: userId,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'deck_id' })
 
@@ -137,7 +132,7 @@ export async function upsertDocumentation(
  * Optionally limit the number of results.
  */
 export async function getNotes(deckId: number, limit?: number): Promise<DeckNote[]> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   let query = supabase
     .from('deck_notes')
@@ -163,15 +158,15 @@ export async function getNotes(deckId: number, limit?: number): Promise<DeckNote
  * Validates content is non-blank (at least one non-whitespace character).
  * Returns the inserted row id.
  */
-export async function appendNote(deckId: number, content: string): Promise<number> {
+export async function appendNote(deckId: number, content: string, userId: string): Promise<number> {
   if (!content || content.trim().length === 0) {
     throw new Error('Content must not be blank')
   }
 
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('deck_notes')
-    .insert({ deck_id: deckId, content, user_id: DEFAULT_USER_ID })
+    .insert({ deck_id: deckId, content, user_id: userId })
     .select('id')
     .single()
 

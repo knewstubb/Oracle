@@ -1,12 +1,15 @@
 import { NextRequest } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
-
-const DEFAULT_USER_ID = process.env.SUPABASE_DEFAULT_USER_ID ?? '00000000-0000-0000-0000-000000000000'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+  const userId = authResult.id
+
   const { id } = await params
   const deckId = parseInt(id, 10)
 
@@ -14,7 +17,7 @@ export async function POST(
     return Response.json({ error: 'Invalid deck ID' }, { status: 400 })
   }
 
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // Validate deck exists
   const { data: deck, error: deckErr } = await supabase
@@ -52,7 +55,7 @@ export async function POST(
           deck_id: deckId,
           content,
           generated_at: new Date().toISOString(),
-          user_id: DEFAULT_USER_ID,
+          user_id: userId,
         },
         { onConflict: 'deck_id' }
       )

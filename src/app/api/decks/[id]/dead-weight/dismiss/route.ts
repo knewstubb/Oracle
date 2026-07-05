@@ -1,17 +1,22 @@
 import { NextRequest } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+  const userId = authResult.id
+
   const { id } = await params
   const deckId = parseInt(id, 10)
   if (isNaN(deckId) || deckId <= 0) {
     return Response.json({ error: 'Invalid deck ID' }, { status: 400 })
   }
 
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { data: deck, error: deckErr } = await supabase
     .from('decks')
@@ -41,7 +46,7 @@ export async function POST(
 
   const { error: insertErr } = await supabase
     .from('dead_weight_dismissals')
-    .insert({ deck_id: deckId, card_name: cardName, user_id: process.env.SUPABASE_DEFAULT_USER_ID ?? '00000000-0000-0000-0000-000000000000' })
+    .insert({ deck_id: deckId, card_name: cardName, user_id: userId })
 
   if (insertErr) {
     if (insertErr.code === '23505') {
@@ -60,13 +65,16 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   const { id } = await params
   const deckId = parseInt(id, 10)
   if (isNaN(deckId) || deckId <= 0) {
     return Response.json({ error: 'Invalid deck ID' }, { status: 400 })
   }
 
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { data: deck, error: deckErr } = await supabase
     .from('decks')

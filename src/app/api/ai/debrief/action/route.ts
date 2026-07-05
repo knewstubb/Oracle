@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 import { applyCardSwap, logDebriefAction } from '@/lib/debrief-actions'
 import { formatDebriefNoteEntry } from '@/lib/debrief-prompts'
 import { resolveOwnership } from '@/lib/ownership-resolver'
@@ -7,6 +8,9 @@ import { appendNote } from '@/lib/deck-documentation-store'
 import type { Recommendation, DebriefSessionRow } from '@/lib/debrief-types'
 
 export async function POST(request: NextRequest) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+  const userId = authResult.id
   try {
     const body = await request.json()
     const { sessionId, recommendationIndex, actionType } = body as {
@@ -28,7 +32,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Invalid actionType' }, { status: 400 })
     }
 
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
 
     // Validate session exists with status 'recommending'
     const { data: session, error: fetchErr } = await supabase
@@ -77,11 +81,11 @@ export async function POST(request: NextRequest) {
 
     if (actionType === 'applied') {
       // a. Apply card swap
-      const swapResult = await applyCardSwap(session.deck_id, rec.cutCard, rec.addCard)
+      const swapResult = await applyCardSwap(session.deck_id, rec.cutCard, rec.addCard, userId)
 
       if (!swapResult.success) {
         // Log error action
-        await logDebriefAction(sessionId, 'error', rec.cutCard, rec.addCard, rec.reason, false)
+        await logDebriefAction(sessionId, 'error', rec.cutCard, rec.addCard, rec.reason, false, userId)
 
         return Response.json(
           { success: false, error: swapResult.error },
@@ -104,17 +108,17 @@ export async function POST(request: NextRequest) {
           addCard: rec.addCard,
           reason: rec.reason,
         })
-        await appendNote(session.deck_id, noteEntry)
+        await appendNote(session.deck_id, noteEntry, userId)
         noteLogged = true
       } catch (err) {
         console.warn('Note logging failed (non-blocking):', err)
       }
 
       // d. Log action
-      await logDebriefAction(sessionId, 'applied', rec.cutCard, rec.addCard, rec.reason, noteLogged)
+      await logDebriefAction(sessionId, 'applied', rec.cutCard, rec.addCard, rec.reason, noteLogged, userId)
     } else {
       // actionType === 'skipped' or 'disagreed'
-      await logDebriefAction(sessionId, actionType, rec.cutCard, rec.addCard, rec.reason, false)
+      await logDebriefAction(sessionId, actionType, rec.cutCard, rec.addCard, rec.reason, false, userId)
     }
 
     // Increment current_rec_index on the session

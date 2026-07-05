@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 import { buildAround, suggestManaBase } from '@/lib/mcp-client'
 
 export interface DeckSuggestion {
@@ -11,6 +12,9 @@ export interface DeckSuggestion {
 }
 
 export async function POST(request: NextRequest) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   try {
     const body = await request.json()
     const { commanderName, collectionOnly } = body as {
@@ -26,7 +30,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch collection for owned checks
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
     const { data: collection } = await supabase
       .from('collection')
       .select('card_name, quantity')

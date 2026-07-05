@@ -19,7 +19,7 @@
  * Validates: Requirements 1.1, 1.4, 2.1, 2.2, 2.4, 2.5, 3.1, 3.3, 3.4, 3.5
  */
 
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -91,7 +91,7 @@ export async function upsertPriceBatch(
     return { upserted, skipped }
   }
 
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { error } = await supabase
     .from('card_kingdom_prices')
     .upsert(validEntries, { onConflict: 'scryfall_printing_id' })
@@ -119,7 +119,7 @@ export async function upsertPriceBatch(
  * - No CK listing exists for any printing of this card
  */
 export async function getPriceToAdd(cardDefinitionId: number): Promise<number | null> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase.rpc('get_price_to_add', {
     card_def_id: cardDefinitionId,
   })
@@ -146,7 +146,7 @@ export async function getPriceToAdd(cardDefinitionId: number): Promise<number | 
 export async function getBulkPriceToAdd(): Promise<Map<number, number | null>> {
   const result = new Map<number, number | null>()
 
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase.rpc('get_bulk_price_to_add')
 
   if (error) {
@@ -181,7 +181,7 @@ export async function getOwnedValuation(
   scryfallPrintingId: string,
   isFoil: boolean
 ): Promise<number | null> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('card_kingdom_prices')
     .select('price_retail')
@@ -206,7 +206,7 @@ export async function getOwnedValuation(
  * Returns null if the table is empty (never refreshed).
  */
 export async function getLastRefreshTimestamp(): Promise<string | null> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('card_kingdom_prices')
     .select('updated_at')

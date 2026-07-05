@@ -2,7 +2,7 @@
 // Brew AI Tools — CardRepository Interface & Supabase Implementation
 // ---------------------------------------------------------------------------
 
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 
 // ---------------------------------------------------------------------------
 // Data Interfaces
@@ -81,7 +81,7 @@ class SupabaseCardRepository implements CardRepository {
   async getOwnedCards(cardNames: string[]): Promise<OwnedCardInfo[]> {
     if (cardNames.length === 0) return []
 
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
     const { data, error } = await supabase
       .from('collection')
       .select('*')
@@ -111,7 +111,7 @@ class SupabaseCardRepository implements CardRepository {
   }
 
   async getCardsByColourIdentity(colours: string[]): Promise<OwnedCardInfo[]> {
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
 
     // Fetch all collection entries then filter by colour identity in JS.
     // The colour_identity column stores comma-separated values (e.g., "W,U,B").
@@ -152,7 +152,7 @@ class SupabaseCardRepository implements CardRepository {
   }
 
   async getDeckAllocations(cardName: string): Promise<DeckAllocation[]> {
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
 
     // Query deck_cards for this card
     const { data: deckCards, error: dcError } = await supabase
@@ -191,7 +191,7 @@ class SupabaseCardRepository implements CardRepository {
   }
 
   async getDeckContext(sessionId: number): Promise<DeckContextResult | null> {
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
 
     // Fetch the brew session
     const { data: session, error: sessionError } = await supabase
@@ -261,7 +261,7 @@ class SupabaseCardRepository implements CardRepository {
   async getDecisionLog(
     sessionId: number
   ): Promise<Record<string, unknown> | null> {
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
 
     const { data: session, error } = await supabase
       .from('brew_sessions')

@@ -10,10 +10,15 @@
  * Validates: Requirements 1.4, 6.1, 6.2, 6.4, 7.4
  */
 import { syncNewDecksOnly } from '@/lib/sync'
+import { requireAuth } from '@/lib/auth'
 
 export async function GET() {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+  const userId = authResult.id
+
   try {
-    const results = await syncNewDecksOnly()
+    const results = await syncNewDecksOnly(userId)
     return Response.json(results)
   } catch (err) {
     return Response.json(

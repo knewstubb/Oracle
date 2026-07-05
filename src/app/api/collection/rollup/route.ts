@@ -1,5 +1,6 @@
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 import { getBulkPriceToAdd, getOwnedValuation, getLastRefreshTimestamp, isPriceDataStale } from '@/lib/price-store'
+import { requireAuth } from '@/lib/auth'
 import { NextRequest } from 'next/server'
 
 /**
@@ -57,7 +58,10 @@ interface CollectionRollupResponse {
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest) {
-  const supabase = createServerClient()
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
+  const supabase = createAdminClient()
 
   const searchParams = request.nextUrl.searchParams
   const tab = searchParams.get('tab') || 'collection'

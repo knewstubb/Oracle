@@ -11,7 +11,7 @@
  * See: supabase-migration spec, Requirement 7 (Playwright decommissioned).
  */
 
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -35,6 +35,8 @@ export interface AllocationDecision {
     deckId: number
     role: 'original' | 'proxy'
   }>
+  /** Authenticated user ID from session. Falls back to env var if not provided. */
+  userId?: string
 }
 
 export interface AllocationPreview {
@@ -84,7 +86,7 @@ export async function getSharedCards(filters?: {
   colorIdentity?: string
   cardType?: string
 }): Promise<SharedCardSummary[]> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const minDecks = filters?.minDecks ?? 2
 
   // Step 1: Get all deck_cards to compute sharing in TypeScript
@@ -289,7 +291,7 @@ function buildSharedCardResults(
  * Returns a diff of changes and required Archidekt writes.
  */
 export async function previewAllocation(decision: AllocationDecision): Promise<AllocationPreview> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { cardName, allocations } = decision
   const warnings: string[] = []
 
@@ -384,7 +386,7 @@ export async function commitAllocation(
   results: Array<{ deckId: number; success: boolean; error?: string }>
   warnings: string[]
 }> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { cardName, allocations } = decision
   const results: Array<{ deckId: number; success: boolean; error?: string }> = []
   const warnings: string[] = []
@@ -405,7 +407,7 @@ export async function commitAllocation(
     )
   }
 
-  const userId = process.env.MIGRATION_USER_ID ?? '00000000-0000-0000-0000-000000000000'
+  const userId = decision.userId ?? ''
 
   // Record each allocation decision in the database.
   // Playwright write-back is dormant (Requirement 7) — users manually

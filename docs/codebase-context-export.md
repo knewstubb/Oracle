@@ -15,7 +15,7 @@
 - **Deployment target:** Vercel (frontend) + Supabase (database + edge functions)
 
 **Key architectural decisions:**
-- Single-user operation using `SUPABASE_DEFAULT_USER_ID` env var (all tables have `user_id` column for future multi-user)
+- Multi-user operation using Supabase Auth — user ID derived from authenticated session
 - Server-side uses service role key (bypasses RLS); client-side uses anon key
 - Playwright browser automation is **dormant** — decommissioned for serverless deployment. Push-to-Archidekt requires manual copy-paste.
 - Notion integration has been **removed** — no Notion API routes or sync remain in the codebase
@@ -304,7 +304,6 @@ Cards in 2+ decks with deck_count, deck_ids (comma-separated), owned_copies.
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Client + Server | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Client | Supabase anon key (respects RLS) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Server only | Bypasses RLS for API routes |
-| `SUPABASE_DEFAULT_USER_ID` | Yes | Server | UUID used for all writes (single-user mode) |
 | `ANTHROPIC_API_KEY` | Yes | Server | Required for brew chat + decision extraction |
 | `GEMINI_API_KEY` | Optional | Server | Required only if Gemini models selected |
 | `DEEPSEEK_API_KEY` | Optional | Server | Required only if DeepSeek models selected |

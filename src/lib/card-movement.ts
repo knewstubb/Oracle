@@ -10,7 +10,7 @@
  * Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 3.6
  */
 
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 import { computeAllocations } from './allocation-resolver'
 import { buildAllocationInput, applyAllocationOutput } from './allocation-store'
 
@@ -24,6 +24,8 @@ export interface MoveCardCommand {
   toDeckId: number
   /** Optional: specific printing to move (if user owns multiple) */
   scryfallId?: string
+  /** User ID for the authenticated user */
+  userId: string
 }
 
 export interface MoveCardResult {
@@ -68,7 +70,7 @@ export interface ArchidektWrite {
  */
 export async function planCardMovement(command: MoveCardCommand): Promise<MoveCardResult> {
   const { cardName, fromDeckId, toDeckId, scryfallId } = command
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // --- Validation ---
 
@@ -312,8 +314,8 @@ export async function executeCardMovement(
   archidektResults: Array<{ deckId: number; queued: boolean; error?: string }>
   affectedDeckResults: Array<{ deckId: number; queued: boolean; error?: string }>
 }> {
-  const { cardName, fromDeckId, toDeckId, scryfallId } = command
-  const supabase = createServerClient()
+  const { cardName, fromDeckId, toDeckId, scryfallId, userId } = command
+  const supabase = createAdminClient()
 
   // First plan to validate
   const plan = await planCardMovement(command)
@@ -388,7 +390,7 @@ export async function executeCardMovement(
         categories: rowToMove.categories,
         tags: rowToMove.tags,
         is_commander: false, // is_commander = false for moved cards
-        user_id: process.env.MIGRATION_USER_ID ?? '00000000-0000-0000-0000-000000000000',
+        user_id: userId,
       })
 
     if (insertErr) throw new Error(`Failed to insert card into target deck: ${insertErr.message}`)

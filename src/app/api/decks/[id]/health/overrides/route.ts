@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 import { computeHealth } from '@/lib/health-engine'
 import {
   getHealthOverrides,
@@ -18,13 +19,16 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   const { id } = await params
   const deckId = parseInt(id, 10)
   if (isNaN(deckId) || deckId <= 0) {
     return Response.json({ error: 'Invalid deck ID' }, { status: 400 })
   }
 
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { data: deck, error: deckErr } = await supabase
     .from('decks')
@@ -51,13 +55,17 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+  const userId = authResult.id
+
   const { id } = await params
   const deckId = parseInt(id, 10)
   if (isNaN(deckId) || deckId <= 0) {
     return Response.json({ error: 'Invalid deck ID' }, { status: 400 })
   }
 
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { data: deck, error: deckErr } = await supabase
     .from('decks')
@@ -91,7 +99,7 @@ export async function PUT(
   await saveHealthOverrides(deckId, overrides)
 
   // Recompute health
-  const result = await recomputeHealth(supabase, deckId)
+  const result = await recomputeHealth(supabase, deckId, userId)
 
   return Response.json(result)
 }
@@ -104,13 +112,17 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+  const userId = authResult.id
+
   const { id } = await params
   const deckId = parseInt(id, 10)
   if (isNaN(deckId) || deckId <= 0) {
     return Response.json({ error: 'Invalid deck ID' }, { status: 400 })
   }
 
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { data: deck, error: deckErr } = await supabase
     .from('decks')
@@ -129,7 +141,7 @@ export async function DELETE(
   await clearHealthOverrides(deckId)
 
   // Recompute health with null overrides (global defaults)
-  const result = await recomputeHealth(supabase, deckId)
+  const result = await recomputeHealth(supabase, deckId, userId)
 
   return Response.json(result)
 }
@@ -189,7 +201,7 @@ function validateOverrideMap(body: unknown): string | null {
 /**
  * Recompute health for a deck and persist the result.
  */
-async function recomputeHealth(supabase: ReturnType<typeof createServerClient>, deckId: number) {
+async function recomputeHealth(supabase: ReturnType<typeof createAdminClient>, deckId: number, userId: string) {
   const { data: rows } = await supabase
     .from('deck_cards')
     .select('card_name, categories')
@@ -214,7 +226,7 @@ async function recomputeHealth(supabase: ReturnType<typeof createServerClient>, 
   result.deckId = deckId
 
   // Persist
-  await upsertHealthResult(result)
+  await upsertHealthResult(result, userId)
 
   return result
 }

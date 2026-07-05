@@ -2,18 +2,12 @@
 // Reads/writes the precon_mod_state table and orchestrates recomputation.
 // Uses Supabase client for all database operations (async).
 
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 import { computePreconModState, type PreconModState } from './precon-mod-engine'
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-/**
- * Default user ID for single-user operation.
- * Matches the UUID injected during data migration.
- */
-const DEFAULT_USER_ID = process.env.SUPABASE_DEFAULT_USER_ID ?? '00000000-0000-0000-0000-000000000000'
 
 // ---------------------------------------------------------------------------
 // getPreconModState
@@ -25,7 +19,7 @@ const DEFAULT_USER_ID = process.env.SUPABASE_DEFAULT_USER_ID ?? '00000000-0000-0
 export async function getPreconModState(
   deckId: number
 ): Promise<PreconModState | null> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('precon_mod_state')
@@ -61,9 +55,10 @@ export async function getPreconModState(
  */
 export async function upsertPreconModState(
   deckId: number,
-  state: PreconModState
+  state: PreconModState,
+  userId: string
 ): Promise<void> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { error } = await supabase
     .from('precon_mod_state')
@@ -77,7 +72,7 @@ export async function upsertPreconModState(
         rarity_uncommon_used: state.rarity_uncommon_used,
         rarity_common_used: state.rarity_common_used,
         budget_spent: state.budget_spent,
-        user_id: DEFAULT_USER_ID,
+        user_id: userId,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'deck_id' }
@@ -100,9 +95,10 @@ export async function upsertPreconModState(
  * the build-card-metadata script from Scryfall bulk data).
  */
 export async function recomputePreconModState(
-  deckId: number
+  deckId: number,
+  userId: string
 ): Promise<PreconModState> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // Get the deck's precon_url for looking up original precon cards
   const { data: deck, error: deckError } = await supabase
@@ -181,7 +177,7 @@ export async function recomputePreconModState(
   const state = computePreconModState({ deckCards, preconCards })
 
   // Persist
-  await upsertPreconModState(deckId, state)
+  await upsertPreconModState(deckId, state, userId)
 
   return state
 }

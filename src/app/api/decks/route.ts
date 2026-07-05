@@ -1,4 +1,5 @@
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 
 export interface DeckRow {
   id: number
@@ -21,7 +22,10 @@ export interface DraftSession {
 }
 
 export async function GET() {
-  const supabase = createServerClient()
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
+  const supabase = createAdminClient()
 
   const { data: decks, error: decksErr } = await supabase
     .from('decks')

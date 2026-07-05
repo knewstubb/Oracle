@@ -36,7 +36,7 @@ function createChainableMock() {
 let mockChain: ReturnType<typeof createChainableMock>
 
 vi.mock('@/lib/supabase', () => ({
-  createServerClient: () => ({
+  createAdminClient: () => ({
     from: (table: string) => {
       mockChain._table = table
       return mockChain

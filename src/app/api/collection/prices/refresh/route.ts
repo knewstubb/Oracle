@@ -14,6 +14,7 @@
  */
 
 import { NextRequest } from 'next/server'
+import { requireAuth } from '@/lib/auth'
 
 // ---------------------------------------------------------------------------
 // Edge Function URL construction
@@ -138,5 +139,8 @@ export async function GET(request: NextRequest) {
 // ---------------------------------------------------------------------------
 
 export async function POST() {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   return triggerEdgeFunction()
 }

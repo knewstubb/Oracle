@@ -14,11 +14,15 @@
 // ---------------------------------------------------------------------------
 
 import { NextRequest } from 'next/server'
+import { requireAuth } from '@/lib/auth'
 
 export async function POST(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   const { id } = await params
   const deckId = parseInt(id, 10)
 

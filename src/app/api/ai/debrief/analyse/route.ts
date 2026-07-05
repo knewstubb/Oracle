@@ -1,10 +1,14 @@
 import { NextRequest } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 import Anthropic from '@anthropic-ai/sdk'
 import { buildAnalystPrompt } from '@/lib/debrief-prompts'
 import type { DebriefBrief, DeckCardWithOwnership, Recommendation, DebriefSessionRow } from '@/lib/debrief-types'
 
 export async function POST(request: NextRequest) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   try {
     const body = await request.json()
     const { sessionId } = body as { sessionId: number }
@@ -13,7 +17,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Invalid session ID' }, { status: 400 })
     }
 
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
 
     // Validate session exists with status 'analysing'
     const { data: session, error: fetchErr } = await supabase

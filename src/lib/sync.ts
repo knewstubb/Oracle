@@ -1,4 +1,4 @@
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 import {
   fetchUserDecks,
   fetchDeck,
@@ -8,17 +8,11 @@ import {
 } from './archidekt-client'
 
 // ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const DEFAULT_USER_ID = process.env.SUPABASE_DEFAULT_USER_ID ?? '00000000-0000-0000-0000-000000000000'
-
-// ---------------------------------------------------------------------------
 // syncCollection
 // ---------------------------------------------------------------------------
 
-export async function syncCollection(): Promise<number> {
-  const supabase = createServerClient()
+export async function syncCollection(userId: string): Promise<number> {
+  const supabase = createAdminClient()
 
   const entries = await fetchCollection()
 
@@ -40,7 +34,7 @@ export async function syncCollection(): Promise<number> {
       set_code: entry.card.edition?.editioncode ?? '',
       quantity: entry.quantity,
       foil: entry.foil,
-      user_id: DEFAULT_USER_ID,
+      user_id: userId,
     }))
 
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
@@ -74,8 +68,8 @@ export interface SyncResult {
  * Previously-imported decks are never re-fetched or overwritten.
  * Collection sync continues unchanged.
  */
-export async function syncNewDecksOnly(): Promise<SyncResult> {
-  const supabase = createServerClient()
+export async function syncNewDecksOnly(userId: string): Promise<SyncResult> {
+  const supabase = createAdminClient()
 
   const archidektDecks = await fetchUserDecks()
 
@@ -92,7 +86,7 @@ export async function syncNewDecksOnly(): Promise<SyncResult> {
   for (const summary of newDecks) {
     try {
       const deck = await fetchDeck(summary.id)
-      await importDeck(deck)
+      await importDeck(deck, userId)
       results.imported++
     } catch (err) {
       results.errors.push(`${summary.name}: ${err instanceof Error ? err.message : String(err)}`)
@@ -101,7 +95,7 @@ export async function syncNewDecksOnly(): Promise<SyncResult> {
 
   // Collection sync continues as before
   try {
-    results.collectionCount = await syncCollection()
+    results.collectionCount = await syncCollection(userId)
   } catch (err) {
     results.errors.push(`Collection: ${err instanceof Error ? err.message : String(err)}`)
   }
@@ -122,7 +116,7 @@ export async function syncNewDecksOnly(): Promise<SyncResult> {
 
 /** Extract set code → name mappings from deck raw_json and upsert into sets table */
 async function syncSetsFromDecks(): Promise<void> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { data: rows, error } = await supabase
     .from('decks')
@@ -170,8 +164,8 @@ async function syncSetsFromDecks(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 /** Import a single deck from Archidekt into Oracle's DB (upsert deck + clear/re-insert cards). */
-export async function importDeck(deck: ArchidektDeckFull): Promise<void> {
-  const supabase = createServerClient()
+export async function importDeck(deck: ArchidektDeckFull, userId: string): Promise<void> {
+  const supabase = createAdminClient()
 
   const commander = getCommanderCard(deck)
   const commanderOracle = commander?.card?.oracleCard
@@ -207,7 +201,7 @@ export async function importDeck(deck: ArchidektDeckFull): Promise<void> {
         ).length,
         last_synced_at: now,
         raw_json: JSON.stringify(deck),
-        user_id: DEFAULT_USER_ID,
+        user_id: userId,
       },
       { onConflict: 'id' }
     )
@@ -242,7 +236,7 @@ export async function importDeck(deck: ArchidektDeckFull): Promise<void> {
         categories: JSON.stringify(entry.categories),
         tags,
         is_commander: isCommander,
-        user_id: DEFAULT_USER_ID,
+        user_id: userId,
       }
     })
 

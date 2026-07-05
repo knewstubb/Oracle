@@ -16,7 +16,8 @@ import type { ToolStreamEvent } from '@/lib/tool-types'
 import { TOOL_USE_SYSTEM_PROMPT } from '@/lib/brew-tool-prompt'
 import { getModelConfig, calculateCost, DEFAULT_MODEL_ID } from '@/lib/ai-models'
 import { createProviderAdapter, ProviderConfigError } from '@/lib/provider-factory'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -216,6 +217,9 @@ Respond ONLY with the JSON array. No markdown fences, no explanation.`
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest): Promise<Response> {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   try {
     const body = (await request.json()) as ChatBody
 
@@ -248,7 +252,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
 
     // --- Persist model_id to session ---
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
     let sessionStatus = 'exploring'
     try {
       const { data: sessionRow } = await supabase

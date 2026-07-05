@@ -1,7 +1,11 @@
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 
 export async function GET() {
-  const supabase = createServerClient()
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('decks')
     .select('last_synced_at')

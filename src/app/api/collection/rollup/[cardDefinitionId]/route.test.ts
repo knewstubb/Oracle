@@ -106,7 +106,7 @@ function applyFilters(
 }
 
 vi.mock('@/lib/supabase', () => ({
-  createServerClient: () => ({
+  createAdminClient: () => ({
     from: (table: string) => createQueryMock(table),
   }),
 }))

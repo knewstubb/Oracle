@@ -10,7 +10,7 @@
  * Validates: Requirements 1.5, 2.1, 2.2, 7.1, 7.4
  */
 
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -48,16 +48,6 @@ export interface OverrideMap {
 }
 
 // ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-/**
- * Default user ID for single-user operation.
- * This matches the UUID injected during data migration.
- */
-const DEFAULT_USER_ID = process.env.SUPABASE_DEFAULT_USER_ID ?? '00000000-0000-0000-0000-000000000000'
-
-// ---------------------------------------------------------------------------
 // Health Result CRUD
 // ---------------------------------------------------------------------------
 
@@ -65,8 +55,8 @@ const DEFAULT_USER_ID = process.env.SUPABASE_DEFAULT_USER_ID ?? '00000000-0000-0
  * Upsert a health result into the deck_health table.
  * Replaces any previous result for the same deck.
  */
-export async function upsertHealthResult(result: HealthResult): Promise<void> {
-  const supabase = createServerClient()
+export async function upsertHealthResult(result: HealthResult, userId: string): Promise<void> {
+  const supabase = createAdminClient()
 
   const { error } = await supabase
     .from('deck_health')
@@ -76,7 +66,7 @@ export async function upsertHealthResult(result: HealthResult): Promise<void> {
         result_json: JSON.stringify(result.categories),
         overall_status: result.overallStatus,
         computed_at: result.computedAt,
-        user_id: DEFAULT_USER_ID,
+        user_id: userId,
       },
       { onConflict: 'deck_id' }
     )
@@ -91,7 +81,7 @@ export async function upsertHealthResult(result: HealthResult): Promise<void> {
  * Returns null if no result exists.
  */
 export async function getHealthResult(deckId: number): Promise<HealthResult | null> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('deck_health')
@@ -122,7 +112,7 @@ export async function getHealthResult(deckId: number): Promise<HealthResult | nu
  * Returns null if no overrides are configured or the deck has no strategy row.
  */
 export async function getHealthOverrides(deckId: number): Promise<OverrideMap | null> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('deck_strategy')
@@ -146,7 +136,7 @@ export async function saveHealthOverrides(
   deckId: number,
   overrides: OverrideMap
 ): Promise<void> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { error } = await supabase
     .from('deck_strategy')
@@ -162,7 +152,7 @@ export async function saveHealthOverrides(
  * Remove health overrides for a deck (revert to global defaults).
  */
 export async function clearHealthOverrides(deckId: number): Promise<void> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { error } = await supabase
     .from('deck_strategy')

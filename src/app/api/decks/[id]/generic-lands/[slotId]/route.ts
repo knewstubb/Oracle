@@ -1,10 +1,14 @@
 import { NextRequest } from 'next/server'
 import { removeGenericLandSlot } from '@/lib/generic-land-store'
+import { requireAuth } from '@/lib/auth'
 
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; slotId: string }> }
 ) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   const { id, slotId } = await params
 
   const deckId = parseInt(id, 10)

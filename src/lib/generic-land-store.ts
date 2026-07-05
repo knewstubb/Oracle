@@ -13,7 +13,7 @@
  * Validates: Requirements 1.4, 2.1, 2.2
  */
 
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -39,6 +39,7 @@ export interface GenericLandPreference {
 export interface CreateGenericLandSlotParams {
   deckId: number
   cardDefinitionId: number    // must reference a basic land type
+  userId: string
 }
 
 export interface ConvertToSpecificParams {
@@ -79,7 +80,7 @@ export function isBasicLandType(cardName: string): cardName is BasicLandType {
  * Queries card_definitions to verify the card_name is a basic land type.
  */
 export async function isBasicLandDefinition(cardDefinitionId: number): Promise<boolean> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('card_definitions')
     .select('card_name')
@@ -100,7 +101,7 @@ export async function isBasicLandDefinition(cardDefinitionId: number): Promise<b
  * Returns rows joined with card_definitions for the card_name.
  */
 export async function getAllPreferences(): Promise<GenericLandPreference[]> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('generic_land_preferences')
     .select('card_definition_id, scryfall_printing_id, updated_at, card_definitions(card_name)')
@@ -121,7 +122,7 @@ export async function getAllPreferences(): Promise<GenericLandPreference[]> {
  * Returns null if no row found for the given cardDefinitionId.
  */
 export async function getPreference(cardDefinitionId: number): Promise<GenericLandPreference | null> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('generic_land_preferences')
     .select('card_definition_id, scryfall_printing_id, updated_at, card_definitions(card_name)')
@@ -162,7 +163,7 @@ export async function updatePreference(
     }
   }
 
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { error } = await supabase
     .from('generic_land_preferences')
     .update({ scryfall_printing_id: scryfallPrintingId, updated_at: new Date().toISOString() })
@@ -195,7 +196,7 @@ export async function createGenericLandSlot(
     }
   }
 
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // Look up the card_name from card_definitions
   const { data: defRow, error: defError } = await supabase
@@ -215,7 +216,7 @@ export async function createGenericLandSlot(
       card_definition_id: params.cardDefinitionId,
       is_generic_land: true,
       physical_copy_id: null,
-      user_id: process.env.SUPABASE_DEFAULT_USER_ID ?? '00000000-0000-0000-0000-000000000000',
+      user_id: params.userId,
     })
     .select('id')
     .single()
@@ -231,7 +232,7 @@ export async function createGenericLandSlot(
  * Validates: Requirements 7.4
  */
 export async function removeGenericLandSlot(deckCardId: number): Promise<void> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { error } = await supabase
     .from('deck_cards')
     .delete()
@@ -257,7 +258,7 @@ export async function removeGenericLandSlot(deckCardId: number): Promise<void> {
 export async function convertToSpecific(
   params: ConvertToSpecificParams
 ): Promise<void | GenericLandError> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // 1. SELECT the deck_cards row by deckCardId
   const { data: deckCard, error: dcError } = await supabase
@@ -329,7 +330,7 @@ export async function convertToSpecific(
 export async function convertToGeneric(
   params: ConvertToGenericParams
 ): Promise<void | GenericLandError> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // 1. SELECT the deck_cards row by deckCardId
   const { data: deckCard, error: dcError } = await supabase
@@ -374,7 +375,7 @@ export async function convertToGeneric(
 export async function listConversionTargets(
   deckCardId: number
 ): Promise<Array<{ id: number; scryfallPrintingId: string | null; isProxy: boolean; isFoil: boolean; quantity: number }>> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // 1. SELECT the deck_cards row by deckCardId to get card_definition_id
   const { data: deckCard, error: dcError } = await supabase

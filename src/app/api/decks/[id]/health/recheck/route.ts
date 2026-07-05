@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 import { computeHealth } from '@/lib/health-engine'
 import { upsertHealthResult, getHealthOverrides } from '@/lib/health-store'
 import type { FunctionalCategory } from '@/lib/category-classifier'
@@ -8,13 +9,17 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+  const userId = authResult.id
+
   const { id } = await params
   const deckId = parseInt(id, 10)
   if (isNaN(deckId) || deckId <= 0) {
     return Response.json({ error: 'Invalid deck ID' }, { status: 400 })
   }
 
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { data: deck, error: deckErr } = await supabase
     .from('decks')
@@ -59,7 +64,7 @@ export async function POST(
   result.deckId = deckId
 
   // Persist
-  await upsertHealthResult(result)
+  await upsertHealthResult(result, userId)
 
   return Response.json(result)
 }

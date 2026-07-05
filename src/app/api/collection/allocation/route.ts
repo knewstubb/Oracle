@@ -13,7 +13,8 @@
  */
 
 import { NextRequest } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 
 export interface AllocationRow {
   cardName: string
@@ -39,8 +40,11 @@ export interface DeckInfo {
 }
 
 export async function GET(request: NextRequest) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   try {
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
 
     const searchParams = request.nextUrl.searchParams
     const deckFilter = searchParams.get('deckFilter')

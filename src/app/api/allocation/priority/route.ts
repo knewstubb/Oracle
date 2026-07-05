@@ -8,8 +8,9 @@
  */
 
 import { NextRequest } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 import { setDeckPriority } from '@/lib/allocation-store'
+import { requireAuth } from '@/lib/auth'
 
 interface PriorityRequestBody {
   deckId: number
@@ -17,6 +18,10 @@ interface PriorityRequestBody {
 }
 
 export async function PUT(request: NextRequest) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+  const userId = authResult.id
+
   try {
     const body = (await request.json()) as PriorityRequestBody
 
@@ -43,7 +48,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Verify the deck exists
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
     const { data: deck, error: deckErr } = await supabase
       .from('decks')
       .select('id, name')
@@ -57,7 +62,7 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    await setDeckPriority(body.deckId, body.priority)
+    await setDeckPriority(body.deckId, body.priority, userId)
 
     return Response.json({
       success: true,

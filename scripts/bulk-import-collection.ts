@@ -23,11 +23,16 @@ config({ path: resolve(__dirname, '..', '.env.local') })
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const USER_ID = process.env.SUPABASE_DEFAULT_USER_ID ?? '00000000-0000-0000-0000-000000000000'
+const USER_ID = process.env.SUPABASE_USER_ID ?? process.argv[2] ?? ''
 const BATCH_SIZE = 500
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local')
+  process.exit(1)
+}
+
+if (!USER_ID) {
+  console.error('Missing user ID. Pass as SUPABASE_USER_ID env var or first CLI argument.')
   process.exit(1)
 }
 

@@ -10,10 +10,9 @@
 // ---------------------------------------------------------------------------
 
 import { NextRequest } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 import type { DecisionLog, DeckCard } from '@/lib/brew-v2-types'
-
-const DEFAULT_USER_ID = process.env.SUPABASE_DEFAULT_USER_ID ?? '00000000-0000-0000-0000-000000000000'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -41,6 +40,10 @@ interface BrewSessionRow {
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+  const userId = authResult.id
+
   try {
     const body = (await request.json()) as SaveBody
     const { sessionId, mode, decisionLog, deckCards, deckName } = body
@@ -71,7 +74,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
 
     // --- Load session ---
     const { data: session, error: fetchErr } = await supabase
@@ -145,7 +148,7 @@ export async function POST(request: NextRequest) {
               colour_identity: session.colour_identity,
               card_count: deckCards!.length,
               status: deckStatus,
-              user_id: DEFAULT_USER_ID,
+              user_id: userId,
             })
             .select('id')
             .single()
@@ -172,7 +175,7 @@ export async function POST(request: NextRequest) {
             quantity: 1,
             categories,
             is_commander: isCommander,
-            user_id: DEFAULT_USER_ID,
+            user_id: userId,
           }
         })
 

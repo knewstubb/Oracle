@@ -13,8 +13,13 @@
 import { NextRequest } from 'next/server'
 import { setPriorityOverride, getAllocationsForCard } from '@/lib/allocation-store'
 import { resolveOwnership } from '@/lib/ownership-resolver'
+import { requireAuth } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+  const userId = authResult.id
+
   try {
     const body = await request.json()
     const { cardName, targetDeckId } = body
@@ -35,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Set the priority override to pin the original to the target deck
-    await setPriorityOverride(cardName.trim(), targetDeckId, 'pin_original')
+    await setPriorityOverride(cardName.trim(), targetDeckId, 'pin_original', userId)
 
     // Rerun the ownership resolver to cascade changes to all decks containing this card
     await resolveOwnership()

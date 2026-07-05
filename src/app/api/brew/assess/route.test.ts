@@ -9,7 +9,7 @@ const mockSupabaseSelect = vi.fn()
 const mockSupabaseUpdate = vi.fn()
 
 vi.mock('@/lib/supabase', () => ({
-  createServerClient: () => ({
+  createAdminClient: () => ({
     from: () => ({
       select: () => ({
         eq: () => ({

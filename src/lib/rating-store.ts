@@ -13,18 +13,12 @@
  * Validates: Requirements 5.1, 5.5
  */
 
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 import type { DeckRatingsContent } from '@/lib/rating-engine'
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-/**
- * Default user ID for single-user operation.
- * This matches the UUID injected during data migration.
- */
-const DEFAULT_USER_ID = process.env.SUPABASE_DEFAULT_USER_ID ?? '00000000-0000-0000-0000-000000000000'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -46,9 +40,10 @@ export interface StoredDeckRating {
  */
 export async function upsertDeckRating(
   deckId: number,
-  content: DeckRatingsContent
+  content: DeckRatingsContent,
+  userId: string
 ): Promise<void> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { error } = await supabase
     .from('deck_ratings')
@@ -56,7 +51,7 @@ export async function upsertDeckRating(
       {
         deck_id: deckId,
         content: JSON.stringify(content),
-        user_id: DEFAULT_USER_ID,
+        user_id: userId,
         generated_at: new Date().toISOString(),
       },
       { onConflict: 'deck_id' }
@@ -72,7 +67,7 @@ export async function upsertDeckRating(
  * Returns null if no rating exists or if the stored JSON is malformed.
  */
 export async function getDeckRating(deckId: number): Promise<StoredDeckRating | null> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('deck_ratings')
@@ -105,7 +100,7 @@ export async function getDeckRating(deckId: number): Promise<StoredDeckRating | 
 export async function getDeckRatings(deckIds: number[]): Promise<StoredDeckRating[]> {
   if (deckIds.length === 0) return []
 
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('deck_ratings')
@@ -139,7 +134,7 @@ export async function getDeckRatings(deckIds: number[]): Promise<StoredDeckRatin
  * Returns an array of all ratings (excludes rows with malformed JSON).
  */
 export async function getAllDeckRatings(): Promise<StoredDeckRating[]> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('deck_ratings')
@@ -172,7 +167,7 @@ export async function getAllDeckRatings(): Promise<StoredDeckRating[]> {
  * No-op if no rating exists for the given deck.
  */
 export async function deleteDeckRating(deckId: number): Promise<void> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { error } = await supabase
     .from('deck_ratings')

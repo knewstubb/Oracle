@@ -9,16 +9,19 @@
 // ---------------------------------------------------------------------------
 
 import { NextRequest } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 import { appendNote } from '@/lib/deck-documentation-store'
 import { formatChangeLogEntry } from '@/lib/upgrade-changelog'
-
-const DEFAULT_USER_ID = process.env.SUPABASE_DEFAULT_USER_ID ?? '00000000-0000-0000-0000-000000000000'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+  const userId = authResult.id
+
   const { id } = await params
   const deckId = parseInt(id, 10)
 
@@ -26,7 +29,7 @@ export async function POST(
     return Response.json({ error: 'Invalid deck ID' }, { status: 400 })
   }
 
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // Validate deck exists
   const { data: deck, error: deckErr } = await supabase
@@ -68,7 +71,7 @@ export async function POST(
   // INSERT the add card into deck_cards for this deck
   await supabase
     .from('deck_cards')
-    .insert({ deck_id: deckId, card_name: add, quantity: 1, user_id: DEFAULT_USER_ID })
+    .insert({ deck_id: deckId, card_name: add, quantity: 1, user_id: userId })
 
   // INSERT into upgrade_change_log with skipped = false
   const today = new Date().toISOString().split('T')[0]
@@ -81,7 +84,7 @@ export async function POST(
       reason: '',
       skipped: false,
       date: today,
-      user_id: DEFAULT_USER_ID,
+      user_id: userId,
     })
     .select('id')
     .single()
@@ -93,7 +96,7 @@ export async function POST(
   // Fire-and-forget: Log to local notes (don't block response)
   const formattedEntry = formatChangeLogEntry(cut, add, 'applied', '', today)
   try {
-    await appendNote(deckId, formattedEntry)
+    await appendNote(deckId, formattedEntry, userId)
   } catch (err) {
     console.error('[Note logging failed]', err)
   }

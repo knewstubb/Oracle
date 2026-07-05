@@ -15,18 +15,11 @@
  * Validates: Requirements 2.1, 2.5, 8.3
  */
 
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-/**
- * Default user ID for single-user operation.
- * This matches the UUID injected during data migration.
- * Will be replaced by auth-based user ID when multi-user support is added.
- */
-const DEFAULT_USER_ID = process.env.SUPABASE_DEFAULT_USER_ID ?? '00000000-0000-0000-0000-000000000000'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -67,6 +60,7 @@ export interface CreatePhysicalCopyParams {
   condition?: PhysicalCondition | null
   isFoil?: boolean
   acquiredAt?: string | null
+  userId: string
 }
 
 /** Key for the printing-group unique index */
@@ -86,6 +80,7 @@ export interface UpsertPhysicalCopyParams {
   isFoil?: boolean
   quantity?: number        // defaults to 1; increments on upsert
   acquiredAt?: string | null
+  userId: string
 }
 
 export interface CollectionImportParams {
@@ -94,6 +89,7 @@ export interface CollectionImportParams {
   scryfallPrintingId: string
   isFoil: boolean
   quantity: number
+  userId: string
 }
 
 export interface CollectionRollupRow {
@@ -160,8 +156,8 @@ function mapRowToPhysicalCopy(row: any): PhysicalCopy {
  *
  * Validates: Requirements 1.1, 1.2, 1.3, 1.4
  */
-export async function ensureCardDefinition(oracleId: string, cardName: string): Promise<number> {
-  const supabase = createServerClient()
+export async function ensureCardDefinition(oracleId: string, cardName: string, userId: string): Promise<number> {
+  const supabase = createAdminClient()
 
   // Try to find existing first
   const { data: existing } = await supabase
@@ -175,7 +171,7 @@ export async function ensureCardDefinition(oracleId: string, cardName: string): 
   // Insert new definition
   const { data, error } = await supabase
     .from('card_definitions')
-    .insert({ oracle_id: oracleId, card_name: cardName, user_id: DEFAULT_USER_ID })
+    .insert({ oracle_id: oracleId, card_name: cardName, user_id: userId })
     .select('id')
     .single()
 
@@ -201,7 +197,7 @@ export async function ensureCardDefinition(oracleId: string, cardName: string): 
  * Validates: Requirements 1.1, 1.2
  */
 export async function getCardDefinitionByOracleId(oracleId: string): Promise<CardDefinition | null> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('card_definitions')
     .select('id, oracle_id, card_name, created_at')
@@ -227,7 +223,7 @@ export async function getCardDefinitionByOracleId(oracleId: string): Promise<Car
  * Validates: Requirements 1.4
  */
 export async function getCardDefinitionById(id: number): Promise<CardDefinition | null> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('card_definitions')
     .select('id, oracle_id, card_name, created_at')
@@ -262,10 +258,11 @@ export async function getCardDefinitionById(id: number): Promise<CardDefinition 
  * Validates: Requirements 2.2, 3.1, 4.3, 8.2
  */
 export async function upsertPhysicalCopy(params: UpsertPhysicalCopyParams): Promise<PhysicalCopy> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const isProxy = params.isProxy ?? false
   const isFoil = params.isFoil ?? false
   const quantity = params.quantity ?? 1
+  const userId = params.userId
 
   // Check if a row already exists for this printing group
   const existing = await findPrintingGroup({
@@ -301,7 +298,7 @@ export async function upsertPhysicalCopy(params: UpsertPhysicalCopyParams): Prom
       proxy_for_definition_id: params.proxyForDefinitionId ?? null,
       condition: params.condition ?? null,
       acquired_at: params.acquiredAt ?? null,
-      user_id: DEFAULT_USER_ID,
+      user_id: userId,
     })
     .select('*')
     .single()
@@ -320,9 +317,10 @@ export async function upsertPhysicalCopy(params: UpsertPhysicalCopyParams): Prom
 export async function createPhysicalCopy(
   params: CreatePhysicalCopyParams
 ): Promise<PhysicalCopy | CardIdentityError> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const isProxy = params.isProxy ?? false
   const isFoil = params.isFoil ?? false
+  const userId = params.userId
 
   const { data, error } = await supabase
     .from('physical_copies')
@@ -334,7 +332,7 @@ export async function createPhysicalCopy(
       condition: params.condition ?? null,
       is_foil: isFoil,
       acquired_at: params.acquiredAt ?? null,
-      user_id: DEFAULT_USER_ID,
+      user_id: userId,
     })
     .select('*')
     .single()
@@ -347,7 +345,7 @@ export async function createPhysicalCopy(
  * Retrieve a physical copy by its primary key.
  */
 export async function getPhysicalCopy(id: number): Promise<PhysicalCopy | null> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('physical_copies')
     .select('*')
@@ -364,7 +362,7 @@ export async function getPhysicalCopy(id: number): Promise<PhysicalCopy | null> 
  * ON DELETE SET NULL cascades to deck_cards.physical_copy_id.
  */
 export async function deletePhysicalCopy(id: number): Promise<void> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { error } = await supabase
     .from('physical_copies')
     .delete()
@@ -377,7 +375,7 @@ export async function deletePhysicalCopy(id: number): Promise<void> {
  * List physical copies that are not referenced by any deck_cards row.
  */
 export async function listUnassignedPhysicalCopies(): Promise<PhysicalCopy[]> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // Get all physical_copy_ids that are referenced by deck_cards
   const { data: linkedIds, error: linkedError } = await supabase
@@ -408,7 +406,7 @@ export async function listUnassignedPhysicalCopies(): Promise<PhysicalCopy[]> {
 export async function listPhysicalCopiesForDefinition(
   cardDefinitionId: number
 ): Promise<PhysicalCopy[]> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('physical_copies')
     .select('*')
@@ -428,7 +426,7 @@ export async function listPhysicalCopiesForDefinition(
  * Validates: Requirements 2.2, 2.10
  */
 export async function findPrintingGroup(params: PrintingGroupKey): Promise<PhysicalCopy | null> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   let query = supabase
     .from('physical_copies')
@@ -462,7 +460,7 @@ export async function findPrintingGroup(params: PrintingGroupKey): Promise<Physi
  * Validates: Requirements 5.6
  */
 export async function validateCardMatch(physicalCopyId: number, deckCardId: number): Promise<boolean> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // Get the physical copy's card definition name
   const { data: pc, error: pcError } = await supabase
@@ -518,7 +516,7 @@ export async function linkPhysicalCopyToDeckCard(
     }
   }
 
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { error } = await supabase
     .from('deck_cards')
     .update({ physical_copy_id: physicalCopyId })
@@ -534,7 +532,7 @@ export async function linkPhysicalCopyToDeckCard(
  * Validates: Requirements 5.7
  */
 export async function unlinkPhysicalCopyFromDeckCard(deckCardId: number): Promise<void> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { error } = await supabase
     .from('deck_cards')
     .update({ physical_copy_id: null })
@@ -571,9 +569,11 @@ export async function setPhysicalCopyState(
     isFoil: boolean
     quantity: number
     condition: PhysicalCondition | null
+    userId: string
   }
 ): Promise<{ id: number; action: 'created' | 'updated_quantity' | 'updated_condition' | 'unchanged' }> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
+  const userId = params.userId
 
   // Pre-read: check if a row already exists for this printing group (non-proxy)
   const { data: existing, error: findError } = await supabase
@@ -598,7 +598,7 @@ export async function setPhysicalCopyState(
         is_proxy: false,
         quantity: params.quantity,
         condition: params.condition ?? null,
-        user_id: DEFAULT_USER_ID,
+        user_id: userId,
       })
       .select('id')
       .single()
@@ -646,7 +646,7 @@ export async function setPhysicalCopyState(
  * Validates: Requirements 8.2, 8.4, 2.9
  */
 export async function importCollectionCard(params: CollectionImportParams): Promise<PhysicalCopy> {
-  const cardDefinitionId = await ensureCardDefinition(params.oracleId, params.cardName)
+  const cardDefinitionId = await ensureCardDefinition(params.oracleId, params.cardName, params.userId)
 
   return upsertPhysicalCopy({
     cardDefinitionId,
@@ -654,6 +654,7 @@ export async function importCollectionCard(params: CollectionImportParams): Prom
     isFoil: params.isFoil,
     isProxy: false,
     quantity: params.quantity,
+    userId: params.userId,
   })
 }
 
@@ -670,7 +671,7 @@ export async function importCollectionCard(params: CollectionImportParams): Prom
  * Validates: Requirements 9.1, 9.2, 9.7
  */
 export async function getCardLevelInUseCount(cardDefinitionId: number): Promise<number> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // Get all physical_copy ids for this card definition
   const { data: copies, error: copiesError } = await supabase
@@ -702,7 +703,7 @@ export async function getCardLevelInUseCount(cardDefinitionId: number): Promise<
  * Validates: Requirements 9.1, 9.2, 9.7
  */
 export async function getSubgroupInUseCount(physicalCopyId: number): Promise<number> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
   const { count, error } = await supabase
     .from('deck_cards')
     .select('id', { count: 'exact', head: true })
@@ -725,7 +726,7 @@ export async function getSubgroupInUseCount(physicalCopyId: number): Promise<num
  * Validates: Requirements 9.5, 10.1, 10.2, 10.4
  */
 export async function getCollectionRollup(): Promise<CollectionRollupRow[]> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // Get all non-proxy physical copies with their card definition info
   const { data: copies, error: copiesError } = await supabase
@@ -802,7 +803,7 @@ export async function getCollectionRollup(): Promise<CollectionRollupRow[]> {
  * Validates: Requirements 9.5, 10.1, 10.2, 10.4
  */
 export async function getProxyRollup(): Promise<ProxyRollupRow[]> {
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   // Get all proxy physical copies with their card definition info
   const { data: copies, error: copiesError } = await supabase

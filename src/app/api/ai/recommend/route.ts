@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 import { buildAround, commanderOverview, suggestCuts } from '@/lib/mcp-client'
 
 export interface CardSuggestion {
@@ -10,6 +11,9 @@ export interface CardSuggestion {
 }
 
 export async function POST(request: NextRequest) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   try {
     const body = await request.json()
     const { deckId, collectionOnly } = body as {
@@ -21,7 +25,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Invalid deck ID' }, { status: 400 })
     }
 
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
 
     const { data: deck, error: deckErr } = await supabase
       .from('decks')

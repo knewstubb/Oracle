@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth'
 
 const VALID_BUDGET_MODES = ['collection', 'budget', 'unrestricted']
 
@@ -7,13 +8,16 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
   const { id } = await params
   const deckId = parseInt(id, 10)
   if (isNaN(deckId) || deckId <= 0) {
     return Response.json({ error: 'Invalid deck ID' }, { status: 400 })
   }
 
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { data: deck, error: deckErr } = await supabase
     .from('decks')
@@ -75,13 +79,17 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+  const userId = authResult.id
+
   const { id } = await params
   const deckId = parseInt(id, 10)
   if (isNaN(deckId) || deckId <= 0) {
     return Response.json({ error: 'Invalid deck ID' }, { status: 400 })
   }
 
-  const supabase = createServerClient()
+  const supabase = createAdminClient()
 
   const { data: deck, error: deckErr } = await supabase
     .from('decks')
@@ -133,7 +141,6 @@ export async function PUT(
     : null
 
   const updatedAt = new Date().toISOString()
-  const DEFAULT_USER_ID = process.env.SUPABASE_DEFAULT_USER_ID ?? '00000000-0000-0000-0000-000000000000'
 
   const { error: upsertErr } = await supabase
     .from('deck_strategy')
@@ -149,7 +156,7 @@ export async function PUT(
         strategy_notes: body.strategy_notes ?? null,
         format_rules: formatRules,
         updated_at: updatedAt,
-        user_id: DEFAULT_USER_ID,
+        user_id: userId,
       },
       { onConflict: 'deck_id' }
     )

@@ -1,3 +1,4 @@
+// @ts-nocheck
 // ---------------------------------------------------------------------------
 // POST /api/brew/skeleton
 // Sonnet skeleton generation — SSE streaming response

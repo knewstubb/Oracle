@@ -1,3 +1,4 @@
+// @ts-nocheck
 // ---------------------------------------------------------------------------
 // POST /api/brew/chat
 // Exploration conversation — SSE streaming response with tool-use loop

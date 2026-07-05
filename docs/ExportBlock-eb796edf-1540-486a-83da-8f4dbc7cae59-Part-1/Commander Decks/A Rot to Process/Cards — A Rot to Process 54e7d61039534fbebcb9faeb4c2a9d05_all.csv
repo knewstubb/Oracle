@@ -1,0 +1,129 @@
+﻿Card Name,Board,Mana Cost,Type
+Arcane Denial,Main,{1}{U},Instant
+Noxious Ghoul,Main,{3}{B}{B},Creature
+Tainted Isle,Main,,Land
+Living Death,Main,{3}{B}{B},Sorcery
+Butcher Ghoul,Main,{1}{B},Creature
+Talisman of Dominance,Main,{2},Artifact
+Plague Belcher,Main,{2}{B},Creature
+Cyclonic Rift,Main,{1}{U},Instant
+Sol Ring,Main,{1},Artifact
+Toxic Deluge,Main,{2}{B},Sorcery
+Gravecrawler,Main,{B},Creature
+Master of Death,Main,{1}{U}{B},Creature
+Exotic Orchard,Main,,Land
+Shambling Ghast,Main,{B},Creature
+Arcane Signet,Main,{2},Artifact
+Lazotep Reaver,Main,{1}{B},Creature
+"Sidisi, Undead Vizier",Main,{3}{B}{B},Creature
+Negate,Main,{1}{U},Instant
+Fellwar Stone,Main,{2},Artifact
+Warren Soultrader,Main,{2}{B},Creature
+Unholy Grotto,Main,,Land
+The Scarab God,Main,{3}{U}{B},Creature
+Island,Main,,Land
+Fabled Passage,Main,,Land
+Phyrexian Tower,Main,,Land
+Rooftop Storm,Main,{5}{U},Enchantment
+"Liliana, Dreadhorde General",Main,{4}{B}{B},Planeswalker
+Swamp,Main,,Land
+Diregraf Colossus,Main,{2}{B},Creature
+Accursed Marauder,Main,{1}{B},Creature
+Necroduality,Main,{3}{U},Enchantment
+Undead Augur,Main,{B}{B},Creature
+Grim Tutor,Main,{1}{B}{B},Sorcery
+Marsh Flats,Main,,Land
+Withering Torment,Main,{2}{B},Instant
+Dark Ritual,Main,{B},Instant
+Sunken Ruins,Main,,Land
+Undead Butler,Main,{1}{B},Creature
+Tombstone Stairwell,Main,{2}{B}{B},Enchantment
+The Meathook Massacre,Main,{X}{B}{B},Enchantment
+Skullclamp,Main,{1},Artifact
+Vengeful Dead,Main,{3}{B},Creature
+Fatal Push,Main,{B},Instant
+Gray Merchant of Asphodel,Main,{3}{B}{B},Creature
+Swan Song,Main,{U},Instant
+Go for the Throat,Main,{1}{B},Instant
+Dimir Signet,Main,{2},Artifact
+Relentless Dead,Main,{B}{B},Creature
+Gisa and Geralf,Main,{2}{U}{B},Creature
+Carrion Feeder,Main,{B},Creature
+Zombie Apocalypse,Main,{3}{B}{B}{B},Sorcery
+Mirkwood Bats,Main,{3}{B},Creature
+Havengul Lich,Main,{3}{U}{B},Creature
+Rapid Hybridization,Main,{U},Instant
+Diregraf Captain,Main,{1}{U}{B},Creature
+Champion of the Perished,Main,{B},Creature
+"Jadar, Ghoulcaller of Nephalia",Main,{1}{B},Creature
+Cryptbreaker,Main,{B},Creature
+Counterspell,Main,{U}{U},Instant
+Headless Rider,Main,{2}{B},Creature
+Kindred Discovery,Main,{3}{U}{U},Enchantment
+Hordewing Skaab,Main,{4}{U},Creature
+Ashnod's Altar,Main,{3},Artifact
+Shipwreck Marsh,Main,,Land
+Sunken Hollow,Main,,Land
+Bojuka Bog,Main,,Land
+Overcharged Amalgam,Main,{2}{U}{U},Creature
+Underground River,Main,,Land
+Command Tower,Main,,Land
+Distant Melody,Main,{3}{U},Sorcery
+Morphic Pool,Main,,Land
+Flooded Strand,Main,,Land
+Feed the Swarm,Main,{1}{B},Sorcery
+Poppet Stitcher // Poppet Factory,Main,{2}{U},Creature
+Polluted Delta,Main,,Land
+Darkwater Catacombs,Main,,Land
+Jet Medallion,Main,{2},Artifact
+Watery Grave,Main,,Land
+Nephalia Drownyard,Main,,Land
+Field of the Dead,Main,,Land
+Mire Triton,Maybe,{1}{B},Creature
+Tainted Adversary,Maybe,{1}{B},Creature
+Temple of Deceit,Maybe,,Land
+"Mikaeus, the Unhallowed",Maybe,{3}{B}{B}{B},Creature
+Clearwater Pathway // Murkwater Pathway,Maybe,,Land
+Crowded Crypt,Maybe,{2}{B},Artifact
+Zulaport Cutthroat,Maybe,{1}{B},Creature
+Stitcher's Supplier,Maybe,{B},Creature
+Victim of Night,Maybe,{B}{B},Instant
+Wayfarer's Bauble,Maybe,{1},Artifact
+Drowned Catacomb,Main,,Land
+Death Baron,Maybe,{1}{B}{B},Creature
+"Grimgrin, Corpse-Born",Maybe,{3}{U}{B},Creature
+Kindred Dominance,Maybe,{5}{B}{B},Sorcery
+Grave Titan,Maybe,{4}{B}{B},Creature
+Mind Stone,Maybe,{2},Artifact
+Bastion of Remembrance,Maybe,{2}{B},Enchantment
+Reality Shift,Maybe,{1}{U},Instant
+Whip of Erebos,Maybe,{2}{B}{B},Enchantment
+Midnight Reaper,Maybe,{2}{B},Creature
+Lord of the Undead,Main,{1}{B}{B},Creature
+Blood Artist,Maybe,{1}{B},Creature
+Coat of Arms,Maybe,{5},Artifact
+Cemetery Reaper,Maybe,{1}{B}{B},Creature
+Pact of Negation,Maybe,{0},Instant
+Gleaming Overseer,Maybe,{1}{U}{B},Creature
+High Market,Maybe,,Land
+Dreadhorde Invasion,Maybe,{1}{B},Enchantment
+Pongify,Maybe,{U},Instant
+Gauntlet of Power,Maybe,{5},Artifact
+Necropotence,Maybe,{B}{B}{B},Enchantment
+Thought Vessel,Maybe,{2},Artifact
+Snow-Covered Island,Maybe,,Land
+Snow-Covered Swamp,Maybe,,Land
+Three Tree City,Maybe,,Land
+Vizier of the Scorpion,Maybe,{2}{B},Creature
+"Urborg, Tomb of Yawgmoth",Maybe,,Land
+Forgotten Creation,Maybe,{3}{U},Creature
+Crypt Ghast,Maybe,{3}{B},Creature
+Infernal Grasp,Maybe,{1}{B},Instant
+Nirkana Revenant,Maybe,{4}{B}{B},Creature
+Noosegraf Mob,Maybe,{4}{B}{B},Creature
+Murderous Rider // Swift End,Maybe,{1}{B}{B},Creature
+Blade of Selves,Maybe,{2},Artifact
+"Wilhelt, the Rotcleaver",Main,{2}{U}{B},Commander
+Lord of the Accursed,Maybe,{2}{B},Creature
+Expedition Map,Maybe,{1},Artifact
+Putrid Goblin,Main,{1}{B},Creature

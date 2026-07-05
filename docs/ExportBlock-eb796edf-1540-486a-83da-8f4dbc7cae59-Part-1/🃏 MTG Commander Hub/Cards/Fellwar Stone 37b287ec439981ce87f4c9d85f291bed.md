@@ -1,0 +1,11 @@
+# Fellwar Stone
+
+Date Added: June 10, 2026 12:25 PM
+Deck: Yedora the Explorer (../../Commander%20Decks/Yedora%20the%20Explorer%20379287ec439981e38321cf3fb0d0e1a1.md)
+Edition: Lorwyn Eclipsed Commander
+Owned: Yes
+Price: $0.77
+Proxy Needed: No
+Quantity: 1
+Rarity: Uncommon
+Role: Ramp

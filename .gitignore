@@ -39,3 +39,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local database
+/data/
+
+# migration export output
+/scripts/export/
+/scripts/transformed/
+data/AllPrintings.sqlite
+data/oracle.db
+data/collection.csv
+data/collection-prev.csv

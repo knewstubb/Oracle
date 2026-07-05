@@ -1,0 +1,46 @@
+/*
+ * Design System Tokens
+ * Based on oracle-ui-spec.md
+ *
+ * These CSS custom properties define the visual language for The Oracle UI.
+ * Import this file in globals.css to make tokens available app-wide.
+ */
+
+:root {
+  /* ─── Colour Palette ─────────────────────────────────────────────── */
+
+  /* Primary — selected states, primary actions, originals, health ok */
+  --color-teal: #1D9E75;
+
+  /* Warning — proxies, precon mod tracker */
+  --color-amber: #EF9F27;
+
+  /* Critical — health violations, cut cards */
+  --color-red: #E24B4A;
+
+  /* Brew mode accent */
+  --color-blue: #378ADD;
+
+  /* ─── Alpha Variants (badge backgrounds) ─────────────────────────── */
+
+  --color-teal-bg: rgba(29, 158, 117, 0.15);
+  --color-amber-bg: rgba(239, 159, 39, 0.15);
+  --color-red-bg: rgba(226, 75, 74, 0.15);
+  --color-blue-bg: rgba(55, 138, 221, 0.15);
+
+  /* ─── Surfaces ───────────────────────────────────────────────────── */
+
+  --bg-page: #0f0f0f;
+  --bg-surface: #161616;
+  --bg-card: rgba(255, 255, 255, 0.04);
+
+  /* ─── Borders ────────────────────────────────────────────────────── */
+
+  --border-default: rgba(255, 255, 255, 0.06);
+  --border-emphasis: rgba(255, 255, 255, 0.1);
+
+  /* ─── Border Radius ──────────────────────────────────────────────── */
+
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+}

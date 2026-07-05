@@ -1,0 +1,11 @@
+# Eternal Witness
+
+Date Added: June 10, 2026 12:26 PM
+Deck: Yedora the Explorer (../../Commander%20Decks/Yedora%20the%20Explorer%20379287ec439981e38321cf3fb0d0e1a1.md)
+Edition: Starter Commander Decks
+Owned: Yes
+Price: $1.24
+Proxy Needed: No
+Quantity: 1
+Rarity: Uncommon
+Role: Recursion

@@ -1,0 +1,11 @@
+# Ashnod's Altar
+
+Date Added: June 10, 2026 12:26 PM
+Deck: Yedora the Explorer (../../Commander%20Decks/Yedora%20the%20Explorer%20379287ec439981e38321cf3fb0d0e1a1.md)
+Edition: Modern Horizons 3 Commander
+Owned: Yes
+Price: $3.00
+Proxy Needed: No
+Quantity: 1
+Rarity: Uncommon
+Role: Combo Piece

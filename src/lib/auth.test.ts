@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { getAuthUser, requireAuth } from './auth'
 
-// Mock the supabase module
-vi.mock('./supabase', () => ({
+// Mock the supabase-server module
+vi.mock('./supabase-server', () => ({
   createAuthServerClient: vi.fn(),
 }))
 
-import { createAuthServerClient } from './supabase'
+import { createAuthServerClient } from './supabase-server'
 
 const mockGetUser = vi.fn()
 const mockSupabaseClient = {

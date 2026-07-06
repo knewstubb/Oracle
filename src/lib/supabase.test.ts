@@ -54,7 +54,7 @@ describe('supabase client module', () => {
       delete process.env.NEXT_PUBLIC_SUPABASE_URL
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
 
-      const { createAuthServerClient } = await import('./supabase')
+      const { createAuthServerClient } = await import('./supabase-server')
       await expect(createAuthServerClient()).rejects.toThrow('Missing NEXT_PUBLIC_SUPABASE_URL')
     })
 
@@ -62,7 +62,7 @@ describe('supabase client module', () => {
       process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
       delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-      const { createAuthServerClient } = await import('./supabase')
+      const { createAuthServerClient } = await import('./supabase-server')
       await expect(createAuthServerClient()).rejects.toThrow('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY')
     })
   })

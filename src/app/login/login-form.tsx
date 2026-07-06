@@ -30,6 +30,7 @@ export function LoginForm() {
         return
       }
 
+      router.push('/')
       router.refresh()
     } catch {
       setError('Invalid email or password')

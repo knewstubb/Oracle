@@ -1,42 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
-import { createServerClient as createSupabaseServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { createBrowserClient as createSupabaseBrowserClient } from '@supabase/ssr'
 import type { Database } from '@/types/supabase'
-
-/**
- * Creates a session-aware Supabase client for server components and API routes.
- * Uses the anon key with cookie-based session handling — RLS is enforced.
- * Use this when you need the authenticated user's session context.
- */
-export async function createAuthServerClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!url) {
-    throw new Error(
-      'Missing NEXT_PUBLIC_SUPABASE_URL environment variable. ' +
-        'Set it in .env.local to your Supabase project URL.'
-    )
-  }
-  if (!key) {
-    throw new Error(
-      'Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable. ' +
-        'Set it in .env.local to your Supabase anon key.'
-    )
-  }
-
-  const cookieStore = await cookies()
-  return createSupabaseServerClient<Database>(url, key, {
-    cookies: {
-      getAll: () => cookieStore.getAll(),
-      setAll: (cookiesToSet) => {
-        cookiesToSet.forEach(({ name, value, options }) =>
-          cookieStore.set(name, value, options)
-        )
-      },
-    },
-  })
-}
 
 /**
  * Creates a Supabase client for trusted server-side operations (sync, migration).
@@ -69,8 +33,11 @@ export const createServerClient = createAdminClient
 
 /**
  * Creates a Supabase client for browser/client-side use (React components via TanStack Query).
- * Uses the anon key which respects RLS policies.
+ * Uses @supabase/ssr to store session tokens in cookies — making them visible to the
+ * Next.js middleware for server-side auth checks and redirects.
  */
+let browserClient: ReturnType<typeof createSupabaseBrowserClient<Database>> | null = null
+
 export function createBrowserClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -88,5 +55,9 @@ export function createBrowserClient() {
     )
   }
 
-  return createClient<Database>(url, key)
+  if (!browserClient) {
+    browserClient = createSupabaseBrowserClient<Database>(url, key)
+  }
+
+  return browserClient
 }

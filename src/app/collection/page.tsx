@@ -4,29 +4,37 @@ import { useState, useMemo, useCallback } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCollectionRollup } from '@/hooks/useCollectionRollup'
+import { useCollectionPrintings } from '@/hooks/useCollectionPrintings'
 import { CollectionImportButton } from '@/components/collection/CollectionImportButton'
 import {
   CollectionToolbar,
   getPersistedViewMode,
   type ViewMode,
 } from '@/components/collection/CollectionToolbar'
-import { CollectionListView } from '@/components/collection/CollectionListView'
 import { CollectionGridView } from '@/components/collection/CollectionGridView'
+import { PrintingListView } from '@/components/collection/PrintingListView'
 import { PriceStaleIndicator } from '@/components/collection/PriceStaleIndicator'
 import {
   filterBySearch,
   filterByColorIdentity,
   filterByStatus,
   sortCards,
+  filterPrintingBySearch,
+  filterPrintingByColorIdentity,
+  filterPrintingByStatus,
+  sortPrintingRows,
 } from '@/lib/collection-filters'
 import type {
   SortField,
+  PrintingSortField,
   SortDirection,
   StatusFilter,
   ColorIdentityMode,
   CollectionCardRow,
+  PrintingCardRow,
 } from '@/lib/collection-filters'
 import type { CollectionRollupRowWithPrice } from '@/hooks/useCollectionRollup'
+import type { PrintingRowResponse } from '@/lib/collection-printing-utils'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { AllocationTab } from '@/components/AllocationTab'
 
@@ -39,11 +47,18 @@ export default function CollectionPage() {
   // Collection vs Proxies tab within the Collection/Proxies split
   const [collectionTab, setCollectionTab] = useState<'collection' | 'proxies'>('collection')
 
-  // ─── Fetch rollup data via hook ────────────────────────────────
+  // ─── Fetch rollup data via hook (used for grid view) ─────────────
   const { rows, lastPriceRefresh, isPriceStale, isLoading, error, expand } =
     useCollectionRollup(collectionTab)
 
-  // Wrapper: CollectionListView/GridView expect expand to return PrintingSubgroupRow[]
+  // ─── Fetch printing-level data via hook (used for list view) ────
+  const {
+    data: printingData,
+    isLoading: printingLoading,
+    error: printingError,
+  } = useCollectionPrintings()
+
+  // Wrapper: CollectionGridView expects expand to return PrintingSubgroupRow[]
   const expandSubgroups = useCallback(
     async (cardDefinitionId: number) => {
       const result = await expand(cardDefinitionId)
@@ -60,6 +75,10 @@ export default function CollectionPage() {
   const [selectedColors, setSelectedColors] = useState<string[]>([])
   const [colorMode, setColorMode] = useState<ColorIdentityMode>('exact')
   const [activeStatuses, setActiveStatuses] = useState<StatusFilter[]>([])
+
+  // ─── Printing-specific sort state ──────────────────────────────
+  const [printingSortField, setPrintingSortField] = useState<PrintingSortField>('cardName')
+  const [printingSortDirection, setPrintingSortDirection] = useState<SortDirection>('asc')
 
   // ─── Client-side filtering pipeline ────────────────────────────
   const filteredRows = useMemo(() => {
@@ -98,6 +117,68 @@ export default function CollectionPage() {
     return filtered as unknown as CollectionRollupRowWithPrice[]
   }, [rows, searchQuery, selectedColors, colorMode, activeStatuses, sortField, sortDirection])
 
+  // ─── Printing-level filtering pipeline ─────────────────────────
+  const filteredPrintingRows = useMemo(() => {
+    const allRows = printingData?.rows ?? []
+
+    // Cast to PrintingCardRow for filter functions
+    let filtered = filterPrintingBySearch(allRows as unknown as PrintingCardRow[], searchQuery)
+
+    if (selectedColors.length > 0) {
+      filtered = filterPrintingByColorIdentity(filtered, selectedColors, colorMode)
+    }
+
+    if (activeStatuses.length > 0) {
+      // OR logic for status filters
+      const statusSets = activeStatuses.map((status) => filterPrintingByStatus(filtered, status))
+      const seen = new Set<number>()
+      const union: PrintingCardRow[] = []
+      for (const set of statusSets) {
+        for (const row of set) {
+          if (!seen.has(row.id)) {
+            seen.add(row.id)
+            union.push(row)
+          }
+        }
+      }
+      filtered = union
+    }
+
+    return sortPrintingRows(filtered, printingSortField, printingSortDirection) as unknown as PrintingRowResponse[]
+  }, [printingData, searchQuery, selectedColors, colorMode, activeStatuses, printingSortField, printingSortDirection])
+
+  // ─── Printing sort toggle handler ──────────────────────────────
+  const handlePrintingSort = useCallback(
+    (field: PrintingSortField) => {
+      if (field === printingSortField) {
+        // Same field clicked — toggle direction
+        setPrintingSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+      } else {
+        // Different field — set to ascending
+        setPrintingSortField(field)
+        setPrintingSortDirection('asc')
+      }
+    },
+    [printingSortField]
+  )
+
+  // ─── Derived state for the active data source ──────────────────
+  const isPrintingView = viewMode === 'list'
+  const activeIsLoading = isPrintingView ? printingLoading : isLoading
+  const activeError = isPrintingView ? printingError : error
+  const activeIsPriceStale = isPrintingView
+    ? (printingData?.isPriceStale ?? false)
+    : isPriceStale
+  const activeLastPriceRefresh = isPrintingView
+    ? (printingData?.lastPriceRefresh ?? null)
+    : lastPriceRefresh
+  const activeRowCount = isPrintingView
+    ? (printingData?.rows?.length ?? 0)
+    : rows.length
+  const activeFilteredCount = isPrintingView
+    ? filteredPrintingRows.length
+    : filteredRows.length
+
   return (
     <div className="flex h-full flex-col" style={{ background: '#0f0f0f' }}>
       {/* ─── Page Header ─────────────────────────────────────────── */}
@@ -108,8 +189,8 @@ export default function CollectionPage() {
         <div>
           <h1 className="text-base font-medium text-white">Collection</h1>
           <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.35)' }}>
-            {rows.length.toLocaleString()} cards
-            {lastPriceRefresh && ' · Prices cached'}
+            {activeRowCount.toLocaleString()} cards
+            {activeLastPriceRefresh && ' · Prices cached'}
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2">
@@ -187,11 +268,11 @@ export default function CollectionPage() {
           </div>
 
           {/* ─── Price Stale Indicator ───────────────────────────── */}
-          {isPriceStale && (
+          {activeIsPriceStale && (
             <div className="px-5 pt-2">
               <PriceStaleIndicator
-                isPriceStale={isPriceStale}
-                lastPriceRefresh={lastPriceRefresh}
+                isPriceStale={activeIsPriceStale}
+                lastPriceRefresh={activeLastPriceRefresh}
               />
             </div>
           )}
@@ -200,10 +281,22 @@ export default function CollectionPage() {
           <CollectionToolbar
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
-            sortField={sortField}
-            onSortFieldChange={setSortField}
-            sortDirection={sortDirection}
-            onSortDirectionChange={setSortDirection}
+            sortField={isPrintingView ? printingSortField : sortField}
+            onSortFieldChange={(field) => {
+              if (isPrintingView) {
+                setPrintingSortField(field as PrintingSortField)
+              } else {
+                setSortField(field as SortField)
+              }
+            }}
+            sortDirection={isPrintingView ? printingSortDirection : sortDirection}
+            onSortDirectionChange={(dir) => {
+              if (isPrintingView) {
+                setPrintingSortDirection(dir)
+              } else {
+                setSortDirection(dir)
+              }
+            }}
             viewMode={viewMode}
             onViewModeChange={setViewMode}
             selectedColors={selectedColors}
@@ -212,22 +305,38 @@ export default function CollectionPage() {
             onColorModeChange={setColorMode}
             activeStatuses={activeStatuses}
             onStatusChange={setActiveStatuses}
+            sortContext={isPrintingView ? 'printing' : 'rollup'}
           />
 
           {/* ─── Main Content: Loading / Error / Empty / Data ──── */}
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            {isLoading ? (
+            {activeIsLoading ? (
               <LoadingSkeleton viewMode={viewMode} />
-            ) : error ? (
+            ) : activeError ? (
               <ErrorState onRetry={() => window.location.reload()} />
-            ) : filteredRows.length === 0 ? (
-              <EmptyState hasFilters={searchQuery !== '' || selectedColors.length > 0 || activeStatuses.length > 0} />
-            ) : viewMode === 'list' ? (
-              <CollectionListView rows={filteredRows} expand={expand} />
+            ) : isPrintingView ? (
+              // ─── Printing List View ─────────────────────────────
+              (printingData?.rows?.length ?? 0) === 0 ? (
+                <EmptyState hasFilters={false} />
+              ) : filteredPrintingRows.length === 0 ? (
+                <EmptyState hasFilters={searchQuery !== '' || selectedColors.length > 0 || activeStatuses.length > 0} />
+              ) : (
+                <PrintingListView
+                  rows={filteredPrintingRows}
+                  sortField={printingSortField}
+                  sortDirection={printingSortDirection}
+                  onSort={handlePrintingSort}
+                />
+              )
             ) : (
-              <div className="flex-1 overflow-y-auto p-4">
-                <CollectionGridView rows={filteredRows} onExpand={expandSubgroups} />
-              </div>
+              // ─── Grid View (rollup-based, unchanged) ────────────
+              filteredRows.length === 0 ? (
+                <EmptyState hasFilters={searchQuery !== '' || selectedColors.length > 0 || activeStatuses.length > 0} />
+              ) : (
+                <div className="flex-1 overflow-y-auto p-4">
+                  <CollectionGridView rows={filteredRows} onExpand={expandSubgroups} />
+                </div>
+              )
             )}
           </div>
 
@@ -239,11 +348,11 @@ export default function CollectionPage() {
             <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.25)' }}>
               Showing{' '}
               <span style={{ color: 'rgba(255,255,255,0.5)' }}>
-                {filteredRows.length.toLocaleString()}
+                {activeFilteredCount.toLocaleString()}
               </span>{' '}
               of{' '}
               <span style={{ color: 'rgba(255,255,255,0.5)' }}>
-                {rows.length.toLocaleString()}
+                {activeRowCount.toLocaleString()}
               </span>{' '}
               cards
             </span>

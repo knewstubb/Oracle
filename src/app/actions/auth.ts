@@ -1,7 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { createAuthServerClient } from '@/lib/supabase'
+import { createAuthServerClient } from '@/lib/supabase-server'
 
 /**
  * Signs the user out by destroying the session and redirecting to the login page.

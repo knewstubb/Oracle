@@ -15,8 +15,9 @@ import type {
   SortDirection,
   StatusFilter as StatusFilterType,
   ColorIdentityMode,
+  PrintingSortField,
 } from '@/lib/collection-filters'
-import { DEFAULT_SORT_DIRECTIONS } from '@/lib/collection-filters'
+import { DEFAULT_SORT_DIRECTIONS, DEFAULT_PRINTING_SORT_DIRECTIONS } from '@/lib/collection-filters'
 
 /* ─── Constants ─────────────────────────────────────────────────────── */
 
@@ -38,6 +39,22 @@ const SORT_FIELDS: SortField[] = [
   'cardName',
   'rarity',
   'price',
+]
+
+const PRINTING_SORT_FIELD_LABELS: Record<PrintingSortField, string> = {
+  cardName: 'Card Name',
+  quantity: 'Quantity',
+  setCode: 'Set',
+  price: 'Price',
+  usedByCount: 'Used By',
+}
+
+const PRINTING_SORT_FIELDS: PrintingSortField[] = [
+  'cardName',
+  'quantity',
+  'setCode',
+  'price',
+  'usedByCount',
 ]
 
 const STATUS_OPTIONS: { value: StatusFilterType; label: string }[] = [
@@ -67,9 +84,9 @@ export interface CollectionToolbarProps {
   onSearchChange: (query: string) => void
 
   /** Current sort field */
-  sortField: SortField
+  sortField: SortField | PrintingSortField
   /** Called when sort field changes */
-  onSortFieldChange: (field: SortField) => void
+  onSortFieldChange: (field: SortField | PrintingSortField) => void
 
   /** Current sort direction */
   sortDirection: SortDirection
@@ -95,6 +112,9 @@ export interface CollectionToolbarProps {
   activeStatuses: StatusFilterType[]
   /** Called when status filter changes */
   onStatusChange: (statuses: StatusFilterType[]) => void
+
+  /** Which sort field set to display — 'rollup' (default) or 'printing' */
+  sortContext?: 'rollup' | 'printing'
 }
 
 /* ─── Main Component ────────────────────────────────────────────────── */
@@ -114,6 +134,7 @@ export function CollectionToolbar({
   onColorModeChange,
   activeStatuses,
   onStatusChange,
+  sortContext = 'rollup',
 }: CollectionToolbarProps) {
   // ─── Internal debounced search ─────────────────────────────────
   const [localSearch, setLocalSearch] = useState(searchQuery)
@@ -157,11 +178,15 @@ export function CollectionToolbar({
 
   // ─── Sort field change (also sets default direction for that field) ─
   const handleSortFieldChange = useCallback(
-    (field: SortField) => {
+    (field: SortField | PrintingSortField) => {
       onSortFieldChange(field)
-      onSortDirectionChange(DEFAULT_SORT_DIRECTIONS[field])
+      if (sortContext === 'printing') {
+        onSortDirectionChange(DEFAULT_PRINTING_SORT_DIRECTIONS[field as PrintingSortField])
+      } else {
+        onSortDirectionChange(DEFAULT_SORT_DIRECTIONS[field as SortField])
+      }
     },
-    [onSortFieldChange, onSortDirectionChange]
+    [onSortFieldChange, onSortDirectionChange, sortContext]
   )
 
   const toggleDirection = useCallback(() => {
@@ -200,7 +225,7 @@ export function CollectionToolbar({
         <div className="relative">
           <select
             value={sortField}
-            onChange={(e) => handleSortFieldChange(e.target.value as SortField)}
+            onChange={(e) => handleSortFieldChange(e.target.value as SortField | PrintingSortField)}
             className="appearance-none rounded-md py-1.5 pl-2.5 pr-7 text-xs text-white"
             style={{
               background: 'rgba(255,255,255,0.05)',
@@ -208,11 +233,18 @@ export function CollectionToolbar({
             }}
             aria-label="Sort by field"
           >
-            {SORT_FIELDS.map((field) => (
-              <option key={field} value={field} className="bg-[#1a1a1a] text-white">
-                {SORT_FIELD_LABELS[field]}
-              </option>
-            ))}
+            {sortContext === 'printing'
+              ? PRINTING_SORT_FIELDS.map((field) => (
+                  <option key={field} value={field} className="bg-[#1a1a1a] text-white">
+                    {PRINTING_SORT_FIELD_LABELS[field]}
+                  </option>
+                ))
+              : SORT_FIELDS.map((field) => (
+                  <option key={field} value={field} className="bg-[#1a1a1a] text-white">
+                    {SORT_FIELD_LABELS[field]}
+                  </option>
+                ))
+            }
           </select>
           <ChevronDown
             className="pointer-events-none absolute right-2 top-1/2 size-3 -translate-y-1/2"

@@ -87,13 +87,24 @@ describe('CollectionToolbar', () => {
   })
 
   describe('Sort field selector', () => {
-    it('displays all sort field options', () => {
+    it('displays all rollup sort field options by default', () => {
       renderToolbar()
       const select = screen.getByLabelText('Sort by field') as HTMLSelectElement
       expect(select.options).toHaveLength(6)
       expect(select.options[0].text).toBe('Date Updated')
       expect(select.options[3].text).toBe('Card Name')
       expect(select.options[5].text).toBe('Price')
+    })
+
+    it('displays printing sort field options when sortContext is printing', () => {
+      renderToolbar({ sortContext: 'printing', sortField: 'cardName' })
+      const select = screen.getByLabelText('Sort by field') as HTMLSelectElement
+      expect(select.options).toHaveLength(5)
+      expect(select.options[0].text).toBe('Card Name')
+      expect(select.options[1].text).toBe('Quantity')
+      expect(select.options[2].text).toBe('Set')
+      expect(select.options[3].text).toBe('Price')
+      expect(select.options[4].text).toBe('Used By')
     })
 
     it('calls onSortFieldChange when field changes', () => {
@@ -107,6 +118,18 @@ describe('CollectionToolbar', () => {
       expect(onSortFieldChange).toHaveBeenCalledWith('cardName')
       // Also sets default direction for that field
       expect(onSortDirectionChange).toHaveBeenCalledWith('asc')
+    })
+
+    it('uses printing default directions when sortContext is printing', () => {
+      const onSortFieldChange = vi.fn()
+      const onSortDirectionChange = vi.fn()
+      renderToolbar({ sortContext: 'printing', sortField: 'cardName', onSortFieldChange, onSortDirectionChange })
+
+      const select = screen.getByLabelText('Sort by field')
+      fireEvent.change(select, { target: { value: 'usedByCount' } })
+
+      expect(onSortFieldChange).toHaveBeenCalledWith('usedByCount')
+      expect(onSortDirectionChange).toHaveBeenCalledWith('desc')
     })
   })
 

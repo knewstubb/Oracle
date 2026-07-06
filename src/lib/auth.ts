@@ -1,5 +1,5 @@
 import type { User } from '@supabase/supabase-js'
-import { createAuthServerClient } from './supabase'
+import { createAuthServerClient } from './supabase-server'
 
 /**
  * Retrieves the authenticated user from the current session.

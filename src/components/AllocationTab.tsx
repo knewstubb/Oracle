@@ -72,8 +72,8 @@ export function AllocationTab({ deckFilter: externalDeckFilter }: { deckFilter?:
 
   // Fetch decks list for the filter dropdown
   const { data: decks } = useQuery<DeckInfo[]>({
-    queryKey: ['decks'],
-    queryFn: () => fetch('/api/decks').then((r) => r.json()),
+    queryKey: ['decks', 'list'],
+    queryFn: () => fetch('/api/decks').then((r) => r.json()).then((data) => data.decks ?? []),
     staleTime: 5 * 60 * 1000,
   })
 

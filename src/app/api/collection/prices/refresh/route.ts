@@ -1,112 +1,170 @@
 /**
  * GET/POST /api/collection/prices/refresh
  *
- * Thin trigger endpoint that invokes the Supabase Edge Function `ck-price-refresh`.
- * Does NOT block waiting for the refresh to complete — fires and returns immediately.
+ * Fetches the Card Kingdom bulk pricelist directly and upserts into the
+ * `card_kingdom_prices` table via Supabase. Runs server-side in the Next.js
+ * API route — no edge function dependency.
  *
  * Trigger modes:
  * - GET: Vercel Cron (validates Authorization header with CRON_SECRET)
- * - POST: Manual UI trigger (no special auth required for single-user app)
+ * - POST: Manual UI trigger (requires auth)
  *
- * Returns: { triggered: true, timestamp, edgeFunctionUrl } on success
+ * Returns: { success, entriesProcessed, entriesSkipped, durationMs }
  *
  * Validates: Requirements 6.4
  */
 
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
+import { createAdminClient } from '@/lib/supabase'
 
 // ---------------------------------------------------------------------------
-// Edge Function URL construction
+// Configuration
 // ---------------------------------------------------------------------------
 
-function getEdgeFunctionUrl(): string {
-  const explicitUrl = process.env.SUPABASE_EDGE_FUNCTION_URL
-  if (explicitUrl) {
-    // If explicit base URL ends with /ck-price-refresh already, use as-is
-    if (explicitUrl.endsWith('/ck-price-refresh')) {
-      return explicitUrl
-    }
-    return `${explicitUrl.replace(/\/$/, '')}/ck-price-refresh`
-  }
+const CK_PRICELIST_URL = 'https://api.cardkingdom.com/api/pricelist'
+const FETCH_TIMEOUT_MS = 120_000
+const UPSERT_BATCH_SIZE = 1000
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  if (!supabaseUrl) {
-    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL environment variable')
-  }
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
-  return `${supabaseUrl.replace(/\/$/, '')}/functions/v1/ck-price-refresh`
+interface CKProduct {
+  id: number
+  name: string
+  sku: string
+  price_retail: number
+  is_foil: boolean
+  scryfall_id?: string | null
 }
 
 // ---------------------------------------------------------------------------
-// Shared trigger logic
+// Core price refresh logic
 // ---------------------------------------------------------------------------
 
-async function triggerEdgeFunction(): Promise<Response> {
-  const edgeFunctionUrl = getEdgeFunctionUrl()
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+async function refreshPrices(): Promise<Response> {
+  const startTime = Date.now()
 
-  if (!serviceRoleKey) {
-    return Response.json(
-      { error: 'Missing SUPABASE_SERVICE_ROLE_KEY environment variable' },
-      { status: 500 }
-    )
-  }
-
-  // Fire-and-forget: invoke the edge function but don't await the full response.
-  // We send the request and return immediately to avoid Vercel timeout.
   try {
+    // 1. Fetch the CK pricelist
     const controller = new AbortController()
-    // Give it 5 seconds to confirm the edge function accepted the request,
-    // but don't wait for the full price refresh to complete.
-    const timeoutId = setTimeout(() => controller.abort(), 5_000)
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
 
-    const response = await fetch(edgeFunctionUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${serviceRoleKey}`,
-        'Content-Type': 'application/json',
-      },
-      signal: controller.signal,
-    }).catch((err) => {
-      // If we aborted due to timeout, that's expected — the edge function
-      // is running but we're not waiting for it to finish.
-      if (err instanceof Error && err.name === 'AbortError') {
-        return null // treat as successfully triggered
-      }
-      throw err
-    })
+    let response: globalThis.Response
+    try {
+      response = await fetch(CK_PRICELIST_URL, { signal: controller.signal })
+    } finally {
+      clearTimeout(timeoutId)
+    }
 
-    clearTimeout(timeoutId)
-
-    // If we got a response back within the timeout window, check if it
-    // indicated an auth error or method rejection (these are fast failures).
-    if (response && !response.ok && response.status < 500) {
-      const body = await response.json().catch(() => ({}))
+    if (!response.ok) {
       return Response.json(
-        {
-          triggered: false,
-          error: body?.error ?? `Edge function returned ${response.status}`,
-          timestamp: new Date().toISOString(),
-        },
-        { status: response.status }
+        { success: false, error: `CK API returned HTTP ${response.status}` },
+        { status: 502 }
       )
     }
 
-    // Either we got a 200/202, or we timed out (edge function still running).
-    // Both mean the function was successfully triggered.
+    const data = await response.json()
+
+    // Handle different possible response shapes from CK API
+    const products: CKProduct[] = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.data)
+        ? data.data
+        : Array.isArray(data?.products)
+          ? data.products
+          : []
+
+    if (products.length === 0) {
+      return Response.json(
+        { success: false, error: 'CK API returned zero products' },
+        { status: 502 }
+      )
+    }
+
+    // 2. Filter to entries with valid scryfall_id
+    const now = new Date().toISOString()
+    const validEntries: Array<{
+      scryfall_printing_id: string
+      price_retail: number
+      is_foil: boolean
+      updated_at: string
+    }> = []
+    let skipped = 0
+
+    for (const product of products) {
+      if (!product.scryfall_id || product.scryfall_id.trim() === '') {
+        skipped++
+        continue
+      }
+
+      validEntries.push({
+        scryfall_printing_id: product.scryfall_id.trim(),
+        price_retail: product.price_retail,
+        is_foil: product.is_foil,
+        updated_at: now,
+      })
+    }
+
+    if (validEntries.length === 0) {
+      return Response.json(
+        {
+          success: false,
+          error: 'No products with scryfall_id found in CK response',
+          entriesSkipped: skipped,
+        },
+        { status: 502 }
+      )
+    }
+
+    // 3. Upsert into card_kingdom_prices in batches
+    const supabase = createAdminClient()
+    let totalUpserted = 0
+
+    for (let i = 0; i < validEntries.length; i += UPSERT_BATCH_SIZE) {
+      const batch = validEntries.slice(i, i + UPSERT_BATCH_SIZE)
+
+      const { error: upsertErr } = await supabase
+        .from('card_kingdom_prices')
+        .upsert(batch, { onConflict: 'scryfall_printing_id' })
+
+      if (upsertErr) {
+        return Response.json(
+          {
+            success: false,
+            error: `Batch upsert failed at offset ${i}: ${upsertErr.message}`,
+            entriesProcessed: totalUpserted,
+          },
+          { status: 500 }
+        )
+      }
+
+      totalUpserted += batch.length
+    }
+
+    const durationMs = Date.now() - startTime
+
     return Response.json({
-      triggered: true,
-      timestamp: new Date().toISOString(),
-      edgeFunctionUrl,
+      success: true,
+      entriesProcessed: totalUpserted,
+      entriesSkipped: skipped,
+      durationMs,
+      timestamp: now,
     })
-  } catch (err) {
+  } catch (error) {
+    const durationMs = Date.now() - startTime
+    const message = error instanceof Error ? error.message : String(error)
+
+    if (message.includes('AbortError') || message.includes('aborted')) {
+      return Response.json(
+        { success: false, error: `Request timed out after ${FETCH_TIMEOUT_MS}ms`, durationMs },
+        { status: 504 }
+      )
+    }
+
     return Response.json(
-      {
-        triggered: false,
-        error: err instanceof Error ? err.message : 'Failed to invoke edge function',
-        timestamp: new Date().toISOString(),
-      },
+      { success: false, error: message, durationMs },
       { status: 502 }
     )
   }
@@ -117,9 +175,6 @@ async function triggerEdgeFunction(): Promise<Response> {
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest) {
-  // Vercel Cron sends an Authorization header with the CRON_SECRET.
-  // If CRON_SECRET is configured, validate it. Otherwise allow unauthenticated
-  // GET for local development.
   const cronSecret = process.env.CRON_SECRET
   if (cronSecret) {
     const authHeader = request.headers.get('Authorization')
@@ -131,7 +186,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return triggerEdgeFunction()
+  return refreshPrices()
 }
 
 // ---------------------------------------------------------------------------
@@ -142,5 +197,5 @@ export async function POST() {
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
 
-  return triggerEdgeFunction()
+  return refreshPrices()
 }

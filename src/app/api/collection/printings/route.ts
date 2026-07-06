@@ -3,6 +3,7 @@ import { getLastRefreshTimestamp, isPriceDataStale } from '@/lib/price-store'
 import { requireAuth } from '@/lib/auth'
 import {
   groupPhysicalCopiesToPrintingRows,
+  computeAllocationState,
   lookupPrice,
   type RawPhysicalCopy,
   type PrintingRowResponse,
@@ -31,7 +32,30 @@ interface CollectionPrintingsResponse {
 // Constants
 // ---------------------------------------------------------------------------
 
-const PAGE_SIZE = 1000
+const PAGE_SIZE = 5000 // Larger batches = fewer round trips
+
+// ---------------------------------------------------------------------------
+// Paginated fetch helper — reduces boilerplate for paginated Supabase queries
+// ---------------------------------------------------------------------------
+
+async function fetchAll<T>(
+  query: (offset: number, limit: number) => Promise<{ data: T[] | null; error: { message: string } | null }>
+): Promise<T[]> {
+  const results: T[] = []
+  let offset = 0
+  let hasMore = true
+
+  while (hasMore) {
+    const { data, error } = await query(offset, PAGE_SIZE)
+    if (error) throw new Error(error.message)
+    const page = data || []
+    results.push(...page)
+    hasMore = page.length === PAGE_SIZE
+    offset += PAGE_SIZE
+  }
+
+  return results
+}
 
 // ---------------------------------------------------------------------------
 // Route handler
@@ -44,17 +68,11 @@ export async function GET() {
   const supabase = createAdminClient()
 
   try {
-    // ──── FALLBACK CHECK ────
-    // If physical_copies is incomplete (<80% of collection count), serve from collection table
-    const { count: physicalCopiesCount } = await supabase
-      .from('physical_copies')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_proxy', false)
-      .gt('quantity', 0)
-
-    const { count: collectionCount } = await supabase
-      .from('collection')
-      .select('*', { count: 'exact', head: true })
+    // ──── FALLBACK CHECK (parallel count queries) ────
+    const [{ count: physicalCopiesCount }, { count: collectionCount }] = await Promise.all([
+      supabase.from('physical_copies').select('*', { count: 'exact', head: true }).gt('quantity', 0),
+      supabase.from('collection').select('*', { count: 'exact', head: true }),
+    ])
 
     const useCollectionFallback =
       !physicalCopiesCount ||
@@ -65,199 +83,206 @@ export async function GET() {
       return await serveFallback(supabase)
     }
 
-    // ──── 1. Query physical_copies + card_definitions (paginated) ────
-    const allPhysicalCopies: Array<{
-      id: number
-      card_definition_id: number
-      scryfall_printing_id: string | null
-      is_foil: boolean
-      quantity: number
-      card_name: string
-      color_identity: string | null
-    }> = []
+    // ──── PARALLEL DATA FETCH ────
+    // All queries + price metadata run concurrently
+    const [physicalCopiesRaw, deckUsageRaw, activeDeckIds, allocationRoles, priceRows, setInfoRows, lastPriceRefresh, priceStale] =
+      await Promise.all([
+        // 1. Physical copies + card definitions (BOTH originals AND proxies)
+        fetchAll<{
+          id: number
+          card_definition_id: number
+          scryfall_printing_id: string | null
+          is_foil: boolean
+          is_proxy: boolean
+          quantity: number
+          card_definitions: { card_name: string; color_identity: string | null } | null
+        }>((offset, limit) =>
+          supabase
+            .from('physical_copies')
+            .select(`
+              id,
+              card_definition_id,
+              scryfall_printing_id,
+              is_foil,
+              is_proxy,
+              quantity,
+              card_definitions!physical_copies_card_definition_id_fkey (
+                card_name,
+                color_identity
+              )
+            `)
+            .gt('quantity', 0)
+            .range(offset, offset + limit - 1) as any
+        ),
 
-    let offset = 0
-    let hasMore = true
-
-    while (hasMore) {
-      const { data: page, error: pageErr } = await supabase
-        .from('physical_copies')
-        .select(`
-          id,
-          card_definition_id,
-          scryfall_printing_id,
-          is_foil,
-          quantity,
-          card_definitions!physical_copies_card_definition_id_fkey (
-            card_name,
-            color_identity
-          )
-        `)
-        .eq('is_proxy', false)
-        .gt('quantity', 0)
-        .range(offset, offset + PAGE_SIZE - 1)
-
-      if (pageErr) throw pageErr
-
-      for (const row of page || []) {
-        const cd = row.card_definitions as unknown as {
+        // 2. Deck cards usage (all decks — we'll filter to active later)
+        fetchAll<{
+          physical_copy_id: number | null
+          deck_id: number
           card_name: string
-          color_identity: string | null
-        }
-        allPhysicalCopies.push({
-          id: row.id,
-          card_definition_id: row.card_definition_id,
-          scryfall_printing_id: row.scryfall_printing_id,
-          is_foil: row.is_foil,
-          quantity: row.quantity,
-          card_name: cd?.card_name || '',
-          color_identity: cd?.color_identity || null,
-        })
-      }
+          decks: { name: string; status: string } | null
+        }>((offset, limit) =>
+          supabase
+            .from('deck_cards')
+            .select(`
+              physical_copy_id,
+              deck_id,
+              card_name,
+              decks!deck_cards_deck_id_fkey ( name, status )
+            `)
+            .not('physical_copy_id', 'is', null)
+            .range(offset, offset + limit - 1) as any
+        ),
 
-      hasMore = (page?.length ?? 0) === PAGE_SIZE
-      offset += PAGE_SIZE
-    }
+        // 3. Get active deck IDs for allocation computation
+        supabase
+          .from('decks')
+          .select('id')
+          .eq('status', 'active')
+          .then(({ data }) => new Set((data || []).map((d: { id: number }) => d.id))),
+
+        // 4. Deck allocations (role per card+deck)
+        fetchAll<{
+          card_name: string
+          deck_id: number
+          role: string
+        }>((offset, limit) =>
+          supabase
+            .from('deck_allocations')
+            .select('card_name, deck_id, role')
+            .range(offset, offset + limit - 1) as any
+        ),
+
+        // 5. Prices
+        fetchAll<{
+          scryfall_printing_id: string
+          price_retail: number
+          is_foil: boolean
+        }>((offset, limit) =>
+          supabase
+            .from('card_kingdom_prices')
+            .select('scryfall_printing_id, price_retail, is_foil')
+            .range(offset, offset + limit - 1) as any
+        ),
+
+        // 6. Set info from collection table
+        fetchAll<{
+          scryfall_id: string | null
+          set_code: string | null
+          edition_name: string | null
+        }>((offset, limit) =>
+          supabase
+            .from('collection')
+            .select('scryfall_id, set_code, edition_name')
+            .not('scryfall_id', 'is', null)
+            .range(offset, offset + limit - 1) as any
+        ),
+
+        // 7. Price metadata
+        getLastRefreshTimestamp(),
+        isPriceDataStale(),
+      ])
+
+    // ──── PROCESS RESULTS ────
+
+    // Normalize physical copies
+    const allPhysicalCopies = physicalCopiesRaw.map((row) => {
+      const cd = row.card_definitions as unknown as { card_name: string; color_identity: string | null } | null
+      return {
+        id: row.id,
+        card_definition_id: row.card_definition_id,
+        scryfall_printing_id: row.scryfall_printing_id,
+        is_foil: row.is_foil,
+        is_proxy: row.is_proxy,
+        quantity: row.quantity,
+        card_name: cd?.card_name || '',
+        color_identity: cd?.color_identity || null,
+      }
+    })
 
     if (allPhysicalCopies.length === 0) {
-      const lastPriceRefresh = await getLastRefreshTimestamp()
-      const priceStale = await isPriceDataStale()
-      const response: CollectionPrintingsResponse = {
-        rows: [],
-        lastPriceRefresh,
-        isPriceStale: priceStale,
-      }
-      return Response.json(response)
+      return Response.json({ rows: [], lastPriceRefresh, isPriceStale: priceStale })
     }
 
-    // ──── 2. Query deck_cards + decks for usage (paginated) ────
-    const deckUsageRows: Array<{
-      physical_copy_id: number
-      deck_id: number
-      deck_name: string
-    }> = []
-
-    {
-      let duOffset = 0
-      let duHasMore = true
-      while (duHasMore) {
-        const { data: duData, error: duErr } = await supabase
-          .from('deck_cards')
-          .select(`
-            physical_copy_id,
-            deck_id,
-            decks!deck_cards_deck_id_fkey ( name )
-          `)
-          .not('physical_copy_id', 'is', null)
-          .range(duOffset, duOffset + PAGE_SIZE - 1)
-
-        if (duErr) throw duErr
-
-        for (const row of duData || []) {
-          deckUsageRows.push({
-            physical_copy_id: row.physical_copy_id!,
-            deck_id: row.deck_id,
-            deck_name: (row.decks as unknown as { name: string })?.name || '',
-          })
-        }
-
-        duHasMore = (duData?.length ?? 0) === PAGE_SIZE
-        duOffset += PAGE_SIZE
-      }
-    }
-
-    // ──── 3. Query card_kingdom_prices for price lookup ────
+    // Build price map
     const priceMap = new Map<string, number>()
-
-    {
-      let priceOffset = 0
-      let priceHasMore = true
-      while (priceHasMore) {
-        const { data: priceRows, error: priceErr } = await supabase
-          .from('card_kingdom_prices')
-          .select('scryfall_printing_id, price_retail, is_foil')
-          .range(priceOffset, priceOffset + PAGE_SIZE - 1)
-
-        if (priceErr) throw priceErr
-
-        for (const row of priceRows || []) {
-          const key = `${row.scryfall_printing_id}:${row.is_foil ? 'foil' : 'normal'}`
-          priceMap.set(key, row.price_retail)
-        }
-
-        priceHasMore = (priceRows?.length ?? 0) === PAGE_SIZE
-        priceOffset += PAGE_SIZE
+    for (const row of priceRows) {
+      const foilKey = `${row.scryfall_printing_id}:${row.is_foil ? 'foil' : 'normal'}`
+      priceMap.set(foilKey, row.price_retail)
+      const fallbackKey = `${row.scryfall_printing_id}:${row.is_foil ? 'normal' : 'foil'}`
+      if (!priceMap.has(fallbackKey)) {
+        priceMap.set(fallbackKey, row.price_retail)
       }
     }
 
-    // ──── 4. Query collection table for set info ────
+    // Build set info map
     const setInfoMap = new Map<string, { setCode: string; setName: string }>()
-
-    {
-      let setOffset = 0
-      let setHasMore = true
-      while (setHasMore) {
-        const { data: setRows } = await supabase
-          .from('collection')
-          .select('scryfall_id, set_code, edition_name')
-          .not('scryfall_id', 'is', null)
-          .range(setOffset, setOffset + PAGE_SIZE - 1)
-
-        for (const row of setRows || []) {
-          if (row.scryfall_id && !setInfoMap.has(row.scryfall_id)) {
-            setInfoMap.set(row.scryfall_id, {
-              setCode: row.set_code || '',
-              setName: row.edition_name || '',
-            })
-          }
-        }
-
-        setHasMore = (setRows?.length ?? 0) === PAGE_SIZE
-        setOffset += PAGE_SIZE
+    for (const row of setInfoRows) {
+      if (row.scryfall_id && !setInfoMap.has(row.scryfall_id)) {
+        setInfoMap.set(row.scryfall_id, {
+          setCode: row.set_code || '',
+          setName: row.edition_name || '',
+        })
       }
     }
 
-    // ──── 5. Get price metadata ────
-    const lastPriceRefresh = await getLastRefreshTimestamp()
-    const priceStale = await isPriceDataStale()
+    // Build deck usage map (only counting active decks for demand)
+    // Also build a card-level role lookup from deck_allocations
+    const allocationRoleMap = new Map<string, 'original' | 'proxy'>() // key: "cardName|deckId"
+    for (const row of allocationRoles) {
+      allocationRoleMap.set(`${row.card_name}|${row.deck_id}`, row.role as 'original' | 'proxy')
+    }
 
-    // ──── 6. Build deck usage lookup: physical_copy_id → { deckId, deckName }[] ────
-    const deckUsageMap = new Map<number, Map<number, string>>()
-    for (const row of deckUsageRows) {
+    const deckUsageMap = new Map<number, Map<number, { deckName: string; role: 'original' | 'proxy' | 'unmet' }>>()
+    for (const row of deckUsageRaw) {
+      if (!row.physical_copy_id) continue
+      // Only include usage from active decks
+      const deckStatus = (row.decks as unknown as { name: string; status: string })?.status
+      if (deckStatus !== 'active') continue
+
       let decksForCopy = deckUsageMap.get(row.physical_copy_id)
       if (!decksForCopy) {
         decksForCopy = new Map()
         deckUsageMap.set(row.physical_copy_id, decksForCopy)
       }
-      // Use Map keyed by deck_id for distinct deck counting
+      const deckName = (row.decks as unknown as { name: string; status: string })?.name || ''
       if (!decksForCopy.has(row.deck_id)) {
-        decksForCopy.set(row.deck_id, row.deck_name)
+        // Look up the role from deck_allocations
+        const roleKey = `${row.card_name}|${row.deck_id}`
+        const role = allocationRoleMap.get(roleKey) || 'unmet'
+        decksForCopy.set(row.deck_id, { deckName, role })
       }
     }
 
-    // ──── 7. Build RawPhysicalCopy array ────
-    const rawCopies: RawPhysicalCopy[] = allPhysicalCopies.map((pc) => {
-      const setInfo = pc.scryfall_printing_id
-        ? setInfoMap.get(pc.scryfall_printing_id)
-        : undefined
+    // Compute card-level supply aggregates (original qty and proxy qty per card name)
+    const cardSupply = new Map<string, { originalQty: number; proxyQty: number }>()
+    for (const pc of allPhysicalCopies) {
+      const existing = cardSupply.get(pc.card_name) || { originalQty: 0, proxyQty: 0 }
+      if (pc.is_proxy) {
+        existing.proxyQty += pc.quantity
+      } else {
+        existing.originalQty += pc.quantity
+      }
+      cardSupply.set(pc.card_name, existing)
+    }
 
+    // Compute card-level active demand (number of active decks using this card)
+    // Use deck_cards by card_name across active decks
+    const cardDemand = new Map<string, Set<number>>()
+    for (const row of deckUsageRaw) {
+      const deckStatus = (row.decks as unknown as { name: string; status: string })?.status
+      if (deckStatus !== 'active') continue
+      const existing = cardDemand.get(row.card_name) || new Set()
+      existing.add(row.deck_id)
+      cardDemand.set(row.card_name, existing)
+    }
+
+    // Build raw copies and group
+    const rawCopies: RawPhysicalCopy[] = allPhysicalCopies.map((pc) => {
+      const setInfo = pc.scryfall_printing_id ? setInfoMap.get(pc.scryfall_printing_id) : undefined
       const decksMap = deckUsageMap.get(pc.id)
       const usedByDecks = decksMap
-        ? Array.from(decksMap.entries()).map(([deckId, deckName]) => ({
-            deckId,
-            deckName,
-          }))
-        : []
-
-      const price = pc.scryfall_printing_id
-        ? lookupPrice(priceMap, pc.scryfall_printing_id, pc.is_foil)
-        : null
-
-      const colorIdentity = pc.color_identity
-        ? pc.color_identity
-            .split(',')
-            .map((c) => c.trim())
-            .filter(Boolean)
+        ? Array.from(decksMap.entries()).map(([deckId, { deckName, role }]) => ({ deckId, deckName, role }))
         : []
 
       return {
@@ -268,23 +293,28 @@ export async function GET() {
         setName: setInfo?.setName || '',
         isFoil: Boolean(pc.is_foil),
         quantity: pc.quantity,
-        colorIdentity,
+        colorIdentity: pc.color_identity ? pc.color_identity.split(',').map((c) => c.trim()).filter(Boolean) : [],
         usedByCount: usedByDecks.length,
         usedByDecks,
-        price,
+        price: pc.scryfall_printing_id ? lookupPrice(priceMap, pc.scryfall_printing_id, pc.is_foil) : null,
+        isProxy: Boolean(pc.is_proxy),
       }
     })
 
-    // ──── 8. Group and produce flat rows ────
     const rows = groupPhysicalCopiesToPrintingRows(rawCopies)
 
-    // ──── 9. Return response ────
-    const response: CollectionPrintingsResponse = {
-      rows,
-      lastPriceRefresh,
-      isPriceStale: priceStale,
+    // Populate allocation-level fields on each row
+    for (const row of rows) {
+      const supply = cardSupply.get(row.cardName) || { originalQty: 0, proxyQty: 0 }
+      const demand = cardDemand.get(row.cardName)?.size || 0
+      row.originalQty = supply.originalQty
+      row.proxyQty = supply.proxyQty
+      row.totalSupply = supply.originalQty + supply.proxyQty
+      row.activeDemand = demand
+      row.allocationState = computeAllocationState(supply.originalQty, supply.proxyQty, demand)
     }
 
+    const response: CollectionPrintingsResponse = { rows, lastPriceRefresh, isPriceStale: priceStale }
     return Response.json(response)
   } catch (error) {
     console.error('Failed to load collection printings:', error)

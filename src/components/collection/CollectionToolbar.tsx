@@ -46,7 +46,7 @@ const PRINTING_SORT_FIELD_LABELS: Record<PrintingSortField, string> = {
   quantity: 'Quantity',
   setCode: 'Set',
   price: 'Price',
-  usedByCount: 'Used By',
+  usedByCount: 'Allocation',
 }
 
 const PRINTING_SORT_FIELDS: PrintingSortField[] = [
@@ -335,6 +335,64 @@ export function CollectionToolbar({
   )
 }
 
+/* ─── ManaIcon Sub-component ─────────────────────────────────────────── */
+
+/**
+ * Inline SVG mana symbols matching official MTG iconography.
+ * W=sun, U=water drop, B=skull, R=flame, G=tree, C=diamond.
+ */
+function ManaIcon({ color, isSelected }: { color: string; isSelected: boolean }) {
+  const fill = isSelected
+    ? (color === 'B' || color === 'U' || color === 'G' ? '#fff' : '#1a1a1a')
+    : 'rgba(255,255,255,0.5)'
+
+  const size = 12
+
+  switch (color) {
+    case 'W': // Sun
+      return (
+        <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <circle cx="8" cy="8" r="3" fill={fill} />
+          <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.4 1.4M11.55 11.55l1.4 1.4M3.05 12.95l1.4-1.4M11.55 4.45l1.4-1.4" stroke={fill} strokeWidth="1.2" strokeLinecap="round" />
+        </svg>
+      )
+    case 'U': // Water drop
+      return (
+        <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M8 2C8 2 4 7 4 10a4 4 0 0 0 8 0c0-3-4-8-4-8Z" fill={fill} />
+        </svg>
+      )
+    case 'B': // Skull
+      return (
+        <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M8 2C5.2 2 3 4.2 3 7c0 2 1 3.5 2.5 4.2V13h1v-1h3v1h1v-1.8C12 11.5 13 9.8 13 7c0-2.8-2.2-5-5-5Z" fill={fill} />
+          <circle cx="6" cy="7" r="1" fill={isSelected ? (color === 'B' ? '#150B00' : '#fff') : '#0f0f0f'} />
+          <circle cx="10" cy="7" r="1" fill={isSelected ? (color === 'B' ? '#150B00' : '#fff') : '#0f0f0f'} />
+        </svg>
+      )
+    case 'R': // Flame
+      return (
+        <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M8 2c0 2-2 3-2 5 0 1 .5 2 1.5 2.5C6.5 10 6 11 6 12c0 1.5 1.5 2.5 2 2.5s2-1 2-2.5c0-1-.5-2-1.5-2.5C9.5 9 10 8 10 7c0-2-2-3-2-5Z" fill={fill} />
+        </svg>
+      )
+    case 'G': // Tree
+      return (
+        <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M8 2L4 8h2.5L4.5 12h2.5v2h2v-2h2.5L9.5 8H12L8 2Z" fill={fill} />
+        </svg>
+      )
+    case 'C': // Diamond (colorless)
+      return (
+        <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M8 2L13 8L8 14L3 8L8 2Z" fill={fill} />
+        </svg>
+      )
+    default:
+      return null
+  }
+}
+
 /* ─── ColorIdentityFilter Sub-component ─────────────────────────────── */
 
 interface ColorIdentityFilterProps {
@@ -387,17 +445,10 @@ function ColorIdentityFilter({
             aria-pressed={isSelected}
             title={color.label}
           >
-            <span
-              className="text-[9px] font-bold leading-none"
-              style={{
-                color: isSelected
-                  ? (color.value === 'B' || color.value === 'U' || color.value === 'G' ? '#fff' : '#1a1a1a')
-                  : color.hex === '#150B00' ? 'rgba(255,255,255,0.5)' : color.hex,
-                opacity: isSelected ? 1 : 0.7,
-              }}
-            >
-              {color.value}
-            </span>
+            <ManaIcon
+              color={color.value}
+              isSelected={isSelected}
+            />
           </button>
         )
       })}

@@ -39,13 +39,25 @@ async function getSharedCardsAllocation(deckId?: number): Promise<AllocationCard
   const supabase = createAdminClient()
 
   // Step 1: Find card names appearing in 2+ distinct decks
-  // We need to query deck_cards grouped by card_name
-  const { data: allCards, error: allErr } = await supabase
-    .from('deck_cards')
-    .select('card_name, deck_id')
+  // Paginate to avoid hitting row limits
+  const allCards: Array<{ card_name: string; deck_id: number }> = []
+  let offset = 0
+  const PAGE = 5000
+  let hasMore = true
 
-  if (allErr) throw new Error(allErr.message)
-  if (!allCards || allCards.length === 0) return []
+  while (hasMore) {
+    const { data: page, error: pageErr } = await supabase
+      .from('deck_cards')
+      .select('card_name, deck_id')
+      .range(offset, offset + PAGE - 1)
+
+    if (pageErr) throw new Error(pageErr.message)
+    if (page) allCards.push(...page)
+    hasMore = (page?.length ?? 0) === PAGE
+    offset += PAGE
+  }
+
+  if (allCards.length === 0) return []
 
   // Group by card_name and count distinct deck_ids
   const cardDeckMap = new Map<string, Set<number>>()
@@ -71,13 +83,29 @@ async function getSharedCardsAllocation(deckId?: number): Promise<AllocationCard
   if (cardNames.length === 0) return []
 
   // Step 3: Get all deck_cards rows for these shared cards with ownership data
-  const { data: rows, error: rowsErr } = await supabase
-    .from('deck_cards')
-    .select('card_name, deck_id, ownership_status, proxy_of_deck_id, decks!inner(name)')
-    .in('card_name', cardNames)
+  // Supabase has a URL length limit for IN queries, so batch if needed
+  const BATCH_SIZE = 200
+  const allRows: Array<{
+    card_name: string
+    deck_id: number
+    ownership_status: string | null
+    proxy_of_deck_id: number | null
+    decks: { name: string } | null
+  }> = []
 
-  if (rowsErr) throw new Error(rowsErr.message)
-  if (!rows) return []
+  for (let i = 0; i < cardNames.length; i += BATCH_SIZE) {
+    const batch = cardNames.slice(i, i + BATCH_SIZE)
+    const { data: batchRows, error: batchErr } = await supabase
+      .from('deck_cards')
+      .select('card_name, deck_id, ownership_status, proxy_of_deck_id, decks!deck_cards_deck_id_fkey(name)')
+      .in('card_name', batch)
+
+    if (batchErr) throw new Error(batchErr.message)
+    if (batchRows) allRows.push(...(batchRows as any))
+  }
+
+  const rows = allRows
+  if (rows.length === 0) return []
 
   // Step 4: Group by card_name
   const groupMap = new Map<string, AllocationCardGroup>()

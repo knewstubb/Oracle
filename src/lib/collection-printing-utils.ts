@@ -10,6 +10,8 @@
 export interface DeckReference {
   deckId: number
   deckName: string
+  /** Allocation role: 'original' = real card in this deck, 'proxy' = printed proxy, 'unmet' = no copy available */
+  role: 'original' | 'proxy' | 'unmet'
 }
 
 export interface PrintingRowResponse {
@@ -24,6 +26,18 @@ export interface PrintingRowResponse {
   usedByCount: number
   usedByDecks: DeckReference[]
   price: number | null
+  /** Whether this row represents proxy copies (not real Magic cards) */
+  isProxy: boolean
+  /** Number of owned original copies (across all printings of this card) */
+  originalQty: number
+  /** Number of printed proxy copies (across all printings of this card) */
+  proxyQty: number
+  /** Total supply = originalQty + proxyQty */
+  totalSupply: number
+  /** Number of active decks demanding this card */
+  activeDemand: number
+  /** Allocation state: 'clean' | 'proxied' | 'overallocated' | 'unallocated' */
+  allocationState: 'clean' | 'proxied' | 'overallocated' | 'unallocated'
 }
 
 /** Raw input type for the grouping function. */
@@ -39,6 +53,8 @@ export interface RawPhysicalCopy {
   usedByCount: number
   usedByDecks: DeckReference[]
   price: number | null
+  /** Whether this physical copy is a proxy */
+  isProxy: boolean
 }
 
 /* ─── Price Formatting ──────────────────────────────────────────────── */
@@ -98,9 +114,13 @@ export function getTooltipContent(decks: DeckReference[]): {
 
 /**
  * Groups an array of RawPhysicalCopy by the unique combination of
- * (cardName, scryfallPrintingId, isFoil). For each group, produces one
+ * (cardName, scryfallPrintingId, isFoil, isProxy). For each group, produces one
  * PrintingRowResponse with quantity = sum of all matching quantities.
  * Other fields come from the first entry in the group.
+ *
+ * Note: allocation-level fields (originalQty, proxyQty, totalSupply, activeDemand, allocationState)
+ * are set to defaults here and must be populated by the caller after grouping,
+ * since they require card-level aggregation across all printings.
  */
 export function groupPhysicalCopiesToPrintingRows(
   copies: RawPhysicalCopy[]
@@ -108,7 +128,7 @@ export function groupPhysicalCopiesToPrintingRows(
   const groupMap = new Map<string, PrintingRowResponse>()
 
   for (const copy of copies) {
-    const key = `${copy.cardName}||${copy.scryfallPrintingId}||${copy.isFoil}`
+    const key = `${copy.cardName}||${copy.scryfallPrintingId}||${copy.isFoil}||${copy.isProxy}`
 
     const existing = groupMap.get(key)
     if (existing) {
@@ -126,11 +146,37 @@ export function groupPhysicalCopiesToPrintingRows(
         usedByCount: copy.usedByCount,
         usedByDecks: copy.usedByDecks,
         price: copy.price,
+        isProxy: copy.isProxy,
+        // Allocation-level fields — populated by caller after grouping
+        originalQty: 0,
+        proxyQty: 0,
+        totalSupply: 0,
+        activeDemand: 0,
+        allocationState: 'unallocated',
       })
     }
   }
 
   return Array.from(groupMap.values())
+}
+
+/**
+ * Computes the allocation state for a card based on its supply and demand.
+ * - 'clean': demand ≤ originals (all covered by real cards)
+ * - 'proxied': demand > originals but ≤ totalSupply (proxies cover the gap)
+ * - 'overallocated': demand > totalSupply (need to buy or print more)
+ * - 'unallocated': demand = 0 (not in any active deck)
+ */
+export function computeAllocationState(
+  originalQty: number,
+  proxyQty: number,
+  activeDemand: number
+): 'clean' | 'proxied' | 'overallocated' | 'unallocated' {
+  if (activeDemand === 0) return 'unallocated'
+  const totalSupply = originalQty + proxyQty
+  if (activeDemand <= originalQty) return 'clean'
+  if (activeDemand <= totalSupply) return 'proxied'
+  return 'overallocated'
 }
 
 /* ─── Price Lookup ──────────────────────────────────────────────────── */

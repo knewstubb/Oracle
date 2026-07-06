@@ -104,7 +104,7 @@ describe('CollectionToolbar', () => {
       expect(select.options[1].text).toBe('Quantity')
       expect(select.options[2].text).toBe('Set')
       expect(select.options[3].text).toBe('Price')
-      expect(select.options[4].text).toBe('Used By')
+      expect(select.options[4].text).toBe('Allocation')
     })
 
     it('calls onSortFieldChange when field changes', () => {

@@ -44,12 +44,12 @@ export default function CollectionPage() {
   // ─── Tab state ─────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<string>('collection')
 
-  // Collection vs Proxies tab within the Collection/Proxies split
-  const [collectionTab, setCollectionTab] = useState<'collection' | 'proxies'>('collection')
+  // ─── Proxy toggle ──────────────────────────────────────────────
+  const [includeProxies, setIncludeProxies] = useState(false)
 
   // ─── Fetch rollup data via hook (used for grid view) ─────────────
   const { rows, lastPriceRefresh, isPriceStale, isLoading, error, expand } =
-    useCollectionRollup(collectionTab)
+    useCollectionRollup('collection')
 
   // ─── Fetch printing-level data via hook (used for list view) ────
   const {
@@ -119,7 +119,12 @@ export default function CollectionPage() {
 
   // ─── Printing-level filtering pipeline ─────────────────────────
   const filteredPrintingRows = useMemo(() => {
-    const allRows = printingData?.rows ?? []
+    let allRows = printingData?.rows ?? []
+
+    // Filter proxies unless toggle is on
+    if (!includeProxies) {
+      allRows = allRows.filter((r) => !r.isProxy)
+    }
 
     // Cast to PrintingCardRow for filter functions
     let filtered = filterPrintingBySearch(allRows as unknown as PrintingCardRow[], searchQuery)
@@ -145,7 +150,7 @@ export default function CollectionPage() {
     }
 
     return sortPrintingRows(filtered, printingSortField, printingSortDirection) as unknown as PrintingRowResponse[]
-  }, [printingData, searchQuery, selectedColors, colorMode, activeStatuses, printingSortField, printingSortDirection])
+  }, [printingData, searchQuery, selectedColors, colorMode, activeStatuses, printingSortField, printingSortDirection, includeProxies])
 
   // ─── Printing sort toggle handler ──────────────────────────────
   const handlePrintingSort = useCallback(
@@ -172,8 +177,14 @@ export default function CollectionPage() {
   const activeLastPriceRefresh = isPrintingView
     ? (printingData?.lastPriceRefresh ?? null)
     : lastPriceRefresh
+
+  // Count owned vs proxy
+  const allPrintingRows = printingData?.rows ?? []
+  const ownedCount = allPrintingRows.filter((r) => !r.isProxy).length
+  const proxyCount = allPrintingRows.filter((r) => r.isProxy).length
+
   const activeRowCount = isPrintingView
-    ? (printingData?.rows?.length ?? 0)
+    ? (includeProxies ? allPrintingRows.length : ownedCount)
     : rows.length
   const activeFilteredCount = isPrintingView
     ? filteredPrintingRows.length
@@ -181,6 +192,8 @@ export default function CollectionPage() {
 
   return (
     <div className="flex h-full flex-col" style={{ background: '#0f0f0f' }}>
+      {/* Max-width container: 1520px centered, fluid below */}
+      <div className="mx-auto flex h-full w-full max-w-[1520px] flex-col">
       {/* ─── Page Header ─────────────────────────────────────────── */}
       <header
         className="flex items-center gap-3 px-5 py-3.5"
@@ -189,7 +202,8 @@ export default function CollectionPage() {
         <div>
           <h1 className="text-base font-medium text-white">Collection</h1>
           <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.35)' }}>
-            {activeRowCount.toLocaleString()} cards
+            {ownedCount.toLocaleString()} owned
+            {includeProxies && proxyCount > 0 && ` · ${proxyCount} proxies`}
             {activeLastPriceRefresh && ' · Prices cached'}
           </p>
         </div>
@@ -205,7 +219,7 @@ export default function CollectionPage() {
         </div>
       </header>
 
-      {/* ─── Top-Level Tab Navigation ────────────────────────────── */}
+      {/* ─── Tab Navigation ──────────────────────────────────────── */}
       <Tabs
         defaultValue="collection"
         value={activeTab}
@@ -222,53 +236,10 @@ export default function CollectionPage() {
           </TabsList>
         </div>
 
-        {/* ─── Collection Tab Content ──────────────────────────────── */}
+        {/* ─── Collection Tab ──────────────────────────────────────── */}
         <TabsContent value="collection" className="flex min-h-0 flex-1 flex-col">
-          {/* ─── Collection / Proxies sub-tabs ───────────────────── */}
-          <div
-            className="flex items-center gap-1 px-5 py-2"
-            style={{ borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}
-          >
-            <button
-              type="button"
-              onClick={() => setCollectionTab('collection')}
-              className={cn(
-                'rounded-md px-3 py-1.5 text-xs transition-colors',
-                collectionTab === 'collection'
-                  ? 'bg-[rgba(29,158,117,0.12)] text-[#1D9E75]'
-                  : 'text-[rgba(255,255,255,0.4)] hover:text-[rgba(255,255,255,0.6)]'
-              )}
-              style={
-                collectionTab === 'collection'
-                  ? { border: '0.5px solid rgba(29,158,117,0.3)' }
-                  : { border: '0.5px solid transparent' }
-              }
-              aria-pressed={collectionTab === 'collection'}
-            >
-              Collection
-            </button>
-            <button
-              type="button"
-              onClick={() => setCollectionTab('proxies')}
-              className={cn(
-                'rounded-md px-3 py-1.5 text-xs transition-colors',
-                collectionTab === 'proxies'
-                  ? 'bg-[rgba(29,158,117,0.12)] text-[#1D9E75]'
-                  : 'text-[rgba(255,255,255,0.4)] hover:text-[rgba(255,255,255,0.6)]'
-              )}
-              style={
-                collectionTab === 'proxies'
-                  ? { border: '0.5px solid rgba(29,158,117,0.3)' }
-                  : { border: '0.5px solid transparent' }
-              }
-              aria-pressed={collectionTab === 'proxies'}
-            >
-              Proxies
-            </button>
-          </div>
-
           {/* ─── Price Stale Indicator ───────────────────────────── */}
-          {activeIsPriceStale && (
+          {activeIsPriceStale && !isPrintingView && (
             <div className="px-5 pt-2">
               <PriceStaleIndicator
                 isPriceStale={activeIsPriceStale}
@@ -277,36 +248,61 @@ export default function CollectionPage() {
             </div>
           )}
 
-          {/* ─── Toolbar ─────────────────────────────────────────── */}
-          <CollectionToolbar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            sortField={isPrintingView ? printingSortField : sortField}
-            onSortFieldChange={(field) => {
-              if (isPrintingView) {
-                setPrintingSortField(field as PrintingSortField)
-              } else {
-                setSortField(field as SortField)
-              }
-            }}
-            sortDirection={isPrintingView ? printingSortDirection : sortDirection}
-            onSortDirectionChange={(dir) => {
-              if (isPrintingView) {
-                setPrintingSortDirection(dir)
-              } else {
-                setSortDirection(dir)
-              }
-            }}
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-            selectedColors={selectedColors}
-            onColorsChange={setSelectedColors}
-            colorMode={colorMode}
-            onColorModeChange={setColorMode}
-            activeStatuses={activeStatuses}
-            onStatusChange={setActiveStatuses}
-            sortContext={isPrintingView ? 'printing' : 'rollup'}
-          />
+          {/* ─── Toolbar + Proxy Toggle ──────────────────────────── */}
+          <div className="flex items-center">
+            <div className="flex-1">
+              <CollectionToolbar
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                sortField={isPrintingView ? printingSortField : sortField}
+                onSortFieldChange={(field) => {
+                  if (isPrintingView) {
+                    setPrintingSortField(field as PrintingSortField)
+                  } else {
+                    setSortField(field as SortField)
+                  }
+                }}
+                sortDirection={isPrintingView ? printingSortDirection : sortDirection}
+                onSortDirectionChange={(dir) => {
+                  if (isPrintingView) {
+                    setPrintingSortDirection(dir)
+                  } else {
+                    setSortDirection(dir)
+                  }
+                }}
+                viewMode={viewMode}
+                onViewModeChange={setViewMode}
+                selectedColors={selectedColors}
+                onColorsChange={setSelectedColors}
+                colorMode={colorMode}
+                onColorModeChange={setColorMode}
+                activeStatuses={activeStatuses}
+                onStatusChange={setActiveStatuses}
+                sortContext={isPrintingView ? 'printing' : 'rollup'}
+              />
+            </div>
+            {/* Proxy toggle chip */}
+            {isPrintingView && proxyCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setIncludeProxies((prev) => !prev)}
+                className={cn(
+                  'mr-4 shrink-0 rounded-full px-2.5 py-[4px] text-[11px] transition-colors',
+                  includeProxies
+                    ? 'border-[rgba(107,138,255,0.4)] bg-[rgba(107,138,255,0.1)] text-[#6B8AFF]'
+                    : 'text-[rgba(255,255,255,0.35)] hover:bg-[rgba(255,255,255,0.05)] hover:text-[rgba(255,255,255,0.5)]'
+                )}
+                style={{
+                  border: includeProxies
+                    ? '0.5px solid rgba(107,138,255,0.4)'
+                    : '0.5px solid rgba(255,255,255,0.1)',
+                }}
+                aria-pressed={includeProxies}
+              >
+                Proxies ({proxyCount})
+              </button>
+            )}
+          </div>
 
           {/* ─── Main Content: Loading / Error / Empty / Data ──── */}
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -315,7 +311,6 @@ export default function CollectionPage() {
             ) : activeError ? (
               <ErrorState onRetry={() => window.location.reload()} />
             ) : isPrintingView ? (
-              // ─── Printing List View ─────────────────────────────
               (printingData?.rows?.length ?? 0) === 0 ? (
                 <EmptyState hasFilters={false} />
               ) : filteredPrintingRows.length === 0 ? (
@@ -326,10 +321,11 @@ export default function CollectionPage() {
                   sortField={printingSortField}
                   sortDirection={printingSortDirection}
                   onSort={handlePrintingSort}
+                  isPriceStale={activeIsPriceStale}
+                  lastPriceRefresh={activeLastPriceRefresh}
                 />
               )
             ) : (
-              // ─── Grid View (rollup-based, unchanged) ────────────
               filteredRows.length === 0 ? (
                 <EmptyState hasFilters={searchQuery !== '' || selectedColors.length > 0 || activeStatuses.length > 0} />
               ) : (
@@ -356,9 +352,6 @@ export default function CollectionPage() {
               </span>{' '}
               cards
             </span>
-            <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.25)' }}>
-              {collectionTab === 'collection' ? 'Owned cards' : 'Proxy cards'}
-            </span>
           </div>
         </TabsContent>
 
@@ -367,6 +360,7 @@ export default function CollectionPage() {
           <AllocationTab />
         </TabsContent>
       </Tabs>
+      </div>{/* end max-width container */}
     </div>
   )
 }

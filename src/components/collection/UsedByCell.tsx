@@ -26,14 +26,17 @@ interface UsedByCellProps {
 export function UsedByCell({ usedByCount, quantity, decks }: UsedByCellProps) {
   const overallocated = isOverallocated(quantity, usedByCount)
 
-  // If usedByCount is 0, display "0" with no tooltip
+  // Format: used/owned (e.g. "1/3", "2/1" for overallocated)
+  const displayText = `${usedByCount}/${quantity}`
+
+  // If usedByCount is 0, display "0/qty" with no tooltip
   if (usedByCount === 0) {
     return (
       <span
         className="text-xs tabular-nums"
-        style={{ color: 'rgba(255,255,255,0.5)' }}
+        style={{ color: 'rgba(255,255,255,0.35)' }}
       >
-        0
+        {displayText}
       </span>
     )
   }
@@ -55,7 +58,7 @@ export function UsedByCell({ usedByCount, quantity, decks }: UsedByCellProps) {
               aria-label="Overallocated"
             />
           )}
-          {usedByCount}
+          {displayText}
         </TooltipTrigger>
         <TooltipContent side="top" align="center">
           <div className="flex flex-col gap-0.5 py-0.5">

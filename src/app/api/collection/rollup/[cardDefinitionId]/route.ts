@@ -58,7 +58,7 @@ export async function GET(
   // Get all non-proxy physical copies for this card_definition
   const { data: physicalCopies, error: pcErr } = await supabase
     .from('physical_copies')
-    .select('id, scryfall_printing_id, is_foil, quantity')
+    .select('id, scryfall_printing_id, is_foil')
     .eq('card_definition_id', cardDefinitionId)
     .eq('is_proxy', false)
 
@@ -158,7 +158,7 @@ export async function GET(
       setCode: setInfo?.setCode || '',
       setName: setInfo?.setName || '',
       isFoil,
-      quantity: pc.quantity ?? 0,
+      quantity: 1, // Instance-level model: one row = one physical card
       inUseCount,
       ownedValuation,
       deckUsage,

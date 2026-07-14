@@ -45,13 +45,19 @@ describe('Sidebar', () => {
     mockPathname.mockReturnValue('/')
   })
 
-  it('renders all 5 nav items', () => {
+  it('renders all 4 nav items', () => {
     renderSidebar()
     expect(screen.getByText('Decks')).toBeInTheDocument()
-    expect(screen.getByText('Shared Cards')).toBeInTheDocument()
-    expect(screen.getByText('Collection')).toBeInTheDocument()
-    expect(screen.getByText('Search')).toBeInTheDocument()
+    expect(screen.getByText('Cards')).toBeInTheDocument()
     expect(screen.getByText('Brew Deck')).toBeInTheDocument()
+    expect(screen.getByText('Settings')).toBeInTheDocument()
+  })
+
+  it('does not render removed nav items', () => {
+    renderSidebar()
+    expect(screen.queryByText('Shared Cards')).not.toBeInTheDocument()
+    expect(screen.queryByText('Collection')).not.toBeInTheDocument()
+    expect(screen.queryByText('Search')).not.toBeInTheDocument()
   })
 
   it('highlights the active route (Decks at /)', () => {
@@ -61,11 +67,11 @@ describe('Sidebar', () => {
     expect(decksLink).toHaveAttribute('aria-current', 'page')
   })
 
-  it('highlights Shared Cards when on /shared-cards', () => {
-    mockPathname.mockReturnValue('/shared-cards')
+  it('highlights Cards when on /allocation', () => {
+    mockPathname.mockReturnValue('/allocation')
     renderSidebar()
-    const sharedLink = screen.getByText('Shared Cards').closest('a')
-    expect(sharedLink).toHaveAttribute('aria-current', 'page')
+    const cardsLink = screen.getByText('Cards').closest('a')
+    expect(cardsLink).toHaveAttribute('aria-current', 'page')
 
     const decksLink = screen.getByText('Decks').closest('a')
     expect(decksLink).not.toHaveAttribute('aria-current')

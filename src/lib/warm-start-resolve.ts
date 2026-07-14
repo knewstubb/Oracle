@@ -92,11 +92,13 @@ export async function resolveDeckBatch(
         // On success: update pool state so subsequent decks see these assignments
         for (const assignment of assignments) {
           // Mark the physical copy as assigned in the pool
+          // Use 'boxed' status so subsequent decks treat these as Tier 4 (not reassignable)
           pool.markAssigned(
             assignment.physicalCopyId,
             assignment.deckCardsId,
             result.deckId,
-            result.deckName
+            result.deckName,
+            status
           )
 
           // If this was a Tier 3 reassign, mark the freed copy in the pool

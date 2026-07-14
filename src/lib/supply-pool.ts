@@ -105,7 +105,8 @@ export class SupplyPool {
     physicalCopyId: number,
     deckCardsId: number,
     deckId: number,
-    deckName: string
+    deckName: string,
+    deckStatus: string = 'boxed'
   ): void {
     // Track this assignment in the session
     this.sessionAssignments.set(physicalCopyId, { deckId, deckName })
@@ -118,7 +119,7 @@ export class SupplyPool {
           deckCardsId,
           deckId,
           deckName,
-          deckStatus: 'brew', // Newly assigned copies go to a deck being resolved (brew status)
+          deckStatus,
         }
         break
       }

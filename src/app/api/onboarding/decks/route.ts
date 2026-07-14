@@ -9,6 +9,9 @@
 import { requireAuth } from '@/lib/auth'
 import { fetchArchidektDeckList } from '@/lib/warm-start-import'
 
+// Allow up to 60s (fetches deck list from Archidekt API)
+export const maxDuration = 60
+
 export async function GET() {
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult

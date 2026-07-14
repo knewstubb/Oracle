@@ -9,6 +9,9 @@
 import { requireAuth } from '@/lib/auth'
 import { importArchidektCollection } from '@/lib/warm-start-import'
 
+// Allow up to 120s for this function (collection has ~2900 entries at 25/page = 116 pages)
+export const maxDuration = 120
+
 export async function POST() {
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult

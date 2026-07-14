@@ -11,6 +11,9 @@ import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { resolveDeckBatch } from '@/lib/warm-start-resolve'
 
+// Allow up to 120s (resolves multiple decks sequentially against collection)
+export const maxDuration = 120
+
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult

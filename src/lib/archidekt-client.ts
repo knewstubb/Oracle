@@ -133,18 +133,21 @@ export interface ArchidektCollectionEntry {
 
 export async function fetchCollection(): Promise<ArchidektCollectionEntry[]> {
   const entries: ArchidektCollectionEntry[] = []
-  let url: string | null = `${BASE_URL}/collection/${USER_ID}/`
+  // Use page_size=500 to minimize pagination (Archidekt supports up to 500)
+  let url: string | null = `${BASE_URL}/collection/${USER_ID}/?page_size=500`
   let pageCount = 0
   while (url) {
-    // Rate limit: wait 500ms between pages to avoid 429 from Archidekt
+    // Rate limit: wait 300ms between pages to avoid 429 from Archidekt
     if (pageCount > 0) {
-      await new Promise(resolve => setTimeout(resolve, 500))
+      await new Promise(resolve => setTimeout(resolve, 300))
     }
-    const res: Response = await fetch(url)
+    // Normalize http → https (Archidekt's pagination URLs sometimes use http)
+    const fetchUrl = url.replace(/^http:\/\//, 'https://')
+    const res: Response = await fetch(fetchUrl)
     if (res.status === 429) {
       // Rate limited — wait 3 seconds and retry this page
       await new Promise(resolve => setTimeout(resolve, 3000))
-      const retryRes: Response = await fetch(url)
+      const retryRes: Response = await fetch(fetchUrl)
       if (!retryRes.ok) throw new Error(`Collection fetch failed: ${retryRes.status}`)
       const retryData: { results: ArchidektCollectionEntry[]; next: string | null } = await retryRes.json()
       entries.push(...retryData.results)

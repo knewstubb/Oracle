@@ -44,7 +44,7 @@ export function CombosPanel({ deckId }: ComboPanelProps) {
     return (
       <div className="mx-auto max-w-[1080px]">
         <div className="rounded-lg border border-dashed border-border p-8 text-center">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-[length:var(--fs-md)] text-muted-foreground">
             No combos documented yet. Ask Kiro to analyze this deck for combo lines.
           </p>
         </div>
@@ -55,23 +55,23 @@ export function CombosPanel({ deckId }: ComboPanelProps) {
   return (
     <div className="mx-auto max-w-[1080px] space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Combo Lines ({data.combos.length})</h2>
+        <h2 className="text-[length:var(--fs-lg)] font-medium">Combo Lines ({data.combos.length})</h2>
       </div>
 
       <div className="space-y-4">
         {data.combos.map((combo, i) => (
           <div key={i} className="rounded-lg border border-border p-4">
             <div className="mb-2 flex items-center gap-2">
-              <span className="text-sm font-medium">
+              <span className="text-[length:var(--fs-md)] font-medium">
                 {combo.cards.join(' + ')}
               </span>
               {combo.bracket && (
-                <Badge variant="outline" className="text-[10px]">
+                <Badge variant="outline" className="text-[length:var(--fs-xs)]">
                   {combo.bracket}
                 </Badge>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">{combo.result}</p>
+            <p className="text-[length:var(--fs-sm)] text-muted-foreground">{combo.result}</p>
           </div>
         ))}
       </div>

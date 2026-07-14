@@ -160,7 +160,7 @@ export function CardPopover({
                 unoptimized
               />
             ) : (
-              <div className="flex h-[252px] w-[180px] items-center justify-center rounded-lg bg-muted text-xs text-muted-foreground">
+              <div className="flex h-[252px] w-[180px] items-center justify-center rounded-lg bg-muted text-[length:var(--fs-sm)] text-muted-foreground">
                 No image
               </div>
             )}
@@ -170,8 +170,8 @@ export function CardPopover({
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <h4 className="truncate text-base font-bold">{cardName}</h4>
-                <p className="text-xs text-muted-foreground">
+                <h4 className="truncate text-[length:var(--fs-lg)] font-medium">{cardName}</h4>
+                <p className="text-[length:var(--fs-sm)] text-muted-foreground">
                   {setCode?.toUpperCase() || 'Unknown set'}
                 </p>
               </div>
@@ -201,14 +201,14 @@ export function CardPopover({
             )}
 
             {error && (
-              <p className="text-xs text-destructive" role="alert">
+              <p className="text-[length:var(--fs-sm)] text-destructive" role="alert">
                 Couldn&apos;t load card details.
               </p>
             )}
 
             {data && data.deck_count > 0 && (
               <div>
-                <p className="mb-1 text-xs font-medium">
+                <p className="mb-1 text-[length:var(--fs-sm)] font-medium">
                   In {data.deck_count} {data.deck_count === 1 ? 'deck' : 'decks'}:
                 </p>
                 <ul className="space-y-1">
@@ -216,13 +216,13 @@ export function CardPopover({
                     <li key={deck.id} className="flex items-center gap-1.5">
                       <Link
                         href={`/decks/${deck.id}`}
-                        className="text-xs text-primary hover:underline"
+                        className="text-[length:var(--fs-sm)] text-primary hover:underline"
                         onClick={handleClose}
                       >
                         {deck.name}
                       </Link>
                       {deck.is_proxy && (
-                        <span className="text-[10px] text-muted-foreground">(proxy)</span>
+                        <span className="text-[length:var(--fs-xs)] text-muted-foreground">(proxy)</span>
                       )}
                     </li>
                   ))}
@@ -231,7 +231,7 @@ export function CardPopover({
             )}
 
             {data && data.deck_count === 0 && (
-              <p className="text-xs text-muted-foreground">Not in any other decks.</p>
+              <p className="text-[length:var(--fs-sm)] text-muted-foreground">Not in any other decks.</p>
             )}
           </div>
         </div>

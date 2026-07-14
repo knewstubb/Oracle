@@ -2,7 +2,10 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { AlertTriangle } from 'lucide-react'
 import { CardImage } from '@/components/CardImage'
+import { StatusBadge } from '@/components/StatusBadge'
+import type { DeckStatus } from '@/lib/deck-status'
 import { cn } from '@/lib/utils'
 
 export type HealthPipStatus = 'ok' | 'warn' | 'crit'
@@ -18,6 +21,11 @@ export interface DeckTileProps {
   healthStatus?: Array<HealthPipStatus>
   proxyCount?: number
   isDraft?: boolean
+  status?: DeckStatus
+  /** For Boxed decks: resolved/total count. Undefined for non-Boxed or when not computed. */
+  completeness?: { resolved: number; total: number } | null
+  /** Whether this deck's cards are allocated against the collection. */
+  allocate?: boolean
 }
 
 const COLOUR_BAR_MAP: Record<string, { hex: string; label: string }> = {
@@ -53,6 +61,9 @@ export function DeckTile({
   healthStatus,
   proxyCount,
   isDraft,
+  status,
+  completeness,
+  allocate,
 }: DeckTileProps) {
   const [isHovered, setIsHovered] = useState(false)
   const sorted = COLOUR_ORDER.filter((c) => colourIdentity.includes(c))
@@ -104,14 +115,14 @@ export function DeckTile({
         >
           <Link
             href={`/decks/${id}?debrief=true`}
-            className="rounded-lg bg-[rgba(29,158,117,0.2)] px-3 py-1.5 text-xs font-medium text-[#1D9E75] border border-[rgba(29,158,117,0.4)] hover:bg-[rgba(29,158,117,0.3)] transition-colors"
+            className="rounded-lg bg-[rgba(29,158,117,0.2)] px-3 py-1.5 text-[length:var(--fs-sm)] font-medium text-[#1D9E75] border border-[rgba(29,158,117,0.4)] hover:bg-[rgba(29,158,117,0.3)] transition-colors"
             onClick={(e) => e.stopPropagation()}
           >
             Post-game
           </Link>
           <Link
             href={`/decks/${id}`}
-            className="rounded-lg bg-[rgba(255,255,255,0.1)] px-3 py-1.5 text-xs font-medium text-white/80 border border-[rgba(255,255,255,0.15)] hover:bg-[rgba(255,255,255,0.15)] transition-colors"
+            className="rounded-lg bg-[rgba(255,255,255,0.1)] px-3 py-1.5 text-[length:var(--fs-sm)] font-medium text-white/80 border border-[rgba(255,255,255,0.15)] hover:bg-[rgba(255,255,255,0.15)] transition-colors"
             onClick={(e) => e.stopPropagation()}
           >
             Open
@@ -126,10 +137,10 @@ export function DeckTile({
           aria-label={`${name} — ${commanderName}`}
           className="block focus-visible:outline-none"
         >
-          <h3 className="truncate text-base font-bold text-foreground leading-tight">
+          <h3 className="truncate text-[length:var(--fs-lg)] font-medium text-foreground leading-tight">
             {name}
           </h3>
-          <p className="mt-0.5 truncate text-sm text-muted-foreground">
+          <p className="mt-0.5 truncate text-[length:var(--fs-md)] text-muted-foreground">
             {commanderName}
           </p>
         </Link>
@@ -146,7 +157,7 @@ export function DeckTile({
             }
           >
             {allOk ? (
-              <span className="text-xs font-medium text-[#1D9E75]" aria-hidden="true">
+              <span className="text-[length:var(--fs-sm)] font-medium text-[#1D9E75]" aria-hidden="true">
                 ✓
               </span>
             ) : (
@@ -160,7 +171,7 @@ export function DeckTile({
                   />
                 ))}
                 {truncatedCount > 0 && (
-                  <span className="text-[10px] text-muted-foreground/70">
+                  <span className="text-[length:var(--fs-xs)] text-muted-foreground/70">
                     +{truncatedCount}
                   </span>
                 )}
@@ -171,24 +182,42 @@ export function DeckTile({
 
         {/* Proxy count */}
         {proxyCount !== undefined && proxyCount > 0 && (
-          <p className="mt-1 text-right text-[10px] text-muted-foreground/60">
+          <p className="mt-1 text-right text-[length:var(--fs-xs)] text-muted-foreground/60">
             {proxyCount} {proxyCount === 1 ? 'proxy' : 'proxies'}
           </p>
         )}
 
-        <div className="mt-1.5 flex items-center gap-2">
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          {status && <StatusBadge status={status} className="text-[length:var(--fs-xs)]" />}
+          {/* Unplayable badge — Built decks with incomplete resolution */}
+          {status === 'boxed' && completeness && completeness.resolved < completeness.total && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[length:var(--fs-xs)] font-medium"
+              style={{ color: 'var(--status-over)', background: 'rgba(255, 95, 31, 0.12)' }}
+              aria-label={`Unplayable: ${completeness.resolved} of ${completeness.total} cards resolved`}
+            >
+              <AlertTriangle className="size-3" aria-hidden="true" />
+              Unplayable · {completeness.resolved}/{completeness.total}
+            </span>
+          )}
+          {/* Sandbox badge — Boxed deck with allocate manually off (atypical) */}
+          {status === 'boxed' && allocate === false && (
+            <span className="inline-flex items-center rounded-full bg-[rgba(255,255,255,0.08)] px-2 py-0.5 text-[length:var(--fs-xs)] font-medium text-muted-foreground">
+              Sandbox
+            </span>
+          )}
           {deckType === 'Precon Mod' && (
-            <span className="inline-flex items-center rounded-full bg-green-900/30 px-2 py-0.5 text-[10px] font-medium uppercase text-green-300">
+            <span className="inline-flex items-center rounded-full bg-green-900/30 px-2 py-0.5 text-[length:var(--fs-xs)] font-medium uppercase text-green-300">
               Precon Mod
             </span>
           )}
-          {isDraft ? (
-            <span className="inline-flex items-center rounded-full bg-[rgba(55,138,221,0.15)] px-2 py-0.5 text-[10px] font-medium text-[#378ADD]">
+          {!status && isDraft ? (
+            <span className="inline-flex items-center rounded-full bg-[var(--accent-primary-bg)] px-2 py-0.5 text-[length:var(--fs-xs)] font-medium text-[var(--accent-primary)]">
               Draft
             </span>
           ) : (
             cardCount !== undefined && (
-              <span className="text-xs text-muted-foreground/70">
+              <span className="text-[length:var(--fs-sm)] text-muted-foreground/70">
                 {cardCount} Cards
               </span>
             )

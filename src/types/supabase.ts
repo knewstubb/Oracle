@@ -1,15 +1,3 @@
-/**
- * Supabase Database Types for The Oracle
- *
- * Comprehensive type definitions matching the Postgres schema (31 tables + 1 view).
- * These types follow the structure produced by `supabase gen types typescript`.
- *
- * This file will be replaced by auto-generated types once the schema is live:
- *   npx supabase gen types typescript --project-id <id> > src/types/supabase.ts
- *
- * Until then, these hand-written types provide full type safety on query builder calls.
- */
-
 export type Json =
   | string
   | number
@@ -19,52 +7,168 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       _migrations: {
         Row: {
-          name: string
-          applied_at: string
-        }
-        Insert: {
-          name: string
-          applied_at?: string
-        }
-        Update: {
-          name?: string
-          applied_at?: string
-        }
-        Relationships: []
-      }
-      sets: {
-        Row: {
-          code: string
+          applied_at: string | null
           name: string
         }
         Insert: {
-          code: string
+          applied_at?: string | null
           name: string
         }
         Update: {
-          code?: string
+          applied_at?: string | null
           name?: string
         }
         Relationships: []
       }
-      sync_meta: {
+      brew_sessions: {
         Row: {
-          key: string
-          value: string | null
+          assessment_cache_json: string | null
+          brief_json: string | null
+          colour_identity: string | null
+          commander_name: string | null
+          concept_description: string | null
+          conversation_json: string | null
+          created_at: string
+          decision_log_json: string | null
+          deck_id: number | null
+          id: number
+          model_id: string | null
+          path_type: string | null
+          refinement_history_json: string | null
+          skeleton_json: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assessment_cache_json?: string | null
+          brief_json?: string | null
+          colour_identity?: string | null
+          commander_name?: string | null
+          concept_description?: string | null
+          conversation_json?: string | null
+          created_at?: string
+          decision_log_json?: string | null
+          deck_id?: number | null
+          id?: never
+          model_id?: string | null
+          path_type?: string | null
+          refinement_history_json?: string | null
+          skeleton_json?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assessment_cache_json?: string | null
+          brief_json?: string | null
+          colour_identity?: string | null
+          commander_name?: string | null
+          concept_description?: string | null
+          conversation_json?: string | null
+          created_at?: string
+          decision_log_json?: string | null
+          deck_id?: number | null
+          id?: never
+          model_id?: string | null
+          path_type?: string | null
+          refinement_history_json?: string | null
+          skeleton_json?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brew_sessions_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: false
+            referencedRelation: "decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      card_definitions: {
+        Row: {
+          card_name: string
+          color_identity: string | null
+          created_at: string | null
+          id: number
+          oracle_id: string
+          type_line: string | null
+          user_id: string
+        }
+        Insert: {
+          card_name: string
+          color_identity?: string | null
+          created_at?: string | null
+          id?: never
+          oracle_id: string
+          type_line?: string | null
+          user_id: string
+        }
+        Update: {
+          card_name?: string
+          color_identity?: string | null
+          created_at?: string | null
+          id?: never
+          oracle_id?: string
+          type_line?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      card_kingdom_prices: {
+        Row: {
+          is_foil: boolean
+          price_retail: number
+          scryfall_printing_id: string
           updated_at: string
         }
         Insert: {
-          key: string
-          value?: string | null
+          is_foil?: boolean
+          price_retail: number
+          scryfall_printing_id: string
           updated_at?: string
         }
         Update: {
-          key?: string
-          value?: string | null
+          is_foil?: boolean
+          price_retail?: number
+          scryfall_printing_id?: string
           updated_at?: string
         }
         Relationships: []
@@ -72,72 +176,805 @@ export type Database = {
       card_metadata: {
         Row: {
           card_name: string
-          rarity: string | null
+          cmc: number | null
+          mana_cost: string | null
           price_usd: number | null
+          rarity: string | null
           set_code: string | null
           type_line: string | null
-          mana_cost: string | null
-          cmc: number | null
-          updated_at: string
+          updated_at: string | null
         }
         Insert: {
           card_name: string
-          rarity?: string | null
+          cmc?: number | null
+          mana_cost?: string | null
           price_usd?: number | null
+          rarity?: string | null
           set_code?: string | null
           type_line?: string | null
-          mana_cost?: string | null
-          cmc?: number | null
-          updated_at?: string
+          updated_at?: string | null
         }
         Update: {
           card_name?: string
-          rarity?: string | null
+          cmc?: number | null
+          mana_cost?: string | null
           price_usd?: number | null
+          rarity?: string | null
           set_code?: string | null
           type_line?: string | null
-          mana_cost?: string | null
-          cmc?: number | null
-          updated_at?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
-      precon_cards: {
+      collection: {
         Row: {
+          card_name: string
+          collector_number: string | null
+          color_identity: string | null
+          condition: string | null
+          date_added: string | null
+          edition_name: string | null
+          finish: string | null
+          foil: boolean | null
           id: number
-          precon_url: string
-          card_name: string
+          language: string | null
+          purchase_price: number | null
+          quantity: number | null
+          scryfall_id: string | null
+          set_code: string | null
+          storage_location_id: number | null
+          types: string | null
+          user_id: string
         }
         Insert: {
-          id?: never
-          precon_url: string
           card_name: string
+          collector_number?: string | null
+          color_identity?: string | null
+          condition?: string | null
+          date_added?: string | null
+          edition_name?: string | null
+          finish?: string | null
+          foil?: boolean | null
+          id?: never
+          language?: string | null
+          purchase_price?: number | null
+          quantity?: number | null
+          scryfall_id?: string | null
+          set_code?: string | null
+          storage_location_id?: number | null
+          types?: string | null
+          user_id: string
         }
         Update: {
-          id?: never
-          precon_url?: string
           card_name?: string
+          collector_number?: string | null
+          color_identity?: string | null
+          condition?: string | null
+          date_added?: string | null
+          edition_name?: string | null
+          finish?: string | null
+          foil?: boolean | null
+          id?: never
+          language?: string | null
+          purchase_price?: number | null
+          quantity?: number | null
+          scryfall_id?: string | null
+          set_code?: string | null
+          storage_location_id?: number | null
+          types?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collection_storage_location_id_fkey"
+            columns: ["storage_location_id"]
+            isOneToOne: false
+            referencedRelation: "storage_locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dead_weight_dismissals: {
+        Row: {
+          card_name: string
+          deck_id: number
+          dismissed_at: string | null
+          id: number
+          user_id: string
+        }
+        Insert: {
+          card_name: string
+          deck_id: number
+          dismissed_at?: string | null
+          id?: never
+          user_id: string
+        }
+        Update: {
+          card_name?: string
+          deck_id?: number
+          dismissed_at?: string | null
+          id?: never
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dead_weight_dismissals_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: false
+            referencedRelation: "decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      debrief_actions: {
+        Row: {
+          action_type: string
+          add_card: string
+          created_at: string
+          cut_card: string
+          id: number
+          notion_logged: boolean
+          reason: string
+          session_id: number
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          add_card: string
+          created_at?: string
+          cut_card: string
+          id?: never
+          notion_logged?: boolean
+          reason: string
+          session_id: number
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          add_card?: string
+          created_at?: string
+          cut_card?: string
+          id?: never
+          notion_logged?: boolean
+          reason?: string
+          session_id?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "debrief_actions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "debrief_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      debrief_sessions: {
+        Row: {
+          brief_json: string | null
+          completed_at: string | null
+          conversation_json: string | null
+          created_at: string
+          current_rec_index: number | null
+          deck_id: number
+          id: number
+          recommendations_json: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          brief_json?: string | null
+          completed_at?: string | null
+          conversation_json?: string | null
+          created_at?: string
+          current_rec_index?: number | null
+          deck_id: number
+          id?: never
+          recommendations_json?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          brief_json?: string | null
+          completed_at?: string | null
+          conversation_json?: string | null
+          created_at?: string
+          current_rec_index?: number | null
+          deck_id?: number
+          id?: never
+          recommendations_json?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "debrief_sessions_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: false
+            referencedRelation: "decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deck_allocations: {
+        Row: {
+          assigned_at: string | null
+          card_name: string
+          collector_number: string | null
+          deck_id: number
+          id: number
+          priority_override: boolean | null
+          role: string
+          scryfall_id: string | null
+          set_code: string | null
+          user_id: string
+          written_at: string | null
+          written_to_archidekt: boolean | null
+        }
+        Insert: {
+          assigned_at?: string | null
+          card_name: string
+          collector_number?: string | null
+          deck_id: number
+          id?: never
+          priority_override?: boolean | null
+          role: string
+          scryfall_id?: string | null
+          set_code?: string | null
+          user_id: string
+          written_at?: string | null
+          written_to_archidekt?: boolean | null
+        }
+        Update: {
+          assigned_at?: string | null
+          card_name?: string
+          collector_number?: string | null
+          deck_id?: number
+          id?: never
+          priority_override?: boolean | null
+          role?: string
+          scryfall_id?: string | null
+          set_code?: string | null
+          user_id?: string
+          written_at?: string | null
+          written_to_archidekt?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deck_allocations_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: false
+            referencedRelation: "decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deck_cards: {
+        Row: {
+          card_name: string
+          categories: string | null
+          dead_weight_flag: string | null
+          dead_weight_reason: string | null
+          deck_id: number
+          id: number
+          is_commander: boolean | null
+          ownership_status: string | null
+          physical_copy_id: number | null
+          proxy_of_deck_id: number | null
+          quantity: number | null
+          scryfall_id: string | null
+          set_code: string | null
+          tags: string | null
+          user_id: string
+        }
+        Insert: {
+          card_name: string
+          categories?: string | null
+          dead_weight_flag?: string | null
+          dead_weight_reason?: string | null
+          deck_id: number
+          id?: never
+          is_commander?: boolean | null
+          ownership_status?: string | null
+          physical_copy_id?: number | null
+          proxy_of_deck_id?: number | null
+          quantity?: number | null
+          scryfall_id?: string | null
+          set_code?: string | null
+          tags?: string | null
+          user_id: string
+        }
+        Update: {
+          card_name?: string
+          categories?: string | null
+          dead_weight_flag?: string | null
+          dead_weight_reason?: string | null
+          deck_id?: number
+          id?: never
+          is_commander?: boolean | null
+          ownership_status?: string | null
+          physical_copy_id?: number | null
+          proxy_of_deck_id?: number | null
+          quantity?: number | null
+          scryfall_id?: string | null
+          set_code?: string | null
+          tags?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deck_cards_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: false
+            referencedRelation: "decks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deck_cards_physical_copy_id_fkey"
+            columns: ["physical_copy_id"]
+            isOneToOne: false
+            referencedRelation: "physical_copies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deck_cards_proxy_of_deck_id_fkey"
+            columns: ["proxy_of_deck_id"]
+            isOneToOne: false
+            referencedRelation: "decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deck_combos: {
+        Row: {
+          content: string
+          deck_id: number
+          generated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          deck_id: number
+          generated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          deck_id?: number
+          generated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deck_combos_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: true
+            referencedRelation: "decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deck_documentation: {
+        Row: {
+          deck_id: number
+          matchup_notes: string | null
+          mulligan_guide: string | null
+          strategy_playstyle: string | null
+          strengths_weaknesses: string | null
+          synergy_lines: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          deck_id: number
+          matchup_notes?: string | null
+          mulligan_guide?: string | null
+          strategy_playstyle?: string | null
+          strengths_weaknesses?: string | null
+          synergy_lines?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          deck_id?: number
+          matchup_notes?: string | null
+          mulligan_guide?: string | null
+          strategy_playstyle?: string | null
+          strengths_weaknesses?: string | null
+          synergy_lines?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deck_documentation_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: true
+            referencedRelation: "decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deck_health: {
+        Row: {
+          computed_at: string
+          deck_id: number
+          overall_status: string
+          result_json: string
+          user_id: string
+        }
+        Insert: {
+          computed_at?: string
+          deck_id: number
+          overall_status: string
+          result_json: string
+          user_id: string
+        }
+        Update: {
+          computed_at?: string
+          deck_id?: number
+          overall_status?: string
+          result_json?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deck_health_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: true
+            referencedRelation: "decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deck_mana_analysis: {
+        Row: {
+          content: string
+          deck_id: number
+          generated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          deck_id: number
+          generated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          deck_id?: number
+          generated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deck_mana_analysis_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: true
+            referencedRelation: "decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deck_notes: {
+        Row: {
+          content: string
+          created_at: string | null
+          deck_id: number
+          id: number
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          deck_id: number
+          id?: never
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          deck_id?: number
+          id?: never
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deck_notes_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: false
+            referencedRelation: "decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deck_overview_content: {
+        Row: {
+          content: string
+          deck_id: number
+          generated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          deck_id: number
+          generated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          deck_id?: number
+          generated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deck_overview_content_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: true
+            referencedRelation: "decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deck_priority: {
+        Row: {
+          deck_id: number
+          priority: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          deck_id: number
+          priority?: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          deck_id?: number
+          priority?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deck_priority_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: true
+            referencedRelation: "decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deck_ratings: {
+        Row: {
+          content: string
+          deck_id: number
+          generated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          deck_id: number
+          generated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          deck_id?: number
+          generated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deck_ratings_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: true
+            referencedRelation: "decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deck_strategy: {
+        Row: {
+          bracket: number | null
+          budget_ceiling: number | null
+          budget_mode: string | null
+          deck_id: number
+          format_rules: string | null
+          frustration: string | null
+          health_overrides: string | null
+          strategy_notes: string | null
+          table_context: string | null
+          updated_at: string | null
+          user_id: string
+          win_condition: string | null
+        }
+        Insert: {
+          bracket?: number | null
+          budget_ceiling?: number | null
+          budget_mode?: string | null
+          deck_id: number
+          format_rules?: string | null
+          frustration?: string | null
+          health_overrides?: string | null
+          strategy_notes?: string | null
+          table_context?: string | null
+          updated_at?: string | null
+          user_id: string
+          win_condition?: string | null
+        }
+        Update: {
+          bracket?: number | null
+          budget_ceiling?: number | null
+          budget_mode?: string | null
+          deck_id?: number
+          format_rules?: string | null
+          frustration?: string | null
+          health_overrides?: string | null
+          strategy_notes?: string | null
+          table_context?: string | null
+          updated_at?: string | null
+          user_id?: string
+          win_condition?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deck_strategy_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: true
+            referencedRelation: "decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deck_upgrades: {
+        Row: {
+          content: string
+          cut_flag: string | null
+          deck_id: number
+          generated_at: string | null
+          owned: boolean | null
+          price: number | null
+          suggested_cut: string | null
+          synergy_score: number | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          cut_flag?: string | null
+          deck_id: number
+          generated_at?: string | null
+          owned?: boolean | null
+          price?: number | null
+          suggested_cut?: string | null
+          synergy_score?: number | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          cut_flag?: string | null
+          deck_id?: number
+          generated_at?: string | null
+          owned?: boolean | null
+          price?: number | null
+          suggested_cut?: string | null
+          synergy_score?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deck_upgrades_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: true
+            referencedRelation: "decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      decks: {
+        Row: {
+          allocate: boolean
+          bracket: string | null
+          card_count: number | null
+          colour_identity: string | null
+          commander_name: string | null
+          commander_scryfall_id: string | null
+          deck_type: string | null
+          id: number
+          is_precon_mod: boolean | null
+          last_synced_at: string | null
+          name: string
+          precon_url: string | null
+          raw_json: string | null
+          source_platform: string | null
+          source_url: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          allocate?: boolean
+          bracket?: string | null
+          card_count?: number | null
+          colour_identity?: string | null
+          commander_name?: string | null
+          commander_scryfall_id?: string | null
+          deck_type?: string | null
+          id: number
+          is_precon_mod?: boolean | null
+          last_synced_at?: string | null
+          name: string
+          precon_url?: string | null
+          raw_json?: string | null
+          source_platform?: string | null
+          source_url?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          allocate?: boolean
+          bracket?: string | null
+          card_count?: number | null
+          colour_identity?: string | null
+          commander_name?: string | null
+          commander_scryfall_id?: string | null
+          deck_type?: string | null
+          id?: number
+          is_precon_mod?: boolean | null
+          last_synced_at?: string | null
+          name?: string
+          precon_url?: string | null
+          raw_json?: string | null
+          source_platform?: string | null
+          source_url?: string | null
+          status?: string
+          user_id?: string
         }
         Relationships: []
       }
-      card_kingdom_prices: {
+      mtg_cards: {
         Row: {
-          scryfall_printing_id: string
-          price_retail: number
-          is_foil: boolean
-          updated_at: string
+          color_identity: string
+          commander_legal: boolean
+          edhrec_rank: number | null
+          is_creature: boolean
+          is_legendary: boolean
+          mana_cost: string | null
+          mana_value: number | null
+          name: string
+          oracle_text: string | null
+          power: string | null
+          toughness: string | null
+          type_line: string
         }
         Insert: {
-          scryfall_printing_id: string
-          price_retail: number
-          is_foil?: boolean
-          updated_at?: string
+          color_identity?: string
+          commander_legal?: boolean
+          edhrec_rank?: number | null
+          is_creature?: boolean
+          is_legendary?: boolean
+          mana_cost?: string | null
+          mana_value?: number | null
+          name: string
+          oracle_text?: string | null
+          power?: string | null
+          toughness?: string | null
+          type_line: string
         }
         Update: {
-          scryfall_printing_id?: string
-          price_retail?: number
-          is_foil?: boolean
-          updated_at?: string
+          color_identity?: string
+          commander_legal?: boolean
+          edhrec_rank?: number | null
+          is_creature?: boolean
+          is_legendary?: boolean
+          mana_cost?: string | null
+          mana_value?: number | null
+          name?: string
+          oracle_text?: string | null
+          power?: string | null
+          toughness?: string | null
+          type_line?: string
         }
         Relationships: []
       }
@@ -156,930 +993,403 @@ export type Database = {
         }
         Relationships: []
       }
-      card_definitions: {
-        Row: {
-          id: number
-          oracle_id: string
-          card_name: string
-          color_identity: string
-          type_line: string
-          user_id: string
-          created_at: string
-        }
-        Insert: {
-          id?: never
-          oracle_id: string
-          card_name: string
-          color_identity?: string
-          type_line?: string
-          user_id: string
-          created_at?: string
-        }
-        Update: {
-          id?: never
-          oracle_id?: string
-          card_name?: string
-          color_identity?: string
-          type_line?: string
-          user_id?: string
-          created_at?: string
-        }
-        Relationships: []
-      }
-      decks: {
-        Row: {
-          id: number
-          name: string
-          commander_name: string | null
-          commander_scryfall_id: string | null
-          colour_identity: string | null
-          card_count: number | null
-          last_synced_at: string | null
-          raw_json: string | null
-          precon_url: string | null
-          deck_type: string
-          bracket: string | null
-          status: string
-          is_precon_mod: boolean
-          user_id: string
-        }
-        Insert: {
-          id: number
-          name: string
-          commander_name?: string | null
-          commander_scryfall_id?: string | null
-          colour_identity?: string | null
-          card_count?: number | null
-          last_synced_at?: string | null
-          raw_json?: string | null
-          precon_url?: string | null
-          deck_type?: string
-          bracket?: string | null
-          status?: string
-          is_precon_mod?: boolean
-          user_id: string
-        }
-        Update: {
-          id?: number
-          name?: string
-          commander_name?: string | null
-          commander_scryfall_id?: string | null
-          colour_identity?: string | null
-          card_count?: number | null
-          last_synced_at?: string | null
-          raw_json?: string | null
-          precon_url?: string | null
-          deck_type?: string
-          bracket?: string | null
-          status?: string
-          is_precon_mod?: boolean
-          user_id?: string
-        }
-        Relationships: []
-      }
-      collection: {
-        Row: {
-          id: number
-          card_name: string
-          scryfall_id: string | null
-          set_code: string | null
-          quantity: number
-          foil: boolean
-          finish: string
-          condition: string
-          date_added: string | null
-          language: string
-          purchase_price: number
-          collector_number: string | null
-          color_identity: string | null
-          types: string | null
-          edition_name: string | null
-          user_id: string
-        }
-        Insert: {
-          id?: never
-          card_name: string
-          scryfall_id?: string | null
-          set_code?: string | null
-          quantity?: number
-          foil?: boolean
-          finish?: string
-          condition?: string
-          date_added?: string | null
-          language?: string
-          purchase_price?: number
-          collector_number?: string | null
-          color_identity?: string | null
-          types?: string | null
-          edition_name?: string | null
-          user_id: string
-        }
-        Update: {
-          id?: never
-          card_name?: string
-          scryfall_id?: string | null
-          set_code?: string | null
-          quantity?: number
-          foil?: boolean
-          finish?: string
-          condition?: string
-          date_added?: string | null
-          language?: string
-          purchase_price?: number
-          collector_number?: string | null
-          color_identity?: string | null
-          types?: string | null
-          edition_name?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       physical_copies: {
         Row: {
-          id: number
-          card_definition_id: number
-          scryfall_printing_id: string | null
-          is_proxy: boolean
-          proxy_for_definition_id: number | null
-          condition: string | null
-          is_foil: boolean
           acquired_at: string | null
-          quantity: number
+          card_definition_id: number
+          condition: string | null
+          created_at: string | null
+          id: number
+          is_foil: boolean
+          is_proxy: boolean
+          missing: boolean
+          proxy_for_definition_id: number | null
+          scryfall_printing_id: string | null
+          source_tag: string | null
+          storage_location_id: number | null
           user_id: string
-          created_at: string
         }
         Insert: {
-          id?: never
-          card_definition_id: number
-          scryfall_printing_id?: string | null
-          is_proxy?: boolean
-          proxy_for_definition_id?: number | null
-          condition?: string | null
-          is_foil?: boolean
           acquired_at?: string | null
-          quantity?: number
-          user_id: string
-          created_at?: string
-        }
-        Update: {
-          id?: never
-          card_definition_id?: number
-          scryfall_printing_id?: string | null
-          is_proxy?: boolean
-          proxy_for_definition_id?: number | null
+          card_definition_id: number
           condition?: string | null
+          created_at?: string | null
+          id?: never
           is_foil?: boolean
+          is_proxy?: boolean
+          missing?: boolean
+          proxy_for_definition_id?: number | null
+          scryfall_printing_id?: string | null
+          source_tag?: string | null
+          storage_location_id?: number | null
+          user_id: string
+        }
+        Update: {
           acquired_at?: string | null
-          quantity?: number
-          user_id?: string
-          created_at?: string
-        }
-        Relationships: []
-      }
-      deck_cards: {
-        Row: {
-          id: number
-          deck_id: number
-          card_name: string
-          scryfall_id: string | null
-          set_code: string | null
-          quantity: number
-          categories: string | null
-          tags: string | null
-          is_commander: boolean
-          dead_weight_flag: string | null
-          dead_weight_reason: string | null
-          ownership_status: string | null
-          proxy_of_deck_id: number | null
-          physical_copy_id: number | null
-          card_definition_id: number | null
-          is_generic_land: boolean
-          user_id: string
-        }
-        Insert: {
-          id?: never
-          deck_id: number
-          card_name: string
-          scryfall_id?: string | null
-          set_code?: string | null
-          quantity?: number
-          categories?: string | null
-          tags?: string | null
-          is_commander?: boolean
-          dead_weight_flag?: string | null
-          dead_weight_reason?: string | null
-          ownership_status?: string | null
-          proxy_of_deck_id?: number | null
-          physical_copy_id?: number | null
-          card_definition_id?: number | null
-          is_generic_land?: boolean
-          user_id: string
-        }
-        Update: {
-          id?: never
-          deck_id?: number
-          card_name?: string
-          scryfall_id?: string | null
-          set_code?: string | null
-          quantity?: number
-          categories?: string | null
-          tags?: string | null
-          is_commander?: boolean
-          dead_weight_flag?: string | null
-          dead_weight_reason?: string | null
-          ownership_status?: string | null
-          proxy_of_deck_id?: number | null
-          physical_copy_id?: number | null
-          card_definition_id?: number | null
-          is_generic_land?: boolean
-          user_id?: string
-        }
-        Relationships: []
-      }
-      generic_land_preferences: {
-        Row: {
-          card_definition_id: number
-          scryfall_printing_id: string
-          updated_at: string
-        }
-        Insert: {
-          card_definition_id: number
-          scryfall_printing_id: string
-          updated_at?: string
-        }
-        Update: {
           card_definition_id?: number
-          scryfall_printing_id?: string
-          updated_at?: string
+          condition?: string | null
+          created_at?: string | null
+          id?: never
+          is_foil?: boolean
+          is_proxy?: boolean
+          missing?: boolean
+          proxy_for_definition_id?: number | null
+          scryfall_printing_id?: string | null
+          source_tag?: string | null
+          storage_location_id?: number | null
+          user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "physical_copies_card_definition_id_fkey"
+            columns: ["card_definition_id"]
+            isOneToOne: false
+            referencedRelation: "card_definitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "physical_copies_proxy_for_definition_id_fkey"
+            columns: ["proxy_for_definition_id"]
+            isOneToOne: false
+            referencedRelation: "card_definitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "physical_copies_storage_location_id_fkey"
+            columns: ["storage_location_id"]
+            isOneToOne: false
+            referencedRelation: "storage_locations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      deck_allocations: {
+      precon_cards: {
         Row: {
-          id: number
           card_name: string
-          scryfall_id: string | null
-          set_code: string | null
-          collector_number: string | null
-          deck_id: number
-          role: string
-          priority_override: boolean
-          written_to_archidekt: boolean
-          written_at: string | null
-          assigned_at: string
-          user_id: string
+          id: number
+          precon_url: string
         }
         Insert: {
-          id?: never
           card_name: string
-          scryfall_id?: string | null
-          set_code?: string | null
-          collector_number?: string | null
-          deck_id: number
-          role: string
-          priority_override?: boolean
-          written_to_archidekt?: boolean
-          written_at?: string | null
-          assigned_at?: string
-          user_id: string
+          id?: never
+          precon_url: string
         }
         Update: {
-          id?: never
           card_name?: string
-          scryfall_id?: string | null
-          set_code?: string | null
-          collector_number?: string | null
-          deck_id?: number
-          role?: string
-          priority_override?: boolean
-          written_to_archidekt?: boolean
-          written_at?: string | null
-          assigned_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      proxy_allocations: {
-        Row: {
-          id: number
-          card_name: string
-          deck_id: number
-          role: string
-          assigned_at: string
-          written_to_archidekt: boolean
-          written_at: string | null
-          user_id: string
-        }
-        Insert: {
           id?: never
-          card_name: string
-          deck_id: number
-          role: string
-          assigned_at?: string
-          written_to_archidekt?: boolean
-          written_at?: string | null
-          user_id: string
-        }
-        Update: {
-          id?: never
-          card_name?: string
-          deck_id?: number
-          role?: string
-          assigned_at?: string
-          written_to_archidekt?: boolean
-          written_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      deck_priority: {
-        Row: {
-          deck_id: number
-          priority: number
-          user_id: string
-          updated_at: string
-        }
-        Insert: {
-          deck_id: number
-          priority?: number
-          user_id: string
-          updated_at?: string
-        }
-        Update: {
-          deck_id?: number
-          priority?: number
-          user_id?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      deck_strategy: {
-        Row: {
-          deck_id: number
-          win_condition: string | null
-          table_context: string | null
-          bracket: number | null
-          budget_mode: string | null
-          budget_ceiling: number | null
-          frustration: string | null
-          strategy_notes: string | null
-          format_rules: string | null
-          health_overrides: string | null
-          user_id: string
-          updated_at: string
-        }
-        Insert: {
-          deck_id: number
-          win_condition?: string | null
-          table_context?: string | null
-          bracket?: number | null
-          budget_mode?: string | null
-          budget_ceiling?: number | null
-          frustration?: string | null
-          strategy_notes?: string | null
-          format_rules?: string | null
-          health_overrides?: string | null
-          user_id: string
-          updated_at?: string
-        }
-        Update: {
-          deck_id?: number
-          win_condition?: string | null
-          table_context?: string | null
-          bracket?: number | null
-          budget_mode?: string | null
-          budget_ceiling?: number | null
-          frustration?: string | null
-          strategy_notes?: string | null
-          format_rules?: string | null
-          health_overrides?: string | null
-          user_id?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      deck_health: {
-        Row: {
-          deck_id: number
-          result_json: string
-          overall_status: string
-          user_id: string
-          computed_at: string
-        }
-        Insert: {
-          deck_id: number
-          result_json: string
-          overall_status: string
-          user_id: string
-          computed_at?: string
-        }
-        Update: {
-          deck_id?: number
-          result_json?: string
-          overall_status?: string
-          user_id?: string
-          computed_at?: string
-        }
-        Relationships: []
-      }
-      deck_documentation: {
-        Row: {
-          deck_id: number
-          strategy_playstyle: string | null
-          synergy_lines: string | null
-          strengths_weaknesses: string | null
-          matchup_notes: string | null
-          mulligan_guide: string | null
-          user_id: string
-          updated_at: string
-        }
-        Insert: {
-          deck_id: number
-          strategy_playstyle?: string | null
-          synergy_lines?: string | null
-          strengths_weaknesses?: string | null
-          matchup_notes?: string | null
-          mulligan_guide?: string | null
-          user_id: string
-          updated_at?: string
-        }
-        Update: {
-          deck_id?: number
-          strategy_playstyle?: string | null
-          synergy_lines?: string | null
-          strengths_weaknesses?: string | null
-          matchup_notes?: string | null
-          mulligan_guide?: string | null
-          user_id?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      deck_notes: {
-        Row: {
-          id: number
-          deck_id: number
-          content: string
-          user_id: string
-          created_at: string
-        }
-        Insert: {
-          id?: never
-          deck_id: number
-          content: string
-          user_id: string
-          created_at?: string
-        }
-        Update: {
-          id?: never
-          deck_id?: number
-          content?: string
-          user_id?: string
-          created_at?: string
-        }
-        Relationships: []
-      }
-      deck_overview_content: {
-        Row: {
-          deck_id: number
-          content: string
-          user_id: string
-          generated_at: string
-        }
-        Insert: {
-          deck_id: number
-          content: string
-          user_id: string
-          generated_at?: string
-        }
-        Update: {
-          deck_id?: number
-          content?: string
-          user_id?: string
-          generated_at?: string
-        }
-        Relationships: []
-      }
-      deck_combos: {
-        Row: {
-          deck_id: number
-          content: string
-          user_id: string
-          generated_at: string
-        }
-        Insert: {
-          deck_id: number
-          content: string
-          user_id: string
-          generated_at?: string
-        }
-        Update: {
-          deck_id?: number
-          content?: string
-          user_id?: string
-          generated_at?: string
-        }
-        Relationships: []
-      }
-      deck_mana_analysis: {
-        Row: {
-          deck_id: number
-          content: string
-          user_id: string
-          generated_at: string
-        }
-        Insert: {
-          deck_id: number
-          content: string
-          user_id: string
-          generated_at?: string
-        }
-        Update: {
-          deck_id?: number
-          content?: string
-          user_id?: string
-          generated_at?: string
-        }
-        Relationships: []
-      }
-      deck_upgrades: {
-        Row: {
-          deck_id: number
-          content: string
-          owned: boolean
-          suggested_cut: string | null
-          cut_flag: string | null
-          price: number | null
-          synergy_score: number | null
-          user_id: string
-          generated_at: string
-        }
-        Insert: {
-          deck_id: number
-          content: string
-          owned?: boolean
-          suggested_cut?: string | null
-          cut_flag?: string | null
-          price?: number | null
-          synergy_score?: number | null
-          user_id: string
-          generated_at?: string
-        }
-        Update: {
-          deck_id?: number
-          content?: string
-          owned?: boolean
-          suggested_cut?: string | null
-          cut_flag?: string | null
-          price?: number | null
-          synergy_score?: number | null
-          user_id?: string
-          generated_at?: string
-        }
-        Relationships: []
-      }
-      deck_ratings: {
-        Row: {
-          deck_id: number
-          content: string
-          user_id: string
-          generated_at: string
-        }
-        Insert: {
-          deck_id: number
-          content: string
-          user_id: string
-          generated_at?: string
-        }
-        Update: {
-          deck_id?: number
-          content?: string
-          user_id?: string
-          generated_at?: string
-        }
-        Relationships: []
-      }
-      dead_weight_dismissals: {
-        Row: {
-          id: number
-          deck_id: number
-          card_name: string
-          user_id: string
-          dismissed_at: string
-        }
-        Insert: {
-          id?: never
-          deck_id: number
-          card_name: string
-          user_id: string
-          dismissed_at?: string
-        }
-        Update: {
-          id?: never
-          deck_id?: number
-          card_name?: string
-          user_id?: string
-          dismissed_at?: string
-        }
-        Relationships: []
-      }
-      debrief_sessions: {
-        Row: {
-          id: number
-          deck_id: number
-          status: string
-          brief_json: string | null
-          recommendations_json: string | null
-          current_rec_index: number
-          conversation_json: string | null
-          user_id: string
-          created_at: string
-          completed_at: string | null
-        }
-        Insert: {
-          id?: never
-          deck_id: number
-          status?: string
-          brief_json?: string | null
-          recommendations_json?: string | null
-          current_rec_index?: number
-          conversation_json?: string | null
-          user_id: string
-          created_at?: string
-          completed_at?: string | null
-        }
-        Update: {
-          id?: never
-          deck_id?: number
-          status?: string
-          brief_json?: string | null
-          recommendations_json?: string | null
-          current_rec_index?: number
-          conversation_json?: string | null
-          user_id?: string
-          created_at?: string
-          completed_at?: string | null
-        }
-        Relationships: []
-      }
-      debrief_actions: {
-        Row: {
-          id: number
-          session_id: number
-          action_type: string
-          cut_card: string
-          add_card: string
-          reason: string
-          notion_logged: boolean
-          user_id: string
-          created_at: string
-        }
-        Insert: {
-          id?: never
-          session_id: number
-          action_type: string
-          cut_card: string
-          add_card: string
-          reason: string
-          notion_logged?: boolean
-          user_id: string
-          created_at?: string
-        }
-        Update: {
-          id?: never
-          session_id?: number
-          action_type?: string
-          cut_card?: string
-          add_card?: string
-          reason?: string
-          notion_logged?: boolean
-          user_id?: string
-          created_at?: string
-        }
-        Relationships: []
-      }
-      brew_sessions: {
-        Row: {
-          id: number
-          deck_id: number | null
-          status: string
-          path_type: string | null
-          commander_name: string | null
-          colour_identity: string | null
-          concept_description: string | null
-          brief_json: string | null
-          skeleton_json: string | null
-          refinement_history_json: string
-          conversation_json: string
-          decision_log_json: string
-          assessment_cache_json: string
-          model_id: string | null
-          user_id: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: never
-          deck_id?: number | null
-          status?: string
-          path_type?: string | null
-          commander_name?: string | null
-          colour_identity?: string | null
-          concept_description?: string | null
-          brief_json?: string | null
-          skeleton_json?: string | null
-          refinement_history_json?: string
-          conversation_json?: string
-          decision_log_json?: string
-          assessment_cache_json?: string
-          model_id?: string | null
-          user_id: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: never
-          deck_id?: number | null
-          status?: string
-          path_type?: string | null
-          commander_name?: string | null
-          colour_identity?: string | null
-          concept_description?: string | null
-          brief_json?: string | null
-          skeleton_json?: string | null
-          refinement_history_json?: string
-          conversation_json?: string
-          decision_log_json?: string
-          assessment_cache_json?: string
-          model_id?: string | null
-          user_id?: string
-          created_at?: string
-          updated_at?: string
+          precon_url?: string
         }
         Relationships: []
       }
       precon_mod_state: {
         Row: {
-          id: number
+          budget_spent: number | null
           deck_id: number
-          swaps_used: number
-          sol_ring_removed: boolean
-          rarity_mythic_used: number
-          rarity_rare_used: number
-          rarity_uncommon_used: number
-          rarity_common_used: number
-          budget_spent: number
-          user_id: string
+          id: number
+          rarity_common_used: number | null
+          rarity_mythic_used: number | null
+          rarity_rare_used: number | null
+          rarity_uncommon_used: number | null
+          sol_ring_removed: boolean | null
+          swaps_used: number | null
           updated_at: string
+          user_id: string
         }
         Insert: {
-          id?: never
+          budget_spent?: number | null
           deck_id: number
-          swaps_used?: number
-          sol_ring_removed?: boolean
-          rarity_mythic_used?: number
-          rarity_rare_used?: number
-          rarity_uncommon_used?: number
-          rarity_common_used?: number
-          budget_spent?: number
-          user_id: string
+          id?: never
+          rarity_common_used?: number | null
+          rarity_mythic_used?: number | null
+          rarity_rare_used?: number | null
+          rarity_uncommon_used?: number | null
+          sol_ring_removed?: boolean | null
+          swaps_used?: number | null
           updated_at?: string
+          user_id: string
         }
         Update: {
-          id?: never
+          budget_spent?: number | null
           deck_id?: number
-          swaps_used?: number
-          sol_ring_removed?: boolean
-          rarity_mythic_used?: number
-          rarity_rare_used?: number
-          rarity_uncommon_used?: number
-          rarity_common_used?: number
-          budget_spent?: number
-          user_id?: string
+          id?: never
+          rarity_common_used?: number | null
+          rarity_mythic_used?: number | null
+          rarity_rare_used?: number | null
+          rarity_uncommon_used?: number | null
+          sol_ring_removed?: boolean | null
+          swaps_used?: number | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "precon_mod_state_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: true
+            referencedRelation: "decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      printing_set_info: {
+        Row: {
+          edition_name: string
+          scryfall_printing_id: string
+          set_code: string
+        }
+        Insert: {
+          edition_name?: string
+          scryfall_printing_id: string
+          set_code?: string
+        }
+        Update: {
+          edition_name?: string
+          scryfall_printing_id?: string
+          set_code?: string
         }
         Relationships: []
       }
-      upgrade_change_log: {
+      proxy_allocations: {
         Row: {
-          id: number
+          assigned_at: string | null
+          card_name: string
           deck_id: number
-          cut_card: string
-          add_card: string
-          reason: string
-          skipped: boolean
+          id: number
+          role: string
           user_id: string
-          date: string
+          written_at: string | null
+          written_to_archidekt: boolean | null
         }
         Insert: {
-          id?: never
+          assigned_at?: string | null
+          card_name: string
           deck_id: number
-          cut_card: string
-          add_card: string
-          reason?: string
-          skipped?: boolean
+          id?: never
+          role: string
           user_id: string
-          date?: string
+          written_at?: string | null
+          written_to_archidekt?: boolean | null
         }
         Update: {
-          id?: never
+          assigned_at?: string | null
+          card_name?: string
           deck_id?: number
-          cut_card?: string
-          add_card?: string
-          reason?: string
-          skipped?: boolean
+          id?: never
+          role?: string
           user_id?: string
-          date?: string
+          written_at?: string | null
+          written_to_archidekt?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proxy_allocations_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: false
+            referencedRelation: "decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sets: {
+        Row: {
+          code: string
+          name: string
+        }
+        Insert: {
+          code: string
+          name: string
+        }
+        Update: {
+          code?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      storage_locations: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          description: string | null
+          id: number
+          name: string
+          sort_order: number | null
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: never
+          name: string
+          sort_order?: number | null
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: never
+          name?: string
+          sort_order?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sync_meta: {
+        Row: {
+          key: string
+          updated_at: string | null
+          value: string | null
+        }
+        Insert: {
+          key: string
+          updated_at?: string | null
+          value?: string | null
+        }
+        Update: {
+          key?: string
+          updated_at?: string | null
+          value?: string | null
         }
         Relationships: []
       }
       sync_runs: {
         Row: {
+          completed_at: string | null
+          decks_failed: number | null
+          decks_processed: number | null
+          decks_succeeded: number | null
+          details: string | null
           id: number
           started_at: string
-          completed_at: string | null
           trigger: string
-          decks_processed: number
-          decks_succeeded: number
-          decks_failed: number
-          details: string | null
           user_id: string
         }
         Insert: {
+          completed_at?: string | null
+          decks_failed?: number | null
+          decks_processed?: number | null
+          decks_succeeded?: number | null
+          details?: string | null
           id?: never
           started_at: string
-          completed_at?: string | null
           trigger: string
-          decks_processed?: number
-          decks_succeeded?: number
-          decks_failed?: number
-          details?: string | null
           user_id: string
         }
         Update: {
+          completed_at?: string | null
+          decks_failed?: number | null
+          decks_processed?: number | null
+          decks_succeeded?: number | null
+          details?: string | null
           id?: never
           started_at?: string
-          completed_at?: string | null
           trigger?: string
-          decks_processed?: number
-          decks_succeeded?: number
-          decks_failed?: number
-          details?: string | null
           user_id?: string
         }
         Relationships: []
       }
+      upgrade_change_log: {
+        Row: {
+          add_card: string
+          cut_card: string
+          date: string
+          deck_id: number
+          id: number
+          reason: string | null
+          skipped: boolean
+          user_id: string
+        }
+        Insert: {
+          add_card: string
+          cut_card: string
+          date?: string
+          deck_id: number
+          id?: never
+          reason?: string | null
+          skipped?: boolean
+          user_id: string
+        }
+        Update: {
+          add_card?: string
+          cut_card?: string
+          date?: string
+          deck_id?: number
+          id?: never
+          reason?: string | null
+          skipped?: boolean
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "upgrade_change_log_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: false
+            referencedRelation: "decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
+      collection_rollup: {
+        Row: {
+          allocated_count: number | null
+          card_name: string | null
+          oracle_id: string | null
+          owned_count: number | null
+          proxy_count: number | null
+          shortfall: number | null
+          type_line: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       shared_cards: {
         Row: {
-          card_name: string
-          deck_count: number
-          deck_ids: string
-          owned_copies: number
+          card_name: string | null
+          deck_count: number | null
+          deck_ids: string | null
+          owned_copies: number | null
         }
         Relationships: []
       }
     }
     Functions: {
-      get_price_to_add: {
-        Args: {
-          card_def_id: number
-        }
-        Returns: number | null
+      allocation_clear_active_decks: {
+        Args: { p_user_id: string }
+        Returns: undefined
       }
+      batch_assign_deck: { Args: { p_assignments: Json }; Returns: undefined }
       get_bulk_price_to_add: {
-        Args: Record<string, never>
-        Returns: Array<{
+        Args: never
+        Returns: {
           card_definition_id: number
-          price_to_add: number | null
-        }>
+          price_to_add: number
+        }[]
       }
       get_collection_rollup: {
-        Args: {
-          p_user_id: string
-        }
-        Returns: Array<{
+        Args: { p_user_id: string }
+        Returns: {
           card_definition_id: number
           card_name: string
-          oracle_id: string
           color_identity: string
-          type_line: string
+          oracle_id: string
+          owned_valuation: number
+          price_to_add: number
           total_quantity: number
-          price_to_add: number | null
-          owned_valuation: number | null
-        }>
+          type_line: string
+        }[]
       }
+      get_price_to_add: { Args: { card_def_id: number }; Returns: number }
       get_shared_cards: {
-        Args: {
-          p_user_id: string
-        }
-        Returns: Array<{
+        Args: { p_user_id: string }
+        Returns: {
           card_name: string
           deck_count: number
           deck_ids: string
           owned_copies: number
-        }>
+        }[]
       }
     }
     Enums: {
@@ -1091,15 +1401,128 @@ export type Database = {
   }
 }
 
-/**
- * Helper types for convenient access to table row types.
- * Usage: type Deck = Tables<'decks'>
- */
-export type Tables<T extends keyof Database['public']['Tables']> =
-  Database['public']['Tables'][T]['Row']
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
-export type InsertDto<T extends keyof Database['public']['Tables']> =
-  Database['public']['Tables'][T]['Insert']
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
-export type UpdateDto<T extends keyof Database['public']['Tables']> =
-  Database['public']['Tables'][T]['Update']
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
+  public: {
+    Enums: {},
+  },
+} as const

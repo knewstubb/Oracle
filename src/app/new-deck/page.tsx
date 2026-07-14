@@ -748,7 +748,7 @@ export default function BrewModePage() {
       <div className="flex h-screen flex-col items-center justify-center bg-zinc-950">
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-700 border-t-amber-500" />
-          <p className="text-sm text-zinc-400">Restoring session…</p>
+          <p className="text-[length:var(--fs-md)] text-zinc-400">Restoring session…</p>
         </div>
       </div>
     )

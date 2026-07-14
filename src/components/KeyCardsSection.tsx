@@ -21,7 +21,7 @@ const tierColors: Record<KeyCard['priorityTier'], string> = {
 export function KeyCardsSection({ keyCards }: KeyCardsSectionProps) {
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-semibold">Key Cards</h3>
+      <h3 className="text-[length:var(--fs-md)] font-medium">Key Cards</h3>
       <ol className="space-y-2">
         {keyCards.map((card, index) => (
           <li key={card.cardName} className="flex items-start gap-3">
@@ -30,14 +30,14 @@ export function KeyCardsSection({ keyCards }: KeyCardsSectionProps) {
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">{card.cardName}</span>
+                <span className="text-[length:var(--fs-md)] font-medium">{card.cardName}</span>
                 <span
-                  className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${tierColors[card.priorityTier]}`}
+                  className={`inline-flex items-center rounded px-1.5 py-0.5 text-[length:var(--fs-xs)] font-medium ${tierColors[card.priorityTier]}`}
                 >
                   {tierLabels[card.priorityTier]}
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground">{card.reason}</p>
+              <p className="text-[length:var(--fs-sm)] text-muted-foreground">{card.reason}</p>
             </div>
           </li>
         ))}

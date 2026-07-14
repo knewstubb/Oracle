@@ -210,7 +210,7 @@ export function SmartSearch({ currentDeckCards = [] }: SmartSearchProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search cards in plain English..."
-            className="flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
+            className="flex-1 bg-transparent text-[length:var(--fs-lg)] outline-none placeholder:text-muted-foreground"
             aria-label="Search cards"
           />
           {isLoading && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
@@ -228,7 +228,7 @@ export function SmartSearch({ currentDeckCards = [] }: SmartSearchProps) {
             aria-label="Collection only"
             onClick={() => setCollectionOnly(!collectionOnly)}
             className={cn(
-              'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+              'rounded-full border px-3 py-1 text-[length:var(--fs-sm)] font-medium transition-colors',
               collectionOnly
                 ? 'border-primary bg-primary/10 text-primary'
                 : 'border-border text-muted-foreground hover:bg-muted'
@@ -240,7 +240,7 @@ export function SmartSearch({ currentDeckCards = [] }: SmartSearchProps) {
             value={colorIdentity}
             onChange={(e) => setColorIdentity(e.target.value)}
             aria-label="Colour identity filter"
-            className="rounded-full border border-border bg-transparent px-3 py-1 text-xs font-medium text-muted-foreground outline-none hover:bg-muted"
+            className="rounded-full border border-border bg-transparent px-3 py-1 text-[length:var(--fs-sm)] font-medium text-muted-foreground outline-none hover:bg-muted"
           >
             <option value="">Any colour</option>
             <option value="W">White</option>
@@ -267,7 +267,7 @@ export function SmartSearch({ currentDeckCards = [] }: SmartSearchProps) {
             onChange={(e) => setMaxPrice(e.target.value ? Number(e.target.value) : undefined)}
             placeholder="Max price ($)"
             aria-label="Budget cap"
-            className="w-28 rounded-full border border-border bg-transparent px-3 py-1 text-xs font-medium text-muted-foreground outline-none placeholder:text-muted-foreground hover:bg-muted"
+            className="w-28 rounded-full border border-border bg-transparent px-3 py-1 text-[length:var(--fs-sm)] font-medium text-muted-foreground outline-none placeholder:text-muted-foreground hover:bg-muted"
           />
         </div>
 
@@ -289,7 +289,7 @@ export function SmartSearch({ currentDeckCards = [] }: SmartSearchProps) {
           {/* Error state */}
           {error && (
             <div className="flex flex-col items-center gap-3 py-8" role="alert">
-              <p className="text-sm text-destructive">Search failed. {error}</p>
+              <p className="text-[length:var(--fs-md)] text-destructive">Search failed. {error}</p>
               <Button variant="outline" size="sm" onClick={handleRetry}>
                 Retry
               </Button>
@@ -298,7 +298,7 @@ export function SmartSearch({ currentDeckCards = [] }: SmartSearchProps) {
 
           {/* No results */}
           {showNoResults && (
-            <p className="py-8 text-center text-sm text-muted-foreground">
+            <p className="py-8 text-center text-[length:var(--fs-md)] text-muted-foreground">
               No cards found for &apos;{debouncedQuery}&apos;. Try different terms.
             </p>
           )}
@@ -323,15 +323,15 @@ export function SmartSearch({ currentDeckCards = [] }: SmartSearchProps) {
                     {/* Badges */}
                     <div className="absolute top-2 right-2 flex flex-col gap-1">
                       {card.owned && (
-                        <Badge className="bg-green-600 text-white text-[10px]">Owned</Badge>
+                        <Badge className="bg-green-600 text-white text-[length:var(--fs-xs)]">Owned</Badge>
                       )}
                       {inDeck && (
-                        <Badge className="bg-blue-600 text-white text-[10px]">In deck</Badge>
+                        <Badge className="bg-blue-600 text-white text-[length:var(--fs-xs)]">In deck</Badge>
                       )}
                     </div>
                     {/* Card info */}
                     <div className="mt-1.5 space-y-0.5">
-                      <p className="truncate text-sm font-medium">{card.name}</p>
+                      <p className="truncate text-[length:var(--fs-md)] font-medium">{card.name}</p>
                       <ManaCost cost={card.manaCost} />
                     </div>
                   </div>
@@ -342,7 +342,7 @@ export function SmartSearch({ currentDeckCards = [] }: SmartSearchProps) {
 
           {/* Default state — no query yet */}
           {!hasQuery && !isLoading && (
-            <p className="py-8 text-center text-sm text-muted-foreground">
+            <p className="py-8 text-center text-[length:var(--fs-md)] text-muted-foreground">
               Type a query to search for Commander-legal cards.
             </p>
           )}

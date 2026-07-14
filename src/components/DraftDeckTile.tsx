@@ -130,7 +130,7 @@ export function DraftDeckTile({
             <button
               type="button"
               onClick={handleContinueBrewing}
-              className="rounded-lg bg-[rgba(55,138,221,0.2)] px-3 py-1.5 text-xs font-medium text-[#378ADD] border border-[rgba(55,138,221,0.4)] hover:bg-[rgba(55,138,221,0.3)] transition-colors"
+              className="rounded-lg bg-[rgba(55,138,221,0.2)] px-3 py-1.5 text-[length:var(--fs-sm)] font-medium text-[#378ADD] border border-[rgba(55,138,221,0.4)] hover:bg-[rgba(55,138,221,0.3)] transition-colors"
             >
               Continue brewing
             </button>
@@ -138,7 +138,7 @@ export function DraftDeckTile({
               <button
                 type="button"
                 onClick={handleDeleteClick}
-                className="rounded-lg bg-[rgba(226,75,74,0.15)] px-3 py-1.5 text-xs font-medium text-[#E24B4A] border border-[rgba(226,75,74,0.3)] hover:bg-[rgba(226,75,74,0.25)] transition-colors"
+                className="rounded-lg bg-[rgba(226,75,74,0.15)] px-3 py-1.5 text-[length:var(--fs-sm)] font-medium text-[#E24B4A] border border-[rgba(226,75,74,0.3)] hover:bg-[rgba(226,75,74,0.25)] transition-colors"
               >
                 Delete draft
               </button>
@@ -161,16 +161,16 @@ export function DraftDeckTile({
 
       {/* Info section */}
       <div className="px-4 pb-3 pt-3">
-        <h3 className="truncate text-base font-bold text-foreground leading-tight">
+        <h3 className="truncate text-[length:var(--fs-lg)] font-medium text-foreground leading-tight">
           {name}
         </h3>
-        <p className="mt-0.5 truncate text-sm text-muted-foreground">
+        <p className="mt-0.5 truncate text-[length:var(--fs-md)] text-muted-foreground">
           {commanderName}
         </p>
 
         {/* Draft badge — no health pips, no card count */}
         <div className="mt-1.5 flex items-center gap-2">
-          <span className="inline-flex items-center rounded-full bg-[rgba(55,138,221,0.15)] px-2 py-0.5 text-[10px] font-medium text-[#378ADD]">
+          <span className="inline-flex items-center rounded-full bg-[rgba(55,138,221,0.15)] px-2 py-0.5 text-[length:var(--fs-xs)] font-medium text-[#378ADD]">
             Draft
           </span>
         </div>

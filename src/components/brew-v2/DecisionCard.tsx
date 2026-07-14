@@ -51,7 +51,7 @@ export function DecisionCard({
           {decision.key}
         </p>
         {/* Value — 10px, normal weight */}
-        <p className="mt-0.5 text-[10px] leading-snug text-[rgba(255,255,255,0.85)]">
+        <p className="mt-0.5 text-[length:var(--fs-xs)] leading-snug text-[rgba(255,255,255,0.85)]">
           {decision.value}
         </p>
       </div>

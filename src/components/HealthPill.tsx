@@ -38,7 +38,7 @@ export function HealthPill({ category, onClick }: HealthPillProps) {
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium cursor-pointer transition-opacity hover:opacity-80"
+      className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[length:var(--fs-sm)] font-medium cursor-pointer transition-opacity hover:opacity-80"
       style={{ backgroundColor: bg, color }}
       aria-label={`${category.status} ${category.name} ${category.count}`}
     >

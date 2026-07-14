@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Search, List, LayoutGrid, ChevronDown, ChevronRight, AlertTriangle, Tags } from 'lucide-react'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
@@ -11,16 +11,20 @@ import { CardImage } from '@/components/CardImage'
 import { CategoryTagEditor } from '@/components/CategoryTagEditor'
 import { cn } from '@/lib/utils'
 import { parseCategoriesCapped } from '@/lib/categoryUtils'
-import { categoryPrimaryColour, categorySecondaryColour, categoryInitial } from '@/lib/categoryColour'
 import type { StructuredCategories } from '@/lib/categoryUtils'
 import { useDeckCategories } from '@/hooks/useDeckCategories'
 import type { DeckCard } from '@/components/CardGrid'
-import { createPortal } from 'react-dom'
+import { CardHoverPreview } from '@/components/CardHoverPreview'
+import type { CardSlotStatus } from '@/lib/card-status'
+import type { RankedCandidate } from '@/lib/allocation-candidates'
+import { isBasicLand } from '@/lib/basic-lands'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type ViewMode = 'list' | 'grid'
-type OwnershipFilter = 'all' | 'original' | 'proxy' | 'not_owned'
+type TabMode = 'all' | 'picklist'
+type StatusFilter = 'all' | 'original' | 'proxy' | 'unallocated' | 'claimed' | 'unowned'
+type GroupBy = 'category' | 'type' | 'status' | 'cmc' | 'color'
 type SortBy = 'name' | 'type' | 'cmc'
 
 interface CardsTabProps {
@@ -36,18 +40,72 @@ interface CardsTabProps {
   scrollToCategory?: string | null
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── API Response Types ──────────────────────────────────────────────────────
 
-function getOwnershipStatus(card: DeckCard): 'original' | 'proxy' | 'not_owned' {
-  if (card.allocation_role === 'proxy') return 'proxy'
-  if (card.allocation_role === 'not_owned') return 'not_owned'
-  return 'original'
+interface CardStatusResponse {
+  cards: Array<{
+    deckCardsId: number
+    cardName: string
+    physicalCopyId: number | null
+    isProxy: boolean | null
+    status: CardSlotStatus
+  }>
+  counts: {
+    total: number
+    original: number
+    proxy: number
+    unallocated: number
+    claimed: number
+    unowned: number
+  }
 }
+
+interface PicklistCard {
+  deckCardsId: number
+  cardName: string
+  isResolved: boolean
+  physicalCopyId: number | null
+  ownershipStatus: string | null
+  candidates: RankedCandidate[]
+}
+
+interface PicklistResponse {
+  deckName: string
+  cards: PicklistCard[]
+  progress: { resolved: number; total: number }
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getLocalStorageKey(deckId: number): string {
   return `cards-tab-view-mode-${deckId}`
 }
 
+/** Derive a card type group from the card name heuristic or categories */
+function getCardTypeGroup(card: DeckCard): string {
+  const primary = parseCategoriesCapped(card.categories).primary_category.toLowerCase()
+  if (primary.includes('creature')) return 'Creature'
+  if (primary.includes('instant')) return 'Instant'
+  if (primary.includes('sorcery') || primary.includes('sorceries')) return 'Sorcery'
+  if (primary.includes('artifact')) return 'Artifact'
+  if (primary.includes('enchantment')) return 'Enchantment'
+  if (primary.includes('land')) return 'Land'
+  if (primary.includes('planeswalker')) return 'Planeswalker'
+  return 'Other'
+}
+
+/** Derive color identity group from card (simplified — uses categories as proxy) */
+function getColorGroup(card: DeckCard): string {
+  // Without explicit color identity data on DeckCard, use card_name heuristic
+  // This will be refined when color_identity is available on the card type
+  return 'Unknown'
+}
+
+/** Get CMC group bucket */
+function getCmcGroup(_card: DeckCard): string {
+  // CMC isn't on DeckCard — returns 'Unknown' until extended
+  return 'Unknown'
+}
 
 // ─── Sort Comparators ────────────────────────────────────────────────────────
 
@@ -62,15 +120,95 @@ function sortCards(cards: DeckCard[], sortBy: SortBy): DeckCard[] {
         const catCmp = catA.localeCompare(catB)
         return catCmp !== 0 ? catCmp : a.card_name.localeCompare(b.card_name)
       }
-      case 'cmc': {
-        // CMC isn't on DeckCard type directly — sort alphabetically as fallback
-        // This will be enhanced when CMC data is available
+      case 'cmc':
         return a.card_name.localeCompare(b.card_name)
-      }
       default:
         return 0
     }
   })
+}
+
+// ─── Grouping Functions ──────────────────────────────────────────────────────
+
+function groupByCategory(cards: DeckCard[]): [string, DeckCard[]][] {
+  const groups: Record<string, DeckCard[]> = {}
+  for (const card of cards) {
+    const category = parseCategoriesCapped(card.categories).primary_category
+    if (!groups[category]) groups[category] = []
+    groups[category].push(card)
+  }
+  return Object.entries(groups).sort(([a], [b]) => {
+    if (a === 'Other') return 1
+    if (b === 'Other') return -1
+    return a.localeCompare(b)
+  })
+}
+
+function groupByType(cards: DeckCard[]): [string, DeckCard[]][] {
+  const groups: Record<string, DeckCard[]> = {}
+  for (const card of cards) {
+    const type = getCardTypeGroup(card)
+    if (!groups[type]) groups[type] = []
+    groups[type].push(card)
+  }
+  const typeOrder = ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land', 'Planeswalker', 'Other']
+  return Object.entries(groups).sort(([a], [b]) => {
+    const ai = typeOrder.indexOf(a)
+    const bi = typeOrder.indexOf(b)
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
+  })
+}
+
+function groupByStatus(
+  cards: DeckCard[],
+  statusMap: Map<number, CardSlotStatus>
+): [string, DeckCard[]][] {
+  const groups: Record<string, DeckCard[]> = {}
+  const statusOrder = ['original', 'proxy', 'unallocated', 'claimed', 'unowned', 'generic_land']
+  const labels: Record<string, string> = {
+    original: 'Original',
+    proxy: 'Proxy',
+    unallocated: 'Unallocated',
+    claimed: 'Claimed',
+    unowned: 'Unowned',
+    generic_land: 'Basic Lands (generic)',
+  }
+  for (const card of cards) {
+    const status = statusMap.get(card.id) ?? 'unallocated'
+    const label = labels[status] ?? status
+    if (!groups[label]) groups[label] = []
+    groups[label].push(card)
+  }
+  return Object.entries(groups).sort(([a], [b]) => {
+    const ai = statusOrder.indexOf(Object.entries(labels).find(([, v]) => v === a)?.[0] ?? '')
+    const bi = statusOrder.indexOf(Object.entries(labels).find(([, v]) => v === b)?.[0] ?? '')
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
+  })
+}
+
+function groupByCmc(cards: DeckCard[]): [string, DeckCard[]][] {
+  // CMC not available on DeckCard — group all into 'Unknown' for now
+  return [['All (CMC unavailable)', cards]]
+}
+
+function groupByColor(cards: DeckCard[]): [string, DeckCard[]][] {
+  // Color identity not available on DeckCard — group all into 'Unknown' for now
+  return [['All (Color unavailable)', cards]]
+}
+
+function applyGrouping(
+  cards: DeckCard[],
+  groupBy: GroupBy,
+  statusMap: Map<number, CardSlotStatus>
+): [string, DeckCard[]][] {
+  switch (groupBy) {
+    case 'category': return groupByCategory(cards)
+    case 'type': return groupByType(cards)
+    case 'status': return groupByStatus(cards, statusMap)
+    case 'cmc': return groupByCmc(cards)
+    case 'color': return groupByColor(cards)
+    default: return groupByCategory(cards)
+  }
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -79,6 +217,53 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
   // ── Derived Data ─────────────────────────────────────────────────────────────
 
   const availableCategories = useDeckCategories(cards)
+
+  // ── Card Statuses Query ──────────────────────────────────────────────────────
+
+  const { data: statusData } = useQuery<CardStatusResponse>({
+    queryKey: ['decks', deckId, 'card-statuses'],
+    queryFn: async () => {
+      const res = await fetch(`/api/decks/${deckId}/card-statuses`)
+      if (!res.ok) throw new Error('Failed to fetch card statuses')
+      return res.json()
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  // ── Picklist Query (only fetched when picklist mode is active) ────────────
+
+  const [tabMode, setTabMode] = useState<TabMode>('all')
+
+  const { data: picklistData } = useQuery<PicklistResponse>({
+    queryKey: ['decks', deckId, 'picklist'],
+    queryFn: async () => {
+      const res = await fetch(`/api/decks/${deckId}/picklist`)
+      if (!res.ok) throw new Error('Failed to fetch picklist')
+      return res.json()
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: tabMode === 'picklist',
+  })
+
+  // ── Status Map — merge status data with cards by deck_cards id ───────────
+
+  const statusMap = useMemo(() => {
+    const map = new Map<number, CardSlotStatus>()
+    if (statusData?.cards) {
+      for (const s of statusData.cards) {
+        map.set(s.deckCardsId, s.status)
+      }
+    }
+    return map
+  }, [statusData])
+
+  // ── Status Counts ────────────────────────────────────────────────────────────
+
+  const counts = useMemo(() => {
+    if (statusData?.counts) return statusData.counts
+    // Fallback if statuses haven't loaded yet
+    return { total: cards.length, original: 0, proxy: 0, unallocated: 0, claimed: 0, unowned: 0 }
+  }, [statusData, cards.length])
 
   // ── Category Mutation ────────────────────────────────────────────────────────
 
@@ -94,13 +279,8 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
       return res.json()
     },
     onMutate: async ({ cardId, categories }) => {
-      // Cancel any outgoing refetches so they don't overwrite our optimistic update
       await queryClient.cancelQueries({ queryKey: ['decks', deckId] })
-
-      // Snapshot the previous value
       const previousData = queryClient.getQueryData(['decks', deckId])
-
-      // Optimistic update: patch the card's categories in the cached deck data
       queryClient.setQueryData(['decks', deckId], (old: unknown) => {
         if (!old || typeof old !== 'object') return old
         const deck = old as { cards?: DeckCard[] }
@@ -120,11 +300,9 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
           ),
         }
       })
-
       return { previousData }
     },
     onError: (err: Error, _variables, context) => {
-      // Roll back to the previous value on error
       if (context?.previousData) {
         queryClient.setQueryData(['decks', deckId], context.previousData)
       }
@@ -143,9 +321,9 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
     return saved === 'grid' ? 'grid' : 'list'
   })
   const [searchQuery, setSearchQuery] = useState('')
-  const [ownershipFilter, setOwnershipFilter] = useState<OwnershipFilter>('all')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [groupBy, setGroupBy] = useState<GroupBy>('category')
   const [sortBy, setSortBy] = useState<SortBy>('name')
-  const [proxiesOnly, setProxiesOnly] = useState(false)
 
   // Persist view mode to localStorage
   useEffect(() => {
@@ -172,24 +350,6 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
     })
   }, [cards])
 
-  // ── Ownership Counts ─────────────────────────────────────────────────────────
-
-  const counts = useMemo(() => {
-    let originals = 0
-    let proxies = 0
-    let notOwned = 0
-
-    for (const card of activeCards) {
-      const qty = card.quantity || 1
-      const status = getOwnershipStatus(card)
-      if (status === 'original') originals += qty
-      else if (status === 'proxy') proxies += qty
-      else notOwned += qty
-    }
-
-    return { total: originals + proxies + notOwned, originals, proxies, notOwned }
-  }, [activeCards])
-
   // ── Filtered & Sorted Cards ──────────────────────────────────────────────────
 
   const filteredCards = useMemo(() => {
@@ -201,21 +361,27 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
       result = result.filter((c) => c.card_name.toLowerCase().includes(query))
     }
 
-    // Ownership filter
-    if (ownershipFilter !== 'all') {
-      result = result.filter((c) => getOwnershipStatus(c) === ownershipFilter)
-    }
-
-    // Proxies only chip
-    if (proxiesOnly) {
-      result = result.filter((c) => getOwnershipStatus(c) === 'proxy')
+    // Status filter
+    if (statusFilter !== 'all') {
+      result = result.filter((c) => {
+        const cardStatus = statusMap.get(c.id)
+        // Generic lands are exempt from status filtering — always shown
+        if (cardStatus === 'generic_land') return true
+        return cardStatus === statusFilter
+      })
     }
 
     // Sort
     result = sortCards(result, sortBy)
 
     return result
-  }, [activeCards, searchQuery, ownershipFilter, proxiesOnly, sortBy])
+  }, [activeCards, searchQuery, statusFilter, sortBy, statusMap])
+
+  // ── Grouped cards ────────────────────────────────────────────────────────────
+
+  const groupedCards = useMemo(() => {
+    return applyGrouping(filteredCards, groupBy, statusMap)
+  }, [filteredCards, groupBy, statusMap])
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
 
@@ -238,6 +404,45 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
       {/* ─── Toolbar ──────────────────────────────────────────────────── */}
       <div className="shrink-0 border-b px-4 py-3" style={{ borderColor: 'var(--border-default)' }}>
         <div className="mx-auto flex max-w-[1080px] items-center gap-3">
+          {/* Tab mode segmented control */}
+          <div
+            className="inline-flex overflow-hidden rounded-lg"
+            style={{ border: '1px solid var(--border-emphasis)' }}
+            role="radiogroup"
+            aria-label="Tab mode"
+          >
+            <button
+              type="button"
+              role="radio"
+              aria-checked={tabMode === 'all'}
+              onClick={() => setTabMode('all')}
+              className={cn(
+                'px-3 py-1 text-[length:var(--fs-sm)] font-medium transition-colors',
+                tabMode === 'all' ? 'text-white' : 'text-muted-foreground hover:text-foreground'
+              )}
+              style={{
+                backgroundColor: tabMode === 'all' ? 'var(--accent-primary)' : 'transparent',
+              }}
+            >
+              All cards
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={tabMode === 'picklist'}
+              onClick={() => setTabMode('picklist')}
+              className={cn(
+                'px-3 py-1 text-[length:var(--fs-sm)] font-medium transition-colors',
+                tabMode === 'picklist' ? 'text-white' : 'text-muted-foreground hover:text-foreground'
+              )}
+              style={{
+                backgroundColor: tabMode === 'picklist' ? 'var(--accent-primary)' : 'transparent',
+              }}
+            >
+              Picklist
+            </button>
+          </div>
+
           {/* Search input */}
           <div className="relative max-w-[260px] flex-1">
             <Search
@@ -254,30 +459,31 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
             />
           </div>
 
-          {/* Proxies only chip */}
-          <button
-            type="button"
-            onClick={() => setProxiesOnly(!proxiesOnly)}
-            className={cn(
-              'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-              proxiesOnly
-                ? 'text-white'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-            style={{
-              backgroundColor: proxiesOnly ? 'var(--color-teal)' : 'var(--bg-card)',
-              border: `1px solid ${proxiesOnly ? 'var(--color-teal)' : 'var(--border-emphasis)'}`,
-            }}
-            aria-pressed={proxiesOnly}
-          >
-            Proxies only
-          </button>
+          {/* Group by dropdown — hidden in picklist mode */}
+          {tabMode === 'all' && (
+            <select
+              value={groupBy}
+              onChange={(e) => setGroupBy(e.target.value as GroupBy)}
+              className="h-8 rounded-lg border px-2 text-[length:var(--fs-sm)] font-medium text-muted-foreground"
+              style={{
+                backgroundColor: 'var(--bg-card)',
+                borderColor: 'var(--border-emphasis)',
+              }}
+              aria-label="Group by"
+            >
+              <option value="category">Group: Category</option>
+              <option value="type">Group: Type</option>
+              <option value="status">Group: Status</option>
+              <option value="cmc">Group: CMC</option>
+              <option value="color">Group: Color</option>
+            </select>
+          )}
 
           {/* Sort chip */}
           <button
             type="button"
             onClick={cycleSortBy}
-            className="rounded-full px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className="rounded-full px-3 py-1 text-[length:var(--fs-sm)] font-medium text-muted-foreground transition-colors hover:text-foreground"
             style={{
               backgroundColor: 'var(--bg-card)',
               border: '1px solid var(--border-emphasis)',
@@ -308,7 +514,7 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
                 viewMode === 'list' ? 'text-white' : 'text-muted-foreground hover:text-foreground'
               )}
               style={{
-                backgroundColor: viewMode === 'list' ? 'var(--color-teal)' : 'transparent',
+                backgroundColor: viewMode === 'list' ? 'var(--accent-primary)' : 'transparent',
               }}
             >
               <List className="size-4" aria-hidden="true" />
@@ -324,7 +530,7 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
                 viewMode === 'grid' ? 'text-white' : 'text-muted-foreground hover:text-foreground'
               )}
               style={{
-                backgroundColor: viewMode === 'grid' ? 'var(--color-teal)' : 'transparent',
+                backgroundColor: viewMode === 'grid' ? 'var(--accent-primary)' : 'transparent',
               }}
             >
               <LayoutGrid className="size-4" aria-hidden="true" />
@@ -333,53 +539,70 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
         </div>
       </div>
 
-      {/* ─── Ownership Filter Chips ───────────────────────────────────── */}
-      <div className="shrink-0 border-b px-4 py-2" style={{ borderColor: 'var(--border-default)' }}>
-        <div className="mx-auto flex max-w-[1080px] items-center gap-2">
-          <OwnershipChip
-            label={`All — ${counts.total}`}
-            symbol=""
-            isActive={ownershipFilter === 'all'}
-            onClick={() => setOwnershipFilter('all')}
-          />
-          <OwnershipChip
-            label={`Originals — ${counts.originals}`}
-            symbol="●"
-            isActive={ownershipFilter === 'original'}
-            onClick={() => setOwnershipFilter('original')}
-          />
-          <OwnershipChip
-            label={`Proxies — ${counts.proxies}`}
-            symbol="◐"
-            isActive={ownershipFilter === 'proxy'}
-            onClick={() => setOwnershipFilter('proxy')}
-          />
-          <OwnershipChip
-            label={`Not owned — ${counts.notOwned}`}
-            symbol="○"
-            isActive={ownershipFilter === 'not_owned'}
-            onClick={() => setOwnershipFilter('not_owned')}
-          />
+      {/* ─── Status Filter Chips ──────────────────────────────────────── */}
+      {tabMode === 'all' && (
+        <div className="shrink-0 border-b px-4 py-2" style={{ borderColor: 'var(--border-default)' }}>
+          <div className="mx-auto flex max-w-[1080px] items-center gap-2">
+            <StatusChip
+              label={`All — ${counts.total}`}
+              isActive={statusFilter === 'all'}
+              onClick={() => setStatusFilter('all')}
+              color="neutral"
+            />
+            <StatusChip
+              label={`Original — ${counts.original}`}
+              isActive={statusFilter === 'original'}
+              onClick={() => setStatusFilter('original')}
+              color="teal"
+            />
+            <StatusChip
+              label={`Proxy — ${counts.proxy}`}
+              isActive={statusFilter === 'proxy'}
+              onClick={() => setStatusFilter('proxy')}
+              color="teal-dim"
+            />
+            <StatusChip
+              label={`Unallocated — ${counts.unallocated}`}
+              isActive={statusFilter === 'unallocated'}
+              onClick={() => setStatusFilter('unallocated')}
+              color="amber"
+            />
+            <StatusChip
+              label={`Claimed — ${counts.claimed}`}
+              isActive={statusFilter === 'claimed'}
+              onClick={() => setStatusFilter('claimed')}
+              color="orange"
+            />
+            <StatusChip
+              label={`Unowned — ${counts.unowned}`}
+              isActive={statusFilter === 'unowned'}
+              onClick={() => setStatusFilter('unowned')}
+              color="red"
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ─── View Content Area ─────────────────────────────────────────── */}
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         <div className="mx-auto max-w-[1080px]">
-          {filteredCards.length === 0 ? (
+          {tabMode === 'picklist' ? (
+            <PicklistView picklistData={picklistData ?? null} />
+          ) : filteredCards.length === 0 ? (
             <div
-              className="flex min-h-[200px] items-center justify-center rounded-lg text-sm text-muted-foreground"
+              className="flex min-h-[200px] items-center justify-center rounded-lg text-[length:var(--fs-md)] text-muted-foreground"
               style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}
             >
               <p>No cards match the current filters.</p>
             </div>
           ) : viewMode === 'grid' ? (
-            <GridView cards={filteredCards} />
+            <GridView cards={filteredCards} groupedCards={groupedCards} statusMap={statusMap} />
           ) : (
-            <CategoryListView
-              cards={filteredCards}
+            <GroupedListView
+              groupedCards={groupedCards}
               healthCategories={healthCategories}
               availableCategories={availableCategories}
+              statusMap={statusMap}
               onCategoryChange={(cardId, categories) => {
                 categoryMutation.mutate({ cardId, categories })
               }}
@@ -393,18 +616,26 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
         className="shrink-0 border-t px-4 py-2"
         style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-surface)' }}
       >
-        <div className="mx-auto flex max-w-[1080px] items-center gap-6 text-xs">
+        <div className="mx-auto flex max-w-[1080px] items-center gap-6 text-[length:var(--fs-sm)]">
           <span className="inline-flex items-center gap-1.5">
-            <span style={{ color: 'var(--color-teal)' }} aria-hidden="true">●</span>
-            <span>{counts.originals} originals</span>
+            <span className="size-2.5 rounded-full" style={{ border: '2px solid var(--accent-primary)' }} aria-hidden="true" />
+            <span>{counts.original} original</span>
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span style={{ color: 'var(--color-amber)' }} aria-hidden="true">◐</span>
-            <span>{counts.proxies} proxies</span>
+            <span className="size-2.5 rounded-full" style={{ border: '2px dashed var(--accent-primary)' }} aria-hidden="true" />
+            <span>{counts.proxy} proxied</span>
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span style={{ color: 'rgba(255,255,255,0.5)' }} aria-hidden="true">○</span>
-            <span>{counts.notOwned} not owned</span>
+            <span className="size-2.5 rounded-full" style={{ border: '2px solid var(--signal-warning)' }} aria-hidden="true" />
+            <span>{counts.unallocated} unallocated</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="size-2.5 rounded-full" style={{ border: '2px solid var(--status-over)' }} aria-hidden="true" />
+            <span>{counts.claimed} claimed</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="size-2.5 rounded-full" style={{ border: '2px solid var(--signal-critical)' }} aria-hidden="true" />
+            <span>{counts.unowned} unowned</span>
           </span>
         </div>
       </div>
@@ -414,84 +645,112 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
 
 // ─── Sub-Components ──────────────────────────────────────────────────────────
 
-/** Groups cards by primary category and returns sorted entries */
-function groupByCategory(cards: DeckCard[]): [string, DeckCard[]][] {
-  const groups: Record<string, DeckCard[]> = {}
-  for (const card of cards) {
-    const category = parseCategoriesCapped(card.categories).primary_category
-    if (!groups[category]) groups[category] = []
-    groups[category].push(card)
-  }
-  // Sort categories alphabetically, but keep "Other" last
-  return Object.entries(groups).sort(([a], [b]) => {
-    if (a === 'Other') return 1
-    if (b === 'Other') return -1
-    return a.localeCompare(b)
-  })
+// ─── Status Chip ─────────────────────────────────────────────────────────────
+
+type ChipColor = 'neutral' | 'teal' | 'teal-dim' | 'amber' | 'orange' | 'red'
+
+interface StatusChipProps {
+  label: string
+  isActive: boolean
+  onClick: () => void
+  color: ChipColor
 }
 
-/** List view: cards grouped by category with collapsible sections */
-function CategoryListView({
-  cards,
+const CHIP_COLORS: Record<ChipColor, { active: string; activeBg: string; border: string }> = {
+  neutral: { active: 'var(--accent-primary)', activeBg: 'var(--accent-primary-bg)', border: 'var(--accent-primary)' },
+  teal: { active: 'var(--accent-primary)', activeBg: 'var(--accent-primary-bg)', border: 'var(--accent-primary)' },
+  'teal-dim': { active: 'var(--accent-primary)', activeBg: 'rgba(29, 158, 117, 0.08)', border: 'var(--accent-primary)' },
+  amber: { active: 'var(--signal-warning)', activeBg: 'rgba(239, 159, 39, 0.1)', border: 'var(--signal-warning)' },
+  orange: { active: 'var(--status-over)', activeBg: 'rgba(255, 95, 31, 0.12)', border: 'var(--status-over)' },
+  red: { active: 'var(--signal-critical)', activeBg: 'rgba(228, 75, 74, 0.1)', border: 'var(--signal-critical)' },
+}
+
+function StatusChip({ label, isActive, onClick, color }: StatusChipProps) {
+  const colors = CHIP_COLORS[color]
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[length:var(--fs-sm)] font-medium transition-colors"
+      style={{
+        backgroundColor: isActive ? colors.activeBg : 'var(--bg-card)',
+        color: isActive ? colors.active : 'rgba(255,255,255,0.6)',
+        border: `1px solid ${isActive ? colors.border : 'var(--border-emphasis)'}`,
+      }}
+      aria-pressed={isActive}
+    >
+      {label}
+    </button>
+  )
+}
+
+// ─── Status Badge (five-state) ───────────────────────────────────────────────
+
+// Badge rendering now uses the shared CardSlotBadge component
+import { CardSlotBadge } from '@/components/CardSlotBadge'
+
+function FiveStateBadge({ status }: { status: CardSlotStatus }) {
+  return <CardSlotBadge status={status} />
+}
+
+// ─── Grouped List View ───────────────────────────────────────────────────────
+
+function GroupedListView({
+  groupedCards,
   healthCategories,
   availableCategories,
+  statusMap,
   onCategoryChange,
 }: {
-  cards: DeckCard[]
+  groupedCards: [string, DeckCard[]][]
   healthCategories?: CardsTabProps['healthCategories']
   availableCategories: string[]
+  statusMap: Map<number, CardSlotStatus>
   onCategoryChange: (cardId: number, categories: StructuredCategories) => void
 }) {
-  const groups = useMemo(() => groupByCategory(cards), [cards])
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
 
   const toggleCategory = useCallback((category: string) => {
     setCollapsed((prev) => {
       const next = new Set(prev)
-      if (next.has(category)) {
-        next.delete(category)
-      } else {
-        next.add(category)
-      }
+      if (next.has(category)) next.delete(category)
+      else next.add(category)
       return next
     })
   }, [])
 
   return (
     <div className="space-y-1">
-      {groups.map(([category, categoryCards]) => {
-        const isCollapsed = collapsed.has(category)
-        const count = categoryCards.reduce((sum, c) => sum + (c.quantity || 1), 0)
+      {groupedCards.map(([groupName, groupCards]) => {
+        const isCollapsed = collapsed.has(groupName)
+        const count = groupCards.reduce((sum, c) => sum + (c.quantity || 1), 0)
 
         // Find matching health category
         const health = healthCategories?.find(
-          (h) => h.category.toLowerCase() === category.toLowerCase()
+          (h) => h.category.toLowerCase() === groupName.toLowerCase()
         )
         const hasViolation = health && health.status !== 'ok'
         const target = health ? health.max : undefined
 
         return (
           <section
-            key={category}
-            id={`category-${category.toLowerCase().replace(/\s+/g, '-')}`}
+            key={groupName}
+            id={`category-${groupName.toLowerCase().replace(/\s+/g, '-')}`}
           >
-            {/* Category Header */}
+            {/* Group Header */}
             <button
               type="button"
-              onClick={() => toggleCategory(category)}
+              onClick={() => toggleCategory(groupName)}
               className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-white/[0.03]"
               aria-expanded={!isCollapsed}
-              aria-controls={`category-content-${category.toLowerCase().replace(/\s+/g, '-')}`}
+              aria-controls={`category-content-${groupName.toLowerCase().replace(/\s+/g, '-')}`}
             >
-              {/* Category name */}
               <span
                 className="text-[11px] font-medium uppercase tracking-wide"
                 style={{ color: 'rgba(255,255,255,0.5)' }}
               >
-                {category}
+                {groupName}
               </span>
-
-              {/* Count */}
               <span className="text-[11px] text-muted-foreground">{count}</span>
 
               {/* Fill bar — proportional to count/target if health-monitored */}
@@ -503,26 +762,23 @@ function CategoryListView({
                   <div
                     className="h-full rounded-full transition-all"
                     style={{
-                      backgroundColor: 'var(--color-teal)',
+                      backgroundColor: 'var(--accent-primary)',
                       width: `${Math.min(100, (count / target) * 100)}%`,
                     }}
                   />
                 </div>
               )}
 
-              {/* Health warning icon — only if violated */}
               {hasViolation && (
                 <AlertTriangle
                   className="size-3 shrink-0"
-                  style={{ color: 'var(--color-amber)' }}
-                  aria-label={`${category} health warning`}
+                  style={{ color: 'var(--signal-warning)' }}
+                  aria-label={`${groupName} health warning`}
                 />
               )}
 
-              {/* Spacer to push chevron right */}
               <span className="flex-1" />
 
-              {/* Chevron */}
               {isCollapsed ? (
                 <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
               ) : (
@@ -533,14 +789,56 @@ function CategoryListView({
             {/* Card rows */}
             {!isCollapsed && (
               <div
-                id={`category-content-${category.toLowerCase().replace(/\s+/g, '-')}`}
+                id={`category-content-${groupName.toLowerCase().replace(/\s+/g, '-')}`}
                 role="list"
-                aria-label={`${category} cards`}
+                aria-label={`${groupName} cards`}
                 className="mb-2"
               >
-                {categoryCards.map((card) => (
-                  <CardRow key={card.id} card={card} availableCategories={availableCategories} onCategoryChange={onCategoryChange} />
-                ))}
+                {(() => {
+                  // Separate basic lands from normal cards for collapsing
+                  const normalCards: DeckCard[] = []
+                  const basicLandGroups = new Map<string, { generic: DeckCard[]; tracked: DeckCard[] }>()
+
+                  for (const card of groupCards) {
+                    if (isBasicLand(card.card_name)) {
+                      const existing = basicLandGroups.get(card.card_name) ?? { generic: [], tracked: [] }
+                      const cardStatus = statusMap.get(card.id)
+                      if (cardStatus === 'generic_land') {
+                        existing.generic.push(card)
+                      } else {
+                        existing.tracked.push(card)
+                      }
+                      basicLandGroups.set(card.card_name, existing)
+                    } else {
+                      normalCards.push(card)
+                    }
+                  }
+
+                  return (
+                    <>
+                      {/* Collapsed basic land rows */}
+                      {Array.from(basicLandGroups.entries()).map(([landName, { generic, tracked }]) => (
+                        <BasicLandRow
+                          key={`land-${landName}`}
+                          landName={landName}
+                          genericCount={generic.reduce((sum, c) => sum + (c.quantity || 1), 0)}
+                          trackedCards={tracked}
+                          statusMap={statusMap}
+                        />
+                      ))}
+                      {/* Normal card rows */}
+                      {normalCards.map((card) => (
+                        <CardRow
+                          key={card.id}
+                          card={card}
+                          status={statusMap.get(card.id) ?? 'unallocated'}
+                          availableCategories={availableCategories}
+                          onCategoryChange={onCategoryChange}
+                        />
+                      ))}
+                    </>
+                  )
+                })()}
               </div>
             )}
           </section>
@@ -550,9 +848,98 @@ function CategoryListView({
   )
 }
 
-/** Single card row within a category section */
-function CardRow({ card, availableCategories, onCategoryChange }: { card: DeckCard; availableCategories: string[]; onCategoryChange: (cardId: number, categories: StructuredCategories) => void }) {
-  const ownership = getOwnershipStatus(card)
+// ─── Card Row ────────────────────────────────────────────────────────────────
+
+// ─── Basic Land Row (Collapsed) ──────────────────────────────────────────────
+
+function BasicLandRow({
+  landName,
+  genericCount,
+  trackedCards,
+  statusMap,
+}: {
+  landName: string
+  genericCount: number
+  trackedCards: DeckCard[]
+  statusMap: Map<number, CardSlotStatus>
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const trackedCount = trackedCards.length
+  const totalCount = genericCount + trackedCount
+
+  return (
+    <div role="listitem">
+      {/* Main collapsed row */}
+      <div
+        className="group flex items-center gap-3 rounded px-3 py-1.5 transition-colors hover:bg-white/[0.03]"
+        style={{ minHeight: 36 }}
+      >
+        {/* Land name with quantity */}
+        <span className="min-w-0 flex-1 truncate text-[length:var(--fs-sm)]">
+          {landName}
+          <span className="ml-1.5 text-muted-foreground">×{totalCount}</span>
+        </span>
+
+        {/* Tracked indicator or "Generic" label */}
+        {trackedCount > 0 ? (
+          <button
+            type="button"
+            onClick={() => setExpanded(!expanded)}
+            className="shrink-0 text-[length:var(--fs-xs)] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {trackedCount} tracked
+            {expanded ? (
+              <ChevronDown className="ml-1 inline size-3" aria-hidden="true" />
+            ) : (
+              <ChevronRight className="ml-1 inline size-3" aria-hidden="true" />
+            )}
+          </button>
+        ) : (
+          <span className="shrink-0 text-[length:var(--fs-xs)] text-muted-foreground/60">
+            Generic
+          </span>
+        )}
+      </div>
+
+      {/* Expanded tracked copies */}
+      {expanded && trackedCount > 0 && (
+        <div className="ml-6 flex flex-col gap-0.5 pb-1">
+          {trackedCards.map((card) => (
+            <div
+              key={card.id}
+              className="flex items-center gap-3 rounded px-3 py-1 text-[length:var(--fs-xs)]"
+            >
+              <span className="flex-1 text-muted-foreground">
+                {card.set_code?.toUpperCase() || 'Unknown set'}
+                {card.scryfall_id ? '' : ''}
+              </span>
+              <FiveStateBadge status={statusMap.get(card.id) ?? 'original'} />
+            </div>
+          ))}
+          {genericCount > 0 && (
+            <div className="px-3 py-1 text-[length:var(--fs-xs)] text-muted-foreground/50 italic">
+              + {genericCount} generic — not individually tracked
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Card Row ────────────────────────────────────────────────────────────────
+
+function CardRow({
+  card,
+  status,
+  availableCategories,
+  onCategoryChange,
+}: {
+  card: DeckCard
+  status: CardSlotStatus
+  availableCategories: string[]
+  onCategoryChange: (cardId: number, categories: StructuredCategories) => void
+}) {
   const [showPreview, setShowPreview] = useState(false)
   const [previewPos, setPreviewPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
   const [popoverOpen, setPopoverOpen] = useState(false)
@@ -575,11 +962,11 @@ function CardRow({ card, availableCategories, onCategoryChange }: { card: DeckCa
     <div
       role="listitem"
       className="group flex items-center gap-3 rounded px-3 py-1.5 transition-colors hover:bg-white/[0.03]"
-      style={{ borderLeft: `3px solid ${categoryPrimaryColour(parsed.primary_category)}`, minHeight: 36 }}
+      style={{ minHeight: 36 }}
     >
       {/* Card name with hover preview */}
       <span
-        className="min-w-0 flex-1 truncate text-xs cursor-default"
+        className="min-w-0 flex-1 truncate text-[length:var(--fs-sm)] cursor-default"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
@@ -588,33 +975,15 @@ function CardRow({ card, availableCategories, onCategoryChange }: { card: DeckCa
           <CardHoverPreview
             scryfallId={card.scryfall_id}
             cardName={card.card_name}
-            x={previewPos.x}
-            y={previewPos.y}
+            anchorX={previewPos.x}
+            anchorY={previewPos.y}
+            visible={true}
           />
         )}
       </span>
 
-      {/* Secondary category letter badges */}
-      {parsed.additional_categories.length > 0 ? (
-        <span className="flex items-center gap-0.5 shrink-0">
-          {parsed.additional_categories.map(cat => (
-            <span
-              key={cat}
-              className="inline-flex items-center justify-center w-2 h-2 rounded-full text-[5px] font-bold text-white leading-none"
-              style={{ backgroundColor: categorySecondaryColour(cat) }}
-              title={cat}
-              aria-label={`Secondary category: ${cat}`}
-            >
-              {categoryInitial(cat)}
-            </span>
-          ))}
-        </span>
-      ) : (
-        <span className="shrink-0 w-5" aria-hidden="true" />
-      )}
-
-      {/* Type — muted 10px (using categories as a proxy for type info) */}
-      <span className="hidden shrink-0 text-[10px] text-muted-foreground sm:inline">
+      {/* Type — muted */}
+      <span className="hidden shrink-0 text-[length:var(--fs-xs)] text-muted-foreground sm:inline">
         {parsed.primary_category}
       </span>
 
@@ -639,71 +1008,67 @@ function CardRow({ card, availableCategories, onCategoryChange }: { card: DeckCa
         </PopoverContent>
       </Popover>
 
-      {/* Ownership badge */}
-      <OwnershipBadge
-        status={ownership}
-        holderDeckName={undefined}
-      />
+      {/* Five-state status badge */}
+      <FiveStateBadge status={status} />
     </div>
   )
 }
 
-/** Corner dot indicator for ownership status in grid view */
-function OwnershipDot({ status }: { status: 'original' | 'proxy' | 'not_owned' }) {
-  const label =
-    status === 'original' ? 'Original' : status === 'proxy' ? 'Proxy' : 'Not owned'
+// ─── Grid View ───────────────────────────────────────────────────────────────
 
-  return (
-    <span
-      className="absolute right-2 top-2 z-10 block size-3.5 rounded-full"
-      style={{
-        backgroundColor:
-          status === 'original'
-            ? 'var(--color-teal)'
-            : status === 'proxy'
-              ? 'var(--color-amber)'
-              : 'transparent',
-        border:
-          status === 'not_owned' ? '2px solid rgba(255,255,255,0.5)' : 'none',
-        boxShadow: status !== 'not_owned' ? '0 1px 3px rgba(0,0,0,0.5)' : 'none',
-      }}
-      aria-label={label}
-      role="img"
-    />
-  )
-}
-
-/** Grid view: 5-column grid grouped by category */
-function GridView({ cards }: { cards: DeckCard[] }) {
-  const groups = useMemo(() => groupByCategory(cards), [cards])
-
+function GridView({
+  cards,
+  groupedCards,
+  statusMap,
+}: {
+  cards: DeckCard[]
+  groupedCards: [string, DeckCard[]][]
+  statusMap: Map<number, CardSlotStatus>
+}) {
   return (
     <div className="space-y-6">
-      {groups.map(([category, categoryCards]) => (
+      {groupedCards.map(([groupName, groupCards]) => (
         <section
-          key={category}
-          id={`category-${category.toLowerCase().replace(/\s+/g, '-')}`}
-          aria-label={category}
+          key={groupName}
+          id={`category-${groupName.toLowerCase().replace(/\s+/g, '-')}`}
+          aria-label={groupName}
         >
-          <h4 className="mb-2 text-xs font-medium uppercase text-muted-foreground">
-            {category} ({categoryCards.reduce((sum, c) => sum + (c.quantity || 1), 0)})
+          <h4 className="mb-2 text-[length:var(--fs-sm)] font-medium uppercase text-muted-foreground">
+            {groupName} ({groupCards.reduce((sum, c) => sum + (c.quantity || 1), 0)})
           </h4>
-          <div className="grid grid-cols-4 gap-3" role="list" aria-label={`${category} cards`}>
-            {categoryCards.map((card) => {
-              const ownership = getOwnershipStatus(card)
-              const ownershipLabel =
-                ownership === 'original'
-                  ? 'Original'
-                  : ownership === 'proxy'
-                    ? 'Proxy'
-                    : 'Not owned'
+          <div className="grid grid-cols-4 gap-3" role="list" aria-label={`${groupName} cards`}>
+            {groupCards.map((card) => {
+              const cardStatus = statusMap.get(card.id) ?? 'unallocated'
+              const statusLabels: Record<string, string> = {
+                original: 'Original', proxy: 'Proxy', unallocated: 'Unallocated',
+                claimed: 'Claimed', unowned: 'Unowned', generic_land: '',
+              }
+              const statusLabel = statusLabels[cardStatus] || ''
+
+              // Border style encodes status at tile scale (no text pill, no corner dot)
+              const tileBorderStyle: React.CSSProperties = (() => {
+                switch (cardStatus) {
+                  case 'original':
+                    return { border: '2.5px solid var(--accent-primary)' }
+                  case 'proxy':
+                    return { border: '2.5px dashed var(--accent-primary)' }
+                  case 'unallocated':
+                    return { border: '2.5px solid var(--signal-warning)' }
+                  case 'claimed':
+                    return { border: '2.5px solid var(--status-over)' }
+                  case 'unowned':
+                    return { border: '2.5px solid var(--signal-critical)' }
+                  default:
+                    return { border: '1px solid var(--border-default)' }
+                }
+              })()
 
               return (
                 <div
                   key={card.id}
                   role="listitem"
                   className="group/tile relative aspect-[5/7] overflow-hidden rounded-lg"
-                  style={{ border: '1px solid var(--border-default)' }}
+                  style={tileBorderStyle}
                 >
                   {/* Full card image */}
                   {card.scryfall_id ? (
@@ -719,7 +1084,7 @@ function GridView({ cards }: { cards: DeckCard[] }) {
                     </div>
                   ) : (
                     <div
-                      className="absolute inset-0 flex items-center justify-center bg-muted text-xs text-muted-foreground"
+                      className="absolute inset-0 flex items-center justify-center bg-muted text-[length:var(--fs-sm)] text-muted-foreground"
                       role="img"
                       aria-label={card.card_name}
                     >
@@ -727,20 +1092,17 @@ function GridView({ cards }: { cards: DeckCard[] }) {
                     </div>
                   )}
 
-                  {/* Corner dot indicator */}
-                  <OwnershipDot status={ownership} />
-
                   {/* Hover overlay */}
                   <div
                     className="absolute inset-0 flex flex-col items-center justify-center opacity-0 transition-opacity group-hover/tile:opacity-100"
                     style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
                     aria-hidden="true"
                   >
-                    <span className="px-2 text-center text-xs font-medium text-white">
+                    <span className="px-2 text-center text-[length:var(--fs-sm)] font-medium text-white">
                       {card.card_name}
                     </span>
-                    <span className="mt-1 text-[10px] text-white/70">
-                      {ownershipLabel}
+                    <span className="mt-1 text-[length:var(--fs-xs)] text-white/70">
+                      {statusLabel}
                     </span>
                   </div>
                 </div>
@@ -753,74 +1115,180 @@ function GridView({ cards }: { cards: DeckCard[] }) {
   )
 }
 
-interface OwnershipChipProps {
-  label: string
-  symbol: string
-  isActive: boolean
-  onClick: () => void
+// ─── Picklist View ───────────────────────────────────────────────────────────
+
+const TIER_LABELS: Record<number, string> = {
+  1: 'From storage — original',
+  2: 'From storage — proxy',
+  3: 'Reassign from deck (Brew)',
+  4: 'Reassign from deck (Boxed)',
+  5: 'Not owned — print required',
 }
 
-function OwnershipChip({ label, symbol, isActive, onClick }: OwnershipChipProps) {
+const TIER_ACTIONS: Record<number, string> = {
+  1: 'Assign',
+  2: 'Assign',
+  3: 'Assign',
+  4: 'Reassign',
+  5: 'Print',
+}
+
+interface PicklistGroup {
+  tier: number
+  label: string
+  cards: Array<{
+    cardName: string
+    deckCardsId: number
+    candidate: RankedCandidate
+  }>
+}
+
+function PicklistView({ picklistData }: { picklistData: PicklistResponse | null }) {
+  if (!picklistData) {
+    return (
+      <div
+        className="flex min-h-[200px] items-center justify-center rounded-lg text-[length:var(--fs-md)] text-muted-foreground"
+        style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}
+      >
+        <p>Loading picklist…</p>
+      </div>
+    )
+  }
+
+  // Filter to only unresolved cards
+  const unresolvedCards = picklistData.cards.filter((c) => !c.isResolved)
+
+  if (unresolvedCards.length === 0) {
+    return (
+      <div
+        className="flex min-h-[200px] items-center justify-center rounded-lg text-[length:var(--fs-md)] text-muted-foreground"
+        style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}
+      >
+        <p>All cards are allocated. Nothing to pick.</p>
+      </div>
+    )
+  }
+
+  // Group unresolved cards by their best candidate's tier
+  const groups: PicklistGroup[] = []
+  const tierMap = new Map<number, PicklistGroup>()
+
+  for (const card of unresolvedCards) {
+    const bestCandidate = card.candidates[0]
+    const tier = bestCandidate?.tier ?? 5
+    if (!tierMap.has(tier)) {
+      const group: PicklistGroup = {
+        tier,
+        label: TIER_LABELS[tier] ?? `Tier ${tier}`,
+        cards: [],
+      }
+      tierMap.set(tier, group)
+      groups.push(group)
+    }
+    tierMap.get(tier)!.cards.push({
+      cardName: card.cardName,
+      deckCardsId: card.deckCardsId,
+      candidate: bestCandidate ?? {
+        entry: {
+          physicalCopyId: -1,
+          cardDefinitionId: -1,
+          scryfallPrintingId: null,
+          isFoil: false,
+          isProxy: true,
+          condition: null,
+          storageLocationId: null,
+          storageLocationName: null,
+          assignedTo: null,
+        },
+        tier: 5 as const,
+        tierLabel: 'Print new proxy',
+        withinTierScore: 0,
+        autoSelectable: false,
+      },
+    })
+  }
+
+  // Sort groups by tier (ascending)
+  groups.sort((a, b) => a.tier - b.tier)
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors'
-      )}
-      style={{
-        backgroundColor: isActive ? 'var(--color-teal-bg)' : 'var(--bg-card)',
-        color: isActive ? 'var(--color-teal)' : 'rgba(255,255,255,0.6)',
-        border: `1px solid ${isActive ? 'var(--color-teal)' : 'var(--border-emphasis)'}`,
-      }}
-      aria-pressed={isActive}
-    >
-      {symbol && <span aria-hidden="true">{symbol}</span>}
-      {label}
-    </button>
+    <div className="space-y-4">
+      <div className="text-[length:var(--fs-sm)] text-muted-foreground">
+        {unresolvedCards.length} card{unresolvedCards.length !== 1 ? 's' : ''} need resolution
+      </div>
+      {groups.map((group) => (
+        <section key={group.tier}>
+          <h4 className="mb-2 text-[length:var(--fs-sm)] font-medium uppercase text-muted-foreground">
+            Tier {group.tier}: {group.label} ({group.cards.length})
+          </h4>
+          <div className="space-y-1">
+            {group.cards.map((item) => (
+              <PicklistRow
+                key={item.deckCardsId}
+                cardName={item.cardName}
+                tier={group.tier}
+                candidate={item.candidate}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
   )
 }
 
-// ---------------------------------------------------------------------------
-// Card Hover Preview — shows Scryfall image on hover via portal
-// ---------------------------------------------------------------------------
-
-function CardHoverPreview({
-  scryfallId,
+function PicklistRow({
   cardName,
-  x,
-  y,
+  tier,
+  candidate,
 }: {
-  scryfallId: string
   cardName: string
-  x: number
-  y: number
+  tier: number
+  candidate: RankedCandidate
 }) {
-  const a = scryfallId.charAt(0)
-  const b = scryfallId.charAt(1)
-  const url = `https://cards.scryfall.io/normal/front/${a}/${b}/${scryfallId}.jpg`
+  const action = TIER_ACTIONS[tier] ?? 'Assign'
+  const sourceLabel = candidate.entry.assignedTo
+    ? `from ${candidate.entry.assignedTo.deckName}`
+    : candidate.entry.storageLocationName
+      ? `in ${candidate.entry.storageLocationName}`
+      : ''
 
-  // Position above the cursor, centred horizontally
-  const style: React.CSSProperties = {
-    position: 'fixed',
-    left: `${x}px`,
-    top: `${y - 8}px`,
-    transform: 'translate(-50%, -100%)',
-    zIndex: 9999,
-    pointerEvents: 'none',
-  }
+  return (
+    <div
+      className="flex items-center gap-3 rounded px-3 py-2 transition-colors hover:bg-white/[0.03]"
+      style={{
+        backgroundColor: 'var(--bg-card)',
+        border: '1px solid var(--border-default)',
+      }}
+    >
+      <span className="min-w-0 flex-1 truncate text-[length:var(--fs-sm)]">
+        {cardName}
+      </span>
 
-  return createPortal(
-    <div style={style}>
-      <img
-        src={url}
-        alt={cardName}
-        width={200}
-        height={280}
-        className="rounded-lg shadow-2xl shadow-black/50"
-        style={{ display: 'block' }}
-      />
-    </div>,
-    document.body
+      {sourceLabel && (
+        <span className="shrink-0 text-[length:var(--fs-xs)] text-muted-foreground">
+          {sourceLabel}
+        </span>
+      )}
+
+      {/* Action button — Tier 4 has NO bulk action (individual confirmation only) */}
+      {tier !== 4 ? (
+        <button
+          type="button"
+          className="shrink-0 rounded-full px-3 py-0.5 text-[length:var(--fs-xs)] font-medium transition-colors"
+          style={{
+            backgroundColor: tier === 5 ? 'rgba(255, 95, 31, 0.15)' : 'var(--accent-primary-bg)',
+            color: tier === 5 ? 'var(--status-over)' : 'var(--accent-primary)',
+            border: `1px solid ${tier === 5 ? 'var(--status-over)' : 'var(--accent-primary)'}`,
+          }}
+        >
+          {action}
+        </button>
+      ) : (
+        <span className="shrink-0 text-[length:var(--fs-xs)] text-muted-foreground italic">
+          Confirm individually
+        </span>
+      )}
+    </div>
   )
 }

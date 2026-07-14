@@ -75,7 +75,6 @@ export async function GET(request: NextRequest) {
       .from('physical_copies')
       .select('*', { count: 'exact', head: true })
       .eq('is_proxy', isProxyFilter)
-      .gt('quantity', 0)
 
     const { count: collectionCount } = await supabase
       .from('collection')
@@ -155,7 +154,6 @@ export async function GET(request: NextRequest) {
       card_definition_id: number
       scryfall_printing_id: string | null
       is_foil: boolean
-      quantity: number
     }> = []
     const cardDefMap = new Map<number, {
       id: number
@@ -177,7 +175,6 @@ export async function GET(request: NextRequest) {
           card_definition_id,
           scryfall_printing_id,
           is_foil,
-          quantity,
           card_definitions!physical_copies_card_definition_id_fkey (
             id,
             card_name,
@@ -187,7 +184,6 @@ export async function GET(request: NextRequest) {
           )
         `)
         .eq('is_proxy', isProxyFilter)
-        .gt('quantity', 0)
         .range(offset, offset + PAGE_SIZE - 1)
 
       if (pageErr) throw pageErr
@@ -198,7 +194,6 @@ export async function GET(request: NextRequest) {
           card_definition_id: row.card_definition_id,
           scryfall_printing_id: row.scryfall_printing_id,
           is_foil: row.is_foil,
-          quantity: row.quantity,
         })
 
         const cd = row.card_definitions as unknown as {
@@ -270,29 +265,28 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 4. Get set info from collection table (paginated)
+    // 4. Get set info from printing_set_info reference table (paginated)
     const setInfoMap = new Map<string, { setCode: string; setName: string }>()
 
     {
       let setOffset = 0
       let setHasMore = true
       while (setHasMore) {
-        const { data: setRows } = await supabase
-          .from('collection')
-          .select('scryfall_id, set_code, edition_name')
-          .not('scryfall_id', 'is', null)
-          .range(setOffset, setOffset + 999)
+        const { data: setRows } = await (supabase
+          .from('printing_set_info' as any)
+          .select('scryfall_printing_id, set_code, edition_name')
+          .range(setOffset, setOffset + 999)) as any
 
-        for (const row of setRows || []) {
-          if (row.scryfall_id && !setInfoMap.has(row.scryfall_id)) {
-            setInfoMap.set(row.scryfall_id, {
+        for (const row of (setRows || []) as Array<{ scryfall_printing_id: string; set_code: string; edition_name: string }>) {
+          if (row.scryfall_printing_id && !setInfoMap.has(row.scryfall_printing_id)) {
+            setInfoMap.set(row.scryfall_printing_id, {
               setCode: row.set_code || '',
               setName: row.edition_name || '',
             })
           }
         }
 
-        setHasMore = (setRows?.length ?? 0) === 1000
+        setHasMore = ((setRows as any[])?.length ?? 0) === 1000
         setOffset += 1000
       }
     }
@@ -333,8 +327,8 @@ export async function GET(request: NextRequest) {
 
       const copies = pcByCardDef.get(cd.id) || []
 
-      // Owned quantity = sum of physical_copies.quantity
-      const ownedQuantity = copies.reduce((sum, pc) => sum + (pc.quantity ?? 0), 0)
+      // Owned quantity = count of physical_copies rows (one row = one instance)
+      const ownedQuantity = copies.length
 
       // Build printing subgroups
       const printingSubgroups: PrintingSubgroupRow[] = copies.map(pc => {
@@ -356,7 +350,7 @@ export async function GET(request: NextRequest) {
           setCode: setInfo?.setCode || '',
           setName: setInfo?.setName || '',
           isFoil: Boolean(pc.is_foil),
-          quantity: pc.quantity ?? 0,
+          quantity: 1, // Instance-level: one row = one copy
           inUseCount,
           ownedValuation,
           deckUsage,

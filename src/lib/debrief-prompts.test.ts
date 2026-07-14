@@ -59,7 +59,7 @@ describe('buildAnalystPrompt', () => {
     { card_name: 'Muldrotha, the Gravetide', quantity: 1, categories: 'Commander', is_commander: true, ownership_status: 'original' },
     { card_name: 'Sol Ring', quantity: 1, categories: 'Ramp', is_commander: false, ownership_status: 'original' },
     { card_name: 'Mulldrifter', quantity: 1, categories: 'Draw', is_commander: false, ownership_status: 'proxy' },
-    { card_name: 'Spore Frog', quantity: 1, categories: 'Protection', is_commander: false, ownership_status: 'not_owned' },
+    { card_name: 'Spore Frog', quantity: 1, categories: 'Protection', is_commander: false, ownership_status: null },
   ]
 
   const mockStrategy = {

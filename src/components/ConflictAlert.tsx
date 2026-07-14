@@ -17,7 +17,7 @@ export function ConflictAlert({ affectedDeckName, cardName }: ConflictAlertProps
   return (
     <div
       role="alert"
-      className="mt-2 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+      className="mt-2 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[length:var(--fs-sm)] text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
     >
       <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
       <span>

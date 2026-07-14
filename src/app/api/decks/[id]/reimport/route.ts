@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase'
 import { fetchDeck } from '@/lib/archidekt-client'
-import { importDeck } from '@/lib/sync'
+import { importDeck } from '@/lib/deck-import-legacy'
 import { requireAuth } from '@/lib/auth'
 import { NextRequest } from 'next/server'
 

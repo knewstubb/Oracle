@@ -9,7 +9,7 @@
 // Types
 // ---------------------------------------------------------------------------
 
-export type OwnershipStatus = 'original' | 'proxy' | 'not_owned'
+export type OwnershipStatus = 'original' | 'proxy' | null
 
 export type SortMode = 'impact' | 'cheapest' | 'owned' | 'edhrec'
 

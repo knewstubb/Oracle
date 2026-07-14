@@ -41,8 +41,8 @@ export function WeaknessSection({ weaknesses }: WeaknessSectionProps) {
   if (weaknesses.length === 0) {
     return (
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold">Weaknesses</h3>
-        <p className="text-sm text-muted-foreground">
+        <h3 className="text-[length:var(--fs-md)] font-medium">Weaknesses</h3>
+        <p className="text-[length:var(--fs-md)] text-muted-foreground">
           No weaknesses identified
         </p>
       </div>
@@ -63,7 +63,7 @@ export function WeaknessSection({ weaknesses }: WeaknessSectionProps) {
 
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-semibold">Weaknesses</h3>
+      <h3 className="text-[length:var(--fs-md)] font-medium">Weaknesses</h3>
       <div className="space-y-3">
         {grouped.map(({ severity, items }) => {
           const config = severityConfig[severity]
@@ -72,7 +72,7 @@ export function WeaknessSection({ weaknesses }: WeaknessSectionProps) {
               <div className="flex items-center gap-1.5">
                 <span aria-hidden="true">{config.icon}</span>
                 <span
-                  className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${severityBadgeColors[severity]}`}
+                  className={`inline-flex items-center rounded px-1.5 py-0.5 text-[length:var(--fs-xs)] font-medium ${severityBadgeColors[severity]}`}
                 >
                   {config.label}
                 </span>
@@ -83,13 +83,13 @@ export function WeaknessSection({ weaknesses }: WeaknessSectionProps) {
                     key={weakness.description}
                     className={`rounded-md border p-3 ${config.className}`}
                   >
-                    <p className="text-sm">{weakness.description}</p>
+                    <p className="text-[length:var(--fs-md)]">{weakness.description}</p>
                     {weakness.hateCards.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1">
                         {weakness.hateCards.map((card) => (
                           <span
                             key={card}
-                            className="inline-flex items-center rounded bg-black/5 px-1.5 py-0.5 text-[10px] font-medium dark:bg-white/10"
+                            className="inline-flex items-center rounded bg-black/5 px-1.5 py-0.5 text-[length:var(--fs-xs)] font-medium dark:bg-white/10"
                           >
                             {card}
                           </span>

@@ -57,7 +57,7 @@ export function ExplorationArchive({
       <button
         type="button"
         onClick={onToggle}
-        className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-[rgba(255,255,255,0.8)] transition-colors hover:text-white"
+        className="flex items-center gap-2 rounded-lg px-3 py-2 text-[length:var(--fs-sm)] font-medium text-[rgba(255,255,255,0.8)] transition-colors hover:text-white"
         style={{
           background: 'rgba(30, 30, 40, 0.9)',
           border: '1px solid rgba(255,255,255,0.1)',
@@ -74,7 +74,7 @@ export function ExplorationArchive({
 
         {/* Count badge — Requirement 6.2 */}
         <span
-          className="inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none"
+          className="inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[length:var(--fs-xs)] font-medium leading-none"
           style={{
             background: 'rgba(55, 138, 221, 0.2)',
             color: '#378ADD',
@@ -107,7 +107,7 @@ function ArchivedItemRow({ item }: { item: ArchivedItem }) {
           style={{ backgroundColor: '#2dd4bf' }}
           aria-hidden="true"
         />
-        <span className="text-[10px] text-[rgba(255,255,255,0.7)] truncate">
+        <span className="text-[length:var(--fs-xs)] text-[rgba(255,255,255,0.7)] truncate">
           {commander.name}
         </span>
       </div>
@@ -124,7 +124,7 @@ function ArchivedItemRow({ item }: { item: ArchivedItem }) {
       <span className="text-[8px] font-medium uppercase tracking-wide text-[rgba(255,255,255,0.4)] flex-shrink-0">
         {decision.key}:
       </span>
-      <span className="text-[10px] text-[rgba(255,255,255,0.65)] truncate">
+      <span className="text-[length:var(--fs-xs)] text-[rgba(255,255,255,0.65)] truncate">
         {decision.value}
       </span>
     </div>

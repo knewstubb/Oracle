@@ -23,10 +23,10 @@ export function InlineDeleteConfirmation({
       aria-label={`Confirm deletion of ${deckName}`}
     >
       <div>
-        <p className="text-sm font-medium text-foreground">
+        <p className="text-[length:var(--fs-md)] font-medium text-foreground">
           Delete &ldquo;{deckName}&rdquo;?
         </p>
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p className="mt-1 text-[length:var(--fs-sm)] text-muted-foreground">
           This will permanently remove the draft.
         </p>
       </div>
@@ -37,7 +37,7 @@ export function InlineDeleteConfirmation({
           onClick={onCancel}
           disabled={isDeleting}
           className={cn(
-            'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+            'rounded-lg px-3 py-1.5 text-[length:var(--fs-sm)] font-medium transition-colors',
             'bg-[rgba(255,255,255,0.1)] text-muted-foreground border border-border',
             'hover:bg-muted hover:text-foreground',
             'disabled:pointer-events-none disabled:opacity-50'
@@ -50,7 +50,7 @@ export function InlineDeleteConfirmation({
           onClick={onConfirm}
           disabled={isDeleting}
           className={cn(
-            'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+            'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[length:var(--fs-sm)] font-medium transition-colors',
             'bg-[rgba(226,75,74,0.15)] text-[#E24B4A] border border-[rgba(226,75,74,0.3)]',
             'hover:bg-[rgba(226,75,74,0.25)]',
             'disabled:pointer-events-none disabled:opacity-50'

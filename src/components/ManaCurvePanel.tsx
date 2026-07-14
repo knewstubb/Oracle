@@ -51,7 +51,7 @@ export function ManaCurvePanel({ deckId, cards }: ManaCurvePanelProps) {
     return (
       <div className="mx-auto max-w-[1080px]">
         <div className="rounded-lg border border-dashed border-border p-8 text-center">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-[length:var(--fs-md)] text-muted-foreground">
             No mana analysis available yet. Ask Kiro to generate mana curve data for this deck.
           </p>
         </div>
@@ -66,17 +66,17 @@ export function ManaCurvePanel({ deckId, cards }: ManaCurvePanelProps) {
       {/* Summary Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <div className="rounded-lg border border-border p-4">
-          <p className="text-xs font-medium text-muted-foreground">Average CMC</p>
-          <p className="text-2xl font-bold tabular-nums">{data.avgCmc.toFixed(2)}</p>
+          <p className="text-[length:var(--fs-sm)] font-medium text-muted-foreground">Average CMC</p>
+          <p className="text-[length:var(--fs-2xl)] font-medium tabular-nums">{data.avgCmc.toFixed(2)}</p>
         </div>
         <div className="rounded-lg border border-border p-4">
-          <p className="text-xs font-medium text-muted-foreground">Lands</p>
-          <p className="text-2xl font-bold tabular-nums">{data.landCount}</p>
-          <p className="text-[10px] text-muted-foreground">Recommended: {data.recommendedLandCount}</p>
+          <p className="text-[length:var(--fs-sm)] font-medium text-muted-foreground">Lands</p>
+          <p className="text-[length:var(--fs-2xl)] font-medium tabular-nums">{data.landCount}</p>
+          <p className="text-[length:var(--fs-xs)] text-muted-foreground">Recommended: {data.recommendedLandCount}</p>
         </div>
         <div className="rounded-lg border border-border p-4">
-          <p className="text-xs font-medium text-muted-foreground">Non-Land Spells</p>
-          <p className="text-2xl font-bold tabular-nums">
+          <p className="text-[length:var(--fs-sm)] font-medium text-muted-foreground">Non-Land Spells</p>
+          <p className="text-[length:var(--fs-2xl)] font-medium tabular-nums">
             {data.curve.reduce((s, v) => s + v, 0)}
           </p>
         </div>
@@ -84,16 +84,16 @@ export function ManaCurvePanel({ deckId, cards }: ManaCurvePanelProps) {
 
       {/* Mana Curve Bar Chart */}
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Mana Curve</h2>
+        <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium">Mana Curve</h2>
         <div className="flex items-end gap-1 rounded-lg border border-border p-4" style={{ height: 200 }}>
           {data.curve.map((count, cmc) => (
             <div key={cmc} className="flex flex-1 flex-col items-center gap-1">
-              <span className="text-[10px] font-medium tabular-nums">{count || ''}</span>
+              <span className="text-[length:var(--fs-xs)] font-medium tabular-nums">{count || ''}</span>
               <div
                 className="w-full rounded-t bg-primary/70 transition-all"
                 style={{ height: `${(count / maxCurve) * 140}px` }}
               />
-              <span className="text-[10px] text-muted-foreground">{cmc === 7 ? '7+' : cmc}</span>
+              <span className="text-[length:var(--fs-xs)] text-muted-foreground">{cmc === 7 ? '7+' : cmc}</span>
             </div>
           ))}
         </div>
@@ -102,7 +102,7 @@ export function ManaCurvePanel({ deckId, cards }: ManaCurvePanelProps) {
       {/* Color Pip Distribution */}
       {data.colorDistribution && Object.keys(data.colorDistribution).length > 0 && (
         <section>
-          <h2 className="mb-3 text-lg font-semibold">Color Requirements (Pips)</h2>
+          <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium">Color Requirements (Pips)</h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {Object.entries(data.colorDistribution)
               .sort((a, b) => b[1] - a[1])
@@ -110,8 +110,8 @@ export function ManaCurvePanel({ deckId, cards }: ManaCurvePanelProps) {
                 const display = COLOUR_DISPLAY[color] || { label: color, bg: 'bg-muted' }
                 return (
                   <div key={color} className={`rounded-lg p-3 ${display.bg}`}>
-                    <p className="text-xs font-medium">{display.label}</p>
-                    <p className="text-xl font-bold tabular-nums">{pips} pips</p>
+                    <p className="text-[length:var(--fs-sm)] font-medium">{display.label}</p>
+                    <p className="text-[length:var(--fs-xl)] font-medium tabular-nums">{pips} pips</p>
                   </div>
                 )
               })}

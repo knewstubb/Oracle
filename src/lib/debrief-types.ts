@@ -75,7 +75,7 @@ export interface DeckCardWithOwnership {
   quantity: number
   categories: string | null
   is_commander: boolean
-  ownership_status: 'original' | 'proxy' | 'not_owned' | null
+  ownership_status: 'original' | 'proxy' | null
 }
 
 // ---------------------------------------------------------------------------

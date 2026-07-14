@@ -45,16 +45,19 @@ export async function buildAllocationInput(
 ): Promise<AllocationInput> {
   const supabase = createAdminClient()
 
-  // 1. Build demandMap: card_name → list of deck IDs
+  // 1. Build demandMap: card_name → list of deck IDs (active decks only)
   const demandMap = new Map<string, number[]>()
   const { data: deckCardsRows, error: deckCardsErr } = await supabase
     .from('deck_cards')
-    .select('card_name, deck_id')
-    .eq('is_generic_land', false)
+    .select('card_name, deck_id, decks!deck_cards_deck_id_fkey(status)')
+    .eq('decks.status', 'active')
 
   if (deckCardsErr) throw new Error(`Failed to fetch deck_cards: ${deckCardsErr.message}`)
 
   for (const row of deckCardsRows || []) {
+    // Skip non-active decks (PostgREST returns null for filtered joins)
+    if (!row.decks) continue
+
     const existing = demandMap.get(row.card_name)
     if (existing) {
       if (!existing.includes(row.deck_id)) {

@@ -97,26 +97,27 @@ export async function DELETE(
     return Response.json({ error: 'Deck not found' }, { status: 404 })
   }
 
-  if (deck.status === 'active') {
+  if (deck.status === 'boxed') {
     return Response.json(
-      { error: 'Active decks are managed in Archidekt. Remove it there and sync to remove it here.' },
+      { error: 'Boxed decks cannot be deleted. Archive the deck first.' },
       { status: 403 }
     )
   }
 
-  // Enforce draft-only deletion at the data layer
-  const { error: deleteErr, count } = await supabase
+  // Delete deck_cards first (FK constraint)
+  await supabase
+    .from('deck_cards')
+    .delete()
+    .eq('deck_id', deckId)
+
+  // Delete the deck
+  const { error: deleteErr } = await supabase
     .from('decks')
-    .delete({ count: 'exact' })
+    .delete()
     .eq('id', deckId)
-    .eq('status', 'draft')
 
   if (deleteErr) {
     return Response.json({ error: deleteErr.message }, { status: 500 })
-  }
-
-  if (count === 0) {
-    return Response.json({ error: 'Deck not found' }, { status: 404 })
   }
 
   return Response.json({ success: true })

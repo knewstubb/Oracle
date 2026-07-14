@@ -160,7 +160,7 @@ export async function getSharedCards(filters?: {
   // Step 4: Get deck associations with deck names
   const { data: deckCardRows, error: deckCardErr } = await supabase
     .from('deck_cards')
-    .select('card_name, deck_id, decks!inner(name)')
+    .select('card_name, deck_id, decks!deck_cards_deck_id_fkey!inner(name)')
     .in('card_name', cardNames)
 
   if (deckCardErr) {

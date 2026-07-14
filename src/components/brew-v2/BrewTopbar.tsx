@@ -12,7 +12,7 @@ import { ModelSelector } from './ModelSelector'
 function SaveIndicator({ isSaving, lastSavedAt }: { isSaving?: boolean; lastSavedAt?: number | null }) {
   if (isSaving) {
     return (
-      <div className="flex items-center gap-1.5 text-xs text-amber-400">
+      <div className="flex items-center gap-1.5 text-[length:var(--fs-sm)] text-amber-400">
         <span className="relative flex h-2 w-2">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
           <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
@@ -24,7 +24,7 @@ function SaveIndicator({ isSaving, lastSavedAt }: { isSaving?: boolean; lastSave
 
   if (lastSavedAt) {
     return (
-      <div className="flex items-center gap-1.5 text-xs text-green-400">
+      <div className="flex items-center gap-1.5 text-[length:var(--fs-sm)] text-green-400">
         <span className="relative flex h-2 w-2">
           <span className="relative inline-flex h-2 w-2 rounded-full bg-green-400" />
         </span>
@@ -35,7 +35,7 @@ function SaveIndicator({ isSaving, lastSavedAt }: { isSaving?: boolean; lastSave
 
   // Default: session active but not yet saved
   return (
-    <div className="flex items-center gap-1.5 text-xs text-green-400">
+    <div className="flex items-center gap-1.5 text-[length:var(--fs-sm)] text-green-400">
       <span className="relative flex h-2 w-2">
         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
         <span className="relative inline-flex h-2 w-2 rounded-full bg-green-400" />
@@ -72,19 +72,19 @@ function ExplorationTopbar({ onBack, selectedModelId, onModelChange, isStreaming
         <button
           type="button"
           onClick={onBack}
-          className="text-muted-foreground hover:underline text-sm flex items-center gap-1 transition-colors"
+          className="text-muted-foreground hover:underline text-[length:var(--fs-md)] flex items-center gap-1 transition-colors"
         >
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
           Decks
         </button>
 
-        <span className="text-sm font-medium">New brew</span>
+        <span className="text-[length:var(--fs-md)] font-medium">New brew</span>
 
-        <span className="bg-blue-600/20 text-blue-400 rounded px-2 py-0.5 text-xs font-medium">
+        <span className="bg-blue-600/20 text-blue-400 rounded px-2 py-0.5 text-[length:var(--fs-sm)] font-medium">
           Brew
         </span>
 
-        <span className="text-xs text-muted-foreground">Exploring</span>
+        <span className="text-[length:var(--fs-sm)] text-muted-foreground">Exploring</span>
       </div>
 
       {/* Right: model selector + save indicator */}
@@ -130,20 +130,20 @@ function BuildingTopbar({
         <button
           type="button"
           onClick={onBack}
-          className="text-muted-foreground hover:underline text-sm flex items-center gap-1 transition-colors"
+          className="text-muted-foreground hover:underline text-[length:var(--fs-md)] flex items-center gap-1 transition-colors"
         >
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
           Decks
         </button>
 
-        <span className="text-sm font-medium">{commander.name}</span>
+        <span className="text-[length:var(--fs-md)] font-medium">{commander.name}</span>
 
-        <span className="bg-blue-600/20 text-blue-400 rounded px-2 py-0.5 text-xs font-medium">
+        <span className="bg-blue-600/20 text-blue-400 rounded px-2 py-0.5 text-[length:var(--fs-sm)] font-medium">
           Brew
         </span>
 
         {/* Metadata strip: colour pips, bracket (future), archetype */}
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2 text-[length:var(--fs-sm)] text-muted-foreground">
           <ColourPips colours={commander.colourIdentity} size={10} />
           {commander.archetype && <span>{commander.archetype}</span>}
         </div>

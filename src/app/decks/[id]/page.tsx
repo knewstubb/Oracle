@@ -1,13 +1,16 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { AlertCircle, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { PersistentHeader } from '@/components/PersistentHeader'
+import { StatusControl } from '@/components/StatusControl'
+import { DeleteDeckButton } from '@/components/DeleteDeckButton'
+import { AllocateToggle } from '@/components/AllocateToggle'
 import { HealthStrip } from '@/components/HealthStrip'
 import { DraftBanner } from '@/components/DraftBanner'
 import { CardsTab } from '@/components/CardsTab'
@@ -29,7 +32,8 @@ interface Deck {
   deck_type: string | null
   precon_url: string | null
   bracket: string | null
-  status: 'active' | 'draft'
+  status: 'brew' | 'boxed' | 'archived'
+  allocate: boolean
   last_synced_at: string | null
   raw_json: string | null
 }
@@ -68,6 +72,8 @@ export default function DeckViewPage() {
     }
   }, [searchParams])
 
+  const queryClient = useQueryClient()
+
   const { data, isLoading, error, refetch } = useQuery<DeckResponse>({
     queryKey: ['decks', deckId],
     queryFn: () =>
@@ -91,6 +97,22 @@ export default function DeckViewPage() {
     enabled: !!deckId,
   })
 
+  // Fresh import: delayed refetch to pick up auto-assign results
+  // Auto-assign runs fire-and-forget after import — this gives it time to complete
+  useEffect(() => {
+    const isFreshImport = searchParams.get('freshImport') === 'true'
+    if (!isFreshImport) return
+
+    const timer = setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'card-statuses'] })
+      queryClient.invalidateQueries({ queryKey: ['decks', deckId] })
+      queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'health'] })
+      queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'picklist'] })
+    }, 3000)
+
+    return () => clearTimeout(timer)
+  }, [deckId, searchParams, queryClient])
+
   // HealthStrip pill click → switch to Cards tab and scroll to category
   const handlePillClick = useCallback((category: string) => {
     setActiveTab('cards')
@@ -106,7 +128,7 @@ export default function DeckViewPage() {
       <div className="mx-auto max-w-[1280px] px-6 py-6">
         <div
           role="alert"
-          className="flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          className="flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-3 text-[length:var(--fs-md)] text-destructive"
         >
           <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
           <span className="flex-1">
@@ -137,7 +159,7 @@ export default function DeckViewPage() {
   const proxyCount = activeCards.filter(c => c.allocation_role === 'proxy').reduce((sum, c) => sum + (c.quantity || 1), 0)
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col bg-[var(--bg-canvas)]">
       {/* Persistent Header — sticky at top */}
       <PersistentHeader
         deck={deck}
@@ -145,7 +167,14 @@ export default function DeckViewPage() {
         proxyCount={proxyCount}
         onDebriefClick={() => setShowDebrief(true)}
         actions={
-          <PushToArchidekt deckId={deck.id} isOracleNative={isOracleNative} />
+          <>
+            <AllocateToggle deckId={deck.id} deckStatus={deck.status as any} allocate={deck.allocate ?? false} />
+            <StatusControl deckId={deck.id} currentStatus={deck.status as any} allocate={deck.allocate ?? false} />
+            <PushToArchidekt deckId={deck.id} isOracleNative={isOracleNative} />
+            {(deck.status === 'brew' || deck.status === 'archived') && (
+              <DeleteDeckButton deckId={deck.id} deckName={deck.name} />
+            )}
+          </>
         }
       />
 
@@ -155,8 +184,8 @@ export default function DeckViewPage() {
         onPillClick={handlePillClick}
       />
 
-      {/* Draft Banner — shown only for draft decks */}
-      {deck.status === 'draft' && (
+      {/* Draft Banner — shown only for brew decks */}
+      {deck.status === 'brew' && (
         <DraftBanner
           deckId={deck.id}
           deckName={deck.name}
@@ -241,7 +270,7 @@ export default function DeckViewPage() {
 
 function DeckViewSkeleton() {
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col bg-[var(--bg-canvas)]">
       <header className="shrink-0 border-b border-border px-6 py-4">
         <div className="mx-auto flex max-w-[1280px] items-center gap-4">
           <Skeleton className="size-9 rounded-full" />

@@ -60,7 +60,7 @@ export function UpgradePanel({ deckId }: UpgradePanelProps) {
     return (
       <div className="mx-auto max-w-[1080px]">
         <div className="rounded-lg border border-dashed border-border p-8 text-center">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-[length:var(--fs-md)] text-muted-foreground">
             No upgrade strategy generated yet. Ask Kiro to analyze this deck for upgrade directions.
           </p>
         </div>
@@ -73,41 +73,41 @@ export function UpgradePanel({ deckId }: UpgradePanelProps) {
       {/* Strategic Directions */}
       {data.directions?.length > 0 && (
         <section>
-          <h2 className="mb-4 text-lg font-semibold">Upgrade Directions</h2>
+          <h2 className="mb-4 text-[length:var(--fs-lg)] font-medium">Upgrade Directions</h2>
           <div className="space-y-6">
             {data.directions.map((dir, i) => (
               <div key={i} className="rounded-lg border border-border p-5">
-                <h3 className="mb-1 text-base font-semibold">{dir.name}</h3>
-                <p className="mb-4 text-xs text-muted-foreground">{dir.description}</p>
+                <h3 className="mb-1 text-[length:var(--fs-lg)] font-medium">{dir.name}</h3>
+                <p className="mb-4 text-[length:var(--fs-sm)] text-muted-foreground">{dir.description}</p>
 
                 <div className="space-y-2">
                   {dir.cards.map((card, j) => (
                     <div key={j} className="flex items-start gap-3 rounded border border-border/50 p-2.5">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">{card.name}</span>
+                          <span className="text-[length:var(--fs-md)] font-medium">{card.name}</span>
                           {card.owned ? (
                             card.deckLocation ? (
-                              <Badge variant="secondary" className="text-[10px]">
+                              <Badge variant="secondary" className="text-[length:var(--fs-xs)]">
                                 In {card.deckLocation}
                               </Badge>
                             ) : (
-                              <Badge variant="outline" className="text-[10px] border-green-500 text-green-600">
+                              <Badge variant="outline" className="text-[length:var(--fs-xs)] border-green-500 text-green-600">
                                 ✓ Free
                               </Badge>
                             )
                           ) : (
-                            <Badge variant="outline" className="text-[10px]">
+                            <Badge variant="outline" className="text-[length:var(--fs-xs)]">
                               Not owned
                             </Badge>
                           )}
                           {card.price != null && (
-                            <span className="text-[10px] text-muted-foreground">
+                            <span className="text-[length:var(--fs-xs)] text-muted-foreground">
                               ${card.price.toFixed(2)}
                             </span>
                           )}
                         </div>
-                        <p className="mt-0.5 text-xs text-muted-foreground">{card.reasoning}</p>
+                        <p className="mt-0.5 text-[length:var(--fs-sm)] text-muted-foreground">{card.reasoning}</p>
                       </div>
                     </div>
                   ))}
@@ -121,20 +121,20 @@ export function UpgradePanel({ deckId }: UpgradePanelProps) {
       {/* Suggested Cuts */}
       {data.cuts?.length > 0 && (
         <section>
-          <h2 className="mb-3 text-lg font-semibold">Suggested Cuts</h2>
+          <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium">Suggested Cuts</h2>
           <div className="rounded-lg border border-border">
-            <table className="w-full text-sm">
+            <table className="w-full text-[length:var(--fs-base)]">
               <thead className="border-b border-border bg-muted/50">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">Card</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">Why Cut</th>
+                  <th className="px-4 py-2 text-left text-[length:var(--fs-xs)] font-medium uppercase text-muted-foreground">Card</th>
+                  <th className="px-4 py-2 text-left text-[length:var(--fs-xs)] font-medium uppercase text-muted-foreground">Why Cut</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {data.cuts.map((cut, i) => (
                   <tr key={i} className="transition-colors hover:bg-muted/30">
                     <td className="px-4 py-2 font-medium">{cut.name}</td>
-                    <td className="px-4 py-2 text-xs text-muted-foreground">{cut.reasoning}</td>
+                    <td className="px-4 py-2 text-[length:var(--fs-base)] text-muted-foreground">{cut.reasoning}</td>
                   </tr>
                 ))}
               </tbody>

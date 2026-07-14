@@ -154,7 +154,7 @@ async function resolveOwnershipStatus(
   supabase: SupabaseClient,
   cardName: string,
   currentDeckId: number
-): Promise<{ ownership_status: string; holder_deck_name?: string }> {
+): Promise<{ ownership_status: string | null; holder_deck_name?: string }> {
   // Check if card is in collection
   const { data: collectionRows } = await supabase
     .from('collection')
@@ -164,7 +164,7 @@ async function resolveOwnershipStatus(
   const totalQty = (collectionRows ?? []).reduce((sum, r) => sum + (r.quantity ?? 0), 0)
 
   if (totalQty <= 0) {
-    return { ownership_status: 'not_owned' }
+    return { ownership_status: null }
   }
 
   // Card is owned — check if it's allocated as original in another deck

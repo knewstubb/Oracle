@@ -23,7 +23,7 @@ export async function GET(
     .select(`
       deck_id,
       tags,
-      decks!inner ( name )
+      decks!deck_cards_deck_id_fkey!inner ( name )
     `)
     .eq('card_name', cardName)
     .order('deck_id')

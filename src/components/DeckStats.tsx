@@ -108,19 +108,19 @@ export function DeckStats({ cards }: DeckStatsProps) {
         <div className="overflow-y-auto p-4 pt-6" role="complementary" aria-label="Deck statistics">
           {/* Total card count */}
           <div className="mb-6">
-            <p className="text-xs font-medium text-muted-foreground">Total Cards</p>
-            <p className="text-3xl font-bold tabular-nums">{totalCards}</p>
+            <p className="text-[length:var(--fs-sm)] font-medium text-muted-foreground">Total Cards</p>
+            <p className="text-[length:var(--fs-3xl)] font-medium tabular-nums">{totalCards}</p>
           </div>
 
           {/* Proxy count */}
           <div className="mb-6">
-            <p className="text-xs font-medium text-muted-foreground">Proxies</p>
-            <p className="text-3xl font-bold tabular-nums text-proxy">{proxyCount}</p>
+            <p className="text-[length:var(--fs-sm)] font-medium text-muted-foreground">Proxies</p>
+            <p className="text-[length:var(--fs-3xl)] font-medium tabular-nums text-proxy">{proxyCount}</p>
           </div>
 
           {/* Card count by type */}
           <div className="mb-6">
-            <h4 className="mb-3 text-xs font-medium text-muted-foreground">Cards by Type</h4>
+            <h4 className="mb-3 text-[length:var(--fs-sm)] font-medium text-muted-foreground">Cards by Type</h4>
             <div
               className="space-y-2"
               role="list"
@@ -128,7 +128,7 @@ export function DeckStats({ cards }: DeckStatsProps) {
             >
               {typeDistribution.map(({ type, count }) => (
                 <div key={type} role="listitem" className="flex items-center gap-2">
-                  <span className="w-24 shrink-0 truncate text-xs text-muted-foreground">
+                  <span className="w-24 shrink-0 truncate text-[length:var(--fs-sm)] text-muted-foreground">
                     {type}
                   </span>
                   <div className="relative h-4 flex-1 overflow-hidden rounded-sm bg-muted">
@@ -138,7 +138,7 @@ export function DeckStats({ cards }: DeckStatsProps) {
                       aria-label={`${type}: ${count} cards`}
                     />
                   </div>
-                  <span className="w-6 shrink-0 text-right text-xs font-medium tabular-nums">
+                  <span className="w-6 shrink-0 text-right text-[length:var(--fs-sm)] font-medium tabular-nums">
                     {count}
                   </span>
                 </div>
@@ -148,8 +148,8 @@ export function DeckStats({ cards }: DeckStatsProps) {
 
           {/* Mana curve placeholder */}
           <div>
-            <h4 className="mb-2 text-xs font-medium text-muted-foreground">Mana Curve</h4>
-            <p className="text-xs text-muted-foreground/60">
+            <h4 className="mb-2 text-[length:var(--fs-sm)] font-medium text-muted-foreground">Mana Curve</h4>
+            <p className="text-[length:var(--fs-sm)] text-muted-foreground/60">
               Mana curve data not available yet.
             </p>
           </div>

@@ -1,7 +1,7 @@
 /**
  * The Oracle — End-to-End Smoke Test
  *
- * Full workflow: sync → view deck → scan → recommend → write proxy tag → create deck
+ * Full workflow: view deck → scan → recommend → write proxy tag → create deck
  *
  * Prerequisites:
  *   1. Start the dev server:  npm run dev
@@ -20,28 +20,22 @@ import { test, expect } from '@playwright/test'
 
 /** Generous timeout for MCP / Playwright-driven operations */
 const AI_TIMEOUT = 90_000
-const SYNC_TIMEOUT = 60_000
+const LOAD_TIMEOUT = 60_000
 
 test.describe.serial('Oracle full workflow smoke test', () => {
   /** Deck ID captured during the "view deck" step, reused by later steps */
   let deckId: string
 
-  // ─── Step 1: Sync ────────────────────────────────────────────────
-  test('1 — Sync: trigger sync and verify decks appear', async ({ page }) => {
+  // ─── Step 1: Deck List ─────────────────────────────────────────
+  test('1 — Deck list: verify decks appear on the home page', async ({ page }) => {
     await page.goto('/')
-
-    // If no decks are loaded yet, click "Sync Now"
-    const syncButton = page.getByRole('button', { name: /sync now/i })
-    if (await syncButton.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await syncButton.click()
-    }
 
     // Wait for at least one deck tile to appear in the grid
     const deckList = page.getByRole('list', { name: /deck list/i })
-    await expect(deckList).toBeVisible({ timeout: SYNC_TIMEOUT })
+    await expect(deckList).toBeVisible({ timeout: LOAD_TIMEOUT })
 
     const tiles = deckList.getByRole('listitem')
-    await expect(tiles.first()).toBeVisible({ timeout: SYNC_TIMEOUT })
+    await expect(tiles.first()).toBeVisible({ timeout: LOAD_TIMEOUT })
 
     const count = await tiles.count()
     expect(count).toBeGreaterThan(0)
@@ -53,7 +47,7 @@ test.describe.serial('Oracle full workflow smoke test', () => {
 
     // Wait for deck tiles
     const deckList = page.getByRole('list', { name: /deck list/i })
-    await expect(deckList).toBeVisible({ timeout: SYNC_TIMEOUT })
+    await expect(deckList).toBeVisible({ timeout: LOAD_TIMEOUT })
 
     // Click the first deck tile (it's an <a> wrapping the tile)
     const firstTile = deckList.getByRole('listitem').first()

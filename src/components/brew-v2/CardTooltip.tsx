@@ -21,7 +21,7 @@ export interface CardTooltipProps {
 function OwnershipBadge({ status }: { status: DeckCard['ownership_status'] }) {
   if (status === 'original') {
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-teal-400">
+      <span className="inline-flex items-center gap-1 text-[length:var(--fs-sm)] text-teal-400">
         <span className="inline-block h-[6px] w-[6px] rounded-full bg-teal-400" />
         Owned
       </span>
@@ -29,7 +29,7 @@ function OwnershipBadge({ status }: { status: DeckCard['ownership_status'] }) {
   }
   if (status === 'proxy') {
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-amber-400">
+      <span className="inline-flex items-center gap-1 text-[length:var(--fs-sm)] text-amber-400">
         <span className="inline-block h-[6px] w-[6px] rounded-full bg-amber-400" />
         Proxy
       </span>
@@ -37,14 +37,14 @@ function OwnershipBadge({ status }: { status: DeckCard['ownership_status'] }) {
   }
   if (status === 'generic') {
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-indigo-400">
+      <span className="inline-flex items-center gap-1 text-[length:var(--fs-sm)] text-indigo-400">
         <span className="inline-block h-[6px] w-[6px] rounded-full bg-indigo-400" />
         Generic land
       </span>
     )
   }
   return (
-    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+    <span className="inline-flex items-center gap-1 text-[length:var(--fs-sm)] text-muted-foreground">
       <span className="inline-block h-[6px] w-[6px] rounded-full border border-[rgba(255,255,255,0.25)] bg-transparent" />
       Not owned
     </span>
@@ -85,18 +85,18 @@ export function CardTooltip({ card, artUrl, visible, anchorRect }: CardTooltipPr
       )}
 
       {/* 2. Card name */}
-      <div className="text-sm font-medium text-[#d4d4d0]">
+      <div className="text-[length:var(--fs-md)] font-medium text-[#d4d4d0]">
         {card.card_name}
       </div>
 
       {/* 3. Type line */}
-      <div className="text-xs text-muted-foreground">
+      <div className="text-[length:var(--fs-sm)] text-muted-foreground">
         {card.type_line}
       </div>
 
       {/* 4. Oracle text */}
       {card.oracle_text && (
-        <div className="mt-1.5 whitespace-pre-wrap text-xs text-[#d4d4d0]">
+        <div className="mt-1.5 whitespace-pre-wrap text-[length:var(--fs-sm)] text-[#d4d4d0]">
           {card.oracle_text}
         </div>
       )}
@@ -108,20 +108,20 @@ export function CardTooltip({ card, artUrl, visible, anchorRect }: CardTooltipPr
 
       {/* 6. EDHREC % */}
       {card.edhrec_inclusion != null && (
-        <div className="mt-1 text-xs text-muted-foreground">
+        <div className="mt-1 text-[length:var(--fs-sm)] text-muted-foreground">
           EDHREC: {card.edhrec_inclusion}%
         </div>
       )}
 
       {/* 7. Price */}
       {card.price_ck != null && (
-        <div className="mt-0.5 text-xs text-muted-foreground">
+        <div className="mt-0.5 text-[length:var(--fs-sm)] text-muted-foreground">
           ${card.price_ck.toFixed(2)}
         </div>
       )}
 
       {/* 8. Hint text */}
-      <div className="mt-2 text-[10px] italic text-muted-foreground">
+      <div className="mt-2 text-[length:var(--fs-xs)] italic text-muted-foreground">
         Click to see pros, cons &amp; deck fit
       </div>
     </div>

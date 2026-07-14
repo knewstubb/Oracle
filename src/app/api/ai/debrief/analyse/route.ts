@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       quantity: row.quantity,
       categories: row.categories,
       is_commander: Boolean(row.is_commander),
-      ownership_status: (row.ownership_status as 'original' | 'proxy' | 'not_owned') || null,
+      ownership_status: (row.ownership_status as 'original' | 'proxy') || null,
     }))
 
     // Load deck strategy

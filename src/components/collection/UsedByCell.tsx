@@ -33,7 +33,7 @@ export function UsedByCell({ usedByCount, quantity, decks }: UsedByCellProps) {
   if (usedByCount === 0) {
     return (
       <span
-        className="text-xs tabular-nums"
+        className="text-[length:var(--fs-sm)] tabular-nums"
         style={{ color: 'rgba(255,255,255,0.35)' }}
       >
         {displayText}
@@ -47,7 +47,7 @@ export function UsedByCell({ usedByCount, quantity, decks }: UsedByCellProps) {
     <TooltipProvider delay={300}>
       <Tooltip>
         <TooltipTrigger
-          render={<span className="inline-flex items-center gap-1 text-xs tabular-nums cursor-default" />}
+          render={<span className="inline-flex items-center gap-1 text-[length:var(--fs-sm)] tabular-nums cursor-default" />}
           style={{
             color: overallocated ? '#EF9F27' : 'rgba(255,255,255,0.5)',
           }}
@@ -63,13 +63,13 @@ export function UsedByCell({ usedByCount, quantity, decks }: UsedByCellProps) {
         <TooltipContent side="top" align="center">
           <div className="flex flex-col gap-0.5 py-0.5">
             {visibleDecks.map((deckName) => (
-              <span key={deckName} className="text-xs">
+              <span key={deckName} className="text-[length:var(--fs-sm)]">
                 {deckName}
               </span>
             ))}
             {remainingCount > 0 && (
               <span
-                className="text-xs italic"
+                className="text-[length:var(--fs-sm)] italic"
                 style={{ opacity: 0.7 }}
               >
                 +{remainingCount} more

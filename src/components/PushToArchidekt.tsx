@@ -65,12 +65,12 @@ export function PushToArchidekt({ deckId, isOracleNative }: PushToArchidektProps
       </Button>
 
       {mutation.isError && (
-        <div className="flex items-center gap-2 text-xs text-destructive" role="alert">
+        <div className="flex items-center gap-2 text-[length:var(--fs-sm)] text-destructive" role="alert">
           <span className="truncate">{mutation.error.message}</span>
           <button
             type="button"
             onClick={() => mutation.mutate()}
-            className="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+            className="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[length:var(--fs-sm)] font-medium text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
             aria-label="Retry push to Archidekt"
           >
             <RefreshCw className="size-3" aria-hidden="true" />

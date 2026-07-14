@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { PageHeader } from '@/components/PageHeader'
 import { useCollectionRollup } from '@/hooks/useCollectionRollup'
 import { useCollectionPrintings } from '@/hooks/useCollectionPrintings'
 import { CollectionImportButton } from '@/components/collection/CollectionImportButton'
@@ -35,15 +36,10 @@ import type {
 } from '@/lib/collection-filters'
 import type { CollectionRollupRowWithPrice } from '@/hooks/useCollectionRollup'
 import type { PrintingRowResponse } from '@/lib/collection-printing-utils'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { AllocationTab } from '@/components/AllocationTab'
 
 /* ─── Page Component ────────────────────────────────────────────────── */
 
 export default function CollectionPage() {
-  // ─── Tab state ─────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<string>('collection')
-
   // ─── Proxy toggle ──────────────────────────────────────────────
   const [includeProxies, setIncludeProxies] = useState(false)
 
@@ -191,53 +187,33 @@ export default function CollectionPage() {
     : filteredRows.length
 
   return (
-    <div className="flex h-full flex-col" style={{ background: '#0f0f0f' }}>
+    <div className="flex h-full flex-col bg-[var(--bg-canvas)]">
       {/* Max-width container: 1520px centered, fluid below */}
       <div className="mx-auto flex h-full w-full max-w-[1520px] flex-col">
       {/* ─── Page Header ─────────────────────────────────────────── */}
-      <header
-        className="flex items-center gap-3 px-5 py-3.5"
-        style={{ borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}
-      >
-        <div>
-          <h1 className="text-base font-medium text-white">Collection</h1>
-          <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.35)' }}>
+      <PageHeader
+        title="Collection"
+        subtitle={
+          <>
             {ownedCount.toLocaleString()} owned
             {includeProxies && proxyCount > 0 && ` · ${proxyCount} proxies`}
             {activeLastPriceRefresh && ' · Prices cached'}
-          </p>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <CollectionImportButton />
-          <span
-            className="flex items-center gap-1.5 text-[11px]"
-            style={{ color: 'rgba(255,255,255,0.3)' }}
-          >
-            <RefreshCw className="size-3" aria-hidden="true" />
-            Synced
-          </span>
-        </div>
-      </header>
+          </>
+        }
+        actions={
+          <>
+            <CollectionImportButton />
+            <span className="flex items-center gap-1.5 text-[length:var(--fs-xs)] text-[var(--text-tertiary)]">
+              <RefreshCw className="size-3" aria-hidden="true" />
+              Synced
+            </span>
+          </>
+        }
+      />
 
       {/* ─── Tab Navigation ──────────────────────────────────────── */}
-      <Tabs
-        defaultValue="collection"
-        value={activeTab}
-        onValueChange={(val) => setActiveTab(val as string)}
-        className="flex min-h-0 flex-1 flex-col"
-      >
-        <div
-          className="shrink-0 px-5"
-          style={{ borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}
-        >
-          <TabsList variant="line">
-            <TabsTrigger value="collection">Collection</TabsTrigger>
-            <TabsTrigger value="allocation">Allocation</TabsTrigger>
-          </TabsList>
-        </div>
-
-        {/* ─── Collection Tab ──────────────────────────────────────── */}
-        <TabsContent value="collection" className="flex min-h-0 flex-1 flex-col">
+      {/* ─── Browsing View ───────────────────────────────────────── */}
+      <div className="flex min-h-0 flex-1 flex-col">
           {/* ─── Price Stale Indicator ───────────────────────────── */}
           {activeIsPriceStale && !isPrintingView && (
             <div className="px-5 pt-2">
@@ -353,13 +329,7 @@ export default function CollectionPage() {
               cards
             </span>
           </div>
-        </TabsContent>
-
-        {/* ─── Allocation Tab ──────────────────────────────────────── */}
-        <TabsContent value="allocation" className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <AllocationTab />
-        </TabsContent>
-      </Tabs>
+      </div>{/* end browsing view */}
       </div>{/* end max-width container */}
     </div>
   )
@@ -435,13 +405,13 @@ function LoadingSkeleton({ viewMode }: { viewMode: ViewMode }) {
 function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3">
-      <p className="text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
+      <p className="text-[length:var(--fs-md)]" style={{ color: 'rgba(255,255,255,0.5)' }}>
         Failed to load collection data.
       </p>
       <button
         type="button"
         onClick={onRetry}
-        className="rounded-md px-3 py-1.5 text-xs transition-colors"
+        className="rounded-md px-3 py-1.5 text-[length:var(--fs-sm)] transition-colors"
         style={{
           background: 'rgba(29,158,117,0.12)',
           color: '#1D9E75',
@@ -459,7 +429,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 function EmptyState({ hasFilters }: { hasFilters: boolean }) {
   return (
     <div className="flex flex-1 items-center justify-center">
-      <p className="text-sm" style={{ color: 'rgba(255,255,255,0.35)' }}>
+      <p className="text-[length:var(--fs-md)]" style={{ color: 'rgba(255,255,255,0.35)' }}>
         {hasFilters
           ? 'No cards match your filters.'
           : 'No cards in your collection yet.'}

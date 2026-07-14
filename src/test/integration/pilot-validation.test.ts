@@ -1,7 +1,7 @@
 /**
  * Pilot Validation — End-to-End Integration Test
  *
- * Validates the full Collection Sync flow using representative World Breaker
+ * Validates the full allocation and movement flow using representative World Breaker
  * deck data (Archidekt ID: 23289174). Uses an in-memory SQLite database seeded
  * with realistic data to safely test without corrupting the live DB.
  *
@@ -9,23 +9,17 @@
  *
  * Sections:
  * 1. Collection import with reallocation (Req 6)
- * 2. Sync cycle for World Breaker (Req 5)
- * 3. Allocation correctness (Req 1, 2, 7)
- * 4. Card movement and cascade (Req 3, Property 4)
+ * 2. Allocation correctness (Req 1, 2, 7)
+ * 3. Card movement and cascade (Req 3, Property 4)
  */
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import Database from 'better-sqlite3'
-import { reconcileDeck, runSyncCycle, importCollectionAndReallocate } from '../../lib/sync-engine'
-import type { ArchidektFetcher } from '../../lib/sync-engine'
-import type { ArchidektDeckFull } from '../../lib/archidekt-client'
+import { importCollectionAndReallocate } from '../../lib/collection-reallocator'
 import { computeAllocations } from '../../lib/allocation-resolver'
-import type { AllocationInput } from '../../lib/allocation-resolver'
 import {
   buildAllocationInput,
   applyAllocationOutput,
-  getAllocationsForDeck,
-  getAllocationsForCard,
   getProxyReport,
 } from '../../lib/allocation-store'
 import { planCardMovement, executeCardMovement } from '../../lib/card-movement'
@@ -245,79 +239,6 @@ function seedTestData(db: Database.Database) {
 }
 
 // ---------------------------------------------------------------------------
-// Mock Archidekt Fetcher
-// ---------------------------------------------------------------------------
-
-function makeDeckFull(id: number, name: string, cards: Array<{ name: string; scryfallId: string; setCode: string; collectorNumber: string; isCommander?: boolean }>): ArchidektDeckFull {
-  return {
-    id,
-    name,
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-06-01T00:00:00Z',
-    deckFormat: 3,
-    featured: '',
-    customFeatured: '',
-    private: false,
-    owner: { id: 1, username: 'knewstubb', avatar: '' },
-    categories: [],
-    deckTags: [],
-    cards: cards.map((c, i) => ({
-      id: i + 1,
-      categories: c.isCommander ? ['Commander'] : ['Ramp'],
-      label: '',
-      modifier: '',
-      quantity: 1,
-      card: {
-        id: i + 100,
-        uid: c.scryfallId,
-        artist: 'Test Artist',
-        collectorNumber: c.collectorNumber,
-        edition: {
-          editioncode: c.setCode,
-          editionname: 'Test Set',
-          editiondate: '2023-01-01',
-          editiontype: 'masters',
-        },
-        oracleCard: {
-          id: i + 200,
-          name: c.name,
-          cmc: 2,
-          colorIdentity: ['C'],
-          colors: [],
-          edhrecRank: null,
-          layout: 'normal',
-          uid: c.scryfallId,
-        },
-        scryfallImageHash: '',
-      },
-    })) as ArchidektDeckFull['cards'],
-  }
-}
-
-function createMockFetcher(): ArchidektFetcher {
-  const deckData = new Map<number, ArchidektDeckFull>()
-
-  // World Breaker deck
-  deckData.set(1, makeDeckFull(1, 'World Breaker', WORLD_BREAKER_CARDS.map(c => ({
-    name: c.name,
-    scryfallId: c.scryfallId,
-    setCode: c.setCode,
-    collectorNumber: c.collectorNumber,
-    isCommander: c.name === 'Kozilek, the Great Distortion',
-  }))))
-
-  return {
-    async fetchDeck(deckId: number): Promise<ArchidektDeckFull> {
-      const data = deckData.get(deckId)
-      if (!data) throw new Error(`Deck ${deckId} not found in mock`)
-      return data
-    },
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Mock EDHREC Fetcher
-// ---------------------------------------------------------------------------
 // CSV Helper
 // ---------------------------------------------------------------------------
 
@@ -425,76 +346,7 @@ describe('Pilot Validation: Collection Import with Reallocation', () => {
 })
 
 // ===========================================================================
-// SECTION 2: Sync Cycle for World Breaker (Req 5)
-// ===========================================================================
-
-describe('Pilot Validation: Sync Cycle for World Breaker', () => {
-  let db: Database.Database
-
-  beforeEach(() => {
-    db = createTestDb()
-    seedTestData(db)
-  })
-
-  it('reconciles deck composition from Archidekt and populates deck_cards', async () => {
-    // Clear existing deck_cards for deck 1 to simulate a fresh sync
-    db.prepare('DELETE FROM deck_cards WHERE deck_id = 1').run()
-
-    const fetcher = createMockFetcher()
-    const changes = await reconcileDeck(db, 1, fetcher)
-
-    expect(changes).toBe(WORLD_BREAKER_CARDS.length)
-
-    const cardCount = db.prepare('SELECT COUNT(*) as cnt FROM deck_cards WHERE deck_id = 1').get() as { cnt: number }
-    expect(cardCount.cnt).toBe(WORLD_BREAKER_CARDS.length)
-  })
-
-  it('sync cycle creates deck_allocations entries for World Breaker', async () => {
-    const fetcher = createMockFetcher()
-    const result = await runSyncCycle(db, 'manual', fetcher, [1])
-
-    expect(result.deckResults).toHaveLength(1)
-    expect(result.deckResults[0].success).toBe(true)
-
-    // Verify allocations exist for all cards
-    const allocations = db.prepare(
-      'SELECT card_name, role FROM deck_allocations WHERE deck_id = 1'
-    ).all() as { card_name: string; role: string }[]
-
-    expect(allocations.length).toBe(WORLD_BREAKER_CARDS.length)
-  })
-
-  it('identifies shared cards correctly (cards in 2+ decks)', async () => {
-    const fetcher = createMockFetcher()
-    await runSyncCycle(db, 'manual', fetcher, [1])
-
-    // Check allocations for Sol Ring (in 4 decks, 2 copies owned)
-    const solRingAllocs = db.prepare(
-      "SELECT deck_id, role FROM deck_allocations WHERE card_name = 'Sol Ring' ORDER BY deck_id"
-    ).all() as { deck_id: number; role: string }[]
-
-    expect(solRingAllocs.length).toBeGreaterThanOrEqual(2) // At least World Breaker + others
-    // World Breaker (highest priority) should get original
-    const wbAlloc = solRingAllocs.find(a => a.deck_id === 1)
-    expect(wbAlloc?.role).toBe('original')
-  })
-
-  it('records sync timestamp in sync_runs table (Req 5.5)', async () => {
-    const fetcher = createMockFetcher()
-    await runSyncCycle(db, 'manual', fetcher, [1])
-
-    const run = db.prepare('SELECT * FROM sync_runs ORDER BY id DESC LIMIT 1').get() as any
-    expect(run).toBeTruthy()
-    expect(run.trigger).toBe('manual')
-    expect(run.started_at).toBeTruthy()
-    expect(run.completed_at).toBeTruthy()
-    expect(run.decks_processed).toBe(1)
-    expect(run.decks_succeeded).toBe(1)
-  })
-})
-
-// ===========================================================================
-// SECTION 3: Allocation Correctness (Req 1, 2, 7)
+// SECTION 2: Allocation Correctness (Req 1, 2, 7)
 // ===========================================================================
 
 describe('Pilot Validation: Allocation Correctness', () => {
@@ -606,7 +458,7 @@ describe('Pilot Validation: Allocation Correctness', () => {
 })
 
 // ===========================================================================
-// SECTION 4: Card Movement and Cascade (Req 3, Property 4)
+// SECTION 3: Card Movement and Cascade (Req 3, Property 4)
 // ===========================================================================
 
 describe('Pilot Validation: Card Movement and Cascade', () => {

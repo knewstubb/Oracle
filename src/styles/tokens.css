@@ -7,40 +7,77 @@
  */
 
 :root {
-  /* ─── Colour Palette ─────────────────────────────────────────────── */
+  /* ─── Spacing (8pt grid) ─────────────────────────────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
 
-  /* Primary — selected states, primary actions, originals, health ok */
-  --color-teal: #1D9E75;
+  /* ─── Typography – Sizes ─────────────────────────────────────────── */
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-base: 13px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+  --fs-2xl: 24px;
+  --fs-3xl: 28px;
 
-  /* Warning — proxies, precon mod tracker */
-  --color-amber: #EF9F27;
+  /* ─── Typography – Weights ───────────────────────────────────────── */
+  --font-normal: 400;
+  --font-medium: 500;
 
-  /* Critical — health violations, cut cards */
-  --color-red: #E24B4A;
+  /* ─── Neutral Ramp ───────────────────────────────────────────────── */
+  --bg-canvas: #131316;
+  --bg-surface: #1A1A1E;
+  --bg-surface-hover: #212126;
+  --border-subtle: #262629;
+  --border-default: #35353A;
+  --text-tertiary: #6E6E76;
+  --text-secondary: #9C9CA3;
+  --text-primary: #E8E8EA;
 
-  /* Brew mode accent */
-  --color-blue: #378ADD;
+  /* ─── Status – Ownership Axis ────────────────────────────────────── */
+  --status-owned: #5F5E5A;
+  --status-proxy: #4A93A0;
+  --status-unowned: #F0339E;
 
-  /* ─── Alpha Variants (badge backgrounds) ─────────────────────────── */
+  /* ─── Status – Allocation Axis ───────────────────────────────────── */
+  --status-unallocated: #5F5E5A;
+  --status-partial: #8A8A92;
+  --status-full: #5F5E5A;
+  --status-over: #FF5F1F;
 
-  --color-teal-bg: rgba(29, 158, 117, 0.15);
-  --color-amber-bg: rgba(239, 159, 39, 0.15);
-  --color-red-bg: rgba(226, 75, 74, 0.15);
-  --color-blue-bg: rgba(55, 138, 221, 0.15);
+  /* ─── Table Layout ───────────────────────────────────────────────── */
+  --row-height: 44px;
+  --row-h-pad: var(--space-3);
+  --row-v-pad: var(--space-2);
+  --status-slot-width: 24px;
 
-  /* ─── Surfaces ───────────────────────────────────────────────────── */
+  /* ─── Layout – Master-Detail ─────────────────────────────────────── */
+  --detail-panel-width: 320px;
 
-  --bg-page: #0f0f0f;
-  --bg-surface: #161616;
+  /* ─── UI Accent (primary interactive color) ──────────────────────── */
+  --accent-primary: #1D9E75;
+  --accent-primary-bg: rgba(29, 158, 117, 0.15);
+
+  /* ─── Semantic Signals ───────────────────────────────────────────── */
+  --signal-warning: #EF9F27;
+  --signal-warning-bg: rgba(239, 159, 39, 0.15);
+  --signal-critical: #E24B4A;
+  --signal-critical-bg: rgba(226, 75, 74, 0.15);
+
+  /* ─── Surfaces (legacy aliases — updated to match neutral ramp) ──── */
+  --bg-page: #131316;
   --bg-card: rgba(255, 255, 255, 0.04);
 
-  /* ─── Borders ────────────────────────────────────────────────────── */
-
-  --border-default: rgba(255, 255, 255, 0.06);
+  /* ─── Borders (legacy) ───────────────────────────────────────────── */
   --border-emphasis: rgba(255, 255, 255, 0.1);
 
   /* ─── Border Radius ──────────────────────────────────────────────── */
-
   --border-radius-md: 8px;
   --border-radius-lg: 12px;
 }

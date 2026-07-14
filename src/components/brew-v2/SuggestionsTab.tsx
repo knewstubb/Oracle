@@ -137,7 +137,7 @@ export function SuggestionsTab({
       {categoryNames.map((category) => (
         <div key={category}>
           {/* Category group header */}
-          <h4 className="px-2 pb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+          <h4 className="px-2 pb-1 text-[length:var(--fs-xs)] uppercase tracking-wider text-muted-foreground">
             {category}
           </h4>
 

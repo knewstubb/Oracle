@@ -49,7 +49,7 @@ function rarityBadge(rarity?: string) {
     common: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
   }
   return (
-    <Badge variant="outline" className={`text-[10px] uppercase ${colors[rarity.toLowerCase()] || ''}`}>
+    <Badge variant="outline" className={`text-[length:var(--fs-xs)] uppercase ${colors[rarity.toLowerCase()] || ''}`}>
       {rarity.charAt(0).toUpperCase()}
     </Badge>
   )
@@ -74,7 +74,7 @@ export function PreconDiffPanel({ deckId }: PreconDiffPanelProps) {
 
   if (error || !data) {
     return (
-      <div className="flex items-center gap-2 text-sm text-destructive">
+      <div className="flex items-center gap-2 text-[length:var(--fs-md)] text-destructive">
         <AlertCircle className="size-4" />
         Failed to load precon diff
       </div>
@@ -83,7 +83,7 @@ export function PreconDiffPanel({ deckId }: PreconDiffPanelProps) {
 
   if (!data.isPreconMod) {
     return (
-      <div className="text-sm text-muted-foreground">
+      <div className="text-[length:var(--fs-md)] text-muted-foreground">
         This deck is not a precon modification.
       </div>
     )
@@ -92,7 +92,7 @@ export function PreconDiffPanel({ deckId }: PreconDiffPanelProps) {
   if (!data.added || !data.removed) {
     return (
       <div className="space-y-2">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-[length:var(--fs-md)] text-muted-foreground">
           Precon card list not loaded yet. The original precon needs to be imported.
         </p>
         {data.preconUrl && (
@@ -100,7 +100,7 @@ export function PreconDiffPanel({ deckId }: PreconDiffPanelProps) {
             href={data.preconUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+            className="inline-flex items-center gap-1.5 text-[length:var(--fs-md)] text-primary hover:underline"
           >
             View source precon on Archidekt
             <ExternalLink className="size-3.5" />
@@ -121,7 +121,7 @@ export function PreconDiffPanel({ deckId }: PreconDiffPanelProps) {
         <Badge variant={isOverLimit ? 'secondary' : 'outline'} className={isOverLimit ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' : ''}>
           {swapCount}/{podLimit} swaps
         </Badge>
-        <span className="text-sm text-muted-foreground">
+        <span className="text-[length:var(--fs-md)] text-muted-foreground">
           {added.length} added • {removed.length} removed
         </span>
         {preconUrl && (
@@ -129,7 +129,7 @@ export function PreconDiffPanel({ deckId }: PreconDiffPanelProps) {
             href={preconUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-auto inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+            className="ml-auto inline-flex items-center gap-1.5 text-[length:var(--fs-sm)] text-muted-foreground hover:text-foreground"
           >
             Source precon
             <ExternalLink className="size-3" />
@@ -140,7 +140,7 @@ export function PreconDiffPanel({ deckId }: PreconDiffPanelProps) {
       {/* Compliance Summary */}
       {compliance && (
         <div className="rounded-lg border border-border p-4">
-          <h3 className="mb-3 text-sm font-medium">Pod Compliance</h3>
+          <h3 className="mb-3 text-[length:var(--fs-md)] font-medium">Pod Compliance</h3>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <ComplianceItem
               label="Swaps"
@@ -170,18 +170,18 @@ export function PreconDiffPanel({ deckId }: PreconDiffPanelProps) {
       <div className="grid gap-6 md:grid-cols-2">
         {/* Cards Added */}
         <div>
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-medium">
+          <h3 className="mb-3 flex items-center gap-2 text-[length:var(--fs-md)] font-medium">
             <Plus className="size-4 text-green-600 dark:text-green-400" />
             Cards Added ({added.length})
           </h3>
           <div className="rounded-lg border border-border">
-            <table className="w-full text-sm">
+            <table className="w-full text-[length:var(--fs-md)]">
               <thead className="border-b border-border bg-muted/50">
                 <tr>
-                  <th className="px-3 py-1.5 text-left text-xs font-medium text-muted-foreground">Card</th>
-                  <th className="px-3 py-1.5 text-left text-xs font-medium text-muted-foreground">Set</th>
-                  <th className="px-3 py-1.5 text-left text-xs font-medium text-muted-foreground">Rarity</th>
-                  <th className="px-3 py-1.5 text-right text-xs font-medium text-muted-foreground">Price</th>
+                  <th className="px-3 py-1.5 text-left text-[length:var(--fs-sm)] font-medium text-muted-foreground">Card</th>
+                  <th className="px-3 py-1.5 text-left text-[length:var(--fs-sm)] font-medium text-muted-foreground">Set</th>
+                  <th className="px-3 py-1.5 text-left text-[length:var(--fs-sm)] font-medium text-muted-foreground">Rarity</th>
+                  <th className="px-3 py-1.5 text-right text-[length:var(--fs-sm)] font-medium text-muted-foreground">Price</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -193,7 +193,7 @@ export function PreconDiffPanel({ deckId }: PreconDiffPanelProps) {
                         {card.name}
                       </span>
                     </td>
-                    <td className="px-3 py-1.5 font-mono text-xs uppercase text-muted-foreground">
+                    <td className="px-3 py-1.5 font-mono text-[length:var(--fs-sm)] uppercase text-muted-foreground">
                       {card.set || '—'}
                     </td>
                     <td className="px-3 py-1.5">
@@ -216,17 +216,17 @@ export function PreconDiffPanel({ deckId }: PreconDiffPanelProps) {
 
         {/* Cards Removed */}
         <div>
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-medium">
+          <h3 className="mb-3 flex items-center gap-2 text-[length:var(--fs-md)] font-medium">
             <Minus className="size-4 text-red-600 dark:text-red-400" />
             Cards Removed ({removed.length})
           </h3>
           <div className="rounded-lg border border-border">
-            <table className="w-full text-sm">
+            <table className="w-full text-[length:var(--fs-md)]">
               <thead className="border-b border-border bg-muted/50">
                 <tr>
-                  <th className="px-3 py-1.5 text-left text-xs font-medium text-muted-foreground">Card</th>
-                  <th className="px-3 py-1.5 text-left text-xs font-medium text-muted-foreground">Rarity</th>
-                  <th className="px-3 py-1.5 text-right text-xs font-medium text-muted-foreground">Price</th>
+                  <th className="px-3 py-1.5 text-left text-[length:var(--fs-sm)] font-medium text-muted-foreground">Card</th>
+                  <th className="px-3 py-1.5 text-left text-[length:var(--fs-sm)] font-medium text-muted-foreground">Rarity</th>
+                  <th className="px-3 py-1.5 text-right text-[length:var(--fs-sm)] font-medium text-muted-foreground">Price</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -267,8 +267,8 @@ function ComplianceItem({ label, value, ok }: { label: string; value: string; ok
       'rounded-md border px-3 py-2',
       ok ? 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30' : 'border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30'
     )}>
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className={cn('text-sm font-medium', ok ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400')}>
+      <div className="text-[length:var(--fs-sm)] text-muted-foreground">{label}</div>
+      <div className={cn('text-[length:var(--fs-md)] font-medium', ok ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400')}>
         {ok ? '✅' : '⚠️'} {value}
       </div>
     </div>

@@ -28,7 +28,7 @@ export function CurveColumn({ bucketLabel, cards }: CurveColumnProps) {
       >
         {/* Header: bucket label + count */}
         <div className="flex items-center justify-between px-2 py-1.5 border-b border-[rgba(255,255,255,0.06)]">
-          <span className="text-[11px] font-bold text-[rgba(255,255,255,0.8)] tabular-nums">
+          <span className="text-[11px] font-medium text-[rgba(255,255,255,0.8)] tabular-nums">
             {bucketLabel}
           </span>
           <span className="text-[9px] text-[rgba(255,255,255,0.4)] tabular-nums">

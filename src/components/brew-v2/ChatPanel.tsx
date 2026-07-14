@@ -195,12 +195,12 @@ export function ChatPanel({ messages, onSend, inputRef, handleRef, isStreaming, 
             onKeyDown={handleKeyDown}
             disabled={isStreaming}
             placeholder={isStreaming ? 'Oracle is thinking…' : 'Message…'}
-            className="flex-1 rounded-sm border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-2 py-1.5 text-xs text-[#d4d4d0] placeholder:text-[rgba(255,255,255,0.2)] focus:border-[rgba(55,138,221,0.4)] focus:outline-none disabled:opacity-50"
+            className="flex-1 rounded-sm border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-2 py-1.5 text-[length:var(--fs-sm)] text-[#d4d4d0] placeholder:text-[rgba(255,255,255,0.2)] focus:border-[rgba(55,138,221,0.4)] focus:outline-none disabled:opacity-50"
           />
           <button
             onClick={handleSend}
             disabled={isStreaming || !inputValue.trim()}
-            className="flex items-center justify-center rounded-sm bg-[rgba(55,138,221,0.15)] px-1.5 py-1.5 text-xs text-[#378ADD] transition-colors hover:bg-[rgba(55,138,221,0.25)] disabled:opacity-30 disabled:cursor-not-allowed"
+            className="flex items-center justify-center rounded-sm bg-[rgba(55,138,221,0.15)] px-1.5 py-1.5 text-[length:var(--fs-sm)] text-[#378ADD] transition-colors hover:bg-[rgba(55,138,221,0.25)] disabled:opacity-30 disabled:cursor-not-allowed"
             aria-label="Send message"
           >
             <ArrowUpIcon />
@@ -222,17 +222,20 @@ function CardHoverLink({ cardName, onCardClick }: { cardName: string; onCardClic
   const scryfallUrl = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}&format=image&version=large`
 
   const imgWidth = 220
-  const imgHeight = 392
+  const imgHeight = 308
   const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1200
   const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800
 
-  // Vertical: prefer below cursor, flip above if it won't fit
-  const fitsBelow = pos.y + 16 + imgHeight < viewportHeight
-  const top = fitsBelow ? pos.y + 16 : pos.y - imgHeight - 16
+  // Horizontal: prefer left of cursor, flip right if it won't fit
+  const fitsLeft = pos.x - imgWidth - 12 > 0
+  const left = fitsLeft ? pos.x - imgWidth - 12 : pos.x + 12
 
-  // Horizontal: prefer right of cursor, flip left if it would overflow viewport
-  const fitsRight = pos.x + 16 + imgWidth < viewportWidth
-  const left = fitsRight ? pos.x + 16 : pos.x - imgWidth - 16
+  // Vertical: prefer top-aligned, shift if would overflow
+  let top = pos.y
+  if (top + imgHeight > viewportHeight - 16) {
+    top = viewportHeight - imgHeight - 16
+  }
+  if (top < 16) top = 16
 
   return (
     <span
@@ -243,7 +246,7 @@ function CardHoverLink({ cardName, onCardClick }: { cardName: string; onCardClic
       onClick={onCardClick ? () => onCardClick(cardName) : undefined}
     >
       {cardName}
-      {onCardClick && <span className="text-[10px] text-[rgba(55,138,221,0.6)] ml-0.5">+</span>}
+      {onCardClick && <span className="text-[length:var(--fs-xs)] text-[rgba(55,138,221,0.6)] ml-0.5">+</span>}
       {hovered && (
         <img
           src={scryfallUrl}
@@ -276,9 +279,9 @@ function renderInlineContent(text: string, onCardClick?: (name: string) => void)
       const inner = part.slice(2, -2)
       // Check if the bold text contains card links
       if (inner.includes('[[')) {
-        return <strong key={i} className="font-semibold">{renderInlineContent(inner, onCardClick)}</strong>
+        return <strong key={i} className="font-medium">{renderInlineContent(inner, onCardClick)}</strong>
       }
-      return <strong key={i} className="font-semibold">{inner}</strong>
+      return <strong key={i} className="font-medium">{inner}</strong>
     }
     return <span key={i}>{part}</span>
   })
@@ -315,7 +318,7 @@ function renderMessageContent(content: string, onCardClick?: (name: string) => v
 function MessageBubble({ message, onCardClick }: { message: ChatMessage; onCardClick?: (name: string) => void }) {
   if (message.role === 'user') {
     return (
-      <div className="text-xs bg-[rgba(55,138,221,0.08)] text-right py-1.5 px-2.5 rounded-md text-[#d4d4d0] leading-relaxed">
+      <div className="text-[length:var(--fs-sm)] bg-[rgba(55,138,221,0.08)] text-right py-1.5 px-2.5 rounded-md text-[#d4d4d0] leading-relaxed">
         {renderMessageContent(message.content)}
       </div>
     )
@@ -323,10 +326,10 @@ function MessageBubble({ message, onCardClick }: { message: ChatMessage; onCardC
 
   // assistant / system → oracle style (card links are clickable)
   return (
-    <div className="text-xs bg-[rgba(255,255,255,0.03)] border-l-2 border-[#378ADD] pl-2.5 py-1.5 pr-2 rounded-r-md text-[#d4d4d0] leading-relaxed">
+    <div className="text-[length:var(--fs-sm)] bg-[rgba(255,255,255,0.03)] border-l-2 border-[#378ADD] pl-2.5 py-1.5 pr-2 rounded-r-md text-[#d4d4d0] leading-relaxed">
       {renderMessageContent(message.content, onCardClick)}
       {message.cost !== undefined && message.cost > 0 && (
-        <div className="text-[10px] text-muted-foreground/50 mt-1">
+        <div className="text-[length:var(--fs-xs)] text-muted-foreground/50 mt-1">
           {message.cost < 0.01 ? `$${message.cost.toFixed(4)}` : `$${message.cost.toFixed(2)}`}
         </div>
       )}

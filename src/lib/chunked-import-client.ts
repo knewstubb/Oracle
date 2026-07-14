@@ -6,18 +6,21 @@
  * (browser-only, no Node.js dependencies).
  *
  * Strategy:
- *   1. Parse CSV into rows using pure string processing (no Node.js APIs)
- *   2. Split rows into chunks of ~500
- *   3. POST each chunk sequentially to /api/collection/import
- *   4. Report progress via callback after each chunk
- *   5. Handle per-chunk errors (log, continue to next chunk)
- *   6. Return a summary with totals and per-chunk results
+ *   1. Detect CSV format (Archidekt, Moxfield, etc.) and normalize to Archidekt format
+ *   2. Parse CSV into rows using pure string processing (no Node.js APIs)
+ *   3. Split rows into chunks of ~500
+ *   4. POST each chunk sequentially to /api/collection/import
+ *   5. Report progress via callback after each chunk
+ *   6. Handle per-chunk errors (log, continue to next chunk)
+ *   7. Return a summary with totals and per-chunk results
  *
  * Each chunk is processed as an independent server-side transaction,
  * so individual chunk failures are recoverable without losing prior progress.
  *
  * Validates: Requirements 6.3, 6.5
  */
+
+import { normalizeCSV, type NormalizationResult } from './csv-normalizer'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -76,6 +79,12 @@ export interface ChunkedImportSummary {
   chunkResults: ChunkResult[]
   /** Total duration in milliseconds */
   durationMs: number
+  /** CSV format normalization info (if normalization was applied) */
+  normalization?: {
+    detectedFormat: string
+    filteredRows: number
+    warnings: string[]
+  }
 }
 
 /** Options for the chunked import */
@@ -90,6 +99,8 @@ export interface ChunkedImportOptions {
   chunkSize?: number
   /** AbortSignal for cancellation support */
   signal?: AbortSignal
+  /** If true, adds to existing collection without deleting (all chunks use skipDelete) */
+  addOnly?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -137,10 +148,10 @@ function parseCSVRows(csvContent: string): { header: string; dataLines: string[]
     throw new Error('CSV is empty — no header row found')
   }
 
-  // Validate we have at least a Name column
+  // Validate we have a name column (Archidekt uses "Card Name", Moxfield uses "Name")
   const headerFields = parseCSVLine(header)
-  if (!headerFields.includes('Name')) {
-    throw new Error('CSV is missing required "Name" column')
+  if (!headerFields.includes('Name') && !headerFields.includes('Card Name')) {
+    throw new Error('CSV is missing required "Name" or "Card Name" column')
   }
 
   // Collect non-empty data lines
@@ -150,6 +161,51 @@ function parseCSVRows(csvContent: string): { header: string; dataLines: string[]
     if (line) {
       dataLines.push(line)
     }
+  }
+
+  // Deduplicate: merge rows with same (Name, Scryfall ID, Finish, Edition Code, Collector Number)
+  // by summing their quantities
+  const hdrFields = parseCSVLine(header)
+  const nameIdx = hdrFields.indexOf('Name') >= 0 ? hdrFields.indexOf('Name') : hdrFields.indexOf('Card Name')
+  const qtyIdx = hdrFields.indexOf('Quantity')
+  const finishIdx = hdrFields.indexOf('Finish')
+  const scryfallIdx = hdrFields.indexOf('Scryfall ID')
+  const edCodeIdx = hdrFields.indexOf('Edition Code')
+  const collNumIdx = hdrFields.indexOf('Collector Number')
+
+  // Skip dedup for large CSVs to avoid hanging — the server handles duplicates
+  if (nameIdx >= 0 && qtyIdx >= 0 && scryfallIdx >= 0 && dataLines.length <= 500) {
+    const deduped = new Map<string, { fields: string[]; qty: number }>()
+
+    for (const line of dataLines) {
+      const fields = parseCSVLine(line)
+      const key = [
+        fields[nameIdx] || '',
+        fields[scryfallIdx] || '',
+        fields[finishIdx] || '',
+        fields[edCodeIdx] || '',
+        fields[collNumIdx] || '',
+      ].join('||')
+
+      const existing = deduped.get(key)
+      const qty = parseInt(fields[qtyIdx] || '1', 10) || 1
+
+      if (existing) {
+        existing.qty += qty
+      } else {
+        deduped.set(key, { fields, qty })
+      }
+    }
+
+    // Rebuild deduplicated data lines with merged quantities
+    const dedupedLines: string[] = []
+    for (const { fields, qty } of deduped.values()) {
+      fields[qtyIdx] = String(qty)
+      // Rebuild the CSV line (quote fields containing commas)
+      dedupedLines.push(fields.map(f => f.includes(',') ? `"${f}"` : f).join(','))
+    }
+
+    return { header, dataLines: dedupedLines }
   }
 
   return { header, dataLines }
@@ -207,15 +263,25 @@ export async function chunkedImport(
   const {
     csvContent,
     onProgress,
-    apiUrl = '/api/collection/import?mode=legacy&apply=true',
+    apiUrl: userApiUrl,
     chunkSize = CHUNK_SIZE,
     signal,
+    addOnly = false,
   } = options
+
+  // Default mode: 'replace' for chunk 0 of full import (wipes existing then adds),
+  // 'add' for subsequent chunks and for addOnly mode.
+  // The legacy 'upsert' mode is broken (doesn't pass userId to the V1 engine).
+  const baseApiUrl = userApiUrl ?? '/api/collection/import'
 
   const startTime = Date.now()
 
-  // Step 1: Parse CSV into header + data lines
-  const { header, dataLines } = parseCSVRows(csvContent)
+  // Step 0: Detect format and normalize to Archidekt canonical CSV format
+  const normResult: NormalizationResult = normalizeCSV(csvContent)
+  const normalizedCSV = normResult.csvContent
+
+  // Step 1: Parse normalized CSV into header + data lines
+  const { header, dataLines } = parseCSVRows(normalizedCSV)
   const totalRows = dataLines.length
 
   if (totalRows === 0) {
@@ -228,6 +294,11 @@ export async function chunkedImport(
       chunksFailed: 0,
       chunkResults: [],
       durationMs: Date.now() - startTime,
+      normalization: {
+        detectedFormat: normResult.format,
+        filteredRows: normResult.filteredCount,
+        warnings: normResult.warnings,
+      },
     }
   }
 
@@ -264,11 +335,26 @@ export async function chunkedImport(
     let serverResponse: unknown
 
     try {
-      // For legacy mode: pass chunk_index so the server only clears on first chunk
-      const urlWithChunk = apiUrl.includes('?')
-        ? `${apiUrl}&chunk_index=${i}`
-        : `${apiUrl}?chunk_index=${i}`
-      const response = await fetch(urlWithChunk, {
+      // Determine mode for this chunk:
+      // - addOnly=true: always 'add' (pure append)
+      // - addOnly=false, chunk 0: 'replace' (wipe existing then add)
+      // - addOnly=false, chunk 1+: 'add' (append to what chunk 0 started)
+      let chunkUrl: string
+      if (userApiUrl) {
+        // If the user provided a custom URL, use their chunk_index logic
+        const effectiveIndex = addOnly ? i + 1 : i
+        chunkUrl = userApiUrl.includes('?')
+          ? `${userApiUrl}&chunk_index=${effectiveIndex}`
+          : `${userApiUrl}?chunk_index=${effectiveIndex}`
+      } else if (addOnly) {
+        chunkUrl = `${baseApiUrl}?mode=add`
+      } else if (i === 0) {
+        chunkUrl = `${baseApiUrl}?mode=replace`
+      } else {
+        chunkUrl = `${baseApiUrl}?mode=add`
+      }
+
+      const response = await fetch(chunkUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'text/csv' },
         body: chunkCSV,
@@ -333,5 +419,10 @@ export async function chunkedImport(
     chunksFailed,
     chunkResults,
     durationMs: Date.now() - startTime,
+    normalization: {
+      detectedFormat: normResult.format,
+      filteredRows: normResult.filteredCount,
+      warnings: normResult.warnings,
+    },
   }
 }

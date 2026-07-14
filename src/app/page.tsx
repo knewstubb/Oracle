@@ -1,14 +1,16 @@
 'use client'
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import { Plus, AlertCircle, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { SyncStatus } from '@/components/SyncStatus'
+import { StatusFilter } from '@/components/StatusFilter'
+import { DeckImportButton } from '@/components/DeckImportButton'
 import { DeckTile } from '@/components/DeckTile'
 import { DraftDeckTile } from '@/components/DraftDeckTile'
 import { DraftSessionTile } from '@/components/DraftSessionTile'
+import { PageHeader } from '@/components/PageHeader'
 
 interface Deck {
   id: number
@@ -18,7 +20,9 @@ interface Deck {
   colour_identity: string
   card_count: number
   deck_type: string | null
-  status: 'active' | 'draft'
+  status: 'brew' | 'boxed' | 'archived'
+  allocate: boolean
+  completeness?: { resolved: number; total: number } | null
 }
 
 interface DraftSession {
@@ -49,37 +53,31 @@ export default function DashboardPage() {
   const decks = data?.decks
   const draftSessions = data?.draftSessions
 
-  const syncMutation = useMutation({
-    mutationFn: () => fetch('/api/sync').then(r => {
-      if (!r.ok) throw new Error('Sync failed')
-      return r.json()
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['decks'] })
-      queryClient.invalidateQueries({ queryKey: ['sync-status'] })
-    },
-  })
-
   return (
-    <div className="mx-auto max-w-[1280px] px-8 py-8">
-      <header className="mb-8 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-3xl font-bold tracking-tight">Decks</h1>
-          <SyncStatus />
-        </div>
-        <Link
-          href="/new-deck"
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
-        >
-          <Plus className="size-4" aria-hidden="true" />
-          Brew Deck
-        </Link>
-      </header>
+    <div className="flex h-full flex-col bg-[var(--bg-canvas)]">
+      <div className="mx-auto flex h-full w-full max-w-[1520px] flex-col">
+      <PageHeader
+        title="Decks"
+        actions={
+          <>
+            <DeckImportButton />
+            <Link
+              href="/new-deck"
+              className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-[length:var(--fs-md)] font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+            >
+              <Plus className="size-4" aria-hidden="true" />
+              Brew Deck
+            </Link>
+          </>
+        }
+      />
 
+      <div className="flex-1 overflow-y-auto px-5 py-5">
+      <StatusFilter className="mb-6" />
       {error && (
         <div
           role="alert"
-          className="mb-4 flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          className="mb-4 flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-3 text-[length:var(--fs-md)] text-destructive"
         >
           <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
           <span className="flex-1">
@@ -117,14 +115,15 @@ export default function DashboardPage() {
       ) : decks && decks.length === 0 && (!draftSessions || draftSessions.length === 0) ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <p className="mb-4 text-muted-foreground">
-            No decks found. Sync your Archidekt account to get started.
+            No decks found. Import a deck to get started.
           </p>
-          <Button
-            onClick={() => syncMutation.mutate()}
-            disabled={syncMutation.isPending}
+          <DeckImportButton />
+          <Link
+            href="/onboarding"
+            className="text-[length:var(--fs-sm)] text-muted-foreground underline hover:text-foreground transition-colors mt-3"
           >
-            {syncMutation.isPending ? 'Syncing...' : 'Sync Now'}
-          </Button>
+            Or import your full Archidekt collection
+          </Link>
         </div>
       ) : decks && decks.length > 0 || (draftSessions && draftSessions.length > 0) ? (
         <div
@@ -145,7 +144,7 @@ export default function DashboardPage() {
           ))}
           {decks && decks.map((deck) => (
             <div key={deck.id} role="listitem">
-              {deck.status === 'draft' ? (
+              {deck.status === 'brew' ? (
                 <DraftDeckTile
                   id={deck.id}
                   name={deck.name}
@@ -163,12 +162,17 @@ export default function DashboardPage() {
                   colourIdentity={deck.colour_identity ? deck.colour_identity.split(',').flatMap(s => s.trim().length === 1 ? [s.trim()] : s.trim().split('')) : []}
                   cardCount={deck.card_count}
                   deckType={deck.deck_type}
+                  status={deck.status}
+                  allocate={deck.allocate}
+                  completeness={deck.completeness}
                 />
               )}
             </div>
           ))}
         </div>
       ) : null}
+      </div>{/* end scrollable content */}
+      </div>{/* end max-width container */}
     </div>
   )
 }

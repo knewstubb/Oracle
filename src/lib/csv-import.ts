@@ -18,8 +18,8 @@ import { createAdminClient } from '@/lib/supabase'
 // Constants
 // ---------------------------------------------------------------------------
 
-/** Number of rows to process per batch for Vercel timeout compatibility */
-const BATCH_SIZE = 500
+/** Number of rows to process per INSERT batch to stay within Supabase payload limits */
+const BATCH_SIZE = 200
 
 // ---------------------------------------------------------------------------
 // Types
@@ -312,20 +312,44 @@ export async function applyCollectionImport(
   let totalInserted = 0
   const userId = options?.userId ?? ''
 
-  // Step 1: Delete existing collection data for this user (only on first chunk)
+  // Step 1: Delete ALL existing collection data (only on first chunk)
   if (!options?.skipDelete) {
-    const { error: deleteError } = await supabase
-      .from('collection')
-      .delete()
-      .eq('user_id', userId)
+    // Delete all collection rows — loop until table is empty
+    // Supabase PostgREST may cap deletes at 1000 rows per request
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const { error: deleteError } = await supabase
+        .from('collection')
+        .delete()
+        .neq('id', 0) // match all rows (id is never 0 since it's auto-generated starting from 1)
 
-    if (deleteError) {
-      throw new Error(`Failed to clear collection before import: ${deleteError.message}`)
+      if (deleteError) {
+        throw new Error(`Failed to clear collection before import: ${deleteError.message}`)
+      }
+
+      // Check if any rows remain
+      const { count } = await supabase
+        .from('collection')
+        .select('*', { count: 'exact', head: true })
+
+      if (!count || count === 0) break
     }
   }
 
-  // Step 2: Insert rows in chunks of BATCH_SIZE
-  const chunks = chunk(rows, BATCH_SIZE)
+  // Step 2: Deduplicate rows — merge quantities for same (name, scryfall_id, finish)
+  const deduped = new Map<string, typeof rows[0]>()
+  for (const row of rows) {
+    const key = `${row.name}||${row.scryfallId || ''}||${row.finish || ''}||${row.editionCode || ''}||${row.collectorNumber || ''}`
+    const existing = deduped.get(key)
+    if (existing) {
+      existing.quantity += row.quantity
+    } else {
+      deduped.set(key, { ...row })
+    }
+  }
+  const dedupedRows = Array.from(deduped.values())
+
+  // Step 3: Insert deduplicated rows in chunks of BATCH_SIZE
+  const chunks = chunk(dedupedRows, BATCH_SIZE)
 
   for (let i = 0; i < chunks.length; i++) {
     const batch = chunks[i]
@@ -355,8 +379,12 @@ export async function applyCollectionImport(
         .insert(insertRows)
 
       if (insertError) {
-        batchErrors.push(`Batch ${i}: ${insertError.message}`)
-        errors.push(`Batch ${i}: ${insertError.message}`)
+        // Log the specific error with sample data for debugging
+        const sampleNames = batch.slice(0, 3).map(r => r.name).join(', ')
+        const errorDetail = `Batch ${i} (rows ${i * BATCH_SIZE}–${i * BATCH_SIZE + batch.length - 1}, e.g. ${sampleNames}): ${insertError.message} [code: ${insertError.code}]`
+        batchErrors.push(errorDetail)
+        errors.push(errorDetail)
+        console.error(`[csv-import] ${errorDetail}`)
       } else {
         totalInserted += batch.length
       }

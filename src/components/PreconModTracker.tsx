@@ -70,7 +70,7 @@ export function PreconModTracker({ deckId, commanderName }: PreconModTrackerProp
       >
         <div className="flex items-center gap-2">
           <Shield className="h-4 w-4 text-[#EF9F27]" />
-          <span className="text-sm font-medium">Precon mod tracker</span>
+          <span className="text-[length:var(--fs-md)] font-medium">Precon mod tracker</span>
         </div>
         <Skeleton className="h-5 w-full" />
         <Skeleton className="h-12 w-full" />
@@ -91,11 +91,11 @@ export function PreconModTracker({ deckId, commanderName }: PreconModTrackerProp
       >
         <div className="flex items-center gap-2">
           <Shield className="h-4 w-4 text-[#EF9F27]" />
-          <span className="text-sm font-medium">Precon mod tracker</span>
+          <span className="text-[length:var(--fs-md)] font-medium">Precon mod tracker</span>
         </div>
         <div className="flex items-center gap-2 text-muted-foreground">
           <AlertCircle className="h-3.5 w-3.5" />
-          <span className="text-xs">State not yet computed</span>
+          <span className="text-[length:var(--fs-sm)]">State not yet computed</span>
         </div>
       </div>
     )
@@ -123,9 +123,9 @@ export function PreconModTracker({ deckId, commanderName }: PreconModTrackerProp
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2">
         <Shield className="h-4 w-4 text-[#EF9F27]" />
-        <span className="text-sm font-medium">Precon mod tracker</span>
+        <span className="text-[length:var(--fs-md)] font-medium">Precon mod tracker</span>
         <Badge
-          className="text-xs"
+          className="text-[length:var(--fs-sm)]"
           style={{ background: 'rgba(239,159,39,0.15)', color: '#EF9F27' }}
         >
           {commanderName}
@@ -142,7 +142,7 @@ export function PreconModTracker({ deckId, commanderName }: PreconModTrackerProp
           }}
         >
           <AlertCircle className="h-3.5 w-3.5 text-[#E24B4A]" />
-          <span className="text-xs text-[#E24B4A] font-medium">
+          <span className="text-[length:var(--fs-sm)] text-[#E24B4A] font-medium">
             Swap limit exceeded — {state.swaps_used} of 10 swaps used
           </span>
         </div>
@@ -151,8 +151,8 @@ export function PreconModTracker({ deckId, commanderName }: PreconModTrackerProp
       {/* ── Swap pips row ──────────────────────────────────────────────── */}
       <div className="space-y-1.5">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Swaps used</span>
-          <span className="text-xs font-medium ml-auto">
+          <span className="text-[length:var(--fs-sm)] text-muted-foreground">Swaps used</span>
+          <span className="text-[length:var(--fs-sm)] font-medium ml-auto">
             {state.swaps_used} of 10 used
           </span>
         </div>
@@ -208,7 +208,7 @@ export function PreconModTracker({ deckId, commanderName }: PreconModTrackerProp
               background: 'rgba(255,255,255,0.04)',
             }}
           >
-            <span className="text-[10px] text-muted-foreground">{slot.label}</span>
+            <span className="text-[length:var(--fs-xs)] text-muted-foreground">{slot.label}</span>
             <div className="flex items-center gap-0.5">
               {Array.from({ length: slot.total }, (_, i) => (
                 <div
@@ -224,7 +224,7 @@ export function PreconModTracker({ deckId, commanderName }: PreconModTrackerProp
                 />
               ))}
             </div>
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-[length:var(--fs-xs)] text-muted-foreground">
               {slot.total - slot.used} remaining
             </span>
           </div>
@@ -234,8 +234,8 @@ export function PreconModTracker({ deckId, commanderName }: PreconModTrackerProp
       {/* ── Budget progress bar ────────────────────────────────────────── */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">Budget</span>
-          <span className="text-xs font-medium">
+          <span className="text-[length:var(--fs-sm)] text-muted-foreground">Budget</span>
+          <span className="text-[length:var(--fs-sm)] font-medium">
             ${state.budget_spent.toFixed(2)} of ${state.budget_cap}
           </span>
         </div>
@@ -266,7 +266,7 @@ export function PreconModTracker({ deckId, commanderName }: PreconModTrackerProp
         >
           {state.sol_ring_removed && <Check className="h-3 w-3 text-white" />}
         </div>
-        <span className="text-xs text-muted-foreground">
+        <span className="text-[length:var(--fs-sm)] text-muted-foreground">
           Sol Ring removed — mandatory swap completed counts as swap 1
         </span>
       </div>
@@ -275,7 +275,7 @@ export function PreconModTracker({ deckId, commanderName }: PreconModTrackerProp
       <div className="space-y-1">
         <button
           onClick={() => setRulesExpanded(!rulesExpanded)}
-          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          className="flex items-center gap-1 text-[length:var(--fs-sm)] text-muted-foreground hover:text-foreground transition-colors"
         >
           {rulesExpanded ? (
             <ChevronDown className="h-3 w-3" />

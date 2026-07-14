@@ -16,6 +16,13 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  redirects: async () => [
+    {
+      source: '/shared-cards',
+      destination: '/allocation',
+      permanent: true,
+    },
+  ],
 };
 
 export default nextConfig;

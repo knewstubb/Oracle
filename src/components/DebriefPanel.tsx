@@ -26,16 +26,16 @@ interface DebriefPanelProps {
 function DeckSummaryCard({ commanderName }: { commanderName: string }) {
   return (
     <div className="p-3 space-y-3">
-      <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      <h3 className="text-[length:var(--fs-sm)] font-medium uppercase tracking-wide text-muted-foreground">
         Deck
       </h3>
       <div className="space-y-2">
-        <p className="text-sm font-medium text-foreground">{commanderName}</p>
+        <p className="text-[length:var(--fs-md)] font-medium text-foreground">{commanderName}</p>
         <Badge variant="secondary" className="text-[11px]">
           Post-Game Debrief
         </Badge>
       </div>
-      <p className="text-xs text-muted-foreground leading-relaxed">
+      <p className="text-[length:var(--fs-sm)] text-muted-foreground leading-relaxed">
         Tell me about your game — what happened, what worked, and what didn&apos;t.
       </p>
     </div>
@@ -59,13 +59,13 @@ function DebriefBriefCard({
 }) {
   return (
     <div className="p-3 space-y-3">
-      <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      <h3 className="text-[length:var(--fs-sm)] font-medium uppercase tracking-wide text-muted-foreground">
         Game Summary
       </h3>
 
       {/* Outcome */}
       <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">Outcome:</span>
+        <span className="text-[length:var(--fs-sm)] text-muted-foreground">Outcome:</span>
         <Badge
           variant={
             brief.gameOutcome === 'win'
@@ -124,7 +124,7 @@ function DebriefBriefCard({
           <span className="text-[11px] text-muted-foreground block mb-1">
             Pattern:
           </span>
-          <p className="text-xs text-foreground/80">{brief.lossPattern}</p>
+          <p className="text-[length:var(--fs-sm)] text-foreground/80">{brief.lossPattern}</p>
         </div>
       )}
 
@@ -133,7 +133,7 @@ function DebriefBriefCard({
         <button
           onClick={onConfirm}
           disabled={isLoading}
-          className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-white transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[length:var(--fs-sm)] font-medium text-white transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ backgroundColor: '#1D9E75' }}
         >
           {isLoading ? (
@@ -146,7 +146,7 @@ function DebriefBriefCard({
         <button
           onClick={onEdit}
           disabled={isLoading}
-          className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-white/70 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[length:var(--fs-sm)] font-medium text-white/70 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
           style={{
             backgroundColor: 'rgba(255, 255, 255, 0.08)',
             border: '0.5px solid rgba(255, 255, 255, 0.1)',
@@ -167,7 +167,7 @@ function AnalysingIndicator() {
   return (
     <div className="flex flex-col items-center justify-center gap-3 p-4 h-full">
       <Loader2 className="size-6 animate-spin text-[#1D9E75]" aria-hidden="true" />
-      <p className="text-xs text-muted-foreground text-center leading-relaxed">
+      <p className="text-[length:var(--fs-sm)] text-muted-foreground text-center leading-relaxed">
         Checking your collection and EDHREC...
       </p>
     </div>
@@ -185,7 +185,7 @@ function DebriefSummaryCard({
 }) {
   return (
     <div className="p-3 space-y-3">
-      <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      <h3 className="text-[length:var(--fs-sm)] font-medium uppercase tracking-wide text-muted-foreground">
         Session Complete
       </h3>
 
@@ -193,7 +193,7 @@ function DebriefSummaryCard({
         {summary.totalApplied > 0 && (
           <div className="flex items-center gap-2">
             <CheckCircle2 className="size-3.5 text-[#1D9E75]" aria-hidden="true" />
-            <span className="text-xs text-foreground">
+            <span className="text-[length:var(--fs-sm)] text-foreground">
               {summary.totalApplied} change{summary.totalApplied === 1 ? '' : 's'} applied
             </span>
           </div>
@@ -201,7 +201,7 @@ function DebriefSummaryCard({
         {summary.totalSkipped > 0 && (
           <div className="flex items-center gap-2">
             <ArrowRight className="size-3.5 text-muted-foreground" aria-hidden="true" />
-            <span className="text-xs text-muted-foreground">
+            <span className="text-[length:var(--fs-sm)] text-muted-foreground">
               {summary.totalSkipped} skipped
             </span>
           </div>
@@ -209,7 +209,7 @@ function DebriefSummaryCard({
         {summary.totalDisagreed > 0 && (
           <div className="flex items-center gap-2">
             <AlertCircle className="size-3.5 text-muted-foreground" aria-hidden="true" />
-            <span className="text-xs text-muted-foreground">
+            <span className="text-[length:var(--fs-sm)] text-muted-foreground">
               {summary.totalDisagreed} disagreed
             </span>
           </div>
@@ -219,7 +219,7 @@ function DebriefSummaryCard({
       {summary.deckDetailUrl && (
         <a
           href={summary.deckDetailUrl}
-          className="text-xs text-[#1D9E75] underline underline-offset-2 hover:opacity-80"
+          className="text-[length:var(--fs-sm)] text-[#1D9E75] underline underline-offset-2 hover:opacity-80"
         >
           View updated deck →
         </a>
@@ -384,7 +384,7 @@ export function DebriefPanel({ deckId, commanderName, onClose }: DebriefPanelPro
     state.phase === 'complete' ? (
       <button
         onClick={onClose}
-        className="w-full inline-flex items-center justify-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+        className="w-full inline-flex items-center justify-center gap-1.5 rounded-md px-4 py-2 text-[length:var(--fs-md)] font-medium text-white transition-opacity hover:opacity-90"
         style={{ backgroundColor: '#1D9E75' }}
       >
         Done

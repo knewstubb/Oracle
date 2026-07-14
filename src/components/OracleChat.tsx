@@ -115,7 +115,7 @@ function renderInlineMarkdown(text: string): React.ReactNode {
       parts.push(<CardNameHover key={`card-${match.index}`} name={match[2]} />)
     } else if (match[3]) {
       // **bold**
-      parts.push(<strong key={`bold-${match.index}`} className="font-semibold text-foreground">{match[3]}</strong>)
+      parts.push(<strong key={`bold-${match.index}`} className="font-medium text-foreground">{match[3]}</strong>)
     } else if (match[4]) {
       // *italic*
       parts.push(<em key={`em-${match.index}`}>{match[4]}</em>)
@@ -197,12 +197,12 @@ function MessageBubble({ message, variant = 'debrief' }: { message: ChatMessage;
 
   return (
     <div className={cn('flex flex-col gap-1', isUser ? 'items-end' : 'items-start')}>
-      <span className="text-[10px] text-muted-foreground">
+      <span className="text-[length:var(--fs-xs)] text-muted-foreground">
         {isUser ? 'You' : 'Oracle'}
       </span>
       <div
         className={cn(
-          'max-w-[85%] rounded-lg px-3 py-2 text-sm',
+          'max-w-[85%] rounded-lg px-3 py-2 text-[length:var(--fs-md)]',
           isUser
             ? isBrew
               ? 'bg-[rgba(55,138,221,0.1)] border-[0.5px] border-[rgba(55,138,221,0.2)] rounded-lg'
@@ -228,7 +228,7 @@ function ThinkingIndicator({ variant = 'debrief' }: { variant?: 'debrief' | 'bre
 
   return (
     <div className="flex flex-col gap-1 items-start">
-      <span className="text-[10px] text-muted-foreground">Oracle</span>
+      <span className="text-[length:var(--fs-xs)] text-muted-foreground">Oracle</span>
       <div className={cn(
         'inline-flex items-center gap-2 rounded-lg px-3 py-2.5 bg-[rgba(255,255,255,0.06)] border-l-2',
         isBrew ? 'border-l-[rgba(55,138,221,0.4)]' : 'border-l-[rgba(29,158,117,0.4)]'
@@ -238,7 +238,7 @@ function ThinkingIndicator({ variant = 'debrief' }: { variant?: 'debrief' | 'bre
           <span className="size-1.5 rounded-full animate-pulse" style={{ backgroundColor: dotColor, animationDelay: '150ms' }} />
           <span className="size-1.5 rounded-full animate-pulse" style={{ backgroundColor: dotColor, animationDelay: '300ms' }} />
         </div>
-        <span className="text-xs text-muted-foreground">Thinking...</span>
+        <span className="text-[length:var(--fs-sm)] text-muted-foreground">Thinking...</span>
       </div>
     </div>
   )
@@ -300,7 +300,7 @@ function ChatInput({
         placeholder={placeholder ?? 'Reply to Oracle...'}
         rows={1}
         className={cn(
-          'flex-1 resize-none bg-[rgba(255,255,255,0.05)] text-sm text-foreground placeholder:text-[rgba(255,255,255,0.2)] outline-none min-h-[38px] max-h-[80px] py-2.5 px-3.5 rounded-lg border-[0.5px] border-[rgba(255,255,255,0.1)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+          'flex-1 resize-none bg-[rgba(255,255,255,0.05)] text-[length:var(--fs-md)] text-foreground placeholder:text-[rgba(255,255,255,0.2)] outline-none min-h-[38px] max-h-[80px] py-2.5 px-3.5 rounded-lg border-[0.5px] border-[rgba(255,255,255,0.1)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
           isBrew ? 'focus:border-[rgba(55,138,221,0.4)]' : 'focus:border-[rgba(29,158,117,0.4)]'
         )}
         aria-label="Chat message input"

@@ -53,7 +53,7 @@ export function CardImage({
     return (
       <div
         className={cn(
-          'flex items-center justify-center bg-muted text-muted-foreground text-xs',
+          'flex items-center justify-center bg-muted text-muted-foreground text-[length:var(--fs-sm)]',
           className
         )}
         style={{ width, height }}

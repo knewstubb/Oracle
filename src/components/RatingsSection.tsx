@@ -52,7 +52,7 @@ const ATTRIBUTES: AttributeConfig[] = [
 export function RatingsSection({ scores, contributingCards }: RatingsSectionProps) {
   return (
     <section aria-label="Deck attribute ratings">
-      <h2 className="mb-4 text-lg font-semibold">Attribute Ratings</h2>
+      <h2 className="mb-4 text-[length:var(--fs-lg)] font-medium">Attribute Ratings</h2>
       <div className="space-y-4">
         {ATTRIBUTES.map((attr) => (
           <AttributeRow
@@ -106,7 +106,7 @@ function AttributeRow({
               <span className="inline-block size-4" />
             )}
           </span>
-          <span className="w-28 shrink-0 text-sm font-medium">
+          <span className="w-28 shrink-0 text-[length:var(--fs-md)] font-medium">
             {config.label}
           </span>
           <div
@@ -122,7 +122,7 @@ function AttributeRow({
               style={{ width: `${percentage}%` }}
             />
           </div>
-          <span className="w-10 shrink-0 text-right text-sm font-semibold tabular-nums">
+          <span className="w-10 shrink-0 text-right text-[length:var(--fs-md)] font-medium tabular-nums">
             {score}/10
           </span>
         </button>
@@ -138,10 +138,10 @@ function AttributeRow({
             if (cards.length === 0) return null
             return (
               <div key={group.field}>
-                <p className="text-xs font-medium text-muted-foreground">
+                <p className="text-[length:var(--fs-sm)] font-medium text-muted-foreground">
                   {group.label} ({cards.length})
                 </p>
-                <p className="mt-0.5 text-xs text-foreground/80">
+                <p className="mt-0.5 text-[length:var(--fs-sm)] text-foreground/80">
                   {cards.join(', ')}
                 </p>
               </div>

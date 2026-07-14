@@ -200,7 +200,7 @@ function PinnedSection({
     >
       {/* Header */}
       <div className="flex items-center gap-1.5 px-2.5 py-1.5">
-        <span className={`text-[10px] font-semibold uppercase tracking-wider ${titleColor}`}>
+        <span className={`text-[length:var(--fs-xs)] font-medium uppercase tracking-wider ${titleColor}`}>
           {title}
         </span>
         <span className="text-[9px] text-[rgba(255,255,255,0.3)]">
@@ -210,7 +210,7 @@ function PinnedSection({
 
       {/* Card rows */}
       {cards.length === 0 ? (
-        <div className="px-2.5 pb-2 text-[10px] italic text-[rgba(255,255,255,0.2)]">
+        <div className="px-2.5 pb-2 text-[length:var(--fs-xs)] italic text-[rgba(255,255,255,0.2)]">
           No cards assigned
         </div>
       ) : (
@@ -290,7 +290,7 @@ function CategorySection({
         }
       >
         <span className={`h-[6px] w-[6px] rounded-full ${healthDotColor}`} />
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.5)]">
+        <span className="text-[length:var(--fs-xs)] font-medium uppercase tracking-wider text-[rgba(255,255,255,0.5)]">
           {name}
         </span>
         <span className="text-[9px] text-[rgba(255,255,255,0.25)]">
@@ -300,7 +300,7 @@ function CategorySection({
 
       {/* Card rows */}
       {cards.length === 0 ? (
-        <div className="px-2.5 py-1.5 text-[10px] italic text-[rgba(255,255,255,0.15)]">
+        <div className="px-2.5 py-1.5 text-[length:var(--fs-xs)] italic text-[rgba(255,255,255,0.15)]">
           Empty
         </div>
       ) : (

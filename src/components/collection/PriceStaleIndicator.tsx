@@ -48,7 +48,7 @@ export function PriceStaleIndicator({
     <div
       role="status"
       aria-label="Price data warning"
-      className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+      className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-2.5 text-[length:var(--fs-md)] text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
     >
       <AlertTriangle className="size-4 shrink-0" aria-hidden="true" />
       <span className="flex-1">
@@ -67,7 +67,7 @@ export function PriceStaleIndicator({
         type="button"
         onClick={handleRefresh}
         disabled={isRefreshing}
-        className="ml-2 flex items-center gap-1 rounded-md border border-amber-300 bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800 transition-colors hover:bg-amber-200 disabled:opacity-50 dark:border-amber-700 dark:bg-amber-900/50 dark:text-amber-300 dark:hover:bg-amber-900/80"
+        className="ml-2 flex items-center gap-1 rounded-md border border-amber-300 bg-amber-100 px-2.5 py-1 text-[length:var(--fs-sm)] font-medium text-amber-800 transition-colors hover:bg-amber-200 disabled:opacity-50 dark:border-amber-700 dark:bg-amber-900/50 dark:text-amber-300 dark:hover:bg-amber-900/80"
       >
         <RefreshCw className={`size-3 ${isRefreshing ? 'animate-spin' : ''}`} aria-hidden="true" />
         {isRefreshing ? 'Refreshing…' : 'Refresh Prices'}

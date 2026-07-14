@@ -27,6 +27,8 @@ export interface ArchidektOracleCard {
   layout: string
   uid: string
   typeLine?: string
+  types?: string[]
+  subTypes?: string[]
   manaCost?: string
   oracleText?: string
 }
@@ -132,12 +134,29 @@ export interface ArchidektCollectionEntry {
 export async function fetchCollection(): Promise<ArchidektCollectionEntry[]> {
   const entries: ArchidektCollectionEntry[] = []
   let url: string | null = `${BASE_URL}/collection/${USER_ID}/`
+  let pageCount = 0
   while (url) {
+    // Rate limit: wait 500ms between pages to avoid 429 from Archidekt
+    if (pageCount > 0) {
+      await new Promise(resolve => setTimeout(resolve, 500))
+    }
     const res: Response = await fetch(url)
-    if (!res.ok) throw new Error(`Collection fetch failed: ${res.status}`)
-    const data: { results: ArchidektCollectionEntry[]; next: string | null } = await res.json()
-    entries.push(...data.results)
-    url = data.next
+    if (res.status === 429) {
+      // Rate limited — wait 3 seconds and retry this page
+      await new Promise(resolve => setTimeout(resolve, 3000))
+      const retryRes: Response = await fetch(url)
+      if (!retryRes.ok) throw new Error(`Collection fetch failed: ${retryRes.status}`)
+      const retryData: { results: ArchidektCollectionEntry[]; next: string | null } = await retryRes.json()
+      entries.push(...retryData.results)
+      url = retryData.next
+    } else if (!res.ok) {
+      throw new Error(`Collection fetch failed: ${res.status}`)
+    } else {
+      const data: { results: ArchidektCollectionEntry[]; next: string | null } = await res.json()
+      entries.push(...data.results)
+      url = data.next
+    }
+    pageCount++
   }
   return entries
 }

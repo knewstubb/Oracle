@@ -94,40 +94,56 @@
 }
 
 .dark {
-  --background: oklch(0.16 0.01 250);
-  --foreground: oklch(0.95 0.005 90);
-  --card: oklch(0.20 0.01 250);
-  --card-foreground: oklch(0.95 0.005 90);
-  --popover: oklch(0.20 0.01 250);
-  --popover-foreground: oklch(0.95 0.005 90);
-  --primary: oklch(0.55 0.1 195);
-  --primary-foreground: oklch(0.99 0 0);
-  --success: oklch(0.60 0.15 155);
-  --warning: oklch(0.75 0.15 70);
-  --proxy: oklch(0.65 0.27 320);
-  --secondary: oklch(0.25 0.01 250);
-  --secondary-foreground: oklch(0.95 0.005 90);
-  --muted: oklch(0.28 0.01 250);
-  --muted-foreground: oklch(0.72 0.01 250);
-  --accent: oklch(0.25 0.01 250);
-  --accent-foreground: oklch(0.95 0.005 90);
-  --destructive: oklch(0.65 0.20 25);
-  --border: oklch(1 0 0 / 14%);
-  --input: oklch(1 0 0 / 16%);
-  --ring: oklch(0.55 0.1 195);
-  --chart-1: oklch(0.55 0.1 195);
-  --chart-2: oklch(0.50 0.08 195);
-  --chart-3: oklch(0.45 0.06 195);
-  --chart-4: oklch(0.40 0.04 195);
-  --chart-5: oklch(0.35 0.02 195);
-  --sidebar: oklch(0.18 0.01 250);
-  --sidebar-foreground: oklch(0.95 0.005 90);
-  --sidebar-primary: oklch(0.55 0.1 195);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.25 0.01 250);
-  --sidebar-accent-foreground: oklch(0.95 0.005 90);
-  --sidebar-border: oklch(1 0 0 / 14%);
-  --sidebar-ring: oklch(0.55 0.1 195);
+  /* Surfaces */
+  --background: var(--bg-canvas);
+  --foreground: var(--text-primary);
+  --card: var(--bg-surface);
+  --card-foreground: var(--text-primary);
+  --popover: var(--bg-surface);
+  --popover-foreground: var(--text-primary);
+
+  /* Primary = accent-primary */
+  --primary: var(--accent-primary);
+  --primary-foreground: #ffffff;
+
+  /* Semantic states */
+  --success: var(--accent-primary);
+  --warning: var(--signal-warning);
+  --proxy: var(--status-proxy);
+  --destructive: var(--signal-critical);
+
+  /* Secondary / Muted */
+  --secondary: var(--bg-surface-hover);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--bg-surface);
+  --muted-foreground: var(--text-secondary);
+  --accent: var(--bg-surface-hover);
+  --accent-foreground: var(--text-primary);
+
+  /* Borders & Input */
+  --border: var(--border-default);
+  --input: var(--border-default);
+  --ring: var(--accent-primary);
+
+  /* Charts — gradient from accent-primary at different opacities */
+  --chart-1: var(--accent-primary);
+  --chart-2: rgba(29, 158, 117, 0.8);
+  --chart-3: rgba(29, 158, 117, 0.6);
+  --chart-4: rgba(29, 158, 117, 0.4);
+  --chart-5: rgba(29, 158, 117, 0.2);
+
+  /* Sidebar */
+  --sidebar: var(--bg-canvas);
+  --sidebar-foreground: var(--text-primary);
+  --sidebar-primary: var(--accent-primary);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--bg-surface-hover);
+  --sidebar-accent-foreground: var(--text-primary);
+  --sidebar-border: var(--border-default);
+  --sidebar-ring: var(--accent-primary);
+
+  /* Radius */
+  --radius: 0.75rem;
 }
 
 @layer base {

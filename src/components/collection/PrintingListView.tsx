@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useCallback, useRef } from 'react'
-import { createPortal } from 'react-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { ChevronUp, ChevronDown, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { CardHoverPreview as SharedCardHoverPreview } from '@/components/CardHoverPreview'
 import { truncateName, formatPrice } from '@/lib/collection-printing-utils'
 import type { PrintingRowResponse } from '@/lib/collection-printing-utils'
 import type { PrintingSortField, SortDirection } from '@/lib/collection-filters'
@@ -73,7 +73,7 @@ function SortableHeader({
   const baseClasses = cn(
     className,
     shrink && 'shrink-0',
-    'text-[10px] font-medium uppercase tracking-wider',
+    'text-[length:var(--fs-xs)] font-medium uppercase tracking-wider',
     align === 'right' ? 'text-right' : 'text-left'
   )
 
@@ -125,21 +125,7 @@ function formatRelativeTimestamp(iso: string): string {
   return `${month} ${day} at ${time}`
 }
 
-/* ─── CardHoverPreview ──────────────────────────────────────────────── */
-
-function CardHoverPreview({ scryfallId, cardName, x, y }: { scryfallId: string; cardName: string; x: number; y: number }) {
-  if (!scryfallId) return null
-  const a = scryfallId.charAt(0)
-  const b = scryfallId.charAt(1)
-  const url = `https://cards.scryfall.io/normal/front/${a}/${b}/${scryfallId}.jpg`
-
-  return createPortal(
-    <div style={{ position: 'fixed', left: `${x}px`, top: `${y - 8}px`, transform: 'translate(-50%, -100%)', zIndex: 9999, pointerEvents: 'none' }}>
-      <img src={url} alt={cardName} width={200} height={280} className="rounded-lg shadow-2xl shadow-black/50" style={{ display: 'block' }} />
-    </div>,
-    document.body
-  )
-}
+/* ─── CardHoverPreview — uses shared component ─────────────────────── */
 
 /* ─── PrintingListView ──────────────────────────────────────────────── */
 
@@ -170,7 +156,7 @@ export function PrintingListView({
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 36,
+    estimateSize: () => 44,
     overscan: 20,
   })
 
@@ -201,7 +187,7 @@ export function PrintingListView({
       {/* Virtualized rows */}
       <div ref={parentRef} className="flex-1 overflow-y-auto">
         {rows.length === 0 ? (
-          <div className="flex items-center justify-center py-16 text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>
+          <div className="flex items-center justify-center py-16 text-[length:var(--fs-sm)]" style={{ color: 'rgba(255,255,255,0.25)' }}>
             No cards match your filters.
           </div>
         ) : (
@@ -224,7 +210,7 @@ export function PrintingListView({
                   }}
                 >
                   {/* Qty */}
-                  <span className={cn(COL.qty, 'shrink-0 text-right text-xs tabular-nums')} style={{ color: '#e8e8e6' }}>
+                  <span className={cn(COL.qty, 'shrink-0 text-right text-[length:var(--fs-base)] tabular-nums')} style={{ color: '#e8e8e6' }}>
                     {row.quantity}
                   </span>
 
@@ -232,7 +218,7 @@ export function PrintingListView({
 
                   {/* Name */}
                   <span
-                    className={cn(COL.name, 'truncate text-xs cursor-default')}
+                    className={cn(COL.name, 'truncate text-[length:var(--fs-base)] cursor-default')}
                     style={{ color: '#e8e8e6' }}
                     title={row.cardName.length > 40 ? row.cardName : undefined}
                     onMouseEnter={(e) => handleMouseEnter(e, row)}
@@ -247,8 +233,8 @@ export function PrintingListView({
 
                   {/* Printing */}
                   <span className={cn(COL.printing, 'shrink-0 flex items-center gap-1.5')}>
-                    <span className="truncate text-xs" style={{ color: '#e8e8e6' }}>{row.setName}</span>
-                    <span className="shrink-0 text-[10px] font-mono uppercase" style={{ color: 'rgba(255,255,255,0.4)' }}>{row.setCode}</span>
+                    <span className="truncate text-[length:var(--fs-base)]" style={{ color: '#e8e8e6' }}>{row.setName}</span>
+                    <span className="shrink-0 text-[length:var(--fs-xs)] font-mono uppercase" style={{ color: 'rgba(255,255,255,0.4)' }}>{row.setCode}</span>
                   </span>
 
                   {/* Finish */}
@@ -256,13 +242,13 @@ export function PrintingListView({
                     {row.isFoil ? (
                       <span className="rounded-sm px-1 py-px text-[9px] font-medium uppercase" style={{ background: 'rgba(167,139,250,0.15)', color: 'rgba(167,139,250,0.8)', border: '0.5px solid rgba(167,139,250,0.2)' }}>Foil</span>
                     ) : (
-                      <span className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>Normal</span>
+                      <span className="text-[length:var(--fs-base)]" style={{ color: 'rgba(255,255,255,0.5)' }}>Normal</span>
                     )}
                   </span>
 
                   {/* Price */}
                   <span
-                    className={cn(COL.price, 'shrink-0 text-right text-xs tabular-nums')}
+                    className={cn(COL.price, 'shrink-0 text-right text-[length:var(--fs-base)] tabular-nums')}
                     style={{ color: row.price === null ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.5)' }}
                   >
                     {formatPrice(row.price)}
@@ -275,7 +261,7 @@ export function PrintingListView({
       </div>
 
       {/* Card hover preview */}
-      {hoverCard && <CardHoverPreview scryfallId={hoverCard.scryfallId} cardName={hoverCard.cardName} x={hoverCard.x} y={hoverCard.y} />}
+      {hoverCard && <SharedCardHoverPreview scryfallId={hoverCard.scryfallId} cardName={hoverCard.cardName} anchorX={hoverCard.x} anchorY={hoverCard.y} visible={true} />}
     </div>
   )
 }

@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { CardImage } from '@/components/CardImage'
+import { PageHeader } from '@/components/PageHeader'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -103,16 +104,16 @@ export default function SharedCardsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-[1280px] px-8 py-8">
+    <div className="mx-auto max-w-[1280px] px-8 py-8 bg-[var(--bg-canvas)] min-h-full">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Shared Cards</h1>
+        <PageHeader title="Shared Cards" />
         {groups && groups.length > 0 && (
-          <p className="mt-1 text-sm text-muted-foreground" data-testid="summary-stats">
+          <p className="mt-1 text-[length:var(--fs-md)] text-muted-foreground" data-testid="summary-stats">
             {totalShared} cards shared{collectionSynced ? ` · ${totalNeedingProxies} need proxies` : ''}
           </p>
         )}
         {!collectionSynced && groups && groups.length > 0 && (
-          <p className="mt-1 text-xs text-warning">
+          <p className="mt-1 text-[length:var(--fs-sm)] text-warning">
             Collection not synced — ownership data unavailable. Sync to see owned counts.
           </p>
         )}
@@ -121,7 +122,7 @@ export default function SharedCardsPage() {
       {error && (
         <div
           role="alert"
-          className="mb-4 flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          className="mb-4 flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-3 text-[length:var(--fs-md)] text-destructive"
         >
           <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
           <span className="flex-1">Couldn&apos;t load shared cards. {(error as Error).message}</span>
@@ -160,7 +161,7 @@ export default function SharedCardsPage() {
             {sortOrder === 'asc' ? '↑ Asc' : '↓ Desc'}
           </Button>
 
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          <label className="flex items-center gap-2 text-[length:var(--fs-md)] text-muted-foreground">
             <Switch checked={proxiesOnly} onCheckedChange={(checked) => setProxiesOnly(checked)} />
             Needs proxies only
           </label>
@@ -214,18 +215,18 @@ export default function SharedCardsPage() {
                   )}
 
                   <div className="min-w-0 flex-1">
-                    <span className="text-sm font-bold text-foreground">{group.card_name}</span>
-                    <span className="ml-2 text-xs text-muted-foreground">
+                    <span className="text-[length:var(--fs-md)] font-medium text-foreground">{group.card_name}</span>
+                    <span className="ml-2 text-[length:var(--fs-sm)] text-muted-foreground">
                       {group.printings.length} {group.printings.length === 1 ? 'printing' : 'printings'}
                     </span>
                   </div>
 
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-[length:var(--fs-sm)] text-muted-foreground">
                     In {group.total_deck_count} {group.total_deck_count === 1 ? 'deck' : 'decks'}
                   </span>
 
                   {collectionSynced && (
-                    <span className={cn('text-xs font-semibold tabular-nums', group.owned_total === 0 ? 'text-destructive' : 'text-muted-foreground')}>
+                    <span className={cn('text-[length:var(--fs-sm)] font-medium tabular-nums', group.owned_total === 0 ? 'text-destructive' : 'text-muted-foreground')}>
                       Owned: {group.owned_total}
                     </span>
                   )}
@@ -260,24 +261,24 @@ export default function SharedCardsPage() {
 
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2">
-                                <span className="text-xs font-semibold uppercase text-muted-foreground">
+                                <span className="text-[length:var(--fs-sm)] font-medium uppercase text-muted-foreground">
                                   {printing.set_code || '???'}
                                 </span>
                                 {printing.set_name && (
-                                  <span className="text-xs text-muted-foreground/70">
+                                  <span className="text-[length:var(--fs-sm)] text-muted-foreground/70">
                                     {printing.set_name}
                                   </span>
                                 )}
                                 {collectionSynced && (
                                   <span className={cn(
-                                    'text-xs tabular-nums',
-                                    printing.owned === 0 ? 'font-semibold text-destructive' : 'text-muted-foreground'
+                                    'text-[length:var(--fs-sm)] tabular-nums',
+                                    printing.owned === 0 ? 'font-medium text-destructive' : 'text-muted-foreground'
                                   )}>
                                     Owned: {printing.owned}
                                   </span>
                                 )}
                                 {isUnused && (
-                                  <Badge variant="secondary" className="text-[10px] text-muted-foreground">
+                                  <Badge variant="secondary" className="text-[length:var(--fs-xs)] text-muted-foreground">
                                     Not in any deck
                                   </Badge>
                                 )}
@@ -287,7 +288,7 @@ export default function SharedCardsPage() {
                               {printing.decks.length > 0 && (
                                 <div className="mt-1 flex flex-wrap gap-1">
                                   {printing.decks.map((deck) => (
-                                    <Badge key={deck.id} variant="secondary" className="text-[10px]">
+                                    <Badge key={deck.id} variant="secondary" className="text-[length:var(--fs-xs)]">
                                       {deck.name}
                                     </Badge>
                                   ))}

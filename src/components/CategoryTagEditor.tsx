@@ -66,7 +66,7 @@ export function CategoryTagEditor({
     <div className="flex flex-col gap-2" data-testid="category-tag-editor">
       {/* Primary category — read-only badge */}
       <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground w-16 shrink-0">Primary:</span>
+        <span className="text-[length:var(--fs-sm)] text-muted-foreground w-16 shrink-0">Primary:</span>
         <Badge variant="secondary" data-testid="primary-category-badge">
           {primaryCategory}
         </Badge>
@@ -122,14 +122,14 @@ function SecondaryDropdown({
 }: SecondaryDropdownProps) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs text-muted-foreground w-16 shrink-0">{label}</span>
+      <span className="text-[length:var(--fs-sm)] text-muted-foreground w-16 shrink-0">{label}</span>
       <select
         data-testid={`${testId}-select`}
         value={value}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
         className={cn(
-          'h-7 flex-1 rounded-md border border-input bg-background px-2 text-xs',
+          'h-7 flex-1 rounded-md border border-input bg-background px-2 text-[length:var(--fs-sm)]',
           'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1',
           'disabled:cursor-not-allowed disabled:opacity-50'
         )}

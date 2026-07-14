@@ -93,7 +93,7 @@ export function DeckEditor({ cards, onCardsChange, onBack, onCreateDeck }: DeckE
     <div className="flex flex-col gap-4" data-testid="deck-editor">
       {/* Header with card count and add button */}
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium">
+        <p className="text-[length:var(--fs-md)] font-medium">
           <span className={cn(isNot99 && 'text-warning')}>
             {cardCount}/99 cards
           </span>
@@ -108,7 +108,7 @@ export function DeckEditor({ cards, onCardsChange, onBack, onCreateDeck }: DeckE
       <div className="space-y-6">
         {sorted.map(([type, typeCards]) => (
           <section key={type} aria-label={`${pluralizeType(type)} (${typeCards.length})`}>
-            <h3 className="mb-3 text-sm font-medium text-muted-foreground">
+            <h3 className="mb-3 text-[length:var(--fs-md)] font-medium text-muted-foreground">
               {pluralizeType(type)} ({typeCards.length})
             </h3>
             <div

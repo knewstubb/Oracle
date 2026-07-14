@@ -212,7 +212,7 @@ export function CollectionToolbar({
             placeholder="Search cards..."
             value={localSearch}
             onChange={(e) => handleSearchInput(e.target.value)}
-            className="w-full rounded-md px-2.5 py-1.5 pl-[30px] text-xs text-white placeholder:text-[rgba(255,255,255,0.2)]"
+            className="w-full rounded-md px-2.5 py-1.5 pl-[30px] text-[length:var(--fs-sm)] text-white placeholder:text-[rgba(255,255,255,0.2)]"
             style={{
               background: 'rgba(255,255,255,0.05)',
               border: '0.5px solid rgba(255,255,255,0.1)',
@@ -226,7 +226,7 @@ export function CollectionToolbar({
           <select
             value={sortField}
             onChange={(e) => handleSortFieldChange(e.target.value as SortField | PrintingSortField)}
-            className="appearance-none rounded-md py-1.5 pl-2.5 pr-7 text-xs text-white"
+            className="appearance-none rounded-md py-1.5 pl-2.5 pr-7 text-[length:var(--fs-sm)] text-white"
             style={{
               background: 'rgba(255,255,255,0.05)',
               border: '0.5px solid rgba(255,255,255,0.1)',
@@ -455,7 +455,7 @@ function ColorIdentityFilter({
 
       {/* Mode toggle */}
       <div
-        className="ml-1 flex overflow-hidden rounded text-[10px]"
+        className="ml-1 flex overflow-hidden rounded text-[length:var(--fs-xs)]"
         style={{
           background: 'rgba(255,255,255,0.04)',
           border: '0.5px solid rgba(255,255,255,0.1)',

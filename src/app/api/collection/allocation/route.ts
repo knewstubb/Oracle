@@ -72,29 +72,35 @@ export async function GET(request: NextRequest) {
         card_name,
         deck_id,
         ownership_status,
-        decks!inner ( name )
+        decks!deck_cards_deck_id_fkey!inner ( name )
       `)
       .order('card_name')
 
     if (dcErr) throw dcErr
 
-    // Get collection quantities by card name
-    const { data: collData, error: collErr } = await supabase
-      .from('collection')
-      .select('card_name, quantity, types')
+    // Get owned copies count from physical_copies (non-proxy) grouped by card name
+    // via card_definitions join — replaces frozen collection.quantity
+    const { data: physicalData, error: physErr } = await supabase
+      .from('physical_copies')
+      .select('card_definition_id, card_definitions!physical_copies_card_definition_id_fkey ( card_name, type_line )')
+      .eq('is_proxy', false)
 
-    if (collErr) throw collErr
+    if (physErr) throw physErr
 
-    // Build collection lookup
-    const collectionMap = new Map<string, { quantity: number; types: string | null }>()
-    for (const c of collData || []) {
-      const existing = collectionMap.get(c.card_name.toLowerCase())
+    // Build ownership lookup from physical_copies count
+    const ownershipMap = new Map<string, { count: number; typeLine: string | null }>()
+    for (const pc of physicalData || []) {
+      const cdInfo = pc.card_definitions as unknown as { card_name: string; type_line: string | null }
+      const cardName = cdInfo?.card_name
+      if (!cardName) continue
+      const key = cardName.toLowerCase()
+      const existing = ownershipMap.get(key)
       if (existing) {
-        existing.quantity += c.quantity ?? 0
+        existing.count += 1
       } else {
-        collectionMap.set(c.card_name.toLowerCase(), {
-          quantity: c.quantity ?? 0,
-          types: c.types ?? null,
+        ownershipMap.set(key, {
+          count: 1,
+          typeLine: cdInfo.type_line ?? null,
         })
       }
     }
@@ -114,12 +120,12 @@ export async function GET(request: NextRequest) {
     for (const row of allDeckCards) {
       const deckInfo = row.decks as unknown as { name: string }
       const deckName = deckInfo?.name || ''
-      const collEntry = collectionMap.get(row.card_name.toLowerCase())
+      const ownerEntry = ownershipMap.get(row.card_name.toLowerCase())
 
       if (!cardMap.has(row.card_name)) {
         cardMap.set(row.card_name, {
-          typeLine: collEntry?.types ?? null,
-          ownedCopies: collEntry?.quantity ?? 0,
+          typeLine: ownerEntry?.typeLine ?? null,
+          ownedCopies: ownerEntry?.count ?? 0,
           decks: [],
         })
       }
@@ -178,8 +184,11 @@ export async function GET(request: NextRequest) {
       return a.cardName.localeCompare(b.cardName)
     })
 
-    // Compute stats
-    const totalOwned = (collData || []).reduce((sum, r) => sum + (r.quantity ?? 0), 0)
+    // Compute stats — totalOwned now derived from physical_copies count
+    let totalOwned = 0
+    for (const [, entry] of ownershipMap) {
+      totalOwned += entry.count
+    }
     const inADeckNames = new Set(allDeckCards.map((r) => r.card_name))
     const inADeck = inADeckNames.size
     const notInDeck = Math.max(0, totalOwned - inADeck)

@@ -146,7 +146,7 @@ export function RecommendationsPanel({ deckId }: RecommendationsPanelProps) {
       <div className="mx-auto max-w-[900px]">
         <div className="flex flex-col items-center gap-4 py-16" aria-live="polite">
           <Loader2 className="size-8 animate-spin text-primary" aria-hidden="true" />
-          <p className="text-sm text-muted-foreground">Loading upgrade suggestions...</p>
+          <p className="text-[length:var(--fs-md)] text-muted-foreground">Loading upgrade suggestions...</p>
         </div>
       </div>
     )
@@ -158,7 +158,7 @@ export function RecommendationsPanel({ deckId }: RecommendationsPanelProps) {
       <div className="mx-auto max-w-[900px]">
         <div
           role="alert"
-          className="flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          className="flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-3 text-[length:var(--fs-md)] text-destructive"
         >
           <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
           <span className="flex-1">
@@ -179,7 +179,7 @@ export function RecommendationsPanel({ deckId }: RecommendationsPanelProps) {
       <div className="mx-auto max-w-[900px]">
         <div className="flex flex-col items-center gap-4 py-16 text-center">
           <Sparkles className="size-10 text-muted-foreground" aria-hidden="true" />
-          <p className="text-sm text-muted-foreground">
+          <p className="text-[length:var(--fs-md)] text-muted-foreground">
             No upgrade suggestions generated yet. Run the upgrade engine to get personalised recommendations.
           </p>
         </div>
@@ -192,7 +192,7 @@ export function RecommendationsPanel({ deckId }: RecommendationsPanelProps) {
     <div className="mx-auto max-w-[900px] space-y-6 pb-12" role="region" aria-label="Upgrade recommendations">
       {/* Budget Mode Toggle (SegmentedControl) */}
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Paired Swap Suggestions</h2>
+        <h2 className="text-[length:var(--fs-lg)] font-medium">Paired Swap Suggestions</h2>
         <SegmentedControl
           value={budgetMode}
           onChange={setBudgetMode}
@@ -201,7 +201,7 @@ export function RecommendationsPanel({ deckId }: RecommendationsPanelProps) {
       </div>
 
       {/* Results count */}
-      <p className="text-xs text-muted-foreground">
+      <p className="text-[length:var(--fs-sm)] text-muted-foreground">
         {displayedUpgrades.length} suggestion{displayedUpgrades.length !== 1 ? 's' : ''} shown
         {budgetMode !== 'unrestricted' && ` (${budgetMode} filter active)`}
       </p>
@@ -210,7 +210,7 @@ export function RecommendationsPanel({ deckId }: RecommendationsPanelProps) {
       {displayedUpgrades.length === 0 && (
         <div className="flex flex-col items-center gap-3 py-12 text-center">
           <Sparkles className="size-8 text-muted-foreground" aria-hidden="true" />
-          <p className="text-sm text-muted-foreground">
+          <p className="text-[length:var(--fs-md)] text-muted-foreground">
             No suggestions match the current filter. Try switching to a less restrictive mode.
           </p>
         </div>
@@ -251,7 +251,7 @@ function SegmentedControl({
           role="radio"
           aria-checked={value === opt.value}
           className={cn(
-            'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+            'rounded-md px-3 py-1.5 text-[length:var(--fs-sm)] font-medium transition-colors',
             value === opt.value
               ? 'bg-background text-foreground shadow-sm'
               : 'text-muted-foreground hover:text-foreground'
@@ -282,27 +282,27 @@ function PairedSwapRow({ upgrade }: { upgrade: UpgradeItem }) {
         />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="truncate text-sm font-medium">{upgrade.cardName}</span>
+            <span className="truncate text-[length:var(--fs-md)] font-medium">{upgrade.cardName}</span>
             {/* Ownership badge */}
             {upgrade.owned ? (
-              <Badge className="border-green-500 bg-green-100 text-green-800 text-[10px] dark:bg-green-900/30 dark:text-green-300">
+              <Badge className="border-green-500 bg-green-100 text-green-800 text-[length:var(--fs-xs)] dark:bg-green-900/30 dark:text-green-300">
                 Owned
               </Badge>
             ) : (
-              <Badge variant="secondary" className="text-[10px]">
+              <Badge variant="secondary" className="text-[length:var(--fs-xs)]">
                 Buy
               </Badge>
             )}
           </div>
           {/* Synergy score + price */}
-          <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="mt-0.5 flex items-center gap-2 text-[length:var(--fs-sm)] text-muted-foreground">
             <span>{Math.round(upgrade.synergyScore)}% synergy</span>
             {!upgrade.owned && upgrade.price !== null && (
               <span className="font-medium">${upgrade.price.toFixed(2)}</span>
             )}
           </div>
           {upgrade.reason && (
-            <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{upgrade.reason}</p>
+            <p className="mt-0.5 line-clamp-1 text-[length:var(--fs-sm)] text-muted-foreground">{upgrade.reason}</p>
           )}
         </div>
       </div>
@@ -324,20 +324,20 @@ function PairedSwapRow({ upgrade }: { upgrade: UpgradeItem }) {
             />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="truncate text-sm font-medium">{upgrade.suggestedCut}</span>
+                <span className="truncate text-[length:var(--fs-md)] font-medium">{upgrade.suggestedCut}</span>
                 {/* Dead weight flag badge */}
                 {upgrade.cutFlag && (
-                  <Badge className={cn('text-[10px]', FLAG_STYLES[upgrade.cutFlag].bg)}>
+                  <Badge className={cn('text-[length:var(--fs-xs)]', FLAG_STYLES[upgrade.cutFlag].bg)}>
                     {FLAG_STYLES[upgrade.cutFlag].label}
                   </Badge>
                 )}
               </div>
-              <p className="mt-0.5 text-xs text-muted-foreground">Suggested cut</p>
+              <p className="mt-0.5 text-[length:var(--fs-sm)] text-muted-foreground">Suggested cut</p>
             </div>
           </>
         ) : (
           <div className="flex flex-1 items-center">
-            <span className="text-xs text-muted-foreground italic">No paired cut</span>
+            <span className="text-[length:var(--fs-sm)] text-muted-foreground italic">No paired cut</span>
           </div>
         )}
       </div>

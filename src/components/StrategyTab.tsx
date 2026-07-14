@@ -354,7 +354,7 @@ export function StrategyTab({ deckId, deckType, commanderName, cards }: Strategy
     return (
       <div className="flex items-center gap-2 p-4 text-destructive">
         <AlertCircle className="h-4 w-4" />
-        <span className="text-sm">Failed to load strategy data</span>
+        <span className="text-[length:var(--fs-md)]">Failed to load strategy data</span>
       </div>
     )
   }
@@ -373,7 +373,7 @@ export function StrategyTab({ deckId, deckType, commanderName, cards }: Strategy
       {/* ─── Section 2: Deck intent ─────────────────────────────────── */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium">Deck intent</h3>
+          <h3 className="text-[length:var(--fs-md)] font-medium">Deck intent</h3>
           {!isEditing && strategy?.configured && (
             <Button variant="ghost" size="sm" onClick={startEditing}>
               <Pencil className="h-3.5 w-3.5 mr-1" />
@@ -390,7 +390,7 @@ export function StrategyTab({ deckId, deckType, commanderName, cards }: Strategy
               border: '0.5px dashed rgba(255,255,255,0.15)',
             }}
           >
-            <p className="text-sm text-muted-foreground mb-3">
+            <p className="text-[length:var(--fs-md)] text-muted-foreground mb-3">
               Configure your deck&apos;s strategic intent to drive personalised recommendations.
             </p>
             <Button size="sm" onClick={startEditing}>
@@ -456,7 +456,7 @@ export function StrategyTab({ deckId, deckType, commanderName, cards }: Strategy
                 <select
                   value={bracket}
                   onChange={e => setBracket(e.target.value ? Number(e.target.value) : '')}
-                  className="h-9 w-full rounded-md px-3 py-1 text-sm"
+                  className="h-9 w-full rounded-md px-3 py-1 text-[length:var(--fs-md)]"
                   style={fieldStyle}
                 >
                   <option value="">Select bracket...</option>
@@ -491,7 +491,7 @@ export function StrategyTab({ deckId, deckType, commanderName, cards }: Strategy
                 <select
                   value={budgetMode}
                   onChange={e => setBudgetMode(e.target.value)}
-                  className="h-9 w-full rounded-md px-3 py-1 text-sm"
+                  className="h-9 w-full rounded-md px-3 py-1 text-[length:var(--fs-md)]"
                   style={fieldStyle}
                 >
                   <option value="">Select budget mode...</option>
@@ -504,7 +504,7 @@ export function StrategyTab({ deckId, deckType, commanderName, cards }: Strategy
                 <select
                   value={formatType}
                   onChange={e => setFormatType(e.target.value)}
-                  className="h-9 w-full rounded-md px-3 py-1 text-sm"
+                  className="h-9 w-full rounded-md px-3 py-1 text-[length:var(--fs-md)]"
                   style={fieldStyle}
                 >
                   {FORMAT_TYPE_OPTIONS.map(opt => (
@@ -557,12 +557,12 @@ export function StrategyTab({ deckId, deckType, commanderName, cards }: Strategy
       {/* ─── Section 3: Category manager ────────────────────────────── */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium">Categories</h3>
+          <h3 className="text-[length:var(--fs-md)] font-medium">Categories</h3>
           <div className="flex items-center gap-2">
             <Button
               size="sm"
               variant="ghost"
-              className="text-xs"
+              className="text-[length:var(--fs-sm)]"
               style={{ color: '#1D9E75' }}
             >
               <Plus className="h-3 w-3 mr-1" />
@@ -571,7 +571,7 @@ export function StrategyTab({ deckId, deckType, commanderName, cards }: Strategy
             <Button
               size="sm"
               variant="outline"
-              className="text-xs"
+              className="text-[length:var(--fs-sm)]"
               onClick={() => setShowSyncConfirm(true)}
             >
               <RefreshCw className="h-3 w-3 mr-1" />
@@ -598,22 +598,22 @@ export function StrategyTab({ deckId, deckType, commanderName, cards }: Strategy
               )}
 
               {/* Name */}
-              <span className="text-sm flex-1">{cat.name}</span>
+              <span className="text-[length:var(--fs-md)] flex-1">{cat.name}</span>
 
               {/* Count */}
-              <span className="text-xs text-muted-foreground tabular-nums">{cat.count}</span>
+              <span className="text-[length:var(--fs-sm)] text-muted-foreground tabular-nums">{cat.count}</span>
 
               {/* Badge */}
               {cat.isCore ? (
                 <Badge
                   variant="secondary"
-                  className="text-[10px] px-1.5 py-0"
+                  className="text-[length:var(--fs-xs)] px-1.5 py-0"
                   style={{ background: 'rgba(29,158,117,0.1)', color: '#1D9E75' }}
                 >
                   Core
                 </Badge>
               ) : (
-                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                <Badge variant="secondary" className="text-[length:var(--fs-xs)] px-1.5 py-0">
                   Custom
                 </Badge>
               )}
@@ -621,7 +621,7 @@ export function StrategyTab({ deckId, deckType, commanderName, cards }: Strategy
               {/* Overlap warning */}
               {overlaps[cat.name] && (
                 <Badge
-                  className="text-[10px] px-1.5 py-0"
+                  className="text-[length:var(--fs-xs)] px-1.5 py-0"
                   style={{ background: 'rgba(239,159,39,0.15)', color: '#EF9F27' }}
                 >
                   Overlaps with {overlaps[cat.name]}
@@ -654,7 +654,7 @@ export function StrategyTab({ deckId, deckType, commanderName, cards }: Strategy
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <BookOpen className="h-4 w-4" style={{ color: '#1D9E75' }} />
-          <h3 className="text-sm font-medium">Deck Documentation</h3>
+          <h3 className="text-[length:var(--fs-md)] font-medium">Deck Documentation</h3>
         </div>
 
         {isDocLoading && (
@@ -667,7 +667,7 @@ export function StrategyTab({ deckId, deckType, commanderName, cards }: Strategy
         {docError && (
           <div className="flex items-center gap-2 p-3 rounded-md" style={{ background: 'rgba(239,68,68,0.05)', border: '0.5px solid rgba(239,68,68,0.2)' }}>
             <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-            <span className="text-sm text-destructive">Failed to load documentation</span>
+            <span className="text-[length:var(--fs-md)] text-destructive">Failed to load documentation</span>
           </div>
         )}
 
@@ -679,7 +679,7 @@ export function StrategyTab({ deckId, deckType, commanderName, cards }: Strategy
               border: '0.5px dashed rgba(255,255,255,0.15)',
             }}
           >
-            <p className="text-sm text-muted-foreground">
+            <p className="text-[length:var(--fs-md)] text-muted-foreground">
               No documentation generated yet.
             </p>
           </div>
@@ -729,13 +729,13 @@ export function StrategyTab({ deckId, deckType, commanderName, cards }: Strategy
                         onChange={e => setEditDocValue(e.target.value)}
                         rows={5}
                         style={fieldStyle}
-                        className="text-sm"
+                        className="text-[length:var(--fs-md)]"
                         placeholder={`Enter ${label.toLowerCase()}...`}
                       />
                       <div className="flex gap-2">
                         <Button
                           size="sm"
-                          className="h-7 text-xs text-white hover:opacity-90"
+                          className="h-7 text-[length:var(--fs-sm)] text-white hover:opacity-90"
                           style={{ background: '#1D9E75' }}
                           disabled={docMutation.isPending}
                           onClick={() => {
@@ -752,7 +752,7 @@ export function StrategyTab({ deckId, deckType, commanderName, cards }: Strategy
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-7 text-xs"
+                          className="h-7 text-[length:var(--fs-sm)]"
                           disabled={docMutation.isPending}
                           onClick={() => {
                             setEditingDocField(null)
@@ -766,7 +766,7 @@ export function StrategyTab({ deckId, deckType, commanderName, cards }: Strategy
                     </div>
                   ) : (
                     <div
-                      className="rounded-md px-3 py-2 text-sm whitespace-pre-wrap"
+                      className="rounded-md px-3 py-2 text-[length:var(--fs-md)] whitespace-pre-wrap"
                       style={fieldStyle}
                     >
                       {value}
@@ -781,7 +781,7 @@ export function StrategyTab({ deckId, deckType, commanderName, cards }: Strategy
 
       {/* ─── Section 5: Notes ───────────────────────────────────────── */}
       <section className="space-y-3">
-        <h3 className="text-sm font-medium">Notes</h3>
+        <h3 className="text-[length:var(--fs-md)] font-medium">Notes</h3>
 
         {isNotesLoading && (
           <div className="space-y-2">
@@ -793,12 +793,12 @@ export function StrategyTab({ deckId, deckType, commanderName, cards }: Strategy
         {notesError && (
           <div className="flex items-center gap-2 p-3 rounded-md" style={{ background: 'rgba(239,68,68,0.05)', border: '0.5px solid rgba(239,68,68,0.2)' }}>
             <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-            <span className="text-sm text-destructive">Failed to load notes</span>
+            <span className="text-[length:var(--fs-md)] text-destructive">Failed to load notes</span>
           </div>
         )}
 
         {!isNotesLoading && !notesError && notesData?.notes.length === 0 && (
-          <p className="text-sm text-muted-foreground">No notes yet.</p>
+          <p className="text-[length:var(--fs-md)] text-muted-foreground">No notes yet.</p>
         )}
 
         {!isNotesLoading && !notesError && notesData && notesData.notes.length > 0 && (
@@ -812,10 +812,10 @@ export function StrategyTab({ deckId, deckType, commanderName, cards }: Strategy
                   border: '0.5px solid rgba(255,255,255,0.06)',
                 }}
               >
-                <span className="text-[10px] text-muted-foreground block mb-1">
+                <span className="text-[length:var(--fs-xs)] text-muted-foreground block mb-1">
                   {new Date(note.created_at).toLocaleString()}
                 </span>
-                <p className="text-sm whitespace-pre-wrap">{note.content}</p>
+                <p className="text-[length:var(--fs-md)] whitespace-pre-wrap">{note.content}</p>
               </div>
             ))}
           </div>
@@ -861,7 +861,7 @@ function FieldDisplay({
     <div className={fullWidth ? 'md:col-span-2' : ''}>
       <span className="text-[11px] text-muted-foreground block mb-0.5">{label}</span>
       <div
-        className="rounded-md px-3 py-2 text-sm"
+        className="rounded-md px-3 py-2 text-[length:var(--fs-md)]"
         style={fieldStyle}
       >
         {value}

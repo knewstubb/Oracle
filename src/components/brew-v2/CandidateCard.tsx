@@ -95,7 +95,7 @@ export function CandidateCard({
 
           {/* Description — 1-2 lines */}
           <p
-            className="text-xs leading-tight text-gray-300 line-clamp-2"
+            className="text-[length:var(--fs-sm)] leading-tight text-gray-300 line-clamp-2"
             title={commander.description}
           >
             {commander.description}
@@ -111,7 +111,7 @@ export function CandidateCard({
               e.stopPropagation()
               onCommit(commander)
             }}
-            className="w-full flex items-center justify-center gap-1.5 rounded py-1.5 text-xs font-medium text-white transition-colors hover:brightness-110"
+            className="w-full flex items-center justify-center gap-1.5 rounded py-1.5 text-[length:var(--fs-sm)] font-medium text-white transition-colors hover:brightness-110"
             style={{
               background: '#378ADD',
             }}
@@ -170,7 +170,7 @@ function CardArt({ commander }: { commander: CommanderOption }) {
           background: 'linear-gradient(to top, rgba(0,0,0,0.85), transparent)',
         }}
       >
-        <span className="text-xs font-semibold text-white leading-tight block truncate">
+        <span className="text-[length:var(--fs-sm)] font-medium text-white leading-tight block truncate">
           {commander.name}
         </span>
       </div>
@@ -188,7 +188,7 @@ function OwnershipStatus({ owned }: { owned: boolean }) {
           style={{ backgroundColor: '#2dd4bf' }}
           aria-hidden="true"
         />
-        <span className="text-xs" style={{ color: '#2dd4bf' }}>
+        <span className="text-[length:var(--fs-sm)]" style={{ color: '#2dd4bf' }}>
           You own this
         </span>
       </div>
@@ -202,7 +202,7 @@ function OwnershipStatus({ owned }: { owned: boolean }) {
         style={{ borderColor: 'rgba(255,255,255,0.3)' }}
         aria-hidden="true"
       />
-      <span className="text-xs text-muted-foreground">Not in collection</span>
+      <span className="text-[length:var(--fs-sm)] text-muted-foreground">Not in collection</span>
     </div>
   )
 }

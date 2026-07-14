@@ -35,7 +35,7 @@ function FitScoreBar({ score }: { score: number }) {
           style={{ width: `${widthPercent}%` }}
         />
       </div>
-      <span className={`text-[10px] font-medium ${text} shrink-0`}>
+      <span className={`text-[length:var(--fs-xs)] font-medium ${text} shrink-0`}>
         {score}/10
       </span>
     </div>
@@ -50,11 +50,11 @@ function LoadingState() {
   return (
     <div className="flex items-center gap-1.5 py-2">
       <span className="inline-flex gap-0.5 animate-pulse">
-        <span className="text-muted-foreground text-xs">●</span>
-        <span className="text-muted-foreground text-xs">●</span>
-        <span className="text-muted-foreground text-xs">●</span>
+        <span className="text-muted-foreground text-[length:var(--fs-sm)]">●</span>
+        <span className="text-muted-foreground text-[length:var(--fs-sm)]">●</span>
+        <span className="text-muted-foreground text-[length:var(--fs-sm)]">●</span>
       </span>
-      <span className="text-xs italic text-muted-foreground">
+      <span className="text-[length:var(--fs-sm)] italic text-muted-foreground">
         Assessing for this deck...
       </span>
     </div>
@@ -80,7 +80,7 @@ export function InlineAssessment({
           {assessment.pros.length > 0 && (
             <ul className="space-y-0.5">
               {assessment.pros.map((pro, i) => (
-                <li key={i} className="flex items-start gap-1.5 text-xs">
+                <li key={i} className="flex items-start gap-1.5 text-[length:var(--fs-sm)]">
                   <span className="text-green-400 font-medium shrink-0">+</span>
                   <span className="text-[#d4d4d0]">{pro}</span>
                 </li>
@@ -92,7 +92,7 @@ export function InlineAssessment({
           {assessment.cons.length > 0 && (
             <ul className="space-y-0.5">
               {assessment.cons.map((con, i) => (
-                <li key={i} className="flex items-start gap-1.5 text-xs">
+                <li key={i} className="flex items-start gap-1.5 text-[length:var(--fs-sm)]">
                   <span className="text-red-400 font-medium shrink-0">−</span>
                   <span className="text-[#d4d4d0]">{con}</span>
                 </li>
@@ -104,7 +104,7 @@ export function InlineAssessment({
           <FitScoreBar score={assessment.fit_score} />
 
           {/* Fit Note */}
-          <p className="text-xs text-muted-foreground leading-relaxed">
+          <p className="text-[length:var(--fs-sm)] text-muted-foreground leading-relaxed">
             {assessment.fit_note}
           </p>
 
@@ -116,7 +116,7 @@ export function InlineAssessment({
                 e.stopPropagation()
                 onRemove()
               }}
-              className="text-xs text-red-400 hover:text-red-300 transition-colors"
+              className="text-[length:var(--fs-sm)] text-red-400 hover:text-red-300 transition-colors"
             >
               Remove
             </button>
@@ -126,7 +126,7 @@ export function InlineAssessment({
                 e.stopPropagation()
                 onDiscuss()
               }}
-              className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+              className="text-[length:var(--fs-sm)] text-blue-400 hover:text-blue-300 transition-colors"
             >
               Discuss
             </button>

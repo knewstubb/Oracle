@@ -102,7 +102,7 @@ export function DeckScanPanel({ deckId, commanderName, cards }: DeckScanPanelPro
       <div className="mx-auto max-w-[800px]">
         <div className="flex flex-col items-center gap-4 py-16 text-center">
           <Sparkles className="size-10 text-muted-foreground" aria-hidden="true" />
-          <p className="text-sm text-muted-foreground">
+          <p className="text-[length:var(--fs-md)] text-muted-foreground">
             Run a scan to analyze this deck&apos;s strategy, combos, and power level.
           </p>
           <Button onClick={handleScan}>
@@ -122,7 +122,7 @@ export function DeckScanPanel({ deckId, commanderName, cards }: DeckScanPanelPro
           <Loader2 className="size-8 animate-spin text-primary" aria-hidden="true" />
           <ul className="space-y-3" role="list" aria-label="Analysis progress">
             {SCAN_STEPS.map((step, i) => (
-              <li key={step} className="flex items-center gap-2 text-sm">
+              <li key={step} className="flex items-center gap-2 text-[length:var(--fs-md)]">
                 {i < currentStep ? (
                   <CheckCircle2 className="size-4 text-success" aria-hidden="true" />
                 ) : i === currentStep ? (
@@ -147,7 +147,7 @@ export function DeckScanPanel({ deckId, commanderName, cards }: DeckScanPanelPro
       <div className="mx-auto max-w-[800px]">
         <div
           role="alert"
-          className="flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          className="flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-3 text-[length:var(--fs-md)] text-destructive"
         >
           <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
           <span className="flex-1">Analysis failed: {errorMessage}</span>
@@ -167,8 +167,8 @@ export function DeckScanPanel({ deckId, commanderName, cards }: DeckScanPanelPro
     <div className="mx-auto max-w-[800px] space-y-8 pb-12" role="region" aria-label="Deck scan results" aria-live="polite">
       {/* Strategy Summary */}
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Strategy</h2>
-        <p className="text-sm leading-relaxed text-muted-foreground">
+        <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium">Strategy</h2>
+        <p className="text-[length:var(--fs-md)] leading-relaxed text-muted-foreground">
           {result.strategy}
         </p>
       </section>
@@ -176,10 +176,10 @@ export function DeckScanPanel({ deckId, commanderName, cards }: DeckScanPanelPro
       {/* Win Conditions */}
       {result.winConditions.length > 0 && (
         <section>
-          <h2 className="mb-3 text-lg font-semibold">Win Conditions</h2>
+          <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium">Win Conditions</h2>
           <ul className="space-y-2">
             {result.winConditions.map((wc, i) => (
-              <li key={i} className="text-sm leading-relaxed text-muted-foreground">
+              <li key={i} className="text-[length:var(--fs-md)] leading-relaxed text-muted-foreground">
                 <CardTextWithPopovers text={wc} cardLookup={cardLookup} />
               </li>
             ))}
@@ -190,7 +190,7 @@ export function DeckScanPanel({ deckId, commanderName, cards }: DeckScanPanelPro
       {/* Combos */}
       {result.combos.length > 0 && (
         <section>
-          <h2 className="mb-3 text-lg font-semibold">Combos</h2>
+          <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium">Combos</h2>
           <div className="space-y-4">
             {result.combos.map((combo, i) => (
               <ComboGroup key={i} combo={combo} cardLookup={cardLookup} />
@@ -202,10 +202,10 @@ export function DeckScanPanel({ deckId, commanderName, cards }: DeckScanPanelPro
       {/* Strengths */}
       {result.strengths.length > 0 && (
         <section>
-          <h2 className="mb-3 text-lg font-semibold">Strengths</h2>
+          <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium">Strengths</h2>
           <ul className="space-y-2">
             {result.strengths.map((s, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm">
+              <li key={i} className="flex items-start gap-2 text-[length:var(--fs-md)]">
                 <span className="mt-1.5 size-2 shrink-0 rounded-full bg-success" aria-hidden="true" />
                 <span className="text-muted-foreground">
                   <CardTextWithPopovers text={s} cardLookup={cardLookup} />
@@ -219,10 +219,10 @@ export function DeckScanPanel({ deckId, commanderName, cards }: DeckScanPanelPro
       {/* Weaknesses */}
       {result.weaknesses.length > 0 && (
         <section>
-          <h2 className="mb-3 text-lg font-semibold">Weaknesses</h2>
+          <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium">Weaknesses</h2>
           <ul className="space-y-2">
             {result.weaknesses.map((w, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm">
+              <li key={i} className="flex items-start gap-2 text-[length:var(--fs-md)]">
                 <span className="mt-1.5 size-2 shrink-0 rounded-full bg-warning" aria-hidden="true" />
                 <span className="text-muted-foreground">
                   <CardTextWithPopovers text={w} cardLookup={cardLookup} />
@@ -236,9 +236,9 @@ export function DeckScanPanel({ deckId, commanderName, cards }: DeckScanPanelPro
       {/* Power Level / Bracket */}
       {result.bracket && (
         <section>
-          <h2 className="mb-3 text-lg font-semibold">Power Level</h2>
+          <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium">Power Level</h2>
           <div className="flex items-center gap-3">
-            <Badge variant="secondary" className="text-sm">
+            <Badge variant="secondary" className="text-[length:var(--fs-md)]">
               {result.bracket}
             </Badge>
           </div>
@@ -283,7 +283,7 @@ function ComboGroup({ combo, cardLookup }: { combo: Combo; cardLookup: CardLooku
                 tags={card.tags}
               >
                 <span
-                  className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted/80 cursor-pointer"
+                  className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-[length:var(--fs-sm)] font-medium text-foreground transition-colors hover:bg-muted/80 cursor-pointer"
                   role="link"
                   aria-label={`View ${cardName}`}
                 >
@@ -303,7 +303,7 @@ function ComboGroup({ combo, cardLookup }: { combo: Combo; cardLookup: CardLooku
           return (
             <span
               key={cardName}
-              className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-xs font-medium text-foreground"
+              className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-[length:var(--fs-sm)] font-medium text-foreground"
             >
               {cardName}
             </span>
@@ -311,7 +311,7 @@ function ComboGroup({ combo, cardLookup }: { combo: Combo; cardLookup: CardLooku
         })}
       </div>
       {combo.result && (
-        <p className="text-xs text-muted-foreground">{combo.result}</p>
+        <p className="text-[length:var(--fs-sm)] text-muted-foreground">{combo.result}</p>
       )}
     </div>
   )

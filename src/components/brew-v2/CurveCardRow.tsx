@@ -35,7 +35,7 @@ export function CurveCardRow({ card }: CurveCardRowProps) {
       />
 
       {/* Card name — truncated */}
-      <span className="text-[9px] text-[rgba(255,255,255,0.85)] truncate flex-1 leading-tight">
+      <span className="text-[length:var(--fs-base)] text-[rgba(255,255,255,0.85)] truncate flex-1 leading-tight">
         {card.card_name}
       </span>
 
@@ -48,7 +48,7 @@ export function CurveCardRow({ card }: CurveCardRowProps) {
           {secondaryCategories.map((cat) => (
             <span
               key={cat}
-              className="inline-flex items-center justify-center w-2 h-2 rounded-full text-[5px] font-bold text-white leading-none"
+              className="inline-flex items-center justify-center w-2 h-2 rounded-full text-[5px] font-medium text-white leading-none"
               style={{ backgroundColor: categorySecondaryColour(cat) }}
               aria-label={`Secondary: ${cat}`}
             >
@@ -59,7 +59,7 @@ export function CurveCardRow({ card }: CurveCardRowProps) {
       )}
 
       {/* CMC — right-aligned */}
-      <span className="text-[8px] text-[rgba(255,255,255,0.4)] shrink-0 tabular-nums w-3 text-right">
+      <span className="text-[length:var(--fs-base)] text-[rgba(255,255,255,0.4)] shrink-0 tabular-nums w-3 text-right">
         {card.cmc}
       </span>
     </div>

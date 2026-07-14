@@ -64,11 +64,11 @@ export function SharedCardRow({ card, collectionSynced = true }: SharedCardRowPr
 
         {/* Name + set code */}
         <div className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-foreground">
+          <span className="block truncate text-[length:var(--fs-base)] font-medium text-foreground">
             {card.card_name}
           </span>
           {card.set_code && (
-            <span className="text-xs text-muted-foreground uppercase">
+            <span className="text-[length:var(--fs-sm)] text-muted-foreground uppercase">
               {card.set_code}
             </span>
           )}
@@ -77,18 +77,18 @@ export function SharedCardRow({ card, collectionSynced = true }: SharedCardRowPr
         {/* Deck badges */}
         <div className="flex flex-wrap items-center gap-1">
           {card.decks.map((deck) => (
-            <Badge key={deck.id} variant="secondary" className="text-xs">
+            <Badge key={deck.id} variant="secondary" className="text-[length:var(--fs-sm)]">
               {deck.name}
             </Badge>
           ))}
         </div>
 
         {/* Owned count — red if 0, hidden if no collection */}
-        <div className="flex shrink-0 items-center gap-1.5 text-xs">
+        <div className="flex shrink-0 items-center gap-1.5 text-[length:var(--fs-sm)]">
           {collectionSynced ? (
             <span
               className={cn(
-                'font-semibold tabular-nums',
+                'font-medium tabular-nums',
                 isZeroOwned ? 'text-destructive' : 'text-muted-foreground'
               )}
             >

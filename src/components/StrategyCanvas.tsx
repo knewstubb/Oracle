@@ -242,7 +242,7 @@ export function StrategyCanvas({ deckId, deckType }: StrategyCanvasProps) {
     return (
       <div className="flex items-center gap-2 p-4 text-destructive">
         <AlertCircle className="h-4 w-4" />
-        <span className="text-sm">Failed to load strategy data</span>
+        <span className="text-[length:var(--fs-md)]">Failed to load strategy data</span>
       </div>
     )
   }
@@ -254,8 +254,8 @@ export function StrategyCanvas({ deckId, deckType }: StrategyCanvasProps) {
     return (
       <div className="rounded-lg border border-dashed border-muted-foreground/30 p-6 text-center">
         <Sparkles className="mx-auto h-8 w-8 text-muted-foreground/50 mb-3" />
-        <h3 className="text-sm font-medium mb-2">Strategy Canvas</h3>
-        <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
+        <h3 className="text-[length:var(--fs-md)] font-medium mb-2">Strategy Canvas</h3>
+        <p className="text-[length:var(--fs-md)] text-muted-foreground mb-4 max-w-md mx-auto">
           Configure your deck&apos;s strategic intent — win conditions, power level,
           budget preferences, and format constraints. This context drives personalised
           dead weight detection and upgrade recommendations.
@@ -274,14 +274,14 @@ export function StrategyCanvas({ deckId, deckType }: StrategyCanvasProps) {
     return (
       <div className="rounded-lg border border-border p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium">Strategy Canvas</h3>
+          <h3 className="text-[length:var(--fs-md)] font-medium">Strategy Canvas</h3>
           <Button variant="ghost" size="sm" onClick={handleStartEditing}>
             <Edit2 className="h-3.5 w-3.5 mr-1" />
             Edit
           </Button>
         </div>
 
-        <div className="grid gap-2 text-sm">
+        <div className="grid gap-2 text-[length:var(--fs-md)]">
           {data.win_condition && (
             <div>
               <span className="text-muted-foreground">Win Condition:</span>{' '}
@@ -355,11 +355,11 @@ export function StrategyCanvas({ deckId, deckType }: StrategyCanvasProps) {
   // -------------------------------------------------------------------------
   return (
     <div className="rounded-lg border border-border p-4 space-y-4">
-      <h3 className="text-sm font-medium">Configure Strategy</h3>
+      <h3 className="text-[length:var(--fs-md)] font-medium">Configure Strategy</h3>
 
       {/* Win Condition */}
       <fieldset className="space-y-1">
-        <label htmlFor="win_condition" className="text-xs font-medium text-muted-foreground">
+        <label htmlFor="win_condition" className="text-[length:var(--fs-sm)] font-medium text-muted-foreground">
           Win Condition
         </label>
         <Textarea
@@ -373,7 +373,7 @@ export function StrategyCanvas({ deckId, deckType }: StrategyCanvasProps) {
 
       {/* Table Context */}
       <fieldset className="space-y-1">
-        <label htmlFor="table_context" className="text-xs font-medium text-muted-foreground">
+        <label htmlFor="table_context" className="text-[length:var(--fs-sm)] font-medium text-muted-foreground">
           Table Context
         </label>
         <Textarea
@@ -387,14 +387,14 @@ export function StrategyCanvas({ deckId, deckType }: StrategyCanvasProps) {
 
       {/* Bracket */}
       <fieldset className="space-y-1">
-        <label htmlFor="bracket" className="text-xs font-medium text-muted-foreground">
+        <label htmlFor="bracket" className="text-[length:var(--fs-sm)] font-medium text-muted-foreground">
           Bracket (Power Level)
         </label>
         <select
           id="bracket"
           value={bracket}
           onChange={e => setBracket(e.target.value ? Number(e.target.value) : '')}
-          className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm"
+          className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-[length:var(--fs-md)]"
         >
           <option value="">Select bracket...</option>
           {Object.entries(BRACKET_LABELS).map(([val, label]) => (
@@ -405,14 +405,14 @@ export function StrategyCanvas({ deckId, deckType }: StrategyCanvasProps) {
 
       {/* Budget Mode */}
       <fieldset className="space-y-1">
-        <label htmlFor="budget_mode" className="text-xs font-medium text-muted-foreground">
+        <label htmlFor="budget_mode" className="text-[length:var(--fs-sm)] font-medium text-muted-foreground">
           Budget Mode
         </label>
         <select
           id="budget_mode"
           value={budgetMode}
           onChange={e => setBudgetMode(e.target.value)}
-          className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm"
+          className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-[length:var(--fs-md)]"
         >
           <option value="">Select budget mode...</option>
           <option value="collection">Collection Only — suggest owned cards</option>
@@ -424,7 +424,7 @@ export function StrategyCanvas({ deckId, deckType }: StrategyCanvasProps) {
       {/* Budget Ceiling (conditional) */}
       {budgetMode === 'budget' && (
         <fieldset className="space-y-1">
-          <label htmlFor="budget_ceiling" className="text-xs font-medium text-muted-foreground">
+          <label htmlFor="budget_ceiling" className="text-[length:var(--fs-sm)] font-medium text-muted-foreground">
             Budget Ceiling ($)
           </label>
           <Input
@@ -441,14 +441,14 @@ export function StrategyCanvas({ deckId, deckType }: StrategyCanvasProps) {
 
       {/* Format Type */}
       <fieldset className="space-y-1">
-        <label htmlFor="format_type" className="text-xs font-medium text-muted-foreground">
+        <label htmlFor="format_type" className="text-[length:var(--fs-sm)] font-medium text-muted-foreground">
           Format Type
         </label>
         <select
           id="format_type"
           value={formatType}
           onChange={e => handleFormatTypeChange(e.target.value as FormatType)}
-          className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm"
+          className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-[length:var(--fs-md)]"
         >
           <option value="none">None</option>
           <option value="precon_mod">Precon Mod</option>
@@ -460,10 +460,10 @@ export function StrategyCanvas({ deckId, deckType }: StrategyCanvasProps) {
       {/* Format-specific fields: Precon Mod */}
       {formatType === 'precon_mod' && formatRules?.format_name === 'precon_mod' && (
         <div className="space-y-3 rounded-md border border-dashed border-muted-foreground/20 p-3">
-          <p className="text-xs font-medium text-muted-foreground">Precon Mod Rules</p>
+          <p className="text-[length:var(--fs-sm)] font-medium text-muted-foreground">Precon Mod Rules</p>
 
           <fieldset className="space-y-1">
-            <label htmlFor="swap_limit" className="text-xs text-muted-foreground">Swap Limit</label>
+            <label htmlFor="swap_limit" className="text-[length:var(--fs-sm)] text-muted-foreground">Swap Limit</label>
             <Input
               id="swap_limit"
               type="number"
@@ -477,7 +477,7 @@ export function StrategyCanvas({ deckId, deckType }: StrategyCanvasProps) {
           </fieldset>
 
           <fieldset className="space-y-1">
-            <label htmlFor="mandatory_cuts" className="text-xs text-muted-foreground">
+            <label htmlFor="mandatory_cuts" className="text-[length:var(--fs-sm)] text-muted-foreground">
               Mandatory Cuts (comma-separated)
             </label>
             <Input
@@ -494,7 +494,7 @@ export function StrategyCanvas({ deckId, deckType }: StrategyCanvasProps) {
 
           <div className="grid grid-cols-2 gap-2">
             <fieldset className="space-y-1">
-              <label className="text-xs text-muted-foreground">Mythic slots</label>
+              <label className="text-[length:var(--fs-sm)] text-muted-foreground">Mythic slots</label>
               <Input
                 type="number"
                 min={0}
@@ -509,7 +509,7 @@ export function StrategyCanvas({ deckId, deckType }: StrategyCanvasProps) {
               />
             </fieldset>
             <fieldset className="space-y-1">
-              <label className="text-xs text-muted-foreground">Rare slots</label>
+              <label className="text-[length:var(--fs-sm)] text-muted-foreground">Rare slots</label>
               <Input
                 type="number"
                 min={0}
@@ -524,7 +524,7 @@ export function StrategyCanvas({ deckId, deckType }: StrategyCanvasProps) {
               />
             </fieldset>
             <fieldset className="space-y-1">
-              <label className="text-xs text-muted-foreground">Uncommon slots</label>
+              <label className="text-[length:var(--fs-sm)] text-muted-foreground">Uncommon slots</label>
               <Input
                 type="number"
                 min={0}
@@ -539,7 +539,7 @@ export function StrategyCanvas({ deckId, deckType }: StrategyCanvasProps) {
               />
             </fieldset>
             <fieldset className="space-y-1">
-              <label className="text-xs text-muted-foreground">Common slots</label>
+              <label className="text-[length:var(--fs-sm)] text-muted-foreground">Common slots</label>
               <Input
                 type="number"
                 min={0}
@@ -556,7 +556,7 @@ export function StrategyCanvas({ deckId, deckType }: StrategyCanvasProps) {
           </div>
 
           <fieldset className="space-y-1">
-            <label htmlFor="value_cap" className="text-xs text-muted-foreground">Value Cap ($)</label>
+            <label htmlFor="value_cap" className="text-[length:var(--fs-sm)] text-muted-foreground">Value Cap ($)</label>
             <Input
               id="value_cap"
               type="number"
@@ -571,7 +571,7 @@ export function StrategyCanvas({ deckId, deckType }: StrategyCanvasProps) {
           </fieldset>
 
           <fieldset className="space-y-1">
-            <label htmlFor="precon_url" className="text-xs text-muted-foreground">Precon URL</label>
+            <label htmlFor="precon_url" className="text-[length:var(--fs-sm)] text-muted-foreground">Precon URL</label>
             <Input
               id="precon_url"
               type="url"
@@ -589,10 +589,10 @@ export function StrategyCanvas({ deckId, deckType }: StrategyCanvasProps) {
       {/* Format-specific fields: Baggy League */}
       {formatType === 'baggy_league' && formatRules?.format_name === 'baggy_league' && (
         <div className="space-y-3 rounded-md border border-dashed border-muted-foreground/20 p-3">
-          <p className="text-xs font-medium text-muted-foreground">Baggy League Rules</p>
+          <p className="text-[length:var(--fs-sm)] font-medium text-muted-foreground">Baggy League Rules</p>
 
           <fieldset className="space-y-1">
-            <label htmlFor="rarity_restriction" className="text-xs text-muted-foreground">
+            <label htmlFor="rarity_restriction" className="text-[length:var(--fs-sm)] text-muted-foreground">
               Max Rarity Allowed
             </label>
             <select
@@ -602,7 +602,7 @@ export function StrategyCanvas({ deckId, deckType }: StrategyCanvasProps) {
                 ...(formatRules as FormatRulesBaggyLeague),
                 rarity_restriction: e.target.value as typeof RARITY_OPTIONS[number],
               })}
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm"
+              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-[length:var(--fs-md)]"
             >
               {RARITY_OPTIONS.map(r => (
                 <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
@@ -611,7 +611,7 @@ export function StrategyCanvas({ deckId, deckType }: StrategyCanvasProps) {
           </fieldset>
 
           <fieldset className="space-y-1">
-            <label htmlFor="progression_level" className="text-xs text-muted-foreground">
+            <label htmlFor="progression_level" className="text-[length:var(--fs-sm)] text-muted-foreground">
               Progression Level
             </label>
             <Input
@@ -627,7 +627,7 @@ export function StrategyCanvas({ deckId, deckType }: StrategyCanvasProps) {
           </fieldset>
 
           <fieldset className="space-y-1">
-            <label htmlFor="progression_points" className="text-xs text-muted-foreground">
+            <label htmlFor="progression_points" className="text-[length:var(--fs-sm)] text-muted-foreground">
               Progression Points
             </label>
             <Input
@@ -647,10 +647,10 @@ export function StrategyCanvas({ deckId, deckType }: StrategyCanvasProps) {
       {/* Format-specific fields: Custom */}
       {formatType === 'custom' && formatRules?.format_name === 'custom' && (
         <div className="space-y-3 rounded-md border border-dashed border-muted-foreground/20 p-3">
-          <p className="text-xs font-medium text-muted-foreground">Custom Format Rules</p>
+          <p className="text-[length:var(--fs-sm)] font-medium text-muted-foreground">Custom Format Rules</p>
 
           <fieldset className="space-y-1">
-            <label htmlFor="custom_description" className="text-xs text-muted-foreground">
+            <label htmlFor="custom_description" className="text-[length:var(--fs-sm)] text-muted-foreground">
               Description
             </label>
             <Textarea
@@ -666,7 +666,7 @@ export function StrategyCanvas({ deckId, deckType }: StrategyCanvasProps) {
           </fieldset>
 
           <fieldset className="space-y-1">
-            <label htmlFor="custom_constraints" className="text-xs text-muted-foreground">
+            <label htmlFor="custom_constraints" className="text-[length:var(--fs-sm)] text-muted-foreground">
               Constraints (one per line)
             </label>
             <Textarea
@@ -685,7 +685,7 @@ export function StrategyCanvas({ deckId, deckType }: StrategyCanvasProps) {
 
       {/* Frustration */}
       <fieldset className="space-y-1">
-        <label htmlFor="frustration" className="text-xs font-medium text-muted-foreground">
+        <label htmlFor="frustration" className="text-[length:var(--fs-sm)] font-medium text-muted-foreground">
           Frustrations
         </label>
         <Textarea
@@ -699,7 +699,7 @@ export function StrategyCanvas({ deckId, deckType }: StrategyCanvasProps) {
 
       {/* Strategy Notes */}
       <fieldset className="space-y-1">
-        <label htmlFor="strategy_notes" className="text-xs font-medium text-muted-foreground">
+        <label htmlFor="strategy_notes" className="text-[length:var(--fs-sm)] font-medium text-muted-foreground">
           Strategy Notes
         </label>
         <Textarea

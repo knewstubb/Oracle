@@ -63,7 +63,7 @@ function SegmentedControl<T extends string>({
             type="button"
             onClick={() => onChange(option.value)}
             className={`
-              relative rounded-[3px] px-2 py-0.5 text-[10px] font-medium transition-colors
+              relative rounded-[3px] px-2 py-0.5 text-[length:var(--fs-xs)] font-medium transition-colors
               ${
                 isActive
                   ? 'bg-[rgba(55,138,221,0.15)] text-[#378ADD] border border-[#378ADD]/30'
@@ -152,7 +152,7 @@ export function CanvasToolbar({
         <button
           type="button"
           onClick={onGroupByCategory}
-          className="rounded-[3px] px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-accent/50 hover:text-foreground border border-border/50 transition-colors"
+          className="rounded-[3px] px-2 py-0.5 text-[length:var(--fs-xs)] font-medium text-muted-foreground hover:bg-accent/50 hover:text-foreground border border-border/50 transition-colors"
         >
           Group by Category
         </button>
@@ -177,7 +177,7 @@ export function CanvasToolbar({
           <Minus className="h-3 w-3" />
         </button>
 
-        <span className="min-w-[32px] text-center text-[10px] font-medium text-muted-foreground tabular-nums">
+        <span className="min-w-[32px] text-center text-[length:var(--fs-xs)] font-medium text-muted-foreground tabular-nums">
           {zoomLevel}%
         </span>
 

@@ -10,7 +10,8 @@ export interface DeckRow {
   card_count: number | null
   last_synced_at: string | null
   deck_type: string | null
-  status: 'active' | 'draft'
+  status: 'brew' | 'boxed' | 'archived'
+  allocate: boolean
 }
 
 export interface DraftSession {
@@ -29,12 +30,45 @@ export async function GET() {
 
   const { data: decks, error: decksErr } = await supabase
     .from('decks')
-    .select('id, name, commander_name, commander_scryfall_id, colour_identity, card_count, last_synced_at, deck_type, status')
+    .select('id, name, commander_name, commander_scryfall_id, colour_identity, card_count, last_synced_at, deck_type, status, allocate')
     .order('name')
 
   if (decksErr) {
     return Response.json({ error: decksErr.message }, { status: 500 })
   }
+
+  // Compute completeness for Boxed decks — count deck_cards with non-null physical_copy_id
+  const boxedDeckIds = (decks ?? [])
+    .filter((d) => d.status === 'boxed')
+    .map((d) => d.id)
+
+  let completenessMap: Record<number, { resolved: number; total: number }> = {}
+
+  if (boxedDeckIds.length > 0) {
+    // Fetch deck_cards for boxed decks, counting resolved (physical_copy_id IS NOT NULL) vs total
+    const { data: deckCards, error: cardsErr } = await supabase
+      .from('deck_cards')
+      .select('deck_id, physical_copy_id')
+      .in('deck_id', boxedDeckIds)
+
+    if (!cardsErr && deckCards) {
+      for (const card of deckCards) {
+        if (!completenessMap[card.deck_id]) {
+          completenessMap[card.deck_id] = { resolved: 0, total: 0 }
+        }
+        completenessMap[card.deck_id].total += 1
+        if (card.physical_copy_id != null) {
+          completenessMap[card.deck_id].resolved += 1
+        }
+      }
+    }
+  }
+
+  // Merge completeness into deck response
+  const decksWithCompleteness = (decks ?? []).map((deck) => ({
+    ...deck,
+    completeness: completenessMap[deck.id] ?? null,
+  }))
 
   const { data: draftSessionsRaw, error: sessionsErr } = await supabase
     .from('brew_sessions')
@@ -64,5 +98,5 @@ export async function GET() {
       colour_identity: bs.colour_identity,
     }))
 
-  return Response.json({ decks: decks ?? [], draftSessions })
+  return Response.json({ decks: decksWithCompleteness, draftSessions })
 }

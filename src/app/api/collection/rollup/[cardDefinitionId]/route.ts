@@ -119,7 +119,7 @@ export async function GET(
         physical_copy_id,
         deck_id,
         quantity,
-        decks!inner ( id, name )
+        decks!deck_cards_deck_id_fkey!inner ( id, name )
       `)
       .in('physical_copy_id', pcIds)
       .not('physical_copy_id', 'is', null)

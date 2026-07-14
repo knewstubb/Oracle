@@ -100,6 +100,7 @@ export async function POST(request: NextRequest) {
           commander_name: skeleton.commanderName,
           colour_identity: skeleton.colourIdentity.join(','),
           user_id: userId,
+          status: 'brew',
         })
         .select('id')
         .single()
@@ -148,16 +149,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // --- Non-blocking: Run Allocation Resolver ---
+    // --- Non-blocking: Section 6e Auto-assign from free storage (Tier 1–2 only) ---
     try {
-      const { computeAllocations } = await import('@/lib/allocation-resolver')
-      const { buildAllocationInput, applyAllocationOutput } = await import('@/lib/allocation-store')
-      const input = await buildAllocationInput()
-      const output = computeAllocations(input)
-      await applyAllocationOutput(output)
+      const { autoAssignDeck } = await import('@/lib/auto-assign')
+      await autoAssignDeck(deckId!, userId)
     } catch (allocErr) {
       console.warn(
-        '[brew/save] Allocation resolver failed (non-blocking):',
+        '[brew/save] Auto-assign failed (non-blocking):',
         allocErr instanceof Error ? allocErr.message : allocErr
       )
     }

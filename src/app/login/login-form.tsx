@@ -44,7 +44,7 @@ export function LoginForm() {
       <div className="space-y-2">
         <label
           htmlFor="email"
-          className="text-sm font-medium text-foreground"
+          className="text-[length:var(--fs-md)] font-medium text-foreground"
         >
           Email
         </label>
@@ -63,7 +63,7 @@ export function LoginForm() {
       <div className="space-y-2">
         <label
           htmlFor="password"
-          className="text-sm font-medium text-foreground"
+          className="text-[length:var(--fs-md)] font-medium text-foreground"
         >
           Password
         </label>
@@ -80,7 +80,7 @@ export function LoginForm() {
       </div>
 
       {error && (
-        <p className="text-sm text-destructive" role="alert">
+        <p className="text-[length:var(--fs-md)] text-destructive" role="alert">
           {error}
         </p>
       )}

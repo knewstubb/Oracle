@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import DashboardPage from './page'
 
@@ -17,6 +17,13 @@ vi.mock('next/link', () => ({
   default: ({ children, href, ...props }: { children: React.ReactNode; href: string; [key: string]: unknown }) => (
     <a href={href} {...props}>{children}</a>
   ),
+}))
+
+// Mock next/navigation
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
+  usePathname: () => '/',
+  useSearchParams: () => new URLSearchParams(),
 }))
 
 const mockFetch = vi.fn()
@@ -68,15 +75,8 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-// Helper: mock both the decks fetch and the sync-status fetch that SyncStatus makes
-function mockDecksAndStatus(decks: unknown[], statusPayload = { lastSyncedAt: null }) {
+function mockDecks(decks: unknown[]) {
   mockFetch.mockImplementation((url: string) => {
-    if (url.includes('/api/sync/status')) {
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(statusPayload),
-      })
-    }
     if (url.includes('/api/decks')) {
       return Promise.resolve({
         ok: true,
@@ -90,7 +90,7 @@ function mockDecksAndStatus(decks: unknown[], statusPayload = { lastSyncedAt: nu
 describe('DashboardPage', () => {
   it('renders 16 deck tiles in a grid', async () => {
     const decks = makeDecks(16)
-    mockDecksAndStatus(decks)
+    mockDecks(decks)
 
     render(<DashboardPage />, { wrapper: createWrapper() })
 
@@ -103,7 +103,7 @@ describe('DashboardPage', () => {
   })
 
   it('renders responsive grid classes (4→3→2→1 cols)', async () => {
-    mockDecksAndStatus(makeDecks(4))
+    mockDecks(makeDecks(4))
 
     render(<DashboardPage />, { wrapper: createWrapper() })
 
@@ -131,62 +131,22 @@ describe('DashboardPage', () => {
     expect(skeletonItems.length).toBeGreaterThan(0)
   })
 
-  it('shows empty state with sync prompt', async () => {
-    mockDecksAndStatus([])
+  it('shows empty state with import prompt', async () => {
+    mockDecks([])
 
     render(<DashboardPage />, { wrapper: createWrapper() })
 
     await waitFor(() => {
       expect(
-        screen.getByText('No decks found. Sync your Archidekt account to get started.')
+        screen.getByText('No decks found. Import a deck to get started.')
       ).toBeInTheDocument()
     })
 
-    expect(screen.getByRole('button', { name: 'Sync Now' })).toBeInTheDocument()
-  })
-
-  it('empty state Sync Now button triggers sync', async () => {
-    mockDecksAndStatus([])
-
-    render(<DashboardPage />, { wrapper: createWrapper() })
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Sync Now' })).toBeInTheDocument()
-    })
-
-    // Mock the sync call
-    mockFetch.mockImplementation((url: string) => {
-      if (url === '/api/sync') {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ synced: 0, errors: [] }),
-        })
-      }
-      // Return empty decks and status for refetches
-      if (url.includes('/api/sync/status')) {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve({ lastSyncedAt: null }) })
-      }
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({ decks: [], draftSessions: [] }) })
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Sync Now' }))
-
-    await waitFor(() => {
-      const syncCall = mockFetch.mock.calls.find(
-        (call: unknown[]) => call[0] === '/api/sync'
-      )
-      expect(syncCall).toBeDefined()
-    })
+    expect(screen.getByRole('link', { name: /Import a Deck/ })).toBeInTheDocument()
   })
 
   it('shows error banner with retry button', async () => {
     mockFetch.mockImplementation((url: string) => {
-      if (url.includes('/api/sync/status')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ lastSyncedAt: null }),
-        })
-      }
       if (url.includes('/api/decks')) {
         return Promise.resolve({
           ok: false,
@@ -208,7 +168,7 @@ describe('DashboardPage', () => {
   })
 
   it('renders page title "Decks"', async () => {
-    mockDecksAndStatus(makeDecks(1))
+    mockDecks(makeDecks(1))
 
     render(<DashboardPage />, { wrapper: createWrapper() })
 
@@ -216,7 +176,7 @@ describe('DashboardPage', () => {
   })
 
   it('renders "Brew Deck" link', async () => {
-    mockDecksAndStatus(makeDecks(1))
+    mockDecks(makeDecks(1))
 
     render(<DashboardPage />, { wrapper: createWrapper() })
 
@@ -225,7 +185,7 @@ describe('DashboardPage', () => {
   })
 
   it('splits colour_identity string into array for ColourPips', async () => {
-    mockDecksAndStatus([makeDeck(1, 'Test Deck', 'Commander', 'abc00001-0000-0000-0000-000000000000', 'W,U,B')])
+    mockDecks([makeDeck(1, 'Test Deck', 'Commander', 'abc00001-0000-0000-0000-000000000000', 'W,U,B')])
 
     render(<DashboardPage />, { wrapper: createWrapper() })
 

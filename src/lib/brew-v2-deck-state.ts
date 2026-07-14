@@ -227,8 +227,8 @@ export function getCategoryHealth(
 
 /**
  * Returns true if a deck with the given status is eligible for deletion.
- * Active decks are never deletable — only 'draft' and 'concept' statuses allow deletion.
+ * Boxed decks are never deletable — only 'brew' and 'archived' statuses allow deletion.
  */
 export function canDeleteDeck(status: DeckStatus | string): boolean {
-  return status === 'draft' || status === 'concept'
+  return status === 'brew' || status === 'archived'
 }

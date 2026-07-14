@@ -295,7 +295,7 @@ function DebriefBanner({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sword className="h-4 w-4 text-[#1D9E75]" />
-          <span className="text-sm font-medium">
+          <span className="text-[length:var(--fs-md)] font-medium">
             Last debrief — {formatDate(session.date)} · {session.reviewed_fixes} of{' '}
             {session.total_fixes} fixes reviewed
           </span>
@@ -303,7 +303,7 @@ function DebriefBanner({
         {hasPendingFixes && (
           <a
             href={`/decks/${deckId}?debrief=true&resume=${session.id}`}
-            className="inline-flex items-center gap-1 text-xs font-medium hover:opacity-80 transition-opacity"
+            className="inline-flex items-center gap-1 text-[length:var(--fs-sm)] font-medium hover:opacity-80 transition-opacity"
             style={{ color: '#1D9E75' }}
           >
             Resume debrief <ArrowRight className="h-3 w-3" />
@@ -312,7 +312,7 @@ function DebriefBanner({
       </div>
 
       {/* Summary line */}
-      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+      <div className="flex items-center gap-4 text-[length:var(--fs-sm)] text-muted-foreground">
         <span>{session.applied} change made</span>
         <span>{session.skipped} skipped</span>
         <span>{session.pending} pending</span>
@@ -387,7 +387,7 @@ function Toolbar({
           <button
             key={opt.value}
             onClick={() => onSortChange(opt.value)}
-            className="px-3 py-1.5 text-xs font-medium transition-colors"
+            className="px-3 py-1.5 text-[length:var(--fs-sm)] font-medium transition-colors"
             style={{
               background:
                 sortMode === opt.value
@@ -421,7 +421,7 @@ function Toolbar({
           variant="ghost"
           onClick={onRefresh}
           disabled={isRefreshing}
-          className="text-xs text-muted-foreground"
+          className="text-[length:var(--fs-sm)] text-muted-foreground"
         >
           <RefreshCw
             className={`mr-1 h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`}
@@ -445,7 +445,7 @@ function FilterChipButton({
   return (
     <button
       onClick={onClick}
-      className="rounded-full px-3 py-1 text-xs font-medium transition-colors"
+      className="rounded-full px-3 py-1 text-[length:var(--fs-sm)] font-medium transition-colors"
       style={{
         background: active ? 'rgba(29,158,117,0.15)' : 'rgba(255,255,255,0.04)',
         color: active ? '#1D9E75' : 'rgba(255,255,255,0.5)',
@@ -484,7 +484,7 @@ function UpgradeCard({
     >
       {/* Header: priority + impact bar + source badge */}
       <div className="flex items-center gap-3 px-4 py-2.5">
-        <span className="text-xs font-medium text-muted-foreground tabular-nums">
+        <span className="text-[length:var(--fs-sm)] font-medium text-muted-foreground tabular-nums">
           #{candidate.priority}
         </span>
         <ImpactBar value={candidate.impact} />
@@ -506,7 +506,7 @@ function UpgradeCard({
             >
               <Minus className="h-2.5 w-2.5 text-[#E24B4A]" />
             </span>
-            <span className="text-[10px] font-medium text-[#E24B4A] uppercase">
+            <span className="text-[length:var(--fs-xs)] font-medium text-[#E24B4A] uppercase">
               Cut
             </span>
           </div>
@@ -536,7 +536,7 @@ function UpgradeCard({
             >
               <Check className="h-2.5 w-2.5 text-[#1D9E75]" />
             </span>
-            <span className="text-[10px] font-medium text-[#1D9E75] uppercase">
+            <span className="text-[length:var(--fs-xs)] font-medium text-[#1D9E75] uppercase">
               Add
             </span>
           </div>
@@ -550,12 +550,12 @@ function UpgradeCard({
               holderDeckName={candidate.add.holder_deck_name}
             />
             {candidate.add.edhrec_percent != null && (
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-[length:var(--fs-xs)] text-muted-foreground">
                 {candidate.add.edhrec_percent}% EDHREC
               </span>
             )}
             {candidate.add.price != null && (
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-[length:var(--fs-xs)] text-muted-foreground">
                 ${candidate.add.price.toFixed(2)}
               </span>
             )}
@@ -582,7 +582,7 @@ function UpgradeCard({
           size="sm"
           onClick={onMakeChange}
           disabled={isMutating}
-          className="text-xs text-white hover:opacity-90"
+          className="text-[length:var(--fs-sm)] text-white hover:opacity-90"
           style={{ background: '#1D9E75' }}
         >
           <Check className="mr-1 h-3 w-3" />
@@ -593,7 +593,7 @@ function UpgradeCard({
           variant="outline"
           onClick={onSkip}
           disabled={isMutating}
-          className="text-xs"
+          className="text-[length:var(--fs-sm)]"
         >
           <X className="mr-1 h-3 w-3" />
           Skip
@@ -639,7 +639,7 @@ function SourceBadge({ source }: { source: 'debrief' | 'analysis' }) {
   if (source === 'debrief') {
     return (
       <span
-        className="ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
+        className="ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[length:var(--fs-xs)] font-medium"
         style={{
           border: '0.5px solid rgba(29,158,117,0.4)',
           color: '#1D9E75',
@@ -652,7 +652,7 @@ function SourceBadge({ source }: { source: 'debrief' | 'analysis' }) {
   }
   return (
     <span
-      className="ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
+      className="ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[length:var(--fs-xs)] font-medium"
       style={{
         border: '0.5px solid rgba(255,255,255,0.1)',
         color: 'rgba(255,255,255,0.5)',
@@ -679,8 +679,8 @@ function FreshAnalysisPrompt({
       }}
     >
       <Sparkles className="mx-auto h-5 w-5 text-muted-foreground" />
-      <h4 className="text-sm font-medium">Run a fresh analysis</h4>
-      <p className="text-sm text-muted-foreground">
+      <h4 className="text-[length:var(--fs-md)] font-medium">Run a fresh analysis</h4>
+      <p className="text-[length:var(--fs-md)] text-muted-foreground">
         Generates new suggestions from scratch — useful after significant deck changes.
       </p>
       <Button
@@ -688,7 +688,7 @@ function FreshAnalysisPrompt({
         variant="outline"
         onClick={onRun}
         disabled={isRunning}
-        className="text-xs"
+        className="text-[length:var(--fs-sm)]"
       >
         {isRunning ? (
           <RefreshCw className="mr-1 h-3 w-3 animate-spin" />
@@ -710,7 +710,7 @@ function ChangeLogSection({
 }) {
   return (
     <section className="space-y-3">
-      <h3 className="text-sm font-medium text-muted-foreground">
+      <h3 className="text-[length:var(--fs-md)] font-medium text-muted-foreground">
         Change log · {thisMonthCount} change{thisMonthCount !== 1 ? 's' : ''} this month
       </h3>
 
@@ -718,7 +718,7 @@ function ChangeLogSection({
         {entries.map((entry) => (
           <div
             key={entry.id}
-            className={`flex items-center gap-3 rounded-md px-3 py-2 text-xs ${
+            className={`flex items-center gap-3 rounded-md px-3 py-2 text-[length:var(--fs-sm)] ${
               entry.skipped ? 'opacity-50' : ''
             }`}
             style={{ background: 'rgba(255,255,255,0.02)' }}

@@ -48,10 +48,10 @@ export function RecommendationCard({
           className="flex items-center justify-between px-4 py-2"
           style={{ borderBottom: '0.5px solid var(--border-emphasis)' }}
         >
-          <span className="text-xs font-medium text-white/60">
+          <span className="text-[length:var(--fs-sm)] font-medium text-white/60">
             Highest impact change
           </span>
-          <span className="text-xs font-medium text-white/40">
+          <span className="text-[length:var(--fs-sm)] font-medium text-white/40">
             Fix {index} of {total}
           </span>
         </div>
@@ -67,7 +67,7 @@ export function RecommendationCard({
           <p className="text-[13px] font-medium text-white/90 line-through decoration-white/30">
             {cutCard}
           </p>
-          <p className="mt-1 text-xs text-white/50 leading-relaxed">
+          <p className="mt-1 text-[length:var(--fs-sm)] text-white/50 leading-relaxed">
             {reason}
           </p>
         </div>
@@ -88,7 +88,7 @@ export function RecommendationCard({
           <p className="text-[13px] font-medium text-white/90">
             {addCard}
           </p>
-          <p className="mt-1 text-xs text-white/50 leading-relaxed">
+          <p className="mt-1 text-[length:var(--fs-sm)] text-white/50 leading-relaxed">
             {reason}
           </p>
           <div className="mt-2">
@@ -105,7 +105,7 @@ export function RecommendationCard({
           <button
             onClick={() => onAction('applied')}
             disabled={isLoading}
-            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-white transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[length:var(--fs-sm)] font-medium text-white transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ backgroundColor: '#1D9E75' }}
             aria-label="Make this change"
           >
@@ -117,7 +117,7 @@ export function RecommendationCard({
           <button
             onClick={() => onAction('skipped')}
             disabled={isLoading}
-            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-white/70 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[length:var(--fs-sm)] font-medium text-white/70 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ backgroundColor: 'rgba(255, 255, 255, 0.08)', border: '0.5px solid rgba(255, 255, 255, 0.1)' }}
             aria-label="Skip this recommendation"
           >

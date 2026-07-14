@@ -112,7 +112,7 @@ export function ProxyAllocationPanel({ card, onSuccess, onCancel }: ProxyAllocat
 
         {/* Right side */}
         <div className="flex-1 space-y-3">
-          <h3 className="text-sm font-semibold text-foreground">
+          <h3 className="text-[length:var(--fs-md)] font-medium text-foreground">
             You own {card.owned_copies} {card.owned_copies === 1 ? 'copy' : 'copies'}
           </h3>
 
@@ -120,7 +120,7 @@ export function ProxyAllocationPanel({ card, onSuccess, onCancel }: ProxyAllocat
           <div className="space-y-2">
             {card.decks.map((deck) => (
               <div key={deck.id} className="flex items-center gap-3">
-                <span className="min-w-[120px] text-sm text-foreground">{deck.name}</span>
+                <span className="min-w-[120px] text-[length:var(--fs-md)] text-foreground">{deck.name}</span>
                 <RadioGroup
                   aria-label={`Allocation for ${deck.name}`}
                   value={allocations[deck.id]}
@@ -128,11 +128,11 @@ export function ProxyAllocationPanel({ card, onSuccess, onCancel }: ProxyAllocat
                   disabled={isSubmitting}
                   className="flex w-auto flex-row gap-3"
                 >
-                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <label className="flex items-center gap-1.5 text-[length:var(--fs-sm)] text-muted-foreground">
                     <RadioGroupItem value="original" />
                     Original
                   </label>
-                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <label className="flex items-center gap-1.5 text-[length:var(--fs-sm)] text-muted-foreground">
                     <RadioGroupItem value="proxy" />
                     Proxy
                   </label>
@@ -143,7 +143,7 @@ export function ProxyAllocationPanel({ card, onSuccess, onCancel }: ProxyAllocat
 
           {/* Preview of pending changes */}
           {hasChanges && (
-            <div className="rounded border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
+            <div className="rounded border border-border bg-card px-3 py-2 text-[length:var(--fs-sm)] text-muted-foreground">
               <span className="font-medium text-foreground">Pending changes:</span>
               <ul className="mt-1 space-y-0.5">
                 {pendingChanges.map((change) => (
@@ -157,7 +157,7 @@ export function ProxyAllocationPanel({ card, onSuccess, onCancel }: ProxyAllocat
 
           {/* Error display */}
           {mutation.isError && (
-            <div role="alert" className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            <div role="alert" className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-[length:var(--fs-sm)] text-destructive">
               Failed to update Archidekt: {mutation.error?.message}. Your data hasn&apos;t been changed.
               <Button
                 variant="outline"
@@ -199,7 +199,7 @@ export function ProxyAllocationPanel({ card, onSuccess, onCancel }: ProxyAllocat
         confirmLabel="Apply to Archidekt"
         isLoading={false}
       >
-        <ul className="space-y-1 text-sm text-muted-foreground">
+        <ul className="space-y-1 text-[length:var(--fs-md)] text-muted-foreground">
           {pendingChanges.map((change) => (
             <li key={change.deckId}>
               {change.deckName}: {change.from} → {change.to}

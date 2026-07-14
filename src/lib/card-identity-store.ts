@@ -136,7 +136,7 @@ function mapRowToPhysicalCopy(row: any): PhysicalCopy {
     cardDefinitionId: row.card_definition_id,
     scryfallPrintingId: row.scryfall_printing_id ?? null,
     isProxy: Boolean(row.is_proxy),
-    quantity: row.quantity ?? 1,
+    quantity: 1, // Post-migration-007: one row = one instance, always quantity 1
     proxyForDefinitionId: row.proxy_for_definition_id ?? null,
     condition: row.condition ?? null,
     isFoil: Boolean(row.is_foil),
@@ -264,47 +264,28 @@ export async function upsertPhysicalCopy(params: UpsertPhysicalCopyParams): Prom
   const quantity = params.quantity ?? 1
   const userId = params.userId
 
-  // Check if a row already exists for this printing group
-  const existing = await findPrintingGroup({
-    cardDefinitionId: params.cardDefinitionId,
-    scryfallPrintingId: params.scryfallPrintingId ?? null,
-    isFoil,
-    isProxy,
-  })
+  // Post-migration-007: Instance-level model — insert N individual rows (one per copy)
+  // instead of incrementing quantity on a single group row.
+  const insertRows = Array.from({ length: quantity }, () => ({
+    card_definition_id: params.cardDefinitionId,
+    scryfall_printing_id: params.scryfallPrintingId ?? null,
+    is_foil: isFoil,
+    is_proxy: isProxy,
+    proxy_for_definition_id: params.proxyForDefinitionId ?? null,
+    condition: params.condition ?? null,
+    acquired_at: params.acquiredAt ?? null,
+    user_id: userId,
+  }))
 
-  if (existing) {
-    // Increment quantity on existing row
-    const newQuantity = existing.quantity + quantity
-    const { data, error } = await supabase
-      .from('physical_copies')
-      .update({ quantity: newQuantity })
-      .eq('id', existing.id)
-      .select('*')
-      .single()
-
-    if (error) throw new Error(`Failed to update physical copy: ${error.message}`)
-    return mapRowToPhysicalCopy(data)
-  }
-
-  // Insert new row
   const { data, error } = await supabase
     .from('physical_copies')
-    .insert({
-      card_definition_id: params.cardDefinitionId,
-      scryfall_printing_id: params.scryfallPrintingId ?? null,
-      is_foil: isFoil,
-      is_proxy: isProxy,
-      quantity,
-      proxy_for_definition_id: params.proxyForDefinitionId ?? null,
-      condition: params.condition ?? null,
-      acquired_at: params.acquiredAt ?? null,
-      user_id: userId,
-    })
+    .insert(insertRows)
     .select('*')
-    .single()
 
   if (error) throw new Error(`Failed to insert physical copy: ${error.message}`)
-  return mapRowToPhysicalCopy(data)
+  
+  // Return the first inserted row (interface expects single PhysicalCopy)
+  return mapRowToPhysicalCopy(data[0])
 }
 
 /**

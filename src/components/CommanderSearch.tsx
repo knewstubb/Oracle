@@ -137,7 +137,7 @@ export function CommanderSearch({ onSelect, onNext }: CommanderSearchProps) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search commanders by name, colour, or theme..."
-          className="flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
+          className="flex-1 bg-transparent text-[length:var(--fs-lg)] outline-none placeholder:text-muted-foreground"
           aria-label="Search commanders"
         />
         {isLoading && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
@@ -151,7 +151,7 @@ export function CommanderSearch({ onSelect, onNext }: CommanderSearchProps) {
           aria-checked={collectionOnly}
           onClick={() => setCollectionOnly(!collectionOnly)}
           className={cn(
-            'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+            'rounded-full border px-3 py-1 text-[length:var(--fs-sm)] font-medium transition-colors',
             collectionOnly
               ? 'border-primary bg-primary/10 text-primary'
               : 'border-border text-muted-foreground hover:bg-muted'
@@ -178,7 +178,7 @@ export function CommanderSearch({ onSelect, onNext }: CommanderSearchProps) {
         {/* Error state */}
         {error && (
           <div className="flex flex-col items-center gap-3 py-8" role="alert">
-            <p className="text-sm text-destructive">Search failed. {error}</p>
+            <p className="text-[length:var(--fs-md)] text-destructive">Search failed. {error}</p>
             <Button variant="outline" size="sm" onClick={handleRetry}>
               Retry
             </Button>
@@ -187,7 +187,7 @@ export function CommanderSearch({ onSelect, onNext }: CommanderSearchProps) {
 
         {/* No results */}
         {showNoResults && (
-          <p className="py-8 text-center text-sm text-muted-foreground">
+          <p className="py-8 text-center text-[length:var(--fs-md)] text-muted-foreground">
             No commanders found for &apos;{debouncedQuery}&apos;. Try different terms.
           </p>
         )}
@@ -257,7 +257,7 @@ export function CommanderSearch({ onSelect, onNext }: CommanderSearchProps) {
                   {/* Selected badge */}
                   {isSelected && (
                     <div className="absolute top-2 right-2">
-                      <Badge className="bg-primary text-primary-foreground text-[10px] gap-0.5">
+                      <Badge className="bg-primary text-primary-foreground text-[length:var(--fs-xs)] gap-0.5">
                         <Check className="size-3" />
                         Selected
                       </Badge>
@@ -266,12 +266,12 @@ export function CommanderSearch({ onSelect, onNext }: CommanderSearchProps) {
                   {/* Owned badge */}
                   {commander.owned && !isSelected && (
                     <div className="absolute top-2 right-2">
-                      <Badge className="bg-green-600 text-white text-[10px]">Owned</Badge>
+                      <Badge className="bg-green-600 text-white text-[length:var(--fs-xs)]">Owned</Badge>
                     </div>
                   )}
                   {/* Card info */}
                   <div className="mt-1.5 space-y-0.5 px-0.5">
-                    <p className="truncate text-sm font-medium">{commander.name}</p>
+                    <p className="truncate text-[length:var(--fs-md)] font-medium">{commander.name}</p>
                     <ColourPips colours={commander.colorIdentity} size={10} />
                   </div>
                 </div>
@@ -282,7 +282,7 @@ export function CommanderSearch({ onSelect, onNext }: CommanderSearchProps) {
 
         {/* Default state — no query yet */}
         {!hasQuery && !isLoading && (
-          <p className="py-8 text-center text-sm text-muted-foreground">
+          <p className="py-8 text-center text-[length:var(--fs-md)] text-muted-foreground">
             Search for a legendary creature to use as your commander.
           </p>
         )}

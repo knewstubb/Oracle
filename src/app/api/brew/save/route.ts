@@ -20,7 +20,7 @@ import type { DecisionLog, DeckCard } from '@/lib/brew-v2-types'
 
 interface SaveBody {
   sessionId: number
-  mode: 'concept' | 'draft' | 'active'
+  mode: 'concept' | 'brew' | 'boxed'
   decisionLog?: DecisionLog
   deckCards?: DeckCard[]
   deckName?: string
@@ -53,23 +53,23 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Invalid sessionId' }, { status: 400 })
     }
 
-    if (!mode || !['concept', 'draft', 'active'].includes(mode)) {
+    if (!mode || !['concept', 'brew', 'boxed'].includes(mode)) {
       return Response.json(
-        { error: 'Invalid mode — must be "concept", "draft", or "active"' },
+        { error: 'Invalid mode — must be "concept", "brew", or "boxed"' },
         { status: 400 }
       )
     }
 
-    if ((mode === 'draft' || mode === 'active') && (!deckCards || !Array.isArray(deckCards))) {
+    if ((mode === 'brew' || mode === 'boxed') && (!deckCards || !Array.isArray(deckCards))) {
       return Response.json(
-        { error: 'deckCards array is required for draft and active modes' },
+        { error: 'deckCards array is required for brew and boxed modes' },
         { status: 400 }
       )
     }
 
-    if ((mode === 'draft' || mode === 'active') && (!deckName || typeof deckName !== 'string' || deckName.trim().length === 0)) {
+    if ((mode === 'brew' || mode === 'boxed') && (!deckName || typeof deckName !== 'string' || deckName.trim().length === 0)) {
       return Response.json(
-        { error: 'deckName is required for draft and active modes' },
+        { error: 'deckName is required for brew and boxed modes' },
         { status: 400 }
       )
     }
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if ((mode === 'draft' || mode === 'active') && session.status !== 'building') {
+    if ((mode === 'brew' || mode === 'boxed') && session.status !== 'building') {
       return Response.json(
         { error: `Cannot save as ${mode} — session is in '${session.status}', expected 'building'` },
         { status: 409 }
@@ -119,8 +119,8 @@ export async function POST(request: NextRequest) {
       return Response.json({ success: true })
     }
 
-    if (mode === 'draft' || mode === 'active') {
-      const deckStatus = mode === 'active' ? 'active' : 'draft'
+    if (mode === 'brew' || mode === 'boxed') {
+      const deckStatus = mode === 'boxed' ? 'boxed' : 'brew'
 
       try {
         if (session.deck_id) {
@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Update session status
-        const newSessionStatus = mode === 'active' ? 'complete' : 'building'
+        const newSessionStatus = mode === 'boxed' ? 'complete' : 'building'
         await supabase
           .from('brew_sessions')
           .update({ status: newSessionStatus, updated_at: new Date().toISOString() })

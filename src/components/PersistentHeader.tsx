@@ -54,7 +54,7 @@ export function PersistentHeader({ deck, totalCards, proxyCount, onDebriefClick,
               {/* Precon mod badge */}
               {(deck.is_precon_mod || deck.deck_type === 'Precon Mod') && (
                 <span
-                  className="shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+                  className="shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-[length:var(--fs-sm)] font-medium"
                   style={{
                     background: 'rgba(239,159,39,0.15)',
                     color: '#EF9F27',
@@ -66,7 +66,7 @@ export function PersistentHeader({ deck, totalCards, proxyCount, onDebriefClick,
             </div>
 
             {/* Stats line */}
-            <p className="mt-0.5 text-xs text-muted-foreground">
+            <p className="mt-0.5 text-[length:var(--fs-sm)] text-muted-foreground">
               {totalCards} cards · {proxyCount} proxies
               {deck.bracket && ` · Bracket ${deck.bracket}`}
             </p>
@@ -79,7 +79,7 @@ export function PersistentHeader({ deck, totalCards, proxyCount, onDebriefClick,
           <button
             type="button"
             onClick={onDebriefClick}
-            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[length:var(--fs-md)] font-medium transition-colors"
             style={{
               background: 'rgba(29,158,117,0.15)',
               border: '0.5px solid rgba(29,158,117,0.4)',
@@ -98,7 +98,7 @@ export function PersistentHeader({ deck, totalCards, proxyCount, onDebriefClick,
             href={`https://archidekt.com/decks/${deck.id}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="inline-flex items-center gap-1.5 text-[length:var(--fs-md)] text-muted-foreground hover:text-foreground transition-colors"
           >
             Open in Archidekt
             <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />

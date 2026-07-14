@@ -267,67 +267,135 @@ export async function executeCollectionImport(
 
   const touchedIds = new Set<number>()
 
-  // Stage 3: Upsert resolved rows in batches of BATCH_SIZE
-  const resolvedChunks = chunk(resolved, BATCH_SIZE)
+  // Stage 3: Bulk insert resolved rows
+  // Post-migration-007 optimization: instead of per-row upsert (2+ DB calls each),
+  // batch-insert card_definitions and physical_copies in large chunks.
+  const supabaseImport = createAdminClient()
 
-  for (let batchIdx = 0; batchIdx < resolvedChunks.length; batchIdx++) {
-    const batch = resolvedChunks[batchIdx]
+  // 3a: Collect unique oracle_ids and ensure card_definitions exist (batched)
+  const uniqueOracleIds = new Map<string, { oracleId: string; cardName: string }>()
+  for (const row of resolved) {
+    if (!uniqueOracleIds.has(row.oracleId)) {
+      uniqueOracleIds.set(row.oracleId, { oracleId: row.oracleId, cardName: row.cardName })
+    }
+  }
 
-    try {
-      for (const row of batch) {
-        // Ensure card_definition exists for this oracle_id
-        const cardDefinitionId = await ensureCardDefinition(row.oracleId, row.cardName, options.userId ?? '')
+  // Pre-fetch ALL existing card_definitions for this user in one query
+  const cardDefMap = new Map<string, number>() // oracle_id → card_definition_id
+  const { data: existingDefs } = await supabaseImport
+    .from('card_definitions')
+    .select('id, oracle_id')
+    .eq('user_id', options.userId ?? '')
 
-        // Set the physical copy state (authoritative overwrite)
-        const result = await setPhysicalCopyState({
-          cardDefinitionId,
-          scryfallPrintingId: row.scryfallPrintingId,
-          isFoil: row.isFoil,
-          quantity: row.quantity,
-          condition: row.condition,
-          userId: options.userId ?? '',
-        })
+  for (const def of existingDefs ?? []) {
+    cardDefMap.set(def.oracle_id, def.id)
+  }
 
-        // Track the touched row id for soft-delete exclusion
-        touchedIds.add(result.id)
+  // Insert only the missing card_definitions (batch insert)
+  const missingDefs = Array.from(uniqueOracleIds.values())
+    .filter(d => !cardDefMap.has(d.oracleId))
 
-        // Increment counters by action
-        switch (result.action) {
-          case 'created':
-            created++
-            break
-          case 'updated_quantity':
-            updatedQuantity++
-            break
-          case 'updated_condition':
-            updatedCondition++
-            break
-          case 'unchanged':
-            unchanged++
-            break
+  if (missingDefs.length > 0) {
+    const defInsertChunks = chunk(missingDefs.map(d => ({
+      oracle_id: d.oracleId,
+      card_name: d.cardName,
+      user_id: options.userId ?? '',
+    })), BATCH_SIZE)
+
+    for (const defBatch of defInsertChunks) {
+      const { data: inserted, error: defErr } = await supabaseImport
+        .from('card_definitions')
+        .upsert(defBatch, { onConflict: 'oracle_id' })
+        .select('id, oracle_id')
+
+      if (defErr) {
+        batchErrors.push(`card_definitions upsert: ${defErr.message}`)
+      } else {
+        for (const row of inserted ?? []) {
+          cardDefMap.set(row.oracle_id, row.id)
         }
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      batchErrors.push(`Batch ${batchIdx}: ${message}`)
-      // Log and continue — don't abort the entire import for one bad batch
-      console.error(`[import-engine] Batch ${batchIdx} error:`, message)
     }
   }
 
-  // Stage 4: Soft-delete scan
-  // Set quantity = 0 on physical_copies rows that weren't touched by the import
-  // IMPORTANT: Skip soft-delete if no resolved rows (avoid wiping everything
-  // on an empty/bad parse)
-  if (resolved.length > 0 && touchedIds.size > 0) {
-    try {
-      softDeleted = await softDeleteAbsentCopies(touchedIds, options.userId ?? '')
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      batchErrors.push(`Soft-delete: ${message}`)
-      console.error(`[import-engine] Soft-delete error:`, message)
+  // 3b: Build physical_copies insert payload (one row per instance)
+  const physicalCopyRows: Array<{
+    card_definition_id: number
+    scryfall_printing_id: string
+    is_foil: boolean
+    is_proxy: boolean
+    condition: string | null
+    user_id: string
+  }> = []
+
+  for (const row of resolved) {
+    const cardDefId = cardDefMap.get(row.oracleId)
+    if (!cardDefId) continue // skip if card_definition failed
+
+    for (let i = 0; i < row.quantity; i++) {
+      physicalCopyRows.push({
+        card_definition_id: cardDefId,
+        scryfall_printing_id: row.scryfallPrintingId,
+        is_foil: row.isFoil,
+        is_proxy: false,
+        condition: row.condition ?? null,
+        user_id: options.userId ?? '',
+      })
     }
   }
+
+  // 3c: Bulk insert physical_copies in chunks of 500
+  const insertChunks = chunk(physicalCopyRows, BATCH_SIZE)
+  for (const insertBatch of insertChunks) {
+    try {
+      const { error: insertErr } = await supabaseImport
+        .from('physical_copies')
+        .insert(insertBatch as any)
+
+      if (insertErr) {
+        batchErrors.push(`physical_copies insert: ${insertErr.message}`)
+      } else {
+        created += insertBatch.length
+      }
+    } catch (err) {
+      batchErrors.push(`physical_copies insert: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
+  // 3d: Ensure oracle_to_printings mappings are cached for future imports
+  const printingMappings = Array.from(uniqueOracleIds.entries())
+    .map(([oracleId]) => {
+      const row = resolved.find(r => r.oracleId === oracleId)
+      return row ? { oracle_id: oracleId, scryfall_printing_id: row.scryfallPrintingId } : null
+    })
+    .filter((m): m is { oracle_id: string; scryfall_printing_id: string } => m !== null && m.scryfall_printing_id !== '')
+
+  if (printingMappings.length > 0) {
+    const mappingChunks = chunk(printingMappings, BATCH_SIZE)
+    for (const mappingBatch of mappingChunks) {
+      try {
+        await supabaseImport
+          .from('oracle_to_printings')
+          .upsert(mappingBatch, { onConflict: 'oracle_id,scryfall_printing_id' })
+      } catch {
+        // Non-fatal — just caching for future imports
+      }
+    }
+  }
+
+  // Stage 4: Soft-delete scan — DISABLED
+  // The V1 soft-delete has no source-tag scoping. It would delete ALL physical_copies
+  // not touched by this import, which means importing from one source (e.g., Moxfield)
+  // would wipe rows from another source (e.g., Archidekt). This is the original
+  // destructive-reimport problem.
+  //
+  // For source-scoped sync (only removing rows from the SAME source), use mode=sync
+  // which routes to import-engine-v2's executeSyncMode.
+  //
+  // The V1 upsert mode is now purely additive: it creates/updates but never deletes.
+  // if (resolved.length > 0 && touchedIds.size > 0) {
+  //   softDeleted = await softDeleteAbsentCopies(touchedIds, options.userId ?? '')
+  // }
 
   // -------------------------------------------------------------------------
   // Stage 5: Build ImportSummary
@@ -368,12 +436,11 @@ export async function executeCollectionImport(
 async function softDeleteAbsentCopies(touchedIds: Set<number>, userId: string): Promise<number> {
   const supabase = createAdminClient()
 
-  // Get all non-proxy physical copies with quantity > 0
+  // Post-migration-007: No quantity column. Get all non-proxy physical copies for this user.
   const { data: allCopies, error: fetchError } = await supabase
     .from('physical_copies')
     .select('id')
     .eq('is_proxy', false)
-    .gt('quantity', 0)
     .eq('user_id', userId)
 
   if (fetchError) {
@@ -382,25 +449,25 @@ async function softDeleteAbsentCopies(touchedIds: Set<number>, userId: string): 
 
   if (!allCopies || allCopies.length === 0) return 0
 
-  // Find IDs that should be soft-deleted (not in touchedIds)
+  // Find IDs that should be deleted (not in touchedIds)
   const toDelete = allCopies
     .map(row => row.id)
     .filter(id => !touchedIds.has(id))
 
   if (toDelete.length === 0) return 0
 
-  // Process soft-deletes in batches to stay within query limits
+  // Delete in batches
   let totalDeleted = 0
   const deleteChunks = chunk(toDelete, BATCH_SIZE)
 
   for (const batch of deleteChunks) {
-    const { error: updateError } = await supabase
+    const { error: deleteError } = await supabase
       .from('physical_copies')
-      .update({ quantity: 0 })
+      .delete()
       .in('id', batch)
 
-    if (updateError) {
-      throw new Error(`Failed to soft-delete physical copies batch: ${updateError.message}`)
+    if (deleteError) {
+      throw new Error(`Failed to delete physical copies batch: ${deleteError.message}`)
     }
 
     totalDeleted += batch.length

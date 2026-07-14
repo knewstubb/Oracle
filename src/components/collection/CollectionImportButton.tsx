@@ -124,7 +124,7 @@ export function CollectionImportButton() {
           variant="ghost"
           size="sm"
           onClick={handleTriggerPicker}
-          className="gap-1.5 text-xs"
+          className="gap-1.5 text-[length:var(--fs-sm)]"
         >
           <Upload className="size-3.5" />
           Import CSV
@@ -185,7 +185,7 @@ function ImportProgress({
             }}
           />
         </div>
-        <span className="text-[10px] text-white/40">
+        <span className="text-[length:var(--fs-xs)] text-white/40">
           {progress.rowsProcessed.toLocaleString()} / {progress.totalRows.toLocaleString()} rows
         </span>
       </div>

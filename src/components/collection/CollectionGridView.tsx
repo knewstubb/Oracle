@@ -70,7 +70,7 @@ function PrintingDetail({
     >
       <div className="mb-2 flex items-center justify-between">
         <span
-          className="text-[10px] font-medium uppercase tracking-wider"
+          className="text-[length:var(--fs-xs)] font-medium uppercase tracking-wider"
           style={{ color: 'rgba(255,255,255,0.35)' }}
         >
           Printings
@@ -216,7 +216,7 @@ function CardGridTile({
           />
         ) : (
           <div
-            className="flex aspect-[5/7] w-full items-center justify-center rounded-t-lg text-xs"
+            className="flex aspect-[5/7] w-full items-center justify-center rounded-t-lg text-[length:var(--fs-sm)]"
             style={{
               background: 'rgba(255,255,255,0.04)',
               color: 'rgba(255,255,255,0.3)',
@@ -249,14 +249,14 @@ function CardGridTile({
       {/* Card info */}
       <div className="flex flex-1 flex-col gap-0.5 px-2.5 py-2">
         <span
-          className="truncate text-xs font-medium"
+          className="truncate text-[length:var(--fs-sm)] font-medium"
           style={{ color: '#e8e8e6' }}
           title={row.cardName}
         >
           {row.cardName}
         </span>
 
-        <div className="flex items-center justify-between text-[10px]">
+        <div className="flex items-center justify-between text-[length:var(--fs-xs)]">
           <span style={{ color: 'rgba(255,255,255,0.4)' }}>
             Owned: {row.ownedQuantity}
           </span>
@@ -266,7 +266,7 @@ function CardGridTile({
         </div>
 
         <span
-          className="mt-0.5 text-[10px] font-mono"
+          className="mt-0.5 text-[length:var(--fs-xs)] font-mono"
           style={{
             color:
               row.priceToAdd !== null && !row.isBasicLand
@@ -308,7 +308,7 @@ export function CollectionGridView({
         className="flex min-h-[200px] items-center justify-center"
         role="status"
       >
-        <p className="text-sm" style={{ color: 'rgba(255,255,255,0.35)' }}>
+        <p className="text-[length:var(--fs-md)]" style={{ color: 'rgba(255,255,255,0.35)' }}>
           No cards match your filters.
         </p>
       </div>

@@ -85,7 +85,7 @@ export function HealthStrip({ deckId, onPillClick }: HealthStripProps) {
 
       {/* Error state */}
       {isError && (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-[length:var(--fs-sm)] text-muted-foreground">
           Unable to load health data
         </span>
       )}
@@ -102,7 +102,7 @@ export function HealthStrip({ deckId, onPillClick }: HealthStripProps) {
 
       {/* Contextual note — right-aligned, only when violations exist */}
       {contextualNote && (
-        <span className="ml-auto inline-flex items-center gap-1 text-xs text-[var(--color-amber)]">
+        <span className="ml-auto inline-flex items-center gap-1 text-[length:var(--fs-sm)] text-[var(--color-amber)]">
           <AlertTriangle size={12} aria-hidden="true" />
           {contextualNote}
         </span>

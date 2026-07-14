@@ -12,7 +12,7 @@ export function ManaCost({ cost, className }: ManaCostProps) {
 
   return (
     <span
-      className={cn('font-mono text-sm text-muted-foreground', className)}
+      className={cn('font-mono text-[length:var(--fs-md)] text-muted-foreground', className)}
       aria-label={`Mana cost: ${cost}`}
     >
       {cost}

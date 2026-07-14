@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils'
 interface AllocationDeckEntry {
   deckId: number
   deckName: string
-  ownershipStatus: 'original' | 'proxy' | 'not_owned'
+  ownershipStatus: 'original' | 'proxy' | null
   proxyOfDeckId: number | null
 }
 
@@ -229,7 +229,7 @@ export function AllocationTab({ deckFilter: externalDeckFilter }: { deckFilter?:
     return (
       <div
         role="alert"
-        className="flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        className="flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-3 text-[length:var(--fs-md)] text-destructive"
       >
         <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
         <span className="flex-1">Failed to load allocation data.</span>
@@ -258,7 +258,7 @@ export function AllocationTab({ deckFilter: externalDeckFilter }: { deckFilter?:
               type="button"
               onClick={() => handleFilterChange('all')}
               className={cn(
-                'px-3 py-2 text-left text-sm transition-colors hover:bg-white/5',
+                'px-3 py-2 text-left text-[length:var(--fs-md)] transition-colors hover:bg-white/5',
                 internalDeckFilter === 'all' &&
                   'border-r-2 font-medium text-[var(--color-teal)]'
               )}
@@ -276,7 +276,7 @@ export function AllocationTab({ deckFilter: externalDeckFilter }: { deckFilter?:
                 type="button"
                 onClick={() => handleFilterChange(deck.id)}
                 className={cn(
-                  'flex items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-white/5',
+                  'flex items-center justify-between px-3 py-2 text-left text-[length:var(--fs-md)] transition-colors hover:bg-white/5',
                   internalDeckFilter === deck.id &&
                     'border-r-2 font-medium text-[var(--color-teal)]'
                 )}
@@ -286,7 +286,7 @@ export function AllocationTab({ deckFilter: externalDeckFilter }: { deckFilter?:
               >
                 <span className="truncate">{deck.name}</span>
                 {deckCardCounts.has(deck.id) && (
-                  <span className="ml-1 shrink-0 text-xs text-muted-foreground">
+                  <span className="ml-1 shrink-0 text-[length:var(--fs-sm)] text-muted-foreground">
                     {deckCardCounts.get(deck.id)}
                   </span>
                 )}
@@ -299,7 +299,7 @@ export function AllocationTab({ deckFilter: externalDeckFilter }: { deckFilter?:
                 type="button"
                 onClick={() => handleFilterChange('conflicts')}
                 className={cn(
-                  'w-full px-3 py-2 text-left text-sm transition-colors hover:bg-white/5',
+                  'w-full px-3 py-2 text-left text-[length:var(--fs-md)] transition-colors hover:bg-white/5',
                   internalDeckFilter === 'conflicts' &&
                     'border-r-2 font-medium'
                 )}
@@ -327,7 +327,7 @@ export function AllocationTab({ deckFilter: externalDeckFilter }: { deckFilter?:
           <>
             {/* Table */}
             <div className="flex-1 overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-[length:var(--fs-md)]">
                 <thead>
                   <tr
                     className="border-b text-left"
@@ -409,7 +409,7 @@ export function AllocationTab({ deckFilter: externalDeckFilter }: { deckFilter?:
                                   {entry.ownershipStatus === 'proxy' && (
                                     <button
                                       type="button"
-                                      className="ml-1 rounded px-1.5 py-0.5 text-[10px] opacity-0 transition-opacity group-hover:opacity-100"
+                                      className="ml-1 rounded px-1.5 py-0.5 text-[length:var(--fs-xs)] opacity-0 transition-opacity group-hover:opacity-100"
                                       style={{
                                         color: 'rgba(255,255,255,0.4)',
                                         background: 'rgba(255,255,255,0.06)',
@@ -463,7 +463,7 @@ export function AllocationTab({ deckFilter: externalDeckFilter }: { deckFilter?:
 
             {/* ─── Pagination footer ──────────────────────────────── */}
             <footer
-              className="flex items-center justify-between border-t px-4 py-3 text-xs text-muted-foreground"
+              className="flex items-center justify-between border-t px-4 py-3 text-[length:var(--fs-sm)] text-muted-foreground"
               style={{ borderColor: 'var(--border-emphasis)' }}
             >
               <div className="flex items-center gap-4">
@@ -509,7 +509,7 @@ export function AllocationTab({ deckFilter: externalDeckFilter }: { deckFilter?:
                         variant={currentPage === pageNum ? 'default' : 'ghost'}
                         size="sm"
                         onClick={() => setCurrentPage(pageNum)}
-                        className="size-7 p-0 text-xs"
+                        className="size-7 p-0 text-[length:var(--fs-sm)]"
                       >
                         {pageNum}
                       </Button>
@@ -532,7 +532,7 @@ export function AllocationTab({ deckFilter: externalDeckFilter }: { deckFilter?:
 
             {/* ─── Legend ──────────────────────────────────────────── */}
             <div
-              className="flex items-center gap-6 border-t px-4 py-2 text-xs text-muted-foreground"
+              className="flex items-center gap-6 border-t px-4 py-2 text-[length:var(--fs-sm)] text-muted-foreground"
               style={{ borderColor: 'var(--border-default)' }}
             >
               <span className="flex items-center gap-1.5">

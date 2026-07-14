@@ -88,7 +88,7 @@ function DeadWeightBadge({ card, deckId }: { card: DeckCard; deckId?: number | s
       >
         <Badge
           variant="secondary"
-          className={cn('cursor-pointer text-[10px] font-medium shadow-sm', styles)}
+          className={cn('cursor-pointer text-[length:var(--fs-xs)] font-medium shadow-sm', styles)}
         >
           {label}
         </Badge>
@@ -184,7 +184,7 @@ export function CardGrid({ cards, deckId, isLoading }: CardGridProps) {
         const totalQty = typeCards.reduce((sum, c) => sum + (c.quantity || 1), 0)
         return (
           <section key={type} aria-label={`${type} (${totalQty})`}>
-            <h3 className="mb-3 text-sm font-medium text-muted-foreground">
+            <h3 className="mb-3 text-[length:var(--fs-md)] font-medium text-muted-foreground">
               {type} ({totalQty})
             </h3>
             <div
@@ -226,7 +226,7 @@ export function CardGrid({ cards, deckId, isLoading }: CardGridProps) {
                       />
                     ) : (
                       <div
-                        className="flex aspect-[5/7] w-full items-center justify-center rounded-lg bg-muted text-xs text-muted-foreground"
+                        className="flex aspect-[5/7] w-full items-center justify-center rounded-lg bg-muted text-[length:var(--fs-sm)] text-muted-foreground"
                         role="img"
                         aria-label={`${card.card_name} — ${card.set_code?.toUpperCase() || 'Unknown'}`}
                       >

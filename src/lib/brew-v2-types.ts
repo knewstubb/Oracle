@@ -6,7 +6,7 @@
 // Deck Status
 // ---------------------------------------------------------------------------
 
-export type DeckStatus = 'active' | 'draft' | 'concept'
+export type DeckStatus = 'brew' | 'boxed' | 'archived'
 
 // ---------------------------------------------------------------------------
 // Phase State

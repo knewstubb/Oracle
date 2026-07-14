@@ -99,7 +99,7 @@ export function PiledColumn({
       >
         {/* Header: category name + count + health icon */}
         <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-[rgba(255,255,255,0.06)]">
-          <span className="text-[9px] font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.7)] truncate flex-1">
+          <span className="text-[9px] font-medium uppercase tracking-wider text-[rgba(255,255,255,0.7)] truncate flex-1">
             {category}
           </span>
 
@@ -109,7 +109,7 @@ export function PiledColumn({
 
           {healthIcon && (
             <span
-              className={`text-[10px] shrink-0 ${healthColour}`}
+              className={`text-[length:var(--fs-xs)] shrink-0 ${healthColour}`}
               aria-label={`Health: ${healthStatus}`}
               title={`Category health: ${healthStatus}`}
             >
@@ -145,8 +145,6 @@ export interface PiledCardRowProps {
   card: DeckCard
   isDragging?: boolean
   pointerProps?: { onPointerDown: (e: React.PointerEvent) => void }
-  /** Resolved art URL for generic land slots (from useGenericLandPreferences) */
-  genericLandArtUrl?: string | null
 }
 
 /**
@@ -159,7 +157,6 @@ export function PiledCardRow({
   card,
   isDragging = false,
   pointerProps,
-  genericLandArtUrl,
 }: PiledCardRowProps) {
   const dotColour = OWNERSHIP_DOT_COLOURS[card.ownership_status]
 
@@ -192,7 +189,6 @@ export function PiledCardRow({
       {card.is_generic_land && (
         <GenericLandBadge
           landType={card.card_name}
-          artUrl={genericLandArtUrl}
           className="text-[7px] px-1 py-0 shrink-0"
         />
       )}

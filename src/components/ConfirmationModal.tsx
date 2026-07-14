@@ -49,7 +49,7 @@ export function ConfirmationModal({
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
 
-        {children && <div className="text-sm">{children}</div>}
+        {children && <div className="text-[length:var(--fs-md)]">{children}</div>}
 
         <DialogFooter>
           <Button

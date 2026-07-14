@@ -29,8 +29,6 @@ export interface CanvasDeckCardProps {
   cardZIndex?: number
   dragOffset: { x: number; y: number } | null
   onDiscuss: (cardName: string) => void
-  /** Resolved art URL for generic land slots (from useGenericLandPreferences) */
-  genericLandArtUrl?: string | null
   /** Available category options for the tag editor */
   availableCategories?: string[]
   /** Callback when categories are changed via the editor */
@@ -80,7 +78,6 @@ export function CanvasDeckCard({
   cardZIndex,
   dragOffset,
   onDiscuss,
-  genericLandArtUrl,
   availableCategories,
   onCategoryChange,
 }: CanvasDeckCardProps) {
@@ -110,9 +107,9 @@ export function CanvasDeckCard({
         {...pointerProps}
       >
         {viewDensity === 'card' ? (
-          <CardView card={card} hasDragOffset={!!dragOffset} genericLandArtUrl={genericLandArtUrl} zoomLevel={zoomLevel} />
+          <CardView card={card} hasDragOffset={!!dragOffset} zoomLevel={zoomLevel} />
         ) : (
-          <NameView card={card} hasDragOffset={!!dragOffset} genericLandArtUrl={genericLandArtUrl} />
+          <NameView card={card} hasDragOffset={!!dragOffset} />
         )}
 
         {/* Discuss button — visible on hover */}
@@ -152,8 +149,8 @@ export function CanvasDeckCard({
         <Dialog open={isEditingCategories} onOpenChange={setIsEditingCategories}>
           <DialogContent className="sm:max-w-[320px]" data-testid={`category-dialog-${card.card_name}`}>
             <DialogHeader>
-              <DialogTitle className="text-sm">Edit Categories</DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground">
+              <DialogTitle className="text-[length:var(--fs-md)]">Edit Categories</DialogTitle>
+              <DialogDescription className="text-[length:var(--fs-sm)] text-muted-foreground">
                 {card.card_name}
               </DialogDescription>
             </DialogHeader>
@@ -177,7 +174,7 @@ export function CanvasDeckCard({
 // Card_View — 180×252 full-frame with category ring
 // ---------------------------------------------------------------------------
 
-function CardView({ card, hasDragOffset, genericLandArtUrl, zoomLevel }: { card: DeckCard; hasDragOffset: boolean; genericLandArtUrl?: string | null; zoomLevel?: number }) {
+function CardView({ card, hasDragOffset, zoomLevel }: { card: DeckCard; hasDragOffset: boolean; zoomLevel?: number }) {
   const [imgError, setImgError] = useState(false)
 
   // Border + bar colour based on ownership status (matching mockups exactly)
@@ -190,9 +187,7 @@ function CardView({ card, hasDragOffset, genericLandArtUrl, zoomLevel }: { card:
   }
   const style = ownershipStyles[card.ownership_status] ?? ownershipStyles.unknown
 
-  const imageUrl = card.is_generic_land && genericLandArtUrl
-    ? genericLandArtUrl
-    : `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(card.card_name)}&format=image&version=normal`
+  const imageUrl = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(card.card_name)}&format=image&version=normal`
 
   return (
     <div
@@ -228,7 +223,7 @@ function CardView({ card, hasDragOffset, genericLandArtUrl, zoomLevel }: { card:
         style={{ backgroundColor: style.barBg }}
       >
         <span
-          className="text-[9px] font-bold uppercase tracking-wider text-white"
+          className="text-[9px] font-medium uppercase tracking-wider text-white"
           style={{
             transform: zoomLevel && zoomLevel < 1 ? `scale(${1 / zoomLevel})` : undefined,
             transformOrigin: 'center',
@@ -245,7 +240,7 @@ function CardView({ card, hasDragOffset, genericLandArtUrl, zoomLevel }: { card:
 // Name_View — 168px wide: ownership dot + name + CMC + category
 // ---------------------------------------------------------------------------
 
-function NameView({ card, hasDragOffset, genericLandArtUrl }: { card: DeckCard; hasDragOffset: boolean; genericLandArtUrl?: string | null }) {
+function NameView({ card, hasDragOffset }: { card: DeckCard; hasDragOffset: boolean }) {
   const dotColour = OWNERSHIP_DOT_COLOURS[card.ownership_status]
 
   // Border colour based on ownership
@@ -278,7 +273,7 @@ function NameView({ card, hasDragOffset, genericLandArtUrl }: { card: DeckCard; 
         />
 
         {/* Card name — truncated */}
-        <span className="text-[10px] font-medium text-[rgba(255,255,255,0.9)] truncate flex-1 leading-tight">
+        <span className="text-[length:var(--fs-xs)] font-medium text-[rgba(255,255,255,0.9)] truncate flex-1 leading-tight">
           {card.card_name}
         </span>
 
@@ -286,7 +281,6 @@ function NameView({ card, hasDragOffset, genericLandArtUrl }: { card: DeckCard; 
         {card.is_generic_land && (
           <GenericLandBadge
             landType={card.card_name}
-            artUrl={genericLandArtUrl}
             className="text-[8px] px-1 py-0 shrink-0"
           />
         )}

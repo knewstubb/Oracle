@@ -82,7 +82,7 @@ export function DraftBanner({
       <div className="mx-auto max-w-[1280px]">
         {bannerState === 'info' && (
           <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 text-[length:var(--fs-md)] text-muted-foreground">
               <AlertTriangle
                 className="size-4 shrink-0 text-[#378ADD]"
                 aria-hidden="true"
@@ -97,7 +97,7 @@ export function DraftBanner({
                 type="button"
                 onClick={handleContinueBrewing}
                 className={cn(
-                  'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+                  'rounded-lg px-3 py-1.5 text-[length:var(--fs-sm)] font-medium transition-colors',
                   'bg-[rgba(55,138,221,0.1)] text-[#378ADD] border border-[rgba(55,138,221,0.3)]',
                   'hover:bg-[rgba(55,138,221,0.2)]'
                 )}
@@ -109,7 +109,7 @@ export function DraftBanner({
                   type="button"
                   onClick={handleDeleteClick}
                   className={cn(
-                    'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+                    'rounded-lg px-3 py-1.5 text-[length:var(--fs-sm)] font-medium transition-colors',
                     'bg-[rgba(226,75,74,0.15)] text-[#E24B4A] border border-[rgba(226,75,74,0.3)]',
                     'hover:bg-[rgba(226,75,74,0.25)]'
                   )}

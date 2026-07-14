@@ -12,8 +12,6 @@ interface CardRowProps {
   card: DeckCard
   onClick: (cardName: string) => void
   isDragging?: boolean
-  /** Resolved art URL for generic land slots (from useGenericLandPreferences) */
-  genericLandArtUrl?: string | null
   dragHandleProps?: {
     draggable: true
     onDragStart: (e: React.DragEvent) => void
@@ -49,7 +47,7 @@ function OwnershipDot({ status }: { status: DeckCard['ownership_status'] }) {
 // CardRow — single card entry in the deck list
 // ---------------------------------------------------------------------------
 
-export function CardRow({ card, onClick, isDragging, genericLandArtUrl, dragHandleProps }: CardRowProps) {
+export function CardRow({ card, onClick, isDragging, dragHandleProps }: CardRowProps) {
   return (
     <div
       role="button"
@@ -74,7 +72,7 @@ export function CardRow({ card, onClick, isDragging, genericLandArtUrl, dragHand
       <OwnershipDot status={card.ownership_status} />
 
       {/* 3. Card name — ellipsis truncation */}
-      <span className="flex-1 truncate text-[11px] text-[#d4d4d0]">
+      <span className="flex-1 truncate text-[length:var(--fs-base)] text-[#d4d4d0]">
         {card.card_name}
       </span>
 
@@ -82,7 +80,6 @@ export function CardRow({ card, onClick, isDragging, genericLandArtUrl, dragHand
       {card.is_generic_land && (
         <GenericLandBadge
           landType={card.card_name}
-          artUrl={genericLandArtUrl}
           className="shrink-0"
         />
       )}
@@ -103,7 +100,7 @@ export function CardRow({ card, onClick, isDragging, genericLandArtUrl, dragHand
       )}
 
       {/* 5. CMC — right-aligned */}
-      <span className="w-5 text-right text-[10px] text-muted-foreground shrink-0">
+      <span className="w-5 text-right text-[length:var(--fs-base)] text-muted-foreground shrink-0">
         {card.cmc}
       </span>
     </div>

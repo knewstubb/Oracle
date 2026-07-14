@@ -110,7 +110,7 @@ function DeadWeightBadge({
       >
         <Badge
           variant="secondary"
-          className={cn('text-xs cursor-pointer', style.bg)}
+          className={cn('text-[length:var(--fs-sm)] cursor-pointer', style.bg)}
         >
           {style.label}
         </Badge>
@@ -225,7 +225,7 @@ export function DeckListTable({ cards }: DeckListTableProps) {
     return (
       <th
         className={cn(
-          'cursor-pointer select-none px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground',
+          'cursor-pointer select-none px-3 py-2 text-left text-[length:var(--fs-sm)] font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground',
           active && 'text-foreground'
         )}
         onClick={() => handleSort(field)}
@@ -242,7 +242,7 @@ export function DeckListTable({ cards }: DeckListTableProps) {
     <div className="space-y-3">
       {/* Summary + Search */}
       <div className="flex items-center justify-between gap-4">
-        <div className="text-sm text-muted-foreground">
+        <div className="text-[length:var(--fs-md)] text-muted-foreground">
           <span className="font-medium text-foreground">{totalCards}</span> cards
           {proxyCount > 0 && (
             <> • <span className="font-medium text-amber-600 dark:text-amber-400">{proxyCount}</span> proxies</>
@@ -261,7 +261,7 @@ export function DeckListTable({ cards }: DeckListTableProps) {
 
       {/* Table */}
       <div className="rounded-lg border border-border">
-        <table className="w-full text-sm">
+        <table className="w-full text-[length:var(--fs-base)]">
           <thead className="border-b border-border bg-muted/50">
             <tr>
               <SortHeader field="quantity">Qty</SortHeader>
@@ -290,7 +290,7 @@ export function DeckListTable({ cards }: DeckListTableProps) {
                   <td className="px-3 py-2 text-muted-foreground">
                     {category}
                   </td>
-                  <td className="px-3 py-2 font-mono text-xs uppercase text-muted-foreground">
+                  <td className="px-3 py-2 font-mono text-[length:var(--fs-sm)] uppercase text-muted-foreground">
                     {card.set_code || ''}
                   </td>
                   <td className="px-3 py-2">
@@ -311,13 +311,13 @@ export function DeckListTable({ cards }: DeckListTableProps) {
           </tbody>
           <tfoot className="border-t border-border bg-muted/50">
             <tr>
-              <td className="px-3 py-2 font-semibold tabular-nums">{totalCards}</td>
-              <td className="px-3 py-2 font-semibold">Total</td>
+              <td className="px-3 py-2 font-medium tabular-nums">{totalCards}</td>
+              <td className="px-3 py-2 font-medium">Total</td>
               <td className="px-3 py-2"></td>
               <td className="px-3 py-2"></td>
               <td className="px-3 py-2">
                 {proxyCount > 0 && (
-                  <span className="text-xs text-amber-600 dark:text-amber-400">
+                  <span className="text-[length:var(--fs-sm)] text-amber-600 dark:text-amber-400">
                     {proxyCount} proxies
                   </span>
                 )}

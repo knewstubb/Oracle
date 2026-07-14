@@ -105,11 +105,11 @@ export function HealthBar({ deckId }: HealthBarProps) {
                   key={cat.category}
                   type="button"
                   onClick={() => scrollToCategory(cat.category)}
-                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-opacity hover:opacity-80 cursor-pointer ${statusClasses(cat.status)}`}
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[length:var(--fs-sm)] font-medium transition-opacity hover:opacity-80 cursor-pointer ${statusClasses(cat.status)}`}
                   aria-label={`${cat.category}: ${cat.actual} cards, status ${cat.status}`}
                 >
                   <span>{cat.category}</span>
-                  <span className="font-semibold">{cat.actual}</span>
+                  <span className="font-medium">{cat.actual}</span>
                 </button>
               ))}
             </div>
@@ -132,7 +132,7 @@ export function HealthBar({ deckId }: HealthBarProps) {
 
           {/* Contextual note — only shown when non-green categories exist */}
           {contextualNote && (
-            <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+            <p className="mt-1 text-[length:var(--fs-sm)] text-amber-700 dark:text-amber-400">
               {contextualNote}
             </p>
           )}

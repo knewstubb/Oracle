@@ -119,7 +119,7 @@ function PrintingSubgroupRowComponent({
               <span className="text-[11px] font-mono uppercase" style={{ color: 'rgba(255,255,255,0.4)' }}>
                 {subgroup.setCode}
               </span>
-              <span className="text-xs" style={{ color: 'rgba(255,255,255,0.55)' }}>
+              <span className="text-[length:var(--fs-base)]" style={{ color: 'rgba(255,255,255,0.55)' }}>
                 {subgroup.setName}
               </span>
             </span>
@@ -140,7 +140,7 @@ function PrintingSubgroupRowComponent({
 
         {/* Quantity */}
         <span
-          className="ml-auto min-w-[50px] text-right text-xs tabular-nums"
+          className="ml-auto min-w-[50px] text-right text-[length:var(--fs-base)] tabular-nums"
           style={{ color: 'rgba(255,255,255,0.4)' }}
         >
           {subgroup.quantity}
@@ -148,7 +148,7 @@ function PrintingSubgroupRowComponent({
 
         {/* In-use */}
         <span
-          className="min-w-[50px] text-right text-xs tabular-nums"
+          className="min-w-[50px] text-right text-[length:var(--fs-base)] tabular-nums"
           style={{ color: 'rgba(255,255,255,0.3)' }}
         >
           {subgroup.inUseCount}
@@ -156,7 +156,7 @@ function PrintingSubgroupRowComponent({
 
         {/* Owned Valuation */}
         <span
-          className="min-w-[90px] text-right text-xs tabular-nums"
+          className="min-w-[90px] text-right text-[length:var(--fs-base)] tabular-nums"
           style={{
             color: isBasicLand || subgroup.ownedValuation === null
               ? 'rgba(255,255,255,0.2)'
@@ -226,7 +226,7 @@ function CardRollupRow({
         />
 
         {/* Card name with hover preview */}
-        <span className="min-w-0 flex-1 truncate text-xs font-medium" style={{ color: '#e8e8e6' }}>
+        <span className="min-w-0 flex-1 truncate text-[length:var(--fs-base)] font-medium" style={{ color: '#e8e8e6' }}>
           <CardArtPreview
             scryfallId={row.printingSubgroups[0]?.scryfallPrintingId || ''}
             cardName={row.cardName}
@@ -237,7 +237,7 @@ function CardRollupRow({
 
         {/* Owned quantity */}
         <span
-          className="min-w-[50px] text-right text-xs tabular-nums"
+          className="min-w-[50px] text-right text-[length:var(--fs-base)] tabular-nums"
           style={{ color: 'rgba(255,255,255,0.5)' }}
         >
           {row.ownedQuantity}
@@ -246,7 +246,7 @@ function CardRollupRow({
         {/* In-use count */}
         <span
           className={cn(
-            'min-w-[50px] text-right text-xs tabular-nums',
+            'min-w-[50px] text-right text-[length:var(--fs-base)] tabular-nums',
           )}
           style={{
             color: row.inUseCount > row.ownedQuantity
@@ -261,7 +261,7 @@ function CardRollupRow({
 
         {/* Price_To_Add */}
         <span
-          className="min-w-[110px] text-right text-xs tabular-nums"
+          className="min-w-[110px] text-right text-[length:var(--fs-base)] tabular-nums"
           style={{
             color: row.isBasicLand || row.priceToAdd === null
               ? 'rgba(255,255,255,0.2)'
@@ -332,25 +332,25 @@ export function CollectionListView({ rows, expand }: CollectionListViewProps) {
         <div className="w-3.5 shrink-0" />
 
         <span
-          className="min-w-0 flex-1 text-[10px] font-medium uppercase tracking-wider"
+          className="min-w-0 flex-1 text-[length:var(--fs-xs)] font-medium uppercase tracking-wider"
           style={{ color: 'rgba(255,255,255,0.25)' }}
         >
           Card
         </span>
         <span
-          className="min-w-[50px] text-right text-[10px] font-medium uppercase tracking-wider"
+          className="min-w-[50px] text-right text-[length:var(--fs-xs)] font-medium uppercase tracking-wider"
           style={{ color: 'rgba(255,255,255,0.25)' }}
         >
           Owned
         </span>
         <span
-          className="min-w-[50px] text-right text-[10px] font-medium uppercase tracking-wider"
+          className="min-w-[50px] text-right text-[length:var(--fs-xs)] font-medium uppercase tracking-wider"
           style={{ color: 'rgba(255,255,255,0.25)' }}
         >
           In Use
         </span>
         <span
-          className="min-w-[110px] text-right text-[10px] font-medium uppercase tracking-wider"
+          className="min-w-[110px] text-right text-[length:var(--fs-xs)] font-medium uppercase tracking-wider"
           style={{ color: 'rgba(255,255,255,0.25)' }}
         >
           Price
@@ -361,7 +361,7 @@ export function CollectionListView({ rows, expand }: CollectionListViewProps) {
       <div className="flex-1 overflow-y-auto">
         {rows.length === 0 ? (
           <div
-            className="flex items-center justify-center py-16 text-xs"
+            className="flex items-center justify-center py-16 text-[length:var(--fs-sm)]"
             style={{ color: 'rgba(255,255,255,0.25)' }}
           >
             No cards match your filters.

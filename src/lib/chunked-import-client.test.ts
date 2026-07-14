@@ -60,7 +60,7 @@ describe('chunkedImport', () => {
   it('throws on CSV missing Name column', async () => {
     await expect(
       chunkedImport({ csvContent: 'Quantity,Finish\n1,Normal' })
-    ).rejects.toThrow('CSV is missing required "Name" column')
+    ).rejects.toThrow('CSV is missing required "Name" or "Card Name" column')
   })
 
   it('sends a single chunk for small CSV (< 500 rows)', async () => {
@@ -194,7 +194,7 @@ describe('chunkedImport', () => {
     await chunkedImport({ csvContent })
 
     const [url, options] = mockFetch.mock.calls[0]
-    expect(url).toBe('/api/collection/import')
+    expect(url).toBe('/api/collection/import?mode=replace')
     expect(options.method).toBe('POST')
     expect(options.headers['Content-Type']).toBe('text/csv')
     // Body should include the header + data lines
@@ -213,7 +213,7 @@ describe('chunkedImport', () => {
 
     await chunkedImport({ csvContent, apiUrl: '/api/custom-import' })
 
-    expect(mockFetch.mock.calls[0][0]).toBe('/api/custom-import')
+    expect(mockFetch.mock.calls[0][0]).toBe('/api/custom-import?chunk_index=0')
   })
 
   it('uses custom chunk size when provided', async () => {

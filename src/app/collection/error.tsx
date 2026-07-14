@@ -14,7 +14,7 @@ export default function CollectionError({
     <div className="mx-auto max-w-[1280px] px-6 py-6">
       <div
         role="alert"
-        className="flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        className="flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-3 text-[length:var(--fs-md)] text-destructive"
       >
         <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
         <span className="flex-1">

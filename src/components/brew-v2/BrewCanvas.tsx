@@ -526,7 +526,7 @@ export function BrewCanvas({
                   className="flex items-center justify-center py-1"
                   style={{ backgroundColor: candidate.owned ? '#3a3a3a' : '#ec4899' }}
                 >
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-white">
+                  <span className="text-[9px] font-medium uppercase tracking-wider text-white">
                     {candidate.owned ? 'OWNED' : (candidate.description || 'UNOWNED')}
                   </span>
                 </div>
@@ -540,7 +540,7 @@ export function BrewCanvas({
                 }}
                 className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity"
               >
-                <span className="rounded-lg bg-[#378ADD] px-4 py-2 text-[11px] font-semibold text-white shadow-md hover:brightness-110">
+                <span className="rounded-lg bg-[#378ADD] px-4 py-2 text-[11px] font-medium text-white shadow-md hover:brightness-110">
                   Commit as Commander
                 </span>
               </button>
@@ -570,7 +570,7 @@ export function BrewCanvas({
             {...(isTransitioning ? {} : getPointerProps(posId))}
           >
             {/* Placeholder — DecisionCard component will be implemented in a subsequent task */}
-            <div className="w-[140px] rounded-lg border border-border/50 bg-background/80 p-2 text-[10px]">
+            <div className="w-[140px] rounded-lg border border-border/50 bg-background/80 p-2 text-[length:var(--fs-xs)]">
               <p className="font-medium uppercase">{decision.key}</p>
               <p className="text-muted-foreground">{decision.value}</p>
             </div>
@@ -597,7 +597,7 @@ export function BrewCanvas({
       >
         <div className="flex flex-col items-center" style={{ width: 180 }}>
           {/* Crown icon */}
-          <div className="mb-1 text-2xl">👑</div>
+          <div className="mb-1 text-[length:var(--fs-2xl)]">👑</div>
           {/* Card with dark surround */}
           <div
             className="rounded-lg overflow-hidden flex flex-col"
@@ -616,7 +616,7 @@ export function BrewCanvas({
             />
             {/* Category bar */}
             <div className="flex items-center justify-center py-1.5" style={{ backgroundColor: '#3a3a3a' }}>
-              <span className="text-[9px] font-bold uppercase tracking-wider text-white">
+              <span className="text-[9px] font-medium uppercase tracking-wider text-white">
                 COMMANDER
               </span>
             </div>
@@ -747,7 +747,7 @@ export function BrewCanvas({
           <button
             type="button"
             onClick={() => setArchiveExpanded(!archiveExpanded)}
-            className="flex items-center gap-1.5 rounded-md border border-border/50 bg-background/90 px-2 py-1 text-[10px] font-medium text-muted-foreground backdrop-blur-sm hover:bg-accent/50 transition-colors"
+            className="flex items-center gap-1.5 rounded-md border border-border/50 bg-background/90 px-2 py-1 text-[length:var(--fs-xs)] font-medium text-muted-foreground backdrop-blur-sm hover:bg-accent/50 transition-colors"
           >
             Archive
             <span className="rounded-full bg-[rgba(55,138,221,0.15)] px-1.5 py-0.5 text-[9px] text-[#378ADD]">
@@ -784,11 +784,11 @@ export function BrewCanvas({
             <DialogTitle>Replace current skeleton?</DialogTitle>
             <DialogDescription>
               Switching to{' '}
-              <span className="font-semibold text-foreground">
+              <span className="font-medium text-foreground">
                 {pendingCommitRef.current?.name}
               </span>{' '}
               will replace your current{' '}
-              <span className="font-semibold text-foreground">
+              <span className="font-medium text-foreground">
                 {deckState?.cards.length ?? 0}
               </span>
               -card skeleton. This action cannot be undone.

@@ -53,20 +53,20 @@ export function CategoriesPanel({ cards }: CategoriesPanelProps) {
     <div className="mx-auto max-w-[1080px] space-y-6">
       {/* Summary Table */}
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Category Breakdown</h2>
+        <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium">Category Breakdown</h2>
         {categoryCount > 8 && (
-          <div className="mb-3 rounded-md px-3 py-2 text-xs" style={{ backgroundColor: 'rgba(251, 191, 36, 0.15)', border: '1px solid rgba(251, 191, 36, 0.3)', color: '#fbbf24' }}>
+          <div className="mb-3 rounded-md px-3 py-2 text-[length:var(--fs-sm)]" style={{ backgroundColor: 'rgba(251, 191, 36, 0.15)', border: '1px solid rgba(251, 191, 36, 0.3)', color: '#fbbf24' }}>
             {categoryCount} categories — consider merging. Category View works best with 6–8.
           </div>
         )}
         <div className="rounded-lg border border-border">
-          <table className="w-full text-sm">
+          <table className="w-full text-[length:var(--fs-md)]">
             <thead className="border-b border-border bg-muted/50">
               <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">Role</th>
-                <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">Target</th>
-                <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">Actual</th>
-                <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">Status</th>
+                <th className="px-4 py-2 text-left text-[length:var(--fs-sm)] font-medium uppercase text-muted-foreground">Role</th>
+                <th className="px-4 py-2 text-left text-[length:var(--fs-sm)] font-medium uppercase text-muted-foreground">Target</th>
+                <th className="px-4 py-2 text-left text-[length:var(--fs-sm)] font-medium uppercase text-muted-foreground">Actual</th>
+                <th className="px-4 py-2 text-left text-[length:var(--fs-sm)] font-medium uppercase text-muted-foreground">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -86,10 +86,10 @@ export function CategoriesPanel({ cards }: CategoriesPanelProps) {
                     <td className="px-4 py-2 text-muted-foreground">{target || '—'}</td>
                     <td className="px-4 py-2 tabular-nums font-medium">{count}</td>
                     <td className="px-4 py-2">
-                      {status === 'ok' && <span className="text-xs text-green-600">✓ On target</span>}
-                      {status === 'low' && <span className="text-xs text-amber-600">↓ Below target</span>}
-                      {status === 'high' && <span className="text-xs text-blue-600">↑ Above target</span>}
-                      {status === 'neutral' && <span className="text-xs text-muted-foreground">—</span>}
+                      {status === 'ok' && <span className="text-[length:var(--fs-sm)] text-green-600">✓ On target</span>}
+                      {status === 'low' && <span className="text-[length:var(--fs-sm)] text-amber-600">↓ Below target</span>}
+                      {status === 'high' && <span className="text-[length:var(--fs-sm)] text-blue-600">↑ Above target</span>}
+                      {status === 'neutral' && <span className="text-[length:var(--fs-sm)] text-muted-foreground">—</span>}
                     </td>
                   </tr>
                 )
@@ -97,14 +97,14 @@ export function CategoriesPanel({ cards }: CategoriesPanelProps) {
             </tbody>
             <tfoot className="border-t border-border bg-muted/50">
               <tr>
-                <td className="px-4 py-2 font-semibold">Total</td>
+                <td className="px-4 py-2 font-medium">Total</td>
                 <td className="px-4 py-2 text-muted-foreground">100</td>
-                <td className="px-4 py-2 font-semibold tabular-nums">{totalCards}</td>
+                <td className="px-4 py-2 font-medium tabular-nums">{totalCards}</td>
                 <td className="px-4 py-2">
                   {totalCards === 100 ? (
-                    <span className="text-xs text-green-600">✓</span>
+                    <span className="text-[length:var(--fs-sm)] text-green-600">✓</span>
                   ) : (
-                    <span className="text-xs text-amber-600">≠ 100</span>
+                    <span className="text-[length:var(--fs-sm)] text-amber-600">≠ 100</span>
                   )}
                 </td>
               </tr>
@@ -115,7 +115,7 @@ export function CategoriesPanel({ cards }: CategoriesPanelProps) {
 
       {/* Visual Bar Chart */}
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Visual Distribution</h2>
+        <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium">Visual Distribution</h2>
         <div className="space-y-2">
           {sortedEntries
             .filter(([cat]) => cat !== 'Land' && cat !== 'Commander')
@@ -129,13 +129,13 @@ export function CategoriesPanel({ cards }: CategoriesPanelProps) {
               )
               return (
                 <div key={cat} className="flex items-center gap-3">
-                  <span className="w-24 shrink-0 truncate text-xs text-muted-foreground">{cat}</span>
+                  <span className="w-24 shrink-0 truncate text-[length:var(--fs-sm)] text-muted-foreground">{cat}</span>
                   <div className="relative h-6 flex-1 overflow-hidden rounded bg-muted">
                     <div
                       className="flex h-full items-center rounded bg-primary/60 px-2 transition-all"
                       style={{ width: `${(count / maxCount) * 100}%` }}
                     >
-                      <span className="text-[10px] font-medium text-primary-foreground">{count}</span>
+                      <span className="text-[length:var(--fs-xs)] font-medium text-primary-foreground">{count}</span>
                     </div>
                   </div>
                 </div>
@@ -146,15 +146,15 @@ export function CategoriesPanel({ cards }: CategoriesPanelProps) {
 
       {/* Card Lists per Category */}
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Cards by Category</h2>
+        <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium">Cards by Category</h2>
         <div className="space-y-4">
           {sortedEntries.map(([cat, catCards]) => (
             <details key={cat} className="rounded-lg border border-border">
-              <summary className="cursor-pointer px-4 py-2 text-sm font-medium hover:bg-muted/30">
+              <summary className="cursor-pointer px-4 py-2 text-[length:var(--fs-md)] font-medium hover:bg-muted/30">
                 {cat} ({catCards.reduce((s, c) => s + (c.quantity || 1), 0)})
               </summary>
               <div className="border-t border-border px-4 py-2">
-                <ul className="columns-2 gap-4 text-xs text-muted-foreground">
+                <ul className="columns-2 gap-4 text-[length:var(--fs-sm)] text-muted-foreground">
                   {catCards
                     .sort((a, b) => a.card_name.localeCompare(b.card_name))
                     .map(card => (

@@ -32,7 +32,7 @@ interface CollectionPrintingsResponse {
 // Constants
 // ---------------------------------------------------------------------------
 
-const PAGE_SIZE = 5000 // Larger batches = fewer round trips
+const PAGE_SIZE = 1000 // Match Supabase PostgREST max_rows default
 
 // ---------------------------------------------------------------------------
 // Paginated fetch helper — reduces boilerplate for paginated Supabase queries
@@ -70,7 +70,7 @@ export async function GET() {
   try {
     // ──── FALLBACK CHECK (parallel count queries) ────
     const [{ count: physicalCopiesCount }, { count: collectionCount }] = await Promise.all([
-      supabase.from('physical_copies').select('*', { count: 'exact', head: true }).gt('quantity', 0),
+      supabase.from('physical_copies').select('*', { count: 'exact', head: true }),
       supabase.from('collection').select('*', { count: 'exact', head: true }),
     ])
 
@@ -94,7 +94,6 @@ export async function GET() {
           scryfall_printing_id: string | null
           is_foil: boolean
           is_proxy: boolean
-          quantity: number
           card_definitions: { card_name: string; color_identity: string | null } | null
         }>((offset, limit) =>
           supabase
@@ -105,13 +104,11 @@ export async function GET() {
               scryfall_printing_id,
               is_foil,
               is_proxy,
-              quantity,
               card_definitions!physical_copies_card_definition_id_fkey (
                 card_name,
                 color_identity
               )
             `)
-            .gt('quantity', 0)
             .range(offset, offset + limit - 1) as any
         ),
 
@@ -165,17 +162,16 @@ export async function GET() {
             .range(offset, offset + limit - 1) as any
         ),
 
-        // 6. Set info from collection table
+        // 6. Set info from printing_set_info reference table
         fetchAll<{
-          scryfall_id: string | null
-          set_code: string | null
-          edition_name: string | null
+          scryfall_printing_id: string
+          set_code: string
+          edition_name: string
         }>((offset, limit) =>
-          supabase
-            .from('collection')
-            .select('scryfall_id, set_code, edition_name')
-            .not('scryfall_id', 'is', null)
-            .range(offset, offset + limit - 1) as any
+          (supabase
+            .from('printing_set_info' as any)
+            .select('scryfall_printing_id, set_code, edition_name')
+            .range(offset, offset + limit - 1)) as any
         ),
 
         // 7. Price metadata
@@ -194,7 +190,7 @@ export async function GET() {
         scryfall_printing_id: row.scryfall_printing_id,
         is_foil: row.is_foil,
         is_proxy: row.is_proxy,
-        quantity: row.quantity,
+        quantity: 1, // Instance-level: one row = one copy
         card_name: cd?.card_name || '',
         color_identity: cd?.color_identity || null,
       }
@@ -218,8 +214,8 @@ export async function GET() {
     // Build set info map
     const setInfoMap = new Map<string, { setCode: string; setName: string }>()
     for (const row of setInfoRows) {
-      if (row.scryfall_id && !setInfoMap.has(row.scryfall_id)) {
-        setInfoMap.set(row.scryfall_id, {
+      if (row.scryfall_printing_id && !setInfoMap.has(row.scryfall_printing_id)) {
+        setInfoMap.set(row.scryfall_printing_id, {
           setCode: row.set_code || '',
           setName: row.edition_name || '',
         })
@@ -331,17 +327,26 @@ export async function GET() {
 // ---------------------------------------------------------------------------
 
 async function serveFallback(supabase: ReturnType<typeof createAdminClient>) {
-  const { data: collRows, error: collErr } = await supabase
-    .from('collection')
-    .select(
-      'id, card_name, scryfall_id, set_code, quantity, foil, color_identity, edition_name'
-    )
-    .gt('quantity', 0)
-    .limit(10000)
+  const collRows = await fetchAll<{
+    id: number
+    card_name: string
+    scryfall_id: string | null
+    set_code: string | null
+    quantity: number
+    foil: boolean | null
+    color_identity: string | null
+    edition_name: string | null
+  }>((offset, limit) =>
+    supabase
+      .from('collection')
+      .select(
+        'id, card_name, scryfall_id, set_code, quantity, foil, color_identity, edition_name'
+      )
+      .gt('quantity', 0)
+      .range(offset, offset + limit - 1) as any
+  )
 
-  if (collErr) throw collErr
-
-  const rawCopies: RawPhysicalCopy[] = (collRows || []).map((row) => {
+  const rawCopies: RawPhysicalCopy[] = collRows.map((row) => {
     const colorIdentity = row.color_identity
       ? row.color_identity
           .split(',')

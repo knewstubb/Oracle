@@ -76,7 +76,7 @@ export async function resolveOwnership(): Promise<{
  * Rules:
  * - role='original' → ownership_status='original', proxy_of_deck_id=NULL
  * - role='proxy'    → ownership_status='proxy', proxy_of_deck_id=<deck with original>
- * - no allocation   → ownership_status='not_owned', proxy_of_deck_id=NULL
+ * - no allocation   → ownership_status=NULL, proxy_of_deck_id=NULL
  *
  * Updates are performed via Supabase query builder calls.
  */
@@ -139,25 +139,26 @@ export async function denormaliseOwnership(
     }
   }
 
-  // Mark unallocated deck_cards rows as 'not_owned'
+  // Mark unallocated deck_cards rows — set ownership_status to NULL
+  // (unresolved slots have NULL; their status is computed dynamically)
   // Exclude generic land rows — they already have 'generic' status
   const { data: allDeckCards, error: fetchErr } = await supabase
     .from('deck_cards')
     .select('card_name, deck_id')
     .eq('is_generic_land', false)
 
-  if (fetchErr) throw new Error(`Failed to fetch deck_cards for not_owned marking: ${fetchErr.message}`)
+  if (fetchErr) throw new Error(`Failed to fetch deck_cards for unresolved marking: ${fetchErr.message}`)
 
   for (const row of allDeckCards || []) {
     const key = `${row.card_name}|${row.deck_id}`
     if (!allocatedKeys.has(key)) {
       const { error } = await supabase
         .from('deck_cards')
-        .update({ ownership_status: 'not_owned', proxy_of_deck_id: null })
+        .update({ ownership_status: null, proxy_of_deck_id: null })
         .eq('card_name', row.card_name)
         .eq('deck_id', row.deck_id)
 
-      if (error) throw new Error(`Failed to update deck_cards (not_owned) for ${row.card_name}: ${error.message}`)
+      if (error) throw new Error(`Failed to update deck_cards (unresolved) for ${row.card_name}: ${error.message}`)
       notOwnedCount++
     }
   }

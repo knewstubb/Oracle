@@ -122,12 +122,12 @@ export function OverviewPanel({ deckId, commanderName, cards, bracket }: Overvie
       {!ratingsLoading && ratingsError && (
         <section className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
           <AlertCircle className="size-4 text-destructive" />
-          <p className="text-sm text-destructive">Failed to load ratings data.</p>
+          <p className="text-[length:var(--fs-md)] text-destructive">Failed to load ratings data.</p>
         </section>
       )}
       {!ratingsLoading && !ratingsError && ratings === null && (
         <section className="rounded-lg border border-dashed border-border p-6 text-center">
-          <p className="text-sm text-muted-foreground">No ratings computed yet</p>
+          <p className="text-[length:var(--fs-md)] text-muted-foreground">No ratings computed yet</p>
         </section>
       )}
       {!ratingsLoading && !ratingsError && ratings && (
@@ -142,11 +142,11 @@ export function OverviewPanel({ deckId, commanderName, cards, bracket }: Overvie
       {/* Strategy */}
       {hasData ? (
         <section>
-          <h2 className="mb-3 text-lg font-semibold">Strategy & Playstyle</h2>
-          <p className="text-sm text-muted-foreground leading-relaxed">{data.strategy}</p>
+          <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium">Strategy & Playstyle</h2>
+          <p className="text-[length:var(--fs-md)] text-muted-foreground leading-relaxed">{data.strategy}</p>
           {data.bracket && (
             <div className="mt-3">
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="text-[length:var(--fs-sm)]">
                 Bracket: {data.bracket}
               </Badge>
             </div>
@@ -154,7 +154,7 @@ export function OverviewPanel({ deckId, commanderName, cards, bracket }: Overvie
         </section>
       ) : (
         <section className="rounded-lg border border-dashed border-border p-6 text-center">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-[length:var(--fs-md)] text-muted-foreground">
             No overview generated yet. Ask Kiro to scan this deck for strategy analysis.
           </p>
         </section>
@@ -163,10 +163,10 @@ export function OverviewPanel({ deckId, commanderName, cards, bracket }: Overvie
       {/* Win Conditions */}
       {hasData && data.winConditions?.length > 0 && (
         <section>
-          <h2 className="mb-3 text-lg font-semibold">Win Conditions</h2>
+          <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium">Win Conditions</h2>
           <ul className="space-y-1.5">
             {data.winConditions.map((wc, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm">
+              <li key={i} className="flex items-start gap-2 text-[length:var(--fs-md)]">
                 <span className="mt-0.5 size-1.5 shrink-0 rounded-full bg-primary" />
                 <span className="text-muted-foreground">{wc}</span>
               </li>
@@ -180,20 +180,20 @@ export function OverviewPanel({ deckId, commanderName, cards, bracket }: Overvie
         <div className="grid gap-6 md:grid-cols-2">
           {data.strengths?.length > 0 && (
             <section>
-              <h3 className="mb-2 text-sm font-semibold text-green-600 dark:text-green-400">Strengths</h3>
+              <h3 className="mb-2 text-[length:var(--fs-md)] font-medium text-green-600 dark:text-green-400">Strengths</h3>
               <ul className="space-y-1.5">
                 {data.strengths.map((s, i) => (
-                  <li key={i} className="text-xs text-muted-foreground">• {s}</li>
+                  <li key={i} className="text-[length:var(--fs-sm)] text-muted-foreground">• {s}</li>
                 ))}
               </ul>
             </section>
           )}
           {data.weaknesses?.length > 0 && (
             <section>
-              <h3 className="mb-2 text-sm font-semibold text-red-600 dark:text-red-400">Weaknesses</h3>
+              <h3 className="mb-2 text-[length:var(--fs-md)] font-medium text-red-600 dark:text-red-400">Weaknesses</h3>
               <ul className="space-y-1.5">
                 {data.weaknesses.map((w, i) => (
-                  <li key={i} className="text-xs text-muted-foreground">• {w}</li>
+                  <li key={i} className="text-[length:var(--fs-sm)] text-muted-foreground">• {w}</li>
                 ))}
               </ul>
             </section>
@@ -202,10 +202,10 @@ export function OverviewPanel({ deckId, commanderName, cards, bracket }: Overvie
       )}
       {hasData && ratings && data.strengths?.length > 0 && (
         <section>
-          <h3 className="mb-2 text-sm font-semibold text-green-600 dark:text-green-400">Strengths</h3>
+          <h3 className="mb-2 text-[length:var(--fs-md)] font-medium text-green-600 dark:text-green-400">Strengths</h3>
           <ul className="space-y-1.5">
             {data.strengths.map((s, i) => (
-              <li key={i} className="text-xs text-muted-foreground">• {s}</li>
+              <li key={i} className="text-[length:var(--fs-sm)] text-muted-foreground">• {s}</li>
             ))}
           </ul>
         </section>
@@ -213,18 +213,18 @@ export function OverviewPanel({ deckId, commanderName, cards, bracket }: Overvie
 
       {/* Category Distribution Chart */}
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Card Distribution</h2>
+        <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium">Card Distribution</h2>
         <div className="space-y-2">
           {sortedCats.map(([cat, count]) => (
             <div key={cat} className="flex items-center gap-2">
-              <span className="w-28 shrink-0 truncate text-xs text-muted-foreground">{cat}</span>
+              <span className="w-28 shrink-0 truncate text-[length:var(--fs-sm)] text-muted-foreground">{cat}</span>
               <div className="relative h-5 flex-1 overflow-hidden rounded bg-muted">
                 <div
                   className="h-full rounded bg-primary/60 transition-all"
                   style={{ width: `${(count / maxCat) * 100}%` }}
                 />
               </div>
-              <span className="w-6 shrink-0 text-right text-xs font-medium tabular-nums">{count}</span>
+              <span className="w-6 shrink-0 text-right text-[length:var(--fs-sm)] font-medium tabular-nums">{count}</span>
             </div>
           ))}
         </div>
@@ -236,8 +236,8 @@ export function OverviewPanel({ deckId, commanderName, cards, bracket }: Overvie
 function StatCard({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
     <div className="rounded-lg border border-border p-4">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className={`text-2xl font-bold tabular-nums ${accent ? 'text-amber-500' : ''}`}>{value}</p>
+      <p className="text-[length:var(--fs-sm)] font-medium text-muted-foreground">{label}</p>
+      <p className={`text-[length:var(--fs-2xl)] font-medium tabular-nums ${accent ? 'text-amber-500' : ''}`}>{value}</p>
     </div>
   )
 }

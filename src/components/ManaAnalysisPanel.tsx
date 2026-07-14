@@ -151,13 +151,13 @@ export function ManaAnalysisPanel({
             className="size-10 text-muted-foreground"
             aria-hidden="true"
           />
-          <p className="text-sm text-muted-foreground">
+          <p className="text-[length:var(--fs-md)] text-muted-foreground">
             Analyze your mana base for colour coverage and curve support.
           </p>
           <div className="flex items-center gap-3">
             <label
               htmlFor="mana-collection-only-toggle"
-              className="text-sm text-muted-foreground"
+              className="text-[length:var(--fs-md)] text-muted-foreground"
             >
               Collection only
             </label>
@@ -194,7 +194,7 @@ export function ManaAnalysisPanel({
             className="size-8 animate-spin text-primary"
             aria-hidden="true"
           />
-          <p className="text-sm text-muted-foreground">
+          <p className="text-[length:var(--fs-md)] text-muted-foreground">
             Analyzing mana base...
           </p>
         </div>
@@ -208,7 +208,7 @@ export function ManaAnalysisPanel({
       <div className="mx-auto max-w-[800px]">
         <div
           role="alert"
-          className="flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          className="flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-3 text-[length:var(--fs-md)] text-destructive"
         >
           <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
           <span className="flex-1">
@@ -242,7 +242,7 @@ export function ManaAnalysisPanel({
       {/* Colour Distribution */}
       {hasDistribution && (
         <section>
-          <h2 className="mb-4 text-lg font-semibold">Colour Distribution</h2>
+          <h2 className="mb-4 text-[length:var(--fs-lg)] font-medium">Colour Distribution</h2>
           <div className="space-y-2">
             {Object.entries(result!.colorDistribution).map(
               ([colour, count]) => (
@@ -264,12 +264,12 @@ export function ManaAnalysisPanel({
       {/* Land Count */}
       {result && (
         <section>
-          <h2 className="mb-2 text-lg font-semibold">Land Count</h2>
-          <p className="text-sm">
+          <h2 className="mb-2 text-[length:var(--fs-lg)] font-medium">Land Count</h2>
+          <p className="text-[length:var(--fs-md)]">
             You have{' '}
-            <span className="font-semibold">{result.landCount}</span> lands.
+            <span className="font-medium">{result.landCount}</span> lands.
             Recommended:{' '}
-            <span className="font-semibold">
+            <span className="font-medium">
               {result.recommendedLandCount}
             </span>
             .
@@ -284,8 +284,8 @@ export function ManaAnalysisPanel({
       {/* Coverage Gaps */}
       {hasGaps && (
         <section>
-          <h2 className="mb-2 text-lg font-semibold">Coverage Gaps</h2>
-          <ul className="list-inside list-disc space-y-1 text-sm text-muted-foreground">
+          <h2 className="mb-2 text-[length:var(--fs-lg)] font-medium">Coverage Gaps</h2>
+          <ul className="list-inside list-disc space-y-1 text-[length:var(--fs-md)] text-muted-foreground">
             {result!.coverageGaps.map((gap, i) => (
               <li key={i}>{gap}</li>
             ))}
@@ -296,7 +296,7 @@ export function ManaAnalysisPanel({
       {/* Suggested Changes */}
       {hasSuggestions && (
         <section>
-          <h2 className="mb-4 text-lg font-semibold">Suggested Changes</h2>
+          <h2 className="mb-4 text-[length:var(--fs-lg)] font-medium">Suggested Changes</h2>
           <div className="space-y-3">
             {result!.suggestions.map((swap, i) => (
               <SwapRow
@@ -315,7 +315,7 @@ export function ManaAnalysisPanel({
             className="size-10 text-muted-foreground"
             aria-hidden="true"
           />
-          <p className="text-sm text-muted-foreground">
+          <p className="text-[length:var(--fs-md)] text-muted-foreground">
             Your mana base looks solid — no changes suggested.
           </p>
           <Button variant="outline" onClick={handleAnalyze}>
@@ -370,7 +370,7 @@ function ColourBar({
 
   return (
     <div className="flex items-center gap-3">
-      <span className="w-12 text-xs font-medium text-muted-foreground">
+      <span className="w-12 text-[length:var(--fs-sm)] font-medium text-muted-foreground">
         {label}
       </span>
       <div className="flex-1">
@@ -386,7 +386,7 @@ function ColourBar({
           />
         </div>
       </div>
-      <span className="w-8 text-right text-xs font-mono text-muted-foreground">
+      <span className="w-8 text-right text-[length:var(--fs-sm)] font-mono text-muted-foreground">
         {count}
       </span>
     </div>
@@ -419,7 +419,7 @@ function LandCountIndicator({
   }
 
   return (
-    <p className={`mt-1 text-xs font-medium ${statusColor}`}>{statusText}</p>
+    <p className={`mt-1 text-[length:var(--fs-sm)] font-medium ${statusColor}`}>{statusText}</p>
   )
 }
 
@@ -437,7 +437,7 @@ function SwapRow({
   return (
     <div className="flex items-center gap-3 rounded-lg border border-border p-3">
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2 text-[length:var(--fs-md)]">
           {swap.current && (
             <>
               <span className="font-medium text-destructive">
@@ -451,13 +451,13 @@ function SwapRow({
           )}
           <span className="font-medium text-success">{swap.suggested}</span>
           {swap.owned && (
-            <Badge variant="secondary" className="text-[10px]">
+            <Badge variant="secondary" className="text-[length:var(--fs-xs)]">
               Owned
             </Badge>
           )}
         </div>
         {swap.reasoning && (
-          <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
+          <p className="mt-0.5 line-clamp-2 text-[length:var(--fs-sm)] text-muted-foreground">
             {swap.reasoning}
           </p>
         )}

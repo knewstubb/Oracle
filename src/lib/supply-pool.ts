@@ -347,14 +347,12 @@ export async function batchAssignDeck(
   // Attempt transactional RPC
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase.rpc as any)('batch_assign_deck', {
-    p_assignments: JSON.stringify(
-      assignments.map((a) => ({
-        deck_cards_id: a.deckCardsId,
-        physical_copy_id: a.physicalCopyId,
-        ownership_status: a.ownershipStatus,
-        clear_deck_cards_id: a.clearDeckCardsId ?? null,
-      }))
-    ),
+    p_assignments: assignments.map((a) => ({
+      deck_cards_id: a.deckCardsId,
+      physical_copy_id: a.physicalCopyId,
+      ownership_status: a.ownershipStatus,
+      clear_deck_cards_id: a.clearDeckCardsId ?? null,
+    })),
   })
 
   if (!error) {

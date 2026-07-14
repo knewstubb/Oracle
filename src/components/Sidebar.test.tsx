@@ -45,10 +45,11 @@ describe('Sidebar', () => {
     mockPathname.mockReturnValue('/')
   })
 
-  it('renders all 4 nav items', () => {
+  it('renders all 5 nav items', () => {
     renderSidebar()
     expect(screen.getByText('Decks')).toBeInTheDocument()
     expect(screen.getByText('Cards')).toBeInTheDocument()
+    expect(screen.getByText('Collection')).toBeInTheDocument()
     expect(screen.getByText('Brew Deck')).toBeInTheDocument()
     expect(screen.getByText('Settings')).toBeInTheDocument()
   })
@@ -56,7 +57,6 @@ describe('Sidebar', () => {
   it('does not render removed nav items', () => {
     renderSidebar()
     expect(screen.queryByText('Shared Cards')).not.toBeInTheDocument()
-    expect(screen.queryByText('Collection')).not.toBeInTheDocument()
     expect(screen.queryByText('Search')).not.toBeInTheDocument()
   })
 

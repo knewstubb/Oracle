@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { PageHeader } from '@/components/PageHeader'
 import { CollectionRollupTab } from '@/components/collection/CollectionRollupTab'
 
@@ -13,14 +12,6 @@ export default function AllocationPage() {
         <PageHeader
           title="Cards"
           subtitle="Allocation status and proxy assignment across all decks"
-          actions={
-            <Link
-              href="/collection"
-              className="text-[length:var(--fs-sm)] font-medium text-[var(--accent-primary)] hover:underline"
-            >
-              View full collection →
-            </Link>
-          }
         />
 
         {/* ─── Page Content ────────────────────────────────────────── */}

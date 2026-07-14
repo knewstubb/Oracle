@@ -9,6 +9,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
+import { DeckImportProgressList } from '@/components/DeckImportProgressList'
 import type { CollectionImportResult, DeckListEntry } from '@/lib/warm-start-import'
 import type { BatchResolutionResult, DeckResolutionResult } from '@/lib/warm-start-resolve'
 
@@ -851,6 +852,44 @@ function DeckPickerScreen({
 }) {
   const selectedCount = selectedDecks.size
 
+  // When importing, show the progress list instead of the picker
+  if (isPending) {
+    const selectedDeckList = deckList.filter((d) => selectedDecks.has(d.id))
+    const decks = selectedDeckList.map((d, idx) => {
+      const completedResult = importProgress?.completedResults.find((r) => r.deckId === d.id || r.deckName === d.name)
+      const isActive = importProgress && idx === importProgress.current - 1 && !completedResult
+      return {
+        id: d.id,
+        name: d.name,
+        state: completedResult ? 'done' as const : isActive ? 'active' as const : 'queued' as const,
+        result: completedResult,
+      }
+    })
+
+    return (
+      <div className="flex flex-col gap-5">
+        <div>
+          <h1 className="text-[length:var(--fs-xl)] font-semibold">Importing decks</h1>
+          {importProgress && (
+            <p className="mt-1 text-[length:var(--fs-md)] text-muted-foreground">
+              Deck {importProgress.current} of {importProgress.total}
+            </p>
+          )}
+        </div>
+
+        <DeckImportProgressList decks={decks} isRunning={true} />
+
+        <div className="flex items-center justify-between gap-3">
+          <Button variant="outline" disabled>Skip</Button>
+          <Button disabled>
+            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            Importing…
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-5">
       <div>
@@ -880,21 +919,20 @@ function DeckPickerScreen({
                 <Checkbox
                   checked={isSelected}
                   onCheckedChange={() => onToggleDeck(deck.id)}
-                  disabled={isPending}
                   aria-label={`Select ${deck.name}`}
                 />
                 <span className="flex-1 truncate text-[length:var(--fs-md)]">{deck.name}</span>
 
                 <div
                   className={`inline-flex items-center rounded-full p-0.5 transition-colors ${
-                    isPending || !isSelected ? 'opacity-40 pointer-events-none' : ''
+                    !isSelected ? 'opacity-40 pointer-events-none' : ''
                   }`}
                   style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
                 >
                   <button
                     type="button"
                     onClick={() => { if (status !== 'brew') onToggleStatus(deck.id) }}
-                    disabled={isPending || !isSelected}
+                    disabled={!isSelected}
                     className="rounded-full px-2.5 py-1 text-[length:var(--fs-xs)] font-medium transition-all"
                     style={
                       status === 'brew'
@@ -907,7 +945,7 @@ function DeckPickerScreen({
                   <button
                     type="button"
                     onClick={() => { if (status !== 'boxed') onToggleStatus(deck.id) }}
-                    disabled={isPending || !isSelected}
+                    disabled={!isSelected}
                     className="rounded-full px-2.5 py-1 text-[length:var(--fs-xs)] font-medium transition-all"
                     style={
                       status === 'boxed'
@@ -924,69 +962,17 @@ function DeckPickerScreen({
         )}
       </div>
 
-      {/* OPEN QUESTION: What should the toggle default to when the picker first renders?
-          Currently hardcoded to 'boxed'. Options:
-          - Card count heuristic (>=100 → Boxed, <100 → Brew)
-          - Always Boxed (current) — assumes existing account = already-built decks
-          - Always Brew — conservative, nothing auto-allocates
-          Needs a product decision before shipping. */}
       <p className="text-[length:var(--fs-sm)] text-muted-foreground">
         {selectedCount > 0 ? `${selectedCount} selected` : 'None selected'} &middot; imported
         decks assume <em>use collection</em> — you can adjust individual cards after
       </p>
 
-      {isPending && importProgress && (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between text-[length:var(--fs-sm)]">
-            <span className="font-medium">
-              Importing deck {importProgress.current} of {importProgress.total}: {importProgress.currentDeckName}
-            </span>
-            <span className="text-muted-foreground">
-              {Math.round((importProgress.current / importProgress.total) * 100)}%
-            </span>
-          </div>
-          {/* Determinate progress bar */}
-          <div className="h-2 w-full overflow-hidden rounded-full" style={{ background: 'var(--border-default)' }}>
-            <div
-              className="h-full rounded-full transition-all duration-300"
-              style={{
-                width: `${(importProgress.current / importProgress.total) * 100}%`,
-                background: 'var(--color-teal, #14b8a6)',
-              }}
-            />
-          </div>
-          {/* Completed results so far */}
-          {importProgress.completedResults.length > 0 && (
-            <div className="flex flex-col gap-1 text-[length:var(--fs-sm)] text-muted-foreground">
-              {importProgress.completedResults.map((r) => (
-                <div key={r.deckId} className="flex items-center gap-2">
-                  {r.errors.length === 0 && r.unresolved === 0 ? (
-                    <Check className="size-3 text-green-400" />
-                  ) : (
-                    <AlertTriangle className="size-3 text-amber-400" />
-                  )}
-                  <span>{r.deckName} — {r.matched}/{r.totalCards}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {isPending && !importProgress && (
-        <div className="flex items-center gap-2 text-[length:var(--fs-sm)] text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-          Resolving decks&hellip;
-        </div>
-      )}
-
       <div className="flex items-center justify-between gap-3">
-        <Button variant="outline" onClick={onSkip} disabled={isPending}>
+        <Button variant="outline" onClick={onSkip}>
           Skip
         </Button>
-        <Button onClick={onImport} disabled={isPending || selectedCount === 0}>
-          {isPending && <Loader2 className="size-4 animate-spin" aria-hidden="true" data-icon="inline-start" />}
-          {isPending ? 'Importing...' : `Import ${selectedCount} Deck${selectedCount !== 1 ? 's' : ''}`}
+        <Button onClick={onImport} disabled={selectedCount === 0}>
+          Import {selectedCount} Deck{selectedCount !== 1 ? 's' : ''}
         </Button>
       </div>
     </div>
@@ -1022,6 +1008,44 @@ function MoxfieldDeckPickerScreen({
 }) {
   const selectedCount = selectedDecks.size
 
+  // When importing, show the progress list instead of the picker
+  if (isPending) {
+    const selectedDeckList = deckList.filter((d) => selectedDecks.has(d.id))
+    const decks = selectedDeckList.map((d, idx) => {
+      const completedResult = importProgress?.completedResults.find((r) => r.deckName === d.name)
+      const isActive = importProgress && idx === importProgress.current - 1 && !completedResult
+      return {
+        id: d.id,
+        name: d.name,
+        state: completedResult ? 'done' as const : isActive ? 'active' as const : 'queued' as const,
+        result: completedResult,
+      }
+    })
+
+    return (
+      <div className="flex flex-col gap-5">
+        <div>
+          <h1 className="text-[length:var(--fs-xl)] font-semibold">Importing decks</h1>
+          {importProgress && (
+            <p className="mt-1 text-[length:var(--fs-md)] text-muted-foreground">
+              Deck {importProgress.current} of {importProgress.total}
+            </p>
+          )}
+        </div>
+
+        <DeckImportProgressList decks={decks} isRunning={true} />
+
+        <div className="flex items-center justify-between gap-3">
+          <Button variant="outline" disabled>Skip</Button>
+          <Button disabled>
+            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            Importing…
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-5">
       <div>
@@ -1050,10 +1074,8 @@ function MoxfieldDeckPickerScreen({
                 <Checkbox
                   checked={isSelected}
                   onCheckedChange={() => onToggleDeck(deck.id)}
-                  disabled={isPending}
                   aria-label={`Select ${deck.name}`}
                 />
-
                 <span className="flex-1 truncate text-[length:var(--fs-md)]">{deck.name}</span>
                 {deck.cardCount > 0 && (
                   <span className="text-[length:var(--fs-xs)] text-muted-foreground">
@@ -1062,14 +1084,14 @@ function MoxfieldDeckPickerScreen({
                 )}
                 <div
                   className={`inline-flex items-center rounded-full p-0.5 transition-colors ${
-                    isPending || !isSelected ? 'opacity-40 pointer-events-none' : ''
+                    !isSelected ? 'opacity-40 pointer-events-none' : ''
                   }`}
                   style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
                 >
                   <button
                     type="button"
                     onClick={() => { if (status !== 'brew') onToggleStatus(deck.id) }}
-                    disabled={isPending || !isSelected}
+                    disabled={!isSelected}
                     className="rounded-full px-2.5 py-1 text-[length:var(--fs-xs)] font-medium transition-all"
                     style={
                       status === 'brew'
@@ -1082,7 +1104,7 @@ function MoxfieldDeckPickerScreen({
                   <button
                     type="button"
                     onClick={() => { if (status !== 'boxed') onToggleStatus(deck.id) }}
-                    disabled={isPending || !isSelected}
+                    disabled={!isSelected}
                     className="rounded-full px-2.5 py-1 text-[length:var(--fs-xs)] font-medium transition-all"
                     style={
                       status === 'boxed'
@@ -1099,69 +1121,17 @@ function MoxfieldDeckPickerScreen({
         )}
       </div>
 
-      {/* OPEN QUESTION: What should the toggle default to when the picker first renders?
-          Currently hardcoded to 'boxed'. Options:
-          - Card count heuristic (>=100 → Boxed, <100 → Brew)
-          - Always Boxed (current) — assumes existing account = already-built decks
-          - Always Brew — conservative, nothing auto-allocates
-          Needs a product decision before shipping. */}
       <p className="text-[length:var(--fs-sm)] text-muted-foreground">
         {selectedCount > 0 ? `${selectedCount} selected` : 'None selected'} &middot; imported
         decks assume <em>use collection</em> — you can adjust individual cards after
       </p>
 
-      {isPending && importProgress && (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between text-[length:var(--fs-sm)]">
-            <span className="font-medium">
-              Importing deck {importProgress.current} of {importProgress.total}: {importProgress.currentDeckName}
-            </span>
-            <span className="text-muted-foreground">
-              {Math.round((importProgress.current / importProgress.total) * 100)}%
-            </span>
-          </div>
-          {/* Determinate progress bar */}
-          <div className="h-2 w-full overflow-hidden rounded-full" style={{ background: 'var(--border-default)' }}>
-            <div
-              className="h-full rounded-full transition-all duration-300"
-              style={{
-                width: `${(importProgress.current / importProgress.total) * 100}%`,
-                background: 'var(--color-teal, #14b8a6)',
-              }}
-            />
-          </div>
-          {/* Completed results so far */}
-          {importProgress.completedResults.length > 0 && (
-            <div className="flex flex-col gap-1 text-[length:var(--fs-sm)] text-muted-foreground">
-              {importProgress.completedResults.map((r) => (
-                <div key={r.deckId} className="flex items-center gap-2">
-                  {r.errors.length === 0 && r.unresolved === 0 ? (
-                    <Check className="size-3 text-green-400" />
-                  ) : (
-                    <AlertTriangle className="size-3 text-amber-400" />
-                  )}
-                  <span>{r.deckName} — {r.matched}/{r.totalCards}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {isPending && !importProgress && (
-        <div className="flex items-center gap-2 text-[length:var(--fs-sm)] text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-          Resolving decks&hellip;
-        </div>
-      )}
-
       <div className="flex items-center justify-between gap-3">
-        <Button variant="outline" onClick={onSkip} disabled={isPending}>
+        <Button variant="outline" onClick={onSkip}>
           Skip
         </Button>
-        <Button onClick={onImport} disabled={isPending || selectedCount === 0}>
-          {isPending && <Loader2 className="size-4 animate-spin" aria-hidden="true" data-icon="inline-start" />}
-          {isPending ? 'Importing...' : `Import ${selectedCount} Deck${selectedCount !== 1 ? 's' : ''}`}
+        <Button onClick={onImport} disabled={selectedCount === 0}>
+          Import {selectedCount} Deck{selectedCount !== 1 ? 's' : ''}
         </Button>
       </div>
     </div>
@@ -1183,8 +1153,15 @@ function SummaryScreen({
 
   const totalDecks = batchResult.decksProcessed
   const totalMatched = batchResult.totalMatched
-  const totalCards = batchResult.results.reduce((sum, r) => sum + r.totalCards, 0)
   const contentions = (batchResult as any).contentions ?? []
+
+  // Build deck rows in the same shape as the progress list
+  const decks = batchResult.results.map((result) => ({
+    id: result.deckId,
+    name: result.deckName,
+    state: 'done' as const,
+    result,
+  }))
 
   return (
     <div className="flex flex-col gap-6">
@@ -1222,78 +1199,12 @@ function SummaryScreen({
         </div>
       </div>
 
-      {/* Per-deck results */}
-      <div className="flex flex-col gap-2">
-        {batchResult.results.map((result) => {
-          const isComplete = result.unresolved === 0 && result.errors.length === 0
-          const hasErrors = result.errors.length > 0
-
-          return (
-            <div
-              key={result.deckId}
-              className="flex items-center gap-3 rounded-md border border-[var(--border-default)] px-4 py-3"
-            >
-              {isComplete ? (
-                <Check className="size-4 shrink-0 text-green-400" aria-label="Complete" />
-              ) : (
-                <AlertTriangle className="size-4 shrink-0 text-amber-400" aria-label="Needs review" />
-              )}
-              <span className="flex-1 truncate text-[length:var(--fs-md)]">
-                {result.deckName}
-              </span>
-              <span
-                className="text-[length:var(--fs-sm)] tabular-nums"
-                style={result.unresolved > 0 ? { color: '#ef9f27' } : { color: 'var(--text-secondary)' }}
-              >
-                {result.matched}/{result.totalCards}
-              </span>
-
-              {!isComplete && !hasErrors && (
-                <Link
-                  href={`/decks/${result.deckId}`}
-                  className="flex items-center gap-1 text-[length:var(--fs-xs)] text-amber-400 hover:underline"
-                >
-                  review picklist
-                  <ExternalLink className="size-3" aria-hidden="true" />
-                </Link>
-              )}
-              {hasErrors && (
-                <span className="text-[length:var(--fs-xs)] text-destructive">
-                  {result.errors[0]}
-                </span>
-              )}
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Card conflicts section — only renders when contentions exist */}
-      {contentions.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <h2 className="text-[length:var(--fs-md)] font-semibold">Card conflicts</h2>
-          <div className="flex flex-col gap-1.5 rounded-lg border border-[var(--border-default)] p-3">
-            {contentions.map((c: any, idx: number) => (
-              <div
-                key={`${c.cardName}-${c.lostByDeckId}-${idx}`}
-                className="flex items-start gap-2 text-[length:var(--fs-sm)]"
-              >
-                <AlertTriangle
-                  className="mt-0.5 size-3.5 shrink-0"
-                  style={{ color: '#ef9f27' }}
-                  aria-hidden="true"
-                />
-                <span>
-                  <strong>{c.cardName}</strong>
-                  {' — kept by '}
-                  {c.keptByDeckName}
-                  {', not available for '}
-                  {c.lostByDeckName}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Per-deck results — same component as progress, in completed state */}
+      <DeckImportProgressList
+        decks={decks}
+        contentions={contentions}
+        isRunning={false}
+      />
 
       <Button onClick={onFinish} className="w-full">
         Go to Decks

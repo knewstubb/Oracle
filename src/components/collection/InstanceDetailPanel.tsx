@@ -6,6 +6,7 @@ import { X, Plus, Unlink, Shuffle, Trash2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { CardHoverPreview } from '@/components/CardHoverPreview'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
+import { StorageLocationSelect } from '@/components/collection/StorageLocationSelect'
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
 
@@ -167,6 +168,7 @@ export function InstanceDetailPanel({
                 key={instance.physicalCopyId}
                 instance={instance}
                 cardName={data.cardName}
+                oracleId={oracleId}
                 isSelected={isInstanceSelected(instance.physicalCopyId)}
                 onToggleSelect={() => onToggleInstance(instance.physicalCopyId)}
                 isConfirmingDelete={confirmingDeleteId === instance.physicalCopyId}
@@ -445,6 +447,7 @@ function ShortDeckRow({ shortDeck, oracleId, cardName, assignedInstances }: Shor
 interface InstanceRowItemProps {
   instance: InstanceRow
   cardName: string
+  oracleId: string
   isSelected: boolean
   onToggleSelect: () => void
   isConfirmingDelete: boolean
@@ -459,6 +462,7 @@ interface InstanceRowItemProps {
 function InstanceRowItem({
   instance,
   cardName,
+  oracleId,
   isSelected,
   onToggleSelect,
   isConfirmingDelete,
@@ -469,6 +473,7 @@ function InstanceRowItem({
   isUnassigning,
   isDeleting,
 }: InstanceRowItemProps) {
+  const queryClient = useQueryClient()
   const assignment = getAssignmentLabel(instance)
   const [showPreview, setShowPreview] = useState(false)
   const [previewPos, setPreviewPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
@@ -538,9 +543,18 @@ function InstanceRowItem({
             {assignment}
           </a>
         ) : (
-          <span className="block text-[length:var(--fs-base)] font-[number:var(--font-medium)] text-[var(--text-primary)]">
-            {assignment}
-          </span>
+          <div className="mt-0.5">
+            <StorageLocationSelect
+              physicalCopyId={instance.physicalCopyId}
+              currentLocationId={instance.storageLocationId}
+              currentLocationName={instance.storageLocationName}
+              isAllocated={false}
+              onAssigned={() => {
+                // Refresh instance data after storage assignment
+                queryClient.invalidateQueries({ queryKey: ['instances', oracleId] })
+              }}
+            />
+          </div>
         )}
 
         {/* Secondary: Set + collector number */}

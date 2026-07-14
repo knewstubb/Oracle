@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     // Step 1: Get all deck_cards to compute shared cards
     const { data: allDeckCards, error: dcErr } = await supabase
       .from('deck_cards')
-      .select('card_name, set_code, scryfall_id, deck_id, tags')
+      .select('card_name, set_code, scryfall_id, deck_id, ownership_status')
 
     if (dcErr) throw dcErr
 
@@ -222,7 +222,7 @@ export async function GET(request: NextRequest) {
         set_code: string
         scryfall_id: string
         deck_ids: Set<number>
-        tags: Map<number, string>
+        ownershipByDeck: Map<number, string | null>
       }>()
 
       for (const dc of deckEntries) {
@@ -232,12 +232,12 @@ export async function GET(request: NextRequest) {
             set_code: setKey,
             scryfall_id: dc.scryfall_id || '',
             deck_ids: new Set(),
-            tags: new Map(),
+            ownershipByDeck: new Map(),
           })
         }
         const p = printingMap.get(setKey)!
         p.deck_ids.add(dc.deck_id)
-        if (dc.tags) p.tags.set(dc.deck_id, dc.tags)
+        p.ownershipByDeck.set(dc.deck_id, dc.ownership_status)
         if (!p.scryfall_id && dc.scryfall_id) p.scryfall_id = dc.scryfall_id
       }
 
@@ -270,7 +270,7 @@ export async function GET(request: NextRequest) {
           decks: deckIds.map(id => ({
             id,
             name: deckMap.get(id) || `Deck ${id}`,
-            is_proxy: (p.tags.get(id) || '').toLowerCase().includes('proxy'),
+            is_proxy: p.ownershipByDeck.get(id) === 'proxy',
           })),
         }
       })

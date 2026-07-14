@@ -4,7 +4,6 @@ import {
   computeCollectionDelta,
   applyCollectionImport,
 } from '@/lib/csv-import'
-import { importCollectionAndReallocate } from '@/lib/collection-reallocator'
 import { executeCollectionImportAsync } from '@/lib/import-engine'
 import { executeInstanceLevelImport } from '@/lib/import-engine-v2'
 import { createAdminClient } from '@/lib/supabase'
@@ -272,34 +271,13 @@ export async function POST(request: NextRequest) {
   const delta = chunkIndex === 0 ? await computeCollectionDelta(rows) : null
 
   if (apply) {
-    // If reallocate=true, use the full import+reallocation flow
+    // Reallocate mode removed — the collection-reallocator is decommissioned.
+    // Reallocation now happens via the Picklist (per-deck, instance-level).
     if (reallocate) {
-      try {
-        const result = await importCollectionAndReallocate(csvContent, userId)
-        const response = Response.json({
-          delta: result.importDelta,
-          applied: true,
-          reallocated: true,
-          entryCount: result.importDelta.totalEntries,
-          allocationChanges: {
-            added: result.allocationChanges.added.length,
-            removed: result.allocationChanges.removed.length,
-            originalToProxy: result.allocationChanges.originalToProxy.length,
-            proxyToOriginal: result.allocationChanges.proxyToOriginal.length,
-            unchanged: result.allocationChanges.unchanged.length,
-          },
-          newlyFulfilled: result.newlyFulfilled,
-          newlyBroken: result.newlyBroken,
-        })
-        response.headers.set('X-Import-Warning', 'Destructive legacy import performed: existing collection data was deleted before re-import.')
-        return response
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err)
-        return Response.json(
-          { error: `Reallocation failed: ${message}` },
-          { status: 500 }
-        )
-      }
+      return Response.json(
+        { error: 'reallocate=true is no longer supported. Use the per-deck Picklist for reallocation.' },
+        { status: 410 }
+      )
     }
 
     // Standard import without reallocation

@@ -5,7 +5,7 @@
  * formatted markdown for the "Current Deck List" toggle section.
  *
  * Also provides queryDeckListData — the data assembly layer that
- * queries deck_cards, proxy_allocations, and collection to build
+ * queries deck_cards and physical_copies to build
  * the DeckListInput for a given deck.
  */
 

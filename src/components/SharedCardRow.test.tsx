@@ -84,13 +84,14 @@ describe('SharedCardRow', () => {
     expect(button).toHaveAttribute('aria-expanded', 'false')
   })
 
-  it('expands on click to show ProxyAllocationPanel', () => {
+  it('expands on click to show per-deck status with CardSlotBadge', () => {
     render(<SharedCardRow card={baseCard} />, { wrapper: createWrapper() })
     const button = screen.getByRole('button', { name: /Sol Ring/i })
     fireEvent.click(button)
     expect(button).toHaveAttribute('aria-expanded', 'true')
-    // ProxyAllocationPanel renders the "You own N copies" heading
-    expect(screen.getByText(/You own 2 copies/)).toBeInTheDocument()
+    // Expanded content shows deck names with status badges
+    expect(screen.getByText('Muldrotha')).toBeInTheDocument()
+    expect(screen.getByText('Atraxa')).toBeInTheDocument()
   })
 
   it('collapses on second click', () => {
@@ -99,7 +100,6 @@ describe('SharedCardRow', () => {
     fireEvent.click(button)
     fireEvent.click(button)
     expect(button).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.queryByText(/You own 2 copies/)).not.toBeInTheDocument()
   })
 
   it('renders as a listitem', () => {

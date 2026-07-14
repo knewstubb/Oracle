@@ -1,3 +1,4 @@
+Initialising login role...
 export type Json =
   | string
   | number
@@ -1149,47 +1150,6 @@ export type Database = {
         }
         Relationships: []
       }
-      proxy_allocations: {
-        Row: {
-          assigned_at: string | null
-          card_name: string
-          deck_id: number
-          id: number
-          role: string
-          user_id: string
-          written_at: string | null
-          written_to_archidekt: boolean | null
-        }
-        Insert: {
-          assigned_at?: string | null
-          card_name: string
-          deck_id: number
-          id?: never
-          role: string
-          user_id: string
-          written_at?: string | null
-          written_to_archidekt?: boolean | null
-        }
-        Update: {
-          assigned_at?: string | null
-          card_name?: string
-          deck_id?: number
-          id?: never
-          role?: string
-          user_id?: string
-          written_at?: string | null
-          written_to_archidekt?: boolean | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "proxy_allocations_deck_id_fkey"
-            columns: ["deck_id"]
-            isOneToOne: false
-            referencedRelation: "decks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       sets: {
         Row: {
           code: string
@@ -1526,3 +1486,5 @@ export const Constants = {
     Enums: {},
   },
 } as const
+A new version of Supabase CLI is available: v2.109.1 (currently installed v2.75.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli

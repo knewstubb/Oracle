@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { AlertTriangle } from 'lucide-react'
 import { CardImage } from '@/components/CardImage'
+import { CardSlotBadge } from '@/components/CardSlotBadge'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
-import { ProxyAllocationPanel } from '@/components/ProxyAllocationPanel'
 import { cn } from '@/lib/utils'
 
 export interface SharedCardDeck {
@@ -115,15 +116,27 @@ export function SharedCardRow({ card, collectionSynced = true }: SharedCardRowPr
         </div>
       </button>
 
+      {/* Expanded: per-deck status with CardSlotBadge + Resolve links */}
       {expanded && (
-        <ProxyAllocationPanel
-          card={{
-            ...card,
-            owned_copies: ownedCount,
-          }}
-          onSuccess={() => setExpanded(false)}
-          onCancel={() => setExpanded(false)}
-        />
+        <div className="ml-[60px] mt-1 space-y-1.5 rounded-lg border border-border bg-card/50 px-4 py-3">
+          {card.decks.map((deck) => (
+            <div key={deck.id} className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[length:var(--fs-sm)] text-foreground">{deck.name}</span>
+                <CardSlotBadge status={deck.is_proxy ? 'proxy' : 'original'} />
+              </div>
+              {card.needing_proxies && deck.is_proxy && (
+                <Link
+                  href={`/decks/${deck.id}?tab=cards&mode=picklist`}
+                  className="text-[length:var(--fs-xs)] font-medium text-[var(--accent-primary)] hover:underline"
+                  aria-label={`Resolve ${card.card_name} in ${deck.name}`}
+                >
+                  Resolve →
+                </Link>
+              )}
+            </div>
+          ))}
+        </div>
       )}
     </div>
   )

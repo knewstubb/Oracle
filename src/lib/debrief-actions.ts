@@ -86,7 +86,7 @@ export async function logDebriefAction(
   cutCard: string,
   addCard: string,
   reason: string,
-  notionLogged: boolean,
+  actionApplied: boolean,
   userId: string
 ): Promise<void> {
   const supabase = createAdminClient()
@@ -97,7 +97,7 @@ export async function logDebriefAction(
     cut_card: cutCard,
     add_card: addCard,
     reason,
-    notion_logged: notionLogged,
+    action_applied: actionApplied,
     user_id: userId,
   })
 

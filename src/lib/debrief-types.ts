@@ -46,7 +46,7 @@ export interface DebriefAction {
   cutCard: string
   addCard: string
   reason: string
-  notionLogged: boolean
+  actionApplied: boolean
   createdAt: string
 }
 

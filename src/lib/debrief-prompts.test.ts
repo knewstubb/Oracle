@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   buildInvestigatorSystemPrompt,
   buildAnalystPrompt,
-  formatDebriefNotionEntry,
+  formatDebriefNoteEntry,
 } from './debrief-prompts'
 import type { DebriefBrief, DeckCardWithOwnership } from './debrief-types'
 
@@ -135,7 +135,7 @@ describe('buildAnalystPrompt', () => {
   })
 })
 
-describe('formatDebriefNotionEntry', () => {
+describe('formatDebriefNoteEntry', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-06-22T12:00:00Z'))
@@ -145,8 +145,8 @@ describe('formatDebriefNotionEntry', () => {
     vi.useRealTimers()
   })
 
-  it('formats a complete Notion entry with session ID, date, cut, add, and reason', () => {
-    const result = formatDebriefNotionEntry(42, {
+  it('formats a complete note entry with session ID, date, cut, add, and reason', () => {
+    const result = formatDebriefNoteEntry(42, {
       cutCard: 'Sol Ring',
       addCard: 'Arcane Signet',
       reason: 'Better color fixing for 3-color mana base',
@@ -158,7 +158,7 @@ describe('formatDebriefNotionEntry', () => {
   })
 
   it('includes the session ID in the heading', () => {
-    const result = formatDebriefNotionEntry(7, {
+    const result = formatDebriefNoteEntry(7, {
       cutCard: 'Card A',
       addCard: 'Card B',
       reason: 'Test reason',
@@ -167,7 +167,7 @@ describe('formatDebriefNotionEntry', () => {
   })
 
   it('includes the current date', () => {
-    const result = formatDebriefNotionEntry(1, {
+    const result = formatDebriefNoteEntry(1, {
       cutCard: 'X',
       addCard: 'Y',
       reason: 'Z',

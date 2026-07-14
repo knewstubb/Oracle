@@ -178,6 +178,3 @@ export function formatDebriefNoteEntry(
   const date = new Date().toISOString().split('T')[0]
   return `### Debrief #${sessionId} — ${date}\n- **Cut:** ${action.cutCard}\n- **Add:** ${action.addCard}\n- **Reason:** ${action.reason}`
 }
-
-/** @deprecated Use formatDebriefNoteEntry instead */
-export const formatDebriefNotionEntry = formatDebriefNoteEntry

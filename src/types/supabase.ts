@@ -309,34 +309,34 @@ export type Database = {
       }
       debrief_actions: {
         Row: {
+          action_applied: boolean
           action_type: string
           add_card: string
           created_at: string
           cut_card: string
           id: number
-          notion_logged: boolean
           reason: string
           session_id: number
           user_id: string
         }
         Insert: {
+          action_applied?: boolean
           action_type: string
           add_card: string
           created_at?: string
           cut_card: string
           id?: never
-          notion_logged?: boolean
           reason: string
           session_id: number
           user_id: string
         }
         Update: {
+          action_applied?: boolean
           action_type?: string
           add_card?: string
           created_at?: string
           cut_card?: string
           id?: never
-          notion_logged?: boolean
           reason?: string
           session_id?: number
           user_id?: string

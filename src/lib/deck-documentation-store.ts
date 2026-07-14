@@ -2,8 +2,7 @@
  * Deck Documentation & Notes Persistence Layer
  *
  * Data access module for the deck_documentation and deck_notes tables.
- * Replaces Notion-based storage with native Supabase storage for deck
- * narrative content and coaching notes.
+ * Native Supabase storage for deck narrative content and coaching notes.
  *
  * Uses Supabase client for all database operations (async).
  *

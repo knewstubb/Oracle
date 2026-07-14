@@ -304,7 +304,7 @@ export function useDebriefSession(): UseDebriefSessionReturn {
               cutCard: rec.cutCard,
               addCard: rec.addCard,
               reason: rec.reason,
-              notionLogged: actionType === 'applied',
+              actionApplied: actionType === 'applied',
               createdAt: new Date().toISOString(),
             },
           ],

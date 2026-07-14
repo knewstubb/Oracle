@@ -59,10 +59,10 @@ function getCategory(card: DeckCard): string {
   return first.replace(/\(top\)|\(bottom\)/gi, '').trim() || 'Uncategorized'
 }
 
-function getOwnershipStatus(card: DeckCard): 'original' | 'proxy' | 'not_owned' {
+function getOwnershipStatus(card: DeckCard): 'original' | 'proxy' | null {
   if (card.allocation_role === 'proxy') return 'proxy'
-  if (card.allocation_role === 'not_owned') return 'not_owned'
-  return 'original'
+  if (card.allocation_role === 'original') return 'original'
+  return null
 }
 
 function DeadWeightBadge({

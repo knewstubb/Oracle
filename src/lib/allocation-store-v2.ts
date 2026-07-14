@@ -36,7 +36,7 @@ export interface AllocationSummary {
  * Write allocation assignments to deck_cards rows.
  *
  * For each assignment: SET physical_copy_id and ownership_status = 'original'
- * For each shortfall entry's unassigned IDs: SET ownership_status = 'not_owned'
+ * For each shortfall entry's unassigned IDs: SET ownership_status = NULL
  *
  * Validates: Requirements 5.4, 5.5, 5.6
  */

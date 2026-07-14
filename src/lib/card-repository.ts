@@ -30,7 +30,7 @@ export interface DeckContextCard {
   card_name: string
   primary_category: string
   additional_categories: string[]
-  ownership_status: 'original' | 'proxy' | 'not_owned'
+  ownership_status: 'original' | 'proxy' | null
 }
 
 /** Full deck context returned for a brew session */

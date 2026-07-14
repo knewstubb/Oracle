@@ -7,7 +7,7 @@ import { requireAuth } from '@/lib/auth'
  *
  * Deletes a physical copy from the user's collection.
  * First clears any deck_cards FK references (sets physical_copy_id = NULL,
- * ownership_status = 'not_owned'), then deletes the physical_copies row.
+ * ownership_status = NULL), then deletes the physical_copies row.
  *
  * Body: { physicalCopyId: number }
  * Response: { deleted: true, physicalCopyId: number }

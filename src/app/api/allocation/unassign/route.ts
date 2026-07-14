@@ -3,7 +3,7 @@
  *
  * Remove a card's allocation from a specific deck.
  * Accepts { cardName: string, deckId: number } and deletes the allocation record,
- * then updates the deck_cards ownership_status to 'not_owned'.
+ * then updates the deck_cards ownership_status to NULL.
  *
  * Returns the updated allocation state for that card across all decks.
  */

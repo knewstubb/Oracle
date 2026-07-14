@@ -7,7 +7,7 @@ import { requireAuth } from '@/lib/auth'
  *
  * Unassigns a physical copy from any deck it is assigned to.
  * Clears the deck_cards.physical_copy_id reference and sets
- * ownership_status to 'not_owned' for all deck_cards rows
+ * ownership_status to NULL for all deck_cards rows
  * referencing this physical copy.
  *
  * Body: { physicalCopyId: number }

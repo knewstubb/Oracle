@@ -32,7 +32,7 @@ export interface Recommendation {
   cutCard: string
   addCard: string
   reason: string
-  ownershipStatus: 'original' | 'proxy' | 'not_owned'
+  ownershipStatus: 'original' | 'proxy' | null
 }
 
 // ---------------------------------------------------------------------------

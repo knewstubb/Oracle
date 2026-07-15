@@ -124,15 +124,15 @@ function TokensSection() {
 
         <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-3">WUBRG (Magic color identity)</h3>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-5 mb-6">
-          <WubrgSwatch letter="W" name="White (Plains)" hex="#F9FAF4" />
-          <WubrgSwatch letter="U" name="Blue (Island)" hex="#0E68AB" />
-          <WubrgSwatch letter="B" name="Black (Swamp)" hex="#150B00" />
-          <WubrgSwatch letter="R" name="Red (Mountain)" hex="#D3202A" />
-          <WubrgSwatch letter="G" name="Green (Forest)" hex="#00733E" />
+          <EditableColorSwatch name="White (W)" cssVar="--mana-white" defaultHex="#F5F0C1" />
+          <EditableColorSwatch name="Blue (U)" cssVar="--mana-blue" defaultHex="#6BA5C4" />
+          <EditableColorSwatch name="Black (B)" cssVar="--mana-black" defaultHex="#9E9E9E" />
+          <EditableColorSwatch name="Red (R)" cssVar="--mana-red" defaultHex="#D4836A" />
+          <EditableColorSwatch name="Green (G)" cssVar="--mana-green" defaultHex="#7BC4A0" />
         </div>
         <p className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)]">
-          WUBRG colors are used in color identity filters, mana pip icons, and deck tile accents.
-          These match the official MTG color pie.
+          WUBRG colors are used on deck tile color bars, collection filter icons, and mana pip rendering.
+          Changes here preview live across the entire app (session-only).
         </p>
       </div>
 
@@ -602,46 +602,6 @@ function EditableColorSwatch({ name, cssVar, defaultHex }: { name: string; cssVa
             type="text"
             value={color}
             onChange={(e) => handleChange(e.target.value)}
-            className="w-[72px] rounded border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1 py-0.5 text-center text-[9px] font-mono text-[var(--text-secondary)]"
-          />
-        </div>
-      )}
-    </div>
-  )
-}
-
-function WubrgSwatch({ letter, name, hex }: { letter: string; name: string; hex: string }) {
-  const [color, setColor] = useState(hex)
-  const [editing, setEditing] = useState(false)
-
-  return (
-    <div className="flex flex-col items-center gap-1.5">
-      <div className="relative">
-        <div
-          className="size-12 rounded-full border-2 border-[rgba(255,255,255,0.15)] cursor-pointer flex items-center justify-center transition-transform hover:scale-110"
-          style={{ backgroundColor: color }}
-          onClick={() => setEditing(!editing)}
-          title={`Click to edit ${name}`}
-        >
-          <span className="text-[length:var(--fs-lg)] font-medium" style={{ color: letter === 'W' ? '#1a1a1a' : '#fff' }}>
-            {letter}
-          </span>
-        </div>
-      </div>
-      <span className="text-[length:var(--fs-xs)] text-[var(--text-secondary)] text-center leading-tight">{name}</span>
-      <span className="text-[9px] text-[var(--text-tertiary)] font-mono">{color}</span>
-      {editing && (
-        <div className="mt-1 flex flex-col items-center gap-1">
-          <input
-            type="color"
-            value={color}
-            onChange={(e) => setColor(e.target.value)}
-            className="size-8 cursor-pointer rounded border-none bg-transparent"
-          />
-          <input
-            type="text"
-            value={color}
-            onChange={(e) => setColor(e.target.value)}
             className="w-[72px] rounded border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1 py-0.5 text-center text-[9px] font-mono text-[var(--text-secondary)]"
           />
         </div>

@@ -51,6 +51,13 @@
   --status-full: #5F5E5A;
   --status-over: #FF5F1F;
 
+  /* ─── WUBRG (Magic color identity) ──────────────────────────────── */
+  --mana-white: #F5F0C1;
+  --mana-blue: #6BA5C4;
+  --mana-black: #9E9E9E;
+  --mana-red: #D4836A;
+  --mana-green: #7BC4A0;
+
   /* ─── Table Layout ───────────────────────────────────────────────── */
   --row-height: 44px;
   --row-h-pad: var(--space-3);

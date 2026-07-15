@@ -29,11 +29,11 @@ export interface DeckTileProps {
 }
 
 const COLOUR_BAR_MAP: Record<string, { hex: string; label: string }> = {
-  W: { hex: '#F5F0C1', label: 'White' },
-  U: { hex: '#6BA5C4', label: 'Blue' },
-  B: { hex: '#9E9E9E', label: 'Black' },
-  R: { hex: '#D4836A', label: 'Red' },
-  G: { hex: '#7BC4A0', label: 'Green' },
+  W: { hex: 'var(--mana-white)', label: 'White' },
+  U: { hex: 'var(--mana-blue)', label: 'Blue' },
+  B: { hex: 'var(--mana-black)', label: 'Black' },
+  R: { hex: 'var(--mana-red)', label: 'Red' },
+  G: { hex: 'var(--mana-green)', label: 'Green' },
 }
 
 const COLOUR_ORDER = ['W', 'U', 'B', 'R', 'G']

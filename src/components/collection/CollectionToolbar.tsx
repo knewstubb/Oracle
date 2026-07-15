@@ -65,11 +65,11 @@ const STATUS_OPTIONS: { value: StatusFilterType; label: string }[] = [
 ]
 
 const COLOR_OPTIONS: { value: string; label: string; hex: string }[] = [
-  { value: 'W', label: 'White', hex: '#F9FAF4' },
-  { value: 'U', label: 'Blue', hex: '#0E68AB' },
-  { value: 'B', label: 'Black', hex: '#150B00' },
-  { value: 'R', label: 'Red', hex: '#D3202A' },
-  { value: 'G', label: 'Green', hex: '#00733E' },
+  { value: 'W', label: 'White', hex: 'var(--mana-white)' },
+  { value: 'U', label: 'Blue', hex: 'var(--mana-blue)' },
+  { value: 'B', label: 'Black', hex: 'var(--mana-black)' },
+  { value: 'R', label: 'Red', hex: 'var(--mana-red)' },
+  { value: 'G', label: 'Green', hex: 'var(--mana-green)' },
   { value: 'C', label: 'Colorless', hex: '#9CA3AF' },
 ]
 

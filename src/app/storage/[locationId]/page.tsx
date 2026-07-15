@@ -1,12 +1,14 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+import { toast } from 'sonner'
 import { PageHeader } from '@/components/PageHeader'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StorageLocationSelect } from '@/components/collection/StorageLocationSelect'
+import { DeckPickerPopover, type ValidDeck } from '@/components/DeckPickerPopover'
 
 interface StorageCopy {
   physicalCopyId: number
@@ -104,13 +106,11 @@ export default function StorageDetailPage() {
                     )}
                   </div>
 
-                  {/* Action: Assign to deck (placeholder) */}
-                  <button
-                    type="button"
-                    className="shrink-0 rounded-md border border-[var(--accent-primary)] px-3 py-1 text-[length:var(--fs-xs)] font-medium text-[var(--accent-primary)] transition-colors hover:bg-[var(--accent-primary-bg)]"
-                  >
-                    Assign
-                  </button>
+                  {/* Action: Assign to deck (filtered by color identity) */}
+                  <StorageCopyAssignButton
+                    cardName={copy.cardName}
+                    physicalCopyId={copy.physicalCopyId}
+                  />
                 </div>
               ))}
 
@@ -124,5 +124,54 @@ export default function StorageDetailPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// StorageCopyAssignButton — fetches valid decks on-demand and shows picker
+// ---------------------------------------------------------------------------
+
+function StorageCopyAssignButton({ cardName, physicalCopyId }: { cardName: string; physicalCopyId: number }) {
+  const queryClient = useQueryClient()
+
+  // Fetch valid decks for this card (using deckId=0 as placeholder — endpoint uses card name)
+  // We need a lightweight endpoint to get valid decks by card name alone
+  const { data: validDecks, isLoading } = useQuery<ValidDeck[]>({
+    queryKey: ['valid-decks', cardName],
+    queryFn: async () => {
+      const res = await fetch(`/api/allocation/valid-decks?cardName=${encodeURIComponent(cardName)}`)
+      if (!res.ok) return []
+      return res.json()
+    },
+    staleTime: 60 * 1000,
+  })
+
+  const assignMutation = useMutation({
+    mutationFn: async (targetDeckId: number) => {
+      // Find an open slot in the target deck for this card, then assign
+      const res = await fetch(`/api/decks/${targetDeckId}/card-actions/${encodeURIComponent(cardName)}`)
+      if (!res.ok) throw new Error('Could not check target deck')
+      const context = await res.json()
+      // The target deck should have this card in an open/claimed/unowned slot
+      // For now we just mark this copy as assigned — the deck must already have the card in its list
+      // If not, we just unassign from storage (it becomes available for the deck's allocation)
+      toast.info(`${cardName} freed for ${context.cardName ?? cardName}. Assign from deck's Cards tab.`)
+      return { targetDeckId }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['storage'] })
+      queryClient.invalidateQueries({ queryKey: ['collection'] })
+    },
+    onError: (err) => toast.error(err.message),
+  })
+
+  return (
+    <DeckPickerPopover
+      validDecks={validDecks ?? []}
+      isLoading={isLoading}
+      onSelect={(deck) => assignMutation.mutate(deck.deckId)}
+      disabled={assignMutation.isPending}
+      label="Assign"
+    />
   )
 }

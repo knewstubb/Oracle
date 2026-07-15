@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { CardHoverPreview } from '@/components/CardHoverPreview'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { LocationPickerModal } from '@/components/LocationPickerModal'
+import { DeckPickerPopover, type ValidDeck } from '@/components/DeckPickerPopover'
 import { StorageLocationSelect } from '@/components/collection/StorageLocationSelect'
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
@@ -94,6 +95,18 @@ export function InstanceDetailPanel({
     staleTime: 5 * 60 * 1000,
   })
 
+  // Fetch valid decks for this card (color identity filter)
+  const { data: validDecks } = useQuery<ValidDeck[]>({
+    queryKey: ['valid-decks', cardName],
+    queryFn: async () => {
+      const res = await fetch(`/api/allocation/valid-decks?cardName=${encodeURIComponent(cardName)}`)
+      if (!res.ok) return []
+      return res.json()
+    },
+    staleTime: 60 * 1000,
+    enabled: !!cardName,
+  })
+
   /* ─── Mutations ─────────────────────────────────────────────────── */
 
   const unassignMutation = useMutation({
@@ -159,6 +172,27 @@ export function InstanceDetailPanel({
       toast.success('Replaced proxy with original')
     },
     onError: (err) => toast.error(err.message),
+  })
+
+  // Reassign mutation — unassign from current deck, making it available for the target
+  const reassignMutation = useMutation({
+    mutationFn: async ({ physicalCopyId, targetDeckId }: { physicalCopyId: number; targetDeckId: number }) => {
+      const res = await fetch('/api/collection/instances/unassign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ physicalCopyId }),
+      })
+      if (!res.ok) throw new Error('Unassign failed')
+      return { targetDeckId }
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['instances', oracleId] })
+      queryClient.invalidateQueries({ queryKey: ['collection'] })
+      queryClient.invalidateQueries({ queryKey: ['decks', data.targetDeckId, 'card-statuses'] })
+      queryClient.invalidateQueries({ queryKey: ['picklist', data.targetDeckId] })
+      toast.success(`Freed for reassignment — assign from target deck's Cards tab`)
+    },
+    onError: () => toast.error('Failed to reassign'),
   })
 
   return (
@@ -238,6 +272,11 @@ export function InstanceDetailPanel({
                                 })
                               : undefined
                           }
+                          validDecks={validDecks}
+                          onReassign={instance.assignedDeckId
+                            ? (targetDeckId) => reassignMutation.mutate({ physicalCopyId: instance.physicalCopyId, targetDeckId })
+                            : undefined
+                          }
                         />
                       ))}
                       {/* Short entries (decks needing this card) */}
@@ -278,6 +317,7 @@ export function InstanceDetailPanel({
                           onCancelDelete={() => setConfirmingDeleteId(null)}
                           isUnassigning={unassignMutation.isPending && unassignMutation.variables === instance.physicalCopyId}
                           isDeleting={deleteMutation.isPending && deleteMutation.variables === instance.physicalCopyId}
+                          validDecks={validDecks}
                         />
                       ))}
                     </div>
@@ -566,6 +606,8 @@ interface InstanceRowItemProps {
   isUnassigning: boolean
   isDeleting: boolean
   onReplaceWithOriginal?: () => void
+  validDecks?: ValidDeck[]
+  onReassign?: (targetDeckId: number) => void
 }
 
 function InstanceRowItem({
@@ -582,6 +624,8 @@ function InstanceRowItem({
   isUnassigning,
   isDeleting,
   onReplaceWithOriginal,
+  validDecks,
+  onReassign,
 }: InstanceRowItemProps) {
   const queryClient = useQueryClient()
   const assignment = getAssignmentLabel(instance)
@@ -715,15 +759,33 @@ function InstanceRowItem({
               )}
               Unassign
             </button>
-            <button
-              type="button"
-              disabled
-              className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[length:var(--fs-xs)] font-medium text-[var(--text-secondary)] transition-colors disabled:pointer-events-none disabled:opacity-40"
-              title="Coming soon"
-            >
-              <Shuffle className="size-3" />
-              Reassign
-            </button>
+            {/* Reassign via valid-deck picker */}
+            {validDecks && validDecks.length > 0 && instance.assignedDeckName && onReassign ? (
+              <DeckPickerPopover
+                validDecks={validDecks}
+                onSelect={(deck) => onReassign(deck.deckId)}
+                label="Reassign"
+              >
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[length:var(--fs-xs)] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--border-subtle)]"
+                  title="Reassign to another deck"
+                >
+                  <Shuffle className="size-3" />
+                  Reassign
+                </button>
+              </DeckPickerPopover>
+            ) : (
+              <button
+                type="button"
+                disabled={!onReassign}
+                className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[length:var(--fs-xs)] font-medium text-[var(--text-secondary)] transition-colors disabled:pointer-events-none disabled:opacity-40"
+                title={instance.assignedDeckName ? 'Reassign to another deck' : 'Not assigned to a deck'}
+              >
+                <Shuffle className="size-3" />
+                Reassign
+              </button>
+            )}
             {/* Replace with original — only for proxy copies assigned to a deck */}
             {instance.isProxy && instance.assignedDeckName && onReplaceWithOriginal && (
               <button

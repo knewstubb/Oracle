@@ -3,7 +3,6 @@ import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
 import { applyCardSwap, logDebriefAction } from '@/lib/debrief-actions'
 import { formatDebriefNoteEntry } from '@/lib/debrief-prompts'
-import { resolveOwnership } from '@/lib/ownership-resolver'
 import { appendNote } from '@/lib/deck-documentation-store'
 import type { Recommendation, DebriefSessionRow } from '@/lib/debrief-types'
 
@@ -93,12 +92,7 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // b. Run Ownership Resolver (non-blocking — try/catch)
-      try {
-        await resolveOwnership()
-      } catch (err) {
-        console.warn('Ownership resolver failed (non-blocking):', err)
-      }
+      // b. Invalidate caches (ownership resolver removed — was writing to read-only table)
 
       // c. Log to local notes (non-blocking — try/catch)
       let noteLogged = false

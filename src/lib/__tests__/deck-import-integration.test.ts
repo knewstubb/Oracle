@@ -29,10 +29,6 @@ vi.mock('@/lib/supabase', () => ({
 
 const mockRunAllocationResolver = vi.fn()
 
-vi.mock('@/lib/allocation-store-v2', () => ({
-  runAllocationResolver: (...args: any[]) => mockRunAllocationResolver(...args),
-}))
-
 vi.mock('@/lib/card-definition-resolver', () => ({
   resolveCardDefinitions: vi.fn().mockImplementation(async (cards: any[]) => {
     const map = new Map<string, number>()

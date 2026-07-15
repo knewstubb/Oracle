@@ -26,15 +26,6 @@ vi.mock('@/lib/supabase', () => ({
   }),
 }))
 
-vi.mock('@/lib/allocation-store-v2', () => ({
-  runAllocationResolver: vi.fn().mockResolvedValue({
-    assigned: 0,
-    shortfall: 0,
-    errors: [],
-    durationMs: 10,
-  }),
-}))
-
 // ---------------------------------------------------------------------------
 // Fixture Data
 // ---------------------------------------------------------------------------

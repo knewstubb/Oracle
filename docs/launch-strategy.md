@@ -2,6 +2,7 @@
 
 > Draft: 2026-07-14
 > Status: Internal planning document
+> Revised: 2026-07-15 — Section 8's aggressive 8-week public-launch timeline is superseded. Confirmed direction: personal-use-first. Multi-user and monetization infrastructure (RLS retrofit, billing, usage metering) are deferred until an explicit decision to open signups — not abandoned, just unscheduled. Sections 1-7 and 10 remain valid strategy for when that decision is made. Section 9's checklist is future-facing, not active work. Section 11 added: codebase audit findings from the card-allocation redesign.
 
 ---
 
@@ -17,26 +18,59 @@ The core differentiator vs. Archidekt/Moxfield/ManaBox: **instance-level physica
 
 ### Feature Matrix
 
-| Feature | The Oracle | Archidekt | Moxfield | ManaBox | Deckbox | MTGGoldfish |
-|---------|-----------|-----------|----------|---------|---------|-------------|
-| **Instance-level tracking** | One row per card | Quantity-based | Quantity-based | Quantity-based | Quantity | None |
-| **Physical allocation** (which copy in which deck) | Per-copy FK | Per-name labels | Not tracked | Not tracked | Partial | None |
+#### Established Players
+
+| Feature | The Oracle | Archidekt | Moxfield | ManaBox | Deckbox | EchoMTG |
+|---------|-----------|-----------|----------|---------|---------|---------|
+| **Instance-level tracking** | One row per card | Quantity-based | Quantity-based | Quantity-based | Quantity | Per-printing |
+| **Physical allocation** (which copy in which deck) | Per-copy FK | Per-name labels | "Strict Assignment" (3yr in progress) | Not tracked | Partial | Partial (lists) |
 | **Proxy tracking** (which specific copies are proxies) | Per-instance is_proxy | Tag-based (fragile) | No | No | No | No |
-| **Storage locations** | Per-instance FK | No | No | No | Partial (boxes) | No |
+| **Storage locations** | Per-instance FK | No | Binders (quantity) | No | Partial (boxes) | No |
 | **Contention detection** (card in 2+ decks, only 1 copy) | "Claimed" status | No | No | No | No | No |
 | **AI deck builder** | Tool-use loop (EDHREC, Scryfall, Spellbook) | No | No | No | No | No |
 | **AI post-game debrief** | Structured analysis + recommendations | No | No | No | No | No |
 | **Deck health monitoring** | Category thresholds + strip | Basic stats | Basic stats | Basic | No | Basic |
-| **Upgrade suggestions** (EDHREC-powered) | Cut/add pairs with pricing | No | No | No | No | Yes |
-| **Goldfish/playtesting** | Not built | Yes | Yes | Yes (simulator) | No | Yes |
-| **Mobile app** | Web only | Web | Web | Native (primary) | No | No |
-| **Card scanning** (camera) | No | No | No | Yes (core feature) | No | No |
-| **Social/community** | Single-user | Public decks, comments | Public decks, follows | Limited | Trading | Limited |
-| **Pricing data** | Card Kingdom | Multi-source | Multi-source | Multi-source | Yes | Yes |
-| **Format legality checking** | Not built | Yes | Yes | Yes | No | Yes |
+| **Upgrade suggestions** (EDHREC-powered) | Cut/add pairs with pricing | No | No | No | No | No |
+| **Goldfish/playtesting** | Not built | Yes | Yes | Yes (simulator) | No | No |
+| **Mobile app** | Web only | Web | Web | Native (primary) | No | Native |
+| **Card scanning** (camera) | No | No | No | Yes (core feature) | No | Yes |
+| **Social/community** | Single-user | Public decks, comments | Public decks, follows | Limited | Trading | Public pages |
+| **Pricing data** | Card Kingdom | Multi-source | Multi-source | Multi-source | Yes | Multi-source (core) |
+| **Format legality checking** | Not built | Yes | Yes | Yes | No | No |
 | **Multi-user / sharing** | Single-user | Yes | Yes | Yes | Yes | Yes |
 | **Precon mod tracking** | Budget + rarity constraints | No | No | No | No | No |
-| **Import from other platforms** | Archidekt + Moxfield + CSV | N/A | Archidekt import | CSV | CSV | CSV |
+| **Import from other platforms** | Archidekt + Moxfield + CSV | N/A | Archidekt import | CSV | CSV | Archidekt/CSV |
+
+#### Emerging Competitors (2025-2026)
+
+| Feature | The Oracle | ManaCurve | Riffle Zone | ManaTrove | Planeskeeper | WaxCache |
+|---------|-----------|-----------|-------------|-----------|--------------|----------|
+| **Instance-level tracking** | One row per card | Unknown (beta) | Unknown (waitlist) | Per-printing | Per-card | Per-card + slot |
+| **Physical allocation** | Per-copy FK w/ contention | "Copy pressure" visibility | Collection-aware (claims) | Named collections | "Synced across phone/web" | Box/binder/slot |
+| **Proxy tracking** | Per-instance is_proxy | Unknown | Unknown | No | Unknown | No |
+| **Storage locations** | Per-instance FK | No | LGS store integration | Named collections (deck/binder/box) | Unknown | Core feature (QR labels) |
+| **Contention detection** | "Claimed" status + picklist | "Copy pressure visible" | Missing-cards list | No | No | No |
+| **AI features** | Full (brew + debrief + upgrade) | No | AI advisor + upgrader | No | AI strategy analysis | No |
+| **Build from owned cards** | Yes | Yes (core feature) | Yes (core feature) | No | Yes | No |
+| **EDHREC integration** | Tool-use (live) | Unknown | Inline + Recommander | No | No | No |
+| **Commander-first** | Yes | Yes | Yes | No (general MTG) | Yes | No (all TCGs) |
+| **Pricing data** | Card Kingdom | Unknown | Store price checking | Scryfall (EUR/USD) | Unknown | Market prices |
+| **Launch status** | Deployed (single-user) | Beta | Waitlist | Live (early) | Dev/beta | Live |
+| **Target user** | Physical collector w/ 3+ decks | Collection-first brewer | All-in-one deckbuilder | Value-tracking collector | Mobile-first player | Physical card organizer |
+
+#### Competitive Positioning Summary
+
+| Competitor | Their edge | Their gap (our advantage) |
+|-----------|-----------|--------------------------|
+| **Archidekt** | Largest user base, social features, playtesting | No instance-level tracking, no AI, no storage locations |
+| **Moxfield** | Clean UX, strong community, collection binders | "Strict Assignment" stuck 3+ years, quantity-based schema |
+| **ManaBox** | Camera scanning, native mobile, smooth UX | No allocation, no deck-status awareness, no contention |
+| **EchoMTG** | Price tracking depth, camera scanning, mobile | No allocation model, finance-focused not play-focused |
+| **ManaCurve** | Collection-first deck building, copy pressure | Unknown depth of allocation model, no AI, likely no proxy tracking |
+| **Riffle Zone** | EDHREC inline, AI advisor, store price checking | Waitlist-only (unshipped), no confirmed instance-level, deckbuilder-first |
+| **ManaTrove** | Per-printing tracking, EUR/USD history, clean | Value-tracking only, no deck allocation, no deck building |
+| **Planeskeeper** | Mobile + web sync, AI analysis | Early stage, unclear depth of allocation model |
+| **WaxCache** | Physical location tracking (QR labels), multi-TCG | Not Commander-focused, no deck building, no contention detection |
 
 ### Key Gaps to Close Before Launch
 
@@ -129,6 +163,77 @@ Break-even (covering infra): ~$85/mo = 17 Core subscribers.
 ---
 
 ## 5. Marketing Strategy
+
+### Community Demand Validation
+
+The problem The Oracle solves — "where is my specific card, which deck has it, and what's available?" — is one of the most frequently requested features across the MTG tooling ecosystem. Research into community forums, feature request trackers, and competitor feedback boards reveals strong, persistent, unmet demand.
+
+**Moxfield Feature Request Board (nolt.io) — The Clearest Signal**
+
+Moxfield's public feedback board has at least **8 separate feature requests** all describing the exact problem The Oracle solves:
+
+- [#776 "Add Strict Assignment to Collections"](https://moxfield.nolt.io/776) — The flagship request. Users want to know where cards are located across decks. Example given: "Sol Ring [6 owned] (Deck 1, Deck 2, Deck 3)." Status: **In Progress** for 3+ years. Comments include frustration: "This was a feature request 3+ years ago, I don't think they know how to do it." One commenter offered to donate development time.
+- [#1027 "Show if card is In Use"](https://moxfield.nolt.io/1027) — "I own 4 Swiftfoot Boots, 3 are in built decks. Show me 1 available." The user independently designed The Oracle's exact taxonomy: deck status tags ("brewing", "built", "retired") determining allocation. The commenter uses a special binder per-deck as a workaround.
+- [#1605 "Track cards in decks in collection"](https://moxfield.nolt.io/1605) — "The specific version of a card does matter!" — validates instance-level fidelity. Notes: "Everybody is talking about it."
+- [#1962 "Active Decks & available cards"](https://moxfield.nolt.io/1962) — "I don't want to swap cards, so show me if a card is already used in other active decks." Merged into #776.
+- [#1878 "Introduce an 'in Use' state"](https://moxfield.nolt.io/1878) — "When building a new deck, I do not know if the card is already in use in another deck."
+- [#421 "Strict Assignment"](https://moxfield.nolt.io/421) — Describes a "check in/out system" — cards marked as being in certain decks or in collection. Almost word-for-word The Oracle's allocation model.
+- [#1291 "See what cards are currently in decks"](https://moxfield.nolt.io/1291), [#1242 "Colored tick for card owned but in another deck"](https://moxfield.nolt.io/1242), [#1299 "Show owned but used"](https://moxfield.nolt.io/1299) — All variations of the same need.
+
+Key takeaway: Moxfield marked "Strict Assignment" as **In Progress** over 3 years ago. It hasn't shipped. Their quantity-based schema makes this architecturally hard — they'd need to track *which specific copy* is where, not just "you own N of this card."
+
+**Moxfield GitHub (moxfield-public/issues/3) — Early Signal (2020)**
+
+The very third issue ever opened on Moxfield's public repo was "User Inventory" requesting per-printing tracking and the ability to see "how many copies I have that aren't in a deck, as well as what decks any copies I own are currently in."
+
+**MTGSalvation Forum Threads (2011-2015) — Perennial Problem**
+
+Multiple long-running threads discuss the pain of sharing cards between Commander decks:
+
+- ["System for sharing cards between decks?"](https://www.mtgsalvation.com/forums/magic-fundamentals/magic-general/325348-system-for-sharing-cards-between-decks) (2011) — The solution proposed was physical proxies with notes marking which deck holds the original.
+- ["Best way to share cards between decks?"](https://www.mtgsalvation.com/forums/the-game/commander-edh/545349-best-way-to-share-cards-between-decks) (2014) — "It's a pain in the ass to swap them back and forth. Most people proxy cards they already own because swapping is annoying."
+- ["Sharing cards among commander decks"](https://www.mtgsalvation.com/forums/the-game/commander-edh/600936-sharing-cards-among-commander-decks) (2015) — Users suggest altered cards, paper slips in sleeves, or just buying duplicates.
+- ["How do you all have multiple decks at the same time?"](https://www.mtgsalvation.com/forums/commander-edh/198211) (2011) — "Do you switch cards around, proxy cards you own, or own extra copies of everything?" — This is literally The Oracle's problem statement.
+
+**Reddit r/EDH (373k members) — The Audience**
+
+The proxy-for-owned-cards discussion is one of the most common recurring threads on r/EDH. A [curated FAQ list](https://ikhat.gitbook.io/workspace/reddit/faqs/proxies) documents dozens of posts from 2018-2019 alone with titles like "Proxy for expensive cards when already owning one?" This pattern hasn't stopped — it surfaces every few weeks.
+
+The r/mpcproxies subreddit (57k members) exists primarily because people want physical proxies for cards they own but don't want to swap between decks. That's 57,000 people actively solving the problem The Oracle makes unnecessary to solve physically.
+
+**Emerging Competitors — The Market is Waking Up**
+
+Several new tools are explicitly targeting this space, validating the opportunity:
+
+- **[ManaCurve.app](https://manacurve.app/)** — "Build Commander decks from the cards you own. Keeps copy pressure visible as your decks change." Tagline directly mirrors The Oracle's positioning. Currently in beta.
+- **[Riffle Zone](https://riffle.zone/)** — Waitlist-only. Explicitly calls out the problem: "Your collection is in ManaBox. Your decks are in Moxfield. They don't talk to each other." Includes AI advisor and collection-aware building.
+- **[ManaTrove.app](https://manatrove.app/)** — Collection tracker with per-printing tracking, group cards into named collections (one per deck, binder, or box). Focused on value tracking more than allocation.
+- **[Planeskeeper.dev](https://planeskeeper.dev/)** — "Track every card, build smarter decks, AI analysis." Mobile + web sync.
+- **[ManaGate.app](http://managate.app/)** — "Handles deck building, live pricing, and the 5,000-card binder you swore you'd organize."
+- **[WaxCache.com](https://www.waxcache.com/)** — Sports/TCG card management that "connects each card to the box, binder, slot, or QR label where it actually lives." Storage-location tracking for physical cards — validates The Oracle's storage feature.
+
+None of these have shipped instance-level allocation with contention detection. Most are in beta/waitlist. The Oracle is ahead architecturally.
+
+**Summary: Demand Strength**
+
+| Signal | Strength | Notes |
+|--------|----------|-------|
+| Moxfield feature requests (8+ threads, 3+ years) | Very strong | Direct validation. Users describe The Oracle's exact features. |
+| MTGSalvation threads (2011-2015, recurring) | Strong | Proves this is a perennial pain, not a fad. 10+ year old problem still unsolved. |
+| Reddit r/EDH proxy discussions | Strong | 373k-member sub, proxy-for-owned recurring monthly. |
+| r/mpcproxies existence (57k members) | Moderate | Indirect validation — people printing proxies because swapping is painful. |
+| Moxfield "In Progress" for 3 years | Very strong | Proves the problem is hard to retrofit. Schema moat confirmed. |
+| 5+ new competitors emerging (2025-2026) | Strong | Market timing is right. Multiple teams see the same gap. |
+| ManaCurve.app exact overlap | Strong | Direct competitor validation — but no contention detection or instance-level fidelity. |
+
+**Implications for launch:**
+1. The problem is real, recurring, and well-articulated by users.
+2. Moxfield's inability to ship "Strict Assignment" after 3+ years validates the schema moat thesis.
+3. Timing is good — competitors are emerging but none have shipped instance-level allocation.
+4. The Reddit post strategy should reference these existing discussions. Don't pitch cold — respond to the pain point with a solution.
+5. The "proxy for cards you own" angle is the sharpest hook. 57k+ people in r/mpcproxies are solving physically what The Oracle solves digitally.
+
+---
 
 ### Positioning
 
@@ -242,7 +347,54 @@ Architecture: Entirely client-side. No database writes, no server calls (except 
 
 ---
 
-## 8. Timeline to Public Launch
+## 8. Near-Term Roadmap (Personal-Use-First — supersedes the timeline below)
+
+**Direction confirmed 2026-07-15:** this started as a personal tool, a friend independently confirmed the same pain points, and paid multi-user is now a real possibility — but not a scheduled one. Priority is getting the tool right for personal use first, without foreclosing multi-user/paid later. Stay compatible, don't build the infrastructure yet.
+
+**Guiding rule:** every new or modified database query stays scoped by `user_id`, as a standing convention — cheap now, and it's the only thing that actually prevents new isolation debt while other work continues. No dedicated RLS retrofit, billing integration, or usage-metering build is scheduled. When the decision to open signups is made, the RLS retrofit is smaller than Section 3 implies — migration 003 already created the policies, the work is switching to a user-scoped client and verifying them, not building RLS from scratch.
+
+### Phase 1 — In progress
+
+| Item | Status |
+|------|--------|
+| Card allocation & storage redesign (interactive status chips, Storage nav, deck/card/storage action matrix, Picklist stub replacement) | Complete — all 17 tasks delivered, release gate passed (2026-07-15) |
+
+### Phase 2 — Next up (small, mostly wiring, not new build)
+
+| Item | Why |
+|------|-----|
+| Consolidate/delete dead code surfaced by the card-allocation work (see Section 11) | Prevents building further on duplicated or broken foundations |
+| Wire `MissingToggle`/`MissingCopyRow` into the Collection page | Fully built, zero consumers — the taxonomy-rename work's "Show Missing" toggle was never actually connected |
+| Wire `StorageLocationsSettings` into Settings (or the new Storage nav) | Fully built, working CRUD against a real API — currently unreachable by any route |
+| Wire `DecisionCard` and `ExplorationArchive` into the live Brew Canvas | Both already built; `BrewCanvas.tsx` has two literal placeholder comments waiting for them — a likely concrete contributor to "brew is clunky" |
+
+### Phase 3 — Brew process refinement
+
+Broader pass beyond the two-component wiring fix above. Scope not yet defined — needs real use to identify what's clunky beyond the two known gaps.
+
+### Phase 4 — Net-new product work, prioritized by personal value over acquisition value
+
+| Item | Notes |
+|------|-------|
+| System-wide AI, single entry point | Five non-brew AI endpoints already exist (recommend, build-deck, deck-scan, search, mana-analysis) plus Debrief — consolidation/exposure, not new AI capability |
+| Goldfishing | Scope already defined in Section 7 — estimate unchanged at 2-3 weeks |
+| Buylist / sell-to-vendor comparison | Genuinely net-new — confirmed no buylist or sell-side code exists anywhere |
+| Onboarding/migration refinement + walkthroughs | Deprioritized below the above — primarily benefits future users joining later, not current personal use |
+
+### Ongoing hygiene, not phase-gated
+
+- Rate limiting on AI endpoints — cost-control hygiene given AI surface is expanding either way; worth doing soon, not a blocker for anything above
+- `user_id` scoping convention on all new/modified queries (see Guiding rule above)
+
+### Deferred until an explicit decision to open signups — not scheduled, not abandoned
+
+- RLS retrofit (Section 3)
+- Billing integration, Terms of Service / Privacy Policy, usage-metering system
+- Mobile responsive pass, error/uptime monitoring, soft launch, public launch, marketing execution (Sections 5, 6, 9, 10 remain valid — just not active work)
+
+---
+
+### Original 8-week public-launch timeline (superseded, kept for reference)
 
 | Phase | Duration | Focus |
 |-------|----------|-------|
@@ -253,17 +405,11 @@ Architecture: Entirely client-side. No database writes, no server calls (except 
 | **+6 to +8 weeks** | Bug fixes from soft launch + stability hardening |
 | **+8 weeks** | Public launch (Reddit, Product Hunt, creator outreach) |
 
-**Conservative total: 8 weeks from today to public launch.**
-
-Assumes:
-- Building full-time (or near it) with AI tooling
-- Goldfishing is MVP-scoped (no rules engine)
-- Don't block on multi-user RLS (launch single-tenant first)
-- Chris Wilson / LSS conversations happen in parallel
+Original assumptions: building full-time with AI tooling, goldfishing MVP-scoped, don't block on multi-user RLS, Chris Wilson/LSS conversations in parallel. Superseded by the phased plan above, not deleted — the goldfish scope and RLS-deferral instinct were already right.
 
 ---
 
-## 9. Launch Checklist
+## 9. Launch Checklist (deferred — revisit when launch is actually scheduled)
 
 ### Pre-Launch
 
@@ -306,3 +452,33 @@ Assumes:
 | Chris Wilson says no | Medium | Low | Multiple marketing channels, don't depend on one person |
 | Single-user architecture limits growth | High (by design) | Medium | Launch single-tenant, RLS work after product-market fit |
 | FaB partnership doesn't materialise | Medium | Low | FaB is upside, not core strategy |
+
+---
+
+## 11. Codebase Audit Findings (2026-07-15)
+
+Surfaced while designing the card-allocation redesign. One correction to Section 3, plus a full dead-code inventory.
+
+### Correction to Section 3
+
+`allocation-resolver.ts`/`allocation-store.ts` aren't mentioned in Section 3, but a prior tech-debt note (Shared Cards V2 delivery log) flagged them as having "4+ consumers, separate cleanup." That undersold the problem: they write to `deck_allocations`, which migration 010 made read-only. Any remaining consumer is calling a function whose writes silently no-op — this is effectively dead code, not open tech debt, just not yet confirmed and deleted.
+
+### Confirmed dead, safe to delete (pending a final grep-sweep verification pass — same discipline as the taxonomy-rename release gate, don't skip it)
+
+| File(s) | Why |
+|---|---|
+| `allocation-resolver.ts`, `allocation-store.ts` | v1 — broken, writes to a read-only table |
+| `allocation-resolver-v2.ts`, `allocation-store-v2.ts` | v2 — never wired in; only referenced by stale `vi.mock()` calls in two test files for a code path that no longer exists |
+| `Picklist.tsx` | Standalone, never imported — more complete than the live embedded version (real undo, real Tier 4 confirmation) — should be swapped in, not deleted, see Gene's card-allocation brief |
+| `DeckListTable.tsx` | Only referenced by a test file |
+| 14 top-level panel components: `OverviewPanel`, `StrategyCanvas`, `RecommendationsPanel`, `ManaCurvePanel`, `ManaAnalysisPanel`, `DeckStats`, `HealthBar`, `CategoriesPanel`, `PreconDiffPanel`, `UpgradePanel`, `AllocationTab`, `AllocationFailureBanner`, `DeckImportModal`, `DeckScanPanel`, `ThemeToggle` | Confirmed superseded by the five-tab consolidation (`CardsTab`/`AnalysisTab`/`CombosPanel`/`UpgradeTab`/`StrategyTab`) — checked directly against the live import list in `decks/[id]/page.tsx` |
+| 4 `components/collection/*` files: `CollectionListView`, `LocationFilter`, `RollupView`, `UsedByCell` | Likely superseded by live `CollectionGridView`/`CollectionToolbar` |
+| 6 `lib/*.ts` files: `collection-utils.ts`, `rating-store.ts`, `upgrade-strategy-data.ts`, `price-refresh.ts`, `brew-v2-categories.ts`, `brew-validators.ts`, `concurrency-limiter.ts` | No consumers found; `upgrade-strategy-data.ts` likely superseded by live `upgrade-candidates.ts`/`upgrade-pairing.ts` |
+
+### Needs wiring, not deleting (see Phase 2, Section 8)
+
+`MissingToggle.tsx`, `MissingCopyRow.tsx`, `StorageLocationsSettings.tsx`, `DecisionCard.tsx`, `ExplorationArchive.tsx`.
+
+### Needs a judgment call before either fate
+
+7 files in `components/brew-v2/` with no placeholder marker pointing to them, unlike `DecisionCard`/`ExplorationArchive` above: `CandidateCard.tsx`, `CardRow.tsx`, `CardTooltip.tsx`, `ConceptTile.tsx`, `DeckListTab.tsx`, `InlineAssessment.tsx`, `SuggestionsTab.tsx`. Likely earlier exploratory drafts, not confirmed unfinished work — worth a skim before deciding to delete or resume.

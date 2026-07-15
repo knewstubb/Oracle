@@ -1,23 +1,32 @@
 /**
  * Seed oracle_to_printings + printing_set_info from Scryfall Bulk Data
  *
- * Downloads the "Default Cards" bulk file (every printing of every card),
- * extracts the identity mapping fields, and upserts into Supabase.
+ * Reads a local Scryfall JSONL file (one card object per line) and upserts
+ * identity mappings into Supabase for instant local resolution during imports.
  *
  * Tables populated:
  *   - oracle_to_printings: (oracle_id, scryfall_printing_id, card_name, set_code, collector_number)
  *   - printing_set_info: (scryfall_printing_id, set_code, edition_name)
  *
- * Run: npx tsx scripts/seed-scryfall-bulk.ts
- * Requires: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY in .env.local
+ * Usage:
+ *   npm run seed:scryfall
+ *   npm run seed:scryfall -- --file /path/to/default-cards.jsonl
  *
- * Duration: ~3-5 minutes (download ~90MB + parse + 200 batch upserts)
+ * If no --file arg, looks for docs/default-cards-*.jsonl in the project root.
+ *
+ * To get the file:
+ *   1. Visit https://api.scryfall.com/bulk-data
+ *   2. Download "Default Cards" (JSONL format, ~500MB)
+ *   3. Place in docs/ directory
+ *
+ * Requires: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY in .env.local
+ * Duration: ~3-5 minutes (parse + 116 batch upserts)
  * Idempotent: safe to re-run (uses ON CONFLICT DO NOTHING / upsert)
  */
 
 import { createClient } from '@supabase/supabase-js'
-import https from 'https'
-import http from 'http'
+import { createReadStream, readdirSync } from 'fs'
+import { createInterface } from 'readline'
 import { config } from 'dotenv'
 import { resolve } from 'path'
 
@@ -39,115 +48,36 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 // ---------------------------------------------------------------------------
 
 const BATCH_SIZE = 1000
-const SCRYFALL_BULK_API = 'https://api.scryfall.com/bulk-data'
 
 // ---------------------------------------------------------------------------
-// Types
+// Find the JSONL file
 // ---------------------------------------------------------------------------
 
-interface ScryfallBulkMeta {
-  data: Array<{
-    type: string
-    download_uri: string
-    size: number
-    name: string
-  }>
-}
+function findJsonlFile(): string {
+  // Check --file argument
+  const fileArgIdx = process.argv.indexOf('--file')
+  if (fileArgIdx >= 0 && process.argv[fileArgIdx + 1]) {
+    return process.argv[fileArgIdx + 1]
+  }
 
-interface ScryfallCard {
-  id: string           // scryfall_printing_id
-  oracle_id: string
-  name: string
-  set: string          // set code (lowercase)
-  collector_number: string
-  set_name: string     // edition name
-  lang: string
-  layout: string
-}
+  // Auto-detect in docs/ directory
+  const docsDir = resolve(__dirname, '../docs')
+  try {
+    const files = readdirSync(docsDir).filter(f => f.startsWith('default-cards-') && f.endsWith('.jsonl'))
+    if (files.length > 0) {
+      // Use the most recent one (sorted by name = sorted by date)
+      files.sort()
+      return resolve(docsDir, files[files.length - 1])
+    }
+  } catch {
+    // docs dir doesn't exist
+  }
 
-// ---------------------------------------------------------------------------
-// HTTP helpers
-// ---------------------------------------------------------------------------
-
-function fetchJson(url: string): Promise<any> {
-  return new Promise((resolve, reject) => {
-    const protocol = url.startsWith('https') ? https : http
-    protocol.get(url, { headers: { 'User-Agent': 'TheOracle/1.0 (scryfall-bulk-seed)' } }, (res) => {
-      if (res.statusCode === 301 || res.statusCode === 302) {
-        return fetchJson(res.headers.location!).then(resolve).catch(reject)
-      }
-      let data = ''
-      res.on('data', (chunk: Buffer) => data += chunk.toString())
-      res.on('end', () => {
-        try { resolve(JSON.parse(data)) } catch (e) { reject(e) }
-      })
-      res.on('error', reject)
-    }).on('error', reject)
-  })
-}
-
-/**
- * Stream a large JSON array from a URL, calling `onItem` for each parsed object.
- * Uses a simple bracket-counting parser to avoid loading 500MB into memory.
- */
-function streamJsonArray(url: string, onItem: (card: ScryfallCard) => void): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const protocol = url.startsWith('https') ? https : http
-    protocol.get(url, { headers: { 'User-Agent': 'TheOracle/1.0 (scryfall-bulk-seed)' } }, (res) => {
-      if (res.statusCode === 301 || res.statusCode === 302) {
-        return streamJsonArray(res.headers.location!, onItem).then(resolve).catch(reject)
-      }
-
-      let buffer = ''
-      let depth = 0
-      let inString = false
-      let escaped = false
-      let objectStart = -1
-      let count = 0
-
-      res.on('data', (chunk: Buffer) => {
-        buffer += chunk.toString()
-
-        for (let i = 0; i < buffer.length; i++) {
-          const ch = buffer[i]
-
-          if (escaped) { escaped = false; continue }
-          if (ch === '\\' && inString) { escaped = true; continue }
-          if (ch === '"') { inString = !inString; continue }
-          if (inString) continue
-
-          if (ch === '{') {
-            if (depth === 0) objectStart = i
-            depth++
-          } else if (ch === '}') {
-            depth--
-            if (depth === 0 && objectStart >= 0) {
-              const jsonStr = buffer.slice(objectStart, i + 1)
-              try {
-                const card = JSON.parse(jsonStr) as ScryfallCard
-                onItem(card)
-                count++
-              } catch {
-                // Skip malformed entries
-              }
-              objectStart = -1
-            }
-          }
-        }
-
-        // Keep only unprocessed portion in buffer
-        if (objectStart >= 0) {
-          buffer = buffer.slice(objectStart)
-          objectStart = 0
-        } else {
-          buffer = ''
-        }
-      })
-
-      res.on('end', () => resolve(count))
-      res.on('error', reject)
-    }).on('error', reject)
-  })
+  console.error('❌ No Scryfall JSONL file found.')
+  console.error('   Download from: https://api.scryfall.com/bulk-data')
+  console.error('   Place in: docs/default-cards-YYYYMMDD.jsonl')
+  console.error('   Or specify: npm run seed:scryfall -- --file /path/to/file.jsonl')
+  process.exit(1)
 }
 
 // ---------------------------------------------------------------------------
@@ -155,58 +85,62 @@ function streamJsonArray(url: string, onItem: (card: ScryfallCard) => void): Pro
 // ---------------------------------------------------------------------------
 
 async function main() {
-  console.log('🔍 Fetching Scryfall bulk data catalog...')
-  const catalog: ScryfallBulkMeta = await fetchJson(SCRYFALL_BULK_API)
+  const filePath = findJsonlFile()
+  console.log(`📂 Reading: ${filePath}`)
 
-  // Use "default_cards" — every printing, English preferred
-  const defaultCards = catalog.data.find(d => d.type === 'default_cards')
-  if (!defaultCards) {
-    console.error('❌ Could not find "default_cards" in Scryfall bulk data catalog')
-    process.exit(1)
-  }
-
-  const sizeMB = (defaultCards.size / 1024 / 1024).toFixed(0)
-  console.log(`📥 Downloading ${defaultCards.name} (${sizeMB} MB)...`)
-  console.log(`   URL: ${defaultCards.download_uri}`)
-
-  // Collect rows for batch upsert
+  // Parse JSONL line by line (memory-efficient)
   const oracleRows: Array<{ oracle_id: string; scryfall_printing_id: string; card_name: string; set_code: string; collector_number: string }> = []
   const printingRows: Array<{ scryfall_printing_id: string; set_code: string; edition_name: string }> = []
 
   let processed = 0
   let skipped = 0
 
-  const totalCards = await streamJsonArray(defaultCards.download_uri, (card) => {
-    // Skip non-English cards (we only need one language per printing)
-    if (card.lang !== 'en') { skipped++; return }
+  const rl = createInterface({
+    input: createReadStream(filePath, { encoding: 'utf-8' }),
+    crlfDelay: Infinity,
+  })
+
+  for await (const line of rl) {
+    if (!line.trim()) continue
+
+    let card: any
+    try {
+      card = JSON.parse(line)
+    } catch {
+      skipped++
+      continue
+    }
+
+    // Skip non-English cards
+    if (card.lang !== 'en') { skipped++; continue }
 
     // Skip tokens, art_series, etc.
     const skipLayouts = ['token', 'double_faced_token', 'art_series', 'emblem']
-    if (skipLayouts.includes(card.layout)) { skipped++; return }
+    if (skipLayouts.includes(card.layout)) { skipped++; continue }
 
-    if (!card.id || !card.oracle_id || !card.name) { skipped++; return }
+    if (!card.id || !card.oracle_id || !card.name) { skipped++; continue }
 
     oracleRows.push({
       oracle_id: card.oracle_id,
       scryfall_printing_id: card.id,
       card_name: card.name,
-      set_code: card.set,
-      collector_number: card.collector_number,
+      set_code: card.set ?? '',
+      collector_number: card.collector_number ?? '',
     })
 
     printingRows.push({
       scryfall_printing_id: card.id,
-      set_code: card.set,
-      edition_name: card.set_name,
+      set_code: card.set ?? '',
+      edition_name: card.set_name ?? '',
     })
 
     processed++
     if (processed % 10000 === 0) {
-      process.stdout.write(`   Parsed ${processed.toLocaleString()} cards...\r`)
+      console.log(`   Parsed ${processed.toLocaleString()} cards...`)
     }
-  })
+  }
 
-  console.log(`\n✅ Parsed ${processed.toLocaleString()} cards (${skipped.toLocaleString()} skipped)`)
+  console.log(`✅ Parsed ${processed.toLocaleString()} cards (${skipped.toLocaleString()} skipped)`)
 
   // ---------------------------------------------------------------------------
   // Batch upsert into oracle_to_printings
@@ -214,23 +148,27 @@ async function main() {
   console.log(`\n📤 Upserting ${oracleRows.length.toLocaleString()} rows into oracle_to_printings...`)
 
   let oracleInserted = 0
+  let oracleErrors = 0
   for (let i = 0; i < oracleRows.length; i += BATCH_SIZE) {
     const batch = oracleRows.slice(i, i + BATCH_SIZE)
     const { error } = await supabase
       .from('oracle_to_printings')
-      .upsert(batch, { onConflict: 'oracle_id,scryfall_printing_id', ignoreDuplicates: true })
+      .upsert(batch, { onConflict: 'oracle_id,scryfall_printing_id' })
 
     if (error) {
-      console.error(`   ⚠️  Batch ${Math.floor(i / BATCH_SIZE) + 1} error: ${error.message}`)
+      oracleErrors++
+      if (oracleErrors <= 3) {
+        console.error(`   ⚠️  Batch ${Math.floor(i / BATCH_SIZE) + 1} error: ${error.message}`)
+      }
     } else {
       oracleInserted += batch.length
     }
 
-    if ((i / BATCH_SIZE) % 20 === 0) {
-      process.stdout.write(`   Progress: ${oracleInserted.toLocaleString()} / ${oracleRows.length.toLocaleString()}\r`)
+    if ((Math.floor(i / BATCH_SIZE)) % 10 === 0) {
+      console.log(`   Progress: ${oracleInserted.toLocaleString()} / ${oracleRows.length.toLocaleString()}`)
     }
   }
-  console.log(`\n   ✅ oracle_to_printings: ${oracleInserted.toLocaleString()} rows upserted`)
+  console.log(`   ✅ oracle_to_printings: ${oracleInserted.toLocaleString()} rows upserted (${oracleErrors} batch errors)`)
 
   // ---------------------------------------------------------------------------
   // Batch upsert into printing_set_info
@@ -238,23 +176,27 @@ async function main() {
   console.log(`\n📤 Upserting ${printingRows.length.toLocaleString()} rows into printing_set_info...`)
 
   let printingInserted = 0
+  let printingErrors = 0
   for (let i = 0; i < printingRows.length; i += BATCH_SIZE) {
     const batch = printingRows.slice(i, i + BATCH_SIZE)
     const { error } = await supabase
       .from('printing_set_info')
-      .upsert(batch, { onConflict: 'scryfall_printing_id', ignoreDuplicates: true })
+      .upsert(batch, { onConflict: 'scryfall_printing_id' })
 
     if (error) {
-      console.error(`   ⚠️  Batch ${Math.floor(i / BATCH_SIZE) + 1} error: ${error.message}`)
+      printingErrors++
+      if (printingErrors <= 3) {
+        console.error(`   ⚠️  Batch ${Math.floor(i / BATCH_SIZE) + 1} error: ${error.message}`)
+      }
     } else {
       printingInserted += batch.length
     }
 
-    if ((i / BATCH_SIZE) % 20 === 0) {
-      process.stdout.write(`   Progress: ${printingInserted.toLocaleString()} / ${printingRows.length.toLocaleString()}\r`)
+    if ((Math.floor(i / BATCH_SIZE)) % 10 === 0) {
+      console.log(`   Progress: ${printingInserted.toLocaleString()} / ${printingRows.length.toLocaleString()}`)
     }
   }
-  console.log(`\n   ✅ printing_set_info: ${printingInserted.toLocaleString()} rows upserted`)
+  console.log(`   ✅ printing_set_info: ${printingInserted.toLocaleString()} rows upserted (${printingErrors} batch errors)`)
 
   console.log('\n🎉 Seed complete!')
   console.log(`   Total cards processed: ${processed.toLocaleString()}`)

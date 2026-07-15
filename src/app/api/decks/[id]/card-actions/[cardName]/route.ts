@@ -21,6 +21,7 @@ export interface CardActionContext {
   /** For Open: available (free) copies */
   availableCopies: Array<{
     physicalCopyId: number
+    scryfallPrintingId: string | null
     setName: string
     condition: string | null
     storageLocationName: string | null
@@ -33,6 +34,7 @@ export interface CardActionContext {
     deckName: string
     deckStatus: string
     physicalCopyId: number
+    scryfallPrintingId: string | null
     isProxy: boolean
   }>
   /** Valid decks this card could be assigned to (color identity filter) */
@@ -74,6 +76,7 @@ export async function GET(
         // Free copy
         availableCopies.push({
           physicalCopyId: entry.physicalCopyId,
+          scryfallPrintingId: entry.scryfallPrintingId,
           setName: entry.storageLocationName ?? 'Unknown',
           condition: entry.condition,
           storageLocationName: entry.storageLocationName,
@@ -87,6 +90,7 @@ export async function GET(
           deckName: entry.assignedTo.deckName,
           deckStatus: entry.assignedTo.deckStatus,
           physicalCopyId: entry.physicalCopyId,
+          scryfallPrintingId: entry.scryfallPrintingId,
           isProxy: entry.isProxy,
         })
       }

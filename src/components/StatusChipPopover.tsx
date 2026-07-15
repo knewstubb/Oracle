@@ -343,42 +343,34 @@ function PopoverBody({
   if (status === 'open') {
     const copies = data?.availableCopies ?? []
     return (
-      <div className="flex flex-col gap-2 p-3">
-        <p className="text-[length:var(--fs-sm)] text-muted-foreground">
+      <div className="flex flex-col gap-1 p-3">
+        <p className="text-[length:var(--fs-sm)] text-muted-foreground mb-1">
           {copies.length} {copies.length === 1 ? 'copy' : 'copies'} available
         </p>
         {copies.map((copy) => (
-          <div
+          <CopyRow
             key={copy.physicalCopyId}
-            className="flex items-center justify-between rounded-md border border-[var(--border-default)] px-3 py-2"
-          >
-            <div className="min-w-0 flex-1">
-              <span className="block truncate text-[length:var(--fs-sm)] font-medium">
-                {copy.setName || 'Unknown'}
-              </span>
-              <span className="text-[length:var(--fs-xs)] text-muted-foreground">
-                {copy.condition ? copy.condition.replace('_', ' ') : 'NM'}
-                {copy.storageLocationName ? ` · ${copy.storageLocationName}` : ' · Unsorted'}
-              </span>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => fillMutation.mutate(copy.physicalCopyId)}
-              disabled={isPending}
-              className="shrink-0 ml-2"
-              style={{ color: 'var(--accent-primary)', borderColor: 'var(--accent-primary)' }}
-            >
-              Fill
-            </Button>
-          </div>
+            scryfallPrintingId={copy.scryfallPrintingId}
+            cardName={cardName}
+            setName={copy.setName}
+            condition={copy.condition}
+            storageLocationName={copy.storageLocationName}
+            isFoil={copy.isFoil}
+            isProxy={copy.isProxy}
+            primaryLabel="Fill"
+            onPrimary={() => fillMutation.mutate(copy.physicalCopyId)}
+            isPending={isPending}
+          />
         ))}
         <button
           type="button"
-          onClick={onClose}
-          className="text-[length:var(--fs-xs)] text-muted-foreground hover:text-foreground"
+          onClick={() => {
+            toast.info('Add proxy: coming soon (printing picker not yet built)')
+            onClose()
+          }}
+          className="mt-1 text-[length:var(--fs-xs)] text-muted-foreground hover:text-foreground self-start"
         >
-          Remove
+          Add proxy
         </button>
       </div>
     )
@@ -387,58 +379,44 @@ function PopoverBody({
   // ─── Claimed ────────────────────────────────────────────────────────
   if (status === 'claimed') {
     const holders = data?.holders ?? []
-    const firstHolder = holders[0]
 
     return (
-      <div className="flex flex-col gap-2 p-3">
-        {firstHolder && (
-          <p className="text-[length:var(--fs-sm)] text-muted-foreground">
-            Claimed by <span className="text-foreground font-medium">{firstHolder.deckName}</span>
-            {' · '}{firstHolder.deckStatus}
-          </p>
-        )}
-        {firstHolder && (
-          <Button
-            size="sm"
-            className="w-full"
-            disabled={isPending}
-            onClick={() => {
-              if (firstHolder.deckStatus === 'brew') {
-                // Tier 3: instant
-                claimMutation.mutate(firstHolder.physicalCopyId)
+      <div className="flex flex-col gap-1 p-3">
+        <p className="text-[length:var(--fs-sm)] text-muted-foreground mb-1">
+          {holders.length} {holders.length === 1 ? 'copy' : 'copies'} claimed
+        </p>
+        {holders.map((holder) => (
+          <CopyRow
+            key={holder.physicalCopyId}
+            scryfallPrintingId={holder.scryfallPrintingId}
+            cardName={cardName}
+            setName={holder.deckName}
+            condition={null}
+            storageLocationName={null}
+            isFoil={false}
+            isProxy={holder.isProxy}
+            primaryLabel="Claim"
+            subtitle={holder.deckStatus}
+            onPrimary={() => {
+              if (holder.deckStatus === 'brew') {
+                claimMutation.mutate(holder.physicalCopyId)
               } else {
-                // Tier 4: confirmation
-                onTier4Confirm(firstHolder.deckName, firstHolder.physicalCopyId)
+                onTier4Confirm(holder.deckName, holder.physicalCopyId)
               }
             }}
-          >
-            {isPending ? <Loader2 className="size-3 animate-spin" /> : 'Claim'}
-          </Button>
-        )}
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              // Add proxy — need card_definition_id
-              // For now, use a simplified approach
-              if (data?.availableCopies?.[0]?.physicalCopyId) {
-                // Shouldn't have available copies if claimed, but fallback
-              }
-              toast.info('Add proxy: coming soon (printing picker not yet built)')
-              onClose()
-            }}
-            className="text-[length:var(--fs-xs)] text-muted-foreground hover:text-foreground"
-          >
-            Add proxy
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-[length:var(--fs-xs)] text-muted-foreground hover:text-foreground"
-          >
-            Remove
-          </button>
-        </div>
+            isPending={isPending}
+          />
+        ))}
+        <button
+          type="button"
+          onClick={() => {
+            toast.info('Add proxy: coming soon (printing picker not yet built)')
+            onClose()
+          }}
+          className="mt-1 text-[length:var(--fs-xs)] text-muted-foreground hover:text-foreground self-start"
+        >
+          Add proxy
+        </button>
       </div>
     )
   }
@@ -475,6 +453,105 @@ function PopoverBody({
   return null
 }
 
+
+// ---------------------------------------------------------------------------
+// CopyRow — thumbnail + printing info + hover preview + primary action
+// ---------------------------------------------------------------------------
+
+function CopyRow({
+  scryfallPrintingId,
+  cardName,
+  setName,
+  condition,
+  storageLocationName,
+  isFoil,
+  isProxy,
+  primaryLabel,
+  subtitle,
+  onPrimary,
+  isPending,
+}: {
+  scryfallPrintingId: string | null
+  cardName: string
+  setName: string
+  condition: string | null
+  storageLocationName: string | null
+  isFoil: boolean
+  isProxy: boolean
+  primaryLabel: string
+  subtitle?: string
+  onPrimary: () => void
+  isPending: boolean
+}) {
+  const [showPreview, setShowPreview] = useState(false)
+
+  const thumbUrl = scryfallPrintingId
+    ? `https://cards.scryfall.io/small/front/${scryfallPrintingId.charAt(0)}/${scryfallPrintingId.charAt(1)}/${scryfallPrintingId}.jpg`
+    : null
+
+  const previewUrl = scryfallPrintingId
+    ? `https://cards.scryfall.io/normal/front/${scryfallPrintingId.charAt(0)}/${scryfallPrintingId.charAt(1)}/${scryfallPrintingId}.jpg`
+    : null
+
+  return (
+    <div className="group relative flex items-center gap-2 rounded-md border border-[var(--border-default)] px-2 py-1.5">
+      {/* Thumbnail */}
+      <div
+        className="relative shrink-0"
+        onMouseEnter={() => setShowPreview(true)}
+        onMouseLeave={() => setShowPreview(false)}
+      >
+        {thumbUrl ? (
+          <img
+            src={thumbUrl}
+            alt=""
+            loading="lazy"
+            className="h-[36px] w-[26px] rounded object-cover"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+          />
+        ) : (
+          <div className="h-[36px] w-[26px] rounded bg-[rgba(255,255,255,0.05)]" />
+        )}
+
+        {/* Large hover preview */}
+        {showPreview && previewUrl && (
+          <div className="absolute bottom-full left-0 z-50 mb-2 pointer-events-none">
+            <img
+              src={previewUrl}
+              alt={cardName}
+              className="h-[260px] w-auto rounded-lg shadow-xl"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Printing info */}
+      <div className="min-w-0 flex-1">
+        <span className="block truncate text-[length:var(--fs-sm)] font-medium text-foreground">
+          {setName || 'Unknown printing'}
+        </span>
+        <span className="block text-[length:var(--fs-xs)] text-muted-foreground">
+          {condition ? condition.replace('_', ' ') : 'NM'}
+          {storageLocationName ? ` · ${storageLocationName}` : subtitle ? ` · ${subtitle}` : ''}
+          {isFoil ? ' · Foil' : ''}
+          {isProxy ? ' · Proxy' : ''}
+        </span>
+      </div>
+
+      {/* Primary action */}
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={onPrimary}
+        disabled={isPending}
+        className="shrink-0"
+        style={{ color: 'var(--accent-primary)', borderColor: 'var(--accent-primary)' }}
+      >
+        {primaryLabel}
+      </Button>
+    </div>
+  )
+}
 
 // ---------------------------------------------------------------------------
 // ReplaceLocationPicker — wraps LocationPickerModal with replace mutation

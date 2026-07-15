@@ -434,24 +434,37 @@ async function resolveRowIdentity(
 
   // Strategy 2: No Scryfall ID or oracle_id still unresolved — use set + collector
   if (!oracleId && row.editionCode && row.collectorNumber) {
-    const result = await resolveFromSetCollector(row.editionCode, row.collectorNumber)
-    if (result) {
-      scryfallPrintingId = result.scryfallPrintingId
-      oracleId = result.oracleId
-      // Cache the mapping
-      await ensureOracleToPrintingMapping(oracleId, scryfallPrintingId).catch(() => {})
+    // Try local DB first (populated by seed-scryfall-bulk script)
+    const localResult = await resolveFromLocalSetCollector(row.editionCode, row.collectorNumber)
+    if (localResult) {
+      scryfallPrintingId = localResult.scryfallPrintingId
+      oracleId = localResult.oracleId
+    } else {
+      // Fallback: Scryfall API
+      const apiResult = await resolveFromSetCollector(row.editionCode, row.collectorNumber)
+      if (apiResult) {
+        scryfallPrintingId = apiResult.scryfallPrintingId
+        oracleId = apiResult.oracleId
+        await ensureOracleToPrintingMapping(oracleId, scryfallPrintingId).catch(() => {})
+      }
     }
   }
 
   // Strategy 3: Name-only — no Scryfall ID, no set/collector, just a card name
-  // Uses Scryfall's /cards/named endpoint to get the most recent printing
   if (!oracleId && row.name) {
-    const result = await resolveFromCardName(row.name)
-    if (result) {
-      scryfallPrintingId = result.scryfallPrintingId
-      oracleId = result.oracleId
-      // Cache the mapping
-      await ensureOracleToPrintingMapping(oracleId, scryfallPrintingId).catch(() => {})
+    // Try local DB first (populated by seed-scryfall-bulk script)
+    const localResult = await resolveFromLocalCardName(row.name)
+    if (localResult) {
+      scryfallPrintingId = localResult.scryfallPrintingId
+      oracleId = localResult.oracleId
+    } else {
+      // Fallback: Scryfall API
+      const apiResult = await resolveFromCardName(row.name)
+      if (apiResult) {
+        scryfallPrintingId = apiResult.scryfallPrintingId
+        oracleId = apiResult.oracleId
+        await ensureOracleToPrintingMapping(oracleId, scryfallPrintingId).catch(() => {})
+      }
     }
   }
 
@@ -542,6 +555,54 @@ async function resolveFromCardName(
   } catch {
     return null
   }
+}
+
+// ---------------------------------------------------------------------------
+// Local DB Resolution (uses pre-seeded oracle_to_printings from Scryfall bulk)
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve a card's identity from set_code + collector_number via local DB.
+ * Returns instantly without any Scryfall API call.
+ * Populated by: scripts/seed-scryfall-bulk.ts
+ */
+async function resolveFromLocalSetCollector(
+  setCode: string,
+  collectorNumber: string
+): Promise<{ scryfallPrintingId: string; oracleId: string } | null> {
+  const supabase = createAdminClient()
+
+  const { data, error } = await supabase
+    .from('oracle_to_printings')
+    .select('oracle_id, scryfall_printing_id')
+    .eq('set_code', setCode.toLowerCase())
+    .eq('collector_number', collectorNumber)
+    .limit(1)
+    .maybeSingle()
+
+  if (error || !data) return null
+  return { scryfallPrintingId: data.scryfall_printing_id, oracleId: data.oracle_id }
+}
+
+/**
+ * Resolve a card's identity from card_name via local DB.
+ * Returns the first matching printing (most recently seeded).
+ * Populated by: scripts/seed-scryfall-bulk.ts
+ */
+async function resolveFromLocalCardName(
+  cardName: string
+): Promise<{ scryfallPrintingId: string; oracleId: string } | null> {
+  const supabase = createAdminClient()
+
+  const { data, error } = await supabase
+    .from('oracle_to_printings')
+    .select('oracle_id, scryfall_printing_id')
+    .eq('card_name', cardName)
+    .limit(1)
+    .maybeSingle()
+
+  if (error || !data) return null
+  return { scryfallPrintingId: data.scryfall_printing_id, oracleId: data.oracle_id }
 }
 
 // ---------------------------------------------------------------------------

@@ -1,8 +1,9 @@
 /**
  * POST /api/allocation/assign-free-copy
  *
- * Assigns a free (unassigned) physical copy to an open slot in a target deck.
- * Used from Storage detail view where the copy isn't currently in any deck.
+ * Assigns a free (unassigned) physical copy to an open slot in a target deck
+ * via the `assign_free_copy` Postgres RPC (migration 021).
+ * Single database call — guards against race conditions atomically.
  *
  * Body: {
  *   physicalCopyId: number  — the free physical copy
@@ -44,10 +45,10 @@ export async function POST(request: NextRequest) {
   const supabase = createAdminClient()
 
   try {
-    // 1. Verify the physical copy belongs to this user and is free
+    // Verify ownership before calling RPC
     const { data: copy, error: copyErr } = await supabase
       .from('physical_copies')
-      .select('id, is_proxy')
+      .select('id')
       .eq('id', physicalCopyId)
       .eq('user_id', userId)
       .maybeSingle()
@@ -56,51 +57,35 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Physical copy not found' }, { status: 404 })
     }
 
-    // Check it's not already assigned
-    const { data: existingSlot } = await supabase
-      .from('deck_cards')
-      .select('id')
-      .eq('physical_copy_id', physicalCopyId)
-      .limit(1)
-      .maybeSingle()
+    // Atomic RPC: guard + fill in one transaction
+    const { data, error: rpcErr } = await supabase.rpc('assign_free_copy', {
+      p_physical_copy_id: physicalCopyId,
+      p_target_deck_id: targetDeckId,
+      p_card_name: cardName,
+      p_user_id: userId,
+    })
 
-    if (existingSlot) {
+    if (rpcErr) {
+      if (rpcErr.message?.includes('copy_already_assigned')) {
+        return Response.json(
+          { error: 'Copy is already assigned to a deck — use reassign-to-deck instead' },
+          { status: 409 }
+        )
+      }
+      if (rpcErr.message?.includes('no_open_slot')) {
+        return Response.json(
+          { error: `No open slot for "${cardName}" in target deck` },
+          { status: 404 }
+        )
+      }
       return Response.json(
-        { error: 'Copy is already assigned to a deck — use reassign-to-deck instead' },
-        { status: 409 }
+        { error: `Assign failed: ${rpcErr.message}` },
+        { status: 500 }
       )
     }
 
-    // 2. Find an open slot in the target deck for this card
-    const { data: targetSlot, error: tgtErr } = await supabase
-      .from('deck_cards')
-      .select('id')
-      .eq('deck_id', targetDeckId)
-      .eq('card_name', cardName)
-      .eq('user_id', userId)
-      .is('physical_copy_id', null)
-      .limit(1)
-      .maybeSingle()
-
-    if (tgtErr || !targetSlot) {
-      return Response.json(
-        { error: `No open slot for "${cardName}" in target deck` },
-        { status: 404 }
-      )
-    }
-
-    // 3. Fill the slot
-    const ownershipStatus = copy.is_proxy ? 'proxy' : 'original'
-    const { error: fillErr } = await supabase
-      .from('deck_cards')
-      .update({ physical_copy_id: physicalCopyId, ownership_status: ownershipStatus })
-      .eq('id', targetSlot.id)
-
-    if (fillErr) {
-      return Response.json({ error: `Failed to assign: ${fillErr.message}` }, { status: 500 })
-    }
-
-    return Response.json({ success: true, deckCardsId: targetSlot.id })
+    const result = data as { success: boolean; deck_card_id: number }
+    return Response.json({ success: true, deckCardsId: result.deck_card_id })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     return Response.json({ error: message }, { status: 500 })

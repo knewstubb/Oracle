@@ -2,7 +2,8 @@
  * POST /api/allocation/reassign-to-deck
  *
  * Atomically moves a physical copy from its current deck slot to an open slot
- * in the target deck. One-step operation: unlinks from source → links to target.
+ * in the target deck via the `reassign_to_deck` Postgres RPC (migration 021).
+ * Single database call — all-or-nothing, no window where the copy is orphaned.
  *
  * Body: {
  *   physicalCopyId: number  — the physical copy to move
@@ -50,10 +51,10 @@ export async function POST(request: NextRequest) {
   const supabase = createAdminClient()
 
   try {
-    // 1. Verify the physical copy belongs to this user
+    // Verify ownership before calling RPC
     const { data: copy, error: copyErr } = await supabase
       .from('physical_copies')
-      .select('id, is_proxy')
+      .select('id')
       .eq('id', physicalCopyId)
       .eq('user_id', userId)
       .maybeSingle()
@@ -62,69 +63,35 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Physical copy not found' }, { status: 404 })
     }
 
-    // 2. Find the source deck_cards row (where this copy is currently assigned)
-    const { data: sourceSlot, error: srcErr } = await supabase
-      .from('deck_cards')
-      .select('id, deck_id')
-      .eq('physical_copy_id', physicalCopyId)
-      .eq('user_id', userId)
-      .maybeSingle()
+    // Atomic RPC: clear source + fill target in one transaction
+    const { data, error: rpcErr } = await supabase.rpc('reassign_to_deck', {
+      p_physical_copy_id: physicalCopyId,
+      p_target_deck_id: targetDeckId,
+      p_card_name: cardName,
+      p_user_id: userId,
+    })
 
-    if (srcErr || !sourceSlot) {
+    if (rpcErr) {
+      if (rpcErr.message?.includes('copy_not_assigned')) {
+        return Response.json(
+          { error: 'Copy is not currently assigned to any deck' },
+          { status: 409 }
+        )
+      }
+      if (rpcErr.message?.includes('no_open_slot')) {
+        return Response.json(
+          { error: `No open slot for "${cardName}" in target deck` },
+          { status: 404 }
+        )
+      }
       return Response.json(
-        { error: 'Copy is not currently assigned to any deck' },
-        { status: 409 }
+        { error: `Reassign failed: ${rpcErr.message}` },
+        { status: 500 }
       )
     }
 
-    // 3. Find an open slot in the target deck for this card
-    //    An open slot is a deck_cards row with: deck_id = target, card_name matches,
-    //    and physical_copy_id IS NULL (unresolved)
-    const { data: targetSlot, error: tgtErr } = await supabase
-      .from('deck_cards')
-      .select('id')
-      .eq('deck_id', targetDeckId)
-      .eq('card_name', cardName)
-      .eq('user_id', userId)
-      .is('physical_copy_id', null)
-      .limit(1)
-      .maybeSingle()
-
-    if (tgtErr || !targetSlot) {
-      return Response.json(
-        { error: `No open slot for "${cardName}" in target deck` },
-        { status: 404 }
-      )
-    }
-
-    // 4. Atomic move: clear source slot + fill target slot
-    //    Step A: Clear the source (set physical_copy_id = null, ownership_status = null)
-    const { error: clearErr } = await supabase
-      .from('deck_cards')
-      .update({ physical_copy_id: null, ownership_status: null })
-      .eq('id', sourceSlot.id)
-
-    if (clearErr) {
-      return Response.json({ error: `Failed to clear source: ${clearErr.message}` }, { status: 500 })
-    }
-
-    //    Step B: Fill the target slot
-    const ownershipStatus = copy.is_proxy ? 'proxy' : 'original'
-    const { error: fillErr } = await supabase
-      .from('deck_cards')
-      .update({ physical_copy_id: physicalCopyId, ownership_status: ownershipStatus })
-      .eq('id', targetSlot.id)
-
-    if (fillErr) {
-      // Rollback: re-assign to source
-      await supabase
-        .from('deck_cards')
-        .update({ physical_copy_id: physicalCopyId, ownership_status: ownershipStatus })
-        .eq('id', sourceSlot.id)
-      return Response.json({ error: `Failed to fill target: ${fillErr.message}` }, { status: 500 })
-    }
-
-    return Response.json({ success: true, targetDeckCardsId: targetSlot.id })
+    const result = data as { success: boolean; source_deck_card_id: number; target_deck_card_id: number }
+    return Response.json({ success: true, targetDeckCardsId: result.target_deck_card_id })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     return Response.json({ error: message }, { status: 500 })

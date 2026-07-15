@@ -16,7 +16,6 @@ import { useDeckCategories } from '@/hooks/useDeckCategories'
 import type { DeckCard } from '@/components/CardGrid'
 import { CardHoverPreview } from '@/components/CardHoverPreview'
 import type { CardSlotStatus } from '@/lib/card-status'
-import type { RankedCandidate } from '@/lib/allocation-candidates'
 import { isBasicLand } from '@/lib/basic-lands'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -58,21 +57,6 @@ interface CardStatusResponse {
     claimed: number
     unowned: number
   }
-}
-
-interface PicklistCard {
-  deckCardsId: number
-  cardName: string
-  isResolved: boolean
-  physicalCopyId: number | null
-  ownershipStatus: string | null
-  candidates: RankedCandidate[]
-}
-
-interface PicklistResponse {
-  deckName: string
-  cards: PicklistCard[]
-  progress: { resolved: number; total: number }
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -233,17 +217,6 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
   // ── Picklist Query (only fetched when picklist mode is active) ────────────
 
   const [tabMode, setTabMode] = useState<TabMode>('all')
-
-  const { data: picklistData } = useQuery<PicklistResponse>({
-    queryKey: ['decks', deckId, 'picklist'],
-    queryFn: async () => {
-      const res = await fetch(`/api/decks/${deckId}/picklist`)
-      if (!res.ok) throw new Error('Failed to fetch picklist')
-      return res.json()
-    },
-    staleTime: 5 * 60 * 1000,
-    enabled: tabMode === 'picklist',
-  })
 
   // ── Status Map — merge status data with cards by deck_cards id ───────────
 
@@ -587,7 +560,7 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         <div className="mx-auto max-w-[1080px]">
           {tabMode === 'picklist' ? (
-            <PicklistView picklistData={picklistData ?? null} />
+            <Picklist deckId={deckId} deckName="" />
           ) : filteredCards.length === 0 ? (
             <div
               className="flex min-h-[200px] items-center justify-center rounded-lg text-[length:var(--fs-md)] text-muted-foreground"
@@ -688,6 +661,7 @@ function StatusChip({ label, isActive, onClick, color }: StatusChipProps) {
 
 // Badge rendering now uses the shared CardSlotBadge component
 import { CardSlotBadge } from '@/components/CardSlotBadge'
+import { Picklist } from '@/components/Picklist'
 
 function FiveStateBadge({ status }: { status: CardSlotStatus }) {
   return <CardSlotBadge status={status} />
@@ -1111,184 +1085,6 @@ function GridView({
           </div>
         </section>
       ))}
-    </div>
-  )
-}
-
-// ─── Picklist View ───────────────────────────────────────────────────────────
-
-const TIER_LABELS: Record<number, string> = {
-  1: 'From storage — original',
-  2: 'From storage — proxy',
-  3: 'Reassign from deck (Brew)',
-  4: 'Reassign from deck (Boxed)',
-  5: 'Not owned — print required',
-}
-
-const TIER_ACTIONS: Record<number, string> = {
-  1: 'Assign',
-  2: 'Assign',
-  3: 'Assign',
-  4: 'Reassign',
-  5: 'Print',
-}
-
-interface PicklistGroup {
-  tier: number
-  label: string
-  cards: Array<{
-    cardName: string
-    deckCardsId: number
-    candidate: RankedCandidate
-  }>
-}
-
-function PicklistView({ picklistData }: { picklistData: PicklistResponse | null }) {
-  if (!picklistData) {
-    return (
-      <div
-        className="flex min-h-[200px] items-center justify-center rounded-lg text-[length:var(--fs-md)] text-muted-foreground"
-        style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}
-      >
-        <p>Loading picklist…</p>
-      </div>
-    )
-  }
-
-  // Filter to only unresolved cards
-  const unresolvedCards = picklistData.cards.filter((c) => !c.isResolved)
-
-  if (unresolvedCards.length === 0) {
-    return (
-      <div
-        className="flex min-h-[200px] items-center justify-center rounded-lg text-[length:var(--fs-md)] text-muted-foreground"
-        style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}
-      >
-        <p>All cards are allocated. Nothing to pick.</p>
-      </div>
-    )
-  }
-
-  // Group unresolved cards by their best candidate's tier
-  const groups: PicklistGroup[] = []
-  const tierMap = new Map<number, PicklistGroup>()
-
-  for (const card of unresolvedCards) {
-    const bestCandidate = card.candidates[0]
-    const tier = bestCandidate?.tier ?? 5
-    if (!tierMap.has(tier)) {
-      const group: PicklistGroup = {
-        tier,
-        label: TIER_LABELS[tier] ?? `Tier ${tier}`,
-        cards: [],
-      }
-      tierMap.set(tier, group)
-      groups.push(group)
-    }
-    tierMap.get(tier)!.cards.push({
-      cardName: card.cardName,
-      deckCardsId: card.deckCardsId,
-      candidate: bestCandidate ?? {
-        entry: {
-          physicalCopyId: -1,
-          cardDefinitionId: -1,
-          scryfallPrintingId: null,
-          isFoil: false,
-          isProxy: true,
-          condition: null,
-          storageLocationId: null,
-          storageLocationName: null,
-          assignedTo: null,
-        },
-        tier: 5 as const,
-        tierLabel: 'Print new proxy',
-        withinTierScore: 0,
-        autoSelectable: false,
-      },
-    })
-  }
-
-  // Sort groups by tier (ascending)
-  groups.sort((a, b) => a.tier - b.tier)
-
-  return (
-    <div className="space-y-4">
-      <div className="text-[length:var(--fs-sm)] text-muted-foreground">
-        {unresolvedCards.length} card{unresolvedCards.length !== 1 ? 's' : ''} need resolution
-      </div>
-      {groups.map((group) => (
-        <section key={group.tier}>
-          <h4 className="mb-2 text-[length:var(--fs-sm)] font-medium uppercase text-muted-foreground">
-            Tier {group.tier}: {group.label} ({group.cards.length})
-          </h4>
-          <div className="space-y-1">
-            {group.cards.map((item) => (
-              <PicklistRow
-                key={item.deckCardsId}
-                cardName={item.cardName}
-                tier={group.tier}
-                candidate={item.candidate}
-              />
-            ))}
-          </div>
-        </section>
-      ))}
-    </div>
-  )
-}
-
-function PicklistRow({
-  cardName,
-  tier,
-  candidate,
-}: {
-  cardName: string
-  tier: number
-  candidate: RankedCandidate
-}) {
-  const action = TIER_ACTIONS[tier] ?? 'Assign'
-  const sourceLabel = candidate.entry.assignedTo
-    ? `from ${candidate.entry.assignedTo.deckName}`
-    : candidate.entry.storageLocationName
-      ? `in ${candidate.entry.storageLocationName}`
-      : ''
-
-  return (
-    <div
-      className="flex items-center gap-3 rounded px-3 py-2 transition-colors hover:bg-white/[0.03]"
-      style={{
-        backgroundColor: 'var(--bg-card)',
-        border: '1px solid var(--border-default)',
-      }}
-    >
-      <span className="min-w-0 flex-1 truncate text-[length:var(--fs-sm)]">
-        {cardName}
-      </span>
-
-      {sourceLabel && (
-        <span className="shrink-0 text-[length:var(--fs-xs)] text-muted-foreground">
-          {sourceLabel}
-        </span>
-      )}
-
-      {/* Action button — Tier 4 has NO bulk action (individual confirmation only) */}
-      {tier !== 4 ? (
-        <button
-          type="button"
-          className="shrink-0 rounded-full px-3 py-0.5 text-[length:var(--fs-xs)] font-medium transition-colors"
-          style={{
-            backgroundColor: tier === 5 ? 'rgba(255, 95, 31, 0.15)' : 'var(--accent-primary-bg)',
-            color: tier === 5 ? 'var(--status-over)' : 'var(--accent-primary)',
-            border: `1px solid ${tier === 5 ? 'var(--status-over)' : 'var(--accent-primary)'}`,
-          }}
-        >
-          {action}
-        </button>
-      ) : (
-        <span className="shrink-0 text-[length:var(--fs-xs)] text-muted-foreground italic">
-          Confirm individually
-        </span>
-      )}
     </div>
   )
 }

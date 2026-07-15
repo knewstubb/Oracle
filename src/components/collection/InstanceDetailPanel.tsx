@@ -156,55 +156,89 @@ export function InstanceDetailPanel({
         </button>
       </div>
 
-      {/* Instance list */}
+      {/* Instance list — split into sections */}
       <div className="flex-1 overflow-y-auto">
         {isLoading && <LoadingSkeleton />}
         {error && <ErrorState />}
         {data && data.instances.length === 0 && <EmptyState />}
         {data && data.instances.length > 0 && (
           <div className="flex flex-col">
-            {data.instances.map((instance) => (
-              <InstanceRowItem
-                key={instance.physicalCopyId}
-                instance={instance}
-                cardName={data.cardName}
-                oracleId={oracleId}
-                isSelected={isInstanceSelected(instance.physicalCopyId)}
-                onToggleSelect={() => onToggleInstance(instance.physicalCopyId)}
-                isConfirmingDelete={confirmingDeleteId === instance.physicalCopyId}
-                onUnassign={() => unassignMutation.mutate(instance.physicalCopyId)}
-                onDelete={() => setConfirmingDeleteId(instance.physicalCopyId)}
-                onConfirmDelete={() => deleteMutation.mutate(instance.physicalCopyId)}
-                onCancelDelete={() => setConfirmingDeleteId(null)}
-                isUnassigning={unassignMutation.isPending && unassignMutation.variables === instance.physicalCopyId}
-                isDeleting={deleteMutation.isPending && deleteMutation.variables === instance.physicalCopyId}
-              />
-            ))}
+            {/* Section: In decks (assigned copies + Short entries) */}
+            {(() => {
+              const inDeckInstances = data.instances.filter(i => i.assignedDeckName !== null)
+              const inStorageInstances = data.instances.filter(i => i.assignedDeckName === null)
+              return (
+                <>
+                  {(inDeckInstances.length > 0 || (data.shortDecks && data.shortDecks.length > 0)) && (
+                    <div>
+                      <h3 className="px-4 py-2 text-[length:var(--fs-xs)] font-semibold uppercase tracking-wide text-muted-foreground">
+                        In decks
+                      </h3>
+                      {inDeckInstances.map((instance) => (
+                        <InstanceRowItem
+                          key={instance.physicalCopyId}
+                          instance={instance}
+                          cardName={data.cardName}
+                          oracleId={oracleId}
+                          isSelected={isInstanceSelected(instance.physicalCopyId)}
+                          onToggleSelect={() => onToggleInstance(instance.physicalCopyId)}
+                          isConfirmingDelete={confirmingDeleteId === instance.physicalCopyId}
+                          onUnassign={() => unassignMutation.mutate(instance.physicalCopyId)}
+                          onDelete={() => setConfirmingDeleteId(instance.physicalCopyId)}
+                          onConfirmDelete={() => deleteMutation.mutate(instance.physicalCopyId)}
+                          onCancelDelete={() => setConfirmingDeleteId(null)}
+                          isUnassigning={unassignMutation.isPending && unassignMutation.variables === instance.physicalCopyId}
+                          isDeleting={deleteMutation.isPending && deleteMutation.variables === instance.physicalCopyId}
+                        />
+                      ))}
+                      {/* Short entries (decks needing this card) */}
+                      {data.shortDecks && data.shortDecks.length > 0 && (
+                        <>
+                          {data.shortDecks.map((shortDeck) => (
+                            <ShortDeckRow
+                              key={shortDeck.deckCardsId}
+                              shortDeck={shortDeck}
+                              oracleId={oracleId}
+                              cardName={data.cardName}
+                              assignedInstances={inDeckInstances}
+                            />
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Section: In storage (Sorted + Unsorted copies) */}
+                  {inStorageInstances.length > 0 && (
+                    <div className="border-t border-[var(--border-subtle)]">
+                      <h3 className="px-4 py-2 text-[length:var(--fs-xs)] font-semibold uppercase tracking-wide text-muted-foreground">
+                        In storage
+                      </h3>
+                      {inStorageInstances.map((instance) => (
+                        <InstanceRowItem
+                          key={instance.physicalCopyId}
+                          instance={instance}
+                          cardName={data.cardName}
+                          oracleId={oracleId}
+                          isSelected={isInstanceSelected(instance.physicalCopyId)}
+                          onToggleSelect={() => onToggleInstance(instance.physicalCopyId)}
+                          isConfirmingDelete={confirmingDeleteId === instance.physicalCopyId}
+                          onUnassign={() => unassignMutation.mutate(instance.physicalCopyId)}
+                          onDelete={() => setConfirmingDeleteId(instance.physicalCopyId)}
+                          onConfirmDelete={() => deleteMutation.mutate(instance.physicalCopyId)}
+                          onCancelDelete={() => setConfirmingDeleteId(null)}
+                          isUnassigning={unassignMutation.isPending && unassignMutation.variables === instance.physicalCopyId}
+                          isDeleting={deleteMutation.isPending && deleteMutation.variables === instance.physicalCopyId}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              )
+            })()}
           </div>
         )}
 
-        {/* Short section — decks needing this card */}
-        {data?.shortDecks && data.shortDecks.length > 0 && (
-          <div className="border-t border-[var(--border-subtle)]">
-            <div className="px-4 py-2">
-              <h3
-                className="text-[length:var(--fs-xs)] font-semibold uppercase tracking-wide"
-                style={{ color: 'var(--status-over)' }}
-              >
-                Short — needed by {data.shortDecks.length} deck{data.shortDecks.length !== 1 ? 's' : ''}
-              </h3>
-            </div>
-            {data.shortDecks.map((shortDeck) => (
-              <ShortDeckRow
-                key={shortDeck.deckCardsId}
-                shortDeck={shortDeck}
-                oracleId={oracleId}
-                cardName={data.cardName}
-                assignedInstances={data.instances.filter(i => i.assignedDeckName !== null)}
-              />
-            ))}
-          </div>
-        )}
       </div>
     </div>
   )

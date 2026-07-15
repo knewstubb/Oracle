@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutGrid, IdCard, Library, FlaskConical, PanelLeftClose, PanelLeft, Settings, LogOut } from 'lucide-react'
+import { LayoutGrid, IdCard, Library, Archive, FlaskConical, PanelLeftClose, PanelLeft, Settings, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -26,6 +26,7 @@ const navItems: NavItem[] = [
   { label: 'Decks', icon: LayoutGrid, href: '/' },
   { label: 'Cards', icon: IdCard, href: '/allocation' },
   { label: 'Collection', icon: Library, href: '/collection' },
+  { label: 'Storage', icon: Archive, href: '/storage' },
   { label: 'Brew Deck', icon: FlaskConical, href: '/new-deck' },
   { label: 'Settings', icon: Settings, href: '/settings' },
 ]

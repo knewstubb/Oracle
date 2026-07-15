@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { X, Plus, Unlink, Shuffle, Trash2, Loader2, ArrowRightLeft } from 'lucide-react'
+import { X, Plus, Unlink, Shuffle, Trash2, Loader2, ArrowRightLeft, MoreVertical, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { CardHoverPreview } from '@/components/CardHoverPreview'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
@@ -217,17 +217,6 @@ export function InstanceDetailPanel({
         </button>
       </div>
 
-      {/* Add proxy button */}
-      <div className="px-4 py-2 border-b border-[var(--border-subtle)]">
-        <button
-          type="button"
-          className="flex items-center gap-1.5 rounded px-2 py-1 text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[rgba(255,255,255,0.05)]"
-        >
-          <Plus className="size-3.5" />
-          Add Proxy
-        </button>
-      </div>
-
       {/* Instance list — split into sections */}
       <div className="flex-1 overflow-y-auto">
         {isLoading && <LoadingSkeleton />}
@@ -246,7 +235,7 @@ export function InstanceDetailPanel({
                 <>
                   {(inDeckInstances.length > 0 || (data.shortDecks && data.shortDecks.length > 0)) && (
                     <div>
-                      <h3 className="px-4 py-2 text-[length:var(--fs-xs)] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <h3 className="px-4 py-2 text-[length:var(--fs-xs)] font-semibold tracking-wide text-muted-foreground">
                         In decks
                       </h3>
                       {inDeckInstances.map((instance) => (
@@ -307,7 +296,7 @@ export function InstanceDetailPanel({
                   {/* Section: In storage (Sorted + Unsorted copies) */}
                   {inStorageInstances.length > 0 && (
                     <div className="border-t border-[var(--border-subtle)]">
-                      <h3 className="px-4 py-2 text-[length:var(--fs-xs)] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <h3 className="px-4 py-2 text-[length:var(--fs-xs)] font-semibold tracking-wide text-muted-foreground">
                         In storage
                       </h3>
                       {inStorageInstances.map((instance) => (
@@ -334,7 +323,7 @@ export function InstanceDetailPanel({
                   {/* Section: Missing copies (only shown when toggle is on) */}
                   {showMissing && missingInstances.length > 0 && (
                     <div className="border-t border-[var(--border-subtle)]">
-                      <h3 className="px-4 py-2 text-[length:var(--fs-xs)] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <h3 className="px-4 py-2 text-[length:var(--fs-xs)] font-semibold tracking-wide text-muted-foreground">
                         Missing ({missingInstances.length})
                       </h3>
                       {missingInstances.map((instance) => (
@@ -466,16 +455,10 @@ function ShortDeckRow({ shortDeck, oracleId, cardName, assignedInstances }: Shor
     }
   }
 
-  const statusColor = getStatusColor(shortDeck.deckStatus)
-
   return (
-    <div
-      className="mx-4 my-2 rounded-lg p-3"
-      style={{ border: '1.5px dashed rgba(255, 95, 31, 0.4)', background: 'rgba(255, 95, 31, 0.03)' }}
-    >
-      {/* Ghost card + deck info row */}
-      <div className="flex items-center gap-3">
-        {/* Ghost card placeholder */}
+    <>
+      <div className="flex items-center gap-3 px-4 py-2 border-b border-[rgba(255,255,255,0.04)]">
+        {/* Ghost card placeholder — only this element has the dashed orange outline */}
         <div
           className="shrink-0 rounded"
           style={{
@@ -485,7 +468,7 @@ function ShortDeckRow({ shortDeck, oracleId, cardName, assignedInstances }: Shor
             background: 'rgba(255, 95, 31, 0.05)',
           }}
         />
-        {/* Deck name + status */}
+        {/* Deck name + "No card" plain text */}
         <div className="flex-1 min-w-0">
           <a
             href={`/decks/${shortDeck.deckId}`}
@@ -493,35 +476,12 @@ function ShortDeckRow({ shortDeck, oracleId, cardName, assignedInstances }: Shor
           >
             {shortDeck.deckName}
           </a>
-          <span
-            className="inline-block rounded-full px-1.5 py-0.5 text-[length:var(--fs-xs)] font-medium leading-none mt-0.5"
-            style={{
-              background: `${statusColor}20`,
-              color: statusColor,
-            }}
-          >
-            {shortDeck.deckStatus}
+          <span className="block text-[length:var(--fs-sm)] text-[var(--text-tertiary)] mt-0.5">
+            No card
           </span>
         </div>
-      </div>
 
-      {/* Action buttons */}
-      <div className="mt-2 flex items-center gap-2">
-        {/* Add proxy button */}
-        <button
-          type="button"
-          onClick={() => {
-            setShowProxyPicker(!showProxyPicker)
-            setShowReassignDropdown(false)
-          }}
-          disabled={assignMutation.isPending}
-          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[length:var(--fs-xs)] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[rgba(29,158,117,0.1)] disabled:pointer-events-none disabled:opacity-40"
-        >
-          <Plus className="size-3" />
-          Add proxy
-        </button>
-
-        {/* Reassign from button */}
+        {/* Primary action: Claim */}
         {assignedInstances.length > 0 && (
           <button
             type="button"
@@ -530,21 +490,28 @@ function ShortDeckRow({ shortDeck, oracleId, cardName, assignedInstances }: Shor
               setShowProxyPicker(false)
             }}
             disabled={assignMutation.isPending}
-            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[length:var(--fs-xs)] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[rgba(255,255,255,0.05)] disabled:pointer-events-none disabled:opacity-40"
+            className="shrink-0 inline-flex items-center gap-1 rounded px-2 py-1 text-[length:var(--fs-xs)] font-medium text-[var(--accent-primary)] transition-colors hover:bg-[rgba(29,158,117,0.1)] disabled:pointer-events-none disabled:opacity-40"
           >
-            <Shuffle className="size-3" />
-            Reassign from
+            Claim
           </button>
         )}
 
         {assignMutation.isPending && (
-          <Loader2 className="size-3 animate-spin text-[var(--text-tertiary)]" />
+          <Loader2 className="size-3 shrink-0 animate-spin text-[var(--text-tertiary)]" />
         )}
+
+        {/* Kebab — Add proxy lives here */}
+        <ShortRowKebab
+          onAddProxy={() => {
+            setShowProxyPicker(!showProxyPicker)
+            setShowReassignDropdown(false)
+          }}
+        />
       </div>
 
-      {/* Proxy picker sub-panel */}
+      {/* Proxy picker sub-panel (shown below the row when open) */}
       {showProxyPicker && (
-        <div className="mt-2 rounded border border-[var(--border-subtle)] bg-[rgba(0,0,0,0.2)] p-2">
+        <div className="mx-4 mb-2 rounded border border-[var(--border-subtle)] bg-[rgba(0,0,0,0.2)] p-2">
           {proxiesLoading && (
             <span className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)]">Loading proxies…</span>
           )}
@@ -575,9 +542,9 @@ function ShortDeckRow({ shortDeck, oracleId, cardName, assignedInstances }: Shor
         </div>
       )}
 
-      {/* Reassign from dropdown */}
+      {/* Claim dropdown — shows assigned copies to claim from */}
       {showReassignDropdown && (
-        <div className="mt-2 rounded border border-[var(--border-subtle)] bg-[rgba(0,0,0,0.2)] p-2">
+        <div className="mx-4 mb-2 rounded border border-[var(--border-subtle)] bg-[rgba(0,0,0,0.2)] p-2">
           <div className="flex flex-col gap-1">
             {assignedInstances.map((instance) => (
               <button
@@ -603,17 +570,17 @@ function ShortDeckRow({ shortDeck, oracleId, cardName, assignedInstances }: Shor
         </div>
       )}
 
-      {/* Confirmation modal for Tier 4 (boxed) reassignment */}
+      {/* Confirmation modal for Tier 4 (boxed) claim */}
       <ConfirmationModal
         open={confirmReassign !== null}
         onConfirm={handleConfirmReassign}
         onCancel={() => setConfirmReassign(null)}
-        title="Reassign from boxed deck?"
-        description={`This is the only copy of ${cardName} and it's currently in ${confirmReassign?.sourceDeckName ?? ''}. Removing it will make that deck incomplete. Continue?`}
-        confirmLabel="Reassign"
+        title="Claim from built deck?"
+        description={`This copy is currently in ${confirmReassign?.sourceDeckName ?? ''}. Removing it will make that deck incomplete. Continue?`}
+        confirmLabel="Claim"
         isLoading={assignMutation.isPending}
       />
-    </div>
+    </>
   )
 }
 
@@ -769,24 +736,10 @@ function InstanceRowItem({
           )}
         </div>
 
-        {/* Action buttons */}
+        {/* Action buttons — primary inline: Reassign; all others behind kebab */}
         {!isConfirmingDelete && (
           <div className="mt-1 flex items-center gap-1">
-            <button
-              type="button"
-              onClick={onUnassign}
-              disabled={isUnassigning || !instance.assignedDeckName}
-              className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[length:var(--fs-xs)] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--border-subtle)] disabled:pointer-events-none disabled:opacity-40"
-              title={instance.assignedDeckName ? 'Unassign from deck' : 'Not assigned to a deck'}
-            >
-              {isUnassigning ? (
-                <Loader2 className="size-3 animate-spin" />
-              ) : (
-                <Unlink className="size-3" />
-              )}
-              Unassign
-            </button>
-            {/* Reassign via valid-deck picker */}
+            {/* Primary inline action: Reassign (via deck picker) */}
             {validDecks && validDecks.length > 0 && instance.assignedDeckName && onReassign ? (
               <DeckPickerPopover
                 validDecks={validDecks}
@@ -802,17 +755,18 @@ function InstanceRowItem({
                   Reassign
                 </button>
               </DeckPickerPopover>
-            ) : (
+            ) : instance.assignedDeckName ? (
               <button
                 type="button"
-                disabled={!onReassign}
+                disabled
                 className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[length:var(--fs-xs)] font-medium text-[var(--text-secondary)] transition-colors disabled:pointer-events-none disabled:opacity-40"
-                title={instance.assignedDeckName ? 'Reassign to another deck' : 'Not assigned to a deck'}
+                title="No valid decks available"
               >
                 <Shuffle className="size-3" />
                 Reassign
               </button>
-            )}
+            ) : null}
+
             {/* Replace with original — only for proxy copies assigned to a deck */}
             {instance.isProxy && instance.assignedDeckName && onReplaceWithOriginal && (
               <button
@@ -826,16 +780,19 @@ function InstanceRowItem({
                 Replace
               </button>
             )}
-            <button
-              type="button"
-              onClick={onDelete}
-              className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[length:var(--fs-xs)] font-medium transition-colors hover:bg-[rgba(226,75,74,0.1)]"
-              style={{ color: 'rgba(226,75,74,0.8)' }}
-              title="Delete this instance permanently"
-            >
-              <Trash2 className="size-3" />
-              Delete
-            </button>
+
+            {/* Kebab menu — Unassign, Mark as missing, Add proxy, Delete */}
+            <KebabMenu
+              onUnassign={instance.assignedDeckName ? onUnassign : undefined}
+              onMarkMissing={() => {
+                // Call the missing endpoint directly
+                fetch(`/api/physical-copies/${instance.physicalCopyId}/missing`, { method: 'POST' })
+                  .then(res => { if (res.ok) { queryClient.invalidateQueries({ queryKey: ['instances', oracleId] }); queryClient.invalidateQueries({ queryKey: ['collection'] }); toast.success('Marked as missing') } else { toast.error('Failed to mark as missing') } })
+                  .catch(() => toast.error('Failed to mark as missing'))
+              }}
+              onDelete={onDelete}
+              isUnassigning={isUnassigning}
+            />
           </div>
         )}
 
@@ -876,6 +833,101 @@ function InstanceRowItem({
           </div>
         )}
       </div>{/* end content */}
+    </div>
+  )
+}
+
+/* ─── KebabMenu (In Deck row) ───────────────────────────────────────── */
+
+function KebabMenu({ onUnassign, onMarkMissing, onDelete, isUnassigning }: {
+  onUnassign?: () => void
+  onMarkMissing: () => void
+  onDelete: () => void
+  isUnassigning: boolean
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="rounded p-1 text-[var(--text-tertiary)] transition-colors hover:bg-[rgba(255,255,255,0.05)] hover:text-[var(--text-secondary)]"
+        aria-label="More actions"
+        aria-expanded={open}
+      >
+        <MoreVertical className="size-3.5" />
+      </button>
+      {open && (
+        <div
+          className="absolute right-0 top-7 z-20 min-w-[140px] rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-1 shadow-lg"
+          onMouseLeave={() => setOpen(false)}
+        >
+          {onUnassign && (
+            <button
+              type="button"
+              onClick={() => { onUnassign(); setOpen(false) }}
+              disabled={isUnassigning}
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-[length:var(--fs-xs)] text-[var(--text-secondary)] transition-colors hover:bg-[rgba(255,255,255,0.05)] disabled:opacity-40"
+            >
+              <Unlink className="size-3" />
+              Unassign
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => { onMarkMissing(); setOpen(false) }}
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-[length:var(--fs-xs)] text-[var(--text-secondary)] transition-colors hover:bg-[rgba(255,255,255,0.05)]"
+          >
+            <AlertTriangle className="size-3" />
+            Mark as missing
+          </button>
+          <button
+            type="button"
+            onClick={() => { onDelete(); setOpen(false) }}
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-[length:var(--fs-xs)] transition-colors hover:bg-[rgba(226,75,74,0.1)]"
+            style={{ color: 'rgba(226,75,74,0.8)' }}
+          >
+            <Trash2 className="size-3" />
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ─── ShortRowKebab (Short/Claimed row) ─────────────────────────────── */
+
+function ShortRowKebab({ onAddProxy }: { onAddProxy: () => void }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="rounded p-1 text-[var(--text-tertiary)] transition-colors hover:bg-[rgba(255,255,255,0.05)] hover:text-[var(--text-secondary)]"
+        aria-label="More actions"
+        aria-expanded={open}
+      >
+        <MoreVertical className="size-3.5" />
+      </button>
+      {open && (
+        <div
+          className="absolute right-0 top-7 z-20 min-w-[130px] rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-1 shadow-lg"
+          onMouseLeave={() => setOpen(false)}
+        >
+          <button
+            type="button"
+            onClick={() => { onAddProxy(); setOpen(false) }}
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-[length:var(--fs-xs)] text-[var(--text-secondary)] transition-colors hover:bg-[rgba(255,255,255,0.05)]"
+          >
+            <Plus className="size-3" />
+            Add proxy
+          </button>
+        </div>
+      )}
     </div>
   )
 }

@@ -2,10 +2,11 @@
 
 import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { X, Plus, Unlink, Shuffle, Trash2, Loader2 } from 'lucide-react'
+import { X, Plus, Unlink, Shuffle, Trash2, Loader2, ArrowRightLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { CardHoverPreview } from '@/components/CardHoverPreview'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
+import { LocationPickerModal } from '@/components/LocationPickerModal'
 import { StorageLocationSelect } from '@/components/collection/StorageLocationSelect'
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
@@ -78,6 +79,10 @@ export function InstanceDetailPanel({
 }: InstanceDetailPanelProps) {
   const queryClient = useQueryClient()
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<number | null>(null)
+  const [replaceTarget, setReplaceTarget] = useState<{
+    physicalCopyId: number
+    assignedDeckId: number
+  } | null>(null)
 
   const { data, isLoading, error } = useQuery<InstancePanelResponse>({
     queryKey: ['instances', oracleId],
@@ -126,6 +131,34 @@ export function InstanceDetailPanel({
       toast.success('Instance deleted')
     },
     onError: () => toast.error('Failed to delete instance'),
+  })
+
+  // Replace-with-original mutation
+  const replaceMutation = useMutation({
+    mutationFn: async ({ proxyPhysicalCopyId, originalPhysicalCopyId, proxyStorageLocationId }: {
+      proxyPhysicalCopyId: number
+      originalPhysicalCopyId: number
+      proxyStorageLocationId: number | null
+    }) => {
+      const res = await fetch('/api/allocation/replace-with-original', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proxyPhysicalCopyId, originalPhysicalCopyId, proxyStorageLocationId }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Replace failed')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      setReplaceTarget(null)
+      queryClient.invalidateQueries({ queryKey: ['instances', oracleId] })
+      queryClient.invalidateQueries({ queryKey: ['collection'] })
+      queryClient.invalidateQueries({ queryKey: ['storage'] })
+      toast.success('Replaced proxy with original')
+    },
+    onError: (err) => toast.error(err.message),
   })
 
   return (
@@ -189,6 +222,22 @@ export function InstanceDetailPanel({
                           onCancelDelete={() => setConfirmingDeleteId(null)}
                           isUnassigning={unassignMutation.isPending && unassignMutation.variables === instance.physicalCopyId}
                           isDeleting={deleteMutation.isPending && deleteMutation.variables === instance.physicalCopyId}
+                          onReplaceWithOriginal={
+                            instance.isProxy && instance.assignedDeckId
+                              ? (() => {
+                                  // Find a free original (non-proxy, not assigned to any deck)
+                                  const freeOriginal = inStorageInstances.find(i => !i.isProxy)
+                                  if (freeOriginal) {
+                                    setReplaceTarget({
+                                      physicalCopyId: instance.physicalCopyId,
+                                      assignedDeckId: instance.assignedDeckId!,
+                                    })
+                                  } else {
+                                    toast.error('No free original copies available')
+                                  }
+                                })
+                              : undefined
+                          }
                         />
                       ))}
                       {/* Short entries (decks needing this card) */}
@@ -240,6 +289,31 @@ export function InstanceDetailPanel({
         )}
 
       </div>
+
+      {/* Replace-with-original Location Picker */}
+      {replaceTarget && data && (
+        <LocationPickerModal
+          open={replaceTarget !== null}
+          cardName={data.cardName}
+          printingInfo="Where should the proxy go?"
+          onConfirm={(locationId) => {
+            // Find the first free original in storage
+            const inStorageInstances = data.instances.filter(i => i.assignedDeckName === null)
+            const freeOriginal = inStorageInstances.find(i => !i.isProxy)
+            if (!freeOriginal) {
+              toast.error('No free original copies available')
+              setReplaceTarget(null)
+              return
+            }
+            replaceMutation.mutate({
+              proxyPhysicalCopyId: replaceTarget.physicalCopyId,
+              originalPhysicalCopyId: freeOriginal.physicalCopyId,
+              proxyStorageLocationId: locationId,
+            })
+          }}
+          onCancel={() => setReplaceTarget(null)}
+        />
+      )}
     </div>
   )
 }
@@ -491,6 +565,7 @@ interface InstanceRowItemProps {
   onCancelDelete: () => void
   isUnassigning: boolean
   isDeleting: boolean
+  onReplaceWithOriginal?: () => void
 }
 
 function InstanceRowItem({
@@ -506,6 +581,7 @@ function InstanceRowItem({
   onCancelDelete,
   isUnassigning,
   isDeleting,
+  onReplaceWithOriginal,
 }: InstanceRowItemProps) {
   const queryClient = useQueryClient()
   const assignment = getAssignmentLabel(instance)
@@ -648,6 +724,19 @@ function InstanceRowItem({
               <Shuffle className="size-3" />
               Reassign
             </button>
+            {/* Replace with original — only for proxy copies assigned to a deck */}
+            {instance.isProxy && instance.assignedDeckName && onReplaceWithOriginal && (
+              <button
+                type="button"
+                onClick={onReplaceWithOriginal}
+                className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[length:var(--fs-xs)] font-medium transition-colors hover:bg-[rgba(29,158,117,0.1)]"
+                style={{ color: 'var(--accent-primary)' }}
+                title="Replace this proxy with a free original copy"
+              >
+                <ArrowRightLeft className="size-3" />
+                Replace
+              </button>
+            )}
             <button
               type="button"
               onClick={onDelete}

@@ -43,6 +43,8 @@ export function StatusChipPopover({
 }: StatusChipPopoverProps) {
   const [open, setOpen] = useState(false)
   const [locationPickerOpen, setLocationPickerOpen] = useState(false)
+  const [replacePickerOpen, setReplacePickerOpen] = useState(false)
+  const [replaceOriginalId, setReplaceOriginalId] = useState<number | null>(null)
   const [tier4Confirm, setTier4Confirm] = useState<{
     holderDeckName: string
     physicalCopyId: number
@@ -76,6 +78,7 @@ export function StatusChipPopover({
               onClose={() => setOpen(false)}
               onLocationPicker={() => { setOpen(false); setLocationPickerOpen(true) }}
               onTier4Confirm={(holderName, pcId) => { setOpen(false); setTier4Confirm({ holderDeckName: holderName, physicalCopyId: pcId }) }}
+              onReplaceWithOriginal={(originalPcId) => { setOpen(false); setReplaceOriginalId(originalPcId); setReplacePickerOpen(true) }}
             />
           )}
         </PopoverContent>
@@ -91,6 +94,17 @@ export function StatusChipPopover({
           // This is handled by the mutation flow in PopoverBody
         }}
         onCancel={() => setLocationPickerOpen(false)}
+      />
+
+      {/* Location Picker for Replace-with-original (proxy destination) */}
+      <ReplaceLocationPicker
+        open={replacePickerOpen}
+        cardName={cardName}
+        deckId={deckId}
+        deckCardsId={deckCardsId}
+        originalPhysicalCopyId={replaceOriginalId}
+        onComplete={() => { setReplacePickerOpen(false); setReplaceOriginalId(null) }}
+        onCancel={() => { setReplacePickerOpen(false); setReplaceOriginalId(null) }}
       />
 
       {/* Tier 4 Confirmation Modal */}
@@ -126,6 +140,7 @@ function PopoverBody({
   onClose,
   onLocationPicker,
   onTier4Confirm,
+  onReplaceWithOriginal,
 }: {
   status: CardSlotStatus
   cardName: string
@@ -135,6 +150,7 @@ function PopoverBody({
   onClose: () => void
   onLocationPicker: () => void
   onTier4Confirm: (holderName: string, physicalCopyId: number) => void
+  onReplaceWithOriginal: (originalPhysicalCopyId: number) => void
 }) {
   const queryClient = useQueryClient()
 
@@ -231,6 +247,11 @@ function PopoverBody({
 
   // ─── Original / Proxy ───────────────────────────────────────────────
   if (status === 'original' || status === 'proxy') {
+    // For proxy: check if a free original exists (non-proxy entry in availableCopies)
+    const freeOriginals = status === 'proxy'
+      ? (data?.availableCopies ?? []).filter(c => !c.isProxy)
+      : []
+
     return (
       <div className="flex flex-col gap-2 p-3">
         <p className="text-[length:var(--fs-sm)] text-muted-foreground">
@@ -245,6 +266,19 @@ function PopoverBody({
         >
           Reassign
         </Button>
+        {/* Replace with original — only for proxy when a free original exists */}
+        {status === 'proxy' && freeOriginals.length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start"
+            disabled={isPending}
+            onClick={() => onReplaceWithOriginal(freeOriginals[0].physicalCopyId)}
+            style={{ color: 'var(--accent-primary)', borderColor: 'var(--accent-primary)' }}
+          >
+            Replace with original
+          </Button>
+        )}
         <div className="flex gap-2">
           <button
             type="button"
@@ -398,4 +432,69 @@ function PopoverBody({
   }
 
   return null
+}
+
+
+// ---------------------------------------------------------------------------
+// ReplaceLocationPicker — wraps LocationPickerModal with replace mutation
+// ---------------------------------------------------------------------------
+
+function ReplaceLocationPicker({
+  open,
+  cardName,
+  deckId,
+  deckCardsId,
+  originalPhysicalCopyId,
+  onComplete,
+  onCancel,
+}: {
+  open: boolean
+  cardName: string
+  deckId: number
+  deckCardsId: number
+  originalPhysicalCopyId: number | null
+  onComplete: () => void
+  onCancel: () => void
+}) {
+  const queryClient = useQueryClient()
+
+  const replaceMutation = useMutation({
+    mutationFn: async (proxyStorageLocationId: number | null) => {
+      if (!originalPhysicalCopyId) throw new Error('No original copy selected')
+      const res = await fetch('/api/allocation/replace-with-original', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deckCardsId,
+          originalPhysicalCopyId,
+          proxyStorageLocationId,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Replace failed')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'card-statuses'] })
+      queryClient.invalidateQueries({ queryKey: ['picklist', deckId] })
+      queryClient.invalidateQueries({ queryKey: ['card-actions', deckId, cardName] })
+      queryClient.invalidateQueries({ queryKey: ['collection'] })
+      queryClient.invalidateQueries({ queryKey: ['storage'] })
+      toast.success(`Replaced proxy with original for ${cardName}`)
+      onComplete()
+    },
+    onError: (err) => toast.error(err.message),
+  })
+
+  return (
+    <LocationPickerModal
+      open={open}
+      cardName={cardName}
+      printingInfo="Where should the proxy go?"
+      onConfirm={(locationId) => replaceMutation.mutate(locationId)}
+      onCancel={onCancel}
+    />
+  )
 }

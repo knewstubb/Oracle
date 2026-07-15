@@ -587,6 +587,8 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
               healthCategories={healthCategories}
               availableCategories={availableCategories}
               statusMap={statusMap}
+              deckId={deckId}
+              physicalCopyMap={physicalCopyMap}
               onCategoryChange={(cardId, categories) => {
                 categoryMutation.mutate({ cardId, categories })
               }}
@@ -682,12 +684,16 @@ function GroupedListView({
   healthCategories,
   availableCategories,
   statusMap,
+  deckId,
+  physicalCopyMap,
   onCategoryChange,
 }: {
   groupedCards: [string, DeckCard[]][]
   healthCategories?: CardsTabProps['healthCategories']
   availableCategories: string[]
   statusMap: Map<number, CardSlotStatus>
+  deckId: number
+  physicalCopyMap: Map<number, number | null>
   onCategoryChange: (cardId: number, categories: StructuredCategories) => void
 }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())

@@ -147,6 +147,45 @@ function TokensSection() {
 
       <Separator />
 
+      {/* shadcn/ui Theme Colors */}
+      <div>
+        <h2 className="text-[length:var(--fs-lg)] font-medium text-[var(--text-primary)] mb-2">shadcn/ui theme colors</h2>
+        <p className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)] mb-4">
+          These are the CSS variables consumed by shadcn components (Button, Badge, Dialog, etc.) via Tailwind.
+          In dark mode, they map to the design tokens above.
+        </p>
+
+        <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-3">Surfaces</h3>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6 mb-6">
+          <ShadcnSwatch name="background" var="var(--background)" desc="Page background" />
+          <ShadcnSwatch name="foreground" var="var(--foreground)" desc="Default text" />
+          <ShadcnSwatch name="card" var="var(--card)" desc="Card surfaces" />
+          <ShadcnSwatch name="popover" var="var(--popover)" desc="Popover/dropdown" />
+          <ShadcnSwatch name="muted" var="var(--muted)" desc="Muted backgrounds" />
+          <ShadcnSwatch name="accent" var="var(--accent)" desc="Accent surfaces" />
+        </div>
+
+        <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-3">Interactive</h3>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6 mb-6">
+          <ShadcnSwatch name="primary" var="var(--primary)" desc="Primary buttons" />
+          <ShadcnSwatch name="primary-foreground" var="var(--primary-foreground)" desc="Text on primary" />
+          <ShadcnSwatch name="secondary" var="var(--secondary)" desc="Secondary buttons" />
+          <ShadcnSwatch name="destructive" var="var(--destructive)" desc="Delete/danger" />
+          <ShadcnSwatch name="ring" var="var(--ring)" desc="Focus ring" />
+          <ShadcnSwatch name="border" var="var(--border)" desc="Default borders" />
+        </div>
+
+        <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-3">Text</h3>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6 mb-6">
+          <ShadcnSwatch name="foreground" var="var(--foreground)" desc="Primary text" />
+          <ShadcnSwatch name="muted-foreground" var="var(--muted-foreground)" desc="Secondary text" />
+          <ShadcnSwatch name="card-foreground" var="var(--card-foreground)" desc="Card text" />
+          <ShadcnSwatch name="accent-foreground" var="var(--accent-foreground)" desc="Accent text" />
+        </div>
+      </div>
+
+      <Separator />
+
       {/* Typography */}
       <div>
         <h2 className="text-[length:var(--fs-lg)] font-medium text-[var(--text-primary)] mb-4">Typography</h2>
@@ -627,6 +666,19 @@ function TypographySample({ size, label, value }: { size: string; label: string;
         The quick brown fox jumps over the lazy dog
       </span>
       <span className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)]">{value}</span>
+    </div>
+  )
+}
+
+function ShadcnSwatch({ name, desc }: { name: string; var: string; desc: string }) {
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div
+        className="size-10 rounded-lg border border-[rgba(255,255,255,0.1)]"
+        style={{ backgroundColor: `var(--${name.replace('-foreground', '-foreground')})` }}
+      />
+      <span className="text-[length:var(--fs-xs)] text-[var(--text-secondary)] text-center leading-tight">{name}</span>
+      <span className="text-[9px] text-[var(--text-tertiary)]">{desc}</span>
     </div>
   )
 }

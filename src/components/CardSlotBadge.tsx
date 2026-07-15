@@ -26,13 +26,13 @@ const STATUS_CONFIG: Record<
   original: {
     label: 'Original',
     color: 'var(--signal-success)',
-    bg: 'rgba(52, 211, 153, 0.12)',
+    bg: 'rgba(29, 158, 117, 0.12)',
     dotStyle: 'solid',
   },
   proxy: {
     label: 'Proxy',
     color: 'var(--signal-success)',
-    bg: 'rgba(52, 211, 153, 0.06)',
+    bg: 'rgba(29, 158, 117, 0.06)',
     dotStyle: 'dashed',
   },
   open: {

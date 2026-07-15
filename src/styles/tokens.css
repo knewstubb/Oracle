@@ -72,12 +72,14 @@
   --accent-primary-bg: rgba(29, 158, 117, 0.15);
 
   /* ─── Semantic Signals ───────────────────────────────────────────── */
-  --signal-success: #34D399;
-  --signal-success-bg: rgba(52, 211, 153, 0.15);
+  --signal-success: #1D9E75;
+  --signal-success-bg: rgba(29, 158, 117, 0.15);
   --signal-warning: #EF9F27;
   --signal-warning-bg: rgba(239, 159, 39, 0.15);
   --signal-critical: #E24B4A;
   --signal-critical-bg: rgba(226, 75, 74, 0.15);
+  --signal-destructive: #DC2626;
+  --signal-destructive-bg: rgba(220, 38, 38, 0.12);
 
   /* ─── Surfaces (legacy aliases — updated to match neutral ramp) ──── */
   --bg-page: #131316;

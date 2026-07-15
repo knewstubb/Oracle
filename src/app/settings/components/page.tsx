@@ -110,17 +110,25 @@ function TokensSection() {
         <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-3">Accent &amp; signals</h3>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6 mb-6">
           <EditableColorSwatch name="Accent primary" cssVar="--accent-primary" defaultHex="#1D9E75" />
-          <EditableColorSwatch name="Success" cssVar="--signal-success" defaultHex="#34D399" />
+          <EditableColorSwatch name="Success" cssVar="--signal-success" defaultHex="#1D9E75" />
           <EditableColorSwatch name="Warning" cssVar="--signal-warning" defaultHex="#EF9F27" />
           <EditableColorSwatch name="Critical" cssVar="--signal-critical" defaultHex="#E24B4A" />
-          <EditableColorSwatch name="Over-allocated" cssVar="--status-over" defaultHex="#FF5F1F" />
+          <EditableColorSwatch name="Destructive" cssVar="--signal-destructive" defaultHex="#DC2626" />
         </div>
+        <p className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)] mb-6">
+          <strong className="text-[var(--text-secondary)]">Accent:</strong> interactive elements (buttons, links).{' '}
+          <strong className="text-[var(--text-secondary)]">Success:</strong> positive state (card resolved/assigned).{' '}
+          <strong className="text-[var(--text-secondary)]">Warning:</strong> attention needed (open slot, health warn).{' '}
+          <strong className="text-[var(--text-secondary)]">Critical:</strong> bad state indicator (unowned, missing).{' '}
+          <strong className="text-[var(--text-secondary)]">Destructive:</strong> dangerous action buttons (delete, clear data).
+        </p>
 
         <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-3">Status colors</h3>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6 mb-6">
           <EditableColorSwatch name="Owned" cssVar="--status-owned" defaultHex="#5F5E5A" />
           <EditableColorSwatch name="Proxy" cssVar="--status-proxy" defaultHex="#4A93A0" />
           <EditableColorSwatch name="Unowned" cssVar="--status-unowned" defaultHex="#F0339E" />
+          <EditableColorSwatch name="Over-allocated" cssVar="--status-over" defaultHex="#FF5F1F" />
         </div>
 
         <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-3">WUBRG (Magic color identity)</h3>

@@ -16,6 +16,8 @@ import { useCanvasZoom } from './useCanvasZoom'
 import { useCanvasDrag } from './useCanvasDrag'
 import { useMarqueeSelect } from './useMarqueeSelect'
 import { CanvasDeckCard } from './CanvasDeckCard'
+import { DecisionCard } from './DecisionCard'
+import { ExplorationArchive } from './ExplorationArchive'
 import { PiledColumn } from './PiledColumn'
 import { CurveView } from './CurveView'
 import { getNextOpenPosition, CARD_DIMENSIONS, CANVAS_GAP } from './canvas-utils'
@@ -569,11 +571,13 @@ export function BrewCanvas({
             onTransitionEnd={isTransitioning ? handleTransitionEnd : undefined}
             {...(isTransitioning ? {} : getPointerProps(posId))}
           >
-            {/* Placeholder — DecisionCard component will be implemented in a subsequent task */}
-            <div className="w-[140px] rounded-lg border border-border/50 bg-background/80 p-2 text-[length:var(--fs-xs)]">
-              <p className="font-medium uppercase">{decision.key}</p>
-              <p className="text-muted-foreground">{decision.value}</p>
-            </div>
+            <DecisionCard
+              decision={decision}
+              position={{ x: 0, y: 0 }}
+              pointerProps={{ onPointerDown: () => {} }}
+              isDragging={false}
+              dragOffset={null}
+            />
           </div>
         )
       })}
@@ -739,37 +743,11 @@ export function BrewCanvas({
 
       {/* Exploration Archive (overlay, bottom-right) */}
       {explorationArchive.length > 0 && (
-        <div
-          className="absolute bottom-3 right-3 z-10"
-          data-testid="exploration-archive"
-        >
-          {/* Placeholder — ExplorationArchive component will be implemented in a subsequent task */}
-          <button
-            type="button"
-            onClick={() => setArchiveExpanded(!archiveExpanded)}
-            className="flex items-center gap-1.5 rounded-md border border-border/50 bg-background/90 px-2 py-1 text-[length:var(--fs-xs)] font-medium text-muted-foreground backdrop-blur-sm hover:bg-accent/50 transition-colors"
-          >
-            Archive
-            <span className="rounded-full bg-[rgba(55,138,221,0.15)] px-1.5 py-0.5 text-[9px] text-[#378ADD]">
-              {explorationArchive.length}
-            </span>
-          </button>
-
-          {archiveExpanded && (
-            <div className="mt-1 max-h-[200px] w-[200px] overflow-y-auto rounded-md border border-border/50 bg-background/95 p-2 backdrop-blur-sm">
-              {explorationArchive.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="py-0.5 text-[9px] text-muted-foreground truncate"
-                >
-                  {item.type === 'candidate'
-                    ? (item.data as CommanderOption).name
-                    : `${(item.data as DecisionEntry).key}: ${(item.data as DecisionEntry).value}`}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <ExplorationArchive
+          items={explorationArchive}
+          expanded={archiveExpanded}
+          onToggle={() => setArchiveExpanded(!archiveExpanded)}
+        />
       )}
 
       {/* Destructive re-commit warning modal */}

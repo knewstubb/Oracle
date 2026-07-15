@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, List, LayoutGrid, ChevronDown, ChevronRight, AlertTriangle, Tags } from 'lucide-react'
+import { Search, List, LayoutGrid, ChevronDown, ChevronRight, AlertTriangle, Tags, MoreVertical, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
@@ -1009,7 +1009,68 @@ function CardRow({
         deckId={deckId}
         deckCardsId={card.id}
         physicalCopyId={physicalCopyId}
+        scryfallId={card.scryfall_id ?? null}
       />
+
+      {/* Kebab menu — Remove */}
+      <CardRowKebab
+        deckCardsId={card.id}
+        deckId={deckId}
+        cardName={card.card_name}
+      />
+    </div>
+  )
+}
+
+// ─── Card Row Kebab ──────────────────────────────────────────────────────────
+
+function CardRowKebab({ deckCardsId, deckId, cardName }: { deckCardsId: number; deckId: number; cardName: string }) {
+  const [open, setOpen] = useState(false)
+  const queryClient = useQueryClient()
+
+  const removeMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/decks/${deckId}/cards/${deckCardsId}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Remove failed')
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['decks', deckId] })
+      queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'card-statuses'] })
+      queryClient.invalidateQueries({ queryKey: ['picklist', deckId] })
+      toast.success(`Removed ${cardName}`)
+    },
+    onError: () => toast.error('Failed to remove card'),
+  })
+
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="rounded p-1 text-[var(--text-tertiary)] opacity-0 transition-all group-hover:opacity-100 hover:bg-[rgba(255,255,255,0.05)] hover:text-[var(--text-secondary)]"
+        aria-label="More actions"
+        aria-expanded={open}
+      >
+        <MoreVertical className="size-3.5" />
+      </button>
+      {open && (
+        <div
+          className="absolute right-0 top-7 z-20 min-w-[120px] rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-1 shadow-lg"
+          onMouseLeave={() => setOpen(false)}
+        >
+          <button
+            type="button"
+            onClick={() => { removeMutation.mutate(); setOpen(false) }}
+            disabled={removeMutation.isPending}
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-[length:var(--fs-xs)] transition-colors hover:bg-[rgba(226,75,74,0.1)] disabled:opacity-40"
+            style={{ color: 'rgba(226,75,74,0.8)' }}
+          >
+            <Trash2 className="size-3" />
+            Remove
+          </button>
+        </div>
+      )}
     </div>
   )
 }

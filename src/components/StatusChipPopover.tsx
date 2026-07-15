@@ -23,6 +23,7 @@ interface StatusChipPopoverProps {
   deckId: number
   deckCardsId: number
   physicalCopyId: number | null
+  scryfallId?: string | null
   className?: string
 }
 
@@ -40,6 +41,7 @@ export function StatusChipPopover({
   deckId,
   deckCardsId,
   physicalCopyId,
+  scryfallId,
   className,
 }: StatusChipPopoverProps) {
   const [open, setOpen] = useState(false)
@@ -76,6 +78,7 @@ export function StatusChipPopover({
               deckId={deckId}
               deckCardsId={deckCardsId}
               physicalCopyId={physicalCopyId}
+              scryfallId={scryfallId ?? null}
               onClose={() => setOpen(false)}
               onLocationPicker={() => { setOpen(false); setLocationPickerOpen(true) }}
               onTier4Confirm={(holderName, pcId) => { setOpen(false); setTier4Confirm({ holderDeckName: holderName, physicalCopyId: pcId }) }}
@@ -138,6 +141,7 @@ function PopoverBody({
   deckId,
   deckCardsId,
   physicalCopyId,
+  scryfallId,
   onClose,
   onLocationPicker,
   onTier4Confirm,
@@ -148,6 +152,7 @@ function PopoverBody({
   deckId: number
   deckCardsId: number
   physicalCopyId: number | null
+  scryfallId: string | null
   onClose: () => void
   onLocationPicker: () => void
   onTier4Confirm: (holderName: string, physicalCopyId: number) => void
@@ -284,9 +289,22 @@ function PopoverBody({
 
     return (
       <div className="flex flex-col gap-2 p-3">
-        <p className="text-[length:var(--fs-sm)] text-muted-foreground">
-          {status === 'proxy' ? 'Proxy' : 'Original'} assigned to this deck
-        </p>
+        {/* Assigned card thumbnail + info */}
+        <CopyRow
+          scryfallPrintingId={scryfallId}
+          cardName={cardName}
+          setName={status === 'proxy' ? 'Proxy' : 'Original'}
+          condition={null}
+          storageLocationName={null}
+          isFoil={false}
+          isProxy={status === 'proxy'}
+          primaryLabel="Reassign"
+          subtitle="Assigned to this deck"
+          onPrimary={() => {}}
+          isPending={false}
+          hideAction
+        />
+
         {/* Reassign via valid-deck picker */}
         <DeckPickerPopover
           validDecks={validDecks}
@@ -321,13 +339,6 @@ function PopoverBody({
           </Button>
         )}
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onLocationPicker}
-            className="text-[length:var(--fs-xs)] text-muted-foreground hover:text-foreground"
-          >
-            Remove
-          </button>
           <button
             type="button"
             className="text-[length:var(--fs-xs)] text-muted-foreground hover:text-foreground"
@@ -390,8 +401,8 @@ function PopoverBody({
             key={holder.physicalCopyId}
             scryfallPrintingId={holder.scryfallPrintingId}
             cardName={cardName}
-            setName={holder.deckName}
-            condition={null}
+            setName={`Claimed by ${holder.deckName}`}
+            condition={holder.condition}
             storageLocationName={null}
             isFoil={false}
             isProxy={holder.isProxy}
@@ -470,6 +481,7 @@ function CopyRow({
   subtitle,
   onPrimary,
   isPending,
+  hideAction,
 }: {
   scryfallPrintingId: string | null
   cardName: string
@@ -482,6 +494,7 @@ function CopyRow({
   subtitle?: string
   onPrimary: () => void
   isPending: boolean
+  hideAction?: boolean
 }) {
   const [showPreview, setShowPreview] = useState(false)
 
@@ -539,16 +552,18 @@ function CopyRow({
       </div>
 
       {/* Primary action */}
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={onPrimary}
-        disabled={isPending}
-        className="shrink-0"
-        style={{ color: 'var(--accent-primary)', borderColor: 'var(--accent-primary)' }}
-      >
-        {primaryLabel}
-      </Button>
+      {!hideAction && (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onPrimary}
+          disabled={isPending}
+          className="shrink-0"
+          style={{ color: 'var(--accent-primary)', borderColor: 'var(--accent-primary)' }}
+        >
+          {primaryLabel}
+        </Button>
+      )}
     </div>
   )
 }

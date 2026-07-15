@@ -35,6 +35,7 @@ export interface CardActionContext {
     deckStatus: string
     physicalCopyId: number
     scryfallPrintingId: string | null
+    condition: string | null
     isProxy: boolean
   }>
   /** Valid decks this card could be assigned to (color identity filter) */
@@ -91,6 +92,7 @@ export async function GET(
           deckStatus: entry.assignedTo.deckStatus,
           physicalCopyId: entry.physicalCopyId,
           scryfallPrintingId: entry.scryfallPrintingId,
+          condition: entry.condition,
           isProxy: entry.isProxy,
         })
       }

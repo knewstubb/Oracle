@@ -72,6 +72,8 @@
   --accent-primary-bg: rgba(29, 158, 117, 0.15);
 
   /* ─── Semantic Signals ───────────────────────────────────────────── */
+  --signal-success: #34D399;
+  --signal-success-bg: rgba(52, 211, 153, 0.15);
   --signal-warning: #EF9F27;
   --signal-warning-bg: rgba(239, 159, 39, 0.15);
   --signal-critical: #E24B4A;

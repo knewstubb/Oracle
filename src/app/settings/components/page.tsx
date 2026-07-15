@@ -110,6 +110,7 @@ function TokensSection() {
         <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-3">Accent &amp; signals</h3>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6 mb-6">
           <EditableColorSwatch name="Accent primary" cssVar="--accent-primary" defaultHex="#1D9E75" />
+          <EditableColorSwatch name="Success" cssVar="--signal-success" defaultHex="#34D399" />
           <EditableColorSwatch name="Warning" cssVar="--signal-warning" defaultHex="#EF9F27" />
           <EditableColorSwatch name="Critical" cssVar="--signal-critical" defaultHex="#E24B4A" />
           <EditableColorSwatch name="Over-allocated" cssVar="--status-over" defaultHex="#FF5F1F" />

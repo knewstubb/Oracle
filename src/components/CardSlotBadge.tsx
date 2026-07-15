@@ -25,14 +25,14 @@ const STATUS_CONFIG: Record<
 > = {
   original: {
     label: 'Original',
-    color: 'var(--accent-primary)',
-    bg: 'rgba(29, 158, 117, 0.12)',
+    color: 'var(--signal-success)',
+    bg: 'rgba(52, 211, 153, 0.12)',
     dotStyle: 'solid',
   },
   proxy: {
     label: 'Proxy',
-    color: 'var(--accent-primary)',
-    bg: 'rgba(29, 158, 117, 0.06)',
+    color: 'var(--signal-success)',
+    bg: 'rgba(52, 211, 153, 0.06)',
     dotStyle: 'dashed',
   },
   open: {

@@ -34,7 +34,7 @@ describe('classifySlotStatus', () => {
   })
 
   it('returns "unallocated" as default for unresolved slot', () => {
-    expect(classifySlotStatus(null, null)).toBe('unallocated')
+    expect(classifySlotStatus(null, null)).toBe('open')
   })
 })
 
@@ -105,7 +105,7 @@ describe('computeUnresolvedStatuses', () => {
     })
 
     const result = await computeUnresolvedStatuses(['Sol Ring'], 'user-1')
-    expect(result.get('Sol Ring')).toBe('unallocated')
+    expect(result.get('Sol Ring')).toBe('open')
   })
 
   it('returns "claimed" when all copies are held by other decks', async () => {
@@ -182,7 +182,7 @@ describe('computeUnresolvedStatuses', () => {
     })
 
     const result = await computeUnresolvedStatuses(['Sol Ring'], 'user-1')
-    expect(result.get('Sol Ring')).toBe('unallocated')
+    expect(result.get('Sol Ring')).toBe('open')
   })
 
   it('returns "unowned" when only missing copies exist (excluded by query)', async () => {
@@ -302,7 +302,7 @@ describe('computeUnresolvedStatuses', () => {
       ['Free Card', 'Claimed Card', 'Missing Card'],
       'user-1'
     )
-    expect(result.get('Free Card')).toBe('unallocated')
+    expect(result.get('Free Card')).toBe('open')
     expect(result.get('Claimed Card')).toBe('claimed')
     expect(result.get('Missing Card')).toBe('unowned')
   })

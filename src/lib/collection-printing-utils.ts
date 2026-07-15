@@ -38,6 +38,8 @@ export interface PrintingRowResponse {
   activeDemand: number
   /** Allocation state: 'clean' | 'proxied' | 'overallocated' | 'unallocated' */
   allocationState: 'clean' | 'proxied' | 'overallocated' | 'unallocated'
+  /** Whether this copy is marked as missing */
+  isMissing: boolean
 }
 
 /** Raw input type for the grouping function. */
@@ -55,6 +57,8 @@ export interface RawPhysicalCopy {
   price: number | null
   /** Whether this physical copy is a proxy */
   isProxy: boolean
+  /** Whether this physical copy is marked as missing */
+  isMissing: boolean
 }
 
 /* ─── Price Formatting ──────────────────────────────────────────────── */
@@ -147,6 +151,7 @@ export function groupPhysicalCopiesToPrintingRows(
         usedByDecks: copy.usedByDecks,
         price: copy.price,
         isProxy: copy.isProxy,
+        isMissing: copy.isMissing,
         // Allocation-level fields — populated by caller after grouping
         originalQty: 0,
         proxyQty: 0,

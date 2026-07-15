@@ -14,6 +14,7 @@ import {
 } from '@/components/collection/CollectionToolbar'
 import { CollectionGridView } from '@/components/collection/CollectionGridView'
 import { PrintingListView } from '@/components/collection/PrintingListView'
+import { MissingToggle } from '@/components/collection/MissingToggle'
 import { PriceStaleIndicator } from '@/components/collection/PriceStaleIndicator'
 import {
   filterBySearch,
@@ -42,6 +43,7 @@ import type { PrintingRowResponse } from '@/lib/collection-printing-utils'
 export default function CollectionPage() {
   // ─── Proxy toggle ──────────────────────────────────────────────
   const [includeProxies, setIncludeProxies] = useState(false)
+  const [showMissing, setShowMissing] = useState(false)
 
   // ─── Fetch rollup data via hook (used for grid view) ─────────────
   const { rows, lastPriceRefresh, isPriceStale, isLoading, error, expand } =
@@ -122,6 +124,11 @@ export default function CollectionPage() {
       allRows = allRows.filter((r) => !r.isProxy)
     }
 
+    // Filter missing unless toggle is on
+    if (!showMissing) {
+      allRows = allRows.filter((r) => !r.isMissing)
+    }
+
     // Cast to PrintingCardRow for filter functions
     let filtered = filterPrintingBySearch(allRows as unknown as PrintingCardRow[], searchQuery)
 
@@ -146,7 +153,7 @@ export default function CollectionPage() {
     }
 
     return sortPrintingRows(filtered, printingSortField, printingSortDirection) as unknown as PrintingRowResponse[]
-  }, [printingData, searchQuery, selectedColors, colorMode, activeStatuses, printingSortField, printingSortDirection, includeProxies])
+  }, [printingData, searchQuery, selectedColors, colorMode, activeStatuses, printingSortField, printingSortDirection, includeProxies, showMissing])
 
   // ─── Printing sort toggle handler ──────────────────────────────
   const handlePrintingSort = useCallback(
@@ -174,10 +181,11 @@ export default function CollectionPage() {
     ? (printingData?.lastPriceRefresh ?? null)
     : lastPriceRefresh
 
-  // Count owned vs proxy
+  // Count owned vs proxy vs missing
   const allPrintingRows = printingData?.rows ?? []
   const ownedCount = allPrintingRows.filter((r) => !r.isProxy).length
   const proxyCount = allPrintingRows.filter((r) => r.isProxy).length
+  const missingCount = allPrintingRows.filter((r) => r.isMissing).length
 
   const activeRowCount = isPrintingView
     ? (includeProxies ? allPrintingRows.length : ownedCount)
@@ -278,6 +286,14 @@ export default function CollectionPage() {
                 Proxies ({proxyCount})
               </button>
             )}
+            {/* Missing toggle chip */}
+            {isPrintingView && (
+              <MissingToggle
+                showMissing={showMissing}
+                onToggle={setShowMissing}
+                missingCount={missingCount}
+              />
+            )}
           </div>
 
           {/* ─── Main Content: Loading / Error / Empty / Data ──── */}
@@ -299,6 +315,7 @@ export default function CollectionPage() {
                   onSort={handlePrintingSort}
                   isPriceStale={activeIsPriceStale}
                   lastPriceRefresh={activeLastPriceRefresh}
+                  showMissing={showMissing}
                 />
               )
             ) : (

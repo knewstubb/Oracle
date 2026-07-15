@@ -18,6 +18,8 @@ export interface PrintingListViewProps {
   onSort: (field: PrintingSortField) => void
   isPriceStale?: boolean
   lastPriceRefresh?: string | null
+  /** When true, missing rows are included and rendered with dimmed treatment */
+  showMissing?: boolean
 }
 
 /* ─── Column Widths ─────────────────────────────────────────────────── */
@@ -136,6 +138,7 @@ export function PrintingListView({
   onSort,
   isPriceStale = false,
   lastPriceRefresh = null,
+  showMissing = false,
 }: PrintingListViewProps) {
   const [hoverCard, setHoverCard] = useState<{ scryfallId: string; cardName: string; x: number; y: number } | null>(null)
 
@@ -199,14 +202,15 @@ export function PrintingListView({
                   key={`${row.id}-${row.isFoil}-${row.isProxy}`}
                   className={cn(
                     'absolute left-0 flex w-full items-center px-4 transition-colors hover:bg-[rgba(255,255,255,0.02)]',
-                    row.isProxy && 'opacity-60'
+                    row.isProxy && 'opacity-60',
+                    row.isMissing && 'opacity-40'
                   )}
                   style={{
                     height: `${virtualRow.size}px`,
                     top: `${virtualRow.start}px`,
                     borderBottom: '0.5px solid rgba(255,255,255,0.04)',
                     gap: '12px',
-                    borderLeft: row.isProxy ? '2px dashed rgba(255,255,255,0.15)' : '2px solid transparent',
+                    borderLeft: row.isMissing ? '2px solid rgba(228,75,74,0.4)' : row.isProxy ? '2px dashed rgba(255,255,255,0.15)' : '2px solid transparent',
                   }}
                 >
                   {/* Qty */}
@@ -218,8 +222,8 @@ export function PrintingListView({
 
                   {/* Name */}
                   <span
-                    className={cn(COL.name, 'truncate text-[length:var(--fs-base)] cursor-default')}
-                    style={{ color: '#e8e8e6' }}
+                    className={cn(COL.name, 'truncate text-[length:var(--fs-base)] cursor-default', row.isMissing && 'line-through')}
+                    style={{ color: row.isMissing ? 'rgba(255,255,255,0.4)' : '#e8e8e6' }}
                     title={row.cardName.length > 40 ? row.cardName : undefined}
                     onMouseEnter={(e) => handleMouseEnter(e, row)}
                     onMouseMove={handleMouseMove}
@@ -228,6 +232,9 @@ export function PrintingListView({
                     {truncateName(row.cardName)}
                     {row.isProxy && (
                       <span className="ml-1.5 text-[9px] uppercase" style={{ color: 'rgba(255,255,255,0.3)' }}>proxy</span>
+                    )}
+                    {row.isMissing && (
+                      <span className="ml-1.5 text-[9px] font-medium uppercase" style={{ color: 'rgba(228,75,74,0.8)' }}>missing</span>
                     )}
                   </span>
 

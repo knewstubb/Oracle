@@ -104,6 +104,7 @@ export async function GET() {
               scryfall_printing_id,
               is_foil,
               is_proxy,
+              missing,
               card_definitions!physical_copies_card_definition_id_fkey (
                 card_name,
                 color_identity
@@ -294,6 +295,7 @@ export async function GET() {
         usedByDecks,
         price: pc.scryfall_printing_id ? lookupPrice(priceMap, pc.scryfall_printing_id, pc.is_foil) : null,
         isProxy: Boolean(pc.is_proxy),
+        isMissing: Boolean(pc.missing),
       }
     })
 

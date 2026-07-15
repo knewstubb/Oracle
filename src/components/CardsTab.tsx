@@ -230,6 +230,17 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
     return map
   }, [statusData])
 
+  // Physical copy ID map (needed for StatusChipPopover actions)
+  const physicalCopyMap = useMemo(() => {
+    const map = new Map<number, number | null>()
+    if (statusData?.cards) {
+      for (const s of statusData.cards) {
+        map.set(s.deckCardsId, s.physicalCopyId)
+      }
+    }
+    return map
+  }, [statusData])
+
   // ── Status Counts ────────────────────────────────────────────────────────────
 
   const counts = useMemo(() => {
@@ -661,11 +672,8 @@ function StatusChip({ label, isActive, onClick, color }: StatusChipProps) {
 
 // Badge rendering now uses the shared CardSlotBadge component
 import { CardSlotBadge } from '@/components/CardSlotBadge'
+import { StatusChipPopover } from '@/components/StatusChipPopover'
 import { Picklist } from '@/components/Picklist'
-
-function FiveStateBadge({ status }: { status: CardSlotStatus }) {
-  return <CardSlotBadge status={status} />
-}
 
 // ─── Grouped List View ───────────────────────────────────────────────────────
 
@@ -806,6 +814,8 @@ function GroupedListView({
                           key={card.id}
                           card={card}
                           status={statusMap.get(card.id) ?? 'open'}
+                          deckId={deckId}
+                          physicalCopyId={physicalCopyMap.get(card.id) ?? null}
                           availableCategories={availableCategories}
                           onCategoryChange={onCategoryChange}
                         />
@@ -887,7 +897,7 @@ function BasicLandRow({
                 {card.set_code?.toUpperCase() || 'Unknown set'}
                 {card.scryfall_id ? '' : ''}
               </span>
-              <FiveStateBadge status={statusMap.get(card.id) ?? 'original'} />
+              <CardSlotBadge status={statusMap.get(card.id) ?? 'original'} />
             </div>
           ))}
           {genericCount > 0 && (
@@ -906,11 +916,15 @@ function BasicLandRow({
 function CardRow({
   card,
   status,
+  deckId,
+  physicalCopyId,
   availableCategories,
   onCategoryChange,
 }: {
   card: DeckCard
   status: CardSlotStatus
+  deckId: number
+  physicalCopyId: number | null
   availableCategories: string[]
   onCategoryChange: (cardId: number, categories: StructuredCategories) => void
 }) {
@@ -982,8 +996,14 @@ function CardRow({
         </PopoverContent>
       </Popover>
 
-      {/* Five-state status badge */}
-      <FiveStateBadge status={status} />
+      {/* Interactive status chip */}
+      <StatusChipPopover
+        status={status}
+        cardName={card.card_name}
+        deckId={deckId}
+        deckCardsId={card.id}
+        physicalCopyId={physicalCopyId}
+      />
     </div>
   )
 }

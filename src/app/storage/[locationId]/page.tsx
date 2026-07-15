@@ -134,8 +134,7 @@ export default function StorageDetailPage() {
 function StorageCopyAssignButton({ cardName, physicalCopyId }: { cardName: string; physicalCopyId: number }) {
   const queryClient = useQueryClient()
 
-  // Fetch valid decks for this card (using deckId=0 as placeholder — endpoint uses card name)
-  // We need a lightweight endpoint to get valid decks by card name alone
+  // Fetch valid decks for this card
   const { data: validDecks, isLoading } = useQuery<ValidDeck[]>({
     queryKey: ['valid-decks', cardName],
     queryFn: async () => {
@@ -146,21 +145,49 @@ function StorageCopyAssignButton({ cardName, physicalCopyId }: { cardName: strin
     staleTime: 60 * 1000,
   })
 
+  // Atomic assign: find open slot in target deck + fill it
   const assignMutation = useMutation({
     mutationFn: async (targetDeckId: number) => {
-      // Find an open slot in the target deck for this card, then assign
-      const res = await fetch(`/api/decks/${targetDeckId}/card-actions/${encodeURIComponent(cardName)}`)
-      if (!res.ok) throw new Error('Could not check target deck')
-      const context = await res.json()
-      // The target deck should have this card in an open/claimed/unowned slot
-      // For now we just mark this copy as assigned — the deck must already have the card in its list
-      // If not, we just unassign from storage (it becomes available for the deck's allocation)
-      toast.info(`${cardName} freed for ${context.cardName ?? cardName}. Assign from deck's Cards tab.`)
-      return { targetDeckId }
+      // Find an open slot in the target deck for this card
+      const actionsRes = await fetch(`/api/decks/${targetDeckId}/card-actions/${encodeURIComponent(cardName)}`)
+      if (!actionsRes.ok) throw new Error('Could not check target deck')
+      const context = await actionsRes.json()
+
+      // card-actions returns from the perspective of the target deck
+      // If the target deck has this card with status 'open'/'claimed'/'unowned',
+      // we need the deckCardsId. But card-actions doesn't return deckCardsId directly.
+      // Use the reassign-to-deck endpoint which handles the slot lookup server-side.
+      // For unassigned copies, we do a direct assign via the slot lookup.
+      const res = await fetch('/api/allocation/reassign-to-deck', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ physicalCopyId, targetDeckId, cardName }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        // If "not currently assigned" error, the copy is free — try direct approach
+        if (err.error?.includes('not currently assigned')) {
+          // The copy is in storage (not assigned to any deck) — need a different path
+          // Call the assign endpoint with a slot lookup
+          const slotRes = await fetch('/api/allocation/assign-free-copy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ physicalCopyId, targetDeckId, cardName }),
+          })
+          if (!slotRes.ok) {
+            const slotErr = await slotRes.json().catch(() => ({}))
+            throw new Error(slotErr.error || 'Assign failed')
+          }
+          return slotRes.json()
+        }
+        throw new Error(err.error || 'Assign failed')
+      }
+      return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['storage'] })
       queryClient.invalidateQueries({ queryKey: ['collection'] })
+      toast.success(`Assigned ${cardName} to deck`)
     },
     onError: (err) => toast.error(err.message),
   })

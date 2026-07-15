@@ -179,25 +179,28 @@ export function InstanceDetailPanel({
     onError: (err) => toast.error(err.message),
   })
 
-  // Reassign mutation — unassign from current deck, making it available for the target
+  // Reassign mutation — atomic: unassign from source deck + assign to target deck in one call
   const reassignMutation = useMutation({
     mutationFn: async ({ physicalCopyId, targetDeckId }: { physicalCopyId: number; targetDeckId: number }) => {
-      const res = await fetch('/api/collection/instances/unassign', {
+      const res = await fetch('/api/allocation/reassign-to-deck', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ physicalCopyId }),
+        body: JSON.stringify({ physicalCopyId, targetDeckId, cardName }),
       })
-      if (!res.ok) throw new Error('Unassign failed')
-      return { targetDeckId }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Reassign failed')
+      }
+      return res.json() as Promise<{ success: boolean; targetDeckCardsId: number }>
     },
-    onSuccess: (data) => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['instances', oracleId] })
       queryClient.invalidateQueries({ queryKey: ['collection'] })
-      queryClient.invalidateQueries({ queryKey: ['decks', data.targetDeckId, 'card-statuses'] })
-      queryClient.invalidateQueries({ queryKey: ['picklist', data.targetDeckId] })
-      toast.success(`Freed for reassignment — assign from target deck's Cards tab`)
+      queryClient.invalidateQueries({ queryKey: ['decks', variables.targetDeckId, 'card-statuses'] })
+      queryClient.invalidateQueries({ queryKey: ['picklist', variables.targetDeckId] })
+      toast.success(`Reassigned to target deck`)
     },
-    onError: () => toast.error('Failed to reassign'),
+    onError: (err) => toast.error(err.message),
   })
 
   return (
@@ -790,6 +793,16 @@ function InstanceRowItem({
                   .then(res => { if (res.ok) { queryClient.invalidateQueries({ queryKey: ['instances', oracleId] }); queryClient.invalidateQueries({ queryKey: ['collection'] }); toast.success('Marked as missing') } else { toast.error('Failed to mark as missing') } })
                   .catch(() => toast.error('Failed to mark as missing'))
               }}
+              onAddProxy={() => {
+                // Card-level add proxy — creates a new proxy copy for this card, lands in storage
+                fetch(`/api/collection/instances/add-proxy`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ oracleId }),
+                })
+                  .then(res => { if (res.ok) { queryClient.invalidateQueries({ queryKey: ['instances', oracleId] }); queryClient.invalidateQueries({ queryKey: ['collection'] }); toast.success('Proxy added') } else { toast.error('Failed to add proxy') } })
+                  .catch(() => toast.error('Failed to add proxy'))
+              }}
               onDelete={onDelete}
               isUnassigning={isUnassigning}
             />
@@ -839,9 +852,10 @@ function InstanceRowItem({
 
 /* ─── KebabMenu (In Deck row) ───────────────────────────────────────── */
 
-function KebabMenu({ onUnassign, onMarkMissing, onDelete, isUnassigning }: {
+function KebabMenu({ onUnassign, onMarkMissing, onAddProxy, onDelete, isUnassigning }: {
   onUnassign?: () => void
   onMarkMissing: () => void
+  onAddProxy?: () => void
   onDelete: () => void
   isUnassigning: boolean
 }) {
@@ -882,6 +896,16 @@ function KebabMenu({ onUnassign, onMarkMissing, onDelete, isUnassigning }: {
             <AlertTriangle className="size-3" />
             Mark as missing
           </button>
+          {onAddProxy && (
+            <button
+              type="button"
+              onClick={() => { onAddProxy(); setOpen(false) }}
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-[length:var(--fs-xs)] text-[var(--text-secondary)] transition-colors hover:bg-[rgba(255,255,255,0.05)]"
+            >
+              <Plus className="size-3" />
+              Add proxy
+            </button>
+          )}
           <button
             type="button"
             onClick={() => { onDelete(); setOpen(false) }}

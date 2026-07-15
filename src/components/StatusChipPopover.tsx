@@ -235,24 +235,19 @@ function PopoverBody({
     onError: (err) => toast.error(err.message),
   })
 
-  // Reassign mutation — moves the physical copy to a slot in the target deck
+  // Reassign mutation — atomic: moves the physical copy to a slot in the target deck
   const reassignMutation = useMutation({
     mutationFn: async (targetDeckId: number) => {
-      // Unassign from current slot, then find an open slot in target deck and assign
-      // Step 1: Clear current slot
-      if (physicalCopyId) {
-        const unassignRes = await fetch('/api/collection/instances/unassign', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ physicalCopyId }),
-        })
-        if (!unassignRes.ok) throw new Error('Unassign failed')
+      if (!physicalCopyId) throw new Error('No physical copy to reassign')
+      const res = await fetch('/api/allocation/reassign-to-deck', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ physicalCopyId, targetDeckId, cardName }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Reassign failed')
       }
-      // Step 2: Find an open slot in target deck for this card and assign
-      const actionsRes = await fetch(`/api/decks/${targetDeckId}/card-actions/${encodeURIComponent(cardName)}`)
-      if (!actionsRes.ok) throw new Error('Failed to find slot in target deck')
-      // Note: The card-actions endpoint returns context for the target deck — we need a different approach
-      // For now we signal success and let the user fill the slot from the target deck's Cards tab
       return { targetDeckId }
     },
     onSuccess: (data) => {

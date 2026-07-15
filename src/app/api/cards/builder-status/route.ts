@@ -2,7 +2,7 @@
  * GET /api/cards/builder-status?cardNames=Sol+Ring,Rhystic+Study
  *
  * Returns the unified card slot status for one or more card names.
- * Used by the deck builder to show Original/Proxy/Unallocated/Claimed/Unowned per card.
+ * Used by the deck builder to show Original/Proxy/Open/Claimed/Unowned per card.
  *
  * For 'claimed' results, includes heldBy detail (which deck holds the card).
  */
@@ -14,7 +14,7 @@ import { createAdminClient } from '@/lib/supabase'
 
 export interface BuilderStatusResult {
   cardName: string
-  status: 'original' | 'proxy' | 'unallocated' | 'claimed' | 'unowned'
+  status: 'original' | 'proxy' | 'open' | 'claimed' | 'unowned'
   /** For claimed: which deck currently holds the card */
   heldBy: {
     deckId: number
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
         }
 
         results.push({ cardName, status: 'claimed', heldBy })
-      } else if (status === 'unallocated') {
+      } else if (status === 'open') {
         // Check if the free copy is a proxy or original
         try {
           const candidates = await fetchEnrichedSupply(cardName, userId)
@@ -93,10 +93,10 @@ export async function GET(request: NextRequest) {
               heldBy: null,
             })
           } else {
-            results.push({ cardName, status: 'unallocated', heldBy: null })
+            results.push({ cardName, status: 'open', heldBy: null })
           }
         } catch {
-          results.push({ cardName, status: 'unallocated', heldBy: null })
+          results.push({ cardName, status: 'open', heldBy: null })
         }
       } else {
         results.push({ cardName, status, heldBy: null })

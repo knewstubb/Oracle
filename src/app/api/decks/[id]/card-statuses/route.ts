@@ -56,7 +56,7 @@ export async function GET(
     total: statuses.filter(s => s.status !== 'generic_land').length,
     original: statuses.filter(s => s.status === 'original').length,
     proxy: statuses.filter(s => s.status === 'proxy').length,
-    unallocated: statuses.filter(s => s.status === 'unallocated').length,
+    open: statuses.filter(s => s.status === 'open').length,
     claimed: statuses.filter(s => s.status === 'claimed').length,
     unowned: statuses.filter(s => s.status === 'unowned').length,
     generic_land: statuses.filter(s => s.status === 'generic_land').length,

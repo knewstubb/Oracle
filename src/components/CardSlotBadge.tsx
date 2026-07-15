@@ -35,8 +35,8 @@ const STATUS_CONFIG: Record<
     bg: 'rgba(29, 158, 117, 0.06)',
     dotStyle: 'dashed',
   },
-  unallocated: {
-    label: 'Unallocated',
+  open: {
+    label: 'Open',
     color: 'var(--signal-warning)',
     bg: 'rgba(239, 159, 39, 0.10)',
     dotStyle: 'half',
@@ -178,7 +178,7 @@ export function getSlotTileBorderStyle(status: CardSlotStatus): React.CSSPropert
       return { border: `2.5px solid ${config.color}` }
     case 'proxy':
       return { border: `2.5px dashed ${config.color}` }
-    case 'unallocated':
+    case 'open':
       return { border: `2.5px solid ${config.color}` }
     case 'claimed':
       return { border: `2.5px solid ${config.color}` }

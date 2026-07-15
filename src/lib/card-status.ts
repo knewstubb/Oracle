@@ -7,7 +7,7 @@
  *
  * - original: resolved with an owned non-proxy copy
  * - proxy: resolved with a proxy copy
- * - unallocated: not resolved, but a free candidate exists (Tier 1–4 possible)
+ * - open: not resolved, but a free candidate exists (Tier 1–4 possible)
  * - claimed: not resolved, copies exist but ALL are held by other decks
  * - unowned: not resolved, no copy exists anywhere in the collection
  *
@@ -22,7 +22,7 @@ import { isBasicLand } from '@/lib/basic-lands'
 // Types
 // ---------------------------------------------------------------------------
 
-export type CardSlotStatus = 'original' | 'proxy' | 'unallocated' | 'claimed' | 'unowned' | 'generic_land'
+export type CardSlotStatus = 'original' | 'proxy' | 'open' | 'claimed' | 'unowned' | 'generic_land'
 
 export interface CardSlotWithStatus {
   deckCardsId: number
@@ -38,8 +38,8 @@ export interface CardSlotWithStatus {
 
 /**
  * Classify a single card slot's status from its DB fields.
- * NOTE: For unresolved slots, this returns 'unallocated' by default —
- * call computeBatchStatus() to distinguish unallocated vs claimed vs unowned.
+ * NOTE: For unresolved slots, this returns 'open' by default —
+ * call computeBatchStatus() to distinguish open vs claimed vs unowned.
  */
 export function classifySlotStatus(
   physicalCopyId: number | null,
@@ -49,7 +49,7 @@ export function classifySlotStatus(
     return isProxy ? 'proxy' : 'original'
   }
   // Default for unresolved — caller must use batch computation for accurate classification
-  return 'unallocated'
+  return 'open'
 }
 
 // ---------------------------------------------------------------------------
@@ -67,16 +67,16 @@ export function classifySlotStatus(
  *    which copies are free vs held
  * 3. Classify: free copy exists → unallocated, all held → claimed, none exist → unowned
  *
- * Returns a Map<cardName, 'unallocated' | 'claimed' | 'unowned'>
+ * Returns a Map<cardName, 'open' | 'claimed' | 'unowned'>
  */
 export async function computeUnresolvedStatuses(
   cardNames: string[],
   userId: string
-): Promise<Map<string, 'unallocated' | 'claimed' | 'unowned'>> {
+): Promise<Map<string, 'open' | 'claimed' | 'unowned'>> {
   if (cardNames.length === 0) return new Map()
 
   const supabase = createAdminClient()
-  const result = new Map<string, 'unallocated' | 'claimed' | 'unowned'>()
+  const result = new Map<string, 'open' | 'claimed' | 'unowned'>()
 
   // Default everything to 'unowned' — we'll upgrade based on physical copies
   for (const name of cardNames) {
@@ -175,7 +175,7 @@ export async function computeUnresolvedStatuses(
     }
 
     if (hasFree) {
-      result.set(cardName, 'unallocated')
+      result.set(cardName, 'open')
     } else if (hasAnyCopy) {
       result.set(cardName, 'claimed')
     }

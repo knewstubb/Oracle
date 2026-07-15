@@ -22,7 +22,7 @@ import { isBasicLand } from '@/lib/basic-lands'
 
 type ViewMode = 'list' | 'grid'
 type TabMode = 'all' | 'picklist'
-type StatusFilter = 'all' | 'original' | 'proxy' | 'unallocated' | 'claimed' | 'unowned'
+type StatusFilter = 'all' | 'original' | 'proxy' | 'open' | 'claimed' | 'unowned'
 type GroupBy = 'category' | 'type' | 'status' | 'cmc' | 'color'
 type SortBy = 'name' | 'type' | 'cmc'
 
@@ -53,7 +53,7 @@ interface CardStatusResponse {
     total: number
     original: number
     proxy: number
-    unallocated: number
+    open: number
     claimed: number
     unowned: number
   }
@@ -148,17 +148,17 @@ function groupByStatus(
   statusMap: Map<number, CardSlotStatus>
 ): [string, DeckCard[]][] {
   const groups: Record<string, DeckCard[]> = {}
-  const statusOrder = ['original', 'proxy', 'unallocated', 'claimed', 'unowned', 'generic_land']
+  const statusOrder = ['original', 'proxy', 'open', 'claimed', 'unowned', 'generic_land']
   const labels: Record<string, string> = {
     original: 'Original',
     proxy: 'Proxy',
-    unallocated: 'Unallocated',
+    open: 'Open',
     claimed: 'Claimed',
     unowned: 'Unowned',
     generic_land: 'Basic Lands (generic)',
   }
   for (const card of cards) {
-    const status = statusMap.get(card.id) ?? 'unallocated'
+    const status = statusMap.get(card.id) ?? 'open'
     const label = labels[status] ?? status
     if (!groups[label]) groups[label] = []
     groups[label].push(card)
@@ -235,7 +235,7 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
   const counts = useMemo(() => {
     if (statusData?.counts) return statusData.counts
     // Fallback if statuses haven't loaded yet
-    return { total: cards.length, original: 0, proxy: 0, unallocated: 0, claimed: 0, unowned: 0 }
+    return { total: cards.length, original: 0, proxy: 0, open: 0, claimed: 0, unowned: 0 }
   }, [statusData, cards.length])
 
   // ── Category Mutation ────────────────────────────────────────────────────────
@@ -535,9 +535,9 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
               color="teal-dim"
             />
             <StatusChip
-              label={`Unallocated — ${counts.unallocated}`}
-              isActive={statusFilter === 'unallocated'}
-              onClick={() => setStatusFilter('unallocated')}
+              label={`Open — ${counts.open}`}
+              isActive={statusFilter === 'open'}
+              onClick={() => setStatusFilter('open')}
               color="amber"
             />
             <StatusChip
@@ -600,7 +600,7 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="size-2.5 rounded-full" style={{ border: '2px solid var(--signal-warning)' }} aria-hidden="true" />
-            <span>{counts.unallocated} unallocated</span>
+            <span>{counts.open} open</span>
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="size-2.5 rounded-full" style={{ border: '2px solid var(--status-over)' }} aria-hidden="true" />
@@ -805,7 +805,7 @@ function GroupedListView({
                         <CardRow
                           key={card.id}
                           card={card}
-                          status={statusMap.get(card.id) ?? 'unallocated'}
+                          status={statusMap.get(card.id) ?? 'open'}
                           availableCategories={availableCategories}
                           onCategoryChange={onCategoryChange}
                         />
@@ -1012,9 +1012,9 @@ function GridView({
           </h4>
           <div className="grid grid-cols-4 gap-3" role="list" aria-label={`${groupName} cards`}>
             {groupCards.map((card) => {
-              const cardStatus = statusMap.get(card.id) ?? 'unallocated'
+              const cardStatus = statusMap.get(card.id) ?? 'open'
               const statusLabels: Record<string, string> = {
-                original: 'Original', proxy: 'Proxy', unallocated: 'Unallocated',
+                original: 'Original', proxy: 'Proxy', open: 'Open',
                 claimed: 'Claimed', unowned: 'Unowned', generic_land: '',
               }
               const statusLabel = statusLabels[cardStatus] || ''
@@ -1026,7 +1026,7 @@ function GridView({
                     return { border: '2.5px solid var(--accent-primary)' }
                   case 'proxy':
                     return { border: '2.5px dashed var(--accent-primary)' }
-                  case 'unallocated':
+                  case 'open':
                     return { border: '2.5px solid var(--signal-warning)' }
                   case 'claimed':
                     return { border: '2.5px solid var(--status-over)' }

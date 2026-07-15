@@ -47,6 +47,7 @@ export function CollectionRollupTab() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const [basicLandFilter, setBasicLandFilter] = useState(true)
   const [allocatedFilter, setAllocatedFilter] = useState(false)
+  const [showMissing, setShowMissing] = useState(false)
   const isMobile = useIsMobile()
 
   // ─── Selection model ───────────────────────────────────────────
@@ -214,6 +215,8 @@ export function CollectionRollupTab() {
           onBasicLandFilterChange={setBasicLandFilter}
           allocatedFilter={allocatedFilter}
           onAllocatedFilterChange={setAllocatedFilter}
+          showMissing={showMissing}
+          onShowMissingChange={setShowMissing}
           selectedOracleId={selectedOracleId}
           onRowClick={handleRowClick}
           onCheckboxToggle={handleCheckboxToggle}
@@ -231,6 +234,7 @@ export function CollectionRollupTab() {
                 onClose={handleClosePanel}
                 isInstanceSelected={isInstanceSelected}
                 onToggleInstance={handleToggleInstance}
+                showMissing={showMissing}
               />
             </div>
           ) : (
@@ -276,6 +280,7 @@ export function CollectionRollupTab() {
                 onClose={handleClosePanel}
                 isInstanceSelected={isInstanceSelected}
                 onToggleInstance={handleToggleInstance}
+                showMissing={showMissing}
               />
             </div>
           </div>

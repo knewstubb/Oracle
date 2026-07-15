@@ -9,6 +9,7 @@ import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { LocationPickerModal } from '@/components/LocationPickerModal'
 import { DeckPickerPopover, type ValidDeck } from '@/components/DeckPickerPopover'
 import { StorageLocationSelect } from '@/components/collection/StorageLocationSelect'
+import { MissingCopyRow } from '@/components/collection/MissingCopyRow'
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
 
@@ -19,6 +20,8 @@ interface InstanceDetailPanelProps {
   // Selection model integration
   isInstanceSelected: (physicalCopyId: number) => boolean
   onToggleInstance: (physicalCopyId: number) => void
+  /** When true, missing copies are shown with dimmed treatment. Default: hidden. */
+  showMissing?: boolean
 }
 
 interface InstanceRow {
@@ -29,6 +32,7 @@ interface InstanceRow {
   isFoil: boolean
   condition: string | null
   isProxy: boolean
+  isMissing: boolean
   assignedDeckName: string | null
   assignedDeckId: number | null
   assignedDeckStatus: string | null
@@ -77,6 +81,7 @@ export function InstanceDetailPanel({
   onClose,
   isInstanceSelected,
   onToggleInstance,
+  showMissing = false,
 }: InstanceDetailPanelProps) {
   const queryClient = useQueryClient()
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<number | null>(null)
@@ -232,8 +237,11 @@ export function InstanceDetailPanel({
           <div className="flex flex-col">
             {/* Section: In decks (assigned copies + Short entries) */}
             {(() => {
-              const inDeckInstances = data.instances.filter(i => i.assignedDeckName !== null)
-              const inStorageInstances = data.instances.filter(i => i.assignedDeckName === null)
+              // Separate missing copies from normal ones
+              const nonMissing = data.instances.filter(i => !i.isMissing)
+              const missingInstances = data.instances.filter(i => i.isMissing)
+              const inDeckInstances = nonMissing.filter(i => i.assignedDeckName !== null)
+              const inStorageInstances = nonMissing.filter(i => i.assignedDeckName === null)
               return (
                 <>
                   {(inDeckInstances.length > 0 || (data.shortDecks && data.shortDecks.length > 0)) && (
@@ -318,6 +326,25 @@ export function InstanceDetailPanel({
                           isUnassigning={unassignMutation.isPending && unassignMutation.variables === instance.physicalCopyId}
                           isDeleting={deleteMutation.isPending && deleteMutation.variables === instance.physicalCopyId}
                           validDecks={validDecks}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Section: Missing copies (only shown when toggle is on) */}
+                  {showMissing && missingInstances.length > 0 && (
+                    <div className="border-t border-[var(--border-subtle)]">
+                      <h3 className="px-4 py-2 text-[length:var(--fs-xs)] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Missing ({missingInstances.length})
+                      </h3>
+                      {missingInstances.map((instance) => (
+                        <MissingCopyRow
+                          key={instance.physicalCopyId}
+                          physicalCopyId={instance.physicalCopyId}
+                          cardName={data.cardName}
+                          setName={instance.setName}
+                          condition={instance.condition}
+                          isFoil={instance.isFoil}
                         />
                       ))}
                     </div>

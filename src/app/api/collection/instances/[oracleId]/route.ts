@@ -19,6 +19,7 @@ interface InstanceRow {
   isFoil: boolean
   condition: string | null
   isProxy: boolean
+  isMissing: boolean
   assignedDeckName: string | null
   assignedDeckId: number | null
   assignedDeckStatus: string | null
@@ -80,7 +81,7 @@ export async function GET(
     // 2. Get all physical copies for this card_definition belonging to the user
     const { data: copies, error: pcErr } = await (supabase as any)
       .from('physical_copies')
-      .select('id, scryfall_printing_id, is_foil, condition, is_proxy, storage_location_id, user_id')
+      .select('id, scryfall_printing_id, is_foil, condition, is_proxy, storage_location_id, missing, user_id')
       .eq('card_definition_id', cardDef.id)
       .eq('user_id', authResult.id)
 
@@ -172,6 +173,7 @@ export async function GET(
         isFoil: Boolean(pc.is_foil),
         condition: pc.condition ?? null,
         isProxy: Boolean(pc.is_proxy),
+        isMissing: Boolean(pc.missing),
         assignedDeckName: assignment?.deckName ?? null,
         assignedDeckId: assignment?.deckId ?? null,
         assignedDeckStatus: assignment?.deckStatus ?? null,

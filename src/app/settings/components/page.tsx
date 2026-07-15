@@ -91,48 +91,54 @@ export default function ComponentLibraryPage() {
 function TokensSection() {
   return (
     <>
-      {/* Colors */}
+      {/* Colors — unified system (shadcn canonical + app extensions) */}
       <div>
-        <h2 className="text-[length:var(--fs-lg)] font-medium text-[var(--text-primary)] mb-4">Colors</h2>
-
-        <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-3">Neutral ramp</h3>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8 mb-6">
-          <EditableColorSwatch name="Canvas" cssVar="--bg-canvas" defaultHex="#131316" />
-          <EditableColorSwatch name="Surface" cssVar="--bg-surface" defaultHex="#1A1A1E" />
-          <EditableColorSwatch name="Surface hover" cssVar="--bg-surface-hover" defaultHex="#212126" />
-          <EditableColorSwatch name="Border subtle" cssVar="--border-subtle" defaultHex="#262629" />
-          <EditableColorSwatch name="Border default" cssVar="--border-default" defaultHex="#35353A" />
-          <EditableColorSwatch name="Text tertiary" cssVar="--text-tertiary" defaultHex="#6E6E76" />
-          <EditableColorSwatch name="Text secondary" cssVar="--text-secondary" defaultHex="#9C9CA3" />
-          <EditableColorSwatch name="Text primary" cssVar="--text-primary" defaultHex="#E8E8EA" />
-        </div>
-
-        <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-3">Accent &amp; signals</h3>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6 mb-6">
-          <EditableColorSwatch name="Accent primary" cssVar="--accent-primary" defaultHex="#1D9E75" />
-          <EditableColorSwatch name="Success" cssVar="--signal-success" defaultHex="#1D9E75" />
-          <EditableColorSwatch name="Warning" cssVar="--signal-warning" defaultHex="#EF9F27" />
-          <EditableColorSwatch name="Critical" cssVar="--signal-critical" defaultHex="#E24B4A" />
-          <EditableColorSwatch name="Destructive" cssVar="--signal-destructive" defaultHex="#DC2626" />
-        </div>
+        <h2 className="text-[length:var(--fs-lg)] font-medium text-[var(--text-primary)] mb-2">Colors</h2>
         <p className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)] mb-6">
-          <strong className="text-[var(--text-secondary)]">Accent:</strong> interactive elements (buttons, links).{' '}
-          <strong className="text-[var(--text-secondary)]">Success:</strong> positive state (card resolved/assigned).{' '}
-          <strong className="text-[var(--text-secondary)]">Warning:</strong> attention needed (open slot, health warn).{' '}
-          <strong className="text-[var(--text-secondary)]">Critical:</strong> bad state indicator (unowned, missing).{' '}
-          <strong className="text-[var(--text-secondary)]">Destructive:</strong> dangerous action buttons (delete, clear data).
+          shadcn/ui variables are the canonical color system. App-specific tokens (status, WUBRG) extend but do not duplicate.
         </p>
 
-        <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-3">Status colors</h3>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6 mb-6">
-          <EditableColorSwatch name="Owned" cssVar="--status-owned" defaultHex="#5F5E5A" />
-          <EditableColorSwatch name="Proxy" cssVar="--status-proxy" defaultHex="#4A93A0" />
-          <EditableColorSwatch name="Unowned" cssVar="--status-unowned" defaultHex="#F0339E" />
-          <EditableColorSwatch name="Over-allocated" cssVar="--status-over" defaultHex="#FF5F1F" />
+        <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-3">Surfaces &amp; text</h3>
+        <p className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)] mb-3">
+          shadcn variables consumed by all components. Dark mode values shown.
+        </p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8 mb-6">
+          <EditableColorSwatch name="background" cssVar="--bg-canvas" defaultHex="#131316" />
+          <EditableColorSwatch name="card" cssVar="--bg-surface" defaultHex="#1A1A1E" />
+          <EditableColorSwatch name="accent" cssVar="--bg-surface-hover" defaultHex="#212126" />
+          <EditableColorSwatch name="border" cssVar="--border-default" defaultHex="#35353A" />
+          <EditableColorSwatch name="border-subtle" cssVar="--border-subtle" defaultHex="#262629" />
+          <EditableColorSwatch name="muted-foreground" cssVar="--text-tertiary" defaultHex="#6E6E76" />
+          <EditableColorSwatch name="foreground (muted)" cssVar="--text-secondary" defaultHex="#9C9CA3" />
+          <EditableColorSwatch name="foreground" cssVar="--text-primary" defaultHex="#E8E8EA" />
         </div>
 
-        <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-3">WUBRG (Magic color identity)</h3>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5 mb-6">
+        <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-3">Primary &amp; semantic</h3>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5 mb-4">
+          <EditableColorSwatch name="primary" cssVar="--accent-primary" defaultHex="#1D9E75" />
+          <EditableColorSwatch name="success" cssVar="--signal-success" defaultHex="#1D9E75" />
+          <EditableColorSwatch name="warning" cssVar="--signal-warning" defaultHex="#EF9F27" />
+          <EditableColorSwatch name="destructive" cssVar="--signal-destructive" defaultHex="#DC2626" />
+          <EditableColorSwatch name="critical (state)" cssVar="--signal-critical" defaultHex="#E24B4A" />
+        </div>
+        <p className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)] mb-6">
+          <strong className="text-[var(--text-secondary)]">primary:</strong> buttons, links, focus rings, accent surfaces.{' '}
+          <strong className="text-[var(--text-secondary)]">success:</strong> positive state (card resolved).{' '}
+          <strong className="text-[var(--text-secondary)]">warning:</strong> attention needed (open slot).{' '}
+          <strong className="text-[var(--text-secondary)]">destructive:</strong> delete/danger action buttons.{' '}
+          <strong className="text-[var(--text-secondary)]">critical:</strong> bad state indicator (unowned, missing) — not an action, just a status.
+        </p>
+
+        <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-3">Status (app-specific)</h3>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5 mb-6">
+          <EditableColorSwatch name="owned" cssVar="--status-owned" defaultHex="#5F5E5A" />
+          <EditableColorSwatch name="proxy" cssVar="--status-proxy" defaultHex="#4A93A0" />
+          <EditableColorSwatch name="unowned" cssVar="--status-unowned" defaultHex="#F0339E" />
+          <EditableColorSwatch name="over-allocated" cssVar="--status-over" defaultHex="#FF5F1F" />
+        </div>
+
+        <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-3">WUBRG (app-specific)</h3>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5 mb-4">
           <EditableColorSwatch name="White (W)" cssVar="--mana-white" defaultHex="#F5F0C1" />
           <EditableColorSwatch name="Blue (U)" cssVar="--mana-blue" defaultHex="#6BA5C4" />
           <EditableColorSwatch name="Black (B)" cssVar="--mana-black" defaultHex="#9E9E9E" />
@@ -140,48 +146,8 @@ function TokensSection() {
           <EditableColorSwatch name="Green (G)" cssVar="--mana-green" defaultHex="#7BC4A0" />
         </div>
         <p className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)]">
-          WUBRG colors are used on deck tile color bars, collection filter icons, and mana pip rendering.
-          Changes here preview live across the entire app (session-only).
+          Deck tile color bars, collection filter icons, mana pips.
         </p>
-      </div>
-
-      <Separator />
-
-      {/* shadcn/ui Theme Colors */}
-      <div>
-        <h2 className="text-[length:var(--fs-lg)] font-medium text-[var(--text-primary)] mb-2">shadcn/ui theme colors</h2>
-        <p className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)] mb-4">
-          These are the CSS variables consumed by shadcn components (Button, Badge, Dialog, etc.) via Tailwind.
-          In dark mode, they map to the design tokens above.
-        </p>
-
-        <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-3">Surfaces</h3>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6 mb-6">
-          <ShadcnSwatch name="background" var="var(--background)" desc="Page background" />
-          <ShadcnSwatch name="foreground" var="var(--foreground)" desc="Default text" />
-          <ShadcnSwatch name="card" var="var(--card)" desc="Card surfaces" />
-          <ShadcnSwatch name="popover" var="var(--popover)" desc="Popover/dropdown" />
-          <ShadcnSwatch name="muted" var="var(--muted)" desc="Muted backgrounds" />
-          <ShadcnSwatch name="accent" var="var(--accent)" desc="Accent surfaces" />
-        </div>
-
-        <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-3">Interactive</h3>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6 mb-6">
-          <ShadcnSwatch name="primary" var="var(--primary)" desc="Primary buttons" />
-          <ShadcnSwatch name="primary-foreground" var="var(--primary-foreground)" desc="Text on primary" />
-          <ShadcnSwatch name="secondary" var="var(--secondary)" desc="Secondary buttons" />
-          <ShadcnSwatch name="destructive" var="var(--destructive)" desc="Delete/danger" />
-          <ShadcnSwatch name="ring" var="var(--ring)" desc="Focus ring" />
-          <ShadcnSwatch name="border" var="var(--border)" desc="Default borders" />
-        </div>
-
-        <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-3">Text</h3>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6 mb-6">
-          <ShadcnSwatch name="foreground" var="var(--foreground)" desc="Primary text" />
-          <ShadcnSwatch name="muted-foreground" var="var(--muted-foreground)" desc="Secondary text" />
-          <ShadcnSwatch name="card-foreground" var="var(--card-foreground)" desc="Card text" />
-          <ShadcnSwatch name="accent-foreground" var="var(--accent-foreground)" desc="Accent text" />
-        </div>
       </div>
 
       <Separator />
@@ -666,19 +632,6 @@ function TypographySample({ size, label, value }: { size: string; label: string;
         The quick brown fox jumps over the lazy dog
       </span>
       <span className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)]">{value}</span>
-    </div>
-  )
-}
-
-function ShadcnSwatch({ name, desc }: { name: string; var: string; desc: string }) {
-  return (
-    <div className="flex flex-col items-center gap-1.5">
-      <div
-        className="size-10 rounded-lg border border-[rgba(255,255,255,0.1)]"
-        style={{ backgroundColor: `var(--${name.replace('-foreground', '-foreground')})` }}
-      />
-      <span className="text-[length:var(--fs-xs)] text-[var(--text-secondary)] text-center leading-tight">{name}</span>
-      <span className="text-[9px] text-[var(--text-tertiary)]">{desc}</span>
     </div>
   )
 }

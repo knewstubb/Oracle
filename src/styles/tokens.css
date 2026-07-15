@@ -1,9 +1,12 @@
 /*
  * Design System Tokens
- * Based on oracle-ui-spec.md
  *
- * These CSS custom properties define the visual language for The Oracle UI.
- * Import this file in globals.css to make tokens available app-wide.
+ * shadcn/ui variables are the canonical color system.
+ * App-specific tokens (spacing, typography, WUBRG, status, layout) extend
+ * but do not duplicate the shadcn set.
+ *
+ * Legacy aliases (--bg-canvas, --text-primary, etc.) are provided below
+ * for backward compatibility. New code should use the shadcn names directly.
  */
 
 :root {
@@ -30,22 +33,12 @@
   --font-normal: 400;
   --font-medium: 500;
 
-  /* ─── Neutral Ramp ───────────────────────────────────────────────── */
-  --bg-canvas: #131316;
-  --bg-surface: #1A1A1E;
-  --bg-surface-hover: #212126;
-  --border-subtle: #262629;
-  --border-default: #35353A;
-  --text-tertiary: #6E6E76;
-  --text-secondary: #9C9CA3;
-  --text-primary: #E8E8EA;
-
-  /* ─── Status – Ownership Axis ────────────────────────────────────── */
+  /* ─── Status – Ownership ─────────────────────────────────────────── */
   --status-owned: #5F5E5A;
   --status-proxy: #4A93A0;
   --status-unowned: #F0339E;
 
-  /* ─── Status – Allocation Axis ───────────────────────────────────── */
+  /* ─── Status – Allocation ────────────────────────────────────────── */
   --status-unallocated: #5F5E5A;
   --status-partial: #8A8A92;
   --status-full: #5F5E5A;
@@ -67,11 +60,31 @@
   /* ─── Layout – Master-Detail ─────────────────────────────────────── */
   --detail-panel-width: 320px;
 
-  /* ─── UI Accent (primary interactive color) ──────────────────────── */
+  /* ─── Border Radius ──────────────────────────────────────────────── */
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+
+  /* ═══════════════════════════════════════════════════════════════════
+   * Legacy aliases → shadcn equivalents (backward compat)
+   * New code should use the shadcn variable directly.
+   * These will be removed in a future cleanup pass.
+   * ═══════════════════════════════════════════════════════════════════ */
+
+  /* Neutral ramp → shadcn surfaces */
+  --bg-canvas: #131316;
+  --bg-surface: #1A1A1E;
+  --bg-surface-hover: #212126;
+  --border-subtle: #262629;
+  --border-default: #35353A;
+  --text-tertiary: #6E6E76;
+  --text-secondary: #9C9CA3;
+  --text-primary: #E8E8EA;
+
+  /* Accent → shadcn primary */
   --accent-primary: #1D9E75;
   --accent-primary-bg: rgba(29, 158, 117, 0.15);
 
-  /* ─── Semantic Signals ───────────────────────────────────────────── */
+  /* Signals → shadcn semantic */
   --signal-success: #1D9E75;
   --signal-success-bg: rgba(29, 158, 117, 0.15);
   --signal-warning: #EF9F27;
@@ -81,14 +94,8 @@
   --signal-destructive: #DC2626;
   --signal-destructive-bg: rgba(220, 38, 38, 0.12);
 
-  /* ─── Surfaces (legacy aliases — updated to match neutral ramp) ──── */
+  /* Legacy surface aliases */
   --bg-page: #131316;
   --bg-card: rgba(255, 255, 255, 0.04);
-
-  /* ─── Borders (legacy) ───────────────────────────────────────────── */
   --border-emphasis: rgba(255, 255, 255, 0.1);
-
-  /* ─── Border Radius ──────────────────────────────────────────────── */
-  --border-radius-md: 8px;
-  --border-radius-lg: 12px;
 }

@@ -19,7 +19,7 @@ export function OwnershipBadge({ status, holderDeckName, className }: OwnershipB
 
   const ariaLabel =
     status === 'proxy' && holderDeckName
-      ? `${label} — Original held by ${holderDeckName}`
+      ? `${label} — Original claimed by ${holderDeckName}`
       : label
 
   return (

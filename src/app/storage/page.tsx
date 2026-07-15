@@ -1,10 +1,12 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
-import { Plus, Archive } from 'lucide-react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Plus, Settings2 } from 'lucide-react'
 import Link from 'next/link'
 import { PageHeader } from '@/components/PageHeader'
 import { Skeleton } from '@/components/ui/skeleton'
+import { StorageLocationsSettings } from '@/components/settings/storage-locations-settings'
 
 interface LocationWithCount {
   id: number
@@ -19,6 +21,9 @@ interface StorageOverview {
 }
 
 export default function StoragePage() {
+  const [showManage, setShowManage] = useState(false)
+  const queryClient = useQueryClient()
+
   const { data, isLoading } = useQuery<StorageOverview>({
     queryKey: ['storage', 'overview'],
     queryFn: async () => {
@@ -42,6 +47,7 @@ export default function StoragePage() {
               ))}
             </div>
           ) : (
+            <>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
               {/* Location tiles */}
               {(data?.locations ?? []).map((loc) => (
@@ -87,15 +93,26 @@ export default function StoragePage() {
                 </div>
               </Link>
 
-              {/* New location button */}
-              <Link
-                href="/settings"
+              {/* Manage locations button */}
+              <button
+                type="button"
+                onClick={() => setShowManage(!showManage)}
                 className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[var(--border-default)] p-4 text-muted-foreground transition-all hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)]"
               >
-                <Plus className="size-5" />
-                <span className="mt-2 text-[length:var(--fs-sm)] font-medium">New location</span>
-              </Link>
+                {showManage ? <Settings2 className="size-5" /> : <Plus className="size-5" />}
+                <span className="mt-2 text-[length:var(--fs-sm)] font-medium">
+                  {showManage ? 'Close' : 'Manage locations'}
+                </span>
+              </button>
             </div>
+
+            {/* Inline Storage Locations CRUD panel */}
+            {showManage && (
+              <div className="mt-6 max-w-lg rounded-xl border border-[var(--border-default)] bg-card p-5">
+                <StorageLocationsSettings />
+              </div>
+            )}
+          </>
           )}
         </div>
       </div>

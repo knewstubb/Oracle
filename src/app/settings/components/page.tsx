@@ -97,33 +97,43 @@ function TokensSection() {
 
         <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-3">Neutral ramp</h3>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8 mb-6">
-          <ColorSwatch name="Canvas" var="--bg-canvas" hex="#131316" />
-          <ColorSwatch name="Surface" var="--bg-surface" hex="#1A1A1E" />
-          <ColorSwatch name="Surface hover" var="--bg-surface-hover" hex="#212126" />
-          <ColorSwatch name="Border subtle" var="--border-subtle" hex="#262629" />
-          <ColorSwatch name="Border default" var="--border-default" hex="#35353A" />
-          <ColorSwatch name="Text tertiary" var="--text-tertiary" hex="#6E6E76" />
-          <ColorSwatch name="Text secondary" var="--text-secondary" hex="#9C9CA3" />
-          <ColorSwatch name="Text primary" var="--text-primary" hex="#E8E8EA" />
+          <EditableColorSwatch name="Canvas" cssVar="--bg-canvas" defaultHex="#131316" />
+          <EditableColorSwatch name="Surface" cssVar="--bg-surface" defaultHex="#1A1A1E" />
+          <EditableColorSwatch name="Surface hover" cssVar="--bg-surface-hover" defaultHex="#212126" />
+          <EditableColorSwatch name="Border subtle" cssVar="--border-subtle" defaultHex="#262629" />
+          <EditableColorSwatch name="Border default" cssVar="--border-default" defaultHex="#35353A" />
+          <EditableColorSwatch name="Text tertiary" cssVar="--text-tertiary" defaultHex="#6E6E76" />
+          <EditableColorSwatch name="Text secondary" cssVar="--text-secondary" defaultHex="#9C9CA3" />
+          <EditableColorSwatch name="Text primary" cssVar="--text-primary" defaultHex="#E8E8EA" />
         </div>
 
         <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-3">Accent &amp; signals</h3>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6 mb-6">
-          <ColorSwatch name="Accent primary" var="--accent-primary" hex="#1D9E75" />
-          <ColorSwatch name="Accent bg" var="--accent-primary-bg" hex="rgba(29,158,117,0.15)" />
-          <ColorSwatch name="Warning" var="--signal-warning" hex="#EF9F27" />
-          <ColorSwatch name="Warning bg" var="--signal-warning-bg" hex="rgba(239,159,39,0.15)" />
-          <ColorSwatch name="Critical" var="--signal-critical" hex="#E24B4A" />
-          <ColorSwatch name="Critical bg" var="--signal-critical-bg" hex="rgba(226,75,74,0.15)" />
+          <EditableColorSwatch name="Accent primary" cssVar="--accent-primary" defaultHex="#1D9E75" />
+          <EditableColorSwatch name="Warning" cssVar="--signal-warning" defaultHex="#EF9F27" />
+          <EditableColorSwatch name="Critical" cssVar="--signal-critical" defaultHex="#E24B4A" />
+          <EditableColorSwatch name="Over-allocated" cssVar="--status-over" defaultHex="#FF5F1F" />
         </div>
 
         <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-3">Status colors</h3>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-          <ColorSwatch name="Owned" var="--status-owned" hex="#5F5E5A" />
-          <ColorSwatch name="Proxy" var="--status-proxy" hex="#4A93A0" />
-          <ColorSwatch name="Unowned" var="--status-unowned" hex="#F0339E" />
-          <ColorSwatch name="Over-allocated" var="--status-over" hex="#FF5F1F" />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6 mb-6">
+          <EditableColorSwatch name="Owned" cssVar="--status-owned" defaultHex="#5F5E5A" />
+          <EditableColorSwatch name="Proxy" cssVar="--status-proxy" defaultHex="#4A93A0" />
+          <EditableColorSwatch name="Unowned" cssVar="--status-unowned" defaultHex="#F0339E" />
         </div>
+
+        <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-3">WUBRG (Magic color identity)</h3>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5 mb-6">
+          <WubrgSwatch letter="W" name="White (Plains)" hex="#F9FAF4" />
+          <WubrgSwatch letter="U" name="Blue (Island)" hex="#0E68AB" />
+          <WubrgSwatch letter="B" name="Black (Swamp)" hex="#150B00" />
+          <WubrgSwatch letter="R" name="Red (Mountain)" hex="#D3202A" />
+          <WubrgSwatch letter="G" name="Green (Forest)" hex="#00733E" />
+        </div>
+        <p className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)]">
+          WUBRG colors are used in color identity filters, mana pip icons, and deck tile accents.
+          These match the official MTG color pie.
+        </p>
       </div>
 
       <Separator />
@@ -544,15 +554,98 @@ function FeedbackSection() {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function ColorSwatch({ name, hex }: { name: string; var: string; hex: string }) {
+function EditableColorSwatch({ name, cssVar, defaultHex }: { name: string; cssVar: string; defaultHex: string }) {
+  const [color, setColor] = useState(defaultHex)
+  const [editing, setEditing] = useState(false)
+
+  const handleChange = (newColor: string) => {
+    setColor(newColor)
+    // Apply to document for live preview
+    document.documentElement.style.setProperty(cssVar, newColor)
+  }
+
+  const handleReset = () => {
+    setColor(defaultHex)
+    document.documentElement.style.setProperty(cssVar, defaultHex)
+  }
+
   return (
     <div className="flex flex-col items-center gap-1.5">
-      <div
-        className="size-10 rounded-lg border border-[rgba(255,255,255,0.1)]"
-        style={{ backgroundColor: hex }}
-      />
+      <div className="relative group">
+        <div
+          className="size-10 rounded-lg border border-[rgba(255,255,255,0.1)] cursor-pointer transition-transform hover:scale-110"
+          style={{ backgroundColor: color }}
+          onClick={() => setEditing(!editing)}
+          title={`Click to edit ${name}`}
+        />
+        {color !== defaultHex && (
+          <button
+            onClick={(e) => { e.stopPropagation(); handleReset() }}
+            className="absolute -top-1 -right-1 size-3.5 rounded-full bg-[var(--signal-critical)] text-white text-[8px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+            title="Reset to default"
+          >
+            x
+          </button>
+        )}
+      </div>
       <span className="text-[length:var(--fs-xs)] text-[var(--text-secondary)] text-center leading-tight">{name}</span>
-      <span className="text-[9px] text-[var(--text-tertiary)] font-mono">{hex}</span>
+      <span className="text-[9px] text-[var(--text-tertiary)] font-mono">{color}</span>
+      {editing && (
+        <div className="mt-1 flex flex-col items-center gap-1">
+          <input
+            type="color"
+            value={color.startsWith('#') ? color : defaultHex}
+            onChange={(e) => handleChange(e.target.value)}
+            className="size-8 cursor-pointer rounded border-none bg-transparent"
+          />
+          <input
+            type="text"
+            value={color}
+            onChange={(e) => handleChange(e.target.value)}
+            className="w-[72px] rounded border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1 py-0.5 text-center text-[9px] font-mono text-[var(--text-secondary)]"
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function WubrgSwatch({ letter, name, hex }: { letter: string; name: string; hex: string }) {
+  const [color, setColor] = useState(hex)
+  const [editing, setEditing] = useState(false)
+
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div className="relative">
+        <div
+          className="size-12 rounded-full border-2 border-[rgba(255,255,255,0.15)] cursor-pointer flex items-center justify-center transition-transform hover:scale-110"
+          style={{ backgroundColor: color }}
+          onClick={() => setEditing(!editing)}
+          title={`Click to edit ${name}`}
+        >
+          <span className="text-[length:var(--fs-lg)] font-medium" style={{ color: letter === 'W' ? '#1a1a1a' : '#fff' }}>
+            {letter}
+          </span>
+        </div>
+      </div>
+      <span className="text-[length:var(--fs-xs)] text-[var(--text-secondary)] text-center leading-tight">{name}</span>
+      <span className="text-[9px] text-[var(--text-tertiary)] font-mono">{color}</span>
+      {editing && (
+        <div className="mt-1 flex flex-col items-center gap-1">
+          <input
+            type="color"
+            value={color}
+            onChange={(e) => setColor(e.target.value)}
+            className="size-8 cursor-pointer rounded border-none bg-transparent"
+          />
+          <input
+            type="text"
+            value={color}
+            onChange={(e) => setColor(e.target.value)}
+            className="w-[72px] rounded border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1 py-0.5 text-center text-[9px] font-mono text-[var(--text-secondary)]"
+          />
+        </div>
+      )}
     </div>
   )
 }

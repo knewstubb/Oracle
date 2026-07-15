@@ -126,7 +126,7 @@ function StatusDot({ dotStyle, color }: { dotStyle: string; color: string }) {
  * Unified badge component for the five-state card slot taxonomy.
  * Used in Cards Tab, Builder search, and Picklist.
  *
- * For 'claimed' status, shows a "Held by [deck]" subtext line.
+ * For 'claimed' status, shows a "Claimed by [deck]" subtext line.
  * For 'generic_land' status, renders nothing (exempt from taxonomy display).
  */
 export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: CardSlotBadgeProps) {
@@ -148,10 +148,9 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
         <StatusDot dotStyle={config.dotStyle} color={config.color} />
         {config.label}
       </span>
-      {/* Claimed: name the holding deck */}
       {status === 'claimed' && heldBy && (
         <span className="max-w-[20ch] truncate text-[length:var(--fs-xs)] text-muted-foreground">
-          Held by {heldBy.deckName}
+          Claimed by {heldBy.deckName}
         </span>
       )}
     </span>

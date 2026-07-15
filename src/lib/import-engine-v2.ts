@@ -72,6 +72,7 @@ interface ParsedImportRow {
   condition: string
   isProxy: boolean
   oracleId: string  // Pre-resolved oracle_id (from CSV column like "Scryfall Oracle ID")
+  dateAdded: string // ISO date string, or empty (defaults to import timestamp via DB)
 }
 
 // ---------------------------------------------------------------------------
@@ -161,8 +162,8 @@ function extractRowFields(
     case 'archidekt':
       return extractArchidektRow(fields, colIdx, rowIndex)
     default:
-      // Attempt archidekt-like extraction for 'manual' / unknown formats
-      return extractArchidektRow(fields, colIdx, rowIndex)
+      // Generic extractor: flexible column alias matching for unknown formats
+      return extractGenericRow(fields, colIdx, rowIndex)
   }
 }
 
@@ -190,6 +191,7 @@ function extractArchidektRow(
     condition: fields[colIdx['Condition']] || '',
     isProxy: false, // Archidekt has no proxy column
     oracleId: fields[colIdx['Scryfall Oracle ID']] || '',
+    dateAdded: fields[colIdx['Date Added']] || '',
   }
 }
 
@@ -231,6 +233,7 @@ function extractMoxfieldRow(
     condition: fields[colIdx['Condition']] || '',
     isProxy,
     oracleId: '',
+    dateAdded: fields[colIdx['Last Modified']] || '',
   }
 }
 
@@ -273,6 +276,113 @@ function extractManaboxRow(
     condition: fields[colIdx['Condition']] || '',
     isProxy,
     oracleId: fields[colIdx['Scryfall Oracle ID']] || '',
+    dateAdded: fields[colIdx['Added']] || '',
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Generic Column Alias Map
+// ---------------------------------------------------------------------------
+
+/**
+ * Maps common column header variations (case-insensitive) to our internal field names.
+ * Covers: Archidekt, Moxfield, ManaBox, Deckbox, MTGGoldfish, DragonShield, TCGPlayer,
+ * and plain/custom CSV exports.
+ */
+const COLUMN_ALIASES: Record<string, string[]> = {
+  name: ['name', 'card name', 'card_name', 'cardname', 'card'],
+  quantity: ['quantity', 'qty', 'count', 'amount', 'copies', 'tradelist count'],
+  scryfallId: ['scryfall id', 'scryfall_id', 'scryfallid', 'id #'],
+  oracleId: ['scryfall oracle id', 'oracle_id', 'oracle id', 'oracleid'],
+  editionCode: ['edition code', 'edition_code', 'set code', 'set_code', 'set', 'edition'],
+  editionName: ['edition name', 'edition_name', 'set name', 'set_name'],
+  collectorNumber: ['collector number', 'collector_number', 'card number', 'collector #', 'number', 'card_number'],
+  finish: ['finish', 'foil', 'premium'],
+  condition: ['condition', 'cond'],
+  language: ['language', 'lang'],
+  proxy: ['proxy', 'is_proxy'],
+  tags: ['tags', 'label', 'labels'],
+  purchasePrice: ['purchase price', 'purchase_price', 'price', 'my price'],
+  dateAdded: ['date added', 'date_added', 'added', 'last modified', 'last_modified', 'date'],
+}
+
+/**
+ * Find a column index by checking all known aliases (case-insensitive).
+ * Returns the index or -1 if no alias matches.
+ */
+function findColumnByAlias(colIdx: Record<string, number>, field: string): number {
+  const aliases = COLUMN_ALIASES[field]
+  if (!aliases) return -1
+
+  // First check if any alias matches a key in colIdx exactly
+  for (const alias of aliases) {
+    if (colIdx[alias] !== undefined) return colIdx[alias]
+  }
+
+  // Case-insensitive fallback: check lowercase versions of all colIdx keys
+  const lowerKeys = Object.entries(colIdx)
+  for (const alias of aliases) {
+    const match = lowerKeys.find(([key]) => key.toLowerCase() === alias)
+    if (match) return match[1]
+  }
+
+  return -1
+}
+
+/**
+ * Generic row extractor for unknown CSV formats.
+ * Uses the alias map to find columns regardless of exact header naming.
+ * Only requires a card name — everything else defaults gracefully.
+ */
+function extractGenericRow(
+  fields: string[],
+  colIdx: Record<string, number>,
+  rowIndex: number
+): ParsedImportRow | null {
+  const nameIdx = findColumnByAlias(colIdx, 'name')
+  if (nameIdx < 0) return null
+
+  const name = fields[nameIdx]?.trim() || ''
+  if (!name) return null
+
+  const qtyIdx = findColumnByAlias(colIdx, 'quantity')
+  const rawQuantity = qtyIdx >= 0 ? (fields[qtyIdx] || '1') : '1'
+  const quantity = parseInt(rawQuantity, 10)
+  if (isNaN(quantity) || quantity < 1) return null
+
+  const scryfallIdx = findColumnByAlias(colIdx, 'scryfallId')
+  const oracleIdx = findColumnByAlias(colIdx, 'oracleId')
+  const edCodeIdx = findColumnByAlias(colIdx, 'editionCode')
+  const edNameIdx = findColumnByAlias(colIdx, 'editionName')
+  const collNumIdx = findColumnByAlias(colIdx, 'collectorNumber')
+  const finishIdx = findColumnByAlias(colIdx, 'finish')
+  const conditionIdx = findColumnByAlias(colIdx, 'condition')
+  const proxyIdx = findColumnByAlias(colIdx, 'proxy')
+  const dateIdx = findColumnByAlias(colIdx, 'dateAdded')
+
+  // Normalize finish/foil value
+  const rawFinish = finishIdx >= 0 ? (fields[finishIdx] || '').toLowerCase() : ''
+  let finish = 'Normal'
+  if (rawFinish === 'foil' || rawFinish === 'true' || rawFinish === 'yes') finish = 'Foil'
+  else if (rawFinish === 'etched') finish = 'Etched'
+
+  // Detect proxy
+  const rawProxy = proxyIdx >= 0 ? (fields[proxyIdx] || '').toLowerCase() : ''
+  const isProxy = rawProxy === 'true' || rawProxy === 'yes' || rawProxy === '1'
+
+  return {
+    rowIndex,
+    name,
+    quantity,
+    scryfallId: scryfallIdx >= 0 ? (fields[scryfallIdx] || '') : '',
+    editionCode: edCodeIdx >= 0 ? (fields[edCodeIdx] || '') : '',
+    editionName: edNameIdx >= 0 ? (fields[edNameIdx] || '') : '',
+    collectorNumber: collNumIdx >= 0 ? (fields[collNumIdx] || '') : '',
+    finish,
+    condition: conditionIdx >= 0 ? (fields[conditionIdx] || '') : '',
+    isProxy,
+    oracleId: oracleIdx >= 0 ? (fields[oracleIdx] || '') : '',
+    dateAdded: dateIdx >= 0 ? (fields[dateIdx] || '') : '',
   }
 }
 
@@ -288,6 +398,7 @@ function extractManaboxRow(
  * 1. If scryfallId is present → query oracle_to_printings for oracle_id
  * 2. If no oracle_id found → call Scryfall API as fallback
  * 3. If no scryfallId → attempt Scryfall API lookup by set+collector
+ * 4. If still nothing → resolve by card name alone (most recent printing)
  *
  * Returns { cardDefinitionId, scryfallPrintingId } or null on failure.
  */
@@ -324,6 +435,18 @@ async function resolveRowIdentity(
   // Strategy 2: No Scryfall ID or oracle_id still unresolved — use set + collector
   if (!oracleId && row.editionCode && row.collectorNumber) {
     const result = await resolveFromSetCollector(row.editionCode, row.collectorNumber)
+    if (result) {
+      scryfallPrintingId = result.scryfallPrintingId
+      oracleId = result.oracleId
+      // Cache the mapping
+      await ensureOracleToPrintingMapping(oracleId, scryfallPrintingId).catch(() => {})
+    }
+  }
+
+  // Strategy 3: Name-only — no Scryfall ID, no set/collector, just a card name
+  // Uses Scryfall's /cards/named endpoint to get the most recent printing
+  if (!oracleId && row.name) {
+    const result = await resolveFromCardName(row.name)
     if (result) {
       scryfallPrintingId = result.scryfallPrintingId
       oracleId = result.oracleId
@@ -387,6 +510,40 @@ async function resolveFromSetCollector(
   }
 }
 
+/**
+ * Resolve a card's identity from name alone via Scryfall's /cards/named endpoint.
+ * Returns the most recent printing — "best guess" when no printing info is available.
+ * Uses exact match first, falls back to fuzzy if exact fails.
+ */
+async function resolveFromCardName(
+  cardName: string
+): Promise<{ scryfallPrintingId: string; oracleId: string } | null> {
+  await new Promise(resolve => setTimeout(resolve, SCRYFALL_RATE_LIMIT_MS))
+
+  try {
+    // Try exact match first
+    let response = await fetch(
+      `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}`,
+      { headers: { 'User-Agent': 'TheOracle/0.1.0' } }
+    )
+
+    // Fall back to fuzzy match if exact fails (handles minor typos/formatting)
+    if (!response.ok) {
+      response = await fetch(
+        `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(cardName)}`,
+        { headers: { 'User-Agent': 'TheOracle/0.1.0' } }
+      )
+    }
+
+    if (!response.ok) return null
+    const card = await response.json() as { id?: string; oracle_id?: string }
+    if (!card.id || !card.oracle_id) return null
+    return { scryfallPrintingId: card.id, oracleId: card.oracle_id }
+  } catch {
+    return null
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Batch Insert Helper
 // ---------------------------------------------------------------------------
@@ -416,6 +573,8 @@ interface ResolvedSyncRow {
   isProxy: boolean
   condition: string
   quantity: number
+  /** ISO date string from CSV, or empty string (DB defaults to NOW()) */
+  dateAdded: string
 }
 
 /**
@@ -501,6 +660,7 @@ async function executeSyncMode(
       isProxy: row.isProxy,
       condition,
       quantity: Math.min(row.quantity, MAX_COPIES_PER_ROW),
+      dateAdded: row.dateAdded || '',
     })
   }
 
@@ -576,7 +736,7 @@ async function executeSyncMode(
     const deficit = demand.totalQuantity - dbCopies.length
     if (deficit > 0) {
       for (let i = 0; i < deficit; i++) {
-        rowsToInsert.push({
+        const insertRow: Record<string, unknown> = {
           card_definition_id: demand.cardDefinitionId,
           scryfall_printing_id: printingId,
           is_foil: demand.isFoil,
@@ -584,7 +744,12 @@ async function executeSyncMode(
           condition: demand.condition,
           source_tag: sourceTag,
           user_id: options.userId,
-        })
+        }
+        // Pass through dateAdded as created_at if provided; otherwise DB defaults to NOW()
+        if (demand.dateAdded) {
+          insertRow.created_at = demand.dateAdded
+        }
+        rowsToInsert.push(insertRow)
       }
     }
   }
@@ -749,6 +914,7 @@ export async function executeInstanceLevelImport(
     quantity: number
     editionCode: string
     editionName: string
+    dateAdded: string
   }> = []
 
   const needsApiResolution: ParsedImportRow[] = []
@@ -772,6 +938,7 @@ export async function executeInstanceLevelImport(
         quantity: Math.min(row.quantity, MAX_COPIES_PER_ROW),
         editionCode: row.editionCode,
         editionName: row.editionName,
+        dateAdded: row.dateAdded || '',
       })
     } else if (scryfallId && !oracleId) {
       // Has scryfall_id but no oracle_id — can batch-resolve from oracle_to_printings
@@ -803,6 +970,7 @@ export async function executeInstanceLevelImport(
           quantity: Math.min(row.quantity, MAX_COPIES_PER_ROW),
           editionCode: row.editionCode,
           editionName: row.editionName,
+          dateAdded: row.dateAdded || '',
         })
       } else {
         // Couldn't resolve via DB — fall through to API resolution
@@ -852,6 +1020,7 @@ export async function executeInstanceLevelImport(
       quantity: Math.min(row.quantity, MAX_COPIES_PER_ROW),
       editionCode: row.editionCode,
       editionName: row.editionName,
+      dateAdded: row.dateAdded || '',
     })
   }
 
@@ -938,7 +1107,7 @@ export async function executeInstanceLevelImport(
     }
 
     for (let i = 0; i < row.quantity; i++) {
-      physicalCopyRows.push({
+      const copyRow: Record<string, unknown> = {
         card_definition_id: cardDefId,
         scryfall_printing_id: row.scryfallPrintingId,
         is_foil: row.isFoil,
@@ -946,7 +1115,12 @@ export async function executeInstanceLevelImport(
         condition: row.condition,
         source_tag: sourceTag,
         user_id: options.userId,
-      })
+      }
+      // Pass through dateAdded as created_at if provided; otherwise DB defaults to NOW()
+      if (row.dateAdded) {
+        copyRow.created_at = row.dateAdded
+      }
+      physicalCopyRows.push(copyRow)
     }
   }
 

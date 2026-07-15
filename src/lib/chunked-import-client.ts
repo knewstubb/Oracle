@@ -148,10 +148,12 @@ function parseCSVRows(csvContent: string): { header: string; dataLines: string[]
     throw new Error('CSV is empty — no header row found')
   }
 
-  // Validate we have a name column (Archidekt uses "Card Name", Moxfield uses "Name")
+  // Validate we have a name column — check common aliases (case-insensitive)
   const headerFields = parseCSVLine(header)
-  if (!headerFields.includes('Name') && !headerFields.includes('Card Name')) {
-    throw new Error('CSV is missing required "Name" or "Card Name" column')
+  const nameAliases = ['name', 'card name', 'card_name', 'cardname', 'card']
+  const hasNameColumn = headerFields.some(h => nameAliases.includes(h.toLowerCase().trim()))
+  if (!hasNameColumn) {
+    throw new Error('CSV is missing a card name column (expected: "Name", "Card Name", or similar)')
   }
 
   // Collect non-empty data lines

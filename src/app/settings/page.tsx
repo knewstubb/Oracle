@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { Loader2, Trash2 } from 'lucide-react'
+import { Loader2, Trash2, Palette } from 'lucide-react'
 import { toast } from 'sonner'
+import Link from 'next/link'
 import { PageHeader } from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
 import {
@@ -61,6 +62,19 @@ export default function SettingsPage() {
             <p className="mt-2 text-[length:var(--fs-xs)] text-muted-foreground">
               Deletes all decks, cards, physical copies, and brew sessions for your account.
               Use this to start a fresh onboarding test.
+            </p>
+          </div>
+
+          <div className="mt-6 pt-4 border-t border-[var(--border-subtle)]">
+            <Link
+              href="/settings/components"
+              className="inline-flex items-center gap-2 rounded-lg border border-[var(--border-default)] px-3 py-2 text-[length:var(--fs-sm)] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
+            >
+              <Palette className="size-4" aria-hidden="true" />
+              Component Library
+            </Link>
+            <p className="mt-2 text-[length:var(--fs-xs)] text-muted-foreground">
+              Browse all UI components, design tokens, colors, and typography.
             </p>
           </div>
         </section>

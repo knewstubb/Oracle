@@ -2,11 +2,12 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
-import { Plus, AlertCircle, RefreshCw } from 'lucide-react'
+import { AlertCircle, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusFilter } from '@/components/StatusFilter'
 import { DeckImportButton } from '@/components/DeckImportButton'
+import { NewDeckModal } from '@/components/NewDeckModal'
 import { DeckTile } from '@/components/DeckTile'
 import { DraftDeckTile } from '@/components/DraftDeckTile'
 import { DraftSessionTile } from '@/components/DraftSessionTile'
@@ -61,13 +62,7 @@ export default function DashboardPage() {
         actions={
           <>
             <DeckImportButton />
-            <Link
-              href="/new-deck"
-              className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-[length:var(--fs-md)] font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
-            >
-              <Plus className="size-4" aria-hidden="true" />
-              Brew Deck
-            </Link>
+            <NewDeckModal />
           </>
         }
       />

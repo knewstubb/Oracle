@@ -1,6 +1,6 @@
 'use client'
 
-import { Swords, ExternalLink } from 'lucide-react'
+import { Swords } from 'lucide-react'
 import { CardImage } from '@/components/CardImage'
 
 interface PersistentHeaderProps {
@@ -92,17 +92,6 @@ export function PersistentHeader({ deck, totalCards, proxyCount, onDebriefClick,
 
           {/* Additional actions slot */}
           {actions}
-
-          {/* Open in Archidekt link */}
-          <a
-            href={`https://archidekt.com/decks/${deck.id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-[length:var(--fs-md)] text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Open in Archidekt
-            <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-          </a>
         </div>
       </div>
     </div>

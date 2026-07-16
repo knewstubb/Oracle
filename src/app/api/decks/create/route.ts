@@ -73,5 +73,25 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: `Failed to create deck: ${error.message}` }, { status: 500 })
   }
 
+  // If commander format, add the commander as the first deck_cards row
+  if (commanderName && format === 'commander') {
+    await supabase
+      .from('deck_cards')
+      .insert({
+        deck_id: deckId,
+        card_name: commanderName.trim(),
+        scryfall_id: commanderScryfallId ?? null,
+        quantity: 1,
+        is_commander: true,
+        user_id: userId,
+      })
+
+    // Update card count
+    await supabase
+      .from('decks')
+      .update({ card_count: 1 })
+      .eq('id', deckId)
+  }
+
   return Response.json({ deckId: data.id })
 }

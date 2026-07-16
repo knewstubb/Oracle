@@ -20,7 +20,6 @@ import { UpgradeTab } from '@/components/UpgradeTab'
 import { StrategyTab } from '@/components/StrategyTab'
 import { CardGrid, type DeckCard } from '@/components/CardGrid'
 import { DebriefPanel } from '@/components/DebriefPanel'
-import { PushToArchidekt } from '@/components/PushToArchidekt'
 
 interface Deck {
   id: number
@@ -147,9 +146,6 @@ export default function DeckViewPage() {
 
   const { deck, cards, brewSessionId } = data
 
-  // Determine if deck is Oracle-native (never synced from Archidekt)
-  const isOracleNative = deck.last_synced_at === null && deck.raw_json === null
-
   // Filter out Maybeboard/Sideboard for counts
   const activeCards = cards.filter(c => {
     const primary = parsePrimaryCategory(c.categories)
@@ -170,7 +166,6 @@ export default function DeckViewPage() {
           <>
             <AllocateToggle deckId={deck.id} deckStatus={deck.status as any} allocate={deck.allocate ?? false} />
             <StatusControl deckId={deck.id} currentStatus={deck.status as any} allocate={deck.allocate ?? false} />
-            <PushToArchidekt deckId={deck.id} isOracleNative={isOracleNative} />
             {(deck.status === 'brew' || deck.status === 'archived') && (
               <DeleteDeckButton deckId={deck.id} deckName={deck.name} />
             )}

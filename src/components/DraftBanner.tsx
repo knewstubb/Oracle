@@ -88,7 +88,7 @@ export function DraftBanner({
                 aria-hidden="true"
               />
               <span>
-                Draft deck — {cardCount} cards · Not synced to Archidekt
+                Draft deck — {cardCount} cards
               </span>
             </div>
 

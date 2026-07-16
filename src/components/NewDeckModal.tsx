@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Loader2, Sparkles, PenLine } from 'lucide-react'
@@ -27,6 +27,8 @@ export function NewDeckModal() {
   const [selectedFormat, setSelectedFormat] = useState<DeckFormat>('commander')
   const [deckName, setDeckName] = useState('')
   const [commanderName, setCommanderName] = useState('')
+  const [commanderScryfallId, setCommanderScryfallId] = useState('')
+  const [commanderCI, setCommanderCI] = useState('')
 
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -42,6 +44,8 @@ export function NewDeckModal() {
           name: deckName.trim(),
           format: selectedFormat,
           commanderName: formatConfig.hasCommander ? commanderName.trim() : undefined,
+          commanderScryfallId: formatConfig.hasCommander ? commanderScryfallId : undefined,
+          colourIdentity: formatConfig.hasCommander ? commanderCI : undefined,
         }),
       })
       if (!res.ok) {
@@ -65,6 +69,8 @@ export function NewDeckModal() {
     setSelectedFormat('commander')
     setDeckName('')
     setCommanderName('')
+    setCommanderScryfallId('')
+    setCommanderCI('')
   }
 
   function handleFormatSelect(format: DeckFormat) {
@@ -225,11 +231,13 @@ export function NewDeckModal() {
                     <label className="block text-[length:var(--fs-sm)] text-[var(--text-secondary)] mb-1">
                       Commander
                     </label>
-                    <Input
+                    <CommanderAutocomplete
                       value={commanderName}
-                      onChange={(e) => setCommanderName(e.target.value)}
-                      placeholder="e.g. Muldrotha, the Gravetide"
-                      onKeyDown={(e) => { if (e.key === 'Enter') handleCreate() }}
+                      onChange={(name, scryfallId, colorIdentity) => {
+                        setCommanderName(name)
+                        setCommanderScryfallId(scryfallId)
+                        setCommanderCI(colorIdentity)
+                      }}
                     />
                   </div>
                 )}
@@ -252,5 +260,152 @@ export function NewDeckModal() {
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+
+// ---------------------------------------------------------------------------
+// CommanderAutocomplete — debounced Scryfall search for valid commanders
+// ---------------------------------------------------------------------------
+
+interface CommanderResult {
+  name: string
+  scryfallId: string
+  colorIdentity: string[]
+  imageUri: string | null
+}
+
+function CommanderAutocomplete({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (name: string, scryfallId: string, colorIdentity: string) => void
+}) {
+  const [query, setQuery] = useState(value)
+  const [results, setResults] = useState<CommanderResult[]>([])
+  const [isOpen, setIsOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [selectedIndex, setSelectedIndex] = useState(-1)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // Sync external value changes
+  useEffect(() => { setQuery(value) }, [value])
+
+  function handleInputChange(input: string) {
+    setQuery(input)
+    setSelectedIndex(-1)
+
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+
+    if (input.trim().length < 2) {
+      setResults([])
+      setIsOpen(false)
+      return
+    }
+
+    debounceRef.current = setTimeout(async () => {
+      setIsLoading(true)
+      try {
+        const res = await fetch(`/api/scryfall/commanders?q=${encodeURIComponent(input.trim())}`)
+        if (res.ok) {
+          const data: CommanderResult[] = await res.json()
+          setResults(data)
+          setIsOpen(data.length > 0)
+        }
+      } catch {
+        setResults([])
+      }
+      setIsLoading(false)
+    }, 250)
+  }
+
+  function handleSelect(result: CommanderResult) {
+    setQuery(result.name)
+    setIsOpen(false)
+    setResults([])
+    onChange(result.name, result.scryfallId, result.colorIdentity.join(','))
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (!isOpen || results.length === 0) return
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setSelectedIndex(prev => Math.min(prev + 1, results.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setSelectedIndex(prev => Math.max(prev - 1, 0))
+    } else if (e.key === 'Enter' && selectedIndex >= 0) {
+      e.preventDefault()
+      handleSelect(results[selectedIndex])
+    } else if (e.key === 'Escape') {
+      setIsOpen(false)
+    }
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => handleInputChange(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onFocus={() => { if (results.length > 0) setIsOpen(true) }}
+        onBlur={() => { setTimeout(() => setIsOpen(false), 200) }}
+        placeholder="Search for a commander..."
+        className="h-8 w-full rounded-lg border border-[var(--border-default)] bg-transparent px-2.5 py-1 text-[length:var(--fs-md)] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]"
+        role="combobox"
+        aria-expanded={isOpen}
+        aria-autocomplete="list"
+        aria-controls="commander-results"
+      />
+      {isLoading && (
+        <div className="absolute right-2 top-1/2 -translate-y-1/2">
+          <Loader2 className="size-3.5 animate-spin text-[var(--text-tertiary)]" />
+        </div>
+      )}
+
+      {/* Dropdown results */}
+      {isOpen && results.length > 0 && (
+        <div
+          id="commander-results"
+          role="listbox"
+          className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[240px] overflow-y-auto rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-lg"
+        >
+          {results.map((result, idx) => (
+            <button
+              key={result.scryfallId}
+              type="button"
+              role="option"
+              aria-selected={idx === selectedIndex}
+              onClick={() => handleSelect(result)}
+              className={`flex w-full items-center gap-3 px-3 py-2 text-left transition-colors ${
+                idx === selectedIndex ? 'bg-[var(--accent-primary-bg)]' : 'hover:bg-[rgba(255,255,255,0.03)]'
+              }`}
+            >
+              {/* Card art thumbnail */}
+              {result.imageUri && (
+                <img
+                  src={result.imageUri}
+                  alt=""
+                  className="size-8 rounded object-cover"
+                  loading="lazy"
+                />
+              )}
+              <div className="min-w-0 flex-1">
+                <span className="block truncate text-[length:var(--fs-sm)] font-medium text-[var(--text-primary)]">
+                  {result.name}
+                </span>
+                <span className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)]">
+                  {result.colorIdentity.length > 0 ? result.colorIdentity.join('') : 'Colorless'}
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }

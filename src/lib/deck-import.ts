@@ -111,11 +111,12 @@ async function batchInsert(
 export async function importDeckExistingCollection(
   deck: NormalizedDeck,
   userId: string,
-  options?: { status?: 'brew' | 'boxed'; skipAutoAssign?: boolean }
+  options?: { status?: 'brew' | 'boxed'; format?: string; skipAutoAssign?: boolean }
 ): Promise<ImportResult> {
   const supabase = createAdminClient()
   const deckId = generateDeckId(deck)
   const deckStatus = options?.status || 'brew'
+  const deckFormat = options?.format || 'commander'
   // Default-allocate table: boxed → true, brew → false, archived → false
   const allocateDefault = deckStatus === 'boxed'
 
@@ -131,6 +132,7 @@ export async function importDeckExistingCollection(
         colour_identity: deck.colourIdentity,
         card_count: deck.cardCount,
         status: deckStatus,
+ format: deckFormat,
         allocate: allocateDefault,
         source_url: deck.sourceUrl,
         source_platform: deck.platform,
@@ -217,11 +219,12 @@ export async function importDeckExistingCollection(
 export async function importDeckAddNewCards(
   deck: NormalizedDeck,
   userId: string,
-  options?: { status?: 'brew' | 'boxed' }
+  options?: { status?: 'brew' | 'boxed'; format?: string }
 ): Promise<ImportResult> {
   const supabase = createAdminClient()
   const deckId = generateDeckId(deck)
   const deckStatus = options?.status || 'brew'
+  const deckFormat = options?.format || 'commander'
   // Default-allocate table: boxed → true, brew → false, archived → false
   const allocateDefault = deckStatus === 'boxed'
 
@@ -237,6 +240,7 @@ export async function importDeckAddNewCards(
         colour_identity: deck.colourIdentity,
         card_count: deck.cardCount,
         status: deckStatus,
+ format: deckFormat,
         allocate: allocateDefault,
         source_url: deck.sourceUrl,
         source_platform: deck.platform,

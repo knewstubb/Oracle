@@ -39,13 +39,15 @@ export async function GET(request: NextRequest) {
     // Fetch all active decks
     const { data: allDecks } = await supabase
       .from('decks')
-      .select('id, name, status, colour_identity')
+      .select('id, name, status, colour_identity, format')
       .eq('user_id', userId)
       .in('status', ['brew', 'boxed'])
 
     // Filter to decks whose commander CI is a superset of the card's CI
+    // Only applies to Commander format — other formats have no CI restriction
     const validDecks = (allDecks ?? [])
       .filter((deck) => {
+        if ((deck as any).format && (deck as any).format !== 'commander') return true
         if (cardCI.length === 0) return true // Colorless cards go anywhere
         const deckCI = deck.colour_identity
           ? deck.colour_identity.split(',').map((c: string) => c.trim()).filter(Boolean)

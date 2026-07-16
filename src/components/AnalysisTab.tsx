@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { DeckCard } from '@/components/CardGrid'
+import { getDeckSizeLabel, getFormatConfig } from '@/lib/format-config'
 import type { DeckRatingsContent } from '@/lib/rating-engine'
 
 // ---------------------------------------------------------------------------
@@ -12,6 +13,7 @@ import type { DeckRatingsContent } from '@/lib/rating-engine'
 interface AnalysisTabProps {
   cards: DeckCard[]
   deckId: number
+  format?: string
   bracket: string | null
 }
 
@@ -212,7 +214,7 @@ function getCategoryStatus(category: string, count: number): { label: string; co
 // Component
 // ---------------------------------------------------------------------------
 
-export function AnalysisTab({ cards, deckId, bracket }: AnalysisTabProps) {
+export function AnalysisTab({ cards, deckId, bracket, format }: AnalysisTabProps) {
   // Fetch ratings data if available (provides more accurate scores)
   const { data: ratings } = useQuery<DeckRatingsContent | null>({
     queryKey: ['decks', deckId, 'ratings'],
@@ -308,7 +310,7 @@ export function AnalysisTab({ cards, deckId, bracket }: AnalysisTabProps) {
     <div className="mx-auto max-w-[1080px] pb-12" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* ─── Top row: 4 stat cards ─── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
-        <StatCard label="Total cards" value={totalCards.toString()} sub="100 target" />
+        <StatCard label="Total cards" value={totalCards.toString()} sub={`${getDeckSizeLabel(format)} target`} />
         <StatCard label="Avg. CMC" value={avgCmc > 0 ? avgCmc.toFixed(2) : '—'} sub="Non-land spells" />
         <StatCard label="Proxies" value={proxyCount.toString()} accent="amber" sub={`${totalCards - proxyCount} originals`} />
         <StatCard label="Bracket" value={bracket ?? '—'} sub="Power level" />

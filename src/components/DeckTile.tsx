@@ -18,6 +18,7 @@ export interface DeckTileProps {
   colourIdentity: string[]
   cardCount?: number
   deckType?: string | null
+  format?: string | null
   healthStatus?: Array<HealthPipStatus>
   proxyCount?: number
   isDraft?: boolean
@@ -58,6 +59,7 @@ export function DeckTile({
   colourIdentity,
   cardCount,
   deckType,
+  format,
   healthStatus,
   proxyCount,
   isDraft,
@@ -221,6 +223,11 @@ export function DeckTile({
                 {cardCount} Cards
               </span>
             )
+          )}
+          {format && format !== 'commander' && (
+            <span className="text-[length:var(--fs-xs)] text-muted-foreground/50 uppercase tracking-wide">
+              {format}
+            </span>
           )}
         </div>
       </div>

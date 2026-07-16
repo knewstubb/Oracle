@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog'
 import { parseDeckUrl, isParseError } from '@/lib/url-parser'
 import { parseDeckCSV, isCSVParseError } from '@/lib/csv-deck-parser'
+import { FORMAT_OPTIONS } from '@/lib/format-config'
 import type { NormalizedDeck, CardsByType } from '@/lib/deck-normalizer'
 
 type ImportTab = 'url' | 'paste' | 'csv'
@@ -87,6 +88,7 @@ export function DeckImportButton({
   // Confirmation step state
   const [previewData, setPreviewData] = useState<PreviewResponse | null>(null)
   const [importStatus, setImportStatus] = useState<'brew' | 'boxed'>('boxed')
+  const [importFormat, setImportFormat] = useState<string>('commander')
 
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -100,6 +102,7 @@ export function DeckImportButton({
     setCsvError(null)
     setPreviewData(null)
     setImportStatus('boxed')
+    setImportFormat('commander')
   }, [])
 
   // --- URL tab mutation ---
@@ -140,7 +143,7 @@ export function DeckImportButton({
       const res = await fetch('/api/decks/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deck, mode: 'existing_collection', status: importStatus }),
+        body: JSON.stringify({ deck, mode: 'existing_collection', status: importStatus, format: importFormat }),
       })
 
       if (!res.ok) {
@@ -326,6 +329,22 @@ export function DeckImportButton({
                   </span>
                 </button>
               </div>
+            </div>
+
+            {/* Format selector */}
+            <div className="flex flex-col gap-2">
+              <p className="text-[length:var(--fs-sm)] text-muted-foreground">
+                Format
+              </p>
+              <select
+                value={importFormat}
+                onChange={(e) => setImportFormat(e.target.value)}
+                className="h-8 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 text-[length:var(--fs-md)] text-[var(--text-primary)] outline-none"
+              >
+                {FORMAT_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
             </div>
 
             <DialogFooter>

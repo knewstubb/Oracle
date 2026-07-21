@@ -57,10 +57,16 @@ export default function RootLayout({
             Skip to main content
           </a>
           <Sidebar />
-          <main id="main-content" className="flex flex-1 flex-col overflow-y-auto">
+          <main id="main-content" className="flex flex-1 flex-col overflow-y-auto pb-[env(safe-area-inset-bottom)]">
             <MobileHeader />
             <div className="flex-1">
               {children}
+            </div>
+            {/* Version badge — mobile only, fixed bottom-left */}
+            <div className="pointer-events-none fixed bottom-[max(0.5rem,env(safe-area-inset-bottom))] left-3 z-30 md:hidden">
+              <span className="text-[10px] font-mono text-muted-foreground/40">
+                v{process.env.NEXT_PUBLIC_APP_VERSION ?? '0.1.0'}
+              </span>
             </div>
           </main>
           <SmartSearch />

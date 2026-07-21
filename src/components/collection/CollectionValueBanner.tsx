@@ -1,7 +1,9 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
-import { TrendingUp, TrendingDown } from 'lucide-react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { TrendingUp, TrendingDown, RefreshCw } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface CollectionValue {
   totalMarketValue: number
@@ -17,11 +19,32 @@ interface CollectionValue {
 }
 
 export function CollectionValueBanner() {
+  const queryClient = useQueryClient()
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
   const { data, isLoading } = useQuery<CollectionValue>({
     queryKey: ['collection-value'],
     queryFn: () => fetch('/api/collection/value').then(r => r.json()),
     staleTime: 5 * 60 * 1000,
   })
+
+  async function handleRefreshPrices() {
+    setIsRefreshing(true)
+    try {
+      const res = await fetch('/api/collection/refresh-prices', { method: 'POST' })
+      if (!res.ok) {
+        toast.error('Failed to refresh prices')
+        return
+      }
+      const result = await res.json()
+      toast.success(`Updated prices for ${result.updated} cards`)
+      queryClient.invalidateQueries({ queryKey: ['collection-value'] })
+    } catch {
+      toast.error('Failed to refresh prices')
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
 
   if (isLoading || !data || data.totalMarketValue === 0) return null
 
@@ -68,6 +91,19 @@ export function CollectionValueBanner() {
           </span>
         </div>
       )}
+
+      {/* Refresh prices button */}
+      <div className="ml-auto">
+        <button
+          onClick={handleRefreshPrices}
+          disabled={isRefreshing}
+          className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[length:var(--fs-xs)] font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Refresh market prices from Scryfall"
+        >
+          <RefreshCw className={`size-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <span className="hidden sm:inline">{isRefreshing ? 'Refreshing...' : 'Refresh Prices'}</span>
+        </button>
+      </div>
     </div>
   )
 }

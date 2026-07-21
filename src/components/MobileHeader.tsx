@@ -105,7 +105,7 @@ export function MobileHeader() {
 
           {/* Drawer panel — slides in from right */}
           <nav
-            className="absolute right-0 top-0 flex h-full w-[280px] flex-col border-l border-border bg-sidebar"
+            className="absolute right-0 top-0 flex h-full w-[280px] flex-col border-l border-border bg-sidebar pb-[env(safe-area-inset-bottom)]"
             role="dialog"
             aria-modal="true"
             aria-label="Navigation menu"
@@ -148,7 +148,7 @@ export function MobileHeader() {
               </ul>
             </div>
 
-            {/* Footer — logout */}
+            {/* Footer — logout + version */}
             <div className="border-t border-border px-3 py-4">
               <button
                 type="button"
@@ -158,6 +158,9 @@ export function MobileHeader() {
                 <MaterialIcon name="logout" />
                 Sign out
               </button>
+              <p className="mt-3 px-3 text-[length:var(--fs-2xs)] text-muted-foreground/50">
+                v{process.env.NEXT_PUBLIC_APP_VERSION ?? '0.1.0'}
+              </p>
             </div>
           </nav>
         </div>

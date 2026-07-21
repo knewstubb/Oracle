@@ -16,106 +16,68 @@ export interface CardSlotBadgeProps {
 }
 
 // ---------------------------------------------------------------------------
-// Status Configuration
+// Status Configuration — Material Symbol icons
 // ---------------------------------------------------------------------------
 
 const STATUS_CONFIG: Record<
   Exclude<CardSlotStatus, 'generic_land'>,
-  { label: string; color: string; bg: string; dotStyle: 'solid' | 'dashed' | 'half' | 'crossed' | 'empty' }
+  { label: string; color: string; bg: string; icon: string; filled: boolean }
 > = {
   original: {
     label: 'Original',
     color: 'var(--signal-success)',
     bg: 'rgba(29, 158, 117, 0.12)',
-    dotStyle: 'solid',
+    icon: 'circle',
+    filled: true,
   },
   proxy: {
     label: 'Proxy',
-    color: 'var(--signal-success)',
-    bg: 'rgba(29, 158, 117, 0.06)',
-    dotStyle: 'dashed',
+    color: '#489ADE',
+    bg: '#1C252B',
+    icon: 'comedy_mask',
+    filled: true,
   },
-  open: {
-    label: 'Open',
-    color: 'var(--signal-warning)',
-    bg: 'rgba(239, 159, 39, 0.10)',
-    dotStyle: 'half',
+  available: {
+    label: 'Available',
+    color: 'var(--text-secondary)',
+    bg: 'rgba(255, 255, 255, 0.06)',
+    icon: 'circle',
+    filled: false,
   },
   claimed: {
     label: 'Claimed',
-    color: 'var(--status-over)',
-    bg: 'rgba(255, 95, 31, 0.12)',
-    dotStyle: 'crossed',
+    color: '#F5880B',
+    bg: 'rgba(245, 136, 11, 0.08)',
+    icon: 'lock',
+    filled: false,
   },
   unowned: {
     label: 'Unowned',
-    color: 'var(--signal-critical)',
-    bg: 'rgba(228, 75, 74, 0.10)',
-    dotStyle: 'empty',
+    color: '#EF44BF',
+    bg: 'rgba(239, 68, 191, 0.08)',
+    icon: 'do_not_disturb_on',
+    filled: false,
   },
 }
 
 // ---------------------------------------------------------------------------
-// Dot Rendering
+// Status Icon — Material Symbol
 // ---------------------------------------------------------------------------
 
-function StatusDot({ dotStyle, color }: { dotStyle: string; color: string }) {
-  const baseClass = 'inline-block size-2 rounded-full'
-
-  switch (dotStyle) {
-    case 'solid':
-      return (
-        <span
-          className={baseClass}
-          style={{ backgroundColor: color }}
-          aria-hidden="true"
-        />
-      )
-    case 'dashed':
-      return (
-        <span
-          className={baseClass}
-          style={{ border: `1.5px dashed ${color}` }}
-          aria-hidden="true"
-        />
-      )
-    case 'half':
-      return (
-        <span
-          className={baseClass}
-          style={{
-            background: `linear-gradient(to right, ${color} 50%, transparent 50%)`,
-            border: `1.5px solid ${color}`,
-          }}
-          aria-hidden="true"
-        />
-      )
-    case 'crossed':
-      return (
-        <span
-          className={`${baseClass} relative`}
-          style={{ border: `1.5px solid ${color}` }}
-          aria-hidden="true"
-        >
-          <span
-            className="absolute inset-0 flex items-center justify-center text-[6px] font-bold leading-none"
-            style={{ color }}
-          >
-            ×
-          </span>
-        </span>
-      )
-    case 'empty':
-      return (
-        <span
-          className={baseClass}
-          style={{ border: `1.5px solid ${color}` }}
-          aria-hidden="true"
-        />
-      )
-    default:
-      return null
-  }
+function StatusIcon({ icon, filled, color }: { icon: string; filled: boolean; color: string }) {
+  return (
+    <span
+      className="material-symbols-outlined inline-flex items-center justify-center"
+      style={{
+        fontSize: '14px',
+        color,
+        fontVariationSettings: filled ? "'FILL' 1, 'wght' 400, 'opsz' 20" : "'FILL' 0, 'wght' 300, 'opsz' 20",
+      }}
+      aria-hidden="true"
+    >
+      {icon}
+    </span>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -124,7 +86,7 @@ function StatusDot({ dotStyle, color }: { dotStyle: string; color: string }) {
 
 /**
  * Unified badge component for the five-state card slot taxonomy.
- * Used in Cards Tab, Builder search, and Picklist.
+ * Uses Material Symbol icons for status indication.
  *
  * For 'claimed' status, shows a "Claimed by [deck]" subtext line.
  * For 'generic_land' status, renders nothing (exempt from taxonomy display).
@@ -139,13 +101,13 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
   if (variant === 'border') return null
 
   return (
-    <span className={`inline-flex flex-col items-end gap-0.5 ${className ?? ''}`}>
+    <span className={`inline-flex flex-col items-start gap-0.5 ${className ?? ''}`}>
       <span
-        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[length:var(--fs-xs)] font-medium"
+        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[length:var(--fs-xs)] font-medium transition-all duration-150 cursor-pointer hover:brightness-125 hover:scale-105"
         style={{ color: config.color, backgroundColor: config.bg }}
         aria-label={`Status: ${config.label}`}
       >
-        <StatusDot dotStyle={config.dotStyle} color={config.color} />
+        <StatusIcon icon={config.icon} filled={config.filled} color={config.color} />
         {config.label}
       </span>
       {status === 'claimed' && heldBy && (
@@ -177,7 +139,7 @@ export function getSlotTileBorderStyle(status: CardSlotStatus): React.CSSPropert
       return { border: `2.5px solid ${config.color}` }
     case 'proxy':
       return { border: `2.5px dashed ${config.color}` }
-    case 'open':
+    case 'available':
       return { border: `2.5px solid ${config.color}` }
     case 'claimed':
       return { border: `2.5px solid ${config.color}` }

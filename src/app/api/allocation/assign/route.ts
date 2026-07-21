@@ -8,12 +8,7 @@
  *   - physicalCopyId: number — the physical_copies row to claim
  *   - tier: number — the tier of this assignment (for audit)
  *
- * For Tier 5 (print new proxy):
- *   - deckCardsId: number
- *   - createProxy: true
- *   - cardDefinitionId: number — which card to create a proxy for
- *
- * Returns: { success, previousAssignment, physicalCopyId? }
+ * Returns: { success, previousAssignment }
  *
  * CRITICAL: No cascade/backfill. When clearing the source row, do NOT trigger
  * any auto-resolution of the resulting gap. The gap stays unresolved per Section 6d.
@@ -26,8 +21,6 @@ interface AssignBody {
   deckCardsId: number
   physicalCopyId?: number
   tier?: number
-  createProxy?: boolean
-  cardDefinitionId?: number
 }
 
 interface PreviousAssignment {
@@ -49,7 +42,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const { deckCardsId, physicalCopyId, createProxy, cardDefinitionId } = body
+  const { deckCardsId, physicalCopyId } = body
 
   if (!deckCardsId) {
     return Response.json({ error: 'deckCardsId is required' }, { status: 400 })
@@ -57,61 +50,10 @@ export async function POST(request: NextRequest) {
 
   const supabase = createAdminClient()
 
-  // ─── Tier 5: Create a new proxy and assign it ───────────────────────
-  if (createProxy) {
-    if (!cardDefinitionId) {
-      return Response.json(
-        { error: 'cardDefinitionId is required for proxy creation' },
-        { status: 400 }
-      )
-    }
-
-    // Create new physical_copies row with is_proxy = true
-    const { data: newCopy, error: createErr } = await supabase
-      .from('physical_copies')
-      .insert({
-        card_definition_id: cardDefinitionId,
-        user_id: userId,
-        is_proxy: true,
-        condition: 'near_mint',
-      })
-      .select('id')
-      .single()
-
-    if (createErr || !newCopy) {
-      return Response.json(
-        { error: `Failed to create proxy: ${createErr?.message ?? 'unknown'}` },
-        { status: 500 }
-      )
-    }
-
-    // Assign it to the target deck_cards row
-    const { error: assignErr } = await supabase
-      .from('deck_cards')
-      .update({
-        physical_copy_id: newCopy.id,
-        ownership_status: 'proxy',
-      })
-      .eq('id', deckCardsId)
-
-    if (assignErr) {
-      return Response.json(
-        { error: `Failed to assign proxy: ${assignErr.message}` },
-        { status: 500 }
-      )
-    }
-
-    return Response.json({
-      success: true,
-      previousAssignment: null,
-      physicalCopyId: newCopy.id,
-    })
-  }
-
   // ─── Tiers 1–4: Assign existing physical copy ──────────────────────
   if (!physicalCopyId) {
     return Response.json(
-      { error: 'physicalCopyId is required (or set createProxy: true)' },
+      { error: 'physicalCopyId is required' },
       { status: 400 }
     )
   }

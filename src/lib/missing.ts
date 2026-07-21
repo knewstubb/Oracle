@@ -44,6 +44,9 @@ export interface UnmarkMissingResult {
  * Returns the list of affected deck IDs (decks that lost completeness).
  * Idempotent: calling on an already-missing copy is a no-op that returns
  * empty affectedDeckIds.
+ *
+ * Uses atomic RPC (mark_copy_missing) to ensure the missing flag and
+ * deck_cards unlink happen in a single transaction with advisory lock.
  */
 export async function markCopyMissing(
   physicalCopyId: number,
@@ -51,46 +54,20 @@ export async function markCopyMissing(
 ): Promise<MarkMissingResult> {
   const supabase = createAdminClient()
 
-  // 1. Set missing = true
-  const { error: updateErr } = await supabase
-    .from('physical_copies')
-    .update({ missing: true })
-    .eq('id', physicalCopyId)
-    .eq('user_id', userId)
+  const { data, error } = await supabase.rpc('mark_copy_missing', {
+    p_physical_copy_id: physicalCopyId,
+    p_user_id: userId,
+  })
 
-  if (updateErr) {
-    throw new Error(`Failed to mark physical copy ${physicalCopyId} as missing: ${updateErr.message}`)
-  }
-
-  // 2. Find and unlink any deck_cards rows pointing at this copy
-  const { data: linkedRows, error: findErr } = await supabase
-    .from('deck_cards')
-    .select('id, deck_id')
-    .eq('physical_copy_id', physicalCopyId)
-
-  if (findErr) {
-    throw new Error(`Failed to find linked deck_cards for copy ${physicalCopyId}: ${findErr.message}`)
-  }
-
-  const affectedDeckIds: number[] = []
-
-  if (linkedRows && linkedRows.length > 0) {
-    // Unlink: set physical_copy_id and ownership_status to NULL
-    const { error: unlinkErr } = await supabase
-      .from('deck_cards')
-      .update({ physical_copy_id: null, ownership_status: null })
-      .eq('physical_copy_id', physicalCopyId)
-
-    if (unlinkErr) {
-      throw new Error(`Failed to unlink deck_cards for copy ${physicalCopyId}: ${unlinkErr.message}`)
+  if (error) {
+    if (error.message?.includes('not_found')) {
+      throw new Error(`Physical copy ${physicalCopyId} not found for user`)
     }
-
-    // Collect unique affected deck IDs
-    const deckIdSet = new Set(linkedRows.map(r => r.deck_id))
-    affectedDeckIds.push(...deckIdSet)
+    throw new Error(`Failed to mark physical copy ${physicalCopyId} as missing: ${error.message}`)
   }
 
-  return { affectedDeckIds }
+  const result = data as { success: boolean; affected_deck_ids: number[] | null }
+  return { affectedDeckIds: result.affected_deck_ids ?? [] }
 }
 
 // ---------------------------------------------------------------------------

@@ -20,7 +20,8 @@
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
-import { getRankedCandidates, type RankedCandidate } from '@/lib/allocation-candidates'
+import { getBatchRankedCandidates, type RankedCandidate } from '@/lib/allocation-candidates'
+import { isBasicLand } from '@/lib/basic-lands'
 
 export async function GET(
   request: NextRequest,
@@ -55,7 +56,7 @@ export async function GET(
   // Fetch all deck_cards for this deck
   const { data: deckCards, error: cardsErr } = await supabase
     .from('deck_cards')
-    .select('id, card_name, physical_copy_id, ownership_status')
+    .select('id, card_name, scryfall_id, physical_copy_id, ownership_status')
     .eq('deck_id', deckId)
     .order('card_name')
 
@@ -64,44 +65,44 @@ export async function GET(
   }
 
   const cards = deckCards ?? []
-  const resolved = cards.filter(c => c.physical_copy_id !== null).length
-  const total = cards.length
+  // Generic lands = basic land name + no specific printing (scryfall_id is null)
+  const isGenericLand = (c: any) => isBasicLand(c.card_name) && !c.scryfall_id
+  const genericLandCount = cards.filter(isGenericLand).length
+  const nonGenericResolved = cards.filter(c => c.physical_copy_id !== null && !isGenericLand(c)).length
+  const resolved = nonGenericResolved + genericLandCount
+  const total = cards.length // Include all cards (lands count toward deck total)
 
   // For unresolved cards, fetch candidates — deduplicate by card_name
-  // to avoid calling getRankedCandidates multiple times for the same card
+  // Only exclude generic lands (no scryfall_id) — specific-printing lands participate
   const unresolvedCardNames = new Set<string>()
   for (const card of cards) {
-    if (card.physical_copy_id === null) {
+    if (card.physical_copy_id === null && !isGenericLand(card)) {
       unresolvedCardNames.add(card.card_name)
     }
   }
 
-  // Fetch candidates for all unique unresolved card names
-  const candidatesByName = new Map<string, RankedCandidate[]>()
-  const candidatePromises = Array.from(unresolvedCardNames).map(async (cardName) => {
-    try {
-      const candidates = await getRankedCandidates(cardName, userId)
-      candidatesByName.set(cardName, candidates)
-    } catch (err) {
-      // If a single card fails, still show it with no candidates
-      console.error(`[picklist] Failed to fetch candidates for "${cardName}":`, err)
-      candidatesByName.set(cardName, [])
-    }
-  })
+  // Batch fetch candidates for all unique unresolved card names (2 queries total)
+  let candidatesByName = new Map<string, RankedCandidate[]>()
+  try {
+    candidatesByName = await getBatchRankedCandidates(Array.from(unresolvedCardNames), userId)
+  } catch (err) {
+    console.error('[picklist] Failed to batch-fetch candidates:', err)
+    // Fall back to empty candidates for all — page still renders, just without candidates
+  }
 
-  await Promise.all(candidatePromises)
-
-  // Build response
-  const responseCards = cards.map(card => ({
-    deckCardsId: card.id,
-    cardName: card.card_name,
-    isResolved: card.physical_copy_id !== null,
-    physicalCopyId: card.physical_copy_id,
-    ownershipStatus: card.ownership_status,
-    candidates: card.physical_copy_id === null
-      ? (candidatesByName.get(card.card_name) ?? [])
-      : [],
-  }))
+  // Build response — exclude generic lands (they're always satisfied)
+  const responseCards = cards
+    .filter(card => !isGenericLand(card))
+    .map(card => ({
+      deckCardsId: card.id,
+      cardName: card.card_name,
+      isResolved: card.physical_copy_id !== null,
+      physicalCopyId: card.physical_copy_id,
+      ownershipStatus: card.ownership_status,
+      candidates: card.physical_copy_id === null
+        ? (candidatesByName.get(card.card_name) ?? [])
+        : [],
+    }))
 
   return Response.json({
     deckName: deck.name,

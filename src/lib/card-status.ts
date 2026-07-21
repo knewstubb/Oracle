@@ -22,7 +22,7 @@ import { isBasicLand } from '@/lib/basic-lands'
 // Types
 // ---------------------------------------------------------------------------
 
-export type CardSlotStatus = 'original' | 'proxy' | 'open' | 'claimed' | 'unowned' | 'generic_land'
+export type CardSlotStatus = 'original' | 'proxy' | 'available' | 'claimed' | 'unowned' | 'generic_land'
 
 export interface CardSlotWithStatus {
   deckCardsId: number
@@ -38,7 +38,7 @@ export interface CardSlotWithStatus {
 
 /**
  * Classify a single card slot's status from its DB fields.
- * NOTE: For unresolved slots, this returns 'open' by default —
+ * NOTE: For unresolved slots, this returns 'available' by default —
  * call computeBatchStatus() to distinguish open vs claimed vs unowned.
  */
 export function classifySlotStatus(
@@ -49,7 +49,7 @@ export function classifySlotStatus(
     return isProxy ? 'proxy' : 'original'
   }
   // Default for unresolved — caller must use batch computation for accurate classification
-  return 'open'
+  return 'available'
 }
 
 // ---------------------------------------------------------------------------
@@ -67,16 +67,16 @@ export function classifySlotStatus(
  *    which copies are free vs held
  * 3. Classify: free copy exists → unallocated, all held → claimed, none exist → unowned
  *
- * Returns a Map<cardName, 'open' | 'claimed' | 'unowned'>
+ * Returns a Map<cardName, 'available' | 'claimed' | 'unowned'>
  */
 export async function computeUnresolvedStatuses(
   cardNames: string[],
   userId: string
-): Promise<Map<string, 'open' | 'claimed' | 'unowned'>> {
+): Promise<Map<string, 'available' | 'claimed' | 'unowned'>> {
   if (cardNames.length === 0) return new Map()
 
   const supabase = createAdminClient()
-  const result = new Map<string, 'open' | 'claimed' | 'unowned'>()
+  const result = new Map<string, 'available' | 'claimed' | 'unowned'>()
 
   // Default everything to 'unowned' — we'll upgrade based on physical copies
   for (const name of cardNames) {
@@ -175,7 +175,7 @@ export async function computeUnresolvedStatuses(
     }
 
     if (hasFree) {
-      result.set(cardName, 'open')
+      result.set(cardName, 'available')
     } else if (hasAnyCopy) {
       result.set(cardName, 'claimed')
     }
@@ -201,6 +201,7 @@ export async function computeDeckCardStatuses(
     card_name: string
     physical_copy_id: number | null
     is_proxy: boolean | null
+    scryfall_id?: string | null
   }>,
   userId: string
 ): Promise<CardSlotWithStatus[]> {
@@ -218,8 +219,8 @@ export async function computeDeckCardStatuses(
         isProxy: card.is_proxy,
         status: card.is_proxy ? 'proxy' : 'original',
       })
-    } else if (isBasicLand(card.card_name)) {
-      // Generic basic land — exempt from status taxonomy (Chunk 11)
+    } else if (isBasicLand(card.card_name) && !card.scryfall_id) {
+      // Generic basic land (no specific printing) — always considered "original"
       resolved.push({
         deckCardsId: card.id,
         cardName: card.card_name,
@@ -228,6 +229,7 @@ export async function computeDeckCardStatuses(
         status: 'generic_land',
       })
     } else {
+      // Unresolved: either a non-land card, or a specific-printing land
       unresolvedNames.push(card.card_name)
       unresolvedCards.push({ id: card.id, card_name: card.card_name })
     }

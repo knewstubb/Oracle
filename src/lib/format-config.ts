@@ -25,6 +25,8 @@ export interface FormatDefinition {
   label: string
   /** Target deck size (null = no target, user decides) */
   deckSize: number | null
+  /** Whether the count must be exact or is a minimum */
+  countRule: 'exact' | 'minimum' | null
   /** Maximum copies of a single card (null = no limit) */
   maxCopies: number | null
   /** Whether the format enforces singleton (1 copy max) */
@@ -48,6 +50,7 @@ export const FORMAT_DEFINITIONS: Record<DeckFormat, FormatDefinition> = {
     id: 'commander',
     label: 'Commander',
     deckSize: 100,
+    countRule: 'exact',
     maxCopies: 1,
     singleton: true,
     hasCommander: true,
@@ -59,6 +62,7 @@ export const FORMAT_DEFINITIONS: Record<DeckFormat, FormatDefinition> = {
     id: 'standard',
     label: 'Standard',
     deckSize: 60,
+    countRule: 'minimum',
     maxCopies: 4,
     singleton: false,
     hasCommander: false,
@@ -70,6 +74,7 @@ export const FORMAT_DEFINITIONS: Record<DeckFormat, FormatDefinition> = {
     id: 'modern',
     label: 'Modern',
     deckSize: 60,
+    countRule: 'minimum',
     maxCopies: 4,
     singleton: false,
     hasCommander: false,
@@ -81,6 +86,7 @@ export const FORMAT_DEFINITIONS: Record<DeckFormat, FormatDefinition> = {
     id: 'legacy',
     label: 'Legacy',
     deckSize: 60,
+    countRule: 'minimum',
     maxCopies: 4,
     singleton: false,
     hasCommander: false,
@@ -92,6 +98,7 @@ export const FORMAT_DEFINITIONS: Record<DeckFormat, FormatDefinition> = {
     id: 'vintage',
     label: 'Vintage',
     deckSize: 60,
+    countRule: 'minimum',
     maxCopies: 4,
     singleton: false,
     hasCommander: false,
@@ -103,6 +110,7 @@ export const FORMAT_DEFINITIONS: Record<DeckFormat, FormatDefinition> = {
     id: 'pioneer',
     label: 'Pioneer',
     deckSize: 60,
+    countRule: 'minimum',
     maxCopies: 4,
     singleton: false,
     hasCommander: false,
@@ -114,6 +122,7 @@ export const FORMAT_DEFINITIONS: Record<DeckFormat, FormatDefinition> = {
     id: 'pauper',
     label: 'Pauper',
     deckSize: 60,
+    countRule: 'minimum',
     maxCopies: 4,
     singleton: false,
     hasCommander: false,
@@ -125,6 +134,7 @@ export const FORMAT_DEFINITIONS: Record<DeckFormat, FormatDefinition> = {
     id: 'cube',
     label: 'Cube',
     deckSize: 360,
+    countRule: 'minimum',
     maxCopies: 1,
     singleton: true,
     hasCommander: false,
@@ -136,6 +146,7 @@ export const FORMAT_DEFINITIONS: Record<DeckFormat, FormatDefinition> = {
     id: 'casual',
     label: 'Casual',
     deckSize: null,
+    countRule: null,
     maxCopies: null,
     singleton: false,
     hasCommander: false,
@@ -166,4 +177,56 @@ export function getDeckSizeLabel(format: string | null | undefined): string {
   const config = getFormatConfig(format)
   if (config.deckSize === null) return '—'
   return `${config.deckSize}`
+}
+
+// ---------------------------------------------------------------------------
+// Count Validation
+// ---------------------------------------------------------------------------
+
+export interface CountValidation {
+  /** Whether the current count satisfies the format's rule */
+  valid: boolean
+  /** Current card count */
+  current: number
+  /** Required count (target for exact, minimum for minimum rule) */
+  required: number
+  /** The rule type applied */
+  rule: 'exact' | 'minimum' | null
+  /** Human-readable explanation when invalid */
+  reason: string | null
+}
+
+/**
+ * Validate a deck's card count against its format's rules.
+ * Used for both the Brewing→In Rotation gate and the deck tile display.
+ */
+export function validateDeckCount(cardCount: number, format: string | null | undefined): CountValidation {
+  const config = getFormatConfig(format)
+
+  if (config.deckSize === null || config.countRule === null) {
+    return { valid: true, current: cardCount, required: 0, rule: null, reason: null }
+  }
+
+  const required = config.deckSize
+
+  if (config.countRule === 'exact') {
+    const valid = cardCount === required
+    return {
+      valid,
+      current: cardCount,
+      required,
+      rule: 'exact',
+      reason: valid ? null : `Needs exactly ${required} cards, currently has ${cardCount}`,
+    }
+  }
+
+  // minimum
+  const valid = cardCount >= required
+  return {
+    valid,
+    current: cardCount,
+    required,
+    rule: 'minimum',
+    reason: valid ? null : `Needs at least ${required} cards, currently has ${cardCount}`,
+  }
 }

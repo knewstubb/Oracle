@@ -41,7 +41,7 @@ describe('classifyTier', () => {
         deckCardsId: 10,
         deckId: 5,
         deckName: 'My Brew Deck',
-        deckStatus: 'brew',
+        deckStatus: 'brewing',
       },
     })
     expect(classifyTier(entry)).toBe(3)
@@ -53,7 +53,7 @@ describe('classifyTier', () => {
         deckCardsId: 11,
         deckId: 6,
         deckName: 'My Boxed Deck',
-        deckStatus: 'boxed',
+        deckStatus: 'in_rotation',
       },
     })
     expect(classifyTier(entry)).toBe(4)
@@ -65,7 +65,7 @@ describe('classifyTier', () => {
         deckCardsId: 12,
         deckId: 7,
         deckName: 'My Archived Deck',
-        deckStatus: 'archived',
+        deckStatus: 'graveyard',
       },
     })
     expect(classifyTier(entry)).toBe(4)

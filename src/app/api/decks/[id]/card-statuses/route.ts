@@ -31,6 +31,7 @@ export async function GET(
     .select(`
       id,
       card_name,
+      scryfall_id,
       physical_copy_id,
       physical_copies!deck_cards_physical_copy_id_fkey(is_proxy)
     `)
@@ -45,6 +46,7 @@ export async function GET(
   const cards = (deckCards ?? []).map((row: any) => ({
     id: row.id,
     card_name: row.card_name,
+    scryfall_id: row.scryfall_id ?? null,
     physical_copy_id: row.physical_copy_id,
     is_proxy: row.physical_copies?.is_proxy ?? null,
   }))
@@ -56,7 +58,7 @@ export async function GET(
     total: statuses.filter(s => s.status !== 'generic_land').length,
     original: statuses.filter(s => s.status === 'original').length,
     proxy: statuses.filter(s => s.status === 'proxy').length,
-    open: statuses.filter(s => s.status === 'open').length,
+    available: statuses.filter(s => s.status === 'available').length,
     claimed: statuses.filter(s => s.status === 'claimed').length,
     unowned: statuses.filter(s => s.status === 'unowned').length,
     generic_land: statuses.filter(s => s.status === 'generic_land').length,

@@ -1,29 +1,30 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, List, LayoutGrid, ChevronDown, ChevronRight, AlertTriangle, Tags, MoreVertical, Trash2 } from 'lucide-react'
+import { Search, List, LayoutGrid, Columns3, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
+import { Button } from '@/components/ui/button'
 import { OwnershipBadge } from '@/components/OwnershipBadge'
 import { CardImage } from '@/components/CardImage'
-import { CategoryTagEditor } from '@/components/CategoryTagEditor'
 import { cn } from '@/lib/utils'
 import { parseCategoriesCapped } from '@/lib/categoryUtils'
 import type { StructuredCategories } from '@/lib/categoryUtils'
 import { useDeckCategories } from '@/hooks/useDeckCategories'
 import type { DeckCard } from '@/components/CardGrid'
-import { CardHoverPreview } from '@/components/CardHoverPreview'
 import type { CardSlotStatus } from '@/lib/card-status'
 import { isBasicLand } from '@/lib/basic-lands'
+import { AddCardSearch } from '@/components/AddCardSearch'
+import { DeckImportButton } from '@/components/DeckImportButton'
+import { CardGroupSection } from '@/components/CardGroupSection'
+import { PicklistProgress, type PicklistCard } from '@/components/PicklistV2'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type ViewMode = 'list' | 'grid'
+type ViewMode = 'list' | 'cards' | 'groups'
 type TabMode = 'all' | 'picklist'
-type StatusFilter = 'all' | 'original' | 'proxy' | 'open' | 'claimed' | 'unowned'
-type GroupBy = 'category' | 'type' | 'status' | 'cmc' | 'color'
+type GroupBy = 'category' | 'type' | 'status' | 'cmc' | 'color' | 'price'
 type SortBy = 'name' | 'type' | 'cmc'
 
 interface CardsTabProps {
@@ -37,6 +38,9 @@ interface CardsTabProps {
     max: number
   }>
   scrollToCategory?: string | null
+  onViewPicklist?: () => void
+  /** Maximum copies per card allowed by the deck's format (null = no limit, 1 = singleton). Defaults to 1. */
+  maxCopies?: number | null
 }
 
 // ─── API Response Types ──────────────────────────────────────────────────────
@@ -148,7 +152,7 @@ function groupByStatus(
   statusMap: Map<number, CardSlotStatus>
 ): [string, DeckCard[]][] {
   const groups: Record<string, DeckCard[]> = {}
-  const statusOrder = ['original', 'proxy', 'open', 'claimed', 'unowned', 'generic_land']
+  const statusOrder = ['original', 'proxy', 'available', 'claimed', 'unowned', 'generic_land']
   const labels: Record<string, string> = {
     original: 'Original',
     proxy: 'Proxy',
@@ -158,7 +162,7 @@ function groupByStatus(
     generic_land: 'Basic Lands (generic)',
   }
   for (const card of cards) {
-    const status = statusMap.get(card.id) ?? 'open'
+    const status = statusMap.get(card.id) ?? 'available'
     const label = labels[status] ?? status
     if (!groups[label]) groups[label] = []
     groups[label].push(card)
@@ -180,24 +184,55 @@ function groupByColor(cards: DeckCard[]): [string, DeckCard[]][] {
   return [['All (Color unavailable)', cards]]
 }
 
+/** Group by price into fixed brackets */
+function groupByPrice(cards: DeckCard[]): [string, DeckCard[]][] {
+  const brackets: Record<string, DeckCard[]> = {
+    '$0 – $1': [],
+    '$1 – $5': [],
+    '$5 – $10': [],
+    '$10 – $25': [],
+    '$25+': [],
+    'No price': [],
+  }
+  for (const card of cards) {
+    // price_ck not available on CardGrid DeckCard — put in "No price"
+    brackets['No price'].push(card)
+  }
+  return Object.entries(brackets).filter(([, cards]) => cards.length > 0)
+}
+
+/** Sort grouped cards so Commander is always first */
+function sortCommanderFirst(groups: [string, DeckCard[]][]): [string, DeckCard[]][] {
+  return groups.sort(([a, cardsA], [b, cardsB]) => {
+    const aIsCommander = a.toLowerCase() === 'commander' || cardsA.some(c => c.is_commander)
+    const bIsCommander = b.toLowerCase() === 'commander' || cardsB.some(c => c.is_commander)
+    if (aIsCommander && !bIsCommander) return -1
+    if (bIsCommander && !aIsCommander) return 1
+    return 0
+  })
+}
+
 function applyGrouping(
   cards: DeckCard[],
   groupBy: GroupBy,
   statusMap: Map<number, CardSlotStatus>
 ): [string, DeckCard[]][] {
+  let groups: [string, DeckCard[]][]
   switch (groupBy) {
-    case 'category': return groupByCategory(cards)
-    case 'type': return groupByType(cards)
-    case 'status': return groupByStatus(cards, statusMap)
-    case 'cmc': return groupByCmc(cards)
-    case 'color': return groupByColor(cards)
-    default: return groupByCategory(cards)
+    case 'category': groups = groupByCategory(cards); break
+    case 'type': groups = groupByType(cards); break
+    case 'status': groups = groupByStatus(cards, statusMap); break
+    case 'cmc': groups = groupByCmc(cards); break
+    case 'color': groups = groupByColor(cards); break
+    case 'price': groups = groupByPrice(cards); break
+    default: groups = groupByCategory(cards)
   }
+  return sortCommanderFirst(groups)
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: CardsTabProps) {
+export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, onViewPicklist, maxCopies = 1 }: CardsTabProps) {
   // ── Derived Data ─────────────────────────────────────────────────────────────
 
   const availableCategories = useDeckCategories(cards)
@@ -214,7 +249,17 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
     staleTime: 5 * 60 * 1000,
   })
 
-  // ── Picklist Query (only fetched when picklist mode is active) ────────────
+  // ── Picklist data (for progress bar) ─────────────────────────────────────
+
+  const { data: picklistData } = useQuery<{ cards: PicklistCard[]; progress: { resolved: number; total: number } }>({
+    queryKey: ['picklist', deckId],
+    queryFn: async () => {
+      const res = await fetch(`/api/decks/${deckId}/picklist`)
+      if (!res.ok) throw new Error('Failed to fetch picklist')
+      return res.json()
+    },
+    staleTime: 30 * 1000,
+  })
 
   const [tabMode, setTabMode] = useState<TabMode>('all')
 
@@ -300,12 +345,12 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
   // ── Local State ──────────────────────────────────────────────────────────────
 
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    if (typeof window === 'undefined') return 'list'
+    if (typeof window === 'undefined') return 'groups'
     const saved = localStorage.getItem(getLocalStorageKey(deckId))
-    return saved === 'grid' ? 'grid' : 'list'
+    if (saved === 'list' || saved === 'cards' || saved === 'groups') return saved
+    return 'groups'
   })
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [groupBy, setGroupBy] = useState<GroupBy>('category')
   const [sortBy, setSortBy] = useState<SortBy>('name')
 
@@ -334,10 +379,38 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
     })
   }, [cards])
 
+  // ── Roll up basic lands — collapse duplicate basic land entries into one with summed quantity ──
+
+  const rolledUpCards = useMemo(() => {
+    const landCounts = new Map<string, { card: DeckCard; count: number }>()
+    const nonLands: DeckCard[] = []
+
+    for (const card of activeCards) {
+      if (isBasicLand(card.card_name) && statusMap.get(card.id) === 'generic_land') {
+        const existing = landCounts.get(card.card_name)
+        if (existing) {
+          existing.count += (card.quantity || 1)
+        } else {
+          landCounts.set(card.card_name, { card, count: card.quantity || 1 })
+        }
+      } else {
+        nonLands.push(card)
+      }
+    }
+
+    // Create rolled-up entries for basic lands
+    const rolledLands: DeckCard[] = Array.from(landCounts.values()).map(({ card, count }) => ({
+      ...card,
+      quantity: count,
+    }))
+
+    return [...nonLands, ...rolledLands]
+  }, [activeCards, statusMap])
+
   // ── Filtered & Sorted Cards ──────────────────────────────────────────────────
 
   const filteredCards = useMemo(() => {
-    let result = activeCards
+    let result = rolledUpCards
 
     // Search filter
     if (searchQuery.trim()) {
@@ -345,21 +418,11 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
       result = result.filter((c) => c.card_name.toLowerCase().includes(query))
     }
 
-    // Status filter
-    if (statusFilter !== 'all') {
-      result = result.filter((c) => {
-        const cardStatus = statusMap.get(c.id)
-        // Generic lands are exempt from status filtering — always shown
-        if (cardStatus === 'generic_land') return true
-        return cardStatus === statusFilter
-      })
-    }
-
     // Sort
     result = sortCards(result, sortBy)
 
     return result
-  }, [activeCards, searchQuery, statusFilter, sortBy, statusMap])
+  }, [rolledUpCards, searchQuery, sortBy])
 
   // ── Grouped cards ────────────────────────────────────────────────────────────
 
@@ -387,46 +450,8 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
     <div className="flex h-full flex-col">
       {/* ─── Toolbar ──────────────────────────────────────────────────── */}
       <div className="shrink-0 border-b px-4 py-3" style={{ borderColor: 'var(--border-default)' }}>
-        <div className="mx-auto flex max-w-[1080px] items-center gap-3">
+        <div className="mx-auto flex flex-wrap max-w-[var(--content-max-width)] items-center gap-2 md:gap-3">
           {/* Tab mode segmented control */}
-          <div
-            className="inline-flex overflow-hidden rounded-lg"
-            style={{ border: '1px solid var(--border-emphasis)' }}
-            role="radiogroup"
-            aria-label="Tab mode"
-          >
-            <button
-              type="button"
-              role="radio"
-              aria-checked={tabMode === 'all'}
-              onClick={() => setTabMode('all')}
-              className={cn(
-                'px-3 py-1 text-[length:var(--fs-sm)] font-medium transition-colors',
-                tabMode === 'all' ? 'text-white' : 'text-muted-foreground hover:text-foreground'
-              )}
-              style={{
-                backgroundColor: tabMode === 'all' ? 'var(--accent-primary)' : 'transparent',
-              }}
-            >
-              All cards
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={tabMode === 'picklist'}
-              onClick={() => setTabMode('picklist')}
-              className={cn(
-                'px-3 py-1 text-[length:var(--fs-sm)] font-medium transition-colors',
-                tabMode === 'picklist' ? 'text-white' : 'text-muted-foreground hover:text-foreground'
-              )}
-              style={{
-                backgroundColor: tabMode === 'picklist' ? 'var(--accent-primary)' : 'transparent',
-              }}
-            >
-              Picklist
-            </button>
-          </div>
-
           {/* Search input */}
           <div className="relative max-w-[260px] flex-1">
             <Search
@@ -460,6 +485,7 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
               <option value="status">Group: Status</option>
               <option value="cmc">Group: CMC</option>
               <option value="color">Group: Color</option>
+              <option value="price">Group: Price</option>
             </select>
           )}
 
@@ -480,6 +506,9 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
           {/* Spacer */}
           <div className="flex-1" />
 
+          {/* Add card search */}
+          <AddCardSearch deckId={deckId} />
+
           {/* View toggle */}
           <div
             className="inline-flex overflow-hidden rounded-lg"
@@ -490,8 +519,26 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
             <button
               type="button"
               role="radio"
+              aria-checked={viewMode === 'groups'}
+              aria-label="Categories view"
+              title="Categories"
+              onClick={() => handleViewToggle('groups')}
+              className={cn(
+                'flex items-center justify-center p-1.5 transition-colors',
+                viewMode === 'groups' ? 'text-white' : 'text-muted-foreground hover:text-foreground'
+              )}
+              style={{
+                backgroundColor: viewMode === 'groups' ? 'var(--accent-primary)' : 'transparent',
+              }}
+            >
+              <Columns3 className="size-4" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              role="radio"
               aria-checked={viewMode === 'list'}
-              aria-label="List view"
+              aria-label="Table view"
+              title="Table"
               onClick={() => handleViewToggle('list')}
               className={cn(
                 'flex items-center justify-center p-1.5 transition-colors',
@@ -506,15 +553,16 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
             <button
               type="button"
               role="radio"
-              aria-checked={viewMode === 'grid'}
-              aria-label="Grid view"
-              onClick={() => handleViewToggle('grid')}
+              aria-checked={viewMode === 'cards'}
+              aria-label="Gallery view"
+              title="Gallery"
+              onClick={() => handleViewToggle('cards')}
               className={cn(
                 'flex items-center justify-center p-1.5 transition-colors',
-                viewMode === 'grid' ? 'text-white' : 'text-muted-foreground hover:text-foreground'
+                viewMode === 'cards' ? 'text-white' : 'text-muted-foreground hover:text-foreground'
               )}
               style={{
-                backgroundColor: viewMode === 'grid' ? 'var(--accent-primary)' : 'transparent',
+                backgroundColor: viewMode === 'cards' ? 'var(--accent-primary)' : 'transparent',
               }}
             >
               <LayoutGrid className="size-4" aria-hidden="true" />
@@ -523,55 +571,41 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
         </div>
       </div>
 
-      {/* ─── Status Filter Chips ──────────────────────────────────────── */}
-      {tabMode === 'all' && (
-        <div className="shrink-0 border-b px-4 py-2" style={{ borderColor: 'var(--border-default)' }}>
-          <div className="mx-auto flex max-w-[1080px] items-center gap-2">
-            <StatusChip
-              label={`All — ${counts.total}`}
-              isActive={statusFilter === 'all'}
-              onClick={() => setStatusFilter('all')}
-              color="neutral"
-            />
-            <StatusChip
-              label={`Original — ${counts.original}`}
-              isActive={statusFilter === 'original'}
-              onClick={() => setStatusFilter('original')}
-              color="teal"
-            />
-            <StatusChip
-              label={`Proxy — ${counts.proxy}`}
-              isActive={statusFilter === 'proxy'}
-              onClick={() => setStatusFilter('proxy')}
-              color="teal-dim"
-            />
-            <StatusChip
-              label={`Open — ${counts.open}`}
-              isActive={statusFilter === 'open'}
-              onClick={() => setStatusFilter('open')}
-              color="amber"
-            />
-            <StatusChip
-              label={`Claimed — ${counts.claimed}`}
-              isActive={statusFilter === 'claimed'}
-              onClick={() => setStatusFilter('claimed')}
-              color="orange"
-            />
-            <StatusChip
-              label={`Unowned — ${counts.unowned}`}
-              isActive={statusFilter === 'unowned'}
-              onClick={() => setStatusFilter('unowned')}
-              color="red"
-            />
-          </div>
-        </div>
-      )}
-
       {/* ─── View Content Area ─────────────────────────────────────────── */}
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-        <div className="mx-auto max-w-[1080px]">
+        <div className="mx-auto max-w-[var(--content-max-width)]">
+          {/* Progress bar */}
+          {picklistData && (
+            <PicklistProgress
+              cards={picklistData.cards}
+              progress={picklistData.progress}
+              action={
+                onViewPicklist && (
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    onClick={onViewPicklist}
+                    className="text-[length:var(--fs-xs)]"
+                  >
+                    View Picklist
+                  </Button>
+                )
+              }
+            />
+          )}
           {tabMode === 'picklist' ? (
-            <Picklist deckId={deckId} deckName="" />
+            <PicklistV2 deckId={deckId} />
+          ) : cards.length === 0 ? (
+            <div
+              className="flex min-h-[300px] flex-col items-center justify-center gap-4 rounded-lg text-center"
+              style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}
+            >
+              <p className="text-[length:var(--fs-lg)] font-medium text-foreground">This deck is empty</p>
+              <p className="max-w-sm text-[length:var(--fs-sm)] text-muted-foreground">
+                Import cards from a URL or paste a list to get started. You can also add cards individually using the search above.
+              </p>
+              <DeckImportButton />
+            </div>
           ) : filteredCards.length === 0 ? (
             <div
               className="flex min-h-[200px] items-center justify-center rounded-lg text-[length:var(--fs-md)] text-muted-foreground"
@@ -579,16 +613,30 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
             >
               <p>No cards match the current filters.</p>
             </div>
-          ) : viewMode === 'grid' ? (
-            <GridView cards={filteredCards} groupedCards={groupedCards} statusMap={statusMap} />
+          ) : viewMode === 'cards' ? (
+            <GridView cards={filteredCards} groupedCards={groupedCards} statusMap={statusMap} deckId={deckId} />
+          ) : viewMode === 'groups' ? (
+            <UnifiedGroupsLayout
+              groupedCards={groupedCards}
+              statusMap={statusMap}
+              deckId={deckId}
+              physicalCopyMap={physicalCopyMap}
+              availableCategories={availableCategories}
+              healthCategories={healthCategories}
+              maxCopies={maxCopies}
+              onCategoryChange={(cardId, categories) => {
+                categoryMutation.mutate({ cardId, categories })
+              }}
+            />
           ) : (
-            <GroupedListView
+            <UnifiedListLayout
               groupedCards={groupedCards}
               healthCategories={healthCategories}
               availableCategories={availableCategories}
               statusMap={statusMap}
               deckId={deckId}
               physicalCopyMap={physicalCopyMap}
+              maxCopies={maxCopies}
               onCategoryChange={(cardId, categories) => {
                 categoryMutation.mutate({ cardId, categories })
               }}
@@ -602,7 +650,7 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
         className="shrink-0 border-t px-4 py-2"
         style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-surface)' }}
       >
-        <div className="mx-auto flex max-w-[1080px] items-center gap-6 text-[length:var(--fs-sm)]">
+        <div className="mx-auto flex flex-wrap max-w-[var(--content-max-width)] items-center gap-3 md:gap-6 text-[length:var(--fs-sm)]">
           <span className="inline-flex items-center gap-1.5">
             <span className="size-2.5 rounded-full" style={{ border: '2px solid var(--accent-primary)' }} aria-hidden="true" />
             <span>{counts.original} original</span>
@@ -633,53 +681,14 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory }: 
 
 // ─── Status Chip ─────────────────────────────────────────────────────────────
 
-type ChipColor = 'neutral' | 'teal' | 'teal-dim' | 'amber' | 'orange' | 'red'
-
-interface StatusChipProps {
-  label: string
-  isActive: boolean
-  onClick: () => void
-  color: ChipColor
-}
-
-const CHIP_COLORS: Record<ChipColor, { active: string; activeBg: string; border: string }> = {
-  neutral: { active: 'var(--accent-primary)', activeBg: 'var(--accent-primary-bg)', border: 'var(--accent-primary)' },
-  teal: { active: 'var(--accent-primary)', activeBg: 'var(--accent-primary-bg)', border: 'var(--accent-primary)' },
-  'teal-dim': { active: 'var(--accent-primary)', activeBg: 'rgba(29, 158, 117, 0.08)', border: 'var(--accent-primary)' },
-  amber: { active: 'var(--signal-warning)', activeBg: 'rgba(239, 159, 39, 0.1)', border: 'var(--signal-warning)' },
-  orange: { active: 'var(--status-over)', activeBg: 'rgba(255, 95, 31, 0.12)', border: 'var(--status-over)' },
-  red: { active: 'var(--signal-critical)', activeBg: 'rgba(228, 75, 74, 0.1)', border: 'var(--signal-critical)' },
-}
-
-function StatusChip({ label, isActive, onClick, color }: StatusChipProps) {
-  const colors = CHIP_COLORS[color]
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[length:var(--fs-sm)] font-medium transition-colors"
-      style={{
-        backgroundColor: isActive ? colors.activeBg : 'var(--bg-card)',
-        color: isActive ? colors.active : 'rgba(255,255,255,0.6)',
-        border: `1px solid ${isActive ? colors.border : 'var(--border-emphasis)'}`,
-      }}
-      aria-pressed={isActive}
-    >
-      {label}
-    </button>
-  )
-}
-
 // ─── Status Badge (five-state) ───────────────────────────────────────────────
 
-// Badge rendering now uses the shared CardSlotBadge component
-import { CardSlotBadge } from '@/components/CardSlotBadge'
-import { StatusChipPopover } from '@/components/StatusChipPopover'
-import { Picklist } from '@/components/Picklist'
+// Badge rendering now uses the shared CardGroupSection component
+import { PicklistV2 } from '@/components/PicklistV2'
 
-// ─── Grouped List View ───────────────────────────────────────────────────────
+// ─── Unified List Layout (single column, uses CardGroupSection) ──────────────
 
-function GroupedListView({
+function UnifiedListLayout({
   groupedCards,
   healthCategories,
   availableCategories,
@@ -687,6 +696,7 @@ function GroupedListView({
   deckId,
   physicalCopyMap,
   onCategoryChange,
+  maxCopies,
 }: {
   groupedCards: [string, DeckCard[]][]
   healthCategories?: CardsTabProps['healthCategories']
@@ -695,382 +705,96 @@ function GroupedListView({
   deckId: number
   physicalCopyMap: Map<number, number | null>
   onCategoryChange: (cardId: number, categories: StructuredCategories) => void
+  maxCopies?: number | null
 }) {
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
-
-  const toggleCategory = useCallback((category: string) => {
-    setCollapsed((prev) => {
-      const next = new Set(prev)
-      if (next.has(category)) next.delete(category)
-      else next.add(category)
-      return next
-    })
-  }, [])
-
   return (
-    <div className="space-y-1">
+    <div className="space-y-2">
       {groupedCards.map(([groupName, groupCards]) => {
-        const isCollapsed = collapsed.has(groupName)
-        const count = groupCards.reduce((sum, c) => sum + (c.quantity || 1), 0)
-
-        // Find matching health category
         const health = healthCategories?.find(
           (h) => h.category.toLowerCase() === groupName.toLowerCase()
         )
-        const hasViolation = health && health.status !== 'ok'
-        const target = health ? health.max : undefined
-
         return (
-          <section
+          <CardGroupSection
             key={groupName}
-            id={`category-${groupName.toLowerCase().replace(/\s+/g, '-')}`}
-          >
-            {/* Group Header */}
-            <button
-              type="button"
-              onClick={() => toggleCategory(groupName)}
-              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-white/[0.03]"
-              aria-expanded={!isCollapsed}
-              aria-controls={`category-content-${groupName.toLowerCase().replace(/\s+/g, '-')}`}
-            >
-              <span
-                className="text-[11px] font-medium uppercase tracking-wide"
-                style={{ color: 'rgba(255,255,255,0.5)' }}
-              >
-                {groupName}
-              </span>
-              <span className="text-[11px] text-muted-foreground">{count}</span>
-
-              {/* Fill bar — proportional to count/target if health-monitored */}
-              {target !== undefined && target > 0 && (
-                <div
-                  className="h-1 flex-1 overflow-hidden rounded-full"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.06)', maxWidth: 80 }}
-                >
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      backgroundColor: 'var(--accent-primary)',
-                      width: `${Math.min(100, (count / target) * 100)}%`,
-                    }}
-                  />
-                </div>
-              )}
-
-              {hasViolation && (
-                <AlertTriangle
-                  className="size-3 shrink-0"
-                  style={{ color: 'var(--signal-warning)' }}
-                  aria-label={`${groupName} health warning`}
-                />
-              )}
-
-              <span className="flex-1" />
-
-              {isCollapsed ? (
-                <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-              ) : (
-                <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-              )}
-            </button>
-
-            {/* Card rows */}
-            {!isCollapsed && (
-              <div
-                id={`category-content-${groupName.toLowerCase().replace(/\s+/g, '-')}`}
-                role="list"
-                aria-label={`${groupName} cards`}
-                className="mb-2"
-              >
-                {(() => {
-                  // Separate basic lands from normal cards for collapsing
-                  const normalCards: DeckCard[] = []
-                  const basicLandGroups = new Map<string, { generic: DeckCard[]; tracked: DeckCard[] }>()
-
-                  for (const card of groupCards) {
-                    if (isBasicLand(card.card_name)) {
-                      const existing = basicLandGroups.get(card.card_name) ?? { generic: [], tracked: [] }
-                      const cardStatus = statusMap.get(card.id)
-                      if (cardStatus === 'generic_land') {
-                        existing.generic.push(card)
-                      } else {
-                        existing.tracked.push(card)
-                      }
-                      basicLandGroups.set(card.card_name, existing)
-                    } else {
-                      normalCards.push(card)
-                    }
-                  }
-
-                  return (
-                    <>
-                      {/* Collapsed basic land rows */}
-                      {Array.from(basicLandGroups.entries()).map(([landName, { generic, tracked }]) => (
-                        <BasicLandRow
-                          key={`land-${landName}`}
-                          landName={landName}
-                          genericCount={generic.reduce((sum, c) => sum + (c.quantity || 1), 0)}
-                          trackedCards={tracked}
-                          statusMap={statusMap}
-                        />
-                      ))}
-                      {/* Normal card rows */}
-                      {normalCards.map((card) => (
-                        <CardRow
-                          key={card.id}
-                          card={card}
-                          status={statusMap.get(card.id) ?? 'open'}
-                          deckId={deckId}
-                          physicalCopyId={physicalCopyMap.get(card.id) ?? null}
-                          availableCategories={availableCategories}
-                          onCategoryChange={onCategoryChange}
-                        />
-                      ))}
-                    </>
-                  )
-                })()}
-              </div>
-            )}
-          </section>
+            groupName={groupName}
+            groupCards={groupCards}
+            statusMap={statusMap}
+            deckId={deckId}
+            physicalCopyMap={physicalCopyMap}
+            availableCategories={availableCategories}
+            health={health}
+            onCategoryChange={onCategoryChange}
+            maxCopies={maxCopies}
+          />
         )
       })}
     </div>
   )
 }
 
-// ─── Card Row ────────────────────────────────────────────────────────────────
+// ─── Unified Groups Layout (3-column masonry, uses CardGroupSection) ─────────
 
-// ─── Basic Land Row (Collapsed) ──────────────────────────────────────────────
-
-function BasicLandRow({
-  landName,
-  genericCount,
-  trackedCards,
+function UnifiedGroupsLayout({
+  groupedCards,
   statusMap,
-}: {
-  landName: string
-  genericCount: number
-  trackedCards: DeckCard[]
-  statusMap: Map<number, CardSlotStatus>
-}) {
-  const [expanded, setExpanded] = useState(false)
-  const trackedCount = trackedCards.length
-  const totalCount = genericCount + trackedCount
-
-  return (
-    <div role="listitem">
-      {/* Main collapsed row */}
-      <div
-        className="group flex items-center gap-3 rounded px-3 py-1.5 transition-colors hover:bg-white/[0.03]"
-        style={{ minHeight: 36 }}
-      >
-        {/* Land name with quantity */}
-        <span className="min-w-0 flex-1 truncate text-[length:var(--fs-sm)]">
-          {landName}
-          <span className="ml-1.5 text-muted-foreground">×{totalCount}</span>
-        </span>
-
-        {/* Tracked indicator or "Generic" label */}
-        {trackedCount > 0 ? (
-          <button
-            type="button"
-            onClick={() => setExpanded(!expanded)}
-            className="shrink-0 text-[length:var(--fs-xs)] text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {trackedCount} tracked
-            {expanded ? (
-              <ChevronDown className="ml-1 inline size-3" aria-hidden="true" />
-            ) : (
-              <ChevronRight className="ml-1 inline size-3" aria-hidden="true" />
-            )}
-          </button>
-        ) : (
-          <span className="shrink-0 text-[length:var(--fs-xs)] text-muted-foreground/60">
-            Generic
-          </span>
-        )}
-      </div>
-
-      {/* Expanded tracked copies */}
-      {expanded && trackedCount > 0 && (
-        <div className="ml-6 flex flex-col gap-0.5 pb-1">
-          {trackedCards.map((card) => (
-            <div
-              key={card.id}
-              className="flex items-center gap-3 rounded px-3 py-1 text-[length:var(--fs-xs)]"
-            >
-              <span className="flex-1 text-muted-foreground">
-                {card.set_code?.toUpperCase() || 'Unknown set'}
-                {card.scryfall_id ? '' : ''}
-              </span>
-              <CardSlotBadge status={statusMap.get(card.id) ?? 'original'} />
-            </div>
-          ))}
-          {genericCount > 0 && (
-            <div className="px-3 py-1 text-[length:var(--fs-xs)] text-muted-foreground/50 italic">
-              + {genericCount} generic — not individually tracked
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ─── Card Row ────────────────────────────────────────────────────────────────
-
-function CardRow({
-  card,
-  status,
   deckId,
-  physicalCopyId,
+  physicalCopyMap,
   availableCategories,
+  healthCategories,
   onCategoryChange,
+  maxCopies,
 }: {
-  card: DeckCard
-  status: CardSlotStatus
+  groupedCards: [string, DeckCard[]][]
+  statusMap: Map<number, CardSlotStatus>
   deckId: number
-  physicalCopyId: number | null
+  physicalCopyMap: Map<number, number | null>
   availableCategories: string[]
+  healthCategories?: CardsTabProps['healthCategories']
   onCategoryChange: (cardId: number, categories: StructuredCategories) => void
+  maxCopies?: number | null
 }) {
-  const [showPreview, setShowPreview] = useState(false)
-  const [previewPos, setPreviewPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
-  const [popoverOpen, setPopoverOpen] = useState(false)
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Distribute groups across 3 columns using a greedy shortest-column algorithm
+  const columns = useMemo(() => {
+    const cols: [string, DeckCard[]][][] = [[], [], []]
+    const heights = [0, 0, 0]
 
-  const parsed = parseCategoriesCapped(card.categories)
+    for (const group of groupedCards) {
+      const [, cards] = group
+      const groupHeight = 1 + cards.length
+      const minIdx = heights.indexOf(Math.min(...heights))
+      cols[minIdx].push(group)
+      heights[minIdx] += groupHeight
+    }
 
-  const handleMouseEnter = (e: React.MouseEvent) => {
-    const rect = (e.target as HTMLElement).getBoundingClientRect()
-    setPreviewPos({ x: rect.left + rect.width / 2, y: rect.top })
-    timeoutRef.current = setTimeout(() => setShowPreview(true), 300)
-  }
-
-  const handleMouseLeave = () => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current)
-    setShowPreview(false)
-  }
+    return cols
+  }, [groupedCards])
 
   return (
-    <div
-      role="listitem"
-      className="group flex items-center gap-3 rounded px-3 py-1.5 transition-colors hover:bg-white/[0.03]"
-      style={{ minHeight: 36 }}
-    >
-      {/* Card name with hover preview */}
-      <span
-        className="min-w-0 flex-1 truncate text-[length:var(--fs-sm)] cursor-default"
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-      >
-        {card.card_name}
-        {showPreview && card.scryfall_id && (
-          <CardHoverPreview
-            scryfallId={card.scryfall_id}
-            cardName={card.card_name}
-            anchorX={previewPos.x}
-            anchorY={previewPos.y}
-            visible={true}
-          />
-        )}
-      </span>
-
-      {/* Type — muted */}
-      <span className="hidden shrink-0 text-[length:var(--fs-xs)] text-muted-foreground sm:inline">
-        {parsed.primary_category}
-      </span>
-
-      {/* Category edit trigger — visible on hover */}
-      <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-        <PopoverTrigger
-          className="inline-flex items-center justify-center size-6 rounded-[min(var(--radius-md),10px)] opacity-0 transition-opacity group-hover:opacity-100 text-muted-foreground hover:text-foreground hover:bg-white/[0.06]"
-          aria-label={`Edit categories for ${card.card_name}`}
-        >
-          <Tags className="size-3" />
-        </PopoverTrigger>
-        <PopoverContent className="w-64" align="end">
-          <CategoryTagEditor
-            primaryCategory={parsed.primary_category}
-            additionalCategories={parsed.additional_categories}
-            availableCategories={availableCategories}
-            onChange={(updated) => {
-              onCategoryChange(card.id, updated)
-              setPopoverOpen(false)
-            }}
-          />
-        </PopoverContent>
-      </Popover>
-
-      {/* Interactive status chip */}
-      <StatusChipPopover
-        status={status}
-        cardName={card.card_name}
-        deckId={deckId}
-        deckCardsId={card.id}
-        physicalCopyId={physicalCopyId}
-        scryfallId={card.scryfall_id ?? null}
-      />
-
-      {/* Kebab menu — Remove */}
-      <CardRowKebab
-        deckCardsId={card.id}
-        deckId={deckId}
-        cardName={card.card_name}
-      />
-    </div>
-  )
-}
-
-// ─── Card Row Kebab ──────────────────────────────────────────────────────────
-
-function CardRowKebab({ deckCardsId, deckId, cardName }: { deckCardsId: number; deckId: number; cardName: string }) {
-  const [open, setOpen] = useState(false)
-  const queryClient = useQueryClient()
-
-  const removeMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch(`/api/decks/${deckId}/cards/${deckCardsId}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Remove failed')
-      return res.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['decks', deckId] })
-      queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'card-statuses'] })
-      queryClient.invalidateQueries({ queryKey: ['picklist', deckId] })
-      toast.success(`Removed ${cardName}`)
-    },
-    onError: () => toast.error('Failed to remove card'),
-  })
-
-  return (
-    <div className="relative shrink-0">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="rounded p-1 text-[var(--text-tertiary)] opacity-0 transition-all group-hover:opacity-100 hover:bg-[rgba(255,255,255,0.05)] hover:text-[var(--text-secondary)]"
-        aria-label="More actions"
-        aria-expanded={open}
-      >
-        <MoreVertical className="size-3.5" />
-      </button>
-      {open && (
-        <div
-          className="absolute right-0 top-7 z-20 min-w-[120px] rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-1 shadow-lg"
-          onMouseLeave={() => setOpen(false)}
-        >
-          <button
-            type="button"
-            onClick={() => { removeMutation.mutate(); setOpen(false) }}
-            disabled={removeMutation.isPending}
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-[length:var(--fs-xs)] transition-colors hover:bg-[rgba(226,75,74,0.1)] disabled:opacity-40"
-            style={{ color: 'rgba(226,75,74,0.8)' }}
-          >
-            <Trash2 className="size-3" />
-            Remove
-          </button>
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {columns.map((column, colIdx) => (
+        <div key={colIdx} className="flex flex-col gap-3">
+          {column.map(([groupName, groupCards]) => {
+            const health = healthCategories?.find(
+              (h) => h.category.toLowerCase() === groupName.toLowerCase()
+            )
+            return (
+              <CardGroupSection
+                key={groupName}
+                groupName={groupName}
+                groupCards={groupCards}
+                statusMap={statusMap}
+                deckId={deckId}
+                physicalCopyMap={physicalCopyMap}
+                availableCategories={availableCategories}
+                health={health}
+                onCategoryChange={onCategoryChange}
+                maxCopies={maxCopies}
+                compact
+              />
+            )
+          })}
         </div>
-      )}
+      ))}
     </div>
   )
 }
@@ -1081,10 +805,12 @@ function GridView({
   cards,
   groupedCards,
   statusMap,
+  deckId,
 }: {
   cards: DeckCard[]
   groupedCards: [string, DeckCard[]][]
   statusMap: Map<number, CardSlotStatus>
+  deckId: number
 }) {
   return (
     <div className="space-y-6">
@@ -1097,9 +823,9 @@ function GridView({
           <h4 className="mb-2 text-[length:var(--fs-sm)] font-medium uppercase text-muted-foreground">
             {groupName} ({groupCards.reduce((sum, c) => sum + (c.quantity || 1), 0)})
           </h4>
-          <div className="grid grid-cols-4 gap-3" role="list" aria-label={`${groupName} cards`}>
+          <div className="grid grid-cols-6 gap-3" role="list" aria-label={`${groupName} cards`}>
             {groupCards.map((card) => {
-              const cardStatus = statusMap.get(card.id) ?? 'open'
+              const cardStatus = statusMap.get(card.id) ?? 'available'
               const statusLabels: Record<string, string> = {
                 original: 'Original', proxy: 'Proxy', open: 'Open',
                 claimed: 'Claimed', unowned: 'Unowned', generic_land: '',
@@ -1110,15 +836,15 @@ function GridView({
               const tileBorderStyle: React.CSSProperties = (() => {
                 switch (cardStatus) {
                   case 'original':
-                    return { border: '2.5px solid var(--accent-primary)' }
+                    return { border: '1px solid var(--border-default)' }
                   case 'proxy':
-                    return { border: '2.5px dashed var(--accent-primary)' }
-                  case 'open':
-                    return { border: '2.5px solid var(--signal-warning)' }
+                    return { border: '2px dashed var(--accent-primary)', boxShadow: '0 0 12px rgba(29, 158, 117, 0.6), 0 0 4px rgba(29, 158, 117, 0.3)' }
+                  case 'available':
+                    return { border: '2.5px solid var(--signal-warning)', boxShadow: '0 0 12px rgba(239, 159, 39, 0.6), 0 0 4px rgba(239, 159, 39, 0.3)' }
                   case 'claimed':
-                    return { border: '2.5px solid var(--status-over)' }
+                    return { border: '2.5px solid var(--status-over)', boxShadow: '0 0 12px rgba(255, 95, 31, 0.6), 0 0 4px rgba(255, 95, 31, 0.3)' }
                   case 'unowned':
-                    return { border: '2.5px solid var(--signal-critical)' }
+                    return { border: '2.5px solid var(--signal-critical)', boxShadow: '0 0 12px rgba(226, 75, 74, 0.6), 0 0 4px rgba(226, 75, 74, 0.3)' }
                   default:
                     return { border: '1px solid var(--border-default)' }
                 }
@@ -1131,18 +857,14 @@ function GridView({
                   className="group/tile relative aspect-[5/7] overflow-hidden rounded-lg"
                   style={tileBorderStyle}
                 >
-                  {/* Full card image */}
+                  {/* Full card image — high resolution */}
                   {card.scryfall_id ? (
-                    <div className="absolute inset-0">
-                      <CardImage
-                        scryfallId={card.scryfall_id}
-                        alt={card.card_name}
-                        width={240}
-                        height={336}
-                        noPreview
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
+                    <img
+                      src={`https://cards.scryfall.io/large/front/${card.scryfall_id.charAt(0)}/${card.scryfall_id.charAt(1)}/${card.scryfall_id}.jpg`}
+                      alt={card.card_name}
+                      loading="lazy"
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
                   ) : (
                     <div
                       className="absolute inset-0 flex items-center justify-center bg-muted text-[length:var(--fs-sm)] text-muted-foreground"
@@ -1153,18 +875,69 @@ function GridView({
                     </div>
                   )}
 
+                  {/* Quantity badge — top right, shown when rolled up (quantity > 1) */}
+                  {(card.quantity || 1) > 1 && (
+                    <div
+                      className="absolute top-2 right-2 flex items-center justify-center rounded-full px-2.5 py-1 text-[length:var(--fs-md)] font-bold text-white"
+                      style={{ backgroundColor: 'rgba(0,0,0,0.85)', minWidth: '28px' }}
+                    >
+                      ×{card.quantity}
+                    </div>
+                  )}
+
+                  {/* Status icon — bottom left corner */}
+                  {cardStatus === 'claimed' && (
+                    <div
+                      className="absolute bottom-2 left-2 flex items-center justify-center rounded-full p-1"
+                      style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}
+                      aria-label="Claimed by another deck"
+                    >
+                      <AlertTriangle className="size-5" style={{ color: 'var(--status-over)' }} />
+                    </div>
+                  )}
+                  {cardStatus === 'available' && (
+                    <div
+                      className="absolute bottom-2 left-2 flex items-center justify-center rounded-full p-1"
+                      style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}
+                      aria-label="Open — copy available"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                        <path d="M10 2a8 8 0 0 1 0 16" stroke="var(--signal-warning)" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+                      </svg>
+                    </div>
+                  )}
+
                   {/* Hover overlay */}
                   <div
-                    className="absolute inset-0 flex flex-col items-center justify-center opacity-0 transition-opacity group-hover/tile:opacity-100"
-                    style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
-                    aria-hidden="true"
+                    className="absolute inset-0 flex flex-col items-center justify-center gap-2 opacity-0 transition-opacity group-hover/tile:opacity-100"
+                    style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}
                   >
                     <span className="px-2 text-center text-[length:var(--fs-sm)] font-medium text-white">
                       {card.card_name}
                     </span>
-                    <span className="mt-1 text-[length:var(--fs-xs)] text-white/70">
+                    <span className="text-[length:var(--fs-xs)] text-white/70">
                       {statusLabel}
                     </span>
+
+                    {/* Action buttons — state-dependent */}
+                    {(cardStatus === 'original' || cardStatus === 'proxy') && (
+                      <div className="mt-1 flex items-center gap-2">
+                        <GridCardAction label="Reassign" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="reassign" />
+                        <GridCardAction label="Remove" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="remove" />
+                      </div>
+                    )}
+                    {cardStatus === 'available' && (
+                      <div className="mt-1 flex items-center gap-2">
+                        <GridCardAction label="Fill" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="fill" />
+                        <GridCardAction label="Remove" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="remove" />
+                      </div>
+                    )}
+                    {cardStatus === 'claimed' && (
+                      <div className="mt-1 flex items-center gap-2">
+                        <GridCardAction label="Claim" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="claim" />
+                        <GridCardAction label="Remove" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="remove" />
+                      </div>
+                    )}
                   </div>
                 </div>
               )
@@ -1175,3 +948,81 @@ function GridView({
     </div>
   )
 }
+
+// ─── Grid Card Action Button ─────────────────────────────────────────────────
+
+function GridCardAction({
+  label,
+  deckId,
+  deckCardsId,
+  cardName,
+  action,
+}: {
+  label: string
+  deckId: number
+  deckCardsId: number
+  cardName: string
+  action: 'reassign' | 'remove' | 'fill' | 'claim'
+}) {
+  const queryClient = useQueryClient()
+  const [pending, setPending] = useState(false)
+
+  const handleClick = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setPending(true)
+
+    try {
+      if (action === 'remove') {
+        const res = await fetch(`/api/decks/${deckId}/cards/${deckCardsId}`, { method: 'DELETE' })
+        if (!res.ok) throw new Error('Remove failed')
+        queryClient.invalidateQueries({ queryKey: ['decks', deckId] })
+        queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'card-statuses'] })
+        toast.success(`Removed ${cardName}`)
+      } else if (action === 'fill' || action === 'claim') {
+        // Direct to the status chip for the full flow (candidate selection, confirmation)
+        toast.info(`Click the status badge on this card to ${action}`)
+      } else if (action === 'reassign') {
+        toast.info('Click the status badge on this card to reassign')
+      }
+    } catch {
+      toast.error(`Failed to ${action} ${cardName}`)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  const isDestructive = action === 'remove'
+  const isPrimary = action === 'fill' || action === 'claim' || action === 'reassign'
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={pending}
+      className="rounded-md px-2.5 py-1 text-[length:var(--fs-xs)] font-medium transition-colors disabled:opacity-40"
+      style={{
+        background: isDestructive
+          ? 'rgba(226,75,74,0.2)'
+          : isPrimary
+            ? 'rgba(29,158,117,0.2)'
+            : 'rgba(255,255,255,0.1)',
+        color: isDestructive
+          ? '#E24B4A'
+          : isPrimary
+            ? 'var(--accent-primary)'
+            : 'rgba(255,255,255,0.9)',
+        border: `0.5px solid ${
+          isDestructive
+            ? 'rgba(226,75,74,0.4)'
+            : isPrimary
+              ? 'rgba(29,158,117,0.4)'
+              : 'rgba(255,255,255,0.2)'
+        }`,
+      }}
+    >
+      {label}
+    </button>
+  )
+}
+
+

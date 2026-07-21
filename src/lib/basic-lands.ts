@@ -51,3 +51,30 @@ export function isGenericBasicLand(
 ): boolean {
   return isBasicLand(cardName) && physicalCopyId === null
 }
+
+
+// ---------------------------------------------------------------------------
+// DFC (Double-Faced Card) Name Resolution
+// ---------------------------------------------------------------------------
+
+/**
+ * Extract the front face name from a DFC card name.
+ * DFC names use " // " as separator: "Delver of Secrets // Insectile Aberration"
+ * Returns the original name if it's not a DFC.
+ *
+ * Use this when:
+ * - Building Scryfall /cards/collection requests (which only accept front face names)
+ * - Constructing named image URLs
+ * - Looking up card_metadata (which may be stored under front face only)
+ */
+export function frontFaceName(cardName: string): string {
+  const idx = cardName.indexOf(' // ')
+  return idx === -1 ? cardName : cardName.substring(0, idx)
+}
+
+/**
+ * Check if a card name is a DFC (contains " // " separator).
+ */
+export function isDFC(cardName: string): boolean {
+  return cardName.includes(' // ')
+}

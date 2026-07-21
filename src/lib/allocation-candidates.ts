@@ -20,7 +20,7 @@ export interface CopyAssignment {
   deckCardsId: number
   deckId: number
   deckName: string
-  deckStatus: string // 'brew' | 'boxed' | 'archived'
+  deckStatus: string // 'brewing' | 'in_rotation' | 'graveyard'
 }
 
 /** Enriched supply entry with assignment and storage context */
@@ -77,13 +77,27 @@ export async function fetchEnrichedSupply(
   const supabase = createAdminClient()
 
   // Step 1: Resolve card_name → card_definition_id(s)
-  const { data: defs, error: defErr } = await supabase
+  let { data: defs, error: defErr } = await supabase
     .from('card_definitions')
     .select('id')
     .eq('card_name', cardName)
     .eq('user_id', userId)
 
   if (defErr) throw new Error(`Failed to resolve card definition for "${cardName}": ${defErr.message}`)
+
+  // DFC fallback: if not found and name contains ' // ', try front-face only
+  if ((!defs || defs.length === 0) && cardName.includes(' // ')) {
+    const front = cardName.substring(0, cardName.indexOf(' // '))
+    const fallback = await supabase
+      .from('card_definitions')
+      .select('id')
+      .eq('card_name', front)
+      .eq('user_id', userId)
+    if (!fallback.error && fallback.data && fallback.data.length > 0) {
+      defs = fallback.data
+    }
+  }
+
   if (!defs || defs.length === 0) return [] // No card definition found — no physical copies possible
 
   const defIds = defs.map(d => d.id)
@@ -145,6 +159,138 @@ export async function fetchEnrichedSupply(
 }
 
 // ---------------------------------------------------------------------------
+// Batch Enriched Supply — fetch all copies for multiple card names in 2 queries
+// ---------------------------------------------------------------------------
+
+/**
+ * Batch version of fetchEnrichedSupply. Resolves all card names → card_definition_ids
+ * in one query, then fetches all physical_copies in one query.
+ * Returns a Map keyed by card_name.
+ */
+export async function fetchBatchEnrichedSupply(
+  cardNames: string[],
+  userId: string
+): Promise<Map<string, EnrichedSupplyEntry[]>> {
+  const result = new Map<string, EnrichedSupplyEntry[]>()
+  if (cardNames.length === 0) return result
+
+  // Initialize all names with empty arrays
+  for (const name of cardNames) {
+    result.set(name, [])
+  }
+
+  const supabase = createAdminClient()
+
+  // Step 1: Batch resolve card_names → card_definition_ids
+  const PAGE_SIZE = 1000
+  const allDefs: Array<{ id: number; card_name: string }> = []
+
+  for (let offset = 0; offset < cardNames.length; offset += PAGE_SIZE) {
+    const batch = cardNames.slice(offset, offset + PAGE_SIZE)
+    const { data: defs, error } = await supabase
+      .from('card_definitions')
+      .select('id, card_name')
+      .eq('user_id', userId)
+      .in('card_name', batch)
+
+    if (error) throw new Error(`Batch card_definitions lookup failed: ${error.message}`)
+    if (defs) allDefs.push(...defs)
+  }
+
+  // DFC fallback: for any unresolved names with ' // ', try front-face lookup
+  const resolvedNames = new Set(allDefs.map(d => d.card_name))
+  const dfcFallbacks = cardNames
+    .filter(n => !resolvedNames.has(n) && n.includes(' // '))
+    .map(n => n.substring(0, n.indexOf(' // ')))
+  if (dfcFallbacks.length > 0) {
+    for (let offset = 0; offset < dfcFallbacks.length; offset += PAGE_SIZE) {
+      const batch = dfcFallbacks.slice(offset, offset + PAGE_SIZE)
+      const { data: defs, error } = await supabase
+        .from('card_definitions')
+        .select('id, card_name')
+        .eq('user_id', userId)
+        .in('card_name', batch)
+      if (!error && defs) allDefs.push(...defs)
+    }
+  }
+
+  if (allDefs.length === 0) return result
+
+  // Build defId → cardName map
+  const defIdToName = new Map<number, string>()
+  for (const def of allDefs) {
+    defIdToName.set(def.id, def.card_name)
+  }
+
+  const defIds = allDefs.map(d => d.id)
+
+  // Step 2: Batch fetch physical_copies for all card_definition_ids
+  const allCopies: any[] = []
+
+  for (let offset = 0; offset < defIds.length; offset += PAGE_SIZE) {
+    const batch = defIds.slice(offset, offset + PAGE_SIZE)
+    const { data: copies, error } = await supabase
+      .from('physical_copies')
+      .select(`
+        id,
+        card_definition_id,
+        scryfall_printing_id,
+        is_foil,
+        is_proxy,
+        condition,
+        storage_location_id,
+        storage_locations(name),
+        deck_cards!deck_cards_physical_copy_id_fkey(
+          id,
+          deck_id,
+          decks!deck_cards_deck_id_fkey(name, status)
+        )
+      `)
+      .eq('user_id', userId)
+      .in('card_definition_id', batch)
+
+    if (error) throw new Error(`Batch physical_copies fetch failed: ${error.message}`)
+    if (copies) allCopies.push(...copies)
+  }
+
+  // Step 3: Map copies to EnrichedSupplyEntry and group by card_name
+  for (const copy of allCopies) {
+    const cardName = defIdToName.get(copy.card_definition_id)
+    if (!cardName) continue
+
+    const deckCardsArr = copy.deck_cards || []
+    let assignedTo: CopyAssignment | null = null
+
+    if (deckCardsArr.length > 0) {
+      const dc = deckCardsArr[0]
+      const deck = dc.decks
+      assignedTo = {
+        deckCardsId: dc.id,
+        deckId: dc.deck_id,
+        deckName: deck?.name ?? `Deck ${dc.deck_id}`,
+        deckStatus: deck?.status ?? 'unknown',
+      }
+    }
+
+    const entry: EnrichedSupplyEntry = {
+      physicalCopyId: copy.id,
+      cardDefinitionId: copy.card_definition_id,
+      scryfallPrintingId: copy.scryfall_printing_id ?? null,
+      isFoil: copy.is_foil,
+      isProxy: copy.is_proxy,
+      condition: copy.condition ?? null,
+      storageLocationId: copy.storage_location_id ?? null,
+      storageLocationName: copy.storage_locations?.name ?? null,
+      assignedTo,
+    }
+
+    result.get(cardName)!.push(entry)
+  }
+
+  return result
+}
+
+// ---------------------------------------------------------------------------
 // Tier Classification
 // ---------------------------------------------------------------------------
 
@@ -168,7 +314,7 @@ export function classifyTier(entry: EnrichedSupplyEntry): Exclude<CandidateTier,
 
   // Assigned to another deck — tier depends on that deck's status
   const status = entry.assignedTo.deckStatus
-  if (status === 'brew') return 3
+  if (status === 'brewing') return 3
   // Everything else (boxed, archived, unknown) is tier 4
   return 4
 }
@@ -270,4 +416,62 @@ export async function getRankedCandidates(
   })
 
   return ranked
+}
+
+/**
+ * Batch version of getRankedCandidates — fetches supply for all card names
+ * in 2 bulk queries instead of 2*N queries.
+ * Returns a Map<cardName, RankedCandidate[]>.
+ */
+export async function getBatchRankedCandidates(
+  cardNames: string[],
+  userId: string
+): Promise<Map<string, RankedCandidate[]>> {
+  const supplyByName = await fetchBatchEnrichedSupply(cardNames, userId)
+  const result = new Map<string, RankedCandidate[]>()
+
+  for (const [cardName, entries] of supplyByName) {
+    if (entries.length === 0) {
+      // Tier 5: no copies exist
+      result.set(cardName, [{
+        entry: {
+          physicalCopyId: -1,
+          cardDefinitionId: -1,
+          scryfallPrintingId: null,
+          isFoil: false,
+          isProxy: true,
+          condition: null,
+          storageLocationId: null,
+          storageLocationName: null,
+          assignedTo: null,
+        },
+        tier: 5,
+        tierLabel: TIER_LABELS[5],
+        withinTierScore: 0,
+        autoSelectable: false,
+      }])
+      continue
+    }
+
+    const ranked: RankedCandidate[] = entries.map(entry => {
+      const tier = classifyTier(entry)
+      const withinTierScore = scoreCandidate(entry, null)
+      return {
+        entry,
+        tier,
+        tierLabel: TIER_LABELS[tier],
+        withinTierScore,
+        autoSelectable: tier <= 3,
+      }
+    })
+
+    ranked.sort((a, b) => {
+      if (a.tier !== b.tier) return a.tier - b.tier
+      return b.withinTierScore - a.withinTierScore
+    })
+
+    result.set(cardName, ranked)
+  }
+
+  return result
 }

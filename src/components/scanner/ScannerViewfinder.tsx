@@ -53,7 +53,6 @@ export function ScannerViewfinder({
   const [torchSupported, setTorchSupported] = useState(false)
   const [lastScanTime, setLastScanTime] = useState(0)
   const [scanFeedback, setScanFeedback] = useState<string | null>(null)
-  const [cardDetected, setCardDetected] = useState(false)
   const [glareLevel, setGlareLevel] = useState(0)
 
   // Suggestion prompt — shown after OCR capture
@@ -439,7 +438,7 @@ export function ScannerViewfinder({
             {/* Card-shaped cutout */}
             <div
               className={`relative rounded-xl border-2 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] transition-colors ${
-                cardDetected ? 'border-[var(--accent-primary)]' : 'border-white/60'
+                isCapturing ? 'border-yellow-400' : 'border-white/60'
               }`}
               style={{
                 width: '70vw',
@@ -457,9 +456,7 @@ export function ScannerViewfinder({
             {/* Status text below guide */}
             <div className="absolute left-0 right-0" style={{ top: 'calc(50% + 35vw + 16px)', maxWidth: '100%' }}>
               <p className="text-center text-[length:var(--fs-xs)] text-white/70">
-                {!hashDBLoaded ? 'Loading card database...' :
-                 cardDetected ? 'Detecting card...' :
-                 'Position card within the frame'}
+                {isCapturing ? 'Reading card name...' : 'Position card, then tap shutter'}
               </p>
             </div>
           </div>

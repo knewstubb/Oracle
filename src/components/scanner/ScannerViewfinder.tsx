@@ -60,6 +60,10 @@ export function ScannerViewfinder({
   const [glareLevel, setGlareLevel] = useState(0)
   const frameBufferRef = useRef(new FrameBuffer(5))
 
+  // Suggestion prompt — shown when a candidate appears consistently
+  const [suggestionPrompt, setSuggestionPrompt] = useState<{ match: any; imageUrl: string } | null>(null)
+  const consecutiveMatchRef = useRef<{ name: string; count: number }>({ name: '', count: 0 })
+
   // Duplicate confirmation state
   const [duplicatePrompt, setDuplicatePrompt] = useState<{ match: any; imageUrl: string } | null>(null)
 
@@ -113,8 +117,9 @@ export function ScannerViewfinder({
 
     // Run detection every 200ms (~5 fps)
     scanLoopRef.current = setInterval(async () => {
-      // Skip if we're in cooldown
+      // Skip if we're in cooldown or a suggestion is showing
       if (Date.now() - lastScanTime < SCAN_COOLDOWN_MS) return
+      if (suggestionPrompt) return
 
       // Skip card-presence check for now (was too strict) — go straight to hash matching
       setCardDetected(true)
@@ -139,6 +144,28 @@ export function ScannerViewfinder({
         } else {
           setDebugInfo(`Scanning... glare:${Math.round(result.glarePercentage * 100)}%`)
         }
+      }
+
+      // Track consecutive best-candidate to show suggestion prompt
+      if (result.candidates.length > 0) {
+        const bestCandidate = result.candidates[0]
+        if (bestCandidate.entry.n === consecutiveMatchRef.current.name) {
+          consecutiveMatchRef.current.count++
+        } else {
+          consecutiveMatchRef.current = { name: bestCandidate.entry.n, count: 1 }
+        }
+
+        // If same card appears 4+ consecutive frames (~800ms of stability), show suggestion
+        if (consecutiveMatchRef.current.count >= 4 && !suggestionPrompt) {
+          const match = bestCandidate.entry
+          const imageUrl = `https://cards.scryfall.io/normal/front/${match.s.charAt(0)}/${match.s.charAt(1)}/${match.s}.jpg`
+          setSuggestionPrompt({ match, imageUrl })
+          setLastScanTime(Date.now())
+          consecutiveMatchRef.current = { name: '', count: 0 }
+          return
+        }
+      } else {
+        consecutiveMatchRef.current = { name: '', count: 0 }
       }
 
       if (result.matched && result.topMatch) {
@@ -200,7 +227,7 @@ export function ScannerViewfinder({
     return () => {
       if (scanLoopRef.current) clearInterval(scanLoopRef.current)
     }
-  }, [cameraReady, hashDBLoaded, lastScanTime, scannedCards, onCardScanned])
+  }, [cameraReady, hashDBLoaded, lastScanTime, scannedCards, onCardScanned, suggestionPrompt])
 
   // ─── Camera setup ──────────────────────────────────────────────
 
@@ -482,6 +509,83 @@ export function ScannerViewfinder({
                   style={{ backgroundColor: 'var(--accent-primary)' }}
                 >
                   Add Copy
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Suggestion confirmation prompt — semi-auto matching */}
+        {suggestionPrompt && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/60">
+            <div className="mx-4 w-full max-w-sm rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 shadow-2xl">
+              <p className="mb-3 text-center text-[length:var(--fs-md)] font-medium text-foreground">
+                Is this your card?
+              </p>
+              <p className="mb-3 text-center text-[length:var(--fs-lg)] font-semibold text-foreground">
+                {suggestionPrompt.match.n}
+              </p>
+              {/* Card image preview */}
+              <div className="mb-4 flex justify-center">
+                <img
+                  src={suggestionPrompt.imageUrl}
+                  alt={suggestionPrompt.match.n}
+                  className="h-48 rounded-lg shadow-lg"
+                  style={{ aspectRatio: '5/7' }}
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSuggestionPrompt(null)
+                    // Reset cooldown so scanning resumes immediately
+                    setLastScanTime(0)
+                  }}
+                  className="flex-1 rounded-lg border border-[var(--border-default)] px-3 py-2 text-[length:var(--fs-sm)] font-medium text-muted-foreground transition-colors hover:bg-white/[0.05]"
+                >
+                  No
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const match = suggestionPrompt.match
+                    onCardScanned({
+                      cardName: match.n,
+                      oracleId: match.o,
+                      scryfallId: match.s,
+                      setCode: match.c,
+                      collectorNumber: match.r,
+                      isProxy: false,
+                      isFoil: false,
+                      condition: 'near_mint',
+                      imageUrl: suggestionPrompt.imageUrl,
+                      confidence: 'medium',
+                    })
+                    setSuggestionPrompt(null)
+                    setLastScanTime(Date.now())
+                    setScanFeedback(match.n)
+                    setShowFlash(true)
+                    setTimeout(() => setShowFlash(false), 150)
+                    setTimeout(() => setScanFeedback(null), 2500)
+                    frameBufferRef.current.clear()
+                    // Audio feedback
+                    try {
+                      const ctx = new AudioContext()
+                      const osc = ctx.createOscillator()
+                      const gain = ctx.createGain()
+                      osc.connect(gain)
+                      gain.connect(ctx.destination)
+                      osc.frequency.value = 800
+                      gain.gain.value = 0.1
+                      osc.start()
+                      osc.stop(ctx.currentTime + 0.08)
+                    } catch { /* audio not available */ }
+                  }}
+                  className="flex-1 rounded-lg px-3 py-2 text-[length:var(--fs-sm)] font-medium text-white transition-colors"
+                  style={{ backgroundColor: 'var(--accent-primary)' }}
+                >
+                  Yes
                 </button>
               </div>
             </div>

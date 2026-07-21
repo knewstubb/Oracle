@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { X, Zap, ZapOff, RotateCcw, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { loadHashDB, isHashDBReady } from '@/lib/scanner/hash-db'
+import { loadHashDB, isHashDBReady, getHashDBSize } from '@/lib/scanner/hash-db'
 import { processFrame, detectCardPresence } from '@/lib/scanner/scan-pipeline'
 import { FrameBuffer, computeGlarePercentage } from '@/lib/scanner/frame-buffer'
 import { GlareIndicator } from '@/components/scanner/GlareIndicator'
@@ -73,10 +73,12 @@ export function ScannerViewfinder({
     loadHashDB().then(() => {
       if (isHashDBReady()) {
         setHashDBLoaded(true)
-        console.log('[scanner] Hash DB loaded, auto-detection enabled')
+        console.log('[scanner] Hash DB loaded, auto-detection enabled, size:', getHashDBSize())
+      } else {
+        console.warn('[scanner] Hash DB loaded but empty — check /scan/hash-db.json')
       }
-    }).catch(() => {
-      console.log('[scanner] Hash DB not available, using manual mode')
+    }).catch((err) => {
+      console.error('[scanner] Hash DB failed to load:', err)
     })
   }, [])
 
@@ -348,6 +350,15 @@ export function ScannerViewfinder({
               <div className="absolute -right-0.5 -top-0.5 h-6 w-6 rounded-tr-xl border-r-[3px] border-t-[3px] border-white" />
               <div className="absolute -bottom-0.5 -left-0.5 h-6 w-6 rounded-bl-xl border-b-[3px] border-l-[3px] border-white" />
               <div className="absolute -bottom-0.5 -right-0.5 h-6 w-6 rounded-br-xl border-b-[3px] border-r-[3px] border-white" />
+            </div>
+
+            {/* Status text below guide */}
+            <div className="absolute left-0 right-0" style={{ top: 'calc(50% + 35vw + 16px)', maxWidth: '100%' }}>
+              <p className="text-center text-[length:var(--fs-xs)] text-white/70">
+                {!hashDBLoaded ? 'Loading card database...' :
+                 cardDetected ? 'Detecting card...' :
+                 'Position card within the frame'}
+              </p>
             </div>
           </div>
         )}

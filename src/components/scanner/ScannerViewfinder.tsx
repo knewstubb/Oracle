@@ -518,7 +518,7 @@ export function ScannerViewfinder({
         </div>
 
         {/* Debug info */}
-        <div className="absolute bottom-2 left-2 rounded bg-black/70 px-2 py-1">
+        <div className="absolute bottom-14 left-2 rounded bg-black/70 px-2 py-1">
           <span className="text-[10px] font-mono text-green-400">{debugInfo}</span>
         </div>
       </div>

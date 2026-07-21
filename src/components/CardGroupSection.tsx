@@ -684,7 +684,7 @@ function PrintingPickerWithOwned({
   onSelect: (printing: { scryfallId: string; setCode: string; collectorNumber: string; setName: string }) => void
   onClose: () => void
 }) {
-  const { data: ownedData } = useQuery<{ printingIds: string[] }>({
+  const { data: ownedData } = useQuery<{ printingIds: string[]; printings?: Array<{ scryfallPrintingId: string; location: string }> }>({
     queryKey: ['owned-printings', cardName],
     queryFn: () => fetch(`/api/cards/owned-printings?cardName=${encodeURIComponent(cardName)}`).then(r => r.json()),
     enabled: open,
@@ -692,12 +692,20 @@ function PrintingPickerWithOwned({
   })
 
   const ownedSet = useMemo(() => new Set(ownedData?.printingIds ?? []), [ownedData])
+  const ownedLocations = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const p of ownedData?.printings ?? []) {
+      map.set(p.scryfallPrintingId, p.location)
+    }
+    return map
+  }, [ownedData])
 
   return (
     <PrintingPicker
       open={open}
       cardName={cardName}
       ownedPrintingIds={ownedSet}
+      ownedLocations={ownedLocations}
       onSelect={onSelect}
       onClose={onClose}
     />

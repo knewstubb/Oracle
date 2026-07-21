@@ -46,6 +46,8 @@ interface PrintingPickerProps {
   currentScryfallId?: string | null
   /** Set of scryfall_printing_ids the user owns (highlighted with badge) */
   ownedPrintingIds?: Set<string>
+  /** Map of scryfall_printing_id → location string for owned cards */
+  ownedLocations?: Map<string, string>
   onSelect: (printing: PrintingSelection) => void
   onClose: () => void
 }
@@ -59,6 +61,7 @@ export function PrintingPicker({
   cardName,
   currentScryfallId,
   ownedPrintingIds,
+  ownedLocations,
   onSelect,
   onClose,
 }: PrintingPickerProps) {
@@ -179,6 +182,7 @@ export function PrintingPicker({
                               cardName={cardName}
                               isCurrent={printing.id === currentScryfallId}
                               isOwned={true}
+                              location={ownedLocations?.get(printing.id)}
                               onSelect={onSelect}
                             />
                           ))}
@@ -231,12 +235,14 @@ function PrintingCard({
   cardName,
   isCurrent,
   isOwned,
+  location,
   onSelect,
 }: {
   printing: ScryfallPrinting
   cardName: string
   isCurrent: boolean
   isOwned: boolean
+  location?: string
   onSelect: (printing: PrintingSelection) => void
 }) {
   const imageUrl = printing.image_uris?.normal ?? printing.card_faces?.[0]?.image_uris?.normal ?? printing.image_uris?.small ?? printing.card_faces?.[0]?.image_uris?.small
@@ -292,10 +298,15 @@ function PrintingCard({
         <span className="block truncate text-[length:var(--fs-xs)] font-medium text-foreground">
           {printing.set_name}
         </span>
-        <span className="text-[length:var(--fs-xs)] text-muted-foreground">
+        <span className="block text-[length:var(--fs-xs)] text-muted-foreground">
           #{printing.collector_number} · {printing.set.toUpperCase()}
           {printing.prices?.usd && ` · $${printing.prices.usd}`}
         </span>
+        {location && (
+          <span className="block truncate text-[length:var(--fs-xs)] text-[var(--accent-primary)]">
+            {location}
+          </span>
+        )}
       </div>
     </button>
   )

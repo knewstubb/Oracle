@@ -15,7 +15,7 @@
  */
 
 import { computeDHash } from '@/lib/scanner/dhash'
-import { cropArtworkRegion, DEFAULT_ARTWORK_REGION } from '@/lib/scanner/artwork-crop'
+import { cropArtworkRegion, CAMERA_ARTWORK_REGION } from '@/lib/scanner/artwork-crop'
 import { findCardMatches, isHashDBReady, type MatchResult } from '@/lib/scanner/hash-db'
 import { FrameBuffer, computeGlarePercentage } from '@/lib/scanner/frame-buffer'
 import { detectFoil } from '@/lib/scanner/foil-detect'
@@ -48,13 +48,13 @@ export interface ScanPipelineResult {
 // ---------------------------------------------------------------------------
 
 /** Maximum Hamming distance for a "confident" match */
-const CONFIDENT_THRESHOLD = 5
+const CONFIDENT_THRESHOLD = 15
 
 /** Maximum Hamming distance for a "possible" match */
-const POSSIBLE_THRESHOLD = 10
+const POSSIBLE_THRESHOLD = 22
 
 /** Minimum gap between best and second-best match to be non-ambiguous */
-const AMBIGUITY_GAP = 4
+const AMBIGUITY_GAP = 3
 
 // ---------------------------------------------------------------------------
 // Core Pipeline Function
@@ -116,7 +116,7 @@ export async function processFrame(
   const processingImage = (frameBuffer?.isReady ? frameBuffer.getComposite() : null) ?? guideImage
 
   // Compute glare on the raw frame (before compositing — shows actual current glare)
-  const glarePercentage = computeGlarePercentage(guideImage, DEFAULT_ARTWORK_REGION)
+  const glarePercentage = computeGlarePercentage(guideImage, CAMERA_ARTWORK_REGION)
 
   // Skip matching if glare is too high (> 20% of artwork region)
   if (glarePercentage > 0.20) {
@@ -125,7 +125,7 @@ export async function processFrame(
   }
 
   // Crop to artwork region
-  const artworkImage = cropArtworkRegion(processingImage, DEFAULT_ARTWORK_REGION)
+  const artworkImage = cropArtworkRegion(processingImage, CAMERA_ARTWORK_REGION)
 
   // Compute dHash of the artwork
   const hash = computeDHash(artworkImage)

@@ -29,12 +29,27 @@ export interface ArtworkRegion {
 /**
  * Modern frame (2003–present): standard card with artwork in the upper portion.
  * This covers 90%+ of cards in a typical Commander collection.
+ *
+ * NOTE: These coordinates assume a perfectly-cropped card image.
+ * For camera input, use CAMERA_ARTWORK_REGION which is more forgiving.
  */
 export const MODERN_FRAME: ArtworkRegion = {
   x: 0.065,
   y: 0.115,
   w: 0.87,
   h: 0.44,
+}
+
+/**
+ * Camera-friendly artwork region — more forgiving of imperfect card alignment.
+ * Takes the upper-center 80% of the frame, which should capture the artwork
+ * even when the card has some border/background around it.
+ */
+export const CAMERA_ARTWORK_REGION: ArtworkRegion = {
+  x: 0.1,
+  y: 0.08,
+  w: 0.8,
+  h: 0.5,
 }
 
 /**

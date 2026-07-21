@@ -74,9 +74,10 @@ export function ScannerViewfinder({
   const [manualInput, setManualInput] = useState('')
   const [isSearching, setIsSearching] = useState(false)
 
-  // Guide rect (normalized coordinates of the card guide in the video frame)
-  // Centered, 70% of viewport width, card aspect ratio
-  const guideRect = { x: 0.15, y: 0.15, w: 0.7, h: 0.7 * (88 / 63) * 0.5 }
+  // Guide rect — center crop of the video frame
+  // On mobile, the card fills most of the center of the frame
+  // Use a generous center crop (60% width, 70% height, centered)
+  const guideRect = { x: 0.2, y: 0.1, w: 0.6, h: 0.7 }
 
   // Debug state (visible on screen)
   const [debugInfo, setDebugInfo] = useState('')

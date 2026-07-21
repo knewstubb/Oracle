@@ -17,12 +17,13 @@
  * - Health bar indicators (from List view)
  */
 
-import { useState, useCallback } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState, useCallback, useMemo } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, Tags, MoreVertical, Trash2, GripVertical } from 'lucide-react'
 import { toast } from 'sonner'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { CardHoverPreview, useCardHoverPreview } from '@/components/CardHoverPreview'
+import { PrintingPicker } from '@/components/PrintingPicker'
 import { StatusChipPopover } from '@/components/StatusChipPopover'
 import { CardSlotBadge } from '@/components/CardSlotBadge'
 import { CategoryTagEditor } from '@/components/CategoryTagEditor'
@@ -495,6 +496,7 @@ function GenericLandRow({ landName, count, deckId, cardIds }: { landName: string
 
 function CardRowKebab({ deckCardsId, deckId, cardName, quantity = 1, maxCopies = 1 }: { deckCardsId: number; deckId: number; cardName: string; quantity?: number; maxCopies?: number | null }) {
   const [open, setOpen] = useState(false)
+  const [printingPickerOpen, setPrintingPickerOpen] = useState(false)
   const [optimisticQty, setOptimisticQty] = useState(quantity)
   const queryClient = useQueryClient()
   const allowMultiple = maxCopies === null || maxCopies > 1
@@ -611,6 +613,14 @@ function CardRowKebab({ deckCardsId, deckId, cardName, quantity = 1, maxCopies =
           )}
           <button
             type="button"
+            onClick={() => { setPrintingPickerOpen(true); setOpen(false) }}
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-[length:var(--fs-xs)] text-foreground transition-colors hover:bg-white/[0.05]"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '14px' }} aria-hidden="true">swap_horiz</span>
+            Change printing
+          </button>
+          <button
+            type="button"
             onClick={() => { removeMutation.mutate(); setOpen(false) }}
             disabled={removeMutation.isPending}
             className="flex w-full items-center gap-2 px-3 py-1.5 text-[length:var(--fs-xs)] transition-colors hover:bg-[rgba(226,75,74,0.1)] disabled:opacity-40"
@@ -621,10 +631,78 @@ function CardRowKebab({ deckCardsId, deckId, cardName, quantity = 1, maxCopies =
           </button>
         </div>
       )}
+
+      {/* Printing Picker Modal */}
+      <PrintingPickerWithOwned
+        open={printingPickerOpen}
+        cardName={cardName}
+        deckCardsId={deckCardsId}
+        deckId={deckId}
+        onSelect={async (printing) => {
+          const res = await fetch('/api/cards/update-printing', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              target: 'deck_card',
+              targetId: deckCardsId,
+              scryfallId: printing.scryfallId,
+              setCode: printing.setCode,
+              collectorNumber: printing.collectorNumber,
+            }),
+          })
+          if (res.ok) {
+            toast.success(`Changed to ${printing.setName} printing`)
+            invalidateAll()
+          } else {
+            toast.error('Failed to change printing')
+          }
+          setPrintingPickerOpen(false)
+        }}
+        onClose={() => setPrintingPickerOpen(false)}
+      />
     </div>
   )
 }
 
+
+// ---------------------------------------------------------------------------
+// PrintingPickerWithOwned — wraps PrintingPicker with owned-printings query
+// ---------------------------------------------------------------------------
+
+function PrintingPickerWithOwned({
+  open,
+  cardName,
+  deckCardsId,
+  deckId,
+  onSelect,
+  onClose,
+}: {
+  open: boolean
+  cardName: string
+  deckCardsId: number
+  deckId: number
+  onSelect: (printing: { scryfallId: string; setCode: string; collectorNumber: string; setName: string }) => void
+  onClose: () => void
+}) {
+  const { data: ownedData } = useQuery<{ printingIds: string[] }>({
+    queryKey: ['owned-printings', cardName],
+    queryFn: () => fetch(`/api/cards/owned-printings?cardName=${encodeURIComponent(cardName)}`).then(r => r.json()),
+    enabled: open,
+    staleTime: 60 * 1000,
+  })
+
+  const ownedSet = useMemo(() => new Set(ownedData?.printingIds ?? []), [ownedData])
+
+  return (
+    <PrintingPicker
+      open={open}
+      cardName={cardName}
+      ownedPrintingIds={ownedSet}
+      onSelect={onSelect}
+      onClose={onClose}
+    />
+  )
+}
 
 // ---------------------------------------------------------------------------
 // MakeAllGenericButton — bulk convert specific-printing lands to generic

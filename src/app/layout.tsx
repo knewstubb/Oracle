@@ -9,10 +9,17 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "The Oracle",
   description: "Commander deck management and AI-powered analysis",
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'The Oracle',
+  },
 };
 
 export const viewport: Viewport = {
   viewportFit: 'cover',
+  themeColor: '#1d9e75',
 };
 
 export default function RootLayout({
@@ -27,6 +34,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
         <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"

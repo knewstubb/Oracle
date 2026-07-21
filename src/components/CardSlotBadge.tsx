@@ -44,6 +44,13 @@ const STATUS_CONFIG: Record<
     icon: 'circle',
     filled: false,
   },
+  alternate: {
+    label: 'Alternate',
+    color: 'var(--text-secondary)',
+    bg: 'rgba(255, 255, 255, 0.06)',
+    icon: 'swap_horiz',
+    filled: false,
+  },
   claimed: {
     label: 'Claimed',
     color: '#F5880B',
@@ -141,6 +148,8 @@ export function getSlotTileBorderStyle(status: CardSlotStatus): React.CSSPropert
       return { border: `2.5px dashed ${config.color}` }
     case 'available':
       return { border: `2.5px solid ${config.color}` }
+    case 'alternate':
+      return { border: `2.5px dashed ${config.color}` }
     case 'claimed':
       return { border: `2.5px solid ${config.color}` }
     case 'unowned':

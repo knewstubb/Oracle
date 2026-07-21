@@ -264,10 +264,10 @@ function PrintingCard({
             src={imageUrl}
             alt={`${cardName} (${printing.set_name})`}
             loading="lazy"
-            className="aspect-[5/7] w-full object-cover"
+            className="aspect-[5/7] w-full rounded-lg object-cover"
           />
         ) : (
-          <div className="flex aspect-[5/7] w-full items-center justify-center bg-white/[0.05] text-[length:var(--fs-sm)] text-muted-foreground">
+          <div className="flex aspect-[5/7] w-full items-center justify-center rounded-lg bg-white/[0.05] text-[length:var(--fs-sm)] text-muted-foreground">
             {printing.set.toUpperCase()}
           </div>
         )}

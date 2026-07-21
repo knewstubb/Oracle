@@ -113,7 +113,7 @@ export function ReconciliationPage({
               {scannedCards.length} card{scannedCards.length !== 1 ? 's' : ''} ·
               {target.type === 'deck' && ` → ${target.deckName}`}
               {target.type === 'storage' && ` → ${target.storageLocationName}`}
-              {target.type === 'collection' && ' → Collection (unsorted)'}
+              {target.type === 'collection' && ' → Collection'}
             </p>
           </div>
           <Button variant="ghost" size="sm" onClick={onBack}>

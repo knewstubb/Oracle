@@ -27,7 +27,7 @@ const navItems = [
   { label: 'Decks', icon: 'grid_view', href: '/' },
   { label: 'Card Management', icon: 'modeling', href: '/allocation' },
   { label: 'Collection', icon: 'newsstand', href: '/collection' },
-  { label: 'Storage', icon: 'shelves', href: '/storage' },
+  { label: 'Binders', icon: 'shelves', href: '/storage' },
   { label: 'Scan', icon: 'photo_camera', href: '/scan' },
   { label: 'Brew Deck', icon: 'science', href: '/new-deck' },
   { label: 'Settings', icon: 'settings', href: '/settings' },

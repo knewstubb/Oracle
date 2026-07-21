@@ -137,7 +137,7 @@ export function StorageLocationsSettings() {
   if (isLoading) {
     return (
       <div className="space-y-3">
-        <h3 className="text-[length:var(--fs-md)] font-medium text-muted-foreground">Storage locations</h3>
+        <h3 className="text-[length:var(--fs-md)] font-medium text-muted-foreground">Binders</h3>
         {Array.from({ length: 3 }).map((_, i) => (
           <Skeleton key={i} className="h-10 w-full" />
         ))}
@@ -151,7 +151,7 @@ export function StorageLocationsSettings() {
       <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
         <div className="flex items-center gap-2 text-[length:var(--fs-md)] text-destructive">
           <AlertCircle className="h-4 w-4" />
-          <span>Failed to load storage locations.</span>
+          <span>Failed to load binders.</span>
         </div>
       </div>
     )
@@ -161,7 +161,7 @@ export function StorageLocationsSettings() {
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <Package className="size-4 text-muted-foreground" />
-        <h3 className="text-[length:var(--fs-md)] font-medium text-muted-foreground">Storage locations</h3>
+        <h3 className="text-[length:var(--fs-md)] font-medium text-muted-foreground">Binders</h3>
       </div>
       <p className="text-[length:var(--fs-md)] text-muted-foreground/70">
         Define where unallocated cards are physically stored. Cards in decks show their deck name instead.
@@ -171,7 +171,7 @@ export function StorageLocationsSettings() {
       <div className="divide-y divide-border rounded-lg border border-border">
         {locations?.length === 0 && (
           <div className="px-4 py-6 text-center text-[length:var(--fs-md)] text-muted-foreground">
-            No storage locations defined yet.
+            No binders defined yet.
           </div>
         )}
 

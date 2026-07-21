@@ -62,7 +62,7 @@ const navItems: NavItem[] = [
   { label: 'Decks', icon: DecksIcon, href: '/' },
   { label: 'Card Management', icon: CardManagementIcon, href: '/allocation' },
   { label: 'Collection', icon: CollectionIcon, href: '/collection' },
-  { label: 'Storage', icon: StorageIcon, href: '/storage' },
+  { label: 'Binders', icon: StorageIcon, href: '/storage' },
   { label: 'Scan', icon: ScanIcon, href: '/scan' },
   { label: 'Brew Deck', icon: BrewIcon, href: '/new-deck' },
   { label: 'Settings', icon: SettingsIcon, href: '/settings' },

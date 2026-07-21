@@ -98,11 +98,11 @@ export function ScanSetup({ onComplete }: ScanSetupProps) {
             </div>
           )}
 
-          {/* Storage location targets */}
+          {/* Binder targets */}
           {locations && locations.length > 0 && (
             <div className="space-y-1">
               <span className="text-[length:var(--fs-xs)] font-medium uppercase tracking-wide text-muted-foreground">
-                Add to storage location
+                Add to binder
               </span>
               <div className="max-h-32 space-y-1 overflow-y-auto">
                 {locations.map(loc => (

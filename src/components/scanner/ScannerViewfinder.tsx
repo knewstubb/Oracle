@@ -395,7 +395,7 @@ export function ScannerViewfinder({
           <span className="rounded-full bg-black/60 px-3 py-1 text-[length:var(--fs-xs)] text-white/80">
             {target.type === 'deck' && `Adding to: ${target.deckName}`}
             {target.type === 'storage' && `Adding to: ${target.storageLocationName}`}
-            {target.type === 'collection' && 'Adding to: Collection (unsorted)'}
+            {target.type === 'collection' && 'Adding to: Collection'}
           </span>
         </div>
       </div>

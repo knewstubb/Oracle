@@ -188,11 +188,9 @@ export function PrintingPicker({
 
                     {others.length > 0 && (
                       <div>
-                        {owned.length > 0 && (
-                          <h3 className="mb-3 text-[length:var(--fs-xs)] font-medium uppercase tracking-wide text-muted-foreground">
-                            All printings ({others.length})
-                          </h3>
-                        )}
+                        <h3 className="mb-3 text-[length:var(--fs-xs)] font-medium uppercase tracking-wide text-muted-foreground">
+                          All printings ({others.length})
+                        </h3>
                         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
                           {others.map(printing => (
                             <PrintingCard

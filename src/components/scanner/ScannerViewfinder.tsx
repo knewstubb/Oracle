@@ -78,17 +78,24 @@ export function ScannerViewfinder({
   // Centered, 70% of viewport width, card aspect ratio
   const guideRect = { x: 0.15, y: 0.15, w: 0.7, h: 0.7 * (88 / 63) * 0.5 }
 
+  // Debug state (visible on screen)
+  const [debugInfo, setDebugInfo] = useState('')
+
   // ─── Load hash database ────────────────────────────────────────
 
   useEffect(() => {
+    setDebugInfo('Loading hash DB...')
     loadHashDB().then(() => {
       if (isHashDBReady()) {
         setHashDBLoaded(true)
+        setDebugInfo(`DB ready: ${getHashDBSize()} cards`)
         console.log('[scanner] Hash DB loaded, auto-detection enabled, size:', getHashDBSize())
       } else {
+        setDebugInfo('DB loaded but EMPTY')
         console.warn('[scanner] Hash DB loaded but empty — check /scan/hash-db.json')
       }
     }).catch((err) => {
+      setDebugInfo(`DB error: ${err}`)
       console.error('[scanner] Hash DB failed to load:', err)
     })
   }, [])
@@ -107,16 +114,21 @@ export function ScannerViewfinder({
       // Skip if we're in cooldown
       if (Date.now() - lastScanTime < SCAN_COOLDOWN_MS) return
 
-      // Check card presence first (lightweight)
-      const present = detectCardPresence(video, canvas, guideRect)
-      setCardDetected(present)
-      if (!present) return
+      // Skip card-presence check for now (was too strict) — go straight to hash matching
+      setCardDetected(true)
 
       // Run full pipeline
       const result = await processFrame(video, canvas, guideRect, frameBufferRef.current)
 
       // Update glare level for indicator
       setGlareLevel(result.glarePercentage)
+
+      // Update debug info
+      if (result.topMatch) {
+        setDebugInfo(`Match: ${result.topMatch.entry.n} (d=${result.topMatch.distance})`)
+      } else {
+        setDebugInfo(`Scanning... (glare: ${Math.round(result.glarePercentage * 100)}%)`)
+      }
 
       if (result.matched && result.topMatch) {
         const match = result.topMatch.entry
@@ -500,6 +512,11 @@ export function ScannerViewfinder({
             {target.type === 'storage' && `Adding to: ${target.storageLocationName}`}
             {target.type === 'collection' && 'Adding to: Collection'}
           </span>
+        </div>
+
+        {/* Debug info */}
+        <div className="absolute bottom-2 left-2 rounded bg-black/70 px-2 py-1">
+          <span className="text-[10px] font-mono text-green-400">{debugInfo}</span>
         </div>
       </div>
 

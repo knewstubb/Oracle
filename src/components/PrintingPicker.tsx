@@ -144,9 +144,12 @@ export function PrintingPicker({
         {/* Grid */}
         <div className="flex-1 overflow-y-auto p-4">
           {isLoading ? (
-            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
-              {Array.from({ length: 10 }).map((_, i) => (
-                <div key={i} className="aspect-[5/7] animate-pulse rounded-lg bg-white/[0.06]" />
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="space-y-2">
+                  <div className="aspect-[5/7] animate-pulse rounded-lg bg-white/[0.06]" />
+                  <div className="h-3 w-3/4 animate-pulse rounded bg-white/[0.06]" />
+                </div>
               ))}
             </div>
           ) : filtered.length === 0 ? (
@@ -154,72 +157,59 @@ export function PrintingPicker({
               {search ? 'No printings match your search.' : 'No printings found.'}
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
-              {filtered.map(printing => {
-                const imageUrl = printing.image_uris?.small ?? printing.card_faces?.[0]?.image_uris?.small
-                const isCurrent = printing.id === currentScryfallId
-                const isOwned = ownedPrintingIds?.has(printing.id)
+            <>
+              {/* Owned printings first */}
+              {(() => {
+                const owned = filtered.filter(p => ownedPrintingIds?.has(p.id))
+                const others = filtered.filter(p => !ownedPrintingIds?.has(p.id))
 
                 return (
-                  <button
-                    key={printing.id}
-                    type="button"
-                    onClick={() => onSelect({
-                      scryfallId: printing.id,
-                      setCode: printing.set,
-                      collectorNumber: printing.collector_number,
-                      setName: printing.set_name,
-                    })}
-                    className={cn(
-                      'group relative overflow-hidden rounded-lg border-2 transition-all hover:scale-105 hover:shadow-lg',
-                      isCurrent ? 'border-[var(--accent-primary)] ring-2 ring-[var(--accent-primary)]/30' :
-                      isOwned ? 'border-[var(--signal-success)]/50' :
-                      'border-transparent hover:border-white/20'
-                    )}
-                    title={`${printing.set_name} (#${printing.collector_number})`}
-                  >
-                    {/* Card image */}
-                    {imageUrl ? (
-                      <img
-                        src={imageUrl}
-                        alt={`${cardName} (${printing.set_name})`}
-                        loading="lazy"
-                        className="aspect-[5/7] w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex aspect-[5/7] w-full items-center justify-center bg-white/[0.05] text-[length:var(--fs-xs)] text-muted-foreground">
-                        {printing.set.toUpperCase()}
+                  <>
+                    {owned.length > 0 && (
+                      <div className="mb-6">
+                        <h3 className="mb-3 text-[length:var(--fs-xs)] font-medium uppercase tracking-wide text-muted-foreground">
+                          In your collection ({owned.length})
+                        </h3>
+                        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                          {owned.map(printing => (
+                            <PrintingCard
+                              key={printing.id}
+                              printing={printing}
+                              cardName={cardName}
+                              isCurrent={printing.id === currentScryfallId}
+                              isOwned={true}
+                              onSelect={onSelect}
+                            />
+                          ))}
+                        </div>
                       </div>
                     )}
 
-                    {/* Current indicator */}
-                    {isCurrent && (
-                      <div className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-[var(--accent-primary)]">
-                        <Check className="size-3 text-white" />
+                    {others.length > 0 && (
+                      <div>
+                        {owned.length > 0 && (
+                          <h3 className="mb-3 text-[length:var(--fs-xs)] font-medium uppercase tracking-wide text-muted-foreground">
+                            All printings ({others.length})
+                          </h3>
+                        )}
+                        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                          {others.map(printing => (
+                            <PrintingCard
+                              key={printing.id}
+                              printing={printing}
+                              cardName={cardName}
+                              isCurrent={printing.id === currentScryfallId}
+                              isOwned={false}
+                              onSelect={onSelect}
+                            />
+                          ))}
+                        </div>
                       </div>
                     )}
-
-                    {/* Owned badge */}
-                    {isOwned && !isCurrent && (
-                      <div className="absolute left-1 top-1 rounded-full bg-[var(--signal-success)] px-1.5 py-0.5 text-[9px] font-bold text-white">
-                        OWNED
-                      </div>
-                    )}
-
-                    {/* Set info overlay on hover */}
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-1.5 pb-1.5 pt-6 opacity-0 transition-opacity group-hover:opacity-100">
-                      <span className="block truncate text-[10px] font-medium text-white">
-                        {printing.set_name}
-                      </span>
-                      <span className="text-[9px] text-white/70">
-                        #{printing.collector_number}
-                        {printing.prices?.usd && ` · $${printing.prices.usd}`}
-                      </span>
-                    </div>
-                  </button>
+                  </>
                 )
-              })}
-            </div>
+              })()}
+            </>
           )}
         </div>
 
@@ -230,5 +220,84 @@ export function PrintingPicker({
         </div>
       </div>
     </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// PrintingCard — individual card in the grid
+// ---------------------------------------------------------------------------
+
+function PrintingCard({
+  printing,
+  cardName,
+  isCurrent,
+  isOwned,
+  onSelect,
+}: {
+  printing: ScryfallPrinting
+  cardName: string
+  isCurrent: boolean
+  isOwned: boolean
+  onSelect: (printing: PrintingSelection) => void
+}) {
+  const imageUrl = printing.image_uris?.normal ?? printing.card_faces?.[0]?.image_uris?.normal ?? printing.image_uris?.small ?? printing.card_faces?.[0]?.image_uris?.small
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect({
+        scryfallId: printing.id,
+        setCode: printing.set,
+        collectorNumber: printing.collector_number,
+        setName: printing.set_name,
+      })}
+      className={cn(
+        'group relative flex flex-col overflow-hidden rounded-lg border-2 text-left transition-all hover:scale-[1.02] hover:shadow-lg',
+        isCurrent ? 'border-[var(--accent-primary)] ring-2 ring-[var(--accent-primary)]/30' :
+        isOwned ? 'border-[var(--signal-success)]/50' :
+        'border-transparent hover:border-white/20'
+      )}
+    >
+      {/* Card image */}
+      <div className="relative">
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt={`${cardName} (${printing.set_name})`}
+            loading="lazy"
+            className="aspect-[5/7] w-full object-cover"
+          />
+        ) : (
+          <div className="flex aspect-[5/7] w-full items-center justify-center bg-white/[0.05] text-[length:var(--fs-sm)] text-muted-foreground">
+            {printing.set.toUpperCase()}
+          </div>
+        )}
+
+        {/* Current indicator */}
+        {isCurrent && (
+          <div className="absolute right-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-[var(--accent-primary)] shadow">
+            <Check className="size-3.5 text-white" />
+          </div>
+        )}
+
+        {/* Owned badge */}
+        {isOwned && !isCurrent && (
+          <div className="absolute left-1.5 top-1.5 rounded-full bg-[var(--signal-success)] px-2 py-0.5 text-[10px] font-bold text-white shadow">
+            OWNED
+          </div>
+        )}
+      </div>
+
+      {/* Set info below image */}
+      <div className="px-2 py-1.5" style={{ backgroundColor: 'var(--bg-card)' }}>
+        <span className="block truncate text-[length:var(--fs-xs)] font-medium text-foreground">
+          {printing.set_name}
+        </span>
+        <span className="text-[length:var(--fs-xs)] text-muted-foreground">
+          #{printing.collector_number} · {printing.set.toUpperCase()}
+          {printing.prices?.usd && ` · $${printing.prices.usd}`}
+        </span>
+      </div>
+    </button>
   )
 }

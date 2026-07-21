@@ -66,6 +66,9 @@ export function ScannerViewfinder({
   // Last scanned card (for proxy toggle)
   const [lastScannedCard, setLastScannedCard] = useState<{ sessionId: number; cardName: string } | null>(null)
 
+  // Screen flash on successful scan
+  const [showFlash, setShowFlash] = useState(false)
+
   // Manual card name input (fallback when hash DB isn't available)
   const [manualMode, setManualMode] = useState(false)
   const [manualInput, setManualInput] = useState('')
@@ -149,6 +152,8 @@ export function ScannerViewfinder({
         setLastScanTime(Date.now())
         setScanFeedback(match.n)
         setLastScannedCard({ sessionId: scannedCards.length + 1, cardName: match.n })
+        setShowFlash(true)
+        setTimeout(() => setShowFlash(false), 150)
         setTimeout(() => setScanFeedback(null), 2500)
 
         // Clear frame buffer for next card
@@ -286,7 +291,9 @@ export function ScannerViewfinder({
 
       setLastScanTime(Date.now())
       setScanFeedback(card.name)
-      setTimeout(() => setScanFeedback(null), 1500)
+      setShowFlash(true)
+      setTimeout(() => setShowFlash(false), 150)
+      setTimeout(() => setScanFeedback(null), 2500)
       setManualInput('')
 
       // Play a subtle sound (if available)
@@ -348,9 +355,14 @@ export function ScannerViewfinder({
         {/* Hidden canvas for frame extraction */}
         <canvas ref={canvasRef} className="hidden" />
 
+        {/* Screen flash on successful scan */}
+        {showFlash && (
+          <div className="absolute inset-0 z-20 bg-white/30 pointer-events-none" />
+        )}
+
         {/* Card guide overlay */}
         {cameraReady && (
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className="absolute inset-0 flex items-start justify-center pt-[15vh]">
             {/* Darkened area outside guide */}
             <div className="absolute inset-0 bg-black/40" />
             {/* Card-shaped cutout */}
@@ -481,8 +493,8 @@ export function ScannerViewfinder({
           </div>
         </div>
 
-        {/* Target indicator */}
-        <div className="absolute bottom-20 left-0 right-0 flex justify-center">
+        {/* Target indicator — moved to top area */}
+        <div className="absolute left-0 right-0 top-16 flex justify-center">
           <span className="rounded-full bg-black/60 px-3 py-1 text-[length:var(--fs-xs)] text-white/80">
             {target.type === 'deck' && `Adding to: ${target.deckName}`}
             {target.type === 'storage' && `Adding to: ${target.storageLocationName}`}

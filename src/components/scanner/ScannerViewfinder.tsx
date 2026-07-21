@@ -127,6 +127,8 @@ export function ScannerViewfinder({
       // Update debug info
       if (result.topMatch) {
         setDebugInfo(`Match: ${result.topMatch.entry.n} (d=${result.topMatch.distance})`)
+      } else if (result.candidates.length > 0) {
+        setDebugInfo(`Best: ${result.candidates[0].entry.n} (d=${result.candidates[0].distance}, needs <8)`)
       } else {
         setDebugInfo(`Scanning... (glare: ${Math.round(result.glarePercentage * 100)}%)`)
       }

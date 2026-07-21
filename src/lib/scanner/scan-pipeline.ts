@@ -18,6 +18,7 @@ import { computeDHash } from '@/lib/scanner/dhash'
 import { findCardMatches, isHashDBReady, type MatchResult } from '@/lib/scanner/hash-db'
 import { FrameBuffer, computeGlarePercentage } from '@/lib/scanner/frame-buffer'
 import { detectFoil } from '@/lib/scanner/foil-detect'
+import { detectAndFlatten } from '@/lib/scanner/perspective'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -47,10 +48,10 @@ export interface ScanPipelineResult {
 // ---------------------------------------------------------------------------
 
 /** Maximum Hamming distance for a "confident" match */
-const CONFIDENT_THRESHOLD = 10
+const CONFIDENT_THRESHOLD = 8
 
 /** Maximum Hamming distance for a "possible" match */
-const POSSIBLE_THRESHOLD = 18
+const POSSIBLE_THRESHOLD = 14
 
 /** Minimum gap between best and second-best match to be non-ambiguous */
 const AMBIGUITY_GAP = 3
@@ -123,8 +124,11 @@ export async function processFrame(
     return { ...emptyResult, processingTimeMs, glarePercentage }
   }
 
-  // Hash the full guide region (card area) directly — DB uses full card images
-  const hash = computeDHash(processingImage)
+  // Detect card edges and flatten to standard rectangle (perspective correction)
+  const flattenedCard = detectAndFlatten(processingImage)
+
+  // Hash the flattened card image
+  const hash = computeDHash(flattenedCard)
 
   // Match against database
   const candidates = await findCardMatches(hash, 5, POSSIBLE_THRESHOLD)

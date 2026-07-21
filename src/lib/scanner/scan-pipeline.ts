@@ -15,7 +15,6 @@
  */
 
 import { computeDHash } from '@/lib/scanner/dhash'
-import { cropArtworkRegion, CAMERA_ARTWORK_REGION } from '@/lib/scanner/artwork-crop'
 import { findCardMatches, isHashDBReady, type MatchResult } from '@/lib/scanner/hash-db'
 import { FrameBuffer, computeGlarePercentage } from '@/lib/scanner/frame-buffer'
 import { detectFoil } from '@/lib/scanner/foil-detect'
@@ -48,10 +47,10 @@ export interface ScanPipelineResult {
 // ---------------------------------------------------------------------------
 
 /** Maximum Hamming distance for a "confident" match */
-const CONFIDENT_THRESHOLD = 15
+const CONFIDENT_THRESHOLD = 10
 
 /** Maximum Hamming distance for a "possible" match */
-const POSSIBLE_THRESHOLD = 22
+const POSSIBLE_THRESHOLD = 18
 
 /** Minimum gap between best and second-best match to be non-ambiguous */
 const AMBIGUITY_GAP = 3
@@ -115,20 +114,17 @@ export async function processFrame(
   // Use composited frame if buffer is ready (removes transient glare), else use raw frame
   const processingImage = (frameBuffer?.isReady ? frameBuffer.getComposite() : null) ?? guideImage
 
-  // Compute glare on the raw frame (before compositing — shows actual current glare)
-  const glarePercentage = computeGlarePercentage(guideImage, CAMERA_ARTWORK_REGION)
+  // Compute glare on the raw frame
+  const glarePercentage = computeGlarePercentage(guideImage)
 
-  // Skip matching if glare is too high (> 20% of artwork region)
+  // Skip matching if glare is too high (> 20% of region)
   if (glarePercentage > 0.20) {
     const processingTimeMs = performance.now() - startTime
     return { ...emptyResult, processingTimeMs, glarePercentage }
   }
 
-  // Crop to artwork region
-  const artworkImage = cropArtworkRegion(processingImage, CAMERA_ARTWORK_REGION)
-
-  // Compute dHash of the artwork
-  const hash = computeDHash(artworkImage)
+  // Hash the full guide region (card area) directly — DB uses full card images
+  const hash = computeDHash(processingImage)
 
   // Match against database
   const candidates = await findCardMatches(hash, 5, POSSIBLE_THRESHOLD)

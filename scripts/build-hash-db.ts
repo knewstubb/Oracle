@@ -141,9 +141,12 @@ async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
 }
 
 function getArtCropUrl(card: ScryfallCard): string | null {
-  // Prefer top-level image_uris, fall back to first card_face
-  if (card.image_uris?.art_crop) return card.image_uris.art_crop
-  if (card.card_faces?.[0]?.image_uris?.art_crop) return card.card_faces[0].image_uris.art_crop
+  // Use 'normal' (full card face) — matches what the camera sees
+  if (card.image_uris?.normal) return card.image_uris.normal
+  if (card.card_faces?.[0]?.image_uris?.normal) return card.card_faces[0].image_uris.normal
+  // Fallback to small if normal not available
+  if (card.image_uris?.small) return card.image_uris.small
+  if (card.card_faces?.[0]?.image_uris?.small) return card.card_faces[0].image_uris.small
   return null
 }
 

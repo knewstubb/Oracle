@@ -177,16 +177,17 @@ Scan physical cards with your phone camera to add them to your collection.
 2. Choose where scanned cards should go: Collection (unsorted), a specific deck, or a binder
 3. Tap **Start Scanning**
 4. Point your camera at a card — position it within the guide frame
-5. The scanner will suggest a match — a popup shows "Is this your card?" with a preview image. Tap **Yes** to accept or **No** to dismiss and keep scanning.
-6. Alternatively, type the card name in the text input at the bottom and tap Add (manual fallback)
-7. To scan the same card again (multiple copies): confirm the "Add another copy?" prompt
-8. Tap **Review & Confirm** when done
-9. On the reconciliation page: review all cards, toggle proxy/foil, set condition, remove mistakes
-10. Tap **Confirm X Cards** — only then are cards saved to your collection
+5. Tap the **shutter button** (big white circle) to capture
+6. The app reads the card name via OCR and shows "Is this your card?" with a preview — tap **Yes** to accept or **No** to dismiss
+7. Alternatively, type the card name in the text input at the bottom and tap Add (manual fallback)
+8. To scan the same card again (multiple copies): confirm the "Add another copy?" prompt
+9. Tap **Review & Confirm** when done
+10. On the reconciliation page: review all cards, toggle proxy/foil, set condition, remove mistakes
+11. Tap **Confirm X Cards** — only then are cards saved to your collection
 
 ### Tips
-- Hold cards flat against a contrasting surface, avoid glare (the indicator shows green/yellow/red)
-- Keep the card steady for ~1 second to trigger a suggestion
+- Hold cards flat against a contrasting surface for best OCR results
+- Avoid glare on the card name area (the indicator shows green/yellow/red)
 - The manual text input is often faster for single cards — camera is best for bulk scanning
 - Nothing is saved until you confirm on the reconciliation page
 

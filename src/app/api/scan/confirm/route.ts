@@ -108,6 +108,17 @@ export async function POST(request: NextRequest) {
       }
 
       // 2. Create physical_copies row
+      // Look up current market price for purchase_price default
+      let purchasePrice: number | null = null
+      if (card.scryfallId) {
+        const { data: meta } = await supabase
+          .from('card_metadata')
+          .select('price_usd')
+          .eq('card_name', card.cardName)
+          .maybeSingle()
+        if (meta?.price_usd) purchasePrice = meta.price_usd
+      }
+
       const { data: copy, error: copyErr } = await supabase
         .from('physical_copies')
         .insert({
@@ -119,6 +130,8 @@ export async function POST(request: NextRequest) {
           condition: card.condition,
           storage_location_id: target.type === 'storage' ? target.storageLocationId : null,
           source_tag: 'scan',
+          purchase_price_usd: purchasePrice,
+          purchased_at: new Date().toISOString(),
         })
         .select('id')
         .single()

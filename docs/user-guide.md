@@ -177,15 +177,17 @@ Scan physical cards with your phone camera to add them to your collection.
 2. Choose where scanned cards should go: Collection (unsorted), a specific deck, or a binder
 3. Tap **Start Scanning**
 4. Point your camera at a card — position it within the guide frame
-5. When detected: screen flashes, card name appears. Tap **Mark as Proxy** if needed.
-6. To scan the same card again (multiple copies): confirm the "Add another copy?" prompt
-7. Tap **Review & Confirm** when done
-8. On the reconciliation page: review all cards, toggle proxy/foil, set condition, remove mistakes
-9. Tap **Confirm X Cards** — only then are cards saved to your collection
+5. The scanner will suggest a match — a popup shows "Is this your card?" with a preview image. Tap **Yes** to accept or **No** to dismiss and keep scanning.
+6. Alternatively, type the card name in the text input at the bottom and tap Add (manual fallback)
+7. To scan the same card again (multiple copies): confirm the "Add another copy?" prompt
+8. Tap **Review & Confirm** when done
+9. On the reconciliation page: review all cards, toggle proxy/foil, set condition, remove mistakes
+10. Tap **Confirm X Cards** — only then are cards saved to your collection
 
 ### Tips
-- Hold cards flat, avoid glare (the glare indicator shows green/yellow/red)
-- The text input at the bottom works as a manual fallback (type a card name + hit Add)
+- Hold cards flat against a contrasting surface, avoid glare (the indicator shows green/yellow/red)
+- Keep the card steady for ~1 second to trigger a suggestion
+- The manual text input is often faster for single cards — camera is best for bulk scanning
 - Nothing is saved until you confirm on the reconciliation page
 
 ---
@@ -230,7 +232,7 @@ On the Collection page, a banner shows:
 Each deck's header shows the total value of its cards (e.g. `· $147.30`).
 
 ### Refreshing Prices
-Prices come from Scryfall and are cached. To force a refresh, the system can batch-update all prices for your collection from current Scryfall data.
+Prices come from Scryfall and are cached. The collection value banner includes a **Refresh Prices** button (right side) that updates all market prices from Scryfall's current data. The refresh takes 30-60 seconds depending on collection size — the button shows a spinner while working, and a toast confirms when complete.
 
 ---
 

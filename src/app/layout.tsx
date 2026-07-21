@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Providers } from "@/components/providers";
 import { Sidebar } from "@/components/Sidebar";
+import { MobileHeader } from "@/components/MobileHeader";
 import { Toaster } from "@/components/ui/sonner";
 import { SmartSearch } from "@/components/SmartSearch";
 import "./globals.css";
@@ -44,8 +45,11 @@ export default function RootLayout({
             Skip to main content
           </a>
           <Sidebar />
-          <main id="main-content" className="flex-1 overflow-y-auto">
-            {children}
+          <main id="main-content" className="flex flex-1 flex-col overflow-y-auto">
+            <MobileHeader />
+            <div className="flex-1">
+              {children}
+            </div>
           </main>
           <SmartSearch />
           <Toaster />

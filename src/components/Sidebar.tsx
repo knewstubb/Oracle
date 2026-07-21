@@ -117,7 +117,7 @@ export function Sidebar() {
     <aside
       data-collapsed={collapsed}
       className={cn(
-        'flex h-full flex-col border-r border-border bg-sidebar transition-[width] duration-200',
+        'hidden md:flex h-full flex-col border-r border-border bg-sidebar transition-[width] duration-200',
         'motion-reduce:transition-none',
         collapsed ? 'w-[56px]' : 'w-[220px]'
       )}

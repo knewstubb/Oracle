@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/PageHeader'
 import { useCollectionRollup } from '@/hooks/useCollectionRollup'
 import { useCollectionPrintings } from '@/hooks/useCollectionPrintings'
 import { CollectionImportButton } from '@/components/collection/CollectionImportButton'
+import { CollectionValueBanner } from '@/components/collection/CollectionValueBanner'
 import {
   CollectionToolbar,
   getPersistedViewMode,
@@ -193,6 +194,9 @@ export default function CollectionPage() {
           <CollectionImportButton />
         }
       />
+
+      {/* ─── Collection Value Banner ─────────────────────────────── */}
+      <CollectionValueBanner />
 
       {/* ─── Tab Navigation ──────────────────────────────────────── */}
       {/* ─── Browsing View ───────────────────────────────────────── */}

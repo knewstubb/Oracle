@@ -89,6 +89,15 @@ export function ScanSession() {
     setPhase('scanning')
   }, [])
 
+  const handleMarkLastProxy = useCallback(() => {
+    setScannedCards(prev => {
+      if (prev.length === 0) return prev
+      const updated = [...prev]
+      updated[updated.length - 1] = { ...updated[updated.length - 1], isProxy: true }
+      return updated
+    })
+  }, [])
+
   const handleReset = useCallback(() => {
     setPhase('setup')
     setScannedCards([])
@@ -106,6 +115,7 @@ export function ScanSession() {
           target={target}
           scannedCards={scannedCards}
           onCardScanned={handleCardScanned}
+          onMarkLastProxy={handleMarkLastProxy}
           onFinish={handleFinishScanning}
         />
       )

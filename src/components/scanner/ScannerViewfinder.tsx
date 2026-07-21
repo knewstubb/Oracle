@@ -29,6 +29,7 @@ interface ScannerViewfinderProps {
   target: ScanTarget
   scannedCards: ScannedCard[]
   onCardScanned: (card: Omit<ScannedCard, 'sessionId' | 'scannedAt'>) => void
+  onMarkLastProxy: () => void
   onFinish: () => void
 }
 
@@ -41,6 +42,7 @@ export function ScannerViewfinder({
   target,
   scannedCards,
   onCardScanned,
+  onMarkLastProxy,
   onFinish,
 }: ScannerViewfinderProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -57,6 +59,12 @@ export function ScannerViewfinder({
   const [cardDetected, setCardDetected] = useState(false)
   const [glareLevel, setGlareLevel] = useState(0)
   const frameBufferRef = useRef(new FrameBuffer(5))
+
+  // Duplicate confirmation state
+  const [duplicatePrompt, setDuplicatePrompt] = useState<{ match: any; imageUrl: string } | null>(null)
+
+  // Last scanned card (for proxy toggle)
+  const [lastScannedCard, setLastScannedCard] = useState<{ sessionId: number; cardName: string } | null>(null)
 
   // Manual card name input (fallback when hash DB isn't available)
   const [manualMode, setManualMode] = useState(false)
@@ -110,9 +118,17 @@ export function ScannerViewfinder({
       if (result.matched && result.topMatch) {
         const match = result.topMatch.entry
 
-        // Check duplicate prevention
+        // Check if this is a consecutive duplicate (same card scanned again)
         const isDuplicate = scannedCards.some(c => c.scryfallId === match.s)
-        if (isDuplicate) return
+        if (isDuplicate) {
+          // Show confirmation prompt instead of blocking
+          if (!duplicatePrompt) {
+            const imageUrl = `https://cards.scryfall.io/normal/front/${match.s.charAt(0)}/${match.s.charAt(1)}/${match.s}.jpg`
+            setDuplicatePrompt({ match, imageUrl })
+            setLastScanTime(Date.now())
+          }
+          return
+        }
 
         // Auto-accept confident match
         const imageUrl = `https://cards.scryfall.io/normal/front/${match.s.charAt(0)}/${match.s.charAt(1)}/${match.s}.jpg`
@@ -132,7 +148,8 @@ export function ScannerViewfinder({
 
         setLastScanTime(Date.now())
         setScanFeedback(match.n)
-        setTimeout(() => setScanFeedback(null), 1500)
+        setLastScannedCard({ sessionId: scannedCards.length + 1, cardName: match.n })
+        setTimeout(() => setScanFeedback(null), 2500)
 
         // Clear frame buffer for next card
         frameBufferRef.current.clear()
@@ -243,10 +260,12 @@ export function ScannerViewfinder({
 
       const card = await res.json()
 
-      // Check duplicate prevention (same scryfall_id in this session)
+      // Check duplicate — show confirmation instead of blocking
       const isDuplicate = scannedCards.some(c => c.scryfallId === card.id)
       if (isDuplicate) {
-        toast.error(`${card.name} already scanned this session`)
+        const imageUrl = card.image_uris?.normal ?? card.card_faces?.[0]?.image_uris?.normal ?? null
+        setDuplicatePrompt({ match: { s: card.id, n: card.name, o: card.oracle_id, c: card.set, r: card.collector_number }, imageUrl: imageUrl ?? '' })
+        setManualInput('')
         return
       }
 
@@ -363,12 +382,73 @@ export function ScannerViewfinder({
           </div>
         )}
 
-        {/* Scan feedback overlay */}
+        {/* Scan feedback overlay + proxy toggle */}
         {scanFeedback && (
-          <div className="absolute inset-x-0 top-1/4 flex items-center justify-center">
+          <div className="absolute inset-x-0 top-1/4 flex flex-col items-center gap-2">
             <div className="flex items-center gap-2 rounded-full bg-[var(--accent-primary)] px-4 py-2 text-white shadow-lg">
               <Check className="size-4" />
               <span className="text-[length:var(--fs-sm)] font-medium">{scanFeedback}</span>
+            </div>
+            {lastScannedCard && (
+              <button
+                type="button"
+                onClick={() => {
+                  onMarkLastProxy()
+                  toast.success('Marked as proxy')
+                  setScanFeedback(null)
+                }}
+                className="rounded-full bg-[#489ADE]/90 px-3 py-1 text-[length:var(--fs-xs)] font-medium text-white shadow transition-all hover:bg-[#489ADE]"
+              >
+                Mark as Proxy
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Duplicate confirmation prompt */}
+        {duplicatePrompt && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/60">
+            <div className="mx-4 w-full max-w-sm rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 shadow-2xl">
+              <p className="mb-3 text-center text-[length:var(--fs-md)] font-medium text-foreground">
+                Add another copy?
+              </p>
+              <p className="mb-4 text-center text-[length:var(--fs-sm)] text-muted-foreground">
+                {duplicatePrompt.match.n} is already in this session.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDuplicatePrompt(null)}
+                  className="flex-1 rounded-lg border border-[var(--border-default)] px-3 py-2 text-[length:var(--fs-sm)] font-medium text-muted-foreground transition-colors hover:bg-white/[0.05]"
+                >
+                  Skip
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const match = duplicatePrompt.match
+                    onCardScanned({
+                      cardName: match.n,
+                      oracleId: match.o,
+                      scryfallId: match.s,
+                      setCode: match.c,
+                      collectorNumber: match.r,
+                      isProxy: false,
+                      isFoil: false,
+                      condition: 'near_mint',
+                      imageUrl: duplicatePrompt.imageUrl,
+                      confidence: 'high',
+                    })
+                    toast.success(`Added another ${match.n}`)
+                    setDuplicatePrompt(null)
+                    setLastScanTime(Date.now())
+                  }}
+                  className="flex-1 rounded-lg px-3 py-2 text-[length:var(--fs-sm)] font-medium text-white transition-colors"
+                  style={{ backgroundColor: 'var(--accent-primary)' }}
+                >
+                  Add Copy
+                </button>
+              </div>
             </div>
           </div>
         )}

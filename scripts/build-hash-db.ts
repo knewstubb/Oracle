@@ -68,8 +68,8 @@ interface HashDBEntry {
 // ---------------------------------------------------------------------------
 
 const SCRYFALL_BULK_API = 'https://api.scryfall.com/bulk-data'
-const RATE_LIMIT_MS = 75
-const OUTPUT_DIR = resolve(__dirname, '../the-oracle/public/scan')
+const RATE_LIMIT_MS = 50
+const OUTPUT_DIR = resolve(__dirname, '../public/scan')
 const OUTPUT_FILE = resolve(OUTPUT_DIR, 'hash-db.json')
 const PROGRESS_FILE = resolve(__dirname, '.hash-db-progress.json')
 const USER_AGENT = 'TheOracle/0.1.0 (hash-db-builder)'

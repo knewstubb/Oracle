@@ -79,8 +79,9 @@ export function ScannerViewfinder({
   // Use a generous center crop (60% width, 70% height, centered)
   const guideRect = { x: 0.2, y: 0.1, w: 0.6, h: 0.7 }
 
-  // Debug state (visible on screen)
+  // Debug state (visible on screen) — throttled to 1 update/sec
   const [debugInfo, setDebugInfo] = useState('')
+  const debugLastUpdateRef = useRef(0)
 
   // ─── Load hash database ────────────────────────────────────────
 
@@ -124,13 +125,20 @@ export function ScannerViewfinder({
       // Update glare level for indicator
       setGlareLevel(result.glarePercentage)
 
-      // Update debug info
-      if (result.topMatch) {
-        setDebugInfo(`Match: ${result.topMatch.entry.n} (d=${result.topMatch.distance})`)
-      } else if (result.candidates.length > 0) {
-        setDebugInfo(`Best: ${result.candidates[0].entry.n} (d=${result.candidates[0].distance}, needs <8)`)
-      } else {
-        setDebugInfo(`Scanning... (glare: ${Math.round(result.glarePercentage * 100)}%)`)
+      // Update debug info (throttled to 1/sec so it's readable)
+      const now = Date.now()
+      if (now - debugLastUpdateRef.current > 1000) {
+        debugLastUpdateRef.current = now
+        if (result.topMatch) {
+          setDebugInfo(`Match: ${result.topMatch.entry.n}\nd=${result.topMatch.distance}`)
+        } else if (result.candidates.length > 0) {
+          const top3 = result.candidates.slice(0, 3)
+            .map(c => `${c.entry.n.slice(0, 20)} d=${c.distance}`)
+            .join('\n')
+          setDebugInfo(`Candidates:\n${top3}`)
+        } else {
+          setDebugInfo(`Scanning... glare:${Math.round(result.glarePercentage * 100)}%`)
+        }
       }
 
       if (result.matched && result.topMatch) {
@@ -519,7 +527,7 @@ export function ScannerViewfinder({
 
         {/* Debug info */}
         <div className="absolute bottom-14 left-2 rounded bg-black/70 px-2 py-1">
-          <span className="text-[10px] font-mono text-green-400">{debugInfo}</span>
+          <pre className="text-[10px] font-mono leading-tight text-green-400 whitespace-pre-wrap">{debugInfo}</pre>
         </div>
       </div>
 

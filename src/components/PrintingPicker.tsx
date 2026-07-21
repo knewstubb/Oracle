@@ -107,7 +107,7 @@ export function PrintingPicker({
 
       {/* Modal */}
       <div
-        className="relative z-10 flex max-h-[90vh] w-full flex-col overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-2xl mx-4"
+        className="relative z-10 flex h-[85vh] w-full flex-col overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-2xl mx-4"
         style={{ maxWidth: 'var(--content-max-width)' }}
       >
         {/* Header */}
@@ -143,7 +143,7 @@ export function PrintingPicker({
         </div>
 
         {/* Grid */}
-        <div className="flex-1 overflow-y-auto p-4" style={{ minHeight: '400px' }}>
+        <div className="flex-1 overflow-y-auto p-4" style={{ minHeight: '60vh' }}>
           {isLoading ? (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {Array.from({ length: 10 }).map((_, i) => (

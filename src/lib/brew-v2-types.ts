@@ -6,7 +6,7 @@
 // Deck Status
 // ---------------------------------------------------------------------------
 
-export type DeckStatus = 'brew' | 'boxed' | 'archived'
+export type DeckStatus = 'brewing' | 'in_rotation' | 'graveyard'
 
 // ---------------------------------------------------------------------------
 // Phase State

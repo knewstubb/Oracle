@@ -1,7 +1,9 @@
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
-import { getHealthResult } from '@/lib/health-store'
+import { getHealthResult, upsertHealthResult, getHealthOverrides } from '@/lib/health-store'
+import { computeHealth } from '@/lib/health-engine'
+import type { FunctionalCategory } from '@/lib/category-classifier'
 
 export async function GET(
   request: NextRequest,
@@ -9,6 +11,7 @@ export async function GET(
 ) {
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
+  const userId = authResult.id
 
   const { id } = await params
   const deckId = parseInt(id, 10)
@@ -31,10 +34,74 @@ export async function GET(
     return Response.json({ error: 'Deck not found' }, { status: 404 })
   }
 
-  const result = await getHealthResult(deckId)
+  // Try to load existing health data
+  let result = await getHealthResult(deckId)
+
+  // Auto-compute if no health data exists yet
   if (!result) {
-    return Response.json({ error: 'No health data. Run a recheck.' }, { status: 404 })
+    try {
+      const { data: rows, error: rowsErr } = await supabase
+        .from('deck_cards')
+        .select('card_name, categories')
+        .eq('deck_id', deckId)
+
+      if (rowsErr) throw rowsErr
+
+      const cards = (rows ?? []).map((row) => ({
+        cardName: row.card_name,
+        categories: row.categories,
+        oracleText: null,
+        typeLine: null,
+        isLand: isLandCard(row.categories),
+      }))
+
+      const overrides = new Map<string, FunctionalCategory>()
+      const healthOverrides = await getHealthOverrides(deckId)
+
+      result = computeHealth(cards, overrides, healthOverrides)
+      result.deckId = deckId
+
+      // Persist so subsequent loads are instant
+      await upsertHealthResult(result, userId)
+    } catch (err) {
+      // If auto-compute fails, return empty state rather than an error
+      return Response.json({
+        deckId,
+        categories: [],
+        overallStatus: 'green',
+        computedAt: new Date().toISOString(),
+      })
+    }
   }
 
   return Response.json(result)
+}
+
+/**
+ * Determine if a card is a land based on its Archidekt categories.
+ */
+function isLandCard(rawCategories: string | null): boolean {
+  if (!rawCategories) return false
+
+  const trimmed = rawCategories.trim()
+
+  if (trimmed.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (Array.isArray(parsed)) {
+        return parsed.some(
+          (cat: string) => cat.toLowerCase() === 'lands' || cat.toLowerCase() === 'land'
+        )
+      }
+    } catch {
+      // Fall through to comma-separated
+    }
+  }
+
+  return trimmed
+    .split(',')
+    .some((cat) => {
+      const c = cat.trim().toLowerCase()
+      return c === 'lands' || c === 'land'
+    })
 }

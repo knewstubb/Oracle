@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 export interface PriceStaleIndicatorProps {
   isPriceStale: boolean
@@ -63,15 +64,16 @@ export function PriceStaleIndicator({
           </>
         )}
       </span>
-      <button
-        type="button"
+      <Button
+        variant="outline"
+        size="sm"
         onClick={handleRefresh}
         disabled={isRefreshing}
-        className="ml-2 flex items-center gap-1 rounded-md border border-amber-300 bg-amber-100 px-2.5 py-1 text-[length:var(--fs-sm)] font-medium text-amber-800 transition-colors hover:bg-amber-200 disabled:opacity-50 dark:border-amber-700 dark:bg-amber-900/50 dark:text-amber-300 dark:hover:bg-amber-900/80"
+        className="ml-2 border-amber-300 bg-amber-100 text-amber-800 hover:bg-amber-200 dark:border-amber-700 dark:bg-amber-900/50 dark:text-amber-300 dark:hover:bg-amber-900/80"
       >
         <RefreshCw className={`size-3 ${isRefreshing ? 'animate-spin' : ''}`} aria-hidden="true" />
         {isRefreshing ? 'Refreshing…' : 'Refresh Prices'}
-      </button>
+      </Button>
     </div>
   )
 }

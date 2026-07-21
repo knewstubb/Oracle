@@ -5,20 +5,20 @@ import { useCallback } from 'react'
 import { VALID_STATUSES, type DeckStatus } from '@/lib/deck-status'
 
 const CHIP_CONFIG: Record<DeckStatus, { label: string; color: string; bg: string; borderColor: string }> = {
-  brew: {
-    label: 'Brew',
+  brewing: {
+    label: 'Brewing',
+    color: '#378ADD',
+    bg: 'rgba(55,138,221,0.15)',
+    borderColor: 'rgba(55,138,221,0.4)',
+  },
+  in_rotation: {
+    label: 'In Rotation',
     color: 'var(--accent-primary)',
     bg: 'var(--accent-primary-bg)',
     borderColor: 'rgba(29, 158, 117, 0.4)',
   },
-  boxed: {
-    label: 'Boxed',
-    color: 'var(--accent-primary)',
-    bg: 'var(--accent-primary-bg)',
-    borderColor: 'rgba(29, 158, 117, 0.4)',
-  },
-  archived: {
-    label: 'Archived',
+  graveyard: {
+    label: 'Graveyard',
     color: 'var(--text-secondary)',
     bg: 'var(--bg-card)',
     borderColor: 'var(--border-default)',

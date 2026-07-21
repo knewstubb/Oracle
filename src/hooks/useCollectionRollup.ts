@@ -44,8 +44,26 @@ export interface CollectionRollupRowWithPrice {
 
 export interface CollectionRollupResponse {
   rows: CollectionRollupRowWithPrice[]
+  totalCount: number
+  page: number
+  pageSize: number
   lastPriceRefresh: string | null
   isPriceStale: boolean
+}
+
+// ---------------------------------------------------------------------------
+// Pagination params
+// ---------------------------------------------------------------------------
+
+export interface CollectionRollupParams {
+  tab?: 'collection' | 'proxies'
+  page?: number
+  pageSize?: number
+  search?: string
+  sort?: string
+  sortDir?: 'asc' | 'desc'
+  colors?: string[]
+  colorMode?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -53,28 +71,48 @@ export interface CollectionRollupResponse {
 // ---------------------------------------------------------------------------
 
 /**
- * Fetches card-level rollup data for the collection screen.
- * Uses TanStack Query with a 5-minute stale time for caching.
- *
- * Provides an `expand` function that lazily fetches printing subgroup details
- * for a specific card_definition from /api/collection/rollup/[id].
+ * Fetches paginated card-level rollup data for the collection screen.
+ * Passes search/sort/filter params to the server — only fetches the current page.
  *
  * Validates: Requirements 1.4, 9.2, 9.3
  */
-export function useCollectionRollup(tab: 'collection' | 'proxies' = 'collection') {
+export function useCollectionRollup(params: CollectionRollupParams = {}) {
   const queryClient = useQueryClient()
 
-  // Main rollup query
+  const {
+    tab = 'collection',
+    page = 1,
+    pageSize = 50,
+    search = '',
+    sort = 'cardName',
+    sortDir = 'asc',
+    colors = [],
+    colorMode = 'includes',
+  } = params
+
+  // Build query string
+  const queryString = new URLSearchParams({
+    tab,
+    page: String(page),
+    pageSize: String(pageSize),
+    sort,
+    sortDir,
+    ...(search ? { search } : {}),
+    ...(colors.length > 0 ? { colors: colors.join(','), colorMode } : {}),
+  }).toString()
+
+  // Main rollup query — keyed by all filter/pagination params
   const rollupQuery = useQuery<CollectionRollupResponse>({
-    queryKey: ['collection', 'rollup', tab],
+    queryKey: ['collection', 'rollup', tab, page, pageSize, search, sort, sortDir, colors.join(','), colorMode],
     queryFn: async () => {
-      const res = await fetch(`/api/collection/rollup?tab=${tab}`)
+      const res = await fetch(`/api/collection/rollup?${queryString}`)
       if (!res.ok) {
         throw new Error('Failed to load collection data')
       }
       return res.json()
     },
-    staleTime: 5 * 60 * 1000, // 5 min — collection data only changes on sync
+    staleTime: 60 * 1000, // 1 min — pages change frequently during interaction
+    placeholderData: (prev) => prev, // Keep previous data visible while loading next page
   })
 
   /**
@@ -101,9 +139,13 @@ export function useCollectionRollup(tab: 'collection' | 'proxies' = 'collection'
   return {
     data: rollupQuery.data,
     rows: rollupQuery.data?.rows ?? [],
+    totalCount: rollupQuery.data?.totalCount ?? 0,
+    page: rollupQuery.data?.page ?? page,
+    pageSize: rollupQuery.data?.pageSize ?? pageSize,
     lastPriceRefresh: rollupQuery.data?.lastPriceRefresh ?? null,
     isPriceStale: rollupQuery.data?.isPriceStale ?? false,
     isLoading: rollupQuery.isLoading,
+    isFetching: rollupQuery.isFetching,
     error: rollupQuery.error,
     expand,
   }

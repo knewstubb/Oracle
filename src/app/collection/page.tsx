@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
-import { RefreshCw } from 'lucide-react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PageHeader } from '@/components/PageHeader'
 import { useCollectionRollup } from '@/hooks/useCollectionRollup'
@@ -17,10 +17,6 @@ import { PrintingListView } from '@/components/collection/PrintingListView'
 import { MissingToggle } from '@/components/collection/MissingToggle'
 import { PriceStaleIndicator } from '@/components/collection/PriceStaleIndicator'
 import {
-  filterBySearch,
-  filterByColorIdentity,
-  filterByStatus,
-  sortCards,
   filterPrintingBySearch,
   filterPrintingByColorIdentity,
   filterPrintingByStatus,
@@ -32,11 +28,21 @@ import type {
   SortDirection,
   StatusFilter,
   ColorIdentityMode,
-  CollectionCardRow,
   PrintingCardRow,
 } from '@/lib/collection-filters'
 import type { CollectionRollupRowWithPrice } from '@/hooks/useCollectionRollup'
 import type { PrintingRowResponse } from '@/lib/collection-printing-utils'
+
+/* ─── Debounce hook ─────────────────────────────────────────────────── */
+
+function useDebouncedValue(value: string, delay: number): string {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay)
+    return () => clearTimeout(timer)
+  }, [value, delay])
+  return debounced
+}
 
 /* ─── Page Component ────────────────────────────────────────────────── */
 
@@ -45,16 +51,47 @@ export default function CollectionPage() {
   const [includeProxies, setIncludeProxies] = useState(false)
   const [showMissing, setShowMissing] = useState(false)
 
-  // ─── Fetch rollup data via hook (used for grid view) ─────────────
-  const { rows, lastPriceRefresh, isPriceStale, isLoading, error, expand } =
-    useCollectionRollup('collection')
+  // ─── Toolbar state ─────────────────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortField, setSortField] = useState<SortField>('cardName')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+  const [viewMode, setViewMode] = useState<ViewMode>('grid')
+  const [selectedColors, setSelectedColors] = useState<string[]>([])
+  const [colorMode, setColorMode] = useState<ColorIdentityMode>('exact')
+  const [activeStatuses, setActiveStatuses] = useState<StatusFilter[]>([])
 
-  // ─── Fetch printing-level data via hook (used for list view) ────
+  // Sync viewMode from localStorage after hydration (avoids SSR mismatch)
+  useEffect(() => {
+    const persisted = getPersistedViewMode()
+    if (persisted !== 'grid') setViewMode(persisted)
+  }, [])
+
+  // ─── Pagination state ──────────────────────────────────────────
+  const [currentPage, setCurrentPage] = useState(1)
+
+  // Reset page when filters change
+  const debouncedSearch = useDebouncedValue(searchQuery, 300)
+  useEffect(() => { setCurrentPage(1) }, [debouncedSearch, selectedColors, colorMode, sortField, sortDirection])
+
+  // ─── Fetch rollup data via hook (server-side paginated) ────────
+  const { rows, totalCount, page, pageSize, lastPriceRefresh, isPriceStale, isLoading, isFetching, error, expand } =
+    useCollectionRollup({
+      tab: 'collection',
+      page: currentPage,
+      pageSize: 50,
+      search: debouncedSearch,
+      sort: sortField,
+      sortDir: sortDirection,
+      colors: selectedColors,
+      colorMode,
+    })
+
+  // ─── Fetch printing-level data via hook (only in list view) ─────
   const {
     data: printingData,
     isLoading: printingLoading,
     error: printingError,
-  } = useCollectionPrintings()
+  } = useCollectionPrintings({ enabled: viewMode === 'list' })
 
   // Wrapper: CollectionGridView expects expand to return PrintingSubgroupRow[]
   const expandSubgroups = useCallback(
@@ -65,71 +102,22 @@ export default function CollectionPage() {
     [expand]
   )
 
-  // ─── Toolbar state ─────────────────────────────────────────────
-  const [searchQuery, setSearchQuery] = useState('')
-  const [sortField, setSortField] = useState<SortField>('cardName')
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
-  const [viewMode, setViewMode] = useState<ViewMode>(() => getPersistedViewMode())
-  const [selectedColors, setSelectedColors] = useState<string[]>([])
-  const [colorMode, setColorMode] = useState<ColorIdentityMode>('exact')
-  const [activeStatuses, setActiveStatuses] = useState<StatusFilter[]>([])
-
   // ─── Printing-specific sort state ──────────────────────────────
   const [printingSortField, setPrintingSortField] = useState<PrintingSortField>('cardName')
   const [printingSortDirection, setPrintingSortDirection] = useState<SortDirection>('asc')
 
-  // ─── Client-side filtering pipeline ────────────────────────────
-  const filteredRows = useMemo(() => {
-    // Cast rows to the filter function type — the underlying objects retain all fields
-    const allRows = rows as CollectionCardRow[]
-
-    // 1. Search filter
-    let filtered = filterBySearch(allRows, searchQuery)
-
-    // 2. Color identity filter (skip if no colors selected)
-    if (selectedColors.length > 0) {
-      filtered = filterByColorIdentity(filtered, selectedColors, colorMode)
-    }
-
-    // 3. Status filter (OR logic: show cards matching ANY active status)
-    if (activeStatuses.length > 0) {
-      const statusSets = activeStatuses.map((status) => filterByStatus(filtered, status))
-      // Union all status results (dedupe by cardDefinitionId)
-      const seen = new Set<number>()
-      const union: CollectionCardRow[] = []
-      for (const set of statusSets) {
-        for (const card of set) {
-          if (!seen.has(card.cardDefinitionId)) {
-            seen.add(card.cardDefinitionId)
-            union.push(card)
-          }
-        }
-      }
-      filtered = union
-    }
-
-    // 4. Sort
-    filtered = sortCards(filtered, sortField, sortDirection)
-
-    // The underlying objects are still CollectionRollupRowWithPrice — safe to cast back
-    return filtered as unknown as CollectionRollupRowWithPrice[]
-  }, [rows, searchQuery, selectedColors, colorMode, activeStatuses, sortField, sortDirection])
-
-  // ─── Printing-level filtering pipeline ─────────────────────────
+  // ─── Printing-level filtering pipeline (list view stays client-side for now) ───
   const filteredPrintingRows = useMemo(() => {
     let allRows = printingData?.rows ?? []
 
-    // Filter proxies unless toggle is on
     if (!includeProxies) {
       allRows = allRows.filter((r) => !r.isProxy)
     }
 
-    // Filter missing unless toggle is on
     if (!showMissing) {
       allRows = allRows.filter((r) => !r.isMissing)
     }
 
-    // Cast to PrintingCardRow for filter functions
     let filtered = filterPrintingBySearch(allRows as unknown as PrintingCardRow[], searchQuery)
 
     if (selectedColors.length > 0) {
@@ -137,7 +125,6 @@ export default function CollectionPage() {
     }
 
     if (activeStatuses.length > 0) {
-      // OR logic for status filters
       const statusSets = activeStatuses.map((status) => filterPrintingByStatus(filtered, status))
       const seen = new Set<number>()
       const union: PrintingCardRow[] = []
@@ -159,10 +146,8 @@ export default function CollectionPage() {
   const handlePrintingSort = useCallback(
     (field: PrintingSortField) => {
       if (field === printingSortField) {
-        // Same field clicked — toggle direction
         setPrintingSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
       } else {
-        // Different field — set to ascending
         setPrintingSortField(field)
         setPrintingSortDirection('asc')
       }
@@ -170,7 +155,7 @@ export default function CollectionPage() {
     [printingSortField]
   )
 
-  // ─── Derived state for the active data source ──────────────────
+  // ─── Derived state ─────────────────────────────────────────────
   const isPrintingView = viewMode === 'list'
   const activeIsLoading = isPrintingView ? printingLoading : isLoading
   const activeError = isPrintingView ? printingError : error
@@ -181,23 +166,19 @@ export default function CollectionPage() {
     ? (printingData?.lastPriceRefresh ?? null)
     : lastPriceRefresh
 
-  // Count owned vs proxy vs missing
   const allPrintingRows = printingData?.rows ?? []
   const ownedCount = allPrintingRows.filter((r) => !r.isProxy).length
   const proxyCount = allPrintingRows.filter((r) => r.isProxy).length
   const missingCount = allPrintingRows.filter((r) => r.isMissing).length
 
-  const activeRowCount = isPrintingView
-    ? (includeProxies ? allPrintingRows.length : ownedCount)
-    : rows.length
-  const activeFilteredCount = isPrintingView
-    ? filteredPrintingRows.length
-    : filteredRows.length
+  // Pagination derived state
+  const totalPages = Math.ceil(totalCount / pageSize)
+  const showPagination = !isPrintingView && totalPages > 1
 
   return (
     <div className="flex h-full flex-col bg-[var(--bg-canvas)]">
       {/* Max-width container: 1520px centered, fluid below */}
-      <div className="mx-auto flex h-full w-full max-w-[1520px] flex-col">
+      <div className="mx-auto flex h-full w-full max-w-[var(--content-max-width)] flex-col">
       {/* ─── Page Header ─────────────────────────────────────────── */}
       <PageHeader
         title="Collection"
@@ -209,13 +190,7 @@ export default function CollectionPage() {
           </>
         }
         actions={
-          <>
-            <CollectionImportButton />
-            <span className="flex items-center gap-1.5 text-[length:var(--fs-xs)] text-[var(--text-tertiary)]">
-              <RefreshCw className="size-3" aria-hidden="true" />
-              Synced
-            </span>
-          </>
+          <CollectionImportButton />
         }
       />
 
@@ -319,32 +294,75 @@ export default function CollectionPage() {
                 />
               )
             ) : (
-              filteredRows.length === 0 ? (
-                <EmptyState hasFilters={searchQuery !== '' || selectedColors.length > 0 || activeStatuses.length > 0} />
+              rows.length === 0 ? (
+                <EmptyState hasFilters={debouncedSearch !== '' || selectedColors.length > 0} />
               ) : (
-                <div className="flex-1 overflow-y-auto p-4">
-                  <CollectionGridView rows={filteredRows} onExpand={expandSubgroups} />
+                <div className={cn("flex-1 overflow-y-auto p-4", isFetching && "opacity-70 transition-opacity")}>
+                  <CollectionGridView rows={rows} onExpand={expandSubgroups} />
                 </div>
               )
             )}
           </div>
 
-          {/* ─── Footer ──────────────────────────────────────────── */}
+          {/* ─── Footer with pagination ──────────────────────────── */}
           <div
             className="flex items-center gap-2.5 px-4 py-2.5"
             style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)' }}
           >
             <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.25)' }}>
-              Showing{' '}
-              <span style={{ color: 'rgba(255,255,255,0.5)' }}>
-                {activeFilteredCount.toLocaleString()}
-              </span>{' '}
-              of{' '}
-              <span style={{ color: 'rgba(255,255,255,0.5)' }}>
-                {activeRowCount.toLocaleString()}
-              </span>{' '}
-              cards
+              {isPrintingView ? (
+                <>
+                  Showing{' '}
+                  <span style={{ color: 'rgba(255,255,255,0.5)' }}>
+                    {filteredPrintingRows.length.toLocaleString()}
+                  </span>{' '}
+                  of{' '}
+                  <span style={{ color: 'rgba(255,255,255,0.5)' }}>
+                    {(includeProxies ? allPrintingRows.length : ownedCount).toLocaleString()}
+                  </span>{' '}
+                  cards
+                </>
+              ) : (
+                <>
+                  Showing{' '}
+                  <span style={{ color: 'rgba(255,255,255,0.5)' }}>
+                    {rows.length.toLocaleString()}
+                  </span>{' '}
+                  of{' '}
+                  <span style={{ color: 'rgba(255,255,255,0.5)' }}>
+                    {totalCount.toLocaleString()}
+                  </span>{' '}
+                  cards
+                  {totalPages > 1 && (
+                    <> · Page {currentPage} of {totalPages}</>
+                  )}
+                </>
+              )}
             </span>
+
+            {/* Pagination controls */}
+            {showPagination && (
+              <div className="ml-auto flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage <= 1}
+                  className="rounded p-1 text-muted-foreground transition-colors hover:bg-[rgba(255,255,255,0.05)] hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
+                  className="rounded p-1 text-muted-foreground transition-colors hover:bg-[rgba(255,255,255,0.05)] hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
+                  aria-label="Next page"
+                >
+                  <ChevronRight className="size-4" />
+                </button>
+              </div>
+            )}
           </div>
       </div>{/* end browsing view */}
       </div>{/* end max-width container */}
@@ -445,12 +463,18 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 
 function EmptyState({ hasFilters }: { hasFilters: boolean }) {
   return (
-    <div className="flex flex-1 items-center justify-center">
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
       <p className="text-[length:var(--fs-md)]" style={{ color: 'rgba(255,255,255,0.35)' }}>
         {hasFilters
           ? 'No cards match your filters.'
           : 'No cards in your collection yet.'}
       </p>
+      {!hasFilters && (
+        <p className="max-w-sm text-[length:var(--fs-sm)] text-muted-foreground">
+          Import a CSV from Archidekt, Moxfield, or ManaBox to get started. Your collection powers the Picklist and allocation system.
+        </p>
+      )}
+      {!hasFilters && <CollectionImportButton />}
     </div>
   )
 }

@@ -85,6 +85,7 @@ export function InstanceDetailPanel({
 }: InstanceDetailPanelProps) {
   const queryClient = useQueryClient()
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<number | null>(null)
+  const [unassignPickerCopyId, setUnassignPickerCopyId] = useState<number | null>(null)
   const [replaceTarget, setReplaceTarget] = useState<{
     physicalCopyId: number
     assignedDeckId: number
@@ -250,7 +251,7 @@ export function InstanceDetailPanel({
                           isSelected={isInstanceSelected(instance.physicalCopyId)}
                           onToggleSelect={() => onToggleInstance(instance.physicalCopyId)}
                           isConfirmingDelete={confirmingDeleteId === instance.physicalCopyId}
-                          onUnassign={() => unassignMutation.mutate(instance.physicalCopyId)}
+                          onUnassign={() => setUnassignPickerCopyId(instance.physicalCopyId)}
                           onDelete={() => setConfirmingDeleteId(instance.physicalCopyId)}
                           onConfirmDelete={() => deleteMutation.mutate(instance.physicalCopyId)}
                           onCancelDelete={() => setConfirmingDeleteId(null)}
@@ -311,7 +312,7 @@ export function InstanceDetailPanel({
                           isSelected={isInstanceSelected(instance.physicalCopyId)}
                           onToggleSelect={() => onToggleInstance(instance.physicalCopyId)}
                           isConfirmingDelete={confirmingDeleteId === instance.physicalCopyId}
-                          onUnassign={() => unassignMutation.mutate(instance.physicalCopyId)}
+                          onUnassign={() => setUnassignPickerCopyId(instance.physicalCopyId)}
                           onDelete={() => setConfirmingDeleteId(instance.physicalCopyId)}
                           onConfirmDelete={() => deleteMutation.mutate(instance.physicalCopyId)}
                           onCancelDelete={() => setConfirmingDeleteId(null)}
@@ -373,6 +374,50 @@ export function InstanceDetailPanel({
           onCancel={() => setReplaceTarget(null)}
         />
       )}
+
+      {/* Unassign Location Picker — choose where the freed copy goes */}
+      <LocationPickerModal
+        open={unassignPickerCopyId !== null}
+        cardName={cardName}
+        printingInfo="Where should this copy go after unassigning?"
+        onConfirm={async (storageLocationId) => {
+          if (!unassignPickerCopyId) return
+          const copyId = unassignPickerCopyId
+          setUnassignPickerCopyId(null)
+
+          try {
+            // Step 1: Unassign the copy from its deck
+            const unassignRes = await fetch('/api/collection/instances/unassign', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ physicalCopyId: copyId }),
+            })
+            if (!unassignRes.ok) throw new Error('Unassign failed')
+
+            // Step 2: Update storage location (soft-fail if this part fails)
+            try {
+              const locRes = await fetch('/api/collection/assign-location', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ physicalCopyId: copyId, storageLocationId }),
+              })
+              if (!locRes.ok) {
+                toast.success('Unassigned, but couldn\u2019t update storage location')
+              } else {
+                toast.success('Unassigned and moved to storage')
+              }
+            } catch {
+              toast.success('Unassigned, but couldn\u2019t update storage location')
+            }
+
+            queryClient.invalidateQueries({ queryKey: ['instances', oracleId] })
+            queryClient.invalidateQueries({ queryKey: ['collection'] })
+          } catch {
+            toast.error('Failed to unassign')
+          }
+        }}
+        onCancel={() => setUnassignPickerCopyId(null)}
+      />
     </div>
   )
 }
@@ -440,7 +485,7 @@ function ShortDeckRow({ shortDeck, oracleId, cardName, assignedInstances }: Shor
 
   const handleReassignFrom = (instance: InstanceRow) => {
     // Brew → Tier 3 → execute immediately
-    if (instance.assignedDeckStatus === 'brew') {
+    if (instance.assignedDeckStatus === 'brewing') {
       assignMutation.mutate(instance.physicalCopyId)
     } else {
       // Boxed → Tier 4 → show confirmation modal
@@ -452,9 +497,29 @@ function ShortDeckRow({ shortDeck, oracleId, cardName, assignedInstances }: Shor
     }
   }
 
-  const handleConfirmReassign = () => {
-    if (confirmReassign) {
-      assignMutation.mutate(confirmReassign.physicalCopyId)
+  const handleConfirmReassign = async () => {
+    if (!confirmReassign) return
+    try {
+      const res = await fetch('/api/allocation/claim-from-deck', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deckCardsId: shortDeck.deckCardsId,
+          physicalCopyId: confirmReassign.physicalCopyId,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Claim failed')
+      }
+      queryClient.invalidateQueries({ queryKey: ['instances', oracleId] })
+      queryClient.invalidateQueries({ queryKey: ['collection', 'rollup-v2'] })
+      queryClient.invalidateQueries({ queryKey: ['collection'] })
+      setConfirmReassign(null)
+      toast.success(`Assigned to ${shortDeck.deckName}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to assign')
+      setConfirmReassign(null)
     }
   }
 
@@ -561,11 +626,11 @@ function ShortDeckRow({ shortDeck, oracleId, cardName, assignedInstances }: Shor
                 <span
                   className="rounded-full px-1 py-0.5 text-[length:10px] font-medium leading-none"
                   style={{
-                    background: `${getStatusColor(instance.assignedDeckStatus ?? 'brew')}20`,
-                    color: getStatusColor(instance.assignedDeckStatus ?? 'brew'),
+                    background: `${getStatusColor(instance.assignedDeckStatus ?? 'brewing')}20`,
+                    color: getStatusColor(instance.assignedDeckStatus ?? 'brewing'),
                   }}
                 >
-                  {instance.assignedDeckStatus ?? 'brew'}
+                  {instance.assignedDeckStatus ?? 'brewing'}
                 </span>
               </button>
             ))}
@@ -970,9 +1035,9 @@ function getAssignmentLabel(instance: InstanceRow): string {
 
 function getStatusColor(status: string): string {
   switch (status) {
-    case 'brew': return '#60A5FA' // blue
-    case 'boxed': return '#34D399' // green
-    case 'archived': return '#9CA3AF' // gray
+    case 'brewing': return '#60A5FA' // blue
+    case 'in_rotation': return '#34D399' // green
+    case 'graveyard': return '#9CA3AF' // gray
     default: return '#9CA3AF'
   }
 }

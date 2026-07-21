@@ -227,8 +227,8 @@ export function getCategoryHealth(
 
 /**
  * Returns true if a deck with the given status is eligible for deletion.
- * Boxed decks are never deletable — only 'brew' and 'archived' statuses allow deletion.
+ * Boxed decks are never deletable — only 'brewing' and 'graveyard' statuses allow deletion.
  */
 export function canDeleteDeck(status: DeckStatus | string): boolean {
-  return status === 'brew' || status === 'archived'
+  return status === 'brewing' || status === 'graveyard'
 }

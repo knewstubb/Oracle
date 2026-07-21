@@ -104,7 +104,7 @@ export default function SharedCardsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-[1280px] px-8 py-8 bg-[var(--bg-canvas)] min-h-full">
+    <div className="mx-auto max-w-[var(--content-max-width)] px-8 py-8 bg-[var(--bg-canvas)] min-h-full">
       <header className="mb-8">
         <PageHeader title="Shared Cards" />
         {groups && groups.length > 0 && (

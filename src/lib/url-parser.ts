@@ -2,7 +2,7 @@
 // URL Parser — Extracts platform and deck ID from Archidekt/Moxfield URLs
 // ---------------------------------------------------------------------------
 
-export type DeckPlatform = 'archidekt' | 'moxfield' | 'csv'
+export type DeckPlatform = 'archidekt' | 'moxfield' | 'csv' | 'paste'
 
 export interface ParsedDeckUrl {
   platform: DeckPlatform

@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   if (authResult instanceof Response) return authResult
   const userId = authResult.id
 
-  let body: { deckIds?: string[]; deckStatuses?: Record<string, 'brew' | 'boxed'> }
+  let body: { deckIds?: string[]; deckStatuses?: Record<string, 'brewing' | 'in_rotation'> }
   try {
     body = await request.json()
   } catch {

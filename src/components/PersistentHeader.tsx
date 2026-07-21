@@ -2,6 +2,7 @@
 
 import { Swords } from 'lucide-react'
 import { CardImage } from '@/components/CardImage'
+import { Button } from '@/components/ui/button'
 
 interface PersistentHeaderProps {
   deck: {
@@ -17,16 +18,18 @@ interface PersistentHeaderProps {
   }
   totalCards: number
   proxyCount: number
+  totalValue?: number
   onDebriefClick?: () => void
   actions?: React.ReactNode
 }
 
-export function PersistentHeader({ deck, totalCards, proxyCount, onDebriefClick, actions }: PersistentHeaderProps) {
+export function PersistentHeader({ deck, totalCards, proxyCount, totalValue, onDebriefClick, actions }: PersistentHeaderProps) {
   return (
     <div
-      className="sticky top-0 z-30 border-b border-border bg-background px-6 py-4"
+      className="sticky top-0 z-30 border-b border-border/30 px-6 py-4"
+      style={{ background: 'transparent' }}
     >
-      <div className="flex items-center justify-between gap-4">
+      <div className="mx-auto flex max-w-[var(--content-max-width)] items-center justify-between gap-4">
         {/* Left section: avatar + deck info */}
         <div className="flex items-center gap-3 min-w-0">
           {/* Commander avatar */}
@@ -46,7 +49,7 @@ export function PersistentHeader({ deck, totalCards, proxyCount, onDebriefClick,
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h1
-                className="truncate text-[16px] font-medium leading-tight"
+                className="truncate text-[length:var(--fs-3xl)] font-medium leading-tight"
               >
                 {deck.name}
               </h1>
@@ -56,8 +59,8 @@ export function PersistentHeader({ deck, totalCards, proxyCount, onDebriefClick,
                 <span
                   className="shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-[length:var(--fs-sm)] font-medium"
                   style={{
-                    background: 'rgba(239,159,39,0.15)',
-                    color: '#EF9F27',
+                    background: 'var(--signal-warning-bg)',
+                    color: 'var(--signal-warning)',
                   }}
                 >
                   Precon mod
@@ -69,6 +72,7 @@ export function PersistentHeader({ deck, totalCards, proxyCount, onDebriefClick,
             <p className="mt-0.5 text-[length:var(--fs-sm)] text-muted-foreground">
               {totalCards} cards · {proxyCount} proxies
               {deck.bracket && ` · Bracket ${deck.bracket}`}
+              {totalValue != null && totalValue > 0 && ` · $${totalValue.toFixed(2)}`}
             </p>
           </div>
         </div>
@@ -76,19 +80,20 @@ export function PersistentHeader({ deck, totalCards, proxyCount, onDebriefClick,
         {/* Right section: actions */}
         <div className="flex items-center gap-3 shrink-0">
           {/* Post-game debrief button */}
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="sm"
             onClick={onDebriefClick}
-            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[length:var(--fs-md)] font-medium transition-colors"
+            className="text-[length:var(--fs-md)]"
             style={{
-              background: 'rgba(29,158,117,0.15)',
-              border: '0.5px solid rgba(29,158,117,0.4)',
-              color: '#1D9E75',
+              background: 'var(--accent-primary-bg)',
+              borderColor: 'rgba(29,158,117,0.4)',
+              color: 'var(--accent-primary)',
             }}
           >
             <Swords className="h-4 w-4" aria-hidden="true" />
             Post-game debrief
-          </button>
+          </Button>
 
           {/* Additional actions slot */}
           {actions}

@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
+import { isBasicLand } from '@/lib/basic-lands'
 
 export interface DeckRow {
   id: number
@@ -10,7 +11,7 @@ export interface DeckRow {
   card_count: number | null
   last_synced_at: string | null
   deck_type: string | null
-  status: 'brew' | 'boxed' | 'archived'
+  status: 'brewing' | 'in_rotation' | 'graveyard'
   allocate: boolean
 }
 
@@ -39,20 +40,24 @@ export async function GET() {
 
   // Compute completeness for Boxed decks — count deck_cards with non-null physical_copy_id
   const boxedDeckIds = (decks ?? [])
-    .filter((d) => d.status === 'boxed')
+    .filter((d) => d.status === 'in_rotation')
     .map((d) => d.id)
 
   let completenessMap: Record<number, { resolved: number; total: number }> = {}
 
   if (boxedDeckIds.length > 0) {
     // Fetch deck_cards for boxed decks, counting resolved (physical_copy_id IS NOT NULL) vs total
+    // Basic lands are exempt from allocation — don't count them
     const { data: deckCards, error: cardsErr } = await supabase
       .from('deck_cards')
-      .select('deck_id, physical_copy_id')
+      .select('deck_id, card_name, physical_copy_id')
       .in('deck_id', boxedDeckIds)
 
     if (!cardsErr && deckCards) {
       for (const card of deckCards) {
+        // Skip basic lands — they never get physical_copy_id assigned
+        if (isBasicLand(card.card_name)) continue
+
         if (!completenessMap[card.deck_id]) {
           completenessMap[card.deck_id] = { resolved: 0, total: 0 }
         }

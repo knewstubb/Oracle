@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
-import { AlertCircle, RefreshCw } from 'lucide-react'
+import { AlertCircle, RefreshCw, ClipboardCopy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
@@ -18,6 +18,10 @@ import { AnalysisTab } from '@/components/AnalysisTab'
 import { CombosPanel } from '@/components/CombosPanel'
 import { UpgradeTab } from '@/components/UpgradeTab'
 import { StrategyTab } from '@/components/StrategyTab'
+import { PicklistV2 } from '@/components/PicklistV2'
+import { getFormatConfig } from '@/lib/format-config'
+import { exportDeckAsText } from '@/lib/deck-export'
+import { toast } from 'sonner'
 import { CardGrid, type DeckCard } from '@/components/CardGrid'
 import { DebriefPanel } from '@/components/DebriefPanel'
 
@@ -31,7 +35,7 @@ interface Deck {
   deck_type: string | null
   precon_url: string | null
   bracket: string | null
-  status: 'brew' | 'boxed' | 'archived'
+  status: 'brewing' | 'in_rotation' | 'graveyard'
   allocate: boolean
   last_synced_at: string | null
   raw_json: string | null
@@ -124,7 +128,7 @@ export default function DeckViewPage() {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-[1280px] px-6 py-6">
+      <div className="mx-auto max-w-[var(--content-max-width)] px-6 py-6">
         <div
           role="alert"
           className="flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-3 text-[length:var(--fs-md)] text-destructive"
@@ -153,34 +157,75 @@ export default function DeckViewPage() {
   })
   const totalCards = activeCards.reduce((sum, c) => sum + (c.quantity || 1), 0)
   const proxyCount = activeCards.filter(c => c.allocation_role === 'proxy').reduce((sum, c) => sum + (c.quantity || 1), 0)
+  const totalValue = activeCards.reduce((sum, c) => sum + ((c.price_usd ?? 0) * (c.quantity || 1)), 0)
 
   return (
-    <div className="flex h-full flex-col bg-[var(--bg-canvas)]">
+    <div className="relative flex h-full flex-col">
+      {/* Blurred commander art background */}
+      {deck.commander_scryfall_id && (
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 z-0 h-full overflow-hidden"
+          aria-hidden="true"
+        >
+          <img
+            src={`https://cards.scryfall.io/art_crop/front/${deck.commander_scryfall_id.charAt(0)}/${deck.commander_scryfall_id.charAt(1)}/${deck.commander_scryfall_id}.jpg`}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+            style={{
+              filter: 'blur(20px)',
+              opacity: 0.4,
+              transform: 'scale(1.1)',
+            }}
+          />
+          {/* Gradient fade — more visible at top, fades out toward bottom */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background: 'linear-gradient(to bottom, transparent 30%, var(--bg-canvas) 90%)',
+            }}
+          />
+        </div>
+      )}
+
+      {/* All page content — sits above the art layer */}
+      <div className="relative z-10 flex h-full flex-col">
+
       {/* Persistent Header — sticky at top */}
       <PersistentHeader
         deck={deck}
         totalCards={totalCards}
         proxyCount={proxyCount}
+        totalValue={totalValue}
         onDebriefClick={() => setShowDebrief(true)}
         actions={
           <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const text = exportDeckAsText(cards)
+                navigator.clipboard.writeText(text).then(
+                  () => toast.success('Decklist copied to clipboard'),
+                  () => toast.error('Failed to copy')
+                )
+              }}
+              className="text-[length:var(--fs-md)]"
+              aria-label="Copy decklist to clipboard"
+            >
+              <ClipboardCopy className="h-4 w-4" aria-hidden="true" />
+              <span className="hidden sm:inline">Export</span>
+            </Button>
             <AllocateToggle deckId={deck.id} deckStatus={deck.status as any} allocate={deck.allocate ?? false} />
-            <StatusControl deckId={deck.id} currentStatus={deck.status as any} allocate={deck.allocate ?? false} />
-            {(deck.status === 'brew' || deck.status === 'archived') && (
+            <StatusControl deckId={deck.id} currentStatus={deck.status as any} allocate={deck.allocate ?? false} cardCount={deck.card_count ?? 0} format={deck.format ?? 'commander'} />
+            {(deck.status === 'brewing' || deck.status === 'in_rotation' || deck.status === 'graveyard') && (
               <DeleteDeckButton deckId={deck.id} deckName={deck.name} />
             )}
           </>
         }
       />
 
-      {/* Health Strip — sticky below header */}
-      <HealthStrip
-        deckId={deck.id}
-        onPillClick={handlePillClick}
-      />
-
       {/* Draft Banner — shown only for brew decks */}
-      {deck.status === 'brew' && (
+      {deck.status === 'brewing' && (
         <DraftBanner
           deckId={deck.id}
           deckName={deck.name}
@@ -199,30 +244,33 @@ export default function DeckViewPage() {
         className="flex min-h-0 flex-1 flex-col"
       >
         <div className="shrink-0 border-b border-border px-6">
-          <div className="mx-auto max-w-[1280px]">
+          <div className="mx-auto max-w-[var(--content-max-width)]">
             <TabsList variant="line">
               <TabsTrigger value="cards">Cards</TabsTrigger>
               <TabsTrigger value="analysis">Analysis</TabsTrigger>
               <TabsTrigger value="combos">Combos</TabsTrigger>
               <TabsTrigger value="upgrade">Upgrade</TabsTrigger>
               <TabsTrigger value="strategy">Strategy</TabsTrigger>
+              <TabsTrigger value="picklist">Picklist</TabsTrigger>
             </TabsList>
           </div>
         </div>
 
         <TabsContent value="cards" className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-          <div className="mx-auto max-w-[1080px]">
+          <div className="mx-auto max-w-[var(--content-max-width)]">
             <CardsTab
               cards={cards}
               deckId={deck.id}
               healthCategories={healthData?.categories}
               scrollToCategory={scrollTarget}
+              onViewPicklist={() => setActiveTab('picklist')}
+              maxCopies={getFormatConfig(deck.deck_type).maxCopies}
             />
           </div>
         </TabsContent>
 
         <TabsContent value="analysis" className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-          <div className="mx-auto max-w-[1080px]">
+          <div className="mx-auto max-w-[var(--content-max-width)]">
             <AnalysisTab
               cards={cards}
               deckId={deck.id}
@@ -240,7 +288,7 @@ export default function DeckViewPage() {
         </TabsContent>
 
         <TabsContent value="strategy" className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-          <div className="mx-auto max-w-[720px]">
+          <div className="mx-auto max-w-[var(--content-max-width)]">
             <StrategyTab
               deckId={deck.id}
               deckType={deck.deck_type}
@@ -249,7 +297,19 @@ export default function DeckViewPage() {
             />
           </div>
         </TabsContent>
+
+        <TabsContent value="picklist" className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+          <div className="mx-auto max-w-[var(--content-max-width)]">
+            <PicklistV2 deckId={deck.id} />
+          </div>
+        </TabsContent>
       </Tabs>
+
+      {/* Health Strip — bottom of page */}
+      <HealthStrip
+        deckId={deck.id}
+        onPillClick={handlePillClick}
+      />
 
       {/* Debrief overlay */}
       {showDebrief && (
@@ -259,6 +319,7 @@ export default function DeckViewPage() {
           onClose={() => setShowDebrief(false)}
         />
       )}
+      </div>{/* end content wrapper (z-10) */}
     </div>
   )
 }
@@ -267,7 +328,7 @@ function DeckViewSkeleton() {
   return (
     <div className="flex h-full flex-col bg-[var(--bg-canvas)]">
       <header className="shrink-0 border-b border-border px-6 py-4">
-        <div className="mx-auto flex max-w-[1280px] items-center gap-4">
+        <div className="mx-auto flex max-w-[var(--content-max-width)] items-center gap-4">
           <Skeleton className="size-9 rounded-full" />
           <div className="flex-1 space-y-2">
             <Skeleton className="h-5 w-48" />
@@ -283,7 +344,7 @@ function DeckViewSkeleton() {
         <Skeleton className="h-7 w-24 rounded-md" />
       </div>
       <div className="flex-1 px-6 py-6">
-        <div className="mx-auto max-w-[960px]">
+        <div className="mx-auto max-w-[var(--content-max-width)]">
           <CardGrid cards={[]} isLoading />
         </div>
       </div>

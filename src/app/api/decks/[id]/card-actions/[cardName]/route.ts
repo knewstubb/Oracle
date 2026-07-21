@@ -18,6 +18,8 @@ import type { CardSlotStatus } from '@/lib/card-status'
 export interface CardActionContext {
   status: CardSlotStatus
   cardName: string
+  /** The card_definitions.id for this card (used by Add Proxy) */
+  cardDefinitionId: number | null
   /** For Open: available (free) copies */
   availableCopies: Array<{
     physicalCopyId: number
@@ -37,6 +39,8 @@ export interface CardActionContext {
     scryfallPrintingId: string | null
     condition: string | null
     isProxy: boolean
+    setCode: string | null
+    editionName: string | null
   }>
   /** Valid decks this card could be assigned to (color identity filter) */
   validDecks: Array<{
@@ -94,14 +98,43 @@ export async function GET(
           scryfallPrintingId: entry.scryfallPrintingId,
           condition: entry.condition,
           isProxy: entry.isProxy,
+          setCode: null,
+          editionName: null,
         })
+      }
+    }
+
+    // Resolve printing set info for holders (set_code + edition_name)
+    const holderPrintingIds = holders
+      .map(h => h.scryfallPrintingId)
+      .filter((id): id is string => id !== null)
+
+    if (holderPrintingIds.length > 0) {
+      const { data: printingRows } = await supabase
+        .from('printing_set_info')
+        .select('scryfall_printing_id, set_code, edition_name')
+        .in('scryfall_printing_id', holderPrintingIds)
+
+      if (printingRows) {
+        const printingMap = new Map(
+          printingRows.map((r: any) => [r.scryfall_printing_id, { setCode: r.set_code, editionName: r.edition_name }])
+        )
+        for (const holder of holders) {
+          if (holder.scryfallPrintingId) {
+            const info = printingMap.get(holder.scryfallPrintingId)
+            if (info) {
+              holder.setCode = info.setCode
+              holder.editionName = info.editionName
+            }
+          }
+        }
       }
     }
 
     // Get the card's color identity for valid-deck filtering
     const { data: cardDef } = await supabase
       .from('card_definitions')
-      .select('color_identity')
+      .select('id, color_identity')
       .eq('card_name', cardName)
       .eq('user_id', userId)
       .maybeSingle()
@@ -115,7 +148,7 @@ export async function GET(
       .from('decks')
       .select('id, name, status, colour_identity')
       .eq('user_id', userId)
-      .in('status', ['brew', 'boxed'])
+      .in('status', ['brewing', 'in_rotation'])
       .neq('id', deckId) // Exclude the current deck
 
     // Filter to decks whose commander CI is a superset of the card's CI
@@ -137,7 +170,7 @@ export async function GET(
     // Determine current status for context
     let status: CardSlotStatus = 'unowned'
     if (availableCopies.length > 0) {
-      status = 'open'
+      status = 'available'
     } else if (holders.length > 0) {
       status = 'claimed'
     }
@@ -147,6 +180,7 @@ export async function GET(
     const response: CardActionContext = {
       status,
       cardName,
+      cardDefinitionId: cardDef?.id ?? null,
       availableCopies,
       holders,
       validDecks,

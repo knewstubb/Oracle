@@ -189,15 +189,16 @@ function ImportProgress({
           {progress.rowsProcessed.toLocaleString()} / {progress.totalRows.toLocaleString()} rows
         </span>
       </div>
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="icon-xs"
         onClick={onCancel}
-        className="rounded p-1 text-white/30 transition-colors hover:bg-white/5 hover:text-white/60"
+        className="text-white/30 hover:bg-white/5 hover:text-white/60"
         aria-label="Cancel import"
         title="Cancel import"
       >
         <X className="size-3.5" />
-      </button>
+      </Button>
     </div>
   )
 }
@@ -227,14 +228,15 @@ function ImportComplete({
         {summary.totalImported.toLocaleString()} rows imported
         {hasErrors && ` (${summary.chunksFailed} chunk${summary.chunksFailed > 1 ? 's' : ''} failed)`}
       </span>
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="icon-xs"
         onClick={onDismiss}
-        className="rounded p-1 text-white/30 transition-colors hover:bg-white/5 hover:text-white/60"
+        className="text-white/30 hover:bg-white/5 hover:text-white/60"
         aria-label="Dismiss"
       >
         <X className="size-3" />
-      </button>
+      </Button>
     </div>
   )
 }
@@ -252,14 +254,15 @@ function ImportError({
       <span className="max-w-[200px] truncate text-[11px] text-red-400" title={message}>
         {message}
       </span>
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="icon-xs"
         onClick={onDismiss}
-        className="rounded p-1 text-white/30 transition-colors hover:bg-white/5 hover:text-white/60"
+        className="text-white/30 hover:bg-white/5 hover:text-white/60"
         aria-label="Dismiss error"
       >
         <X className="size-3" />
-      </button>
+      </Button>
     </div>
   )
 }

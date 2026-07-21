@@ -37,10 +37,11 @@ export async function GET(request: NextRequest) {
   const minDecks = minDecksParam ? Math.max(2, parseInt(minDecksParam, 10) || 2) : 2
 
   try {
-    // Step 1: Get all deck_cards to compute shared cards
+    // Step 1: Get all deck_cards for this user to compute shared cards
     const { data: allDeckCards, error: dcErr } = await supabase
       .from('deck_cards')
       .select('card_name, set_code, scryfall_id, deck_id, ownership_status')
+      .eq('user_id', authResult.id)
 
     if (dcErr) throw dcErr
 
@@ -90,7 +91,8 @@ export async function GET(request: NextRequest) {
         is_proxy,
         card_definitions!physical_copies_card_definition_id_fkey(card_name, color_identity, type_line)
       `)
-      .eq('is_proxy', false) as { data: any[] | null; error: any }
+      .eq('is_proxy', false)
+      .eq('user_id', authResult.id) as { data: any[] | null; error: any }
 
     if (pcErr) throw pcErr
 

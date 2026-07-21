@@ -50,9 +50,10 @@ export function DeleteDeckButton({ deckId, deckName }: DeleteDeckButtonProps) {
     <Dialog open={open} onOpenChange={(isOpen) => { if (!deleteMutation.isPending) setOpen(isOpen) }}>
       <DialogTrigger
         render={
-          <button
-            type="button"
-            className="inline-flex items-center justify-center rounded-md p-2 text-muted-foreground transition-colors hover:text-destructive hover:bg-destructive/10"
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
           />
         }
       >

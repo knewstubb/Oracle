@@ -2,9 +2,10 @@
 
 import { useState, useCallback, useRef } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { ChevronUp, ChevronDown, AlertTriangle } from 'lucide-react'
+import { ChevronUp, ChevronDown, AlertTriangle, MoreVertical } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CardHoverPreview as SharedCardHoverPreview } from '@/components/CardHoverPreview'
+import { ManaCost } from '@/components/ManaCost'
 import { truncateName, formatPrice } from '@/lib/collection-printing-utils'
 import type { PrintingRowResponse } from '@/lib/collection-printing-utils'
 import type { PrintingSortField, SortDirection } from '@/lib/collection-filters'
@@ -25,11 +26,14 @@ export interface PrintingListViewProps {
 /* ─── Column Widths ─────────────────────────────────────────────────── */
 
 const COL = {
+  checkbox: 'w-[32px]',
   qty: 'w-[56px]',
-  name: 'min-w-[320px] flex-1',
-  printing: 'w-[260px]',
-  finish: 'w-[110px]',
-  price: 'w-[100px]',
+  name: 'min-w-[240px] flex-1',
+  mana: 'w-[100px]',
+  printing: 'w-[240px]',
+  finish: 'w-[80px]',
+  price: 'w-[90px]',
+  actions: 'w-[32px]',
 } as const
 
 /* ─── SortableHeader ────────────────────────────────────────────────── */
@@ -170,9 +174,13 @@ export function PrintingListView({
         className="flex items-center px-4 py-2"
         style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '0.5px solid rgba(255,255,255,0.07)', gap: '12px' }}
       >
-        <SortableHeader label="Qty" field="quantity" align="right" className={COL.qty} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
+        <div className={cn(COL.checkbox, 'shrink-0 flex items-center justify-center')}>
+          <input type="checkbox" className="size-3.5 rounded border-[rgba(255,255,255,0.1)] bg-transparent opacity-30 checked:opacity-100 hover:opacity-60 transition-opacity accent-[var(--accent-primary)]" aria-label="Select all" />
+        </div>
+        <SortableHeader label="Qty" field="quantity" align="left" className={COL.qty} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
         <div className="w-2 shrink-0" aria-hidden="true" />
         <SortableHeader label="Name" field="cardName" align="left" className={COL.name} shrink={false} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
+        <SortableHeader label="Mana" field={null} align="left" className={COL.mana} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
         <SortableHeader label="Printing" field="setCode" align="left" className={COL.printing} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
         <SortableHeader label="Finish" field={null} align="left" className={COL.finish} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
         <SortableHeader
@@ -185,6 +193,7 @@ export function PrintingListView({
           onSort={onSort}
           suffix={isPriceStale ? <PriceStaleIcon lastPriceRefresh={lastPriceRefresh} /> : undefined}
         />
+        <div className={COL.actions} aria-hidden="true" />
       </div>
 
       {/* Virtualized rows */}
@@ -201,7 +210,7 @@ export function PrintingListView({
                 <div
                   key={`${row.id}-${row.isFoil}-${row.isProxy}`}
                   className={cn(
-                    'absolute left-0 flex w-full items-center px-4 transition-colors hover:bg-[rgba(255,255,255,0.02)]',
+                    'group absolute left-0 flex w-full items-center px-4 transition-colors hover:bg-[rgba(255,255,255,0.02)]',
                     row.isProxy && 'opacity-60',
                     row.isMissing && 'opacity-40'
                   )}
@@ -213,8 +222,13 @@ export function PrintingListView({
                     borderLeft: row.isMissing ? '2px solid rgba(228,75,74,0.4)' : row.isProxy ? '2px dashed rgba(255,255,255,0.15)' : '2px solid transparent',
                   }}
                 >
+                  {/* Checkbox */}
+                  <span className={cn(COL.checkbox, 'shrink-0 flex items-center justify-center')}>
+                    <input type="checkbox" className="size-3.5 rounded border-[rgba(255,255,255,0.1)] bg-transparent opacity-30 checked:opacity-100 hover:opacity-60 transition-opacity accent-[var(--accent-primary)]" aria-label={`Select ${row.cardName}`} />
+                  </span>
+
                   {/* Qty */}
-                  <span className={cn(COL.qty, 'shrink-0 text-right text-[length:var(--fs-base)] tabular-nums')} style={{ color: '#e8e8e6' }}>
+                  <span className={cn(COL.qty, 'shrink-0 text-left text-[length:var(--fs-base)] tabular-nums')} style={{ color: '#e8e8e6' }}>
                     {row.quantity}
                   </span>
 
@@ -238,10 +252,17 @@ export function PrintingListView({
                     )}
                   </span>
 
+                  {/* Mana cost pips */}
+                  <span className={cn(COL.mana, 'shrink-0')}>
+                    <ManaCost cost={row.manaCost} />
+                  </span>
+
                   {/* Printing */}
                   <span className={cn(COL.printing, 'shrink-0 flex items-center gap-1.5')}>
+                    {row.setCode && (
+                      <i className={`ss ss-${row.setCode.toLowerCase()} ss-fw`} style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)' }} aria-hidden="true" />
+                    )}
                     <span className="truncate text-[length:var(--fs-base)]" style={{ color: '#e8e8e6' }}>{row.setName}</span>
-                    <span className="shrink-0 text-[length:var(--fs-xs)] font-mono uppercase" style={{ color: 'rgba(255,255,255,0.4)' }}>{row.setCode}</span>
                   </span>
 
                   {/* Finish */}
@@ -259,6 +280,18 @@ export function PrintingListView({
                     style={{ color: row.price === null ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.5)' }}
                   >
                     {formatPrice(row.price)}
+                  </span>
+
+                  {/* Kebab menu */}
+                  <span className={cn(COL.actions, 'shrink-0 flex items-center justify-center')}>
+                    <button
+                      type="button"
+                      className="rounded p-1 opacity-0 transition-all group-hover:opacity-100 hover:bg-[rgba(255,255,255,0.05)]"
+                      style={{ color: 'rgba(255,255,255,0.4)' }}
+                      aria-label="More actions"
+                    >
+                      <MoreVertical className="size-3.5" />
+                    </button>
                   </span>
                 </div>
               )

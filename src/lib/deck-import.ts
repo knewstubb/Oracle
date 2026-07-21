@@ -111,14 +111,14 @@ async function batchInsert(
 export async function importDeckExistingCollection(
   deck: NormalizedDeck,
   userId: string,
-  options?: { status?: 'brew' | 'boxed'; format?: string; skipAutoAssign?: boolean }
+  options?: { format?: string; skipAutoAssign?: boolean }
 ): Promise<ImportResult> {
   const supabase = createAdminClient()
   const deckId = generateDeckId(deck)
-  const deckStatus = options?.status || 'brew'
+  // "Existing collection" mode always starts as Brew — user promotes to Built later
+  const deckStatus = 'brewing'
   const deckFormat = options?.format || 'commander'
-  // Default-allocate table: boxed → true, brew → false, archived → false
-  const allocateDefault = deckStatus === 'boxed'
+  const allocateDefault = false // Brew decks don't allocate by default
 
   // 1. Upsert deck row
   const { error: deckErr } = await (supabase as any)
@@ -184,15 +184,7 @@ export async function importDeckExistingCollection(
   const diff = diffDeckCards(existingRows, incomingCards)
   await applyDeckCardsDiff(deckId, diff, userId)
 
-  // 5. Section 6e: Auto-assign from free storage (Tier 1–2 only)
-  // Skip when called from batch resolution (it handles assignment itself).
-  // Only fire if there are new rows — existing rows are already assigned.
-  if (!options?.skipAutoAssign && diff.toInsert.length > 0) {
-    autoAssignDeck(deckId, userId).catch((err) => {
-      console.error(`[deck-import] Auto-assign failed for deck ${deckId}:`, err instanceof Error ? err.message : err)
-    })
-  }
-
+  // No auto-assign on import — allocation is manual via the Picklist/status chips
   const allocationSummary = {
     assigned: 0,
     shortfall: 0,
@@ -219,14 +211,15 @@ export async function importDeckExistingCollection(
 export async function importDeckAddNewCards(
   deck: NormalizedDeck,
   userId: string,
-  options?: { status?: 'brew' | 'boxed'; format?: string }
+  options?: { format?: string }
 ): Promise<ImportResult> {
   const supabase = createAdminClient()
   const deckId = generateDeckId(deck)
-  const deckStatus = options?.status || 'brew'
+  // "Add new cards" mode — cards are new to collection, create physical copies and assign to slots
+  // Status starts as 'brewing' like all imports — user promotes to 'in_rotation' afterward
+  const deckStatus = 'brewing'
   const deckFormat = options?.format || 'commander'
-  // Default-allocate table: boxed → true, brew → false, archived → false
-  const allocateDefault = deckStatus === 'boxed'
+  const allocateDefault = false // Brewing decks don't allocate by default
 
   // 1. Upsert deck row
   const { error: deckErr } = await (supabase as any)
@@ -319,11 +312,7 @@ export async function importDeckAddNewCards(
   // Batch insert all deck_cards
   await batchInsert(supabase, 'deck_cards', deckCardRows)
 
-  // Section 6e: Auto-assign from free storage (Tier 1–2 only)
-  // Fire-and-forget — don't block the import response.
-  autoAssignDeck(deckId, userId).catch((err) => {
-    console.error(`[deck-import] Auto-assign failed for deck ${deckId}:`, err instanceof Error ? err.message : err)
-  })
+  // No separate auto-assign needed — cards were already assigned during creation above
 
   const allocationSummary = {
     assigned: 0,

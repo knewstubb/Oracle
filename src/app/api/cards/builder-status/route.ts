@@ -14,7 +14,7 @@ import { createAdminClient } from '@/lib/supabase'
 
 export interface BuilderStatusResult {
   cardName: string
-  status: 'original' | 'proxy' | 'open' | 'claimed' | 'unowned'
+  status: 'original' | 'proxy' | 'available' | 'claimed' | 'unowned'
   /** For claimed: which deck currently holds the card */
   heldBy: {
     deckId: number
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
         }
 
         results.push({ cardName, status: 'claimed', heldBy })
-      } else if (status === 'open') {
+      } else if (status === 'available') {
         // Check if the free copy is a proxy or original
         try {
           const candidates = await fetchEnrichedSupply(cardName, userId)
@@ -93,10 +93,10 @@ export async function GET(request: NextRequest) {
               heldBy: null,
             })
           } else {
-            results.push({ cardName, status: 'open', heldBy: null })
+            results.push({ cardName, status: 'available', heldBy: null })
           }
         } catch {
-          results.push({ cardName, status: 'open', heldBy: null })
+          results.push({ cardName, status: 'available', heldBy: null })
         }
       } else {
         results.push({ cardName, status, heldBy: null })

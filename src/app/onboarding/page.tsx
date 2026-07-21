@@ -75,14 +75,14 @@ export default function OnboardingPage() {
   const [collectionUrl, setCollectionUrl] = useState('')
   const [deckList, setDeckList] = useState<DeckListEntry[]>([])
   const [selectedDecks, setSelectedDecks] = useState<Set<number>>(new Set())
-  const [deckStatuses, setDeckStatuses] = useState<Map<number, 'brew' | 'boxed'>>(new Map())
+  const [deckStatuses, setDeckStatuses] = useState<Map<number, 'brewing' | 'in_rotation'>>(new Map())
 
   // Moxfield state
   const [moxfieldUsername, setMoxfieldUsername] = useState('')
   const [moxfieldCsvFile, setMoxfieldCsvFile] = useState<File | null>(null)
   const [moxfieldDeckList, setMoxfieldDeckList] = useState<MoxfieldDeckEntry[]>([])
   const [selectedMoxfieldDecks, setSelectedMoxfieldDecks] = useState<Set<string>>(new Set())
-  const [moxfieldDeckStatuses, setMoxfieldDeckStatuses] = useState<Map<string, 'brew' | 'boxed'>>(new Map())
+  const [moxfieldDeckStatuses, setMoxfieldDeckStatuses] = useState<Map<string, 'brewing' | 'in_rotation'>>(new Map())
 
   // Shared state
   const [batchResult, setBatchResult] = useState<BatchResolutionResult | null>(null)
@@ -126,9 +126,9 @@ export default function OnboardingPage() {
         }
         const deckData: { decks: DeckListEntry[]; errors: string[] } = await res.json()
         setDeckList(deckData.decks)
-        const initialStatuses = new Map<number, 'brew' | 'boxed'>()
+        const initialStatuses = new Map<number, 'brewing' | 'in_rotation'>()
         for (const deck of deckData.decks) {
-          initialStatuses.set(deck.id, 'boxed')
+          initialStatuses.set(deck.id, 'in_rotation')
         }
         setDeckStatuses(initialStatuses)
         if (deckData.errors.length > 0) toast.info(deckData.errors[0])
@@ -174,9 +174,9 @@ export default function OnboardingPage() {
       }
       const deckData: { decks: MoxfieldDeckEntry[]; errors: string[] } = await deckRes.json()
       setMoxfieldDeckList(deckData.decks)
-      const initialStatuses = new Map<string, 'brew' | 'boxed'>()
+      const initialStatuses = new Map<string, 'brewing' | 'in_rotation'>()
       for (const deck of deckData.decks) {
-        initialStatuses.set(deck.id, 'boxed')
+        initialStatuses.set(deck.id, 'in_rotation')
       }
       setMoxfieldDeckStatuses(initialStatuses)
       if (deckData.errors.length > 0) toast.info(deckData.errors[0])
@@ -209,7 +209,7 @@ export default function OnboardingPage() {
 
       for (let i = 0; i < deckIds.length; i++) {
         const deckId = deckIds[i]
-        const status = deckStatuses.get(deckId) ?? 'boxed'
+        const status = deckStatuses.get(deckId) ?? 'in_rotation'
 
         // Find deck name for progress display
         const deckEntry = deckList.find(d => d.id === deckId)
@@ -306,7 +306,7 @@ export default function OnboardingPage() {
 
       for (let i = 0; i < deckIds.length; i++) {
         const deckId = deckIds[i]
-        const status = moxfieldDeckStatuses.get(deckId) ?? 'boxed'
+        const status = moxfieldDeckStatuses.get(deckId) ?? 'in_rotation'
 
         // Find deck name for progress display
         const deckEntry = moxfieldDeckList.find(d => d.id === deckId)
@@ -406,7 +406,7 @@ export default function OnboardingPage() {
   function handleToggleStatus(deckId: number) {
     setDeckStatuses((prev) => {
       const next = new Map(prev)
-      next.set(deckId, next.get(deckId) === 'boxed' ? 'brew' : 'boxed')
+      next.set(deckId, next.get(deckId) === 'in_rotation' ? 'brewing' : 'in_rotation')
       return next
     })
   }
@@ -423,7 +423,7 @@ export default function OnboardingPage() {
   function handleToggleMoxfieldStatus(deckId: string) {
     setMoxfieldDeckStatuses((prev) => {
       const next = new Map(prev)
-      next.set(deckId, next.get(deckId) === 'boxed' ? 'brew' : 'boxed')
+      next.set(deckId, next.get(deckId) === 'in_rotation' ? 'brewing' : 'in_rotation')
       return next
     })
   }
@@ -619,15 +619,16 @@ function ArchidektFieldsScreen({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-3">
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="xs"
           onClick={onBack}
           disabled={isPending}
-          className="flex items-center gap-1 text-[length:var(--fs-sm)] text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="size-4" aria-hidden="true" />
           Back
-        </button>
+        </Button>
       </div>
 
       <div>
@@ -724,15 +725,16 @@ function MoxfieldFieldsScreen({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-3">
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="xs"
           onClick={onBack}
           disabled={isPending}
-          className="flex items-center gap-1 text-[length:var(--fs-sm)] text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="size-4" aria-hidden="true" />
           Back
-        </button>
+        </Button>
       </div>
 
       <div>
@@ -841,7 +843,7 @@ function DeckPickerScreen({
 }: {
   deckList: DeckListEntry[]
   selectedDecks: Set<number>
-  deckStatuses: Map<number, 'brew' | 'boxed'>
+  deckStatuses: Map<number, 'brewing' | 'in_rotation'>
   collectionResult: CollectionImportResult | null
   onToggleDeck: (id: number) => void
   onToggleStatus: (id: number) => void
@@ -910,7 +912,7 @@ function DeckPickerScreen({
         ) : (
           deckList.map((deck) => {
             const isSelected = selectedDecks.has(deck.id)
-            const status = deckStatuses.get(deck.id) ?? 'boxed'
+            const status = deckStatuses.get(deck.id) ?? 'in_rotation'
             return (
               <div
                 key={deck.id}
@@ -931,11 +933,11 @@ function DeckPickerScreen({
                 >
                   <button
                     type="button"
-                    onClick={() => { if (status !== 'brew') onToggleStatus(deck.id) }}
+                    onClick={() => { if (status !== 'brewing') onToggleStatus(deck.id) }}
                     disabled={!isSelected}
                     className="rounded-full px-2.5 py-1 text-[length:var(--fs-xs)] font-medium transition-all"
                     style={
-                      status === 'brew'
+                      status === 'brewing'
                         ? { background: 'rgba(239,159,39,0.2)', color: '#ef9f27' }
                         : { color: 'rgba(255,255,255,0.4)' }
                     }
@@ -944,16 +946,16 @@ function DeckPickerScreen({
                   </button>
                   <button
                     type="button"
-                    onClick={() => { if (status !== 'boxed') onToggleStatus(deck.id) }}
+                    onClick={() => { if (status !== 'in_rotation') onToggleStatus(deck.id) }}
                     disabled={!isSelected}
                     className="rounded-full px-2.5 py-1 text-[length:var(--fs-xs)] font-medium transition-all"
                     style={
-                      status === 'boxed'
+                      status === 'in_rotation'
                         ? { background: 'rgba(20,184,166,0.2)', color: '#14b8a6' }
                         : { color: 'rgba(255,255,255,0.4)' }
                     }
                   >
-                    Boxed
+                    In Rotation
                   </button>
                 </div>
               </div>
@@ -997,7 +999,7 @@ function MoxfieldDeckPickerScreen({
 }: {
   deckList: MoxfieldDeckEntry[]
   selectedDecks: Set<string>
-  deckStatuses: Map<string, 'brew' | 'boxed'>
+  deckStatuses: Map<string, 'brewing' | 'in_rotation'>
   collectionResult: CollectionImportResult | null
   onToggleDeck: (id: string) => void
   onToggleStatus: (id: string) => void
@@ -1065,7 +1067,7 @@ function MoxfieldDeckPickerScreen({
         ) : (
           deckList.map((deck) => {
             const isSelected = selectedDecks.has(deck.id)
-            const status = deckStatuses.get(deck.id) ?? 'boxed'
+            const status = deckStatuses.get(deck.id) ?? 'in_rotation'
             return (
               <div
                 key={deck.id}
@@ -1090,11 +1092,11 @@ function MoxfieldDeckPickerScreen({
                 >
                   <button
                     type="button"
-                    onClick={() => { if (status !== 'brew') onToggleStatus(deck.id) }}
+                    onClick={() => { if (status !== 'brewing') onToggleStatus(deck.id) }}
                     disabled={!isSelected}
                     className="rounded-full px-2.5 py-1 text-[length:var(--fs-xs)] font-medium transition-all"
                     style={
-                      status === 'brew'
+                      status === 'brewing'
                         ? { background: 'rgba(239,159,39,0.2)', color: '#ef9f27' }
                         : { color: 'rgba(255,255,255,0.4)' }
                     }
@@ -1103,16 +1105,16 @@ function MoxfieldDeckPickerScreen({
                   </button>
                   <button
                     type="button"
-                    onClick={() => { if (status !== 'boxed') onToggleStatus(deck.id) }}
+                    onClick={() => { if (status !== 'in_rotation') onToggleStatus(deck.id) }}
                     disabled={!isSelected}
                     className="rounded-full px-2.5 py-1 text-[length:var(--fs-xs)] font-medium transition-all"
                     style={
-                      status === 'boxed'
+                      status === 'in_rotation'
                         ? { background: 'rgba(20,184,166,0.2)', color: '#14b8a6' }
                         : { color: 'rgba(255,255,255,0.4)' }
                     }
                   >
-                    Boxed
+                    In Rotation
                   </button>
                 </div>
               </div>

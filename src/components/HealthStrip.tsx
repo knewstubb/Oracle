@@ -66,12 +66,13 @@ export function HealthStrip({ deckId, onPillClick }: HealthStripProps) {
 
   return (
     <div
-      className="sticky z-[29] flex items-center gap-2 px-6 py-2"
+      className="shrink-0 border-t px-6 py-2"
       style={{
-        top: 'var(--header-height, 64px)',
+        borderColor: 'var(--border-default)',
         backgroundColor: 'rgba(255,255,255,0.02)',
       }}
     >
+      <div className="mx-auto flex max-w-[var(--content-max-width)] items-center gap-2">
       {/* Loading state: skeleton pills */}
       {isLoading && (
         <>
@@ -107,6 +108,7 @@ export function HealthStrip({ deckId, onPillClick }: HealthStripProps) {
           {contextualNote}
         </span>
       )}
+      </div>
     </div>
   )
 }

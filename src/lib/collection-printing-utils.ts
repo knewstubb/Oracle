@@ -40,6 +40,8 @@ export interface PrintingRowResponse {
   allocationState: 'clean' | 'proxied' | 'overallocated' | 'unallocated'
   /** Whether this copy is marked as missing */
   isMissing: boolean
+  /** Mana cost string from Scryfall notation e.g. "{2}{W}{U}" */
+  manaCost: string | null
 }
 
 /** Raw input type for the grouping function. */
@@ -59,6 +61,8 @@ export interface RawPhysicalCopy {
   isProxy: boolean
   /** Whether this physical copy is marked as missing */
   isMissing: boolean
+  /** Mana cost from card_metadata */
+  manaCost: string | null
 }
 
 /* ─── Price Formatting ──────────────────────────────────────────────── */
@@ -152,6 +156,7 @@ export function groupPhysicalCopiesToPrintingRows(
         price: copy.price,
         isProxy: copy.isProxy,
         isMissing: copy.isMissing,
+        manaCost: copy.manaCost,
         // Allocation-level fields — populated by caller after grouping
         originalQty: 0,
         proxyQty: 0,

@@ -106,7 +106,7 @@ export class SupplyPool {
     deckCardsId: number,
     deckId: number,
     deckName: string,
-    deckStatus: string = 'boxed'
+    deckStatus: string = 'in_rotation'
   ): void {
     // Track this assignment in the session
     this.sessionAssignments.set(physicalCopyId, { deckId, deckName })

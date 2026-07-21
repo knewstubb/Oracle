@@ -8,18 +8,18 @@ export interface StatusBadgeProps {
 }
 
 const CONFIG: Record<DeckStatus, { label: string; colorClass: string; bgClass: string }> = {
-  brew: {
-    label: 'Brew',
+  brewing: {
+    label: 'Brewing',
+    colorClass: 'text-[#378ADD]',
+    bgClass: 'bg-[rgba(55,138,221,0.15)]',
+  },
+  in_rotation: {
+    label: 'In Rotation',
     colorClass: 'text-[var(--accent-primary)]',
     bgClass: 'bg-[var(--accent-primary-bg)]',
   },
-  boxed: {
-    label: 'Built',
-    colorClass: 'text-[var(--accent-primary)]',
-    bgClass: 'bg-[var(--accent-primary-bg)]',
-  },
-  archived: {
-    label: 'Archived',
+  graveyard: {
+    label: 'Graveyard',
     colorClass: 'text-[var(--text-secondary)]',
     bgClass: 'bg-[rgba(255,255,255,0.08)]',
   },

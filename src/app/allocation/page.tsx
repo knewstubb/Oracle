@@ -7,7 +7,7 @@ export default function AllocationPage() {
   return (
     <div className="flex h-full flex-col bg-[var(--bg-canvas)]">
       {/* Max-width container: 1520px centered, fluid below */}
-      <div className="mx-auto flex h-full w-full max-w-[1520px] flex-col">
+      <div className="mx-auto flex h-full w-full max-w-[var(--content-max-width)] flex-col">
         {/* ─── Page Header ─────────────────────────────────────────── */}
         <PageHeader
           title="Cards"

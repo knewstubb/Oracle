@@ -2,7 +2,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 export default function RootLoading() {
   return (
-    <div className="mx-auto max-w-[1280px] px-6 py-6">
+    <div className="mx-auto max-w-[var(--content-max-width)] px-6 py-6">
       <div className="mb-6 flex items-center justify-between">
         <Skeleton className="h-8 w-32" />
         <Skeleton className="h-8 w-28" />

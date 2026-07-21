@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
   if (authResult instanceof Response) return authResult
   const userId = authResult.id
 
-  let body: { deck?: NormalizedDeck; mode?: ImportMode; status?: 'brew' | 'boxed'; format?: string }
+  let body: { deck?: NormalizedDeck; mode?: ImportMode; format?: string }
   try {
     body = await request.json()
   } catch {
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const { deck, mode, status: deckStatus, format: deckFormat } = body
+  const { deck, mode, format: deckFormat } = body
 
   // Validate deck presence and structure
   if (!deck || typeof deck !== 'object') {
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const importOpts = { status: deckStatus || 'brew', format: deckFormat || 'commander' }
+    const importOpts = { format: deckFormat || 'commander' }
     const result =
       mode === 'existing_collection'
         ? await importDeckExistingCollection(deck, userId, importOpts)

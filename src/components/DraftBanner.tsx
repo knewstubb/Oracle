@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { InlineDeleteConfirmation } from '@/components/InlineDeleteConfirmation'
 import { canDeleteDeck } from '@/lib/brew-v2-deck-state'
 import { cn } from '@/lib/utils'
@@ -36,7 +37,7 @@ export function DraftBanner({
       const res = await fetch(`/api/decks/${deckId}`, { method: 'DELETE' })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        throw new Error(body.error || 'Failed to delete draft')
+        throw new Error(body.error || 'Failed to delete deck')
       }
       return res.json()
     },
@@ -77,9 +78,9 @@ export function DraftBanner({
         borderColor: 'rgba(55,138,221,0.2)',
       }}
       role="status"
-      aria-label="Draft deck banner"
+      aria-label="Brewing deck banner"
     >
-      <div className="mx-auto max-w-[1280px]">
+      <div className="mx-auto max-w-[var(--content-max-width)]">
         {bannerState === 'info' && (
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 text-[length:var(--fs-md)] text-muted-foreground">
@@ -88,34 +89,33 @@ export function DraftBanner({
                 aria-hidden="true"
               />
               <span>
-                Draft deck — {cardCount} cards
+                Brewing — {cardCount} cards
               </span>
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                type="button"
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleContinueBrewing}
-                className={cn(
-                  'rounded-lg px-3 py-1.5 text-[length:var(--fs-sm)] font-medium transition-colors',
-                  'bg-[rgba(55,138,221,0.1)] text-[#378ADD] border border-[rgba(55,138,221,0.3)]',
-                  'hover:bg-[rgba(55,138,221,0.2)]'
-                )}
+                className="text-[length:var(--fs-sm)]"
+                style={{
+                  background: 'rgba(55,138,221,0.1)',
+                  borderColor: 'rgba(55,138,221,0.3)',
+                  color: '#378ADD',
+                }}
               >
                 Continue brewing →
-              </button>
+              </Button>
               {canDeleteDeck(status) && (
-                <button
-                  type="button"
+                <Button
+                  variant="destructive"
+                  size="sm"
                   onClick={handleDeleteClick}
-                  className={cn(
-                    'rounded-lg px-3 py-1.5 text-[length:var(--fs-sm)] font-medium transition-colors',
-                    'bg-[rgba(226,75,74,0.15)] text-[#E24B4A] border border-[rgba(226,75,74,0.3)]',
-                    'hover:bg-[rgba(226,75,74,0.25)]'
-                  )}
+                  className="text-[length:var(--fs-sm)]"
                 >
-                  Delete draft
-                </button>
+                  Delete
+                </Button>
               )}
             </div>
           </div>

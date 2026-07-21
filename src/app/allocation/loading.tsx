@@ -2,7 +2,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 export default function AllocationLoading() {
   return (
-    <div className="mx-auto max-w-[1280px] px-6 py-6">
+    <div className="mx-auto max-w-[var(--content-max-width)] px-6 py-6">
       <div className="mb-6">
         <Skeleton className="h-8 w-40" />
         <Skeleton className="mt-1 h-4 w-56" />

@@ -16,36 +16,41 @@ import {
 } from '@/components/ui/dialog'
 import type { DeckStatus, StatusUpdateResponse } from '@/lib/deck-status'
 import { VALID_STATUSES } from '@/lib/deck-status'
+import { validateDeckCount } from '@/lib/format-config'
 
 export interface StatusControlProps {
   deckId: number
   currentStatus: DeckStatus
   /** Current allocate state — needed to decide if archive confirmation is required */
   allocate?: boolean
+  /** Current card count — used for Brewing→In Rotation gate */
+  cardCount?: number
+  /** Deck format — used for count validation */
+  format?: string | null
 }
 
 const STATUS_CONFIG: Record<DeckStatus, { label: string; color: string; bg: string; activeRing: string }> = {
-  brew: {
-    label: 'Brew',
+  brewing: {
+    label: 'Brewing',
+    color: '#378ADD',
+    bg: 'rgba(55,138,221,0.15)',
+    activeRing: 'ring-[#378ADD]/40',
+  },
+  in_rotation: {
+    label: 'In Rotation',
     color: 'var(--accent-primary)',
     bg: 'var(--accent-primary-bg)',
     activeRing: 'ring-[var(--accent-primary)]/40',
   },
-  boxed: {
-    label: 'Boxed',
-    color: 'var(--accent-primary)',
-    bg: 'var(--accent-primary-bg)',
-    activeRing: 'ring-[var(--accent-primary)]/40',
-  },
-  archived: {
-    label: 'Archived',
+  graveyard: {
+    label: 'Graveyard',
     color: 'var(--text-secondary)',
     bg: 'var(--bg-card)',
     activeRing: 'ring-[var(--text-secondary)]/20',
   },
 }
 
-export function StatusControl({ deckId, currentStatus, allocate }: StatusControlProps) {
+export function StatusControl({ deckId, currentStatus, allocate, cardCount, format }: StatusControlProps) {
   const [optimisticStatus, setOptimisticStatus] = useState<DeckStatus>(currentStatus)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [pendingStatus, setPendingStatus] = useState<DeckStatus | null>(null)
@@ -86,15 +91,14 @@ export function StatusControl({ deckId, currentStatus, allocate }: StatusControl
   function handleStatusChange(newStatus: DeckStatus) {
     if (newStatus === optimisticStatus) return
 
-    // Show confirmation for archived transition when allocate is currently on
-    // (archiving forces allocate off — same risk as manually toggling allocate off)
-    if (newStatus === 'archived' && allocate) {
+    // Graveyard transition: prompt if the deck has claimed cards (allocate is on = likely has claims)
+    if (newStatus === 'graveyard' && allocate) {
       setPendingStatus(newStatus)
       setConfirmOpen(true)
       return
     }
 
-    // Optimistic update + mutate
+    // All other transitions: no precondition
     setOptimisticStatus(newStatus)
     statusMutation.mutate(newStatus)
   }
@@ -107,21 +111,73 @@ export function StatusControl({ deckId, currentStatus, allocate }: StatusControl
     setPendingStatus(null)
   }
 
+  function handleConfirmWithRelease() {
+    if (!pendingStatus) return
+    setConfirmOpen(false)
+    setOptimisticStatus(pendingStatus)
+    // Break down (release all claims) then set status
+    breakdownMutation.mutate()
+  }
+
   function handleCancel() {
     setConfirmOpen(false)
     setPendingStatus(null)
   }
 
+  // Break-down mutation: release all claimed cards, then set graveyard status
+  const breakdownMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/decks/${deckId}/breakdown`, { method: 'POST' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to release cards')
+      }
+      // Now set the status to graveyard
+      const statusRes = await fetch(`/api/decks/${deckId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'graveyard' }),
+      })
+      if (!statusRes.ok) {
+        const data = await statusRes.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to update status')
+      }
+      return statusRes.json() as Promise<StatusUpdateResponse>
+    },
+    onSuccess: (data) => {
+      setOptimisticStatus(data.deck.status)
+      queryClient.invalidateQueries({ queryKey: ['decks'] })
+      queryClient.invalidateQueries({ queryKey: ['decks', String(deckId)] })
+      queryClient.invalidateQueries({ queryKey: ['decks', deckId] })
+      queryClient.invalidateQueries({ queryKey: ['shared-cards'] })
+      queryClient.invalidateQueries({ queryKey: ['collection'] })
+      toast.success('Cards released and deck moved to Graveyard')
+    },
+    onError: (err: Error) => {
+      setOptimisticStatus(currentStatus)
+      toast.error(err.message)
+    },
+  })
+
   return (
     <>
       <div
-        className="inline-flex items-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-card)] p-0.5"
+        className="inline-flex flex-wrap items-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-card)] p-0.5"
         role="radiogroup"
         aria-label="Deck status"
       >
         {VALID_STATUSES.map((status) => {
           const config = STATUS_CONFIG[status]
           const isSelected = optimisticStatus === status
+
+          // Gate: Brewing → In Rotation requires valid card count
+          // Gate: Graveyard → In Rotation not allowed (must resurrect to Brewing first)
+          const countValidation = validateDeckCount(cardCount ?? 0, format)
+          const isCountGated = status === 'in_rotation' && optimisticStatus === 'brewing' && !countValidation.valid
+          const isResurrectGated = status === 'in_rotation' && optimisticStatus === 'graveyard'
+          const isGated = isCountGated || isResurrectGated
+          const isDisabled = statusMutation.isPending || isGated
+          const gateReason = isCountGated ? countValidation.reason : isResurrectGated ? 'Resurrect to Brewing first' : null
 
           return (
             <button
@@ -130,7 +186,8 @@ export function StatusControl({ deckId, currentStatus, allocate }: StatusControl
               role="radio"
               aria-checked={isSelected}
               aria-label={`Set status to ${config.label}`}
-              disabled={statusMutation.isPending}
+              title={isGated ? gateReason ?? undefined : undefined}
+              disabled={isDisabled}
               onClick={() => handleStatusChange(status)}
               className={cn(
                 'relative rounded-md px-3 py-1.5 text-[length:var(--fs-md)] font-medium transition-all',
@@ -138,7 +195,7 @@ export function StatusControl({ deckId, currentStatus, allocate }: StatusControl
                 isSelected
                   ? `ring-1 ${config.activeRing}`
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
-                statusMutation.isPending && 'cursor-not-allowed opacity-60'
+                isDisabled && 'cursor-not-allowed opacity-60'
               )}
               style={
                 isSelected
@@ -155,20 +212,22 @@ export function StatusControl({ deckId, currentStatus, allocate }: StatusControl
         })}
       </div>
 
-      {/* Confirmation dialog — same as allocate-off toggle, triggered on archive when allocate is on */}
+      {/* Confirmation dialog — Graveyard transition when deck has claimed cards */}
       <Dialog open={confirmOpen} onOpenChange={(open) => { if (!open) handleCancel() }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Archive this deck?</DialogTitle>
+            <DialogTitle>Move to Graveyard?</DialogTitle>
             <DialogDescription>
-              Archiving will turn off allocation for this deck. These cards will no longer be
-              reserved against your collection — they may show as available to other decks even
-              though they&apos;re still physically in this deck.
+              This deck has cards claimed from your collection. Moving it to the graveyard
+              will retire it from active use.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-2">
             <Button variant="outline" onClick={handleCancel}>Cancel</Button>
-            <Button onClick={handleConfirm}>Archive</Button>
+            <Button variant="outline" onClick={() => { handleConfirmWithRelease() }}>
+              Release cards for other decks
+            </Button>
+            <Button onClick={handleConfirm}>Keep cards claimed</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

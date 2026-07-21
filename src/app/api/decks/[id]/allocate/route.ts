@@ -105,7 +105,7 @@ export async function PATCH(
   }
 
   // Archived decks have allocate forced off (Section 4)
-  if (deck.status === 'archived' && allocate === true) {
+  if (deck.status === 'graveyard' && allocate === true) {
     return Response.json(
       { error: 'Cannot enable allocate on an archived deck. Un-archive the deck first.' },
       { status: 403 }

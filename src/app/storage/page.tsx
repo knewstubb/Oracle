@@ -36,7 +36,7 @@ export default function StoragePage() {
 
   return (
     <div className="flex h-full flex-col bg-[var(--bg-canvas)]">
-      <div className="mx-auto flex h-full w-full max-w-[1520px] flex-col">
+      <div className="mx-auto flex h-full w-full max-w-[var(--content-max-width)] flex-col">
         <PageHeader title="Storage" subtitle="Where your cards live" />
 
         <div className="flex-1 overflow-y-auto px-5 py-6">

@@ -24,10 +24,11 @@ export interface CollectionPrintingsResponse {
  *
  * Validates: Requirements 1.3, 4.3
  */
-export function useCollectionPrintings(): UseQueryResult<CollectionPrintingsResponse> {
+export function useCollectionPrintings(options?: { enabled?: boolean }): UseQueryResult<CollectionPrintingsResponse> {
   return useQuery<CollectionPrintingsResponse>({
     queryKey: ['collection', 'printings'],
     queryFn: () => fetch('/api/collection/printings').then((r) => r.json()),
     staleTime: 5 * 60 * 1000, // 5 min — collection data only changes on sync
+    enabled: options?.enabled !== false,
   })
 }

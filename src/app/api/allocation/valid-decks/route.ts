@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
       .from('decks')
       .select('id, name, status, colour_identity, format')
       .eq('user_id', userId)
-      .in('status', ['brew', 'boxed'])
+      .in('status', ['brewing', 'in_rotation'])
 
     // Filter to decks whose commander CI is a superset of the card's CI
     // Only applies to Commander format — other formats have no CI restriction

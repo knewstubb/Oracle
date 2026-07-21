@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { CardImage } from '@/components/CardImage'
+import { Button } from '@/components/ui/button'
 import { InlineDeleteConfirmation } from '@/components/InlineDeleteConfirmation'
 import { canDeleteDeck } from '@/lib/brew-v2-deck-state'
 import { cn } from '@/lib/utils'
@@ -107,7 +108,7 @@ export function DraftDeckTile({
       style={{ border: '0.5px dashed rgba(55,138,221,0.3)' }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      aria-label={`Draft deck: ${name} — ${commanderName}`}
+      aria-label={`Brewing: ${name} — ${commanderName}`}
     >
       {/* Commander art — with hover overlay */}
       <div className="relative aspect-[4/3] overflow-hidden">
@@ -127,21 +128,28 @@ export function DraftDeckTile({
             className="absolute inset-0 flex items-center justify-center gap-3 bg-black/70 transition-opacity duration-200 opacity-100"
             aria-hidden={false}
           >
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleContinueBrewing}
-              className="rounded-lg bg-[rgba(55,138,221,0.2)] px-3 py-1.5 text-[length:var(--fs-sm)] font-medium text-[#378ADD] border border-[rgba(55,138,221,0.4)] hover:bg-[rgba(55,138,221,0.3)] transition-colors"
+              className="text-[length:var(--fs-sm)]"
+              style={{
+                background: 'rgba(55,138,221,0.2)',
+                borderColor: 'rgba(55,138,221,0.4)',
+                color: '#378ADD',
+              }}
             >
               Continue brewing
-            </button>
+            </Button>
             {canDeleteDeck(status) && (
-              <button
-                type="button"
+              <Button
+                variant="destructive"
+                size="sm"
                 onClick={handleDeleteClick}
-                className="rounded-lg bg-[rgba(226,75,74,0.15)] px-3 py-1.5 text-[length:var(--fs-sm)] font-medium text-[#E24B4A] border border-[rgba(226,75,74,0.3)] hover:bg-[rgba(226,75,74,0.25)] transition-colors"
+                className="text-[length:var(--fs-sm)]"
               >
-                Delete draft
-              </button>
+                Delete
+              </Button>
             )}
           </div>
         )}
@@ -168,10 +176,9 @@ export function DraftDeckTile({
           {commanderName}
         </p>
 
-        {/* Draft badge — no health pips, no card count */}
         <div className="mt-1.5 flex items-center gap-2">
           <span className="inline-flex items-center rounded-full bg-[rgba(55,138,221,0.15)] px-2 py-0.5 text-[length:var(--fs-xs)] font-medium text-[#378ADD]">
-            Draft
+            Brewing
           </span>
         </div>
       </div>

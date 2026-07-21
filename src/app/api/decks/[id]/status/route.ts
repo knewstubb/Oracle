@@ -68,7 +68,7 @@ export async function PATCH(
   }
 
   // Unarchiving returns Allocate to off (Section 4) — never silently restore to prior on-state
-  if (previousStatus === 'archived' && status === 'boxed') {
+  if (previousStatus === 'graveyard' && status === 'in_rotation') {
     const { error: allocateErr } = await supabase
       .from('decks')
       .update({ allocate: false })

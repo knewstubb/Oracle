@@ -2,7 +2,8 @@
  * POST /api/allocation/add-proxy
  *
  * Atomically creates a proxy physical_copies row and assigns it to a deck slot.
- * Used from Claimed, Open, and Unowned chip popovers in the Cards Tab.
+ * Used from Claimed, Open, and Unowned chip popovers in the Cards Tab,
+ * and from the Picklist's "Print Proxy" flow.
  *
  * Body: { deckCardsId: number, cardDefinitionId: number }
  * Returns: { success: true, physicalCopyId: number }
@@ -10,7 +11,7 @@
  * The proxy is created with:
  * - is_proxy = true
  * - source_tag = 'manual'
- * - scryfall_printing_id = null (printing picker is out of scope)
+ * - scryfall_printing_id = defaulted from oracle_to_printings (first available)
  * - storage_location_id = null (goes straight to the deck, not storage)
  */
 import { NextRequest } from 'next/server'
@@ -60,16 +61,31 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify the card_definition belongs to this user
+    // Verify the card_definition belongs to this user and get oracle_id for printing lookup
     const { data: cardDef, error: cdErr } = await supabase
       .from('card_definitions')
-      .select('id')
+      .select('id, oracle_id')
       .eq('id', cardDefinitionId)
       .eq('user_id', userId)
       .maybeSingle()
 
     if (cdErr || !cardDef) {
       return Response.json({ error: 'Card definition not found' }, { status: 404 })
+    }
+
+    // Resolve a default printing from oracle_to_printings (best-effort, fall back to null)
+    let scryfallPrintingId: string | null = null
+    if (cardDef.oracle_id) {
+      const { data: printing } = await supabase
+        .from('oracle_to_printings')
+        .select('scryfall_printing_id')
+        .eq('oracle_id', cardDef.oracle_id)
+        .limit(1)
+        .maybeSingle()
+
+      if (printing?.scryfall_printing_id) {
+        scryfallPrintingId = printing.scryfall_printing_id
+      }
     }
 
     // Step 1: Create the proxy physical_copies row
@@ -80,6 +96,7 @@ export async function POST(request: NextRequest) {
         is_proxy: true,
         is_foil: false,
         source_tag: 'manual',
+        scryfall_printing_id: scryfallPrintingId,
         user_id: userId,
       })
       .select('id')

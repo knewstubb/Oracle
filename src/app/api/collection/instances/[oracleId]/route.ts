@@ -31,7 +31,7 @@ interface ShortDeckEntry {
   deckCardsId: number
   deckId: number
   deckName: string
-  deckStatus: string // 'brew' | 'boxed' | 'archived'
+  deckStatus: string // 'brewing' | 'in_rotation' | 'graveyard'
 }
 
 interface InstancePanelResponse {
@@ -127,7 +127,7 @@ export async function GET(
             deckAssignmentMap.set(dc.physical_copy_id, {
               deckName: dc.decks.name,
               deckId: dc.deck_id,
-              deckStatus: dc.decks.status ?? 'brew',
+              deckStatus: dc.decks.status ?? 'brewing',
             })
           }
         }
@@ -249,7 +249,7 @@ export async function GET(
               deckCardsId: dc.id,
               deckId: dc.deck_id,
               deckName: dc.decks?.name ?? `Deck ${dc.deck_id}`,
-              deckStatus: dc.decks?.status ?? 'brew',
+              deckStatus: dc.decks?.status ?? 'brewing',
             })
           }
         }

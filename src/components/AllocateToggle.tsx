@@ -73,7 +73,7 @@ export function AllocateToggle({ deckId, deckStatus, allocate }: AllocateToggleP
     },
   })
 
-  const isDisabled = deckStatus === 'archived' || mutation.isPending
+  const isDisabled = deckStatus === 'graveyard' || mutation.isPending
 
   function handleToggle() {
     if (isDisabled) return
@@ -112,7 +112,7 @@ export function AllocateToggle({ deckId, deckStatus, allocate }: AllocateToggleP
 
   return (
     <>
-      {deckStatus === 'archived' ? (
+      {deckStatus === 'graveyard' ? (
         <Tooltip>
           <TooltipTrigger render={<div className="inline-flex" />}>
             {toggle}

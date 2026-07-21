@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Sparkles } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { InlineDeleteConfirmation } from '@/components/InlineDeleteConfirmation'
 import { cn } from '@/lib/utils'
 
@@ -122,7 +123,7 @@ export function DraftSessionTile({
       style={{ border: '0.5px dashed rgba(55,138,221,0.4)' }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      aria-label={`Draft brew: ${displayName} — ${STATUS_LABELS[status] || status}`}
+      aria-label={`Brewing: ${displayName} — ${STATUS_LABELS[status] || status}`}
     >
       {/* Art area — show commander art if available, otherwise sparkle icon */}
       <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-[rgba(55,138,221,0.1)] to-[rgba(55,138,221,0.2)]">
@@ -145,20 +146,27 @@ export function DraftSessionTile({
             className="absolute inset-0 flex items-center justify-center gap-3 bg-black/70 transition-opacity duration-200 opacity-100"
             aria-hidden={false}
           >
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleResume}
-              className="rounded-lg bg-[rgba(55,138,221,0.2)] px-3 py-1.5 text-[length:var(--fs-sm)] font-medium text-[#378ADD] border border-[rgba(55,138,221,0.4)] hover:bg-[rgba(55,138,221,0.3)] transition-colors"
+              className="text-[length:var(--fs-sm)]"
+              style={{
+                background: 'rgba(55,138,221,0.2)',
+                borderColor: 'rgba(55,138,221,0.4)',
+                color: '#378ADD',
+              }}
             >
               Resume brewing
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
               onClick={handleDeleteClick}
-              className="rounded-lg bg-[rgba(226,75,74,0.15)] px-3 py-1.5 text-[length:var(--fs-sm)] font-medium text-[#E24B4A] border border-[rgba(226,75,74,0.3)] hover:bg-[rgba(226,75,74,0.25)] transition-colors"
+              className="text-[length:var(--fs-sm)]"
             >
               Delete
-            </button>
+            </Button>
           </div>
         )}
 
@@ -186,7 +194,7 @@ export function DraftSessionTile({
 
         <div className="mt-1.5 flex items-center justify-between gap-2">
           <span className="inline-flex items-center rounded-full bg-[rgba(55,138,221,0.15)] px-2 py-0.5 text-[length:var(--fs-xs)] font-medium text-[#378ADD]">
-            Draft
+            Brewing
           </span>
           <span className="text-[length:var(--fs-xs)] text-muted-foreground/60">
             {formatRelativeTime(updatedAt)}

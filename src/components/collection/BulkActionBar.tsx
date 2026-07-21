@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
@@ -188,63 +189,58 @@ export function BulkActionBar({ selectedCount, selectedIds, onClear, onSuccess, 
         </select>
 
         {/* Assign to storage button */}
-        <button
-          type="button"
+        <Button
+          variant="outline"
+          size="sm"
           onClick={handleAssign}
           disabled={!selectedLocationId || hasInDeckCopies || isPending}
-          className="rounded px-2.5 py-1 text-[length:var(--fs-md)] font-medium transition-colors disabled:opacity-40"
           style={{
-            background: selectedLocationId && !hasInDeckCopies ? 'rgba(45,212,191,0.15)' : 'var(--bg-canvas)',
-            color: selectedLocationId && !hasInDeckCopies ? 'rgb(45,212,191)' : 'var(--text-secondary)',
-            border: `0.5px solid ${selectedLocationId && !hasInDeckCopies ? 'rgba(45,212,191,0.3)' : 'var(--border-subtle)'}`,
+            background: selectedLocationId && !hasInDeckCopies ? 'rgba(45,212,191,0.15)' : undefined,
+            color: selectedLocationId && !hasInDeckCopies ? 'rgb(45,212,191)' : undefined,
+            borderColor: selectedLocationId && !hasInDeckCopies ? 'rgba(45,212,191,0.3)' : undefined,
           }}
           title={hasInDeckCopies ? 'Cannot assign to storage while selection includes in-deck copies' : undefined}
         >
           {bulkAssign.isPending ? 'Assigning...' : 'Assign to storage'}
-        </button>
+        </Button>
 
         {/* Mark as missing button */}
-        <button
-          type="button"
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => bulkMissing.mutate(selectedIds)}
           disabled={isPending}
-          className="rounded px-2.5 py-1 text-[length:var(--fs-md)] font-medium transition-colors disabled:opacity-40"
           style={{
             background: 'rgba(234,179,8,0.1)',
             color: 'rgb(234,179,8)',
-            border: '0.5px solid rgba(234,179,8,0.25)',
+            borderColor: 'rgba(234,179,8,0.25)',
           }}
         >
           {bulkMissing.isPending ? 'Marking...' : 'Mark as missing'}
-        </button>
+        </Button>
 
         {/* Delete button */}
-        <button
-          type="button"
+        <Button
+          variant="destructive"
+          size="sm"
           onClick={() => setShowDeleteConfirm(true)}
           disabled={isPending}
-          className="rounded px-2.5 py-1 text-[length:var(--fs-md)] font-medium transition-colors disabled:opacity-40"
-          style={{
-            background: 'rgba(226,75,74,0.1)',
-            color: 'rgba(226,75,74,0.9)',
-            border: '0.5px solid rgba(226,75,74,0.25)',
-          }}
         >
           Delete
-        </button>
+        </Button>
 
         {/* Spacer */}
         <div className="flex-1" />
 
         {/* Clear selection button */}
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={onClear}
           disabled={isPending}
-          className="rounded px-2 py-1 text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface-hover)] disabled:opacity-40"
         >
           Clear selection
-        </button>
+        </Button>
       </div>
 
       {/* Delete confirmation modal */}

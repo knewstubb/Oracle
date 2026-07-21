@@ -212,7 +212,7 @@ export function UpgradeTab({ deckId }: UpgradeTabProps) {
   // ─── Loading ───
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-[1080px] space-y-6 p-4">
+      <div className="mx-auto max-w-[var(--content-max-width)] space-y-6 p-4">
         <Skeleton className="h-20 w-full rounded-lg" />
         <Skeleton className="h-10 w-full rounded-lg" />
         <Skeleton className="h-48 w-full rounded-lg" />
@@ -223,7 +223,7 @@ export function UpgradeTab({ deckId }: UpgradeTabProps) {
 
   // ─── Render ───
   return (
-    <div className="mx-auto max-w-[1080px] space-y-6 pb-12">
+    <div className="mx-auto max-w-[var(--content-max-width)] space-y-6 pb-12">
       {/* ─── 1. Last Debrief Banner (conditional) ─── */}
       {debriefSession && <DebriefBanner session={debriefSession} deckId={deckId} />}
 

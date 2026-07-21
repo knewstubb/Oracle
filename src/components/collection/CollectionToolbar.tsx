@@ -556,12 +556,12 @@ function StatusFilterControl({
  * Returns the initial value to use for the viewMode state.
  */
 export function getPersistedViewMode(): ViewMode {
-  if (typeof window === 'undefined') return 'list'
+  if (typeof window === 'undefined') return 'grid'
   try {
     const stored = localStorage.getItem(VIEW_MODE_KEY)
     if (stored === 'list' || stored === 'grid') return stored
   } catch {
     // localStorage unavailable
   }
-  return 'list'
+  return 'grid'
 }

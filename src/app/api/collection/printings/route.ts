@@ -83,19 +83,17 @@ export async function GET() {
       return await serveFallback(supabase)
     }
 
-    // ──── PARALLEL DATA FETCH ────
-    // All queries + price metadata run concurrently
-    const [physicalCopiesRaw, deckUsageRaw, activeDeckIds, allocationRoles, priceRows, setInfoRows, lastPriceRefresh, priceStale] =
+    // ──── TWO-PHASE DATA FETCH ────
+    // Phase 1: User-scoped data (physical_copies, deck_cards, deck_allocations, decks)
+    // Phase 2: Reference data scoped to only the user's printing IDs
+
+    const userId = authResult.id
+
+    // Phase 1: Fetch user-scoped data in parallel
+    const [physicalCopiesRaw, deckUsageRaw, activeDeckIds, allocationRoles, lastPriceRefresh, priceStale] =
       await Promise.all([
-        // 1. Physical copies + card definitions (BOTH originals AND proxies)
-        fetchAll<{
-          id: number
-          card_definition_id: number
-          scryfall_printing_id: string | null
-          is_foil: boolean
-          is_proxy: boolean
-          card_definitions: { card_name: string; color_identity: string | null } | null
-        }>((offset, limit) =>
+        // 1. Physical copies + card definitions (user-scoped)
+        fetchAll<any>((offset, limit) =>
           supabase
             .from('physical_copies')
             .select(`
@@ -110,16 +108,12 @@ export async function GET() {
                 color_identity
               )
             `)
+            .eq('user_id', userId)
             .range(offset, offset + limit - 1) as any
         ),
 
-        // 2. Deck cards usage (all decks — we'll filter to active later)
-        fetchAll<{
-          physical_copy_id: number | null
-          deck_id: number
-          card_name: string
-          decks: { name: string; status: string } | null
-        }>((offset, limit) =>
+        // 2. Deck cards usage (user-scoped)
+        fetchAll<any>((offset, limit) =>
           supabase
             .from('deck_cards')
             .select(`
@@ -128,62 +122,34 @@ export async function GET() {
               card_name,
               decks!deck_cards_deck_id_fkey ( name, status )
             `)
+            .eq('user_id', userId)
             .not('physical_copy_id', 'is', null)
             .range(offset, offset + limit - 1) as any
         ),
 
-        // 3. Get active deck IDs for allocation computation
+        // 3. Get active deck IDs
         supabase
           .from('decks')
           .select('id')
+          .eq('user_id', userId)
           .eq('status', 'active')
           .then(({ data }) => new Set((data || []).map((d: { id: number }) => d.id))),
 
-        // 4. Deck allocations (role per card+deck)
-        fetchAll<{
-          card_name: string
-          deck_id: number
-          role: string
-        }>((offset, limit) =>
+        // 4. Deck allocations (user-scoped via deck join — but deck_allocations may not have user_id)
+        fetchAll<any>((offset, limit) =>
           supabase
             .from('deck_allocations')
             .select('card_name, deck_id, role')
             .range(offset, offset + limit - 1) as any
         ),
 
-        // 5. Prices
-        fetchAll<{
-          scryfall_printing_id: string
-          price_retail: number
-          is_foil: boolean
-        }>((offset, limit) =>
-          supabase
-            .from('card_kingdom_prices')
-            .select('scryfall_printing_id, price_retail, is_foil')
-            .range(offset, offset + limit - 1) as any
-        ),
-
-        // 6. Set info from printing_set_info reference table
-        fetchAll<{
-          scryfall_printing_id: string
-          set_code: string
-          edition_name: string
-        }>((offset, limit) =>
-          (supabase
-            .from('printing_set_info' as any)
-            .select('scryfall_printing_id, set_code, edition_name')
-            .range(offset, offset + limit - 1)) as any
-        ),
-
-        // 7. Price metadata
+        // 5. Price metadata
         getLastRefreshTimestamp(),
         isPriceDataStale(),
       ])
 
-    // ──── PROCESS RESULTS ────
-
     // Normalize physical copies
-    const allPhysicalCopies = physicalCopiesRaw.map((row) => {
+    const allPhysicalCopies = physicalCopiesRaw.map((row: any) => {
       const cd = row.card_definitions as unknown as { card_name: string; color_identity: string | null } | null
       return {
         id: row.id,
@@ -191,7 +157,8 @@ export async function GET() {
         scryfall_printing_id: row.scryfall_printing_id,
         is_foil: row.is_foil,
         is_proxy: row.is_proxy,
-        quantity: 1, // Instance-level: one row = one copy
+        missing: row.missing,
+        quantity: 1,
         card_name: cd?.card_name || '',
         color_identity: cd?.color_identity || null,
       }
@@ -200,6 +167,63 @@ export async function GET() {
     if (allPhysicalCopies.length === 0) {
       return Response.json({ rows: [], lastPriceRefresh, isPriceStale: priceStale })
     }
+
+    // Phase 2: Fetch prices, set_info, and mana costs ONLY for the user's printing IDs / card names
+    const userPrintingIds = [...new Set(
+      allPhysicalCopies.map((pc: any) => pc.scryfall_printing_id).filter(Boolean) as string[]
+    )]
+
+    const uniqueCardNames = [...new Set(allPhysicalCopies.map((pc: any) => pc.card_name).filter(Boolean))]
+
+    const [priceRows, setInfoRows, manaCostRows] = await Promise.all([
+      // Prices — only for printings the user owns (smaller batches to avoid URL limit)
+      userPrintingIds.length > 0
+        ? (async () => {
+            const results: any[] = []
+            for (let i = 0; i < userPrintingIds.length; i += 200) {
+              const batch = userPrintingIds.slice(i, i + 200)
+              const { data } = await supabase
+                .from('card_kingdom_prices')
+                .select('scryfall_printing_id, price_retail, is_foil')
+                .in('scryfall_printing_id', batch)
+              if (data) results.push(...data)
+            }
+            return results
+          })()
+        : Promise.resolve([]),
+
+      // Set info — only for printings the user owns (smaller batches to avoid URL limit)
+      userPrintingIds.length > 0
+        ? (async () => {
+            const results: any[] = []
+            for (let i = 0; i < userPrintingIds.length; i += 200) {
+              const batch = userPrintingIds.slice(i, i + 200)
+              const { data } = await (supabase
+                .from('printing_set_info' as any)
+                .select('scryfall_printing_id, set_code, edition_name')
+                .in('scryfall_printing_id', batch)) as any
+              if (data) results.push(...data)
+            }
+            return results
+          })()
+        : Promise.resolve([]),
+
+      // Mana costs from card_metadata
+      uniqueCardNames.length > 0
+        ? (async () => {
+            const results: any[] = []
+            for (let i = 0; i < uniqueCardNames.length; i += 1000) {
+              const batch = uniqueCardNames.slice(i, i + 1000)
+              const { data } = await supabase
+                .from('card_metadata')
+                .select('card_name, mana_cost')
+                .in('card_name', batch)
+              if (data) results.push(...data)
+            }
+            return results
+          })()
+        : Promise.resolve([]),
+    ])
 
     // Build price map
     const priceMap = new Map<string, number>()
@@ -220,6 +244,14 @@ export async function GET() {
           setCode: row.set_code || '',
           setName: row.edition_name || '',
         })
+      }
+    }
+
+    // Build mana cost map
+    const manaCostMap = new Map<string, string>()
+    for (const row of manaCostRows) {
+      if (row.card_name && row.mana_cost) {
+        manaCostMap.set(row.card_name, row.mana_cost)
       }
     }
 
@@ -296,6 +328,7 @@ export async function GET() {
         price: pc.scryfall_printing_id ? lookupPrice(priceMap, pc.scryfall_printing_id, pc.is_foil) : null,
         isProxy: Boolean(pc.is_proxy),
         isMissing: Boolean(pc.missing),
+        manaCost: manaCostMap.get(pc.card_name) || null,
       }
     })
 
@@ -368,6 +401,9 @@ async function serveFallback(supabase: ReturnType<typeof createAdminClient>) {
       usedByCount: 0,
       usedByDecks: [],
       price: null,
+      isProxy: false,
+      isMissing: false,
+      manaCost: null,
     }
   })
 

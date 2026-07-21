@@ -4,14 +4,14 @@
 
 /**
  * The three valid lifecycle states for a deck.
- * - brew: under construction, excluded from allocation
- * - boxed: fully built, assignments locked, resolver must not touch
- * - archived: shelved/retired, excluded from allocation
+ * - brewing: under construction, being built or reworked
+ * - in_rotation: committed to active decks, may or may not be fully claimed
+ * - graveyard: retired/shelved, no longer active
  */
-export type DeckStatus = 'brew' | 'boxed' | 'archived'
+export type DeckStatus = 'brewing' | 'in_rotation' | 'graveyard'
 
 /** Ordered list of all valid deck status values. */
-export const VALID_STATUSES: readonly DeckStatus[] = ['brew', 'boxed', 'archived'] as const
+export const VALID_STATUSES: readonly DeckStatus[] = ['brewing', 'in_rotation', 'graveyard'] as const
 
 /**
  * Type guard that narrows an unknown string to a valid DeckStatus.

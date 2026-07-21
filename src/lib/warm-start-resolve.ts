@@ -69,7 +69,7 @@ export interface BatchResolutionResult {
 export async function resolveDeckBatch(
   deckIds: number[],
   userId: string,
-  deckStatuses?: Record<number, 'brew' | 'boxed'>
+  deckStatuses?: Record<number, 'brewing' | 'in_rotation'>
 ): Promise<BatchResolutionResult> {
   const startTime = Date.now()
   const results: DeckResolutionResult[] = []
@@ -80,7 +80,7 @@ export async function resolveDeckBatch(
   const pool = await loadSupplyPool(userId)
 
   for (const archidektDeckId of deckIds) {
-    const status = deckStatuses?.[archidektDeckId] ?? 'boxed'
+    const status = deckStatuses?.[archidektDeckId] ?? 'in_rotation'
     const { result, assignments } = await resolveSingleDeck(archidektDeckId, userId, status, pool)
     results.push(result)
 
@@ -92,7 +92,7 @@ export async function resolveDeckBatch(
         // On success: update pool state so subsequent decks see these assignments
         for (const assignment of assignments) {
           // Mark the physical copy as assigned in the pool
-          // Use 'boxed' status so subsequent decks treat these as Tier 4 (not reassignable)
+          // Use 'in_rotation' status so subsequent decks treat these as Tier 4 (not reassignable)
           pool.markAssigned(
             assignment.physicalCopyId,
             assignment.deckCardsId,
@@ -194,7 +194,7 @@ export async function resolveDeckBatch(
 async function resolveSingleDeck(
   archidektDeckId: number,
   userId: string,
-  deckStatus: 'brew' | 'boxed' = 'boxed',
+  deckStatus: 'brewing' | 'in_rotation' = 'in_rotation',
   pool: SupplyPool
 ): Promise<{ result: DeckResolutionResult; assignments: Assignment[] }> {
   const errors: string[] = []

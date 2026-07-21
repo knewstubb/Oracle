@@ -18,10 +18,12 @@ import {
 } from '@/components/ui/dialog'
 import { parseDeckUrl, isParseError } from '@/lib/url-parser'
 import { parseDeckCSV, isCSVParseError } from '@/lib/csv-deck-parser'
+import { parseTextDecklist, isTextParseError } from '@/lib/text-deck-parser'
 import { FORMAT_OPTIONS } from '@/lib/format-config'
 import type { NormalizedDeck, CardsByType } from '@/lib/deck-normalizer'
+import type { ImportMode } from '@/lib/deck-import'
 
-type ImportTab = 'url' | 'paste' | 'csv'
+type InputTab = 'url' | 'paste' | 'csv'
 
 interface DeckImportButtonProps {
   className?: string
@@ -45,10 +47,6 @@ interface ImportResponse {
 /** HTTP status codes that indicate transient/retryable failures */
 const RETRYABLE_STATUSES = new Set([502, 504])
 
-/**
- * Map API error responses to user-friendly messages.
- * The preview API returns structured errors, but we add extra context client-side.
- */
 function getDisplayError(status: number, serverMessage: string): string {
   switch (status) {
     case 400:
@@ -71,7 +69,7 @@ export function DeckImportButton({
   onPreviewSuccess,
 }: DeckImportButtonProps) {
   const [open, setOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<ImportTab>('url')
+  const [activeTab, setActiveTab] = useState<InputTab>('url')
 
   // URL tab state
   const [url, setUrl] = useState('')
@@ -85,9 +83,14 @@ export function DeckImportButton({
   const [csvError, setCsvError] = useState<string | null>(null)
   const csvInputRef = useRef<HTMLInputElement>(null)
 
+  // Paste tab state
+  const [pasteText, setPasteText] = useState('')
+  const [pasteDeckName, setPasteDeckName] = useState('')
+  const [pasteError, setPasteError] = useState<string | null>(null)
+
   // Confirmation step state
   const [previewData, setPreviewData] = useState<PreviewResponse | null>(null)
-  const [importStatus, setImportStatus] = useState<'brew' | 'boxed'>('boxed')
+  const [importMode, setImportMode] = useState<ImportMode>('add_new_cards')
   const [importFormat, setImportFormat] = useState<string>('commander')
 
   const router = useRouter()
@@ -100,12 +103,15 @@ export function DeckImportButton({
     setDeckName('')
     setSelectedFile(null)
     setCsvError(null)
+    setPasteText('')
+    setPasteDeckName('')
+    setPasteError(null)
     setPreviewData(null)
-    setImportStatus('boxed')
+    setImportMode('add_new_cards')
     setImportFormat('commander')
   }, [])
 
-  // --- URL tab mutation ---
+  // --- URL preview mutation ---
   const previewMutation = useMutation({
     mutationFn: async (deckUrl: string): Promise<PreviewResponse> => {
       lastSubmittedUrl.current = deckUrl
@@ -131,19 +137,18 @@ export function DeckImportButton({
         resetState()
         onPreviewSuccess(data.deck, data.cardsByType)
       } else {
-        // Show confirmation step with status picker
         setPreviewData(data)
       }
     },
   })
 
-  // --- CSV import mutation ---
-  const csvImportMutation = useMutation({
-    mutationFn: async (deck: NormalizedDeck): Promise<ImportResponse> => {
+  // --- Import mutation (used for all paths in the confirmation step) ---
+  const importMutation = useMutation({
+    mutationFn: async ({ deck, mode, format }: { deck: NormalizedDeck; mode: ImportMode; format: string }): Promise<ImportResponse> => {
       const res = await fetch('/api/decks/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deck, mode: 'existing_collection', status: importStatus, format: importFormat }),
+        body: JSON.stringify({ deck, mode, format }),
       })
 
       if (!res.ok) {
@@ -160,20 +165,19 @@ export function DeckImportButton({
         toast.warning('Deck imported with allocation warnings', {
           description: data.allocationSummary.errors.join('; '),
         })
-        const errParam = encodeURIComponent(JSON.stringify(data.allocationSummary.errors))
-        setOpen(false)
-        resetState()
-        router.push(`/decks/${data.deckId}?allocationErrors=${errParam}&freshImport=true`)
       } else {
         toast.success('Deck imported successfully')
-        setOpen(false)
-        resetState()
-        router.push(`/decks/${data.deckId}?freshImport=true`)
       }
+
+      setOpen(false)
+      resetState()
+      router.push(`/decks/${data.deckId}?freshImport=true`)
     },
   })
 
   const isRetryable = lastErrorStatus !== null && RETRYABLE_STATUSES.has(lastErrorStatus)
+
+  // --- Handlers ---
 
   function handleUrlSubmit() {
     setValidationError(null)
@@ -203,28 +207,30 @@ export function DeckImportButton({
     }
   }
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      if (activeTab === 'url') {
-        handleUrlSubmit()
-      } else if (activeTab === 'csv') {
-        handleCSVImport()
-      }
-    }
-  }
+  function handlePasteSubmit() {
+    setPasteError(null)
 
-  function handleCSVFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (file) {
-      setSelectedFile(file)
-      setCsvError(null)
-      // Auto-fill deck name from filename if empty
-      if (!deckName) {
-        const nameFromFile = file.name.replace(/\.csv$/i, '').replace(/[-_]/g, ' ')
-        setDeckName(nameFromFile)
-      }
+    const trimmed = pasteText.trim()
+    if (!trimmed) {
+      setPasteError('Please paste a decklist')
+      return
     }
+
+    const name = pasteDeckName.trim() || 'Imported Deck'
+    const result = parseTextDecklist(trimmed, name)
+
+    if (isTextParseError(result)) {
+      setPasteError(result.error)
+      return
+    }
+
+    if (result.warnings.length > 0) {
+      toast.info(`Parsed with ${result.warnings.length} warning(s)`, {
+        description: result.warnings.slice(0, 3).join('; '),
+      })
+    }
+
+    setPreviewData({ deck: result.deck, cardsByType: {} as CardsByType })
   }
 
   async function handleCSVImport() {
@@ -237,7 +243,7 @@ export function DeckImportButton({
 
     try {
       const csvText = await selectedFile.text()
-      const result = parseDeckCSV(csvText, deckName)
+      const result = parseDeckCSV(csvText, deckName || selectedFile.name.replace(/\.csv$/i, ''))
 
       if (isCSVParseError(result)) {
         setCsvError(result.error)
@@ -250,10 +256,39 @@ export function DeckImportButton({
         })
       }
 
-      csvImportMutation.mutate(result.deck)
+      setPreviewData({ deck: result.deck, cardsByType: {} as CardsByType })
     } catch {
       setCsvError('Failed to read CSV file')
     }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      if (activeTab === 'url') handleUrlSubmit()
+      else if (activeTab === 'csv') handleCSVImport()
+      else if (activeTab === 'paste') handlePasteSubmit()
+    }
+  }
+
+  function handleCSVFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) {
+      setSelectedFile(file)
+      setCsvError(null)
+      if (!deckName) {
+        setDeckName(file.name.replace(/\.csv$/i, '').replace(/[-_]/g, ' '))
+      }
+    }
+  }
+
+  function handleConfirmImport() {
+    if (!previewData) return
+    importMutation.mutate({
+      deck: previewData.deck,
+      mode: importMode,
+      format: importFormat,
+    })
   }
 
   function handleOpenChange(nextOpen: boolean) {
@@ -262,21 +297,18 @@ export function DeckImportButton({
       resetState()
       setActiveTab('url')
       previewMutation.reset()
-      csvImportMutation.reset()
+      importMutation.reset()
     }
   }
 
   const urlDisplayError = validationError ?? (previewMutation.isError ? previewMutation.error.message : null)
-  const csvDisplayError = csvError ?? (csvImportMutation.isError ? csvImportMutation.error.message : null)
+  const csvDisplayError = csvError ?? (importMutation.isError && activeTab === 'csv' ? importMutation.error.message : null)
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         render={
-          <button
-            type="button"
-            className={`inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-[length:var(--fs-md)] font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 ${className ?? ''}`}
-          />
+          <Button className={className ?? ''} />
         }
       >
         <Download className="size-4" aria-hidden="true" />
@@ -284,7 +316,7 @@ export function DeckImportButton({
       </DialogTrigger>
 
       <DialogContent className="sm:max-w-md">
-        {/* ─── Confirmation Step (after preview fetch) ─── */}
+        {/* ─── Confirmation Step (mode picker) ─── */}
         {previewData ? (
           <>
             <DialogHeader>
@@ -294,38 +326,38 @@ export function DeckImportButton({
               </DialogDescription>
             </DialogHeader>
 
-            {/* Status picker */}
+            {/* Mode picker */}
             <div className="flex flex-col gap-3">
               <p className="text-[length:var(--fs-sm)] text-muted-foreground">
-                What state is this deck in?
+                How should we handle these cards?
               </p>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2">
                 <button
                   type="button"
-                  className="flex-1 rounded-lg border px-4 py-3 text-left transition-colors"
-                  style={importStatus === 'boxed'
+                  className="rounded-lg border px-4 py-3 text-left transition-colors"
+                  style={importMode === 'add_new_cards'
                     ? { borderColor: 'var(--accent-primary)', background: 'var(--accent-primary-bg)' }
                     : { borderColor: 'var(--border-default)' }
                   }
-                  onClick={() => setImportStatus('boxed')}
+                  onClick={() => setImportMode('add_new_cards')}
                 >
-                  <span className="block text-[length:var(--fs-md)] font-medium">Boxed</span>
+                  <span className="block text-[length:var(--fs-md)] font-medium">These are new cards</span>
                   <span className="block text-[length:var(--fs-sm)] text-muted-foreground">
-                    Already built — cards are physically together
+                    Add to my collection and fill all deck slots automatically
                   </span>
                 </button>
                 <button
                   type="button"
-                  className="flex-1 rounded-lg border px-4 py-3 text-left transition-colors"
-                  style={importStatus === 'brew'
+                  className="rounded-lg border px-4 py-3 text-left transition-colors"
+                  style={importMode === 'existing_collection'
                     ? { borderColor: 'var(--accent-primary)', background: 'var(--accent-primary-bg)' }
                     : { borderColor: 'var(--border-default)' }
                   }
-                  onClick={() => setImportStatus('brew')}
+                  onClick={() => setImportMode('existing_collection')}
                 >
-                  <span className="block text-[length:var(--fs-md)] font-medium">Brew</span>
+                  <span className="block text-[length:var(--fs-md)] font-medium">Match against my collection</span>
                   <span className="block text-[length:var(--fs-sm)] text-muted-foreground">
-                    Still planning — cards not yet picked from collection
+                    Find cards I already own and show what I'm missing
                   </span>
                 </button>
               </div>
@@ -351,181 +383,157 @@ export function DeckImportButton({
               <Button
                 variant="outline"
                 onClick={() => setPreviewData(null)}
-                disabled={csvImportMutation.isPending}
+                disabled={importMutation.isPending}
               >
                 Back
               </Button>
               <Button
-                onClick={() => csvImportMutation.mutate(previewData.deck)}
-                disabled={csvImportMutation.isPending}
+                onClick={handleConfirmImport}
+                disabled={importMutation.isPending}
               >
-                {csvImportMutation.isPending && (
+                {importMutation.isPending && (
                   <Loader2 className="size-4 animate-spin" aria-hidden="true" data-icon="inline-start" />
                 )}
-                {csvImportMutation.isPending ? 'Importing...' : 'Import Deck'}
+                {importMutation.isPending ? 'Importing...' : 'Import Deck'}
               </Button>
             </DialogFooter>
           </>
         ) : (
           <>
-        <DialogHeader>
-          <DialogTitle>Import Deck</DialogTitle>
-          <DialogDescription>
-            Import a deck from a URL, paste a decklist, or upload a CSV file.
-          </DialogDescription>
-        </DialogHeader>
+            <DialogHeader>
+              <DialogTitle>Import Deck</DialogTitle>
+              <DialogDescription>
+                Import a deck from a URL, paste a decklist, or upload a CSV file.
+              </DialogDescription>
+            </DialogHeader>
 
-        {/* Import mode tabs */}
-        <div className="flex gap-1 rounded-md p-0.5" style={{ background: 'rgba(255,255,255,0.05)', border: '0.5px solid rgba(255,255,255,0.1)' }}>
-          <button
-            type="button"
-            className="flex-1 rounded px-3 py-1.5 text-[length:var(--fs-sm)] font-medium transition-colors"
-            style={activeTab === 'url'
-              ? { background: 'var(--accent-primary)', color: 'white' }
-              : { color: 'var(--text-tertiary)' }
-            }
-            onClick={() => setActiveTab('url')}
-          >
-            URL
-          </button>
-          <button
-            type="button"
-            className="flex-1 rounded px-3 py-1.5 text-[length:var(--fs-sm)] font-medium text-[var(--text-tertiary)]"
-            disabled
-            title="Coming soon"
-          >
-            Paste List
-          </button>
-          <button
-            type="button"
-            className="flex-1 rounded px-3 py-1.5 text-[length:var(--fs-sm)] font-medium transition-colors"
-            style={activeTab === 'csv'
-              ? { background: 'var(--accent-primary)', color: 'white' }
-              : { color: 'var(--text-tertiary)' }
-            }
-            onClick={() => setActiveTab('csv')}
-          >
-            CSV
-          </button>
-        </div>
+            {/* Input mode tabs */}
+            <div className="flex gap-1 rounded-md p-0.5" style={{ background: 'rgba(255,255,255,0.05)', border: '0.5px solid rgba(255,255,255,0.1)' }}>
+              {(['url', 'paste', 'csv'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  className="flex-1 rounded px-3 py-1.5 text-[length:var(--fs-sm)] font-medium transition-colors"
+                  style={activeTab === tab
+                    ? { background: 'var(--accent-primary)', color: 'white' }
+                    : { color: 'var(--text-tertiary)' }
+                  }
+                  onClick={() => setActiveTab(tab)}
+                >
+                  {tab === 'url' ? 'URL' : tab === 'paste' ? 'Paste List' : 'CSV'}
+                </button>
+              ))}
+            </div>
 
-        {/* URL tab content */}
-        {activeTab === 'url' && (
-          <div className="flex flex-col gap-3">
-            <Input
-              type="url"
-              value={url}
-              onChange={(e) => {
-                setUrl(e.target.value)
-                if (validationError) setValidationError(null)
-                if (previewMutation.isError) previewMutation.reset()
-                setLastErrorStatus(null)
-              }}
-              onKeyDown={handleKeyDown}
-              placeholder="https://archidekt.com/decks/..."
-              disabled={previewMutation.isPending}
-              aria-invalid={!!urlDisplayError}
-              aria-describedby={urlDisplayError ? 'import-url-error' : undefined}
-              autoFocus
-            />
+            {/* URL tab */}
+            {activeTab === 'url' && (
+              <div className="flex flex-col gap-3">
+                <Input
+                  type="url"
+                  value={url}
+                  onChange={(e) => {
+                    setUrl(e.target.value)
+                    if (validationError) setValidationError(null)
+                    if (previewMutation.isError) previewMutation.reset()
+                    setLastErrorStatus(null)
+                  }}
+                  onKeyDown={handleKeyDown}
+                  placeholder="https://archidekt.com/decks/..."
+                  disabled={previewMutation.isPending}
+                  aria-invalid={!!urlDisplayError}
+                  autoFocus
+                />
 
-            {urlDisplayError && (
-              <div
-                id="import-url-error"
-                className="flex items-start gap-2 rounded-md bg-destructive/10 px-3 py-2"
-                aria-live="polite"
-                role="alert"
-              >
-                <p className="flex-1 text-[length:var(--fs-md)] text-destructive">
-                  {urlDisplayError}
-                </p>
-                {isRetryable && !previewMutation.isPending && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto shrink-0 px-2 py-0.5 text-[length:var(--fs-md)] text-destructive hover:text-destructive"
-                    onClick={handleRetry}
-                  >
-                    <RefreshCw className="size-3" aria-hidden="true" />
-                    Try Again
-                  </Button>
+                {urlDisplayError && (
+                  <div className="flex items-start gap-2 rounded-md bg-destructive/10 px-3 py-2" role="alert">
+                    <p className="flex-1 text-[length:var(--fs-md)] text-destructive">{urlDisplayError}</p>
+                    {isRetryable && !previewMutation.isPending && (
+                      <Button variant="ghost" size="sm" className="h-auto shrink-0 px-2 py-0.5 text-destructive" onClick={handleRetry}>
+                        <RefreshCw className="size-3" aria-hidden="true" /> Try Again
+                      </Button>
+                    )}
+                  </div>
                 )}
               </div>
             )}
-          </div>
-        )}
 
-        {/* CSV tab content */}
-        {activeTab === 'csv' && (
-          <div className="flex flex-col gap-3">
-            <Input
-              type="text"
-              value={deckName}
-              onChange={(e) => setDeckName(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Deck name (e.g. 'World Breaker')"
-              disabled={csvImportMutation.isPending}
-            />
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => csvInputRef.current?.click()}
-                disabled={csvImportMutation.isPending}
-              >
-                <Upload className="size-3.5" aria-hidden="true" data-icon="inline-start" />
-                Choose CSV File
-              </Button>
-              <span className="text-[length:var(--fs-sm)] text-muted-foreground truncate">
-                {selectedFile?.name || 'No file selected'}
-              </span>
-            </div>
-            <input
-              ref={csvInputRef}
-              type="file"
-              accept=".csv"
-              className="hidden"
-              onChange={handleCSVFile}
-            />
+            {/* Paste tab */}
+            {activeTab === 'paste' && (
+              <div className="flex flex-col gap-3">
+                <Input
+                  type="text"
+                  value={pasteDeckName}
+                  onChange={(e) => setPasteDeckName(e.target.value)}
+                  placeholder="Deck name"
+                  disabled={importMutation.isPending}
+                />
+                <textarea
+                  value={pasteText}
+                  onChange={(e) => { setPasteText(e.target.value); setPasteError(null) }}
+                  onKeyDown={handleKeyDown}
+                  placeholder={"1 Sol Ring\n1 Command Tower\n1 Arcane Signet\n..."}
+                  disabled={importMutation.isPending}
+                  rows={8}
+                  className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-[length:var(--fs-sm)] text-foreground placeholder:text-muted-foreground focus:border-[var(--accent-primary)] focus:outline-none resize-none font-mono"
+                />
 
-            {csvDisplayError && (
-              <div
-                className="flex items-start gap-2 rounded-md bg-destructive/10 px-3 py-2"
-                aria-live="polite"
-                role="alert"
-              >
-                <p className="flex-1 text-[length:var(--fs-md)] text-destructive">
-                  {csvDisplayError}
-                </p>
+                {pasteError && (
+                  <div className="rounded-md bg-destructive/10 px-3 py-2" role="alert">
+                    <p className="text-[length:var(--fs-md)] text-destructive">{pasteError}</p>
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
 
-        <DialogFooter>
-          {activeTab === 'url' && (
-            <Button
-              onClick={handleUrlSubmit}
-              disabled={previewMutation.isPending || !url.trim()}
-            >
-              {previewMutation.isPending && (
-                <Loader2 className="size-4 animate-spin" aria-hidden="true" data-icon="inline-start" />
+            {/* CSV tab */}
+            {activeTab === 'csv' && (
+              <div className="flex flex-col gap-3">
+                <Input
+                  type="text"
+                  value={deckName}
+                  onChange={(e) => setDeckName(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Deck name (e.g. 'World Breaker')"
+                  disabled={importMutation.isPending}
+                />
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => csvInputRef.current?.click()} disabled={importMutation.isPending}>
+                    <Upload className="size-3.5" aria-hidden="true" data-icon="inline-start" />
+                    Choose CSV File
+                  </Button>
+                  <span className="text-[length:var(--fs-sm)] text-muted-foreground truncate">
+                    {selectedFile?.name || 'No file selected'}
+                  </span>
+                </div>
+                <input ref={csvInputRef} type="file" accept=".csv" className="hidden" onChange={handleCSVFile} />
+
+                {csvDisplayError && (
+                  <div className="rounded-md bg-destructive/10 px-3 py-2" role="alert">
+                    <p className="text-[length:var(--fs-md)] text-destructive">{csvDisplayError}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <DialogFooter>
+              {activeTab === 'url' && (
+                <Button onClick={handleUrlSubmit} disabled={previewMutation.isPending || !url.trim()}>
+                  {previewMutation.isPending && <Loader2 className="size-4 animate-spin" aria-hidden="true" data-icon="inline-start" />}
+                  {previewMutation.isPending ? 'Fetching...' : 'Fetch Deck'}
+                </Button>
               )}
-              {previewMutation.isPending ? 'Fetching...' : 'Fetch Deck'}
-            </Button>
-          )}
-          {activeTab === 'csv' && (
-            <Button
-              onClick={handleCSVImport}
-              disabled={csvImportMutation.isPending || !selectedFile}
-            >
-              {csvImportMutation.isPending && (
-                <Loader2 className="size-4 animate-spin" aria-hidden="true" data-icon="inline-start" />
+              {activeTab === 'paste' && (
+                <Button onClick={handlePasteSubmit} disabled={!pasteText.trim()}>
+                  Continue
+                </Button>
               )}
-              {csvImportMutation.isPending ? 'Importing...' : 'Import Deck'}
-            </Button>
-          )}
-        </DialogFooter>
+              {activeTab === 'csv' && (
+                <Button onClick={handleCSVImport} disabled={importMutation.isPending || !selectedFile}>
+                  {importMutation.isPending && <Loader2 className="size-4 animate-spin" aria-hidden="true" data-icon="inline-start" />}
+                  Continue
+                </Button>
+              )}
+            </DialogFooter>
           </>
         )}
       </DialogContent>

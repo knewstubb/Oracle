@@ -4,7 +4,7 @@
  * Resolves a SINGLE deck against the committed collection.
  * Used by the client-side sequential loop for per-deck progress tracking.
  *
- * Body: { deckId: number, status: 'brew' | 'boxed' }
+ * Body: { deckId: number, status: 'brewing' | 'in_rotation' }
  * Returns: DeckResolutionResult (single deck)
  */
 import { NextRequest } from 'next/server'
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
   if (authResult instanceof Response) return authResult
   const userId = authResult.id
 
-  let body: { deckId?: number; status?: 'brew' | 'boxed' }
+  let body: { deckId?: number; status?: 'brewing' | 'in_rotation' }
   try {
     body = await request.json()
   } catch {
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'deckId (number) is required' }, { status: 400 })
   }
 
-  const deckStatuses: Record<number, 'brew' | 'boxed'> = { [deckId]: status ?? 'boxed' }
+  const deckStatuses: Record<number, 'brewing' | 'in_rotation'> = { [deckId]: status ?? 'in_rotation' }
 
   try {
     const result = await resolveDeckBatch([deckId], userId, deckStatuses)

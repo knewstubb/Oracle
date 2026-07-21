@@ -3,6 +3,7 @@
 > Draft: 2026-07-14
 > Status: Internal planning document
 > Revised: 2026-07-15 — Section 8's aggressive 8-week public-launch timeline is superseded. Confirmed direction: personal-use-first. Multi-user and monetization infrastructure (RLS retrofit, billing, usage metering) are deferred until an explicit decision to open signups — not abandoned, just unscheduled. Sections 1-7 and 10 remain valid strategy for when that decision is made. Section 9's checklist is future-facing, not active work. Section 11 added: codebase audit findings from the card-allocation redesign.
+> Revised: 2026-07-16 — Section 12 added: card-movement audit (companion doc `docs/card-movement-reference.md`). Phase 1's release-gate pass didn't catch three live bugs in the exact surface it shipped — see Section 12. Phase 2 table updated accordingly.
 
 ---
 
@@ -357,16 +358,24 @@ Architecture: Entirely client-side. No database writes, no server calls (except 
 
 | Item | Status |
 |------|--------|
-| Card allocation & storage redesign (interactive status chips, Storage nav, deck/card/storage action matrix, Picklist stub replacement) | Complete — all 17 tasks delivered, release gate passed (2026-07-15) |
+| Card allocation & storage redesign (interactive status chips, Storage nav, deck/card/storage action matrix, Picklist stub replacement) | Complete — all 17 tasks delivered, release gate passed (2026-07-15). **Caveat added 2026-07-16:** a follow-up audit (Section 12) found 3 live bugs inside this exact deliverable that the gate didn't catch — a broken Remove action and two dead-stub buttons in the Cards Tab popover. Treat Phase 1 as "shipped, not actually finished" until those are fixed — they're first in Phase 2 below, not a new phase. |
 
 ### Phase 2 — Next up (small, mostly wiring, not new build)
 
 | Item | Why |
 |------|-----|
-| Consolidate/delete dead code surfaced by the card-allocation work (see Section 11) | Prevents building further on duplicated or broken foundations |
-| Wire `MissingToggle`/`MissingCopyRow` into the Collection page | Fully built, zero consumers — the taxonomy-rename work's "Show Missing" toggle was never actually connected |
-| Wire `StorageLocationsSettings` into Settings (or the new Storage nav) | Fully built, working CRUD against a real API — currently unreachable by any route |
-| Wire `DecisionCard` and `ExplorationArchive` into the live Brew Canvas | Both already built; `BrewCanvas.tsx` has two literal placeholder comments waiting for them — a likely concrete contributor to "brew is clunky" |
+| **Fix Remove-card-from-deck** — frontend calls `DELETE /api/decks/[id]/cards/[cardId]`, no backend route exists, 404s silently today | ✅ Done 2026-07-16 |
+| **Wire Mark Missing + Add Proxy in the Cards Tab popover** (`StatusChipPopover.tsx`) | ✅ Done 2026-07-16 |
+| Collapse the two near-duplicate "create a proxy and assign to a slot" endpoints | ✅ Done 2026-07-16 — `add-proxy` is now canonical, `Picklist.tsx` migrated, `createProxy` branch removed from `assign/route.ts` |
+| Default a Printing at read time when one's missing | ✅ Done 2026-07-16, scoped to Add Proxy's own creation path (`oracle_to_printings` lookup). The broader "3 of 4 card-add paths never set one" gap (AI brew save, Upgrade-apply, Debrief-action) is still open — narrower fix than originally scoped, not the same thing |
+| Unassign: add a destination choice (pick a Location, or default Unsorted) | ✅ Done 2026-07-16 — `InstanceDetailPanel.tsx`, both In Decks and In Storage rows |
+| Add Proxy: copy/download the source image | ✅ Done 2026-07-16 (net-new item added mid-phase, see Section 12) |
+| Consolidate/delete dead code surfaced by the card-allocation work (see Section 11) | ✅ Done 2026-07-16 — turned out to already be deleted in an untracked prior pass; verified by direct filesystem check, not just import-grep, since import-grep can't distinguish "unused" from "doesn't exist." One real finding: `src/lib/__tests__/deck-import-integration.test.ts` has 3 tests asserting on a `runAllocationResolver` mock that's never actually wired to a real module — low-urgency, candidate for deletion/rewrite whenever that file is next touched. |
+| ~~Wire `MissingToggle`/`MissingCopyRow` into the Collection page~~ | **Correction, 2026-07-16:** already done. `MissingToggle` renders in `app/collection/page.tsx` (gated on printing view), `MissingCopyRow` renders in `InstanceDetailPanel.tsx`. This line item was stale — striking it rather than re-doing it |
+| ~~Wire `StorageLocationsSettings` into Settings~~ | **Correction, 2026-07-16:** already done, just not where this line predicted — it's on `/storage` (`app/storage/page.tsx`, "Manage locations" toggle), not `/settings`. Real, working CRUD, confirmed by reading the mutations. Striking this line |
+| ~~Wire `DecisionCard` and `ExplorationArchive` into the live Brew Canvas~~ | **Correction, 2026-07-16:** already done — both render in `BrewCanvas.tsx` with real props (drag state, position), not placeholders. No placeholder comments found. Striking this line |
+
+**Phase 2 is fully closed** as of 2026-07-16. Four of its original items turned out to already be shipped or already deleted by the time anyone checked — which says more about this doc falling behind actual work than about the work itself; worth remembering next time something here says "not started." Only the still-open general Printing-default gap on the AI brew / Upgrade-apply / Debrief-action paths (distinct from the narrower Add-Proxy printing fix already shipped) carries forward as unfinished small work. Everything else is Phase 3 (undefined scope) or Phase 4 (net-new).
 
 ### Phase 3 — Brew process refinement
 
@@ -379,6 +388,7 @@ Broader pass beyond the two-component wiring fix above. Scope not yet defined �
 | System-wide AI, single entry point | Five non-brew AI endpoints already exist (recommend, build-deck, deck-scan, search, mana-analysis) plus Debrief — consolidation/exposure, not new AI capability |
 | Goldfishing | Scope already defined in Section 7 — estimate unchanged at 2-3 weeks |
 | Buylist / sell-to-vendor comparison | Genuinely net-new — confirmed no buylist or sell-side code exists anywhere |
+| General-purpose Swap (trade two specific Copies between decks, or deck-to-Location, atomically) | Genuinely net-new — currently only exists narrowly as proxy-for-original. Needs a scope decision (deck-to-deck vs deck-to-Location vs both) before spec'ing. See Section 12 / `card-movement-reference.md` §7 |
 | Onboarding/migration refinement + walkthroughs | Deprioritized below the above — primarily benefits future users joining later, not current personal use |
 
 ### Ongoing hygiene, not phase-gated
@@ -463,13 +473,13 @@ Surfaced while designing the card-allocation redesign. One correction to Section
 
 `allocation-resolver.ts`/`allocation-store.ts` aren't mentioned in Section 3, but a prior tech-debt note (Shared Cards V2 delivery log) flagged them as having "4+ consumers, separate cleanup." That undersold the problem: they write to `deck_allocations`, which migration 010 made read-only. Any remaining consumer is calling a function whose writes silently no-op — this is effectively dead code, not open tech debt, just not yet confirmed and deleted.
 
-### Confirmed dead, safe to delete (pending a final grep-sweep verification pass — same discipline as the taxonomy-rename release gate, don't skip it)
+### Confirmed dead, safe to delete — re-verified 2026-07-16 by grepping every listed name for real (non-test) importers across `src/`. All confirmed still dead except one correction below.
 
 | File(s) | Why |
 |---|---|
 | `allocation-resolver.ts`, `allocation-store.ts` | v1 — broken, writes to a read-only table |
 | `allocation-resolver-v2.ts`, `allocation-store-v2.ts` | v2 — never wired in; only referenced by stale `vi.mock()` calls in two test files for a code path that no longer exists |
-| `Picklist.tsx` | Standalone, never imported — more complete than the live embedded version (real undo, real Tier 4 confirmation) — should be swapped in, not deleted, see Gene's card-allocation brief |
+| ~~`Picklist.tsx`~~ | **Correction, 2026-07-16:** this already happened. The standalone component is now live — `CardsTab.tsx` imports and renders it directly for the Picklist tab, and it's the file Gene has been editing this whole phase (`handlePrintProxy`, etc.). Not dead, not pending — done. Striking this line |
 | `DeckListTable.tsx` | Only referenced by a test file |
 | 14 top-level panel components: `OverviewPanel`, `StrategyCanvas`, `RecommendationsPanel`, `ManaCurvePanel`, `ManaAnalysisPanel`, `DeckStats`, `HealthBar`, `CategoriesPanel`, `PreconDiffPanel`, `UpgradePanel`, `AllocationTab`, `AllocationFailureBanner`, `DeckImportModal`, `DeckScanPanel`, `ThemeToggle` | Confirmed superseded by the five-tab consolidation (`CardsTab`/`AnalysisTab`/`CombosPanel`/`UpgradeTab`/`StrategyTab`) — checked directly against the live import list in `decks/[id]/page.tsx` |
 | 4 `components/collection/*` files: `CollectionListView`, `LocationFilter`, `RollupView`, `UsedByCell` | Likely superseded by live `CollectionGridView`/`CollectionToolbar` |
@@ -482,3 +492,24 @@ Surfaced while designing the card-allocation redesign. One correction to Section
 ### Needs a judgment call before either fate
 
 7 files in `components/brew-v2/` with no placeholder marker pointing to them, unlike `DecisionCard`/`ExplorationArchive` above: `CandidateCard.tsx`, `CardRow.tsx`, `CardTooltip.tsx`, `ConceptTile.tsx`, `DeckListTab.tsx`, `InlineAssessment.tsx`, `SuggestionsTab.tsx`. Likely earlier exploratory drafts, not confirmed unfinished work — worth a skim before deciding to delete or resume.
+
+---
+
+## 12. Card Movement Audit Findings (2026-07-16)
+
+Full detail lives in `docs/card-movement-reference.md` — this section is the roadmap-facing summary. Surfaced while mapping every way a card can move through the system (Fill, Claim, Reassign, Swap, Add Proxy, Mark Missing, Remove, Relocate, Unassign) and standardizing vocabulary (Card / Printing / Copy / Location / Slot).
+
+**Headline finding:** Phase 1 ("Card allocation & storage redesign") passed its release gate on 2026-07-15. This audit, one day later, found 3 live bugs inside that same deliverable — the gate tested the happy paths, not every button in the popover it shipped.
+
+| Finding | Severity | Effort | Where |
+|---|---|---|---|
+| Remove-card-from-deck 404s — frontend calls a route that was never built | High (silent data-loss-adjacent failure — user thinks it worked) | Trivial | Cards Tab kebab menu |
+| Mark Missing and Add Proxy are dead stubs in the Cards Tab popover | Medium (feature appears available, isn't) | Trivial–Small (both already work correctly in the Instance Panel — this is pointing the same buttons at the same endpoints) | `StatusChipPopover.tsx` |
+| Two near-duplicate proxy-creation endpoints | Low (tech debt, not user-facing) | Small | `/api/allocation/assign` (createProxy) vs `/api/allocation/add-proxy` |
+| 3 of 4 card-add paths never set a Printing, so 3 of 4 ways a card enters the app have no thumbnail | Medium, escalated by the new Add Proxy image-download requirement (§ below) — was cosmetic, now blocking | Small (fix once, at read time, not per insert path) | AI brew save, Upgrade-apply, Debrief-action |
+| Add Proxy needs a "copy/download the source image" step, since we don't print the proxy ourselves | New requirement (2026-07-16) | Small, but depends on the Printing-default fix above | Add Proxy flow |
+| Unassign has no destination choice — drops a Copy to unresolved with its Location left as whatever it was | Low-medium (works, just less useful than it should be) | Small | `/api/collection/instances/unassign` |
+| Missing doesn't touch Location — a missing Copy still claims to be on a shelf you can't trust | Low (data-quality confusion, not breakage) | Small, pending a decision (see reference doc §1) | `markCopyMissing()` |
+| No general-purpose Swap (only proxy-for-original exists) | N/A — scoped feature, not a bug | Medium+ | New work, see Phase 4 |
+
+**Recommendation folded into Phase 2 above:** fix the three Phase-1 bugs first (Remove, Mark Missing, Add Proxy wiring) since they're cheap and they're regressions in already-shipped work, then the Printing-default and Unassign-destination items since they unblock/clean up what's being touched anyway. Swap and Buylist stay in Phase 4 — both are real net-new features, not wiring, and neither is blocking personal use today.

@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
           commander_name: skeleton.commanderName,
           colour_identity: skeleton.colourIdentity.join(','),
           user_id: userId,
-          status: 'brew',
+          status: 'brewing',
         })
         .select('id')
         .single()

@@ -20,7 +20,7 @@ import { PageHeader } from '@/components/PageHeader'
 export default function ComponentLibraryPage() {
   return (
     <div className="min-h-full bg-[var(--bg-canvas)]">
-      <div className="mx-auto max-w-[1280px] px-8 py-8">
+      <div className="mx-auto max-w-[var(--content-max-width)] px-8 py-8">
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
           <Link
@@ -423,7 +423,7 @@ function StatusSection() {
           <CardSlotBadge status="original" />
           <CardSlotBadge status="proxy" />
           <CardSlotBadge status="open" />
-          <CardSlotBadge status="claimed" heldBy={{ deckName: 'Muldrotha', deckStatus: 'boxed' }} />
+          <CardSlotBadge status="claimed" heldBy={{ deckName: 'Muldrotha', deckStatus: 'in_rotation' }} />
           <CardSlotBadge status="unowned" />
         </div>
       </div>

@@ -2,6 +2,7 @@
 
 import { X } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Button } from '@/components/ui/button'
 
 interface MissingCopyRowProps {
   physicalCopyId: number
@@ -70,16 +71,17 @@ export function MissingCopyRow({
       </span>
 
       {/* Mark as found button */}
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="icon-xs"
         onClick={() => unmarkMutation.mutate()}
         disabled={unmarkMutation.isPending}
-        className="shrink-0 rounded p-1 text-[var(--text-tertiary)] hover:bg-[rgba(255,255,255,0.08)] hover:text-[var(--text-secondary)] transition-colors disabled:opacity-50"
+        className="shrink-0 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
         aria-label={`Mark ${cardName} as found`}
         title="Mark as found"
       >
         <X className="size-3.5" />
-      </button>
+      </Button>
     </div>
   )
 }

@@ -38,7 +38,7 @@ export default function SettingsPage() {
   })
 
   return (
-    <div className="mx-auto max-w-[1280px] px-8 py-8 bg-[var(--bg-canvas)] min-h-full">
+    <div className="mx-auto max-w-[var(--content-max-width)] px-8 py-8 bg-[var(--bg-canvas)] min-h-full">
       <PageHeader title="Settings" />
 
       <div className="space-y-8">

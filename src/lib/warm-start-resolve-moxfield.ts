@@ -25,7 +25,7 @@ import type { BatchResolutionResult, DeckResolutionResult, ContentionEntry } fro
  *
  * For each deck:
  * 1. Fetch full deck data from Moxfield (fetchMoxfieldDeck)
- * 2. Normalize and import the deck (creates deck + deck_cards rows with status 'boxed')
+ * 2. Normalize and import the deck (creates deck + deck_cards rows with status 'in_rotation')
  * 3. For each unresolved deck_cards row, find candidates via fetchEnrichedSupply
  * 4. Assign from Tiers 1–3 only
  * 5. Anything that would need Tier 4 or higher → left unresolved
@@ -33,7 +33,7 @@ import type { BatchResolutionResult, DeckResolutionResult, ContentionEntry } fro
 export async function resolveMoxfieldDeckBatch(
   publicIds: string[],
   userId: string,
-  deckStatuses?: Record<string, 'brew' | 'boxed'>
+  deckStatuses?: Record<string, 'brewing' | 'in_rotation'>
 ): Promise<BatchResolutionResult> {
   const startTime = Date.now()
   const results: DeckResolutionResult[] = []
@@ -41,7 +41,7 @@ export async function resolveMoxfieldDeckBatch(
   let totalUnresolved = 0
 
   for (const publicId of publicIds) {
-    const status = deckStatuses?.[publicId] ?? 'boxed'
+    const status = deckStatuses?.[publicId] ?? 'in_rotation'
     const result = await resolveSingleMoxfieldDeck(publicId, userId, status)
     results.push(result)
     totalMatched += result.matched
@@ -101,7 +101,7 @@ export async function resolveMoxfieldDeckBatch(
 async function resolveSingleMoxfieldDeck(
   publicId: string,
   userId: string,
-  deckStatus: 'brew' | 'boxed' = 'boxed'
+  deckStatus: 'brewing' | 'in_rotation' = 'in_rotation'
 ): Promise<DeckResolutionResult> {
   const errors: string[] = []
   const supabase = createAdminClient()
@@ -140,7 +140,7 @@ async function resolveSingleMoxfieldDeck(
     }
   }
 
-  // Step 3: Import the deck (creates deck + deck_cards rows with status 'boxed')
+  // Step 3: Import the deck (creates deck + deck_cards rows with status 'in_rotation')
   let importedDeckId: number
   try {
     const importResult = await importDeckExistingCollection(normalizedDeck, userId, { status: deckStatus, skipAutoAssign: true })

@@ -42,7 +42,7 @@ export function CombosPanel({ deckId }: ComboPanelProps) {
 
   if (!data || !data.combos || data.combos.length === 0) {
     return (
-      <div className="mx-auto max-w-[1080px]">
+      <div className="mx-auto max-w-[var(--content-max-width)]">
         <div className="rounded-lg border border-dashed border-border p-8 text-center">
           <p className="text-[length:var(--fs-md)] text-muted-foreground">
             No combos documented yet. Ask Kiro to analyze this deck for combo lines.
@@ -53,7 +53,7 @@ export function CombosPanel({ deckId }: ComboPanelProps) {
   }
 
   return (
-    <div className="mx-auto max-w-[1080px] space-y-6">
+    <div className="mx-auto max-w-[var(--content-max-width)] space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-[length:var(--fs-lg)] font-medium">Combo Lines ({data.combos.length})</h2>
       </div>

@@ -59,6 +59,7 @@
 
   /* ─── Layout – Master-Detail ─────────────────────────────────────── */
   --detail-panel-width: 320px;
+  --content-max-width: 1520px;
 
   /* ─── Border Radius ──────────────────────────────────────────────── */
   --border-radius-md: 8px;

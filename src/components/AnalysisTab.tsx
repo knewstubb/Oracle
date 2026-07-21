@@ -307,7 +307,7 @@ export function AnalysisTab({ cards, deckId, bracket, format }: AnalysisTabProps
   )
 
   return (
-    <div className="mx-auto max-w-[1080px] pb-12" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div className="mx-auto max-w-[var(--content-max-width)] pb-12" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* ─── Top row: 4 stat cards ─── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
         <StatCard label="Total cards" value={totalCards.toString()} sub={`${getDeckSizeLabel(format)} target`} />

@@ -148,7 +148,7 @@ export async function autoAssignAllBrewDecks(
     .from('decks')
     .select('id')
     .eq('user_id', userId)
-    .eq('status', 'brew')
+    .eq('status', 'brewing')
 
   if (deckErr) {
     return { decksProcessed: 0, totalAssigned: 0, totalSkipped: 0, errors: [`Failed to fetch brew decks: ${deckErr.message}`] }

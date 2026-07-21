@@ -50,3 +50,4 @@ data/AllPrintings.sqlite
 data/oracle.db
 data/collection.csv
 data/collection-prev.csv
+tests/e2e/.auth/

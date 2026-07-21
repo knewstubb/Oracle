@@ -1,6 +1,7 @@
 'use client'
 
 import { Check, ArrowDown, SkipForward, MessageCircle, Minus, Plus } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { OwnershipBadge, type OwnershipStatus } from './OwnershipBadge'
 import type { Recommendation } from '@/lib/debrief-types'
 
@@ -102,39 +103,44 @@ export function RecommendationCard({
           style={{ borderTop: '0.5px solid var(--border-emphasis)' }}
         >
           {/* Make this change — teal primary */}
-          <button
+          <Button
+            size="sm"
             onClick={() => onAction('applied')}
             disabled={isLoading}
-            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[length:var(--fs-sm)] font-medium text-white transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            className="text-white"
             style={{ backgroundColor: '#1D9E75' }}
             aria-label="Make this change"
           >
             <Check className="size-3.5" aria-hidden="true" />
             Make this change
-          </button>
+          </Button>
 
           {/* Skip — neutral secondary */}
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => onAction('skipped')}
             disabled={isLoading}
-            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[length:var(--fs-sm)] font-medium text-white/70 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ backgroundColor: 'rgba(255, 255, 255, 0.08)', border: '0.5px solid rgba(255, 255, 255, 0.1)' }}
+            className="text-white/70"
+            style={{ backgroundColor: 'rgba(255, 255, 255, 0.08)', borderColor: 'rgba(255, 255, 255, 0.1)' }}
             aria-label="Skip this recommendation"
           >
             <SkipForward className="size-3.5" aria-hidden="true" />
             Skip
-          </button>
+          </Button>
 
           {/* Disagree — tertiary, right-aligned */}
-          <button
+          <Button
+            variant="ghost"
+            size="xs"
             onClick={() => onAction('disagreed')}
             disabled={isLoading}
-            className="ml-auto inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[11px] font-medium text-white/40 transition-colors hover:text-white/60 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="ml-auto text-white/40 hover:text-white/60"
             aria-label="Disagree with this recommendation"
           >
             <MessageCircle className="size-3" aria-hidden="true" />
             Disagree
-          </button>
+          </Button>
         </div>
       </div>
     </div>

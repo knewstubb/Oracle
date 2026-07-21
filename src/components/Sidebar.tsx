@@ -3,9 +3,45 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutGrid, IdCard, Library, Archive, FlaskConical, PanelLeftClose, PanelLeft, Settings, LogOut } from 'lucide-react'
+import { PanelLeftClose, PanelLeft, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+
+/** Material Symbol icon wrapper that matches lucide icon interface */
+function MaterialIcon({ name, className }: { name: string; className?: string; strokeWidth?: number }) {
+  return (
+    <span
+      className={cn('material-symbols-outlined inline-flex items-center justify-center', className)}
+      style={{ fontSize: '24px', fontWeight: 300 }}
+      aria-hidden="true"
+    >
+      {name}
+    </span>
+  )
+}
+
+// Create icon components for each nav item
+function DecksIcon(props: { className?: string; strokeWidth?: number }) {
+  return <MaterialIcon name="grid_view" {...props} />
+}
+function CardManagementIcon(props: { className?: string; strokeWidth?: number }) {
+  return <MaterialIcon name="modeling" {...props} />
+}
+function CollectionIcon(props: { className?: string; strokeWidth?: number }) {
+  return <MaterialIcon name="newsstand" {...props} />
+}
+function StorageIcon(props: { className?: string; strokeWidth?: number }) {
+  return <MaterialIcon name="shelves" {...props} />
+}
+function ScanIcon(props: { className?: string; strokeWidth?: number }) {
+  return <MaterialIcon name="photo_camera" {...props} />
+}
+function BrewIcon(props: { className?: string; strokeWidth?: number }) {
+  return <MaterialIcon name="science" {...props} />
+}
+function SettingsIcon(props: { className?: string; strokeWidth?: number }) {
+  return <MaterialIcon name="settings" {...props} />
+}
 import {
   Tooltip,
   TooltipTrigger,
@@ -17,18 +53,19 @@ const COLLAPSE_KEY = 'sidebar-collapsed'
 
 interface NavItem {
   label: string
-  icon: typeof LayoutGrid
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>
   href: string
   isOverlay?: boolean
 }
 
 const navItems: NavItem[] = [
-  { label: 'Decks', icon: LayoutGrid, href: '/' },
-  { label: 'Cards', icon: IdCard, href: '/allocation' },
-  { label: 'Collection', icon: Library, href: '/collection' },
-  { label: 'Storage', icon: Archive, href: '/storage' },
-  { label: 'Brew Deck', icon: FlaskConical, href: '/new-deck' },
-  { label: 'Settings', icon: Settings, href: '/settings' },
+  { label: 'Decks', icon: DecksIcon, href: '/' },
+  { label: 'Card Management', icon: CardManagementIcon, href: '/allocation' },
+  { label: 'Collection', icon: CollectionIcon, href: '/collection' },
+  { label: 'Storage', icon: StorageIcon, href: '/storage' },
+  { label: 'Scan', icon: ScanIcon, href: '/scan' },
+  { label: 'Brew Deck', icon: BrewIcon, href: '/new-deck' },
+  { label: 'Settings', icon: SettingsIcon, href: '/settings' },
 ]
 
 export function Sidebar() {
@@ -119,7 +156,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav aria-label="Main navigation" className="flex flex-1 flex-col gap-1 p-2">
+      <nav aria-label="Main navigation" className="flex flex-1 flex-col gap-2 p-2">
         {navItems.map((item) => {
           const Icon = item.icon
           const active = isActive(item)
@@ -136,7 +173,7 @@ export function Sidebar() {
                 collapsed && 'justify-center px-0'
               )}
             >
-              <Icon className="size-5 shrink-0" strokeWidth={1.5} />
+              <Icon className="size-6 shrink-0" strokeWidth={1.5} />
               {!collapsed && <span className="truncate">{item.label}</span>}
             </span>
           )

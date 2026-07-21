@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       id: deckId,
       name: name.trim(),
       format,
-      status: 'brew',
+      status: 'brewing',
       allocate: false,
       commander_name: commanderName ?? null,
       commander_scryfall_id: commanderScryfallId ?? null,

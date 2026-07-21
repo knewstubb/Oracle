@@ -21,6 +21,20 @@ export default function RootLayout({
       className="dark h-full antialiased"
       suppressHydrationWarning
     >
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+        />
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/mana-font@latest/css/mana.min.css"
+        />
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/keyrune@latest/css/keyrune.min.css"
+        />
+      </head>
       <body className="flex h-screen overflow-hidden font-sans" suppressHydrationWarning>
         <Providers>
           <a

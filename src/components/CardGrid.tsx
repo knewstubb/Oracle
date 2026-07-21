@@ -31,6 +31,10 @@ export interface DeckCard {
   allocation_role?: string
   dead_weight_flag?: string | null
   dead_weight_reason?: string | null
+  mana_cost?: string | null
+  price_usd?: number | null
+  edition_name?: string | null
+  rarity?: string | null
 }
 
 interface CardGridProps {

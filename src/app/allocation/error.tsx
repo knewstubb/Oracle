@@ -11,7 +11,7 @@ export default function AllocationError({
   reset: () => void
 }) {
   return (
-    <div className="mx-auto max-w-[1280px] px-6 py-6">
+    <div className="mx-auto max-w-[var(--content-max-width)] px-6 py-6">
       <div
         role="alert"
         className="flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-3 text-[length:var(--fs-md)] text-destructive"

@@ -57,7 +57,7 @@ describe('SupplyPool.getAvailableCopies()', () => {
           deckCardsId: 10,
           deckId: 5,
           deckName: 'World Breaker',
-          deckStatus: 'brew',
+          deckStatus: 'brewing',
         },
       }),
       // Tier 4: assigned to a Boxed-status deck (should be excluded)
@@ -68,7 +68,7 @@ describe('SupplyPool.getAvailableCopies()', () => {
           deckCardsId: 20,
           deckId: 6,
           deckName: 'Arti-facts',
-          deckStatus: 'boxed',
+          deckStatus: 'in_rotation',
         },
       }),
     ])
@@ -111,7 +111,7 @@ describe('SupplyPool.getAvailableCopies()', () => {
           deckCardsId: 30,
           deckId: 7,
           deckName: 'Ice Queen',
-          deckStatus: 'boxed',
+          deckStatus: 'in_rotation',
         },
       }),
       makeEntry({
@@ -120,7 +120,7 @@ describe('SupplyPool.getAvailableCopies()', () => {
           deckCardsId: 31,
           deckId: 8,
           deckName: 'Enchantress',
-          deckStatus: 'archived',
+          deckStatus: 'graveyard',
         },
       }),
     ])
@@ -192,7 +192,7 @@ describe('SupplyPool.markAssigned()', () => {
       deckCardsId: 100,
       deckId: 5,
       deckName: 'World Breaker',
-      deckStatus: 'brew',
+      deckStatus: 'brewing',
     })
   })
 })
@@ -212,7 +212,7 @@ describe('SupplyPool.markFreed()', () => {
           deckCardsId: 10,
           deckId: 5,
           deckName: 'World Breaker',
-          deckStatus: 'brew',
+          deckStatus: 'brewing',
         },
       }),
     ])
@@ -243,7 +243,7 @@ describe('SupplyPool.markFreed()', () => {
           deckCardsId: 20,
           deckId: 6,
           deckName: 'Arti-facts',
-          deckStatus: 'boxed',
+          deckStatus: 'in_rotation',
         },
       }),
     ])

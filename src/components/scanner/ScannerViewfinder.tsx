@@ -4,9 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { X, Zap, ZapOff, RotateCcw, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { loadHashDB, isHashDBReady, getHashDBSize } from '@/lib/scanner/hash-db'
-import { processFrame, detectCardPresence } from '@/lib/scanner/scan-pipeline'
-import { FrameBuffer, computeGlarePercentage } from '@/lib/scanner/frame-buffer'
+import { computeGlarePercentage } from '@/lib/scanner/frame-buffer'
 import { GlareIndicator } from '@/components/scanner/GlareIndicator'
 import type { ScanMode, ScanTarget, ScannedCard } from '@/components/scanner/ScanSession'
 
@@ -55,14 +53,11 @@ export function ScannerViewfinder({
   const [torchSupported, setTorchSupported] = useState(false)
   const [lastScanTime, setLastScanTime] = useState(0)
   const [scanFeedback, setScanFeedback] = useState<string | null>(null)
-  const [hashDBLoaded, setHashDBLoaded] = useState(false)
   const [cardDetected, setCardDetected] = useState(false)
   const [glareLevel, setGlareLevel] = useState(0)
-  const frameBufferRef = useRef(new FrameBuffer(5))
 
-  // Suggestion prompt — shown when a candidate appears consistently
+  // Suggestion prompt — shown after OCR capture
   const [suggestionPrompt, setSuggestionPrompt] = useState<{ match: any; imageUrl: string } | null>(null)
-  const consecutiveMatchRef = useRef<{ name: string; count: number }>({ name: '', count: 0 })
 
   // Duplicate confirmation state
   const [duplicatePrompt, setDuplicatePrompt] = useState<{ match: any; imageUrl: string } | null>(null)
@@ -83,151 +78,177 @@ export function ScannerViewfinder({
   // Use a generous center crop (60% width, 70% height, centered)
   const guideRect = { x: 0.2, y: 0.1, w: 0.6, h: 0.7 }
 
-  // Debug state (visible on screen) — throttled to 1 update/sec
+  // Debug state (visible on screen)
   const [debugInfo, setDebugInfo] = useState('')
-  const debugLastUpdateRef = useRef(0)
 
   // ─── Load hash database ────────────────────────────────────────
+  // NOTE: Hash DB disabled — dHash matching doesn't work from camera.
+  // Scanner uses OCR capture instead. Debug shows "Ready" immediately.
 
   useEffect(() => {
-    setDebugInfo('Loading hash DB...')
-    loadHashDB().then(() => {
-      if (isHashDBReady()) {
-        setHashDBLoaded(true)
-        setDebugInfo(`DB ready: ${getHashDBSize()} cards`)
-        console.log('[scanner] Hash DB loaded, auto-detection enabled, size:', getHashDBSize())
-      } else {
-        setDebugInfo('DB loaded but EMPTY')
-        console.warn('[scanner] Hash DB loaded but empty — check /scan/hash-db.json')
-      }
-    }).catch((err) => {
-      setDebugInfo(`DB error: ${err}`)
-      console.error('[scanner] Hash DB failed to load:', err)
-    })
+    setDebugInfo('Ready — tap shutter to scan')
   }, [])
 
   // ─── Frame processing loop ─────────────────────────────────────
+  // NOTE: dHash auto-matching disabled — produces d=14 with wrong cards.
+  // Scanner now uses OCR (tap-to-capture) instead. This effect only
+  // handles glare monitoring.
 
   useEffect(() => {
-    if (!cameraReady || !hashDBLoaded) return
+    if (!cameraReady) return
 
     const video = videoRef.current
     const canvas = canvasRef.current
     if (!video || !canvas) return
 
-    // Run detection every 200ms (~5 fps)
-    scanLoopRef.current = setInterval(async () => {
-      // Skip if we're in cooldown or a suggestion is showing
-      if (Date.now() - lastScanTime < SCAN_COOLDOWN_MS) return
-      if (suggestionPrompt) return
+    // Run glare monitoring at low frequency (1fps)
+    scanLoopRef.current = setInterval(() => {
+      const ctx = canvas.getContext('2d', { willReadFrequently: true })
+      if (!ctx) return
 
-      // Skip card-presence check for now (was too strict) — go straight to hash matching
-      setCardDetected(true)
+      const vw = video.videoWidth
+      const vh = video.videoHeight
+      if (vw === 0 || vh === 0) return
 
-      // Run full pipeline
-      const result = await processFrame(video, canvas, guideRect, frameBufferRef.current)
+      canvas.width = vw
+      canvas.height = vh
+      ctx.drawImage(video, 0, 0, vw, vh)
 
-      // Update glare level for indicator
-      setGlareLevel(result.glarePercentage)
+      // Extract guide region for glare check
+      const gx = Math.round(guideRect.x * vw)
+      const gy = Math.round(guideRect.y * vh)
+      const gw = Math.round(guideRect.w * vw)
+      const gh = Math.round(guideRect.h * vh)
+      const guideImage = ctx.getImageData(gx, gy, Math.max(gw, 1), Math.max(gh, 1))
 
-      // Update debug info (throttled to 1/sec so it's readable)
-      const now = Date.now()
-      if (now - debugLastUpdateRef.current > 1000) {
-        debugLastUpdateRef.current = now
-        if (result.topMatch) {
-          setDebugInfo(`Match: ${result.topMatch.entry.n}\nd=${result.topMatch.distance}`)
-        } else if (result.candidates.length > 0) {
-          const top3 = result.candidates.slice(0, 3)
-            .map(c => `${c.entry.n.slice(0, 20)} d=${c.distance}`)
-            .join('\n')
-          setDebugInfo(`Candidates:\n${top3}`)
-        } else {
-          setDebugInfo(`Scanning... glare:${Math.round(result.glarePercentage * 100)}%`)
-        }
-      }
-
-      // Track consecutive best-candidate to show suggestion prompt
-      if (result.candidates.length > 0) {
-        const bestCandidate = result.candidates[0]
-        if (bestCandidate.entry.n === consecutiveMatchRef.current.name) {
-          consecutiveMatchRef.current.count++
-        } else {
-          consecutiveMatchRef.current = { name: bestCandidate.entry.n, count: 1 }
-        }
-
-        // If same card appears 4+ consecutive frames (~800ms of stability), show suggestion
-        if (consecutiveMatchRef.current.count >= 4 && !suggestionPrompt) {
-          const match = bestCandidate.entry
-          const imageUrl = `https://cards.scryfall.io/normal/front/${match.s.charAt(0)}/${match.s.charAt(1)}/${match.s}.jpg`
-          setSuggestionPrompt({ match, imageUrl })
-          setLastScanTime(Date.now())
-          consecutiveMatchRef.current = { name: '', count: 0 }
-          return
-        }
-      } else {
-        consecutiveMatchRef.current = { name: '', count: 0 }
-      }
-
-      if (result.matched && result.topMatch) {
-        const match = result.topMatch.entry
-
-        // Check if this is a consecutive duplicate (same card scanned again)
-        const isDuplicate = scannedCards.some(c => c.scryfallId === match.s)
-        if (isDuplicate) {
-          // Show confirmation prompt instead of blocking
-          if (!duplicatePrompt) {
-            const imageUrl = `https://cards.scryfall.io/normal/front/${match.s.charAt(0)}/${match.s.charAt(1)}/${match.s}.jpg`
-            setDuplicatePrompt({ match, imageUrl })
-            setLastScanTime(Date.now())
-          }
-          return
-        }
-
-        // Auto-accept confident match
-        const imageUrl = `https://cards.scryfall.io/normal/front/${match.s.charAt(0)}/${match.s.charAt(1)}/${match.s}.jpg`
-
-        onCardScanned({
-          cardName: match.n,
-          oracleId: match.o,
-          scryfallId: match.s,
-          setCode: match.c,
-          collectorNumber: match.r,
-          isProxy: false,
-          isFoil: result.isFoil,
-          condition: 'near_mint',
-          imageUrl,
-          confidence: 'high',
-        })
-
-        setLastScanTime(Date.now())
-        setScanFeedback(match.n)
-        setLastScannedCard({ sessionId: scannedCards.length + 1, cardName: match.n })
-        setShowFlash(true)
-        setTimeout(() => setShowFlash(false), 150)
-        setTimeout(() => setScanFeedback(null), 2500)
-
-        // Clear frame buffer for next card
-        frameBufferRef.current.clear()
-
-        // Audio feedback
-        try {
-          const ctx = new AudioContext()
-          const osc = ctx.createOscillator()
-          const gain = ctx.createGain()
-          osc.connect(gain)
-          gain.connect(ctx.destination)
-          osc.frequency.value = 800
-          gain.gain.value = 0.1
-          osc.start()
-          osc.stop(ctx.currentTime + 0.08)
-        } catch { /* audio not available */ }
-      }
-    }, 200)
+      const glare = computeGlarePercentage(guideImage)
+      setGlareLevel(glare)
+    }, 1000)
 
     return () => {
       if (scanLoopRef.current) clearInterval(scanLoopRef.current)
     }
-  }, [cameraReady, hashDBLoaded, lastScanTime, scannedCards, onCardScanned, suggestionPrompt])
+  }, [cameraReady])
+
+  // ─── OCR Capture ───────────────────────────────────────────────
+
+  const [isCapturing, setIsCapturing] = useState(false)
+  const [ocrDebugText, setOcrDebugText] = useState('')
+
+  const handleCapture = useCallback(async () => {
+    if (isCapturing) return
+    if (Date.now() - lastScanTime < SCAN_COOLDOWN_MS) return
+
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    if (!video || !canvas) return
+
+    setIsCapturing(true)
+    setDebugInfo('Capturing...')
+
+    try {
+      const ctx = canvas.getContext('2d', { willReadFrequently: true })
+      if (!ctx) return
+
+      const vw = video.videoWidth
+      const vh = video.videoHeight
+      canvas.width = vw
+      canvas.height = vh
+      ctx.drawImage(video, 0, 0, vw, vh)
+
+      // Extract the guide region (card area)
+      const gx = Math.round(guideRect.x * vw)
+      const gy = Math.round(guideRect.y * vh)
+      const gw = Math.round(guideRect.w * vw)
+      const gh = Math.round(guideRect.h * vh)
+      const cardImage = ctx.getImageData(gx, gy, Math.max(gw, 1), Math.max(gh, 1))
+
+      // Extract the title region (top ~4-12% of the card, inset from edges)
+      const titleX = Math.round(cardImage.width * 0.08)
+      const titleY = Math.round(cardImage.height * 0.03)
+      const titleW = Math.round(cardImage.width * 0.75)
+      const titleH = Math.round(cardImage.height * 0.07)
+
+      // Draw title region to canvas for base64 export
+      canvas.width = titleW
+      canvas.height = titleH
+      const titleData = new ImageData(titleW, titleH)
+      for (let y = 0; y < titleH; y++) {
+        for (let x = 0; x < titleW; x++) {
+          const srcIdx = ((titleY + y) * cardImage.width + (titleX + x)) * 4
+          const dstIdx = (y * titleW + x) * 4
+          titleData.data[dstIdx] = cardImage.data[srcIdx]
+          titleData.data[dstIdx + 1] = cardImage.data[srcIdx + 1]
+          titleData.data[dstIdx + 2] = cardImage.data[srcIdx + 2]
+          titleData.data[dstIdx + 3] = 255
+        }
+      }
+      ctx.putImageData(titleData, 0, 0)
+
+      // Convert to base64
+      const titleBase64 = canvas.toDataURL('image/png').replace(/^data:image\/png;base64,/, '')
+
+      setDebugInfo('Sending to OCR...')
+
+      // Call OCR API with the title region
+      const res = await fetch('/api/scan/ocr-title', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: titleBase64 }),
+      })
+
+      if (!res.ok) {
+        setDebugInfo('OCR failed — try manual entry')
+        toast.error('Could not read card name. Try the manual text input.')
+        return
+      }
+
+      const data = await res.json()
+      const cardName = data.card_name
+
+      if (!cardName) {
+        setDebugInfo('No text detected — try again')
+        toast.error('Could not read card name. Hold card steady and try again.')
+        return
+      }
+
+      setDebugInfo(`OCR: "${cardName}"`)
+
+      // Resolve via Scryfall fuzzy match
+      const scryfallRes = await fetch(
+        `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(cardName)}`,
+        { headers: { 'User-Agent': 'TheOracle/0.1.0' } }
+      )
+
+      if (!scryfallRes.ok) {
+        setDebugInfo(`Not found: "${cardName}"`)
+        toast.error(`Card not found: "${cardName}". Try manual entry.`)
+        return
+      }
+
+      const card = await scryfallRes.json()
+      const imageUrl = card.image_uris?.normal ?? card.card_faces?.[0]?.image_uris?.normal ?? null
+
+      // Show suggestion prompt for confirmation
+      setSuggestionPrompt({
+        match: {
+          n: card.name,
+          o: card.oracle_id,
+          s: card.id,
+          c: card.set,
+          r: card.collector_number,
+        },
+        imageUrl: imageUrl ?? '',
+      })
+      setDebugInfo(`Found: ${card.name}`)
+
+    } catch (err) {
+      setDebugInfo('Error — try manual entry')
+      toast.error('Capture failed. Try the manual text input.')
+    } finally {
+      setIsCapturing(false)
+    }
+  }, [isCapturing, lastScanTime, onCardScanned, scannedCards])
 
   // ─── Camera setup ──────────────────────────────────────────────
 
@@ -605,7 +626,7 @@ export function ScannerViewfinder({
           </Button>
 
           <div className="flex items-center gap-2">
-            <GlareIndicator glarePercentage={glareLevel} visible={hashDBLoaded && cardDetected} />
+            <GlareIndicator glarePercentage={glareLevel} visible={cameraReady} />
             {torchSupported && (
               <Button
                 variant="ghost"
@@ -629,8 +650,21 @@ export function ScannerViewfinder({
           </span>
         </div>
 
+        {/* Capture button — centered bottom of camera view */}
+        <div className="absolute bottom-16 left-0 right-0 flex justify-center">
+          <button
+            type="button"
+            onClick={handleCapture}
+            disabled={isCapturing || !cameraReady}
+            className="flex size-16 items-center justify-center rounded-full border-4 border-white bg-white/20 shadow-lg transition-all active:scale-90 disabled:opacity-50"
+            aria-label="Capture card"
+          >
+            <div className={`size-12 rounded-full ${isCapturing ? 'bg-yellow-400 animate-pulse' : 'bg-white'}`} />
+          </button>
+        </div>
+
         {/* Debug info */}
-        <div className="absolute bottom-14 left-2 rounded bg-black/70 px-2 py-1">
+        <div className="absolute bottom-2 left-2 rounded bg-black/70 px-2 py-1">
           <pre className="text-[10px] font-mono leading-tight text-green-400 whitespace-pre-wrap">{debugInfo}</pre>
         </div>
       </div>

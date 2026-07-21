@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Providers } from "@/components/providers";
 import { Sidebar } from "@/components/Sidebar";
 import { MobileHeader } from "@/components/MobileHeader";
@@ -9,6 +9,10 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "The Oracle",
   description: "Commander deck management and AI-powered analysis",
+};
+
+export const viewport: Viewport = {
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({

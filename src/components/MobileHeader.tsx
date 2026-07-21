@@ -79,7 +79,7 @@ export function MobileHeader() {
   return (
     <>
       {/* Sticky top bar — mobile only */}
-      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-sidebar px-4 py-3 md:hidden">
+      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-sidebar px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:hidden">
         <span className="text-[length:var(--fs-lg)] font-medium tracking-tight text-foreground">
           The Oracle
         </span>

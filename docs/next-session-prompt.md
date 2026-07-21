@@ -1,173 +1,108 @@
-# Next Session Prompt
-
-Copy everything below into a new chat session. This is designed to run autonomously for several hours — work through each task in order, verify build after each, and move on.
-
----
-
-@Gene
+# Next Session Prompt for @Gene
 
 ## Context
 
-The Oracle is a Commander MTG deck management web app (Next.js 16 App Router, Supabase, TanStack Query, Tailwind, shadcn/ui). Key docs:
+The Oracle is a Commander MTG deck management web app (Next.js 16 App Router, Supabase, TanStack Query, Tailwind, shadcn/ui). Deployed on Vercel at `oracle-alpha-two.vercel.app`. Supabase project: `udocxsyzzvrceiuupprj`.
+
+Key docs:
 - Product spec: `specs/product-spec.md`
 - User guide: `docs/user-guide.md`
 - Tech debt register: `specs/tech-debt-register.md`
-- Component reuse convention: `.kiro/steering/convention-component-reuse.md`
+- Card scanning spec: `specs/card-scanning/`
+- Card scanning research: `docs/card-scanning-research.md`
 
-## What was shipped in the last two sessions
+## What was shipped in the last session (2026-07-22)
 
-- Deck status lifecycle: `brewing` / `in_rotation` / `graveyard`
-- Import flow V2: URL/Paste/CSV → mode picker → always starts as brewing
-- Picklist V2: 3-column layout (In Storage / In Decks / Unowned) as top-level deck tab (`PicklistV2.tsx`)
-- Card Management UX: unified `CardGroupSection.tsx` for list + masonry views
-- Basic Lands: generic (qty-based, always Original) vs specific-printing (full allocation)
-- Mana pips + set icons: `ManaCost.tsx`, keyrune, `card_metadata` auto-backfill
-- Material Symbol icons: sidebar nav + status badges
-- Card count reliability: +/- qty stepper with dual-key invalidation
-- Non-singleton qty adjuster: `CardRowKebab` shows +/- when `maxCopies > 1`
-- Unified card hover preview: `useCardHoverPreview` hook + portal-based component
-- DFC name resolution: `frontFaceName()` utility for `//` cards
+### Scanner improvements
+- **Perspective correction** (`src/lib/scanner/perspective.ts`) — edge detection + bilinear flatten before hashing
+- **Hash DB rebuild** — script updated to use `normal` (full card face) images instead of `art_crop`. Build was running at end of session (~22% done, ~2.5 hours remaining)
+- **Debug overlay** — green text in bottom-left showing DB status, match results, distances
+- Scan pipeline now: capture → extract guide region → frame buffer → perspective flatten → dHash → LSH match
+
+### Price tracking MVP
+- `purchase_price_usd` + `purchased_at` columns on physical_copies
+- `/api/collection/value` — total market value, gain/loss, top 10 cards
+- `CollectionValueBanner` component on collection page
+- `/api/collection/refresh-prices` — batch refresh from Scryfall
+- Purchase price auto-set during scan confirm
+
+### PWA
+- `manifest.json` with standalone display, theme color, icons
+- Apple web app meta tags
+- App is installable to home screen
+
+### Other
+- Mobile hamburger menu (slide-out drawer)
+- Storage → Binders rename (UI only)
+- Printing picker (visual grid, owned highlighted with location, search by set)
+- Alternate badge state (available vs alternate printing distinction)
+- Safe-area-inset fix for iOS address bar
+
+## What needs to happen next
+
+### 1. CRITICAL: Check hash DB build and commit (5 min)
+
+The hash DB rebuild was running at session end. Check if it finished:
+```bash
+ls -lh the-oracle/public/scan/hash-db.json
+# Should be ~7-8MB if complete
+# Check entry count:
+python3 -c "import json; d=json.load(open('the-oracle/public/scan/hash-db.json')); print(f'{len(d)} entries')"
+```
+
+If it's done (53,699 entries), commit and push:
+```bash
+cd the-oracle
+git add public/scan/hash-db.json
+git commit -m "data: hash-db rebuilt with full card images (fixes scanner matching)"
+git push origin main
+```
+
+If it's NOT done or was interrupted, resume:
+```bash
+cd the-oracle
+npx tsx scripts/build-hash-db.ts --resume
+```
+
+### 2. Test scanner end-to-end (30 min)
+
+Once the new hash DB is deployed, test with a real card:
+- Navigate to /scan on a phone
+- Wait for debug text to show "DB ready: 53699 cards"
+- Hold a card in the guide frame
+- Debug text should show "Best: [Card Name] (d=X)" — distance should be <8 for a match
+- If matching works: screen flashes, card name appears. Success!
+
+**If still not matching well:**
+- Check the distances in debug text. If they're 10-14, perspective correction is helping but not enough — may need to loosen threshold to 12
+- If distances are 20+, the perspective flatten isn't working for your setup — may need to try a different approach (server-side matching or switch to embedding model)
+
+### 3. Remove debug overlay (5 min)
+
+Once scanner is confirmed working, remove the green debug text from ScannerViewfinder (the `debugInfo` state + display).
+
+### 4. Price tracking polish
+
+- Add a "Refresh Prices" button in the collection page header (calls `/api/collection/refresh-prices`)
+- Consider Vercel Cron to auto-refresh daily (add to `vercel.json`)
+- Purchase price is currently only set on scan — should also set on CSV import
+
+### 5. Scanner V2: Verify/Sync mode
+
+The second scan mode (compare physical deck against Oracle's records) is specced but not built. This is the next major feature.
 
 ## Architectural notes
 
 - Supabase admin client bypasses RLS — all server queries use `createAdminClient()`
-- PostgREST batch limit: `.in()` queries limited to 200 items (URL length)
-- TanStack Query key for deck data: `['decks', deckId]` where deckId is STRING from URL params
-- Status values: `'brewing' | 'in_rotation' | 'graveyard'`
-- Card slot statuses: `'original' | 'proxy' | 'available' | 'claimed' | 'unowned' | 'generic_land'`
-- Format config: `src/lib/format-config.ts` — `countRule`, `maxCopies`, `deckSize` per format
-- Shared components: `CardGroupSection`, `CardSlotBadge`, `StatusChipPopover`, `PicklistV2`, `ManaCost`, `CardHoverPreview`
+- TanStack Query key for deck data: `['decks', deckId]` where deckId is STRING from URL params. Always invalidate both string and number variants.
+- Card slot statuses: `'original' | 'proxy' | 'available' | 'alternate' | 'claimed' | 'unowned' | 'generic_land'`
+- Deck statuses: `'brewing' | 'in_rotation' | 'graveyard'`
+- Scanner pipeline: camera → guide crop → frame buffer (median composite) → perspective flatten → dHash → LSH lookup → confidence check → auto-accept or manual fallback
+- Hash DB: 53,699 entries, dHash of full card `normal` images from Scryfall
+- Delivery log hook fires on Stop — checks delivery log, tech debt, product spec, steering, AND user guide
 
----
+## Known issues (tech debt)
 
-## Tasks — work through in order
-
-### 1. Mobile responsiveness pass
-
-The app is used at the LGS on phones. Fix layout breakage on viewports < 640px:
-
-- **Picklist (PicklistV2.tsx)**: the 3-column grid breaks. Stack vertically on mobile (single column with section headers "In Storage", "In Decks", "Unowned" as collapsible sections).
-- **Card masonry view (UnifiedGroupsLayout in CardsTab.tsx)**: already has `grid-cols-1 md:grid-cols-2 lg:grid-cols-3` — verify it actually works at small widths. The progress bar + "View Picklist" button may overflow.
-- **Deck tile grid (src/app/page.tsx)**: already responsive (`grid-cols-1 sm:grid-cols-2...`) — just verify the rotation summary text wraps cleanly.
-- **CardGroupSection rows**: the fixed-width columns (pips 80px, set name 160px, price 56px) may overflow on narrow screens. Hide set name and price columns on mobile (`hidden md:inline-flex`).
-- **StatusControl button group**: the three status buttons ("Brewing", "In Rotation", "Graveyard") may overflow. Abbreviate on mobile or wrap.
-
-Test at 375px width (iPhone SE). Verify no horizontal scrolling on any page.
-
-### 2. Deck total value
-
-Show the sum of all card prices in the deck header area.
-
-- Source: `card.price_usd` field already on `DeckCard` (from `card_metadata`)
-- Location: add to the `PersistentHeader` or the deck info line below the title (where "Brewing — 100 cards" shows)
-- Format: `$XX.XX` — sum all non-null `price_usd` values across all cards
-- If total is 0 or all prices are null, don't show anything
-
-### 3. Bulk "Make all lands generic"
-
-Add a button to the LAND section header in `CardGroupSection` that converts all specific-printing lands in that section to generic in one action.
-
-- Only show when there are specific-printing lands present (not when all are already generic)
-- Reuse the existing PATCH `/api/decks/[id]/cards/[cardId]` endpoint (setting `scryfall_id: null, set_code: null`)
-- Show loading toast during the operation (same pattern as single "Make generic")
-- After completion, invalidate all relevant queries
-
-### 4. Sorting in Picklist columns
-
-Each column in `PicklistV2.tsx` should sort cards alphabetically by `cardName` within each group. Currently they come back in whatever order the API returns.
-
-- In `categorizeCards()`: sort each group's `items` array by `card.cardName`
-- Sort the `unowned` array by `card.cardName`
-- Sort the groups themselves: Available groups alphabetically by location, Claimed groups alphabetically by deck name
-
-### 5. Search in the Picklist
-
-Add a search input at the top of the Picklist tab (same style as the Cards tab search field) that filters all three columns simultaneously.
-
-- Filter by card name (case-insensitive substring)
-- When search is active, hide empty groups/columns that have no matching cards
-- Clear button to reset
-
-### 6. Deck export
-
-Add an export option to the deck detail page (kebab menu or button near the deck header).
-
-Two formats:
-- **Text (MTGA format)**: `1 Card Name (SET) CollectorNumber` per line. Group by board if categories include Sideboard/Maybeboard.
-- **Copy to clipboard**: put the text on clipboard with a toast confirmation
-
-Implementation:
-- Create a utility function `exportDeckAsText(cards: DeckCard[]): string` in `src/lib/deck-export.ts`
-- Add a button/menu item in the deck page header actions area (near the StatusControl)
-- Use `navigator.clipboard.writeText()` for copy
-
-### 7. Empty deck state
-
-When a deck has 0 cards (freshly created or all removed):
-
-- Cards tab: instead of empty sections, show a centered prompt with:
-  - "This deck is empty"
-  - "Import cards from a URL or paste a list" button (triggers import dialog)
-  - "Or add cards individually using the search above"
-- Picklist tab: show "No cards in this deck yet" with same import prompt
-
-Check: `filteredCards.length === 0 && cards.length === 0` (distinguish "no cards match filters" from "deck is actually empty").
-
-### 8. Error boundaries + loading improvements
-
-- Add a React error boundary wrapper around the main content area of the deck detail page. On error: show "Something went wrong" with a "Reload" button. Use the existing `error.tsx` pattern if one exists, or create one at `src/app/decks/[id]/error.tsx`.
-- Verify that API failures in `useQuery` hooks show meaningful states (the existing `isLoading` and `error` handling in deck page, CardsTab, PicklistV2). If any just show a blank page on error, add a simple error message.
-- Add a loading skeleton to the Picklist tab (3-column placeholder) matching the existing deck page skeleton pattern.
-
-### 9. Mark as Missing — atomic write (TD-010)
-
-Current: `src/lib/missing.ts` sets `physical_copies.missing = true` then unlinks `deck_cards` rows in sequential calls.
-
-Fix: Create a Supabase RPC function that does both in one transaction:
-
-```sql
-CREATE OR REPLACE FUNCTION mark_copy_missing(
-  p_physical_copy_id INTEGER,
-  p_user_id UUID
-) RETURNS JSON LANGUAGE plpgsql AS $$
-BEGIN
-  PERFORM pg_advisory_xact_lock(hashtext(p_physical_copy_id::TEXT));
-  
-  -- Verify ownership
-  IF NOT EXISTS (SELECT 1 FROM physical_copies WHERE id = p_physical_copy_id AND user_id = p_user_id) THEN
-    RAISE EXCEPTION 'not_found';
-  END IF;
-  
-  -- Set missing flag
-  UPDATE physical_copies SET missing = true WHERE id = p_physical_copy_id;
-  
-  -- Unlink from any deck_cards
-  UPDATE deck_cards SET physical_copy_id = NULL, ownership_status = NULL 
-  WHERE physical_copy_id = p_physical_copy_id;
-  
-  RETURN json_build_object('success', true);
-END;
-$$;
-```
-
-Apply via Supabase MCP `apply_migration`. Then update `src/lib/missing.ts` (or wherever the mark-as-missing logic lives) to call `supabase.rpc('mark_copy_missing', ...)` instead of sequential updates.
-
-### 10. Fresh-account onboarding polish
-
-Check what a brand new user with zero data sees:
-
-- Decks page (home): should show an empty state with "Import your first deck" CTA, not a blank grid
-- Collection page: should show "Import your collection" if no physical_copies exist
-- Verify the onboarding page (`src/app/onboarding/page.tsx`) still works and references correct status values
-
-If empty states are missing or broken, add simple centered prompts with the Import button.
-
----
-
-## General rules for this session
-
-- Run `npx tsc --noEmit` after each task to verify build (ignore `supabase.ts` errors — those are pre-existing)
-- Don't touch: brew mode/AI features, the legacy precon system, test files (leave them stale for now)
-- Match existing patterns: use `toast` for feedback, `queryClient.invalidateQueries` for cache refresh, shared components from the convention doc
-- If a task requires a Supabase migration, use the MCP `apply_migration` tool (project_id: `udocxsyzzvrceiuupprj`)
-- If you hit a blocker on one task, note what's blocking and move to the next
+- **TD-017** (HIGH): Hash DB matching accuracy — perspective correction added but untested with the new full-card DB. May need threshold tuning.
+- **TD-016** (MEDIUM): Query key string/number fragility — recommend `useDeckQueryKeys()` hook
+- **TD-012-014**: Undo, Add Proxy, and Mark-as-Missing non-atomic writes (lower priority)

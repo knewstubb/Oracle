@@ -359,3 +359,101 @@ ALTER TABLE physical_copies ADD COLUMN scan_confidence TEXT;
 ```
 
 Users can bulk-review `unconfirmed` printings later if they care about exact set attribution.
+
+
+---
+
+## Post-implementation findings (2026-07-22)
+
+### What we learned from building and testing
+
+**1. art_crop vs normal images — critical mismatch**
+
+The initial hash DB was built from Scryfall's `art_crop` images (just the artwork rectangle, ~626x457). The camera captures a full card (frame + text + artwork). Even with a perfect artwork-region crop, the camera's version includes frame elements at the edges, producing completely different dHash values. Distance was 20+ for correct cards.
+
+**Fix:** Rebuilt the hash DB using `normal` images (full card face, 488x680). Now both the DB and camera are hashing the same visual content.
+
+**2. Perspective distortion — the real killer**
+
+Even with matching image types, a card held in hand is never perfectly perpendicular to the camera. 5-10° of tilt was enough to change the dHash by 10+ bits (out of 64), pushing correct matches above the confidence threshold.
+
+**Fix:** Added lightweight perspective correction:
+- Scan from each edge inward to find the strongest brightness gradient (card border)
+- Map the detected quadrilateral to a standard 240x336 rectangle via bilinear interpolation
+- Hash the flattened image
+
+This is not as robust as OpenCV's contour detection + `warpPerspective`, but avoids the 8MB WASM bundle. Falls back to center-crop if edge detection fails.
+
+**3. The `detectCardPresence` gate was too strict**
+
+The original card-presence check (edge density > 2%) blocked the matching loop entirely on many backgrounds. Removed it — the matching loop now runs continuously when the DB is loaded. The confidence threshold is the real gate.
+
+**4. Guide rect coordinate mismatch**
+
+The CSS guide overlay uses viewport-relative sizing (`70vw`, `aspect-ratio`), but the video uses `object-cover` which crops differently depending on device aspect ratio. Hardcoded normalized coordinates in video-frame space don't match where the guide appears visually.
+
+**Partial fix:** Use a generous center crop (60% width, 70% height) that captures the card regardless of exact guide alignment. The perspective correction then refines the actual card position within that region.
+
+**5. iOS Safari limitations confirmed**
+
+- `torch` not available via `getCapabilities()` on any iOS browser (all use WebKit)
+- `getUserMedia` resolution constraints are hints, not guarantees
+- No programmatic focus control
+
+### Current pipeline (as built)
+
+```
+Camera (getUserMedia 1280x720)
+    ↓
+Video element (object-cover display)
+    ↓
+Canvas: draw frame, extract center 60% × 70%
+    ↓
+Frame buffer: add to 5-frame ring buffer
+    ↓
+Median composite (removes transient foil glare)
+    ↓
+Perspective correction:
+  - Detect card edges (gradient scan from 4 sides)
+  - Flatten quad → 240×336 rectangle (bilinear interpolation)
+  - Fallback: center-crop if detection fails
+    ↓
+Compute dHash (9×8 grayscale → 64-bit horizontal gradient hash)
+    ↓
+LSH lookup (8 tables × 8-bit segments, ~800 candidates checked)
+    ↓
+Confidence check:
+  - Distance ≤ 8: confident match → auto-accept
+  - Distance 9-14: possible match → show in debug/candidates
+  - Distance > 14: no match
+  - Ambiguity gap < 3: ambiguous → don't auto-accept
+    ↓
+Success: flash screen, show card name, add to session
+Failure: continue scanning (200ms loop)
+```
+
+### What's still uncertain
+
+1. **Whether perspective correction + full-card hashes is accurate enough.** The new hash DB hasn't been tested yet (was still building at session end). If distances are still 10+ for correct cards, may need:
+   - Looser thresholds (12 instead of 8)
+   - Better perspective correction (proper contour detection)
+   - Switch to an angle-invariant matching method (average hash, or server-side embedding)
+
+2. **Printing disambiguation.** dHash matches cards by visual appearance. Cards with the same artwork across sets will hash identically — needs OCR of collector number or set symbol as a secondary step. Currently not wired into the auto-detect flow (only available via the printing picker post-scan).
+
+3. **Performance on low-end phones.** The perspective correction adds pixel-level computation (grayscale + gradient scan + bilinear interpolation for ~80K pixels) every 200ms. Untested on older devices. May need to reduce frame rate or skip perspective correction on low-end hardware.
+
+### Recommendations for next iteration
+
+- Test with the new hash DB first. If matching works at distance <8, the current approach is viable.
+- If not: consider switching the hash method from dHash to pHash (DCT-based, more robust to minor geometric transforms) or aHash (even simpler, more tolerant).
+- Long-term: a small CNN embedding model (e.g., MobileNetV3 fine-tuned on card images) running via ONNX Runtime Web would be the most robust approach — but requires training data and a ~5MB model download.
+
+### Sources (additional)
+
+- Cross-industry research compiled 2026-07-22 (TCG, sports card, document scanners)
+- Key finding: every serious scanner does perspective correction before matching. Our initial version skipped this step.
+- iOS Safari WebRTC limitations confirmed: no torch, no zoom, no focus control via constraints.
+- OpenCV.js bundle size: ~8MB WASM. Avoided in favor of custom lightweight approach.
+
+Content was rephrased for compliance with licensing restrictions.

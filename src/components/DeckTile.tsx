@@ -91,6 +91,7 @@ export function DeckTile({
         'motion-reduce:transition-none motion-reduce:hover:translate-y-0',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         status === 'brewing' && 'border border-dashed border-[#378ADD]',
+        status === 'graveyard' && 'grayscale-[0.7] opacity-70',
       )}
     >
       {/* Commander art */}

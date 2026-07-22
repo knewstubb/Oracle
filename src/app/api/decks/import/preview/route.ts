@@ -18,6 +18,11 @@ import {
   normalizeMoxfieldDeck,
   groupCardsByType,
 } from '@/lib/deck-normalizer'
+import {
+  fetchMTGGoldfishDeck,
+  fetchTappedOutDeck,
+  fetchDeckboxDeck,
+} from '@/lib/external-deck-fetcher'
 
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth()
@@ -63,11 +68,32 @@ export async function POST(request: NextRequest) {
       return Response.json({ deck, cardsByType })
     }
 
-    // platform === 'moxfield'
-    const rawDeck = await fetchMoxfieldDeck(deckId)
-    const deck = normalizeMoxfieldDeck(rawDeck, url)
-    const cardsByType = groupCardsByType(deck.cards)
-    return Response.json({ deck, cardsByType })
+    if (platform === 'moxfield') {
+      const rawDeck = await fetchMoxfieldDeck(deckId)
+      const deck = normalizeMoxfieldDeck(rawDeck, url)
+      const cardsByType = groupCardsByType(deck.cards)
+      return Response.json({ deck, cardsByType })
+    }
+
+    if (platform === 'mtggoldfish') {
+      const deck = await fetchMTGGoldfishDeck(deckId)
+      const cardsByType = groupCardsByType(deck.cards)
+      return Response.json({ deck, cardsByType })
+    }
+
+    if (platform === 'tappedout') {
+      const deck = await fetchTappedOutDeck(deckId)
+      const cardsByType = groupCardsByType(deck.cards)
+      return Response.json({ deck, cardsByType })
+    }
+
+    if (platform === 'deckbox') {
+      const deck = await fetchDeckboxDeck(deckId)
+      const cardsByType = groupCardsByType(deck.cards)
+      return Response.json({ deck, cardsByType })
+    }
+
+    return Response.json({ error: `Unsupported platform: ${platform}` }, { status: 400 })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error(`[decks/import/preview] Fetch failed: ${message}`)
@@ -83,7 +109,7 @@ export async function POST(request: NextRequest) {
     // 404 — deck not found
     if (message.toLowerCase().includes('not found')) {
       return Response.json(
-        { error: `Deck not found on ${platform === 'archidekt' ? 'Archidekt' : 'Moxfield'}` },
+        { error: `Deck not found on ${platform}` },
         { status: 404 }
       )
     }
@@ -98,7 +124,7 @@ export async function POST(request: NextRequest) {
 
     // Generic external API error
     return Response.json(
-      { error: `Failed to fetch deck from ${platform === 'archidekt' ? 'Archidekt' : 'Moxfield'}` },
+      { error: `Failed to fetch deck from ${platform}` },
       { status: 502 }
     )
   }

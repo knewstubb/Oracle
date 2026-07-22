@@ -19,6 +19,7 @@ import { CombosPanel } from '@/components/CombosPanel'
 import { UpgradeTab } from '@/components/UpgradeTab'
 import { StrategyTab } from '@/components/StrategyTab'
 import { PicklistV2 } from '@/components/PicklistV2'
+import { GoldfishTab } from '@/components/GoldfishTab'
 import { getFormatConfig } from '@/lib/format-config'
 import { exportDeckAsText } from '@/lib/deck-export'
 import { toast } from 'sonner'
@@ -251,6 +252,7 @@ export default function DeckViewPage() {
               <TabsTrigger value="combos">Combos</TabsTrigger>
               <TabsTrigger value="upgrade">Upgrade</TabsTrigger>
               <TabsTrigger value="strategy">Strategy</TabsTrigger>
+              <TabsTrigger value="goldfish">Goldfish</TabsTrigger>
               <TabsTrigger value="picklist">Picklist</TabsTrigger>
             </TabsList>
           </div>
@@ -295,6 +297,12 @@ export default function DeckViewPage() {
               commanderName={deck.commander_name}
               cards={cards}
             />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="goldfish" className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+          <div className="mx-auto max-w-[var(--content-max-width)]">
+            <GoldfishTab cards={cards} />
           </div>
         </TabsContent>
 

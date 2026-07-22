@@ -24,6 +24,19 @@ import {
 import { ensureCardDefinition } from '@/lib/card-identity-store'
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Parse a purchase price string into a number or null. Handles "$4.99", "4.99", empty. */
+function parsePurchasePrice(raw: string | undefined): number | null {
+  if (!raw) return null
+  const cleaned = raw.replace(/[$€£,]/g, '').trim()
+  if (!cleaned) return null
+  const num = parseFloat(cleaned)
+  return isNaN(num) || num < 0 ? null : Math.round(num * 100) / 100
+}
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -73,6 +86,7 @@ interface ParsedImportRow {
   isProxy: boolean
   oracleId: string  // Pre-resolved oracle_id (from CSV column like "Scryfall Oracle ID")
   dateAdded: string // ISO date string, or empty (defaults to import timestamp via DB)
+  purchasePrice: string // Numeric string or empty (e.g. "4.99")
 }
 
 // ---------------------------------------------------------------------------
@@ -192,6 +206,7 @@ function extractArchidektRow(
     isProxy: false, // Archidekt has no proxy column
     oracleId: fields[colIdx['Scryfall Oracle ID']] || '',
     dateAdded: fields[colIdx['Date Added']] || '',
+    purchasePrice: fields[colIdx['Purchase Price']] || fields[colIdx['My Price']] || '',
   }
 }
 
@@ -234,6 +249,7 @@ function extractMoxfieldRow(
     isProxy,
     oracleId: '',
     dateAdded: fields[colIdx['Last Modified']] || '',
+    purchasePrice: fields[colIdx['Purchase Price']] || '',
   }
 }
 
@@ -277,6 +293,7 @@ function extractManaboxRow(
     isProxy,
     oracleId: fields[colIdx['Scryfall Oracle ID']] || '',
     dateAdded: fields[colIdx['Added']] || '',
+    purchasePrice: fields[colIdx['Purchase price']] || fields[colIdx['Price']] || '',
   }
 }
 
@@ -370,6 +387,9 @@ function extractGenericRow(
   const rawProxy = proxyIdx >= 0 ? (fields[proxyIdx] || '').toLowerCase() : ''
   const isProxy = rawProxy === 'true' || rawProxy === 'yes' || rawProxy === '1'
 
+  // Purchase price
+  const priceIdx = findColumnByAlias(colIdx, 'purchasePrice')
+
   return {
     rowIndex,
     name,
@@ -383,6 +403,7 @@ function extractGenericRow(
     isProxy,
     oracleId: oracleIdx >= 0 ? (fields[oracleIdx] || '') : '',
     dateAdded: dateIdx >= 0 ? (fields[dateIdx] || '') : '',
+    purchasePrice: priceIdx >= 0 ? (fields[priceIdx] || '') : '',
   }
 }
 
@@ -636,6 +657,8 @@ interface ResolvedSyncRow {
   quantity: number
   /** ISO date string from CSV, or empty string (DB defaults to NOW()) */
   dateAdded: string
+  /** Purchase price in USD, or null */
+  purchasePrice: number | null
 }
 
 /**
@@ -722,6 +745,7 @@ async function executeSyncMode(
       condition,
       quantity: Math.min(row.quantity, MAX_COPIES_PER_ROW),
       dateAdded: row.dateAdded || '',
+      purchasePrice: parsePurchasePrice(row.purchasePrice),
     })
   }
 
@@ -809,6 +833,10 @@ async function executeSyncMode(
         // Pass through dateAdded as created_at if provided; otherwise DB defaults to NOW()
         if (demand.dateAdded) {
           insertRow.created_at = demand.dateAdded
+        }
+        // Pass through purchase price if provided
+        if (demand.purchasePrice != null) {
+          insertRow.purchase_price_usd = demand.purchasePrice
         }
         rowsToInsert.push(insertRow)
       }
@@ -976,6 +1004,7 @@ export async function executeInstanceLevelImport(
     editionCode: string
     editionName: string
     dateAdded: string
+    purchasePrice: number | null
   }> = []
 
   const needsApiResolution: ParsedImportRow[] = []
@@ -1000,6 +1029,7 @@ export async function executeInstanceLevelImport(
         editionCode: row.editionCode,
         editionName: row.editionName,
         dateAdded: row.dateAdded || '',
+        purchasePrice: parsePurchasePrice(row.purchasePrice),
       })
     } else if (scryfallId && !oracleId) {
       // Has scryfall_id but no oracle_id — can batch-resolve from oracle_to_printings
@@ -1032,6 +1062,7 @@ export async function executeInstanceLevelImport(
           editionCode: row.editionCode,
           editionName: row.editionName,
           dateAdded: row.dateAdded || '',
+          purchasePrice: parsePurchasePrice(row.purchasePrice),
         })
       } else {
         // Couldn't resolve via DB — fall through to API resolution
@@ -1082,6 +1113,7 @@ export async function executeInstanceLevelImport(
       editionCode: row.editionCode,
       editionName: row.editionName,
       dateAdded: row.dateAdded || '',
+      purchasePrice: parsePurchasePrice(row.purchasePrice),
     })
   }
 
@@ -1180,6 +1212,10 @@ export async function executeInstanceLevelImport(
       // Pass through dateAdded as created_at if provided; otherwise DB defaults to NOW()
       if (row.dateAdded) {
         copyRow.created_at = row.dateAdded
+      }
+      // Pass through purchase price if provided
+      if (row.purchasePrice != null) {
+        copyRow.purchase_price_usd = row.purchasePrice
       }
       physicalCopyRows.push(copyRow)
     }

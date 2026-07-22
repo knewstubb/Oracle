@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/PageHeader'
 import { useCollectionRollup } from '@/hooks/useCollectionRollup'
 import { useCollectionPrintings } from '@/hooks/useCollectionPrintings'
 import { CollectionImportButton } from '@/components/collection/CollectionImportButton'
+import { CollectionExportButton } from '@/components/collection/CollectionExportButton'
 import { CollectionValueBanner } from '@/components/collection/CollectionValueBanner'
 import {
   CollectionToolbar,
@@ -191,7 +192,10 @@ export default function CollectionPage() {
           </>
         }
         actions={
-          <CollectionImportButton />
+          <>
+            <CollectionExportButton />
+            <CollectionImportButton />
+          </>
         }
       />
 

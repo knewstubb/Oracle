@@ -68,10 +68,22 @@ export function parseTextDecklist(
       continue
     }
 
+    // MTGA uses "Deck" as a section header — skip it
+    if (/^(deck|mainboard|main):?$/i.test(line)) {
+      commanderSection = false
+      continue
+    }
+
+    // Handle "SB:" prefix (used by some tools for sideboard)
+    let actualLine = line
+    if (/^SB:\s*/i.test(actualLine)) {
+      actualLine = actualLine.replace(/^SB:\s*/i, '')
+    }
+
     // Parse card line: <qty>[x] <name> [(SET) COLLECTOR#]
-    const match = line.match(/^(\d+)\s*x?\s+(.+)$/i)
+    const match = actualLine.match(/^(\d+)\s*x?\s+(.+)$/i)
     if (!match) {
-      warnings.push(`Line ${lineNum}: couldn't parse "${line.substring(0, 50)}"`)
+      warnings.push(`Line ${lineNum}: couldn't parse "${actualLine.substring(0, 50)}"`)
       continue
     }
 

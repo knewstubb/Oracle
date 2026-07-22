@@ -27,11 +27,14 @@ export async function GET() {
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
 
+  const userId = authResult.id
+
   const supabase = createAdminClient()
 
   const { data: decks, error: decksErr } = await supabase
     .from('decks')
     .select('id, name, commander_name, commander_scryfall_id, colour_identity, card_count, last_synced_at, deck_type, status, allocate')
+    .eq('user_id', userId)
     .order('name')
 
   if (decksErr) {

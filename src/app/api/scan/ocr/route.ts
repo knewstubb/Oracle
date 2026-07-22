@@ -23,6 +23,11 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'image (base64) is required' }, { status: 400 })
   }
 
+  // Reject oversized payloads (max ~3.7MB decoded image)
+  if (image.length > 5_000_000) {
+    return Response.json({ error: 'Image too large (max 5MB base64)' }, { status: 413 })
+  }
+
   // Get Supabase function URL from environment
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY

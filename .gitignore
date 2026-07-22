@@ -53,3 +53,5 @@ data/collection-prev.csv
 tests/e2e/.auth/
 docs/default-cards-*.jsonl
 *.jsonl
+test-results/
+playwright-report/

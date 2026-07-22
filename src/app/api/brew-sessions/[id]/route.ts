@@ -22,6 +22,7 @@ export async function DELETE(
     .from('brew_sessions')
     .select('id, status')
     .eq('id', sessionId)
+    .eq('user_id', authResult.id)
     .single()
 
   if (fetchErr || !session) {

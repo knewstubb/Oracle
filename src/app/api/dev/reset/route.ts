@@ -9,6 +9,11 @@ import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 
 export async function POST() {
+  // Block in production — this endpoint is dev-only
+  if (process.env.NODE_ENV === 'production') {
+    return Response.json({ error: 'Not available in production' }, { status: 404 })
+  }
+
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
   const userId = authResult.id

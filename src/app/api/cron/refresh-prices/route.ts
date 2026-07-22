@@ -17,11 +17,11 @@ const SCRYFALL_BATCH_SIZE = 75
 const RATE_LIMIT_MS = 100
 
 export async function GET(request: NextRequest) {
-  // Verify Vercel Cron secret (if configured)
+  // Verify Vercel Cron secret — fail-closed (reject if not configured)
   const authHeader = request.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
 
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

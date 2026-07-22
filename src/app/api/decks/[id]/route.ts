@@ -22,6 +22,7 @@ export async function GET(
     .from('decks')
     .select('*')
     .eq('id', deckId)
+    .eq('user_id', authResult.id)
     .maybeSingle()
 
   if (deckErr) {
@@ -194,6 +195,7 @@ export async function DELETE(
     .from('decks')
     .select('id, status')
     .eq('id', deckId)
+    .eq('user_id', authResult.id)
     .maybeSingle()
 
   if (deckErr) {
@@ -221,6 +223,7 @@ export async function DELETE(
     .from('decks')
     .delete()
     .eq('id', deckId)
+    .eq('user_id', authResult.id)
 
   if (deleteErr) {
     return Response.json({ error: deleteErr.message }, { status: 500 })

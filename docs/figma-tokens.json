@@ -1,0 +1,90 @@
+{
+  "global": {
+    "colors": {
+      "bg": {
+        "canvas": { "value": "#131316", "type": "color", "description": "Page background (dark mode)" },
+        "surface": { "value": "#1A1A1E", "type": "color", "description": "Card/panel background" },
+        "surface-hover": { "value": "#212126", "type": "color", "description": "Hover state on surfaces" }
+      },
+      "border": {
+        "subtle": { "value": "#262629", "type": "color" },
+        "default": { "value": "#35353A", "type": "color" },
+        "emphasis": { "value": "rgba(255, 255, 255, 0.1)", "type": "color" }
+      },
+      "text": {
+        "primary": { "value": "#E8E8EA", "type": "color" },
+        "secondary": { "value": "#9C9CA3", "type": "color" },
+        "tertiary": { "value": "#6E6E76", "type": "color" }
+      },
+      "accent": {
+        "primary": { "value": "#1D9E75", "type": "color", "description": "Teal — primary action, links, focus rings" },
+        "primary-bg": { "value": "rgba(29, 158, 117, 0.15)", "type": "color", "description": "Accent background tint" }
+      },
+      "signal": {
+        "success": { "value": "#1D9E75", "type": "color" },
+        "success-bg": { "value": "rgba(29, 158, 117, 0.15)", "type": "color" },
+        "warning": { "value": "#EF9F27", "type": "color" },
+        "warning-bg": { "value": "rgba(239, 159, 39, 0.15)", "type": "color" },
+        "critical": { "value": "#E24B4A", "type": "color" },
+        "critical-bg": { "value": "rgba(226, 75, 74, 0.15)", "type": "color" },
+        "destructive": { "value": "#DC2626", "type": "color" }
+      },
+      "status": {
+        "owned": { "value": "#5F5E5A", "type": "color", "description": "Original (card you own)" },
+        "proxy": { "value": "#4A93A0", "type": "color", "description": "Proxy (printed copy)" },
+        "unowned": { "value": "#F0339E", "type": "color", "description": "Unowned (don't have it)" }
+      },
+      "mana": {
+        "white": { "value": "#F5F0C1", "type": "color" },
+        "blue": { "value": "#6BA5C4", "type": "color" },
+        "black": { "value": "#9E9E9E", "type": "color" },
+        "red": { "value": "#D4836A", "type": "color" },
+        "green": { "value": "#7BC4A0", "type": "color" }
+      }
+    },
+    "spacing": {
+      "1": { "value": "4", "type": "spacing" },
+      "2": { "value": "8", "type": "spacing" },
+      "3": { "value": "12", "type": "spacing" },
+      "4": { "value": "16", "type": "spacing" },
+      "5": { "value": "24", "type": "spacing" },
+      "6": { "value": "32", "type": "spacing" },
+      "7": { "value": "48", "type": "spacing" }
+    },
+    "fontSize": {
+      "2xs": { "value": "10", "type": "fontSizes", "description": "Version badge, tiny labels" },
+      "xs": { "value": "11", "type": "fontSizes", "description": "Chip labels, metadata" },
+      "sm": { "value": "12", "type": "fontSizes", "description": "Secondary text, table cells" },
+      "base": { "value": "13", "type": "fontSizes", "description": "Body text default" },
+      "md": { "value": "14", "type": "fontSizes", "description": "Primary UI text, buttons" },
+      "lg": { "value": "16", "type": "fontSizes", "description": "Section headings, nav items" },
+      "xl": { "value": "20", "type": "fontSizes", "description": "Page titles" },
+      "2xl": { "value": "24", "type": "fontSizes", "description": "Hero numbers (collection value)" },
+      "3xl": { "value": "28", "type": "fontSizes", "description": "Large display text" }
+    },
+    "fontFamily": {
+      "sans": { "value": "Helvetica Neue, Helvetica, Arial, sans-serif", "type": "fontFamilies" },
+      "mono": { "value": "SF Mono, Fira Code, Fira Mono, Menlo, Consolas, monospace", "type": "fontFamilies" }
+    },
+    "fontWeight": {
+      "normal": { "value": "400", "type": "fontWeights" },
+      "medium": { "value": "500", "type": "fontWeights" },
+      "semibold": { "value": "600", "type": "fontWeights" },
+      "bold": { "value": "700", "type": "fontWeights" }
+    },
+    "borderRadius": {
+      "sm": { "value": "7", "type": "borderRadius" },
+      "md": { "value": "10", "type": "borderRadius" },
+      "lg": { "value": "12", "type": "borderRadius" },
+      "xl": { "value": "17", "type": "borderRadius" },
+      "full": { "value": "9999", "type": "borderRadius" }
+    },
+    "layout": {
+      "row-height": { "value": "44", "type": "sizing", "description": "Standard table/list row height" },
+      "detail-panel-width": { "value": "320", "type": "sizing" },
+      "content-max-width": { "value": "1520", "type": "sizing" },
+      "sidebar-width": { "value": "240", "type": "sizing" },
+      "status-slot-width": { "value": "24", "type": "sizing" }
+    }
+  }
+}

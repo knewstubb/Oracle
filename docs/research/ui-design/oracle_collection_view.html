@@ -1,0 +1,341 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+.shell { background: #0f0f0f; border-radius: var(--border-radius-lg); overflow: hidden; font-family: var(--font-sans); }
+
+.page-header { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 0.5px solid rgba(255,255,255,0.06); }
+.page-title { font-size: 16px; font-weight: 500; color: #fff; }
+.page-sub { font-size: 11px; color: rgba(255,255,255,0.35); }
+.header-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.sync-badge { font-size: 11px; color: rgba(255,255,255,0.3); display: flex; align-items: center; gap: 5px; }
+
+.stat-strip { display: flex; border-bottom: 0.5px solid rgba(255,255,255,0.06); }
+.strip-stat { flex: 1; padding: 12px 20px; border-right: 0.5px solid rgba(255,255,255,0.05); }
+.strip-stat:last-child { border-right: none; }
+.strip-val { font-size: 20px; font-weight: 500; color: #e8e8e6; margin-bottom: 2px; }
+.strip-val.warn { color: #EF9F27; }
+.strip-val.teal { color: #1D9E75; }
+.strip-label { font-size: 10px; color: rgba(255,255,255,0.3); }
+
+.collection-layout { display: flex; }
+.sidebar { width: 180px; border-right: 0.5px solid rgba(255,255,255,0.06); flex-shrink: 0; padding: 12px 0; }
+.sb-label { font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.2); text-transform: uppercase; letter-spacing: 0.08em; padding: 0 14px 8px; }
+.sb-item { display: flex; align-items: center; gap: 8px; padding: 7px 14px; font-size: 12px; color: rgba(255,255,255,0.4); cursor: pointer; }
+.sb-item.active { background: rgba(29,158,117,0.1); color: #1D9E75; border-right: 2px solid #1D9E75; }
+.sb-item:hover:not(.active) { background: rgba(255,255,255,0.03); color: rgba(255,255,255,0.6); }
+.sb-count { margin-left: auto; font-size: 10px; opacity: 0.6; }
+.sb-divider { height: 0.5px; background: rgba(255,255,255,0.06); margin: 8px 0; }
+.sb-conflict-item { display: flex; align-items: center; gap: 8px; padding: 7px 14px; font-size: 11px; color: #EF9F27; cursor: pointer; }
+.sb-conflict-count { margin-left: auto; font-size: 10px; background: rgba(239,159,39,0.15); color: #EF9F27; border-radius: 99px; padding: 1px 6px; }
+
+.main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+.toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 0.5px solid rgba(255,255,255,0.06); }
+.search-wrap { position: relative; flex: 1; max-width: 260px; }
+.search-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); font-size: 13px; color: rgba(255,255,255,0.25); pointer-events: none; }
+.search-input { width: 100%; background: rgba(255,255,255,0.05); border: 0.5px solid rgba(255,255,255,0.1); border-radius: var(--border-radius-md); padding: 6px 10px 6px 30px; font-size: 12px; color: #fff; font-family: var(--font-sans); }
+.search-input::placeholder { color: rgba(255,255,255,0.2); }
+.filter-chip { font-size: 11px; padding: 5px 10px; border-radius: 99px; cursor: pointer; display: flex; align-items: center; gap: 4px; border: 0.5px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.35); }
+.filter-chip.active { border-color: rgba(239,159,39,0.4); background: rgba(239,159,39,0.08); color: #EF9F27; }
+.filter-chip.active-teal { border-color: rgba(29,158,117,0.4); background: rgba(29,158,117,0.08); color: #1D9E75; }
+.spacer { flex: 1; }
+.view-toggle { display: flex; background: rgba(255,255,255,0.04); border: 0.5px solid rgba(255,255,255,0.08); border-radius: var(--border-radius-md); overflow: hidden; }
+.vt-btn { padding: 5px 9px; font-size: 13px; color: rgba(255,255,255,0.25); cursor: pointer; border: none; background: none; }
+.vt-btn.active { background: rgba(29,158,117,0.15); color: #1D9E75; }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+thead th { font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.25); text-transform: uppercase; letter-spacing: 0.07em; padding: 8px 14px; text-align: left; border-bottom: 0.5px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.02); white-space: nowrap; }
+thead th:first-child { width: 200px; }
+thead th.th-deck { width: 90px; text-align: center; }
+thead th.th-own { width: 90px; }
+tbody tr { border-bottom: 0.5px solid rgba(255,255,255,0.04); }
+tbody tr:hover { background: rgba(255,255,255,0.02); }
+tbody tr.conflict-row { background: rgba(239,159,39,0.03); }
+tbody tr.conflict-row:hover { background: rgba(239,159,39,0.05); }
+td { padding: 8px 14px; font-size: 12px; vertical-align: middle; }
+.card-name-cell { display: flex; align-items: center; gap: 8px; }
+.card-name-text { color: #e8e8e6; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-type-text { font-size: 10px; color: rgba(255,255,255,0.25); }
+.conflict-flag { font-size: 10px; color: #EF9F27; flex-shrink: 0; }
+
+.deck-cell { text-align: center; }
+.deck-dot { width: 20px; height: 20px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 500; }
+.dd-orig { background: rgba(29,158,117,0.25); color: #1D9E75; border: 0.5px solid rgba(29,158,117,0.4); }
+.dd-proxy { background: rgba(239,159,39,0.15); color: #EF9F27; border: 0.5px solid rgba(239,159,39,0.3); }
+.dd-none { background: transparent; }
+
+.own-badge { font-size: 10px; padding: 2px 7px; border-radius: 3px; display: inline-flex; align-items: center; gap: 3px; }
+.own-orig { background: rgba(29,158,117,0.12); color: #1D9E75; }
+.own-proxy { background: rgba(239,159,39,0.12); color: #EF9F27; }
+.own-not { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.25); }
+.own-multi { background: rgba(239,159,39,0.08); color: #EF9F27; border: 0.5px solid rgba(239,159,39,0.2); }
+
+.reassign-btn { font-size: 10px; color: rgba(255,255,255,0.2); background: none; border: none; cursor: pointer; padding: 2px 6px; border-radius: 3px; }
+.reassign-btn:hover { color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.06); }
+
+.table-footer { padding: 10px 16px; border-top: 0.5px solid rgba(255,255,255,0.06); display: flex; align-items: center; gap: 10px; }
+.footer-stat { font-size: 11px; color: rgba(255,255,255,0.25); display: flex; align-items: center; gap: 5px; }
+.footer-stat span { color: rgba(255,255,255,0.5); }
+.pagination { margin-left: auto; display: flex; gap: 4px; }
+.page-btn { font-size: 11px; padding: 4px 8px; border-radius: var(--border-radius-md); background: rgba(255,255,255,0.04); border: 0.5px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.35); cursor: pointer; }
+.page-btn.active { background: rgba(29,158,117,0.15); border-color: rgba(29,158,117,0.3); color: #1D9E75; }
+
+.legend { display: flex; gap: 14px; padding: 8px 16px; border-top: 0.5px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.01); }
+.leg-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: rgba(255,255,255,0.25); }
+</style>
+
+<div style="padding: 0.5rem 0.25rem;">
+  <h2 class="sr-only">Oracle Collection view — full card list with deck assignments and ownership status</h2>
+
+  <div class="shell">
+
+    <div class="page-header">
+      <div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="page-title">Collection</span>
+        </div>
+        <div class="page-sub">2,711 cards · 9 decks · 43 allocation conflicts</div>
+      </div>
+      <div class="header-right">
+        <span class="sync-badge"><i class="ti ti-refresh" style="font-size:12px;" aria-hidden="true"></i> Synced 1h ago</span>
+      </div>
+    </div>
+
+    <div class="stat-strip">
+      <div class="strip-stat">
+        <div class="strip-val teal">2,711</div>
+        <div class="strip-label">Cards owned</div>
+      </div>
+      <div class="strip-stat">
+        <div class="strip-val">847</div>
+        <div class="strip-label">In a deck</div>
+      </div>
+      <div class="strip-stat">
+        <div class="strip-val">1,864</div>
+        <div class="strip-label">Not in any deck</div>
+      </div>
+      <div class="strip-stat">
+        <div class="strip-val warn">43</div>
+        <div class="strip-label">Allocation conflicts</div>
+      </div>
+      <div class="strip-stat">
+        <div class="strip-val">214</div>
+        <div class="strip-label">Proxies running</div>
+      </div>
+    </div>
+
+    <div class="collection-layout">
+
+      <div class="sidebar">
+        <div class="sb-label">Filter by deck</div>
+        <div class="sb-item active"><i class="ti ti-stack" style="font-size:13px;" aria-hidden="true"></i> All decks <span class="sb-count">2711</span></div>
+        <div class="sb-item"><i class="ti ti-circle" style="font-size:13px;" aria-hidden="true"></i> Not in any deck <span class="sb-count">1864</span></div>
+        <div class="sb-divider"></div>
+        <div class="sb-item"><i class="ti ti-cards" style="font-size:13px;" aria-hidden="true"></i> A Rot to Process <span class="sb-count">100</span></div>
+        <div class="sb-item"><i class="ti ti-cards" style="font-size:13px;" aria-hidden="true"></i> Arti-facts <span class="sb-count">87</span></div>
+        <div class="sb-item"><i class="ti ti-cards" style="font-size:13px;" aria-hidden="true"></i> Auntie-Social <span class="sb-count">85</span></div>
+        <div class="sb-item"><i class="ti ti-cards" style="font-size:13px;" aria-hidden="true"></i> Big Butt <span class="sb-count">88</span></div>
+        <div class="sb-item"><i class="ti ti-cards" style="font-size:13px;" aria-hidden="true"></i> Big Zurgs <span class="sb-count">95</span></div>
+        <div class="sb-item"><i class="ti ti-cards" style="font-size:13px;" aria-hidden="true"></i> Black Magic <span class="sb-count">71</span></div>
+        <div class="sb-item"><i class="ti ti-cards" style="font-size:13px;" aria-hidden="true"></i> Counter Blitz <span class="sb-count">95</span></div>
+        <div class="sb-divider"></div>
+        <div class="sb-conflict-item"><i class="ti ti-alert-triangle" style="font-size:13px;" aria-hidden="true"></i> Conflicts only <span class="sb-conflict-count">43</span></div>
+      </div>
+
+      <div class="main">
+        <div class="toolbar">
+          <div class="search-wrap">
+            <i class="ti ti-search search-icon" aria-hidden="true"></i>
+            <input type="text" class="search-input" placeholder="Search cards...">
+          </div>
+          <div class="filter-chip active"><i class="ti ti-alert-triangle" style="font-size:11px;" aria-hidden="true"></i> Conflicts</div>
+          <div class="filter-chip active-teal"><i class="ti ti-circle-half" style="font-size:11px;" aria-hidden="true"></i> Proxies</div>
+          <div class="filter-chip">Not in deck</div>
+          <div class="spacer"></div>
+          <div class="view-toggle">
+            <button class="vt-btn active" aria-label="Table view"><i class="ti ti-table" aria-hidden="true"></i></button>
+            <button class="vt-btn" aria-label="Card grid view"><i class="ti ti-layout-grid" aria-hidden="true"></i></button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Card</th>
+                <th class="th-deck">A Rot</th>
+                <th class="th-deck">Arti-facts</th>
+                <th class="th-deck">Auntie</th>
+                <th class="th-deck">Black Magic</th>
+                <th class="th-own">Status</th>
+                <th style="width:60px;"></th>
+              </tr>
+            </thead>
+            <tbody>
+
+              <tr class="conflict-row">
+                <td>
+                  <div class="card-name-cell">
+                    <i class="ti ti-alert-triangle conflict-flag" aria-hidden="true"></i>
+                    <div>
+                      <div class="card-name-text">Cyclonic Rift</div>
+                      <div class="card-type-text">Instant</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="deck-cell"><div class="deck-dot dd-proxy" title="Proxy in A Rot to Process">P</div></td>
+                <td class="deck-cell"><div class="deck-dot dd-none"></div></td>
+                <td class="deck-cell"><div class="deck-dot dd-none"></div></td>
+                <td class="deck-cell"><div class="deck-dot dd-orig" title="Original in Black Magic">O</div></td>
+                <td><span class="own-badge own-multi"><i class="ti ti-circle-half" style="font-size:7px;" aria-hidden="true"></i> 1 orig · 1 proxy</span></td>
+                <td><button class="reassign-btn">Reassign</button></td>
+              </tr>
+
+              <tr class="conflict-row">
+                <td>
+                  <div class="card-name-cell">
+                    <i class="ti ti-alert-triangle conflict-flag" aria-hidden="true"></i>
+                    <div>
+                      <div class="card-name-text">Sol Ring</div>
+                      <div class="card-type-text">Artifact</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="deck-cell"><div class="deck-dot dd-orig" title="Original in A Rot">O</div></td>
+                <td class="deck-cell"><div class="deck-dot dd-proxy" title="Proxy in Arti-facts">P</div></td>
+                <td class="deck-cell"><div class="deck-dot dd-proxy" title="Proxy in Auntie-Social">P</div></td>
+                <td class="deck-cell"><div class="deck-dot dd-proxy" title="Proxy in Black Magic">P</div></td>
+                <td><span class="own-badge own-multi"><i class="ti ti-circle-half" style="font-size:7px;" aria-hidden="true"></i> 1 orig · 3 proxy</span></td>
+                <td><button class="reassign-btn">Reassign</button></td>
+              </tr>
+
+              <tr class="conflict-row">
+                <td>
+                  <div class="card-name-cell">
+                    <i class="ti ti-alert-triangle conflict-flag" aria-hidden="true"></i>
+                    <div>
+                      <div class="card-name-text">Arcane Signet</div>
+                      <div class="card-type-text">Artifact</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="deck-cell"><div class="deck-dot dd-proxy" title="Proxy in A Rot">P</div></td>
+                <td class="deck-cell"><div class="deck-dot dd-orig" title="Original in Arti-facts">O</div></td>
+                <td class="deck-cell"><div class="deck-dot dd-proxy" title="Proxy in Auntie">P</div></td>
+                <td class="deck-cell"><div class="deck-dot dd-none"></div></td>
+                <td><span class="own-badge own-multi"><i class="ti ti-circle-half" style="font-size:7px;" aria-hidden="true"></i> 1 orig · 2 proxy</span></td>
+                <td><button class="reassign-btn">Reassign</button></td>
+              </tr>
+
+              <tr>
+                <td>
+                  <div class="card-name-cell">
+                    <div>
+                      <div class="card-name-text">Fatal Push</div>
+                      <div class="card-type-text">Instant</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="deck-cell"><div class="deck-dot dd-orig" title="Original in A Rot">O</div></td>
+                <td class="deck-cell"><div class="deck-dot dd-none"></div></td>
+                <td class="deck-cell"><div class="deck-dot dd-none"></div></td>
+                <td class="deck-cell"><div class="deck-dot dd-none"></div></td>
+                <td><span class="own-badge own-orig"><i class="ti ti-circle-filled" style="font-size:7px;" aria-hidden="true"></i> Original</span></td>
+                <td></td>
+              </tr>
+
+              <tr>
+                <td>
+                  <div class="card-name-cell">
+                    <div>
+                      <div class="card-name-text">Rhystic Study</div>
+                      <div class="card-type-text">Enchantment</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="deck-cell"><div class="deck-dot dd-proxy" title="Proxy in A Rot">P</div></td>
+                <td class="deck-cell"><div class="deck-dot dd-none"></div></td>
+                <td class="deck-cell"><div class="deck-dot dd-none"></div></td>
+                <td class="deck-cell"><div class="deck-dot dd-orig" title="Original in Black Magic">O</div></td>
+                <td><span class="own-badge own-proxy"><i class="ti ti-circle-half" style="font-size:7px;" aria-hidden="true"></i> Proxy</span></td>
+                <td><button class="reassign-btn">Reassign</button></td>
+              </tr>
+
+              <tr>
+                <td>
+                  <div class="card-name-cell">
+                    <div>
+                      <div class="card-name-text">Swamp</div>
+                      <div class="card-type-text">Basic Land</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="deck-cell"><div class="deck-dot dd-orig" title="In A Rot">O</div></td>
+                <td class="deck-cell"><div class="deck-dot dd-orig" title="In Arti-facts">O</div></td>
+                <td class="deck-cell"><div class="deck-dot dd-orig" title="In Auntie">O</div></td>
+                <td class="deck-cell"><div class="deck-dot dd-orig" title="In Black Magic">O</div></td>
+                <td><span class="own-badge own-orig"><i class="ti ti-circle-filled" style="font-size:7px;" aria-hidden="true"></i> Multiple copies</span></td>
+                <td></td>
+              </tr>
+
+              <tr>
+                <td>
+                  <div class="card-name-cell">
+                    <div>
+                      <div class="card-name-text">Veil of Summer</div>
+                      <div class="card-type-text">Instant</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="deck-cell"><div class="deck-dot dd-orig" title="Original in A Rot">O</div></td>
+                <td class="deck-cell"><div class="deck-dot dd-none"></div></td>
+                <td class="deck-cell"><div class="deck-dot dd-none"></div></td>
+                <td class="deck-cell"><div class="deck-dot dd-none"></div></td>
+                <td><span class="own-badge own-orig"><i class="ti ti-circle-filled" style="font-size:7px;" aria-hidden="true"></i> Original</span></td>
+                <td></td>
+              </tr>
+
+              <tr>
+                <td>
+                  <div class="card-name-cell">
+                    <div>
+                      <div class="card-name-text">Phyrexian Arena</div>
+                      <div class="card-type-text">Enchantment</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="deck-cell"><div class="deck-dot dd-none"></div></td>
+                <td class="deck-cell"><div class="deck-dot dd-none"></div></td>
+                <td class="deck-cell"><div class="deck-dot dd-none"></div></td>
+                <td class="deck-cell"><div class="deck-dot dd-none"></div></td>
+                <td><span class="own-badge own-orig"><i class="ti ti-circle-filled" style="font-size:7px;" aria-hidden="true"></i> Not in a deck</span></td>
+                <td></td>
+              </tr>
+
+            </tbody>
+          </table>
+        </div>
+
+        <div class="legend">
+          <div class="leg-item"><div style="width:14px; height:14px; border-radius:3px; background:rgba(29,158,117,0.25); border:0.5px solid rgba(29,158,117,0.4); display:flex; align-items:center; justify-content:center; font-size:8px; color:#1D9E75; font-weight:500;">O</div> Original in this deck</div>
+          <div class="leg-item"><div style="width:14px; height:14px; border-radius:3px; background:rgba(239,159,39,0.15); border:0.5px solid rgba(239,159,39,0.3); display:flex; align-items:center; justify-content:center; font-size:8px; color:#EF9F27; font-weight:500;">P</div> Proxy in this deck</div>
+          <div class="leg-item"><i class="ti ti-alert-triangle" style="font-size:11px; color:#EF9F27;" aria-hidden="true"></i> Allocation conflict</div>
+        </div>
+
+        <div class="table-footer">
+          <div class="footer-stat">Showing <span>8</span> of <span>2,711</span> cards</div>
+          <div class="footer-stat"><span>43</span> conflicts · <span>214</span> proxies</div>
+          <div class="pagination">
+            <button class="page-btn active">1</button>
+            <button class="page-btn">2</button>
+            <button class="page-btn">3</button>
+            <span style="font-size:11px; color:rgba(255,255,255,0.2); padding:4px 4px;">···</span>
+            <button class="page-btn">272</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>

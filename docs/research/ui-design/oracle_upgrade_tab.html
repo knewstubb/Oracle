@@ -1,0 +1,336 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+.shell { background: #0f0f0f; border-radius: var(--border-radius-lg); overflow: hidden; font-family: var(--font-sans); }
+.topbar { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 0.5px solid rgba(255,255,255,0.06); }
+.avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #1a0d2e, #2d1a0d); flex-shrink: 0; }
+.title { font-size: 16px; font-weight: 500; color: #fff; }
+.sub { font-size: 11px; color: rgba(255,255,255,0.4); }
+.topbar-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.btn-teal { background: rgba(29,158,117,0.15); border: 0.5px solid rgba(29,158,117,0.4); border-radius: var(--border-radius-md); padding: 6px 12px; font-size: 12px; color: #1D9E75; cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 500; }
+.btn-ghost { font-size: 12px; color: rgba(255,255,255,0.35); background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+
+.health-strip { display: flex; align-items: center; padding: 0 20px; border-bottom: 0.5px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02); }
+.hp { display: flex; align-items: center; gap: 5px; padding: 8px 12px; font-size: 11px; font-weight: 500; border-right: 0.5px solid rgba(255,255,255,0.05); }
+.hp.ok { color: #1D9E75; }
+.hp.warn { color: #EF9F27; }
+.hs-note { margin-left: auto; font-size: 10px; color: #EF9F27; display: flex; align-items: center; gap: 4px; padding: 8px 0; }
+
+.tab-nav { display: flex; padding: 0 20px; border-bottom: 0.5px solid rgba(255,255,255,0.06); }
+.tab { padding: 10px 16px; font-size: 12px; color: rgba(255,255,255,0.4); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
+.tab.active { color: #1D9E75; border-bottom-color: #1D9E75; }
+
+.content { padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+
+.section-label { font-size: 11px; font-weight: 500; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.section-label-meta { font-size: 10px; color: rgba(255,255,255,0.2); font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+.debrief-banner { background: rgba(29,158,117,0.05); border: 0.5px solid rgba(29,158,117,0.2); border-radius: var(--border-radius-lg); overflow: hidden; }
+.db-header { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 0.5px solid rgba(29,158,117,0.12); }
+.db-icon { font-size: 14px; color: #1D9E75; }
+.db-title { font-size: 12px; font-weight: 500; color: #1D9E75; flex: 1; }
+.db-meta { font-size: 10px; color: rgba(255,255,255,0.25); }
+.db-resume-btn { font-size: 11px; color: #1D9E75; background: rgba(29,158,117,0.15); border: 0.5px solid rgba(29,158,117,0.3); border-radius: var(--border-radius-md); padding: 4px 10px; cursor: pointer; white-space: nowrap; }
+
+.db-body { padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; }
+.db-summary-row { display: flex; gap: 16px; }
+.db-stat { display: flex; flex-direction: column; gap: 2px; }
+.db-stat-val { font-size: 16px; font-weight: 500; color: #e8e8e6; }
+.db-stat-label { font-size: 10px; color: rgba(255,255,255,0.3); }
+.db-actioned { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.db-change-pill { font-size: 10px; background: rgba(29,158,117,0.1); border: 0.5px solid rgba(29,158,117,0.2); border-radius: 99px; padding: 3px 8px; color: rgba(255,255,255,0.5); display: flex; align-items: center; gap: 4px; }
+.db-change-arrow { color: #1D9E75; }
+.db-skipped { font-size: 10px; color: rgba(255,255,255,0.2); }
+
+.toolbar { display: flex; align-items: center; gap: 8px; }
+.sort-group { display: flex; background: rgba(255,255,255,0.04); border: 0.5px solid rgba(255,255,255,0.08); border-radius: var(--border-radius-md); overflow: hidden; }
+.sort-btn { padding: 5px 10px; font-size: 11px; color: rgba(255,255,255,0.3); cursor: pointer; border: none; background: none; white-space: nowrap; }
+.sort-btn.active { background: rgba(29,158,117,0.15); color: #1D9E75; }
+.filter-btn { background: rgba(255,255,255,0.04); border: 0.5px solid rgba(255,255,255,0.08); border-radius: var(--border-radius-md); padding: 5px 10px; font-size: 11px; color: rgba(255,255,255,0.35); cursor: pointer; display: flex; align-items: center; gap: 5px; }
+.filter-btn.on { border-color: rgba(29,158,117,0.35); color: #1D9E75; background: rgba(29,158,117,0.08); }
+.spacer { flex: 1; }
+.run-btn { background: rgba(255,255,255,0.05); border: 0.5px solid rgba(255,255,255,0.12); border-radius: var(--border-radius-md); padding: 6px 12px; font-size: 11px; color: rgba(255,255,255,0.4); cursor: pointer; display: flex; align-items: center; gap: 6px; }
+
+.upgrade-list { display: flex; flex-direction: column; gap: 8px; }
+
+.upgrade-card { background: rgba(255,255,255,0.03); border: 0.5px solid rgba(255,255,255,0.08); border-radius: var(--border-radius-lg); overflow: hidden; }
+.upgrade-card.from-debrief { border-color: rgba(29,158,117,0.2); }
+.uc-header { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-bottom: 0.5px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); }
+.uc-priority { font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.25); min-width: 52px; }
+.uc-impact-bar { flex: 1; height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; max-width: 80px; }
+.uc-impact-fill { height: 100%; border-radius: 2px; background: #1D9E75; }
+.uc-source { font-size: 10px; color: rgba(255,255,255,0.2); margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.uc-source.debrief { color: rgba(29,158,117,0.6); }
+
+.uc-body { display: flex; align-items: stretch; }
+.uc-cut { flex: 1; padding: 10px 14px; border-right: 0.5px solid rgba(255,255,255,0.05); }
+.uc-add { flex: 1; padding: 10px 14px; }
+.uc-side-label { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px; display: flex; align-items: center; gap: 4px; }
+.uc-side-label.cut { color: #E24B4A; }
+.uc-side-label.add { color: #1D9E75; }
+.uc-card-name { font-size: 13px; font-weight: 500; color: #e8e8e6; margin-bottom: 3px; }
+.uc-reason { font-size: 11px; color: rgba(255,255,255,0.35); line-height: 1.5; margin-bottom: 5px; }
+.uc-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.own-badge { font-size: 10px; padding: 2px 6px; border-radius: 3px; display: flex; align-items: center; gap: 3px; }
+.own-orig { background: rgba(29,158,117,0.12); color: #1D9E75; }
+.own-proxy { background: rgba(239,159,39,0.12); color: #EF9F27; }
+.own-not { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.25); }
+.edhrec-badge { font-size: 10px; color: rgba(255,255,255,0.25); }
+.price-badge { font-size: 10px; color: rgba(255,255,255,0.3); }
+
+.uc-actions { display: flex; gap: 6px; padding: 8px 14px; border-top: 0.5px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.01); }
+.uc-btn { padding: 5px 12px; border-radius: var(--border-radius-md); font-size: 11px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 4px; border: 0.5px solid transparent; }
+.uc-btn.accept { background: rgba(29,158,117,0.15); border-color: rgba(29,158,117,0.35); color: #1D9E75; }
+.uc-btn.skip { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08); color: rgba(255,255,255,0.35); }
+.uc-btn.discuss { background: none; border: none; color: rgba(255,255,255,0.2); font-size: 10px; margin-left: auto; }
+
+.fresh-analysis { background: rgba(255,255,255,0.02); border: 0.5px dashed rgba(255,255,255,0.1); border-radius: var(--border-radius-lg); padding: 16px 20px; display: flex; align-items: center; gap: 14px; }
+.fa-icon { font-size: 20px; color: rgba(255,255,255,0.15); }
+.fa-text { flex: 1; }
+.fa-title { font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.4); margin-bottom: 3px; }
+.fa-sub { font-size: 11px; color: rgba(255,255,255,0.2); line-height: 1.5; }
+.fa-btn { background: rgba(255,255,255,0.06); border: 0.5px solid rgba(255,255,255,0.12); border-radius: var(--border-radius-md); padding: 8px 14px; font-size: 12px; color: rgba(255,255,255,0.45); cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 6px; font-family: var(--font-sans); }
+
+.log-section { display: flex; flex-direction: column; gap: 6px; }
+.log-entry { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid rgba(255,255,255,0.04); }
+.log-entry:last-child { border-bottom: none; }
+.log-dot { width: 6px; height: 6px; border-radius: 50%; background: #1D9E75; margin-top: 4px; flex-shrink: 0; }
+.log-dot.skipped { background: rgba(255,255,255,0.15); }
+.log-content { flex: 1; }
+.log-change { font-size: 12px; color: #d4d4d0; }
+.log-change .cut-name { color: #E24B4A; }
+.log-change .add-name { color: #1D9E75; }
+.log-reason { font-size: 11px; color: rgba(255,255,255,0.3); margin-top: 2px; }
+.log-date { font-size: 10px; color: rgba(255,255,255,0.2); white-space: nowrap; }
+</style>
+
+<div style="padding: 0.5rem 0.25rem;">
+  <h2 class="sr-only">Oracle Upgrade tab — debrief output, ranked upgrade candidates, and change log</h2>
+
+  <div class="shell">
+    <div class="topbar">
+      <div class="avatar"></div>
+      <div>
+        <div class="title">A Rot to Process</div>
+        <div class="sub">100 cards · 27 proxies · Bracket 3</div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn-teal"><i class="ti ti-sword" style="font-size:13px;" aria-hidden="true"></i> Post-game debrief</button>
+        <button class="btn-ghost">Open in Archidekt <i class="ti ti-external-link" style="font-size:12px;" aria-hidden="true"></i></button>
+      </div>
+    </div>
+
+    <div class="health-strip">
+      <div class="hp ok"><i class="ti ti-check" style="font-size:11px;" aria-hidden="true"></i> Ramp 10</div>
+      <div class="hp warn"><i class="ti ti-alert-triangle" style="font-size:11px;" aria-hidden="true"></i> Draw 5</div>
+      <div class="hp ok"><i class="ti ti-check" style="font-size:11px;" aria-hidden="true"></i> Removal 8</div>
+      <div class="hp ok"><i class="ti ti-check" style="font-size:11px;" aria-hidden="true"></i> Lands 38</div>
+      <div class="hp ok"><i class="ti ti-check" style="font-size:11px;" aria-hidden="true"></i> Win cons 3</div>
+      <div class="hs-note"><i class="ti ti-alert-triangle" style="font-size:11px;" aria-hidden="true"></i> Draw is low for bracket 3</div>
+    </div>
+
+    <div class="tab-nav">
+      <div class="tab">Cards</div>
+      <div class="tab">Analysis</div>
+      <div class="tab">Combos</div>
+      <div class="tab active">Upgrade</div>
+      <div class="tab">Strategy</div>
+    </div>
+
+    <div class="content">
+
+      <div>
+        <div class="section-label">
+          <i class="ti ti-sword" style="font-size:12px; color:#1D9E75;" aria-hidden="true"></i>
+          Last debrief
+          <span class="section-label-meta">Today, 11:42am · 2 of 3 fixes reviewed</span>
+        </div>
+        <div class="debrief-banner">
+          <div class="db-header">
+            <i class="ti ti-info-circle db-icon" aria-hidden="true"></i>
+            <span class="db-title">Session incomplete — 1 fix still pending</span>
+            <button class="db-resume-btn"><i class="ti ti-arrow-right" style="font-size:11px;" aria-hidden="true"></i> Resume debrief</button>
+          </div>
+          <div class="db-body">
+            <div class="db-summary-row">
+              <div class="db-stat"><span class="db-stat-val">1</span><span class="db-stat-label">Change made</span></div>
+              <div class="db-stat"><span class="db-stat-val">1</span><span class="db-stat-label">Skipped</span></div>
+              <div class="db-stat"><span class="db-stat-val">1</span><span class="db-stat-label">Pending</span></div>
+            </div>
+            <div class="db-actioned">
+              <span style="font-size:10px; color:rgba(255,255,255,0.25);">Made:</span>
+              <div class="db-change-pill"><span style="color:#E24B4A;">Gray Merchant</span> <span class="db-change-arrow">→</span> <span style="color:#1D9E75;">Veil of Summer</span></div>
+              <span class="db-skipped">Skipped: Demonic Tutor → Rhystic Study</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="toolbar">
+          <div class="sort-group">
+            <button class="sort-btn active">Impact</button>
+            <button class="sort-btn">Cheapest</button>
+            <button class="sort-btn">Owned</button>
+            <button class="sort-btn">EDHREC</button>
+          </div>
+          <button class="filter-btn on"><i class="ti ti-circle-half" style="font-size:12px;" aria-hidden="true"></i> Owned only</button>
+          <button class="filter-btn"><i class="ti ti-currency-dollar" style="font-size:12px;" aria-hidden="true"></i> Under $5</button>
+          <div class="spacer"></div>
+          <button class="run-btn"><i class="ti ti-refresh" style="font-size:12px;" aria-hidden="true"></i> Refresh analysis</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">
+          Upgrade candidates
+          <span class="section-label-meta">8 suggestions · sorted by win condition impact</span>
+        </div>
+        <div class="upgrade-list">
+
+          <div class="upgrade-card from-debrief">
+            <div class="uc-header">
+              <span class="uc-priority">Priority 1</span>
+              <div class="uc-impact-bar"><div class="uc-impact-fill" style="width:95%;"></div></div>
+              <span class="uc-source debrief"><i class="ti ti-sword" style="font-size:10px;" aria-hidden="true"></i> From debrief</span>
+            </div>
+            <div class="uc-body">
+              <div class="uc-cut">
+                <div class="uc-side-label cut"><i class="ti ti-minus" style="font-size:10px;" aria-hidden="true"></i> Cut</div>
+                <div class="uc-card-name">Demonic Tutor</div>
+                <div class="uc-reason">Finds combo pieces but doesn't protect them — you assemble and still lose to interaction. Win condition needs protection more than tutoring.</div>
+                <div class="uc-meta">
+                  <span class="own-badge own-proxy"><i class="ti ti-circle-half" style="font-size:7px;" aria-hidden="true"></i> Proxy</span>
+                </div>
+              </div>
+              <div class="uc-add">
+                <div class="uc-side-label add"><i class="ti ti-plus" style="font-size:10px;" aria-hidden="true"></i> Add</div>
+                <div class="uc-card-name">Rhystic Study</div>
+                <div class="uc-reason">Addresses the draw gap flagged by health monitor. Applies pressure that forces opponents to pay tax or fuel your hand throughout the game.</div>
+                <div class="uc-meta">
+                  <span class="own-badge own-proxy"><i class="ti ti-circle-half" style="font-size:7px;" aria-hidden="true"></i> Proxy · in Black Magic</span>
+                  <span class="edhrec-badge">79% EDHREC</span>
+                </div>
+              </div>
+            </div>
+            <div class="uc-actions">
+              <button class="uc-btn accept"><i class="ti ti-check" style="font-size:11px;" aria-hidden="true"></i> Make change</button>
+              <button class="uc-btn skip"><i class="ti ti-x" style="font-size:11px;" aria-hidden="true"></i> Skip</button>
+              <button class="uc-btn discuss"><i class="ti ti-message" style="font-size:10px;" aria-hidden="true"></i> Discuss in debrief</button>
+            </div>
+          </div>
+
+          <div class="upgrade-card">
+            <div class="uc-header">
+              <span class="uc-priority">Priority 2</span>
+              <div class="uc-impact-bar"><div class="uc-impact-fill" style="width:78%;"></div></div>
+              <span class="uc-source"><i class="ti ti-chart-bar" style="font-size:10px;" aria-hidden="true"></i> Analysis</span>
+            </div>
+            <div class="uc-body">
+              <div class="uc-cut">
+                <div class="uc-side-label cut"><i class="ti ti-minus" style="font-size:10px;" aria-hidden="true"></i> Cut</div>
+                <div class="uc-card-name">Shambling Ghast</div>
+                <div class="uc-reason">Creates one treasure on death — minor ramp that doesn't advance the Gravecrawler loop or drain strategy. Replaceable.</div>
+                <div class="uc-meta">
+                  <span class="own-badge own-orig"><i class="ti ti-circle-filled" style="font-size:7px;" aria-hidden="true"></i> Original</span>
+                </div>
+              </div>
+              <div class="uc-add">
+                <div class="uc-side-label add"><i class="ti ti-plus" style="font-size:10px;" aria-hidden="true"></i> Add</div>
+                <div class="uc-card-name">Phyrexian Arena</div>
+                <div class="uc-reason">Consistent draw engine that runs every upkeep — directly fixes the draw threshold gap. Pays for itself within 3 turns at bracket 3.</div>
+                <div class="uc-meta">
+                  <span class="own-badge own-orig"><i class="ti ti-circle-filled" style="font-size:7px;" aria-hidden="true"></i> Original · in collection</span>
+                  <span class="edhrec-badge">61% EDHREC</span>
+                  <span class="price-badge">$2.40</span>
+                </div>
+              </div>
+            </div>
+            <div class="uc-actions">
+              <button class="uc-btn accept"><i class="ti ti-check" style="font-size:11px;" aria-hidden="true"></i> Make change</button>
+              <button class="uc-btn skip"><i class="ti ti-x" style="font-size:11px;" aria-hidden="true"></i> Skip</button>
+              <button class="uc-btn discuss"><i class="ti ti-message" style="font-size:10px;" aria-hidden="true"></i> Discuss in debrief</button>
+            </div>
+          </div>
+
+          <div class="upgrade-card">
+            <div class="uc-header">
+              <span class="uc-priority">Priority 3</span>
+              <div class="uc-impact-bar"><div class="uc-impact-fill" style="width:55%;"></div></div>
+              <span class="uc-source"><i class="ti ti-chart-bar" style="font-size:10px;" aria-hidden="true"></i> Analysis</span>
+            </div>
+            <div class="uc-body">
+              <div class="uc-cut">
+                <div class="uc-side-label cut"><i class="ti ti-minus" style="font-size:10px;" aria-hidden="true"></i> Cut</div>
+                <div class="uc-card-name">Fell Stinger</div>
+                <div class="uc-reason">Exploit payoff with limited targets in this list — only 8 creatures eligible. Rarely fires at full value.</div>
+                <div class="uc-meta">
+                  <span class="own-badge own-orig"><i class="ti ti-circle-filled" style="font-size:7px;" aria-hidden="true"></i> Original</span>
+                </div>
+              </div>
+              <div class="uc-add">
+                <div class="uc-side-label add"><i class="ti ti-plus" style="font-size:10px;" aria-hidden="true"></i> Add</div>
+                <div class="uc-card-name">Dark Confidant</div>
+                <div class="uc-reason">Draws an extra card every turn at low average CMC cost — fits the strategy and doesn't rely on board state.</div>
+                <div class="uc-meta">
+                  <span class="own-badge own-not"><i class="ti ti-circle" style="font-size:7px;" aria-hidden="true"></i> Not owned</span>
+                  <span class="edhrec-badge">44% EDHREC</span>
+                  <span class="price-badge">$14.00</span>
+                </div>
+              </div>
+            </div>
+            <div class="uc-actions">
+              <button class="uc-btn accept"><i class="ti ti-check" style="font-size:11px;" aria-hidden="true"></i> Make change</button>
+              <button class="uc-btn skip"><i class="ti ti-x" style="font-size:11px;" aria-hidden="true"></i> Skip</button>
+              <button class="uc-btn discuss"><i class="ti ti-message" style="font-size:10px;" aria-hidden="true"></i> Discuss in debrief</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="fresh-analysis">
+        <i class="ti ti-sparkles fa-icon" aria-hidden="true"></i>
+        <div class="fa-text">
+          <div class="fa-title">Run a fresh analysis</div>
+          <div class="fa-sub">Generates new upgrade suggestions from scratch — useful after significant deck changes or a new strategy direction.</div>
+        </div>
+        <button class="fa-btn"><i class="ti ti-player-play" style="font-size:12px;" aria-hidden="true"></i> Run analysis</button>
+      </div>
+
+      <div>
+        <div class="section-label">
+          Change log
+          <span class="section-label-meta">3 changes this month</span>
+        </div>
+        <div class="log-section">
+          <div class="log-entry">
+            <div class="log-dot"></div>
+            <div class="log-content">
+              <div class="log-change">Cut <span class="cut-name">Gray Merchant of Asphodel</span> → Added <span class="add-name">Veil of Summer</span></div>
+              <div class="log-reason">Combo unprotected vs counterspells — debrief 26 Jun</div>
+            </div>
+            <span class="log-date">Today</span>
+          </div>
+          <div class="log-entry">
+            <div class="log-dot"></div>
+            <div class="log-content">
+              <div class="log-change">Cut <span class="cut-name">Undead Augur</span> → Added <span class="add-name">Reconnaissance Mission</span></div>
+              <div class="log-reason">Draw threshold too low — upgrade analysis 18 Jun</div>
+            </div>
+            <span class="log-date">18 Jun</span>
+          </div>
+          <div class="log-entry">
+            <div class="log-dot skipped"></div>
+            <div class="log-content">
+              <div class="log-change" style="color:rgba(255,255,255,0.3);">Skipped: <span style="color:rgba(226,75,74,0.5);">Rooftop Storm</span> → <span style="color:rgba(29,158,117,0.5);">Corpse Knight</span></div>
+              <div class="log-reason">Disagreed — Rooftop Storm is a core combo piece</div>
+            </div>
+            <span class="log-date">18 Jun</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

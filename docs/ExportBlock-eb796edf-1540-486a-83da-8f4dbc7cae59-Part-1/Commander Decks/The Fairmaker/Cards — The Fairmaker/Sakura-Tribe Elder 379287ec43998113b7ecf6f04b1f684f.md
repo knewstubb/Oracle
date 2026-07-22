@@ -1,5 +1,0 @@
-# Sakura-Tribe Elder
-
-Board: Main
-Mana Cost: {1}{G}
-Type: Creature

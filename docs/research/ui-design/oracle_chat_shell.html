@@ -1,0 +1,315 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+.shell { background: #0f0f0f; border-radius: var(--border-radius-lg); overflow: hidden; font-family: var(--font-sans); }
+
+.chat-topbar { display: flex; align-items: center; gap: 12px; padding: 13px 20px; border-bottom: 0.5px solid rgba(255,255,255,0.06); }
+.back-btn { font-size: 12px; color: rgba(255,255,255,0.35); background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: var(--border-radius-md); }
+.back-btn:hover { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.6); }
+.chat-mode-badge { font-size: 10px; font-weight: 500; padding: 3px 8px; border-radius: 99px; }
+.badge-debrief { background: rgba(29,158,117,0.15); color: #1D9E75; }
+.badge-brew { background: rgba(55,138,221,0.15); color: #378ADD; }
+.chat-deck-name { font-size: 13px; font-weight: 500; color: #e8e8e6; }
+.chat-deck-sub { font-size: 11px; color: rgba(255,255,255,0.35); }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.session-indicator { font-size: 10px; color: rgba(255,255,255,0.25); display: flex; align-items: center; gap: 4px; }
+.session-dot { width: 5px; height: 5px; border-radius: 50%; background: #1D9E75; }
+
+.mode-toggle { display: flex; background: rgba(255,255,255,0.05); border: 0.5px solid rgba(255,255,255,0.08); border-radius: var(--border-radius-md); overflow: hidden; }
+.mt-btn { padding: 5px 12px; font-size: 11px; color: rgba(255,255,255,0.3); cursor: pointer; border: none; background: none; }
+.mt-btn.active { background: rgba(29,158,117,0.2); color: #1D9E75; }
+
+.chat-layout { display: flex; height: 520px; }
+
+.chat-main { flex: 1; display: flex; flex-direction: column; border-right: 0.5px solid rgba(255,255,255,0.06); }
+
+.chat-thread { flex: 1; overflow-y: auto; padding: 20px 20px 12px; display: flex; flex-direction: column; gap: 16px; }
+
+.msg { display: flex; flex-direction: column; gap: 4px; }
+.msg.oracle { align-items: flex-start; }
+.msg.user { align-items: flex-end; }
+
+.msg-label { font-size: 10px; color: rgba(255,255,255,0.25); padding: 0 4px; }
+
+.bubble { max-width: 85%; padding: 9px 13px; border-radius: var(--border-radius-lg); font-size: 12px; line-height: 1.6; }
+.bubble.oracle { background: rgba(255,255,255,0.06); color: #d4d4d0; border-radius: 4px 12px 12px 12px; border-left: 2px solid rgba(29,158,117,0.4); border-radius: 0; }
+.bubble.user { background: rgba(29,158,117,0.12); color: #e8e8e6; border: 0.5px solid rgba(29,158,117,0.2); border-radius: var(--border-radius-lg); }
+
+.divider-msg { display: flex; align-items: center; gap: 10px; margin: 4px 0; }
+.divider-msg-line { flex: 1; height: 0.5px; background: rgba(255,255,255,0.06); }
+.divider-msg-label { font-size: 10px; color: rgba(255,255,255,0.2); white-space: nowrap; }
+
+.thinking-bubble { display: flex; align-items: center; gap: 8px; padding: 9px 13px; background: rgba(255,255,255,0.04); border-left: 2px solid rgba(29,158,117,0.2); max-width: 85%; }
+.thinking-dots { display: flex; gap: 3px; }
+.dot { width: 4px; height: 4px; border-radius: 50%; background: #1D9E75; opacity: 0.4; }
+.dot:nth-child(2) { opacity: 0.7; }
+.dot:nth-child(3) { opacity: 1; }
+.thinking-label { font-size: 11px; color: rgba(255,255,255,0.3); }
+
+.rec-card { background: rgba(255,255,255,0.04); border: 0.5px solid rgba(255,255,255,0.1); border-radius: var(--border-radius-lg); overflow: hidden; max-width: 95%; }
+.rec-card-header { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 0.5px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02); }
+.rec-counter { font-size: 10px; color: rgba(255,255,255,0.3); }
+.rec-title { font-size: 11px; font-weight: 500; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.07em; flex: 1; }
+.priority-badge { font-size: 10px; background: rgba(29,158,117,0.15); color: #1D9E75; padding: 2px 7px; border-radius: 99px; }
+
+.rec-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+
+.rec-side { display: flex; flex-direction: column; gap: 6px; }
+.rec-side-label { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.07em; }
+.rec-side-label.cut { color: #E24B4A; }
+.rec-side-label.add { color: #1D9E75; }
+
+.rec-card-info { display: flex; align-items: flex-start; gap: 10px; }
+.rec-card-art { width: 36px; height: 50px; border-radius: 4px; flex-shrink: 0; }
+.rec-card-art.cut-art { background: linear-gradient(135deg, #2e1a1a, #1a0d0d); }
+.rec-card-art.add-art { background: linear-gradient(135deg, #0d1a2e, #0d2e1a); }
+.rec-card-details { flex: 1; }
+.rec-card-name { font-size: 13px; font-weight: 500; color: #e8e8e6; margin-bottom: 3px; }
+.rec-reason { font-size: 11px; color: rgba(255,255,255,0.4); line-height: 1.5; }
+.rec-own-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; padding: 2px 6px; border-radius: 3px; margin-top: 5px; }
+.own-orig { background: rgba(29,158,117,0.15); color: #1D9E75; }
+.own-proxy { background: rgba(239,159,39,0.15); color: #EF9F27; }
+
+.rec-separator { display: flex; align-items: center; gap: 8px; }
+.rec-sep-line { flex: 1; height: 0.5px; background: rgba(255,255,255,0.06); }
+.rec-sep-arrow { font-size: 14px; color: rgba(255,255,255,0.15); }
+
+.rec-actions { display: flex; gap: 8px; padding: 10px 14px; border-top: 0.5px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02); }
+.rec-btn { flex: 1; padding: 7px 10px; border-radius: var(--border-radius-md); font-size: 11px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; border: 0.5px solid transparent; }
+.rec-btn.accept { background: rgba(29,158,117,0.2); border-color: rgba(29,158,117,0.4); color: #1D9E75; }
+.rec-btn.skip { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.4); }
+.rec-btn.dispute { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.08); color: rgba(255,255,255,0.3); font-size: 10px; flex: 0; padding: 7px 12px; }
+
+.chat-input-area { padding: 12px 16px; border-top: 0.5px solid rgba(255,255,255,0.06); display: flex; gap: 8px; align-items: flex-end; }
+.chat-input { flex: 1; background: rgba(255,255,255,0.05); border: 0.5px solid rgba(255,255,255,0.1); border-radius: var(--border-radius-lg); padding: 9px 13px; font-size: 12px; color: #e8e8e6; resize: none; min-height: 38px; max-height: 80px; line-height: 1.5; font-family: var(--font-sans); }
+.chat-input::placeholder { color: rgba(255,255,255,0.2); }
+.send-btn { width: 34px; height: 34px; border-radius: var(--border-radius-md); background: #1D9E75; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #04342C; flex-shrink: 0; }
+.send-btn:disabled { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.2); cursor: not-allowed; }
+
+.chat-right { width: 220px; display: flex; flex-direction: column; flex-shrink: 0; }
+.right-panel { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.right-section-label { font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.25); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+
+.brief-card { background: rgba(255,255,255,0.04); border: 0.5px solid rgba(255,255,255,0.08); border-radius: var(--border-radius-md); padding: 10px 12px; }
+.brief-row { display: flex; flex-direction: column; gap: 2px; padding: 5px 0; border-bottom: 0.5px solid rgba(255,255,255,0.05); }
+.brief-row:last-child { border-bottom: none; padding-bottom: 0; }
+.brief-key { font-size: 10px; color: rgba(255,255,255,0.25); }
+.brief-val { font-size: 11px; color: #d4d4d0; line-height: 1.4; }
+.brief-val.empty { color: rgba(255,255,255,0.2); font-style: italic; }
+
+.progress-section { display: flex; flex-direction: column; gap: 6px; }
+.progress-row { display: flex; align-items: center; gap: 6px; }
+.progress-label { font-size: 10px; color: rgba(255,255,255,0.3); flex: 1; }
+.progress-val { font-size: 10px; color: rgba(255,255,255,0.5); }
+.progress-bar-wrap { width: 100%; height: 3px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; }
+.progress-bar-fill { height: 100%; border-radius: 2px; background: #1D9E75; }
+
+.notion-status { display: flex; align-items: center; gap: 6px; font-size: 10px; color: rgba(255,255,255,0.25); padding: 8px 0; border-top: 0.5px solid rgba(255,255,255,0.06); margin-top: auto; }
+.notion-dot { width: 5px; height: 5px; border-radius: 50%; background: #1D9E75; }
+
+.tab-switcher { display: flex; border-bottom: 0.5px solid rgba(255,255,255,0.06); }
+.ts-tab { flex: 1; padding: 8px; font-size: 11px; text-align: center; color: rgba(255,255,255,0.3); cursor: pointer; border-bottom: 2px solid transparent; }
+.ts-tab.active { color: #1D9E75; border-bottom-color: #1D9E75; }
+</style>
+
+<div style="padding: 0.5rem 0.25rem; display: flex; flex-direction: column; gap: 2rem;">
+  <h2 class="sr-only">OracleChat shell — debrief mode showing conversation thread and recommendation card</h2>
+
+  <div class="shell">
+    <div class="chat-topbar">
+      <button class="back-btn"><i class="ti ti-arrow-left" style="font-size:13px;" aria-hidden="true"></i> Decks</button>
+      <div style="width:0.5px; height:16px; background:rgba(255,255,255,0.08);"></div>
+      <div>
+        <div style="display:flex; align-items:center; gap:7px;">
+          <span class="chat-deck-name">A Rot to Process</span>
+          <span class="chat-mode-badge badge-debrief">Post-game debrief</span>
+        </div>
+        <div class="chat-deck-sub">Wilhelt, the Rotcleaver · Bracket 3</div>
+      </div>
+      <div class="topbar-right">
+        <div class="session-indicator"><div class="session-dot"></div> Session active</div>
+        <div class="mode-toggle">
+          <button class="mt-btn active">Debrief</button>
+          <button class="mt-btn">Brew</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-layout">
+
+      <div class="chat-main">
+        <div class="chat-thread">
+
+          <div class="msg oracle">
+            <span class="msg-label">Oracle</span>
+            <div class="bubble oracle">Let's debrief A Rot to Process. What happened in that game?</div>
+          </div>
+
+          <div class="msg user">
+            <span class="msg-label">You</span>
+            <div class="bubble user">Got countered twice before my combo could land. Had everything I needed but couldn't protect it.</div>
+          </div>
+
+          <div class="msg oracle">
+            <span class="msg-label">Oracle</span>
+            <div class="bubble oracle">Got it — so you assembled the pieces but the table had answers. Was this mid-game when you tried to go off, or did you get countered trying to set up earlier?</div>
+          </div>
+
+          <div class="msg user">
+            <span class="msg-label">You</span>
+            <div class="bubble user">Mid-game. Had Gravecrawler and Rooftop Storm out, tried to close and got hit with Counterspell and Negate back to back.</div>
+          </div>
+
+          <div class="msg oracle">
+            <span class="msg-label">Oracle</span>
+            <div class="bubble oracle">Clear picture. Did you have any protection in hand at that point, or were you going in naked?</div>
+          </div>
+
+          <div class="msg user">
+            <span class="msg-label">You</span>
+            <div class="bubble user">Nothing. Drew into it after the fact which was painful.</div>
+          </div>
+
+          <div class="msg oracle">
+            <span class="msg-label">Oracle</span>
+            <div class="bubble oracle">That's the root cause — not enough interaction protection in hand when you need it most. Here's what I'm handing to the analyst:<br><br>
+            <span style="color:rgba(255,255,255,0.35); font-size:11px;">Failure phase: mid · Plan executed: No · Problem: combo unprotected against counterspells · Bracket 3</span><br><br>
+            Ready to find the fix?</div>
+          </div>
+
+          <div class="msg user">
+            <span class="msg-label">You</span>
+            <div class="bubble user">Yes, let's go.</div>
+          </div>
+
+          <div class="divider-msg">
+            <div class="divider-msg-line"></div>
+            <span class="divider-msg-label"><i class="ti ti-sparkles" style="font-size:10px;" aria-hidden="true"></i> Analyst running</span>
+            <div class="divider-msg-line"></div>
+          </div>
+
+          <div class="msg oracle">
+            <div class="thinking-bubble">
+              <div class="thinking-dots">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+              </div>
+              <span class="thinking-label">Checking your collection and EDHREC...</span>
+            </div>
+          </div>
+
+          <div class="divider-msg">
+            <div class="divider-msg-line"></div>
+            <span class="divider-msg-label">Fix 1 of 3</span>
+            <div class="divider-msg-line"></div>
+          </div>
+
+          <div class="rec-card">
+            <div class="rec-card-header">
+              <span class="rec-title">Highest impact change</span>
+              <span class="priority-badge"><i class="ti ti-arrow-up" style="font-size:9px;" aria-hidden="true"></i> Priority 1</span>
+            </div>
+            <div class="rec-body">
+              <div class="rec-side">
+                <span class="rec-side-label cut"><i class="ti ti-minus" style="font-size:10px;" aria-hidden="true"></i> Cut</span>
+                <div class="rec-card-info">
+                  <div class="rec-card-art cut-art"></div>
+                  <div class="rec-card-details">
+                    <div class="rec-card-name">Gray Merchant of Asphodel</div>
+                    <div class="rec-reason">Doesn't protect your combo — it's a payoff, not a threat resolver. You already have 3 other drain effects. Redundant toward your win condition.</div>
+                    <span class="rec-own-badge own-orig"><i class="ti ti-circle-filled" style="font-size:7px;" aria-hidden="true"></i> Original</span>
+                  </div>
+                </div>
+              </div>
+              <div class="rec-separator">
+                <div class="rec-sep-line"></div>
+                <i class="ti ti-arrow-down rec-sep-arrow" aria-hidden="true"></i>
+                <div class="rec-sep-line"></div>
+              </div>
+              <div class="rec-side">
+                <span class="rec-side-label add"><i class="ti ti-plus" style="font-size:10px;" aria-hidden="true"></i> Add</span>
+                <div class="rec-card-info">
+                  <div class="rec-card-art add-art"></div>
+                  <div class="rec-card-details">
+                    <div class="rec-card-name">Veil of Summer</div>
+                    <div class="rec-reason">Protects your combo from Counterspell and Negate — exactly what cost you this game. Played in 71% of EDHREC decks at this bracket.</div>
+                    <span class="rec-own-badge own-orig"><i class="ti ti-circle-filled" style="font-size:7px;" aria-hidden="true"></i> Original · in your collection</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="rec-actions">
+              <button class="rec-btn accept"><i class="ti ti-check" style="font-size:12px;" aria-hidden="true"></i> Make this change</button>
+              <button class="rec-btn skip"><i class="ti ti-arrow-right" style="font-size:12px;" aria-hidden="true"></i> Skip</button>
+              <button class="rec-btn dispute"><i class="ti ti-message" style="font-size:11px;" aria-hidden="true"></i> Disagree</button>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="chat-input-area">
+          <textarea class="chat-input" placeholder="Reply to Oracle..." rows="1"></textarea>
+          <button class="send-btn"><i class="ti ti-arrow-up" style="font-size:15px;" aria-hidden="true"></i></button>
+        </div>
+      </div>
+
+      <div class="chat-right">
+        <div class="tab-switcher">
+          <div class="ts-tab active">Brief</div>
+          <div class="ts-tab">Progress</div>
+        </div>
+        <div class="right-panel">
+          <div>
+            <div class="right-section-label">Diagnostic brief</div>
+            <div class="brief-card">
+              <div class="brief-row">
+                <span class="brief-key">Failure phase</span>
+                <span class="brief-val">Mid-game</span>
+              </div>
+              <div class="brief-row">
+                <span class="brief-key">Plan executed</span>
+                <span class="brief-val">No — countered at go-off</span>
+              </div>
+              <div class="brief-row">
+                <span class="brief-key">Core problem</span>
+                <span class="brief-val">Combo unprotected vs counterspells</span>
+              </div>
+              <div class="brief-row">
+                <span class="brief-key">Win condition</span>
+                <span class="brief-val">Gravecrawler loop → drain</span>
+              </div>
+              <div class="brief-row">
+                <span class="brief-key">Bracket</span>
+                <span class="brief-val">3</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="progress-section">
+            <div class="right-section-label">Session progress</div>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:33%;"></div></div>
+            <div class="progress-row">
+              <span class="progress-label">Fixes reviewed</span>
+              <span class="progress-val">1 of 3</span>
+            </div>
+            <div class="progress-row">
+              <span class="progress-label">Changes made</span>
+              <span class="progress-val">0</span>
+            </div>
+            <div class="progress-row">
+              <span class="progress-label">Skipped</span>
+              <span class="progress-val">0</span>
+            </div>
+          </div>
+
+          <div class="notion-status">
+            <div class="notion-dot"></div>
+            Changes log to Notion automatically
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

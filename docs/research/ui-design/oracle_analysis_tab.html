@@ -1,0 +1,293 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+.shell { background: #0f0f0f; border-radius: var(--border-radius-lg); overflow: hidden; font-family: var(--font-sans); }
+.topbar { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 0.5px solid rgba(255,255,255,0.06); }
+.avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #1a0d2e, #2d1a0d); flex-shrink: 0; }
+.title { font-size: 16px; font-weight: 500; color: #fff; }
+.sub { font-size: 11px; color: rgba(255,255,255,0.4); }
+.topbar-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.btn-teal { background: rgba(29,158,117,0.15); border: 0.5px solid rgba(29,158,117,0.4); border-radius: var(--border-radius-md); padding: 6px 12px; font-size: 12px; color: #1D9E75; cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 500; }
+
+.health-strip { display: flex; align-items: center; padding: 0 20px; border-bottom: 0.5px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02); }
+.hp { display: flex; align-items: center; gap: 5px; padding: 8px 12px; font-size: 11px; font-weight: 500; border-right: 0.5px solid rgba(255,255,255,0.05); }
+.hp.ok { color: #1D9E75; }
+.hp.warn { color: #EF9F27; }
+.hs-note { margin-left: auto; font-size: 10px; color: #EF9F27; display: flex; align-items: center; gap: 4px; padding: 8px 0; }
+
+.tab-nav { display: flex; padding: 0 20px; border-bottom: 0.5px solid rgba(255,255,255,0.06); }
+.tab { padding: 10px 16px; font-size: 12px; color: rgba(255,255,255,0.4); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
+.tab.active { color: #1D9E75; border-bottom-color: #1D9E75; }
+
+.content { padding: 20px; display: flex; flex-direction: column; gap: 24px; }
+
+.section-label { font-size: 11px; font-weight: 500; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
+
+.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.stat-card { background: rgba(255,255,255,0.04); border-radius: var(--border-radius-md); padding: 12px 14px; }
+.stat-label { font-size: 10px; color: rgba(255,255,255,0.3); margin-bottom: 4px; }
+.stat-value { font-size: 22px; font-weight: 500; color: #e8e8e6; }
+.stat-value.warn { color: #EF9F27; }
+.stat-sub { font-size: 10px; color: rgba(255,255,255,0.2); margin-top: 2px; }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+.panel { background: rgba(255,255,255,0.02); border: 0.5px solid rgba(255,255,255,0.07); border-radius: var(--border-radius-lg); padding: 16px; }
+.panel-title { font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.5); margin-bottom: 14px; }
+
+.attr-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 0.5px solid rgba(255,255,255,0.04); }
+.attr-row:last-child { border-bottom: none; }
+.attr-name { font-size: 12px; color: rgba(255,255,255,0.5); min-width: 90px; }
+.attr-bar-wrap { flex: 1; height: 4px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; }
+.attr-bar-fill { height: 100%; border-radius: 2px; background: #1D9E75; }
+.attr-score { font-size: 12px; color: rgba(255,255,255,0.4); min-width: 32px; text-align: right; }
+.attr-score.high { color: #1D9E75; }
+.attr-score.mid { color: #EF9F27; }
+
+.curve-chart { display: flex; align-items: flex-end; gap: 6px; height: 80px; padding-bottom: 20px; position: relative; }
+.curve-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+.curve-bar { width: 100%; border-radius: 2px 2px 0 0; background: #1D9E75; min-height: 2px; }
+.curve-bar.highlight { background: #EF9F27; }
+.curve-label { font-size: 9px; color: rgba(255,255,255,0.25); }
+.curve-count { font-size: 9px; color: rgba(255,255,255,0.4); }
+.curve-axis { position: absolute; bottom: 0; left: 0; right: 0; height: 0.5px; background: rgba(255,255,255,0.08); }
+
+.pip-section { display: flex; flex-direction: column; gap: 8px; }
+.pip-row { display: flex; align-items: center; gap: 8px; }
+.pip-swatch { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+.pip-name { font-size: 11px; color: rgba(255,255,255,0.4); min-width: 40px; }
+.pip-bar-wrap { flex: 1; height: 4px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; }
+.pip-bar-fill { height: 100%; border-radius: 2px; }
+.pip-count { font-size: 11px; color: rgba(255,255,255,0.4); min-width: 28px; text-align: right; }
+
+.cat-dist-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 0.5px solid rgba(255,255,255,0.04); }
+.cat-dist-row:last-child { border-bottom: none; }
+.cat-dist-name { font-size: 11px; color: rgba(255,255,255,0.45); min-width: 110px; }
+.cat-dist-bar-wrap { flex: 1; height: 4px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; }
+.cat-dist-fill { height: 100%; border-radius: 2px; background: #1D9E75; }
+.cat-dist-fill.warn { background: #EF9F27; }
+.cat-dist-count { font-size: 11px; color: rgba(255,255,255,0.35); min-width: 20px; text-align: right; }
+.cat-dist-status { font-size: 10px; min-width: 70px; text-align: right; }
+.status-ok { color: #1D9E75; }
+.status-warn { color: #EF9F27; }
+.status-none { color: rgba(255,255,255,0.2); }
+
+.divider { border: none; border-top: 0.5px solid rgba(255,255,255,0.06); }
+</style>
+
+<div style="padding: 0.5rem 0.25rem;">
+  <h2 class="sr-only">Oracle Analysis tab — deck stats, attribute ratings, mana curve, colour pips, and category distribution</h2>
+
+  <div class="shell">
+    <div class="topbar">
+      <div class="avatar"></div>
+      <div>
+        <div class="title">A Rot to Process</div>
+        <div class="sub">100 cards · 27 proxies · Bracket 3</div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn-teal"><i class="ti ti-sword" style="font-size:13px;" aria-hidden="true"></i> Post-game debrief</button>
+      </div>
+    </div>
+
+    <div class="health-strip">
+      <div class="hp ok"><i class="ti ti-check" style="font-size:11px;" aria-hidden="true"></i> Ramp 10</div>
+      <div class="hp warn"><i class="ti ti-alert-triangle" style="font-size:11px;" aria-hidden="true"></i> Draw 5</div>
+      <div class="hp ok"><i class="ti ti-check" style="font-size:11px;" aria-hidden="true"></i> Removal 8</div>
+      <div class="hp ok"><i class="ti ti-check" style="font-size:11px;" aria-hidden="true"></i> Lands 38</div>
+      <div class="hp ok"><i class="ti ti-check" style="font-size:11px;" aria-hidden="true"></i> Win cons 3</div>
+      <div class="hs-note"><i class="ti ti-alert-triangle" style="font-size:11px;" aria-hidden="true"></i> Draw is low for bracket 3</div>
+    </div>
+
+    <div class="tab-nav">
+      <div class="tab">Cards</div>
+      <div class="tab active">Analysis</div>
+      <div class="tab">Combos</div>
+      <div class="tab">Upgrade</div>
+      <div class="tab">Strategy</div>
+    </div>
+
+    <div class="content">
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total cards</div>
+          <div class="stat-value">100</div>
+          <div class="stat-sub">100 target</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avg. CMC</div>
+          <div class="stat-value">2.85</div>
+          <div class="stat-sub">Non-land spells</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Proxies</div>
+          <div class="stat-value warn">27</div>
+          <div class="stat-sub">73 originals</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Bracket</div>
+          <div class="stat-value">3</div>
+          <div class="stat-sub">Power level</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+
+        <div class="panel">
+          <div class="panel-title">Attribute ratings</div>
+          <div class="attr-row">
+            <span class="attr-name">Consistency</span>
+            <div class="attr-bar-wrap"><div class="attr-bar-fill" style="width:50%;"></div></div>
+            <span class="attr-score mid">5/10</span>
+          </div>
+          <div class="attr-row">
+            <span class="attr-name">Resilience</span>
+            <div class="attr-bar-wrap"><div class="attr-bar-fill" style="width:100%;"></div></div>
+            <span class="attr-score high">10/10</span>
+          </div>
+          <div class="attr-row">
+            <span class="attr-name">Interaction</span>
+            <div class="attr-bar-wrap"><div class="attr-bar-fill" style="width:60%;"></div></div>
+            <span class="attr-score mid">6/10</span>
+          </div>
+          <div class="attr-row">
+            <span class="attr-name">Speed</span>
+            <div class="attr-bar-wrap"><div class="attr-bar-fill" style="width:100%;"></div></div>
+            <span class="attr-score high">10/10</span>
+          </div>
+          <div class="attr-row">
+            <span class="attr-name">Card advantage</span>
+            <div class="attr-bar-wrap"><div class="attr-bar-fill" style="width:40%;"></div></div>
+            <span class="attr-score mid">4/10</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">Mana curve</div>
+          <div class="curve-chart">
+            <div class="curve-bar-wrap">
+              <div class="curve-count">11</div>
+              <div class="curve-bar" style="height:55%;"></div>
+              <div class="curve-label">1</div>
+            </div>
+            <div class="curve-bar-wrap">
+              <div class="curve-count">20</div>
+              <div class="curve-bar" style="height:100%;"></div>
+              <div class="curve-label">2</div>
+            </div>
+            <div class="curve-bar-wrap">
+              <div class="curve-count">12</div>
+              <div class="curve-bar" style="height:60%;"></div>
+              <div class="curve-label">3</div>
+            </div>
+            <div class="curve-bar-wrap">
+              <div class="curve-count">8</div>
+              <div class="curve-bar" style="height:40%;"></div>
+              <div class="curve-label">4</div>
+            </div>
+            <div class="curve-bar-wrap">
+              <div class="curve-count">8</div>
+              <div class="curve-bar" style="height:40%;"></div>
+              <div class="curve-label">5</div>
+            </div>
+            <div class="curve-bar-wrap">
+              <div class="curve-count">3</div>
+              <div class="curve-bar" style="height:15%;"></div>
+              <div class="curve-label">6+</div>
+            </div>
+            <div class="curve-axis"></div>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-top:8px;">
+            <span style="font-size:10px; color:rgba(255,255,255,0.25);">Lands: 38 · Non-land: 62</span>
+            <span style="font-size:10px; color:rgba(255,255,255,0.25);">CMC 2.85 avg</span>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="two-col">
+
+        <div class="panel">
+          <div class="panel-title">Colour pips</div>
+          <div class="pip-section">
+            <div class="pip-row">
+              <div class="pip-swatch" style="background:#150B00; border:0.5px solid rgba(255,255,255,0.15);"></div>
+              <span class="pip-name">Black</span>
+              <div class="pip-bar-wrap"><div class="pip-bar-fill" style="width:100%; background:#555;"></div></div>
+              <span class="pip-count">54</span>
+            </div>
+            <div class="pip-row">
+              <div class="pip-swatch" style="background:#0E68AB;"></div>
+              <span class="pip-name">Blue</span>
+              <div class="pip-bar-wrap"><div class="pip-bar-fill" style="width:39%; background:#0E68AB;"></div></div>
+              <span class="pip-count">21</span>
+            </div>
+            <div style="margin-top:8px; padding-top:8px; border-top:0.5px solid rgba(255,255,255,0.06);">
+              <div style="font-size:10px; color:rgba(255,255,255,0.25); margin-bottom:6px;">Land recommendations</div>
+              <div style="font-size:11px; color:rgba(255,255,255,0.4); line-height:1.6;">
+                ~29 swamp equivalent · ~9 island equivalent needed.<br>
+                <span style="color:rgba(239,159,39,0.7);">Current: 38 lands, 2 above recommended 36.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">Category distribution</div>
+          <div class="cat-dist-row">
+            <span class="cat-dist-name">More Bodies</span>
+            <div class="cat-dist-bar-wrap"><div class="cat-dist-fill" style="width:100%;"></div></div>
+            <span class="cat-dist-count">11</span>
+            <span class="cat-dist-status status-none">—</span>
+          </div>
+          <div class="cat-dist-row">
+            <span class="cat-dist-name">Ramp</span>
+            <div class="cat-dist-bar-wrap"><div class="cat-dist-fill" style="width:91%;"></div></div>
+            <span class="cat-dist-count">10</span>
+            <span class="cat-dist-status status-ok">On target</span>
+          </div>
+          <div class="cat-dist-row">
+            <span class="cat-dist-name">Aristocrats</span>
+            <div class="cat-dist-bar-wrap"><div class="cat-dist-fill" style="width:91%;"></div></div>
+            <span class="cat-dist-count">10</span>
+            <span class="cat-dist-status status-none">—</span>
+          </div>
+          <div class="cat-dist-row">
+            <span class="cat-dist-name">Removal</span>
+            <div class="cat-dist-bar-wrap"><div class="cat-dist-fill" style="width:73%;"></div></div>
+            <span class="cat-dist-count">8</span>
+            <span class="cat-dist-status status-ok">On target</span>
+          </div>
+          <div class="cat-dist-row">
+            <span class="cat-dist-name">Engine and Win</span>
+            <div class="cat-dist-bar-wrap"><div class="cat-dist-fill" style="width:64%;"></div></div>
+            <span class="cat-dist-count">7</span>
+            <span class="cat-dist-status status-none">—</span>
+          </div>
+          <div class="cat-dist-row">
+            <span class="cat-dist-name">Draw</span>
+            <div class="cat-dist-bar-wrap"><div class="cat-dist-fill warn" style="width:45%;"></div></div>
+            <span class="cat-dist-count">5</span>
+            <span class="cat-dist-status status-warn">Below target</span>
+          </div>
+          <div class="cat-dist-row">
+            <span class="cat-dist-name">Protection</span>
+            <div class="cat-dist-bar-wrap"><div class="cat-dist-fill" style="width:45%;"></div></div>
+            <span class="cat-dist-count">5</span>
+            <span class="cat-dist-status status-ok">On target</span>
+          </div>
+          <div class="cat-dist-row">
+            <span class="cat-dist-name">Recursion</span>
+            <div class="cat-dist-bar-wrap"><div class="cat-dist-fill" style="width:36%;"></div></div>
+            <span class="cat-dist-count">4</span>
+            <span class="cat-dist-status status-none">—</span>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>

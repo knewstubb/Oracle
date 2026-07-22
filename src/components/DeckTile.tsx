@@ -220,7 +220,7 @@ export function DeckTile({
       {/* Colour identity bar — proportional to mana pip distribution */}
       {sorted.length > 0 && (
         <div
-          className="mx-3 mb-3 flex overflow-hidden rounded-full"
+          className="mx-3 mb-3 flex gap-0.5 overflow-hidden rounded-full"
           role="img"
           aria-label={colourLabel || 'Colourless'}
         >

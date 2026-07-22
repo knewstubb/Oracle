@@ -11,7 +11,7 @@ function MaterialIcon({ name, className }: { name: string; className?: string })
   return (
     <span
       className={`material-symbols-outlined ${className ?? ''}`}
-      style={{ fontSize: '14px', fontWeight: 300 }}
+      style={{ fontSize: '18px', fontWeight: 300 }}
       aria-hidden="true"
     >
       {name}

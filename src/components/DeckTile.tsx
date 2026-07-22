@@ -26,6 +26,8 @@ export interface DeckTileProps {
   completeness?: { resolved: number; total: number } | null
   /** Whether this deck's cards are allocated against the collection. */
   allocate?: boolean
+  /** Mana pip distribution — proportional widths for color bar. Keys are WUBRG letters, values are pip counts. */
+  pipDistribution?: Record<string, number>
 }
 
 const COLOUR_BAR_MAP: Record<string, { hex: string; label: string }> = {
@@ -64,6 +66,7 @@ export function DeckTile({
   status,
   completeness,
   allocate,
+  pipDistribution,
 }: DeckTileProps) {
   const sorted = COLOUR_ORDER.filter((c) => colourIdentity.includes(c))
   const colourLabel = sorted.map((c) => COLOUR_BAR_MAP[c]?.label).filter(Boolean).join(', ')
@@ -214,21 +217,31 @@ export function DeckTile({
         </div>
       </div>
 
-      {/* Colour identity bars — inside the card with margin */}
+      {/* Colour identity bar — proportional to mana pip distribution */}
       {sorted.length > 0 && (
         <div
-          className="mx-3 mb-3 flex gap-1 overflow-hidden rounded-full"
+          className="mx-3 mb-3 flex overflow-hidden rounded-full"
           role="img"
           aria-label={colourLabel || 'Colourless'}
         >
           {sorted.map((c) => {
             const colour = COLOUR_BAR_MAP[c]
             if (!colour) return null
+            // Use pip distribution for proportional width, fall back to equal
+            const totalPips = pipDistribution
+              ? Object.values(pipDistribution).reduce((a, b) => a + b, 0)
+              : 0
+            const weight = pipDistribution && totalPips > 0
+              ? (pipDistribution[c] ?? 0) / totalPips
+              : 1 / sorted.length
             return (
               <div
                 key={c}
-                className="h-1.5 flex-1 first:rounded-l-full last:rounded-r-full"
-                style={{ backgroundColor: colour.hex }}
+                className="h-1 first:rounded-l-full last:rounded-r-full"
+                style={{
+                  backgroundColor: colour.hex,
+                  flex: `${weight} 0 0%`,
+                }}
                 aria-hidden="true"
               />
             )

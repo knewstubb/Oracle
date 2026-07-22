@@ -44,6 +44,7 @@ export async function GET() {
     .map((d) => d.id)
 
   let completenessMap: Record<number, { resolved: number; total: number }> = {}
+  let pipMap: Record<number, Record<string, number>> = {}
 
   if (boxedDeckIds.length > 0) {
     // Fetch deck_cards for boxed decks, counting resolved (physical_copy_id IS NOT NULL) vs total
@@ -69,10 +70,63 @@ export async function GET() {
     }
   }
 
-  // Merge completeness into deck response
+  // Compute pip distribution for all decks (for proportional color bar)
+  const allDeckIds = (decks ?? []).map((d) => d.id)
+  if (allDeckIds.length > 0) {
+    // Get card names per deck, then look up mana costs from card_metadata
+    const PAGE_SIZE = 1000
+    const allDeckCards: Array<{ deck_id: number; card_name: string }> = []
+    let offset = 0
+
+    while (true) {
+      const { data, error } = await supabase
+        .from('deck_cards')
+        .select('deck_id, card_name')
+        .in('deck_id', allDeckIds)
+        .range(offset, offset + PAGE_SIZE - 1)
+
+      if (error || !data || data.length === 0) break
+      allDeckCards.push(...data)
+      if (data.length < PAGE_SIZE) break
+      offset += PAGE_SIZE
+    }
+
+    // Get unique card names and fetch mana costs
+    const uniqueNames = [...new Set(allDeckCards.map(c => c.card_name))]
+    const manaCostMap = new Map<string, string>()
+
+    for (let i = 0; i < uniqueNames.length; i += PAGE_SIZE) {
+      const batch = uniqueNames.slice(i, i + PAGE_SIZE)
+      const { data: metaRows } = await supabase
+        .from('card_metadata')
+        .select('card_name, mana_cost')
+        .in('card_name', batch)
+
+      for (const row of metaRows ?? []) {
+        if (row.mana_cost) manaCostMap.set(row.card_name, row.mana_cost)
+      }
+    }
+
+    // Count pips per deck
+    for (const dc of allDeckCards) {
+      const manaCost = manaCostMap.get(dc.card_name)
+      if (!manaCost) continue
+
+      if (!pipMap[dc.deck_id]) pipMap[dc.deck_id] = {}
+      const matches = manaCost.match(/\{([WUBRGC])\}/g) || []
+      for (const m of matches) {
+        const color = m.replace(/[{}]/g, '')
+        if (color === 'C') continue // Skip colorless
+        pipMap[dc.deck_id][color] = (pipMap[dc.deck_id][color] || 0) + 1
+      }
+    }
+  }
+
+  // Merge completeness and pip distribution into deck response
   const decksWithCompleteness = (decks ?? []).map((deck) => ({
     ...deck,
     completeness: completenessMap[deck.id] ?? null,
+    pipDistribution: pipMap[deck.id] ?? null,
   }))
 
   const { data: draftSessionsRaw, error: sessionsErr } = await supabase

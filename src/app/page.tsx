@@ -150,6 +150,7 @@ export default function DashboardPage() {
                 completeness={deck.completeness}
                 allocate={deck.allocate}
                 format={deck.format}
+                pipDistribution={deck.pipDistribution}
               />
             </div>
           ))}

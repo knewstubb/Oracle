@@ -34,7 +34,7 @@ const CONFIG: Record<DeckStatus, { label: string; icon: string; colorClass: stri
   },
   graveyard: {
     label: 'Graveyard',
-    icon: 'tombstone',
+    icon: 'skull',
     colorClass: 'text-[var(--text-secondary)]',
     bgClass: 'bg-[rgba(255,255,255,0.08)]',
   },
@@ -45,11 +45,11 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[length:var(--fs-md)] font-[number:var(--font-medium)] ${colorClass} ${bgClass} ${className ?? ''}`}
+      className={`inline-flex items-center rounded-full p-1.5 ${colorClass} ${bgClass} ${className ?? ''}`}
       aria-label={`Status: ${label}`}
+      title={label}
     >
       <MaterialIcon name={icon} />
-      {label}
     </span>
   )
 }

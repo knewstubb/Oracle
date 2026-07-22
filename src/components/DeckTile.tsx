@@ -126,41 +126,6 @@ export function DeckTile({
           {commanderName}
         </p>
 
-        {/* Health pips row */}
-        {showHealthPips && (
-          <div
-            className="mt-1.5 flex items-center gap-1"
-            role="img"
-            aria-label={
-              allOk
-                ? 'Deck health: all categories healthy'
-                : `Deck health: ${violationPips.length} ${violationPips.length === 1 ? 'issue' : 'issues'}`
-            }
-          >
-            {allOk ? (
-              <span className="text-[length:var(--fs-sm)] font-medium text-[#1D9E75]" aria-hidden="true">
-                ✓
-              </span>
-            ) : (
-              <>
-                {displayPips.map((status, i) => (
-                  <span
-                    key={i}
-                    className="inline-block h-1.5 w-1.5 rounded-full"
-                    style={{ backgroundColor: PIP_COLOUR_MAP[status] }}
-                    aria-label={PIP_LABEL_MAP[status]}
-                  />
-                ))}
-                {truncatedCount > 0 && (
-                  <span className="text-[length:var(--fs-xs)] text-muted-foreground/70">
-                    +{truncatedCount}
-                  </span>
-                )}
-              </>
-            )}
-          </div>
-        )}
-
         {/* Proxy count */}
         {proxyCount !== undefined && proxyCount > 0 && (
           <p className="mt-1 text-right text-[length:var(--fs-xs)] text-muted-foreground/60">
@@ -170,21 +135,6 @@ export function DeckTile({
 
         <div className="mt-1.5 flex flex-wrap items-center gap-2">
           {status && <StatusBadge status={status} className="text-[length:var(--fs-xs)]" />}
-          {/* Claim completeness indicator — In Rotation decks only */}
-          {status === 'in_rotation' && completeness && (
-            <span
-              className="inline-block size-2.5 rounded-full"
-              style={{
-                backgroundColor: completeness.resolved >= completeness.total
-                  ? 'var(--accent-primary)'
-                  : completeness.resolved >= completeness.total * 0.8
-                    ? 'var(--signal-warning)'
-                    : 'var(--signal-critical)',
-              }}
-              aria-label={`Claim completeness: ${completeness.resolved} of ${completeness.total} cards claimed`}
-              title={`${completeness.resolved}/${completeness.total} claimed`}
-            />
-          )}
           {/* Sandbox badge — Boxed deck with allocate manually off (atypical) */}
           {status === 'in_rotation' && allocate === false && (
             <span className="inline-flex items-center rounded-full bg-[rgba(255,255,255,0.08)] px-2 py-0.5 text-[length:var(--fs-xs)] font-medium text-muted-foreground">

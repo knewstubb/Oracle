@@ -277,9 +277,59 @@ Copy your decklist to clipboard in MTGA format:
 
 ---
 
+## Collection Export
+
+Download your entire collection as a CSV file:
+1. On the Collection page, tap the **Export** button (download icon, next to Import)
+2. A CSV file downloads with all your physical copies
+3. Columns: Name, Quantity, Edition Code, Scryfall ID, Finish, Condition, Proxy, Purchase Price, Date Added
+4. Compatible with re-import into The Oracle, or import into other tools
+
+---
+
+## Importing Decks
+
+### Supported Platforms (URL import)
+
+Paste a deck URL from any of these platforms:
+- **Archidekt** — `archidekt.com/decks/{id}`
+- **Moxfield** — `moxfield.com/decks/{id}`
+- **MTGGoldfish** — `mtggoldfish.com/deck/{id}`
+- **TappedOut** — `tappedout.net/mtg-decks/{slug}/`
+- **Deckbox** — `deckbox.org/sets/{id}`
+
+### Text/Paste Import
+
+Paste a decklist in any common format:
+- `1 Sol Ring` (basic)
+- `1x Sol Ring` (quantity with x)
+- `1 Sol Ring (CMR) 472` (MTGA format with set + collector number)
+- Use `Commander:` on its own line to mark the next cards as commanders
+- `SB: 1 Card Name` (sideboard prefix)
+- Blank lines and `//` comments are ignored
+
+---
+
+## Goldfish / Playtesting
+
+Test-draw your deck without a real game:
+
+1. On any deck page, click the **Goldfish** tab
+2. You start with a shuffled library and 7-card hand
+3. Controls:
+   - **New Game** — reshuffle and redraw
+   - **Draw** — draw one card (advances turn counter)
+   - **Mulligan** — shuffle hand back, draw 7 again (London mulligan)
+   - **Undo** — revert the last action
+4. **Double-click** a card in hand to play it to the battlefield
+5. **Double-click** a card on the battlefield to send it to the graveyard
+6. **Click** any card to see its full image in the bottom-right preview
+
+---
+
 ## Known Limitations
 
 - Single-user only (no sharing/collaboration)
-- Card scanner accuracy depends on lighting and card condition — manual entry available as fallback
-- Paste import grammar: `<qty>[x] <name>` per line, `Commander:` section header
+- Card scanner requires Google Cloud Vision API key to be configured
 - Some double-faced cards (names with `//`) may not resolve images from camera (manual entry works)
+- Goldfish mode shows card names only (not full card images in zones) for performance

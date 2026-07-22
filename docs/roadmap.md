@@ -2,165 +2,142 @@
 
 > Last updated: 2026-07-23
 > Owned by: Product Manager
-> Status: Active planning document
 
 ---
 
-## Priority 1 — "Can I Build This?" (Pre-Brew Feasibility)
+## Collection Management
 
-**The problem:** You find a cool commander, brew a full 99, import it, then discover you're missing 30 cards worth $200. The answer should come *before* you commit.
-
-**What it does:**
-- Paste a decklist URL or commander name
-- Instantly see: "You own 67/99 of these cards"
-- "12 are currently in other decks (would need to swap)"
-- "20 you don't own (est. $85 to acquire)"
-- Cards grouped by: already free / steal from another deck / need to buy
-
-**Why it's #1:** Saves the most time. Prevents the most disappointment. Uses data that already exists in the system.
-
-**Effort:** Medium — needs a new API endpoint that cross-references a decklist against physical_copies + deck_cards allocation.
-
----
-
-## Priority 2 — Game Night Readiness View
-
-**The problem:** It's Thursday night. Which of my 12 decks can I grab and play right now?
-
-**What it does:**
-- Single view: "These 6 decks are 100% ready to sleeve up"
-- "These 2 need you to move Sol Ring from deck A to deck B (5 min prep)"
-- "This one is missing a $40 card you haven't bought"
-- One-tap swap suggestions for shared cards
-
-**Why it's #2:** Answers the most common real-world question before every game session.
-
-**Effort:** Low — mostly a UI view on top of existing completeness data + shared-cards queries.
+- [x] CSV import (Archidekt, Moxfield, ManaBox, generic formats)
+- [x] Instance-level physical copy tracking (one row per card)
+- [x] Collection grid view + list/printing view
+- [x] Search and filter by name, color identity, status
+- [x] Collection CSV export (full backup with all fields)
+- [x] Purchase price capture on import
+- [x] Market price tracking (Scryfall-sourced)
+- [x] Collection value banner (total value, gain/loss, top cards)
+- [x] Manual price refresh button
+- [x] Daily automated price refresh (Vercel cron)
+- [x] Card scanning — camera with OCR capture (parked: needs GCV API key)
+- [ ] Card search → location ("Where is my Rhystic Study?" — show every copy and where it lives)
+- [ ] Wishlist / "Cards I Want" (per-deck or global, triggers on collection changes)
+- [ ] Trade export (cards not in any deck, formatted for Cardsphere/Deckbox)
 
 ---
 
-## Priority 3 — Card Search → Location ("Where is my Rhystic Study?")
+## Deck Management
 
-**The problem:** You own a card but can't remember which deck it's in or which binder.
-
-**What it does:**
-- Search by name → see every copy you own
-- Each copy shows: "Copy #1 in Muldrotha deck. Copy #2 in Commander Staples binder."
-- Quick-link to the deck or binder
-
-**Why it's #3:** Fast utility. Gets asked multiple times per week.
-
-**Effort:** Low — the data exists. Needs a search endpoint that queries physical_copies + deck_cards join + storage_locations.
-
----
-
-## Priority 4 — Proxy Print Sheet
-
-**The problem:** You print proxies. Oracle knows which slots are proxied. Currently you manually look up each card on Scryfall and arrange them in a word doc.
-
-**What it does:**
-- Button on deck page: "Export Proxy Sheet"
-- Generates a printable grid of all proxy cards at correct card dimensions (2.5" × 3.5")
-- Ready to print, cut, and sleeve
-
-**Why it's #4:** Saves 30 minutes every time you proxy a deck. Tangible utility.
-
-**Effort:** Medium — needs an image layout engine (either server-side PDF or client-side canvas).
+- [x] Import from URL (Archidekt, Moxfield, MTGGoldfish, TappedOut, Deckbox)
+- [x] Import from pasted text (MTGA format, generic "1 Card Name" per line)
+- [x] Import from CSV
+- [x] Deck lifecycle: Brewing → In Rotation → Graveyard
+- [x] Deck format support (Commander, Oathbreaker, Brawl, etc.)
+- [x] Delete deck (releases claimed cards)
+- [x] Cards tab (categories masonry, table view, status-grouped view)
+- [x] Deck health strip (category thresholds)
+- [x] Mana curve + color pie analysis
+- [x] Combo detection (Commander Spellbook integration)
+- [x] AI upgrade suggestions (EDHREC-powered cut/add pairs)
+- [x] AI strategy analysis (archetype identification)
+- [x] Goldfish / playtesting mode (draw, mulligan, play zones)
+- [x] AI-assisted deck building (Brew mode with tool-use loop)
+- [x] Post-game debrief (structured analysis + recommendations)
+- [x] Precon mod tracker (budget + rarity constraints)
+- [x] Deck export (clipboard, MTGA format)
+- [ ] "Can I Build This?" — pre-brew feasibility check (own/steal/buy breakdown)
+- [ ] Per-deck budget breakdown (total value, top expensive cards, "without X it's $Y")
+- [ ] Deck comparison / diff view (vs EDHREC average or another deck)
 
 ---
 
-## Priority 5 — Wishlist / "Cards I Want"
+## Card Allocation (Core Engine)
 
-**The problem:** You know you want certain cards. When you eventually acquire one, you want Oracle to tell you which deck gets it.
-
-**What it does:**
-- Per-deck or global wishlist
-- "You just imported 5 new cards — 2 of them are on your wishlist for Muldrotha"
-- Triggers on collection changes (CSV import, scan)
-
-**Why it's #5:** Connects acquisition to allocation. Medium-frequency use but high satisfaction.
-
-**Effort:** Medium — new table (wishlists), trigger logic on collection changes, notification UI.
-
----
-
-## Priority 6 — Per-Deck Budget Breakdown
-
-**The problem:** "How much does this deck cost? What's the damage if I cut the expensive pieces?"
-
-**What it does:**
-- Total deck value (already partially done in header)
-- Top 10 most expensive cards with prices
-- "Without Mana Crypt ($180), this deck is $167"
-- Budget categories: under $1 / $1-5 / $5-20 / $20+ / $50+
-
-**Why it's #6:** Nice to have. Price data exists; just needs a view.
-
-**Effort:** Low — query card_metadata prices for deck's cards, group and sum.
+- [x] Five-state status taxonomy: Original, Proxy, Available, Alternate, Claimed, Unowned
+- [x] Fill slot (assign free copy from pool)
+- [x] Claim card from another deck
+- [x] Reassign between decks (atomic RPC)
+- [x] Add proxy (create proxy copy + assign)
+- [x] Replace proxy with original
+- [x] Unassign card (return to pool)
+- [x] Mark as missing (atomic RPC, unlinks from deck)
+- [x] Mark as found (return to available pool)
+- [x] Picklist (3-column resolution view)
+- [x] Card Management page (shared/contested cards across decks)
+- [x] Status chip popovers with contextual actions
+- [x] Printing picker (visual grid, owned highlighted)
+- [ ] Game Night readiness view ("which decks are grab-and-go?")
+- [ ] One-tap swap suggestions for shared cards
 
 ---
 
-## Priority 7 — Deck Comparison / "What's Different?"
+## Storage & Organization
 
-**The problem:** You want to compare your build against a popular version, or against another of your own decks.
-
-**What it does:**
-- Diff view: "EDHREC's average Muldrotha build vs yours"
-- "You're missing these 15 staples, you're running these 8 unusual picks"
-- Side-by-side two of your own decks that share a color identity
-
-**Why it's #7:** Cool but less frequently needed. You can eyeball it.
-
-**Effort:** Medium — needs EDHREC data fetch + diff algorithm + UI.
+- [x] Binders (named physical locations)
+- [x] Assign cards to binders
+- [x] View binder contents
+- [ ] Proxy print sheet (printable PDF grid at card dimensions)
 
 ---
 
-## Priority 8 — Trade Export
+## Mobile & PWA
 
-**The problem:** You want to trade cards you're not using.
-
-**What it does:**
-- Auto-generate a "trade binder" list: cards not in any deck, not on any wishlist
-- Export in formats compatible with Cardsphere, Deckbox trade systems
-- "Want" list export from wishlists
-
-**Why it's #8:** Niche — only matters if you actively trade.
-
-**Effort:** Low — filter physical_copies where not allocated and no wishlist reference, format as text.
+- [x] PWA installable (manifest, standalone, home screen icons)
+- [x] Mobile hamburger menu (slide-out drawer)
+- [x] iOS safe-area-inset handling (top + bottom)
+- [x] Version badge (v0.2.0, bottom-left)
+- [x] Camera scanner UI (shutter button, OCR pipeline)
 
 ---
 
-## Parked (Not Prioritized)
+## Infrastructure & Quality
 
-| Feature | Why parked |
-|---------|-----------|
-| Camera scanner (OCR) | Needs Google Cloud Vision API key configured. Code is ready. |
-| Multi-user support | Single-user app for now. IDOR fixes done for future-proofing. |
-| Format legality checking | Low priority for casual Commander. |
-| Social / deck sharing | Not needed for personal use. |
-| Moxfield-style public profiles | Not a goal. |
-
----
-
-## Recently Shipped (2026-07-22/23)
-
-- Goldfish / playtesting mode
-- Collection CSV export
-- Multi-platform deck import (5 platforms)
-- Daily price refresh cron
-- Purchase price tracking on import
-- E2E test suite (55 tests) + CI pipeline
-- Security audit + fixes
-- Proportional color bar on deck tiles
-- Deck tile visual redesign (icon badges, dashed brewing, desaturated graveyard)
-- Figma design system (variables pushed via API)
+- [x] Supabase Auth (PKCE flow, middleware protection)
+- [x] Admin client pattern (server-only, RLS bypassed)
+- [x] Atomic RPCs for multi-row writes (assign, reassign, batch assign, mark missing)
+- [x] Diff-based deck reimport (preserves allocation on resync)
+- [x] Vercel deployment with cron
+- [x] E2E test suite (55 Playwright tests)
+- [x] GitHub Actions CI pipeline
+- [x] Security audit + fixes (IDOR, headers, payload limits, fail-closed auth)
+- [x] Design system tokens (Figma variables pushed via API)
+- [x] Proportional color bar on deck tiles (reflects mana pip distribution)
+- [x] useDeckQueryKeys hook (normalized cache keys)
+- [ ] Rate limiting on AI/expensive endpoints (needs Vercel KV or Upstash)
+- [ ] Remove `ignoreBuildErrors: true` + fix type errors
+- [ ] Migrate components to useDeckQueryKeys (incremental)
+- [ ] Update stale E2E test selectors (card-management.spec.ts)
 
 ---
 
-## Decision Log
+## Design System & UI
 
-| Date | Decision | Rationale |
-|------|----------|-----------|
-| 2026-07-23 | Priorities set by "how often do I ask this question?" | Frequency of use × time saved = value |
-| 2026-07-23 | "Can I Build This?" is #1 | It's the only feature that prevents wasted work (brew then discover you can't afford it) |
-| 2026-07-23 | Camera scanner parked | OCR approach works but needs API key. Manual text entry covers the use case for now. |
+- [x] Custom token system (spacing, typography, colors, radii)
+- [x] shadcn/ui component library (base-nova style)
+- [x] Material Symbols icon set
+- [x] Mana Font + Keyrune (MTG-specific icons)
+- [x] Dark mode (primary theme)
+- [x] Deck tile redesign: icon-only status badges, dashed brewing border, desaturated graveyard
+- [x] Figma project with variables (30 colors, 7 spacing, 9 type, 5 radius)
+- [ ] Figma component library (Button started, more needed)
+- [ ] Code Connect (Figma → React component mapping)
+- [ ] Light mode (defined in CSS but unused)
+
+---
+
+## Parked
+
+| Feature | Why parked | Resume when |
+|---------|-----------|-------------|
+| Camera scanner (OCR) | Needs GOOGLE_CLOUD_VISION_KEY in Supabase secrets | API key configured |
+| Multi-user support | Single-user app. IDOR fixes done for future-proofing. | Decision to open signups |
+| Format legality checking | Low priority for casual Commander | User requests it |
+| Social / deck sharing | Not needed for personal use | Decision to go public |
+
+---
+
+## Progress Summary
+
+**Built:** 62 items
+**Remaining:** 16 items
+**Parked:** 4 items
+
+The app is functionally complete for daily use. The remaining items are quality-of-life improvements that make existing workflows faster (feasibility check, game night view, card search, proxy sheets).

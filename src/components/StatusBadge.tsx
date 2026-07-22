@@ -45,7 +45,7 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
 
   return (
     <span
-      className={`inline-flex items-center rounded-full p-1.5 ${colorClass} ${bgClass} ${className ?? ''}`}
+      className={`inline-flex items-center rounded-full p-1 ${colorClass} ${bgClass} ${className ?? ''}`}
       aria-label={`Status: ${label}`}
       title={label}
     >

@@ -90,7 +90,7 @@ export function DeckTile({
         'hover:-translate-y-1 hover:[box-shadow:0px_4px_8px_3px_rgba(0,0,0,0.4),0px_1px_3px_rgba(0,0,0,0.5)]',
         'motion-reduce:transition-none motion-reduce:hover:translate-y-0',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-        status === 'brewing' && 'border-2 border-dashed border-[#378ADD]',
+        status === 'brewing' && 'border border-dashed border-[#378ADD]',
       )}
     >
       {/* Commander art */}

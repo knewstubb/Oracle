@@ -152,11 +152,14 @@ export function DeckTile({
             const countFailing = !validation.valid
             // Red if In Rotation deck has incomplete allocation (empty slots)
             const allocationIncomplete = status === 'in_rotation' && completeness && completeness.resolved < completeness.total
-            const countColor = allocationIncomplete
-              ? 'var(--signal-critical)'
-              : countFailing
-                ? 'var(--signal-warning)'
-                : 'rgba(255,255,255,0.4)'
+            // Brewing decks never get colored counts — they're not committed
+            const countColor = status === 'brewing'
+              ? 'rgba(255,255,255,0.4)'
+              : allocationIncomplete
+                ? 'var(--signal-critical)'
+                : countFailing
+                  ? 'var(--signal-warning)'
+                  : 'rgba(255,255,255,0.4)'
             return (
               <span
                 className="text-[length:var(--fs-sm)]"

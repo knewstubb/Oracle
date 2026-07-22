@@ -150,10 +150,17 @@ export function DeckTile({
             const validation = validateDeckCount(cardCount, format)
             const required = validation.required
             const countFailing = !validation.valid
+            // Red if In Rotation deck has incomplete allocation (empty slots)
+            const allocationIncomplete = status === 'in_rotation' && completeness && completeness.resolved < completeness.total
+            const countColor = allocationIncomplete
+              ? 'var(--signal-critical)'
+              : countFailing
+                ? 'var(--signal-warning)'
+                : 'rgba(255,255,255,0.4)'
             return (
               <span
                 className="text-[length:var(--fs-sm)]"
-                style={{ color: countFailing ? 'var(--signal-warning)' : 'rgba(255,255,255,0.4)' }}
+                style={{ color: countColor }}
               >
                 {required > 0 ? `${cardCount}/${required}` : cardCount} Cards
               </span>

@@ -76,9 +76,9 @@ Use the **+ Add card...** search field in the toolbar. Type 2+ characters to get
 
 ---
 
-## The Picklist
+## The Pull List
 
-The Picklist (its own tab on the deck page) shows all unresolved cards in three columns:
+The Pull List (its own tab on the deck page) shows all unresolved cards in three columns:
 
 ### In Storage (Available)
 Cards you own that are free — not assigned to any deck. Grouped by storage location. Click **Claim** to assign to this deck instantly.
@@ -141,7 +141,7 @@ Browse all physical cards you own. Two view modes:
 - **List** — table with columns: checkbox, qty, name, mana, set icon + name, finish, price, kebab menu
 
 ### Binders
-Cards not assigned to decks live in binders (e.g. "Trade Binder", "Unsorted Box"). These show in the Picklist's "In Storage" column.
+Cards not assigned to decks live in binders (e.g. "Trade Binder", "Unsorted Box"). These show in the Pull List's "In Storage" column.
 
 ---
 

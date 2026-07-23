@@ -478,13 +478,13 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
           }
         }}
         onCancel={() => setTier4Pending(null)}
-        title="Claim from In Rotation deck?"
+        title="Pull from In Rotation deck?"
         description={
           tier4Pending
             ? `This copy is currently in ${tier4Pending.candidate.entry.assignedTo?.deckName ?? 'another deck'}. Removing it will make that deck incomplete. Continue?`
             : undefined
         }
-        confirmLabel="Claim"
+        confirmLabel="Pull"
         isLoading={tier4Loading}
       />
     </>

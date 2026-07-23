@@ -133,22 +133,22 @@ export function StatusChipPopover({
             }
             queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'card-statuses'] })
             queryClient.invalidateQueries({ queryKey: ['picklist', deckId] })
-            toast.success(`Claimed ${cardName}`)
+            toast.success(`Pulled ${cardName} from ${tier4Confirm?.deckName ?? 'deck'}`)
           } catch (err) {
-            toast.error(err instanceof Error ? err.message : 'Failed to claim')
+            toast.error(err instanceof Error ? err.message : 'Failed to pull')
           } finally {
             setTier4Loading(false)
             setTier4Confirm(null)
           }
         }}
         onCancel={() => setTier4Confirm(null)}
-        title="Claim from In Rotation deck?"
+        title="Pull from In Rotation deck?"
         description={
           tier4Confirm
             ? `This copy is currently in ${tier4Confirm.holderDeckName}. Removing it will make that deck incomplete. Continue?`
             : undefined
         }
-        confirmLabel="Claim"
+        confirmLabel="Pull"
         isLoading={tier4Loading}
       />
     </>
@@ -212,7 +212,7 @@ function PopoverBody({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'card-statuses'] })
       queryClient.invalidateQueries({ queryKey: ['picklist', deckId] })
-      toast.success(`Filled ${cardName}`)
+      toast.success(`Pulled ${cardName}`)
       onClose()
     },
     onError: (err) => toast.error(err.message),
@@ -406,7 +406,7 @@ function PopoverBody({
             storageLocationName={copy.storageLocationName}
             isFoil={copy.isFoil}
             isProxy={copy.isProxy}
-            primaryLabel="Fill"
+            primaryLabel="Pull"
             onPrimary={() => fillMutation.mutate(copy.physicalCopyId)}
             isPending={isPending}
           />
@@ -499,7 +499,7 @@ function PopoverBody({
                   className="shrink-0"
                   style={{ color: 'var(--status-over)', borderColor: 'var(--status-over)' }}
                 >
-                  Claim
+                  Pull
                 </Button>
               </div>
             )

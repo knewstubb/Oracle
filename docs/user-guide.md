@@ -12,7 +12,7 @@ The Oracle is a Commander deck management app that tracks your physical card col
 
 ### Physical Copy Tracking
 
-Every card you own is tracked as a unique entity with its own printing, condition, and location. When you assign a card to a deck, that specific copy is reserved — no other deck can claim it simultaneously.
+Every card you own is tracked as a unique entity with its own printing, condition, and location. When you assign a card to a deck, that specific copy is reserved — no other deck can use it simultaneously.
 
 ### Deck Lifecycle
 
@@ -21,8 +21,8 @@ Decks move through three states:
 | Status | Meaning | What happens |
 |--------|---------|--------------|
 | **Brewing** | Under construction or being reworked | Cards are not allocated. The deck is a plan, not a commitment. |
-| **In Rotation** | Committed to your active decks | Claim completeness is tracked. Red alert if cards are missing. |
-| **Graveyard** | Retired/shelved | Can optionally release all claimed cards for other decks to use. |
+| **In Rotation** | Committed to your active decks | Allocation completeness is tracked. Red alert if cards are missing. |
+| **Graveyard** | Retired/shelved | Can optionally release all allocated cards for other decks to use. |
 
 ### Card Slot Statuses
 

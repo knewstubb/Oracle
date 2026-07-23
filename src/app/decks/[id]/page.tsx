@@ -74,6 +74,11 @@ export default function DeckViewPage() {
     if (searchParams.get('debrief') === 'true') {
       setShowDebrief(true)
     }
+    // Open pull list tab if ?tab=picklist query param present
+    const tabParam = searchParams.get('tab')
+    if (tabParam === 'picklist') {
+      setActiveTab('picklist')
+    }
   }, [searchParams])
 
   const queryClient = useQueryClient()
@@ -253,7 +258,7 @@ export default function DeckViewPage() {
               <TabsTrigger value="upgrade">Upgrade</TabsTrigger>
               <TabsTrigger value="strategy">Strategy</TabsTrigger>
               <TabsTrigger value="goldfish">Goldfish</TabsTrigger>
-              <TabsTrigger value="picklist">Picklist</TabsTrigger>
+              <TabsTrigger value="picklist">Pull List</TabsTrigger>
             </TabsList>
           </div>
         </div>

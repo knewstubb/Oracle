@@ -555,14 +555,26 @@ function ReadyToPlayRow({ deck }: { deck: Deck }) {
         </p>
       </div>
 
-      {/* Readiness badge */}
-      <span
-        className="inline-flex shrink-0 items-center gap-1 rounded px-2 py-0.5 text-[length:var(--fs-xs)] font-medium"
-        style={{ color: style.color }}
-      >
-        <span className="size-2.5 rounded-sm" style={{ borderWidth: '1.5px', borderStyle: 'solid', borderColor: style.color }} />
-        {label}
-      </span>
+      {/* Readiness badge — amber links to pull list */}
+      {tier === 'amber' ? (
+        <Link
+          href={`/decks/${deck.id}?tab=picklist`}
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex shrink-0 items-center gap-1 rounded px-2 py-0.5 text-[length:var(--fs-xs)] font-medium hover:underline"
+          style={{ color: style.color }}
+        >
+          <span className="size-2.5 rounded-sm" style={{ borderWidth: '1.5px', borderStyle: 'solid', borderColor: style.color }} />
+          {label}
+        </Link>
+      ) : (
+        <span
+          className="inline-flex shrink-0 items-center gap-1 rounded px-2 py-0.5 text-[length:var(--fs-xs)] font-medium"
+          style={{ color: style.color }}
+        >
+          <span className="size-2.5 rounded-sm" style={{ borderWidth: '1.5px', borderStyle: 'solid', borderColor: style.color }} />
+          {label}
+        </span>
+      )}
     </Link>
   )
 }

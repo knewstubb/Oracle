@@ -7,6 +7,7 @@ import { Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InlineDeleteConfirmation } from '@/components/InlineDeleteConfirmation'
 import { cn } from '@/lib/utils'
+import { formatRelativeTime } from '@/lib/format-relative-time'
 
 export interface DraftSessionTileProps {
   sessionId: number
@@ -37,21 +38,6 @@ const STATUS_LABELS: Record<string, string> = {
   building: 'Building',
 }
 
-function formatRelativeTime(isoDate: string): string {
-  const now = Date.now()
-  const then = new Date(isoDate + 'Z').getTime()
-  const diffMs = now - then
-  const diffMin = Math.floor(diffMs / 60000)
-  const diffHr = Math.floor(diffMs / 3600000)
-  const diffDays = Math.floor(diffMs / 86400000)
-
-  if (diffMin < 1) return 'Just now'
-  if (diffMin < 60) return `${diffMin}m ago`
-  if (diffHr < 24) return `${diffHr}h ago`
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays}d ago`
-  return new Date(isoDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-}
 
 export function DraftSessionTile({
   sessionId,

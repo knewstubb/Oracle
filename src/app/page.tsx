@@ -13,6 +13,7 @@ import { DeckTile } from '@/components/DeckTile'
 import { DraftSessionTile } from '@/components/DraftSessionTile'
 import { PageHeader } from '@/components/PageHeader'
 import { CardImage } from '@/components/CardImage'
+import { formatRelativeTime } from '@/lib/format-relative-time'
 import { toast } from 'sonner'
 
 interface Deck {
@@ -308,6 +309,10 @@ function DashboardContent({ decks, draftSessions, isLoading }: { decks: Deck[]; 
   const activeDecks = decks.filter(d => d.status === 'in_rotation')
   const brewingDecks = decks.filter(d => d.status === 'brewing')
 
+  // Dismissed items (client-local, resets on reload)
+  const [dismissedItems, setDismissedItems] = useState<Set<string>>(new Set())
+  const dismiss = (key: string) => setDismissedItems(prev => new Set(prev).add(key))
+
   // Mark Active mutation
   const promoteMutation = useMutation({
     mutationFn: async (deckId: number) => {
@@ -341,69 +346,111 @@ function DashboardContent({ decks, draftSessions, isLoading }: { decks: Deck[]; 
     )
   }
 
+  // ─── Needs Attention items ───────────────────────────────────────
+  const attentionItems: Array<{ key: string; text: string; type: 'A' | 'B' }> = []
+
+  // Type A: amber decks (unresolved slots with pullable candidates)
+  const amberDecks = activeDecks.filter(d => getReadinessTier(d) === 'amber')
+  for (const deck of amberDecks) {
+    const count = (deck.completeness?.total ?? 0) - (deck.completeness?.resolved ?? 0)
+    attentionItems.push({
+      key: `amber-${deck.id}`,
+      text: `${deck.name}: ${count} ${count === 1 ? 'card' : 'cards'} could be pulled from storage`,
+      type: 'A',
+    })
+  }
+
+  // Type B: red decks (unowned slots)
+  const redDecks = activeDecks.filter(d => getReadinessTier(d) === 'red')
+  for (const deck of redDecks) {
+    const unownedCount = deck.completeness?.unownedCount ?? 0
+    // For now we show aggregate (per-card name + price requires additional API data not available here)
+    attentionItems.push({
+      key: `red-${deck.id}`,
+      text: `${deck.name}: ${unownedCount} ${unownedCount === 1 ? 'slot' : 'slots'} unowned`,
+      type: 'B',
+    })
+  }
+
+  // Sort: type A before type B, alpha within
+  attentionItems.sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'A' ? -1 : 1
+    return a.text.localeCompare(b.text)
+  })
+
+  // Cap at 5, filter dismissed
+  const visibleAttention = attentionItems
+    .filter(item => !dismissedItems.has(item.key))
+    .slice(0, 5)
+
+  // ─── Recently Active (brew sessions) ─────────────────────────────
+  const recentSessions = draftSessions.slice(0, 4)
+
+  // ─── Render ──────────────────────────────────────────────────────
+
   // Low-data state: no Active decks but Brewing decks exist
   if (activeDecks.length === 0) {
     if (brewingDecks.length > 0) {
       return (
-        <div>
-          <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium text-foreground">
-            Ready to Play
-          </h2>
-          <p className="mb-4 text-[length:var(--fs-sm)] text-muted-foreground">
-            No Active decks yet. Promote a Brewing deck to start tracking allocation:
-          </p>
-          <div className="space-y-2">
-            {brewingDecks.slice(0, 5).map((deck) => (
-              <div
-                key={deck.id}
-                className="flex items-center gap-3 rounded-lg border border-dashed border-[var(--border-default)] px-3 py-2.5"
-              >
-                <div className="size-8 shrink-0 overflow-hidden rounded">
-                  <CardImage
-                    scryfallId={deck.commander_scryfall_id}
-                    alt=""
-                    width={32}
-                    height={32}
-                    artCrop
-                    noPreview
-                    className="size-full object-cover"
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="truncate text-[length:var(--fs-md)] font-medium text-foreground">{deck.name}</p>
-                  <p className="truncate text-[length:var(--fs-xs)] text-muted-foreground">{deck.commander_name}</p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => promoteMutation.mutate(deck.id)}
-                  disabled={promoteMutation.isPending}
-                  className="shrink-0 text-[length:var(--fs-xs)]"
+        <div className="space-y-8">
+          <div>
+            <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium text-foreground">
+              Ready to Play
+            </h2>
+            <p className="mb-4 text-[length:var(--fs-sm)] text-muted-foreground">
+              No Active decks yet. Promote a Brewing deck to start tracking allocation:
+            </p>
+            <div className="space-y-2">
+              {brewingDecks.slice(0, 5).map((deck) => (
+                <div
+                  key={deck.id}
+                  className="flex items-center gap-3 rounded-lg border border-dashed border-[var(--border-default)] px-3 py-2.5"
                 >
-                  Mark Active
-                </Button>
-              </div>
-            ))}
+                  <div className="size-8 shrink-0 overflow-hidden rounded">
+                    <CardImage
+                      scryfallId={deck.commander_scryfall_id}
+                      alt=""
+                      width={32}
+                      height={32}
+                      artCrop
+                      noPreview
+                      className="size-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate text-[length:var(--fs-md)] font-medium text-foreground">{deck.name}</p>
+                    <p className="truncate text-[length:var(--fs-xs)] text-muted-foreground">{deck.commander_name}</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => promoteMutation.mutate(deck.id)}
+                    disabled={promoteMutation.isPending}
+                    className="shrink-0 text-[length:var(--fs-xs)]"
+                  >
+                    Mark Active
+                  </Button>
+                </div>
+              ))}
+            </div>
           </div>
-          <p className="mt-6 text-[length:var(--fs-sm)] text-muted-foreground">
-            More coming soon
-          </p>
+          {recentSessions.length > 0 && <RecentlyActiveSection sessions={recentSessions} />}
         </div>
       )
     }
 
-    // No Active, no Brewing (but sessions exist — handled by top-level empty state)
+    // No Active, no Brewing (but sessions exist)
     return (
-      <div>
-        <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium text-foreground">
-          Ready to Play
-        </h2>
-        <p className="text-[length:var(--fs-sm)] text-muted-foreground">
-          No decks ready yet — your brews are in Recently Active below
-        </p>
-        <p className="mt-6 text-[length:var(--fs-sm)] text-muted-foreground">
-          More coming soon
-        </p>
+      <div className="space-y-8">
+        <div>
+          <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium text-foreground">
+            Ready to Play
+          </h2>
+          <p className="text-[length:var(--fs-sm)] text-muted-foreground">
+            No decks ready yet — import or brew a deck to get started
+          </p>
+        </div>
+        {recentSessions.length > 0 && <RecentlyActiveSection sessions={recentSessions} />}
       </div>
     )
   }
@@ -418,18 +465,54 @@ function DashboardContent({ decks, draftSessions, isLoading }: { decks: Deck[]; 
   })
 
   return (
-    <div>
-      <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium text-foreground">
-        Ready to Play
-      </h2>
-      <div className="space-y-1.5">
-        {sortedActive.map((deck) => (
-          <ReadyToPlayRow key={deck.id} deck={deck} />
-        ))}
+    <div className="space-y-8">
+      {/* Ready to Play */}
+      <div>
+        <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium text-foreground">
+          Ready to Play
+        </h2>
+        <div className="space-y-1.5">
+          {sortedActive.map((deck) => (
+            <ReadyToPlayRow key={deck.id} deck={deck} />
+          ))}
+        </div>
       </div>
-      <p className="mt-6 text-[length:var(--fs-sm)] text-muted-foreground">
-        More coming soon
-      </p>
+
+      {/* Needs Attention */}
+      {visibleAttention.length > 0 && (
+        <div>
+          <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium text-foreground">
+            Needs Attention
+          </h2>
+          <div className="space-y-1.5">
+            {visibleAttention.map((item) => (
+              <div
+                key={item.key}
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-[var(--bg-surface-hover)]"
+              >
+                <span
+                  className="size-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: item.type === 'A' ? 'var(--signal-warning)' : 'var(--signal-critical)' }}
+                />
+                <span className="flex-1 text-[length:var(--fs-sm)] text-foreground">
+                  {item.text}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => dismiss(item.key)}
+                  className="shrink-0 text-[length:var(--fs-xs)] text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Dismiss"
+                >
+                  Dismiss
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recently Active */}
+      {recentSessions.length > 0 && <RecentlyActiveSection sessions={recentSessions} />}
     </div>
   )
 }
@@ -485,5 +568,41 @@ function ReadyToPlayRow({ deck }: { deck: Deck }) {
         {label}
       </span>
     </Link>
+  )
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Recently Active Section
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function RecentlyActiveSection({ sessions }: { sessions: DraftSession[] }) {
+  return (
+    <div>
+      <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium text-foreground">
+        Recently Active
+      </h2>
+      <div className="space-y-1.5">
+        {sessions.map((session) => (
+          <Link
+            key={session.session_id}
+            href={`/new-deck?sessionId=${session.session_id}`}
+            className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-[var(--bg-surface-hover)]"
+          >
+            <div className="flex-1 min-w-0">
+              <p className="truncate text-[length:var(--fs-md)] font-medium text-foreground">
+                {session.commander_name ?? 'New Concept'}
+              </p>
+            </div>
+            <span className="inline-flex shrink-0 items-center rounded-full bg-[rgba(55,138,221,0.15)] px-2 py-0.5 text-[length:var(--fs-xs)] font-medium text-[#378ADD]">
+              Brewing
+            </span>
+            <span className="shrink-0 text-[length:var(--fs-xs)] text-muted-foreground/60">
+              {formatRelativeTime(session.updated_at)}
+            </span>
+          </Link>
+        ))}
+      </div>
+    </div>
   )
 }

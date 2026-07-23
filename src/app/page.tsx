@@ -465,54 +465,49 @@ function DashboardContent({ decks, draftSessions, isLoading }: { decks: Deck[]; 
   })
 
   return (
-    <div className="space-y-8">
-      {/* Ready to Play */}
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_320px]">
+      {/* Left column: Ready to Play */}
       <div>
-        <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium text-foreground">
+        <h2 className="mb-3 text-[length:var(--fs-xs)] font-medium uppercase tracking-wider text-muted-foreground">
           Ready to Play
         </h2>
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           {sortedActive.map((deck) => (
             <ReadyToPlayRow key={deck.id} deck={deck} />
           ))}
         </div>
       </div>
 
-      {/* Needs Attention */}
-      {visibleAttention.length > 0 && (
-        <div>
-          <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium text-foreground">
-            Needs Attention
-          </h2>
-          <div className="space-y-1.5">
-            {visibleAttention.map((item) => (
-              <div
-                key={item.key}
-                className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-[var(--bg-surface-hover)]"
-              >
-                <span
-                  className="size-2 shrink-0 rounded-full"
-                  style={{ backgroundColor: item.type === 'A' ? 'var(--signal-warning)' : 'var(--signal-critical)' }}
-                />
-                <span className="flex-1 text-[length:var(--fs-sm)] text-foreground">
-                  {item.text}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => dismiss(item.key)}
-                  className="shrink-0 text-[length:var(--fs-xs)] text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label="Dismiss"
+      {/* Right column: Needs Attention + Recently Active */}
+      <div className="space-y-8">
+        {/* Needs Attention */}
+        {visibleAttention.length > 0 && (
+          <div>
+            <h2 className="mb-3 text-[length:var(--fs-xs)] font-medium uppercase tracking-wider text-muted-foreground">
+              Needs Attention
+            </h2>
+            <div className="space-y-2">
+              {visibleAttention.map((item) => (
+                <div
+                  key={item.key}
+                  className="flex items-start gap-2.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2.5"
                 >
-                  Dismiss
-                </button>
-              </div>
-            ))}
+                  <span
+                    className="mt-1.5 size-2.5 shrink-0 rounded-sm"
+                    style={{ borderWidth: '1.5px', borderStyle: 'solid', borderColor: item.type === 'A' ? 'var(--signal-warning)' : 'var(--signal-critical)' }}
+                  />
+                  <span className="flex-1 text-[length:var(--fs-sm)] text-foreground leading-snug">
+                    {item.text}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Recently Active */}
-      {recentSessions.length > 0 && <RecentlyActiveSection sessions={recentSessions} />}
+        {/* Recently Active */}
+        {recentSessions.length > 0 && <RecentlyActiveSection sessions={recentSessions} />}
+      </div>
     </div>
   )
 }
@@ -535,36 +530,37 @@ function ReadyToPlayRow({ deck }: { deck: Deck }) {
   return (
     <Link
       href={`/decks/${deck.id}`}
-      className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-[var(--bg-surface-hover)]"
+      className="flex items-center gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-3 transition-colors hover:bg-[var(--bg-surface-hover)]"
     >
       {/* Commander art thumbnail */}
-      <div className="size-9 shrink-0 overflow-hidden rounded-md">
+      <div className="size-10 shrink-0 overflow-hidden rounded-md bg-muted">
         <CardImage
           scryfallId={deck.commander_scryfall_id}
           alt=""
-          width={36}
-          height={36}
+          width={40}
+          height={40}
           artCrop
           noPreview
           className="size-full object-cover"
         />
       </div>
 
-      {/* Deck name */}
+      {/* Deck name + commander subtitle */}
       <div className="flex-1 min-w-0">
         <p className="truncate text-[length:var(--fs-md)] font-medium text-foreground">
           {deck.name}
+        </p>
+        <p className="truncate text-[length:var(--fs-xs)] text-muted-foreground">
+          {deck.commander_name}
         </p>
       </div>
 
       {/* Readiness badge */}
       <span
-        className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[length:var(--fs-xs)] font-medium"
-        style={{ color: style.color, backgroundColor: style.bg }}
+        className="inline-flex shrink-0 items-center gap-1 rounded px-2 py-0.5 text-[length:var(--fs-xs)] font-medium"
+        style={{ color: style.color }}
       >
-        {tier === 'green' && <Check className="size-3" />}
-        {tier === 'amber' && <Circle className="size-3" />}
-        {tier === 'red' && <AlertTriangle className="size-3" />}
+        <span className="size-2.5 rounded-sm" style={{ borderWidth: '1.5px', borderStyle: 'solid', borderColor: style.color }} />
         {label}
       </span>
     </Link>
@@ -579,24 +575,24 @@ function ReadyToPlayRow({ deck }: { deck: Deck }) {
 function RecentlyActiveSection({ sessions }: { sessions: DraftSession[] }) {
   return (
     <div>
-      <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium text-foreground">
+      <h2 className="mb-3 text-[length:var(--fs-xs)] font-medium uppercase tracking-wider text-muted-foreground">
         Recently Active
       </h2>
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         {sessions.map((session) => (
           <Link
             key={session.session_id}
             href={`/new-deck?sessionId=${session.session_id}`}
-            className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-[var(--bg-surface-hover)]"
+            className="flex items-center gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2.5 transition-colors hover:bg-[var(--bg-surface-hover)]"
           >
-            <div className="flex-1 min-w-0">
-              <p className="truncate text-[length:var(--fs-md)] font-medium text-foreground">
-                {session.commander_name ?? 'New Concept'}
-              </p>
-            </div>
             <span className="inline-flex shrink-0 items-center rounded-full bg-[rgba(55,138,221,0.15)] px-2 py-0.5 text-[length:var(--fs-xs)] font-medium text-[#378ADD]">
               Brewing
             </span>
+            <div className="flex-1 min-w-0">
+              <p className="truncate text-[length:var(--fs-sm)] font-medium text-foreground">
+                {session.commander_name ?? 'New Concept'}
+              </p>
+            </div>
             <span className="shrink-0 text-[length:var(--fs-xs)] text-muted-foreground/60">
               {formatRelativeTime(session.updated_at)}
             </span>

@@ -21,7 +21,7 @@ Decks move through three states:
 | Status | Meaning | What happens |
 |--------|---------|--------------|
 | **Brewing** | Under construction or being reworked | Cards are not allocated. The deck is a plan, not a commitment. |
-| **In Rotation** | Committed to your active decks | Allocation completeness is tracked. Red alert if cards are missing. |
+| **Active** | Committed to your active decks | Allocation completeness is tracked. Red alert if cards are missing. |
 | **Graveyard** | Retired/shelved | Can optionally release all allocated cards for other decks to use. |
 
 ### Card Slot Statuses
@@ -84,7 +84,7 @@ The Picklist (its own tab on the deck page) shows all unresolved cards in three 
 Cards you own that are free — not assigned to any deck. Grouped by storage location. Click **Claim** to assign to this deck instantly.
 
 ### In Decks (Claimed)
-Cards that exist in your collection but are currently assigned to another deck. Shows which deck holds each card and its status (Brewing/In Rotation/Graveyard). Click **Claim** to pull the card from that deck into this one. In Rotation decks require confirmation.
+Cards that exist in your collection but are currently assigned to another deck. Shows which deck holds each card and its status (Brewing/Active/Graveyard). Click **Claim** to pull the card from that deck into this one. Active decks require confirmation.
 
 ### Unowned
 Cards you don't have any copy of. Click **Proxy** to create a proxy and assign it.
@@ -115,7 +115,7 @@ When importing a deck, lands with set codes become specific-printing. Lands with
 ## Deck Status Transitions
 
 ```
-Brewing ──────────► In Rotation
+Brewing ──────────► Active
    ▲                     │
    │                     │
    │   ◄─────────────────┘
@@ -126,8 +126,8 @@ Graveyard ◄──── (from either)
    └──► Brewing (Resurrect)
 ```
 
-- **Brewing → In Rotation**: requires the deck to have the correct number of cards for its format (100 for Commander, 60+ for Standard/Modern/etc.)
-- **In Rotation → Brewing**: always allowed (pulling back for rework)
+- **Brewing → Active**: requires the deck to have the correct number of cards for its format (100 for Commander, 60+ for Standard/Modern/etc.)
+- **Active → Brewing**: always allowed (pulling back for rework)
 - **Anything → Graveyard**: always allowed. If cards are claimed, you'll be prompted to release them or keep them claimed.
 - **Graveyard → Brewing**: always allowed (resurrect)
 
@@ -151,9 +151,9 @@ Each deck tile shows:
 - Commander art
 - Deck name + commander name
 - Card count: `current/required Cards` (amber when under target)
-- Status badge (Brewing / In Rotation / Graveyard)
-- Claim completeness dot (green/amber/red) for In Rotation decks
-- Red alert triangle when In Rotation decks have missing cards
+- Status badge (Brewing / Active / Graveyard)
+- Claim completeness dot (green/amber/red) for Active decks
+- Red alert triangle when Active decks have missing cards
 
 Below the grid: rotation summary ("5 decks in rotation") + "N decks need cards" filter.
 

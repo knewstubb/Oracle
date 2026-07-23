@@ -3,9 +3,12 @@
 > Last updated: 2026-07-23
 > Owned by: Product Manager
 
+**Detailed docs:** Each section has a deeper document in `docs/roadmap/` with full descriptions, implementation notes, and idea backlogs.
+
 ---
 
 ## Collection Management
+→ [Full details](roadmap/collection.md)
 
 - [x] CSV import (Archidekt, Moxfield, ManaBox, generic formats)
 - [x] Instance-level physical copy tracking (one row per card)
@@ -25,6 +28,7 @@
 ---
 
 ## Deck Management
+→ [Full details](roadmap/deck-management.md)
 
 - [x] Import from URL (Archidekt, Moxfield, MTGGoldfish, TappedOut, Deckbox)
 - [x] Import from pasted text (MTGA format, generic "1 Card Name" per line)
@@ -50,6 +54,7 @@
 ---
 
 ## Card Allocation (Core Engine)
+→ [Full details](roadmap/allocation.md)
 
 - [x] Five-state status taxonomy: Original, Proxy, Available, Alternate, Claimed, Unowned
 - [x] Fill slot (assign free copy from pool)
@@ -70,6 +75,7 @@
 ---
 
 ## Storage & Organization
+→ [Full details](roadmap/storage.md)
 
 - [x] Binders (named physical locations)
 - [x] Assign cards to binders
@@ -79,6 +85,7 @@
 ---
 
 ## Mobile & PWA
+→ [Full details](roadmap/mobile-pwa.md)
 
 - [x] PWA installable (manifest, standalone, home screen icons)
 - [x] Mobile hamburger menu (slide-out drawer)
@@ -89,6 +96,7 @@
 ---
 
 ## Infrastructure & Quality
+→ [Full details](roadmap/infrastructure.md)
 
 - [x] Supabase Auth (PKCE flow, middleware protection)
 - [x] Admin client pattern (server-only, RLS bypassed)
@@ -109,6 +117,7 @@
 ---
 
 ## Design System & UI
+→ [Full details](roadmap/design-system.md)
 
 - [x] Custom token system (spacing, typography, colors, radii)
 - [x] shadcn/ui component library (base-nova style)

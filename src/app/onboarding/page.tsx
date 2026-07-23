@@ -955,7 +955,7 @@ function DeckPickerScreen({
                         : { color: 'rgba(255,255,255,0.4)' }
                     }
                   >
-                    In Rotation
+                    Active
                   </button>
                 </div>
               </div>
@@ -1114,7 +1114,7 @@ function MoxfieldDeckPickerScreen({
                         : { color: 'rgba(255,255,255,0.4)' }
                     }
                   >
-                    In Rotation
+                    Active
                   </button>
                 </div>
               </div>

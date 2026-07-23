@@ -478,7 +478,7 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
           }
         }}
         onCancel={() => setTier4Pending(null)}
-        title="Pull from In Rotation deck?"
+        title="Pull from Active deck?"
         description={
           tier4Pending
             ? `This copy is currently in ${tier4Pending.candidate.entry.assignedTo?.deckName ?? 'another deck'}. Removing it will make that deck incomplete. Continue?`
@@ -588,7 +588,7 @@ function EmptyColumn({ message }: { message: string }) {
 function formatDeckStatus(status: string): string {
   switch (status) {
     case 'brewing': return 'Brewing'
-    case 'in_rotation': return 'In Rotation'
+    case 'in_rotation': return 'Active'
     case 'graveyard': return 'Graveyard'
     default: return status
   }

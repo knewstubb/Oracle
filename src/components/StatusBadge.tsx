@@ -27,7 +27,7 @@ const CONFIG: Record<DeckStatus, { label: string; icon: string; colorClass: stri
     bgClass: 'bg-[rgba(55,138,221,0.15)]',
   },
   in_rotation: {
-    label: 'In Rotation',
+    label: 'Active',
     icon: 'check_circle',
     colorClass: 'text-[var(--accent-primary)]',
     bgClass: 'bg-[var(--accent-primary-bg)]',

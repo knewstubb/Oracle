@@ -142,7 +142,7 @@ export function StatusChipPopover({
           }
         }}
         onCancel={() => setTier4Confirm(null)}
-        title="Pull from In Rotation deck?"
+        title="Pull from Active deck?"
         description={
           tier4Confirm
             ? `This copy is currently in ${tier4Confirm.holderDeckName}. Removing it will make that deck incomplete. Continue?`

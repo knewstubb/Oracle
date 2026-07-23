@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
 import { isBasicLand } from '@/lib/basic-lands'
+import { computeUnresolvedStatuses } from '@/lib/card-status'
 
 export interface DeckRow {
   id: number
@@ -46,7 +47,7 @@ export async function GET() {
     .filter((d) => d.status === 'in_rotation')
     .map((d) => d.id)
 
-  let completenessMap: Record<number, { resolved: number; total: number }> = {}
+  let completenessMap: Record<number, { resolved: number; total: number; availableCount: number; claimedCount: number; unownedCount: number }> = {}
   let pipMap: Record<number, Record<string, number>> = {}
 
   if (boxedDeckIds.length > 0) {
@@ -57,17 +58,47 @@ export async function GET() {
       .select('deck_id, card_name, physical_copy_id')
       .in('deck_id', boxedDeckIds)
 
+    // Collect unresolved card names per deck for status breakdown
+    const unresolvedByDeck = new Map<number, string[]>()
+
     if (!cardsErr && deckCards) {
       for (const card of deckCards) {
         // Skip basic lands — they never get physical_copy_id assigned
         if (isBasicLand(card.card_name)) continue
 
         if (!completenessMap[card.deck_id]) {
-          completenessMap[card.deck_id] = { resolved: 0, total: 0 }
+          completenessMap[card.deck_id] = { resolved: 0, total: 0, availableCount: 0, claimedCount: 0, unownedCount: 0 }
         }
         completenessMap[card.deck_id].total += 1
         if (card.physical_copy_id != null) {
           completenessMap[card.deck_id].resolved += 1
+        } else {
+          // Track unresolved card names for status breakdown
+          if (!unresolvedByDeck.has(card.deck_id)) unresolvedByDeck.set(card.deck_id, [])
+          unresolvedByDeck.get(card.deck_id)!.push(card.card_name)
+        }
+      }
+    }
+
+    // Compute unresolved status breakdown (available/claimed/unowned) for Active decks
+    // Collect ALL unresolved card names across all Active decks in one batch
+    const allUnresolvedNames = [...new Set(Array.from(unresolvedByDeck.values()).flat())]
+    if (allUnresolvedNames.length > 0) {
+      const statusMap = await computeUnresolvedStatuses(allUnresolvedNames, userId)
+
+      // Distribute results back to each deck's completeness
+      for (const [deckId, cardNames] of unresolvedByDeck) {
+        const comp = completenessMap[deckId]
+        if (!comp) continue
+        for (const name of cardNames) {
+          const status = statusMap.get(name) ?? 'unowned'
+          if (status === 'available' || status === 'alternate') {
+            comp.availableCount += 1
+          } else if (status === 'claimed') {
+            comp.claimedCount += 1
+          } else {
+            comp.unownedCount += 1
+          }
         }
       }
     }

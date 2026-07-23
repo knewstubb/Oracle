@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
-import { AlertCircle, AlertTriangle, RefreshCw } from 'lucide-react'
+import { AlertCircle, AlertTriangle, RefreshCw, Check, Circle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusFilter } from '@/components/StatusFilter'
@@ -12,6 +12,8 @@ import { NewDeckModal } from '@/components/NewDeckModal'
 import { DeckTile } from '@/components/DeckTile'
 import { DraftSessionTile } from '@/components/DraftSessionTile'
 import { PageHeader } from '@/components/PageHeader'
+import { CardImage } from '@/components/CardImage'
+import { toast } from 'sonner'
 
 interface Deck {
   id: number
@@ -23,7 +25,7 @@ interface Deck {
   deck_type: string | null
   status: 'brewing' | 'in_rotation' | 'graveyard'
   allocate: boolean
-  completeness?: { resolved: number; total: number } | null
+  completeness?: { resolved: number; total: number; availableCount?: number; claimedCount?: number; unownedCount?: number } | null
   format?: string | null
   pipDistribution?: Record<string, number> | null
 }
@@ -42,10 +44,28 @@ interface DecksResponse {
 }
 
 type Tab = 'all-decks' | 'dashboard'
+type ReadinessTier = 'green' | 'amber' | 'red'
+
+function getReadinessTier(deck: Deck): ReadinessTier {
+  const c = deck.completeness
+  if (!c) return 'green' // No completeness data = treat as ready (no allocation tracking)
+  if (c.resolved === c.total) return 'green'
+  if ((c.unownedCount ?? 0) > 0) return 'red'
+  return 'amber'
+}
+
+function getReadinessLabel(deck: Deck): string {
+  const c = deck.completeness
+  if (!c || c.resolved === c.total) return 'Ready'
+  const unresolved = c.total - c.resolved
+  const unowned = c.unownedCount ?? 0
+  if (unowned > 0) return `${unowned} unowned`
+  return `${unresolved} to pull`
+}
 
 export default function DashboardPage() {
   const queryClient = useQueryClient()
-  const [activeTab, setActiveTab] = useState<Tab>('all-decks')
+  const [activeTab, setActiveTab] = useState<Tab>('dashboard')
 
   const { data, isLoading, error } = useQuery<DecksResponse>({
     queryKey: ['decks'],
@@ -64,13 +84,45 @@ export default function DashboardPage() {
   const activeCount = decks?.filter(d => d.status === 'in_rotation').length ?? 0
   const brewingCount = decks?.filter(d => d.status === 'brewing').length ?? 0
   const graveyardCount = decks?.filter(d => d.status === 'graveyard').length ?? 0
-
-  // TODO(phase-2): replace with three-tier readiness rollup, see spec 1.4
   const readyCount = decks?.filter(d =>
-    d.status === 'in_rotation' &&
-    d.completeness &&
-    d.completeness.resolved === d.completeness.total
+    d.status === 'in_rotation' && getReadinessTier(d) === 'green'
   ).length ?? 0
+
+  // ─── Top-level empty check ─────────────────────────────────────
+  const hasNothingAtAll = !isLoading && total === 0 && (!draftSessions || draftSessions.length === 0)
+
+  // ─── Top-level empty state (no tabs) ───────────────────────────
+  if (hasNothingAtAll) {
+    return (
+      <div className="flex h-full flex-col bg-[var(--bg-canvas)]">
+        <div className="mx-auto flex h-full w-full max-w-[var(--content-max-width)] flex-col">
+          <PageHeader title="Decks" />
+          <div className="flex flex-1 flex-col items-center justify-center px-5 py-24 text-center">
+            <h2 className="text-[length:var(--fs-xl)] font-medium text-foreground mb-2">
+              Welcome to The Oracle
+            </h2>
+            <p className="mb-6 max-w-md text-[length:var(--fs-md)] text-muted-foreground">
+              Track your physical MTG collection at the individual-card level. Know which card is in which deck, what's available, and what you're missing.
+            </p>
+            <Link
+              href="/onboarding"
+              className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-[length:var(--fs-md)] font-medium text-white transition-colors"
+              style={{ backgroundColor: 'var(--accent-primary)' }}
+            >
+              Bring your collection over
+            </Link>
+            <p className="mt-2 text-[length:var(--fs-xs)] text-muted-foreground">
+              Import from Archidekt or Moxfield
+            </p>
+            <div className="mt-6 flex items-center gap-4 text-[length:var(--fs-sm)] text-muted-foreground">
+              <DeckImportButton />
+              <NewDeckModal />
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-full flex-col bg-[var(--bg-canvas)]">
@@ -129,9 +181,7 @@ export default function DashboardPage() {
 
       {/* ═══ Dashboard Tab ═══ */}
       {activeTab === 'dashboard' && (
-        <div className="py-12 text-center text-muted-foreground">
-          Dashboard sections coming soon
-        </div>
+        <DashboardContent decks={decks ?? []} draftSessions={draftSessions ?? []} isLoading={isLoading} />
       )}
 
       {/* ═══ All Decks Tab ═══ */}
@@ -177,18 +227,8 @@ export default function DashboardPage() {
               ))}
             </div>
           ) : decks && decks.length === 0 && (!draftSessions || draftSessions.length === 0) ? (
-            <div className="flex flex-col items-center justify-center py-24 text-center">
-              <p className="mb-4 text-muted-foreground">
-                No decks found. Import a deck to get started.
-              </p>
-              <DeckImportButton />
-              <Link
-                href="/onboarding"
-                className="text-[length:var(--fs-sm)] text-muted-foreground underline hover:text-foreground transition-colors mt-3"
-              >
-                Or import your full Archidekt collection
-              </Link>
-            </div>
+            // This shouldn't show (top-level empty state handles it) but keep as safety net
+            null
           ) : decks && decks.length > 0 || (draftSessions && draftSessions.length > 0) ? (
             <>
             <div
@@ -256,5 +296,194 @@ export default function DashboardPage() {
       </div>{/* end scrollable content */}
       </div>{/* end max-width container */}
     </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Dashboard Content
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function DashboardContent({ decks, draftSessions, isLoading }: { decks: Deck[]; draftSessions: DraftSession[]; isLoading: boolean }) {
+  const queryClient = useQueryClient()
+  const activeDecks = decks.filter(d => d.status === 'in_rotation')
+  const brewingDecks = decks.filter(d => d.status === 'brewing')
+
+  // Mark Active mutation
+  const promoteMutation = useMutation({
+    mutationFn: async (deckId: number) => {
+      const res = await fetch(`/api/decks/${deckId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'in_rotation' }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Failed to promote deck')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['decks'] })
+      toast.success('Deck promoted to Active')
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : 'Failed to promote')
+    },
+  })
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-14 w-full rounded-lg" />
+        ))}
+      </div>
+    )
+  }
+
+  // Low-data state: no Active decks but Brewing decks exist
+  if (activeDecks.length === 0) {
+    if (brewingDecks.length > 0) {
+      return (
+        <div>
+          <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium text-foreground">
+            Ready to Play
+          </h2>
+          <p className="mb-4 text-[length:var(--fs-sm)] text-muted-foreground">
+            No Active decks yet. Promote a Brewing deck to start tracking allocation:
+          </p>
+          <div className="space-y-2">
+            {brewingDecks.slice(0, 5).map((deck) => (
+              <div
+                key={deck.id}
+                className="flex items-center gap-3 rounded-lg border border-dashed border-[var(--border-default)] px-3 py-2.5"
+              >
+                <div className="size-8 shrink-0 overflow-hidden rounded">
+                  <CardImage
+                    scryfallId={deck.commander_scryfall_id}
+                    alt=""
+                    width={32}
+                    height={32}
+                    artCrop
+                    noPreview
+                    className="size-full object-cover"
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="truncate text-[length:var(--fs-md)] font-medium text-foreground">{deck.name}</p>
+                  <p className="truncate text-[length:var(--fs-xs)] text-muted-foreground">{deck.commander_name}</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => promoteMutation.mutate(deck.id)}
+                  disabled={promoteMutation.isPending}
+                  className="shrink-0 text-[length:var(--fs-xs)]"
+                >
+                  Mark Active
+                </Button>
+              </div>
+            ))}
+          </div>
+          <p className="mt-6 text-[length:var(--fs-sm)] text-muted-foreground">
+            More coming soon
+          </p>
+        </div>
+      )
+    }
+
+    // No Active, no Brewing (but sessions exist — handled by top-level empty state)
+    return (
+      <div>
+        <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium text-foreground">
+          Ready to Play
+        </h2>
+        <p className="text-[length:var(--fs-sm)] text-muted-foreground">
+          No decks ready yet — your brews are in Recently Active below
+        </p>
+        <p className="mt-6 text-[length:var(--fs-sm)] text-muted-foreground">
+          More coming soon
+        </p>
+      </div>
+    )
+  }
+
+  // Normal state: show Active decks sorted by readiness (red → amber → green)
+  const sortedActive = [...activeDecks].sort((a, b) => {
+    const tierOrder: Record<ReadinessTier, number> = { red: 0, amber: 1, green: 2 }
+    const tierA = tierOrder[getReadinessTier(a)]
+    const tierB = tierOrder[getReadinessTier(b)]
+    if (tierA !== tierB) return tierA - tierB
+    return a.name.localeCompare(b.name)
+  })
+
+  return (
+    <div>
+      <h2 className="mb-3 text-[length:var(--fs-lg)] font-medium text-foreground">
+        Ready to Play
+      </h2>
+      <div className="space-y-1.5">
+        {sortedActive.map((deck) => (
+          <ReadyToPlayRow key={deck.id} deck={deck} />
+        ))}
+      </div>
+      <p className="mt-6 text-[length:var(--fs-sm)] text-muted-foreground">
+        More coming soon
+      </p>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Ready to Play Row
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const TIER_STYLES: Record<ReadinessTier, { color: string; bg: string }> = {
+  green: { color: 'var(--accent-primary)', bg: 'var(--accent-primary-bg)' },
+  amber: { color: 'var(--signal-warning)', bg: 'rgba(239, 159, 39, 0.15)' },
+  red: { color: 'var(--signal-critical)', bg: 'rgba(226, 75, 74, 0.12)' },
+}
+
+function ReadyToPlayRow({ deck }: { deck: Deck }) {
+  const tier = getReadinessTier(deck)
+  const label = getReadinessLabel(deck)
+  const style = TIER_STYLES[tier]
+
+  return (
+    <Link
+      href={`/decks/${deck.id}`}
+      className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-[var(--bg-surface-hover)]"
+    >
+      {/* Commander art thumbnail */}
+      <div className="size-9 shrink-0 overflow-hidden rounded-md">
+        <CardImage
+          scryfallId={deck.commander_scryfall_id}
+          alt=""
+          width={36}
+          height={36}
+          artCrop
+          noPreview
+          className="size-full object-cover"
+        />
+      </div>
+
+      {/* Deck name */}
+      <div className="flex-1 min-w-0">
+        <p className="truncate text-[length:var(--fs-md)] font-medium text-foreground">
+          {deck.name}
+        </p>
+      </div>
+
+      {/* Readiness badge */}
+      <span
+        className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[length:var(--fs-xs)] font-medium"
+        style={{ color: style.color, backgroundColor: style.bg }}
+      >
+        {tier === 'green' && <Check className="size-3" />}
+        {tier === 'amber' && <Circle className="size-3" />}
+        {tier === 'red' && <AlertTriangle className="size-3" />}
+        {label}
+      </span>
+    </Link>
   )
 }

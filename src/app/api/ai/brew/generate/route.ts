@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
 // POST /api/ai/brew/generate
-// Generate 100-card skeleton using Heavy Model + data sources
+// Generate 100-card skeleton using Heavy Model + grounded data sources
 // ---------------------------------------------------------------------------
 
 import { NextRequest } from 'next/server'
@@ -8,7 +8,25 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
 import { buildSkeletonGenerationPrompt } from '@/lib/brew-prompts'
-import type { BrewSessionRow, StrategyBrief, DeckSkeleton } from '@/types/brew'
+import type { StrategyBrief, DeckSkeleton } from '@/types/brew'
+
+// Data layers for grounded card pools
+import {
+  getBuildsByCommander,
+  getCardPoolForBuild,
+  formatBuildCardsForPrompt,
+  type BuildCard,
+} from '@/lib/commander-build-data'
+import {
+  getCardsForAllSlots,
+  getCardsByArchetype,
+  formatSlotsForPrompt,
+  ARCHETYPE_SLOTS,
+} from '@/lib/scryfall-tags-data'
+import {
+  getBrewContext,
+  findArchetypeForStrategy,
+} from '@/lib/knowledge-data'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -73,19 +91,32 @@ export async function POST(request: NextRequest) {
     // --- Parse brief ---
     const brief: StrategyBrief = JSON.parse(session.brief_json)
 
-    // --- Query data sources ---
+    // --- Query grounded data sources ---
 
-    // 1. EDHREC staples (placeholder — no MCP in API routes yet)
-    const edhrecStaples = getPlaceholderEdhrecStaples(brief.commanderName)
+    // 1. Load EDHREC build cards from ref_build_cards
+    const edhrecData = await loadEdhrecBuildCards(brief.commanderName, brief)
 
     // 2. Query user collection filtered by colour identity
     const collectionCards = await queryCollectionByColourIdentity(brief.colourIdentity)
 
-    // 3. Scryfall fill candidates (placeholder — no MCP in API routes yet)
-    const scryfallFills = getPlaceholderScryfallFills(brief)
+    // 3. Load Scryfall tagged cards for functional slots
+    const scryfallSlots = await loadScryfallSlotCandidates(brief)
 
-    // --- Call Heavy Model ---
-    const prompt = buildSkeletonGenerationPrompt(brief, edhrecStaples, collectionCards, scryfallFills)
+    // 4. Load knowledge context (archetype guide, deck fundamentals)
+    const knowledgeContext = loadKnowledgeContext(brief)
+
+    // --- Call Heavy Model with grounded prompt ---
+    const prompt = buildSkeletonGenerationPrompt(
+      brief,
+      edhrecData.staples,
+      collectionCards,
+      edhrecData.fills,
+      {
+        knowledgeContext,
+        scryfallSlots,
+        cardPoolForSelection: edhrecData.cardPool,
+      }
+    )
     const anthropic = new Anthropic()
 
     const response = await anthropic.messages.create({
@@ -149,6 +180,158 @@ export async function POST(request: NextRequest) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Load EDHREC build cards from ref_build_cards database.
+ * Returns staples (high inclusion), signature cards, and full card pool.
+ */
+async function loadEdhrecBuildCards(
+  commanderName: string,
+  brief: StrategyBrief
+): Promise<{
+  staples: Array<{ cardName: string; synergy: number }>
+  fills: Array<{ cardName: string; price: number }>
+  cardPool: string[]
+}> {
+  try {
+    // Find builds for this commander
+    const builds = await getBuildsByCommander(commanderName)
+
+    if (builds.length === 0) {
+      console.warn(`[brew/generate] No EDHREC builds found for ${commanderName}`)
+      return { staples: [], fills: [], cardPool: [] }
+    }
+
+    // Try to match build to brief's strategy
+    const bestBuild = findBestMatchingBuild(builds, brief)
+    const buildId = bestBuild?.id ?? builds[0].id
+
+    // Get full card pool for this build
+    const cardPool = await getCardPoolForBuild(buildId)
+
+    // Separate into staples (high inclusion) and fills (lower inclusion)
+    const staples: Array<{ cardName: string; synergy: number }> = []
+    const fills: Array<{ cardName: string; price: number }> = []
+
+    for (const card of cardPool) {
+      if (card.inclusionRate >= 50 || card.synergyScore >= 30) {
+        staples.push({
+          cardName: card.cardName,
+          synergy: Math.round(card.synergyScore),
+        })
+      } else {
+        fills.push({
+          cardName: card.cardName,
+          price: 0, // Price will be looked up separately if needed
+        })
+      }
+    }
+
+    // Sort staples by synergy descending
+    staples.sort((a, b) => b.synergy - a.synergy)
+
+    return {
+      staples: staples.slice(0, 50), // Top 50 staples
+      fills: fills.slice(0, 50), // Top 50 fills
+      cardPool: cardPool.map(c => c.cardName),
+    }
+  } catch (error) {
+    console.error('[brew/generate] Failed to load EDHREC data:', error)
+    return { staples: [], fills: [], cardPool: [] }
+  }
+}
+
+/**
+ * Find the build that best matches the brief's strategy.
+ */
+function findBestMatchingBuild(
+  builds: Array<{ id: string; archetype: string | null; theme: string | null; deckCount: number }>,
+  brief: StrategyBrief
+): { id: string } | null {
+  const keywords = [
+    brief.primaryWinCondition,
+    brief.secondaryWinCondition,
+    brief.playstyleDescription,
+  ]
+    .join(' ')
+    .toLowerCase()
+
+  for (const build of builds) {
+    // Check archetype match
+    if (build.archetype && keywords.includes(build.archetype.toLowerCase())) {
+      return build
+    }
+    // Check theme match
+    if (build.theme && keywords.includes(build.theme.toLowerCase())) {
+      return build
+    }
+  }
+
+  // Default to most popular build
+  return builds.sort((a, b) => b.deckCount - a.deckCount)[0] ?? null
+}
+
+/**
+ * Load Scryfall tagged cards for functional deck slots.
+ * Returns cards grouped by slot (sacrifice outlets, removal, etc.)
+ */
+async function loadScryfallSlotCandidates(
+  brief: StrategyBrief
+): Promise<string> {
+  try {
+    // Detect archetype from brief
+    const archetypeMatch = findArchetypeForStrategy([
+      brief.primaryWinCondition,
+      brief.playstyleDescription,
+    ])
+
+    if (!archetypeMatch || !ARCHETYPE_SLOTS[archetypeMatch.archetype.toLowerCase()]) {
+      // Fallback: get generic archetype cards
+      const cards = await getCardsByArchetype('control', {
+        colorIdentity: brief.colourIdentity.join(''),
+        limit: 30,
+      })
+      if (cards.length === 0) return ''
+      return `\n### Suggested Cards by Role\n${cards.map(c => `- ${c.cardName}`).join('\n')}`
+    }
+
+    // Get cards for all slots in this archetype
+    const slotCards = await getCardsForAllSlots(archetypeMatch.archetype, {
+      colorIdentity: brief.colourIdentity.join(''),
+      limitPerSlot: 15,
+    })
+
+    return formatSlotsForPrompt(slotCards)
+  } catch (error) {
+    console.error('[brew/generate] Failed to load Scryfall slots:', error)
+    return ''
+  }
+}
+
+/**
+ * Load knowledge context (archetype guide, deck fundamentals).
+ */
+function loadKnowledgeContext(brief: StrategyBrief): string {
+  try {
+    // Detect archetype
+    const archetypeMatch = findArchetypeForStrategy([
+      brief.primaryWinCondition,
+      brief.secondaryWinCondition ?? '',
+      brief.playstyleDescription,
+    ])
+
+    // Load relevant knowledge files
+    const context = getBrewContext({
+      archetype: archetypeMatch?.archetype,
+      includeFundamentals: true,
+    })
+
+    return context
+  } catch (error) {
+    console.error('[brew/generate] Failed to load knowledge context:', error)
+    return ''
+  }
+}
+
+/**
  * Query the user's collection filtered by colour identity.
  * Returns cards where the card's colour identity is a subset of the commander's.
  */
@@ -157,42 +340,34 @@ async function queryCollectionByColourIdentity(
 ): Promise<Array<{ cardName: string; owned: boolean }>> {
   try {
     const supabase = createAdminClient()
+    // user_copies doesn't have card_name directly — join through user_cards
     const { data: rows, error } = await supabase
-      .from('collection')
-      .select('card_name, quantity')
+      .from('user_copies')
+      .select(`
+        id,
+        user_cards!user_copies_card_id_fkey ( card_name )
+      `)
+      .eq('is_proxy', false)
       .limit(200)
 
     if (error || !rows) return []
 
-    return rows.map(row => ({
-      cardName: row.card_name,
-      owned: (row.quantity ?? 0) > 0,
+    // Aggregate by card name
+    const cardMap = new Map<string, boolean>()
+    for (const row of rows) {
+      const cardInfo = row.user_cards as unknown as { card_name: string } | null
+      if (cardInfo?.card_name) {
+        cardMap.set(cardInfo.card_name, true)
+      }
+    }
+
+    return Array.from(cardMap.entries()).map(([cardName]) => ({
+      cardName,
+      owned: true,
     }))
   } catch {
     return []
   }
-}
-
-/**
- * Placeholder EDHREC staples until MCP integration is added.
- */
-function getPlaceholderEdhrecStaples(
-  _commanderName: string
-): Array<{ cardName: string; synergy: number }> {
-  // Return empty — the model has inherent knowledge of Commander staples
-  // Real implementation will query EDHREC MCP tool
-  return []
-}
-
-/**
- * Placeholder Scryfall fill candidates until MCP integration is added.
- */
-function getPlaceholderScryfallFills(
-  _brief: StrategyBrief
-): Array<{ cardName: string; price: number }> {
-  // Return empty — the model has inherent knowledge of available cards
-  // Real implementation will query Scryfall MCP tool
-  return []
 }
 
 // ---------------------------------------------------------------------------
@@ -270,10 +445,25 @@ async function annotateSkeleton(skeleton: DeckSkeleton): Promise<void> {
     }
 
     // Check collection for ownership
+    // user_copies has card_id FK to user_cards which has card_name
     let collectionMap: Map<string, number>
     try {
-      const { data: collectionRows } = await supabase.from('collection').select('card_name, quantity')
-      collectionMap = new Map((collectionRows ?? []).map(r => [r.card_name.toLowerCase(), r.quantity ?? 0]))
+      const { data: collectionRows } = await supabase
+        .from('user_copies')
+        .select(`
+          card_id,
+          user_cards!user_copies_card_id_fkey ( card_name )
+        `)
+        .eq('is_proxy', false)
+      
+      // Aggregate by card name (count copies)
+      collectionMap = new Map()
+      for (const row of collectionRows ?? []) {
+        const cardInfo = row.user_cards as unknown as { card_name: string } | null
+        if (!cardInfo?.card_name) continue
+        const key = cardInfo.card_name.toLowerCase()
+        collectionMap.set(key, (collectionMap.get(key) ?? 0) + 1)
+      }
     } catch {
       collectionMap = new Map()
     }

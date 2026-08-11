@@ -16,11 +16,17 @@ import type { StrategyBrief, CategoryGroup } from '@/types/brew'
  *
  * Max 6 exchanges. Friendly, conversational tone.
  * Must produce a StrategyBrief JSON when sufficient context gathered.
+ *
+ * @param pathType - 'commander' if user has a commander, 'concept' if exploring
+ * @param commanderName - The commander name (for pathType 'commander')
+ * @param conceptDescription - The concept description (for pathType 'concept')
+ * @param playerContext - Pre-formatted player context block from formatPlayerContextPrompt()
  */
 export function buildBrewInvestigatorPrompt(
   pathType: 'commander' | 'concept',
   commanderName?: string,
-  conceptDescription?: string
+  conceptDescription?: string,
+  playerContext?: string
 ): string {
   const lines: string[] = []
 
@@ -55,17 +61,11 @@ export function buildBrewInvestigatorPrompt(
   lines.push('=== END CARD ACCURACY ===')
   lines.push('')
 
-  // --- Player Context ---
-  lines.push('=== PLAYER CONTEXT ===')
-  lines.push('')
-  lines.push('- Playgroup bracket: 3-4. Casual-competitive. Precon play is common.')
-  lines.push('- No infinite combos (house rule). No stax. No MLD.')
-  lines.push('- Player loves: engine-based strategies that overwhelm, redundancy in engines, fun/flavour alongside viability.')
-  lines.push('- Player dislikes: generic goodstuff, solitaire turns, decks without a clear identity.')
-  lines.push('- Budget: has ~2,700 card collection. Prefers building from owned cards. Show both premium and budget options side by side — never filter silently.')
-  lines.push('- Favourite decks: Mendicant Core (artifacts), Sephiroth (Black Magic), Hearthhull (World Breaker).')
-  lines.push('')
-  lines.push('=== END PLAYER CONTEXT ===')
+  // --- Player Context (dynamic per user) ---
+  if (playerContext) {
+    lines.push(playerContext)
+    lines.push('')
+  }
   lines.push('')
 
   if (pathType === 'commander') {
@@ -185,24 +185,66 @@ export function buildBriefExtractionPrompt(
 // ---------------------------------------------------------------------------
 
 /**
+ * Extended options for skeleton generation prompt.
+ */
+interface SkeletonPromptOptions {
+  /** Knowledge context (archetype guide, deck fundamentals) */
+  knowledgeContext?: string
+  /** Scryfall slot candidates formatted for prompt */
+  scryfallSlots?: string
+  /** Full card pool for selection-based prompting */
+  cardPoolForSelection?: string[]
+}
+
+/**
  * Build the prompt for Heavy Model skeleton generation.
  *
  * Assembles the Heavy Model prompt with:
  * - Strategy brief context
+ * - Knowledge context (archetype guides, deck fundamentals)
  * - EDHREC staples (top synergy cards)
+ * - Scryfall slot candidates (functional role cards)
  * - Collection cards (what the user already owns in this colour identity)
- * - Scryfall fill suggestions (budget alternatives)
+ * - Card pool for selection (prevents hallucinations)
  *
- * Instructs model to produce exactly 100 cards grouped by category.
- * Instructs to prioritize owned cards, flag proxy conflicts, note prices.
+ * Uses SELECTION-BASED prompting: the AI selects from provided card lists
+ * rather than generating names from memory, eliminating hallucinations.
  */
 export function buildSkeletonGenerationPrompt(
   brief: StrategyBrief,
   edhrecStaples: Array<{ cardName: string; synergy: number }>,
   collectionCards: Array<{ cardName: string; owned: boolean }>,
-  scryfallFills: Array<{ cardName: string; price: number }>
+  scryfallFills: Array<{ cardName: string; price: number }>,
+  options?: SkeletonPromptOptions
 ): string {
   const lines: string[] = []
+
+  // --- CRITICAL: Selection-based instruction ---
+  lines.push('=== CRITICAL INSTRUCTION ===')
+  lines.push('')
+  lines.push('You are building a Commander deck by SELECTING cards from the provided lists below.')
+  lines.push('DO NOT invent or recall card names from memory — ONLY use cards that appear in:')
+  lines.push('1. The EDHREC STAPLES section')
+  lines.push('2. The USER COLLECTION section')
+  lines.push('3. The SCRYFALL CANDIDATES section')
+  lines.push('4. The CARD POOL FOR SELECTION section')
+  lines.push('5. Basic lands (Plains, Island, Swamp, Mountain, Forest) and the commander')
+  lines.push('')
+  lines.push('If a card name does not appear in these lists, DO NOT include it.')
+  lines.push('This ensures every card in the deck is a real, verified Magic card.')
+  lines.push('')
+  lines.push('=== END CRITICAL INSTRUCTION ===')
+  lines.push('')
+
+  // --- Knowledge context (archetype guide, deck fundamentals) ---
+  if (options?.knowledgeContext) {
+    lines.push('=== DECK BUILDING KNOWLEDGE ===')
+    lines.push('')
+    lines.push(options.knowledgeContext)
+    lines.push('')
+    lines.push('=== END DECK BUILDING KNOWLEDGE ===')
+    lines.push('')
+  }
 
   // --- Strategy brief context ---
   lines.push('=== STRATEGY BRIEF ===')
@@ -220,7 +262,7 @@ export function buildSkeletonGenerationPrompt(
   }
 
   if (brief.knownIncludes.length > 0) {
-    lines.push(`Known Includes: ${brief.knownIncludes.join(', ')}`)
+    lines.push(`Known Includes (MUST include these): ${brief.knownIncludes.join(', ')}`)
   }
 
   lines.push('')
@@ -230,50 +272,88 @@ export function buildSkeletonGenerationPrompt(
   // --- EDHREC staples ---
   lines.push('=== EDHREC STAPLES ===')
   lines.push('')
-  lines.push('Top synergy cards for this commander (higher synergy = more specific to this commander):')
-  lines.push('')
-
-  for (const staple of edhrecStaples) {
-    lines.push(`- ${staple.cardName} (synergy: ${staple.synergy}%)`)
+  if (edhrecStaples.length > 0) {
+    lines.push('Top synergy cards for this commander (SELECT from this list):')
+    lines.push('')
+    for (const staple of edhrecStaples) {
+      lines.push(`- ${staple.cardName} (synergy: ${staple.synergy}%)`)
+    }
+  } else {
+    lines.push('(No EDHREC data available for this commander)')
   }
-
   lines.push('')
   lines.push('=== END EDHREC STAPLES ===')
   lines.push('')
 
+  // --- Scryfall slot candidates ---
+  if (options?.scryfallSlots) {
+    lines.push('=== SCRYFALL CANDIDATES BY ROLE ===')
+    lines.push('')
+    lines.push('Cards tagged by functional role (SELECT from these for specific slots):')
+    lines.push(options.scryfallSlots)
+    lines.push('')
+    lines.push('=== END SCRYFALL CANDIDATES ===')
+    lines.push('')
+  }
+
   // --- Collection cards ---
   lines.push('=== USER COLLECTION ===')
   lines.push('')
-  lines.push('Cards the user owns within this colour identity (prioritise these):')
-  lines.push('')
-
-  for (const card of collectionCards) {
-    const status = card.owned ? '✅ owned' : '⚠️ in another deck'
-    lines.push(`- ${card.cardName} [${status}]`)
+  if (collectionCards.length > 0) {
+    lines.push('Cards the user owns (PRIORITISE these — they are free):')
+    lines.push('')
+    for (const card of collectionCards) {
+      const status = card.owned ? '✅ owned' : '⚠️ in another deck'
+      lines.push(`- ${card.cardName} [${status}]`)
+    }
+  } else {
+    lines.push('(No collection data available)')
   }
-
   lines.push('')
   lines.push('=== END USER COLLECTION ===')
   lines.push('')
 
-  // --- Scryfall fills ---
-  lines.push('=== SCRYFALL FILL CANDIDATES ===')
-  lines.push('')
-  lines.push('Additional cards available for purchase (use to fill gaps):')
-  lines.push('')
-
-  for (const fill of scryfallFills) {
-    lines.push(`- ${fill.cardName} ($${fill.price.toFixed(2)})`)
+  // --- Full card pool for selection ---
+  if (options?.cardPoolForSelection && options.cardPoolForSelection.length > 0) {
+    lines.push('=== CARD POOL FOR SELECTION ===')
+    lines.push('')
+    lines.push('Additional verified cards you may select from:')
+    lines.push('')
+    // Group in columns for readability
+    const pool = options.cardPoolForSelection
+    for (let i = 0; i < pool.length; i += 4) {
+      const chunk = pool.slice(i, i + 4)
+      lines.push(chunk.map(c => `- ${c}`).join('  |  '))
+    }
+    lines.push('')
+    lines.push('=== END CARD POOL ===')
+    lines.push('')
   }
 
-  lines.push('')
-  lines.push('=== END SCRYFALL FILL CANDIDATES ===')
-  lines.push('')
+  // --- Scryfall fills (lower priority) ---
+  if (scryfallFills.length > 0) {
+    lines.push('=== ADDITIONAL FILL CANDIDATES ===')
+    lines.push('')
+    lines.push('Lower-synergy cards available if needed:')
+    lines.push('')
+    for (const fill of scryfallFills.slice(0, 30)) {
+      if (fill.price > 0) {
+        lines.push(`- ${fill.cardName} ($${fill.price.toFixed(2)})`)
+      } else {
+        lines.push(`- ${fill.cardName}`)
+      }
+    }
+    lines.push('')
+    lines.push('=== END FILL CANDIDATES ===')
+    lines.push('')
+  }
 
   // --- Generation instructions ---
   lines.push('=== GENERATION INSTRUCTIONS ===')
   lines.push('')
   lines.push('Build a complete Commander deck of EXACTLY 100 cards (including the commander).')
+  lines.push('')
+  lines.push('REMINDER: ONLY select cards from the lists above. Do not invent card names.')
   lines.push('')
   lines.push('Group the cards into functional categories. Typical categories include:')
   lines.push('- Ramp (10-12 cards)')
@@ -282,15 +362,15 @@ export function buildSkeletonGenerationPrompt(
   lines.push('- Protection (3-5 cards)')
   lines.push('- Synergy / Theme pieces (deck-specific)')
   lines.push('- Finishers / Win Conditions (4-6 cards)')
-  lines.push('- Lands (35-37 cards)')
+  lines.push('- Lands (35-37 cards — basic lands are always valid)')
   lines.push('')
   lines.push('Prioritisation rules:')
   lines.push('1. ALWAYS include the Known Includes specified in the brief')
   lines.push('2. Prioritise cards from the User Collection (owned cards are free)')
   lines.push('3. Use EDHREC staples with high synergy scores')
-  lines.push('4. Fill remaining slots from Scryfall candidates')
-  lines.push('5. Flag any card that creates a proxy conflict (already in another deck)')
-  lines.push('6. Note price for each card')
+  lines.push('4. Fill functional slots using Scryfall candidates')
+  lines.push('5. Fill remaining slots from the Card Pool')
+  lines.push('6. Flag any card that creates a proxy conflict (already in another deck)')
   lines.push('')
 
   if (brief.budgetPreference === 'budget' && brief.budgetCeiling != null) {

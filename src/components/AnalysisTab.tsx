@@ -541,6 +541,15 @@ export function AnalysisTab({ cards, deckId, bracket, format }: AnalysisTabProps
           </div>
         </section>
       </div>
+
+      {/* ─── Color Coverage Gaps (full width) ─── */}
+      {(colorRequirements.doublePipCards.length > 0 || colorRequirements.triplePipCards.length > 0) && (
+        <ColorCoverageGaps
+          colorRequirements={colorRequirements}
+          landSources={landSources}
+          landRecommendations={landRecommendations}
+        />
+      )}
     </div>
   )
 }
@@ -690,5 +699,204 @@ function ManaCurveChart({ buckets, maxBucket }: { buckets: number[]; maxBucket: 
         }}
       />
     </div>
+  )
+}
+
+/**
+ * Color Coverage Gaps Widget
+ * 
+ * Shows detailed analysis of multi-pip requirements and whether the mana base
+ * can reliably support them. Groups double/triple pip cards by color and curve
+ * position, providing actionable recommendations.
+ */
+function ColorCoverageGaps({
+  colorRequirements,
+  landSources,
+  landRecommendations,
+}: {
+  colorRequirements: ColorRequirements
+  landSources: Record<string, number>
+  landRecommendations: LandRecommendation[]
+}) {
+  const { doublePipCards, triplePipCards } = colorRequirements
+
+  // Group multi-pip cards by color
+  const byColor = new Map<string, {
+    double: Array<{ cardName: string; cmc: number; pipCount: number }>
+    triple: Array<{ cardName: string; cmc: number; pipCount: number }>
+  }>()
+
+  for (const card of doublePipCards) {
+    const existing = byColor.get(card.color) ?? { double: [], triple: [] }
+    existing.double.push({ cardName: card.cardName, cmc: card.cmc, pipCount: card.pipCount })
+    byColor.set(card.color, existing)
+  }
+
+  for (const card of triplePipCards) {
+    const existing = byColor.get(card.color) ?? { double: [], triple: [] }
+    existing.triple.push({ cardName: card.cardName, cmc: card.cmc, pipCount: card.pipCount })
+    byColor.set(card.color, existing)
+  }
+
+  // Source requirements based on Frank Karsten's research:
+  // - To cast WW on turn 2 with 90% reliability: ~18 sources in 60-card
+  // - To cast WWW on turn 3 with 90% reliability: ~22 sources in 60-card
+  // For Commander (100-card), scale is roughly similar due to 1 free mulligan
+  const getReliabilityRating = (sources: number, pipCount: number, cmc: number): {
+    rating: 'excellent' | 'good' | 'risky' | 'poor'
+    message: string
+  } => {
+    // Early double-pip (CMC 2-3) needs ~18 sources
+    // Early triple-pip (CMC 3-4) needs ~22 sources
+    // Late cards (CMC 5+) are more forgiving
+    
+    let required: number
+    if (pipCount >= 3) {
+      required = cmc <= 4 ? 22 : 18
+    } else {
+      required = cmc <= 3 ? 18 : 14
+    }
+
+    const ratio = sources / required
+
+    if (ratio >= 1.0) return { rating: 'excellent', message: 'Reliable' }
+    if (ratio >= 0.85) return { rating: 'good', message: 'Usually on time' }
+    if (ratio >= 0.7) return { rating: 'risky', message: 'May be delayed' }
+    return { rating: 'poor', message: 'Unreliable' }
+  }
+
+  const ratingColors = {
+    excellent: '#1D9E75',
+    good: '#3B82F6',
+    risky: '#EF9F27',
+    poor: '#D3202A',
+  }
+
+  // Sort colors by severity (fewest sources relative to need first)
+  const sortedColors = Array.from(byColor.entries()).sort((a, b) => {
+    const aRec = landRecommendations.find(r => r.color === a[0])
+    const bRec = landRecommendations.find(r => r.color === b[0])
+    const aDiff = (aRec?.currentSources ?? 0) - (aRec?.recommendedSources ?? 0)
+    const bDiff = (bRec?.currentSources ?? 0) - (bRec?.recommendedSources ?? 0)
+    return aDiff - bDiff // Most under-sourced first
+  })
+
+  if (sortedColors.length === 0) return null
+
+  return (
+    <section
+      style={{
+        background: 'rgba(255,255,255,0.02)',
+        border: '0.5px solid rgba(255,255,255,0.07)',
+        borderRadius: '10px',
+        padding: '16px',
+      }}
+      aria-label="Color coverage gaps"
+    >
+      <h3 style={{ fontSize: '12px', fontWeight: 500, color: 'rgba(255,255,255,0.5)', marginBottom: '14px' }}>
+        Color coverage gaps
+      </h3>
+      <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginBottom: '12px' }}>
+        Cards with strict color requirements may be delayed if your mana base doesn&apos;t have enough sources.
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {sortedColors.map(([color, cards]) => {
+          const info = COLOUR_MAP[color]
+          if (!info) return null
+
+          const sources = landSources[color] ?? 0
+          const rec = landRecommendations.find(r => r.color === color)
+          const allCards = [...cards.triple, ...cards.double].sort((a, b) => a.cmc - b.cmc)
+          
+          // Find earliest multi-pip card to determine severity
+          const earliestCmc = Math.min(...allCards.map(c => c.cmc))
+          const maxPips = Math.max(...allCards.map(c => c.pipCount))
+          const { rating, message } = getReliabilityRating(sources, maxPips, earliestCmc)
+
+          const needsBorder = color === 'B' || color === 'W'
+
+          return (
+            <div key={color}>
+              {/* Color header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <div
+                  style={{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '2px',
+                    flexShrink: 0,
+                    backgroundColor: info.swatch,
+                    border: needsBorder ? '0.5px solid rgba(255,255,255,0.15)' : undefined,
+                  }}
+                  aria-hidden="true"
+                />
+                <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>
+                  {info.name}
+                </span>
+                <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>
+                  {sources} sources
+                  {rec && rec.recommendedSources > sources && (
+                    <span style={{ color: '#EF9F27' }}> (need {rec.recommendedSources})</span>
+                  )}
+                </span>
+                <span style={{ marginLeft: 'auto', fontSize: '10px', color: ratingColors[rating] }}>
+                  {message}
+                </span>
+              </div>
+
+              {/* Card list grouped by curve */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', paddingLeft: '20px' }}>
+                {allCards.map((card, i) => {
+                  const pipDisplay = color.repeat(card.pipCount)
+                  const cardRating = getReliabilityRating(sources, card.pipCount, card.cmc)
+                  
+                  return (
+                    <div
+                      key={`${card.cardName}-${i}`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        background: 'rgba(255,255,255,0.03)',
+                        border: `0.5px solid ${cardRating.rating === 'poor' ? 'rgba(211,32,42,0.3)' : cardRating.rating === 'risky' ? 'rgba(239,159,39,0.3)' : 'rgba(255,255,255,0.06)'}`,
+                      }}
+                      title={`${card.cardName}: ${pipDisplay} at CMC ${card.cmc} — ${cardRating.message}`}
+                    >
+                      <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>
+                        {card.cmc}:
+                      </span>
+                      <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {card.cardName}
+                      </span>
+                      <span style={{ fontSize: '9px', color: ratingColors[cardRating.rating], fontFamily: 'monospace' }}>
+                        {pipDisplay}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Recommendation */}
+              {rec && rec.status === 'low' && (
+                <div style={{ fontSize: '10px', color: '#EF9F27', marginTop: '6px', paddingLeft: '20px' }}>
+                  Consider adding {rec.recommendedSources - sources} more {info.name.toLowerCase()} sources for reliable casting
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* General advice footer */}
+      <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', lineHeight: 1.6 }}>
+          <strong style={{ color: 'rgba(255,255,255,0.35)' }}>Tip:</strong> For reliable turn-2 double-pip plays (like WW), aim for 18+ sources of that color.
+          For triple-pip costs, aim for 22+ sources. Fetchlands and dual lands help reach these targets.
+        </div>
+      </div>
+    </section>
   )
 }

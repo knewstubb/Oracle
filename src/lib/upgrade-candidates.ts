@@ -42,10 +42,10 @@ export interface UpgradeCandidate {
 // Ownership tier mapping (for 'owned' sort mode)
 // ---------------------------------------------------------------------------
 
-const OWNERSHIP_TIER: Record<OwnershipStatus, number> = {
-  original: 0,
-  proxy: 1,
-  not_owned: 2,
+function getOwnershipTier(status: OwnershipStatus): number {
+  if (status === 'original') return 0
+  if (status === 'proxy') return 1
+  return 2 // null or unowned
 }
 
 // ---------------------------------------------------------------------------
@@ -75,7 +75,7 @@ function comparatorForMode(mode: SortMode): (a: UpgradeCandidate, b: UpgradeCand
       return (a, b) => (a.add.price ?? 999) - (b.add.price ?? 999)
     case 'owned':
       return (a, b) =>
-        OWNERSHIP_TIER[a.add.ownership_status] - OWNERSHIP_TIER[b.add.ownership_status]
+        getOwnershipTier(a.add.ownership_status) - getOwnershipTier(b.add.ownership_status)
     case 'edhrec':
       return (a, b) => (b.add.edhrec_percent ?? 0) - (a.add.edhrec_percent ?? 0)
   }

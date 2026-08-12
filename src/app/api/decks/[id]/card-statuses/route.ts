@@ -25,15 +25,15 @@ export async function GET(
 
   const supabase = createAdminClient()
 
-  // Fetch deck_cards with physical_copy join for is_proxy
+  // Fetch deck_cards with user_copies join for is_proxy
   const { data: deckCards, error } = await supabase
     .from('deck_cards')
     .select(`
       id,
       card_name,
       scryfall_id,
-      physical_copy_id,
-      physical_copies!deck_cards_physical_copy_id_fkey(is_proxy)
+      copy_id,
+      user_copies!deck_cards_copy_id_fkey(is_proxy)
     `)
     .eq('deck_id', deckId)
     .order('card_name')
@@ -47,18 +47,19 @@ export async function GET(
     id: row.id,
     card_name: row.card_name,
     scryfall_id: row.scryfall_id ?? null,
-    physical_copy_id: row.physical_copy_id,
-    is_proxy: row.physical_copies?.is_proxy ?? null,
+    copy_id: row.copy_id,
+    is_proxy: row.user_copies?.is_proxy ?? null,
   }))
 
   const statuses = await computeDeckCardStatuses(cards, userId)
 
   // Compute summary counts (exclude generic_land from total — it's an exemption, not a status)
+  // 'alternate' counts as 'available' since it represents owned cards in storage (different printing)
   const counts = {
     total: statuses.filter(s => s.status !== 'generic_land').length,
     original: statuses.filter(s => s.status === 'original').length,
     proxy: statuses.filter(s => s.status === 'proxy').length,
-    available: statuses.filter(s => s.status === 'available').length,
+    available: statuses.filter(s => s.status === 'available' || s.status === 'alternate').length,
     claimed: statuses.filter(s => s.status === 'claimed').length,
     unowned: statuses.filter(s => s.status === 'unowned').length,
     generic_land: statuses.filter(s => s.status === 'generic_land').length,

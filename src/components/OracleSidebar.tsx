@@ -1,0 +1,566 @@
+'use client'
+
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
+import { X, Trash2, MessageSquare, Library, LayoutGrid, Sparkles, Wrench, Layers } from 'lucide-react'
+import { useOracle, type OracleContext } from '@/contexts/OracleContext'
+import { useQueryClient } from '@tanstack/react-query'
+import { renderMessageContent, type CardLinkMode, type OwnershipStatus, type OwnershipLookupFn } from '@/lib/render-card-links'
+import { cardOwnershipData } from '@/components/CardHoverPreview'
+import { deckKeys } from '@/hooks/useDeckQueryKeys'
+import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const MIN_WIDTH = 320
+const MAX_WIDTH = 600
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface OwnershipData {
+  cardName: string
+  status: OwnershipStatus
+  quantity?: number
+  available?: number
+  priceUsd?: number | null
+}
+
+// ---------------------------------------------------------------------------
+// Icons
+// ---------------------------------------------------------------------------
+
+function ArrowUpIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+    </svg>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Context display helpers
+// ---------------------------------------------------------------------------
+
+function getContextIcon(type: OracleContext['type']) {
+  switch (type) {
+    case 'collection': return <Library className="w-4 h-4" />
+    case 'deck': return <Layers className="w-4 h-4" />
+    case 'deck-list': return <LayoutGrid className="w-4 h-4" />
+    case 'forge': return <Sparkles className="w-4 h-4" />
+    case 'workbench': return <Wrench className="w-4 h-4" />
+    default: return <MessageSquare className="w-4 h-4" />
+  }
+}
+
+function getContextLabel(context: OracleContext): string {
+  switch (context.type) {
+    case 'collection': return 'Your Collection'
+    case 'deck': return context.deckName ?? 'Deck'
+    case 'deck-list': return 'All Decks'
+    case 'forge': return 'The Forge'
+    case 'workbench': return context.deckName ?? 'Workbench'
+    default: return 'General'
+  }
+}
+
+function getContextSubtitle(context: OracleContext): string | null {
+  if (context.type === 'deck' || context.type === 'workbench') {
+    return context.commanderName ?? null
+  }
+  return null
+}
+
+// ---------------------------------------------------------------------------
+// OracleSidebar
+// ---------------------------------------------------------------------------
+
+export function OracleSidebar() {
+  const {
+    isOpen,
+    width,
+    messages,
+    activeContext,
+    isStreaming,
+    isLoadingHistory,
+    close,
+    setWidth,
+    sendMessage,
+    clearMessages,
+  } = useOracle()
+
+  const queryClient = useQueryClient()
+  const [inputValue, setInputValue] = useState('')
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
+  const [ownershipCache, setOwnershipCache] = useState<Map<string, OwnershipStatus>>(new Map())
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const pendingLookups = useRef<Set<string>>(new Set())
+
+  // ---------------------------------------------------------------------------
+  // Ownership lookup — extract card names from messages and fetch ownership
+  // ---------------------------------------------------------------------------
+
+  const cardNamesInChat = useMemo(() => {
+    const names = new Set<string>()
+    const cardPattern = /\[\[([^\]]+)\]\]/g
+    for (const msg of messages) {
+      if (msg.role === 'assistant') {
+        let match
+        while ((match = cardPattern.exec(msg.content)) !== null) {
+          names.add(match[1])
+        }
+      }
+    }
+    return names
+  }, [messages])
+
+  // Fetch ownership data for cards not yet in cache
+  useEffect(() => {
+    const cardsToFetch = Array.from(cardNamesInChat).filter(
+      name => !ownershipCache.has(name.toLowerCase()) && !pendingLookups.current.has(name.toLowerCase())
+    )
+    
+    if (cardsToFetch.length === 0) return
+    
+    // Mark as pending (lowercase for consistency)
+    cardsToFetch.forEach(name => pendingLookups.current.add(name.toLowerCase()))
+    
+    const fetchOwnership = async () => {
+      try {
+        const response = await fetch('/api/collection/ownership-batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cardNames: cardsToFetch, includeDetails: true }),
+        })
+        
+        if (response.ok) {
+          const data = await response.json() as { results: OwnershipData[] }
+          setOwnershipCache(prev => {
+            const next = new Map(prev)
+            for (const item of data.results) {
+              // Store with lowercase key for consistent case-insensitive lookup
+              next.set(item.cardName.toLowerCase(), item.status)
+              // Also populate global store for hover preview
+              cardOwnershipData.set(item.cardName.toLowerCase(), {
+                status: item.status,
+                quantity: item.quantity,
+                available: item.available,
+                priceUsd: item.priceUsd,
+              })
+            }
+            return next
+          })
+        } else {
+          console.error('[OracleSidebar] Ownership fetch failed:', response.status)
+        }
+      } catch (err) {
+        console.error('[OracleSidebar] Ownership fetch error:', err)
+      } finally {
+        cardsToFetch.forEach(name => pendingLookups.current.delete(name.toLowerCase()))
+      }
+    }
+    
+    fetchOwnership()
+  }, [cardNamesInChat, ownershipCache])
+
+  // Ownership lookup function for renderMessageContent
+  // Uses lowercase lookup since cache is keyed by lowercase
+  const ownershipLookup: OwnershipLookupFn = useCallback((cardName: string) => {
+    return ownershipCache.get(cardName.toLowerCase()) ?? 'unknown'
+  }, [ownershipCache])
+
+  // ---------------------------------------------------------------------------
+  // Card action handling — add card to deck
+  // ---------------------------------------------------------------------------
+
+  const handleCardAction = useCallback(async (cardName: string) => {
+    // Only allow adding cards in deck context
+    if (activeContext.type !== 'deck' || !activeContext.deckId) {
+      toast.info('Open a deck to add cards')
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/decks/${activeContext.deckId}/cards`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cardName,
+          quantity: 1,
+        }),
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || 'Failed to add card')
+      }
+
+      toast.success(`Added ${cardName}`)
+      
+      // Invalidate deck queries to refresh the UI
+      queryClient.invalidateQueries({ queryKey: deckKeys.detail(String(activeContext.deckId)) })
+      queryClient.invalidateQueries({ queryKey: deckKeys.cards(String(activeContext.deckId)) })
+    } catch (err) {
+      console.error('[OracleSidebar] Failed to add card:', err)
+      toast.error(err instanceof Error ? err.message : 'Failed to add card')
+    }
+  }, [activeContext, queryClient])
+
+  // ---------------------------------------------------------------------------
+  // Auto-scroll and focus
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, isStreaming])
+
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => inputRef.current?.focus(), 100)
+    }
+  }, [isOpen])
+
+  // ---------------------------------------------------------------------------
+  // Resize handling
+  // ---------------------------------------------------------------------------
+
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.preventDefault()
+      const startX = e.clientX
+      const startWidth = width
+      const target = e.currentTarget
+      target.setPointerCapture(e.pointerId)
+
+      const handlePointerMove = (ev: PointerEvent) => {
+        const delta = startX - ev.clientX
+        const maxAllowed = Math.min(MAX_WIDTH, window.innerWidth * 0.6)
+        const newWidth = Math.max(MIN_WIDTH, Math.min(maxAllowed, startWidth + delta))
+        setWidth(newWidth)
+      }
+
+      const handlePointerUp = () => {
+        target.removeEventListener('pointermove', handlePointerMove)
+        target.removeEventListener('pointerup', handlePointerUp)
+      }
+
+      target.addEventListener('pointermove', handlePointerMove)
+      target.addEventListener('pointerup', handlePointerUp)
+    },
+    [width, setWidth]
+  )
+
+  // ---------------------------------------------------------------------------
+  // Send message
+  // ---------------------------------------------------------------------------
+
+  const handleSend = useCallback(() => {
+    const text = inputValue.trim()
+    if (!text || isStreaming) return
+    sendMessage(text)
+    setInputValue('')
+    // Reset textarea height
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto'
+    }
+  }, [inputValue, isStreaming, sendMessage])
+
+  // ---------------------------------------------------------------------------
+  // Clear history
+  // ---------------------------------------------------------------------------
+
+  const handleClearClick = useCallback(() => {
+    if (messages.length === 0) return
+    setShowClearConfirm(true)
+  }, [messages.length])
+
+  const handleClearConfirm = useCallback(() => {
+    clearMessages()
+    setShowClearConfirm(false)
+    setOwnershipCache(new Map()) // Clear ownership cache too
+  }, [clearMessages])
+
+  // ---------------------------------------------------------------------------
+  // Determine card link mode based on context
+  // ---------------------------------------------------------------------------
+
+  const cardLinkMode: CardLinkMode = 
+    activeContext.type === 'deck' || activeContext.type === 'workbench'
+      ? 'add'
+      : 'none'
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
+
+  if (!isOpen) return null
+
+  const contextLabel = getContextLabel(activeContext)
+
+  return (
+    <>
+      {/* Backdrop for mobile */}
+      <div 
+        className="fixed inset-0 bg-black/50 z-40 md:hidden"
+        onClick={close}
+      />
+      
+      {/* Sidebar */}
+      <aside
+        ref={panelRef}
+        className={cn(
+          'fixed right-0 top-0 h-full z-50 flex flex-col',
+          'md:relative md:z-auto md:h-auto',
+          'bg-[rgba(30,30,30,0.85)] backdrop-blur-sm border-l border-zinc-800/50',
+          'shadow-2xl md:shadow-none'
+        )}
+        style={{ width, flexShrink: 0 }}
+      >
+        {/* Resize handle */}
+        <div
+          onPointerDown={handlePointerDown}
+          className="absolute left-0 top-0 z-10 h-full w-[4px] cursor-col-resize select-none hover:bg-emerald-500/40 transition-colors"
+        />
+
+        {/* Header — compact tag style */}
+        <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800/50">
+          <div className="flex items-center gap-1.5 text-zinc-400">
+            {getContextIcon(activeContext.type)}
+            <span className="text-xs font-medium">{contextLabel}</span>
+          </div>
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={handleClearClick}
+              disabled={messages.length === 0}
+              className="p-1 rounded text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              aria-label="Clear conversation"
+              title="Clear conversation"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={close}
+              className="p-1 rounded text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors"
+              aria-label="Close Oracle"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Messages area */}
+        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
+          {isLoadingHistory ? (
+            <div className="flex items-center justify-center h-32 text-zinc-500 text-sm">
+              Loading conversation...
+            </div>
+          ) : messages.length === 0 ? (
+            <EmptyState context={activeContext} onSuggestionClick={sendMessage} />
+          ) : (
+            messages
+              .filter(msg => msg.role !== 'system')
+              .filter(msg => !(msg.role === 'assistant' && msg.content === ''))
+              .map((msg) => (
+                <MessageBubble 
+                  key={msg.id} 
+                  message={msg}
+                  cardLinkMode={cardLinkMode}
+                  onCardAction={handleCardAction}
+                  ownershipLookup={ownershipLookup}
+                />
+              ))
+          )}
+          {isStreaming && (messages.length === 0 || messages[messages.length - 1]?.content === '') && (
+            <ThinkingIndicator />
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input area */}
+        <div className="border-t border-zinc-800/50 px-3 py-2">
+          <div className="flex items-end gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 px-2.5 py-1.5 transition-all focus-within:border-emerald-500/50">
+            <textarea
+              ref={inputRef}
+              value={inputValue}
+              onChange={(e) => {
+                setInputValue(e.target.value)
+                // Auto-resize
+                e.target.style.height = 'auto'
+                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSend()
+                }
+              }}
+              disabled={isStreaming}
+              placeholder={isStreaming ? 'Oracle is thinking...' : 'Ask Oracle anything...'}
+              rows={1}
+              className="flex-1 resize-none bg-transparent text-[length:var(--fs-sm)] text-zinc-100 placeholder:text-zinc-500 focus:outline-none disabled:opacity-50"
+              style={{ minHeight: '22px', maxHeight: '120px' }}
+            />
+            <button
+              onClick={handleSend}
+              disabled={isStreaming || !inputValue.trim()}
+              className="flex items-center justify-center w-7 h-7 rounded-md bg-emerald-500 text-black transition-all hover:bg-emerald-400 disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+              aria-label="Send message"
+            >
+              <ArrowUpIcon />
+            </button>
+          </div>
+        </div>
+
+        {/* Clear confirmation dialog */}
+        {showClearConfirm && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-20">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 mx-4 max-w-sm">
+              <p className="text-sm text-zinc-200 mb-4">
+                Clear conversation history? This cannot be undone.
+              </p>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setShowClearConfirm(false)}
+                  className="px-3 py-1.5 text-sm rounded-md text-zinc-400 hover:bg-zinc-800 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleClearConfirm}
+                  className="px-3 py-1.5 text-sm rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </aside>
+    </>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// MessageBubble
+// ---------------------------------------------------------------------------
+
+interface MessageBubbleProps {
+  message: {
+    id: string
+    role: 'user' | 'assistant' | 'system'
+    content: string
+  }
+  cardLinkMode: CardLinkMode
+  onCardAction?: (name: string) => void
+  ownershipLookup?: OwnershipLookupFn
+}
+
+function MessageBubble({ message, cardLinkMode, onCardAction, ownershipLookup }: MessageBubbleProps) {
+  if (message.role === 'user') {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[85%] rounded-2xl bg-zinc-800/60 px-3 py-2 text-[length:var(--fs-sm)] text-zinc-100 leading-relaxed">
+          {message.content}
+        </div>
+      </div>
+    )
+  }
+
+  // Assistant message — full width, no bubble
+  return (
+    <div className="text-[length:var(--fs-sm)] text-zinc-300 leading-relaxed">
+      {renderMessageContent(message.content, cardLinkMode, onCardAction, undefined, ownershipLookup)}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// EmptyState
+// ---------------------------------------------------------------------------
+
+function EmptyState({ context, onSuggestionClick }: { context: OracleContext; onSuggestionClick?: (text: string) => void }) {
+  const suggestions = getSuggestions(context)
+
+  return (
+    <div className="flex flex-col items-center justify-center h-full text-center px-4 py-8">
+      <div className="w-12 h-12 rounded-full bg-emerald-500/15 flex items-center justify-center mb-4">
+        <MessageSquare className="w-6 h-6 text-emerald-400" />
+      </div>
+      <h3 className="text-sm font-medium text-zinc-100 mb-1">Ask Oracle</h3>
+      <p className="text-xs text-zinc-500 mb-4 max-w-[240px]">
+        I can help with deckbuilding, card suggestions, collection analysis, and more.
+      </p>
+      {suggestions.length > 0 && (
+        <div className="space-y-1.5 w-full max-w-[280px]">
+          {suggestions.map((s, i) => (
+            <button
+              key={i}
+              onClick={() => onSuggestionClick?.(s)}
+              className="w-full text-left text-xs text-zinc-400 hover:text-emerald-400 bg-zinc-800/30 hover:bg-zinc-800/60 px-3 py-2 rounded-md transition-colors"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function getSuggestions(context: OracleContext): string[] {
+  switch (context.type) {
+    case 'collection':
+      return [
+        'What commanders could I build?',
+        'Find cards I own but never use',
+        'What staples am I missing?',
+      ]
+    case 'deck':
+    case 'workbench':
+      return [
+        'What cards should I cut?',
+        'Suggest better removal options',
+        'What are the key cards for this deck?',
+      ]
+    case 'deck-list':
+      return [
+        'Compare my decks',
+        'Which deck needs the most work?',
+        'Find shared expensive cards',
+      ]
+    case 'forge':
+      return [
+        'I want to build aristocrats',
+        'Suggest a unique commander',
+        'What plays well at bracket 3?',
+      ]
+    default:
+      return [
+        'Help me build a new deck',
+        'What commanders are popular?',
+        'Explain partner commanders',
+      ]
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ThinkingIndicator
+// ---------------------------------------------------------------------------
+
+function ThinkingIndicator() {
+  return (
+    <div className="flex items-center gap-2 text-sm text-zinc-500">
+      <div className="flex gap-1">
+        <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-emerald-400" style={{ animationDelay: '0ms' }} />
+        <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-emerald-400" style={{ animationDelay: '150ms' }} />
+        <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-emerald-400" style={{ animationDelay: '300ms' }} />
+      </div>
+      <span>Thinking...</span>
+    </div>
+  )
+}

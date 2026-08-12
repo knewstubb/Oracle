@@ -80,74 +80,63 @@ export async function GET(request: NextRequest) {
 
     const nameList = sharedNames.map(r => r.card_name)
 
-    // Step 2: Get physical_copies ownership data via card_definitions
+    // Step 2: Get user_copies ownership data via user_cards
     // This replaces the old collection.quantity lookup
-    const { data: physicalCopiesData, error: pcErr } = await supabase
-      .from('physical_copies')
+    const { data: userCopiesData, error: pcErr } = await supabase
+      .from('user_copies')
       .select(`
         id,
-        card_definition_id,
-        scryfall_printing_id,
+        card_id,
+        scryfall_id,
         is_proxy,
-        card_definitions!physical_copies_card_definition_id_fkey(card_name, color_identity, type_line)
+        user_cards!user_copies_card_id_fkey(card_name),
+        ref_printings!user_copies_scryfall_id_fkey(set_code, set_name)
       `)
       .eq('is_proxy', false)
       .eq('user_id', authResult.id) as { data: any[] | null; error: any }
 
     if (pcErr) throw pcErr
 
-    // Build ownership counts by card name (from physical_copies, non-proxy only)
+    // Build ownership counts by card name (from user_copies, non-proxy only)
     const ownedByName = new Map<string, number>()
     // Build per-printing ownership: key = "card_name_lower|set_code_lower"
     const ownedByPrinting = new Map<string, number>()
-    // Track scryfall_printing_ids we need set_code for
-    const printingIdsNeeded = new Set<string>()
+    // set_code → set_name map (built from ref_printings join)
+    const setNameMap = new Map<string, string>()
 
-    // card_definitions data for color/type filtering
-    const cardDefInfo = new Map<string, { color_identity: string; type_line: string }>()
-
-    for (const pc of physicalCopiesData || []) {
-      const cd = (pc as any).card_definitions as { card_name: string; color_identity: string; type_line: string } | null
-      if (!cd || !nameList.includes(cd.card_name)) continue
+    for (const uc of userCopiesData || []) {
+      const userCard = (uc as any).user_cards as { card_name: string } | null
+      const printing = (uc as any).ref_printings as { set_code: string; set_name: string } | null
+      if (!userCard || !nameList.includes(userCard.card_name)) continue
 
       // Aggregate owned count by card name
-      ownedByName.set(cd.card_name, (ownedByName.get(cd.card_name) || 0) + 1)
+      ownedByName.set(userCard.card_name, (ownedByName.get(userCard.card_name) || 0) + 1)
 
-      // Track printing IDs for set_code resolution
-      if (pc.scryfall_printing_id) {
-        printingIdsNeeded.add(pc.scryfall_printing_id)
+      // Build per-printing ownership counts
+      const setCode = printing?.set_code || ''
+      const key = `${userCard.card_name.toLowerCase()}|${setCode.toLowerCase()}`
+      ownedByPrinting.set(key, (ownedByPrinting.get(key) || 0) + 1)
+
+      // Store set_name for later
+      if (printing?.set_code && printing?.set_name && !setNameMap.has(printing.set_code.toLowerCase())) {
+        setNameMap.set(printing.set_code.toLowerCase(), printing.set_name)
       }
+    }
 
-      // Store card definition info for filtering
-      if (!cardDefInfo.has(cd.card_name)) {
-        cardDefInfo.set(cd.card_name, {
-          color_identity: cd.color_identity || '',
-          type_line: cd.type_line || '',
+    // Step 3: Get ref_cards data for color/type filtering (only for cards we need)
+    const cardDefInfo = new Map<string, { color_identity: string; type_line: string }>()
+    if ((identityParam || typeParam) && nameList.length > 0) {
+      const { data: refCards } = await supabase
+        .from('ref_cards')
+        .select('name, color_identity, type_line')
+        .in('name', nameList)
+
+      for (const rc of refCards || []) {
+        cardDefInfo.set(rc.name, {
+          color_identity: rc.color_identity || '',
+          type_line: rc.type_line || '',
         })
       }
-    }
-
-    // Step 3: Resolve set_codes from printing_set_info for physical copies
-    const printingSetMap = new Map<string, string>() // scryfall_printing_id → set_code
-    if (printingIdsNeeded.size > 0) {
-      const { data: printingSetRows } = await (supabase as any)
-        .from('printing_set_info')
-        .select('scryfall_printing_id, set_code')
-        .in('scryfall_printing_id', Array.from(printingIdsNeeded))
-
-      for (const row of printingSetRows || []) {
-        printingSetMap.set((row as any).scryfall_printing_id, (row as any).set_code)
-      }
-    }
-
-    // Build per-printing ownership counts using resolved set_codes
-    for (const pc of physicalCopiesData || []) {
-      const cd = (pc as any).card_definitions as { card_name: string; color_identity: string; type_line: string } | null
-      if (!cd || !nameList.includes(cd.card_name)) continue
-
-      const setCode = (pc.scryfall_printing_id && printingSetMap.get(pc.scryfall_printing_id)) || ''
-      const key = `${cd.card_name.toLowerCase()}|${setCode.toLowerCase()}`
-      ownedByPrinting.set(key, (ownedByPrinting.get(key) || 0) + 1)
     }
 
     // Apply color identity filter
@@ -182,12 +171,13 @@ export async function GET(request: NextRequest) {
       return Response.json({ groups: [], collectionSynced: false })
     }
 
-    // Check if physical_copies has data (replaces collection sync check)
-    const { count: physicalCopiesCount } = await supabase
-      .from('physical_copies')
+    // Check if user_copies has data (replaces collection sync check)
+    const { count: userCopiesCount } = await supabase
+      .from('user_copies')
       .select('*', { count: 'exact', head: true })
+      .eq('user_id', authResult.id)
 
-    const collectionSynced = (physicalCopiesCount ?? 0) > 0
+    const collectionSynced = (userCopiesCount ?? 0) > 0
 
     // Step 4: Get all deck names
     const allDeckIds = new Set((allDeckCards || []).map(r => r.deck_id))
@@ -201,12 +191,26 @@ export async function GET(request: NextRequest) {
       deckMap.set(d.id, d.name)
     }
 
-    // Step 5: Get sets lookup
-    const { data: setsRows } = await supabase
-      .from('sets')
-      .select('code, name')
+    // Step 5: setNameMap already built in Step 2 from ref_printings join
+    // Also get set names for deck_cards set_codes that weren't in user_copies
+    const deckCardSetCodes = new Set(
+      (allDeckCards || [])
+        .map(dc => dc.set_code?.toLowerCase())
+        .filter((code): code is string => !!code && !setNameMap.has(code))
+    )
+    if (deckCardSetCodes.size > 0) {
+      const { data: additionalSets } = await supabase
+        .from('ref_printings')
+        .select('set_code, set_name')
+        .in('set_code', Array.from(deckCardSetCodes))
+        .limit(deckCardSetCodes.size)
 
-    const setNameMap = new Map((setsRows || []).map(s => [s.code.toLowerCase(), s.name]))
+      for (const row of additionalSets || []) {
+        if (row.set_code && row.set_name && !setNameMap.has(row.set_code.toLowerCase())) {
+          setNameMap.set(row.set_code.toLowerCase(), row.set_name)
+        }
+      }
+    }
 
     // Step 6: Build grouped response
     const finalNameList = sharedNames.map(r => r.card_name)
@@ -243,17 +247,18 @@ export async function GET(request: NextRequest) {
         if (!p.scryfall_id && dc.scryfall_id) p.scryfall_id = dc.scryfall_id
       }
 
-      // Also add physical_copies-only printings (owned but not in any deck)
-      for (const pc of physicalCopiesData || []) {
-        const cd = (pc as any).card_definitions as { card_name: string; color_identity: string; type_line: string } | null
-        if (!cd || cd.card_name !== cardName) continue
-        const setCode = (pc.scryfall_printing_id && printingSetMap.get(pc.scryfall_printing_id)) || ''
+      // Also add user_copies-only printings (owned but not in any deck)
+      for (const uc of userCopiesData || []) {
+        const userCard = (uc as any).user_cards as { card_name: string } | null
+        const printing = (uc as any).ref_printings as { set_code: string; set_name: string } | null
+        if (!userCard || userCard.card_name !== cardName) continue
+        const setCode = printing?.set_code || ''
         if (!printingMap.has(setCode)) {
           printingMap.set(setCode, {
             set_code: setCode,
-            scryfall_id: pc.scryfall_printing_id || '',
+            scryfall_id: uc.scryfall_id || '',
             deck_ids: new Set(),
-            tags: new Map(),
+            ownershipByDeck: new Map(),
           })
         }
       }

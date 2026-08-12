@@ -4,26 +4,34 @@ import { requireAuth } from '@/lib/auth'
 /**
  * GET /api/collection/instances/[oracleId]
  *
- * Returns all physical copies for a given oracle_id, sorted by set release date DESC
- * then collector number ASC. Includes deck assignment and storage location info.
+ * Returns all collection copies for a given oracle_id, sorted by set release date DESC
+ * then collector number ASC. Includes deck assignment and location info.
  * Also returns shortDecks — decks that need this card but don't have it resolved.
  *
  * Validates: Requirements 10.1, 10.2, 10.3, 10.4, 10.5, 14.2, 14.3
  */
 
 interface InstanceRow {
+  copyId: number
+  /** @deprecated Use copyId */
   physicalCopyId: number
   scryfallPrintingId: string | null
   setName: string
   collectorNumber: string
+  finish: string // 'nonfoil' | 'foil' | 'etched'
+  /** @deprecated Use finish */
   isFoil: boolean
   condition: string | null
   isProxy: boolean
   isMissing: boolean
   assignedDeckName: string | null
   assignedDeckId: number | null
-  assignedDeckStatus: string | null
+  assignedDeckIsActive: boolean | null
+  locationId: number | null
+  locationName: string | null
+  /** @deprecated Use locationId */
   storageLocationId: number | null
+  /** @deprecated Use locationName */
   storageLocationName: string | null
 }
 
@@ -31,7 +39,7 @@ interface ShortDeckEntry {
   deckCardsId: number
   deckId: number
   deckName: string
-  deckStatus: string // 'brewing' | 'in_rotation' | 'graveyard'
+  isActive: boolean
 }
 
 interface InstancePanelResponse {
@@ -58,9 +66,9 @@ export async function GET(
   const supabase = createAdminClient()
 
   try {
-    // 1. Get the card_definition for this oracle_id
+    // 1. Get the card for this oracle_id
     const { data: cardDef, error: cdErr } = await (supabase as any)
-      .from('card_definitions')
+      .from('user_cards')
       .select('id, card_name, oracle_id')
       .eq('oracle_id', oracleId)
       .limit(1)
@@ -78,28 +86,28 @@ export async function GET(
       } as InstancePanelResponse)
     }
 
-    // 2. Get all physical copies for this card_definition belonging to the user
+    // 2. Get all collection copies for this card belonging to the user
     const { data: copies, error: pcErr } = await (supabase as any)
-      .from('physical_copies')
-      .select('id, scryfall_printing_id, is_foil, condition, is_proxy, storage_location_id, missing, user_id')
-      .eq('card_definition_id', cardDef.id)
+      .from('user_copies')
+      .select('id, printing_id, finish, condition, is_proxy, location_id, user_id')
+      .eq('card_id', cardDef.id)
       .eq('user_id', authResult.id)
 
     if (pcErr) throw pcErr
 
-    const physicalCopies = copies ?? []
+    const collectionCopies = copies ?? []
 
-    // 3. Get storage location names for all referenced locations
+    // 3. Get location names for all referenced locations
     const locationIds = [...new Set(
-      physicalCopies
-        .map((pc: any) => pc.storage_location_id)
+      collectionCopies
+        .map((pc: any) => pc.location_id)
         .filter((id: any) => id !== null)
     )]
 
     let locationMap: Map<number, string> = new Map()
     if (locationIds.length > 0) {
       const { data: locations } = await (supabase as any)
-        .from('storage_locations')
+        .from('user_locations')
         .select('id, name')
         .in('id', locationIds)
 
@@ -110,87 +118,94 @@ export async function GET(
       }
     }
 
-    // 4. Get deck assignments for these physical copies (including deck_id and status)
-    const copyIds = physicalCopies.map((pc: any) => pc.id)
-    let deckAssignmentMap: Map<number, { deckName: string; deckId: number; deckStatus: string }> = new Map()
+    // 4. Get deck assignments for these collection copies (including deck_id and is_active)
+    const copyIds = collectionCopies.map((pc: any) => pc.id)
+    let deckAssignmentMap: Map<number, { deckName: string; deckId: number; isActive: boolean }> = new Map()
 
     if (copyIds.length > 0) {
       const { data: deckCards } = await (supabase as any)
         .from('deck_cards')
-        .select('physical_copy_id, deck_id, decks!deck_cards_deck_id_fkey!inner(name, status)')
-        .in('physical_copy_id', copyIds)
-        .not('physical_copy_id', 'is', null)
+        .select('copy_id, deck_id, decks!deck_cards_deck_id_fkey!inner(name, is_active)')
+        .in('copy_id', copyIds)
+        .not('copy_id', 'is', null)
 
       if (deckCards) {
         for (const dc of deckCards) {
-          if (dc.physical_copy_id && dc.decks?.name) {
-            deckAssignmentMap.set(dc.physical_copy_id, {
+          if (dc.copy_id && dc.decks?.name) {
+            deckAssignmentMap.set(dc.copy_id, {
               deckName: dc.decks.name,
               deckId: dc.deck_id,
-              deckStatus: dc.decks.status ?? 'brewing',
+              isActive: dc.decks.is_active ?? true,
             })
           }
         }
       }
     }
 
-    // 5. Get printing/set info via scryfall_printing_id from printing_set_info table
-    const scryfallIds = [...new Set(
-      physicalCopies
-        .map((pc: any) => pc.scryfall_printing_id)
+    // 5. Get printing/set info via printing_id from ref_printings table
+    const printingIds = [...new Set(
+      collectionCopies
+        .map((pc: any) => pc.printing_id)
         .filter((id: any) => id !== null)
     )]
 
     let printingMap: Map<string, { setName: string; collectorNumber: string; releasedAt: string }> = new Map()
 
-    if (scryfallIds.length > 0) {
-      const { data: printings } = await (supabase as any)
-        .from('printing_set_info')
-        .select('scryfall_printing_id, set_code, edition_name')
-        .in('scryfall_printing_id', scryfallIds)
+    if (printingIds.length > 0) {
+      const { data: printings } = await supabase
+        .from('ref_printings')
+        .select('scryfall_id, set_code, set_name, collector_number, released_at')
+        .in('scryfall_id', printingIds as string[])
 
       if (printings && printings.length > 0) {
         for (const p of printings) {
-          printingMap.set(p.scryfall_printing_id, {
-            setName: p.edition_name || p.set_code?.toUpperCase() || 'Unknown Set',
-            collectorNumber: p.set_code?.toUpperCase() || '?',
-            releasedAt: '2024-01-01', // printing_set_info doesn't have release date
+          printingMap.set(p.scryfall_id, {
+            setName: p.set_name || p.set_code?.toUpperCase() || 'Unknown Set',
+            collectorNumber: p.collector_number || p.set_code?.toUpperCase() || '?',
+            releasedAt: p.released_at || '2024-01-01',
           })
         }
       }
     }
 
     // 6. Build instance rows
-    const instances: InstanceRow[] = physicalCopies.map((pc: any) => {
-      const printing = printingMap.get(pc.scryfall_printing_id)
+    const instances: InstanceRow[] = collectionCopies.map((pc: any) => {
+      const printing = printingMap.get(pc.printing_id)
       const assignment = deckAssignmentMap.get(pc.id)
+      const finish = pc.finish ?? 'nonfoil'
 
       return {
-        physicalCopyId: pc.id,
-        scryfallPrintingId: pc.scryfall_printing_id ?? null,
+        copyId: pc.id,
+        physicalCopyId: pc.id, // deprecated alias
+        scryfallPrintingId: pc.printing_id ?? null,
         setName: printing?.setName ?? 'Unknown Set',
         collectorNumber: printing?.collectorNumber ?? '?',
-        isFoil: Boolean(pc.is_foil),
+        finish,
+        isFoil: finish === 'foil' || finish === 'etched', // deprecated alias
         condition: pc.condition ?? null,
         isProxy: Boolean(pc.is_proxy),
-        isMissing: Boolean(pc.missing),
+        isMissing: false, // missing column removed
         assignedDeckName: assignment?.deckName ?? null,
         assignedDeckId: assignment?.deckId ?? null,
-        assignedDeckStatus: assignment?.deckStatus ?? null,
-        storageLocationId: pc.storage_location_id ?? null,
-        storageLocationName: pc.storage_location_id
-          ? (locationMap.get(pc.storage_location_id) ?? null)
+        assignedDeckIsActive: assignment?.isActive ?? null,
+        locationId: pc.location_id ?? null,
+        locationName: pc.location_id
+          ? (locationMap.get(pc.location_id) ?? null)
           : null,
+        storageLocationId: pc.location_id ?? null, // deprecated alias
+        storageLocationName: pc.location_id
+          ? (locationMap.get(pc.location_id) ?? null)
+          : null, // deprecated alias
       }
     })
 
     // 7. Sort: set release date DESC, then collector number ASC
     instances.sort((a, b) => {
       const aPrinting = printingMap.get(
-        physicalCopies.find((pc: any) => pc.id === a.physicalCopyId)?.scryfall_printing_id
+        collectionCopies.find((pc: any) => pc.id === a.copyId)?.printing_id
       )
       const bPrinting = printingMap.get(
-        physicalCopies.find((pc: any) => pc.id === b.physicalCopyId)?.scryfall_printing_id
+        collectionCopies.find((pc: any) => pc.id === b.copyId)?.printing_id
       )
 
       const aDate = aPrinting?.releasedAt ?? '1993-01-01'
@@ -205,53 +220,36 @@ export async function GET(
       return aNum - bNum
     })
 
-    // 8. Compute shortfall (demand from allocated decks minus owned non-proxy copies)
-    const ownedCount = physicalCopies.filter((pc: any) => !pc.is_proxy).length
+    // 8. Compute shortfall (demand from all decks minus owned non-proxy copies)
+    const ownedCount = collectionCopies.filter((pc: any) => !pc.is_proxy).length
 
-    // Get demand: count of deck_cards rows in allocated decks for this card
+    // Get demand: count of deck_cards rows for this card across all user's decks
     const { count: demandCount } = await (supabase as any)
       .from('deck_cards')
       .select('id', { count: 'exact', head: true })
       .eq('card_name', cardDef.card_name)
-      .in(
-        'deck_id',
-        (await (supabase as any)
-          .from('decks')
-          .select('id')
-          .eq('allocate', true)
-          .eq('user_id', authResult.id)
-        ).data?.map((d: any) => d.id) ?? []
-      )
+      .eq('user_id', authResult.id)
 
     const shortfall = Math.max(0, (demandCount ?? 0) - ownedCount)
 
     // 9. Find decks that need this card but don't have it resolved (Short decks)
     const shortDecks: ShortDeckEntry[] = []
     if (shortfall > 0) {
-      const allocatedDeckIds = (await (supabase as any)
-        .from('decks')
-        .select('id')
-        .eq('allocate', true)
+      const { data: unresolvedDeckCards } = await (supabase as any)
+        .from('deck_cards')
+        .select('id, deck_id, decks!deck_cards_deck_id_fkey(name, is_active)')
+        .eq('card_name', cardDef.card_name)
         .eq('user_id', authResult.id)
-      ).data?.map((d: any) => d.id) ?? []
+        .is('copy_id', null)
 
-      if (allocatedDeckIds.length > 0) {
-        const { data: unresolvedDeckCards } = await (supabase as any)
-          .from('deck_cards')
-          .select('id, deck_id, decks!deck_cards_deck_id_fkey(name, status)')
-          .eq('card_name', cardDef.card_name)
-          .is('physical_copy_id', null)
-          .in('deck_id', allocatedDeckIds)
-
-        if (unresolvedDeckCards) {
-          for (const dc of unresolvedDeckCards) {
-            shortDecks.push({
-              deckCardsId: dc.id,
-              deckId: dc.deck_id,
-              deckName: dc.decks?.name ?? `Deck ${dc.deck_id}`,
-              deckStatus: dc.decks?.status ?? 'brewing',
-            })
-          }
+      if (unresolvedDeckCards) {
+        for (const dc of unresolvedDeckCards) {
+          shortDecks.push({
+            deckCardsId: dc.id,
+            deckId: dc.deck_id,
+            deckName: dc.decks?.name ?? `Deck ${dc.deck_id}`,
+            isActive: dc.decks?.is_active ?? true,
+          })
         }
       }
     }

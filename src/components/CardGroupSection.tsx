@@ -22,12 +22,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, Tags, MoreVertical, Trash2, GripVertical } from 'lucide-react'
 import { toast } from 'sonner'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import { CardHoverPreview, useCardHoverPreview } from '@/components/CardHoverPreview'
 import { PrintingPicker } from '@/components/PrintingPicker'
 import { StatusChipPopover } from '@/components/StatusChipPopover'
 import { CardSlotBadge } from '@/components/CardSlotBadge'
 import { CategoryTagEditor } from '@/components/CategoryTagEditor'
 import { parseCategoriesCapped } from '@/lib/categoryUtils'
+import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
 import type { StructuredCategories } from '@/lib/categoryUtils'
 import type { DeckCard } from '@/components/CardGrid'
 import type { CardSlotStatus } from '@/lib/card-status'
@@ -235,6 +238,9 @@ function UnifiedCardRow({
   maxCopies?: number | null
 }) {
   const [popoverOpen, setPopoverOpen] = useState(false)
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const queryClient = useQueryClient()
 
   const { triggerProps, previewProps } = useCardHoverPreview({
     scryfallId: card.scryfall_id,
@@ -243,10 +249,47 @@ function UnifiedCardRow({
 
   const parsed = parseCategoriesCapped(card.categories)
 
+  const invalidateAll = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['decks', String(deckId)] })
+    queryClient.invalidateQueries({ queryKey: ['decks', deckId] })
+    queryClient.invalidateQueries({ queryKey: ['decks', String(deckId), 'card-statuses'] })
+    queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'card-statuses'] })
+    queryClient.invalidateQueries({ queryKey: ['decks', String(deckId), 'health'] })
+    queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'health'] })
+    queryClient.invalidateQueries({ queryKey: ['picklist', deckId] })
+    queryClient.invalidateQueries({ queryKey: ['picklist', String(deckId)] })
+  }, [queryClient, deckId])
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/decks/${deckId}/cards/${card.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Delete failed')
+      return res.json()
+    },
+    onSuccess: () => {
+      invalidateAll()
+      toast.success(`Removed ${card.card_name}`)
+      setDeleteDialogOpen(false)
+    },
+    onError: () => toast.error('Failed to remove card'),
+  })
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setContextMenuPos({ x: e.clientX, y: e.clientY })
+  }
+
+  const handleDeleteClick = () => {
+    setContextMenuPos(null)
+    setDeleteDialogOpen(true)
+  }
+
   return (
-    <div
-      role="listitem"
-      className="group flex items-center gap-2 px-3 py-1.5 transition-colors hover:bg-white/[0.03] border-b border-[rgba(255,255,255,0.04)] last:border-b-0"
+    <>
+      <div
+        role="listitem"
+        className="group flex items-center gap-2 px-3 py-1.5 transition-colors hover:bg-white/[0.03] border-b border-[rgba(255,255,255,0.04)] last:border-b-0"
+        onContextMenu={handleContextMenu}
     >
       {/* Drag handle — visible on hover */}
       <GripVertical className="size-3 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-40 transition-opacity cursor-grab" aria-hidden="true" />
@@ -341,7 +384,51 @@ function UnifiedCardRow({
         quantity={card.quantity || 1}
         maxCopies={maxCopies}
       />
+
+      {/* Right-click context menu */}
+      {contextMenuPos && (
+        <div
+          className="fixed z-50 min-w-[140px] rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-1 shadow-lg"
+          style={{ top: contextMenuPos.y, left: contextMenuPos.x }}
+          onMouseLeave={() => setContextMenuPos(null)}
+        >
+          <button
+            type="button"
+            onClick={handleDeleteClick}
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-[length:var(--fs-xs)] transition-colors hover:bg-[rgba(226,75,74,0.1)]"
+            style={{ color: 'rgba(226,75,74,0.9)' }}
+          >
+            <Trash2 className="size-3" />
+            Remove from deck
+          </button>
+        </div>
+      )}
     </div>
+
+    {/* Delete confirmation dialog */}
+    <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <DialogContent className="sm:max-w-[400px]" showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle>Remove card?</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to remove <strong>{card.card_name}</strong> from this deck?
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" />}>
+            Cancel
+          </DialogClose>
+          <Button
+            variant="destructive"
+            onClick={() => deleteMutation.mutate()}
+            disabled={deleteMutation.isPending}
+          >
+            {deleteMutation.isPending ? 'Removing...' : 'Remove'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }
 
@@ -353,17 +440,7 @@ function GenericLandRow({ landName, count, deckId, cardIds }: { landName: string
   const [menuOpen, setMenuOpen] = useState(false)
   const [optimisticCount, setOptimisticCount] = useState(count)
   const queryClient = useQueryClient()
-
-  const invalidateAll = () => {
-    queryClient.invalidateQueries({ queryKey: ['decks', String(deckId)] })
-    queryClient.invalidateQueries({ queryKey: ['decks', deckId] })
-    queryClient.invalidateQueries({ queryKey: ['decks', String(deckId), 'card-statuses'] })
-    queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'card-statuses'] })
-    queryClient.invalidateQueries({ queryKey: ['decks', String(deckId), 'health'] })
-    queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'health'] })
-    queryClient.invalidateQueries({ queryKey: ['picklist', deckId] })
-    queryClient.invalidateQueries({ queryKey: ['picklist', String(deckId)] })
-  }
+  const { invalidateDeck } = createDeckInvalidators(queryClient)
 
   const handleAdd = () => {
     setOptimisticCount(c => c + 1)
@@ -373,7 +450,7 @@ function GenericLandRow({ landName, count, deckId, cardIds }: { landName: string
       body: JSON.stringify({ cardName: landName }),
     }).then(res => {
       if (!res.ok) { setOptimisticCount(c => c - 1); toast.error('Failed to add') }
-      invalidateAll()
+      invalidateDeck(deckId)
     }).catch(() => setOptimisticCount(c => c - 1))
   }
 
@@ -385,7 +462,7 @@ function GenericLandRow({ landName, count, deckId, cardIds }: { landName: string
     fetch(`/api/decks/${deckId}/cards/${idToRemove}`, { method: 'DELETE' })
       .then(res => {
         if (!res.ok) { setOptimisticCount(c => c + 1); toast.error('Failed to remove') }
-        invalidateAll()
+        invalidateDeck(deckId)
       }).catch(() => setOptimisticCount(c => c + 1))
   }
 

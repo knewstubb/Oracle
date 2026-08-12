@@ -22,7 +22,7 @@ export interface DeckDocumentation {
   strengths_weaknesses: string | null
   matchup_notes: string | null
   mulligan_guide: string | null
-  updated_at: string
+  updated_at: string | null
 }
 
 export type DeckDocumentationFields = Omit<DeckDocumentation, 'deck_id' | 'updated_at'>
@@ -31,7 +31,7 @@ export interface DeckNote {
   id: number
   deck_id: number
   content: string
-  created_at: string
+  created_at: string | null
 }
 
 // ---------------------------------------------------------------------------

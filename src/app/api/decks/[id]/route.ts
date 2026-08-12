@@ -58,13 +58,31 @@ export async function GET(
     for (let i = 0; i < lookupArray.length; i += 200) {
       const batch = lookupArray.slice(i, i + 200)
       const { data: metaRows } = await supabase
-        .from('card_metadata')
-        .select('card_name, mana_cost, price_usd, rarity')
-        .in('card_name', batch)
+        .from('ref_cards')
+        .select('name, mana_cost, edhrec_rank')
+        .in('name', batch)
       for (const row of metaRows ?? []) {
-        if (row.mana_cost) manaCostMap[row.card_name] = row.mana_cost
-        if (row.price_usd !== null) priceMap[row.card_name] = row.price_usd
-        if (row.rarity) rarityMap[row.card_name] = row.rarity
+        if (row.mana_cost) manaCostMap[row.name] = row.mana_cost
+      }
+    }
+
+    // Get prices from ref_printings for cards with scryfall_id
+    const scryfallIdsForPrice = (cards ?? [])
+      .map(c => c.scryfall_id)
+      .filter((id): id is string => id !== null)
+    
+    if (scryfallIdsForPrice.length > 0) {
+      const uniquePriceIds = [...new Set(scryfallIdsForPrice)]
+      for (let i = 0; i < uniquePriceIds.length; i += 200) {
+        const batch = uniquePriceIds.slice(i, i + 200)
+        const { data: priceRows } = await supabase
+          .from('ref_printings')
+          .select('scryfall_id, name, price_usd, rarity')
+          .in('scryfall_id', batch)
+        for (const row of priceRows ?? []) {
+          if (row.price_usd !== null) priceMap[row.name] = row.price_usd
+          if (row.rarity) rarityMap[row.name] = row.rarity
+        }
       }
     }
 
@@ -88,57 +106,23 @@ export async function GET(
       }
     }
 
-    // Auto-fill missing metadata from Scryfall (fire-and-forget, don't block response)
-    const missingNames = cardNames.filter(n => !manaCostMap[n])
-    if (missingNames.length > 0 && missingNames.length <= 75) {
-      // Only auto-fill for small batches to avoid blocking
-      // For DFC cards, use front face name for Scryfall lookup
-      const identifiers = missingNames.map(name => ({ name: frontFaceName(name) }))
-      fetch('https://api.scryfall.com/cards/collection', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'User-Agent': 'TheOracle/0.1.0' },
-        body: JSON.stringify({ identifiers }),
-      }).then(async (res) => {
-        if (!res.ok) return
-        const json = await res.json()
-        const rows: any[] = []
-        for (const card of json.data ?? []) {
-          const manaCost = card.mana_cost ?? card.card_faces?.[0]?.mana_cost ?? ''
-          const row = {
-            card_name: card.name,
-            mana_cost: manaCost,
-            cmc: card.cmc ?? 0,
-            type_line: card.type_line ?? '',
-            price_usd: card.prices?.usd ? parseFloat(card.prices.usd) : null,
-            rarity: card.rarity ?? null,
-          }
-          rows.push(row)
-          // Also store under front-face name for decks that use short names
-          const front = frontFaceName(card.name)
-          if (front !== card.name) {
-            rows.push({ ...row, card_name: front })
-          }
-        }
-        if (rows.length > 0) {
-          await supabase.from('card_metadata').upsert(rows, { onConflict: 'card_name' })
-        }
-      }).catch(() => { /* non-critical */ })
-    }
+    // Auto-fill missing card data is no longer needed — all data comes from ref_cards and ref_printings
+    // which are populated by sync jobs, not on-the-fly Scryfall queries
   }
 
-  // Fetch edition names from printing_set_info for cards with scryfall IDs
-  const scryfallIds = (cards ?? []).map(c => c.scryfall_id).filter(Boolean)
+  // Fetch edition names from ref_printings for cards with scryfall IDs
+  const scryfallIds = (cards ?? []).map(c => c.scryfall_id).filter((id): id is string => id !== null)
   const editionMap: Record<string, { setCode: string; editionName: string }> = {}
   if (scryfallIds.length > 0) {
     const uniqueIds = [...new Set(scryfallIds)]
     for (let i = 0; i < uniqueIds.length; i += 200) {
       const batch = uniqueIds.slice(i, i + 200)
-      const { data: setRows } = await (supabase
-        .from('printing_set_info' as any)
-        .select('scryfall_printing_id, set_code, edition_name')
-        .in('scryfall_printing_id', batch)) as any
+      const { data: setRows } = await supabase
+        .from('ref_printings')
+        .select('scryfall_id, set_code, set_name')
+        .in('scryfall_id', batch)
       for (const row of setRows ?? []) {
-        editionMap[row.scryfall_printing_id] = { setCode: row.set_code, editionName: row.edition_name }
+        editionMap[row.scryfall_id] = { setCode: row.set_code, editionName: row.set_name }
       }
     }
   }
@@ -152,28 +136,41 @@ export async function GET(
     .limit(1)
     .maybeSingle()
 
-  // Include allocation data (proxy/original status per card)
-  const { data: allocations } = await supabase
-    .from('deck_allocations')
-    .select('card_name, role')
-    .eq('deck_id', deckId)
+  // Fetch commander metadata (salt score, EDHREC rank) from ref_commanders
+  const { data: commanderMeta } = await supabase
+    .from('ref_commanders')
+    .select('salt_score, edhrec_rank, edhrec_deck_count')
+    .ilike('display_name', deck.commander_name)
+    .limit(1)
+    .maybeSingle()
 
+  // Allocation status is now on deck_cards.ownership_status directly
+  // Build allocationMap from cards data
   const allocationMap: Record<string, string> = {}
-  for (const a of allocations ?? []) {
-    allocationMap[a.card_name] = a.role
+  for (const card of cards ?? []) {
+    allocationMap[card.card_name] = card.ownership_status || 'original'
   }
 
   // Merge allocation status, mana cost, price, and edition into cards
   const cardsWithStatus = (cards ?? []).map(card => ({
     ...card,
-    allocation_role: allocationMap[card.card_name] || 'original',
+    allocation_role: card.ownership_status || 'original',
     mana_cost: manaCostMap[card.card_name] || null,
     price_usd: priceMap[card.card_name] ?? null,
     edition_name: card.scryfall_id ? editionMap[card.scryfall_id]?.editionName || null : null,
     rarity: rarityMap[card.card_name] || null,
   }))
 
-  return Response.json({ deck, cards: cardsWithStatus, brewSessionId: brewSession?.id ?? null })
+  return Response.json({
+    deck: {
+      ...deck,
+      salt_score: commanderMeta?.salt_score ?? null,
+      edhrec_rank: commanderMeta?.edhrec_rank ?? null,
+      edhrec_deck_count: commanderMeta?.edhrec_deck_count ?? null,
+    },
+    cards: cardsWithStatus,
+    brewSessionId: brewSession?.id ?? null,
+  })
 }
 
 export async function DELETE(
@@ -205,14 +202,14 @@ export async function DELETE(
     return Response.json({ error: 'Deck not found' }, { status: 404 })
   }
 
-  if (deck.status === 'in_rotation') {
-    return Response.json(
-      { error: 'Decks in rotation cannot be deleted. Move to graveyard first.' },
-      { status: 403 }
-    )
-  }
+  // Release all allocated copies back to default storage before deleting
+  // This clears deck_cards.copy_id so copies return to unassigned state
+  await supabase
+    .from('deck_cards')
+    .update({ copy_id: null, ownership_status: null })
+    .eq('deck_id', deckId)
 
-  // Delete deck_cards first (FK constraint)
+  // Delete deck_cards (FK constraint)
   await supabase
     .from('deck_cards')
     .delete()

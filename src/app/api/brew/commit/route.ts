@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
 import type { CommittedCommander } from '@/lib/brew-v2-types'
+import { lookupByScryfallId, lookupByName } from '@/lib/card-lookup'
 
 // ---------------------------------------------------------------------------
 // GUARD: This route participates in Oracle-native deck creation (brew flow).
@@ -30,13 +31,34 @@ interface ScryfallCard {
 // ---------------------------------------------------------------------------
 
 /**
- * Fetches a card from Scryfall by name or ID.
- * Respects Scryfall's rate-limit guidelines (50ms delay between calls).
+ * Fetches a card from local DB first, then Scryfall API as fallback.
+ * Uses the new scryfall_printings table for faster lookups.
  */
 async function fetchFromScryfall(
   commanderName: string,
   scryfallId?: string
 ): Promise<ScryfallCard | null> {
+  // Try local lookup first
+  const result = scryfallId
+    ? await lookupByScryfallId(scryfallId)
+    : await lookupByName(commanderName)
+
+  if (result.card) {
+    // Transform to expected ScryfallCard shape
+    return {
+      id: result.card.scryfall_id,
+      name: result.card.name,
+      type_line: result.card.type_line || '',
+      color_identity: result.card.color_identity || [],
+      legalities: { commander: result.card.legality_commander || 'not_legal' },
+      image_uris: {
+        art_crop: result.card.image_uri_art_crop || undefined,
+        normal: result.card.image_uri_normal || undefined,
+      },
+    }
+  }
+
+  // Fallback to Scryfall API
   const url = scryfallId
     ? `https://api.scryfall.com/cards/${encodeURIComponent(scryfallId)}`
     : `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(commanderName)}`
@@ -50,23 +72,17 @@ async function fetchFromScryfall(
 }
 
 /**
- * Determines whether a Scryfall card is legal as a commander.
- * A card can be a commander if:
- * 1. It is legal/restricted in the commander format, AND
- * 2. Its type line includes "Legendary Creature" or it has explicit commander
- *    permission text (e.g. "can be your commander").
+ * Checks if a card can be a commander using the ref_commanders table.
+ * This is the authoritative source, populated by sync-commanders-daily.
  */
-function isLegalCommander(card: ScryfallCard): boolean {
-  const legality = card.legalities?.commander
-  if (legality !== 'legal' && legality !== 'restricted') return false
-
-  const typeLine = card.type_line.toLowerCase()
-  // Standard legendary creature check
-  if (typeLine.includes('legendary') && typeLine.includes('creature')) return true
-  // Planeswalker commanders (some have "can be your commander" text)
-  if (typeLine.includes('legendary') && typeLine.includes('planeswalker')) return true
-
-  return false
+async function checkCanBeCommander(supabase: ReturnType<typeof createAdminClient>, cardName: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('ref_commanders')
+    .select('id')
+    .eq('display_name', cardName)
+    .maybeSingle()
+  
+  return data !== null
 }
 
 /**
@@ -135,7 +151,9 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  if (!isLegalCommander(card)) {
+  // Check commander eligibility using ref_cards.can_be_commander (authoritative source)
+  const canBeCommander = await checkCanBeCommander(supabase, card.name)
+  if (!canBeCommander) {
     return Response.json(
       { error: `"${card.name}" is not legal as a commander` },
       { status: 400 }

@@ -3,6 +3,7 @@
  *
  * Adds a new card slot to a deck by card name.
  * Creates a deck_cards row with the given card_name, quantity 1, no physical copy assigned.
+ * Sets the category from card_definitions.default_category if available, otherwise derives from type_line.
  *
  * Body: { cardName: string, quantity?: number }
  * Response: { id: number, cardName: string }
@@ -11,6 +12,7 @@
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
+import { deriveDefaultCategory } from '@/lib/card-definition-resolver'
 
 export async function POST(
   request: NextRequest,
@@ -52,8 +54,9 @@ export async function POST(
     return Response.json({ error: 'Deck not found' }, { status: 404 })
   }
 
-  // Look up scryfall_id for the card (for image display)
+  // Look up card info from Scryfall (for image display and type line)
   let scryfallId: string | null = null
+  let typeLine: string | null = null
   try {
     const scryfallRes = await fetch(
       `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}`,
@@ -62,9 +65,35 @@ export async function POST(
     if (scryfallRes.ok) {
       const scryfallData = await scryfallRes.json()
       scryfallId = scryfallData.id ?? null
+      typeLine = scryfallData.type_line ?? null
     }
   } catch {
-    // Non-critical — card still gets added, just without an image
+    // Non-critical — card still gets added, just without an image or category
+  }
+
+  // Try to get default_category from ref_cards (global reference table)
+  // default_category is JSONB: { primary: string, secondary: string[], confidence: string, notes?: string }
+  let categories: string | null = null
+  if (cardName) {
+    const { data: cardMeta } = await supabase
+      .from('ref_cards')
+      .select('default_category')
+      .eq('name', cardName)
+      .maybeSingle()
+    
+    if (cardMeta?.default_category) {
+      // Extract primary category from JSONB structure
+      const categoryData = cardMeta.default_category as { primary?: string; secondary?: string[] } | null
+      if (categoryData?.primary) {
+        categories = JSON.stringify([categoryData.primary])
+      }
+    }
+  }
+  
+  // Fallback: derive from type_line if no stored default
+  if (!categories && typeLine) {
+    const derived = deriveDefaultCategory(typeLine)
+    categories = JSON.stringify([derived])
   }
 
   // Insert the new deck_cards row
@@ -75,6 +104,7 @@ export async function POST(
       card_name: cardName,
       scryfall_id: scryfallId,
       quantity,
+      categories,
       user_id: userId,
     })
     .select('id, card_name')

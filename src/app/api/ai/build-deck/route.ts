@@ -32,11 +32,12 @@ export async function POST(request: NextRequest) {
     // Fetch collection for owned checks
     const supabase = createAdminClient()
     const { data: collection } = await supabase
-      .from('collection')
-      .select('card_name, quantity')
+      .from('user_copies')
+      .select('user_cards!inner(card_name)')
+      .eq('user_id', authResult.id)
 
     const ownedSet = new Set(
-      (collection ?? []).map((c) => c.card_name.toLowerCase()),
+      (collection ?? []).map((c: any) => (c.user_cards?.card_name || '').toLowerCase()),
     )
 
     // Step 1: Get non-land card suggestions via buildAround

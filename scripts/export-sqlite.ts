@@ -29,14 +29,14 @@ const EXPORT_DIR = join(process.cwd(), 'scripts', 'export')
  */
 const FK_DEPENDENCY_ORDER: string[][] = [
   // Wave 1: No FK dependencies
-  ['_migrations', 'sets', 'sync_meta', 'card_metadata', 'precon_cards', 'card_kingdom_prices', 'oracle_to_printings'],
-  // Wave 2: Depends on sets / card_metadata
-  ['card_definitions'],
+  ['_migrations', 'sync_meta', 'card_metadata', 'precon_cards', 'card_kingdom_prices', 'printings'],
+  // Wave 2: Depends on card_metadata
+  ['cards'],
   // Wave 3: Standalone or depends on wave 2
   ['decks'],
-  // Wave 4: Depends on decks, card_definitions
-  ['collection', 'physical_copies'],
-  // Wave 5: Depends on decks, card_definitions, collection
+  // Wave 4: Depends on decks, cards
+  ['collection', 'copies'],
+  // Wave 5: Depends on decks, cards, collection
   [
     'deck_cards', 'deck_allocations', 'proxy_allocations', 'deck_priority',
     'deck_strategy', 'deck_health', 'deck_documentation', 'deck_notes',

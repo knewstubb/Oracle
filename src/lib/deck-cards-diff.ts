@@ -27,7 +27,7 @@ export interface ExistingDeckCardRow {
   is_commander: boolean
   user_id: string
   // Enriched columns — preserved on kept rows
-  physical_copy_id: number | null
+  copy_id: number | null
   ownership_status: string | null
   proxy_of_deck_id: number | null
   dead_weight_flag: string | null
@@ -49,7 +49,7 @@ export interface NewRow {
   set_code: string
   categories: string
   is_commander: boolean
-  physical_copy_id: null
+  copy_id: null
   ownership_status: null
 }
 
@@ -84,7 +84,7 @@ function identityKey(card_name: string, scryfall_id: string): string {
  * - toKeep: rows that persist — enriched columns preserved implicitly
  * - toInsert: new rows — null enriched columns + Archidekt categories
  * - toDelete: removed rows — cards no longer in the source
- * - When quantity decreases: prefer deleting rows with physical_copy_id = null
+ * - When quantity decreases: prefer deleting rows with copy_id = null
  *   (preserve assigned copies)
  */
 export function diffDeckCards(
@@ -146,17 +146,19 @@ export function diffDeckCards(
             set_code: incomingEntry.card.set_code,
             categories: incomingEntry.card.categories,
             is_commander: incomingEntry.card.is_commander,
-            physical_copy_id: null,
+            copy_id: null,
             ownership_status: null,
           })
         }
       } else {
         // Quantity decreased — need to delete some rows
-        // Prefer deleting rows with physical_copy_id = null (unassigned) first
+        // Prefer deleting rows with copy_id = null (unassigned) first
         const sorted = [...rows].sort((a, b) => {
           // Unassigned (null) first for deletion, assigned last (keep them)
-          if (a.physical_copy_id === null && b.physical_copy_id !== null) return -1
-          if (a.physical_copy_id !== null && b.physical_copy_id === null) return 1
+          const aCopyId = a.copy_id
+          const bCopyId = b.copy_id
+          if (aCopyId === null && bCopyId !== null) return -1
+          if (aCopyId !== null && bCopyId === null) return 1
           return 0
         })
 
@@ -187,7 +189,7 @@ export function diffDeckCards(
         set_code: entry.card.set_code,
         categories: entry.card.categories,
         is_commander: entry.card.is_commander,
-        physical_copy_id: null,
+        copy_id: null,
         ownership_status: null,
       })
     }
@@ -282,7 +284,7 @@ export async function applyDeckCardsDiff(
       categories: row.categories,
       is_commander: row.is_commander,
       user_id: userId,
-      physical_copy_id: null,
+      copy_id: null,
       ownership_status: null,
     }))
 

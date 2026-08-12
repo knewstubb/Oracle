@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PageHeader } from '@/components/PageHeader'
@@ -18,22 +18,14 @@ import { CollectionGridView } from '@/components/collection/CollectionGridView'
 import { PrintingListView } from '@/components/collection/PrintingListView'
 import { MissingToggle } from '@/components/collection/MissingToggle'
 import { PriceStaleIndicator } from '@/components/collection/PriceStaleIndicator'
-import {
-  filterPrintingBySearch,
-  filterPrintingByColorIdentity,
-  filterPrintingByStatus,
-  sortPrintingRows,
-} from '@/lib/collection-filters'
+import { useOracleContext } from '@/contexts/OracleContext'
 import type {
   SortField,
   PrintingSortField,
   SortDirection,
   StatusFilter,
   ColorIdentityMode,
-  PrintingCardRow,
 } from '@/lib/collection-filters'
-import type { CollectionRollupRowWithPrice } from '@/hooks/useCollectionRollup'
-import type { PrintingRowResponse } from '@/lib/collection-printing-utils'
 
 /* ─── Debounce hook ─────────────────────────────────────────────────── */
 
@@ -49,6 +41,9 @@ function useDebouncedValue(value: string, delay: number): string {
 /* ─── Page Component ────────────────────────────────────────────────── */
 
 export default function CollectionPage() {
+  // Set Oracle context for this page
+  useOracleContext({ type: 'collection' })
+
   // ─── Proxy toggle ──────────────────────────────────────────────
   const [includeProxies, setIncludeProxies] = useState(false)
   const [showMissing, setShowMissing] = useState(false)
@@ -62,6 +57,10 @@ export default function CollectionPage() {
   const [colorMode, setColorMode] = useState<ColorIdentityMode>('exact')
   const [activeStatuses, setActiveStatuses] = useState<StatusFilter[]>([])
 
+  // ─── Printing-specific sort state ──────────────────────────────
+  const [printingSortField, setPrintingSortField] = useState<PrintingSortField>('cardName')
+  const [printingSortDirection, setPrintingSortDirection] = useState<SortDirection>('asc')
+
   // Sync viewMode from localStorage after hydration (avoids SSR mismatch)
   useEffect(() => {
     const persisted = getPersistedViewMode()
@@ -70,10 +69,12 @@ export default function CollectionPage() {
 
   // ─── Pagination state ──────────────────────────────────────────
   const [currentPage, setCurrentPage] = useState(1)
+  const [printingPage, setPrintingPage] = useState(1)
 
   // Reset page when filters change
   const debouncedSearch = useDebouncedValue(searchQuery, 300)
   useEffect(() => { setCurrentPage(1) }, [debouncedSearch, selectedColors, colorMode, sortField, sortDirection])
+  useEffect(() => { setPrintingPage(1) }, [debouncedSearch, selectedColors, colorMode, printingSortField, printingSortDirection, includeProxies, showMissing])
 
   // ─── Fetch rollup data via hook (server-side paginated) ────────
   const { rows, totalCount, page, pageSize, lastPriceRefresh, isPriceStale, isLoading, isFetching, error, expand } =
@@ -92,8 +93,20 @@ export default function CollectionPage() {
   const {
     data: printingData,
     isLoading: printingLoading,
+    isFetching: printingIsFetching,
     error: printingError,
-  } = useCollectionPrintings({ enabled: viewMode === 'list' })
+  } = useCollectionPrintings({
+    page: printingPage,
+    pageSize: 100,
+    search: debouncedSearch,
+    sort: printingSortField,
+    sortDir: printingSortDirection,
+    colors: selectedColors,
+    colorMode,
+    includeProxies,
+    includeMissing: showMissing,
+    enabled: viewMode === 'list',
+  })
 
   // Wrapper: CollectionGridView expects expand to return PrintingSubgroupRow[]
   const expandSubgroups = useCallback(
@@ -103,46 +116,6 @@ export default function CollectionPage() {
     },
     [expand]
   )
-
-  // ─── Printing-specific sort state ──────────────────────────────
-  const [printingSortField, setPrintingSortField] = useState<PrintingSortField>('cardName')
-  const [printingSortDirection, setPrintingSortDirection] = useState<SortDirection>('asc')
-
-  // ─── Printing-level filtering pipeline (list view stays client-side for now) ───
-  const filteredPrintingRows = useMemo(() => {
-    let allRows = printingData?.rows ?? []
-
-    if (!includeProxies) {
-      allRows = allRows.filter((r) => !r.isProxy)
-    }
-
-    if (!showMissing) {
-      allRows = allRows.filter((r) => !r.isMissing)
-    }
-
-    let filtered = filterPrintingBySearch(allRows as unknown as PrintingCardRow[], searchQuery)
-
-    if (selectedColors.length > 0) {
-      filtered = filterPrintingByColorIdentity(filtered, selectedColors, colorMode)
-    }
-
-    if (activeStatuses.length > 0) {
-      const statusSets = activeStatuses.map((status) => filterPrintingByStatus(filtered, status))
-      const seen = new Set<number>()
-      const union: PrintingCardRow[] = []
-      for (const set of statusSets) {
-        for (const row of set) {
-          if (!seen.has(row.id)) {
-            seen.add(row.id)
-            union.push(row)
-          }
-        }
-      }
-      filtered = union
-    }
-
-    return sortPrintingRows(filtered, printingSortField, printingSortDirection) as unknown as PrintingRowResponse[]
-  }, [printingData, searchQuery, selectedColors, colorMode, activeStatuses, printingSortField, printingSortDirection, includeProxies, showMissing])
 
   // ─── Printing sort toggle handler ──────────────────────────────
   const handlePrintingSort = useCallback(
@@ -168,14 +141,20 @@ export default function CollectionPage() {
     ? (printingData?.lastPriceRefresh ?? null)
     : lastPriceRefresh
 
-  const allPrintingRows = printingData?.rows ?? []
-  const ownedCount = allPrintingRows.filter((r) => !r.isProxy).length
-  const proxyCount = allPrintingRows.filter((r) => r.isProxy).length
-  const missingCount = allPrintingRows.filter((r) => r.isMissing).length
+  // Server-paginated rows (no client-side filtering needed)
+  const printingRows = printingData?.rows ?? []
+  const printingTotalCount = printingData?.totalCount ?? 0
+  
+  // Counts for UI display (approximations from current page for proxy/missing toggles)
+  const ownedCount = printingRows.filter((r) => !r.isProxy).length
+  const proxyCount = printingRows.filter((r) => r.isProxy).length
+  const missingCount = printingRows.filter((r) => r.isMissing).length
 
   // Pagination derived state
   const totalPages = Math.ceil(totalCount / pageSize)
+  const printingTotalPages = Math.ceil(printingTotalCount / (printingData?.pageSize ?? 100))
   const showPagination = !isPrintingView && totalPages > 1
+  const showPrintingPagination = isPrintingView && printingTotalPages > 1
 
   return (
     <div className="flex h-full flex-col bg-[var(--bg-canvas)]">
@@ -186,7 +165,7 @@ export default function CollectionPage() {
         title="Collection"
         subtitle={
           <>
-            {ownedCount.toLocaleString()} owned
+            {(ownedCount ?? 0).toLocaleString()} owned
             {includeProxies && proxyCount > 0 && ` · ${proxyCount} proxies`}
             {activeLastPriceRefresh && ' · Prices cached'}
           </>
@@ -286,20 +265,20 @@ export default function CollectionPage() {
             ) : activeError ? (
               <ErrorState onRetry={() => window.location.reload()} />
             ) : isPrintingView ? (
-              (printingData?.rows?.length ?? 0) === 0 ? (
-                <EmptyState hasFilters={false} />
-              ) : filteredPrintingRows.length === 0 ? (
-                <EmptyState hasFilters={searchQuery !== '' || selectedColors.length > 0 || activeStatuses.length > 0} />
+              printingRows.length === 0 ? (
+                <EmptyState hasFilters={debouncedSearch !== '' || selectedColors.length > 0 || activeStatuses.length > 0} />
               ) : (
-                <PrintingListView
-                  rows={filteredPrintingRows}
-                  sortField={printingSortField}
-                  sortDirection={printingSortDirection}
-                  onSort={handlePrintingSort}
-                  isPriceStale={activeIsPriceStale}
-                  lastPriceRefresh={activeLastPriceRefresh}
-                  showMissing={showMissing}
-                />
+                <div className={cn("flex-1 overflow-y-auto", printingIsFetching && "opacity-70 transition-opacity")}>
+                  <PrintingListView
+                    rows={printingRows}
+                    sortField={printingSortField}
+                    sortDirection={printingSortDirection}
+                    onSort={handlePrintingSort}
+                    isPriceStale={activeIsPriceStale}
+                    lastPriceRefresh={activeLastPriceRefresh}
+                    showMissing={showMissing}
+                  />
+                </div>
               )
             ) : (
               rows.length === 0 ? (
@@ -312,23 +291,26 @@ export default function CollectionPage() {
             )}
           </div>
 
-          {/* ─── Footer with pagination ──────────────────────────── */}
+          {/* ─── Footer with pagination (sticky bottom) ────────── */}
           <div
-            className="flex items-center gap-2.5 px-4 py-2.5"
-            style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)' }}
+            className="sticky bottom-0 z-10 flex items-center gap-2.5 px-4 py-2.5"
+            style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)', backgroundColor: 'var(--bg-canvas)' }}
           >
             <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.25)' }}>
               {isPrintingView ? (
                 <>
                   Showing{' '}
                   <span style={{ color: 'rgba(255,255,255,0.5)' }}>
-                    {filteredPrintingRows.length.toLocaleString()}
+                    {printingRows.length.toLocaleString()}
                   </span>{' '}
                   of{' '}
                   <span style={{ color: 'rgba(255,255,255,0.5)' }}>
-                    {(includeProxies ? allPrintingRows.length : ownedCount).toLocaleString()}
+                    {(printingTotalCount ?? 0).toLocaleString()}
                   </span>{' '}
                   cards
+                  {printingTotalPages > 1 && (
+                    <> · Page {printingPage} of {printingTotalPages}</>
+                  )}
                 </>
               ) : (
                 <>
@@ -338,7 +320,7 @@ export default function CollectionPage() {
                   </span>{' '}
                   of{' '}
                   <span style={{ color: 'rgba(255,255,255,0.5)' }}>
-                    {totalCount.toLocaleString()}
+                    {(totalCount ?? 0).toLocaleString()}
                   </span>{' '}
                   cards
                   {totalPages > 1 && (
@@ -348,7 +330,31 @@ export default function CollectionPage() {
               )}
             </span>
 
-            {/* Pagination controls */}
+            {/* Pagination controls for list view */}
+            {showPrintingPagination && (
+              <div className="ml-auto flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setPrintingPage(p => Math.max(1, p - 1))}
+                  disabled={printingPage <= 1}
+                  className="rounded p-1 text-muted-foreground transition-colors hover:bg-[rgba(255,255,255,0.05)] hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrintingPage(p => Math.min(printingTotalPages, p + 1))}
+                  disabled={printingPage >= printingTotalPages}
+                  className="rounded p-1 text-muted-foreground transition-colors hover:bg-[rgba(255,255,255,0.05)] hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
+                  aria-label="Next page"
+                >
+                  <ChevronRight className="size-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Pagination controls for grid view */}
             {showPagination && (
               <div className="ml-auto flex items-center gap-1">
                 <button

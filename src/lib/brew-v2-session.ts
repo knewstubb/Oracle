@@ -52,6 +52,7 @@ export function createSession(): BrewSessionState {
   return {
     phase: 'exploring',
     sessionId: null,
+    deckId: null,
     commander: null,
     decisionLog: {
       strategy: [],
@@ -60,6 +61,7 @@ export function createSession(): BrewSessionState {
     },
     deckState: null,
     assessmentCache: new Map(),
+    collectionMode: 'any',
   }
 }
 
@@ -76,11 +78,13 @@ export function createSession(): BrewSessionState {
  *
  * @param session - Current session state (must be in `exploring` phase to transition)
  * @param commander - The commander option the user committed to
+ * @param partnerData - Optional partner commander data for partner pairs
  * @returns New session state in `building` phase with commander data stored
  */
 export function commitCommander(
   session: BrewSessionState,
-  commander: CommanderOption
+  commander: CommanderOption,
+  partnerData?: { name: string; artUrl: string; typeLine: string; scryfallId?: string }
 ): BrewSessionState {
   // Phase never reverts — if already building, return unchanged
   if (session.phase === 'building') {
@@ -98,6 +102,15 @@ export function commitCommander(
     typeLine: '', // Will be populated from Scryfall on the API layer
     colourIdentity: commander.colourIdentity,
     archetype: archetypeEntry?.value ?? null,
+    // Include partner if provided
+    ...(partnerData && {
+      partner: {
+        name: partnerData.name,
+        artUrl: partnerData.artUrl,
+        typeLine: partnerData.typeLine,
+      },
+      leadershipType: 'partner' as const,
+    }),
   }
 
   return {

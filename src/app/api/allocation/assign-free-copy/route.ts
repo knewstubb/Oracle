@@ -1,12 +1,12 @@
 /**
  * POST /api/allocation/assign-free-copy
  *
- * Assigns a free (unassigned) physical copy to an open slot in a target deck
+ * Assigns a free (unassigned) copy to an open slot in a target deck
  * via the `assign_free_copy` Postgres RPC (migration 021).
  * Single database call — guards against race conditions atomically.
  *
  * Body: {
- *   physicalCopyId: number  — the free physical copy
+ *   copyId: number          — the free copy (also accepts deprecated physicalCopyId)
  *   targetDeckId: number    — the deck to assign it to
  *   cardName: string        — used to find the open slot
  * }
@@ -26,18 +26,20 @@ export async function POST(request: NextRequest) {
   if (authResult instanceof Response) return authResult
   const userId = authResult.id
 
-  let body: { physicalCopyId: number; targetDeckId: number; cardName: string }
+  let body: { copyId?: number; physicalCopyId?: number; targetDeckId: number; cardName: string }
   try {
     body = await request.json()
   } catch {
     return Response.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { physicalCopyId, targetDeckId, cardName } = body
+  const { targetDeckId, cardName } = body
+  // Support both copyId and deprecated physicalCopyId
+  const copyId = body.copyId ?? body.physicalCopyId
 
-  if (!physicalCopyId || !targetDeckId || !cardName) {
+  if (!copyId || !targetDeckId || !cardName) {
     return Response.json(
-      { error: 'physicalCopyId, targetDeckId, and cardName are required' },
+      { error: 'copyId, targetDeckId, and cardName are required' },
       { status: 400 }
     )
   }
@@ -47,19 +49,20 @@ export async function POST(request: NextRequest) {
   try {
     // Verify ownership before calling RPC
     const { data: copy, error: copyErr } = await supabase
-      .from('physical_copies')
+      .from('user_copies')
       .select('id')
-      .eq('id', physicalCopyId)
+      .eq('id', copyId)
       .eq('user_id', userId)
       .maybeSingle()
 
     if (copyErr || !copy) {
-      return Response.json({ error: 'Physical copy not found' }, { status: 404 })
+      return Response.json({ error: 'Copy not found' }, { status: 404 })
     }
 
     // Atomic RPC: guard + fill in one transaction
-    const { data, error: rpcErr } = await supabase.rpc('assign_free_copy', {
-      p_physical_copy_id: physicalCopyId,
+    // Note: Types may be outdated — cast to any until supabase types are regenerated
+    const { data, error: rpcErr } = await (supabase.rpc as any)('assign_free_copy', {
+      p_copy_id: copyId,
       p_target_deck_id: targetDeckId,
       p_card_name: cardName,
       p_user_id: userId,

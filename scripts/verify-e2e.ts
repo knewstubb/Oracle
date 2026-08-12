@@ -70,7 +70,7 @@ async function checkCollectionLoads(supabase: SupabaseClient): Promise<CheckResu
   try {
     // Verify collection table has rows
     const { count, error: countError } = await supabase
-      .from('collection')
+      .from('user_copies')
       .select('*', { count: 'exact', head: true })
 
     if (countError) {
@@ -85,7 +85,7 @@ async function checkCollectionLoads(supabase: SupabaseClient): Promise<CheckResu
 
     // Verify we can query with filters (simulates collection page load)
     const { data: sampleCards, error: sampleError } = await supabase
-      .from('collection')
+      .from('user_copies')
       .select('card_name, quantity, set_code, color_identity')
       .limit(5)
 
@@ -102,7 +102,7 @@ async function checkCollectionLoads(supabase: SupabaseClient): Promise<CheckResu
 
     // Verify aggregation query works (simulates collection stats)
     const { count: uniqueCount, error: uniqueError } = await supabase
-      .from('collection')
+      .from('user_copies')
       .select('card_name', { count: 'exact', head: true })
 
     if (uniqueError) {

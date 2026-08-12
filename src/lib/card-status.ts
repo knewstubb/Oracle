@@ -1,18 +1,25 @@
 /**
  * Card Status Taxonomy — Single Source of Truth
  *
- * Five states for any card slot in a deck. Used by Cards tab, grid view,
+ * Six states for any card slot in a deck. Used by Cards tab, grid view,
  * Picklist, Builder search, and Allocation screen. Don't duplicate this
  * taxonomy elsewhere.
  *
+ * Resolved states (copy assigned to this slot):
  * - original: resolved with an owned non-proxy copy
  * - proxy: resolved with a proxy copy
- * - open: not resolved, but a free candidate exists (Tier 1–4 possible)
- * - claimed: not resolved, copies exist but ALL are held by other decks
- * - unowned: not resolved, no copy exists anywhere in the collection
+ *
+ * Unresolved states (no copy assigned):
+ * - available: free copy exists in storage matching the preferred printing
+ * - alternate: free copy exists in storage but different printing than preferred
+ * - claimed: copies exist but ALL are held by other decks
+ * - unowned: no copy exists anywhere in the collection
  *
  * Plus the exemption flag:
  * - generic_land: basic land exempt from tracking (skips computation entirely)
+ *
+ * Note: For progress bar counts, 'available' and 'alternate' are combined
+ * since both represent owned cards in storage that can fill the slot.
  */
 
 import { createAdminClient } from '@/lib/supabase'
@@ -27,7 +34,7 @@ export type CardSlotStatus = 'original' | 'proxy' | 'available' | 'alternate' | 
 export interface CardSlotWithStatus {
   deckCardsId: number
   cardName: string
-  physicalCopyId: number | null
+  copyId: number | null
   isProxy: boolean | null
   status: CardSlotStatus
 }
@@ -85,103 +92,105 @@ export async function computeUnresolvedStatuses(
     result.set(name, 'unowned')
   }
 
-  // Step 1: Resolve card_names → card_definition_ids (batch)
+  // Step 1: Resolve card_names → card_ids (batch)
   const uniqueNames = [...new Set(cardNames)]
 
   // Paginate to handle > 1000 rows
   const PAGE_SIZE = 1000
-  const allDefs: Array<{ id: number; card_name: string }> = []
+  const allCards: Array<{ id: number; card_name: string }> = []
 
   for (let offset = 0; offset < uniqueNames.length; offset += PAGE_SIZE) {
     const batch = uniqueNames.slice(offset, offset + PAGE_SIZE)
-    const { data: defs, error } = await supabase
-      .from('card_definitions')
+    const { data: cards, error } = await supabase
+      .from('user_cards')
       .select('id, card_name')
       .eq('user_id', userId)
       .in('card_name', batch)
 
     if (error) {
-      console.error('[card-status] Failed to fetch card_definitions:', error.message)
+      console.error('[card-status] Failed to fetch cards:', error.message)
       return result // Return all as unowned on error
     }
-    if (defs) allDefs.push(...defs)
+    if (cards) {
+      allCards.push(...cards)
+    }
+  }
+  
+  // Build card_name → [card_ids] map
+  const nameToCardIds = new Map<string, number[]>()
+  for (const card of allCards) {
+    const existing = nameToCardIds.get(card.card_name)
+    if (existing) existing.push(card.id)
+    else nameToCardIds.set(card.card_name, [card.id])
   }
 
-  // Build card_name → [card_definition_ids] map
-  const nameToDefIds = new Map<string, number[]>()
-  for (const def of allDefs) {
-    const existing = nameToDefIds.get(def.card_name)
-    if (existing) existing.push(def.id)
-    else nameToDefIds.set(def.card_name, [def.id])
-  }
+  // Cards with no card at all → definitely unowned
+  const cardIdsToCheck = allCards.map(d => d.id)
+  if (cardIdsToCheck.length === 0) return result
 
-  // Cards with no card_definition at all → definitely unowned
-  const defIdsToCheck = allDefs.map(d => d.id)
-  if (defIdsToCheck.length === 0) return result
-
-  // Step 2: Fetch physical_copies (non-missing) with deck_cards assignment info
+  // Step 2: Fetch collection copies (non-missing) with deck_cards assignment info
   // The deck_cards join tells us whether each copy is free or held
   const allCopies: Array<{
-    card_definition_id: number
-    scryfall_printing_id: string | null
+    card_id: number
+    printing_id: string | null
     deck_cards: Array<{ id: number }> | null
   }> = []
 
-  for (let offset = 0; offset < defIdsToCheck.length; offset += PAGE_SIZE) {
-    const batch = defIdsToCheck.slice(offset, offset + PAGE_SIZE)
+  for (let offset = 0; offset < cardIdsToCheck.length; offset += PAGE_SIZE) {
+    const batch = cardIdsToCheck.slice(offset, offset + PAGE_SIZE)
     const { data: copies, error: pcError } = await supabase
-      .from('physical_copies')
-      .select('card_definition_id, scryfall_printing_id, deck_cards!deck_cards_physical_copy_id_fkey(id)')
+      .from('user_copies')
+      .select('card_id, printing_id, deck_cards!deck_cards_copy_id_fkey(id)')
       .eq('user_id', userId)
       .eq('missing', false)
-      .in('card_definition_id', batch)
+      .in('card_id', batch)
 
     if (pcError) {
-      console.error('[card-status] Failed to fetch physical_copies:', pcError.message)
+      console.error('[card-status] Failed to fetch collection copies:', pcError.message)
       return result
     }
     if (copies) allCopies.push(...(copies as typeof allCopies))
   }
 
-  // Step 3: Classify per card_definition_id
-  // Group copies by card_definition_id, check if any are free (empty deck_cards)
+  // Step 3: Classify per card_id
+  // Group copies by card_id, check if any are free (empty deck_cards)
   // Track whether free copies match the preferred printing
-  const defIdToStatus = new Map<number, 'has_free' | 'all_held'>()
-  const defIdToFreePrintings = new Map<number, Set<string>>()
+  const cardIdToStatus = new Map<number, 'has_free' | 'all_held'>()
+  const cardIdToFreePrintings = new Map<number, Set<string>>()
 
   for (const copy of allCopies) {
-    const defId = copy.card_definition_id
+    const cardId = copy.card_id
     const deckCardsArr = copy.deck_cards ?? []
     const isFree = deckCardsArr.length === 0
 
     if (isFree) {
-      defIdToStatus.set(defId, 'has_free')
+      cardIdToStatus.set(cardId, 'has_free')
       // Track which printings are free
-      if (copy.scryfall_printing_id) {
-        const existing = defIdToFreePrintings.get(defId) ?? new Set()
-        existing.add(copy.scryfall_printing_id)
-        defIdToFreePrintings.set(defId, existing)
+      if (copy.printing_id) {
+        const existing = cardIdToFreePrintings.get(cardId) ?? new Set()
+        existing.add(copy.printing_id)
+        cardIdToFreePrintings.set(cardId, existing)
       }
-    } else if (!defIdToStatus.has(defId)) {
-      defIdToStatus.set(defId, 'all_held')
+    } else if (!cardIdToStatus.has(cardId)) {
+      cardIdToStatus.set(cardId, 'all_held')
     }
   }
 
   // Map back to card_names
-  for (const [cardName, defIds] of nameToDefIds) {
+  for (const [cardName, cardIds] of nameToCardIds) {
     let hasFree = false
     let hasExactFree = false
     let hasAnyCopy = false
 
     const preferredPrinting = preferredPrintings?.get(cardName)
 
-    for (const defId of defIds) {
-      const status = defIdToStatus.get(defId)
+    for (const cardId of cardIds) {
+      const status = cardIdToStatus.get(cardId)
       if (status === 'has_free') {
         hasFree = true
         // Check if any free copy matches the preferred printing
         if (preferredPrinting) {
-          const freePrintings = defIdToFreePrintings.get(defId)
+          const freePrintings = cardIdToFreePrintings.get(cardId)
           if (freePrintings?.has(preferredPrinting)) {
             hasExactFree = true
           }
@@ -213,14 +222,14 @@ export async function computeUnresolvedStatuses(
 /**
  * Compute the five-state status for every card in a deck.
  *
- * Takes deck_cards rows (with physical_copy_id and is_proxy from a join)
+ * Takes deck_cards rows (with copy_id and is_proxy from a join)
  * and returns each with its computed status.
  */
 export async function computeDeckCardStatuses(
   deckCards: Array<{
     id: number
     card_name: string
-    physical_copy_id: number | null
+    copy_id: number | null
     is_proxy: boolean | null
     scryfall_id?: string | null
   }>,
@@ -232,11 +241,11 @@ export async function computeDeckCardStatuses(
   const unresolvedCards: Array<{ id: number; card_name: string }> = []
 
   for (const card of deckCards) {
-    if (card.physical_copy_id !== null) {
+    if (card.copy_id !== null) {
       resolved.push({
         deckCardsId: card.id,
         cardName: card.card_name,
-        physicalCopyId: card.physical_copy_id,
+        copyId: card.copy_id,
         isProxy: card.is_proxy,
         status: card.is_proxy ? 'proxy' : 'original',
       })
@@ -245,7 +254,7 @@ export async function computeDeckCardStatuses(
       resolved.push({
         deckCardsId: card.id,
         cardName: card.card_name,
-        physicalCopyId: null,
+        copyId: null,
         isProxy: null,
         status: 'generic_land',
       })
@@ -260,7 +269,7 @@ export async function computeDeckCardStatuses(
   // Pass preferred printings so we can distinguish 'available' (exact) from 'alternate'
   const preferredPrintings = new Map<string, string | null>()
   for (const card of deckCards) {
-    if (card.physical_copy_id === null && card.scryfall_id) {
+    if (card.copy_id === null && card.scryfall_id) {
       preferredPrintings.set(card.card_name, card.scryfall_id)
     }
   }
@@ -270,7 +279,7 @@ export async function computeDeckCardStatuses(
   const unresolvedWithStatus: CardSlotWithStatus[] = unresolvedCards.map(card => ({
     deckCardsId: card.id,
     cardName: card.card_name,
-    physicalCopyId: null,
+    copyId: null,
     isProxy: null,
     status: statusMap.get(card.card_name) ?? 'unowned',
   }))

@@ -2,10 +2,10 @@
 
 import * as React from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { ArrowUp, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ChatMessage } from '@/lib/debrief-types'
+import { renderMessageContent } from '@/lib/render-card-links'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -39,155 +39,6 @@ export interface OracleChatProps {
 }
 
 // ---------------------------------------------------------------------------
-// Card Name Detection + Hover Preview in Messages
-// ---------------------------------------------------------------------------
-
-const CARD_NAME_REGEX = /\[\[([^\]]+)\]\]/g
-
-function getScryfallUrlByName(name: string): string {
-  return `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(name)}&format=image&version=normal`
-}
-
-function CardNameHover({ name }: { name: string }) {
-  const [show, setShow] = useState(false)
-  const [pos, setPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const handleEnter = (e: React.MouseEvent) => {
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    setPos({ x: rect.left + rect.width / 2, y: rect.top })
-    timeoutRef.current = setTimeout(() => setShow(true), 250)
-  }
-
-  const handleLeave = () => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current)
-    setShow(false)
-  }
-
-  return (
-    <span
-      className="font-medium text-[var(--color-teal)] cursor-default underline decoration-dotted underline-offset-2"
-      onMouseEnter={handleEnter}
-      onMouseLeave={handleLeave}
-    >
-      {name}
-      {show && typeof document !== 'undefined' && createPortal(
-        <div
-          style={{
-            position: 'fixed',
-            left: `${pos.x}px`,
-            top: `${pos.y - 8}px`,
-            transform: 'translate(-50%, -100%)',
-            zIndex: 9999,
-            pointerEvents: 'none',
-          }}
-        >
-          <img
-            src={getScryfallUrlByName(name)}
-            alt={name}
-            width={220}
-            height={308}
-            className="rounded-lg shadow-2xl shadow-black/60"
-            style={{ display: 'block' }}
-          />
-        </div>,
-        document.body
-      )}
-    </span>
-  )
-}
-
-/** Parse inline markdown: **bold**, *italic*, [[Card Name]] */
-function renderInlineMarkdown(text: string): React.ReactNode {
-  // Process [[Card Name]] and **bold** and *italic*
-  const inlineRegex = /(\[\[([^\]]+)\]\]|\*\*(.+?)\*\*|\*(.+?)\*)/g
-  const parts: React.ReactNode[] = []
-  let lastIndex = 0
-  let match: RegExpExecArray | null
-
-  while ((match = inlineRegex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index))
-    }
-
-    if (match[2]) {
-      // [[Card Name]]
-      parts.push(<CardNameHover key={`card-${match.index}`} name={match[2]} />)
-    } else if (match[3]) {
-      // **bold**
-      parts.push(<strong key={`bold-${match.index}`} className="font-medium text-foreground">{match[3]}</strong>)
-    } else if (match[4]) {
-      // *italic*
-      parts.push(<em key={`em-${match.index}`}>{match[4]}</em>)
-    }
-
-    lastIndex = match.index + match[0].length
-  }
-
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex))
-  }
-
-  return parts.length > 0 ? <>{parts}</> : text
-}
-
-/** Render message content with markdown formatting and [[Card Name]] hover previews */
-function renderMessageWithCards(content: string): React.ReactNode {
-  // Split into lines for block-level formatting
-  const lines = content.split('\n')
-  const elements: React.ReactNode[] = []
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
-
-    // Bullet point: "- text" or "• text"
-    if (/^\s*[-•]\s+/.test(line)) {
-      const bulletText = line.replace(/^\s*[-•]\s+/, '')
-      elements.push(
-        <div key={i} className="flex gap-2 pl-1">
-          <span className="text-muted-foreground shrink-0">•</span>
-          <span>{renderInlineMarkdown(bulletText)}</span>
-        </div>
-      )
-    }
-    // Empty line = paragraph break
-    else if (line.trim() === '') {
-      elements.push(<div key={i} className="h-2" />)
-    }
-    // Long line without breaks — split at sentence boundaries for readability
-    else if (line.length > 180) {
-      const sentences = splitIntoSentences(line)
-      sentences.forEach((sentence, si) => {
-        if (sentence.trim()) {
-          elements.push(<div key={`${i}-${si}`}>{renderInlineMarkdown(sentence.trim())}</div>)
-          // Add spacing between sentences
-          if (si < sentences.length - 1 && sentences[si + 1]?.trim()) {
-            elements.push(<div key={`${i}-${si}-sp`} className="h-1.5" />)
-          }
-        }
-      })
-    }
-    // Regular text line
-    else {
-      elements.push(<div key={i}>{renderInlineMarkdown(line)}</div>)
-    }
-  }
-
-  return <>{elements}</>
-}
-
-/** Split a long string into sentences */
-function splitIntoSentences(text: string): string[] {
-  // Split on sentence-ending punctuation followed by a space and capital letter or end of string
-  const parts = text.split(/(?<=[.!?])\s+(?=[A-Z])|(?<=[.!?])\s*$/)
-  // If splitting produced only 1 part (no sentence breaks found), try splitting on colons or semicolons
-  if (parts.length <= 1) {
-    return text.split(/(?<=[:;])\s+/)
-  }
-  return parts.filter(Boolean)
-}
-
-// ---------------------------------------------------------------------------
 // Message Bubble
 // ---------------------------------------------------------------------------
 
@@ -212,7 +63,7 @@ function MessageBubble({ message, variant = 'debrief' }: { message: ChatMessage;
               : 'bg-[rgba(255,255,255,0.06)] border-l-2 border-l-[rgba(29,158,117,0.4)]'
         )}
       >
-        {renderMessageWithCards(message.content)}
+        {renderMessageContent(message.content)}
       </div>
     </div>
   )

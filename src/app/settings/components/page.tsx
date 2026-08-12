@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import { CardSlotBadge } from '@/components/CardSlotBadge'
+import { DeckTile } from '@/components/DeckTile'
 import { PageHeader } from '@/components/PageHeader'
 
 // ---------------------------------------------------------------------------
@@ -39,6 +40,7 @@ export default function ComponentLibraryPage() {
             <TabsTrigger value="buttons">Buttons</TabsTrigger>
             <TabsTrigger value="badges">Badges &amp; Chips</TabsTrigger>
             <TabsTrigger value="inputs">Inputs</TabsTrigger>
+            <TabsTrigger value="cards">Cards</TabsTrigger>
             <TabsTrigger value="status">Status System</TabsTrigger>
             <TabsTrigger value="layout">Layout</TabsTrigger>
             <TabsTrigger value="feedback">Feedback</TabsTrigger>
@@ -62,6 +64,11 @@ export default function ComponentLibraryPage() {
           {/* ─── Inputs ────────────────────────────────────────────── */}
           <TabsContent value="inputs" className="mt-6 space-y-8">
             <InputsSection />
+          </TabsContent>
+
+          {/* ─── Cards ─────────────────────────────────────────────── */}
+          <TabsContent value="cards" className="mt-6 space-y-8">
+            <CardsSection />
           </TabsContent>
 
           {/* ─── Status System ─────────────────────────────────────── */}
@@ -434,7 +441,7 @@ function StatusSection() {
           <DotExplainer label="Original" desc="Solid fill" dotStyle="solid" color="var(--accent-primary)" />
           <DotExplainer label="Proxy" desc="Dashed border" dotStyle="dashed" color="var(--accent-primary)" />
           <DotExplainer label="Open" desc="Half fill" dotStyle="half" color="var(--signal-warning)" />
-          <DotExplainer label="Claimed" desc="Cross mark" dotStyle="crossed" color="var(--status-over)" />
+          <DotExplainer label="In Decks" desc="Cross mark" dotStyle="crossed" color="var(--status-over)" />
           <DotExplainer label="Unowned" desc="Empty ring" dotStyle="empty" color="var(--signal-critical)" />
         </div>
       </div>
@@ -558,6 +565,337 @@ function FeedbackSection() {
           <p className="text-[length:var(--fs-md)]" style={{ color: 'rgba(255,255,255,0.35)' }}>
             No cards match your filters.
           </p>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Section: Cards (Deck Tiles)
+// ---------------------------------------------------------------------------
+
+// Real commander Scryfall IDs for demo cards
+const SAMPLE_COMMANDERS = {
+  // Verified real Scryfall IDs
+  korvold: '92ea1575-eb64-43b5-b604-c6e23054f228',      // Korvold, Fae-Cursed King
+  muldrotha: 'c654737d-34ac-42ff-ae27-3a3bbb930fc1',   // Muldrotha, the Gravetide
+  kenrith: '56c1227e-bde7-4b07-8f5d-ad7f8e14d6e1',     // Kenrith, the Returned King
+  krenko: 'cd9fec9d-23c8-4d35-97c1-9499527198fb',      // Krenko, Mob Boss
+  omnath: 'cb53a29d-2de2-4874-a6f3-0fecbfa14cf2',      // Omnath, Locus of Creation
+  breya: '8b585ce1-77b6-44c1-93fa-8ff58f34f2d1',       // Breya, Etherium Shaper
+  yarok: 'a1001d43-e11b-4e5e-acd4-4a50ef89977f',       // Yarok, the Desecrated
+  teysa: 'bcfaa19e-995e-447d-a0a2-46e5d117d5ec',       // Teysa Karlov
+  golos: '1fa48620-4c3d-4f75-be1f-c12c4aa59f51',       // Golos, Tireless Pilgrim
+  urza: '9e82d5dc-e8e8-47d1-8e9a-8b1c0f7f0c98',        // Urza, Lord High Artificer
+  chulane: '83f43730-1c1f-4150-8771-d901c54bedc4',     // Chulane, Teller of Tales
+  atraxa: 'd0d33d52-3d28-4635-b985-51e126289259',      // Atraxa, Praetors' Voice
+}
+
+function CardsSection() {
+  const [selectedVariant, setSelectedVariant] = useState<string>('all')
+
+  const variants = [
+    { id: 'all', label: 'All Variants' },
+    { id: 'ready', label: 'Ready (Green)' },
+    { id: 'amber-pull', label: 'Needs Pull (Amber)' },
+    { id: 'amber-overcount', label: 'Overcount (Amber)' },
+    { id: 'red', label: 'Unowned (Red)' },
+    { id: 'brewing', label: 'Brewing' },
+    { id: 'graveyard', label: 'Graveyard' },
+  ]
+
+  const showVariant = (variant: string) => selectedVariant === 'all' || selectedVariant === variant
+
+  return (
+    <>
+      <div>
+        <h2 className="text-[length:var(--fs-lg)] font-medium text-[var(--text-primary)] mb-2">Deck Tile Component</h2>
+        <p className="text-[length:var(--fs-sm)] text-[var(--text-tertiary)] mb-4">
+          240×268px card component used in the Decks grid. Status indicated via left border color and icon.
+        </p>
+
+        {/* Variant selector */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          {variants.map((v) => (
+            <button
+              key={v.id}
+              onClick={() => setSelectedVariant(v.id)}
+              className={`rounded-full px-3 py-1.5 text-[length:var(--fs-xs)] font-medium transition-colors ${
+                selectedVariant === v.id
+                  ? 'bg-[var(--accent-primary)] text-white'
+                  : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]'
+              }`}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ─── Ready (Green) ─────────────────────────────────────── */}
+      {showVariant('ready') && (
+        <div>
+          <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-2">Ready (Green)</h3>
+          <p className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)] mb-4">
+            All slots resolved. Green border, check icon. Deck is ready to play.
+          </p>
+          <div className="flex flex-wrap gap-4">
+            <DeckTile
+              id={1}
+              name="Korvold Value"
+              commanderName="Korvold, Fae-Cursed King"
+              commanderScryfallId={SAMPLE_COMMANDERS.korvold}
+              colourIdentity={['B', 'R', 'G']}
+              cardCount={100}
+              isActive={true}
+              completeness={{ resolved: 100, total: 100, unownedCount: 0 }}
+              format="commander"
+              pipDistribution={{ B: 30, R: 25, G: 25 }}
+            />
+            <DeckTile
+              id={2}
+              name="Muldrotha Graveyard"
+              commanderName="Muldrotha, the Gravetide"
+              commanderScryfallId={SAMPLE_COMMANDERS.muldrotha}
+              colourIdentity={['U', 'B', 'G']}
+              cardCount={100}
+              isActive={true}
+              completeness={{ resolved: 100, total: 100, unownedCount: 0 }}
+              format="commander"
+              pipDistribution={{ U: 25, B: 35, G: 20 }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ─── Needs Pull (Amber) ────────────────────────────────── */}
+      {showVariant('amber-pull') && (
+        <div>
+          <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-2">Needs Pull (Amber)</h3>
+          <p className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)] mb-4">
+            Some slots unresolved but cards are available in storage. Amber border, book icon.
+            User needs to pull cards from binder/storage.
+          </p>
+          <div className="flex flex-wrap gap-4">
+            <DeckTile
+              id={3}
+              name="Kenrith Politics"
+              commanderName="Kenrith, the Returned King"
+              commanderScryfallId={SAMPLE_COMMANDERS.kenrith}
+              colourIdentity={['W', 'U', 'B', 'R', 'G']}
+              cardCount={100}
+              isActive={true}
+              completeness={{ resolved: 95, total: 100, availableCount: 5, unownedCount: 0 }}
+              format="commander"
+              pipDistribution={{ W: 15, U: 15, B: 15, R: 15, G: 20 }}
+            />
+            <DeckTile
+              id={4}
+              name="Krenko Goblins"
+              commanderName="Krenko, Mob Boss"
+              commanderScryfallId={SAMPLE_COMMANDERS.krenko}
+              colourIdentity={['R']}
+              cardCount={100}
+              isActive={true}
+              completeness={{ resolved: 97, total: 100, availableCount: 3, unownedCount: 0 }}
+              format="commander"
+              pipDistribution={{ R: 80 }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ─── Overcount (Amber) ─────────────────────────────────── */}
+      {showVariant('amber-overcount') && (
+        <div>
+          <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-2">Overcount (Amber)</h3>
+          <p className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)] mb-4">
+            Deck has more than 100 cards. Amber border, hash icon.
+            User needs to cut cards.
+          </p>
+          <div className="flex flex-wrap gap-4">
+            <DeckTile
+              id={5}
+              name="Omnath Landfall"
+              commanderName="Omnath, Locus of Creation"
+              commanderScryfallId={SAMPLE_COMMANDERS.omnath}
+              colourIdentity={['W', 'U', 'R', 'G']}
+              cardCount={103}
+              isActive={true}
+              completeness={{ resolved: 100, total: 100, unownedCount: 0 }}
+              format="commander"
+              pipDistribution={{ W: 10, U: 15, R: 25, G: 30 }}
+            />
+            <DeckTile
+              id={6}
+              name="Breya Artifacts"
+              commanderName="Breya, Etherium Shaper"
+              commanderScryfallId={SAMPLE_COMMANDERS.breya}
+              colourIdentity={['W', 'U', 'B', 'R']}
+              cardCount={105}
+              isActive={true}
+              completeness={{ resolved: 100, total: 100, unownedCount: 0 }}
+              format="commander"
+              pipDistribution={{ W: 10, U: 30, B: 20, R: 20 }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ─── Unowned (Red) ─────────────────────────────────────── */}
+      {showVariant('red') && (
+        <div>
+          <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-2">Unowned (Red)</h3>
+          <p className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)] mb-4">
+            Some slots have no matching card in collection (unowned). Red border, ban icon.
+            User needs to acquire cards.
+          </p>
+          <div className="flex flex-wrap gap-4">
+            <DeckTile
+              id={7}
+              name="Yarok ETB"
+              commanderName="Yarok, the Desecrated"
+              commanderScryfallId={SAMPLE_COMMANDERS.yarok}
+              colourIdentity={['U', 'B', 'G']}
+              cardCount={100}
+              isActive={true}
+              completeness={{ resolved: 98, total: 100, availableCount: 0, unownedCount: 2 }}
+              format="commander"
+              pipDistribution={{ U: 25, B: 30, G: 25 }}
+            />
+            <DeckTile
+              id={8}
+              name="Teysa Aristocrats"
+              commanderName="Teysa Karlov"
+              commanderScryfallId={SAMPLE_COMMANDERS.teysa}
+              colourIdentity={['W', 'B']}
+              cardCount={100}
+              isActive={true}
+              completeness={{ resolved: 90, total: 100, availableCount: 0, unownedCount: 10 }}
+              format="commander"
+              pipDistribution={{ W: 30, B: 50 }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ─── Brewing ──────────────────────────────────────────── */}
+      {showVariant('brewing') && (
+        <div>
+          <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-2">Brewing</h3>
+          <p className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)] mb-4">
+            Deck is in progress, not yet committed. Purple border, flask icon.
+            No allocation tracking.
+          </p>
+          <div className="flex flex-wrap gap-4">
+            <DeckTile
+              id={9}
+              name="Chulane Creatures"
+              commanderName="Chulane, Teller of Tales"
+              commanderScryfallId={SAMPLE_COMMANDERS.chulane}
+              colourIdentity={['W', 'U', 'G']}
+              cardCount={85}
+              isActive={false}
+              format="commander"
+              pipDistribution={{ W: 20, U: 25, G: 35 }}
+            />
+            <DeckTile
+              id={10}
+              name="Golos Big Stuff"
+              commanderName="Golos, Tireless Pilgrim"
+              commanderScryfallId={SAMPLE_COMMANDERS.golos}
+              colourIdentity={['W', 'U', 'B', 'R', 'G']}
+              cardCount={72}
+              isActive={false}
+              format="commander"
+              pipDistribution={{ W: 10, U: 15, B: 15, R: 15, G: 25 }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ─── Graveyard ────────────────────────────────────────── */}
+      {showVariant('graveyard') && (
+        <div>
+          <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-2">Graveyard</h3>
+          <p className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)] mb-4">
+            Retired/archived deck. Grayscale + reduced opacity, skull icon.
+            Cards have been deallocated and returned to storage.
+          </p>
+          <div className="flex flex-wrap gap-4">
+            <DeckTile
+              id={11}
+              name="Urza Artifacts (Retired)"
+              commanderName="Urza, Lord High Artificer"
+              commanderScryfallId={SAMPLE_COMMANDERS.urza}
+              colourIdentity={['U']}
+              cardCount={100}
+              isActive={false}
+              format="commander"
+              pipDistribution={{ U: 80 }}
+            />
+            <DeckTile
+              id={12}
+              name="Atraxa Superfriends"
+              commanderName="Atraxa, Praetors' Voice"
+              commanderScryfallId={SAMPLE_COMMANDERS.atraxa}
+              colourIdentity={['W', 'U', 'B', 'G']}
+              cardCount={100}
+              isActive={false}
+              format="commander"
+              pipDistribution={{ W: 15, U: 20, B: 25, G: 20 }}
+            />
+          </div>
+        </div>
+      )}
+
+      <Separator />
+
+      {/* ─── Spec Reference ───────────────────────────────────── */}
+      <div>
+        <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-2">Spec Reference</h3>
+        <div className="grid grid-cols-2 gap-4 text-[length:var(--fs-xs)] text-[var(--text-tertiary)]">
+          <div>
+            <p className="font-medium text-[var(--text-secondary)] mb-1">Dimensions</p>
+            <ul className="space-y-0.5">
+              <li>Card: 220×248px</li>
+              <li>Art area: 149px height</li>
+              <li>Border radius: 16px (outer)</li>
+              <li>Status border: 1px (all sides)</li>
+            </ul>
+          </div>
+          <div>
+            <p className="font-medium text-[var(--text-secondary)] mb-1">Footer spacing</p>
+            <ul className="space-y-0.5">
+              <li>Padding: 12px top, 8px bottom, 12px sides</li>
+              <li>Deck name: 14px/18px (semibold)</li>
+              <li>Commander: 12px/15px (muted #808080)</li>
+              <li>Icon + count: 12px/15px (matches border)</li>
+              <li>Color bar: 4px height, rounded ends</li>
+            </ul>
+          </div>
+          <div>
+            <p className="font-medium text-[var(--text-secondary)] mb-1">Status borders</p>
+            <ul className="space-y-0.5">
+              <li><span style={{ color: 'var(--accent-primary)' }}>Green:</span> Ready (100% resolved)</li>
+              <li><span style={{ color: 'var(--signal-warning)' }}>Amber:</span> Needs pull / Overcount + glow</li>
+              <li><span style={{ color: 'var(--signal-critical)' }}>Red:</span> Unowned slots + glow</li>
+              <li><span style={{ color: '#8F51D5' }}>Purple:</span> Brewing (solid)</li>
+              <li><span className="opacity-50">Grayscale:</span> Graveyard</li>
+            </ul>
+          </div>
+          <div>
+            <p className="font-medium text-[var(--text-secondary)] mb-1">Icons by state</p>
+            <ul className="space-y-0.5">
+              <li>Ready: Check (✓)</li>
+              <li>Needs pull: BookOpen</li>
+              <li>Overcount: Hash (#)</li>
+              <li>Unowned: Ban (⊘)</li>
+              <li>Brewing: FlaskConical</li>
+              <li>Graveyard: Skull</li>
+            </ul>
+          </div>
         </div>
       </div>
     </>

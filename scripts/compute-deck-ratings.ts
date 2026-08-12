@@ -1,7 +1,9 @@
 /**
  * Compute deck ratings for all decks (or a single deck) and store in deck_ratings.
- * Reads deck_cards + card_metadata from SQLite, classifies cards, computes attribute
- * scores, selects key cards, generates primer, and identifies weaknesses.
+ * Reads deck_cards + card metadata from local SQLite (oracle.db), classifies cards, 
+ * computes attribute scores, selects key cards, generates primer, and identifies weaknesses.
+ *
+ * Note: Uses local SQLite card_metadata table, not Supabase ref_cards.
  *
  * Run: npx tsx scripts/compute-deck-ratings.ts [deckId]
  */

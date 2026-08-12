@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { parseCategoriesCapped } from '@/lib/categoryUtils'
 import type { StructuredCategories } from '@/lib/categoryUtils'
 import { useDeckCategories } from '@/hooks/useDeckCategories'
+import { deckKeys } from '@/hooks/useDeckQueryKeys'
 import type { DeckCard } from '@/components/CardGrid'
 import type { CardSlotStatus } from '@/lib/card-status'
 import { isBasicLand } from '@/lib/basic-lands'
@@ -57,7 +58,7 @@ interface CardStatusResponse {
     total: number
     original: number
     proxy: number
-    open: number
+    available: number
     claimed: number
     unowned: number
   }
@@ -82,17 +83,69 @@ function getCardTypeGroup(card: DeckCard): string {
   return 'Other'
 }
 
-/** Derive color identity group from card (simplified — uses categories as proxy) */
+/** Derive color identity group from card mana cost */
 function getColorGroup(card: DeckCard): string {
-  // Without explicit color identity data on DeckCard, use card_name heuristic
-  // This will be refined when color_identity is available on the card type
-  return 'Unknown'
+  if (!card.mana_cost) return 'Colorless'
+  const colors: string[] = []
+  if (card.mana_cost.includes('W')) colors.push('W')
+  if (card.mana_cost.includes('U')) colors.push('U')
+  if (card.mana_cost.includes('B')) colors.push('B')
+  if (card.mana_cost.includes('R')) colors.push('R')
+  if (card.mana_cost.includes('G')) colors.push('G')
+  if (colors.length === 0) return 'Colorless'
+  if (colors.length > 1) return 'Multicolor'
+  const colorNames: Record<string, string> = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' }
+  return colorNames[colors[0]] || 'Colorless'
+}
+
+/** Extract CMC from mana_cost string (e.g. "{2}{U}{U}" -> 4) */
+function extractCmc(manaCost: string | null | undefined): number {
+  if (!manaCost) return 0
+  let cmc = 0
+  // Match generic mana {X} where X is a number
+  const genericMatch = manaCost.match(/\{(\d+)\}/g)
+  if (genericMatch) {
+    for (const m of genericMatch) {
+      cmc += parseInt(m.replace(/[{}]/g, ''), 10)
+    }
+  }
+  // Count colored pips (each is 1 CMC)
+  const coloredPips = manaCost.match(/\{[WUBRGC]\}/gi)
+  if (coloredPips) cmc += coloredPips.length
+  // Hybrid mana counts as 1
+  const hybridPips = manaCost.match(/\{[WUBRG]\/[WUBRG]\}/gi)
+  if (hybridPips) cmc += hybridPips.length
+  // Phyrexian mana counts as 1
+  const phyrexianPips = manaCost.match(/\{[WUBRG]\/P\}/gi)
+  if (phyrexianPips) cmc += phyrexianPips.length
+  return cmc
 }
 
 /** Get CMC group bucket */
-function getCmcGroup(_card: DeckCard): string {
-  // CMC isn't on DeckCard — returns 'Unknown' until extended
-  return 'Unknown'
+function getCmcGroup(card: DeckCard): string {
+  const cmc = extractCmc(card.mana_cost)
+  if (cmc === 0) return '0'
+  if (cmc === 1) return '1'
+  if (cmc === 2) return '2'
+  if (cmc === 3) return '3'
+  if (cmc === 4) return '4'
+  if (cmc === 5) return '5'
+  if (cmc === 6) return '6'
+  return '7+'
+}
+
+/** Get price bracket */
+function getPriceBracket(price: number | null | undefined): string {
+  if (price === null || price === undefined) return 'No price'
+  if (price < 0.5) return '$0 – $0.50'
+  if (price < 1) return '$0.50 – $1'
+  if (price < 2) return '$1 – $2'
+  if (price < 5) return '$2 – $5'
+  if (price < 10) return '$5 – $10'
+  if (price < 20) return '$10 – $20'
+  if (price < 50) return '$20 – $50'
+  if (price < 100) return '$50 – $100'
+  return '$100+'
 }
 
 // ─── Sort Comparators ────────────────────────────────────────────────────────
@@ -157,7 +210,7 @@ function groupByStatus(
     original: 'Original',
     proxy: 'Proxy',
     open: 'Open',
-    claimed: 'Claimed',
+    claimed: 'In Decks',
     unowned: 'Unowned',
     generic_land: 'Basic Lands (generic)',
   }
@@ -175,41 +228,74 @@ function groupByStatus(
 }
 
 function groupByCmc(cards: DeckCard[]): [string, DeckCard[]][] {
-  // CMC not available on DeckCard — group all into 'Unknown' for now
-  return [['All (CMC unavailable)', cards]]
+  const groups: Record<string, DeckCard[]> = {}
+  for (const card of cards) {
+    const cmcGroup = getCmcGroup(card)
+    if (!groups[cmcGroup]) groups[cmcGroup] = []
+    groups[cmcGroup].push(card)
+  }
+  const cmcOrder = ['0', '1', '2', '3', '4', '5', '6', '7+']
+  return Object.entries(groups)
+    .filter(([, cards]) => cards.length > 0)
+    .sort(([a], [b]) => {
+      const ai = cmcOrder.indexOf(a)
+      const bi = cmcOrder.indexOf(b)
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
+    })
 }
 
 function groupByColor(cards: DeckCard[]): [string, DeckCard[]][] {
-  // Color identity not available on DeckCard — group all into 'Unknown' for now
-  return [['All (Color unavailable)', cards]]
+  const groups: Record<string, DeckCard[]> = {}
+  for (const card of cards) {
+    const color = getColorGroup(card)
+    if (!groups[color]) groups[color] = []
+    groups[color].push(card)
+  }
+  const colorOrder = ['White', 'Blue', 'Black', 'Red', 'Green', 'Multicolor', 'Colorless']
+  return Object.entries(groups)
+    .filter(([, cards]) => cards.length > 0)
+    .sort(([a], [b]) => {
+      const ai = colorOrder.indexOf(a)
+      const bi = colorOrder.indexOf(b)
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
+    })
 }
 
 /** Group by price into fixed brackets */
 function groupByPrice(cards: DeckCard[]): [string, DeckCard[]][] {
-  const brackets: Record<string, DeckCard[]> = {
-    '$0 – $1': [],
-    '$1 – $5': [],
-    '$5 – $10': [],
-    '$10 – $25': [],
-    '$25+': [],
-    'No price': [],
-  }
+  const groups: Record<string, DeckCard[]> = {}
   for (const card of cards) {
-    // price_ck not available on CardGrid DeckCard — put in "No price"
-    brackets['No price'].push(card)
+    const bracket = getPriceBracket(card.price_usd)
+    if (!groups[bracket]) groups[bracket] = []
+    groups[bracket].push(card)
   }
-  return Object.entries(brackets).filter(([, cards]) => cards.length > 0)
+  const priceOrder = ['$0 – $0.50', '$0.50 – $1', '$1 – $2', '$2 – $5', '$5 – $10', '$10 – $20', '$20 – $50', '$50 – $100', '$100+', 'No price']
+  return Object.entries(groups)
+    .filter(([, cards]) => cards.length > 0)
+    .sort(([a], [b]) => {
+      const ai = priceOrder.indexOf(a)
+      const bi = priceOrder.indexOf(b)
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
+    })
 }
 
-/** Sort grouped cards so Commander is always first */
+/** Move Commander category group to front (only when it's literally named "Commander"), and sort cards within each group by name */
 function sortCommanderFirst(groups: [string, DeckCard[]][]): [string, DeckCard[]][] {
-  return groups.sort(([a, cardsA], [b, cardsB]) => {
-    const aIsCommander = a.toLowerCase() === 'commander' || cardsA.some(c => c.is_commander)
-    const bIsCommander = b.toLowerCase() === 'commander' || cardsB.some(c => c.is_commander)
-    if (aIsCommander && !bIsCommander) return -1
-    if (bIsCommander && !aIsCommander) return 1
-    return 0
-  })
+  // Sort cards within each group by name (ascending)
+  const sortedGroups = groups.map(([name, cards]) => [
+    name,
+    [...cards].sort((a, b) => a.card_name.localeCompare(b.card_name))
+  ] as [string, DeckCard[]])
+  
+  // Only move the "Commander" category group to front — don't disrupt CMC/Color/Type/Price order
+  const commanderIdx = sortedGroups.findIndex(([name]) => 
+    name.toLowerCase() === 'commander'
+  )
+  if (commanderIdx > 0) {
+    const [commanderGroup] = sortedGroups.splice(commanderIdx, 1)
+    sortedGroups.unshift(commanderGroup)
+  }
+  return sortedGroups
 }
 
 function applyGrouping(
@@ -240,7 +326,7 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
   // ── Card Statuses Query ──────────────────────────────────────────────────────
 
   const { data: statusData } = useQuery<CardStatusResponse>({
-    queryKey: ['decks', deckId, 'card-statuses'],
+    queryKey: deckKeys.cardStatuses(deckId),
     queryFn: async () => {
       const res = await fetch(`/api/decks/${deckId}/card-statuses`)
       if (!res.ok) throw new Error('Failed to fetch card statuses')
@@ -252,13 +338,13 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
   // ── Picklist data (for progress bar) ─────────────────────────────────────
 
   const { data: picklistData } = useQuery<{ cards: PicklistCard[]; progress: { resolved: number; total: number } }>({
-    queryKey: ['picklist', deckId],
+    queryKey: deckKeys.picklist(deckId),
     queryFn: async () => {
       const res = await fetch(`/api/decks/${deckId}/picklist`)
       if (!res.ok) throw new Error('Failed to fetch picklist')
       return res.json()
     },
-    staleTime: 30 * 1000,
+    staleTime: 5 * 1000, // Shorter stale time for more responsive updates
   })
 
   const [tabMode, setTabMode] = useState<TabMode>('all')
@@ -308,9 +394,9 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
       return res.json()
     },
     onMutate: async ({ cardId, categories }) => {
-      await queryClient.cancelQueries({ queryKey: ['decks', deckId] })
-      const previousData = queryClient.getQueryData(['decks', deckId])
-      queryClient.setQueryData(['decks', deckId], (old: unknown) => {
+      await queryClient.cancelQueries({ queryKey: deckKeys.detail(deckId) })
+      const previousData = queryClient.getQueryData(deckKeys.detail(deckId))
+      queryClient.setQueryData(deckKeys.detail(deckId), (old: unknown) => {
         if (!old || typeof old !== 'object') return old
         const deck = old as { cards?: DeckCard[] }
         if (!deck.cards) return old
@@ -333,12 +419,12 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
     },
     onError: (err: Error, _variables, context) => {
       if (context?.previousData) {
-        queryClient.setQueryData(['decks', deckId], context.previousData)
+        queryClient.setQueryData(deckKeys.detail(deckId), context.previousData)
       }
       toast.error(err.message || 'Failed to update categories')
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['decks', deckId] })
+      queryClient.invalidateQueries({ queryKey: deckKeys.detail(deckId) })
     },
   })
 
@@ -574,11 +660,17 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
       {/* ─── View Content Area ─────────────────────────────────────────── */}
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         <div className="mx-auto max-w-[var(--content-max-width)]">
-          {/* Progress bar */}
-          {picklistData && (
+          {/* Progress bar - uses statusData.counts for immediate updates */}
+          {statusData?.counts && (
             <PicklistProgress
-              cards={picklistData.cards}
-              progress={picklistData.progress}
+              counts={{
+                original: statusData.counts.original,
+                proxy: statusData.counts.proxy,
+                available: statusData.counts.available,
+                claimed: statusData.counts.claimed,
+                unowned: statusData.counts.unowned,
+                total: statusData.counts.total,
+              }}
               action={
                 onViewPicklist && (
                   <Button
@@ -642,35 +734,6 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
               }}
             />
           )}
-        </div>
-      </div>
-
-      {/* ─── Summary Footer ───────────────────────────────────────────── */}
-      <div
-        className="shrink-0 border-t px-4 py-2"
-        style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-surface)' }}
-      >
-        <div className="mx-auto flex flex-wrap max-w-[var(--content-max-width)] items-center gap-3 md:gap-6 text-[length:var(--fs-sm)]">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="size-2.5 rounded-full" style={{ border: '2px solid var(--accent-primary)' }} aria-hidden="true" />
-            <span>{counts.original} original</span>
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="size-2.5 rounded-full" style={{ border: '2px dashed var(--accent-primary)' }} aria-hidden="true" />
-            <span>{counts.proxy} proxied</span>
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="size-2.5 rounded-full" style={{ border: '2px solid var(--signal-warning)' }} aria-hidden="true" />
-            <span>{counts.open} open</span>
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="size-2.5 rounded-full" style={{ border: '2px solid var(--status-over)' }} aria-hidden="true" />
-            <span>{counts.claimed} claimed</span>
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="size-2.5 rounded-full" style={{ border: '2px solid var(--signal-critical)' }} aria-hidden="true" />
-            <span>{counts.unowned} unowned</span>
-          </span>
         </div>
       </div>
     </div>
@@ -828,7 +891,7 @@ function GridView({
               const cardStatus = statusMap.get(card.id) ?? 'available'
               const statusLabels: Record<string, string> = {
                 original: 'Original', proxy: 'Proxy', open: 'Open',
-                claimed: 'Claimed', unowned: 'Unowned', generic_land: '',
+                claimed: 'In Decks', unowned: 'Unowned', generic_land: '',
               }
               const statusLabel = statusLabels[cardStatus] || ''
 
@@ -890,7 +953,7 @@ function GridView({
                     <div
                       className="absolute bottom-2 left-2 flex items-center justify-center rounded-full p-1"
                       style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}
-                      aria-label="Claimed by another deck"
+                      aria-label="In another deck"
                     >
                       <AlertTriangle className="size-5" style={{ color: 'var(--status-over)' }} />
                     </div>
@@ -934,7 +997,7 @@ function GridView({
                     )}
                     {cardStatus === 'claimed' && (
                       <div className="mt-1 flex items-center gap-2">
-                        <GridCardAction label="Claim" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="claim" />
+                        <GridCardAction label="Pull" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="claim" />
                         <GridCardAction label="Remove" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="remove" />
                       </div>
                     )}
@@ -975,8 +1038,8 @@ function GridCardAction({
       if (action === 'remove') {
         const res = await fetch(`/api/decks/${deckId}/cards/${deckCardsId}`, { method: 'DELETE' })
         if (!res.ok) throw new Error('Remove failed')
-        queryClient.invalidateQueries({ queryKey: ['decks', deckId] })
-        queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'card-statuses'] })
+        queryClient.invalidateQueries({ queryKey: deckKeys.detail(deckId) })
+        queryClient.invalidateQueries({ queryKey: deckKeys.cardStatuses(deckId) })
         toast.success(`Removed ${cardName}`)
       } else if (action === 'fill' || action === 'claim') {
         // Direct to the status chip for the full flow (candidate selection, confirmation)

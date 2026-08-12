@@ -46,11 +46,21 @@ export function CollectionValueBanner() {
     }
   }
 
-  if (isLoading || !data || data.totalMarketValue === 0) return null
+  if (isLoading || !data) return null
 
-  const hasGain = data.gainLoss > 0
-  const hasLoss = data.gainLoss < 0
-  const hasPurchaseData = data.totalPurchaseValue > 0
+  // Ensure all required fields exist with defaults
+  const totalMarketValue = data.totalMarketValue ?? 0
+  const totalPurchaseValue = data.totalPurchaseValue ?? 0
+  const gainLoss = data.gainLoss ?? 0
+  const cardCount = data.cardCount ?? 0
+  const topCards = data.topCards ?? []
+
+  // Don't show banner if no data
+  if (totalMarketValue === 0 && cardCount === 0) return null
+
+  const hasGain = gainLoss > 0
+  const hasLoss = gainLoss < 0
+  const hasPurchaseData = totalPurchaseValue > 0
 
   return (
     <div className="mx-5 mb-3 flex flex-wrap items-center gap-4 rounded-lg border px-4 py-2.5" style={{ borderColor: 'var(--border-default)', backgroundColor: 'rgba(26,26,30,0.5)' }}>
@@ -58,7 +68,7 @@ export function CollectionValueBanner() {
       <div>
         <span className="block text-[length:var(--fs-xs)] text-muted-foreground">Collection Value</span>
         <span className="text-[length:var(--fs-lg)] font-semibold text-foreground">
-          ${data.totalMarketValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          ${totalMarketValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </span>
       </div>
 
@@ -69,7 +79,7 @@ export function CollectionValueBanner() {
           <span className={`inline-flex items-center gap-1 text-[length:var(--fs-md)] font-medium ${hasGain ? 'text-[var(--signal-success)]' : hasLoss ? 'text-destructive' : 'text-muted-foreground'}`}>
             {hasGain && <TrendingUp className="size-3.5" />}
             {hasLoss && <TrendingDown className="size-3.5" />}
-            {hasGain ? '+' : ''}{data.gainLoss.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {hasGain ? '+' : ''}{gainLoss.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </div>
       )}
@@ -78,16 +88,16 @@ export function CollectionValueBanner() {
       <div>
         <span className="block text-[length:var(--fs-xs)] text-muted-foreground">Cards</span>
         <span className="text-[length:var(--fs-md)] font-medium text-foreground">
-          {data.cardCount.toLocaleString()}
+          {cardCount.toLocaleString()}
         </span>
       </div>
 
       {/* Top card */}
-      {data.topCards.length > 0 && (
+      {topCards.length > 0 && (
         <div className="hidden sm:block">
           <span className="block text-[length:var(--fs-xs)] text-muted-foreground">Most Valuable</span>
           <span className="text-[length:var(--fs-md)] font-medium text-foreground">
-            {data.topCards[0].cardName} · ${data.topCards[0].totalValue.toFixed(2)}
+            {topCards[0].cardName} · ${topCards[0].totalValue.toFixed(2)}
           </span>
         </div>
       )}

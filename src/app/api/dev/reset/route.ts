@@ -26,15 +26,15 @@ export async function POST() {
     'deck_cards',
     'deck_documentation',
     'decks',
-    'physical_copies',
-    'card_definitions',
+    'user_copies',
+    'user_cards',
     'brew_sessions',
   ]
 
   for (const table of tables) {
-    const { error } = await supabase
-      .from(table)
-      .delete()
+    const { error } = await (supabase
+      .from(table as any)
+      .delete() as any)
       .eq('user_id', userId)
 
     if (error) {

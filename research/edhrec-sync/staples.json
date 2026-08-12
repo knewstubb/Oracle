@@ -1,0 +1,77 @@
+{
+  "generated_at": "2026-08-06T23:45:00.597Z",
+  "threshold": {
+    "build_percentage": 0.4,
+    "tag_percentage": 0.5
+  },
+  "total_builds": 1885,
+  "unique_tags": 167,
+  "staples": [
+    "Sol Ring",
+    "Arcane Signet",
+    "Command Tower",
+    "Mountain",
+    "Exotic Orchard",
+    "Forest",
+    "Island",
+    "Swamp",
+    "Plains"
+  ],
+  "staples_with_stats": [
+    {
+      "card": "Sol Ring",
+      "buildPct": 0.953315649867374,
+      "tagCount": 149,
+      "tagPct": 0.8922155688622755
+    },
+    {
+      "card": "Arcane Signet",
+      "buildPct": 0.8790450928381963,
+      "tagCount": 148,
+      "tagPct": 0.8862275449101796
+    },
+    {
+      "card": "Command Tower",
+      "buildPct": 0.8509283819628647,
+      "tagCount": 144,
+      "tagPct": 0.8622754491017964
+    },
+    {
+      "card": "Mountain",
+      "buildPct": 0.4679045092838196,
+      "tagCount": 114,
+      "tagPct": 0.6826347305389222
+    },
+    {
+      "card": "Exotic Orchard",
+      "buildPct": 0.4716180371352785,
+      "tagCount": 112,
+      "tagPct": 0.6706586826347305
+    },
+    {
+      "card": "Forest",
+      "buildPct": 0.4673740053050398,
+      "tagCount": 112,
+      "tagPct": 0.6706586826347305
+    },
+    {
+      "card": "Island",
+      "buildPct": 0.45570291777188326,
+      "tagCount": 112,
+      "tagPct": 0.6706586826347305
+    },
+    {
+      "card": "Swamp",
+      "buildPct": 0.5193633952254642,
+      "tagCount": 111,
+      "tagPct": 0.6646706586826348
+    },
+    {
+      "card": "Plains",
+      "buildPct": 0.4079575596816976,
+      "tagCount": 107,
+      "tagPct": 0.6407185628742516
+    }
+  ],
+  "near_staples": []
+}

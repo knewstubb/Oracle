@@ -35,21 +35,20 @@ const INITIAL_BACKOFF_MS = 1000
  * are loaded before their dependents. Matches the design document.
  */
 const FK_DEPENDENCY_ORDER: string[][] = [
-  // Wave 1: No FK dependencies
-  ['_migrations', 'sets', 'sync_meta', 'card_metadata', 'precon_cards',
-   'card_kingdom_prices', 'oracle_to_printings'],
-  // Wave 2: Depends on sets / card_metadata
-  ['card_definitions'],
+  // Wave 1: No FK dependencies (global reference tables)
+  ['_migrations', 'sync_meta', 'precon_cards', 'ref_printings', 'ref_cards'],
+  // Wave 2: User-scoped tables (no FK deps on other user tables)
+  ['user_cards'],
   // Wave 3: Standalone or depends on wave 2
   ['decks'],
-  // Wave 4: Depends on decks, card_definitions
-  ['collection', 'physical_copies'],
-  // Wave 5: Depends on decks, card_definitions, collection
+  // Wave 4: Depends on decks, user_cards
+  ['user_copies', 'user_locations'],
+  // Wave 5: Depends on decks, user_cards, user_copies
   [
-    'deck_cards', 'deck_allocations', 'proxy_allocations', 'deck_priority',
+    'deck_cards', 'proxy_allocations', 'deck_priority',
     'deck_strategy', 'deck_health', 'deck_documentation', 'deck_notes',
     'deck_overview_content', 'deck_combos', 'deck_mana_analysis', 'deck_upgrades',
-    'deck_ratings', 'dead_weight_dismissals', 'precon_mod_state',
+    'deck_ratings', 'precon_mod_state',
     'upgrade_change_log', 'sync_runs',
   ],
   // Wave 6: Depends on decks
@@ -64,14 +63,12 @@ const FK_DEPENDENCY_ORDER: string[][] = [
  */
 const IDENTITY_TABLES = new Set([
   'precon_cards',
-  'card_definitions',
-  'collection',
-  'physical_copies',
+  'user_cards',
+  'user_copies',
+  'user_locations',
   'deck_cards',
-  'deck_allocations',
   'proxy_allocations',
   'deck_notes',
-  'dead_weight_dismissals',
   'debrief_sessions',
   'debrief_actions',
   'brew_sessions',

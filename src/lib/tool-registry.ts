@@ -34,13 +34,14 @@ export function getToolDefinitions(): AnthropicToolDefinition[] {
 /** Execute a tool by name, returning the result */
 export async function executeTool(
   name: string,
-  input: Record<string, unknown>
+  input: Record<string, unknown>,
+  context?: { userId?: string }
 ): Promise<ToolExecutionResult> {
   const tool = registry.get(name)
   if (!tool) {
     return { content: `Unknown tool: ${name}`, is_error: true }
   }
-  return tool.execute(input)
+  return tool.execute(input, context)
 }
 
 // ---------------------------------------------------------------------------
@@ -105,17 +106,30 @@ registry.set('mtg_ruling_search', {
   execute: async (input) => {
     try {
       const cardName = input.card_name as string
-      // First get the card to find its rulings URI
+      
+      // Try DB-first lookup
+      const { getRulingsByCardName } = await import('@/lib/card-data')
+      const dbRulings = await getRulingsByCardName(cardName)
+      
+      if (dbRulings.length > 0) {
+        const lines = [`Rulings for ${cardName} (${dbRulings.length} total):\n`]
+        for (const r of dbRulings) {
+          lines.push(`[${r.published_at}] ${r.comment}`)
+        }
+        return { content: lines.join('\n'), is_error: false }
+      }
+      
+      // Fallback to Scryfall API for cards not in our DB
       const cardRes = await fetch(
         `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}`,
         { headers: { 'User-Agent': 'TheOracle/0.1.0' } }
       )
       if (!cardRes.ok) {
-        return { content: `Card "${cardName}" not found on Scryfall`, is_error: true }
+        return { content: `Card "${cardName}" not found`, is_error: true }
       }
       const card = await cardRes.json()
 
-      // Fetch rulings
+      // Fetch rulings from Scryfall
       const rulingsRes = await fetch(card.rulings_uri, {
         headers: { 'User-Agent': 'TheOracle/0.1.0' },
       })
@@ -235,11 +249,11 @@ registry.set('mtg_combos_search', {
   },
 })
 
-// --- Commander validation: Supabase mtg_cards table (works on Vercel + local) ---
+// --- Commander validation: Check ref_commanders table (authoritative source) ---
 registry.set('mtg_commander_deck', {
   definition: {
     name: 'mtg_commander_deck',
-    description: 'Validate commander legality — confirms the card exists, is legendary, is Commander-legal, and returns colour identity. Uses local card database for instant results.',
+    description: 'Validate commander legality — confirms the card exists in the ref_commanders table (authoritative source), returns colour identity and EDHREC stats. Use this to verify any commander before recommending.',
     input_schema: {
       type: 'object',
       properties: {
@@ -254,39 +268,68 @@ registry.set('mtg_commander_deck', {
   execute: async (input) => {
     try {
       const supabase = createAdminClient()
-      const { data, error } = await supabase
-        .from('mtg_cards' as any)
-        .select('name, type_line, color_identity, mana_cost, edhrec_rank, commander_legal, is_legendary, is_creature')
-        .ilike('name', input.commander_name as string)
+      const commanderName = input.commander_name as string
+      
+      // First check ref_commanders (authoritative source for legal commanders)
+      const { data: commander, error: cmdError } = await supabase
+        .from('ref_commanders')
+        .select('display_name, color_identity, edhrec_rank, edhrec_deck_count, legal_commander')
+        .ilike('display_name', commanderName)
         .limit(1)
         .maybeSingle()
 
-      if (error) throw new Error(error.message)
+      if (cmdError) throw new Error(cmdError.message)
 
-      if (!data) {
-        return { content: `✗ Card "${input.commander_name}" not found in database`, is_error: false }
-      }
-
-      const canBeCommander = (data.is_legendary && data.is_creature) || (data.type_line?.toLowerCase().includes('can be your commander'))
-
-      if (!canBeCommander) {
+      if (commander) {
+        // Found in ref_commanders — this is authoritative
+        if (!commander.legal_commander) {
+          return {
+            content: `✗ ${commander.display_name} — NOT a valid Commander\n  Reason: Banned in Commander format`,
+            is_error: false,
+          }
+        }
+        
+        const rank = commander.edhrec_rank ? `#${commander.edhrec_rank}` : 'unranked'
+        const deckCount = commander.edhrec_deck_count ? `${commander.edhrec_deck_count.toLocaleString()} decks` : 'new'
+        const ci = commander.color_identity || 'Colorless'
         return {
-          content: `✗ ${data.name} — NOT a valid Commander\n  Reason: Not a Legendary Creature\n  Type: ${data.type_line}`,
+          content: `✓ ${commander.display_name} — Valid Commander\n  Colour Identity: ${ci}\n  EDHREC: ${rank} (${deckCount})`,
           is_error: false,
         }
       }
 
-      if (!data.commander_legal) {
+      // Not in ref_commanders — check ref_cards for more info
+      const { data: card, error: cardError } = await supabase
+        .from('ref_cards')
+        .select('name, type_line, color_identity, oracle_text, is_legendary, is_creature, commander_legal')
+        .ilike('name', commanderName)
+        .limit(1)
+        .maybeSingle()
+
+      if (cardError) throw new Error(cardError.message)
+
+      if (!card) {
+        return { content: `✗ Card "${commanderName}" not found in database. Try card_fuzzy_lookup to find the exact name.`, is_error: false }
+      }
+
+      // Card exists but not in ref_commanders — explain why
+      const reasons: string[] = []
+      if (!card.is_legendary) reasons.push('not legendary')
+      if (!card.is_creature && !card.oracle_text?.toLowerCase().includes('can be your commander')) {
+        reasons.push('not a creature and lacks "can be your commander" text')
+      }
+      if (!card.commander_legal) reasons.push('banned in Commander')
+
+      if (reasons.length > 0) {
         return {
-          content: `✗ ${data.name} — NOT a valid Commander\n  Reason: Banned in Commander`,
+          content: `✗ ${card.name} — NOT a valid Commander\n  Reason: ${reasons.join(', ')}\n  Type: ${card.type_line}`,
           is_error: false,
         }
       }
 
-      const rank = data.edhrec_rank ? ` (EDHREC rank: #${data.edhrec_rank})` : ''
-      const ci = data.color_identity || 'Colorless'
+      // Card seems legal but not in ref_commanders — might be a sync issue
       return {
-        content: `✓ ${data.name} — Valid Commander${rank}\n  Type: ${data.type_line}\n  Colour Identity: ${ci}\n  Mana Cost: ${data.mana_cost}`,
+        content: `⚠ ${card.name} — May be a valid Commander but not in our commanders database yet\n  Type: ${card.type_line}\n  Colour Identity: ${card.color_identity || 'Colorless'}\n  Note: This card may be newly released. The ref_commanders table syncs daily.`,
         is_error: false,
       }
     } catch (err) {
@@ -327,13 +370,38 @@ registry.set('mtg_top_commanders', {
       const limit = (input.limit as number) || 10
       const rawCI = input.color_identity as string
 
-      // Map colour identity to EDHREC slug
-      const slug = resolveEdhrecColorSlug(rawCI)
-      if (!slug) {
-        return { content: `Could not resolve colour identity "${rawCI}" to an EDHREC page. Use WUBRG letters (e.g. "U,B") or guild names (e.g. "dimir").`, is_error: true }
+      // Normalize colour identity to sorted WUBRG format for DB query
+      const normalizedCI = normalizeColorIdentity(rawCI)
+      
+      // --- Step 1: Try local ref_commanders table first ---
+      const supabase = createAdminClient()
+      const { data: localCommanders, error: localError } = await supabase
+        .from('ref_commanders')
+        .select('display_name, color_identity, edhrec_rank, edhrec_deck_count')
+        .eq('color_identity', normalizedCI)
+        .eq('legal_commander', true)
+        .not('edhrec_rank', 'is', null)
+        .order('edhrec_rank', { ascending: true })
+        .limit(limit)
+      
+      if (!localError && localCommanders && localCommanders.length >= limit) {
+        // Local data is sufficient
+        const lines = [`Top ${localCommanders.length} commanders for ${rawCI} (by EDHREC deck count):\n`]
+        for (let i = 0; i < localCommanders.length; i++) {
+          const cmd = localCommanders[i]
+          const deckCount = cmd.edhrec_deck_count ? `${cmd.edhrec_deck_count.toLocaleString()} decks` : ''
+          lines.push(`${i + 1}. ${cmd.display_name} — ${deckCount}`)
+        }
+        lines.push(`\nSource: Local cache (synced from EDHREC)`)
+        return { content: lines.join('\n'), is_error: false }
       }
 
-      // Fetch from EDHREC's public JSON API (ranked by deck count)
+      // --- Step 2: Fallback to EDHREC API ---
+      const slug = resolveEdhrecColorSlug(rawCI)
+      if (!slug) {
+        return { content: `Could not resolve colour identity "${rawCI}". Use WUBRG letters (e.g. "U,B") or guild names (e.g. "dimir").`, is_error: true }
+      }
+
       const res = await fetch(`https://json.edhrec.com/pages/commanders/${slug}.json`, {
         headers: { 'User-Agent': 'The-Oracle/1.0' },
       })
@@ -364,6 +432,66 @@ registry.set('mtg_top_commanders', {
     }
   },
 })
+
+/** Normalize colour identity input to sorted WUBRG format (e.g., "dimir" → "U,B") */
+function normalizeColorIdentity(input: string): string {
+  const normalized = input.trim().toLowerCase()
+  
+  // Map guild/shard names to WUBRG
+  const nameToWubrg: Record<string, string> = {
+    'mono-white': 'W', 'white': 'W', 'w': 'W',
+    'mono-blue': 'U', 'blue': 'U', 'u': 'U',
+    'mono-black': 'B', 'black': 'B', 'b': 'B',
+    'mono-red': 'R', 'red': 'R', 'r': 'R',
+    'mono-green': 'G', 'green': 'G', 'g': 'G',
+    'colorless': '', 'c': '',
+    // Two-colour
+    'azorius': 'W,U', 'wu': 'W,U', 'uw': 'W,U',
+    'dimir': 'U,B', 'ub': 'U,B', 'bu': 'U,B',
+    'rakdos': 'B,R', 'br': 'B,R', 'rb': 'B,R',
+    'gruul': 'R,G', 'rg': 'R,G', 'gr': 'R,G',
+    'selesnya': 'G,W', 'gw': 'G,W', 'wg': 'G,W',
+    'orzhov': 'W,B', 'wb': 'W,B', 'bw': 'W,B',
+    'izzet': 'U,R', 'ur': 'U,R', 'ru': 'U,R',
+    'golgari': 'B,G', 'bg': 'B,G', 'gb': 'B,G',
+    'boros': 'R,W', 'rw': 'R,W', 'wr': 'R,W',
+    'simic': 'G,U', 'gu': 'G,U', 'ug': 'G,U',
+    // Three-colour
+    'esper': 'W,U,B', 'wub': 'W,U,B',
+    'grixis': 'U,B,R', 'ubr': 'U,B,R',
+    'jund': 'B,R,G', 'brg': 'B,R,G',
+    'naya': 'R,G,W', 'rgw': 'R,G,W',
+    'bant': 'G,W,U', 'gwu': 'G,W,U',
+    'abzan': 'W,B,G', 'wbg': 'W,B,G',
+    'jeskai': 'U,R,W', 'urw': 'U,R,W',
+    'sultai': 'B,G,U', 'bgu': 'B,G,U',
+    'mardu': 'R,W,B', 'rwb': 'R,W,B',
+    'temur': 'G,U,R', 'gur': 'G,U,R',
+    // Four-colour
+    'yore-tiller': 'W,U,B,R', 'wubr': 'W,U,B,R',
+    'glint-eye': 'U,B,R,G', 'ubrg': 'U,B,R,G',
+    'dune-brood': 'B,R,G,W', 'brgw': 'B,R,G,W',
+    'ink-treader': 'R,G,W,U', 'rgwu': 'R,G,W,U',
+    'witch-maw': 'G,W,U,B', 'gwub': 'G,W,U,B',
+    // Five-colour
+    'five-color': 'W,U,B,R,G', 'wubrg': 'W,U,B,R,G', '5c': 'W,U,B,R,G',
+  }
+  
+  if (nameToWubrg[normalized]) {
+    return nameToWubrg[normalized]
+  }
+  
+  // Try parsing as WUBRG letters (with or without commas/spaces)
+  const letters = normalized.replace(/[^wubrgc]/gi, '').toUpperCase()
+  if (letters) {
+    // Sort in WUBRG order and join with commas
+    const order = 'WUBRG'
+    const sorted = letters.split('').sort((a, b) => order.indexOf(a) - order.indexOf(b))
+    return sorted.join(',')
+  }
+  
+  return normalized.toUpperCase()
+}
 
 /** Format EDHREC commander JSON response into readable output */
 function formatEdhrecCommanderResults(
@@ -449,6 +577,62 @@ function resolveEdhrecColorSlug(input: string): string | null {
   // Fallback: try the raw input as a slug (in case user typed "dimir" directly)
   return normalized.replace(/\s+/g, '-') || null
 }
+
+// --- Search commanders by keyword: Search ref_commanders table ---
+registry.set('search_commanders', {
+  definition: {
+    name: 'search_commanders',
+    description: 'Search for commanders by name keyword. Use this when the user asks about commanders from a specific set, franchise (Marvel, DC, etc.), or theme that you don\'t have in your training data. This searches the live database which includes all recent releases.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        keyword: {
+          type: 'string',
+          description: 'Keyword to search for in commander names (e.g., "Spider", "Iron Man", "Thor", "Hearthhull", "spacecraft")',
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of results to return (default: 10)',
+        },
+      },
+      required: ['keyword'],
+    },
+  },
+  execute: async (input) => {
+    try {
+      const keyword = input.keyword as string
+      const limit = (input.limit as number) || 10
+
+      const supabase = createAdminClient()
+      const { data: commanders, error } = await supabase
+        .from('ref_commanders')
+        .select('display_name, color_identity, edhrec_rank, edhrec_deck_count')
+        .ilike('display_name', `%${keyword}%`)
+        .eq('legal_commander', true)
+        .order('edhrec_rank', { ascending: true, nullsFirst: false })
+        .limit(limit)
+
+      if (error) {
+        throw new Error(`Commander search failed: ${error.message}`)
+      }
+
+      if (!commanders || commanders.length === 0) {
+        return { content: `No commanders found matching "${keyword}".`, is_error: false }
+      }
+
+      const lines = [`Found ${commanders.length} commander(s) matching "${keyword}":\n`]
+      for (const cmd of commanders) {
+        const deckCount = cmd.edhrec_deck_count ? `${cmd.edhrec_deck_count.toLocaleString()} decks` : 'new'
+        lines.push(`- ${cmd.display_name} | ${cmd.color_identity || 'Colorless'} | ${deckCount}`)
+      }
+      lines.push(`\nUse [[Commander Name]] brackets when mentioning these to the user.`)
+      return { content: lines.join('\n'), is_error: false }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Commander search failed'
+      return { content: `Error: ${msg}`, is_error: true }
+    }
+  },
+})
 
 // --- Brackets: AI training knowledge (static data) ---
 registry.set('mtg_commander_brackets', {
@@ -561,11 +745,18 @@ registry.set('collection_lookup', {
       required: ['card_names'],
     },
   },
-  execute: async (input) => {
+  execute: async (input, context) => {
     try {
-      const repo = getCardRepository()
+      const userId = context?.userId
+      if (!userId) {
+        return { content: 'Collection lookup requires authentication — userId not available', is_error: true }
+      }
+      
+      const repo = getCardRepository(userId)
       const cardNames = input.card_names as string[]
       const colourIdentity = input.colour_identity as string[] | undefined
+
+      console.log('[collection_lookup] Querying for cards:', cardNames, 'userId:', userId)
 
       // Get owned cards — either by colour identity filter or by specific names
       let ownedCards
@@ -574,6 +765,8 @@ registry.set('collection_lookup', {
       } else {
         ownedCards = await repo.getOwnedCards(cardNames)
       }
+
+      console.log('[collection_lookup] Found owned cards:', ownedCards.length)
 
       // Build a lookup map of owned cards
       const ownedMap = new Map<string, OwnedCardInfo>(
@@ -616,6 +809,7 @@ registry.set('collection_lookup', {
 
       return { content: JSON.stringify(results, null, 2), is_error: false }
     } catch (err) {
+      console.error('[collection_lookup] Error:', err)
       const msg = err instanceof Error ? err.message : 'Collection lookup failed'
       return { content: `Collection lookup error: ${msg}`, is_error: true }
     }
@@ -678,6 +872,161 @@ registry.set('deck_context', {
 })
 
 // ---------------------------------------------------------------------------
+// Local Tool: get_commander_insights
+// ---------------------------------------------------------------------------
+
+registry.set('get_commander_insights', {
+  definition: {
+    name: 'get_commander_insights',
+    description:
+      'Get curated strategy insights for a commander from expert sources (articles, videos, podcasts). Returns build variants, key card recommendations, strategy tips, and common pitfalls. Use this when discussing commander strategy or exploring build directions.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        commander_name: {
+          type: 'string',
+          description: 'The commander name to get insights for (e.g., "Muldrotha, the Gravetide")',
+        },
+        insight_type: {
+          type: 'string',
+          enum: ['strategy', 'card_recommendation', 'build_variant', 'pitfall', 'all'],
+          description: 'Optional: filter by insight type. Default is "all".',
+        },
+      },
+      required: ['commander_name'],
+    },
+  },
+  execute: async (input) => {
+    try {
+      const commanderName = input.commander_name as string
+      const insightType = (input.insight_type as string) || 'all'
+      
+      const supabase = createAdminClient()
+      
+      // First, find the commander in ref_commanders
+      const { data: commander, error: cmdError } = await supabase
+        .from('ref_commanders')
+        .select('id, display_name, color_identity, leadership_type')
+        .ilike('display_name', commanderName)
+        .limit(1)
+        .maybeSingle()
+      
+      if (cmdError) {
+        throw new Error(`Commander lookup failed: ${cmdError.message}`)
+      }
+      
+      if (!commander) {
+        // Try partial match
+        const { data: partialMatch } = await supabase
+          .from('ref_commanders')
+          .select('id, display_name, color_identity, leadership_type')
+          .ilike('display_name', `%${commanderName}%`)
+          .limit(1)
+          .maybeSingle()
+        
+        if (!partialMatch) {
+          return {
+            content: `No insights found for "${commanderName}". This commander may not have curated strategy content yet.`,
+            is_error: false,
+          }
+        }
+        
+        // Use partial match
+        return await fetchInsights(supabase, partialMatch, insightType)
+      }
+      
+      return await fetchInsights(supabase, commander, insightType)
+    } catch (err) {
+      console.error('[get_commander_insights] Error:', err)
+      const msg = err instanceof Error ? err.message : 'Insights lookup failed'
+      return { content: `Commander insights error: ${msg}`, is_error: true }
+    }
+  },
+})
+
+async function fetchInsights(
+  supabase: ReturnType<typeof createAdminClient>,
+  commander: { id: string; display_name: string; color_identity: string; leadership_type: string },
+  insightType: string
+): Promise<{ content: string; is_error: boolean }> {
+  // Query insights for this commander
+  let query = supabase
+    .from('ref_commander_insights')
+    .select('*')
+    .eq('commander_id', commander.id)
+    .order('confidence', { ascending: false, nullsFirst: false })
+  
+  if (insightType !== 'all') {
+    query = query.eq('insight_type', insightType)
+  }
+  
+  const { data: insights, error: insightsError } = await query.limit(20)
+  
+  if (insightsError) {
+    throw new Error(`Insights query failed: ${insightsError.message}`)
+  }
+  
+  if (!insights || insights.length === 0) {
+    return {
+      content: `No curated insights found for ${commander.display_name}. Consider using mtg_commander_recommend for EDHREC data instead.`,
+      is_error: false,
+    }
+  }
+  
+  // Group insights by type
+  const byType = new Map<string, typeof insights>()
+  for (const insight of insights) {
+    const type = insight.insight_type
+    if (!byType.has(type)) byType.set(type, [])
+    byType.get(type)!.push(insight)
+  }
+  
+  // Format output
+  const lines: string[] = [
+    `## Strategy Insights: ${commander.display_name}`,
+    `Colour Identity: ${commander.color_identity} | Type: ${commander.leadership_type}`,
+    '',
+  ]
+  
+  // Order: build_variant first (if any), then strategy, card_recommendation, pitfall
+  const typeOrder = ['build_variant', 'strategy', 'card_recommendation', 'pitfall']
+  
+  for (const type of typeOrder) {
+    const typeInsights = byType.get(type)
+    if (!typeInsights || typeInsights.length === 0) continue
+    
+    const header = {
+      build_variant: '### Build Variants',
+      strategy: '### Strategy Tips',
+      card_recommendation: '### Key Card Recommendations',
+      pitfall: '### Common Pitfalls',
+    }[type] || `### ${type}`
+    
+    lines.push(header)
+    
+    for (const insight of typeInsights) {
+      const source = insight.source_title ? ` (${insight.source_title})` : ''
+      const variant = insight.build_variant ? `[${insight.build_variant}] ` : ''
+      lines.push(`- ${variant}${insight.content}${source}`)
+      
+      // Include card mentions if present
+      if (insight.card_mentions && insight.card_mentions.length > 0) {
+        lines.push(`  Cards mentioned: ${insight.card_mentions.map(c => `[[${c}]]`).join(', ')}`)
+      }
+    }
+    lines.push('')
+  }
+  
+  // Add sources summary
+  const uniqueSources = new Set(insights.map(i => i.source_title).filter(Boolean))
+  if (uniqueSources.size > 0) {
+    lines.push(`---`)
+    lines.push(`Sources: ${Array.from(uniqueSources).join(', ')}`)
+  }
+  
+  return { content: lines.join('\n'), is_error: false }
+}
+
 // ---------------------------------------------------------------------------
 // Local Tool: card_fuzzy_lookup
 // ---------------------------------------------------------------------------
@@ -736,7 +1085,34 @@ registry.set('card_fuzzy_lookup', {
         return { content: lines.join('\n'), is_error: false }
       }
 
-      // --- Step 3: Fallback to Scryfall fuzzy API (for very new cards not yet in our DB) ---
+      // --- Step 3: Try printings local table (has all cards with prices/images) ---
+      const { data: localPrinting } = await supabase
+        .from('ref_printings')
+        .select('name, type_line, color_identity, mana_cost, cmc, legality_commander')
+        .ilike('name', `%${fuzzyName}%`)
+        .eq('legality_commander', 'legal')
+        .eq('digital', false)
+        .order('released_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (localPrinting) {
+        const isLegendary = localPrinting.type_line?.includes('Legendary')
+        const isCreature = localPrinting.type_line?.includes('Creature')
+        const commanderLegal = isLegendary && isCreature ? '✓ Valid Commander' : '✗ Not a valid commander'
+
+        const lines = [
+          `Resolved: "${fuzzyName}" → ${localPrinting.name}`,
+          `Type: ${localPrinting.type_line}`,
+          `Mana: ${localPrinting.mana_cost || 'None'} (CMC: ${localPrinting.cmc})`,
+          `Colour Identity: ${localPrinting.color_identity?.join('') || 'Colorless'}`,
+          `Commander: ${commanderLegal}`,
+        ].filter(Boolean)
+        return { content: lines.join('\n'), is_error: false }
+      }
+
+      // --- Step 4: Fallback to Scryfall fuzzy API (for very new cards not yet in our DB) ---
+      // Add game:paper filter to exclude digital-only cards
       const res = await fetch(
         `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(fuzzyName)}`,
         { headers: { 'User-Agent': 'The-Oracle/1.0' } }
@@ -744,6 +1120,12 @@ registry.set('card_fuzzy_lookup', {
 
       if (res.ok) {
         const card = await res.json()
+        
+        // Skip digital-only cards
+        if (card.digital) {
+          return { content: `"${fuzzyName}" resolves to ${card.name}, but this is a digital-only card (not available in paper).`, is_error: false }
+        }
+        
         const isLegendary = card.type_line?.includes('Legendary')
         const isCreature = card.type_line?.includes('Creature')
         const commanderLegal = isLegendary && isCreature ? '✓ Valid Commander' : '✗ Not a valid commander'
@@ -759,7 +1141,7 @@ registry.set('card_fuzzy_lookup', {
         return { content: lines.join('\n'), is_error: false }
       }
 
-      // --- Step 4: Scryfall autocomplete as last resort ---
+      // --- Step 5: Scryfall autocomplete as last resort ---
       const autoRes = await fetch(
         `https://api.scryfall.com/cards/autocomplete?q=${encodeURIComponent(fuzzyName)}`,
         { headers: { 'User-Agent': 'The-Oracle/1.0' } }
@@ -847,7 +1229,7 @@ registry.set('scryfall_search', {
 registry.set('display_commander_candidates', {
   definition: {
     name: 'display_commander_candidates',
-    description: 'Display commander candidates on the brew canvas. ALWAYS call this tool when you recommend or list commanders for the user to choose from. This makes them appear as visual cards on the canvas with "Commit" buttons. If you mention commanders without calling this tool, they will NOT appear on the canvas.',
+    description: 'Display commander candidates on the brew canvas. ALWAYS call this tool when you recommend or list commanders for the user to choose from. This makes them appear as visual cards on the canvas with "Commit" buttons. If you mention commanders without calling this tool, they will NOT appear on the canvas. For partner commanders, include both names in a single entry using the partner_name field.',
     input_schema: {
       type: 'object',
       properties: {
@@ -859,12 +1241,21 @@ registry.set('display_commander_candidates', {
             properties: {
               name: {
                 type: 'string',
-                description: 'The exact card name as printed (e.g. "Krenko, Mob Boss")',
+                description: 'The exact card name as printed (e.g. "Krenko, Mob Boss"). For partners, this is the first commander.',
+              },
+              partner_name: {
+                type: 'string',
+                description: 'For partner commanders only: the exact name of the second partner (e.g. "Tymna the Weaver" when paired with "Thrasios, Triton Hero")',
               },
               color_identity: {
                 type: 'array',
                 items: { type: 'string' },
-                description: 'Colour identity as WUBRG letters (e.g. ["R"] for mono-red)',
+                description: 'Combined colour identity as WUBRG letters. For partners, this is the union of both commanders\' identities.',
+              },
+              leadership_type: {
+                type: 'string',
+                enum: ['single', 'partner', 'partner_with', 'friends_forever', 'background'],
+                description: 'Type of commander configuration. Defaults to "single" if not specified.',
               },
             },
             required: ['name'],
@@ -878,14 +1269,236 @@ registry.set('display_commander_candidates', {
     // This tool is a passthrough — the structured data is captured by the
     // tool executor and forwarded as a `candidates` SSE event.
     // The execute function just acknowledges receipt.
-    const commanders = input.commanders as Array<{ name: string; color_identity?: string[] }>
-    const names = commanders.map(c => c.name).join(', ')
+    const commanders = input.commanders as Array<{ name: string; partner_name?: string; color_identity?: string[]; leadership_type?: string }>
+    const names = commanders.map(c => c.partner_name ? `${c.name} & ${c.partner_name}` : c.name).join(', ')
     return {
       content: `Displayed ${commanders.length} commander candidates on canvas: ${names}`,
       is_error: false,
     }
   },
 })
+
+// ---------------------------------------------------------------------------
+// Display Tool: present_commander_summary
+// ---------------------------------------------------------------------------
+// Structured output tool for commander recommendations. When called, the tool
+// executor enriches the data with Scryfall card details and collection status,
+// then emits a `commander_summary` SSE event for the frontend to render.
+// ---------------------------------------------------------------------------
+
+registry.set('present_commander_summary', {
+  definition: {
+    name: 'present_commander_summary',
+    description: `Present a commander to the user with their card image and your analysis. 
+
+CRITICAL: You MUST call this tool whenever you mention a legendary creature by name. This is the ONLY way the user sees card images. Using [[brackets]] for commanders does NOT show images — this tool does.
+
+WHEN TO USE:
+- ALWAYS when naming a commander in your response
+- When comparing two commanders (call TWICE — once for each)
+- When breaking down a commander's mechanics (call FIRST, then discuss)
+- When the user asks "show me" or "what about [commander]"
+
+NEVER use [[Card Name]] brackets for commanders. Those are for non-legendary cards only.
+
+The user will see:
+- The full card image on the left
+- Name, mana cost, type line, oracle text on the right
+- Your analysis below
+- Collection status (owned? in which decks? proxy conflicts?)`,
+    input_schema: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          description: 'The exact card name as printed (e.g. "Muldrotha, the Gravetide")',
+        },
+        tagline: {
+          type: 'string',
+          description: 'A short 5-10 word tagline summarizing the commander\'s playstyle (e.g. "Graveyard value engine that recurs everything")',
+        },
+        analysis: {
+          type: 'string',
+          description: 'Your analysis of this commander — strengths, weaknesses, playstyle, how it fits the user\'s preferences. 2-4 sentences.',
+        },
+      },
+      required: ['name', 'tagline', 'analysis'],
+    },
+  },
+  execute: async (input) => {
+    // This tool is a display tool — the actual enrichment happens in tool-executor
+    // which calls enrichCommanderSummary() and emits the SSE event.
+    // The execute function just acknowledges receipt.
+    const name = input.name as string
+    return {
+      content: `Presented commander summary for ${name}`,
+      is_error: false,
+    }
+  },
+})
+
+/**
+ * Enrich a commander summary with Scryfall data and collection status.
+ * Called by tool-executor when present_commander_summary is invoked.
+ */
+export async function enrichCommanderSummary(
+  input: { name: string; tagline: string; analysis: string },
+  userId?: string
+): Promise<{
+  name: string
+  mana_cost: string
+  type_line: string
+  oracle_text: string
+  color_identity: string[]
+  image_uri: string
+  power?: string
+  toughness?: string
+  price_usd?: number
+  tagline: string
+  analysis: string
+  collection_status: {
+    owned: boolean
+    quantity: number
+    in_decks: Array<{ deck_name: string; is_commander: boolean }>
+    proxy_conflicts: string[]
+  }
+}> {
+  const supabase = createAdminClient()
+
+  // --- Step 1: Get card details from mtg_cards (canonical source with cheapest price) ---
+  const { data: mtgCard } = await supabase
+    .from('mtg_cards' as any)
+    .select('name, mana_cost, type_line, oracle_text, color_identity, power, toughness, price_usd_cheapest')
+    .ilike('name', input.name)
+    .limit(1)
+    .maybeSingle()
+
+  // --- Step 2: Get image from printings (most recent printing) ---
+  const { data: printing } = await supabase
+    .from('ref_printings')
+    .select('image_uri_normal, image_uri_large')
+    .ilike('name', input.name)
+    .order('released_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  // --- Step 2b: If card not in DB, fetch all details from Scryfall API ---
+  let scryfallData: {
+    name: string
+    mana_cost: string
+    type_line: string
+    oracle_text: string
+    color_identity: string[]
+    power?: string
+    toughness?: string
+    image_uri_large?: string
+    image_uri_normal?: string
+    prices?: { usd?: string }
+  } | null = null
+
+  if (!mtgCard || !printing) {
+    console.log('[enrichCommanderSummary] Card not in DB, fetching from Scryfall:', input.name)
+    try {
+      const scryfallUrl = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(input.name)}`
+      const resp = await fetch(scryfallUrl, {
+        headers: { 'User-Agent': 'The-Oracle/1.0' },
+      })
+      if (resp.ok) {
+        const card = await resp.json()
+        // Handle DFCs (use front face for oracle text, type line, etc.)
+        const face = card.card_faces?.[0]
+        scryfallData = {
+          name: card.name,
+          mana_cost: face?.mana_cost ?? card.mana_cost ?? '',
+          type_line: face?.type_line ?? card.type_line ?? '',
+          oracle_text: face?.oracle_text ?? card.oracle_text ?? '',
+          color_identity: card.color_identity ?? [],
+          power: face?.power ?? card.power,
+          toughness: face?.toughness ?? card.toughness,
+          image_uri_large: card.image_uris?.large ?? face?.image_uris?.large,
+          image_uri_normal: card.image_uris?.normal ?? face?.image_uris?.normal,
+          prices: card.prices,
+        }
+        console.log('[enrichCommanderSummary] Scryfall data fetched successfully')
+      } else {
+        console.log('[enrichCommanderSummary] Scryfall API failed:', resp.status)
+      }
+    } catch (err) {
+      console.error('[enrichCommanderSummary] Scryfall API error:', err)
+    }
+  }
+
+  // Combine card data: prefer DB, fallback to Scryfall
+  const cardData = mtgCard ? {
+    ...mtgCard,
+    image_uri_normal: printing?.image_uri_normal ?? scryfallData?.image_uri_normal ?? null,
+    image_uri_large: printing?.image_uri_large ?? scryfallData?.image_uri_large ?? null,
+  } : scryfallData ? {
+    name: scryfallData.name,
+    mana_cost: scryfallData.mana_cost,
+    type_line: scryfallData.type_line,
+    oracle_text: scryfallData.oracle_text,
+    color_identity: scryfallData.color_identity.join(','),
+    power: scryfallData.power,
+    toughness: scryfallData.toughness,
+    price_usd_cheapest: scryfallData.prices?.usd ? parseFloat(scryfallData.prices.usd) : null,
+    image_uri_normal: scryfallData.image_uri_normal ?? null,
+    image_uri_large: scryfallData.image_uri_large ?? null,
+  } : null
+
+  // --- Step 3: Get collection status ---
+  console.log('[enrichCommanderSummary] Checking ownership for:', input.name, 'userId:', userId ?? '(none)')
+  const repo = getCardRepository(userId)
+  const ownedCards = await repo.getOwnedCards([input.name])
+  console.log('[enrichCommanderSummary] Owned cards result:', ownedCards.length, 'cards found', ownedCards.map(c => `${c.card_name}:${c.quantity}`))
+  const owned = ownedCards.length > 0 ? ownedCards[0] : null
+  const allocations = owned ? await repo.getDeckAllocations(input.name) : []
+
+  // --- Step 4: Check for proxy conflicts ---
+  // A proxy conflict is when the card exists as a proxy in another deck
+  const proxyConflicts: string[] = []
+  if (allocations.length > 0) {
+    for (const alloc of allocations) {
+      if (alloc.allocation_status === 'proxy') {
+        proxyConflicts.push(alloc.deck_name)
+      }
+    }
+  }
+
+  // Build the enriched summary
+  const colorIdentity = cardData?.color_identity
+    ? (Array.isArray(cardData.color_identity)
+        ? cardData.color_identity
+        : (cardData.color_identity as string).split(',').map((c: string) => c.trim()))
+    : []
+
+  // Image URI: use the already-fetched data
+  const imageUri = cardData?.image_uri_large ?? cardData?.image_uri_normal ?? ''
+  console.log('[enrichCommanderSummary] Final image_uri:', imageUri || '(empty)')
+
+  return {
+    name: cardData?.name ?? input.name,
+    mana_cost: cardData?.mana_cost ?? '',
+    type_line: cardData?.type_line ?? 'Legendary Creature',
+    oracle_text: cardData?.oracle_text ?? '',
+    color_identity: colorIdentity,
+    image_uri: imageUri,
+    power: cardData?.power ?? undefined,
+    toughness: cardData?.toughness ?? undefined,
+    price_usd: cardData?.price_usd_cheapest ?? undefined,
+    tagline: input.tagline,
+    analysis: input.analysis,
+    collection_status: {
+      owned: owned !== null,
+      quantity: owned?.quantity ?? 0,
+      in_decks: allocations.map(a => ({
+        deck_name: a.deck_name,
+        is_commander: a.is_commander,
+      })),
+      proxy_conflicts: proxyConflicts,
+    },
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Display Tool: add_cards_to_deck
@@ -929,6 +1542,49 @@ registry.set('add_cards_to_deck', {
     const names = cards.map(c => c.name).join(', ')
     return {
       content: `Added ${cards.length} cards to the deck canvas: ${names}`,
+      is_error: false,
+    }
+  },
+})
+
+// ---------------------------------------------------------------------------
+// Display Tool: remove_cards_from_deck
+// ---------------------------------------------------------------------------
+// Allows the AI to remove cards from the deck during editing.
+// Like add_cards_to_deck, this emits a `remove_cards` SSE event that the
+// frontend handles to call the deck API.
+// ---------------------------------------------------------------------------
+
+registry.set('remove_cards_from_deck', {
+  definition: {
+    name: 'remove_cards_from_deck',
+    description: 'Remove cards from the deck. Call this when the user asks you to remove or cut specific cards from the deck.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        cards: {
+          type: 'array',
+          description: 'Array of cards to remove from the deck',
+          items: {
+            type: 'object',
+            properties: {
+              name: {
+                type: 'string',
+                description: 'The exact card name as printed (e.g. "Sol Ring")',
+              },
+            },
+            required: ['name'],
+          },
+        },
+      },
+      required: ['cards'],
+    },
+  },
+  execute: async (input) => {
+    const cards = input.cards as Array<{ name: string }>
+    const names = cards.map(c => c.name).join(', ')
+    return {
+      content: `Removed ${cards.length} cards from the deck: ${names}`,
       is_error: false,
     }
   },

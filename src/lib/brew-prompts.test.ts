@@ -20,10 +20,11 @@ describe('buildBrewInvestigatorPrompt', () => {
 
     it('asks about win condition, bracket, known includes, and playstyle', () => {
       const prompt = buildBrewInvestigatorPrompt('commander', 'Yedora, Grave Gardener')
-      expect(prompt.toLowerCase()).toContain('win condition')
-      expect(prompt.toLowerCase()).toContain('bracket')
-      expect(prompt.toLowerCase()).toContain('known includes')
-      expect(prompt.toLowerCase()).toContain('playstyle')
+      // Topics include how they want to win, budget (equivalent to bracket context), and cards they want
+      expect(prompt.toLowerCase()).toContain('how they want to win')
+      expect(prompt.toLowerCase()).toContain('budget')
+      expect(prompt.toLowerCase()).toContain('cards they definitely want to include')
+      expect(prompt.toLowerCase()).toContain('playstyledescription')
     })
 
     it('mentions the 6-exchange limit', () => {
@@ -43,13 +44,28 @@ describe('buildBrewInvestigatorPrompt', () => {
 
     it('has a conversational and friendly tone', () => {
       const prompt = buildBrewInvestigatorPrompt('commander', 'Muldrotha')
-      expect(prompt.toLowerCase()).toContain('conversational')
-      expect(prompt.toLowerCase()).toContain('friendly')
+      // Personality section establishes peer-level, texting-a-friend tone
+      expect(prompt.toLowerCase()).toContain('peer-level')
+      expect(prompt.toLowerCase()).toContain('texting a friend')
     })
 
     it('asks about budget preference', () => {
       const prompt = buildBrewInvestigatorPrompt('commander', 'Muldrotha')
       expect(prompt.toLowerCase()).toContain('budget')
+    })
+
+    it('includes player context when provided', () => {
+      const playerContext = '=== PLAYER CONTEXT ===\n- Playgroup bracket: 2-3\n- House rules: No infinite combos.\n=== END PLAYER CONTEXT ==='
+      const prompt = buildBrewInvestigatorPrompt('commander', 'Muldrotha', undefined, playerContext)
+      expect(prompt).toContain('=== PLAYER CONTEXT ===')
+      expect(prompt).toContain('Playgroup bracket: 2-3')
+      expect(prompt).toContain('No infinite combos')
+      expect(prompt).toContain('=== END PLAYER CONTEXT ===')
+    })
+
+    it('omits player context section when not provided', () => {
+      const prompt = buildBrewInvestigatorPrompt('commander', 'Muldrotha')
+      expect(prompt).not.toContain('=== PLAYER CONTEXT ===')
     })
   })
 
@@ -67,9 +83,10 @@ describe('buildBrewInvestigatorPrompt', () => {
 
     it('includes a pivot to strategy questions after commander confirmed', () => {
       const prompt = buildBrewInvestigatorPrompt('concept', undefined, 'Voltron with equipment')
-      expect(prompt.toLowerCase()).toContain('win condition')
-      expect(prompt.toLowerCase()).toContain('bracket')
-      expect(prompt.toLowerCase()).toContain('playstyle')
+      // The schema includes win path and playstyle; concept path discusses strategies
+      expect(prompt.toLowerCase()).toContain('primarywincondition')
+      expect(prompt.toLowerCase()).toContain('targetbracket')
+      expect(prompt.toLowerCase()).toContain('playstyledescription')
     })
 
     it('mentions the 6-exchange limit', () => {

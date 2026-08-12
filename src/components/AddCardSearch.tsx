@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Loader2, Search } from 'lucide-react'
 import { toast } from 'sonner'
+import { createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
 
 interface AddCardSearchProps {
   deckId: number
@@ -66,12 +67,8 @@ export function AddCardSearch({ deckId }: AddCardSearchProps) {
       return res.json()
     },
     onSuccess: (_data, cardName) => {
-      // Invalidate with both string and number variants of deckId for query key matching
-      queryClient.invalidateQueries({ queryKey: ['decks', String(deckId)] })
-      queryClient.invalidateQueries({ queryKey: ['decks', deckId] })
-      queryClient.invalidateQueries({ queryKey: ['decks', String(deckId), 'card-statuses'] })
-      queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'card-statuses'] })
-      queryClient.invalidateQueries({ queryKey: ['picklist', deckId] })
+      const { invalidateDeck } = createDeckInvalidators(queryClient)
+      invalidateDeck(deckId)
       toast.success(`Added ${cardName}`)
       setQuery('')
       setSuggestions([])

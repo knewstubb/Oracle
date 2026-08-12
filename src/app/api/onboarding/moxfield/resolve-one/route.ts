@@ -4,7 +4,7 @@
  * Resolves a SINGLE Moxfield deck against the committed collection.
  * Used by the client-side sequential loop for per-deck progress tracking.
  *
- * Body: { deckId: string, status: 'brewing' | 'in_rotation' }
+ * Body: { deckId: string, isActive?: boolean }
  * Returns: DeckResolutionResult (single deck)
  */
 import { NextRequest } from 'next/server'
@@ -16,22 +16,22 @@ export async function POST(request: NextRequest) {
   if (authResult instanceof Response) return authResult
   const userId = authResult.id
 
-  let body: { deckId?: string; status?: 'brewing' | 'in_rotation' }
+  let body: { deckId?: string; isActive?: boolean }
   try {
     body = await request.json()
   } catch {
     return Response.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { deckId, status } = body
+  const { deckId, isActive } = body
   if (!deckId || typeof deckId !== 'string') {
     return Response.json({ error: 'deckId (string) is required' }, { status: 400 })
   }
 
-  const deckStatuses: Record<string, 'brewing' | 'in_rotation'> = { [deckId]: status ?? 'in_rotation' }
+  const deckActiveStates: Record<string, boolean> = { [deckId]: isActive ?? true }
 
   try {
-    const result = await resolveMoxfieldDeckBatch([deckId], userId, deckStatuses)
+    const result = await resolveMoxfieldDeckBatch([deckId], userId, deckActiveStates)
     return Response.json(
       result.results[0] ?? {
         deckId: 0,

@@ -1,0 +1,394 @@
+Light-Paws, Emperor's Voice: Keep "voltron" (1102), delete "enchantress" (681) - 100% similar
+Urza, Lord High Artificer: Keep "combo" (855), delete "control" (476) - 100% similar
+Hope Estheim: Keep "mill" (1544), delete "lifegain" (1520) - 100% similar
+Hearthhull, the Worldseed: Keep "ramp" (929), delete "group-slug" (513) - 96% similar
+Teval, the Balanced Scale: Keep "reanimator" (2645), delete "mill" (1545) - 96% similar
+Giada, Font of Hope: Keep "lifegain" (3234), delete "counters" (1846) - 96% similar
+Jin Sakai, Ghost of Tsushima: Keep "equipment" (559), delete "voltron" (497) - 96% similar
+Éowyn, Shieldmaiden: Keep "tokens" (791), delete "aggro" (598) - 96% similar
+Pantlaza, Sun-Favored: Keep "kindred:dinosaurs" (4299), delete "ramp" (932) - 96% similar
+Ashling, the Limitless: Keep "kindred:elementals" (1305), delete "blink" (419) - 96% similar
+Ezio Auditore da Firenze: Keep "kindred:assassins" (3333), delete "legendary-matters" (1713) - 96% similar
+Temmet, Naktamun's Will: Keep "kindred:zombies" (940), delete "reanimator" (261) - 96% similar
+Clavileño, First of the Blessed: Keep "kindred:vampires" (1655), delete "lifegain" (1317) - 96% similar
+Elenda, the Dusk Rose: Keep "kindred:vampires" (766), delete "lifegain" (647) - 96% similar
+Admiral Brass, Unsinkable: Keep "reanimator" (436), delete "aggro" (173) - 96% similar
+Ragost, Deft Gastronaut: Keep "group-slug" (746), delete "lifegain" (714) - 96% similar
+Terra, Herald of Hope: Keep "reanimator" (1990), delete "aggro" (344) - 96% similar
+Betor, Ancestor's Voice: Keep "reanimator" (1207), delete "aggro" (944) - 96% similar
+Killian, Decisive Mentor: Keep "enchantress" (938), delete "control" (180) - 96% similar
+Raggadragga, Goreguts Boss: Keep "ramp" (390), delete "aggro" (325) - 96% similar
+The Lord of Pain: Keep "group-slug" (434), delete "group-slug" (367) - 96% similar
+Edgar Markov: Keep "kindred:vampires" (7049), delete "tokens" (2043) - 92% similar
+Edgar Markov: Keep "kindred:vampires" (7049), delete "lifegain" (3665) - 92% similar
+Urtet, Remnant of Memnarch: Keep "artifacts" (3033), delete "counters" (679) - 92% similar
+Urtet, Remnant of Memnarch: Keep "artifacts" (3033), delete "kindred:myr" (2454) - 92% similar
+Giada, Font of Hope: Keep "kindred:angels" (5064), delete "lifegain" (3234) - 92% similar
+Eriette of the Charmed Apple: Keep "enchantress" (1158), delete "lifegain" (551) - 92% similar
+Eriette of the Charmed Apple: Keep "enchantress" (1158), delete "control" (354) - 92% similar
+Rin and Seri, Inseparable: Keep "tokens" (1443), delete "kindred:dogs" (785) - 92% similar
+Dr. Eggman: Keep "kindred:constructs" (241), delete "kindred:constructs" (203) - 92% similar
+Éowyn, Shieldmaiden: Keep "kindred:humans" (2082), delete "tokens" (791) - 92% similar
+Anti-Venom, Horrifying Healer: Keep "voltron" (594), delete "equipment" (342) - 92% similar
+Edward Kenway: Keep "kindred:pirates" (2344), delete "treasure" (2211) - 92% similar
+Omo, Queen of Vesuva: Keep "lands-matter" (2245), delete "ramp" (434) - 92% similar
+Sidar Jabari of Zhalfir: Keep "reanimator" (939), delete "aggro" (335) - 92% similar
+Maralen, Fae Ascendant: Keep "kindred:faeries" (920), delete "theft" (827) - 92% similar
+Ezio Auditore da Firenze: Keep "kindred:assassins" (3333), delete "legendary-matters" (978) - 92% similar
+Quintorius, History Chaser: Keep "reanimator" (591), delete "kindred:spirits" (227) - 92% similar
+Nekusar, the Mindrazer: Keep "group-slug" (1084), delete "group-slug" (913) - 92% similar
+Kinnan, Bonder Prodigy: Keep "combo" (871), delete "ramp" (441) - 92% similar
+Urza, Lord High Artificer: Keep "combo" (855), delete "stax" (441) - 92% similar
+Kotis, the Fangkeeper: Keep "voltron" (1108), delete "theft" (793) - 92% similar
+Yurlok of Scorch Thrash: Keep "group-slug" (668), delete "group-slug" (648) - 92% similar
+Sheoldred, the Apocalypse: Keep "wheels" (1445), delete "group-slug" (287) - 92% similar
+Kratos, God of War: Keep "aggro" (448), delete "group-slug" (296) - 92% similar
+Edgar Markov: Keep "kindred:vampires" (7049), delete "counters" (1387) - 89% similar
+Hearthhull, the Worldseed: Keep "lands-matter" (2840), delete "ramp" (929) - 89% similar
+Teval, the Balanced Scale: Keep "reanimator" (2645), delete "tokens" (1094) - 89% similar
+Jodah, the Unifier: Keep "legendary-matters" (4338), delete "legendary-matters" (953) - 89% similar
+Eriette of the Charmed Apple: Keep "enchantress" (1158), delete "aristocrats" (315) - 89% similar
+Zhulodok, Void Gorger: Keep "kindred:eldrazi" (2510), delete "ramp" (1799) - 89% similar
+Kibo, Uktabi Prince: Keep "counters" (818), delete "group-hug" (274) - 89% similar
+Skullbriar, the Walking Grave: Keep "voltron" (608), delete "aggro" (248) - 89% similar
+Vihaan, Goldwaker: Keep "artifacts" (315), delete "aggro" (175) - 89% similar
+Shilgengar, Sire of Famine: Keep "kindred:angels" (1357), delete "reanimator" (691) - 89% similar
+Elsha, Threefold Master: Keep "aggro" (259), delete "voltron" (147) - 89% similar
+Dogmeat, Ever Loyal: Keep "enchantments" (738), delete "voltron" (525) - 89% similar
+Dogmeat, Ever Loyal: Keep "enchantments" (738), delete "enchantress" (154) - 89% similar
+Norin the Wary: Keep "group-slug" (443), delete "blink" (246) - 89% similar
+Ob Nixilis, Captive Kingpin: Keep "group-slug" (198), delete "group-slug" (193) - 89% similar
+Kaalia of the Vast: Keep "kindred:demons" (1084), delete "kindred:dragons" (959) - 89% similar
+Pantlaza, Sun-Favored: Keep "kindred:dinosaurs" (4299), delete "aggro" (616) - 89% similar
+Imotekh the Stormlord: Keep "reanimator" (614), delete "graveyard" (366) - 89% similar
+Millicent, Restless Revenant: Keep "kindred:spirits" (1271), delete "tokens" (513) - 89% similar
+Winter, Cynical Opportunist: Keep "reanimator" (606), delete "graveyard" (114) - 89% similar
+Krenko, Mob Boss: Keep "kindred:goblins" (6244), delete "aggro" (1775) - 89% similar
+Wayta, Trainer Prodigy: Keep "kindred:dinosaurs" (478), delete "kindred:dinosaurs" (450) - 89% similar
+Admiral Brass, Unsinkable: Keep "kindred:pirates" (1430), delete "reanimator" (436) - 89% similar
+Nelly Borca, Impulsive Accuser: Keep "pillowfort" (109), delete "control" (109) - 89% similar
+Nine-Fingers Keene: Keep "lands-matter" (1184), delete "ramp" (214) - 89% similar
+Y'shtola, Night's Blessed: Keep "lifegain" (1130), delete "aristocrats" (775) - 89% similar
+Y'shtola, Night's Blessed: Keep "lifegain" (1130), delete "group-slug" (806) - 89% similar
+Arabella, Abandoned Doll: Keep "group-slug" (533), delete "lifegain" (366) - 89% similar
+Arabella, Abandoned Doll: Keep "aggro" (738), delete "group-slug" (533) - 89% similar
+Shorikai, Genesis Engine: Keep "control" (610), delete "combo" (440) - 89% similar
+Zurgo Stormrender: Keep "aristocrats" (1128), delete "aggro" (1063) - 89% similar
+Betor, Ancestor's Voice: Keep "lifegain" (1867), delete "reanimator" (1207) - 89% similar
+Brago, King Eternal: Keep "control" (470), delete "combo" (424) - 89% similar
+Sythis, Harvest's Hand: Keep "enchantress" (2717), delete "lifegain" (315) - 89% similar
+Tivit, Seller of Secrets: Keep "combo" (485), delete "control" (462) - 89% similar
+Kraum, Ludevic's Opus & Tymna the Weaver: Keep "combo" (656), delete "control" (191) - 89% similar
+Sheoldred, the Apocalypse: Keep "lifegain" (583), delete "aristocrats" (212) - 89% similar
+Captain Howler, Sea Scourge: Keep "wheels" (1170), delete "aggro" (375) - 89% similar
+Queza, Augur of Agonies: Keep "lifegain" (390), delete "aristocrats" (175) - 89% similar
+Clement, the Worrywort: Keep "blink" (297), delete "blink" (270) - 89% similar
+Tannuk, Memorial Ensign: Keep "group-slug" (466), delete "ramp" (324) - 89% similar
+Lumra, Bellow of the Woods: Keep "combo" (291), delete "mill" (146) - 89% similar
+Zoraline, Cosmos Caller: Keep "lifegain" (2108), delete "aristocrats" (155) - 89% similar
+Xenagos, God of Revels: Keep "aggro" (491), delete "ramp" (225) - 89% similar
+Chishiro, the Shattered Blade: Keep "aggro" (151), delete "voltron" (128) - 89% similar
+Ayara, First of Locthwain: Keep "aristocrats" (1019), delete "reanimator" (161) - 89% similar
+Evereth, Viceroy of Plunder: Keep "aristocrats" (369), delete "voltron" (144) - 89% similar
+The Necrobloom: Keep "ramp" (514), delete "reanimator" (508) - 85% similar
+Teval, the Balanced Scale: Keep "reanimator" (2645), delete "ramp" (566) - 85% similar
+Omnath, Locus of Mana: Keep "ramp" (511), delete "voltron" (186) - 85% similar
+Isshin, Two Heavens as One: Keep "aggro" (1389), delete "tokens" (1316) - 85% similar
+Dr. Eggman: Keep "wheels" (317), delete "kindred:constructs" (241) - 85% similar
+Xyris, the Writhing Storm: Keep "wheels" (2172), delete "tokens" (1145) - 85% similar
+Choco, Seeker of Paradise: Keep "kindred:birds" (820), delete "ramp" (289) - 85% similar
+High Perfect Morcant: Keep "kindred:elves" (1024), delete "counters" (503) - 85% similar
+Caesar, Legion's Emperor: Keep "aristocrats" (1121), delete "aggro" (748) - 85% similar
+Yarok, the Desecrated: Keep "blink" (353), delete "combo" (218) - 85% similar
+Liesa, Shroud of Dusk: Keep "stax" (332), delete "stax" (311) - 85% similar
+Light-Paws, Emperor's Voice: Keep "voltron" (1102), delete "aggro" (213) - 85% similar
+Edward Kenway: Keep "theft" (364), delete "artifacts" (334) - 85% similar
+Edward Kenway: Keep "kindred:pirates" (2344), delete "theft" (364) - 85% similar
+Shilgengar, Sire of Famine: Keep "sacrifice" (187), delete "artifacts" (168) - 85% similar
+Indominus Rex, Alpha: Keep "reanimator" (311), delete "wheels" (161) - 85% similar
+Tifa Lockhart: Keep "voltron" (608), delete "ramp" (523) - 85% similar
+Ardenn, Intrepid Archaeologist & Rograkh, Son of Rohgahh: Keep "equipment" (1943), delete "voltron" (617) - 85% similar
+Silverquill, the Disputant: Keep "tokens" (798), delete "aristocrats" (417) - 85% similar
+Ob Nixilis, Captive Kingpin: Keep "group-slug" (375), delete "group-slug" (198) - 85% similar
+Morska, Undersea Sleuth: Keep "tokens" (451), delete "counters" (226) - 85% similar
+Shirei, Shizo's Caretaker: Keep "aristocrats" (1144), delete "reanimator" (352) - 85% similar
+Varina, Lich Queen: Keep "kindred:zombies" (1899), delete "reanimator" (549) - 85% similar
+The Mycotyrant: Keep "kindred:saprolings" (356), delete "kindred:saprolings" (286) - 85% similar
+Rakdos, Lord of Riots: Keep "group-slug" (364), delete "aggro" (331) - 85% similar
+Gargos, Vicious Watcher: Keep "kindred:hydras" (1087), delete "ramp" (222) - 85% similar
+Ghave, Guru of Spores: Keep "aristocrats" (401), delete "combo" (389) - 85% similar
+Gisa and Geralf: Keep "kindred:zombies" (1191), delete "reanimator" (488) - 85% similar
+Thantis, the Warweaver: Keep "aggro" (156), delete "group-slug" (114) - 85% similar
+Astarion, the Decadent: Keep "lifegain" (1893), delete "aristocrats" (217) - 85% similar
+Slinza, the Spiked Stampede: Keep "kindred:beasts" (1086), delete "aggro" (179) - 85% similar
+Mabel, Heir to Cragflame: Keep "equipment" (1373), delete "voltron" (223) - 85% similar
+Nekusar, the Mindrazer: Keep "wheels" (5746), delete "group-slug" (1084) - 85% similar
+Brago, King Eternal: Keep "blink" (1769), delete "control" (470) - 85% similar
+Lightning, Army of One: Keep "voltron" (690), delete "aggro" (536) - 85% similar
+Eshki, Temur's Roar: Keep "group-slug" (565), delete "ramp" (267) - 85% similar
+Marchesa, the Black Rose: Keep "aristocrats" (857), delete "reanimator" (467) - 85% similar
+Anikthea, Hand of Erebos: Keep "enchantress" (3151), delete "reanimator" (820) - 85% similar
+Zedruu the Greathearted: Keep "group-slug" (482), delete "control" (192) - 85% similar
+Jon Irenicus, Shattered One: Keep "group-slug" (604), delete "control" (201) - 85% similar
+Wolverine, Best There Is: Keep "voltron" (596), delete "aggro" (395) - 85% similar
+Sheoldred, the Apocalypse: Keep "lifegain" (583), delete "combo" (255) - 85% similar
+Kona, Rescue Beastie: Keep "ramp" (218), delete "aggro" (174) - 85% similar
+Niko, Light of Hope: Keep "blink" (1753), delete "enchantress" (326) - 85% similar
+Coram, the Undertaker: Keep "reanimator" (560), delete "voltron" (165) - 85% similar
+Tayam, Luminous Enigma: Keep "combo" (539), delete "mill" (193) - 85% similar
+The Master of Keys: Keep "reanimator" (411), delete "mill" (340) - 85% similar
+Xenagos, God of Revels: Keep "aggro" (491), delete "aggro" (176) - 85% similar
+Koma, Cosmos Serpent: Keep "control" (199), delete "ramp" (195) - 85% similar
+The Beamtown Bullies: Keep "reanimator" (237), delete "group-slug" (157) - 85% similar
+Kwain, Itinerant Meddler: Keep "wheels" (702), delete "group-hug" (638) - 85% similar
+Kwain, Itinerant Meddler: Keep "control" (203), delete "combo" (104) - 85% similar
+Zur, Eternal Schemer: Keep "enchantress" (1435), delete "lifegain" (174) - 85% similar
+Edgar Markov: Keep "kindred:vampires" (7049), delete "aggro" (1539) - 82% similar
+Ms. Bumbleflower: Keep "group-hug" (2828), delete "wheels" (1665) - 82% similar
+Rin and Seri, Inseparable: Keep "kindred:cats" (2698), delete "tokens" (1443) - 82% similar
+Grand Arbiter Augustin IV: Keep "stax" (1569), delete "stax" (293) - 82% similar
+Ygra, Eater of All: Keep "aristocrats" (1196), delete "counters" (925) - 82% similar
+Alexios, Deimos of Kosmos: Keep "voltron" (530), delete "aggro" (394) - 82% similar
+Liesa, Shroud of Dusk: Keep "stax" (332), delete "group-slug" (222) - 82% similar
+Winota, Joiner of Forces: Keep "aggro" (771), delete "stax" (613) - 82% similar
+Indominus Rex, Alpha: Keep "voltron" (368), delete "reanimator" (311) - 82% similar
+Tifa Lockhart: Keep "voltron" (608), delete "aggro" (394) - 82% similar
+Winter, Misanthropic Guide: Keep "wheels" (496), delete "group-slug" (316) - 82% similar
+Rograkh, Son of Rohgahh & Silas Renn, Seeker Adept: Keep "combo" (818), delete "wheels" (155) - 82% similar
+Marwyn, the Nurturer: Keep "kindred:elves" (1164), delete "ramp" (220) - 82% similar
+Ellivere of the Wild Court: Keep "stax" (377), delete "stax" (306) - 82% similar
+Winter, Cynical Opportunist: Keep "mill" (1096), delete "reanimator" (606) - 82% similar
+Be'lakor, the Dark Master: Keep "kindred:demons" (2660), delete "group-slug" (289) - 82% similar
+Magda, Brazen Outlaw: Keep "combo" (720), delete "stax" (285) - 82% similar
+Temmet, Naktamun's Will: Keep "kindred:zombies" (940), delete "wheels" (251) - 82% similar
+Indoraptor, the Perfect Hybrid: Keep "group-slug" (721), delete "aggro" (236) - 82% similar
+Varina, Lich Queen: Keep "combo" (204), delete "aristocrats" (188) - 82% similar
+The Mycotyrant: Keep "reanimator" (273), delete "aristocrats" (199) - 82% similar
+Clavileño, First of the Blessed: Keep "kindred:vampires" (1655), delete "aristocrats" (673) - 82% similar
+Rakdos, Lord of Riots: Keep "group-slug" (364), delete "group-slug" (223) - 82% similar
+Syr Gwyn, Hero of Ashvale: Keep "voltron" (421), delete "aggro" (149) - 82% similar
+Omnath, Locus of Rage: Keep "ramp" (427), delete "group-slug" (167) - 82% similar
+Goro-Goro and Satoru: Keep "aggro" (413), delete "kindred:dragons" (189) - 82% similar
+Quintorius, History Chaser: Keep "reanimator" (591), delete "wheels" (261) - 82% similar
+Talion, the Kindly Lord: Keep "control" (492), delete "combo" (211) - 82% similar
+Strefan, Maurer Progenitor: Keep "kindred:vampires" (1200), delete "aggro" (168) - 82% similar
+Anowon, the Ruin Thief: Keep "theft" (153), delete "aggro" (114) - 82% similar
+Ayula, Queen Among Bears: Keep "kindred:bears" (962), delete "aggro" (115) - 82% similar
+Wayta, Trainer Prodigy: Keep "group-slug" (150), delete "combo" (114) - 82% similar
+Aragorn, King of Gondor: Keep "kindred:humans" (600), delete "aggro" (119) - 82% similar
+Admiral Brass, Unsinkable: Keep "kindred:pirates" (1430), delete "theft" (143) - 82% similar
+Ivy, Gleeful Spellthief: Keep "enchantress" (235), delete "voltron" (184) - 82% similar
+Ruric Thar, the Unbowed: Keep "aggro" (207), delete "group-slug" (138) - 82% similar
+Ardbert, Warrior of Darkness: Keep "legendary-matters" (632), delete "legendary-matters" (155) - 82% similar
+Ardbert, Warrior of Darkness: Keep "legendary-matters" (632), delete "aggro" (214) - 82% similar
+Nelly Borca, Impulsive Accuser: Keep "pillowfort" (165), delete "pillowfort" (109) - 82% similar
+Galea, Kindler of Hope: Keep "voltron" (503), delete "enchantress" (182) - 82% similar
+Flubs, the Fool: Keep "combo" (864), delete "combo" (435) - 82% similar
+Terra, Herald of Hope: Keep "reanimator" (1990), delete "mill" (328) - 82% similar
+Niv-Mizzet, Parun: Keep "wheels" (891), delete "group-slug" (412) - 82% similar
+Disa the Restless: Keep "mill" (776), delete "reanimator" (623) - 82% similar
+Feather, the Redeemed: Keep "voltron" (570), delete "aggro" (394) - 82% similar
+Yurlok of Scorch Thrash: Keep "group-slug" (668), delete "group-hug" (329) - 82% similar
+Judith, Carnage Connoisseur: Keep "group-slug" (1700), delete "lifegain" (287) - 82% similar
+Captain Howler, Sea Scourge: Keep "wheels" (1170), delete "wheels" (421) - 82% similar
+Raffine, Scheming Seer: Keep "wheels" (515), delete "wheels" (371) - 82% similar
+Dina, Soul Steeper: Keep "lifegain" (1926), delete "aristocrats" (286) - 82% similar
+Rowan, Scion of War: Keep "aggro" (544), delete "group-slug" (273) - 82% similar
+Roxanne, Starfall Savant: Keep "group-slug" (304), delete "ramp" (230) - 82% similar
+Rograkh, Son of Rohgahh & Thrasios, Triton Hero: Keep "combo" (461), delete "ramp" (135) - 82% similar
+Ghalta, Primal Hunger: Keep "ramp" (272), delete "aggro" (231) - 82% similar
+Elas il-Kor, Sadistic Pilgrim: Keep "lifegain" (904), delete "aristocrats" (189) - 82% similar
+Elesh Norn, Mother of Machines: Keep "blink" (667), delete "blink" (152) - 82% similar
+Breena, the Demagogue: Keep "group-hug" (219), delete "group-hug" (200) - 82% similar
+Ozai, the Phoenix King: Keep "aggro" (215), delete "group-slug" (123) - 82% similar
+Yawgmoth, Thran Physician: Keep "combo" (446), delete "control" (111) - 82% similar
+Yawgmoth, Thran Physician: Keep "aristocrats" (1149), delete "reanimator" (161) - 82% similar
+Evereth, Viceroy of Plunder: Keep "aristocrats" (369), delete "group-slug" (121) - 82% similar
+Kambal, Profiteering Mayor: Keep "lifegain" (214), delete "aristocrats" (133) - 82% similar
+Ms. Bumbleflower: Keep "counters" (3024), delete "group-hug" (2828) - 79% similar
+Zhulodok, Void Gorger: Keep "kindred:eldrazi" (2510), delete "ramp" (409) - 79% similar
+Dr. Eggman: Keep "vehicles" (370), delete "wheels" (317) - 79% similar
+Grand Arbiter Augustin IV: Keep "stax" (1569), delete "control" (483) - 79% similar
+Zada, Hedron Grinder: Keep "kindred:goblins" (712), delete "aggro" (624) - 79% similar
+Ygra, Eater of All: Keep "aristocrats" (1196), delete "combo" (489) - 79% similar
+Meren of Clan Nel Toth: Keep "toolbox" (586), delete "combo" (437) - 79% similar
+Yarok, the Desecrated: Keep "blink" (370), delete "blink" (353) - 79% similar
+Liesa, Shroud of Dusk: Keep "lifegain" (2582), delete "aristocrats" (377) - 79% similar
+Shilgengar, Sire of Famine: Keep "kindred:angels" (1357), delete "sacrifice" (187) - 79% similar
+Derevi, Empyrial Tactician: Keep "combo" (338), delete "blink" (273) - 79% similar
+Winter, Misanthropic Guide: Keep "wheels" (1385), delete "wheels" (496) - 79% similar
+Arahbo, Roar of the World: Keep "kindred:cats" (1534), delete "aggro" (276) - 79% similar
+Ardenn, Intrepid Archaeologist & Rograkh, Son of Rohgahh: Keep "equipment" (1943), delete "aggro" (246) - 79% similar
+Kalamax, the Stormsire: Keep "spellslinger" (1029), delete "combo" (173) - 79% similar
+Ziatora, the Incinerator: Keep "aristocrats" (272), delete "group-slug" (262) - 79% similar
+Rocco, Cabaretti Caterer: Keep "blink" (247), delete "group-slug" (181) - 79% similar
+Brimaz, Blight of Oreskos: Keep "kindred:phyrexians" (1116), delete "aristocrats" (133) - 79% similar
+Kaalia of the Vast: Keep "kindred:angels" (1632), delete "kindred:demons" (1084) - 79% similar
+Imotekh the Stormlord: Keep "combo" (205), delete "aristocrats" (131) - 79% similar
+Tuvasa the Sunlit: Keep "enchantress" (1461), delete "voltron" (350) - 79% similar
+Gishath, Sun's Avatar: Keep "kindred:dinosaurs" (3226), delete "ramp" (585) - 79% similar
+Voja, Jaws of the Conclave: Keep "kindred:elves" (2615), delete "kindred:wolves" (490) - 79% similar
+Indoraptor, the Perfect Hybrid: Keep "group-slug" (721), delete "group-slug" (200) - 79% similar
+Varina, Lich Queen: Keep "kindred:zombies" (1899), delete "wheels" (396) - 79% similar
+Myrel, Shield of Argive: Keep "kindred:soldiers" (1149), delete "aggro" (202) - 79% similar
+Anowon, the Ruin Thief: Keep "kindred:rogues" (1467), delete "voltron" (110) - 79% similar
+Vnwxt, Verbose Host: Keep "mill" (123), delete "control" (116) - 79% similar
+Ruric Thar, the Unbowed: Keep "aggro" (207), delete "primal-surge" (206) - 79% similar
+Talrand, Sky Summoner: Keep "control" (256), delete "spellslinger" (219) - 79% similar
+Zethi, Arcane Blademaster: Keep "control" (172), delete "voltron" (103) - 79% similar
+Y'shtola, Night's Blessed: Keep "control" (2879), delete "lifegain" (1130) - 79% similar
+Oloro, Ageless Ascetic: Keep "control" (500), delete "combo" (404) - 79% similar
+Eshki, Temur's Roar: Keep "group-slug" (565), delete "aggro" (288) - 79% similar
+Yurlok of Scorch Thrash: Keep "group-slug" (668), delete "ramp" (208) - 79% similar
+Zedruu the Greathearted: Keep "chaos" (522), delete "group-slug" (482) - 79% similar
+Sheoldred, the Apocalypse: Keep "wheels" (1445), delete "lifegain" (583) - 79% similar
+Umbris, Fear Manifest: Keep "mill" (750), delete "voltron" (164) - 79% similar
+Dihada, Binder of Wills: Keep "legendary-matters" (1802), delete "legendary-matters" (325) - 79% similar
+Tinybones, Bauble Burglar: Keep "wheels" (1930), delete "theft" (366) - 79% similar
+Dina, Essence Brewer: Keep "lifegain" (755), delete "aristocrats" (554) - 79% similar
+Queza, Augur of Agonies: Keep "combo" (279), delete "control" (190) - 79% similar
+Tayam, Luminous Enigma: Keep "stax" (287), delete "stax" (151) - 79% similar
+Tayam, Luminous Enigma: Keep "stax" (287), delete "control" (144) - 79% similar
+The Master of Keys: Keep "reanimator" (411), delete "control" (209) - 79% similar
+Maelstrom Wanderer: Keep "ramp" (309), delete "aggro" (121) - 79% similar
+Myrkul, Lord of Bones: Keep "enchantress" (587), delete "combo" (120) - 79% similar
+Sméagol, Helpful Guide: Keep "mill" (275), delete "ramp" (150) - 79% similar
+Yawgmoth, Thran Physician: Keep "aristocrats" (1149), delete "combo" (446) - 79% similar
+Nahiri, Forged in Fury: Keep "aggro" (230), delete "voltron" (215) - 79% similar
+Greasefang, Okiba Boss: Keep "reanimator" (526), delete "wheels" (142) - 79% similar
+Emry, Lurker of the Loch: Keep "combo" (405), delete "mill" (139) - 79% similar
+Edgar Markov: Keep "kindred:vampires" (7049), delete "aristocrats" (1434) - 75% similar
+The Wise Mothman: Keep "mill" (4052), delete "counters" (3394) - 75% similar
+Caesar, Legion's Emperor: Keep "kindred:humans" (995), delete "kindred:soldiers" (357) - 75% similar
+Yarok, the Desecrated: Keep "blink" (370), delete "ramp" (248) - 75% similar
+Gev, Scaled Scorch: Keep "group-slug" (840), delete "aggro" (259) - 75% similar
+Gev, Scaled Scorch: Keep "group-slug" (840), delete "counters" (446) - 75% similar
+Winota, Joiner of Forces: Keep "aggro" (771), delete "stax" (733) - 75% similar
+Ziatora, the Incinerator: Keep "aristocrats" (272), delete "tokens" (189) - 75% similar
+Chatterfang, Squirrel General: Keep "aristocrats" (1437), delete "combo" (857) - 75% similar
+Hakbal of the Surging Soul: Keep "kindred:merfolk" (3744), delete "aggro" (426) - 75% similar
+Tuvasa the Sunlit: Keep "enchantress" (1461), delete "pillowfort" (137) - 75% similar
+Sidar Jabari of Zhalfir: Keep "kindred:knights" (2927), delete "reanimator" (939) - 75% similar
+Maralen, Fae Ascendant: Keep "kindred:faeries" (920), delete "kindred:elves" (910) - 75% similar
+The First Sliver: Keep "kindred:slivers" (2380), delete "aggro" (330) - 75% similar
+Wilhelt, the Rotcleaver: Keep "aristocrats" (1013), delete "reanimator" (816) - 75% similar
+Bria, Riptide Rogue: Keep "kindred:wizards" (761), delete "aggro" (173) - 75% similar
+Sidisi, Brood Tyrant: Keep "reanimator" (525), delete "combo" (138) - 75% similar
+Anowon, the Ruin Thief: Keep "mill" (852), delete "theft" (153) - 75% similar
+Zurgo, Thunder's Decree: Keep "aggro" (308), delete "kindred:warriors" (220) - 75% similar
+Elenda, the Dusk Rose: Keep "aristocrats" (924), delete "counters" (294) - 75% similar
+Slimefoot, the Stowaway: Keep "kindred:saprolings" (797), delete "kindred:saprolings" (210) - 75% similar
+Alela, Cunning Conqueror: Keep "kindred:faeries" (2549), delete "control" (992) - 75% similar
+Mabel, Heir to Cragflame: Keep "equipment" (1373), delete "aggro" (152) - 75% similar
+Syr Konrad, the Grim: Keep "reanimator" (287), delete "graveyard" (194) - 75% similar
+Thalia and The Gitrog Monster: Keep "stax" (321), delete "stax" (294) - 75% similar
+Cloud, Ex-SOLDIER: Keep "voltron" (1569), delete "aggro" (539) - 75% similar
+Teysa Karlov: Keep "aristocrats" (4178), delete "lifegain" (536) - 75% similar
+Queen Marchesa: Keep "pillowfort" (794), delete "control" (501) - 75% similar
+Ghyrson Starn, Kelermorph: Keep "group-slug" (2406), delete "group-slug" (516) - 75% similar
+Niv-Mizzet, Parun: Keep "wheels" (891), delete "combo" (641) - 75% similar
+Zur the Enchanter: Keep "stax" (544), delete "control" (516) - 75% similar
+Jon Irenicus, Shattered One: Keep "group-slug" (604), delete "aggro" (332) - 75% similar
+Fire Lord Zuko: Keep "aggro" (220), delete "blink" (213) - 75% similar
+Celes, Rune Knight: Keep "combo" (614), delete "aristocrats" (278) - 75% similar
+Dihada, Binder of Wills: Keep "reanimator" (533), delete "aggro" (178) - 75% similar
+Veyran, Voice of Duality: Keep "group-slug" (333), delete "combo" (188) - 75% similar
+Ketramose, the New Dawn: Keep "blink" (570), delete "lifegain" (151) - 75% similar
+Rowan, Scion of War: Keep "aggro" (544), delete "lifegain" (144) - 75% similar
+Queza, Augur of Agonies: Keep "wheels" (1185), delete "lifegain" (390) - 75% similar
+Tayam, Luminous Enigma: Keep "combo" (539), delete "stax" (287) - 75% similar
+Clement, the Worrywort: Keep "blink" (297), delete "combo" (143) - 75% similar
+Haldan, Avid Arcanist & Pako, Arcane Retriever: Keep "theft" (237), delete "ramp" (145) - 75% similar
+Braids, Arisen Nightmare: Keep "aristocrats" (939), delete "reanimator" (286) - 75% similar
+Zoraline, Cosmos Caller: Keep "lifegain" (2108), delete "reanimator" (228) - 75% similar
+The Gitrog, Ravenous Ride: Keep "aggro" (673), delete "ramp" (276) - 75% similar
+Myrkul, Lord of Bones: Keep "enchantress" (587), delete "aristocrats" (215) - 75% similar
+Squall, SeeD Mercenary: Keep "reanimator" (502), delete "voltron" (484) - 75% similar
+Chishiro, the Shattered Blade: Keep "aggro" (151), delete "enchantress" (149) - 75% similar
+Maarika, Brutal Gladiator: Keep "aggro" (194), delete "voltron" (192) - 75% similar
+The Mimeoplasm: Keep "mill" (583), delete "reanimator" (465) - 75% similar
+Greasefang, Okiba Boss: Keep "reanimator" (526), delete "aggro" (123) - 75% similar
+Kambal, Profiteering Mayor: Keep "aristocrats" (320), delete "lifegain" (214) - 75% similar
+Hei Bai, Forest Guardian: Keep "enchantress" (408), delete "blink" (218) - 75% similar
+Yuriko, the Tiger's Shadow: Keep "kindred:ninjas" (5356), delete "kindred:ninjas" (1963) - 72% similar
+Choco, Seeker of Paradise: Keep "kindred:birds" (820), delete "counters" (311) - 72% similar
+Captain N'ghathrod: Keep "theft" (536), delete "reanimator" (308) - 72% similar
+Meren of Clan Nel Toth: Keep "reanimator" (1740), delete "toolbox" (586) - 72% similar
+Meren of Clan Nel Toth: Keep "aristocrats" (2604), delete "reanimator" (1740) - 72% similar
+Rocco, Cabaretti Caterer: Keep "blink" (247), delete "tokens" (170) - 72% similar
+Sokka, Tenacious Tactician: Keep "kindred:allies" (420), delete "spellslinger" (232) - 72% similar
+Lathril, Blade of the Elves: Keep "kindred:elves" (5256), delete "aggro" (548) - 72% similar
+Millicent, Restless Revenant: Keep "kindred:spirits" (1271), delete "aggro" (123) - 72% similar
+Ureni of the Unwritten: Keep "kindred:dragons" (989), delete "ramp" (554) - 72% similar
+Atla Palani, Nest Tender: Keep "kindred:dinosaurs" (1307), delete "combo" (1088) - 72% similar
+Be'lakor, the Dark Master: Keep "kindred:demons" (2660), delete "blink" (307) - 72% similar
+Wilhelt, the Rotcleaver: Keep "aristocrats" (1013), delete "combo" (680) - 72% similar
+The Scarab God: Keep "kindred:zombies" (2006), delete "reanimator" (563) - 72% similar
+The Mycotyrant: Keep "mill" (930), delete "reanimator" (273) - 72% similar
+Athreos, God of Passage: Keep "aristocrats" (656), delete "reanimator" (169) - 72% similar
+Strefan, Maurer Progenitor: Keep "kindred:vampires" (1200), delete "lifegain" (134) - 72% similar
+Ghave, Guru of Spores: Keep "kindred:saprolings" (370), delete "kindred:saprolings" (160) - 72% similar
+Sidisi, Brood Tyrant: Keep "mill" (1064), delete "reanimator" (525) - 72% similar
+Gisa and Geralf: Keep "kindred:zombies" (1191), delete "mill" (185) - 72% similar
+Astarion, the Decadent: Keep "lifegain" (1893), delete "kindred:vampires" (738) - 72% similar
+Aminatou, the Fateshifter: Keep "control" (285), delete "combo" (246) - 72% similar
+Delney, Streetwise Lookout: Keep "blink" (181), delete "lifegain" (120) - 72% similar
+Syr Konrad, the Grim: Keep "aristocrats" (316), delete "reanimator" (287) - 72% similar
+Queen Marchesa: Keep "pillowfort" (794), delete "group-hug" (306) - 72% similar
+Aminatou, Veil Piercer: Keep "enchantress" (2869), delete "control" (282) - 72% similar
+Zur the Enchanter: Keep "enchantress" (1192), delete "stax" (544) - 72% similar
+The Jolly Balloon Man: Keep "blink" (221), delete "group-slug" (191) - 72% similar
+Raffine, Scheming Seer: Keep "reanimator" (1030), delete "aggro" (264) - 72% similar
+Grist, the Hunger Tide: Keep "mill" (300), delete "reanimator" (298) - 72% similar
+Mishra, Eminent One: Keep "combo" (178), delete "artifacts-matter" (149) - 72% similar
+Sméagol, Helpful Guide: Keep "mill" (275), delete "aristocrats" (240) - 72% similar
+Sméagol, Helpful Guide: Keep "mill" (275), delete "reanimator" (136) - 72% similar
+Bruvac the Grandiloquent: Keep "mill" (1115), delete "control" (115) - 72% similar
+Squall, SeeD Mercenary: Keep "reanimator" (502), delete "aristocrats" (151) - 72% similar
+Ayara, First of Locthwain: Keep "aristocrats" (1019), delete "lifegain" (277) - 72% similar
+Jhoira, Weatherlight Captain: Keep "combo" (288), delete "legendary-matters" (239) - 72% similar
+Zimone and Dina: Keep "aristocrats" (283), delete "ramp" (199) - 72% similar
+Marchesa, Dealer of Death: Keep "control" (269), delete "reanimator" (267) - 72% similar
+Sisay, Weatherlight Captain: Keep "legendary-matters" (1103), delete "combo" (779) - 69% similar
+Vivi Ornitier: Keep "group-slug" (1040), delete "counters" (560) - 69% similar
+Liesa, Shroud of Dusk: Keep "lifegain" (2582), delete "aggro" (190) - 69% similar
+Gishath, Sun's Avatar: Keep "kindred:dinosaurs" (3226), delete "aggro" (471) - 69% similar
+Raphael, Fiendish Savior: Keep "aristocrats" (331), delete "group-slug" (104) - 69% similar
+Hazel of the Rootbloom: Keep "aristocrats" (723), delete "kindred:squirrels" (608) - 69% similar
+Omnath, Locus of Rage: Keep "ramp" (427), delete "kindred:elementals" (289) - 69% similar
+Astarion, the Decadent: Keep "lifegain" (1893), delete "combo" (133) - 69% similar
+Nethroi, Apex of Death: Keep "reanimator" (613), delete "graveyard" (197) - 69% similar
+Zur the Enchanter: Keep "enchantress" (1192), delete "voltron" (354) - 69% similar
+Okaun, Eye of Chaos & Zndrsplt, Eye of Wisdom: Keep "chaos" (1807), delete "voltron" (153) - 69% similar
+Shalai and Hallar: Keep "group-slug" (333), delete "combo" (307) - 69% similar
+Coram, the Undertaker: Keep "mill" (1213), delete "reanimator" (560) - 69% similar
+Queza, Augur of Agonies: Keep "wheels" (1185), delete "combo" (279) - 69% similar
+Tayam, Luminous Enigma: Keep "combo" (539), delete "reanimator" (512) - 69% similar
+Ghalta, Primal Hunger: Keep "ramp" (272), delete "aggro" (239) - 69% similar
+Lumra, Bellow of the Woods: Keep "combo" (291), delete "ramp" (286) - 69% similar
+Haldan, Avid Arcanist & Pako, Arcane Retriever: Keep "voltron" (336), delete "theft" (237) - 69% similar
+Juri, Master of the Revue: Keep "aristocrats" (392), delete "group-slug" (112) - 69% similar
+Ygra, Eater of All: Keep "aristocrats" (1196), delete "voltron" (356) - 67% similar
+Winter, Misanthropic Guide: Keep "wheels" (1385), delete "group-hug" (168) - 67% similar
+Kaalia of the Vast: Keep "kindred:angels" (1632), delete "aggro" (1126) - 67% similar
+Syr Gwyn, Hero of Ashvale: Keep "kindred:knights" (1381), delete "voltron" (421) - 67% similar
+Sigarda, Font of Blessings: Keep "kindred:angels" (587), delete "lifegain" (247) - 67% similar
+Anowon, the Ruin Thief: Keep "kindred:rogues" (1467), delete "mill" (852) - 67% similar
+Vnwxt, Verbose Host: Keep "wheels" (154), delete "mill" (123) - 67% similar
+Nethroi, Apex of Death: Keep "aristocrats" (183), delete "combo" (141) - 67% similar
+Aminatou, the Fateshifter: Keep "blink" (772), delete "control" (285) - 67% similar
+Ruric Thar, the Unbowed: Keep "aggro" (207), delete "stax" (115) - 67% similar
+The Locust God: Keep "wheels" (1190), delete "combo" (182) - 67% similar
+Muldrotha, the Gravetide: Keep "reanimator" (1401), delete "mill" (1258) - 67% similar
+Flubs, the Fool: Keep "wheels" (463), delete "ramp" (364) - 67% similar
+Teysa Karlov: Keep "aristocrats" (4178), delete "combo" (380) - 67% similar
+Marchesa, the Black Rose: Keep "aristocrats" (857), delete "theft" (423) - 67% similar
+Sefris of the Hidden Ways: Keep "reanimator" (1410), delete "wheels" (286) - 67% similar
+Raffine, Scheming Seer: Keep "reanimator" (1030), delete "wheels" (515) - 67% similar
+Arna Kennerüd, Skycaptain: Keep "voltron" (361), delete "enchantress" (151) - 67% similar
+The Master of Keys: Keep "enchantress" (1483), delete "reanimator" (411) - 67% similar
+Braids, Arisen Nightmare: Keep "combo" (194), delete "control" (193) - 67% similar
+The Gitrog, Ravenous Ride: Keep "aggro" (673), delete "aggro" (135) - 67% similar
+Ayara, First of Locthwain: Keep "aristocrats" (1019), delete "combo" (179) - 67% similar
+Kwain, Itinerant Meddler: Keep "wheels" (702), delete "control" (203) - 67% similar
+Karador, Ghost Chieftain: Keep "reanimator" (626), delete "mill" (169) - 67% similar

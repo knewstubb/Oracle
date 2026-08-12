@@ -20,10 +20,11 @@ import type { DecisionLog, DeckCard } from '@/lib/brew-v2-types'
 
 interface SaveBody {
   sessionId: number
-  mode: 'concept' | 'brewing' | 'in_rotation'
+  mode: 'concept' | 'draft' | 'active'
   decisionLog?: DecisionLog
   deckCards?: DeckCard[]
   deckName?: string
+  commanderScryfallId?: string | null
 }
 
 interface BrewSessionRow {
@@ -46,30 +47,30 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = (await request.json()) as SaveBody
-    const { sessionId, mode, decisionLog, deckCards, deckName } = body
+    const { sessionId, mode, decisionLog, deckCards, deckName, commanderScryfallId } = body
 
     // --- Validate inputs ---
     if (!sessionId || typeof sessionId !== 'number') {
       return Response.json({ error: 'Invalid sessionId' }, { status: 400 })
     }
 
-    if (!mode || !['concept', 'brewing', 'in_rotation'].includes(mode)) {
+    if (!mode || !['concept', 'draft', 'active'].includes(mode)) {
       return Response.json(
-        { error: 'Invalid mode — must be "concept", "brewing", or "in_rotation"' },
+        { error: 'Invalid mode — must be "concept", "draft", or "active"' },
         { status: 400 }
       )
     }
 
-    if ((mode === 'brewing' || mode === 'in_rotation') && (!deckCards || !Array.isArray(deckCards))) {
+    if ((mode === 'draft' || mode === 'active') && (!deckCards || !Array.isArray(deckCards))) {
       return Response.json(
-        { error: 'deckCards array is required for brew and boxed modes' },
+        { error: 'deckCards array is required for draft and active modes' },
         { status: 400 }
       )
     }
 
-    if ((mode === 'brewing' || mode === 'in_rotation') && (!deckName || typeof deckName !== 'string' || deckName.trim().length === 0)) {
+    if ((mode === 'draft' || mode === 'active') && (!deckName || typeof deckName !== 'string' || deckName.trim().length === 0)) {
       return Response.json(
-        { error: 'deckName is required for brew and boxed modes' },
+        { error: 'deckName is required for draft and active modes' },
         { status: 400 }
       )
     }
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if ((mode === 'brewing' || mode === 'in_rotation') && session.status !== 'building') {
+    if ((mode === 'draft' || mode === 'active') && session.status !== 'building') {
       return Response.json(
         { error: `Cannot save as ${mode} — session is in '${session.status}', expected 'building'` },
         { status: 409 }
@@ -119,49 +120,36 @@ export async function POST(request: NextRequest) {
       return Response.json({ success: true })
     }
 
-    if (mode === 'brewing' || mode === 'in_rotation') {
-      const deckStatus = mode === 'in_rotation' ? 'in_rotation' : 'brewing'
+    if (mode === 'draft' || mode === 'active') {
+      // draft = inactive deck (is_active: false), active = active deck (is_active: true)
+      const isActive = mode === 'active'
 
       try {
-        if (session.deck_id) {
-          // Update existing deck
-          deckId = session.deck_id
-
-          await supabase
-            .from('decks')
-            .update({ name: deckName!.trim(), status: deckStatus, card_count: deckCards!.length })
-            .eq('id', deckId)
-
-          // Clear existing deck_cards and re-insert
-          await supabase.from('deck_cards').delete().eq('deck_id', deckId)
-        } else {
-          // Create new deck — generate a unique ID for Oracle-native decks
-          // Using negative IDs to avoid collision with Archidekt-sourced IDs (positive integers)
-          const oracleId = -(Date.now() % 2147483647)
-
-          const { data: newDeck, error: deckErr } = await supabase
-            .from('decks')
-            .insert({
-              id: oracleId,
-              name: deckName!.trim(),
-              commander_name: session.commander_name,
-              colour_identity: session.colour_identity,
-              card_count: deckCards!.length,
-              status: deckStatus,
-              user_id: userId,
-            })
-            .select('id')
-            .single()
-
-          if (deckErr || !newDeck) throw new Error(deckErr?.message || 'Failed to create deck')
-          deckId = newDeck.id
-
-          // Link session to new deck
-          await supabase
-            .from('brew_sessions')
-            .update({ deck_id: deckId })
-            .eq('id', sessionId)
+        // Deck should already exist (created with session), but handle legacy sessions
+        if (!session.deck_id) {
+          return Response.json(
+            { error: 'Session has no associated deck. This may be a legacy session — please start a new brew.' },
+            { status: 400 }
+          )
         }
+
+        deckId = session.deck_id
+
+        // Update existing deck
+        await supabase
+          .from('decks')
+          .update({ 
+            name: deckName!.trim(), 
+            is_active: isActive, 
+            card_count: deckCards!.length,
+            commander_name: session.commander_name,
+            commander_scryfall_id: commanderScryfallId ?? null,
+            colour_identity: session.colour_identity,
+          })
+          .eq('id', deckId)
+
+        // Clear existing deck_cards and re-insert
+        await supabase.from('deck_cards').delete().eq('deck_id', deckId)
 
         // Insert deck cards
         const cardsToInsert = deckCards!.map((card) => {
@@ -185,7 +173,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Update session status
-        const newSessionStatus = mode === 'in_rotation' ? 'complete' : 'building'
+        const newSessionStatus = mode === 'active' ? 'complete' : 'building'
         await supabase
           .from('brew_sessions')
           .update({ status: newSessionStatus, updated_at: new Date().toISOString() })

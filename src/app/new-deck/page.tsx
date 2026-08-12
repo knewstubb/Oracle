@@ -10,6 +10,7 @@ import type {
   DecisionEntry,
   ArchivedItem,
   DeckCard,
+  LeadershipType,
 } from '@/lib/brew-v2-types'
 import type { ChatMessage } from '@/lib/debrief-types'
 import { createSession, commitCommander } from '@/lib/brew-v2-session'
@@ -25,9 +26,24 @@ import { useBrewAutosave } from '@/hooks/useBrewAutosave'
 
 import { BrewTopbar } from '@/components/brew-v2/BrewTopbar'
 import { BrewCanvas } from '@/components/brew-v2/BrewCanvas'
-import { ChatPanel, type ChatPanelHandle } from '@/components/brew-v2/ChatPanel'
+import { BrewChatView } from '@/components/brew-v2/BrewChatView'
+import { CommanderDetailModal } from '@/components/brew-v2/CommanderDetailModal'
 import { useCanvasPositions } from '@/components/brew-v2/useCanvasPositions'
 import { getNextOpenPosition } from '@/components/brew-v2/canvas-utils'
+import { useOracle } from '@/contexts/OracleContext'
+
+// ---------------------------------------------------------------------------
+// Utils
+// ---------------------------------------------------------------------------
+
+/**
+ * Extract front face name from DFC card name.
+ * DFCs use " // " as separator: "Delver of Secrets // Insectile Aberration"
+ */
+function frontFace(name: string): string {
+  const idx = name.indexOf(' // ')
+  return idx === -1 ? name : name.substring(0, idx)
+}
 
 // ---------------------------------------------------------------------------
 // Brew Mode V2 Page — Canvas-First Layout
@@ -35,6 +51,14 @@ import { getNextOpenPosition } from '@/components/brew-v2/canvas-utils'
 
 export default function BrewModePage() {
   const router = useRouter()
+  const { setContext, close: closeOracle } = useOracle()
+
+  // -------------------------------------------------------------------------
+  // Close Oracle sidebar when entering brew flow — the brew has its own chat
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    closeOracle()
+  }, [closeOracle])
 
   // -------------------------------------------------------------------------
   // Session state — manages phase, decision log, commander, assessment cache
@@ -61,6 +85,22 @@ export default function BrewModePage() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const [activeTools, setActiveTools] = useState<Array<{name: string; status: 'running' | 'complete' | 'error'}>>([])
+  const [selectedCard, setSelectedCard] = useState<string | null>(null)
+
+  // -------------------------------------------------------------------------
+  // Oracle context — forge (no commander) or workbench (commander selected)
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    if (session.committedCommander) {
+      setContext({
+        type: 'workbench',
+        sessionId: session.sessionId,
+        commanderName: session.committedCommander.name,
+      })
+    } else {
+      setContext({ type: 'forge' })
+    }
+  }, [session.committedCommander, session.sessionId, setContext])
   const [selectedModelId, setSelectedModelId] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('oracle-preferred-model') || DEFAULT_MODEL_ID
@@ -93,11 +133,10 @@ export default function BrewModePage() {
     localStorage.setItem('oracle-preferred-model', modelId)
   }, [])
 
-  // -------------------------------------------------------------------------
-  // Refs for ChatPanel
-  // -------------------------------------------------------------------------
-  const chatInputRef = useRef<HTMLInputElement>(null) as React.RefObject<HTMLInputElement>
-  const chatHandleRef = useRef<ChatPanelHandle>(null)
+  // Handle collection mode changes
+  const handleCollectionModeChange = useCallback((mode: import('@/lib/brew-v2-types').CollectionMode) => {
+    setSession((prev) => ({ ...prev, collectionMode: mode }))
+  }, [])
 
   // -------------------------------------------------------------------------
   // Session Loader — hydrate from URL sessionId or create new session
@@ -153,22 +192,16 @@ export default function BrewModePage() {
           let restoredCommander: CommittedCommander | null = null
 
           if (data.status === 'building' && data.commander_name) {
-            // Reconstruct CommittedCommander — resolve artUrl from Scryfall
+            // Reconstruct CommittedCommander — resolve artUrl from local DB
             // Validates: Requirement 5.3
             try {
-              const scryfallRes = await fetch(
-                `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(data.commander_name)}`,
-                { headers: { 'User-Agent': 'The-Oracle/1.0' } }
+              const cardRes = await fetch(
+                `/api/cards?name=${encodeURIComponent(data.commander_name)}&action=full&fuzzy=true`
               )
 
-              if (scryfallRes.ok) {
-                const scryfallCard = await scryfallRes.json()
-                const artUrl =
-                  scryfallCard.image_uris?.art_crop ??
-                  scryfallCard.card_faces?.[0]?.image_uris?.art_crop ??
-                  scryfallCard.image_uris?.normal ??
-                  scryfallCard.card_faces?.[0]?.image_uris?.normal ??
-                  ''
+              if (cardRes.ok) {
+                const cardData = await cardRes.json()
+                const artUrl = cardData.printing?.image_uri_art_crop ?? ''
 
                 // Derive archetype from the restored decision log
                 const archetypeEntry = restoredDecisionLog.strategy.find(
@@ -176,30 +209,30 @@ export default function BrewModePage() {
                 )
 
                 restoredCommander = {
-                  name: data.commander_name,
+                  name: cardData.name,
                   artUrl,
-                  typeLine: scryfallCard.type_line ?? '',
+                  typeLine: cardData.type_line ?? '',
                   colourIdentity: data.colour_identity
                     ? (data.colour_identity.includes(',')
                       ? data.colour_identity.split(',').filter(Boolean)
                       : data.colour_identity.split('').filter(Boolean))
-                    : scryfallCard.color_identity ?? [],
+                    : cardData.color_identity?.split('').filter((c: string) => 'WUBRG'.includes(c)) ?? [],
                   archetype: archetypeEntry?.value ?? null,
                 }
                 restoredPhase = 'building'
               } else {
-                // Scryfall lookup failed — fall back to exploring
+                // DB lookup failed — fall back to exploring
                 // Validates: Requirement 5.5
                 console.warn(
-                  `[session-loader] Failed to resolve commander "${data.commander_name}" from Scryfall — falling back to exploring phase`
+                  `[session-loader] Failed to resolve commander "${data.commander_name}" from DB — falling back to exploring phase`
                 )
               }
-            } catch (scryfallErr) {
-              // Network error with Scryfall — fall back to exploring
+            } catch (dbErr) {
+              // Network error — fall back to exploring
               // Validates: Requirement 5.5
               console.warn(
-                '[session-loader] Scryfall fetch failed during commander reconstruction',
-                scryfallErr
+                '[session-loader] DB fetch failed during commander reconstruction',
+                dbErr
               )
             }
           } else if (data.status === 'building' && !data.commander_name) {
@@ -211,10 +244,12 @@ export default function BrewModePage() {
             setSession({
               phase: restoredPhase,
               sessionId: data.id,
+              deckId: data.deck_id ?? null,
               commander: restoredCommander,
               decisionLog: restoredDecisionLog,
               deckState: null,
               assessmentCache: new Map(),
+              collectionMode: 'any',
             })
             setIsHydrating(false)
           }
@@ -240,7 +275,11 @@ export default function BrewModePage() {
         const data = res.ok ? await res.json() : null
 
         if (data?.sessionId && !cancelled) {
-          setSession((prev) => ({ ...prev, sessionId: data.sessionId }))
+          setSession((prev) => ({ 
+            ...prev, 
+            sessionId: data.sessionId,
+            deckId: data.deckId ?? null,
+          }))
           // Replace URL with sessionId param — no new history entry
           // Validates: Requirement 7.2
           const url = new URL(window.location.href)
@@ -259,7 +298,7 @@ export default function BrewModePage() {
     return () => {
       cancelled = true
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])  
 
   // -------------------------------------------------------------------------
   // Commander candidates — populated via structured tool output (SSE event)
@@ -299,7 +338,7 @@ export default function BrewModePage() {
     if (needsPosition.length === 0) return
 
     const existing = Object.values(deckState.canvasPositions)
-    let currentPositions = [...existing]
+    const currentPositions = [...existing]
 
     for (const item of needsPosition) {
       const cardWidth = item.type === 'candidate' ? 168 : 152
@@ -324,33 +363,83 @@ export default function BrewModePage() {
   // -------------------------------------------------------------------------
 
   const handleCommitCommander = useCallback((commander: CommanderOption) => {
-    // Validate commander before committing — must be a Legendary Creature
-    // (Quick client-side check: verify with Scryfall)
-    fetch(`https://api.scryfall.com/cards/named?exact=${encodeURIComponent(commander.name)}`, {
-      headers: { 'User-Agent': 'The-Oracle/1.0' },
-    })
-      .then(res => res.ok ? res.json() : null)
-      .then(card => {
-        if (!card) {
-          console.warn(`[commit] Card "${commander.name}" not found on Scryfall — blocking commit`)
+    // Check if this is a partner pair
+    const isPartnerPair = commander.partnerName && commander.leadershipType === 'partner'
+    
+    // Validate primary commander
+    fetch(`/api/cards?name=${encodeURIComponent(frontFace(commander.name))}&action=validate-commander`)
+      .then(res => res.json())
+      .then(async result => {
+        if (!result.valid) {
+          console.warn(`[commit] "${commander.name}" is not a valid commander: ${result.reason} — blocking commit`)
           return
         }
 
-        const typeLine = (card.type_line ?? '').toLowerCase()
-        const isLegendaryCreature = typeLine.includes('legendary') && typeLine.includes('creature')
-        const canBeCommander = typeLine.includes('can be your commander')
+        const card1 = result.card
+        let card2: any = null
+        let partnerColourIdentity: string[] = []
 
-        if (!isLegendaryCreature && !canBeCommander) {
-          console.warn(`[commit] "${commander.name}" is not a valid commander (type: ${card.type_line}) — blocking commit`)
-          // TODO: Show user-facing error toast
-          return
+        // If partner pair, validate the second commander too
+        if (isPartnerPair && commander.partnerName) {
+          try {
+            const partnerRes = await fetch(`/api/cards?name=${encodeURIComponent(frontFace(commander.partnerName))}&action=validate-commander`)
+            const partnerResult = await partnerRes.json()
+            
+            if (!partnerResult.valid) {
+              console.warn(`[commit] Partner "${commander.partnerName}" is not a valid commander: ${partnerResult.reason} — blocking commit`)
+              return
+            }
+            
+            card2 = partnerResult.card
+            partnerColourIdentity = card2.color_identity?.split('').filter((c: string) => 'WUBRG'.includes(c)) ?? []
+          } catch (err) {
+            console.warn('[commit] Partner validation failed:', err)
+            return
+          }
         }
 
-        // Enrich commander with Scryfall data
+        // Merge colour identities for partners
+        const card1Identity = card1.color_identity?.split('').filter((c: string) => 'WUBRG'.includes(c)) ?? []
+        const combinedIdentity = isPartnerPair 
+          ? [...new Set([...card1Identity, ...partnerColourIdentity])]
+          : card1Identity
+
+        // Enrich commander with DB data
         const enrichedCommander: CommanderOption = {
           ...commander,
-          colourIdentity: card.color_identity ?? [],
-          artUrl: card.image_uris?.art_crop ?? card.card_faces?.[0]?.image_uris?.art_crop ?? commander.artUrl,
+          colourIdentity: combinedIdentity,
+        }
+
+        // Fetch art URLs and scryfall_id
+        let commanderScryfallId: string | null = null
+        try {
+          const printing1 = await fetch(`/api/cards?name=${encodeURIComponent(card1.name)}&action=printing`).then(r => r.ok ? r.json() : null)
+          if (printing1?.image_uri_art_crop) {
+            enrichedCommander.artUrl = printing1.image_uri_art_crop
+          }
+          if (printing1?.scryfall_id) {
+            commanderScryfallId = printing1.scryfall_id
+            enrichedCommander.scryfallId = printing1.scryfall_id
+          }
+        } catch { /* non-critical */ }
+
+        // Build partner data if applicable
+        let partnerData: { name: string; artUrl: string; typeLine: string; scryfallId?: string } | undefined
+        if (isPartnerPair && card2) {
+          partnerData = {
+            name: card2.name,
+            artUrl: '',
+            typeLine: card2.type_line ?? '',
+            scryfallId: commander.partnerScryfallId,
+          }
+          
+          // Fetch partner art URL
+          try {
+            const printing2 = await fetch(`/api/cards?name=${encodeURIComponent(card2.name)}&action=printing`).then(r => r.ok ? r.json() : null)
+            if (printing2?.image_uri_art_crop) {
+              partnerData.artUrl = printing2.image_uri_art_crop
+            }
+          } catch { /* non-critical */ }
         }
 
         // Summarize exploration conversation for building phase context
@@ -360,32 +449,124 @@ export default function BrewModePage() {
           .join('\n---\n')
           .slice(0, 4000)
 
-        const contextMessage: ChatMessage = {
-          id: `system-context-${Date.now()}`,
+        const commanderDisplayName = isPartnerPair 
+          ? `${enrichedCommander.name} & ${commander.partnerName}`
+          : enrichedCommander.name
+
+        const transitionMessage: ChatMessage = {
+          id: `transition-${Date.now()}`,
           role: 'assistant',
-          content: `Commander committed: **${enrichedCommander.name}**\n\nI'm now in deck-building mode. I can help you:\n• Suggest cards to add (click any [[Card Name]] to add it to the canvas)\n• Assign and reorganize categories\n• Evaluate cards for cuts\n• Discuss strategy and synergies\n\nWhat would you like to work on first?`,
+          content: `**${commanderDisplayName}** locked in as commander${isPartnerPair ? 's' : ''}.\n\nI'm now in deck-building mode. Click any [[Card Name]] I mention to add it to the canvas. What would you like to work on first?`,
           timestamp: Date.now(),
         }
 
         const explorationContext: ChatMessage = {
           id: `exploration-context-${Date.now()}`,
-          role: 'user',
-          content: `[SYSTEM CONTEXT — DO NOT DISPLAY] The user explored commander options and committed ${enrichedCommander.name}. Here's a summary of the exploration conversation for context:\n\n${explorationSummary}`,
+          role: 'system',
+          content: `[SYSTEM CONTEXT — DO NOT DISPLAY] The user committed ${commanderDisplayName} as commander${isPartnerPair ? 's' : ''}. Exploration summary:\n\n${explorationSummary}`,
           timestamp: Date.now() - 1,
         }
 
-        // Reset chat with building phase context
-        setMessages([explorationContext, contextMessage])
+        // Preserve chat history, just add transition context
+        setMessages(prev => [...prev, explorationContext, transitionMessage])
 
-        // Transition to building phase with enriched commander
-        setSession((prev) => commitCommander(prev, enrichedCommander))
+        // Create deck immediately and navigate to it
+        try {
+          // Update session to building status in DB first
+          await fetch('/api/brew/session', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId: session.sessionId,
+              status: 'building',
+              commanderName: commanderDisplayName,
+              colourIdentity: combinedIdentity.join(''),
+            }),
+          })
+          
+          // Save session as draft deck with commander as initial card
+          const saveRes = await fetch('/api/brew/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId: session.sessionId,
+              mode: 'draft',
+              deckCards: [{
+                card_name: enrichedCommander.name,
+                primary_category: 'Commander',
+                additional_categories: [],
+                ownership_status: 'unknown',
+                cmc: 0,
+                type_line: card1.type_line ?? '',
+                oracle_text: '',
+                scryfall_id: commanderScryfallId,
+              }],
+              deckName: commanderDisplayName,
+              commanderScryfallId,
+            }),
+          })
+          
+          if (saveRes.ok) {
+            const saveData = await saveRes.json()
+            const deckId = saveData.deckId
+            
+            if (deckId) {
+              // Navigate to deck page
+              router.push(`/decks/${deckId}`)
+              return
+            }
+          }
+        } catch (err) {
+          console.warn('[commit] Failed to save deck:', err)
+        }
+
+        // Fallback: stay on brew page if deck creation failed
+        setSession((prev) => commitCommander(prev, enrichedCommander, partnerData))
       })
       .catch(err => {
-        console.warn('[commit] Scryfall validation failed — committing anyway:', err)
+        console.warn('[commit] DB validation failed — committing anyway:', err)
         // Fallback: commit without validation (better UX than blocking)
         setSession((prev) => commitCommander(prev, commander))
       })
   }, [messages])
+
+  /**
+   * Handle commander selection from chat crown button.
+   * Takes just the card name (or "Name1 & Name2" for partners) and constructs a CommanderOption to commit.
+   */
+  const handleCommitCommanderFromChat = useCallback((cardNameOrPair: string) => {
+    // Check if this is a partner pair: "Name1 & Name2"
+    const partnerMatch = cardNameOrPair.match(/^(.+?)\s*&\s*(.+)$/)
+    
+    if (partnerMatch) {
+      // Partner pair — validate and commit both
+      const [, name1, name2] = partnerMatch
+      
+      const commanderOption: CommanderOption = {
+        name: name1.trim(),
+        partnerName: name2.trim(),
+        colourIdentity: [], // Will be resolved in handleCommitCommander
+        artUrl: '',
+        scryfallId: name1.trim().toLowerCase().replace(/[^a-z0-9]/g, '-'),
+        partnerScryfallId: name2.trim().toLowerCase().replace(/[^a-z0-9]/g, '-'),
+        leadershipType: 'partner',
+        owned: false,
+        description: '',
+      }
+      handleCommitCommander(commanderOption)
+    } else {
+      // Single commander
+      const commanderOption: CommanderOption = {
+        name: cardNameOrPair,
+        colourIdentity: [], // Will be resolved in handleCommitCommander
+        artUrl: '',
+        scryfallId: cardNameOrPair.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+        owned: false,
+        description: '',
+      }
+      handleCommitCommander(commanderOption)
+    }
+  }, [handleCommitCommander])
 
   // -------------------------------------------------------------------------
   // Skeleton generation — fires when phase transitions to 'building'
@@ -407,7 +588,10 @@ export default function BrewModePage() {
         const res = await fetch('/api/brew/skeleton', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId: session.sessionId }),
+          body: JSON.stringify({ 
+            sessionId: session.sessionId,
+            collectionMode: session.collectionMode,
+          }),
         })
 
         if (!res.ok || !res.body) {
@@ -501,16 +685,34 @@ export default function BrewModePage() {
   }, [])
 
   // -------------------------------------------------------------------------
+  // Handlers — Card name click (opens detail modal)
+  // -------------------------------------------------------------------------
+
+  const handleCardNameClick = useCallback((cardName: string) => {
+    setSelectedCard(cardName)
+  }, [])
+
+  // -------------------------------------------------------------------------
   // Handlers — Add card from chat (click [[Card Name]] in building phase)
   // -------------------------------------------------------------------------
 
   const handleAddCardFromChat = useCallback((cardName: string) => {
+    console.log('[handleAddCardFromChat] Called with:', cardName, 'phase:', session.phase)
+    
     // Only allow adding cards during building phase
-    if (session.phase !== 'building') return
+    if (session.phase !== 'building') {
+      console.log('[handleAddCardFromChat] Rejected: not in building phase')
+      return
+    }
 
     // Don't add duplicates
-    if (deckState.cards.some(c => c.card_name === cardName)) return
+    if (deckState.cards.some(c => c.card_name === cardName)) {
+      console.log('[handleAddCardFromChat] Rejected: card already in deck')
+      return
+    }
 
+    console.log('[handleAddCardFromChat] Adding card to deck')
+    
     // Create a deck card entry (CMC will be enriched async)
     const newCard: DeckCard = {
       card_name: cardName,
@@ -530,10 +732,8 @@ export default function BrewModePage() {
     const { x, y } = getNextOpenPosition(existing, 140, 195, 1200, 16)
     handlePositionUpdate(cardName, { x, y })
 
-    // Enrich with Scryfall data async (CMC, type_line)
-    fetch(`https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}`, {
-      headers: { 'User-Agent': 'The-Oracle/1.0' },
-    })
+    // Enrich with DB data async (CMC, type_line)
+    fetch(`/api/cards?name=${encodeURIComponent(frontFace(cardName))}&action=enrich`)
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (data) {
@@ -542,7 +742,7 @@ export default function BrewModePage() {
             card_name: cardName,
             cmc: data.cmc ?? 0,
             type_line: data.type_line ?? '',
-            oracle_text: data.oracle_text ?? '',
+            oracle_text: '',
           })
         }
       })
@@ -572,6 +772,7 @@ export default function BrewModePage() {
           message: text,
           history: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })),
           modelId: selectedModelId,
+          collectionMode: session.collectionMode,
         }),
       })
 
@@ -644,20 +845,50 @@ export default function BrewModePage() {
                   messageCost = parsed.estimatedCost
                 } else if (parsed.type === 'candidates' && Array.isArray(parsed.commanders)) {
                   // Structured commander candidates from display_commander_candidates tool
-                  console.log('[brew-canvas] Received candidates SSE event:', parsed.commanders.length, 'commanders:', parsed.commanders.map((c: { name: string }) => c.name))
-                  const newCandidates: CommanderOption[] = parsed.commanders.map((cmd: { name: string; color_identity?: string[] }) => ({
+                  const displayNames = parsed.commanders.map((c: { name: string; partner_name?: string }) => 
+                    c.partner_name ? `${c.name} & ${c.partner_name}` : c.name
+                  )
+                  console.log('[brew-canvas] Received candidates SSE event:', parsed.commanders.length, 'commanders:', displayNames)
+                  const newCandidates: CommanderOption[] = parsed.commanders.map((cmd: { 
+                    name: string
+                    partner_name?: string
+                    color_identity?: string[]
+                    leadership_type?: LeadershipType 
+                  }) => ({
                     name: cmd.name,
-                    artUrl: `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cmd.name)}&format=image&version=art_crop`,
+                    artUrl: '', // Will be populated async from DB
                     colourIdentity: cmd.color_identity ?? [],
                     description: '',
                     owned: false,
                     scryfallId: cmd.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+                    partnerName: cmd.partner_name,
+                    partnerScryfallId: cmd.partner_name?.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+                    leadershipType: cmd.leadership_type ?? (cmd.partner_name ? 'partner' : 'single'),
                   }))
                   setCandidateCards(prev => {
                     // Merge new candidates with existing (dedup by name)
                     const existingNames = new Set(prev.map(c => c.name))
                     const fresh = newCandidates.filter(c => !existingNames.has(c.name))
                     console.log('[brew-canvas] Adding', fresh.length, 'new candidates to canvas (existing:', prev.length, ')')
+                    
+                    // Fetch art URLs for new candidates from DB
+                    for (const candidate of fresh) {
+                      fetch(`/api/cards?name=${encodeURIComponent(frontFace(candidate.name))}&action=printing`)
+                        .then(res => res.ok ? res.json() : null)
+                        .then(printing => {
+                          if (printing?.image_uri_art_crop) {
+                            setCandidateCards(cards => 
+                              cards.map(c => 
+                                c.name === candidate.name 
+                                  ? { ...c, artUrl: printing.image_uri_art_crop }
+                                  : c
+                              )
+                            )
+                          }
+                        })
+                        .catch(() => {})
+                    }
+                    
                     return [...prev, ...fresh]
                   })
                 } else if (parsed.type === 'add_cards' && Array.isArray(parsed.cards)) {
@@ -683,10 +914,8 @@ export default function BrewModePage() {
                     const { x, y } = getNextOpenPosition(existing, 140, 195, 1200, 16)
                     handlePositionUpdate(cardData.name, { x, y })
 
-                    // Enrich async
-                    fetch(`https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardData.name)}`, {
-                      headers: { 'User-Agent': 'The-Oracle/1.0' },
-                    })
+                    // Enrich async from DB
+                    fetch(`/api/cards?name=${encodeURIComponent(frontFace(cardData.name))}&action=enrich`)
                       .then(res => res.ok ? res.json() : null)
                       .then(data => {
                         if (data) {
@@ -695,12 +924,27 @@ export default function BrewModePage() {
                             card_name: cardData.name,
                             cmc: data.cmc ?? 0,
                             type_line: data.type_line ?? '',
-                            oracle_text: data.oracle_text ?? '',
+                            oracle_text: '',
                           })
                         }
                       })
                       .catch(() => {})
                   }
+                } else if (parsed.type === 'commander_summary' && parsed.summary) {
+                  // Structured commander summary from present_commander_summary tool
+                  console.log('[brew-chat] Received commander_summary SSE event:', parsed.summary.name, 'owned:', parsed.summary.collection_status?.owned, 'image_uri:', parsed.summary.image_uri || '(empty)')
+                  // Add the summary as a special message immediately so it appears inline
+                  const summaryMsg: ChatMessage = {
+                    id: `summary-${Date.now()}`,
+                    role: 'assistant',
+                    content: '', // Content rendered via commanderSummary field
+                    timestamp: Date.now(),
+                    commanderSummary: {
+                      type: 'commander_summary',
+                      ...parsed.summary,
+                    },
+                  }
+                  setMessages((prev) => [...prev, summaryMsg])
                 }
               }
               if (typeof parsed === 'string') {
@@ -755,21 +999,49 @@ export default function BrewModePage() {
   }
 
   return (
-    <div className="flex h-screen flex-col">
-      {/* Topbar — switches based on phase */}
-      <BrewTopbar
-        phase={session.phase}
-        commander={session.commander}
-        onBack={handleBack}
-        selectedModelId={selectedModelId}
-        onModelChange={handleModelChange}
-        isStreaming={isStreaming}
-        isSaving={isSaving}
-        lastSavedAt={lastSavedAt}
-      />
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#0a0a0a]">
+      {/* Topbar — minimal for exploration, full for building */}
+      {session.phase === 'exploring' ? (
+        <div className="flex-none flex items-center px-6 py-4 border-b border-zinc-800/50">
+          <button
+            onClick={handleBack}
+            className="text-[14px] text-zinc-500 hover:text-white transition-colors"
+          >
+            ←
+          </button>
+          <h1 className="ml-4 text-[14px] font-medium text-emerald-400">
+            {messages.length > 0 && messages[0].role === 'user' 
+              ? inferDeckName(messages[0].content)
+              : 'New Brew'}
+          </h1>
+        </div>
+      ) : (
+        <BrewTopbar
+          phase={session.phase}
+          commander={session.commander}
+          onBack={handleBack}
+          selectedModelId={selectedModelId}
+          onModelChange={handleModelChange}
+          isStreaming={isStreaming}
+          isSaving={isSaving}
+          lastSavedAt={lastSavedAt}
+          collectionMode={session.collectionMode}
+          onCollectionModeChange={handleCollectionModeChange}
+        />
+      )}
 
-      {/* Main content — flex row: Canvas (flex-1) + ChatPanel (fixed 220px) */}
-      <div className="flex flex-1 min-h-0">
+      {/* Main content — chat view for exploration (no candidates), canvas otherwise */}
+      {session.phase === 'exploring' && candidateCards.length === 0 ? (
+        <BrewChatView
+          messages={messages}
+          onSend={handleSendMessage}
+          isStreaming={isStreaming}
+          activeTools={activeTools}
+          hasCommander={!!session.commander}
+          onCommitCommander={handleCommitCommander}
+          onAddCard={handleAddCardFromChat}
+        />
+      ) : (
         <BrewCanvas
           phase={session.phase}
           commander={session.commander}
@@ -785,16 +1057,42 @@ export default function BrewModePage() {
           explorationArchive={deckState.explorationArchive}
           onArchivePhase1={handleArchivePhase1}
         />
-        <ChatPanel
-          messages={messages}
-          onSend={handleSendMessage}
-          inputRef={chatInputRef}
-          handleRef={chatHandleRef}
-          isStreaming={isStreaming}
-          activeTools={activeTools}
-          onCardClick={session.phase === 'building' ? handleAddCardFromChat : undefined}
-        />
-      </div>
+      )}
+
+      {/* Card detail modal — opens when card name is clicked */}
+      <CommanderDetailModal
+        cardName={selectedCard}
+        onClose={() => setSelectedCard(null)}
+        onSelectCommander={session.phase === 'building' ? undefined : handleCommitCommander}
+        hideSelectButton={session.phase === 'building' || !!session.commander}
+      />
     </div>
   )
+}
+
+// ---------------------------------------------------------------------------
+// Utils — Deck name inference
+// ---------------------------------------------------------------------------
+
+/** Infer a deck name from the user's first message */
+function inferDeckName(message: string): string {
+  // Common patterns: "I want to build a X deck", "build around X", "X commander"
+  const patterns = [
+    /(?:build|make|create|brew)\s+(?:a\s+)?(.+?)\s+deck/i,
+    /(?:build|brew)\s+(?:around\s+)?(.+)/i,
+    /(.+?)\s+(?:deck|commander|build)/i,
+  ]
+  
+  for (const pattern of patterns) {
+    const match = message.match(pattern)
+    if (match) {
+      const name = match[1].trim()
+      // Capitalize first letter of each word
+      return name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') + ' Deck'
+    }
+  }
+  
+  // Fallback: just use first few words
+  const words = message.split(' ').slice(0, 3).join(' ')
+  return words.charAt(0).toUpperCase() + words.slice(1)
 }

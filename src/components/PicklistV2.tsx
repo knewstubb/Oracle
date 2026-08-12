@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { CardHoverPreview, useCardHoverPreview } from '@/components/CardHoverPreview'
+import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
 import type { RankedCandidate } from '@/lib/allocation-candidates'
 
 // ---------------------------------------------------------------------------
@@ -134,7 +135,7 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
   const [tier4Loading, setTier4Loading] = useState(false)
 
   const { data: picklist, isLoading } = useQuery<PicklistResponse>({
-    queryKey: ['picklist', deckId],
+    queryKey: deckKeys.picklist(deckId),
     queryFn: () => fetch(`/api/decks/${deckId}/picklist`).then(r => {
       if (!r.ok) throw new Error('Failed to load picklist')
       return r.json()
@@ -181,10 +182,8 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
       return res.json()
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['picklist', deckId] })
-      queryClient.invalidateQueries({ queryKey: ['picklist', String(deckId)] })
-      queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'card-statuses'] })
-      queryClient.invalidateQueries({ queryKey: ['decks', String(deckId), 'card-statuses'] })
+      const { invalidateCardState } = createDeckInvalidators(queryClient)
+      invalidateCardState(deckId)
     },
   })
 
@@ -198,15 +197,13 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || 'Claim failed')
+        throw new Error(err.error || 'Pull failed')
       }
       return res.json()
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['picklist', deckId] })
-      queryClient.invalidateQueries({ queryKey: ['picklist', String(deckId)] })
-      queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'card-statuses'] })
-      queryClient.invalidateQueries({ queryKey: ['decks', String(deckId), 'card-statuses'] })
+      const { invalidateCardState } = createDeckInvalidators(queryClient)
+      invalidateCardState(deckId)
     },
   })
 
@@ -247,7 +244,7 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
       }
       // Tier 3 (brewing/graveyard): instant
       claimMutation.mutate({ deckCardsId: card.deckCardsId, physicalCopyId: candidate.entry.physicalCopyId })
-      toast.success(`Claimed ${card.cardName}`)
+      toast.success(`Pulled ${card.cardName}`)
     } else {
       // Available: assign
       assignMutation.mutate({ deckCardsId: card.deckCardsId, physicalCopyId: candidate.entry.physicalCopyId })
@@ -379,7 +376,7 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
                         className="hover:bg-[rgba(29,158,117,0.15)] hover:scale-105 transition-all"
                         style={{ color: 'rgba(29,158,117,0.7)', borderColor: 'rgba(29,158,117,0.5)' }}
                       >
-                        Claim
+                        Pull
                       </Button>
                     }
                   />
@@ -416,7 +413,7 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
                         onClick={() => handleClaim(card, candidate)}
                         className="hover:bg-[rgba(245,136,11,0.15)] hover:scale-105 transition-all" style={{ color: '#F5880B', borderColor: '#F5880B' }}
                       >
-                        Claim
+                        Pull
                       </Button>
                     }
                   />
@@ -469,9 +466,9 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
               deckCardsId: tier4Pending.card.deckCardsId,
               physicalCopyId: tier4Pending.candidate.entry.physicalCopyId,
             })
-            toast.success(`Claimed ${tier4Pending.card.cardName}`)
+            toast.success(`Pulled ${tier4Pending.card.cardName}`)
           } catch (err) {
-            toast.error(err instanceof Error ? err.message : 'Claim failed')
+            toast.error(err instanceof Error ? err.message : 'Pull failed')
           } finally {
             setTier4Loading(false)
             setTier4Pending(null)
@@ -598,8 +595,32 @@ function formatDeckStatus(status: string): string {
 // Progress Bar
 // ---------------------------------------------------------------------------
 
-export function PicklistProgress({ cards, progress, action }: { cards: PicklistCard[]; progress: { resolved: number; total: number }; action?: React.ReactNode }) {
+interface ProgressCounts {
+  original: number
+  proxy: number
+  available: number
+  claimed: number
+  unowned: number
+  total: number
+}
+
+export function PicklistProgress({ cards, progress, counts: propCounts, action }: { 
+  cards?: PicklistCard[]
+  progress?: { resolved: number; total: number }
+  counts?: ProgressCounts
+  action?: React.ReactNode 
+}) {
   const counts = useMemo(() => {
+    // If counts are provided directly, use them
+    if (propCounts) {
+      return propCounts
+    }
+    
+    // Otherwise calculate from cards array (legacy behavior)
+    if (!cards || !progress) {
+      return { original: 0, proxy: 0, available: 0, claimed: 0, unowned: 0, total: 0 }
+    }
+    
     let original = 0
     let proxy = 0
     let available = 0
@@ -630,21 +651,26 @@ export function PicklistProgress({ cards, progress, action }: { cards: PicklistC
     if (landsCount > 0) original += landsCount
 
     return { original, proxy, available, claimed, unowned, total: progress.total }
-  }, [cards, progress])
+  }, [cards, progress, propCounts])
 
-  const resolved = counts.original + counts.proxy
-  const pctOriginal = (counts.original / counts.total) * 100
-  const pctProxy = (counts.proxy / counts.total) * 100
-  const pctAvailable = (counts.available / counts.total) * 100
-  const pctClaimed = (counts.claimed / counts.total) * 100
-  const pctUnowned = (counts.unowned / counts.total) * 100
+  const physicalCopies = counts.original + counts.proxy
+  const deckSize = 100 // Commander deck size
+  const emptySlots = deckSize - counts.total // Slots with no card added yet
+  
+  // Calculate percentages based on deck size (100), not current total
+  const pctOriginal = (counts.original / deckSize) * 100
+  const pctProxy = (counts.proxy / deckSize) * 100
+  const pctAvailable = (counts.available / deckSize) * 100
+  const pctClaimed = (counts.claimed / deckSize) * 100
+  const pctUnowned = (counts.unowned / deckSize) * 100
+  const pctEmpty = (emptySlots / deckSize) * 100
 
   return (
     <div className="mb-6 rounded-lg border border-white/[0.08] px-4 py-3" style={{ backgroundColor: 'rgba(26,26,30,0.5)' }}>
       {/* Count label + legend */}
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <span className="text-[length:var(--fs-sm)] font-medium text-foreground">
-          {resolved}/{counts.total} Cards filled
+          {counts.total}/100 slots · {physicalCopies} copies added
         </span>
         <div className="flex flex-wrap items-center gap-2 md:gap-3 text-[length:var(--fs-xs)] text-muted-foreground">
           <span className="inline-flex items-center gap-1">
@@ -656,8 +682,8 @@ export function PicklistProgress({ cards, progress, action }: { cards: PicklistC
             {counts.proxy} Proxy
           </span>
           <span className="inline-flex items-center gap-1">
-            <span className="size-2 rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.12)' }} />
-            {counts.available} In storage
+            <span className="size-2 rounded-full" style={{ backgroundColor: '#25513B' }} />
+            {counts.available} Available
           </span>
           <span className="inline-flex items-center gap-1">
             <span className="size-2 rounded-full" style={{ backgroundColor: '#F5880B' }} />
@@ -670,23 +696,26 @@ export function PicklistProgress({ cards, progress, action }: { cards: PicklistC
         </div>
       </div>
 
-      {/* Stacked bar + action */}
+      {/* Stacked bar with 1px gaps + action */}
       <div className="flex items-center gap-3">
-        <div className="flex h-2 flex-1 overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
+        <div className="flex h-2 flex-1 items-center gap-px rounded-full bg-[rgba(255,255,255,0.06)] overflow-hidden">
           {pctOriginal > 0 && (
-            <div style={{ width: `${pctOriginal}%`, backgroundColor: 'var(--signal-success)' }} className="transition-all" />
+            <div style={{ width: `${pctOriginal}%`, backgroundColor: 'var(--signal-success)' }} className="h-full transition-all" />
           )}
           {pctProxy > 0 && (
-            <div style={{ width: `${pctProxy}%`, backgroundColor: '#489ADE' }} className="transition-all" />
+            <div style={{ width: `${pctProxy}%`, backgroundColor: '#489ADE' }} className="h-full transition-all" />
           )}
           {pctAvailable > 0 && (
-            <div style={{ width: `${pctAvailable}%`, backgroundColor: 'rgba(255,255,255,0.12)' }} className="transition-all" />
+            <div style={{ width: `${pctAvailable}%`, backgroundColor: '#25513B' }} className="h-full transition-all" />
           )}
           {pctClaimed > 0 && (
-            <div style={{ width: `${pctClaimed}%`, backgroundColor: '#F5880B' }} className="transition-all" />
+            <div style={{ width: `${pctClaimed}%`, backgroundColor: '#F5880B' }} className="h-full transition-all" />
           )}
           {pctUnowned > 0 && (
-            <div style={{ width: `${pctUnowned}%`, backgroundColor: '#EF44BF' }} className="transition-all" />
+            <div style={{ width: `${pctUnowned}%`, backgroundColor: '#EF44BF' }} className="h-full transition-all" />
+          )}
+          {pctEmpty > 0 && (
+            <div style={{ width: `${pctEmpty}%`, backgroundColor: 'rgba(128,128,128,0.4)' }} className="h-full transition-all" />
           )}
         </div>
         {action && <div className="shrink-0">{action}</div>}

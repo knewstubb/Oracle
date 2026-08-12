@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       // INSERT into decks — use a generated ID since brew decks are Oracle-native
       // Generate a unique ID for Oracle-native decks (Archidekt uses their own IDs)
       const generatedId = Date.now()
-      const { data: deckData, error: deckErr } = await supabase
+      const { data: deckData, error: deckErr } = await (supabase as any)
         .from('decks')
         .insert({
           id: generatedId,
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
           commander_name: skeleton.commanderName,
           colour_identity: skeleton.colourIdentity.join(','),
           user_id: userId,
-          status: 'brewing',
+          is_active: false, // New brew decks start inactive
         })
         .select('id')
         .single()

@@ -1,8 +1,8 @@
 /**
  * GET /api/cards/owned-printings?cardName=Sol Ring
  *
- * Returns all scryfall_printing_ids the user owns for a given card name,
- * with location info (which deck or binder each copy is in).
+ * Returns all printing_ids the user owns for a given card name,
+ * with location info (which deck or storage location each copy is in).
  */
 
 import { NextRequest } from 'next/server'
@@ -11,8 +11,8 @@ import { createAdminClient } from '@/lib/supabase'
 
 interface OwnedPrinting {
   scryfallPrintingId: string
-  location: string // "In deck: Omnath" or "Binder: Trade Binder" or "Unsorted"
-  isFoil: boolean
+  location: string // "In deck: Omnath" or "Binder: Trade Binder" or "Sorting Pile"
+  finish: 'nonfoil' | 'foil' | 'etched'
   condition: string | null
 }
 
@@ -28,60 +28,58 @@ export async function GET(request: NextRequest) {
 
   const supabase = createAdminClient()
 
-  // Find card_definition IDs for this card name
-  const { data: defs } = await supabase
-    .from('card_definitions')
+  // Find card IDs for this card name
+  const { data: cards } = await supabase
+    .from('user_cards')
     .select('id')
     .eq('card_name', cardName)
     .eq('user_id', userId)
 
-  if (!defs || defs.length === 0) {
+  if (!cards || cards.length === 0) {
     return Response.json({ printingIds: [], printings: [] })
   }
 
-  const defIds = defs.map(d => d.id)
+  const cardIds = cards.map(c => c.id)
 
-  // Get all physical copies with location data
+  // Get all collection copies with location data
+  // Location is now unified: locations table has type='storage' or type='deck'
   const { data: copies } = await supabase
-    .from('physical_copies')
+    .from('user_copies')
     .select(`
       id,
-      scryfall_printing_id,
-      is_foil,
+      printing_id,
+      finish,
       condition,
-      storage_location_id,
-      storage_locations(name),
-      deck_cards!deck_cards_physical_copy_id_fkey(
-        deck_id,
-        decks!deck_cards_deck_id_fkey(name)
-      )
+      location_id,
+      locations(name, type, deck_id)
     `)
     .eq('user_id', userId)
-    .in('card_definition_id', defIds)
-    .not('scryfall_printing_id', 'is', null)
+    .in('card_id', cardIds)
+    .not('printing_id', 'is', null)
 
   const printings: OwnedPrinting[] = []
   const printingIds: string[] = []
 
   for (const copy of copies ?? []) {
-    if (!copy.scryfall_printing_id) continue
+    if (!copy.printing_id) continue
 
-    printingIds.push(copy.scryfall_printing_id)
+    printingIds.push(copy.printing_id)
 
-    // Determine location
-    let location = 'Unsorted'
-    const deckCards = (copy as any).deck_cards
-    if (deckCards && deckCards.length > 0) {
-      const deckName = deckCards[0].decks?.name ?? 'Unknown deck'
-      location = `In deck: ${deckName}`
-    } else if ((copy as any).storage_locations?.name) {
-      location = `Binder: ${(copy as any).storage_locations.name}`
+    // Determine location from unified locations table
+    let location = 'Sorting Pile'
+    const loc = (copy as any).locations
+    if (loc) {
+      if (loc.type === 'deck') {
+        location = `In deck: ${loc.name}`
+      } else if (loc.type === 'storage') {
+        location = `Binder: ${loc.name}`
+      }
     }
 
     printings.push({
-      scryfallPrintingId: copy.scryfall_printing_id,
+      scryfallPrintingId: copy.printing_id,
       location,
-      isFoil: copy.is_foil,
+      finish: (copy.finish as 'nonfoil' | 'foil' | 'etched') ?? 'nonfoil',
       condition: copy.condition,
     })
   }

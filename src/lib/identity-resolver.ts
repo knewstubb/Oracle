@@ -131,6 +131,8 @@ export function mapCondition(csvCondition: string): {
  * "Normal" (exact, case-sensitive) → false.
  * Any other non-empty string → true.
  * Empty/whitespace-only → false.
+ * 
+ * @deprecated Use mapFinishToFinishString for new code — returns string instead of boolean
  */
 export function mapFinishToFoil(finish: string): boolean {
   const trimmed = finish.trim()
@@ -149,13 +151,45 @@ export function mapFinishToFoil(finish: string): boolean {
   return true
 }
 
+/**
+ * Map a CSV finish string to the collection.finish column value.
+ * Normalizes various CSV formats to: 'nonfoil' | 'foil' | 'etched'
+ *
+ * Mapping:
+ *   - "Normal", "normal", "", empty → "nonfoil"
+ *   - "Foil", "foil", "true", "yes" → "foil"
+ *   - "Etched", "etched" → "etched"
+ *   - Any other non-empty string → "foil" (fallback for unknown foil types)
+ */
+export function mapFinishToFinishString(finish: string): string {
+  const trimmed = finish.trim().toLowerCase()
+
+  // Empty or whitespace-only → nonfoil
+  if (trimmed === '') {
+    return 'nonfoil'
+  }
+
+  // Normal/non-foil variants
+  if (trimmed === 'normal' || trimmed === 'non-foil' || trimmed === 'nonfoil' || trimmed === 'false' || trimmed === 'no') {
+    return 'nonfoil'
+  }
+
+  // Etched
+  if (trimmed === 'etched') {
+    return 'etched'
+  }
+
+  // Any other non-empty value → foil (covers "foil", "true", "yes", unknown foil variants)
+  return 'foil'
+}
+
 // ---------------------------------------------------------------------------
 // Supabase-backed oracle_id resolution
 // ---------------------------------------------------------------------------
 
 /**
- * Look up an oracle_id for a given scryfall_printing_id from the
- * oracle_to_printings table in Supabase.
+ * Look up an oracle_id for a given scryfall printing ID from the
+ * ref_printings table in Supabase.
  *
  * Returns the oracle_id string, or null if no mapping exists.
  */
@@ -165,9 +199,9 @@ export async function resolveOracleIdFromPrinting(
   const supabase = createAdminClient()
 
   const { data, error } = await supabase
-    .from('oracle_to_printings')
+    .from('ref_printings')
     .select('oracle_id')
-    .eq('scryfall_printing_id', scryfallPrintingId)
+    .eq('scryfall_id', scryfallPrintingId)
     .maybeSingle()
 
   if (error) {
@@ -180,8 +214,8 @@ export async function resolveOracleIdFromPrinting(
 }
 
 /**
- * Look up all scryfall_printing_ids for a given oracle_id from the
- * oracle_to_printings table in Supabase.
+ * Look up all scryfall printing IDs for a given oracle_id from the
+ * ref_printings table in Supabase.
  *
  * Returns an array of printing IDs, or empty array if none found.
  */
@@ -191,8 +225,8 @@ export async function resolvePrintingsForOracleId(
   const supabase = createAdminClient()
 
   const { data, error } = await supabase
-    .from('oracle_to_printings')
-    .select('scryfall_printing_id')
+    .from('ref_printings')
+    .select('scryfall_id')
     .eq('oracle_id', oracleId)
 
   if (error) {
@@ -201,12 +235,12 @@ export async function resolvePrintingsForOracleId(
     )
   }
 
-  return (data ?? []).map((row) => row.scryfall_printing_id)
+  return (data ?? []).map((row) => row.scryfall_id)
 }
 
 /**
- * Resolve a card_definition from Supabase given an oracle_id.
- * Returns the card definition row, or null if not found.
+ * Resolve a user_cards entry from Supabase given an oracle_id.
+ * Returns the card row, or null if not found.
  */
 export async function resolveCardDefinitionByOracleId(
   oracleId: string
@@ -214,14 +248,14 @@ export async function resolveCardDefinitionByOracleId(
   const supabase = createAdminClient()
 
   const { data, error } = await supabase
-    .from('card_definitions')
+    .from('user_cards')
     .select('id, oracle_id, card_name')
     .eq('oracle_id', oracleId)
     .maybeSingle()
 
   if (error) {
     throw new Error(
-      `Failed to resolve card definition for oracle_id ${oracleId}: ${error.message}`
+      `Failed to resolve user_cards for oracle_id ${oracleId}: ${error.message}`
     )
   }
 
@@ -235,11 +269,11 @@ export async function resolveCardDefinitionByOracleId(
 }
 
 /**
- * Resolve a card_definition from Supabase given a scryfall_printing_id.
- * First resolves printing → oracle_id via oracle_to_printings,
- * then looks up the card_definition by oracle_id.
+ * Resolve a user_cards entry from Supabase given a scryfall printing ID.
+ * First resolves printing → oracle_id via ref_printings,
+ * then looks up the user_cards by oracle_id.
  *
- * Returns the card definition row, or null if not found.
+ * Returns the card row, or null if not found.
  */
 export async function resolveCardDefinitionByPrintingId(
   scryfallPrintingId: string
@@ -251,10 +285,10 @@ export async function resolveCardDefinitionByPrintingId(
 }
 
 /**
- * Batch resolve oracle_ids for multiple scryfall_printing_ids.
+ * Batch resolve oracle_ids for multiple scryfall printing IDs.
  * More efficient than calling resolveOracleIdFromPrinting in a loop.
  *
- * Returns a Map from scryfall_printing_id → oracle_id.
+ * Returns a Map from scryfall_id → oracle_id.
  * Entries with no mapping are omitted from the result.
  */
 export async function batchResolveOracleIds(
@@ -271,9 +305,9 @@ export async function batchResolveOracleIds(
     const chunk = scryfallPrintingIds.slice(i, i + CHUNK_SIZE)
 
     const { data, error } = await supabase
-      .from('oracle_to_printings')
-      .select('oracle_id, scryfall_printing_id')
-      .in('scryfall_printing_id', chunk)
+      .from('ref_printings')
+      .select('oracle_id, scryfall_id')
+      .in('scryfall_id', chunk)
 
     if (error) {
       throw new Error(
@@ -282,7 +316,9 @@ export async function batchResolveOracleIds(
     }
 
     for (const row of data ?? []) {
-      result.set(row.scryfall_printing_id, row.oracle_id)
+      if (row.oracle_id) {
+        result.set(row.scryfall_id, row.oracle_id)
+      }
     }
   }
 
@@ -290,30 +326,14 @@ export async function batchResolveOracleIds(
 }
 
 /**
- * Ensure an oracle_to_printings mapping exists in Supabase.
- * Inserts the mapping if it doesn't already exist (upsert behavior).
- *
- * Used during CSV import to record new printing→oracle relationships
- * discovered from Scryfall bulk data.
+ * Ensure ref_printings has the mapping — no-op since ref_printings is read-only
+ * and populated by sync jobs. This function is kept for API compatibility.
  */
 export async function ensureOracleToPrintingMapping(
-  oracleId: string,
-  scryfallPrintingId: string
+  _oracleId: string,
+  _scryfallPrintingId: string
 ): Promise<void> {
-  const supabase = createAdminClient()
-
-  const { error } = await supabase
-    .from('oracle_to_printings')
-    .upsert(
-      { oracle_id: oracleId, scryfall_printing_id: scryfallPrintingId },
-      { onConflict: 'oracle_id,scryfall_printing_id' }
-    )
-
-  if (error) {
-    throw new Error(
-      `Failed to ensure oracle_to_printings mapping (${oracleId}, ${scryfallPrintingId}): ${error.message}`
-    )
-  }
+  // No-op: ref_printings is populated by sync jobs, not runtime imports
 }
 
 // ---------------------------------------------------------------------------

@@ -52,13 +52,22 @@ export async function POST(request: NextRequest) {
       ''
     const cardNames = (cards ?? []).map((c) => c.card_name)
 
-    // Fetch collection for owned checks
+    // Fetch collection for owned checks — join through user_cards for card_name
     const { data: collection } = await supabase
-      .from('collection')
-      .select('card_name, quantity')
+      .from('user_copies')
+      .select(`
+        id,
+        user_cards!user_copies_card_id_fkey ( card_name )
+      `)
+      .eq('is_proxy', false)
 
     const ownedSet = new Set(
-      (collection ?? []).map((c) => c.card_name.toLowerCase())
+      (collection ?? [])
+        .map((c) => {
+          const cardInfo = c.user_cards as unknown as { card_name: string } | null
+          return cardInfo?.card_name?.toLowerCase()
+        })
+        .filter(Boolean) as string[]
     )
 
     // Run MCP calls in parallel: build-around for adds, suggest-cuts for cuts

@@ -10,7 +10,7 @@
 
 import { createAdminClient } from '@/lib/supabase'
 import { fetchMoxfieldDeck } from '@/lib/moxfield-client'
-import { importDeckExistingCollection } from '@/lib/deck-import'
+import { importDeckDesign } from '@/lib/deck-import'
 import { normalizeMoxfieldDeck } from '@/lib/deck-normalizer'
 import { fetchEnrichedSupply, classifyTier, scoreCandidate } from '@/lib/allocation-candidates'
 import type { EnrichedSupplyEntry } from '@/lib/allocation-candidates'
@@ -25,15 +25,15 @@ import type { BatchResolutionResult, DeckResolutionResult, ContentionEntry } fro
  *
  * For each deck:
  * 1. Fetch full deck data from Moxfield (fetchMoxfieldDeck)
- * 2. Normalize and import the deck (creates deck + deck_cards rows with status 'in_rotation')
+ * 2. Normalize and import the deck (creates deck + deck_cards rows)
  * 3. For each unresolved deck_cards row, find candidates via fetchEnrichedSupply
- * 4. Assign from Tiers 1–3 only
- * 5. Anything that would need Tier 4 or higher → left unresolved
+ * 4. Assign from Tiers 1–2 only (Tier 3 requires user decision)
+ * 5. Anything that would need Tier 3 or higher → left unresolved
  */
 export async function resolveMoxfieldDeckBatch(
   publicIds: string[],
   userId: string,
-  deckStatuses?: Record<string, 'brewing' | 'in_rotation'>
+  deckActiveStates?: Record<string, boolean>
 ): Promise<BatchResolutionResult> {
   const startTime = Date.now()
   const results: DeckResolutionResult[] = []
@@ -41,8 +41,8 @@ export async function resolveMoxfieldDeckBatch(
   let totalUnresolved = 0
 
   for (const publicId of publicIds) {
-    const status = deckStatuses?.[publicId] ?? 'in_rotation'
-    const result = await resolveSingleMoxfieldDeck(publicId, userId, status)
+    const isActive = deckActiveStates?.[publicId] ?? true
+    const result = await resolveSingleMoxfieldDeck(publicId, userId, isActive)
     results.push(result)
     totalMatched += result.matched
     totalUnresolved += result.unresolved
@@ -101,7 +101,7 @@ export async function resolveMoxfieldDeckBatch(
 async function resolveSingleMoxfieldDeck(
   publicId: string,
   userId: string,
-  deckStatus: 'brewing' | 'in_rotation' = 'in_rotation'
+  isActive: boolean = true
 ): Promise<DeckResolutionResult> {
   const errors: string[] = []
   const supabase = createAdminClient()
@@ -140,10 +140,10 @@ async function resolveSingleMoxfieldDeck(
     }
   }
 
-  // Step 3: Import the deck (creates deck + deck_cards rows with status 'in_rotation')
+  // Step 3: Import the deck (creates deck + deck_cards rows)
   let importedDeckId: number
   try {
-    const importResult = await importDeckExistingCollection(normalizedDeck, userId, { status: deckStatus, skipAutoAssign: true })
+    const importResult = await importDeckDesign(normalizedDeck, userId, { isActive })
     importedDeckId = importResult.deckId
   } catch (err) {
     return {
@@ -162,7 +162,7 @@ async function resolveSingleMoxfieldDeck(
     .from('deck_cards')
     .select('id, card_name')
     .eq('deck_id', importedDeckId)
-    .is('physical_copy_id', null)
+    .is('copy_id', null)
 
   if (fetchErr) {
     errors.push(`Failed to fetch unresolved deck_cards: ${fetchErr.message}`)
@@ -238,7 +238,7 @@ async function resolveSingleMoxfieldDeck(
       if (candidate.assignedTo) {
         const { error: clearErr } = await supabase
           .from('deck_cards')
-          .update({ physical_copy_id: null, ownership_status: null })
+          .update({ copy_id: null, ownership_status: null })
           .eq('id', candidate.assignedTo.deckCardsId)
 
         if (clearErr) {
@@ -251,7 +251,7 @@ async function resolveSingleMoxfieldDeck(
       const { error: assignErr } = await supabase
         .from('deck_cards')
         .update({
-          physical_copy_id: candidate.physicalCopyId,
+          copy_id: candidate.physicalCopyId,
           ownership_status: ownershipStatus,
         })
         .eq('id', deckCardsId)

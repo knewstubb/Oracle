@@ -40,12 +40,12 @@ export async function POST(
     return Response.json({ error: 'Deck not found' }, { status: 404 })
   }
 
-  // Clear all claims: set physical_copy_id and ownership_status to null
+  // Clear all claims: set copy_id and ownership_status to null
   const { error: updateErr, count } = await supabase
     .from('deck_cards')
-    .update({ physical_copy_id: null, ownership_status: null })
+    .update({ copy_id: null, ownership_status: null })
     .eq('deck_id', deckId)
-    .not('physical_copy_id', 'is', null)
+    .not('copy_id', 'is', null)
 
   if (updateErr) {
     return Response.json({ error: updateErr.message }, { status: 500 })

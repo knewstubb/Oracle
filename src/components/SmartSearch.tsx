@@ -25,7 +25,9 @@ interface SmartSearchProps {
 
 function getScryfallNormalUrl(name: string): string {
   // Use Scryfall's named card image API
-  return `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(name)}&format=image&version=normal`
+  // For DFCs (double-faced cards), use front face name only
+  const cardName = name.includes(' // ') ? name.substring(0, name.indexOf(' // ')) : name
+  return `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}&format=image&version=normal`
 }
 
 export function SmartSearch({ currentDeckCards = [] }: SmartSearchProps) {

@@ -7,6 +7,12 @@
  * Columns: Name, Quantity, Edition Code, Edition Name, Collector Number,
  *          Scryfall ID, Scryfall Oracle ID, Finish, Condition, Proxy,
  *          Purchase Price, Date Added
+ *
+ * Schema notes (post-migration):
+ *   - collection table holds all copies
+ *   - finish: 'nonfoil' | 'foil' | 'etched' (replaces is_foil boolean)
+ *   - card_id references cards table (replaces card_definition_id → card_definitions)
+ *   - printing_id references scryfall_printings (replaces scryfall_printing_id)
  */
 
 import { NextRequest } from 'next/server'
@@ -22,26 +28,24 @@ export async function GET(request: NextRequest) {
 
   const supabase = createAdminClient()
 
-  // Fetch all physical copies with their card definition info
+  // Fetch all collection copies with their card info
   const allCopies: any[] = []
   let offset = 0
 
   while (true) {
     const { data, error } = await supabase
-      .from('physical_copies')
+      .from('user_copies')
       .select(`
         id,
-        scryfall_printing_id,
-        is_foil,
+        printing_id,
+        finish,
         is_proxy,
         condition,
-        missing,
-        purchase_price_usd,
+        purchase_price,
         created_at,
-        card_definitions!physical_copies_card_definition_id_fkey(card_name, oracle_id)
+        user_cards!user_copies_card_id_fkey(card_name, oracle_id)
       `)
       .eq('user_id', userId)
-      .eq('missing', false)
       .order('id', { ascending: true })
       .range(offset, offset + PAGE_SIZE - 1)
 
@@ -55,22 +59,21 @@ export async function GET(request: NextRequest) {
   }
 
   // Resolve set codes and collector numbers from Scryfall printing IDs
-  // We'll fetch from the collection table which caches this info
-  const printingIds = [...new Set(allCopies.map(c => c.scryfall_printing_id).filter(Boolean))]
+  const printingIds = [...new Set(allCopies.map(c => c.printing_id).filter(Boolean))]
   const printingInfoMap = new Map<string, { setCode: string; editionName: string; collectorNumber: string }>()
 
-  // Batch fetch from collection table (has set_code, edition_name)
+  // Batch fetch from ref_printings table
   for (let i = 0; i < printingIds.length; i += PAGE_SIZE) {
     const batch = printingIds.slice(i, i + PAGE_SIZE)
-    const { data: collRows } = await supabase
-      .from('collection')
-      .select('scryfall_id, set_code, edition_name, collector_number')
+    const { data: printingRows } = await supabase
+      .from('ref_printings')
+      .select('scryfall_id, set_code, set_name, collector_number')
       .in('scryfall_id', batch)
 
-    for (const row of collRows ?? []) {
+    for (const row of printingRows ?? []) {
       printingInfoMap.set(row.scryfall_id, {
         setCode: row.set_code ?? '',
-        editionName: row.edition_name ?? '',
+        editionName: row.set_name ?? '',
         collectorNumber: row.collector_number ?? '',
       })
     }
@@ -95,26 +98,27 @@ export async function GET(request: NextRequest) {
   const rows: string[] = [headers.join(',')]
 
   for (const copy of allCopies) {
-    const cardDef = copy.card_definitions as any
-    const cardName = cardDef?.card_name ?? ''
-    const oracleId = cardDef?.oracle_id ?? ''
-    const printingInfo = printingInfoMap.get(copy.scryfall_printing_id) ?? { setCode: '', editionName: '', collectorNumber: '' }
+    const card = copy.user_cards as any
+    const cardName = card?.card_name ?? ''
+    const oracleId = card?.oracle_id ?? ''
+    const printingInfo = printingInfoMap.get(copy.printing_id) ?? { setCode: '', editionName: '', collectorNumber: '' }
 
-    const finish = copy.is_foil ? 'Foil' : 'Normal'
+    // Map finish string to export format
+    const finishLabel = copy.finish === 'foil' ? 'Foil' : copy.finish === 'etched' ? 'Etched' : 'Normal'
     const condition = copy.condition ?? ''
     const isProxy = copy.is_proxy ? 'true' : 'false'
-    const purchasePrice = copy.purchase_price_usd != null ? String(copy.purchase_price_usd) : ''
+    const purchasePrice = copy.purchase_price != null ? String(copy.purchase_price) : ''
     const dateAdded = copy.created_at ? copy.created_at.split('T')[0] : ''
 
     const row = [
       csvEscape(cardName),
-      '1', // Each physical copy is one instance
+      '1', // Each collection copy is one instance
       csvEscape(printingInfo.setCode),
       csvEscape(printingInfo.editionName),
       csvEscape(printingInfo.collectorNumber),
-      copy.scryfall_printing_id ?? '',
+      copy.printing_id ?? '',
       oracleId,
-      finish,
+      finishLabel,
       csvEscape(condition),
       isProxy,
       purchasePrice,

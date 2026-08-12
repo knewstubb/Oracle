@@ -36,6 +36,7 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-primary-text: #4DCB9F;
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-proxy: var(--proxy);

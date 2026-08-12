@@ -12,6 +12,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
 import type { DeckCard } from '@/lib/brew-v2-types'
+import { getUserPreferences, formatPlayerContextPrompt } from '@/lib/user-preferences'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -19,6 +20,8 @@ import type { DeckCard } from '@/lib/brew-v2-types'
 
 interface SkeletonBody {
   sessionId: number
+  /** Collection mode for draft generation (default: 'any') */
+  collectionMode?: 'any' | 'prioritise_owned' | 'owned_only'
 }
 
 interface SessionRow {
@@ -109,7 +112,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   try {
     const body = (await request.json()) as SkeletonBody
-    const { sessionId } = body
+    const { sessionId, collectionMode = 'any' } = body
 
     // --- Validate inputs ---
     if (!sessionId || typeof sessionId !== 'number' || !Number.isInteger(sessionId) || sessionId <= 0) {
@@ -143,8 +146,12 @@ export async function POST(request: NextRequest): Promise<Response> {
       )
     }
 
+    // --- Fetch user preferences for player context ---
+    const userPrefs = await getUserPreferences(authResult.user.id)
+    const playerContext = formatPlayerContextPrompt(userPrefs)
+
     // --- Build context from decision log ---
-    const decisionContext = buildDecisionContext(session)
+    const decisionContext = buildDecisionContext(session, playerContext, collectionMode)
 
     // --- Stream the response ---
     const encoder = new TextEncoder()
@@ -331,7 +338,11 @@ export async function POST(request: NextRequest): Promise<Response> {
  * Builds a user-facing context string from the session's decision log
  * and commander information for the skeleton generation prompt.
  */
-function buildDecisionContext(session: SessionRow): string {
+function buildDecisionContext(
+  session: SessionRow, 
+  playerContext: string,
+  collectionMode: 'any' | 'prioritise_owned' | 'owned_only' = 'any'
+): string {
   const parts: string[] = []
 
   // Commander info
@@ -339,6 +350,20 @@ function buildDecisionContext(session: SessionRow): string {
   if (session.colour_identity) {
     parts.push(`Colour Identity: ${session.colour_identity.split('').join(', ')}`)
   }
+
+  // Collection mode context
+  if (collectionMode === 'owned_only') {
+    parts.push('')
+    parts.push('=== Collection Mode: OWNED ONLY ===')
+    parts.push('CRITICAL: Only include cards from the user\'s collection in the "cards" array.')
+    parts.push('The "suggestions" array can include cards they don\'t own as acquisition targets.')
+  } else if (collectionMode === 'prioritise_owned') {
+    parts.push('')
+    parts.push('=== Collection Mode: PRIORITISE OWNED ===')
+    parts.push('Prefer cards from the user\'s collection when quality is comparable.')
+    parts.push('Include unowned cards only for key synergy pieces or clearly superior options.')
+  }
+  // 'any' mode doesn't need explicit instruction — it's the default behaviour
 
   // Parse decision log
   try {
@@ -373,14 +398,9 @@ function buildDecisionContext(session: SessionRow): string {
     // If decision log is malformed, proceed with just commander info
   }
 
-  // Default constraints from player context
+  // Dynamic player context from user preferences
   parts.push('')
-  parts.push('=== Player Context ===')
-  parts.push('- Bracket: 3-4 (casual-competitive)')
-  parts.push('- No infinite combos (house rule)')
-  parts.push('- No stax or mass land destruction')
-  parts.push('- Prefers engine-based strategies that build and overwhelm')
-  parts.push('- Prioritize synergy over generic goodstuff')
+  parts.push(playerContext)
 
   parts.push('')
   parts.push('Generate the full 99-card deck skeleton with suggestions. Respond with JSON only.')

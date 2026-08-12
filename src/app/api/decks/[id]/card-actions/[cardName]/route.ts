@@ -34,7 +34,7 @@ export interface CardActionContext {
   holders: Array<{
     deckId: number
     deckName: string
-    deckStatus: string
+    isActive: boolean
     physicalCopyId: number
     scryfallPrintingId: string | null
     condition: string | null
@@ -46,7 +46,7 @@ export interface CardActionContext {
   validDecks: Array<{
     deckId: number
     deckName: string
-    deckStatus: string
+    isActive: boolean
   }>
 }
 
@@ -81,21 +81,21 @@ export async function GET(
         // Free copy
         availableCopies.push({
           physicalCopyId: entry.physicalCopyId,
-          scryfallPrintingId: entry.scryfallPrintingId,
-          setName: entry.storageLocationName ?? 'Unknown',
+          scryfallPrintingId: entry.printingId,
+          setName: entry.locationName ?? 'Unknown',
           condition: entry.condition,
-          storageLocationName: entry.storageLocationName,
+          storageLocationName: entry.locationName,
           isProxy: entry.isProxy,
-          isFoil: entry.isFoil,
+          isFoil: entry.finish === 'foil' || entry.finish === 'etched',
         })
       } else if (entry.assignedTo.deckId !== deckId) {
         // Held by another deck (not the current one)
         holders.push({
           deckId: entry.assignedTo.deckId,
           deckName: entry.assignedTo.deckName,
-          deckStatus: entry.assignedTo.deckStatus,
+          isActive: entry.assignedTo.isActive ?? true,
           physicalCopyId: entry.physicalCopyId,
-          scryfallPrintingId: entry.scryfallPrintingId,
+          scryfallPrintingId: entry.printingId,
           condition: entry.condition,
           isProxy: entry.isProxy,
           setCode: null,
@@ -104,20 +104,20 @@ export async function GET(
       }
     }
 
-    // Resolve printing set info for holders (set_code + edition_name)
+    // Resolve printing set info for holders (set_code + set_name) from ref_printings
     const holderPrintingIds = holders
       .map(h => h.scryfallPrintingId)
       .filter((id): id is string => id !== null)
 
     if (holderPrintingIds.length > 0) {
       const { data: printingRows } = await supabase
-        .from('printing_set_info')
-        .select('scryfall_printing_id, set_code, edition_name')
-        .in('scryfall_printing_id', holderPrintingIds)
+        .from('ref_printings')
+        .select('scryfall_id, set_code, set_name')
+        .in('scryfall_id', holderPrintingIds)
 
       if (printingRows) {
         const printingMap = new Map(
-          printingRows.map((r: any) => [r.scryfall_printing_id, { setCode: r.set_code, editionName: r.edition_name }])
+          printingRows.map((r) => [r.scryfall_id, { setCode: r.set_code, editionName: r.set_name }])
         )
         for (const holder of holders) {
           if (holder.scryfallPrintingId) {
@@ -133,27 +133,26 @@ export async function GET(
 
     // Get the card's color identity for valid-deck filtering
     const { data: cardDef } = await supabase
-      .from('card_definitions')
+      .from('user_cards')
       .select('id, color_identity')
       .eq('card_name', cardName)
       .eq('user_id', userId)
-      .maybeSingle()
+      .maybeSingle() as { data: { id: number; color_identity: string | null } | null, error: any }
 
     const cardCI = cardDef?.color_identity
       ? cardDef.color_identity.split(',').map((c: string) => c.trim()).filter(Boolean)
       : []
 
-    // Fetch all active decks (brew + boxed) for valid-deck list
-    const { data: allDecks } = await supabase
+    // Fetch all decks for valid-deck list (all decks claim equally now)
+    const { data: allDecks } = await (supabase as any)
       .from('decks')
-      .select('id, name, status, colour_identity')
+      .select('id, name, is_active, colour_identity')
       .eq('user_id', userId)
-      .in('status', ['brewing', 'in_rotation'])
       .neq('id', deckId) // Exclude the current deck
 
     // Filter to decks whose commander CI is a superset of the card's CI
     const validDecks: CardActionContext['validDecks'] = (allDecks ?? [])
-      .filter((deck) => {
+      .filter((deck: any) => {
         if (cardCI.length === 0) return true // Colorless cards go anywhere
         const deckCI = deck.colour_identity
           ? deck.colour_identity.split(',').map((c: string) => c.trim()).filter(Boolean)
@@ -161,10 +160,10 @@ export async function GET(
         // Deck CI must contain every color in card CI
         return cardCI.every((color: string) => deckCI.includes(color))
       })
-      .map((deck) => ({
+      .map((deck: any) => ({
         deckId: deck.id,
         deckName: deck.name,
-        deckStatus: deck.status,
+        isActive: deck.is_active ?? true,
       }))
 
     // Determine current status for context

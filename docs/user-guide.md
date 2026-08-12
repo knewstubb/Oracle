@@ -1,6 +1,6 @@
 # The Oracle — User Guide
 
-> Last updated: 2026-07-22
+> Last updated: 2026-07-26
 
 ## What is The Oracle?
 
@@ -60,6 +60,21 @@ Each card slot in a deck has one of six statuses:
 - **Categories** (3-column masonry) — grouped by category, compact rows
 - **Table** (single column) — full detail with set icon, edition name, price, mana cost
 - **Gallery** — card images in a grid
+
+### Grouping Options
+
+Use the **Group by** dropdown to organize cards differently:
+
+| Group By | Description |
+|----------|-------------|
+| **Category** | Ramp, Draw, Removal, Creatures, etc. (your assigned categories) |
+| **Type** | Creature, Instant, Sorcery, Artifact, Enchantment, Land, Planeswalker |
+| **Status** | Original, Proxy, Open, Claimed, Unowned |
+| **CMC** | Mana value buckets: 0, 1, 2, 3, 4, 5, 6, 7+ |
+| **Color** | White, Blue, Black, Red, Green, Multicolor, Colorless (WUBRG order) |
+| **Price** | $0–$0.50, $0.50–$1, $1–$2, $2–$5, $5–$10, $10–$20, $20–$50, $50–$100, $100+ |
+
+Cards are always sorted alphabetically within each group. Commander cards appear first. Empty groups are hidden automatically (e.g., if no cards cost $100+, that bracket won't show).
 
 ### Card Row Features
 
@@ -167,29 +182,14 @@ Below the grid: rotation summary ("5 decks in rotation") + "N decks need cards" 
 
 ---
 
-## Card Scanner
+## Card Scanner (Archived)
 
-Scan physical cards with your phone camera to add them to your collection.
+> **Note:** The card scanner feature has been archived. The camera-based OCR approach proved unreliable for card identification. Cards can still be added via:
+> - **CSV import** — bulk import from Archidekt, Moxfield, ManaBox, or generic formats
+> - **Manual search** — use the Add Card search in any deck's Cards tab
+> - **URL import** — paste a deck URL from any major deckbuilding site
 
-### How to Use
-
-1. Navigate to **Scan** in the sidebar (or hamburger menu on mobile)
-2. Choose where scanned cards should go: Collection (unsorted), a specific deck, or a binder
-3. Tap **Start Scanning**
-4. Point your camera at a card — position it within the guide frame
-5. Tap the **shutter button** (big white circle) to capture
-6. The app reads the card name via OCR and shows "Is this your card?" with a preview — tap **Yes** to accept or **No** to dismiss
-7. Alternatively, type the card name in the text input at the bottom and tap Add (manual fallback)
-8. To scan the same card again (multiple copies): confirm the "Add another copy?" prompt
-9. Tap **Review & Confirm** when done
-10. On the reconciliation page: review all cards, toggle proxy/foil, set condition, remove mistakes
-11. Tap **Confirm X Cards** — only then are cards saved to your collection
-
-### Tips
-- Hold cards flat against a contrasting surface for best OCR results
-- Avoid glare on the card name area (the indicator shows green/yellow/red)
-- The manual text input is often faster for single cards — camera is best for bulk scanning
-- Nothing is saved until you confirm on the reconciliation page
+The scanner code is preserved in `src/_archived/scan-feature/` for potential future revival with an improved approach.
 
 ---
 

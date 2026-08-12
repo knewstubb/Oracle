@@ -67,18 +67,6 @@ export async function PATCH(
     return Response.json({ error: updateErr.message }, { status: 500 })
   }
 
-  // Unarchiving returns Allocate to off (Section 4) — never silently restore to prior on-state
-  if (previousStatus === 'graveyard' && status === 'in_rotation') {
-    const { error: allocateErr } = await supabase
-      .from('decks')
-      .update({ allocate: false })
-      .eq('id', deckId)
-
-    if (allocateErr) {
-      console.error(`[decks/${deckId}/status] Failed to reset allocate on unarchive: ${allocateErr.message}`)
-    }
-  }
-
   // --- Allocation side effects ---
   // [Phase 4] Status-change allocation trigger retired outright, no replacement.
   // Under Section 3, a deck can't reach Boxed until its picklist already shows

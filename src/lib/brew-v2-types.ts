@@ -9,6 +9,18 @@
 export type DeckStatus = 'brewing' | 'in_rotation' | 'graveyard'
 
 // ---------------------------------------------------------------------------
+// Collection Mode — controls how card suggestions respect owned cards
+// ---------------------------------------------------------------------------
+
+/**
+ * Collection mode for brew suggestions and draft generation:
+ * - 'any': Suggest any card regardless of ownership (default)
+ * - 'prioritise_owned': Prefer owned cards when quality is comparable, fall back to unowned for key pieces
+ * - 'owned_only': Only suggest cards the user owns
+ */
+export type CollectionMode = 'any' | 'prioritise_owned' | 'owned_only'
+
+// ---------------------------------------------------------------------------
 // Phase State
 // ---------------------------------------------------------------------------
 
@@ -17,10 +29,13 @@ export type BrewPhaseV2 = 'exploring' | 'building'
 export interface BrewSessionState {
   phase: BrewPhaseV2
   sessionId: number | null
+  deckId: number | null  // The deck associated with this brew session
   commander: CommittedCommander | null
   decisionLog: DecisionLog
   deckState: DeckState | null
   assessmentCache: Map<string, CardAssessment>
+  /** Collection mode for card suggestions (default: 'any') */
+  collectionMode: CollectionMode
 }
 
 // ---------------------------------------------------------------------------
@@ -42,6 +57,17 @@ export interface DecisionEntry {
 }
 
 // ---------------------------------------------------------------------------
+// Leadership Type — mirrors commander-resolver.ts CommanderType
+// ---------------------------------------------------------------------------
+
+export type LeadershipType = 
+  | 'single' 
+  | 'partner' 
+  | 'partner_with' 
+  | 'friends_forever' 
+  | 'background'
+
+// ---------------------------------------------------------------------------
 // Commander Options Card
 // ---------------------------------------------------------------------------
 
@@ -52,11 +78,25 @@ export interface CommanderOption {
   description: string
   owned: boolean
   scryfallId: string
+  /** For partner pairs: the second commander's name */
+  partnerName?: string
+  /** For partner pairs: the second commander's scryfall ID */
+  partnerScryfallId?: string
+  /** Leadership type (single, partner, partner_with, friends_forever, background) */
+  leadershipType?: LeadershipType
 }
 
 // ---------------------------------------------------------------------------
 // Committed Commander
 // ---------------------------------------------------------------------------
+
+/** A single card in the command zone */
+export interface CommanderCard {
+  name: string
+  artUrl: string
+  typeLine: string
+  scryfallId?: string
+}
 
 export interface CommittedCommander {
   name: string
@@ -64,6 +104,10 @@ export interface CommittedCommander {
   typeLine: string
   colourIdentity: string[]
   archetype: string | null  // From decision log
+  /** Leadership type (defaults to 'single' if undefined) */
+  leadershipType?: LeadershipType
+  /** For partner pairs: the second commander */
+  partner?: CommanderCard
 }
 
 // ---------------------------------------------------------------------------

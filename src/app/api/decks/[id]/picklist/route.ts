@@ -56,7 +56,7 @@ export async function GET(
   // Fetch all deck_cards for this deck
   const { data: deckCards, error: cardsErr } = await supabase
     .from('deck_cards')
-    .select('id, card_name, scryfall_id, physical_copy_id, ownership_status')
+    .select('id, card_name, scryfall_id, copy_id, ownership_status')
     .eq('deck_id', deckId)
     .order('card_name')
 
@@ -68,7 +68,7 @@ export async function GET(
   // Generic lands = basic land name + no specific printing (scryfall_id is null)
   const isGenericLand = (c: any) => isBasicLand(c.card_name) && !c.scryfall_id
   const genericLandCount = cards.filter(isGenericLand).length
-  const nonGenericResolved = cards.filter(c => c.physical_copy_id !== null && !isGenericLand(c)).length
+  const nonGenericResolved = cards.filter(c => c.copy_id !== null && !isGenericLand(c)).length
   const resolved = nonGenericResolved + genericLandCount
   const total = cards.length // Include all cards (lands count toward deck total)
 
@@ -76,7 +76,7 @@ export async function GET(
   // Only exclude generic lands (no scryfall_id) — specific-printing lands participate
   const unresolvedCardNames = new Set<string>()
   for (const card of cards) {
-    if (card.physical_copy_id === null && !isGenericLand(card)) {
+    if (card.copy_id === null && !isGenericLand(card)) {
       unresolvedCardNames.add(card.card_name)
     }
   }
@@ -96,10 +96,10 @@ export async function GET(
     .map(card => ({
       deckCardsId: card.id,
       cardName: card.card_name,
-      isResolved: card.physical_copy_id !== null,
-      physicalCopyId: card.physical_copy_id,
+      isResolved: card.copy_id !== null,
+      physicalCopyId: card.copy_id,
       ownershipStatus: card.ownership_status,
-      candidates: card.physical_copy_id === null
+      candidates: card.copy_id === null
         ? (candidatesByName.get(card.card_name) ?? [])
         : [],
     }))

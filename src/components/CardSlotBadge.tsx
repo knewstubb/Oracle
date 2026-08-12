@@ -40,19 +40,19 @@ const STATUS_CONFIG: Record<
   available: {
     label: 'Available',
     color: 'var(--text-secondary)',
-    bg: 'rgba(255, 255, 255, 0.06)',
+    bg: '#223736',
     icon: 'circle',
     filled: false,
   },
   alternate: {
     label: 'Alternate',
     color: 'var(--text-secondary)',
-    bg: 'rgba(255, 255, 255, 0.06)',
+    bg: '#223736',
     icon: 'swap_horiz',
     filled: false,
   },
   claimed: {
-    label: 'Claimed',
+    label: 'In decks',
     color: '#F5880B',
     bg: 'rgba(245, 136, 11, 0.08)',
     icon: 'lock',
@@ -95,7 +95,7 @@ function StatusIcon({ icon, filled, color }: { icon: string; filled: boolean; co
  * Unified badge component for the five-state card slot taxonomy.
  * Uses Material Symbol icons for status indication.
  *
- * For 'claimed' status, shows a "Claimed by [deck]" subtext line.
+ * For 'claimed' status, shows a "In [deck]" subtext line.
  * For 'generic_land' status, renders nothing (exempt from taxonomy display).
  */
 export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: CardSlotBadgeProps) {
@@ -119,7 +119,7 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
       </span>
       {status === 'claimed' && heldBy && (
         <span className="max-w-[20ch] truncate text-[length:var(--fs-xs)] text-muted-foreground">
-          Claimed by {heldBy.deckName}
+          In {heldBy.deckName}
         </span>
       )}
     </span>

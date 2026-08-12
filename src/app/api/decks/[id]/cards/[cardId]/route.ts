@@ -130,7 +130,7 @@ export async function PATCH(
 
   const { error } = await supabase
     .from('deck_cards')
-    .update(update)
+    .update(update as { scryfall_id?: string | null; set_code?: string | null })
     .eq('id', deckCardsId)
 
   if (error) {

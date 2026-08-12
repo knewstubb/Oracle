@@ -12,7 +12,7 @@
  * - Oathbreaker: "saheeli-sublime-artificer+thoughtcast"
  */
 
-import { createClient as createServerClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Allow injecting a client for scripts, or create one for API routes
@@ -22,14 +22,12 @@ export function setSupabaseClient(client: SupabaseClient) {
   injectedClient = client;
 }
 
-async function getSupabaseClient(): Promise<SupabaseClient> {
+function getSupabaseClient(): SupabaseClient {
   if (injectedClient) {
     return injectedClient;
   }
   
-  // For API routes, dynamically import the server client
-  const { createClient } = await import('@/utils/supabase/server');
-  return createClient();
+  return createAdminClient();
 }
 
 // Commander types as defined in schema
@@ -168,7 +166,7 @@ async function lookupCard(cardName: string): Promise<CardInfo | null> {
     return cached;
   }
   
-  const supabase = await getSupabaseClient();
+  const supabase = getSupabaseClient();
   
   const { data, error } = await supabase
     .from('ref_cards')
@@ -503,7 +501,7 @@ export async function resolveCommander(raw: string): Promise<ResolvedCommander |
  * Save a resolved commander to the database
  */
 export async function saveCommander(commander: ResolvedCommander): Promise<string | null> {
-  const supabase = await getSupabaseClient();
+  const supabase = getSupabaseClient();
   
   // Check if already exists
   const { data: existing } = await supabase
@@ -575,7 +573,7 @@ export async function findOrCreateCommander(raw: string): Promise<string | null>
  * Look up an existing commander by canonical key
  */
 export async function lookupCommanderByKey(canonicalKey: string): Promise<ResolvedCommander | null> {
-  const supabase = await getSupabaseClient();
+  const supabase = getSupabaseClient();
   
   const { data: commander } = await supabase
     .from('ref_commanders')

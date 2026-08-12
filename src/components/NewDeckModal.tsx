@@ -21,7 +21,11 @@ import { FORMAT_OPTIONS, getFormatConfig, type DeckFormat } from '@/lib/format-c
 // Component
 // ---------------------------------------------------------------------------
 
-export function NewDeckModal() {
+interface NewDeckModalProps {
+  variant?: 'default' | 'primary'
+}
+
+export function NewDeckModal({ variant = 'default' }: NewDeckModalProps) {
   const [open, setOpen] = useState(false)
   const [step, setStep] = useState<'format' | 'method' | 'details'>('format')
   const [selectedFormat, setSelectedFormat] = useState<DeckFormat>('commander')
@@ -104,7 +108,12 @@ export function NewDeckModal() {
 
   return (
     <>
-      <Button onClick={() => setOpen(true)} className="gap-2">
+      <Button 
+        onClick={() => setOpen(true)} 
+        className="gap-2"
+        variant={variant === 'primary' ? 'default' : 'outline'}
+        style={variant === 'primary' ? { backgroundColor: 'var(--accent-primary)' } : undefined}
+      >
         <Plus className="size-4" aria-hidden="true" />
         New Deck
       </Button>

@@ -12,7 +12,7 @@
 
 import { createAdminClient } from '@/lib/supabase'
 import { fetchDeck } from '@/lib/archidekt-client'
-import { importDeckExistingCollection } from '@/lib/deck-import'
+import { importDeckDesign } from '@/lib/deck-import'
 import { normalizeArchidektDeck } from '@/lib/deck-normalizer'
 import type { EnrichedSupplyEntry } from '@/lib/allocation-candidates'
 import {
@@ -60,8 +60,8 @@ export interface BatchResolutionResult {
  * 1. Fetch full deck data from Archidekt (fetchDeck)
  * 2. Normalize and import the deck (creates deck + deck_cards rows)
  * 3. For each unresolved deck_cards row, find candidates via pool.getAvailableCopies
- * 4. Assign from Tiers 1–3 only (free original, free proxy, or reassign from Brew deck)
- * 5. Anything that would need Tier 4 or higher → left unresolved
+ * 4. Assign from Tiers 1–2 only (free original, free proxy)
+ * 5. Anything that would need Tier 3 or higher → left unresolved
  *
  * Sequential processing ensures deck N sees deck N-1's committed assignments
  * reflected in pool state.
@@ -69,7 +69,7 @@ export interface BatchResolutionResult {
 export async function resolveDeckBatch(
   deckIds: number[],
   userId: string,
-  deckStatuses?: Record<number, 'brewing' | 'in_rotation'>
+  deckActiveStates?: Record<number, boolean>
 ): Promise<BatchResolutionResult> {
   const startTime = Date.now()
   const results: DeckResolutionResult[] = []
@@ -80,8 +80,8 @@ export async function resolveDeckBatch(
   const pool = await loadSupplyPool(userId)
 
   for (const archidektDeckId of deckIds) {
-    const status = deckStatuses?.[archidektDeckId] ?? 'in_rotation'
-    const { result, assignments } = await resolveSingleDeck(archidektDeckId, userId, status, pool)
+    const isActive = deckActiveStates?.[archidektDeckId] ?? true
+    const { result, assignments } = await resolveSingleDeck(archidektDeckId, userId, isActive, pool)
     results.push(result)
 
     // Attempt batch assignment write for this deck
@@ -92,13 +92,13 @@ export async function resolveDeckBatch(
         // On success: update pool state so subsequent decks see these assignments
         for (const assignment of assignments) {
           // Mark the physical copy as assigned in the pool
-          // Use 'in_rotation' status so subsequent decks treat these as Tier 4 (not reassignable)
+          // All decks claim equally now, so subsequent decks see these as Tier 3 (not auto-selectable)
           pool.markAssigned(
             assignment.physicalCopyId,
             assignment.deckCardsId,
             result.deckId,
             result.deckName,
-            status
+            isActive
           )
 
           // If this was a Tier 3 reassign, mark the freed copy in the pool
@@ -194,7 +194,7 @@ export async function resolveDeckBatch(
 async function resolveSingleDeck(
   archidektDeckId: number,
   userId: string,
-  deckStatus: 'brewing' | 'in_rotation' = 'in_rotation',
+  isActive: boolean = true,
   pool: SupplyPool
 ): Promise<{ result: DeckResolutionResult; assignments: Assignment[] }> {
   const errors: string[] = []
@@ -260,7 +260,7 @@ async function resolveSingleDeck(
   // with the fire-and-forget auto-assign that would otherwise run.
   let importedDeckId: number
   try {
-    const importResult = await importDeckExistingCollection(normalizedDeck, userId, { status: deckStatus, skipAutoAssign: true })
+    const importResult = await importDeckDesign(normalizedDeck, userId, { isActive })
     importedDeckId = importResult.deckId
   } catch (err) {
     return {
@@ -283,7 +283,7 @@ async function resolveSingleDeck(
     .from('deck_cards')
     .select('id, card_name')
     .eq('deck_id', importedDeckId)
-    .is('physical_copy_id', null)
+    .is('copy_id', null)
 
   if (fetchErr) {
     errors.push(`Failed to fetch unresolved deck_cards: ${fetchErr.message}`)

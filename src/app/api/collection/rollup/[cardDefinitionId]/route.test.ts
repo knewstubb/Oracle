@@ -134,24 +134,24 @@ function callGET(cardDefinitionId: string) {
 }
 
 function seedCardDefinition(id: number, oracleId: string, cardName: string, typeLine = '') {
-  if (!mockTables['card_definitions']) mockTables['card_definitions'] = []
-  mockTables['card_definitions'].push({ id, oracle_id: oracleId, card_name: cardName, type_line: typeLine })
+  if (!mockTables['cards']) mockTables['cards'] = []
+  mockTables['cards'].push({ id, oracle_id: oracleId, card_name: cardName, type_line: typeLine })
 }
 
 function seedPhysicalCopy(
   id: number,
-  cardDefinitionId: number,
-  scryfallPrintingId: string,
-  isFoil: boolean,
+  cardId: number,
+  printingId: string,
+  finish: string,
   isProxy: boolean,
   quantity: number
 ) {
-  if (!mockTables['physical_copies']) mockTables['physical_copies'] = []
-  mockTables['physical_copies'].push({
+  if (!mockTables['collection']) mockTables['collection'] = []
+  mockTables['collection'].push({
     id,
-    card_definition_id: cardDefinitionId,
-    scryfall_printing_id: scryfallPrintingId,
-    is_foil: isFoil,
+    card_id: cardId,
+    printing_id: printingId,
+    finish,
     is_proxy: isProxy,
     quantity,
   })
@@ -167,25 +167,19 @@ function seedDeckCard(deckId: number, cardName: string, physicalCopyId: number |
   mockTables['deck_cards'].push({
     deck_id: deckId,
     card_name: cardName,
-    physical_copy_id: physicalCopyId,
+    copy_id: physicalCopyId,
     quantity,
     decks: mockTables['decks']?.find((d: unknown) => (d as { id: number }).id === deckId) || { id: deckId, name: `Deck ${deckId}` },
   })
 }
 
-function seedCollection(cardName: string, scryfallId: string, setCode: string, editionName: string) {
-  if (!mockTables['collection']) mockTables['collection'] = []
-  mockTables['collection'].push({
-    card_name: cardName,
+function seedScryfallPrinting(scryfallId: string, setCode: string, setName: string) {
+  if (!mockTables['printings']) mockTables['printings'] = []
+  mockTables['printings'].push({
     scryfall_id: scryfallId,
     set_code: setCode,
-    edition_name: editionName,
+    set_name: setName,
   })
-}
-
-function seedSet(code: string, name: string) {
-  if (!mockTables['sets']) mockTables['sets'] = []
-  mockTables['sets'].push({ code, name })
 }
 
 // ---------------------------------------------------------------------------
@@ -224,9 +218,8 @@ describe('GET /api/collection/rollup/[cardDefinitionId]', () => {
 
   it('returns printing subgroups for a card with physical copies', async () => {
     seedCardDefinition(1, 'oracle-1', 'Sol Ring', 'Artifact')
-    seedCollection('Sol Ring', 'print-1', 'cmm', 'Commander Masters')
-    seedSet('cmm', 'Commander Masters')
-    seedPhysicalCopy(1, 1, 'print-1', false, false, 2)
+    seedScryfallPrinting('print-1', 'cmm', 'Commander Masters')
+    seedPhysicalCopy(1, 1, 'print-1', 'nonfoil', false, 2)
 
     mockGetOwnedValuation.mockResolvedValue(1.49)
 
@@ -237,11 +230,11 @@ describe('GET /api/collection/rollup/[cardDefinitionId]', () => {
     expect(body.subgroups).toHaveLength(1)
     expect(body.proxyPlacementCount).toBe(0)
     expect(body.subgroups[0]).toMatchObject({
-      physicalCopyId: 1,
-      scryfallPrintingId: 'print-1',
+      copyId: 1,
+      printingId: 'print-1',
       setCode: 'cmm',
       setName: 'Commander Masters',
-      isFoil: false,
+      finish: 'nonfoil',
       quantity: 2,
       inUseCount: 0,
       ownedValuation: 1.49,
@@ -251,7 +244,7 @@ describe('GET /api/collection/rollup/[cardDefinitionId]', () => {
 
   it('includes deck usage entries', async () => {
     seedCardDefinition(1, 'oracle-1', 'Sol Ring', 'Artifact')
-    seedPhysicalCopy(1, 1, 'print-1', false, false, 1)
+    seedPhysicalCopy(1, 1, 'print-1', 'nonfoil', false, 1)
     seedDeck(1, 'Muldrotha Graveyard')
     seedDeck(2, 'Korvold Sacrifice')
     seedDeckCard(1, 'Sol Ring', 1)
@@ -276,7 +269,7 @@ describe('GET /api/collection/rollup/[cardDefinitionId]', () => {
 
   it('returns null ownedValuation for basic lands', async () => {
     seedCardDefinition(1, 'oracle-forest', 'Forest', 'Basic Land — Forest')
-    seedPhysicalCopy(1, 1, 'forest-print', false, false, 10)
+    seedPhysicalCopy(1, 1, 'forest-print', 'nonfoil', false, 10)
 
     // Even if price-store would return a value, basic lands return null
     mockGetOwnedValuation.mockResolvedValue(0.25)
@@ -290,7 +283,7 @@ describe('GET /api/collection/rollup/[cardDefinitionId]', () => {
 
   it('returns null ownedValuation when no price entry exists', async () => {
     seedCardDefinition(1, 'oracle-1', 'Lightning Bolt', 'Instant')
-    seedPhysicalCopy(1, 1, 'bolt-print', false, false, 1)
+    seedPhysicalCopy(1, 1, 'bolt-print', 'nonfoil', false, 1)
 
     mockGetOwnedValuation.mockResolvedValue(null)
 
@@ -300,24 +293,24 @@ describe('GET /api/collection/rollup/[cardDefinitionId]', () => {
     expect(body.subgroups[0].ownedValuation).toBeNull()
   })
 
-  it('excludes proxy physical copies from results', async () => {
+  it('excludes proxy copies from results', async () => {
     seedCardDefinition(1, 'oracle-1', 'Sol Ring', 'Artifact')
-    seedPhysicalCopy(1, 1, 'print-1', false, false, 1) // Non-proxy
-    seedPhysicalCopy(2, 1, 'print-1', false, true, 1) // Proxy — should not appear
+    seedPhysicalCopy(1, 1, 'print-1', 'nonfoil', false, 1) // Non-proxy
+    seedPhysicalCopy(2, 1, 'print-1', 'nonfoil', true, 1) // Proxy — should not appear
 
     const res = await callGET('1')
     const body = await res.json()
 
     expect(body.subgroups).toHaveLength(1)
-    expect(body.subgroups[0].physicalCopyId).toBe(1)
+    expect(body.subgroups[0].copyId).toBe(1)
   })
 
   it('handles multiple printings of the same card', async () => {
     seedCardDefinition(1, 'oracle-1', 'Sol Ring', 'Artifact')
     seedCollection('Sol Ring', 'print-1', 'cmm', 'Commander Masters')
     seedCollection('Sol Ring', 'print-2', 'c21', 'Commander 2021')
-    seedPhysicalCopy(1, 1, 'print-1', false, false, 2)
-    seedPhysicalCopy(2, 1, 'print-2', true, false, 1)
+    seedPhysicalCopy(1, 1, 'print-1', 'nonfoil', false, 2)
+    seedPhysicalCopy(2, 1, 'print-2', 'foil', false, 1)
 
     mockGetOwnedValuation
       .mockResolvedValueOnce(1.49) // print-1, non-foil
@@ -328,25 +321,25 @@ describe('GET /api/collection/rollup/[cardDefinitionId]', () => {
 
     expect(body.subgroups).toHaveLength(2)
     const nonFoil = body.subgroups.find(
-      (r: { physicalCopyId: number }) => r.physicalCopyId === 1
+      (r: { copyId: number }) => r.copyId === 1
     )
     const foil = body.subgroups.find(
-      (r: { physicalCopyId: number }) => r.physicalCopyId === 2
+      (r: { copyId: number }) => r.copyId === 2
     )
 
-    expect(nonFoil.isFoil).toBe(false)
+    expect(nonFoil.finish).toBe('nonfoil')
     expect(nonFoil.quantity).toBe(2)
     expect(nonFoil.ownedValuation).toBe(1.49)
 
-    expect(foil.isFoil).toBe(true)
+    expect(foil.finish).toBe('foil')
     expect(foil.quantity).toBe(1)
     expect(foil.ownedValuation).toBe(4.99)
   })
 
   it('returns proxyPlacementCount when proxy placements exist', async () => {
     seedCardDefinition(1, 'oracle-1', 'Sol Ring', 'Artifact')
-    seedPhysicalCopy(1, 1, 'print-1', false, false, 1) // Non-proxy
-    seedPhysicalCopy(2, 1, 'print-1', false, true, 1) // Proxy
+    seedPhysicalCopy(1, 1, 'print-1', 'nonfoil', false, 1) // Non-proxy
+    seedPhysicalCopy(2, 1, 'print-1', 'nonfoil', true, 1) // Proxy
     seedDeck(1, 'Deck A')
     seedDeck(2, 'Deck B')
     seedDeckCard(1, 'Sol Ring', 2)
@@ -361,7 +354,7 @@ describe('GET /api/collection/rollup/[cardDefinitionId]', () => {
 
   it('returns proxyPlacementCount of 0 when no proxy placements exist', async () => {
     seedCardDefinition(1, 'oracle-1', 'Sol Ring', 'Artifact')
-    seedPhysicalCopy(1, 1, 'print-1', false, false, 1)
+    seedPhysicalCopy(1, 1, 'print-1', 'nonfoil', false, 1)
 
     const res = await callGET('1')
     const body = await res.json()

@@ -356,14 +356,16 @@ export async function writeDeadWeightFlags(
 
 /**
  * Get all dismissed card names for a deck.
+ * Dismissal is now tracked via deck_cards.dead_weight_flag = 'dismissed'
  */
 export async function getDismissals(deckId: number): Promise<string[]> {
   const supabase = createAdminClient()
 
   const { data, error } = await supabase
-    .from('dead_weight_dismissals')
+    .from('deck_cards')
     .select('card_name')
     .eq('deck_id', deckId)
+    .eq('dead_weight_flag', 'dismissed')
 
   if (error) {
     throw new Error(`Failed to get dismissals for deck ${deckId}: ${error.message}`)
@@ -373,40 +375,40 @@ export async function getDismissals(deckId: number): Promise<string[]> {
 }
 
 /**
- * Dismiss a card (add to dead_weight_dismissals).
- * Returns true if inserted, false if already dismissed (duplicate).
+ * Dismiss a card (set dead_weight_flag = 'dismissed' on deck_cards).
+ * Returns true if updated, false if card not found in deck.
  */
-export async function dismissCard(deckId: number, cardName: string, userId: string): Promise<boolean> {
+export async function dismissCard(deckId: number, cardName: string, _userId: string): Promise<boolean> {
   const supabase = createAdminClient()
 
-  const { error } = await supabase
-    .from('dead_weight_dismissals')
-    .insert({
-      deck_id: deckId,
-      card_name: cardName,
-      user_id: userId,
+  const { data, error } = await supabase
+    .from('deck_cards')
+    .update({
+      dead_weight_flag: 'dismissed',
     })
+    .eq('deck_id', deckId)
+    .eq('card_name', cardName)
+    .select('id')
 
   if (error) {
-    // Supabase returns code '23505' for unique constraint violations
-    if (error.code === '23505') {
-      return false
-    }
     throw new Error(`Failed to dismiss card "${cardName}" for deck ${deckId}: ${error.message}`)
   }
 
-  return true
+  return (data?.length ?? 0) > 0
 }
 
 /**
- * Un-dismiss a card (remove from dead_weight_dismissals).
+ * Un-dismiss a card (clear dead_weight_flag on deck_cards).
  */
 export async function undismissCard(deckId: number, cardName: string): Promise<void> {
   const supabase = createAdminClient()
 
   const { error } = await supabase
-    .from('dead_weight_dismissals')
-    .delete()
+    .from('deck_cards')
+    .update({
+      dead_weight_flag: null,
+      dead_weight_reason: null,
+    })
     .eq('deck_id', deckId)
     .eq('card_name', cardName)
 

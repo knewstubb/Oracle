@@ -226,9 +226,10 @@ export function getCategoryHealth(
 // ---------------------------------------------------------------------------
 
 /**
- * Returns true if a deck with the given status is eligible for deletion.
- * Boxed decks are never deletable — only 'brewing' and 'graveyard' statuses allow deletion.
+ * @deprecated The deck lifecycle now uses `is_active: boolean` instead of status.
+ * Any deck can be deleted regardless of active state. This function is kept for
+ * backward compatibility but always returns true.
  */
-export function canDeleteDeck(status: DeckStatus | string): boolean {
-  return status === 'brewing' || status === 'graveyard'
+export function canDeleteDeck(_status?: DeckStatus | string): boolean {
+  return true
 }

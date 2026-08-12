@@ -1,0 +1,72 @@
+name: Sync Rulings
+
+on:
+  # Weekly on Sunday at 7 AM UTC (1 AM CST / 2 AM CDT)
+  schedule:
+    - cron: '0 7 * * 0'
+  
+  # Manual trigger from GitHub UI
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run in dry-run mode (no database changes)'
+        required: false
+        default: 'false'
+        type: boolean
+      full_sync:
+        description: 'Full sync (truncate table and reload all rulings)'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  sync:
+    name: Sync Rulings from Scryfall
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run rulings sync
+        run: |
+          FLAGS="--verbose"
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            FLAGS="$FLAGS --dry-run"
+          fi
+          if [ "${{ github.event.inputs.full_sync }}" = "true" ]; then
+            FLAGS="$FLAGS --full"
+          fi
+          npx tsx scripts/sync-rulings.ts $FLAGS
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Create summary
+        if: success()
+        run: |
+          echo "## Rulings Sync Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Sync completed at $(date -u)" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Mode:** Dry Run (no changes made)" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "${{ github.event.inputs.full_sync }}" = "true" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Mode:** Full Sync (table truncated and reloaded)" >> $GITHUB_STEP_SUMMARY
+          fi

@@ -42,14 +42,14 @@ function buildPool(entries: Map<string, EnrichedSupplyEntry[]>): SupplyPool {
 // ---------------------------------------------------------------------------
 
 describe('SupplyPool.getAvailableCopies()', () => {
-  it('returns Tier 1 (unassigned originals), Tier 2 (unassigned proxies), and Tier 3 (assigned to brew deck) copies sorted correctly', () => {
+  it('returns Tier 1 (unassigned originals) and Tier 2 (unassigned proxies) copies sorted correctly', () => {
     const entries = new Map<string, EnrichedSupplyEntry[]>()
     entries.set('Sol Ring', [
       // Tier 1: unassigned original
       makeEntry({ physicalCopyId: 1, isProxy: false, assignedTo: null }),
       // Tier 2: unassigned proxy
       makeEntry({ physicalCopyId: 2, isProxy: true, assignedTo: null }),
-      // Tier 3: assigned to a Brew-status deck
+      // Tier 3: assigned to another deck (excluded from auto-selection — all decks claim equally)
       makeEntry({
         physicalCopyId: 3,
         isProxy: false,
@@ -60,7 +60,7 @@ describe('SupplyPool.getAvailableCopies()', () => {
           deckStatus: 'brewing',
         },
       }),
-      // Tier 4: assigned to a Boxed-status deck (should be excluded)
+      // Tier 3: assigned to another deck (also excluded)
       makeEntry({
         physicalCopyId: 4,
         isProxy: false,
@@ -76,20 +76,18 @@ describe('SupplyPool.getAvailableCopies()', () => {
     const pool = buildPool(entries)
     const available = pool.getAvailableCopies('Sol Ring')
 
-    // Should include Tier 1, 2, 3 but NOT Tier 4
-    expect(available).toHaveLength(3)
+    // Should include only Tier 1 and 2 (unassigned copies)
+    // Tier 3 (assigned to any deck) is excluded from auto-selection
+    expect(available).toHaveLength(2)
 
-    // Verify Tier 4 (boxed) is excluded
+    // Verify Tier 3 copies are excluded
     const ids = available.map((e) => e.physicalCopyId)
+    expect(ids).not.toContain(3)
     expect(ids).not.toContain(4)
 
-    // Verify sorted by tier: Tier 1 first, then Tier 2, then Tier 3
-    // Tier 1 = unassigned original (id 1)
-    // Tier 2 = unassigned proxy (id 2)
-    // Tier 3 = assigned to brew (id 3)
+    // Verify sorted by tier: Tier 1 first, then Tier 2
     expect(available[0].physicalCopyId).toBe(1) // Tier 1
     expect(available[1].physicalCopyId).toBe(2) // Tier 2
-    expect(available[2].physicalCopyId).toBe(3) // Tier 3
   })
 
   it('returns empty array for unknown card names', () => {
@@ -102,7 +100,7 @@ describe('SupplyPool.getAvailableCopies()', () => {
     expect(available).toEqual([])
   })
 
-  it('returns empty array when card exists but all copies are Tier 4 (boxed)', () => {
+  it('returns empty array when card exists but all copies are assigned to other decks', () => {
     const entries = new Map<string, EnrichedSupplyEntry[]>()
     entries.set('Mana Crypt', [
       makeEntry({
@@ -163,20 +161,17 @@ describe('SupplyPool.markAssigned()', () => {
 
     const pool = buildPool(entries)
 
-    // Before assignment: both available
+    // Before assignment: both available (Tier 1)
     expect(pool.getAvailableCopies('Sol Ring')).toHaveLength(2)
 
     // Assign copy 1
     pool.markAssigned(1, 100, 5, 'World Breaker')
 
-    // After assignment: copy 1 is now Tier 3 (assigned to brew), copy 2 still Tier 1
+    // After assignment: copy 1 is now Tier 3 (assigned), copy 2 still Tier 1
+    // Only Tier 1-2 are returned by getAvailableCopies, so only 1 remains
     const available = pool.getAvailableCopies('Sol Ring')
-    // Copy 1 is still eligible (Tier 3 = reassignable from brew), but moved down in priority
-    expect(available).toHaveLength(2)
-
-    // Verify copy 2 (Tier 1, unassigned) comes before copy 1 (now Tier 3)
+    expect(available).toHaveLength(1)
     expect(available[0].physicalCopyId).toBe(2)
-    expect(available[1].physicalCopyId).toBe(1)
   })
 
   it('updates in-memory assignment state correctly', () => {
@@ -186,14 +181,11 @@ describe('SupplyPool.markAssigned()', () => {
     const pool = buildPool(entries)
     pool.markAssigned(1, 100, 5, 'World Breaker')
 
-    // The entry should now have assignedTo populated
+    // The entry should now have assignedTo populated (but won't appear in getAvailableCopies)
+    // We can verify by checking the raw pool - but since that's private, we verify
+    // that getAvailableCopies returns empty (copy is now Tier 3)
     const available = pool.getAvailableCopies('Sol Ring')
-    expect(available[0].assignedTo).toEqual({
-      deckCardsId: 100,
-      deckId: 5,
-      deckName: 'World Breaker',
-      deckStatus: 'brewing',
-    })
+    expect(available).toHaveLength(0)
   })
 })
 
@@ -219,10 +211,9 @@ describe('SupplyPool.markFreed()', () => {
 
     const pool = buildPool(entries)
 
-    // Before freeing: copy is Tier 3 (assigned to brew)
+    // Before freeing: copy is Tier 3 (assigned), excluded from available
     const beforeFree = pool.getAvailableCopies('Sol Ring')
-    expect(beforeFree).toHaveLength(1)
-    expect(beforeFree[0].assignedTo).not.toBeNull()
+    expect(beforeFree).toHaveLength(0)
 
     // Free the copy
     pool.markFreed(1)
@@ -233,7 +224,7 @@ describe('SupplyPool.markFreed()', () => {
     expect(afterFree[0].assignedTo).toBeNull()
   })
 
-  it('makes a Tier 4 (boxed) copy available as Tier 1 after freeing', () => {
+  it('makes an assigned copy available as Tier 1 after freeing', () => {
     const entries = new Map<string, EnrichedSupplyEntry[]>()
     entries.set('Arcane Signet', [
       makeEntry({
@@ -250,7 +241,7 @@ describe('SupplyPool.markFreed()', () => {
 
     const pool = buildPool(entries)
 
-    // Before freeing: Tier 4 — excluded from available
+    // Before freeing: Tier 3 — excluded from available
     expect(pool.getAvailableCopies('Arcane Signet')).toHaveLength(0)
 
     // Free the copy

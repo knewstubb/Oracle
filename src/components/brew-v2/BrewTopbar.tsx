@@ -1,9 +1,10 @@
 'use client'
 
 import { ArrowLeft } from 'lucide-react'
-import type { BrewPhaseV2, CommittedCommander } from '@/lib/brew-v2-types'
+import type { BrewPhaseV2, CommittedCommander, CollectionMode } from '@/lib/brew-v2-types'
 import { ColourPips } from '@/components/ColourPips'
 import { ModelSelector } from './ModelSelector'
+import { CollectionModeToggle } from './CollectionModeToggle'
 
 // ---------------------------------------------------------------------------
 // SaveIndicator — subtle save status display
@@ -58,6 +59,10 @@ interface BrewTopbarProps {
   isStreaming?: boolean
   isSaving?: boolean
   lastSavedAt?: number | null
+  /** Collection mode for card suggestions (only shown in building phase) */
+  collectionMode?: CollectionMode
+  /** Callback when collection mode changes */
+  onCollectionModeChange?: (mode: CollectionMode) => void
 }
 
 // ---------------------------------------------------------------------------
@@ -114,6 +119,8 @@ function BuildingTopbar({
   isStreaming,
   isSaving,
   lastSavedAt,
+  collectionMode,
+  onCollectionModeChange,
 }: {
   commander: CommittedCommander
   onBack: () => void
@@ -122,6 +129,8 @@ function BuildingTopbar({
   isStreaming?: boolean
   isSaving?: boolean
   lastSavedAt?: number | null
+  collectionMode?: CollectionMode
+  onCollectionModeChange?: (mode: CollectionMode) => void
 }) {
   return (
     <div className="flex w-full items-center justify-between px-4 py-2 border-b border-border bg-background">
@@ -149,8 +158,14 @@ function BuildingTopbar({
         </div>
       </div>
 
-      {/* Right: model selector + save indicator */}
+      {/* Right: collection mode + model selector + save indicator */}
       <div className="flex items-center gap-4">
+        {collectionMode && onCollectionModeChange && (
+          <CollectionModeToggle
+            value={collectionMode}
+            onChange={onCollectionModeChange}
+          />
+        )}
         {selectedModelId && onModelChange && (
           <ModelSelector
             selectedModelId={selectedModelId}
@@ -168,9 +183,9 @@ function BuildingTopbar({
 // BrewTopbar — wraps phase-specific variants
 // ---------------------------------------------------------------------------
 
-export function BrewTopbar({ phase, commander, onBack, selectedModelId, onModelChange, isStreaming, isSaving, lastSavedAt }: BrewTopbarProps) {
+export function BrewTopbar({ phase, commander, onBack, selectedModelId, onModelChange, isStreaming, isSaving, lastSavedAt, collectionMode, onCollectionModeChange }: BrewTopbarProps) {
   if (phase === 'building' && commander) {
-    return <BuildingTopbar commander={commander} onBack={onBack} selectedModelId={selectedModelId} onModelChange={onModelChange} isStreaming={isStreaming} isSaving={isSaving} lastSavedAt={lastSavedAt} />
+    return <BuildingTopbar commander={commander} onBack={onBack} selectedModelId={selectedModelId} onModelChange={onModelChange} isStreaming={isStreaming} isSaving={isSaving} lastSavedAt={lastSavedAt} collectionMode={collectionMode} onCollectionModeChange={onCollectionModeChange} />
   }
   return <ExplorationTopbar onBack={onBack} selectedModelId={selectedModelId} onModelChange={onModelChange} isStreaming={isStreaming} isSaving={isSaving} lastSavedAt={lastSavedAt} />
 }

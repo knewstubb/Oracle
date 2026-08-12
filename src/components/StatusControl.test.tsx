@@ -8,10 +8,6 @@ vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }))
 
-// Mock window.confirm
-const mockConfirm = vi.fn(() => true)
-Object.defineProperty(window, 'confirm', { value: mockConfirm, writable: true })
-
 // Mock fetch
 const mockFetch = vi.fn()
 global.fetch = mockFetch
@@ -28,74 +24,77 @@ function createWrapper() {
 describe('StatusControl', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockConfirm.mockReturnValue(true)
   })
 
   it('renders three status buttons', () => {
-    render(<StatusControl deckId={1} currentStatus="active" />, { wrapper: createWrapper() })
+    render(<StatusControl deckId={1} currentStatus="in_rotation" />, { wrapper: createWrapper() })
+    expect(screen.getByRole('radio', { name: 'Set status to Brewing' })).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: 'Set status to Active' })).toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: 'Set status to Draft' })).toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: 'Set status to Inactive' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Set status to Graveyard' })).toBeInTheDocument()
   })
 
   it('marks the current status as checked', () => {
-    render(<StatusControl deckId={1} currentStatus="draft" />, { wrapper: createWrapper() })
-    expect(screen.getByRole('radio', { name: 'Set status to Draft' })).toHaveAttribute('aria-checked', 'true')
+    render(<StatusControl deckId={1} currentStatus="brewing" />, { wrapper: createWrapper() })
+    expect(screen.getByRole('radio', { name: 'Set status to Brewing' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByRole('radio', { name: 'Set status to Active' })).toHaveAttribute('aria-checked', 'false')
-    expect(screen.getByRole('radio', { name: 'Set status to Inactive' })).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByRole('radio', { name: 'Set status to Graveyard' })).toHaveAttribute('aria-checked', 'false')
   })
 
   it('calls PATCH API on status change', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({ deck: { id: 1, name: 'Test', status: 'draft' }, allocationRerun: true }),
+      json: () => Promise.resolve({ deck: { id: 1, name: 'Test', status: 'brewing' }, allocationRerun: true }),
     })
 
-    render(<StatusControl deckId={1} currentStatus="active" />, { wrapper: createWrapper() })
-    fireEvent.click(screen.getByRole('radio', { name: 'Set status to Draft' }))
+    render(<StatusControl deckId={1} currentStatus="in_rotation" />, { wrapper: createWrapper() })
+    fireEvent.click(screen.getByRole('radio', { name: 'Set status to Brewing' }))
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith('/api/decks/1/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'draft' }),
+        body: JSON.stringify({ status: 'brewing' }),
       })
     })
   })
 
-  it('shows confirmation dialog when transitioning to inactive', () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ deck: { id: 1, name: 'Test', status: 'inactive' }, allocationRerun: true }),
+  it('shows confirmation dialog when transitioning Active to Graveyard', async () => {
+    render(<StatusControl deckId={1} currentStatus="in_rotation" />, { wrapper: createWrapper() })
+    fireEvent.click(screen.getByRole('radio', { name: 'Set status to Graveyard' }))
+
+    // Dialog should open
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+      expect(screen.getByText('Move to Graveyard?')).toBeInTheDocument()
     })
-
-    render(<StatusControl deckId={1} currentStatus="active" />, { wrapper: createWrapper() })
-    fireEvent.click(screen.getByRole('radio', { name: 'Set status to Inactive' }))
-
-    expect(mockConfirm).toHaveBeenCalledWith(
-      'Making this deck inactive will release all card allocations. Cards will be redistributed to other active decks.'
-    )
   })
 
-  it('does not call API if inactive confirmation is cancelled', () => {
-    mockConfirm.mockReturnValue(false)
+  it('does not call API if graveyard confirmation is cancelled', async () => {
+    render(<StatusControl deckId={1} currentStatus="in_rotation" />, { wrapper: createWrapper() })
+    fireEvent.click(screen.getByRole('radio', { name: 'Set status to Graveyard' }))
 
-    render(<StatusControl deckId={1} currentStatus="active" />, { wrapper: createWrapper() })
-    fireEvent.click(screen.getByRole('radio', { name: 'Set status to Inactive' }))
+    // Wait for dialog to open
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+    })
+
+    // Click cancel
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
-  it('does not show confirmation dialog for non-inactive transitions', () => {
+  it('does not show confirmation dialog for non-graveyard transitions', () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({ deck: { id: 1, name: 'Test', status: 'active' }, allocationRerun: true }),
+      json: () => Promise.resolve({ deck: { id: 1, name: 'Test', status: 'brewing' }, allocationRerun: true }),
     })
 
-    render(<StatusControl deckId={1} currentStatus="draft" />, { wrapper: createWrapper() })
-    fireEvent.click(screen.getByRole('radio', { name: 'Set status to Active' }))
+    render(<StatusControl deckId={1} currentStatus="in_rotation" />, { wrapper: createWrapper() })
+    fireEvent.click(screen.getByRole('radio', { name: 'Set status to Brewing' }))
 
-    expect(mockConfirm).not.toHaveBeenCalled()
+    // No dialog should appear
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('reverts to previous status on API error', async () => {
@@ -104,8 +103,8 @@ describe('StatusControl', () => {
       json: () => Promise.resolve({ error: 'Server error' }),
     })
 
-    render(<StatusControl deckId={1} currentStatus="active" />, { wrapper: createWrapper() })
-    fireEvent.click(screen.getByRole('radio', { name: 'Set status to Draft' }))
+    render(<StatusControl deckId={1} currentStatus="in_rotation" />, { wrapper: createWrapper() })
+    fireEvent.click(screen.getByRole('radio', { name: 'Set status to Brewing' }))
 
     await waitFor(() => {
       const activeRadio = screen.getByRole('radio', { name: 'Set status to Active' })
@@ -114,14 +113,27 @@ describe('StatusControl', () => {
   })
 
   it('does nothing when clicking the already-selected status', () => {
-    render(<StatusControl deckId={1} currentStatus="active" />, { wrapper: createWrapper() })
+    render(<StatusControl deckId={1} currentStatus="in_rotation" />, { wrapper: createWrapper() })
     fireEvent.click(screen.getByRole('radio', { name: 'Set status to Active' }))
 
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
   it('has accessible radiogroup role', () => {
-    render(<StatusControl deckId={1} currentStatus="active" />, { wrapper: createWrapper() })
+    render(<StatusControl deckId={1} currentStatus="in_rotation" />, { wrapper: createWrapper() })
     expect(screen.getByRole('radiogroup', { name: 'Deck status' })).toBeInTheDocument()
+  })
+
+  it('does not show confirmation when transitioning Brewing to Graveyard', () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ deck: { id: 1, name: 'Test', status: 'graveyard' }, allocationRerun: false }),
+    })
+
+    render(<StatusControl deckId={1} currentStatus="brewing" />, { wrapper: createWrapper() })
+    fireEvent.click(screen.getByRole('radio', { name: 'Set status to Graveyard' }))
+
+    // No dialog should appear for Brewing → Graveyard (no claimed cards in Brewing)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })

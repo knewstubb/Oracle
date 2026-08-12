@@ -2,20 +2,20 @@
  * POST /api/allocation/replace-with-original
  *
  * Atomically replaces a proxy in a deck slot with a free original copy.
- * The slot's physical_copy_id is updated in a single UPDATE (never empty),
+ * The slot's copy_id is updated in a single UPDATE (never empty),
  * and the outgoing proxy is moved to a chosen storage location.
  *
  * Body: {
  *   deckCardsId?: number              — the deck_cards row currently holding the proxy
- *   proxyPhysicalCopyId?: number      — alternative: look up deck_cards by physical_copy_id
- *   originalPhysicalCopyId: number    — the free original copy to swap in
+ *   proxyCopyId?: number              — alternative: look up deck_cards by copy_id
+ *   originalCopyId: number            — the free original copy to swap in
  *   proxyStorageLocationId: number | null — where the outgoing proxy goes (null = Unsorted)
  * }
  *
  * Returns: { success: true }
  *
  * Guarantees:
- * - Deck completeness never transiently drops (single UPDATE swaps physical_copy_id)
+ * - Deck completeness never transiently drops (single UPDATE swaps copy_id)
  * - The proxy is NOT deleted — it moves to the chosen storage location
  * - The slot's ownership_status becomes 'original'
  */
@@ -25,8 +25,8 @@ import { createAdminClient } from '@/lib/supabase'
 
 interface ReplaceBody {
   deckCardsId?: number
-  proxyPhysicalCopyId?: number
-  originalPhysicalCopyId: number
+  proxyCopyId?: number
+  originalCopyId: number
   proxyStorageLocationId: number | null
 }
 
@@ -42,18 +42,18 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { deckCardsId: providedDeckCardsId, proxyPhysicalCopyId: bodyProxyPcId, originalPhysicalCopyId, proxyStorageLocationId } = body
+  const { deckCardsId: providedDeckCardsId, proxyCopyId: bodyProxyCopyId, originalCopyId, proxyStorageLocationId } = body
 
-  if (!originalPhysicalCopyId) {
+  if (!originalCopyId) {
     return Response.json(
-      { error: 'originalPhysicalCopyId is required' },
+      { error: 'originalCopyId is required' },
       { status: 400 }
     )
   }
 
-  if (!providedDeckCardsId && !bodyProxyPcId) {
+  if (!providedDeckCardsId && !bodyProxyCopyId) {
     return Response.json(
-      { error: 'Either deckCardsId or proxyPhysicalCopyId is required' },
+      { error: 'Either deckCardsId or proxyCopyId is required' },
       { status: 400 }
     )
   }
@@ -68,13 +68,13 @@ export async function POST(request: NextRequest) {
   const supabase = createAdminClient()
 
   try {
-    // Resolve deckCardsId — either provided directly or looked up via proxyPhysicalCopyId
+    // Resolve deckCardsId — either provided directly or looked up via proxyCopyId
     let deckCardsId = providedDeckCardsId
-    if (!deckCardsId && bodyProxyPcId) {
+    if (!deckCardsId && bodyProxyCopyId) {
       const { data: dcRow, error: dcLookupErr } = await supabase
         .from('deck_cards')
         .select('id')
-        .eq('physical_copy_id', bodyProxyPcId)
+        .eq('copy_id', bodyProxyCopyId)
         .eq('user_id', userId)
         .maybeSingle()
 
@@ -84,10 +84,14 @@ export async function POST(request: NextRequest) {
       deckCardsId = dcRow.id
     }
 
+    if (!deckCardsId) {
+      return Response.json({ error: 'Could not resolve deck cards ID' }, { status: 400 })
+    }
+
     // 1. Verify the deck_cards row belongs to this user and currently holds a proxy
     const { data: deckCard, error: dcErr } = await supabase
       .from('deck_cards')
-      .select('id, deck_id, physical_copy_id, ownership_status, user_id')
+      .select('id, deck_id, copy_id, ownership_status, user_id')
       .eq('id', deckCardsId)
       .eq('user_id', userId)
       .maybeSingle()
@@ -96,25 +100,25 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Deck card slot not found' }, { status: 404 })
     }
 
-    if (deckCard.ownership_status !== 'proxy' || !deckCard.physical_copy_id) {
+    if (deckCard.ownership_status !== 'proxy' || !deckCard.copy_id) {
       return Response.json(
         { error: 'Slot does not contain a proxy — cannot replace' },
         { status: 409 }
       )
     }
 
-    const outgoingProxyId = deckCard.physical_copy_id
+    const outgoingProxyId = deckCard.copy_id
 
-    // 2. Verify the original physical copy exists, belongs to this user, and is NOT a proxy
+    // 2. Verify the original copy exists, belongs to this user, and is NOT a proxy
     const { data: originalCopy, error: ocErr } = await supabase
-      .from('physical_copies')
+      .from('user_copies')
       .select('id, is_proxy')
-      .eq('id', originalPhysicalCopyId)
+      .eq('id', originalCopyId)
       .eq('user_id', userId)
       .maybeSingle()
 
     if (ocErr || !originalCopy) {
-      return Response.json({ error: 'Original physical copy not found' }, { status: 404 })
+      return Response.json({ error: 'Original copy not found' }, { status: 404 })
     }
 
     if (originalCopy.is_proxy) {
@@ -128,7 +132,7 @@ export async function POST(request: NextRequest) {
     const { data: assignedSlots, error: asErr } = await supabase
       .from('deck_cards')
       .select('id')
-      .eq('physical_copy_id', originalPhysicalCopyId)
+      .eq('copy_id', originalCopyId)
       .limit(1)
 
     if (asErr) {
@@ -147,7 +151,7 @@ export async function POST(request: NextRequest) {
     const { error: swapErr } = await supabase
       .from('deck_cards')
       .update({
-        physical_copy_id: originalPhysicalCopyId,
+        copy_id: originalCopyId,
         ownership_status: 'original',
       })
       .eq('id', deckCardsId)
@@ -161,9 +165,9 @@ export async function POST(request: NextRequest) {
 
     // 5. Move the outgoing proxy to the chosen storage location
     const { error: moveErr } = await supabase
-      .from('physical_copies')
+      .from('user_copies')
       .update({
-        storage_location_id: proxyStorageLocationId,
+        location_id: proxyStorageLocationId,
       })
       .eq('id', outgoingProxyId)
 

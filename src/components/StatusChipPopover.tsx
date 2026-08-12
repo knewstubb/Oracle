@@ -11,6 +11,7 @@ import { LocationPickerModal } from '@/components/LocationPickerModal'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { DeckPickerPopover, type ValidDeck } from '@/components/DeckPickerPopover'
 import { Button } from '@/components/ui/button'
+import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
 import type { CardSlotStatus } from '@/lib/card-status'
 import type { CardActionContext } from '@/app/api/decks/[id]/card-actions/[cardName]/route'
 
@@ -129,10 +130,10 @@ export function StatusChipPopover({
             })
             if (!res.ok) {
               const err = await res.json().catch(() => ({}))
-              throw new Error(err.error || 'Claim failed')
+              throw new Error(err.error || 'Pull failed')
             }
-            queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'card-statuses'] })
-            queryClient.invalidateQueries({ queryKey: ['picklist', deckId] })
+            queryClient.invalidateQueries({ queryKey: deckKeys.cardStatuses(deckId) })
+            queryClient.invalidateQueries({ queryKey: deckKeys.picklist(deckId) })
             toast.success(`Pulled ${cardName} from ${tier4Confirm?.deckName ?? 'deck'}`)
           } catch (err) {
             toast.error(err instanceof Error ? err.message : 'Failed to pull')
@@ -186,7 +187,7 @@ function PopoverBody({
 
   // Fetch action context on-demand
   const { data, isLoading } = useQuery<CardActionContext>({
-    queryKey: ['card-actions', deckId, cardName],
+    queryKey: deckKeys.cardActions(deckId, cardName),
     queryFn: async () => {
       const res = await fetch(`/api/decks/${deckId}/card-actions/${encodeURIComponent(cardName)}`)
       if (!res.ok) throw new Error('Failed to load')
@@ -228,7 +229,7 @@ function PopoverBody({
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || 'Claim failed')
+        throw new Error(err.error || 'Pull failed')
       }
       return res.json()
     },
@@ -389,12 +390,13 @@ function PopoverBody({
   }
 
   // ─── Open ───────────────────────────────────────────────────────────
-  if (status === 'available') {
+  if (status === 'available' || status === 'alternate') {
     const copies = data?.availableCopies ?? []
     return (
       <div className="flex flex-col gap-1 p-3">
         <p className="text-[length:var(--fs-sm)] text-muted-foreground mb-1">
           {copies.length} {copies.length === 1 ? 'copy' : 'copies'} available
+          {status === 'alternate' && copies.length > 0 && ' (different printing)'}
         </p>
         {copies.map((copy) => (
           <CopyRow
@@ -430,95 +432,41 @@ function PopoverBody({
     const holders = data?.holders ?? []
 
     return (
-      <div className="flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-[var(--border-default)] px-3 py-2">
-          <span className="text-[length:var(--fs-sm)] font-medium text-foreground">
-            Claimed by ({holders.length})
-          </span>
-        </div>
-
-        {/* Holder rows */}
-        <div className="flex flex-col divide-y divide-[var(--border-default)]">
-          {holders.map((holder) => {
-            const thumbUrl = holder.scryfallPrintingId
-              ? `https://cards.scryfall.io/small/front/${holder.scryfallPrintingId.charAt(0)}/${holder.scryfallPrintingId.charAt(1)}/${holder.scryfallPrintingId}.jpg`
-              : null
-
-            return (
-              <div
-                key={holder.physicalCopyId}
-                className="flex items-center gap-2.5 px-3 py-2"
-              >
-                {/* Card thumbnail */}
-                {thumbUrl ? (
-                  <img
-                    src={thumbUrl}
-                    alt=""
-                    loading="lazy"
-                    className="h-[40px] w-[29px] shrink-0 rounded object-cover"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                  />
-                ) : (
-                  <div className="h-[40px] w-[29px] shrink-0 rounded bg-[rgba(255,255,255,0.05)]" />
-                )}
-
-                {/* Original/Proxy indicator dot */}
-                <span
-                  className="inline-block size-2.5 shrink-0 rounded-full"
-                  style={holder.isProxy
-                    ? { border: '1.5px dashed var(--signal-success)' }
-                    : { backgroundColor: 'var(--signal-success)' }
-                  }
-                  aria-label={holder.isProxy ? 'Proxy' : 'Original'}
-                />
-
-                {/* Deck name + printing info */}
-                <div className="min-w-0 flex-1">
-                  <span className="block truncate text-[length:var(--fs-sm)] font-medium text-foreground">
-                    {holder.deckName}
-                  </span>
-                  <span className="block truncate text-[length:var(--fs-xs)] text-muted-foreground">
-                    {holder.editionName || holder.setCode?.toUpperCase() || 'Unknown printing'}
-                    {holder.condition && holder.condition !== 'near_mint' ? ` · ${holder.condition.replace('_', ' ')}` : ''}
-                  </span>
-                </div>
-
-                {/* Claim button */}
-                <Button
-                  size="xs"
-                  variant="outline"
-                  onClick={() => {
-                    if (holder.deckStatus === 'brewing') {
-                      claimMutation.mutate(holder.physicalCopyId)
-                    } else {
-                      onTier4Confirm(holder.deckName, holder.physicalCopyId)
-                    }
-                  }}
-                  disabled={isPending}
-                  className="shrink-0"
-                  style={{ color: 'var(--status-over)', borderColor: 'var(--status-over)' }}
-                >
-                  Pull
-                </Button>
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Bottom actions */}
-        <div className="flex items-center gap-3 border-t border-[var(--border-default)] px-3 py-2">
-          <button
-            type="button"
-            disabled={isPending || !data?.cardDefinitionId}
-            onClick={() => {
-              if (data?.cardDefinitionId) addProxyMutation.mutate(data.cardDefinitionId)
+      <div className="flex flex-col gap-1 p-3">
+        <p className="text-[length:var(--fs-sm)] text-muted-foreground mb-1">
+          {holders.length} {holders.length === 1 ? 'copy' : 'copies'} in other decks
+        </p>
+        {holders.map((holder) => (
+          <CopyRow
+            key={holder.physicalCopyId}
+            scryfallPrintingId={holder.scryfallPrintingId}
+            cardName={cardName}
+            setName={holder.deckName}
+            condition={holder.condition}
+            storageLocationName={holder.editionName || holder.setCode?.toUpperCase() || null}
+            isFoil={false}
+            isProxy={holder.isProxy}
+            primaryLabel="Pull"
+            onPrimary={() => {
+              if (holder.deckStatus === 'brewing') {
+                claimMutation.mutate(holder.physicalCopyId)
+              } else {
+                onTier4Confirm(holder.deckName, holder.physicalCopyId)
+              }
             }}
-            className="text-[length:var(--fs-xs)] text-muted-foreground hover:text-foreground disabled:opacity-40"
-          >
-            Add as proxy
-          </button>
-        </div>
+            isPending={isPending}
+          />
+        ))}
+        <button
+          type="button"
+          disabled={isPending || !data?.cardDefinitionId}
+          onClick={() => {
+            if (data?.cardDefinitionId) addProxyMutation.mutate(data.cardDefinitionId)
+          }}
+          className="mt-1 text-[length:var(--fs-xs)] text-muted-foreground hover:text-foreground self-start disabled:opacity-40"
+        >
+          Add proxy
+        </button>
       </div>
     )
   }

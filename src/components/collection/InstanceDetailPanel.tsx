@@ -510,7 +510,7 @@ function ShortDeckRow({ shortDeck, oracleId, cardName, assignedInstances }: Shor
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || 'Claim failed')
+        throw new Error(err.error || 'Pull failed')
       }
       queryClient.invalidateQueries({ queryKey: ['instances', oracleId] })
       queryClient.invalidateQueries({ queryKey: ['collection', 'rollup-v2'] })
@@ -643,9 +643,9 @@ function ShortDeckRow({ shortDeck, oracleId, cardName, assignedInstances }: Shor
         open={confirmReassign !== null}
         onConfirm={handleConfirmReassign}
         onCancel={() => setConfirmReassign(null)}
-        title="Claim from built deck?"
+        title="Pull from built deck?"
         description={`This copy is currently in ${confirmReassign?.sourceDeckName ?? ''}. Removing it will make that deck incomplete. Continue?`}
-        confirmLabel="Claim"
+        confirmLabel="Pull"
         isLoading={assignMutation.isPending}
       />
     </>
@@ -740,8 +740,8 @@ function InstanceRowItem({
             <CardHoverPreview
               scryfallId={instance.scryfallPrintingId}
               cardName={cardName}
-              anchorX={previewPos.x}
-              anchorY={previewPos.y}
+              cursorX={previewPos.x}
+              cursorY={previewPos.y}
               visible={showPreview}
             />
           )}

@@ -55,7 +55,7 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
   },
 ]
 
-export const DEFAULT_MODEL_ID = 'sonnet-4'
+export const DEFAULT_MODEL_ID = 'deepseek-v4-pro'
 
 export function getModelConfig(modelId: string): ModelConfig {
   return AVAILABLE_MODELS.find(m => m.id === modelId) ?? AVAILABLE_MODELS[0]

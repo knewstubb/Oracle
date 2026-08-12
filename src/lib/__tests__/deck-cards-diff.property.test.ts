@@ -33,7 +33,7 @@ interface ExistingDeckCardRow {
   is_commander: boolean
   user_id: string
   // Enriched columns — these are what gets destroyed on reimport
-  physical_copy_id: number | null
+  copy_id: number | null
   ownership_status: string | null
   proxy_of_deck_id: number | null
   dead_weight_flag: string | null
@@ -86,7 +86,7 @@ const arbExistingRow = (idGen: fc.Arbitrary<number>) =>
     is_commander: fc.constant(false),
     user_id: fc.constant('user-123'),
     // At least one enriched column is non-null (bug condition)
-    physical_copy_id: fc.option(fc.integer({ min: 1, max: 10000 }), { nil: null, freq: 3 }),
+    copy_id: fc.option(fc.integer({ min: 1, max: 10000 }), { nil: null, freq: 3 }),
     ownership_status: fc.option(
       fc.constantFrom('original', 'proxy', 'borrowed'),
       { nil: null, freq: 3 }
@@ -109,7 +109,7 @@ const arbExistingRowsWithEnrichment: fc.Arbitrary<ExistingDeckCardRow[]> = fc
     // Bug condition: at least one row has enriched data
     return rows.some(
       (row) =>
-        row.physical_copy_id != null ||
+        row.copy_id != null ||
         row.ownership_status != null ||
         row.categories !== ARCHIDEKT_DEFAULT_CATEGORIES ||
         row.proxy_of_deck_id != null ||
@@ -198,7 +198,7 @@ describe('Property 1: Bug Condition — Enriched Columns Destroyed on Reimport',
             // Verify the row exists in the original set (identity preserved)
             if (originalRow) {
               // These enriched columns must be preserved (they're not in toInsert as new rows)
-              expect(originalRow.physical_copy_id).toBeDefined()
+              expect(originalRow.copy_id).toBeDefined()
               expect(originalRow.ownership_status).toBeDefined()
               expect(originalRow.categories).toBeDefined()
               expect(originalRow.proxy_of_deck_id).toBeDefined()
@@ -221,7 +221,7 @@ describe('Property 1: Bug Condition — Enriched Columns Destroyed on Reimport',
   /**
    * **Validates: Requirements 2.1, 2.2**
    *
-   * New rows (toInsert) have null physical_copy_id/ownership_status
+   * New rows (toInsert) have null copy_id/ownership_status
    * and use incoming Archidekt categories.
    */
   it('newly inserted rows have null enriched columns and use Archidekt categories', () => {
@@ -238,7 +238,7 @@ describe('Property 1: Bug Condition — Enriched Columns Destroyed on Reimport',
 
           // All new rows must have null enriched columns
           for (const newRow of diff.toInsert) {
-            expect(newRow.physical_copy_id).toBeNull()
+            expect(newRow.copy_id).toBeNull()
             expect(newRow.ownership_status).toBeNull()
             // New rows use Archidekt's categories (from incoming)
             expect(newRow.categories).toBeDefined()
@@ -252,7 +252,7 @@ describe('Property 1: Bug Condition — Enriched Columns Destroyed on Reimport',
   /**
    * **Validates: Requirements 2.5**
    *
-   * When quantity decreases for a printing slot, rows with physical_copy_id = null
+   * When quantity decreases for a printing slot, rows with copy_id = null
    * are preferred for deletion over assigned rows.
    */
   it('prefers deleting unassigned rows when quantity decreases', () => {
@@ -273,7 +273,7 @@ describe('Property 1: Bug Condition — Enriched Columns Destroyed on Reimport',
           categories: '["Creature"]',
           is_commander: false,
           user_id: 'user-123',
-          physical_copy_id: 42, // ASSIGNED
+          copy_id: 42, // ASSIGNED
           ownership_status: 'original',
           proxy_of_deck_id: null,
           dead_weight_flag: null,
@@ -287,7 +287,7 @@ describe('Property 1: Bug Condition — Enriched Columns Destroyed on Reimport',
           categories: '["Creature"]',
           is_commander: false,
           user_id: 'user-123',
-          physical_copy_id: null, // UNASSIGNED
+          copy_id: null, // UNASSIGNED
           ownership_status: null,
           proxy_of_deck_id: null,
           dead_weight_flag: null,
@@ -301,7 +301,7 @@ describe('Property 1: Bug Condition — Enriched Columns Destroyed on Reimport',
           categories: '["Creature"]',
           is_commander: false,
           user_id: 'user-123',
-          physical_copy_id: null, // UNASSIGNED
+          copy_id: null, // UNASSIGNED
           ownership_status: null,
           proxy_of_deck_id: null,
           dead_weight_flag: null,

@@ -1,20 +1,17 @@
 /**
- * Card Kingdom Price Cache Data Access Layer
+ * Card Price Data Access Layer
  *
- * Manages the price cache (`card_kingdom_prices` table) for Card Kingdom
- * retail pricing via Supabase. Provides functions for:
- * - Batch upserting price entries from the CK API
+ * Manages price lookups from the `ref_printings` table which stores Scryfall
+ * pricing data (price_usd, price_usd_foil, price_eur, price_eur_foil).
+ *
+ * Provides functions for:
  * - Computing Price_To_Add (cheapest listing across all printings via oracle_id)
  * - Looking up Owned_Valuation (specific printing + foil status)
  * - Checking price data freshness (>48h = stale)
  *
- * Basic Land Detection: Any card_definition with "Basic" in the type_line
- * supertype returns null for all price lookups — basic lands have near-zero
- * market value and displaying prices adds noise.
- *
- * Uses Supabase RPC functions for complex multi-table JOINs:
- * - get_price_to_add(card_def_id) — single card price lookup
- * - get_bulk_price_to_add() — bulk price lookup for all definitions
+ * Basic Land Detection: Any card with "Basic" in the type_line supertype
+ * returns null for all price lookups — basic lands have near-zero market
+ * value and displaying prices adds noise.
  *
  * Validates: Requirements 1.1, 1.4, 2.1, 2.2, 2.4, 2.5, 3.1, 3.3, 3.4, 3.5
  */
@@ -34,12 +31,12 @@ export interface PriceEntry {
 
 export interface PriceToAddResult {
   cardDefinitionId: number
-  minPrice: number | null // null = no CK listing exists
+  minPrice: number | null // null = no price exists
 }
 
 export interface OwnedValuationResult {
   physicalCopyId: number
-  price: number | null // null = no CK listing for this printing+foil combo
+  price: number | null // null = no price for this printing+foil combo
 }
 
 // ---------------------------------------------------------------------------
@@ -50,150 +47,36 @@ export interface OwnedValuationResult {
 const STALE_THRESHOLD_MS = 48 * 60 * 60 * 1000
 
 // ---------------------------------------------------------------------------
-// Batch Upsert
-// ---------------------------------------------------------------------------
-
-/**
- * Upsert a batch of price entries from the CK API response.
- * Uses Supabase's upsert with onConflict for atomicity.
- *
- * Entries with empty or missing scryfallPrintingId are skipped.
- * Returns count of upserted and skipped entries.
- */
-export async function upsertPriceBatch(
-  entries: Array<{ scryfallPrintingId: string; priceRetail: number; isFoil: boolean }>
-): Promise<{ upserted: number; skipped: number }> {
-  let upserted = 0
-  let skipped = 0
-
-  const validEntries: Array<{
-    scryfall_printing_id: string
-    price_retail: number
-    is_foil: boolean
-    updated_at: string
-  }> = []
-
-  for (const entry of entries) {
-    if (!entry.scryfallPrintingId || entry.scryfallPrintingId.trim() === '') {
-      skipped++
-      continue
-    }
-    validEntries.push({
-      scryfall_printing_id: entry.scryfallPrintingId,
-      price_retail: entry.priceRetail,
-      is_foil: entry.isFoil,
-      updated_at: new Date().toISOString(),
-    })
-    upserted++
-  }
-
-  if (validEntries.length === 0) {
-    return { upserted, skipped }
-  }
-
-  const supabase = createAdminClient()
-  const { error } = await supabase
-    .from('card_kingdom_prices')
-    .upsert(validEntries, { onConflict: 'scryfall_printing_id' })
-
-  if (error) {
-    throw new Error(`Failed to upsert price batch: ${error.message}`)
-  }
-
-  return { upserted, skipped }
-}
-
-// ---------------------------------------------------------------------------
-// Price_To_Add (Single)
-// ---------------------------------------------------------------------------
-
-/**
- * Get Price_To_Add for a single card_definition.
- * Uses the Postgres RPC function which handles:
- * - Basic land detection (returns null for basic lands)
- * - Multi-table join through oracle_to_printings → card_kingdom_prices
- * - MIN(price_retail) aggregation
- *
- * Returns null if:
- * - The card is a Basic Land (type_line contains "Basic" as supertype)
- * - No CK listing exists for any printing of this card
- */
-export async function getPriceToAdd(cardDefinitionId: number): Promise<number | null> {
-  const supabase = createAdminClient()
-  const { data, error } = await supabase.rpc('get_price_to_add', {
-    card_def_id: cardDefinitionId,
-  })
-
-  if (error) {
-    throw new Error(`Failed to get price_to_add for card ${cardDefinitionId}: ${error.message}`)
-  }
-
-  return data ?? null
-}
-
-// ---------------------------------------------------------------------------
-// Price_To_Add (Bulk)
-// ---------------------------------------------------------------------------
-
-/**
- * Get Price_To_Add for all card_definitions in a single query.
- * Uses the Postgres RPC function for efficient bulk computation.
- * Returns a Map<cardDefinitionId, minPrice | null>.
- *
- * Basic lands are included in the map with null values.
- * Cards with no CK listing are included with null values.
- */
-export async function getBulkPriceToAdd(): Promise<Map<number, number | null>> {
-  const result = new Map<number, number | null>()
-
-  const supabase = createAdminClient()
-  const { data, error } = await supabase.rpc('get_bulk_price_to_add')
-
-  if (error) {
-    throw new Error(`Failed to get bulk price_to_add: ${error.message}`)
-  }
-
-  if (data) {
-    for (const row of data) {
-      result.set(row.card_definition_id, row.price_to_add)
-    }
-  }
-
-  return result
-}
-
-// ---------------------------------------------------------------------------
 // Owned Valuation
 // ---------------------------------------------------------------------------
 
 /**
  * Get Owned_Valuation for a specific printing + foil status.
- * Direct lookup by scryfall_printing_id + is_foil. No aggregation.
+ * Direct lookup by scryfall_id from ref_printings.
  *
  * Returns null if:
- * - No CK listing exists for this printing + foil combo
- * - Foil lookup never falls back to non-foil pricing
- *
- * Note: Basic land detection is done by the caller when they have
- * the card_definition context. This function is a raw price lookup.
+ * - No price exists for this printing + foil combo
+ * - Foil lookup uses price_usd_foil, non-foil uses price_usd
  */
 export async function getOwnedValuation(
   scryfallPrintingId: string,
   isFoil: boolean
 ): Promise<number | null> {
   const supabase = createAdminClient()
+  const priceColumn = isFoil ? 'price_usd_foil' : 'price_usd'
+  
   const { data, error } = await supabase
-    .from('card_kingdom_prices')
-    .select('price_retail')
-    .eq('scryfall_printing_id', scryfallPrintingId)
-    .eq('is_foil', isFoil)
+    .from('ref_printings')
+    .select(priceColumn)
+    .eq('scryfall_id', scryfallPrintingId)
     .maybeSingle()
 
   if (error) {
-    throw new Error(`Failed to get owned valuation for ${scryfallPrintingId}: ${error.message}`)
+    console.error(`Failed to get owned valuation for ${scryfallPrintingId}:`, error.message)
+    return null
   }
 
-  return data?.price_retail ?? null
+  return (data as Record<string, number | null> | null)?.[priceColumn] ?? null
 }
 
 // ---------------------------------------------------------------------------
@@ -202,20 +85,26 @@ export async function getOwnedValuation(
 
 /**
  * Get the last successful refresh timestamp.
- * Returns the most recent updated_at value from the price cache.
- * Returns null if the table is empty (never refreshed).
+ * Returns the most recent updated_at value from the ref_printings table.
+ * Returns null if the table is empty (never synced).
  */
 export async function getLastRefreshTimestamp(): Promise<string | null> {
   const supabase = createAdminClient()
   const { data, error } = await supabase
-    .from('card_kingdom_prices')
+    .from('ref_printings')
     .select('updated_at')
     .order('updated_at', { ascending: false })
     .limit(1)
     .maybeSingle()
 
   if (error) {
-    throw new Error(`Failed to get last refresh timestamp: ${error.message}`)
+    // Table might not exist yet — treat as "never refreshed"
+    if (error.message.includes('schema cache') || error.code === '42P01') {
+      console.warn('[price-store] ref_printings table not found, skipping price data')
+      return null
+    }
+    console.error('Failed to get last refresh timestamp:', error.message)
+    return null
   }
 
   return data?.updated_at ?? null

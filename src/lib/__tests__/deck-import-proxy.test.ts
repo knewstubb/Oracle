@@ -1,17 +1,17 @@
 // ---------------------------------------------------------------------------
-// Deck Import — Proxy Detection & Physical Copy Creation — Unit Tests
+// Deck Import — Proxy Detection & Copy Creation — Unit Tests
 // ---------------------------------------------------------------------------
 //
 // Validates: Requirements 7.1, 7.2, 7.3, 7.4
 // Design reference: Correctness Property 5
 //
 // For any card with isProxy=true in the NormalizedDeck, when the import
-// completes regardless of mode, then a physical_copies row with is_proxy=true
-// exists for that card's card_definition.
+// completes regardless of mode, then a collection row with is_proxy=true
+// exists for that card.
 // ---------------------------------------------------------------------------
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { importDeckExistingCollection, importDeckAddNewCards } from '@/lib/deck-import'
+import { importDeckDesign, importDeckNewCards } from '@/lib/deck-import'
 import type { NormalizedDeck } from '@/lib/deck-normalizer'
 
 // ---------------------------------------------------------------------------
@@ -156,31 +156,31 @@ function createSupabaseMock() {
 // Tests: Existing Collection Mode — Proxy Handling
 // ---------------------------------------------------------------------------
 
-describe('importDeckExistingCollection — proxy handling', () => {
+describe('importDeckDesign — proxy handling', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('upserts card_definition for proxy cards (Req 7.1)', async () => {
+  it('upserts card for proxy cards (Req 7.1)', async () => {
     const proxyCard = makeProxyCard()
     const deck = makeDeck([proxyCard])
 
     // Track which tables get which operations
-    const insertedPhysicalCopies: any[] = []
-    const upsertedCardDefs: any[] = []
+    const insertedCollectionRows: any[] = []
+    const upsertedCards: any[] = []
 
     mockFrom.mockImplementation((table: string) => {
       const chain: any = {}
       const addChaining = () => {
         chain.select = vi.fn().mockReturnValue(chain)
         chain.insert = vi.fn((rows: any) => {
-          if (table === 'physical_copies') insertedPhysicalCopies.push(rows)
+          if (table === 'collection') insertedCollectionRows.push(rows)
           return chain
         })
         chain.delete = vi.fn().mockReturnValue(chain)
         chain.update = vi.fn().mockReturnValue(chain)
         chain.upsert = vi.fn((rows: any) => {
-          if (table === 'card_definitions') upsertedCardDefs.push(rows)
+          if (table === 'cards') upsertedCards.push(rows)
           return chain
         })
         chain.eq = vi.fn().mockReturnValue(chain)
@@ -195,11 +195,11 @@ describe('importDeckExistingCollection — proxy handling', () => {
             return Promise.resolve({ data: null, error: null }).then(resolve)
           if (table === 'deck_cards' && chain._lastMethod === 'insert')
             return Promise.resolve({ data: null, error: null }).then(resolve)
-          if (table === 'card_definitions')
+          if (table === 'cards')
             return Promise.resolve({ data: { id: 42 }, error: null }).then(resolve)
-          if (table === 'physical_copies' && chain._lastMethod === 'select')
+          if (table === 'collection' && chain._lastMethod === 'select')
             return Promise.resolve({ data: null, error: null }).then(resolve)
-          if (table === 'physical_copies' && chain._lastMethod === 'insert')
+          if (table === 'collection' && chain._lastMethod === 'insert')
             return Promise.resolve({ data: { id: 100 }, error: null }).then(resolve)
           return Promise.resolve({ data: null, error: null }).then(resolve)
         }
@@ -209,11 +209,11 @@ describe('importDeckExistingCollection — proxy handling', () => {
       return chain
     })
 
-    await importDeckExistingCollection(deck, TEST_USER_ID)
+    await importDeckDesign(deck, TEST_USER_ID)
 
-    // Verify card_definitions was upserted with the proxy card's oracle_id
-    expect(upsertedCardDefs.length).toBeGreaterThan(0)
-    expect(upsertedCardDefs[0]).toEqual(
+    // Verify cards was upserted with the proxy card's oracle_id
+    expect(upsertedCards.length).toBeGreaterThan(0)
+    expect(upsertedCards[0]).toEqual(
       expect.objectContaining({
         oracle_id: 'oracle-rhystic-001',
         card_name: 'Rhystic Study',
@@ -221,17 +221,17 @@ describe('importDeckExistingCollection — proxy handling', () => {
     )
   })
 
-  it('creates new proxy physical_copy when none exists (Req 7.2)', async () => {
+  it('creates new proxy copy when none exists (Req 7.2)', async () => {
     const proxyCard = makeProxyCard()
     const deck = makeDeck([proxyCard])
 
-    const insertedPhysicalCopies: any[] = []
+    const insertedCollectionRows: any[] = []
 
     mockFrom.mockImplementation((table: string) => {
       const chain: any = {}
       chain.select = vi.fn().mockReturnValue(chain)
       chain.insert = vi.fn((rows: any) => {
-        if (table === 'physical_copies') insertedPhysicalCopies.push(rows)
+        if (table === 'collection') insertedCollectionRows.push(rows)
         return chain
       })
       chain.delete = vi.fn().mockReturnValue(chain)
@@ -246,13 +246,13 @@ describe('importDeckExistingCollection — proxy handling', () => {
         if (table === 'decks') return Promise.resolve({ data: null, error: null }).then(resolve)
         if (table === 'deck_cards')
           return Promise.resolve({ data: null, error: null }).then(resolve)
-        if (table === 'card_definitions')
+        if (table === 'cards')
           return Promise.resolve({ data: { id: 42 }, error: null }).then(resolve)
-        if (table === 'physical_copies') {
+        if (table === 'collection') {
           // First query is the select (checking for existing proxy) — return null (none found)
           // Second call is the insert (creating new proxy)
-          const physCalls = insertedPhysicalCopies.length
-          if (physCalls === 0) {
+          const collCalls = insertedCollectionRows.length
+          if (collCalls === 0) {
             // This is the maybeSingle check — no existing proxy
             return Promise.resolve({ data: null, error: null }).then(resolve)
           }
@@ -264,37 +264,37 @@ describe('importDeckExistingCollection — proxy handling', () => {
       return chain
     })
 
-    await importDeckExistingCollection(deck, TEST_USER_ID)
+    await importDeckDesign(deck, TEST_USER_ID)
 
-    // Verify a physical_copy was inserted with is_proxy=true
-    expect(insertedPhysicalCopies.length).toBeGreaterThan(0)
-    expect(insertedPhysicalCopies[0]).toEqual(
+    // Verify a collection row was inserted with is_proxy=true
+    expect(insertedCollectionRows.length).toBeGreaterThan(0)
+    expect(insertedCollectionRows[0]).toEqual(
       expect.objectContaining({
-        card_definition_id: 42,
+        card_id: 42,
         is_proxy: true,
         user_id: TEST_USER_ID,
-        scryfall_printing_id: 'scry-rhystic-001',
+        printing_id: 'scry-rhystic-001',
       })
     )
   })
 
-  it('reuses existing proxy physical_copy when one already exists (Req 7.3)', async () => {
+  it('reuses existing proxy copy when one already exists (Req 7.3)', async () => {
     const proxyCard = makeProxyCard()
     const deck = makeDeck([proxyCard])
 
-    const insertedPhysicalCopies: any[] = []
+    const insertedCollectionRows: any[] = []
     const updatedDeckCards: any[] = []
 
-    // Track whether physical_copies insert is called
-    let physicalCopyInsertCalled = false
+    // Track whether collection insert is called
+    let collectionInsertCalled = false
 
     mockFrom.mockImplementation((table: string) => {
       const chain: any = {}
       chain.select = vi.fn().mockReturnValue(chain)
       chain.insert = vi.fn((rows: any) => {
-        if (table === 'physical_copies') {
-          physicalCopyInsertCalled = true
-          insertedPhysicalCopies.push(rows)
+        if (table === 'collection') {
+          collectionInsertCalled = true
+          insertedCollectionRows.push(rows)
         }
         return chain
       })
@@ -313,9 +313,9 @@ describe('importDeckExistingCollection — proxy handling', () => {
         if (table === 'decks') return Promise.resolve({ data: null, error: null }).then(resolve)
         if (table === 'deck_cards')
           return Promise.resolve({ data: null, error: null }).then(resolve)
-        if (table === 'card_definitions')
+        if (table === 'cards')
           return Promise.resolve({ data: { id: 42 }, error: null }).then(resolve)
-        if (table === 'physical_copies') {
+        if (table === 'collection') {
           // Return an existing proxy (id=999) for the maybeSingle select check
           return Promise.resolve({ data: { id: 999 }, error: null }).then(resolve)
         }
@@ -324,16 +324,16 @@ describe('importDeckExistingCollection — proxy handling', () => {
       return chain
     })
 
-    await importDeckExistingCollection(deck, TEST_USER_ID)
+    await importDeckDesign(deck, TEST_USER_ID)
 
-    // Verify physical_copies INSERT was NOT called (reusing existing)
-    expect(physicalCopyInsertCalled).toBe(false)
+    // Verify collection INSERT was NOT called (reusing existing)
+    expect(collectionInsertCalled).toBe(false)
 
     // Verify deck_cards were updated to link to the existing proxy (id=999)
     expect(updatedDeckCards.length).toBeGreaterThan(0)
     expect(updatedDeckCards[0]).toEqual(
       expect.objectContaining({
-        physical_copy_id: 999,
+        copy_id: 999,
         ownership_status: 'proxy',
       })
     )
@@ -349,21 +349,21 @@ describe('importDeckAddNewCards — proxy handling', () => {
     vi.clearAllMocks()
   })
 
-  it('creates physical_copy with is_proxy=true for proxy cards (Req 7.2, 7.4)', async () => {
+  it('creates collection row with is_proxy=true for proxy cards (Req 7.2, 7.4)', async () => {
     const proxyCard = makeProxyCard()
     const nonProxyCard = { ...baseNonProxyCard }
     const deck = makeDeck([proxyCard, nonProxyCard])
 
-    const insertedPhysicalCopies: any[] = []
-    let physicalCopyInsertCount = 0
+    const insertedCollectionRows: any[] = []
+    let collectionInsertCount = 0
 
     mockFrom.mockImplementation((table: string) => {
       const chain: any = {}
       chain.select = vi.fn().mockReturnValue(chain)
       chain.insert = vi.fn((rows: any) => {
-        if (table === 'physical_copies') {
-          insertedPhysicalCopies.push(rows)
-          physicalCopyInsertCount++
+        if (table === 'collection') {
+          insertedCollectionRows.push(rows)
+          collectionInsertCount++
         }
         return chain
       })
@@ -379,10 +379,10 @@ describe('importDeckAddNewCards — proxy handling', () => {
         if (table === 'decks') return Promise.resolve({ data: null, error: null }).then(resolve)
         if (table === 'deck_cards')
           return Promise.resolve({ data: null, error: null }).then(resolve)
-        if (table === 'card_definitions')
-          return Promise.resolve({ data: { id: physicalCopyInsertCount + 10 }, error: null }).then(resolve)
-        if (table === 'physical_copies')
-          return Promise.resolve({ data: { id: physicalCopyInsertCount + 100 }, error: null }).then(resolve)
+        if (table === 'cards')
+          return Promise.resolve({ data: { id: collectionInsertCount + 10 }, error: null }).then(resolve)
+        if (table === 'collection')
+          return Promise.resolve({ data: { id: collectionInsertCount + 100 }, error: null }).then(resolve)
         return Promise.resolve({ data: null, error: null }).then(resolve)
       }
       return chain
@@ -391,25 +391,25 @@ describe('importDeckAddNewCards — proxy handling', () => {
     await importDeckAddNewCards(deck, TEST_USER_ID)
 
     // The proxy card should have is_proxy=true
-    const proxyInsert = insertedPhysicalCopies.find(
+    const proxyInsert = insertedCollectionRows.find(
       (row: any) => row.is_proxy === true
     )
     expect(proxyInsert).toBeDefined()
-    expect(proxyInsert.scryfall_printing_id).toBe('scry-rhystic-001')
+    expect(proxyInsert.printing_id).toBe('scry-rhystic-001')
 
     // The non-proxy card should have is_proxy=false
-    const nonProxyInsert = insertedPhysicalCopies.find(
+    const nonProxyInsert = insertedCollectionRows.find(
       (row: any) => row.is_proxy === false
     )
     expect(nonProxyInsert).toBeDefined()
-    expect(nonProxyInsert.scryfall_printing_id).toBe('scry-solring-001')
+    expect(nonProxyInsert.printing_id).toBe('scry-solring-001')
   })
 
-  it('upserts card_definition for proxy cards in add new mode (Req 7.4)', async () => {
+  it('upserts card for proxy cards in add new mode (Req 7.4)', async () => {
     const proxyCard = makeProxyCard()
     const deck = makeDeck([proxyCard])
 
-    const upsertedCardDefs: any[] = []
+    const upsertedCards: any[] = []
 
     mockFrom.mockImplementation((table: string) => {
       const chain: any = {}
@@ -418,7 +418,7 @@ describe('importDeckAddNewCards — proxy handling', () => {
       chain.delete = vi.fn().mockReturnValue(chain)
       chain.update = vi.fn().mockReturnValue(chain)
       chain.upsert = vi.fn((rows: any) => {
-        if (table === 'card_definitions') upsertedCardDefs.push(rows)
+        if (table === 'cards') upsertedCards.push(rows)
         return chain
       })
       chain.eq = vi.fn().mockReturnValue(chain)
@@ -430,9 +430,9 @@ describe('importDeckAddNewCards — proxy handling', () => {
         if (table === 'decks') return Promise.resolve({ data: null, error: null }).then(resolve)
         if (table === 'deck_cards')
           return Promise.resolve({ data: null, error: null }).then(resolve)
-        if (table === 'card_definitions')
+        if (table === 'cards')
           return Promise.resolve({ data: { id: 50 }, error: null }).then(resolve)
-        if (table === 'physical_copies')
+        if (table === 'collection')
           return Promise.resolve({ data: { id: 300 }, error: null }).then(resolve)
         return Promise.resolve({ data: null, error: null }).then(resolve)
       }
@@ -441,9 +441,9 @@ describe('importDeckAddNewCards — proxy handling', () => {
 
     await importDeckAddNewCards(deck, TEST_USER_ID)
 
-    // Verify card_definitions was upserted with the proxy card's oracle_id
-    expect(upsertedCardDefs.length).toBeGreaterThan(0)
-    expect(upsertedCardDefs[0]).toEqual(
+    // Verify cards was upserted with the proxy card's oracle_id
+    expect(upsertedCards.length).toBeGreaterThan(0)
+    expect(upsertedCards[0]).toEqual(
       expect.objectContaining({
         oracle_id: 'oracle-rhystic-001',
         card_name: 'Rhystic Study',
@@ -455,15 +455,15 @@ describe('importDeckAddNewCards — proxy handling', () => {
     const proxyCard = makeProxyCard({ quantity: 3 })
     const deck = makeDeck([proxyCard])
 
-    const insertedPhysicalCopies: any[] = []
+    const insertedCollectionRows: any[] = []
     let insertCounter = 0
 
     mockFrom.mockImplementation((table: string) => {
       const chain: any = {}
       chain.select = vi.fn().mockReturnValue(chain)
       chain.insert = vi.fn((rows: any) => {
-        if (table === 'physical_copies') {
-          insertedPhysicalCopies.push(rows)
+        if (table === 'collection') {
+          insertedCollectionRows.push(rows)
           insertCounter++
         }
         return chain
@@ -480,9 +480,9 @@ describe('importDeckAddNewCards — proxy handling', () => {
         if (table === 'decks') return Promise.resolve({ data: null, error: null }).then(resolve)
         if (table === 'deck_cards')
           return Promise.resolve({ data: null, error: null }).then(resolve)
-        if (table === 'card_definitions')
+        if (table === 'cards')
           return Promise.resolve({ data: { id: 42 }, error: null }).then(resolve)
-        if (table === 'physical_copies')
+        if (table === 'collection')
           return Promise.resolve({ data: { id: 300 + insertCounter }, error: null }).then(resolve)
         return Promise.resolve({ data: null, error: null }).then(resolve)
       }
@@ -491,9 +491,9 @@ describe('importDeckAddNewCards — proxy handling', () => {
 
     await importDeckAddNewCards(deck, TEST_USER_ID)
 
-    // Should create 3 physical_copies, all with is_proxy=true
-    expect(insertedPhysicalCopies).toHaveLength(3)
-    for (const row of insertedPhysicalCopies) {
+    // Should create 3 collection rows, all with is_proxy=true
+    expect(insertedCollectionRows).toHaveLength(3)
+    for (const row of insertedCollectionRows) {
       expect(row.is_proxy).toBe(true)
     }
   })
@@ -508,17 +508,17 @@ describe('Correctness Property 5 — proxy completeness across both modes', () =
     vi.clearAllMocks()
   })
 
-  it('existing collection mode: proxy card results in is_proxy=true physical_copy', async () => {
+  it('existing collection mode: proxy card results in is_proxy=true collection row', async () => {
     const proxyCard = makeProxyCard()
     const deck = makeDeck([baseNonProxyCard, proxyCard])
 
-    const insertedPhysicalCopies: any[] = []
+    const insertedCollectionRows: any[] = []
 
     mockFrom.mockImplementation((table: string) => {
       const chain: any = {}
       chain.select = vi.fn().mockReturnValue(chain)
       chain.insert = vi.fn((rows: any) => {
-        if (table === 'physical_copies') insertedPhysicalCopies.push(rows)
+        if (table === 'collection') insertedCollectionRows.push(rows)
         return chain
       })
       chain.delete = vi.fn().mockReturnValue(chain)
@@ -533,11 +533,11 @@ describe('Correctness Property 5 — proxy completeness across both modes', () =
         if (table === 'decks') return Promise.resolve({ data: null, error: null }).then(resolve)
         if (table === 'deck_cards')
           return Promise.resolve({ data: null, error: null }).then(resolve)
-        if (table === 'card_definitions')
+        if (table === 'cards')
           return Promise.resolve({ data: { id: 42 }, error: null }).then(resolve)
-        if (table === 'physical_copies') {
+        if (table === 'collection') {
           // maybeSingle returns null — no existing proxy found
-          if (insertedPhysicalCopies.length === 0)
+          if (insertedCollectionRows.length === 0)
             return Promise.resolve({ data: null, error: null }).then(resolve)
           return Promise.resolve({ data: { id: 500 }, error: null }).then(resolve)
         }
@@ -546,26 +546,26 @@ describe('Correctness Property 5 — proxy completeness across both modes', () =
       return chain
     })
 
-    await importDeckExistingCollection(deck, TEST_USER_ID)
+    await importDeckDesign(deck, TEST_USER_ID)
 
-    // Only the proxy card should create a physical_copy
-    expect(insertedPhysicalCopies).toHaveLength(1)
-    expect(insertedPhysicalCopies[0].is_proxy).toBe(true)
+    // Only the proxy card should create a collection row
+    expect(insertedCollectionRows).toHaveLength(1)
+    expect(insertedCollectionRows[0].is_proxy).toBe(true)
   })
 
-  it('add new cards mode: proxy card results in is_proxy=true physical_copy', async () => {
+  it('add new cards mode: proxy card results in is_proxy=true collection row', async () => {
     const proxyCard = makeProxyCard()
     const deck = makeDeck([baseNonProxyCard, proxyCard])
 
-    const insertedPhysicalCopies: any[] = []
+    const insertedCollectionRows: any[] = []
     let insertCount = 0
 
     mockFrom.mockImplementation((table: string) => {
       const chain: any = {}
       chain.select = vi.fn().mockReturnValue(chain)
       chain.insert = vi.fn((rows: any) => {
-        if (table === 'physical_copies') {
-          insertedPhysicalCopies.push(rows)
+        if (table === 'collection') {
+          insertedCollectionRows.push(rows)
           insertCount++
         }
         return chain
@@ -582,9 +582,9 @@ describe('Correctness Property 5 — proxy completeness across both modes', () =
         if (table === 'decks') return Promise.resolve({ data: null, error: null }).then(resolve)
         if (table === 'deck_cards')
           return Promise.resolve({ data: null, error: null }).then(resolve)
-        if (table === 'card_definitions')
+        if (table === 'cards')
           return Promise.resolve({ data: { id: insertCount + 10 }, error: null }).then(resolve)
-        if (table === 'physical_copies')
+        if (table === 'collection')
           return Promise.resolve({ data: { id: insertCount + 200 }, error: null }).then(resolve)
         return Promise.resolve({ data: null, error: null }).then(resolve)
       }
@@ -593,27 +593,27 @@ describe('Correctness Property 5 — proxy completeness across both modes', () =
 
     await importDeckAddNewCards(deck, TEST_USER_ID)
 
-    // Both cards should create physical_copies in add new mode
-    expect(insertedPhysicalCopies).toHaveLength(2)
+    // Both cards should create collection rows in add new mode
+    expect(insertedCollectionRows).toHaveLength(2)
 
     // Find the proxy one
-    const proxyInsert = insertedPhysicalCopies.find(r => r.is_proxy === true)
-    const nonProxyInsert = insertedPhysicalCopies.find(r => r.is_proxy === false)
+    const proxyInsert = insertedCollectionRows.find(r => r.is_proxy === true)
+    const nonProxyInsert = insertedCollectionRows.find(r => r.is_proxy === false)
 
     expect(proxyInsert).toBeDefined()
     expect(nonProxyInsert).toBeDefined()
   })
 
-  it('non-proxy cards do NOT create physical_copies in existing collection mode', async () => {
+  it('non-proxy cards do NOT create collection rows in existing collection mode', async () => {
     const deck = makeDeck([baseNonProxyCard])
 
-    const insertedPhysicalCopies: any[] = []
+    const insertedCollectionRows: any[] = []
 
     mockFrom.mockImplementation((table: string) => {
       const chain: any = {}
       chain.select = vi.fn().mockReturnValue(chain)
       chain.insert = vi.fn((rows: any) => {
-        if (table === 'physical_copies') insertedPhysicalCopies.push(rows)
+        if (table === 'collection') insertedCollectionRows.push(rows)
         return chain
       })
       chain.delete = vi.fn().mockReturnValue(chain)
@@ -622,20 +622,21 @@ describe('Correctness Property 5 — proxy completeness across both modes', () =
       chain.eq = vi.fn().mockReturnValue(chain)
       chain.is = vi.fn().mockReturnValue(chain)
       chain.limit = vi.fn().mockReturnValue(chain)
+      chain.range = vi.fn().mockReturnValue(chain)
       chain.single = vi.fn().mockReturnValue(chain)
       chain.maybeSingle = vi.fn().mockReturnValue(chain)
       chain.then = (resolve: any) => {
         if (table === 'decks') return Promise.resolve({ data: null, error: null }).then(resolve)
         if (table === 'deck_cards')
-          return Promise.resolve({ data: null, error: null }).then(resolve)
+          return Promise.resolve({ data: [], error: null }).then(resolve)
         return Promise.resolve({ data: null, error: null }).then(resolve)
       }
       return chain
     })
 
-    await importDeckExistingCollection(deck, TEST_USER_ID)
+    await importDeckDesign(deck, TEST_USER_ID)
 
-    // No physical_copies should be created for non-proxy cards in existing mode
-    expect(insertedPhysicalCopies).toHaveLength(0)
+    // No collection rows should be created for non-proxy cards in existing mode
+    expect(insertedCollectionRows).toHaveLength(0)
   })
 })

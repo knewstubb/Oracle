@@ -2,11 +2,11 @@
  * Tests for PATCH /api/collection/assign-location
  *
  * Validates: Requirements 14.1, 14.2, 14.3, 14.5
- * - Assigns storage_location_id to a physical copy
- * - Clears storage_location_id when null is provided
- * - Returns 400 for missing physicalCopyId
- * - Returns 404 if physical copy doesn't belong to user
- * - Returns 404 if storage location doesn't belong to user
+ * - Assigns location_id to a collection copy
+ * - Clears location_id when null is provided
+ * - Returns 400 for missing copyId
+ * - Returns 404 if copy doesn't belong to user
+ * - Returns 404 if location doesn't belong to user
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -24,12 +24,12 @@ vi.mock('@/lib/auth', () => ({
 
 // Track supabase calls
 let mockDbState: {
-  physicalCopy: any | null
-  storageLocation: any | null
+  copy: any | null
+  location: any | null
   updateError: any | null
 } = {
-  physicalCopy: null,
-  storageLocation: null,
+  copy: null,
+  location: null,
   updateError: null,
 }
 
@@ -40,12 +40,12 @@ vi.mock('@/lib/supabase', () => ({
 function createMockSupabase() {
   return {
     from: (table: string) => {
-      if (table === 'physical_copies') {
+      if (table === 'collection') {
         return {
           select: () => ({
             eq: (_col: string, _val: any) => ({
               eq: (_col2: string, _val2: any) => ({
-                maybeSingle: () => Promise.resolve({ data: mockDbState.physicalCopy, error: null }),
+                maybeSingle: () => Promise.resolve({ data: mockDbState.copy, error: null }),
               }),
             }),
           }),
@@ -57,12 +57,12 @@ function createMockSupabase() {
           }),
         }
       }
-      if (table === 'storage_locations') {
+      if (table === 'locations') {
         return {
           select: () => ({
             eq: (_col: string, _val: any) => ({
               eq: (_col2: string, _val2: any) => ({
-                maybeSingle: () => Promise.resolve({ data: mockDbState.storageLocation, error: null }),
+                maybeSingle: () => Promise.resolve({ data: mockDbState.location, error: null }),
               }),
             }),
           }),
@@ -96,66 +96,67 @@ describe('PATCH /api/collection/assign-location', () => {
   beforeEach(() => {
     mockAuthResult = mockUser
     mockDbState = {
-      physicalCopy: { id: 42, user_id: 'user-123' },
-      storageLocation: { id: 1 },
+      copy: { id: 42, user_id: 'user-123' },
+      location: { id: 1 },
       updateError: null,
     }
   })
 
   it('returns 401 when not authenticated', async () => {
     mockAuthResult = Response.json({ error: 'Unauthorized' }, { status: 401 })
-    const res = await PATCH(makePatchRequest({ physicalCopyId: 42, storageLocationId: 1 }))
+    // Support both old and new field names in request
+    const res = await PATCH(makePatchRequest({ copyId: 42, locationId: 1 }))
     expect(res.status).toBe(401)
   })
 
-  it('returns 400 when physicalCopyId is missing', async () => {
-    const res = await PATCH(makePatchRequest({ storageLocationId: 1 }))
+  it('returns 400 when copyId is missing', async () => {
+    const res = await PATCH(makePatchRequest({ locationId: 1 }))
     expect(res.status).toBe(400)
     const data = await res.json()
-    expect(data.error).toContain('physicalCopyId')
+    expect(data.error).toMatch(/copyId|physicalCopyId/i)
   })
 
-  it('returns 400 when physicalCopyId is not a number', async () => {
-    const res = await PATCH(makePatchRequest({ physicalCopyId: 'abc', storageLocationId: 1 }))
+  it('returns 400 when copyId is not a number', async () => {
+    const res = await PATCH(makePatchRequest({ copyId: 'abc', locationId: 1 }))
     expect(res.status).toBe(400)
   })
 
-  it('returns 404 when physical copy not found for user', async () => {
-    mockDbState.physicalCopy = null
-    const res = await PATCH(makePatchRequest({ physicalCopyId: 999, storageLocationId: 1 }))
+  it('returns 404 when copy not found for user', async () => {
+    mockDbState.copy = null
+    const res = await PATCH(makePatchRequest({ copyId: 999, locationId: 1 }))
     expect(res.status).toBe(404)
     const data = await res.json()
-    expect(data.error).toContain('Physical copy not found')
+    expect(data.error).toMatch(/copy not found/i)
   })
 
-  it('returns 404 when storage location not found for user', async () => {
-    mockDbState.storageLocation = null
-    const res = await PATCH(makePatchRequest({ physicalCopyId: 42, storageLocationId: 999 }))
+  it('returns 404 when location not found for user', async () => {
+    mockDbState.location = null
+    const res = await PATCH(makePatchRequest({ copyId: 42, locationId: 999 }))
     expect(res.status).toBe(404)
     const data = await res.json()
-    expect(data.error).toContain('Storage location not found')
+    expect(data.error).toMatch(/location not found/i)
   })
 
-  it('assigns a storage location successfully', async () => {
-    const res = await PATCH(makePatchRequest({ physicalCopyId: 42, storageLocationId: 1 }))
+  it('assigns a location successfully', async () => {
+    const res = await PATCH(makePatchRequest({ copyId: 42, locationId: 1 }))
     expect(res.status).toBe(200)
     const data = await res.json()
     expect(data.updated).toBe(1)
-    expect(data.physicalCopyId).toBe(42)
-    expect(data.storageLocationId).toBe(1)
+    expect(data.copyId).toBe(42)
+    expect(data.locationId).toBe(1)
   })
 
-  it('clears storage location when null is provided', async () => {
-    const res = await PATCH(makePatchRequest({ physicalCopyId: 42, storageLocationId: null }))
+  it('clears location when null is provided', async () => {
+    const res = await PATCH(makePatchRequest({ copyId: 42, locationId: null }))
     expect(res.status).toBe(200)
     const data = await res.json()
     expect(data.updated).toBe(1)
-    expect(data.storageLocationId).toBeNull()
+    expect(data.locationId).toBeNull()
   })
 
   it('returns 500 when database update fails', async () => {
     mockDbState.updateError = { message: 'DB connection error' }
-    const res = await PATCH(makePatchRequest({ physicalCopyId: 42, storageLocationId: 1 }))
+    const res = await PATCH(makePatchRequest({ copyId: 42, locationId: 1 }))
     expect(res.status).toBe(500)
     const data = await res.json()
     expect(data.error).toBe('DB connection error')

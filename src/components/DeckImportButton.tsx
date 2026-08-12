@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
-import { Download, Loader2, RefreshCw, Upload } from 'lucide-react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState, useCallback, useRef, useEffect } from 'react'
+import { Download, Loader2, RefreshCw, Upload, Search } from 'lucide-react'
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -23,11 +23,25 @@ import { FORMAT_OPTIONS } from '@/lib/format-config'
 import type { NormalizedDeck, CardsByType } from '@/lib/deck-normalizer'
 import type { ImportMode } from '@/lib/deck-import'
 
-type InputTab = 'url' | 'paste' | 'csv'
+type InputTab = 'url' | 'paste' | 'csv' | 'precon'
+
+interface Precon {
+  id: string
+  name: string
+  set_code: string
+  set_name: string
+  commander_name: string | null
+  color_identity: string | null
+  release_date: string | null
+  card_count: number
+  archidekt_url: string | null
+  commander_image: string | null
+}
 
 interface DeckImportButtonProps {
   className?: string
   onPreviewSuccess?: (deck: NormalizedDeck, cardsByType: CardsByType) => void
+  variant?: 'default' | 'secondary'
 }
 
 interface PreviewResponse {
@@ -67,6 +81,7 @@ function getDisplayError(status: number, serverMessage: string): string {
 export function DeckImportButton({
   className,
   onPreviewSuccess,
+  variant = 'default',
 }: DeckImportButtonProps) {
   const [open, setOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<InputTab>('url')
@@ -88,9 +103,15 @@ export function DeckImportButton({
   const [pasteDeckName, setPasteDeckName] = useState('')
   const [pasteError, setPasteError] = useState<string | null>(null)
 
+  // Precon tab state
+  const [preconSearch, setPreconSearch] = useState('')
+  const [debouncedPreconSearch, setDebouncedPreconSearch] = useState('')
+  const [selectedPrecon, setSelectedPrecon] = useState<Precon | null>(null)
+  const [preconError, setPreconError] = useState<string | null>(null)
+
   // Confirmation step state
   const [previewData, setPreviewData] = useState<PreviewResponse | null>(null)
-  const [importMode, setImportMode] = useState<ImportMode>('add_new_cards')
+  const [importMode, setImportMode] = useState<ImportMode>('new_cards')
   const [importFormat, setImportFormat] = useState<string>('commander')
 
   const router = useRouter()
@@ -107,9 +128,36 @@ export function DeckImportButton({
     setPasteDeckName('')
     setPasteError(null)
     setPreviewData(null)
-    setImportMode('add_new_cards')
+    setPreconSearch('')
+    setDebouncedPreconSearch('')
+    setSelectedPrecon(null)
+    setPreconError(null)
+    setImportMode('new_cards')
     setImportFormat('commander')
   }, [])
+
+  // Debounce precon search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedPreconSearch(preconSearch)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [preconSearch])
+
+  // Fetch precons
+  const { data: preconsData, isLoading: preconsLoading } = useQuery({
+    queryKey: ['precons', debouncedPreconSearch],
+    queryFn: async () => {
+      const params = new URLSearchParams({ limit: '30' })
+      if (debouncedPreconSearch) params.set('q', debouncedPreconSearch)
+      const res = await fetch(`/api/precons?${params}`)
+      if (!res.ok) throw new Error('Failed to fetch precons')
+      const data = await res.json()
+      return data.precons as Precon[]
+    },
+    enabled: activeTab === 'precon',
+    staleTime: 60_000,
+  })
 
   // --- URL preview mutation ---
   const previewMutation = useMutation({
@@ -262,12 +310,31 @@ export function DeckImportButton({
     }
   }
 
+  async function handlePreconSubmit() {
+    setPreconError(null)
+
+    if (!selectedPrecon) {
+      setPreconError('Please select a precon')
+      return
+    }
+
+    // Use the archidekt URL to fetch the deck
+    if (selectedPrecon.archidekt_url) {
+      // Extract the search URL and use it to find the official precon deck
+      // For now, we'll use the URL preview flow
+      previewMutation.mutate(selectedPrecon.archidekt_url)
+    } else {
+      setPreconError('No deck URL available for this precon. Try importing via URL tab.')
+    }
+  }
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       if (activeTab === 'url') handleUrlSubmit()
       else if (activeTab === 'csv') handleCSVImport()
       else if (activeTab === 'paste') handlePasteSubmit()
+      else if (activeTab === 'precon' && selectedPrecon) handlePreconSubmit()
     }
   }
 
@@ -308,14 +375,17 @@ export function DeckImportButton({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         render={
-          <Button className={className ?? ''} />
+          <Button 
+            className={className ?? ''} 
+            variant={variant === 'secondary' ? 'outline' : 'default'}
+          />
         }
       >
         <Download className="size-4" aria-hidden="true" />
         Import Deck
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-2xl">
         {/* ─── Confirmation Step (mode picker) ─── */}
         {previewData ? (
           <>
@@ -335,29 +405,43 @@ export function DeckImportButton({
                 <button
                   type="button"
                   className="rounded-lg border px-4 py-3 text-left transition-colors"
-                  style={importMode === 'add_new_cards'
+                  style={importMode === 'new_cards'
                     ? { borderColor: 'var(--accent-primary)', background: 'var(--accent-primary-bg)' }
                     : { borderColor: 'var(--border-default)' }
                   }
-                  onClick={() => setImportMode('add_new_cards')}
+                  onClick={() => setImportMode('new_cards')}
                 >
                   <span className="block text-[length:var(--fs-md)] font-medium">These are new cards</span>
                   <span className="block text-[length:var(--fs-sm)] text-muted-foreground">
-                    Add to my collection and fill all deck slots automatically
+                    Add to my collection and assign to deck slots
                   </span>
                 </button>
                 <button
                   type="button"
                   className="rounded-lg border px-4 py-3 text-left transition-colors"
-                  style={importMode === 'existing_collection'
+                  style={importMode === 'built'
                     ? { borderColor: 'var(--accent-primary)', background: 'var(--accent-primary-bg)' }
                     : { borderColor: 'var(--border-default)' }
                   }
-                  onClick={() => setImportMode('existing_collection')}
+                  onClick={() => setImportMode('built')}
                 >
-                  <span className="block text-[length:var(--fs-md)] font-medium">Match against my collection</span>
+                  <span className="block text-[length:var(--fs-md)] font-medium">I have this deck built</span>
                   <span className="block text-[length:var(--fs-sm)] text-muted-foreground">
-                    Find cards I already own and show what I'm missing
+                    Pull cards from my existing collection automatically
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border px-4 py-3 text-left transition-colors"
+                  style={importMode === 'design'
+                    ? { borderColor: 'var(--accent-primary)', background: 'var(--accent-primary-bg)' }
+                    : { borderColor: 'var(--border-default)' }
+                  }
+                  onClick={() => setImportMode('design')}
+                >
+                  <span className="block text-[length:var(--fs-md)] font-medium">This is a design</span>
+                  <span className="block text-[length:var(--fs-sm)] text-muted-foreground">
+                    Just save the decklist, no allocation needed
                   </span>
                 </button>
               </div>
@@ -409,7 +493,7 @@ export function DeckImportButton({
 
             {/* Input mode tabs */}
             <div className="flex gap-1 rounded-md p-0.5" style={{ background: 'rgba(255,255,255,0.05)', border: '0.5px solid rgba(255,255,255,0.1)' }}>
-              {(['url', 'paste', 'csv'] as const).map((tab) => (
+              {(['url', 'paste', 'csv', 'precon'] as const).map((tab) => (
                 <button
                   key={tab}
                   type="button"
@@ -420,14 +504,16 @@ export function DeckImportButton({
                   }
                   onClick={() => setActiveTab(tab)}
                 >
-                  {tab === 'url' ? 'URL' : tab === 'paste' ? 'Paste List' : 'CSV'}
+                  {tab === 'url' ? 'URL' : tab === 'paste' ? 'Paste List' : tab === 'csv' ? 'CSV' : 'Precon'}
                 </button>
               ))}
             </div>
 
-            {/* URL tab */}
-            {activeTab === 'url' && (
-              <div className="flex flex-col gap-3">
+            {/* Tab content - fixed height to prevent jumping */}
+            <div className="h-[340px]">
+              {/* URL tab */}
+              {activeTab === 'url' && (
+                <div className="flex flex-col gap-3">
                 <Input
                   type="url"
                   value={url}
@@ -515,6 +601,129 @@ export function DeckImportButton({
               </div>
             )}
 
+            {/* Precon tab */}
+            {activeTab === 'precon' && (
+              <div className="flex flex-col gap-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    value={preconSearch}
+                    onChange={(e) => setPreconSearch(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Search precons..."
+                    className="pl-9"
+                    disabled={previewMutation.isPending}
+                    autoFocus
+                  />
+                </div>
+
+                {/* Precon list */}
+                <div className="h-[220px] overflow-y-auto rounded-lg border border-[var(--border-default)]">
+                  {preconsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : !preconsData?.length ? (
+                    <div className="py-8 text-center text-[length:var(--fs-sm)] text-muted-foreground">
+                      {debouncedPreconSearch ? 'No precons found' : 'Loading precons...'}
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-[var(--border-default)]">
+                      {preconsData.map((precon) => (
+                        <button
+                          key={precon.id}
+                          type="button"
+                          className="w-full px-3 py-3 text-left transition-colors hover:bg-[var(--bg-surface-hover)]"
+                          style={selectedPrecon?.id === precon.id
+                            ? { background: 'var(--accent-primary-bg)' }
+                            : {}
+                          }
+                          onClick={() => setSelectedPrecon(precon)}
+                        >
+                          <div className="flex items-center gap-3">
+                            {/* Commander art crop */}
+                            <div className="relative h-12 w-16 shrink-0 overflow-hidden rounded bg-[var(--bg-surface)]">
+                              {precon.commander_image ? (
+                                <img
+                                  src={precon.commander_image}
+                                  alt={precon.commander_name || 'Commander'}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center text-[length:var(--fs-xs)] text-muted-foreground">
+                                  ?
+                                </div>
+                              )}
+                            </div>
+                            {/* Precon info */}
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-[length:var(--fs-md)] font-medium">
+                                {precon.name}
+                              </p>
+                              <p className="truncate text-[length:var(--fs-sm)] text-muted-foreground">
+                                {precon.commander_name || 'Unknown commander'}
+                              </p>
+                              <p className="truncate text-[length:var(--fs-xs)] text-muted-foreground">
+                                {precon.set_name} · {precon.release_date ? new Date(precon.release_date).getFullYear() : ''}
+                              </p>
+                            </div>
+                            {/* Color identity - MTG mana pips */}
+                            {precon.color_identity && (
+                              <span className="flex shrink-0 items-center gap-0.5">
+                                {['W', 'U', 'B', 'R', 'G']
+                                  .filter(c => precon.color_identity!.includes(c))
+                                  .map(c => (
+                                    <i
+                                      key={c}
+                                      className={`ms ms-${c.toLowerCase()} ms-cost ms-shadow`}
+                                      style={{ fontSize: '16px' }}
+                                      aria-label={c === 'W' ? 'White' : c === 'U' ? 'Blue' : c === 'B' ? 'Black' : c === 'R' ? 'Red' : 'Green'}
+                                    />
+                                  ))
+                                }
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Selected precon preview */}
+                {selectedPrecon && (
+                  <div className="flex gap-3 rounded-lg border border-[var(--accent-primary)] bg-[var(--accent-primary-bg)] p-3">
+                    {selectedPrecon.commander_image && (
+                      <img
+                        src={selectedPrecon.commander_image}
+                        alt={selectedPrecon.commander_name || 'Commander'}
+                        className="h-16 w-20 shrink-0 rounded object-cover"
+                      />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[length:var(--fs-md)] font-medium">
+                        {selectedPrecon.name}
+                      </p>
+                      <p className="text-[length:var(--fs-sm)] text-muted-foreground">
+                        {selectedPrecon.commander_name}
+                      </p>
+                      <p className="text-[length:var(--fs-xs)] text-muted-foreground">
+                        {selectedPrecon.card_count} cards · {selectedPrecon.set_name}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {preconError && (
+                  <div className="rounded-md bg-destructive/10 px-3 py-2" role="alert">
+                    <p className="text-[length:var(--fs-md)] text-destructive">{preconError}</p>
+                  </div>
+                )}
+              </div>
+            )}
+            </div>
+
             <DialogFooter>
               {activeTab === 'url' && (
                 <Button onClick={handleUrlSubmit} disabled={previewMutation.isPending || !url.trim()}>
@@ -531,6 +740,12 @@ export function DeckImportButton({
                 <Button onClick={handleCSVImport} disabled={importMutation.isPending || !selectedFile}>
                   {importMutation.isPending && <Loader2 className="size-4 animate-spin" aria-hidden="true" data-icon="inline-start" />}
                   Continue
+                </Button>
+              )}
+              {activeTab === 'precon' && (
+                <Button onClick={handlePreconSubmit} disabled={previewMutation.isPending || !selectedPrecon}>
+                  {previewMutation.isPending && <Loader2 className="size-4 animate-spin" aria-hidden="true" data-icon="inline-start" />}
+                  {previewMutation.isPending ? 'Fetching...' : 'Import Precon'}
                 </Button>
               )}
             </DialogFooter>

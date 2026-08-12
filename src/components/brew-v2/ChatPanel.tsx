@@ -1,7 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import type { ChatMessage } from '@/lib/debrief-types'
+import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
+import type { ChatMessage, CommanderSummaryContext } from '@/lib/debrief-types'
+import { renderMessageContent, type CardLinkMode, type OwnershipStatus, type OwnershipLookupFn } from '@/lib/render-card-links'
+import { cardOwnershipData } from '@/components/CardHoverPreview'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -20,6 +22,15 @@ export interface ToolStatus {
   status: 'running' | 'complete' | 'error'
 }
 
+/** Ownership data for a card from the collection API */
+interface OwnershipData {
+  cardName: string
+  status: OwnershipStatus
+  quantity?: number
+  available?: number
+  priceUsd?: number | null
+}
+
 export interface ChatPanelProps {
   messages: ChatMessage[]
   onSend: (text: string) => void
@@ -29,7 +40,13 @@ export interface ChatPanelProps {
   isStreaming?: boolean
   /** Active tool calls to display as status indicators */
   activeTools?: ToolStatus[]
-  /** Called when a [[Card Name]] link is clicked in chat (adds card to canvas) */
+  /** Mode for card link buttons: 'crown' to select commander, 'add' to add to deck */
+  cardLinkMode?: CardLinkMode
+  /** Called when a card action button is clicked (crown or plus) */
+  onCardAction?: (cardName: string) => void
+  /** Called when a card name is clicked (opens detail modal) */
+  onCardNameClick?: (cardName: string) => void
+  /** @deprecated Use cardLinkMode='add' and onCardAction instead */
   onCardClick?: (cardName: string) => void
 }
 
@@ -38,7 +55,8 @@ export interface ChatPanelProps {
 // ---------------------------------------------------------------------------
 
 const MIN_WIDTH = 220
-const MAX_WIDTH = 500
+const MAX_WIDTH = 560
+const DEFAULT_WIDTH = 560
 
 // ---------------------------------------------------------------------------
 // Tool name formatting
@@ -56,6 +74,8 @@ function formatToolName(name: string): string {
     'mtg_ruling_search': 'card rulings',
     'mtg_rules_search': 'rules',
     'mtg_cardtypes_get': 'card types',
+    'mtg_top_commanders': 'popular commanders',
+    'present_commander_summary': 'commander details',
     'decision_extraction': 'decisions',
   }
   return map[name] || name.replace(/_/g, ' ')
@@ -65,11 +85,87 @@ function formatToolName(name: string): string {
 // ChatPanel
 // ---------------------------------------------------------------------------
 
-export function ChatPanel({ messages, onSend, inputRef, handleRef, isStreaming, activeTools, onCardClick }: ChatPanelProps) {
-  const [width, setWidth] = useState(MIN_WIDTH)
+export function ChatPanel({ messages, onSend, inputRef, handleRef, isStreaming, activeTools, cardLinkMode, onCardAction, onCardNameClick, onCardClick }: ChatPanelProps) {
+  const [width, setWidth] = useState(DEFAULT_WIDTH)
   const [inputValue, setInputValue] = useState('')
+  const [ownershipCache, setOwnershipCache] = useState<Map<string, OwnershipStatus>>(new Map())
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  const pendingLookups = useRef<Set<string>>(new Set())
+
+  // Resolve mode and action (support legacy onCardClick prop)
+  const resolvedMode: CardLinkMode = cardLinkMode ?? (onCardClick ? 'add' : 'none')
+  const resolvedOnAction = onCardAction ?? onCardClick
+
+  // Extract all card names from messages for ownership lookup
+  const cardNamesInChat = useMemo(() => {
+    const names = new Set<string>()
+    const cardPattern = /\[\[([^\]]+)\]\]/g
+    for (const msg of messages) {
+      if (msg.role === 'assistant') {
+        let match
+        while ((match = cardPattern.exec(msg.content)) !== null) {
+          names.add(match[1])
+        }
+      }
+    }
+    return names
+  }, [messages])
+
+  // Fetch ownership data for cards not yet in cache (only when mode is 'add')
+  useEffect(() => {
+    if (resolvedMode !== 'add') return
+    
+    const cardsToFetch = Array.from(cardNamesInChat).filter(
+      name => !ownershipCache.has(name) && !pendingLookups.current.has(name)
+    )
+    
+    if (cardsToFetch.length === 0) return
+    
+    // Mark as pending
+    cardsToFetch.forEach(name => pendingLookups.current.add(name))
+    
+    // Batch fetch ownership data (with details for hover preview)
+    const fetchOwnership = async () => {
+      try {
+        const response = await fetch('/api/collection/ownership-batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cardNames: cardsToFetch, includeDetails: true }),
+        })
+        
+        if (response.ok) {
+          const data = await response.json() as { results: OwnershipData[] }
+          setOwnershipCache(prev => {
+            const next = new Map(prev)
+            for (const item of data.results) {
+              next.set(item.cardName, item.status)
+              // Also populate global store for hover preview
+              cardOwnershipData.set(item.cardName.toLowerCase(), {
+                status: item.status,
+                quantity: item.quantity,
+                available: item.available,
+                priceUsd: item.priceUsd,
+              })
+            }
+            return next
+          })
+        }
+      } catch (err) {
+        console.error('[ChatPanel] Ownership fetch error:', err)
+      } finally {
+        // Clear pending status
+        cardsToFetch.forEach(name => pendingLookups.current.delete(name))
+      }
+    }
+    
+    fetchOwnership()
+  }, [cardNamesInChat, ownershipCache, resolvedMode])
+
+  // Ownership lookup function to pass to renderMessageContent
+  const ownershipLookup: OwnershipLookupFn = useCallback((cardName: string) => {
+    return ownershipCache.get(cardName) ?? 'unknown'
+  }, [ownershipCache])
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -169,9 +265,9 @@ export function ChatPanel({ messages, onSend, inputRef, handleRef, isStreaming, 
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2.5">
         {messages
-          .filter(msg => !msg.content.startsWith('[SYSTEM CONTEXT'))
+          .filter(msg => msg.role !== 'system' && !msg.content.startsWith('[SYSTEM CONTEXT'))
           .map((msg) => (
-          <MessageBubble key={msg.id} message={msg} onCardClick={onCardClick} />
+          <MessageBubble key={msg.id} message={msg} cardLinkMode={resolvedMode} onCardAction={resolvedOnAction} onCardNameClick={onCardNameClick} ownershipLookup={resolvedMode === 'add' ? ownershipLookup : undefined} />
         ))}
         {/* Tool status indicator */}
         {isStreaming && runningTools.length > 0 && (
@@ -212,110 +308,15 @@ export function ChatPanel({ messages, onSend, inputRef, handleRef, isStreaming, 
 }
 
 // ---------------------------------------------------------------------------
-// Card Hover Link — shows Scryfall card image on hover
-// ---------------------------------------------------------------------------
-
-function CardHoverLink({ cardName, onCardClick }: { cardName: string; onCardClick?: (name: string) => void }) {
-  const [hovered, setHovered] = useState(false)
-  const [pos, setPos] = useState({ x: 0, y: 0 })
-
-  const scryfallUrl = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}&format=image&version=large`
-
-  const imgWidth = 220
-  const imgHeight = 308
-  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1200
-  const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800
-
-  // Horizontal: prefer left of cursor, flip right if it won't fit
-  const fitsLeft = pos.x - imgWidth - 12 > 0
-  const left = fitsLeft ? pos.x - imgWidth - 12 : pos.x + 12
-
-  // Vertical: prefer top-aligned, shift if would overflow
-  let top = pos.y
-  if (top + imgHeight > viewportHeight - 16) {
-    top = viewportHeight - imgHeight - 16
-  }
-  if (top < 16) top = 16
-
-  return (
-    <span
-      className={`text-[#378ADD] inline ${onCardClick ? 'cursor-pointer hover:underline hover:bg-[rgba(55,138,221,0.1)] rounded px-0.5 -mx-0.5 transition-colors' : 'cursor-pointer hover:underline'}`}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onMouseMove={(e) => setPos({ x: e.clientX, y: e.clientY })}
-      onClick={onCardClick ? () => onCardClick(cardName) : undefined}
-    >
-      {cardName}
-      {onCardClick && <span className="text-[length:var(--fs-xs)] text-[rgba(55,138,221,0.6)] ml-0.5">+</span>}
-      {hovered && (
-        <img
-          src={scryfallUrl}
-          alt={cardName}
-          className="fixed z-[9999] w-[220px] rounded-lg shadow-2xl border border-[rgba(255,255,255,0.15)] pointer-events-none"
-          style={{ top, left }}
-          loading="lazy"
-        />
-      )}
-    </span>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Inline content rendering — [[Card Name]] → hover link, **bold** → bold
-// ---------------------------------------------------------------------------
-
-function renderInlineContent(text: string, onCardClick?: (name: string) => void): React.ReactNode {
-  // Split on [[Card Name]] patterns first (highest priority), then bold
-  const parts = text.split(/(\[\[[^\]]+\]\]|\*\*[^*]+\*\*)/g)
-
-  return parts.map((part, i) => {
-    // Card link: [[Card Name]] — always render as hoverable regardless of context
-    if (part.startsWith('[[') && part.endsWith(']]')) {
-      const cardName = part.slice(2, -2)
-      return <CardHoverLink key={i} cardName={cardName} onCardClick={onCardClick} />
-    }
-    // Bold: **text** — may contain [[card]] inside, so recursively parse
-    if (part.startsWith('**') && part.endsWith('**')) {
-      const inner = part.slice(2, -2)
-      // Check if the bold text contains card links
-      if (inner.includes('[[')) {
-        return <strong key={i} className="font-medium">{renderInlineContent(inner, onCardClick)}</strong>
-      }
-      return <strong key={i} className="font-medium">{inner}</strong>
-    }
-    return <span key={i}>{part}</span>
-  })
-}
-
-function renderMessageContent(content: string, onCardClick?: (name: string) => void): React.ReactNode {
-  const lines = content.split('\n')
-  const elements: React.ReactNode[] = []
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
-    if (/^\s*[-•]\s+/.test(line)) {
-      const bulletText = line.replace(/^\s*[-•]\s+/, '')
-      elements.push(
-        <div key={i} className="flex gap-1.5 pl-0.5">
-          <span className="text-muted-foreground shrink-0">•</span>
-          <span>{renderInlineContent(bulletText, onCardClick)}</span>
-        </div>
-      )
-    } else if (line.trim() === '') {
-      elements.push(<div key={i} className="h-1.5" />)
-    } else {
-      elements.push(<div key={i}>{renderInlineContent(line, onCardClick)}</div>)
-    }
-  }
-
-  return <>{elements}</>
-}
-
-// ---------------------------------------------------------------------------
 // MessageBubble
 // ---------------------------------------------------------------------------
 
-function MessageBubble({ message, onCardClick }: { message: ChatMessage; onCardClick?: (name: string) => void }) {
+function MessageBubble({ message, cardLinkMode, onCardAction, onCardNameClick, ownershipLookup }: { message: ChatMessage; cardLinkMode: CardLinkMode; onCardAction?: (name: string) => void; onCardNameClick?: (name: string) => void; ownershipLookup?: OwnershipLookupFn }) {
+  // Render commander summary card if present
+  if (message.commanderSummary) {
+    return <CommanderSummaryCard summary={message.commanderSummary} />
+  }
+
   if (message.role === 'user') {
     return (
       <div className="text-[length:var(--fs-sm)] bg-[rgba(55,138,221,0.08)] text-right py-1.5 px-2.5 rounded-md text-[#d4d4d0] leading-relaxed">
@@ -324,16 +325,139 @@ function MessageBubble({ message, onCardClick }: { message: ChatMessage; onCardC
     )
   }
 
-  // assistant / system → oracle style (card links are clickable)
+  // assistant / system → oracle style (card links have crown/plus buttons)
   return (
     <div className="text-[length:var(--fs-sm)] bg-[rgba(255,255,255,0.03)] border-l-2 border-[#378ADD] pl-2.5 py-1.5 pr-2 rounded-r-md text-[#d4d4d0] leading-relaxed">
-      {renderMessageContent(message.content, onCardClick)}
+      {renderMessageContent(message.content, cardLinkMode, onCardAction, onCardNameClick, ownershipLookup)}
       {message.cost !== undefined && message.cost > 0 && (
         <div className="text-[length:var(--fs-xs)] text-muted-foreground/50 mt-1">
           {message.cost < 0.01 ? `$${message.cost.toFixed(4)}` : `$${message.cost.toFixed(2)}`}
         </div>
       )}
     </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// CommanderSummaryCard — structured commander presentation
+// ---------------------------------------------------------------------------
+
+function CommanderSummaryCard({ summary }: { summary: CommanderSummaryContext }) {
+  const { collection_status } = summary
+
+  // Always use Scryfall URL for consistent image loading
+  const imageUrl = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(summary.name)}&format=image&version=normal`
+
+  // Color identity to background gradient
+  const colorMap: Record<string, string> = {
+    W: '#f9fafb',
+    U: '#3b82f6',
+    B: '#1f2937',
+    R: '#ef4444',
+    G: '#22c55e',
+  }
+  const borderColor = summary.color_identity.length === 1
+    ? colorMap[summary.color_identity[0]] ?? '#6b7280'
+    : summary.color_identity.length > 1
+      ? '#d4af37' // Gold for multicolor
+      : '#6b7280' // Gray for colorless
+
+  return (
+    <div
+      className="rounded-lg border overflow-hidden bg-[rgba(255,255,255,0.02)]"
+      style={{ borderColor: `${borderColor}40`, borderWidth: 2 }}
+    >
+      {/* Card layout: image left, details right */}
+      <div className="flex gap-3 p-2">
+        {/* Card image — always shown */}
+        <div className="shrink-0">
+          <img
+            src={imageUrl}
+            alt={summary.name}
+            className="w-[100px] rounded-md shadow-md"
+            loading="lazy"
+          />
+        </div>
+
+        {/* Details */}
+        <div className="flex-1 min-w-0 space-y-1.5">
+          {/* Name + Mana cost */}
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="text-[length:var(--fs-md)] font-semibold text-[#d4d4d0] leading-tight">
+              {summary.name}
+            </h3>
+            {summary.mana_cost && (
+              <span
+                className="shrink-0 text-[length:var(--fs-sm)]"
+                dangerouslySetInnerHTML={{ __html: formatManaCost(summary.mana_cost) }}
+              />
+            )}
+          </div>
+
+          {/* Tagline */}
+          <p className="text-[length:var(--fs-sm)] text-[rgba(255,255,255,0.5)] italic leading-snug">
+            {summary.tagline}
+          </p>
+
+          {/* Type line */}
+          <p className="text-[length:var(--fs-xs)] text-[rgba(255,255,255,0.4)]">
+            {summary.type_line}
+          </p>
+
+          {/* Collection status badge */}
+          <div className="flex flex-wrap gap-1.5 mt-1">
+            {collection_status.owned ? (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-[rgba(34,197,94,0.15)] text-[#22c55e]">
+                <CheckIcon />
+                Owned ({collection_status.quantity})
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-[rgba(255,255,255,0.05)] text-[rgba(255,255,255,0.4)]">
+                Not in collection
+              </span>
+            )}
+
+            {/* In decks */}
+            {collection_status.in_decks.length > 0 && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-[rgba(55,138,221,0.15)] text-[#378ADD]">
+                In {collection_status.in_decks.length} deck{collection_status.in_decks.length > 1 ? 's' : ''}
+              </span>
+            )}
+
+            {/* Proxy conflicts */}
+            {collection_status.proxy_conflicts.length > 0 && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-[rgba(251,191,36,0.15)] text-[#fbbf24]">
+                Proxy in {collection_status.proxy_conflicts.join(', ')}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Analysis section */}
+      <div className="px-3 py-2 border-t border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.01)]">
+        <p className="text-[length:var(--fs-sm)] text-[#d4d4d0] leading-relaxed">
+          {summary.analysis}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/** Format mana cost string to mana-font pips */
+function formatManaCost(manaCost: string): string {
+  // Convert {W} to mana-font icons
+  return manaCost.replace(/\{([^}]+)\}/g, (_match, symbol) => {
+    const normalized = symbol.toLowerCase().replace('/', '')
+    return `<i class="ms ms-${normalized} ms-cost"></i>`
+  })
+}
+
+function CheckIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+      <path d="M2 5L4 7L8 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   )
 }
 

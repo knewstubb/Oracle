@@ -60,9 +60,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Delete all existing physical_copies for this user
+    // Delete all existing user_copies for this user
     const { error: deleteErr } = await supabase
-      .from('physical_copies')
+      .from('user_copies')
       .delete()
       .eq('user_id', userId)
 
@@ -73,8 +73,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Also clear the collection lookup table (set metadata cache)
-    await supabase.from('collection').delete().eq('user_id', userId).then(() => {}, () => {})
+    // Also clear the user_cards lookup table
+    await supabase.from('user_cards').delete().eq('user_id', userId).then(() => {}, () => {})
 
     // Now run as 'add' mode (pure append into empty table)
     try {

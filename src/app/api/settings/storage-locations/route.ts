@@ -5,6 +5,7 @@ import { requireAuth } from '@/lib/auth'
 /**
  * GET /api/settings/storage-locations
  * Returns all storage locations for the authenticated user, ordered by sort_order.
+ * Only returns locations with type='storage' (not deck locations).
  */
 export async function GET() {
   const authResult = await requireAuth()
@@ -13,9 +14,10 @@ export async function GET() {
   const supabase = createAdminClient()
 
   const { data, error } = await (supabase as any)
-    .from('storage_locations')
+    .from('user_locations')
     .select('id, name, description, color, sort_order, created_at')
     .eq('user_id', authResult.id)
+    .eq('type', 'storage')
     .order('sort_order')
     .order('name')
 
@@ -49,20 +51,22 @@ export async function POST(request: NextRequest) {
 
   const supabase = createAdminClient()
 
-  // Get max sort_order to append at end
+  // Get max sort_order to append at end (only among storage locations)
   const { data: existing } = await (supabase as any)
-    .from('storage_locations')
+    .from('user_locations')
     .select('sort_order')
     .eq('user_id', authResult.id)
+    .eq('type', 'storage')
     .order('sort_order', { ascending: false })
     .limit(1)
 
   const nextSort = (existing?.[0]?.sort_order ?? -1) + 1
 
   const { data, error } = await (supabase as any)
-    .from('storage_locations')
+    .from('user_locations')
     .insert({
       name,
+      type: 'storage',
       description: body.description || null,
       color: body.color || '#6B7280',
       sort_order: nextSort,

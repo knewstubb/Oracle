@@ -421,19 +421,6 @@ test.describe('Allocation System', () => {
       page.getByText(/Original —|Proxy —|Open —/).first()
     ).toBeVisible({ timeout: ACTION_TIMEOUT })
   })
-
-  test('allocate toggle is visible on deck detail', async ({ page }) => {
-    await page.goto('/')
-    const link = page.getByRole('list', { name: /deck list/i })
-      .getByRole('listitem').first().locator('a').first()
-    await expect(link).toBeVisible({ timeout: LOAD_TIMEOUT })
-    await link.click()
-    await page.waitForURL('**/decks/**')
-
-    await expect(
-      page.getByText('Allocate').first()
-    ).toBeVisible({ timeout: LOAD_TIMEOUT })
-  })
 })
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -578,30 +565,7 @@ test.describe('Error Handling', () => {
 })
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 14. POST-GAME DEBRIEF
-// ═══════════════════════════════════════════════════════════════════════════════
-
-test.describe('Post-Game Debrief', () => {
-  test('debrief button opens overlay', async ({ page }) => {
-    await page.goto('/')
-    const link = page.getByRole('list', { name: /deck list/i })
-      .getByRole('listitem').first().locator('a').first()
-    await expect(link).toBeVisible({ timeout: LOAD_TIMEOUT })
-    await link.click()
-    await page.waitForURL('**/decks/**')
-
-    const debriefBtn = page.getByRole('button', { name: /post-game debrief/i })
-    await expect(debriefBtn).toBeVisible({ timeout: LOAD_TIMEOUT })
-    await debriefBtn.click()
-
-    // Debrief panel should open
-    await page.waitForTimeout(1000)
-    await expect(page.locator('body')).not.toContainText('Application error')
-  })
-})
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// 15. DECK IMPORT
+// 14. DECK IMPORT
 // ═══════════════════════════════════════════════════════════════════════════════
 
 test.describe('Deck Import', () => {

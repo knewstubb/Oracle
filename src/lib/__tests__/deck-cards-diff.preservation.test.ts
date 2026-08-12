@@ -36,7 +36,7 @@ interface ExistingDeckCardRow {
   is_commander: boolean
   user_id: string
   // Enriched columns
-  physical_copy_id: number | null
+  copy_id: number | null
   ownership_status: string | null
   proxy_of_deck_id: number | null
   dead_weight_flag: string | null
@@ -140,7 +140,7 @@ describe('Property 2: Preservation — First-Time Import and Card Removal Behavi
             const inserted = diff.toInsert[i]
 
             // Null enriched columns (fresh row, no prior data)
-            expect(inserted.physical_copy_id).toBeNull()
+            expect(inserted.copy_id).toBeNull()
             expect(inserted.ownership_status).toBeNull()
 
             // Categories come from the incoming Archidekt source
@@ -190,7 +190,7 @@ describe('Property 2: Preservation — First-Time Import and Card Removal Behavi
           categories: card.categories,
           is_commander: card.is_commander,
           user_id: 'user-123',
-          physical_copy_id: idx % 2 === 0 ? idx + 100 : null, // Some assigned, some not
+          copy_id: idx % 2 === 0 ? idx + 100 : null, // Some assigned, some not
           ownership_status: idx % 2 === 0 ? 'original' : null,
           proxy_of_deck_id: null,
           dead_weight_flag: null,
@@ -267,7 +267,7 @@ describe('Property 2: Preservation — First-Time Import and Card Removal Behavi
             categories: '["Creature"]',
             is_commander: false,
             user_id: 'user-123',
-            physical_copy_id: 42,
+            copy_id: 42,
             ownership_status: 'original',
             proxy_of_deck_id: null,
             dead_weight_flag: null,
@@ -283,7 +283,7 @@ describe('Property 2: Preservation — First-Time Import and Card Removal Behavi
             categories: '["Creature"]',
             is_commander: false,
             user_id: 'user-123',
-            physical_copy_id: 99,
+            copy_id: 99,
             ownership_status: 'original',
             proxy_of_deck_id: null,
             dead_weight_flag: null,
@@ -336,8 +336,8 @@ describe('Property 2: Preservation — First-Time Import and Card Removal Behavi
    * **Validates: Requirements 3.5**
    *
    * This is a documentation test: diffDeckCards is a pure function that does NOT
-   * trigger auto-assign. The skipAutoAssign flag is respected at the caller level
-   * (importDeckExistingCollection). The diff primitive itself is unaware of it.
+   * trigger auto-assign. The skipAutoAssign flag was removed when we split into
+   * three modes (importDeckDesign never auto-assigns, importDeckBuilt always does).
    *
    * The contract: diffDeckCards produces the same output regardless of any
    * auto-assign flags — it's purely about computing the diff.
@@ -356,7 +356,7 @@ describe('Property 2: Preservation — First-Time Import and Card Removal Behavi
           categories: card.categories,
           is_commander: card.is_commander,
           user_id: 'user-123',
-          physical_copy_id: null,
+          copy_id: null,
           ownership_status: null,
           proxy_of_deck_id: null,
           dead_weight_flag: null,

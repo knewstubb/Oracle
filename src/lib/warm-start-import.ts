@@ -23,8 +23,8 @@ import {
 
 export interface CollectionImportResult {
   totalEntries: number
-  cardDefinitionsCreated: number
-  physicalCopiesCreated: number
+  userCardsCreated: number
+  userCopiesCreated: number
   errors: string[]
   durationMs: number
 }
@@ -90,8 +90,8 @@ export async function importArchidektCollection(
   if (entries.length === 0) {
     return {
       totalEntries: 0,
-      cardDefinitionsCreated: 0,
-      physicalCopiesCreated: 0,
+      userCardsCreated: 0,
+      userCopiesCreated: 0,
       errors: ['Collection is empty — no entries found.'],
       durationMs: Date.now() - startTime,
     }
@@ -109,22 +109,22 @@ export async function importArchidektCollection(
     else cardNameToEntries.set(cardName, [entry])
   }
 
-  // Step 3: Ensure card_definitions exist for each unique card
-  let cardDefinitionsCreated = 0
+  // Step 3: Ensure user_cards exist for each unique card
+  let userCardsCreated = 0
   const cardNameToDefId = new Map<string, number>()
 
-  // Fetch existing card_definitions for this user (paginated per Supabase steering)
+  // Fetch existing user_cards for this user (paginated per Supabase steering)
   const PAGE_SIZE = 1000
   let offset = 0
   while (true) {
     const { data: existingDefs, error: fetchErr } = await supabase
-      .from('card_definitions')
+      .from('user_cards')
       .select('id, card_name, oracle_id')
       .eq('user_id', userId)
       .range(offset, offset + PAGE_SIZE - 1)
 
     if (fetchErr) {
-      errors.push(`Failed to fetch existing card_definitions: ${fetchErr.message}`)
+      errors.push(`Failed to fetch existing user_cards: ${fetchErr.message}`)
       break
     }
     if (!existingDefs || existingDefs.length === 0) break
@@ -137,7 +137,7 @@ export async function importArchidektCollection(
     offset += PAGE_SIZE
   }
 
-  // Create missing card_definitions in batches
+  // Create missing user_cards in batches
   const uniqueCardNames = Array.from(cardNameToEntries.keys())
   const missingCards = uniqueCardNames.filter(name => !cardNameToDefId.has(name))
 
@@ -157,30 +157,30 @@ export async function importArchidektCollection(
       })
 
       const { data: inserted, error: insertErr } = await supabase
-        .from('card_definitions')
-        .upsert(batch, { onConflict: 'oracle_id' })
+        .from('user_cards')
+        .upsert(batch, { onConflict: 'oracle_id,user_id' })
         .select('id, card_name')
 
       if (insertErr) {
-        errors.push(`card_definitions batch at offset ${i}: ${insertErr.message}`)
+        errors.push(`user_cards batch at offset ${i}: ${insertErr.message}`)
       } else {
         for (const row of inserted ?? []) {
           cardNameToDefId.set(row.card_name, row.id)
-          cardDefinitionsCreated++
+          userCardsCreated++
         }
       }
     }
   }
 
-  // Step 4: Create physical_copies — one row per instance (quantity exploded)
-  // Note: source_tag and storage_location_id exist in the DB (migration 007) but
-  // the generated Supabase types are stale. We cast to satisfy the type checker.
-  let physicalCopiesCreated = 0
+  // Step 4: Create user_copies — one row per instance (quantity exploded)
+  // Note: source_tag and storage_location_id exist in the DB but
+  // the generated Supabase types may be stale. We cast to satisfy the type checker.
+  let userCopiesCreated = 0
   const BATCH_SIZE = 500
 
   const copyRows: Array<{
-    card_definition_id: number
-    scryfall_printing_id: string | null
+    card_id: number
+    scryfall_id: string | null
     is_foil: boolean
     is_proxy: boolean
     condition: string
@@ -193,18 +193,18 @@ export async function importArchidektCollection(
     if (!cardName) continue
     const defId = cardNameToDefId.get(cardName)
     if (!defId) {
-      errors.push(`Skipped "${cardName}": no card_definition_id resolved`)
+      errors.push(`Skipped "${cardName}": no user_cards id resolved`)
       continue
     }
 
-    const scryfallPrintingId = entry.card.uid || null
+    const scryfallId = entry.card.uid || null
     const isFoil = entry.foil
     const quantity = Math.min(entry.quantity, 100) // Cap at 100 per entry
 
     for (let q = 0; q < quantity; q++) {
       copyRows.push({
-        card_definition_id: defId,
-        scryfall_printing_id: scryfallPrintingId,
+        card_id: defId,
+        scryfall_id: scryfallId,
         is_foil: isFoil,
         is_proxy: false,
         condition: 'near_mint', // Archidekt doesn't track condition
@@ -214,25 +214,25 @@ export async function importArchidektCollection(
     }
   }
 
-  // Batch insert physical_copies
-  // Cast needed because generated Supabase types are stale (missing source_tag column from migration 007)
+  // Batch insert user_copies
+  // Cast needed because generated Supabase types may be stale
   for (let i = 0; i < copyRows.length; i += BATCH_SIZE) {
     const batch = copyRows.slice(i, i + BATCH_SIZE)
     const { error: copyErr } = await supabase
-      .from('physical_copies')
+      .from('user_copies')
       .insert(batch as any)
 
     if (copyErr) {
-      errors.push(`physical_copies batch at offset ${i}: ${copyErr.message}`)
+      errors.push(`user_copies batch at offset ${i}: ${copyErr.message}`)
     } else {
-      physicalCopiesCreated += batch.length
+      userCopiesCreated += batch.length
     }
   }
 
   return {
     totalEntries: entries.length,
-    cardDefinitionsCreated,
-    physicalCopiesCreated,
+    userCardsCreated,
+    userCopiesCreated,
     errors,
     durationMs: Date.now() - startTime,
   }

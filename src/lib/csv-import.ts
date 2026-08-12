@@ -199,32 +199,42 @@ function rowKey(row: { name: string; editionCode: string; finish: string }): str
 
 /**
  * Compare new CSV rows against current Supabase collection state and return delta.
+ * 
+ * New schema: user_cards (oracle-level) + user_copies (individual copies)
+ * Each copy is its own row, so we count copies per card_name|printing_id|finish
  */
 export async function computeCollectionDelta(
   newRows: CollectionCSVRow[]
 ): Promise<ImportDelta> {
   const supabase = createAdminClient()
 
-  // Read current DB state
-  const { data: currentDbRows, error } = await supabase
-    .from('collection')
-    .select('card_name, set_code, quantity, finish')
+  // Read current DB state by joining user_copies → user_cards for card_name
+  // and counting copies grouped by card_name, printing_id, finish
+  const { data: currentCopies, error } = await supabase
+    .from('user_copies')
+    .select(`
+      id,
+      printing_id,
+      finish,
+      user_cards!inner(card_name)
+    `)
 
   if (error) {
     throw new Error(`Failed to read current collection: ${error.message}`)
   }
 
-  // Build a map of current DB state keyed by name|set_code|finish
+  // Build a map of current DB state keyed by name|printing_id|finish → count
   const currentMap = new Map<string, number>()
-  for (const row of currentDbRows ?? []) {
-    const key = `${row.card_name}|${row.set_code}|${row.finish || 'Normal'}`
-    currentMap.set(key, row.quantity)
+  for (const row of currentCopies ?? []) {
+    const cardName = (row.user_cards as any)?.card_name || ''
+    const key = `${cardName}|${row.printing_id || ''}|${row.finish || 'Normal'}`
+    currentMap.set(key, (currentMap.get(key) ?? 0) + 1)
   }
 
   // Build a map of new rows
   const newMap = new Map<string, CollectionCSVRow>()
   for (const row of newRows) {
-    const key = rowKey({ name: row.name, editionCode: row.editionCode, finish: row.finish })
+    const key = `${row.name}|${row.scryfallId || ''}|${row.finish}`
     newMap.set(key, row)
   }
 
@@ -243,12 +253,18 @@ export async function computeCollectionDelta(
   }
 
   // Find removals — entries in current DB but not in new rows
-  for (const row of currentDbRows ?? []) {
-    const key = `${row.card_name}|${row.set_code}|${row.finish || 'Normal'}`
+  const seenKeys = new Set<string>()
+  for (const row of currentCopies ?? []) {
+    const cardName = (row.user_cards as any)?.card_name || ''
+    const key = `${cardName}|${row.printing_id || ''}|${row.finish || 'Normal'}`
+    if (seenKeys.has(key)) continue
+    seenKeys.add(key)
+    
     if (!newMap.has(key)) {
+      const qty = currentMap.get(key) ?? 1
       removed.push({
-        quantity: row.quantity,
-        name: row.card_name,
+        quantity: qty,
+        name: cardName,
         finish: (row.finish || 'Normal') as 'Normal' | 'Foil' | 'Etched',
         condition: '',
         dateAdded: '',
@@ -256,9 +272,9 @@ export async function computeCollectionDelta(
         purchasePrice: 0,
         tags: '',
         editionName: '',
-        editionCode: row.set_code || '',
+        editionCode: '',
         multiverseId: '',
-        scryfallId: '',
+        scryfallId: row.printing_id || '',
         collectorNumber: '',
         identities: '',
         types: '',
@@ -271,7 +287,7 @@ export async function computeCollectionDelta(
     removed,
     quantityChanged,
     totalEntries: newRows.length,
-    previousEntries: (currentDbRows ?? []).length,
+    previousEntries: (currentCopies ?? []).length,
   }
 }
 
@@ -291,16 +307,16 @@ function chunk<T>(array: T[], size: number): T[][] {
 }
 
 /**
- * Apply the import — replace collection table contents using chunked upserts.
- * Processes 500 rows per batch for Vercel timeout compatibility.
- *
- * Strategy:
- * 1. Delete all existing collection rows for the user
- * 2. Insert new rows in batches of 500
- * 3. Update sync_meta with timestamp
+ * Apply the import — replace collection table contents.
+ * 
+ * New schema strategy:
+ * 1. Delete all existing user_copies for the user
+ * 2. Delete all existing user_cards for the user (orphaned after copies deleted)
+ * 3. For each unique card, look up oracle_id from ref_printings and create user_cards entry
+ * 4. For each copy (quantity), create individual user_copies rows
+ * 5. Update sync_meta with timestamp
  *
  * Returns the result including total inserted count and per-batch status.
- * Errors per batch are logged and processing continues (best-effort).
  */
 export async function applyCollectionImport(
   rows: CollectionCSVRow[],
@@ -312,30 +328,52 @@ export async function applyCollectionImport(
   let totalInserted = 0
   const userId = options?.userId ?? ''
 
+  if (!userId) {
+    return { totalInserted: 0, batches: [], errors: ['No user ID provided'] }
+  }
+
   // Step 1: Delete ALL existing collection data (only on first chunk)
   if (!options?.skipDelete) {
-    // Delete all collection rows — loop until table is empty
-    // Supabase PostgREST may cap deletes at 1000 rows per request
+    // Delete all user_copies first
     for (let attempt = 0; attempt < 20; attempt++) {
       const { error: deleteError } = await supabase
-        .from('collection')
+        .from('user_copies')
         .delete()
-        .neq('id', 0) // match all rows (id is never 0 since it's auto-generated starting from 1)
+        .eq('user_id', userId)
 
       if (deleteError) {
-        throw new Error(`Failed to clear collection before import: ${deleteError.message}`)
+        throw new Error(`Failed to clear copies before import: ${deleteError.message}`)
       }
 
-      // Check if any rows remain
       const { count } = await supabase
-        .from('collection')
+        .from('user_copies')
         .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+
+      if (!count || count === 0) break
+    }
+
+    // Delete all user_cards (now orphaned)
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const { error: deleteError } = await supabase
+        .from('user_cards')
+        .delete()
+        .eq('user_id', userId)
+
+      if (deleteError) {
+        throw new Error(`Failed to clear cards before import: ${deleteError.message}`)
+      }
+
+      const { count } = await supabase
+        .from('user_cards')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
 
       if (!count || count === 0) break
     }
   }
 
-  // Step 2: Deduplicate rows — merge quantities for same (name, scryfall_id, finish)
+  // Step 2: Deduplicate rows — merge quantities for same (name, scryfallId, finish)
   const deduped = new Map<string, typeof rows[0]>()
   for (const row of rows) {
     const key = `${row.name}||${row.scryfallId || ''}||${row.finish || ''}||${row.editionCode || ''}||${row.collectorNumber || ''}`
@@ -348,43 +386,109 @@ export async function applyCollectionImport(
   }
   const dedupedRows = Array.from(deduped.values())
 
-  // Step 3: Insert deduplicated rows in chunks of BATCH_SIZE
-  const chunks = chunk(dedupedRows, BATCH_SIZE)
+  // Step 3: Get unique card names and look up oracle_ids from ref_printings
+  const uniqueCardNames = [...new Set(dedupedRows.map(r => r.name))]
+  const oracleIdMap = new Map<string, string>()
+  
+  for (let i = 0; i < uniqueCardNames.length; i += 200) {
+    const batch = uniqueCardNames.slice(i, i + 200)
+    const { data: printings } = await supabase
+      .from('ref_printings')
+      .select('name, oracle_id')
+      .in('name', batch)
+    
+    for (const p of printings ?? []) {
+      if (p.oracle_id && !oracleIdMap.has(p.name)) {
+        oracleIdMap.set(p.name, p.oracle_id)
+      }
+    }
+  }
 
-  for (let i = 0; i < chunks.length; i++) {
-    const batch = chunks[i]
+  // Step 4: Create user_cards entries (one per unique card name)
+  const cardIdMap = new Map<string, number>() // card_name → user_cards.id
+  const cardInsertBatches = chunk(uniqueCardNames, BATCH_SIZE)
+  
+  for (let i = 0; i < cardInsertBatches.length; i++) {
+    const batch = cardInsertBatches[i]
+    const insertRows = batch
+      .filter(name => oracleIdMap.has(name))
+      .map(name => ({
+        card_name: name,
+        oracle_id: oracleIdMap.get(name)!,
+        user_id: userId,
+      }))
+    
+    if (insertRows.length === 0) continue
+
+    const { data: insertedCards, error: insertError } = await supabase
+      .from('user_cards')
+      .insert(insertRows)
+      .select('id, card_name')
+
+    if (insertError) {
+      errors.push(`user_cards batch ${i}: ${insertError.message}`)
+    } else {
+      for (const card of insertedCards ?? []) {
+        cardIdMap.set(card.card_name, card.id)
+      }
+    }
+  }
+
+  // Step 5: Create user_copies entries (one per physical copy)
+  // Expand quantity into individual rows
+  const copyRows: Array<{
+    card_id: number
+    printing_id: string | null
+    finish: string | null
+    condition: string | null
+    language: string | null
+    purchase_price: number | null
+    acquired_at: string | null
+    source_tag: string | null
+    is_proxy: boolean
+    user_id: string
+  }> = []
+
+  for (const row of dedupedRows) {
+    const cardId = cardIdMap.get(row.name)
+    if (!cardId) {
+      // Card name not in ref_printings, skip
+      errors.push(`Skipped "${row.name}": not found in ref_printings`)
+      continue
+    }
+
+    // Create one copy row per quantity
+    for (let q = 0; q < row.quantity; q++) {
+      copyRows.push({
+        card_id: cardId,
+        printing_id: row.scryfallId || null,
+        finish: row.finish || 'Normal',
+        condition: row.condition || 'Near Mint',
+        language: row.language || 'English',
+        purchase_price: row.purchasePrice || null,
+        acquired_at: row.dateAdded || null,
+        source_tag: row.tags || null,
+        is_proxy: false,
+        user_id: userId,
+      })
+    }
+  }
+
+  // Insert copies in batches
+  const copyChunks = chunk(copyRows, BATCH_SIZE)
+  for (let i = 0; i < copyChunks.length; i++) {
+    const batch = copyChunks[i]
     const batchErrors: string[] = []
 
     try {
-      const insertRows = batch.map((row) => ({
-        card_name: row.name,
-        scryfall_id: row.scryfallId || null,
-        set_code: row.editionCode || null,
-        quantity: row.quantity,
-        foil: row.finish === 'Foil',
-        finish: row.finish,
-        condition: row.condition || 'Near Mint',
-        date_added: row.dateAdded || null,
-        language: row.language || 'English',
-        purchase_price: row.purchasePrice,
-        collector_number: row.collectorNumber || null,
-        color_identity: row.identities || null,
-        types: row.types || null,
-        edition_name: row.editionName || null,
-        user_id: userId,
-      }))
-
       const { error: insertError } = await supabase
-        .from('collection')
-        .insert(insertRows)
+        .from('user_copies')
+        .insert(batch)
 
       if (insertError) {
-        // Log the specific error with sample data for debugging
-        const sampleNames = batch.slice(0, 3).map(r => r.name).join(', ')
-        const errorDetail = `Batch ${i} (rows ${i * BATCH_SIZE}–${i * BATCH_SIZE + batch.length - 1}, e.g. ${sampleNames}): ${insertError.message} [code: ${insertError.code}]`
+        const errorDetail = `Batch ${i}: ${insertError.message}`
         batchErrors.push(errorDetail)
         errors.push(errorDetail)
-        console.error(`[csv-import] ${errorDetail}`)
       } else {
         totalInserted += batch.length
       }
@@ -401,7 +505,7 @@ export async function applyCollectionImport(
     })
   }
 
-  // Step 3: Update sync_meta with timestamp
+  // Step 6: Update sync_meta with timestamp
   const now = new Date().toISOString()
   const { error: metaError } = await supabase
     .from('sync_meta')

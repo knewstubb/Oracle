@@ -15,12 +15,14 @@ vi.mock('@/lib/auth', () => ({
 // Mock Import Executors
 // ---------------------------------------------------------------------------
 
-const mockImportExisting = vi.fn()
-const mockImportAddNew = vi.fn()
+const mockImportDesign = vi.fn()
+const mockImportBuilt = vi.fn()
+const mockImportNewCards = vi.fn()
 
 vi.mock('@/lib/deck-import', () => ({
-  importDeckExistingCollection: (...args: unknown[]) => mockImportExisting(...args),
-  importDeckAddNewCards: (...args: unknown[]) => mockImportAddNew(...args),
+  importDeckDesign: (...args: unknown[]) => mockImportDesign(...args),
+  importDeckBuilt: (...args: unknown[]) => mockImportBuilt(...args),
+  importDeckNewCards: (...args: unknown[]) => mockImportNewCards(...args),
 }))
 
 import { POST } from './route'
@@ -72,14 +74,13 @@ function makeDeck(overrides: Record<string, unknown> = {}) {
 describe('POST /api/decks/import', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockImportExisting.mockResolvedValue({
+    const defaultResult = {
       deckId: 12345,
       allocationSummary: { assigned: 1, shortfall: 0, errors: [] },
-    })
-    mockImportAddNew.mockResolvedValue({
-      deckId: 12345,
-      allocationSummary: { assigned: 1, shortfall: 0, errors: [] },
-    })
+    }
+    mockImportDesign.mockResolvedValue(defaultResult)
+    mockImportBuilt.mockResolvedValue(defaultResult)
+    mockImportNewCards.mockResolvedValue(defaultResult)
   })
 
   // --- Auth ---
@@ -89,7 +90,7 @@ describe('POST /api/decks/import', () => {
       Response.json({ error: 'Unauthorized' }, { status: 401 })
     )
 
-    const response = await POST(makeRequest({ deck: makeDeck(), mode: 'existing_collection' }))
+    const response = await POST(makeRequest({ deck: makeDeck(), mode: 'design' }))
     expect(response.status).toBe(401)
   })
 
@@ -109,7 +110,7 @@ describe('POST /api/decks/import', () => {
   })
 
   it('returns 400 when deck is missing', async () => {
-    const response = await POST(makeRequest({ mode: 'existing_collection' }))
+    const response = await POST(makeRequest({ mode: 'design' }))
     expect(response.status).toBe(400)
     const data = await response.json()
     expect(data.error).toContain('Deck data is required')
@@ -118,7 +119,7 @@ describe('POST /api/decks/import', () => {
   it('returns 400 when deck has no cards', async () => {
     const response = await POST(makeRequest({
       deck: makeDeck({ cards: [] }),
-      mode: 'existing_collection',
+      mode: 'design',
     }))
     expect(response.status).toBe(400)
     const data = await response.json()
@@ -141,33 +142,45 @@ describe('POST /api/decks/import', () => {
 
   // --- Routing to executors ---
 
-  it('routes to importDeckExistingCollection for existing_collection mode', async () => {
+  it('routes to importDeckDesign for design mode', async () => {
     const deck = makeDeck()
-    const response = await POST(makeRequest({ deck, mode: 'existing_collection' }))
+    const response = await POST(makeRequest({ deck, mode: 'design' }))
 
     expect(response.status).toBe(200)
-    expect(mockImportExisting).toHaveBeenCalledWith(deck, mockUserId)
-    expect(mockImportAddNew).not.toHaveBeenCalled()
+    expect(mockImportDesign).toHaveBeenCalled()
+    expect(mockImportBuilt).not.toHaveBeenCalled()
+    expect(mockImportNewCards).not.toHaveBeenCalled()
   })
 
-  it('routes to importDeckAddNewCards for add_new_cards mode', async () => {
+  it('routes to importDeckBuilt for built mode', async () => {
     const deck = makeDeck()
-    const response = await POST(makeRequest({ deck, mode: 'add_new_cards' }))
+    const response = await POST(makeRequest({ deck, mode: 'built' }))
 
     expect(response.status).toBe(200)
-    expect(mockImportAddNew).toHaveBeenCalledWith(deck, mockUserId)
-    expect(mockImportExisting).not.toHaveBeenCalled()
+    expect(mockImportBuilt).toHaveBeenCalled()
+    expect(mockImportDesign).not.toHaveBeenCalled()
+    expect(mockImportNewCards).not.toHaveBeenCalled()
+  })
+
+  it('routes to importDeckNewCards for new_cards mode', async () => {
+    const deck = makeDeck()
+    const response = await POST(makeRequest({ deck, mode: 'new_cards' }))
+
+    expect(response.status).toBe(200)
+    expect(mockImportNewCards).toHaveBeenCalled()
+    expect(mockImportDesign).not.toHaveBeenCalled()
+    expect(mockImportBuilt).not.toHaveBeenCalled()
   })
 
   // --- Success responses ---
 
   it('returns deckId and allocationSummary on success', async () => {
-    mockImportExisting.mockResolvedValue({
+    mockImportDesign.mockResolvedValue({
       deckId: 42,
       allocationSummary: { assigned: 10, shortfall: 3, errors: [] },
     })
 
-    const response = await POST(makeRequest({ deck: makeDeck(), mode: 'existing_collection' }))
+    const response = await POST(makeRequest({ deck: makeDeck(), mode: 'design' }))
     expect(response.status).toBe(200)
 
     const data = await response.json()
@@ -178,7 +191,7 @@ describe('POST /api/decks/import', () => {
   })
 
   it('returns 200 even when allocation has errors in the summary', async () => {
-    mockImportAddNew.mockResolvedValue({
+    mockImportBuilt.mockResolvedValue({
       deckId: 99,
       allocationSummary: {
         assigned: 5,
@@ -187,7 +200,7 @@ describe('POST /api/decks/import', () => {
       },
     })
 
-    const response = await POST(makeRequest({ deck: makeDeck(), mode: 'add_new_cards' }))
+    const response = await POST(makeRequest({ deck: makeDeck(), mode: 'built' }))
     expect(response.status).toBe(200)
 
     const data = await response.json()
@@ -198,9 +211,9 @@ describe('POST /api/decks/import', () => {
   // --- Error handling ---
 
   it('returns 500 when executor throws', async () => {
-    mockImportExisting.mockRejectedValue(new Error('Failed to upsert deck'))
+    mockImportDesign.mockRejectedValue(new Error('Failed to upsert deck'))
 
-    const response = await POST(makeRequest({ deck: makeDeck(), mode: 'existing_collection' }))
+    const response = await POST(makeRequest({ deck: makeDeck(), mode: 'design' }))
     expect(response.status).toBe(500)
 
     const data = await response.json()

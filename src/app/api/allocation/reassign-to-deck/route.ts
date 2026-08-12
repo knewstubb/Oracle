@@ -1,12 +1,12 @@
 /**
  * POST /api/allocation/reassign-to-deck
  *
- * Atomically moves a physical copy from its current deck slot to an open slot
+ * Atomically moves a copy from its current deck slot to an open slot
  * in the target deck via the `reassign_to_deck` Postgres RPC (migration 021).
  * Single database call — all-or-nothing, no window where the copy is orphaned.
  *
  * Body: {
- *   physicalCopyId: number  — the physical copy to move
+ *   copyId: number          — the copy to move (also accepts deprecated physicalCopyId)
  *   targetDeckId: number    — the deck to move it to
  *   cardName: string        — used to find the open slot in target deck
  * }
@@ -22,7 +22,8 @@ import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 
 interface ReassignBody {
-  physicalCopyId: number
+  copyId?: number
+  physicalCopyId?: number
   targetDeckId: number
   cardName: string
 }
@@ -39,11 +40,13 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { physicalCopyId, targetDeckId, cardName } = body
+  const { targetDeckId, cardName } = body
+  // Support both copyId and deprecated physicalCopyId
+  const copyId = body.copyId ?? body.physicalCopyId
 
-  if (!physicalCopyId || !targetDeckId || !cardName) {
+  if (!copyId || !targetDeckId || !cardName) {
     return Response.json(
-      { error: 'physicalCopyId, targetDeckId, and cardName are required' },
+      { error: 'copyId, targetDeckId, and cardName are required' },
       { status: 400 }
     )
   }
@@ -53,19 +56,20 @@ export async function POST(request: NextRequest) {
   try {
     // Verify ownership before calling RPC
     const { data: copy, error: copyErr } = await supabase
-      .from('physical_copies')
+      .from('user_copies')
       .select('id')
-      .eq('id', physicalCopyId)
+      .eq('id', copyId)
       .eq('user_id', userId)
       .maybeSingle()
 
     if (copyErr || !copy) {
-      return Response.json({ error: 'Physical copy not found' }, { status: 404 })
+      return Response.json({ error: 'Copy not found' }, { status: 404 })
     }
 
     // Atomic RPC: clear source + fill target in one transaction
-    const { data, error: rpcErr } = await supabase.rpc('reassign_to_deck', {
-      p_physical_copy_id: physicalCopyId,
+    // Note: Types may be outdated — cast to any until supabase types are regenerated
+    const { data, error: rpcErr } = await (supabase.rpc as any)('reassign_to_deck', {
+      p_copy_id: copyId,
       p_target_deck_id: targetDeckId,
       p_card_name: cardName,
       p_user_id: userId,

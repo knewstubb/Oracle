@@ -7,11 +7,16 @@ import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
 import { buildBrewInvestigatorPrompt } from '@/lib/brew-prompts'
+import { getUserPreferences, formatPlayerContextPrompt } from '@/lib/user-preferences'
 
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
   const userId = authResult.id
+
+  // Fetch user preferences for player context
+  const prefs = await getUserPreferences(userId)
+  const playerContext = formatPlayerContextPrompt(prefs)
 
   try {
     const body = await request.json()
@@ -76,7 +81,8 @@ export async function POST(request: NextRequest) {
     const systemPrompt = buildBrewInvestigatorPrompt(
       pathType as 'commander' | 'concept',
       pathType === 'commander' ? commanderName!.trim() : undefined,
-      pathType === 'concept' ? conceptDescription!.trim() : undefined
+      pathType === 'concept' ? conceptDescription!.trim() : undefined,
+      playerContext
     )
 
     let firstMessage: string

@@ -1,115 +1,99 @@
 import { NextRequest } from 'next/server'
-import { createAdminClient } from '@/lib/supabase'
+import { createServerClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
-import { getMcpClient } from '@/lib/mcp-client'
 
-interface BulkCard {
+interface ScryfallCard {
   name: string
   mana_cost?: string
-  manaCost?: string
   type_line?: string
-  typeLine?: string
   oracle_text?: string
-  oracleText?: string
   color_identity?: string[]
-  colorIdentity?: string[]
+  image_uris?: { normal?: string }
+  card_faces?: Array<{ image_uris?: { normal?: string } }>
 }
 
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
+  const userId = authResult.id
 
   try {
     const body = await request.json()
-    const { query, collectionOnly } = body as {
+    const { query, collectionOnly, colorIdentity } = body as {
       query: string
       collectionOnly?: boolean
+      colorIdentity?: string
     }
 
-    if (!query || typeof query !== 'string' || query.trim().length === 0) {
-      return Response.json({ error: 'Query is required' }, { status: 400 })
-    }
-
-    // Extract the name portion from the query (strip Scryfall syntax)
-    const nameQuery = query
-      .replace(/\bt:legendary\b/gi, '')
-      .replace(/\bt:creature\b/gi, '')
-      .replace(/\bf:commander\b/gi, '')
-      .replace(/\bf:edh\b/gi, '')
-      .trim()
-
-    if (!nameQuery) {
+    if (!query || typeof query !== 'string' || query.trim().length < 2) {
       return Response.json({ cards: [] })
     }
 
-    // Use bulk_card_search which works with offline Scryfall data
-    const client = await getMcpClient()
-    const result = await client.callTool({
-      name: 'bulk_card_search',
-      arguments: { query: nameQuery, search_field: 'name', limit: 30 },
+    // Build Scryfall search query
+    let scryfallQuery = query.trim()
+    
+    // Add color identity filter if specified
+    if (colorIdentity) {
+      scryfallQuery += ` id<=${colorIdentity}`
+    }
+
+    // Search Scryfall (their API is fast and well-cached)
+    const scryfallUrl = `https://api.scryfall.com/cards/search?q=${encodeURIComponent(scryfallQuery)}&order=name&unique=cards`
+    const scryfallRes = await fetch(scryfallUrl, {
+      headers: { 'User-Agent': 'TheOracle/1.0' },
+      next: { revalidate: 3600 }, // Cache 1 hour
     })
 
-    if (result.isError) {
-      const errText = (result.content as { type: string; text?: string }[])
-        .filter((c) => c.type === 'text')
-        .map((c) => c.text)
-        .join('\n')
-      throw new Error(`MCP tool "bulk_card_search" failed: ${errText}`)
+    let scryfallCards: ScryfallCard[] = []
+    if (scryfallRes.ok) {
+      const json = await scryfallRes.json()
+      scryfallCards = (json.data ?? []).slice(0, 30)
     }
 
-    // Parse structured content if available
-    let rawCards: BulkCard[] = []
-    const structured = (result as { structuredContent?: { cards?: BulkCard[] } }).structuredContent
-    if (structured?.cards) {
-      rawCards = structured.cards
-    } else {
-      // Fallback: parse text content
-      const textContent = (result.content as { type: string; text?: string }[])
-        .filter((c) => c.type === 'text')
-        .map((c) => c.text ?? '')
-        .join('\n')
-
-      // Try JSON parse
-      try {
-        const parsed = JSON.parse(textContent)
-        if (parsed.cards) rawCards = parsed.cards
-      } catch {
-        // Not JSON — return empty
-      }
+    if (scryfallCards.length === 0) {
+      return Response.json({ cards: [] })
     }
 
-    // Filter to legendary creatures only (commanders)
-    const isCommander = (card: BulkCard) => {
-      const typeLine = (card.type_line ?? card.typeLine ?? '').toLowerCase()
-      return typeLine.includes('legendary') && typeLine.includes('creature')
+    // Get ownership data for these cards
+    const cardNames = scryfallCards.map(c => c.name)
+    const supabase = createServerClient()
+    
+    const { data: ownedCards } = await supabase
+      .from('user_cards')
+      .select(`
+        card_name,
+        user_copies!inner(id, is_proxy)
+      `)
+      .eq('user_id', userId)
+      .in('card_name', cardNames)
+
+    // Build ownership map: card_name -> { owned: count, proxies: count }
+    const ownershipMap = new Map<string, { owned: number; proxies: number }>()
+    for (const card of ownedCards ?? []) {
+      const copies = (card as any).user_copies as Array<{ id: number; is_proxy: boolean }>
+      const owned = copies.filter(c => !c.is_proxy).length
+      const proxies = copies.filter(c => c.is_proxy).length
+      ownershipMap.set(card.card_name, { owned, proxies })
     }
 
-    // Build a set of owned card names from collection
-    const supabase = createAdminClient()
-    const { data: collectionRows } = await supabase
-      .from('collection')
-      .select('card_name, quantity')
-
-    const ownedMap = new Map(
-      (collectionRows ?? []).map((r) => [r.card_name.toLowerCase(), r.quantity ?? 0])
-    )
-
-    // Map and filter results
-    let cards = rawCards
-      .filter(isCommander)
-      .map((card) => ({
+    // Map results
+    let cards = scryfallCards.map((card) => {
+      const ownership = ownershipMap.get(card.name)
+      return {
         name: card.name,
-        manaCost: card.mana_cost ?? card.manaCost ?? '',
-        typeLine: card.type_line ?? card.typeLine ?? '',
-        oracleText: card.oracle_text ?? card.oracleText ?? '',
-        colorIdentity: card.color_identity ?? card.colorIdentity ?? [],
-        owned: ownedMap.has(card.name.toLowerCase()),
-        ownedCount: ownedMap.get(card.name.toLowerCase()) ?? 0,
-      }))
+        manaCost: card.mana_cost ?? '',
+        typeLine: card.type_line ?? '',
+        oracleText: card.oracle_text ?? '',
+        colorIdentity: card.color_identity ?? [],
+        owned: (ownership?.owned ?? 0) > 0,
+        ownedCount: ownership?.owned ?? 0,
+        proxyCount: ownership?.proxies ?? 0,
+      }
+    })
 
     // Filter to collection only if requested
     if (collectionOnly) {
-      cards = cards.filter((c) => c.owned)
+      cards = cards.filter((c) => c.owned || c.proxyCount > 0)
     }
 
     return Response.json({ cards })

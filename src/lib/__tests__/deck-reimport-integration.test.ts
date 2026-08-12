@@ -31,7 +31,7 @@ function makeExistingRow(overrides: Partial<ExistingDeckCardRow> = {}): Existing
     categories: 'Ramp',
     is_commander: false,
     user_id: 'user-1',
-    physical_copy_id: null,
+    copy_id: null,
     ownership_status: null,
     proxy_of_deck_id: null,
     dead_weight_flag: null,
@@ -81,7 +81,7 @@ describe('Integration: Full Reimport Flow', () => {
         card_name: 'Sol Ring',
         scryfall_id: 'sol-ring-001',
         categories: 'Ramp,Must-Have',
-        physical_copy_id: 501,
+        copy_id: 501,
         ownership_status: 'original',
       }),
       // Card 2: Mana Crypt — enriched with dead_weight flag
@@ -90,7 +90,7 @@ describe('Integration: Full Reimport Flow', () => {
         card_name: 'Mana Crypt',
         scryfall_id: 'mana-crypt-001',
         categories: 'Ramp',
-        physical_copy_id: 502,
+        copy_id: 502,
         ownership_status: 'original',
         dead_weight_flag: 'true',
         dead_weight_reason: 'Too expensive for casual pod',
@@ -101,7 +101,7 @@ describe('Integration: Full Reimport Flow', () => {
         card_name: 'Lightning Greaves',
         scryfall_id: 'greaves-001',
         categories: 'Protection',
-        physical_copy_id: 503,
+        copy_id: 503,
         ownership_status: 'proxy',
         proxy_of_deck_id: 5,
       }),
@@ -111,7 +111,7 @@ describe('Integration: Full Reimport Flow', () => {
         card_name: 'Counterspell',
         scryfall_id: 'counter-001',
         categories: 'Interaction',
-        physical_copy_id: 504,
+        copy_id: 504,
         ownership_status: 'original',
       }),
       // Card 5: Arcane Signet — no enrichment
@@ -120,7 +120,7 @@ describe('Integration: Full Reimport Flow', () => {
         card_name: 'Arcane Signet',
         scryfall_id: 'signet-001',
         categories: 'Ramp',
-        physical_copy_id: null,
+        copy_id: null,
         ownership_status: null,
       }),
     ]
@@ -159,12 +159,12 @@ describe('Integration: Full Reimport Flow', () => {
     const fierce = diff.toInsert.find(r => r.card_name === 'Fierce Guardianship')
 
     expect(swanSong).toBeDefined()
-    expect(swanSong!.physical_copy_id).toBeNull()
+    expect(swanSong!.copy_id).toBeNull()
     expect(swanSong!.ownership_status).toBeNull()
     expect(swanSong!.categories).toBe('Interaction')
 
     expect(fierce).toBeDefined()
-    expect(fierce!.physical_copy_id).toBeNull()
+    expect(fierce!.copy_id).toBeNull()
     expect(fierce!.ownership_status).toBeNull()
 
     // Verify: Overall card count
@@ -180,7 +180,7 @@ describe('Integration: Full Reimport Flow', () => {
         id: 200,
         card_name: 'Reliquary Tower',
         scryfall_id: 'tower-001',
-        physical_copy_id: 600,
+        copy_id: 600,
         ownership_status: 'original',
       }),
     ]
@@ -196,7 +196,7 @@ describe('Integration: Full Reimport Flow', () => {
     // One new row inserted (no enrichment)
     expect(diff.toInsert).toHaveLength(1)
     expect(diff.toInsert[0].card_name).toBe('Reliquary Tower')
-    expect(diff.toInsert[0].physical_copy_id).toBeNull()
+    expect(diff.toInsert[0].copy_id).toBeNull()
     // Nothing deleted
     expect(diff.toDelete).toHaveLength(0)
   })
@@ -208,21 +208,21 @@ describe('Integration: Full Reimport Flow', () => {
         id: 300,
         card_name: 'Forest',
         scryfall_id: 'forest-001',
-        physical_copy_id: 700,
+        copy_id: 700,
         ownership_status: 'original',
       }),
       makeExistingRow({
         id: 301,
         card_name: 'Forest',
         scryfall_id: 'forest-001',
-        physical_copy_id: null,
+        copy_id: null,
         ownership_status: null,
       }),
       makeExistingRow({
         id: 302,
         card_name: 'Forest',
         scryfall_id: 'forest-001',
-        physical_copy_id: 701,
+        copy_id: 701,
         ownership_status: 'original',
       }),
     ]
@@ -361,7 +361,7 @@ describe('Integration: Diff Computation Edge Cases (Rollback Scenarios)', () => 
     expect(diff.toInsert).toHaveLength(3)
     // All inserts have null enriched columns
     for (const row of diff.toInsert) {
-      expect(row.physical_copy_id).toBeNull()
+      expect(row.copy_id).toBeNull()
       expect(row.ownership_status).toBeNull()
     }
   })
@@ -416,7 +416,7 @@ describe('Integration: Diff Computation Edge Cases (Rollback Scenarios)', () => 
         id: 600,
         card_name: 'Sol Ring',
         scryfall_id: 'sol-ring-old-printing',
-        physical_copy_id: 800,
+        copy_id: 800,
         ownership_status: 'original',
       }),
     ]
@@ -431,7 +431,7 @@ describe('Integration: Diff Computation Edge Cases (Rollback Scenarios)', () => 
     expect(diff.toDelete).toContain(600)
     expect(diff.toInsert).toHaveLength(1)
     expect(diff.toInsert[0].scryfall_id).toBe('sol-ring-new-printing')
-    expect(diff.toInsert[0].physical_copy_id).toBeNull()
+    expect(diff.toInsert[0].copy_id).toBeNull()
   })
 })
 

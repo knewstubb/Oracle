@@ -8,7 +8,6 @@ export async function POST(
 ) {
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
-  const userId = authResult.id
 
   const { id } = await params
   const deckId = parseInt(id, 10)
@@ -44,15 +43,20 @@ export async function POST(
 
   const cardName = body.card_name as string
 
-  const { error: insertErr } = await supabase
-    .from('dead_weight_dismissals')
-    .insert({ deck_id: deckId, card_name: cardName, user_id: userId })
+  // Dismissal is now tracked via deck_cards.dead_weight_flag = 'dismissed'
+  const { data, error: updateErr } = await supabase
+    .from('deck_cards')
+    .update({ dead_weight_flag: 'dismissed' })
+    .eq('deck_id', deckId)
+    .eq('card_name', cardName)
+    .select('id')
 
-  if (insertErr) {
-    if (insertErr.code === '23505') {
-      return Response.json({ error: 'Card already dismissed' }, { status: 409 })
-    }
-    return Response.json({ error: insertErr.message }, { status: 500 })
+  if (updateErr) {
+    return Response.json({ error: updateErr.message }, { status: 500 })
+  }
+
+  if (!data || data.length === 0) {
+    return Response.json({ error: 'Card not found in deck' }, { status: 404 })
   }
 
   return Response.json(
@@ -102,9 +106,10 @@ export async function DELETE(
 
   const cardName = body.card_name as string
 
+  // Clear the dead weight flag
   await supabase
-    .from('dead_weight_dismissals')
-    .delete()
+    .from('deck_cards')
+    .update({ dead_weight_flag: null, dead_weight_reason: null })
     .eq('deck_id', deckId)
     .eq('card_name', cardName)
 

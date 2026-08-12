@@ -67,7 +67,7 @@ export async function importDeck(deck: ArchidektDeckFull, userId: string): Promi
   while (true) {
     const { data, error: fetchErr } = await supabase
       .from('deck_cards')
-      .select('id, deck_id, card_name, scryfall_id, set_code, quantity, categories, is_commander, user_id, physical_copy_id, ownership_status, proxy_of_deck_id, dead_weight_flag, dead_weight_reason')
+      .select('id, deck_id, card_name, scryfall_id, set_code, quantity, categories, is_commander, user_id, copy_id, ownership_status, proxy_of_deck_id, dead_weight_flag, dead_weight_reason')
       .eq('deck_id', deck.id)
       .range(offset, offset + PAGE_SIZE - 1)
 

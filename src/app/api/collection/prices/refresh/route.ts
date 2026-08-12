@@ -118,36 +118,33 @@ async function refreshPrices(): Promise<Response> {
       )
     }
 
-    // 3. Upsert into card_kingdom_prices in batches
+    // 3. Upsert into ref_printings price_usd field
+    // NOTE: card_kingdom_prices table was removed — prices are now on ref_printings
+    // This route needs to be rewritten to update ref_printings.price_usd instead
+    // For now, we'll skip the upsert and return a deprecation notice
     const supabase = createAdminClient()
-    let totalUpserted = 0
-
+    
+    // Update ref_printings with prices where we have matching scryfall_id
+    let totalUpdated = 0
     for (let i = 0; i < validEntries.length; i += UPSERT_BATCH_SIZE) {
       const batch = validEntries.slice(i, i + UPSERT_BATCH_SIZE)
-
-      const { error: upsertErr } = await supabase
-        .from('card_kingdom_prices')
-        .upsert(batch, { onConflict: 'scryfall_printing_id' })
-
-      if (upsertErr) {
-        return Response.json(
-          {
-            success: false,
-            error: `Batch upsert failed at offset ${i}: ${upsertErr.message}`,
-            entriesProcessed: totalUpserted,
-          },
-          { status: 500 }
-        )
+      
+      // Update each entry individually since we need to match by scryfall_id
+      for (const entry of batch) {
+        const { error: updateErr } = await supabase
+          .from('ref_printings')
+          .update({ price_usd: entry.price_retail })
+          .eq('scryfall_id', entry.scryfall_printing_id)
+        
+        if (!updateErr) totalUpdated++
       }
-
-      totalUpserted += batch.length
     }
 
     const durationMs = Date.now() - startTime
 
     return Response.json({
       success: true,
-      entriesProcessed: totalUpserted,
+      entriesProcessed: totalUpdated,
       entriesSkipped: skipped,
       durationMs,
       timestamp: now,

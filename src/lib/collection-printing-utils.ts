@@ -42,6 +42,14 @@ export interface PrintingRowResponse {
   isMissing: boolean
   /** Mana cost string from Scryfall notation e.g. "{2}{W}{U}" */
   manaCost: string | null
+  /** Rarity: common, uncommon, rare, mythic, special, bonus */
+  rarity: string | null
+  /** Collector number within the set (e.g. "260", "260a") */
+  collectorNumber: string | null
+  /** Type line e.g. "Creature — Human Wizard" */
+  typeLine: string | null
+  /** When this copy was added to the collection (ISO timestamp) */
+  addedAt: string | null
 }
 
 /** Raw input type for the grouping function. */
@@ -63,6 +71,14 @@ export interface RawPhysicalCopy {
   isMissing: boolean
   /** Mana cost from card_metadata */
   manaCost: string | null
+  /** Rarity from scryfall_printings */
+  rarity: string | null
+  /** Collector number from scryfall_printings */
+  collectorNumber: string | null
+  /** Type line from scryfall_printings */
+  typeLine: string | null
+  /** When this copy was added (created_at from physical_copies) */
+  addedAt: string | null
 }
 
 /* ─── Price Formatting ──────────────────────────────────────────────── */
@@ -141,6 +157,10 @@ export function groupPhysicalCopiesToPrintingRows(
     const existing = groupMap.get(key)
     if (existing) {
       existing.quantity += copy.quantity
+      // Keep the earliest addedAt timestamp for grouped rows
+      if (copy.addedAt && (!existing.addedAt || copy.addedAt < existing.addedAt)) {
+        existing.addedAt = copy.addedAt
+      }
     } else {
       groupMap.set(key, {
         id: copy.id,
@@ -157,6 +177,10 @@ export function groupPhysicalCopiesToPrintingRows(
         isProxy: copy.isProxy,
         isMissing: copy.isMissing,
         manaCost: copy.manaCost,
+        rarity: copy.rarity,
+        collectorNumber: copy.collectorNumber,
+        typeLine: copy.typeLine,
+        addedAt: copy.addedAt,
         // Allocation-level fields — populated by caller after grouping
         originalQty: 0,
         proxyQty: 0,

@@ -48,7 +48,7 @@ vi.mock('@/lib/card-definition-resolver', () => ({
 
 import { parseDeckUrl, isParseError } from '@/lib/url-parser'
 import { normalizeArchidektDeck, normalizeMoxfieldDeck, groupCardsByType } from '@/lib/deck-normalizer'
-import { importDeckExistingCollection, importDeckAddNewCards } from '@/lib/deck-import'
+import { importDeckDesign, importDeckNewCards } from '@/lib/deck-import'
 import type { ArchidektDeckFull } from '@/lib/archidekt-client'
 import type { MoxfieldDeckFull } from '@/lib/moxfield-client'
 
@@ -272,13 +272,13 @@ function createSupabaseTracker() {
       if (table === 'deck_cards') {
         return Promise.resolve({ data: null, error: null }).then(resolve)
       }
-      if (table === 'card_definitions') {
+      if (table === 'cards') {
         return Promise.resolve({ data: { id: 42 }, error: null }).then(resolve)
       }
-      if (table === 'physical_copies') {
+      if (table === 'collection') {
         // For maybeSingle (checking existing proxy) — return null (none found)
         // For insert — return a new id
-        const lastOp = operations.filter(o => o.table === 'physical_copies')
+        const lastOp = operations.filter(o => o.table === 'collection')
         const lastWasInsert = lastOp.length > 0 && lastOp[lastOp.length - 1].operation === 'insert'
         if (lastWasInsert) {
           return Promise.resolve({ data: { id: physicalCopyIdCounter++ }, error: null }).then(resolve)
@@ -338,9 +338,9 @@ describe('Integration: Archidekt URL → preview → existing mode → deck in D
     expect(cardsByType.groups.Creature.length).toBe(2) // Korvold + Dockside
     expect(cardsByType.groups.Artifact.length).toBe(1) // Sol Ring
 
-    // Step 4: Import in existing_collection mode
+    // Step 4: Import in design mode
     const tracker = createSupabaseTracker()
-    const result = await importDeckExistingCollection(normalizedDeck, TEST_USER_ID)
+    const result = await importDeckDesign(normalizedDeck, TEST_USER_ID)
 
     // Verify deck row was upserted
     const deckUpserts = tracker.getOps('decks', 'upsert')
@@ -376,10 +376,10 @@ describe('Integration: Archidekt URL → preview → existing mode → deck in D
 })
 
 // ---------------------------------------------------------------------------
-// Test 2: Moxfield URL → preview → add new mode → deck + physical_copies in DB
+// Test 2: Moxfield URL → preview → add new mode → deck + collection in DB
 // ---------------------------------------------------------------------------
 
-describe('Integration: Moxfield URL → preview → add new mode → deck + physical_copies', () => {
+describe('Integration: Moxfield URL → preview → add new mode → deck + collection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockRunAllocationResolver.mockResolvedValue({
@@ -424,12 +424,12 @@ describe('Integration: Moxfield URL → preview → add new mode → deck + phys
       })
     )
 
-    // Verify physical_copies were created (3 cards = 3 physical copies)
-    const physicalCopyInserts = tracker.getOps('physical_copies', 'insert')
-    expect(physicalCopyInserts.length).toBe(3)
+    // Verify collection rows were created (3 cards = 3 copies)
+    const collectionInserts = tracker.getOps('collection', 'insert')
+    expect(collectionInserts.length).toBe(3)
 
-    // All physical copies should have is_proxy=false (Moxfield has no proxy system)
-    for (const op of physicalCopyInserts) {
+    // All collection rows should have is_proxy=false (Moxfield has no proxy system)
+    for (const op of collectionInserts) {
       expect(op.data.is_proxy).toBe(false)
     }
 
@@ -444,11 +444,11 @@ describe('Integration: Moxfield URL → preview → add new mode → deck + phys
     )
     expect(totalRows).toBe(3)
 
-    // Verify the deck_cards have physical_copy_id set (add_new mode links them)
+    // Verify the deck_cards have copy_id set (add_new mode links them)
     const batchData = deckCardInserts.find(op => Array.isArray(op.data))
     if (batchData) {
       for (const row of batchData.data) {
-        expect(row.physical_copy_id).not.toBeNull()
+        expect(row.copy_id).not.toBeNull()
         expect(row.ownership_status).toBe('original')
       }
     }
@@ -460,10 +460,10 @@ describe('Integration: Moxfield URL → preview → add new mode → deck + phys
 })
 
 // ---------------------------------------------------------------------------
-// Test 3: Proxy cards create is_proxy copies
+// Test 3: Proxy cards create is_proxy collection rows
 // ---------------------------------------------------------------------------
 
-describe('Integration: Proxy cards create is_proxy physical copies', () => {
+describe('Integration: Proxy cards create is_proxy collection rows', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockRunAllocationResolver.mockResolvedValue({
@@ -474,7 +474,7 @@ describe('Integration: Proxy cards create is_proxy physical copies', () => {
     })
   })
 
-  it('Archidekt proxy-labelled card creates physical_copy with is_proxy=true in existing mode', async () => {
+  it('Archidekt proxy-labelled card creates collection row with is_proxy=true in existing mode', async () => {
     const rawDeck = makeArchidektDeckResponse()
     const normalizedDeck = normalizeArchidektDeck(rawDeck, ARCHIDEKT_URL)
 
@@ -485,29 +485,29 @@ describe('Integration: Proxy cards create is_proxy physical copies', () => {
 
     // Import
     const tracker = createSupabaseTracker()
-    await importDeckExistingCollection(normalizedDeck, TEST_USER_ID)
+    await importDeckDesign(normalizedDeck, TEST_USER_ID)
 
-    // Verify that a physical_copy insert was made with is_proxy=true
-    const physicalCopyInserts = tracker.getOps('physical_copies', 'insert')
-    expect(physicalCopyInserts.length).toBeGreaterThanOrEqual(1)
+    // Verify that a collection insert was made with is_proxy=true
+    const collectionInserts = tracker.getOps('collection', 'insert')
+    expect(collectionInserts.length).toBeGreaterThanOrEqual(1)
 
-    const proxyInsert = physicalCopyInserts.find(op => op.data?.is_proxy === true)
+    const proxyInsert = collectionInserts.find(op => op.data?.is_proxy === true)
     expect(proxyInsert).toBeDefined()
-    expect(proxyInsert!.data.scryfall_printing_id).toBe('scry-dockside-001')
+    expect(proxyInsert!.data.printing_id).toBe('scry-dockside-001')
   })
 
-  it('Archidekt proxy-labelled card creates physical_copy with is_proxy=true in add_new mode', async () => {
+  it('Archidekt proxy-labelled card creates collection row with is_proxy=true in add_new mode', async () => {
     const rawDeck = makeArchidektDeckResponse()
     const normalizedDeck = normalizeArchidektDeck(rawDeck, ARCHIDEKT_URL)
 
     const tracker = createSupabaseTracker()
     await importDeckAddNewCards(normalizedDeck, TEST_USER_ID)
 
-    // In add_new mode, ALL cards get physical_copies — proxy ones should have is_proxy=true
-    const physicalCopyInserts = tracker.getOps('physical_copies', 'insert')
+    // In add_new mode, ALL cards get collection rows — proxy ones should have is_proxy=true
+    const collectionInserts = tracker.getOps('collection', 'insert')
 
-    const proxyInserts = physicalCopyInserts.filter(op => op.data?.is_proxy === true)
-    const nonProxyInserts = physicalCopyInserts.filter(op => op.data?.is_proxy === false)
+    const proxyInserts = collectionInserts.filter(op => op.data?.is_proxy === true)
+    const nonProxyInserts = collectionInserts.filter(op => op.data?.is_proxy === false)
 
     expect(proxyInserts.length).toBe(1) // Dockside Extortionist
     expect(nonProxyInserts.length).toBe(2) // Korvold + Sol Ring
@@ -535,13 +535,13 @@ describe('Integration: Re-import same Archidekt URL upserts', () => {
 
     // First import
     const tracker1 = createSupabaseTracker()
-    const result1 = await importDeckExistingCollection(normalizedDeck, TEST_USER_ID)
+    const result1 = await importDeckDesign(normalizedDeck, TEST_USER_ID)
     expect(result1.deckId).toBe(12345678)
 
     // Second import (same deck)
     vi.clearAllMocks()
     const tracker2 = createSupabaseTracker()
-    const result2 = await importDeckExistingCollection(normalizedDeck, TEST_USER_ID)
+    const result2 = await importDeckDesign(normalizedDeck, TEST_USER_ID)
 
     // Same deck ID both times (Archidekt uses its own numeric ID)
     expect(result2.deckId).toBe(12345678)
@@ -596,7 +596,7 @@ describe('Integration: Allocation resolver runs post-import', () => {
     const normalizedDeck = normalizeArchidektDeck(rawDeck, ARCHIDEKT_URL)
 
     createSupabaseTracker()
-    const result = await importDeckExistingCollection(normalizedDeck, TEST_USER_ID)
+    const result = await importDeckDesign(normalizedDeck, TEST_USER_ID)
 
     // Verify allocation resolver was called with the correct userId
     expect(mockRunAllocationResolver).toHaveBeenCalledTimes(1)
@@ -643,7 +643,7 @@ describe('Integration: Allocation resolver runs post-import', () => {
     const normalizedDeck = normalizeArchidektDeck(rawDeck, ARCHIDEKT_URL)
 
     createSupabaseTracker()
-    const result = await importDeckExistingCollection(normalizedDeck, TEST_USER_ID)
+    const result = await importDeckDesign(normalizedDeck, TEST_USER_ID)
 
     // Import still returns a deckId (deck was created successfully)
     expect(result.deckId).toBe(12345678)

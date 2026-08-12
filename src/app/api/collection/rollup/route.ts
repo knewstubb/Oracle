@@ -8,9 +8,9 @@ import { NextRequest } from 'next/server'
  *
  * Server-side paginated card-level rollup.
  *
- * Strategy: Query card_definitions directly (small table, ~2400 rows) with
+ * Strategy: Query cards directly (small table, ~2400 rows) with
  * filters + pagination at the DB level. Then enrich only the current page's
- * cards with physical_copies and deck usage data. No bulk scans.
+ * cards with collection and deck usage data. No bulk scans.
  *
  * Query params:
  *   - tab: 'collection' | 'proxies' (default: 'collection')
@@ -23,6 +23,13 @@ import { NextRequest } from 'next/server'
  *   - colorMode: 'exact' | 'includes' | 'at_most' (default: 'includes')
  *
  * Response: { rows, totalCount, page, pageSize, lastPriceRefresh, isPriceStale }
+ *
+ * Schema notes (post-migration):
+ *   - collection table holds all copies (was: physical_copies)
+ *   - cards table (was: card_definitions)
+ *   - finish: 'nonfoil' | 'foil' | 'etched' (was: is_foil boolean)
+ *   - card_id references cards (was: card_definition_id)
+ *   - printing_id references scryfall_printings (was: scryfall_printing_id)
  */
 
 // ---------------------------------------------------------------------------
@@ -36,7 +43,7 @@ interface DeckUsageEntry {
 }
 
 interface PrintingSubgroupRow {
-  physicalCopyId: number
+  copyId: number
   scryfallPrintingId: string
   setCode: string
   setName: string
@@ -45,10 +52,12 @@ interface PrintingSubgroupRow {
   inUseCount: number
   ownedValuation: number | null
   deckUsage: DeckUsageEntry[]
+  /** @deprecated Use copyId */
+  physicalCopyId?: number
 }
 
 export interface CollectionRollupRowWithPrice {
-  cardDefinitionId: number
+  cardId: number
   cardName: string
   oracleId: string
   colorIdentity: string[]
@@ -57,6 +66,8 @@ export interface CollectionRollupRowWithPrice {
   inUseCount: number
   priceToAdd: number | null
   printingSubgroups: PrintingSubgroupRow[]
+  /** @deprecated Use cardId */
+  cardDefinitionId?: number
 }
 
 export interface CollectionRollupResponse {
@@ -91,16 +102,16 @@ export async function GET(request: NextRequest) {
   const colorMode = searchParams.get('colorMode') || 'includes'
 
   try {
-    // ──── Step 1: Count + paginate card_definitions ────────────────────
-    // Use an inner join to only get definitions that have physical_copies
+    // ──── Step 1: Count + paginate cards ────────────────────
+    // Use an inner join to only get cards that have collection copies
     // matching our tab filter. PostgREST's !inner syntax does this efficiently.
     //
     // However, Supabase's .select() with !inner doesn't support count+head mode
     // cleanly with joined filters. So we use a two-step approach:
-    // 1. Get the count via a simple query on physical_copies (just counting distinct IDs)
-    // 2. Get the page data via card_definitions with search/sort/pagination
+    // 1. Get the count via a simple query on collection (just counting distinct IDs)
+    // 2. Get the page data via cards with search/sort/pagination
 
-    // Build base filters for card_definitions
+    // Build base filters for cards
     function applyFilters(query: any) {
       if (search) {
         query = query.ilike('card_name', `%${search}%`)
@@ -115,12 +126,12 @@ export async function GET(request: NextRequest) {
 
     // Step 1a: Get total count
     // We can't use !inner join for counting (it inflates count for 1:many).
-    // Instead, query card_definitions with search/color filters and check existence
-    // of physical_copies via a simple count on card_definitions that have copies.
-    // Since card_definitions.user_id matches physical_copies.user_id for this app
-    // (single-user), we just count filtered card_definitions directly.
+    // Instead, query cards with search/color filters and check existence
+    // of collection via a simple count on cards that have copies.
+    // Since cards.user_id matches collection.user_id for this app
+    // (single-user), we just count filtered cards directly.
     let countQuery = supabase
-      .from('card_definitions')
+      .from('user_cards')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
 
@@ -144,24 +155,24 @@ export async function GET(request: NextRequest) {
       } as CollectionRollupResponse)
     }
 
-    // Step 1b: Get the page of card_definitions
+    // Step 1b: Get the page of cards
     const sortColumn = sort === 'cardName' ? 'card_name' : 'card_name'
     const ascending = sortDir === 'asc'
     const offset = (page - 1) * pageSize
 
     let dataQuery = supabase
-      .from('card_definitions')
+      .from('user_cards')
       .select('id, card_name, oracle_id, color_identity, type_line')
       .eq('user_id', userId)
 
     dataQuery = applyFilters(dataQuery)
     dataQuery = dataQuery.order(sortColumn, { ascending }).range(offset, offset + pageSize - 1)
 
-    const { data: pageCardDefs, error: defsErr } = await dataQuery
+    const { data: pageCards, error: cardsErr } = await dataQuery
 
-    if (defsErr) throw defsErr
+    if (cardsErr) throw cardsErr
 
-    const cardDefs = (pageCardDefs || []) as Array<{
+    const cards = (pageCards || []) as Array<{
       id: number
       card_name: string
       oracle_id: string
@@ -169,7 +180,7 @@ export async function GET(request: NextRequest) {
       type_line: string | null
     }>
 
-    if (cardDefs.length === 0) {
+    if (cards.length === 0) {
       const [lastPriceRefresh, priceStale] = await Promise.all([
         getLastRefreshTimestamp(),
         isPriceDataStale(),
@@ -185,16 +196,16 @@ export async function GET(request: NextRequest) {
     }
 
     // ──── Step 2: Enrich only this page's cards ───────────────────────
-    const pageDefIds = cardDefs.map(cd => cd.id)
+    const pageCardIds = cards.map(c => c.id)
 
-    // Fetch physical_copies + price metadata in parallel
-    const [physicalCopiesRaw, lastPriceRefresh, priceStale] = await Promise.all([
+    // Fetch collection copies + price metadata in parallel
+    const [collectionRaw, lastPriceRefresh, priceStale] = await Promise.all([
       supabase
-        .from('physical_copies')
-        .select('id, card_definition_id, scryfall_printing_id, is_foil')
+        .from('user_copies')
+        .select('id, card_id, printing_id, finish')
         .eq('user_id', userId)
         .eq('is_proxy', isProxyFilter)
-        .in('card_definition_id', pageDefIds)
+        .in('card_id', pageCardIds)
         .then(({ data, error }) => {
           if (error) throw error
           return data || []
@@ -203,19 +214,19 @@ export async function GET(request: NextRequest) {
       isPriceDataStale(),
     ])
 
-    // Fetch deck usage + set info in parallel (both depend on physical_copies)
-    const physicalCopyIds = physicalCopiesRaw.map(pc => pc.id)
+    // Fetch deck usage + set info in parallel (both depend on collection copies)
+    const copyIds = collectionRaw.map(c => c.id)
     const printingIds = [...new Set(
-      physicalCopiesRaw.map(pc => pc.scryfall_printing_id).filter(Boolean) as string[]
+      collectionRaw.map(c => c.printing_id).filter(Boolean) as string[]
     )]
 
     const [deckUsageResult, setInfoResult] = await Promise.all([
-      physicalCopyIds.length > 0
+      copyIds.length > 0
         ? supabase
             .from('deck_cards')
-            .select('physical_copy_id, deck_id, quantity, decks!deck_cards_deck_id_fkey(name)')
-            .not('physical_copy_id', 'is', null)
-            .in('physical_copy_id', physicalCopyIds)
+            .select('copy_id, deck_id, quantity, decks!deck_cards_deck_id_fkey(name)')
+            .not('copy_id', 'is', null)
+            .in('copy_id', copyIds)
             .then(({ data, error }) => {
               if (error) throw error
               return data || []
@@ -223,63 +234,70 @@ export async function GET(request: NextRequest) {
         : Promise.resolve([]),
 
       printingIds.length > 0
-        ? (supabase
-            .from('printing_set_info' as any)
-            .select('scryfall_printing_id, set_code, edition_name')
-            .in('scryfall_printing_id', printingIds) as any)
-            .then(({ data }: any) => data || [])
+        ? supabase
+            .from('ref_printings')
+            .select('scryfall_id, set_code, set_name')
+            .in('scryfall_id', printingIds)
+            .then(({ data }) => (data || []).map(r => ({
+              printing_id: r.scryfall_id,
+              set_code: r.set_code,
+              edition_name: r.set_name,
+            })))
         : Promise.resolve([]),
     ])
 
     // ──── Step 3: Assemble rollup rows ────────────────────────────────
     const deckUsageMap = new Map<number, DeckUsageEntry[]>()
     for (const row of deckUsageResult as any[]) {
-      const entries = deckUsageMap.get(row.physical_copy_id) || []
+      const entries = deckUsageMap.get(row.copy_id) || []
       entries.push({
         deckId: row.deck_id,
         deckName: (row.decks as any)?.name || '',
         quantity: row.quantity ?? 1,
       })
-      deckUsageMap.set(row.physical_copy_id, entries)
+      deckUsageMap.set(row.copy_id, entries)
     }
 
     const setInfoMap = new Map<string, { setCode: string; setName: string }>()
     for (const row of setInfoResult as any[]) {
-      if (row.scryfall_printing_id) {
-        setInfoMap.set(row.scryfall_printing_id, {
+      if (row.printing_id) {
+        setInfoMap.set(row.printing_id, {
           setCode: row.set_code || '',
           setName: row.edition_name || '',
         })
       }
     }
 
-    const pcByCardDef = new Map<number, typeof physicalCopiesRaw>()
-    for (const pc of physicalCopiesRaw) {
-      const group = pcByCardDef.get(pc.card_definition_id) || []
-      group.push(pc)
-      pcByCardDef.set(pc.card_definition_id, group)
+    const copyByCard = new Map<number, typeof collectionRaw>()
+    for (const copy of collectionRaw) {
+      const group = copyByCard.get(copy.card_id) || []
+      group.push(copy)
+      copyByCard.set(copy.card_id, group)
     }
 
-    const rows: CollectionRollupRowWithPrice[] = cardDefs.map(cd => {
-      const isBasicLand = cd.type_line ? /\bBasic\b/i.test(cd.type_line) : false
-      const colorIdentity = cd.color_identity
-        ? cd.color_identity.split(',').map((c: string) => c.trim()).filter((c: string) => c !== '')
+    const rows: CollectionRollupRowWithPrice[] = cards.map(card => {
+      const isBasicLand = card.type_line ? /\bBasic\b/i.test(card.type_line) : false
+      const colorIdentity = card.color_identity
+        ? card.color_identity.split(',').map((c: string) => c.trim()).filter((c: string) => c !== '')
         : []
 
-      const copies = pcByCardDef.get(cd.id) || []
+      const copies = copyByCard.get(card.id) || []
       const ownedQuantity = copies.length
 
-      const printingSubgroups: PrintingSubgroupRow[] = copies.map((pc) => {
-        const deckUsage = deckUsageMap.get(pc.id) || []
+      const printingSubgroups: PrintingSubgroupRow[] = copies.map((copy) => {
+        const deckUsage = deckUsageMap.get(copy.id) || []
         const inUseCount = deckUsage.reduce((sum, d) => sum + d.quantity, 0)
-        const setInfo = pc.scryfall_printing_id ? setInfoMap.get(pc.scryfall_printing_id) : undefined
+        const setInfo = copy.printing_id ? setInfoMap.get(copy.printing_id) : undefined
+        // Map finish to isFoil boolean for backwards compatibility
+        const isFoil = copy.finish === 'foil' || copy.finish === 'etched'
 
         return {
-          physicalCopyId: pc.id,
-          scryfallPrintingId: pc.scryfall_printing_id || '',
+          copyId: copy.id,
+          physicalCopyId: copy.id, // deprecated alias
+          scryfallPrintingId: copy.printing_id || '',
           setCode: setInfo?.setCode || '',
           setName: setInfo?.setName || '',
-          isFoil: Boolean(pc.is_foil),
+          isFoil,
           quantity: 1,
           inUseCount,
           ownedValuation: null,
@@ -290,9 +308,10 @@ export async function GET(request: NextRequest) {
       const inUseCount = printingSubgroups.reduce((sum, sg) => sum + sg.inUseCount, 0)
 
       return {
-        cardDefinitionId: cd.id,
-        cardName: cd.card_name,
-        oracleId: cd.oracle_id,
+        cardId: card.id,
+        cardDefinitionId: card.id, // deprecated alias
+        cardName: card.card_name,
+        oracleId: card.oracle_id,
         colorIdentity,
         isBasicLand,
         ownedQuantity,

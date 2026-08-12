@@ -17,12 +17,11 @@ import {
 import type { DeckStatus, StatusUpdateResponse } from '@/lib/deck-status'
 import { VALID_STATUSES } from '@/lib/deck-status'
 import { validateDeckCount } from '@/lib/format-config'
+import { deckKeys } from '@/hooks/useDeckQueryKeys'
 
 export interface StatusControlProps {
   deckId: number
   currentStatus: DeckStatus
-  /** Current allocate state — needed to decide if archive confirmation is required */
-  allocate?: boolean
   /** Current card count — used for Brewing→In Rotation gate */
   cardCount?: number
   /** Deck format — used for count validation */
@@ -50,7 +49,7 @@ const STATUS_CONFIG: Record<DeckStatus, { label: string; color: string; bg: stri
   },
 }
 
-export function StatusControl({ deckId, currentStatus, allocate, cardCount, format }: StatusControlProps) {
+export function StatusControl({ deckId, currentStatus, cardCount, format }: StatusControlProps) {
   const [optimisticStatus, setOptimisticStatus] = useState<DeckStatus>(currentStatus)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [pendingStatus, setPendingStatus] = useState<DeckStatus | null>(null)
@@ -72,11 +71,10 @@ export function StatusControl({ deckId, currentStatus, allocate, cardCount, form
     onSuccess: (data) => {
       setOptimisticStatus(data.deck.status)
       // Invalidate all relevant queries so UI updates without manual refresh
-      queryClient.invalidateQueries({ queryKey: ['decks'] })
-      queryClient.invalidateQueries({ queryKey: ['decks', String(deckId)] })
-      queryClient.invalidateQueries({ queryKey: ['decks', deckId] })
+      queryClient.invalidateQueries({ queryKey: deckKeys.all })
+      queryClient.invalidateQueries({ queryKey: deckKeys.detail(deckId) })
       queryClient.invalidateQueries({ queryKey: ['shared-cards'] })
-      queryClient.invalidateQueries({ queryKey: ['allocation', deckId] })
+      queryClient.invalidateQueries({ queryKey: deckKeys.allocation(deckId) })
       queryClient.invalidateQueries({ queryKey: ['proxy-report'] })
       queryClient.invalidateQueries({ queryKey: ['collection'] })
       queryClient.invalidateQueries({ queryKey: ['rollup-v2'] })
@@ -91,8 +89,8 @@ export function StatusControl({ deckId, currentStatus, allocate, cardCount, form
   function handleStatusChange(newStatus: DeckStatus) {
     if (newStatus === optimisticStatus) return
 
-    // Graveyard transition: prompt if the deck has claimed cards (allocate is on = likely has claims)
-    if (newStatus === 'graveyard' && allocate) {
+    // Graveyard transition from Active: prompt about releasing claimed cards
+    if (newStatus === 'graveyard' && optimisticStatus === 'in_rotation') {
       setPendingStatus(newStatus)
       setConfirmOpen(true)
       return
@@ -146,9 +144,8 @@ export function StatusControl({ deckId, currentStatus, allocate, cardCount, form
     },
     onSuccess: (data) => {
       setOptimisticStatus(data.deck.status)
-      queryClient.invalidateQueries({ queryKey: ['decks'] })
-      queryClient.invalidateQueries({ queryKey: ['decks', String(deckId)] })
-      queryClient.invalidateQueries({ queryKey: ['decks', deckId] })
+      queryClient.invalidateQueries({ queryKey: deckKeys.all })
+      queryClient.invalidateQueries({ queryKey: deckKeys.detail(deckId) })
       queryClient.invalidateQueries({ queryKey: ['shared-cards'] })
       queryClient.invalidateQueries({ queryKey: ['collection'] })
       toast.success('Cards released and deck moved to Graveyard')

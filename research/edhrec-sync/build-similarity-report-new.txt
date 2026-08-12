@@ -1,0 +1,270 @@
+◇ injected env (7) from .env.local // tip: ◈ secrets for agents [www.dotenvx.com]
+Build Similarity Analysis
+=========================
+Merge threshold: 65%
+
+Fetching builds...
+Found 304 commanders with 2+ builds
+Fetching cards for 873 builds...
+  Fetched cards for 100/873 builds...
+  Fetched cards for 200/873 builds...
+  Fetched cards for 300/873 builds...
+  Fetched cards for 400/873 builds...
+  Fetched cards for 500/873 builds...
+  Fetched cards for 600/873 builds...
+  Fetched cards for 700/873 builds...
+  Fetched cards for 800/873 builds...
+Analyzing similarity...
+  Yuriko, the Tiger's Shadow: 1 merge candidates
+  Edgar Markov: 15 merge candidates
+  Hearthhull, the Worldseed: 3 merge candidates
+  Sisay, Weatherlight Captain: 1 merge candidates
+  Urtet, Remnant of Memnarch: 3 merge candidates
+  The Necrobloom: 1 merge candidates
+  Teval, the Balanced Scale: 6 merge candidates
+  The Wise Mothman: 1 merge candidates
+  Jodah, the Unifier: 1 merge candidates
+  Vivi Ornitier: 1 merge candidates
+  Omnath, Locus of Mana: 1 merge candidates
+  Ms. Bumbleflower: 3 merge candidates
+  Giada, Font of Hope: 3 merge candidates
+  Eriette of the Charmed Apple: 6 merge candidates
+  Isshin, Two Heavens as One: 1 merge candidates
+  Rin and Seri, Inseparable: 3 merge candidates
+  Zhulodok, Void Gorger: 3 merge candidates
+  Kibo, Uktabi Prince: 1 merge candidates
+  Dr. Eggman: 6 merge candidates
+  Xyris, the Writhing Storm: 2 merge candidates
+  Choco, Seeker of Paradise: 3 merge candidates
+  Captain N'ghathrod: 1 merge candidates
+  Grand Arbiter Augustin IV: 3 merge candidates
+  High Perfect Morcant: 1 merge candidates
+  Jin Sakai, Ghost of Tsushima: 1 merge candidates
+  Zada, Hedron Grinder: 2 merge candidates
+  Skullbriar, the Walking Grave: 1 merge candidates
+  Ygra, Eater of All: 5 merge candidates
+  Caesar, Legion's Emperor: 2 merge candidates
+  Meren of Clan Nel Toth: 4 merge candidates
+  Éowyn, Shieldmaiden: 3 merge candidates
+  Alexios, Deimos of Kosmos: 1 merge candidates
+  Yarok, the Desecrated: 7 merge candidates
+  Liesa, Shroud of Dusk: 6 merge candidates
+  Gev, Scaled Scorch: 3 merge candidates
+  Anti-Venom, Horrifying Healer: 1 merge candidates
+  Vihaan, Goldwaker: 1 merge candidates
+  Light-Paws, Emperor's Voice: 3 merge candidates
+  Winota, Joiner of Forces: 3 merge candidates
+  Edward Kenway: 6 merge candidates
+  Omo, Queen of Vesuva: 1 merge candidates
+  Shilgengar, Sire of Famine: 6 merge candidates
+  Derevi, Empyrial Tactician: 1 merge candidates
+  Indominus Rex, Alpha: 3 merge candidates
+  Tifa Lockhart: 3 merge candidates
+  Elsha, Threefold Master: 1 merge candidates
+  Winter, Misanthropic Guide: 6 merge candidates
+  Arahbo, Roar of the World: 1 merge candidates
+  Ardenn, Intrepid Archaeologist & Rograkh, Son of Rohgahh: 3 merge candidates
+  Dogmeat, Ever Loyal: 3 merge candidates
+  Kalamax, the Stormsire: 1 merge candidates
+  Norin the Wary: 1 merge candidates
+  Ziatora, the Incinerator: 3 merge candidates
+  Rocco, Cabaretti Caterer: 3 merge candidates
+  Silverquill, the Disputant: 1 merge candidates
+  Rograkh, Son of Rohgahh & Silas Renn, Seeker Adept: 1 merge candidates
+  Brimaz, Blight of Oreskos: 1 merge candidates
+  Ob Nixilis, Captive Kingpin: 3 merge candidates
+  Sokka, Tenacious Tactician: 1 merge candidates
+  Kaalia of the Vast: 6 merge candidates
+  Pantlaza, Sun-Favored: 3 merge candidates
+  Chatterfang, Squirrel General: 1 merge candidates
+  Hakbal of the Surging Soul: 1 merge candidates
+  Ashling, the Limitless: 1 merge candidates
+  Marwyn, the Nurturer: 1 merge candidates
+  Lathril, Blade of the Elves: 1 merge candidates
+  Imotekh the Stormlord: 3 merge candidates
+  Morska, Undersea Sleuth: 1 merge candidates
+  Ellivere of the Wild Court: 1 merge candidates
+  Tuvasa the Sunlit: 2 merge candidates
+  Shirei, Shizo's Caretaker: 1 merge candidates
+  Millicent, Restless Revenant: 3 merge candidates
+  Winter, Cynical Opportunist: 3 merge candidates
+  Krenko, Mob Boss: 1 merge candidates
+  Ureni of the Unwritten: 1 merge candidates
+  Atla Palani, Nest Tender: 1 merge candidates
+  Sidar Jabari of Zhalfir: 3 merge candidates
+  Maralen, Fae Ascendant: 3 merge candidates
+  The First Sliver: 1 merge candidates
+  Gishath, Sun's Avatar: 3 merge candidates
+  Raphael, Fiendish Savior: 1 merge candidates
+  Voja, Jaws of the Conclave: 1 merge candidates
+  Be'lakor, the Dark Master: 4 merge candidates
+  Magda, Brazen Outlaw: 1 merge candidates
+  Wilhelt, the Rotcleaver: 3 merge candidates
+  Ezio Auditore da Firenze: 3 merge candidates
+  Hazel of the Rootbloom: 1 merge candidates
+  Temmet, Naktamun's Will: 3 merge candidates
+  The Scarab God: 1 merge candidates
+  Indoraptor, the Perfect Hybrid: 3 merge candidates
+  Varina, Lich Queen: 5 merge candidates
+  The Mycotyrant: 3 merge candidates
+  Clavileño, First of the Blessed: 3 merge candidates
+  Rakdos, Lord of Riots: 3 merge candidates
+  Syr Gwyn, Hero of Ashvale: 3 merge candidates
+  Athreos, God of Passage: 1 merge candidates
+  Gargos, Vicious Watcher: 1 merge candidates
+  Omnath, Locus of Rage: 2 merge candidates
+  Goro-Goro and Satoru: 1 merge candidates
+  Bria, Riptide Rogue: 1 merge candidates
+  Myrel, Shield of Argive: 1 merge candidates
+  Quintorius, History Chaser: 3 merge candidates
+  Talion, the Kindly Lord: 1 merge candidates
+  Strefan, Maurer Progenitor: 3 merge candidates
+  Ghave, Guru of Spores: 2 merge candidates
+  Sidisi, Brood Tyrant: 2 merge candidates
+  Gisa and Geralf: 3 merge candidates
+  Thantis, the Warweaver: 1 merge candidates
+  Sigarda, Font of Blessings: 1 merge candidates
+  Astarion, the Decadent: 5 merge candidates
+  Slinza, the Spiked Stampede: 1 merge candidates
+  Anowon, the Ruin Thief: 6 merge candidates
+  Ayula, Queen Among Bears: 1 merge candidates
+  Zurgo, Thunder's Decree: 1 merge candidates
+  Elenda, the Dusk Rose: 4 merge candidates
+  Wayta, Trainer Prodigy: 2 merge candidates
+  Slimefoot, the Stowaway: 1 merge candidates
+  Aragorn, King of Gondor: 1 merge candidates
+  Alela, Cunning Conqueror: 1 merge candidates
+  Admiral Brass, Unsinkable: 6 merge candidates
+  Mabel, Heir to Cragflame: 3 merge candidates
+  Vnwxt, Verbose Host: 3 merge candidates
+  Nethroi, Apex of Death: 3 merge candidates
+  Aminatou, the Fateshifter: 2 merge candidates
+  Ivy, Gleeful Spellthief: 1 merge candidates
+  Ruric Thar, the Unbowed: 5 merge candidates
+  Talrand, Sky Summoner: 1 merge candidates
+  Ardbert, Warrior of Darkness: 3 merge candidates
+  Delney, Streetwise Lookout: 1 merge candidates
+  Nelly Borca, Impulsive Accuser: 3 merge candidates
+  Syr Konrad, the Grim: 2 merge candidates
+  Nine-Fingers Keene: 1 merge candidates
+  Galea, Kindler of Hope: 1 merge candidates
+  The Locust God: 1 merge candidates
+  Zethi, Arcane Blademaster: 1 merge candidates
+  Thalia and The Gitrog Monster: 1 merge candidates
+  Y'shtola, Night's Blessed: 6 merge candidates
+  Muldrotha, the Gravetide: 1 merge candidates
+  Flubs, the Fool: 2 merge candidates
+  Nekusar, the Mindrazer: 3 merge candidates
+  Cloud, Ex-SOLDIER: 1 merge candidates
+  Arabella, Abandoned Doll: 3 merge candidates
+  Shorikai, Genesis Engine: 1 merge candidates
+  Kinnan, Bonder Prodigy: 1 merge candidates
+  Oloro, Ageless Ascetic: 2 merge candidates
+  Teysa Karlov: 2 merge candidates
+  Urza, Lord High Artificer: 3 merge candidates
+  Queen Marchesa: 3 merge candidates
+  Kotis, the Fangkeeper: 1 merge candidates
+  Ghyrson Starn, Kelermorph: 1 merge candidates
+  Zurgo Stormrender: 1 merge candidates
+  Ragost, Deft Gastronaut: 1 merge candidates
+  Aminatou, Veil Piercer: 1 merge candidates
+  Hope Estheim: 1 merge candidates
+  Terra, Herald of Hope: 3 merge candidates
+  Betor, Ancestor's Voice: 3 merge candidates
+  Niv-Mizzet, Parun: 4 merge candidates
+  Zur the Enchanter: 4 merge candidates
+  Brago, King Eternal: 3 merge candidates
+  Lightning, Army of One: 1 merge candidates
+  Eshki, Temur's Roar: 3 merge candidates
+  Marchesa, the Black Rose: 3 merge candidates
+  Sythis, Harvest's Hand: 1 merge candidates
+  Anikthea, Hand of Erebos: 1 merge candidates
+  Tivit, Seller of Secrets: 1 merge candidates
+  Disa the Restless: 1 merge candidates
+  Feather, the Redeemed: 1 merge candidates
+  Sefris of the Hidden Ways: 2 merge candidates
+  Yurlok of Scorch Thrash: 6 merge candidates
+  Zedruu the Greathearted: 5 merge candidates
+  Jon Irenicus, Shattered One: 3 merge candidates
+  Fire Lord Zuko: 1 merge candidates
+  Wolverine, Best There Is: 1 merge candidates
+  Judith, Carnage Connoisseur: 1 merge candidates
+  Kraum, Ludevic's Opus & Tymna the Weaver: 1 merge candidates
+  Sheoldred, the Apocalypse: 10 merge candidates
+  The Jolly Balloon Man: 1 merge candidates
+  Celes, Rune Knight: 1 merge candidates
+  Umbris, Fear Manifest: 1 merge candidates
+  Captain Howler, Sea Scourge: 3 merge candidates
+  Kona, Rescue Beastie: 1 merge candidates
+  Dihada, Binder of Wills: 3 merge candidates
+  Veyran, Voice of Duality: 1 merge candidates
+  Ketramose, the New Dawn: 1 merge candidates
+  Niko, Light of Hope: 1 merge candidates
+  Okaun, Eye of Chaos & Zndrsplt, Eye of Wisdom: 1 merge candidates
+  Raffine, Scheming Seer: 7 merge candidates
+  Tinybones, Bauble Burglar: 1 merge candidates
+  Killian, Decisive Mentor: 1 merge candidates
+  Dina, Soul Steeper: 2 merge candidates
+  Arna Kennerüd, Skycaptain: 1 merge candidates
+  Dina, Essence Brewer: 1 merge candidates
+  Shalai and Hallar: 1 merge candidates
+  Coram, the Undertaker: 3 merge candidates
+  Rowan, Scion of War: 3 merge candidates
+  Roxanne, Starfall Savant: 1 merge candidates
+  Queza, Augur of Agonies: 6 merge candidates
+  Raggadragga, Goreguts Boss: 1 merge candidates
+  Tayam, Luminous Enigma: 12 merge candidates
+  Clement, the Worrywort: 3 merge candidates
+  Rograkh, Son of Rohgahh & Thrasios, Triton Hero: 1 merge candidates
+  Kratos, God of War: 1 merge candidates
+  The Master of Keys: 5 merge candidates
+  Ghalta, Primal Hunger: 3 merge candidates
+  Tannuk, Memorial Ensign: 1 merge candidates
+  Lumra, Bellow of the Woods: 3 merge candidates
+  Haldan, Avid Arcanist & Pako, Arcane Retriever: 3 merge candidates
+  Braids, Arisen Nightmare: 3 merge candidates
+  Elas il-Kor, Sadistic Pilgrim: 1 merge candidates
+  Zoraline, Cosmos Caller: 3 merge candidates
+  Xenagos, God of Revels: 3 merge candidates
+  Maelstrom Wanderer: 1 merge candidates
+  Grist, the Hunger Tide: 1 merge candidates
+  Elesh Norn, Mother of Machines: 1 merge candidates
+  The Gitrog, Ravenous Ride: 3 merge candidates
+  Myrkul, Lord of Bones: 3 merge candidates
+  Mishra, Eminent One: 1 merge candidates
+  Sméagol, Helpful Guide: 5 merge candidates
+  Koma, Cosmos Serpent: 1 merge candidates
+  Breena, the Demagogue: 1 merge candidates
+  Bruvac the Grandiloquent: 1 merge candidates
+  Squall, SeeD Mercenary: 3 merge candidates
+  Ozai, the Phoenix King: 1 merge candidates
+  The Lord of Pain: 1 merge candidates
+  Chishiro, the Shattered Blade: 3 merge candidates
+  The Beamtown Bullies: 1 merge candidates
+  Maarika, Brutal Gladiator: 1 merge candidates
+  Ayara, First of Locthwain: 5 merge candidates
+  Yawgmoth, Thran Physician: 6 merge candidates
+  Jhoira, Weatherlight Captain: 1 merge candidates
+  The Mimeoplasm: 1 merge candidates
+  Kwain, Itinerant Meddler: 4 merge candidates
+  Evereth, Viceroy of Plunder: 3 merge candidates
+  Nahiri, Forged in Fury: 1 merge candidates
+  Juri, Master of the Revue: 1 merge candidates
+  Zimone and Dina: 2 merge candidates
+  Karador, Ghost Chieftain: 1 merge candidates
+  Greasefang, Okiba Boss: 3 merge candidates
+  Kambal, Profiteering Mayor: 3 merge candidates
+  Marchesa, Dealer of Death: 1 merge candidates
+  Zur, Eternal Schemer: 1 merge candidates
+  Emry, Lurker of the Loch: 1 merge candidates
+  Hei Bai, Forest Guardian: 1 merge candidates
+
+Summary
+-------
+Total build pairs analyzed: 958
+Merge candidates (≥65%): 565
+Related but distinct (50-64%): 187
+Distinct builds (<50%): 206
+
+Report written to: /Users/bradknewstubb/Developer/Personal/The_Oracle/app/research/edhrec-sync/build-similarity-report.md
+JSON data written to: /Users/bradknewstubb/Developer/Personal/The_Oracle/app/research/edhrec-sync/build-similarity.json

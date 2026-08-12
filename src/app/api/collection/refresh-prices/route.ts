@@ -24,14 +24,14 @@ export async function POST(request: NextRequest) {
 
   const supabase = createAdminClient()
 
-  // Get all unique card names from user's card_definitions
+  // Get all unique card names from user's user_cards
   const PAGE_SIZE = 1000
   const allNames: string[] = []
   let offset = 0
 
   while (true) {
     const { data, error } = await supabase
-      .from('card_definitions')
+      .from('user_cards')
       .select('card_name')
       .eq('user_id', userId)
       .range(offset, offset + PAGE_SIZE - 1)
@@ -70,29 +70,27 @@ export async function POST(request: NextRequest) {
 
       const json = await res.json()
       const rows = (json.data ?? []).map((card: any) => ({
-        card_name: card.name,
+        name: card.name,
         mana_cost: card.mana_cost ?? card.card_faces?.[0]?.mana_cost ?? '',
-        cmc: card.cmc ?? 0,
+        mana_value: card.cmc ?? 0,
         type_line: card.type_line ?? '',
-        price_usd: card.prices?.usd ? parseFloat(card.prices.usd) : null,
-        rarity: card.rarity ?? null,
       }))
 
       if (rows.length > 0) {
         const { error: upsertErr } = await supabase
-          .from('card_metadata')
-          .upsert(rows, { onConflict: 'card_name' })
+          .from('ref_cards')
+          .upsert(rows, { onConflict: 'name' })
 
         if (!upsertErr) updated += rows.length
       }
 
       // Also store under front-face name for DFCs
       const dfcRows = rows
-        .filter((r: any) => r.card_name.includes(' // '))
-        .map((r: any) => ({ ...r, card_name: frontFaceName(r.card_name) }))
+        .filter((r: any) => r.name.includes(' // '))
+        .map((r: any) => ({ ...r, name: frontFaceName(r.name) }))
 
       if (dfcRows.length > 0) {
-        await supabase.from('card_metadata').upsert(dfcRows, { onConflict: 'card_name' })
+        await supabase.from('ref_cards').upsert(dfcRows, { onConflict: 'name' })
       }
 
     } catch {

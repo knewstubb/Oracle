@@ -31,6 +31,7 @@ export interface DeckContextCard {
   primary_category: string
   additional_categories: string[]
   ownership_status: 'original' | 'proxy' | null
+  is_commander?: boolean
 }
 
 /** Full deck context returned for a brew session */
@@ -39,7 +40,8 @@ export interface DeckContextResult {
   cards: DeckContextCard[]
   category_counts: Record<string, number>
   category_health: Record<string, 'healthy' | 'low' | 'high'>
-  suggestions: DeckContextCard[]
+  suggestions: DeckContextCard[] | string[]
+  commander_name?: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -76,33 +78,102 @@ export interface CardRepository {
  * Supabase-backed implementation of CardRepository.
  *
  * Uses the Supabase query builder for all database operations.
+ * Filters all queries by user_id to ensure data isolation.
  */
 class SupabaseCardRepository implements CardRepository {
+  private userId: string | null
+
+  constructor(userId?: string) {
+    this.userId = userId ?? null
+  }
+
   async getOwnedCards(cardNames: string[]): Promise<OwnedCardInfo[]> {
     if (cardNames.length === 0) return []
 
     const supabase = createAdminClient()
-    const { data, error } = await supabase
-      .from('collection')
-      .select('*')
-      .in('card_name', cardNames)
+    
+    // First, find user_cards matching the requested names
+    let userCardsQuery = supabase
+      .from('user_cards')
+      .select('id, card_name')
+      .in('card_name', cardNames) // Try exact match first
+    
+    if (this.userId) {
+      userCardsQuery = userCardsQuery.eq('user_id', this.userId)
+    }
+    
+    const { data: userCards, error: ucError } = await userCardsQuery
+    
+    if (ucError) {
+      throw new Error(`getOwnedCards failed: ${ucError.message}`)
+    }
+    
+    // Also try case-insensitive match for any not found
+    const foundNames = new Set((userCards ?? []).map(uc => uc.card_name.toLowerCase()))
+    const missingNames = cardNames.filter(n => !foundNames.has(n.toLowerCase()))
+    
+    let allUserCards = userCards ?? []
+    
+    if (missingNames.length > 0) {
+      for (const name of missingNames) {
+        let fuzzyQuery = supabase
+          .from('user_cards')
+          .select('id, card_name')
+          .ilike('card_name', name)
+          .limit(1)
+        
+        if (this.userId) {
+          fuzzyQuery = fuzzyQuery.eq('user_id', this.userId)
+        }
+        
+        const { data: fuzzyMatch } = await fuzzyQuery
+        
+        if (fuzzyMatch && fuzzyMatch.length > 0) {
+          allUserCards.push(fuzzyMatch[0])
+        }
+      }
+    }
+    
+    if (allUserCards.length === 0) {
+      return []
+    }
+    
+    // Now fetch copies only for the cards we found
+    const cardIds = allUserCards.map(uc => uc.id)
+    
+    let copiesQuery = supabase
+      .from('user_copies')
+      .select('id, card_id')
+      .eq('is_proxy', false)
+      .in('card_id', cardIds)
+    
+    if (this.userId) {
+      copiesQuery = copiesQuery.eq('user_id', this.userId)
+    }
+    
+    const { data: copies, error: copyError } = await copiesQuery
 
-    if (error) {
-      throw new Error(`getOwnedCards failed: ${error.message}`)
+    if (copyError) {
+      throw new Error(`getOwnedCards failed: ${copyError.message}`)
     }
 
-    // Aggregate by card_name (a card may appear in multiple rows with different printings)
+    // Aggregate by card name
     const aggregated = new Map<string, OwnedCardInfo>()
-    for (const row of data ?? []) {
-      const existing = aggregated.get(row.card_name)
+    
+    for (const copy of copies ?? []) {
+      const userCard = allUserCards.find(uc => uc.id === copy.card_id)
+      if (!userCard) continue
+      
+      const cardNameLower = userCard.card_name.toLowerCase()
+      const existing = aggregated.get(cardNameLower)
       if (existing) {
-        existing.quantity += row.quantity
+        existing.quantity += 1
       } else {
-        aggregated.set(row.card_name, {
-          card_name: row.card_name,
-          quantity: row.quantity,
-          set_code: row.set_code ?? null,
-          foil: row.foil,
+        aggregated.set(cardNameLower, {
+          card_name: userCard.card_name,
+          quantity: 1,
+          set_code: null,
+          foil: false,
         })
       }
     }
@@ -114,11 +185,29 @@ class SupabaseCardRepository implements CardRepository {
     const supabase = createAdminClient()
 
     // Fetch all collection entries then filter by colour identity in JS.
-    // The colour_identity column stores comma-separated values (e.g., "W,U,B").
-    // A card is eligible if every colour in its identity is within the provided set.
-    const { data, error } = await supabase
-      .from('collection')
-      .select('*')
+    // user_copies → user_cards (via card_id FK) for card_name and color_identity
+    // Note: set_code would require joining ref_printings via printing_id, 
+    // but that FK isn't defined. Return null for set_code for now.
+    let query = supabase
+      .from('user_copies')
+      .select(`
+        id,
+        card_id,
+        is_proxy,
+        printing_id,
+        user_cards!user_copies_card_id_fkey (
+          card_name,
+          color_identity
+        )
+      `)
+      .eq('is_proxy', false)
+    
+    // Filter by user_id if available
+    if (this.userId) {
+      query = query.eq('user_id', this.userId)
+    }
+    
+    const { data, error } = await query
 
     if (error) {
       throw new Error(`getCardsByColourIdentity failed: ${error.message}`)
@@ -126,24 +215,29 @@ class SupabaseCardRepository implements CardRepository {
 
     const colourSet = new Set(colours.map(c => c.toUpperCase()))
 
-    const filtered = (data ?? []).filter(row => {
-      if (!row.color_identity || row.color_identity === '') return true // colorless
-      const cardColours = row.color_identity.split(',').map((c: string) => c.trim().toUpperCase())
-      return cardColours.every((c: string) => colourSet.has(c))
-    })
-
-    // Aggregate by card_name
+    // Filter and aggregate
     const aggregated = new Map<string, OwnedCardInfo>()
-    for (const row of filtered) {
-      const existing = aggregated.get(row.card_name)
+    for (const row of data ?? []) {
+      const cardInfo = row.user_cards as unknown as { card_name: string; color_identity: string | null } | null
+      if (!cardInfo?.card_name) continue
+      
+      // Check colour identity - colorless cards (empty/null) are always eligible
+      const cardColourIdentity = cardInfo.color_identity
+      if (cardColourIdentity && cardColourIdentity !== '') {
+        const cardColours = cardColourIdentity.split(',').map(c => c.trim().toUpperCase())
+        if (!cardColours.every(c => colourSet.has(c))) continue
+      }
+      
+      const key = cardInfo.card_name.toLowerCase()
+      const existing = aggregated.get(key)
       if (existing) {
-        existing.quantity += row.quantity
+        existing.quantity += 1
       } else {
-        aggregated.set(row.card_name, {
-          card_name: row.card_name,
-          quantity: row.quantity,
-          set_code: row.set_code ?? null,
-          foil: row.foil,
+        aggregated.set(key, {
+          card_name: cardInfo.card_name,
+          quantity: 1,
+          set_code: null, // Would need separate ref_printings lookup
+          foil: false,
         })
       }
     }
@@ -155,10 +249,17 @@ class SupabaseCardRepository implements CardRepository {
     const supabase = createAdminClient()
 
     // Query deck_cards for this card
-    const { data: deckCards, error: dcError } = await supabase
+    let query = supabase
       .from('deck_cards')
       .select('*')
       .eq('card_name', cardName)
+    
+    // Filter by user_id if available
+    if (this.userId) {
+      query = query.eq('user_id', this.userId)
+    }
+    
+    const { data: deckCards, error: dcError } = await query
 
     if (dcError) {
       throw new Error(`getDeckAllocations failed: ${dcError.message}`)
@@ -184,8 +285,8 @@ class SupabaseCardRepository implements CardRepository {
     return deckCards.map(row => ({
       deck_id: row.deck_id,
       deck_name: deckNameMap.get(row.deck_id) ?? 'Unknown',
-      quantity: row.quantity,
-      is_commander: row.is_commander,
+      quantity: row.quantity ?? 1,
+      is_commander: row.is_commander ?? false,
       allocation_status: 'original' as const,
     }))
   }
@@ -202,8 +303,56 @@ class SupabaseCardRepository implements CardRepository {
 
     if (sessionError || !session) return null
 
+    // First, try to get canvas cards from skeleton_json (always up-to-date with UI)
+    let canvasCards: DeckContextResult['cards'] = []
+    let canvasSuggestions: string[] = []
+    
+    if (session.skeleton_json) {
+      try {
+        const skeleton = JSON.parse(session.skeleton_json)
+        
+        // Parse cards from skeleton (matches PersistedSkeleton.cards structure)
+        if (Array.isArray(skeleton.cards)) {
+          canvasCards = skeleton.cards.map((c: any) => ({
+            card_name: c.card_name || c.cardName || '',
+            primary_category: c.primary_category || c.primaryCategory || 'Uncategorized',
+            additional_categories: c.additional_categories || c.additionalCategories || [],
+            ownership_status: c.ownership_status || c.ownershipStatus || 'original',
+            is_commander: c.is_commander || c.isCommander || false,
+          }))
+        }
+        
+        // Parse suggestions if available
+        if (Array.isArray(skeleton.suggestions)) {
+          canvasSuggestions = skeleton.suggestions.map((s: any) => 
+            typeof s === 'string' ? s : (s.card_name || s.cardName || '')
+          ).filter(Boolean)
+        }
+      } catch {
+        /* skeleton parse failed, continue with other sources */
+      }
+    }
+
+    // If we have canvas cards, return them (most up-to-date source)
+    if (canvasCards.length > 0) {
+      const categoryCounts: Record<string, number> = {}
+      for (const card of canvasCards) {
+        categoryCounts[card.primary_category] =
+          (categoryCounts[card.primary_category] || 0) + 1
+      }
+
+      return {
+        total_cards: canvasCards.length,
+        cards: canvasCards,
+        category_counts: categoryCounts,
+        category_health: {},
+        suggestions: canvasSuggestions,
+        commander_name: session.commander_name || null,
+      }
+    }
+
+    // Fallback: if there's a deck_id and no canvas cards, query committed deck_cards
     if (session.deck_id) {
-      // Building phase — query deck_cards for the linked deck
       const { data: cards, error: cardsError } = await supabase
         .from('deck_cards')
         .select('*')
@@ -236,22 +385,7 @@ class SupabaseCardRepository implements CardRepository {
         category_counts: categoryCounts,
         category_health: {},
         suggestions: [],
-      }
-    }
-
-    // Exploration phase — return skeleton from session if available
-    if (session.skeleton_json) {
-      try {
-        const skeleton = JSON.parse(session.skeleton_json)
-        return {
-          total_cards: skeleton.totalCards || 0,
-          cards: [],
-          category_counts: {},
-          category_health: {},
-          suggestions: [],
-        }
-      } catch {
-        /* fallback to null below */
+        commander_name: session.commander_name || null,
       }
     }
 
@@ -284,6 +418,6 @@ class SupabaseCardRepository implements CardRepository {
 // ---------------------------------------------------------------------------
 
 /** Factory function — returns the active repository implementation */
-export function getCardRepository(): CardRepository {
-  return new SupabaseCardRepository()
+export function getCardRepository(userId?: string): CardRepository {
+  return new SupabaseCardRepository(userId)
 }

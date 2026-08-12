@@ -216,13 +216,20 @@ export class DeepSeekAdapter implements ProviderAdapter {
     // --- DeepSeek DSML fallback ---
     // Sometimes DeepSeek outputs tool calls as XML/DSML in the text content
     // instead of using the structured tool_calls field. Detect and parse these.
-    if (toolCalls.length === 0 && textContent.includes('<|') && textContent.includes('invoke name=')) {
+    // Detection is lenient: look for DSML keyword + invoke pattern (spacing varies)
+    if (toolCalls.length === 0 && textContent.includes('DSML') && textContent.includes('invoke name=')) {
       const parsedFromText = this.parseDsmlToolCalls(textContent)
       if (parsedFromText.calls.length > 0) {
         toolCalls = parsedFromText.calls
         // Remove the DSML from the visible text content
         textContent = parsedFromText.cleanedText
       }
+    }
+
+    // Final cleanup: strip any residual DSML markup that wasn't fully parsed
+    // This prevents raw XML from leaking into the UI
+    if (textContent.includes('DSML') || textContent.includes('invoke') || textContent.includes('parameter')) {
+      textContent = this.stripResidualDsml(textContent)
     }
 
     const wantsToolUse = toolCalls.length > 0
@@ -240,13 +247,29 @@ export class DeepSeekAdapter implements ProviderAdapter {
 
   /**
    * Parse DSML/XML-formatted tool calls from DeepSeek's text output.
-   * Handles the format: <| DSML | invoke name="tool_name"> <| DSML | parameter name="param" string="true">value</| DSML | parameter> </| DSML | invoke> </| DSML | tool_calls>
+   * Handles various DSML formats that DeepSeek may output:
+   *   - <|DSML|invoke name="tool">
+   *   - < | DSML | invoke name="tool">  
+   *   - < | | DSML | | invoke name="tool">
+   *   - Closing tags: </|DSML|invoke>, </| | DSML | | invoke>
+   * Note: DeepSeek outputs vary wildly in spacing — regex must be very flexible.
    */
   private parseDsmlToolCalls(text: string): { calls: NormalizedToolCall[]; cleanedText: string } {
     const calls: NormalizedToolCall[] = []
 
-    // Match invoke blocks: <| DSML | invoke name="tool_name"> ... </| DSML | invoke>
-    const invokeRegex = /<\|?\s*\|?\s*DSML\s*\|?\s*invoke\s+name="([^"]+)"[^>]*>([\s\S]*?)<\/\|?\s*\|?\s*DSML\s*\|?\s*invoke\s*>/gi
+    // Very flexible DSML pattern: 
+    // Open: < followed by any combo of |, spaces, newlines, then DSML, then any combo of |, spaces, newlines
+    // Match: <|DSML|, < | DSML |, < | | DSML | |, etc.
+    const dsmlOpen = '<[\\s|]*DSML[\\s|]*'
+    // Close: </ followed by any combo of |, spaces, newlines, then DSML (optional), then any combo
+    // Some outputs omit DSML in closing tag, just have </| | invoke>
+    const dsmlClose = '<\\/[\\s|]*(?:DSML)?[\\s|]*'
+
+    // Match invoke blocks
+    const invokeRegex = new RegExp(
+      dsmlOpen + 'invoke\\s+name=["\']([^"\']+)["\'][^>]*>([\\s\\S]*?)' + dsmlClose + 'invoke[\\s|]*>',
+      'gi'
+    )
     let match
 
     while ((match = invokeRegex.exec(text)) !== null) {
@@ -255,12 +278,19 @@ export class DeepSeekAdapter implements ProviderAdapter {
 
       // Extract parameters from the invoke body
       const args: Record<string, unknown> = {}
-      const paramRegex = /<\|?\s*\|?\s*DSML\s*\|?\s*parameter\s+name="([^"]+)"[^>]*>([^<]*)<\/\|?\s*\|?\s*DSML\s*\|?\s*parameter\s*>/gi
+      const paramRegex = new RegExp(
+        dsmlOpen + 'parameter\\s+name=["\']([^"\']+)["\'][^>]*>([\\s\\S]*?)' + dsmlClose + 'parameter[\\s|]*>',
+        'gi'
+      )
       let paramMatch
 
       while ((paramMatch = paramRegex.exec(invokeBody)) !== null) {
         const paramName = paramMatch[1]
-        const paramValue = paramMatch[2].trim()
+        let paramValue = paramMatch[2].trim()
+        
+        // Clean up any nested DSML artifacts in the value
+        paramValue = paramValue.replace(/<[\/\s|]*(?:DSML)?[\/\s|]*/g, '').trim()
+        
         // Try to parse as JSON, fall back to string
         try {
           args[paramName] = JSON.parse(paramValue)
@@ -278,16 +308,53 @@ export class DeepSeekAdapter implements ProviderAdapter {
 
     // Remove the entire DSML block from visible text
     let cleanedText = text
+    
     // Remove everything from the first tool_calls tag to the end
-    const toolCallsStart = text.search(/<\|?\s*\|?\s*DSML\s*\|?\s*tool_calls\s*>/i)
-    if (toolCallsStart >= 0) {
-      cleanedText = text.slice(0, toolCallsStart).trim()
-    } else {
-      // Remove individual invoke blocks
-      cleanedText = text.replace(/<\|?\s*\|?\s*DSML\s*\|?\s*invoke[\s\S]*?<\/\|?\s*\|?\s*DSML\s*\|?\s*invoke\s*>/gi, '').trim()
+    const toolCallsStartRegex = new RegExp(dsmlOpen + 'tool_calls[\\s|]*>', 'i')
+    const toolCallsMatch = text.match(toolCallsStartRegex)
+    if (toolCallsMatch && toolCallsMatch.index !== undefined) {
+      cleanedText = text.slice(0, toolCallsMatch.index).trim()
+    } else if (calls.length > 0) {
+      // Found invoke blocks but no tool_calls wrapper — remove all DSML content
+      // This handles cases where DeepSeek outputs DSML without a wrapper
+      const allDsmlRegex = /<[\/\s|]*(?:DSML)?[\/\s|]*(?:tool_calls|invoke|parameter)[^>]*>[\s\S]*?(?:<[\/\s|]*(?:DSML)?[\/\s|]*(?:tool_calls|invoke|parameter)[\/\s|]*>|$)/gi
+      cleanedText = text.replace(allDsmlRegex, '').trim()
+      
+      // Also remove any stray DSML tags
+      cleanedText = cleanedText.replace(/<[\/\s|]*DSML[\/\s|]*/g, '').trim()
     }
 
     return { calls, cleanedText }
+  }
+
+  /**
+   * Strip any DSML/XML-like tool markup from text, even if it couldn't be parsed.
+   * This is a last-resort cleanup to prevent raw markup from showing in the UI.
+   */
+  private stripResidualDsml(text: string): string {
+    if (!text) return text
+    
+    // Pattern to match DSML blocks: anything from < | DSML or <|DSML to the end
+    // This catches partial/malformed DSML that wasn't fully parsed
+    const patterns = [
+      // Full tool_calls block to end
+      /<[\s|]*DSML[\s|]*tool_calls[\s\S]*$/i,
+      // Standalone invoke blocks
+      /<[\s|]*DSML[\s|]*invoke[\s\S]*?<\/[\s|]*(?:DSML[\s|]*)?invoke[\s|]*>/gi,
+      // Unclosed invoke blocks (to end of string)
+      /<[\s|]*DSML[\s|]*invoke[\s\S]*$/i,
+      // Any remaining DSML tags (open or close)
+      /<\/?[\s|]*DSML[\s|]*[^>]*>/gi,
+      // Stray pipe-delimited tags like < | | parameter> or </| | invoke>
+      /<\/?[\s|]+[a-z_]+[\s|]*>/gi,
+    ]
+    
+    let cleaned = text
+    for (const pattern of patterns) {
+      cleaned = cleaned.replace(pattern, '')
+    }
+    
+    return cleaned.trim()
   }
 
   /**

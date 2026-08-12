@@ -52,14 +52,13 @@ export async function POST(request: NextRequest) {
   // Generate a unique deck ID (decks table uses explicit IDs, not auto-increment)
   const deckId = Math.floor(Math.random() * 2147483647)
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('decks')
     .insert({
       id: deckId,
       name: name.trim(),
       format,
-      status: 'brewing',
-      allocate: false,
+      is_active: false, // New decks start as inactive (still being built)
       commander_name: commanderName ?? null,
       commander_scryfall_id: commanderScryfallId ?? null,
       colour_identity: colourIdentity ?? null,

@@ -78,20 +78,20 @@ export async function GET(request: NextRequest) {
 
     if (dcErr) throw dcErr
 
-    // Get owned copies count from physical_copies (non-proxy) grouped by card name
-    // via card_definitions join — replaces frozen collection.quantity
-    const { data: physicalData, error: physErr } = await supabase
-      .from('physical_copies')
-      .select('card_definition_id, card_definitions!physical_copies_card_definition_id_fkey ( card_name, type_line )')
+    // Get owned copies count from collection (non-proxy) grouped by card name
+    // via cards join — replaces frozen collection.quantity
+    const { data: collectionData, error: collErr } = await supabase
+      .from('user_copies')
+      .select('card_id, user_cards!user_copies_card_id_fkey ( card_name, type_line )')
       .eq('is_proxy', false)
 
-    if (physErr) throw physErr
+    if (collErr) throw collErr
 
-    // Build ownership lookup from physical_copies count
+    // Build ownership lookup from collection count
     const ownershipMap = new Map<string, { count: number; typeLine: string | null }>()
-    for (const pc of physicalData || []) {
-      const cdInfo = pc.card_definitions as unknown as { card_name: string; type_line: string | null }
-      const cardName = cdInfo?.card_name
+    for (const copy of collectionData || []) {
+      const cardInfo = copy.user_cards as unknown as { card_name: string; type_line: string | null }
+      const cardName = cardInfo?.card_name
       if (!cardName) continue
       const key = cardName.toLowerCase()
       const existing = ownershipMap.get(key)
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
       } else {
         ownershipMap.set(key, {
           count: 1,
-          typeLine: cdInfo.type_line ?? null,
+          typeLine: cardInfo.type_line ?? null,
         })
       }
     }

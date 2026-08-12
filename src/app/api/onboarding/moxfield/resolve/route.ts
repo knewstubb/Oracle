@@ -5,7 +5,7 @@
  * against the committed collection.
  * Must be called AFTER /api/onboarding/moxfield/collection completes.
  *
- * Body: { deckIds: string[] } — Moxfield public IDs
+ * Body: { deckIds: string[], deckActiveStates?: Record<string, boolean> }
  * Returns: BatchResolutionResult
  */
 import { NextRequest } from 'next/server'
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   if (authResult instanceof Response) return authResult
   const userId = authResult.id
 
-  let body: { deckIds?: string[]; deckStatuses?: Record<string, 'brewing' | 'in_rotation'> }
+  let body: { deckIds?: string[]; deckActiveStates?: Record<string, boolean> }
   try {
     body = await request.json()
   } catch {
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await resolveMoxfieldDeckBatch(deckIds, userId, body.deckStatuses)
+    const result = await resolveMoxfieldDeckBatch(deckIds, userId, body.deckActiveStates)
     return Response.json(result)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

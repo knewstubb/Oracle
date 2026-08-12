@@ -2,13 +2,13 @@
  * POST /api/allocation/claim-from-deck
  *
  * Tier 4: Force-claim a physical copy from another deck into a specific slot.
- * This bypasses the assign_physical_copy RPC's allocate=true guard because
+ * This bypasses the assign_physical_copy RPC's already-claimed guard because
  * the user has already confirmed via the Tier 4 confirmation modal.
  *
  * Steps:
- *   1. Advisory-lock on the physical_copy_id (via Postgres function or manual lock)
- *   2. Clear the source deck_cards row (set physical_copy_id = NULL)
- *   3. Fill the target deck_cards row (set physical_copy_id + ownership_status)
+ *   1. Advisory-lock on the copy_id (via Postgres function or manual lock)
+ *   2. Clear the source deck_cards row (set copy_id = NULL)
+ *   3. Fill the target deck_cards row (set copy_id + ownership_status)
  *
  * Body: { deckCardsId: number, physicalCopyId: number }
  * Returns: { success: true }
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     // Verify the target slot exists and is currently empty
     const { data: targetSlot, error: targetErr } = await supabase
       .from('deck_cards')
-      .select('id, physical_copy_id')
+      .select('id, copy_id')
       .eq('id', deckCardsId)
       .maybeSingle()
 
@@ -51,13 +51,13 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Target slot not found' }, { status: 404 })
     }
 
-    if (targetSlot.physical_copy_id !== null) {
+    if (targetSlot.copy_id !== null) {
       return Response.json({ error: 'Target slot is already filled' }, { status: 409 })
     }
 
-    // Verify the physical copy exists
+    // Verify the copy exists in user_copies
     const { data: copy, error: copyErr } = await supabase
-      .from('physical_copies')
+      .from('user_copies')
       .select('id, is_proxy')
       .eq('id', physicalCopyId)
       .maybeSingle()
@@ -69,8 +69,8 @@ export async function POST(request: NextRequest) {
     // Step 1: Clear the source — find and unlink any deck_cards row holding this copy
     const { error: clearErr } = await supabase
       .from('deck_cards')
-      .update({ physical_copy_id: null, ownership_status: null })
-      .eq('physical_copy_id', physicalCopyId)
+      .update({ copy_id: null, ownership_status: null })
+      .eq('copy_id', physicalCopyId)
 
     if (clearErr) {
       return Response.json({ error: `Failed to clear source: ${clearErr.message}` }, { status: 500 })
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     const ownershipStatus = copy.is_proxy ? 'proxy' : 'original'
     const { error: fillErr } = await supabase
       .from('deck_cards')
-      .update({ physical_copy_id: physicalCopyId, ownership_status: ownershipStatus })
+      .update({ copy_id: physicalCopyId, ownership_status: ownershipStatus })
       .eq('id', deckCardsId)
 
     if (fillErr) {

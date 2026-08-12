@@ -2,7 +2,7 @@
  * Instance-Level Import Engine (v2)
  *
  * Replaces the original import-engine.ts for all new imports.
- * Creates individual physical_copies rows (one per card instance) instead
+ * Creates individual collection rows (one per card instance) instead
  * of the legacy printing-group model with quantity columns.
  *
  * Modes:
@@ -20,6 +20,7 @@ import {
   batchResolveOracleIds,
   mapCondition,
   mapFinishToFoil,
+  mapFinishToFinishString,
 } from '@/lib/identity-resolver'
 import { ensureCardDefinition } from '@/lib/card-identity-store'
 
@@ -416,7 +417,7 @@ function extractGenericRow(
  *
  * Strategy:
  * 0. If row.oracleId is pre-populated (from CSV column) → use it directly, skip all API calls
- * 1. If scryfallId is present → query oracle_to_printings for oracle_id
+ * 1. If scryfallId is present → query printings for oracle_id
  * 2. If no oracle_id found → call Scryfall API as fallback
  * 3. If no scryfallId → attempt Scryfall API lookup by set+collector
  * 4. If still nothing → resolve by card name alone (most recent printing)
@@ -579,13 +580,13 @@ async function resolveFromCardName(
 }
 
 // ---------------------------------------------------------------------------
-// Local DB Resolution (uses pre-seeded oracle_to_printings from Scryfall bulk)
+// Local DB Resolution (uses pre-seeded printings from Scryfall bulk)
 // ---------------------------------------------------------------------------
 
 /**
  * Resolve a card's identity from set_code + collector_number via local DB.
  * Returns instantly without any Scryfall API call.
- * Populated by: scripts/seed-scryfall-bulk.ts
+ * Populated by: scripts/sync-scryfall-printings.ts
  */
 async function resolveFromLocalSetCollector(
   setCode: string,
@@ -593,37 +594,44 @@ async function resolveFromLocalSetCollector(
 ): Promise<{ scryfallPrintingId: string; oracleId: string } | null> {
   const supabase = createAdminClient()
 
-  const { data, error } = await supabase
-    .from('oracle_to_printings')
-    .select('oracle_id, scryfall_printing_id')
+  const { data } = await supabase
+    .from('ref_printings')
+    .select('scryfall_id, oracle_id')
     .eq('set_code', setCode.toLowerCase())
     .eq('collector_number', collectorNumber)
     .limit(1)
     .maybeSingle()
 
-  if (error || !data) return null
-  return { scryfallPrintingId: data.scryfall_printing_id, oracleId: data.oracle_id }
+  if (data) {
+    return { scryfallPrintingId: data.scryfall_id, oracleId: data.oracle_id }
+  }
+
+  return null
 }
 
 /**
  * Resolve a card's identity from card_name via local DB.
- * Returns the first matching printing (most recently seeded).
- * Populated by: scripts/seed-scryfall-bulk.ts
+ * Returns the first matching printing (most recently released).
+ * Populated by: scripts/sync-scryfall-printings.ts
  */
 async function resolveFromLocalCardName(
   cardName: string
 ): Promise<{ scryfallPrintingId: string; oracleId: string } | null> {
   const supabase = createAdminClient()
 
-  const { data, error } = await supabase
-    .from('oracle_to_printings')
-    .select('oracle_id, scryfall_printing_id')
-    .eq('card_name', cardName)
+  const { data } = await supabase
+    .from('ref_printings')
+    .select('scryfall_id, oracle_id')
+    .eq('name', cardName)
+    .order('released_at', { ascending: false })
     .limit(1)
     .maybeSingle()
 
-  if (error || !data) return null
-  return { scryfallPrintingId: data.scryfall_printing_id, oracleId: data.oracle_id }
+  if (data) {
+    return { scryfallPrintingId: data.scryfall_id, oracleId: data.oracle_id }
+  }
+
+  return null
 }
 
 // ---------------------------------------------------------------------------
@@ -651,7 +659,7 @@ function chunk<T>(array: T[], size: number): T[][] {
 interface ResolvedSyncRow {
   scryfallPrintingId: string
   cardDefinitionId: number
-  isFoil: boolean
+  finish: string // 'nonfoil' | 'foil' | 'etched'
   isProxy: boolean
   condition: string
   quantity: number
@@ -667,8 +675,8 @@ interface ResolvedSyncRow {
  * Algorithm:
  * 1. Detect sourceTag from CSV headers
  * 2. Parse and resolve identity for each CSV row
- * 3. Fetch all existing physical_copies with same user_id + source_tag
- * 4. Match by scryfall_printing_id — determine inserts and removals
+ * 3. Fetch all existing copies with same user_id + source_tag
+ * 4. Match by printing_id — determine inserts and removals
  * 5. Insert new instances (in CSV but not in DB for this source_tag)
  * 6. Remove instances no longer in CSV (in DB but not in CSV for this source_tag)
  * 7. Before removing assigned copies: unlink from deck_cards
@@ -734,13 +742,13 @@ async function executeSyncMode(
       continue
     }
 
-    const isFoil = mapFinishToFoil(row.finish)
+    const finish = mapFinishToFinishString(row.finish)
     const { condition } = mapCondition(row.condition)
 
     resolvedRows.push({
       scryfallPrintingId: identity.scryfallPrintingId,
       cardDefinitionId: identity.cardDefinitionId,
-      isFoil,
+      finish,
       isProxy: row.isProxy,
       condition,
       quantity: Math.min(row.quantity, MAX_COPIES_PER_ROW),
@@ -750,15 +758,15 @@ async function executeSyncMode(
   }
 
   // -------------------------------------------------------------------
-  // Stage 4: Fetch existing physical_copies for this user + source_tag
+  // Stage 4: Fetch existing collection copies for this user + source_tag
   // -------------------------------------------------------------------
   const supabase = createAdminClient()
 
   // NOTE: source_tag was added in migration 007 but the generated supabase types
   // haven't been regenerated yet. Cast query to `any` to allow the extra column filter.
   const { data: existingCopies, error: fetchError } = await (supabase
-    .from('physical_copies')
-    .select('id, scryfall_printing_id, is_foil, is_proxy, condition, card_definition_id')
+    .from('user_copies')
+    .select('id, printing_id, finish, is_proxy, condition, card_id')
     .eq('user_id', options.userId) as any)
     .eq('source_tag', sourceTag)
 
@@ -778,14 +786,14 @@ async function executeSyncMode(
   // -------------------------------------------------------------------
   // Stage 5: Build match maps to determine inserts and removals
   //
-  // Match key: scryfall_printing_id
+  // Match key: printing_id
   // For each printing, the CSV wants N copies and the DB has M copies.
   // - If N > M: insert (N - M) new rows
   // - If N < M: remove (M - N) rows
   // - If N == M: no change (skip)
   // -------------------------------------------------------------------
 
-  // Build CSV demand map: scryfall_printing_id → total quantity wanted
+  // Build CSV demand map: printing_id → total quantity wanted
   const csvDemandMap = new Map<string, ResolvedSyncRow & { totalQuantity: number }>()
   for (const row of resolvedRows) {
     const key = row.scryfallPrintingId
@@ -797,10 +805,10 @@ async function executeSyncMode(
     }
   }
 
-  // Build DB supply map: scryfall_printing_id → list of existing copy IDs
+  // Build DB supply map: printing_id → list of existing copy IDs
   const dbSupplyMap = new Map<string, number[]>()
   for (const copy of existingRows) {
-    const key = copy.scryfall_printing_id ?? ''
+    const key = copy.printing_id ?? ''
     if (!key) continue
     const list = dbSupplyMap.get(key)
     if (list) {
@@ -822,9 +830,9 @@ async function executeSyncMode(
     if (deficit > 0) {
       for (let i = 0; i < deficit; i++) {
         const insertRow: Record<string, unknown> = {
-          card_definition_id: demand.cardDefinitionId,
-          scryfall_printing_id: printingId,
-          is_foil: demand.isFoil,
+          card_id: demand.cardDefinitionId,
+          printing_id: printingId,
+          finish: demand.finish,
           is_proxy: demand.isProxy,
           condition: demand.condition,
           source_tag: sourceTag,
@@ -836,7 +844,7 @@ async function executeSyncMode(
         }
         // Pass through purchase price if provided
         if (demand.purchasePrice != null) {
-          insertRow.purchase_price_usd = demand.purchasePrice
+          insertRow.purchase_price = demand.purchasePrice
         }
         rowsToInsert.push(insertRow)
       }
@@ -859,8 +867,8 @@ async function executeSyncMode(
   // -------------------------------------------------------------------
   // Stage 7: Before removing assigned copies, unlink from deck_cards
   //
-  // Requirement 4.3: If a physical copy to be removed is currently assigned
-  // to a deck_cards row, set physical_copy_id = NULL and
+  // Requirement 4.3: If a copy to be removed is currently assigned
+  // to a deck_cards row, set copy_id = NULL and
   // ownership_status = NULL before deleting.
   // -------------------------------------------------------------------
   if (copyIdsToRemove.length > 0) {
@@ -868,10 +876,10 @@ async function executeSyncMode(
     const { error: unlinkError } = await supabase
       .from('deck_cards')
       .update({
-        physical_copy_id: null,
+        copy_id: null,
         ownership_status: null,
       })
-      .in('physical_copy_id', copyIdsToRemove)
+      .in('copy_id', copyIdsToRemove)
 
     if (unlinkError) {
       errors.push(`Warning: failed to unlink deck_cards before removal: ${unlinkError.message}`)
@@ -881,7 +889,7 @@ async function executeSyncMode(
   }
 
   // -------------------------------------------------------------------
-  // Stage 8: Delete physical copies that are no longer in the CSV
+  // Stage 8: Delete collection copies that are no longer in the CSV
   // -------------------------------------------------------------------
   let removed = 0
   if (copyIdsToRemove.length > 0) {
@@ -889,12 +897,12 @@ async function executeSyncMode(
     const deleteBatches = chunk(copyIdsToRemove, INSERT_BATCH_SIZE)
     for (const batch of deleteBatches) {
       const { error: deleteError, count } = await supabase
-        .from('physical_copies')
+        .from('user_copies')
         .delete()
         .in('id', batch)
 
       if (deleteError) {
-        errors.push(`Failed to remove ${batch.length} copies: ${deleteError.message}`)
+        errors.push(`Failed to remove ${batch.length} collection copies: ${deleteError.message}`)
       } else {
         removed += count ?? batch.length
       }
@@ -902,18 +910,18 @@ async function executeSyncMode(
   }
 
   // -------------------------------------------------------------------
-  // Stage 9: Insert new copies
+  // Stage 9: Insert new collection copies
   // -------------------------------------------------------------------
   let inserted = 0
   if (rowsToInsert.length > 0) {
     const insertBatches = chunk(rowsToInsert, INSERT_BATCH_SIZE)
     for (const batch of insertBatches) {
       const { error: insertError } = await supabase
-        .from('physical_copies')
+        .from('user_copies')
         .insert(batch)
 
       if (insertError) {
-        errors.push(`Failed to insert ${batch.length} copies: ${insertError.message}`)
+        errors.push(`Failed to insert ${batch.length} collection copies: ${insertError.message}`)
       } else {
         inserted += batch.length
       }
@@ -978,15 +986,14 @@ export async function executeInstanceLevelImport(
   }
 
   // -------------------------------------------------------------------
-  // Stage 3: Batch resolve identities (card_definitions + oracle mappings)
+  // Stage 3: Batch resolve identities (card_definitions)
   //
   // Instead of per-row DB calls, we:
   // a) Collect all unique oracle_ids from CSV rows
   // b) Pre-fetch existing card_definitions in one query
   // c) Batch-insert missing card_definitions
-  // d) Batch-upsert oracle_to_printings mappings
-  // e) Build physical_copies insert payload
-  // f) Bulk-insert physical_copies
+  // d) Build physical_copies insert payload
+  // e) Bulk-insert physical_copies
   // -------------------------------------------------------------------
   const supabase = createAdminClient()
   const errors: string[] = []
@@ -997,7 +1004,7 @@ export async function executeInstanceLevelImport(
     oracleId: string
     cardName: string
     scryfallPrintingId: string
-    isFoil: boolean
+    finish: string // 'nonfoil' | 'foil' | 'etched'
     isProxy: boolean
     condition: string
     quantity: number
@@ -1016,13 +1023,13 @@ export async function executeInstanceLevelImport(
 
     if (oracleId && scryfallId) {
       // Strategy 0: Both oracle_id and scryfall_id from CSV — no API needed
-      const isFoil = mapFinishToFoil(row.finish)
+      const finish = mapFinishToFinishString(row.finish)
       const { condition } = mapCondition(row.condition)
       resolvedRows.push({
         oracleId,
         cardName: row.name,
         scryfallPrintingId: scryfallId,
-        isFoil,
+        finish,
         isProxy: row.isProxy,
         condition,
         quantity: Math.min(row.quantity, MAX_COPIES_PER_ROW),
@@ -1032,7 +1039,7 @@ export async function executeInstanceLevelImport(
         purchasePrice: parsePurchasePrice(row.purchasePrice),
       })
     } else if (scryfallId && !oracleId) {
-      // Has scryfall_id but no oracle_id — can batch-resolve from oracle_to_printings
+      // Has scryfall_id but no oracle_id — can batch-resolve from scryfall_printings
       needsOracleIdOnly.push(row)
     } else {
       // No scryfall_id at all — needs Scryfall API (sequential, rate-limited)
@@ -1049,13 +1056,13 @@ export async function executeInstanceLevelImport(
       const scryfallId = row.scryfallId.trim()
       const oracleId = oracleIdMap.get(scryfallId)
       if (oracleId) {
-        const isFoil = mapFinishToFoil(row.finish)
+        const finish = mapFinishToFinishString(row.finish)
         const { condition } = mapCondition(row.condition)
         resolvedRows.push({
           oracleId,
           cardName: row.name,
           scryfallPrintingId: scryfallId,
-          isFoil,
+          finish,
           isProxy: row.isProxy,
           condition,
           quantity: Math.min(row.quantity, MAX_COPIES_PER_ROW),
@@ -1072,7 +1079,7 @@ export async function executeInstanceLevelImport(
   }
 
   // 3c: Process remaining rows that need Scryfall API (sequential, rate-limited)
-  // This should be very few rows (cards not in oracle_to_printings yet)
+  // This should be very few rows (cards not in printings yet)
   for (const row of needsApiResolution) {
     if (options.signal?.aborted) {
       errors.push('Import aborted by user')
@@ -1100,13 +1107,13 @@ export async function executeInstanceLevelImport(
       continue
     }
 
-    const isFoil = mapFinishToFoil(row.finish)
+    const finish = mapFinishToFinishString(row.finish)
     const { condition } = mapCondition(row.condition)
     resolvedRows.push({
       oracleId,
       cardName: row.name,
       scryfallPrintingId: identity.scryfallPrintingId,
-      isFoil,
+      finish,
       isProxy: row.isProxy,
       condition,
       quantity: Math.min(row.quantity, MAX_COPIES_PER_ROW),
@@ -1117,18 +1124,18 @@ export async function executeInstanceLevelImport(
     })
   }
 
-  // 3c: Pre-fetch ALL existing card_definitions for this user in one query
-  const cardDefMap = new Map<string, number>() // oracle_id → card_definition_id
-  const { data: existingDefs } = await supabase
-    .from('card_definitions')
+  // 3c: Pre-fetch ALL existing cards for this user in one query
+  const cardMap = new Map<string, number>() // oracle_id → card_id
+  const { data: existingCards } = await supabase
+    .from('user_cards')
     .select('id, oracle_id')
     .eq('user_id', options.userId)
 
-  for (const def of existingDefs ?? []) {
-    cardDefMap.set(def.oracle_id, def.id)
+  for (const card of existingCards ?? []) {
+    cardMap.set(card.oracle_id, card.id)
   }
 
-  // 3d: Collect unique oracle_ids that need card_definitions created
+  // 3d: Collect unique oracle_ids that need cards created
   const uniqueOracleIds = new Map<string, string>() // oracle_id → card_name
   for (const row of resolvedRows) {
     if (!uniqueOracleIds.has(row.oracleId)) {
@@ -1136,74 +1143,52 @@ export async function executeInstanceLevelImport(
     }
   }
 
-  const missingDefs = Array.from(uniqueOracleIds.entries())
-    .filter(([oracleId]) => !cardDefMap.has(oracleId))
+  const missingCards = Array.from(uniqueOracleIds.entries())
+    .filter(([oracleId]) => !cardMap.has(oracleId))
     .map(([oracleId, cardName]) => ({
       oracle_id: oracleId,
       card_name: cardName,
       user_id: options.userId,
     }))
 
-  // 3e: Batch-insert missing card_definitions
-  if (missingDefs.length > 0) {
-    const defBatches = chunk(missingDefs, INSERT_BATCH_SIZE)
-    for (const batch of defBatches) {
-      const { data: inserted, error: defErr } = await supabase
-        .from('card_definitions')
+  // 3e: Batch-insert missing cards
+  if (missingCards.length > 0) {
+    const cardBatches = chunk(missingCards, INSERT_BATCH_SIZE)
+    for (const batch of cardBatches) {
+      const { data: inserted, error: cardErr } = await supabase
+        .from('user_cards')
         .upsert(batch, { onConflict: 'oracle_id' })
         .select('id, oracle_id')
 
-      if (defErr) {
-        errors.push(`card_definitions upsert: ${defErr.message}`)
+      if (cardErr) {
+        errors.push(`cards upsert: ${cardErr.message}`)
       } else {
         for (const row of inserted ?? []) {
-          cardDefMap.set(row.oracle_id, row.id)
+          cardMap.set(row.oracle_id, row.id)
         }
       }
     }
   }
 
-  // 3f: Batch-upsert oracle_to_printings mappings (non-fatal)
-  const printingMappings = resolvedRows
-    .filter(r => r.oracleId && r.scryfallPrintingId)
-    .map(r => ({ oracle_id: r.oracleId, scryfall_printing_id: r.scryfallPrintingId }))
-
-  // Deduplicate
-  const mappingSet = new Map<string, { oracle_id: string; scryfall_printing_id: string }>()
-  for (const m of printingMappings) {
-    mappingSet.set(`${m.oracle_id}|${m.scryfall_printing_id}`, m)
-  }
-  const uniqueMappings = Array.from(mappingSet.values())
-
-  if (uniqueMappings.length > 0) {
-    // Fire-and-forget — these are just cache entries for future imports.
-    // Don't await; the import result doesn't depend on them.
-    const mappingBatches = chunk(uniqueMappings, INSERT_BATCH_SIZE)
-    for (const batch of mappingBatches) {
-      void supabase
-        .from('oracle_to_printings')
-        .upsert(batch, { onConflict: 'oracle_id,scryfall_printing_id' })
-        .then(() => {}, () => {}) // Non-fatal, fire-and-forget
-    }
-  }
+  // 3f: (Legacy oracle_to_printings write removed — printings is now authoritative)
 
   // -------------------------------------------------------------------
-  // Stage 4: Build physical_copies insert payload (one row per instance)
+  // Stage 4: Build collection insert payload (one row per instance)
   // -------------------------------------------------------------------
-  const physicalCopyRows: any[] = []
+  const copyRows: any[] = []
 
   for (const row of resolvedRows) {
-    const cardDefId = cardDefMap.get(row.oracleId)
-    if (!cardDefId) {
+    const cardId = cardMap.get(row.oracleId)
+    if (!cardId) {
       skipped++
       continue
     }
 
     for (let i = 0; i < row.quantity; i++) {
       const copyRow: Record<string, unknown> = {
-        card_definition_id: cardDefId,
-        scryfall_printing_id: row.scryfallPrintingId,
-        is_foil: row.isFoil,
+        card_id: cardId,
+        printing_id: row.scryfallPrintingId,
+        finish: row.finish,
         is_proxy: row.isProxy,
         condition: row.condition,
         source_tag: sourceTag,
@@ -1215,67 +1200,32 @@ export async function executeInstanceLevelImport(
       }
       // Pass through purchase price if provided
       if (row.purchasePrice != null) {
-        copyRow.purchase_price_usd = row.purchasePrice
+        copyRow.purchase_price = row.purchasePrice
       }
-      physicalCopyRows.push(copyRow)
+      copyRows.push(copyRow)
     }
   }
 
   // -------------------------------------------------------------------
-  // Stage 5: Bulk-insert physical_copies in batches
+  // Stage 5: Bulk-insert collection copies in batches
   // -------------------------------------------------------------------
   let inserted = 0
-  if (physicalCopyRows.length > 0) {
-    const insertBatches = chunk(physicalCopyRows, INSERT_BATCH_SIZE)
+  if (copyRows.length > 0) {
+    const insertBatches = chunk(copyRows, INSERT_BATCH_SIZE)
     for (const batch of insertBatches) {
       const { error: insertError } = await supabase
-        .from('physical_copies')
+        .from('user_copies')
         .insert(batch)
 
       if (insertError) {
-        errors.push(`physical_copies insert (${batch.length} rows): ${insertError.message}`)
+        errors.push(`collection insert (${batch.length} rows): ${insertError.message}`)
       } else {
         inserted += batch.length
       }
     }
   }
 
-  // -------------------------------------------------------------------
-  // Stage 5b: Populate collection table with set metadata (fire-and-forget)
-  // The printings route uses collection as a lookup for set_code/edition_name.
-  // Build unique (scryfall_id → set_code, edition_name) entries.
-  // -------------------------------------------------------------------
-  const setInfoEntries = new Map<string, { scryfall_id: string; set_code: string; edition_name: string; card_name: string }>()
-  for (const row of resolvedRows) {
-    if (row.scryfallPrintingId && !setInfoEntries.has(row.scryfallPrintingId)) {
-      setInfoEntries.set(row.scryfallPrintingId, {
-        scryfall_id: row.scryfallPrintingId,
-        set_code: row.editionCode,
-        edition_name: row.editionName,
-        card_name: row.cardName,
-      })
-    }
-  }
-
-  if (setInfoEntries.size > 0) {
-    const setInfoRows = Array.from(setInfoEntries.values()).map(e => ({
-      scryfall_printing_id: e.scryfall_id,
-      set_code: e.set_code,
-      edition_name: e.edition_name,
-    }))
-
-    // Write to printing_set_info reference table (no RLS, no user_id)
-    const setInfoBatches = chunk(setInfoRows, INSERT_BATCH_SIZE)
-    for (const batch of setInfoBatches) {
-      const { error: setErr } = await (supabase
-        .from('printing_set_info' as any)
-        .upsert(batch, { onConflict: 'scryfall_printing_id' }) as any)
-
-      if (setErr) {
-        errors.push(`printing_set_info upsert: ${setErr.message}`)
-      }
-    }
-  }
+  // (Legacy printing_set_info write removed — printings is now authoritative)
 
   // -------------------------------------------------------------------
   // Stage 6: Build and return summary

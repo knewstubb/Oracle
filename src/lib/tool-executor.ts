@@ -8,6 +8,7 @@
 // Requirements: 6.1, 6.2, 6.4
 
 import { getToolDefinitions, executeTool } from './tool-registry'
+import { enrichCommanderSummary } from './tool-registry'
 import type { ToolStreamEvent, ToolExecutionResult } from './tool-types'
 import type {
   ProviderAdapter,
@@ -35,6 +36,7 @@ export interface ToolLoopOptions {
   messages: ConversationMessage[]
   maxTokens: number
   onToolEvent: (event: ToolStreamEvent) => void
+  userId?: string
 }
 
 export interface ToolLoopResult {
@@ -53,7 +55,7 @@ export interface ToolLoopResult {
  * Returns the final text response and accumulated token usage.
  */
 export async function runToolLoop(options: ToolLoopOptions): Promise<ToolLoopResult> {
-  const { adapter, model, system, messages, maxTokens, onToolEvent } = options
+  const { adapter, model, system, messages, maxTokens, onToolEvent, userId } = options
   const tools = getToolDefinitions()
   const loopStart = Date.now()
   let currentMessages = [...messages]
@@ -106,7 +108,7 @@ export async function runToolLoop(options: ToolLoopOptions): Promise<ToolLoopRes
       let result: ToolExecutionResult
       try {
         result = await Promise.race([
-          executeTool(call.name, call.arguments),
+          executeTool(call.name, call.arguments, { userId }),
           new Promise<ToolExecutionResult>((_, reject) =>
             setTimeout(() => reject(new Error('Tool timeout')), TOOL_TIMEOUT_MS)
           ),
@@ -126,9 +128,15 @@ export async function runToolLoop(options: ToolLoopOptions): Promise<ToolLoopRes
 
       // Emit structured data for display tools
       if (call.name === 'display_commander_candidates' && !result.is_error) {
-        const commanders = call.arguments?.commanders as Array<{ name: string; color_identity?: string[] }> | undefined
+        const commanders = call.arguments?.commanders as Array<{ 
+          name: string
+          partner_name?: string
+          color_identity?: string[]
+          leadership_type?: string 
+        }> | undefined
         if (commanders && Array.isArray(commanders)) {
-          console.log('[tool-executor] display_commander_candidates called with', commanders.length, 'commanders:', commanders.map(c => c.name))
+          const displayNames = commanders.map(c => c.partner_name ? `${c.name} & ${c.partner_name}` : c.name)
+          console.log('[tool-executor] display_commander_candidates called with', commanders.length, 'commanders:', displayNames)
           onToolEvent({
             type: 'candidates',
             commanders,
@@ -147,6 +155,30 @@ export async function runToolLoop(options: ToolLoopOptions): Promise<ToolLoopRes
             type: 'add_cards' as any,
             cards,
           } as any)
+        }
+      }
+
+      // Emit remove_cards event for deck editing
+      if (call.name === 'remove_cards_from_deck' && !result.is_error) {
+        const cards = call.arguments?.cards as Array<{ name: string }> | undefined
+        if (cards && Array.isArray(cards)) {
+          console.log('[tool-executor] remove_cards_from_deck called with', cards.length, 'cards:', cards.map(c => c.name))
+          onToolEvent({
+            type: 'remove_cards' as any,
+            cards,
+          } as any)
+        }
+      }
+
+      // NOTE: commander_summary events disabled.
+      // With the new UX, commanders are shown inline as [[Card Name]] links with
+      // hover previews and crown buttons. Users click crown to select.
+      // The present_commander_summary tool may still be called by the AI,
+      // but we no longer emit summary events to render the formatted cards.
+      if (call.name === 'present_commander_summary' && !result.is_error) {
+        const input = call.arguments as { name: string; tagline: string; analysis: string } | undefined
+        if (input?.name) {
+          console.log('[tool-executor] present_commander_summary called for:', input.name, '(event disabled — new UX uses [[brackets]] instead)')
         }
       }
 

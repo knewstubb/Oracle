@@ -14,7 +14,7 @@ export type StatusFilter = 'fullyPlaced' | 'partiallyAvailable' | 'unplaced' | '
 export type ColorIdentityMode = 'exact' | 'includes'
 
 /** Sort fields available for the printing-level view. */
-export type PrintingSortField = 'cardName' | 'quantity' | 'setCode' | 'price' | 'usedByCount'
+export type PrintingSortField = 'cardName' | 'quantity' | 'setCode' | 'price' | 'usedByCount' | 'rarity'
 
 /** Represents a printing-level row for client-side sorting/filtering. */
 export interface PrintingCardRow {
@@ -26,6 +26,7 @@ export interface PrintingCardRow {
   price: number | null
   setCode: string
   isFoil: boolean
+  rarity?: string | null // 'mythic' | 'rare' | 'uncommon' | 'common'
 }
 
 /** Represents a card-level rollup row from the collection API. */
@@ -71,6 +72,7 @@ export const DEFAULT_PRINTING_SORT_DIRECTIONS: Record<PrintingSortField, SortDir
   setCode: 'asc',
   price: 'desc',
   usedByCount: 'desc',
+  rarity: 'desc',
 }
 
 /* ─── Search ────────────────────────────────────────────────────────── */
@@ -311,7 +313,7 @@ export function sortPrintingRows(
       return dir * aStr.localeCompare(bStr)
     }
 
-    // Numeric comparison for quantity, price, usedByCount
+    // Numeric comparison for quantity, price, usedByCount, rarity
     const aNum = (aVal as number) ?? 0
     const bNum = (bVal as number) ?? 0
     return dir * (aNum - bNum)
@@ -335,6 +337,8 @@ function getPrintingSortValue(row: PrintingCardRow, field: PrintingSortField): s
       return row.price
     case 'usedByCount':
       return row.usedByCount
+    case 'rarity':
+      return RARITY_ORDER[row.rarity?.toLowerCase() ?? ''] ?? 0
     default:
       return 0
   }

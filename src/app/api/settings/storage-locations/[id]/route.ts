@@ -5,6 +5,7 @@ import { requireAuth } from '@/lib/auth'
 /**
  * PUT /api/settings/storage-locations/[id]
  * Update a storage location (name, description, color, sort_order).
+ * Only allows updating locations with type='storage'.
  */
 export async function PUT(
   request: NextRequest,
@@ -40,10 +41,11 @@ export async function PUT(
   }
 
   const { data, error } = await (supabase as any)
-    .from('storage_locations')
+    .from('user_locations')
     .update(updates)
     .eq('id', locationId)
     .eq('user_id', authResult.id)
+    .eq('type', 'storage')
     .select()
     .single()
 
@@ -64,6 +66,7 @@ export async function PUT(
 /**
  * DELETE /api/settings/storage-locations/[id]
  * Delete a storage location. Cards assigned to it will have their location set to null.
+ * Only allows deleting locations with type='storage'.
  */
 export async function DELETE(
   _request: NextRequest,
@@ -81,10 +84,11 @@ export async function DELETE(
   const supabase = createAdminClient()
 
   const { error } = await (supabase as any)
-    .from('storage_locations')
+    .from('user_locations')
     .delete()
     .eq('id', locationId)
     .eq('user_id', authResult.id)
+    .eq('type', 'storage')
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 })

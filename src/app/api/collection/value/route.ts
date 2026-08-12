@@ -5,7 +5,7 @@
  * - totalMarketValue: sum of current market prices for all owned cards
  * - totalPurchaseValue: sum of purchase prices (what was paid)
  * - gainLoss: totalMarketValue - totalPurchaseValue
- * - cardCount: total physical copies
+ * - cardCount: total copies
  * - topCards: top 10 most valuable cards
  */
 
@@ -20,27 +20,26 @@ export async function GET(request: NextRequest) {
 
   const supabase = createAdminClient()
 
-  // Fetch all physical copies with their card names and prices
-  // Join physical_copies → card_definitions (for card_name) → card_metadata (for current price)
+  // Fetch all user copies with their card names and printing info
+  // Join user_copies → user_cards (for card_name) → ref_printings (for current price)
   const PAGE_SIZE = 1000
   let offset = 0
   let totalMarketValue = 0
   let totalPurchaseValue = 0
   let cardCount = 0
-  const cardValues: Array<{ cardName: string; marketPrice: number; scryfallId: string | null }> = []
+  const cardValueMap = new Map<string, { count: number; price: number; scryfallId: string | null }>()
 
   while (true) {
     const { data: copies, error } = await supabase
-      .from('physical_copies')
+      .from('user_copies')
       .select(`
         id,
-        scryfall_printing_id,
-        purchase_price_usd,
+        printing_id,
+        acquired_at,
         is_proxy,
-        card_definitions!physical_copies_card_definition_id_fkey(card_name)
+        user_cards!inner(card_name)
       `)
       .eq('user_id', userId)
-      .eq('missing', false)
       .range(offset, offset + PAGE_SIZE - 1)
 
     if (error) {
@@ -48,73 +47,47 @@ export async function GET(request: NextRequest) {
     }
     if (!copies || copies.length === 0) break
 
-    for (const copy of copies) {
-      cardCount++
-      if (copy.purchase_price_usd) {
-        totalPurchaseValue += Number(copy.purchase_price_usd)
+    // Collect printing_ids for price lookup
+    const printingIds = copies
+      .map(c => c.printing_id)
+      .filter((id): id is string => id !== null)
+
+    // Fetch prices from ref_printings
+    const priceMap = new Map<string, number>()
+    if (printingIds.length > 0) {
+      const { data: printings } = await supabase
+        .from('ref_printings')
+        .select('scryfall_id, price_usd')
+        .in('scryfall_id', printingIds)
+        .not('price_usd', 'is', null)
+
+      for (const p of printings ?? []) {
+        if (p.price_usd) priceMap.set(p.scryfall_id, p.price_usd)
       }
     }
 
-    if (copies.length < PAGE_SIZE) break
-    offset += PAGE_SIZE
-  }
-
-  // Get market prices from card_metadata for all unique card names
-  // First get all unique card names from card_definitions
-  const { data: allDefs } = await supabase
-    .from('card_definitions')
-    .select('card_name')
-    .eq('user_id', userId)
-
-  const cardNames = [...new Set((allDefs ?? []).map(d => d.card_name))]
-
-  // Fetch prices in batches
-  const priceMap = new Map<string, number>()
-  for (let i = 0; i < cardNames.length; i += 200) {
-    const batch = cardNames.slice(i, i + 200)
-    const { data: metaRows } = await supabase
-      .from('card_metadata')
-      .select('card_name, price_usd')
-      .in('card_name', batch)
-      .not('price_usd', 'is', null)
-
-    for (const row of metaRows ?? []) {
-      if (row.price_usd) priceMap.set(row.card_name, row.price_usd)
-    }
-  }
-
-  // Now compute total market value by counting copies per card name
-  offset = 0
-  const cardValueMap = new Map<string, { count: number; price: number; scryfallId: string | null }>()
-
-  while (true) {
-    const { data: copies, error } = await supabase
-      .from('physical_copies')
-      .select(`
-        id,
-        scryfall_printing_id,
-        is_proxy,
-        card_definitions!physical_copies_card_definition_id_fkey(card_name)
-      `)
-      .eq('user_id', userId)
-      .eq('missing', false)
-      .range(offset, offset + PAGE_SIZE - 1)
-
-    if (error || !copies || copies.length === 0) break
-
     for (const copy of copies) {
-      const cardName = (copy as any).card_definitions?.card_name
+      // Skip proxies for value calculation
+      if (copy.is_proxy) continue
+      
+      cardCount++
+      // Note: acquired_price was renamed to purchase_price in schema
+      // But for now use acquired_at as timestamp
+
+      const cardName = (copy.user_cards as any)?.card_name
       if (!cardName) continue
 
-      const price = priceMap.get(cardName) ?? 0
+      // Get price from ref_printings via printing_id
+      const price = copy.printing_id ? (priceMap.get(copy.printing_id) ?? 0) : 0
       totalMarketValue += price
 
       // Track for top cards
       const existing = cardValueMap.get(cardName)
       if (existing) {
         existing.count++
+        existing.price = Math.max(existing.price, price) // Use highest price for display
       } else {
-        cardValueMap.set(cardName, { count: 1, price, scryfallId: copy.scryfall_printing_id })
+        cardValueMap.set(cardName, { count: 1, price, scryfallId: copy.printing_id })
       }
     }
 

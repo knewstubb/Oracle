@@ -1,13 +1,12 @@
 /**
- * Card Identity & Physical Copies Data Access Layer (v2 — Printing Group Model)
+ * Card Identity & Collection Data Access Layer
  *
  * Manages the two-layer data model for card tracking:
- * - card_definitions: Stable card identity keyed by Scryfall oracle_id
- * - physical_copies: Printing-group table. Each row represents a distinct
- *   combination of (card_definition_id, scryfall_printing_id, is_foil, is_proxy)
- *   with a quantity column tracking count.
+ * - cards: Stable card identity keyed by Scryfall oracle_id
+ * - collection: Physical copies table. Each row represents a distinct
+ *   physical card instance with its printing, finish, location, etc.
  *
- * Provides CRUD operations for card definitions and physical copies,
+ * Provides CRUD operations for card definitions and collection copies,
  * deck slot linkage (many-to-one), and card match validation.
  *
  * Uses Supabase client for all database operations (async).
@@ -29,21 +28,27 @@ export interface CardDefinition {
   id: number
   oracleId: string        // Scryfall oracle_id (UUID)
   cardName: string        // denormalized display name
-  createdAt: string
+  createdAt: string | null
 }
 
-export interface PhysicalCopy {
+export interface CollectionCopy {
   id: number
-  cardDefinitionId: number
-  scryfallPrintingId: string | null
+  cardId: number
+  printingId: string | null
+  finish: string           // 'nonfoil', 'foil', 'etched'
+  language: string         // 'en', 'ja', etc.
   isProxy: boolean
-  quantity: number         // count of physical cards in this group
-  proxyForDefinitionId: number | null
+  missing: boolean
+  proxyForCardId: number | null
   condition: PhysicalCondition | null
-  isFoil: boolean
+  purchasePrice: number | null
+  locationId: number | null  // NULL = sorting pile
   acquiredAt: string | null
   createdAt: string
 }
+
+/** @deprecated Use CollectionCopy instead */
+export type PhysicalCopy = CollectionCopy
 
 export type PhysicalCondition =
   | 'near_mint'
@@ -52,58 +57,72 @@ export type PhysicalCondition =
   | 'heavily_played'
   | 'damaged'
 
-export interface CreatePhysicalCopyParams {
-  cardDefinitionId: number
-  scryfallPrintingId?: string | null
+export interface CreateCollectionCopyParams {
+  cardId: number
+  printingId?: string | null
+  finish?: string
+  language?: string
   isProxy?: boolean
-  proxyForDefinitionId?: number | null
+  proxyForCardId?: number | null
   condition?: PhysicalCondition | null
-  isFoil?: boolean
+  purchasePrice?: number | null
+  locationId?: number | null
   acquiredAt?: string | null
   userId: string
 }
+
+/** @deprecated Use CreateCollectionCopyParams instead */
+export type CreatePhysicalCopyParams = CreateCollectionCopyParams
 
 /** Key for the printing-group unique index */
 export interface PrintingGroupKey {
-  cardDefinitionId: number
-  scryfallPrintingId: string | null
-  isFoil: boolean
+  cardId: number
+  printingId: string | null
+  finish: string
   isProxy: boolean
 }
 
-export interface UpsertPhysicalCopyParams {
-  cardDefinitionId: number
-  scryfallPrintingId?: string | null
+export interface UpsertCollectionCopyParams {
+  cardId: number
+  printingId?: string | null
+  finish?: string
+  language?: string
   isProxy?: boolean
-  proxyForDefinitionId?: number | null
+  proxyForCardId?: number | null
   condition?: PhysicalCondition | null
-  isFoil?: boolean
-  quantity?: number        // defaults to 1; increments on upsert
+  purchasePrice?: number | null
+  locationId?: number | null
+  quantity?: number        // defaults to 1; creates N rows
   acquiredAt?: string | null
   userId: string
 }
+
+/** @deprecated Use UpsertCollectionCopyParams instead */
+export type UpsertPhysicalCopyParams = UpsertCollectionCopyParams
 
 export interface CollectionImportParams {
   oracleId: string
   cardName: string
   scryfallPrintingId: string
-  isFoil: boolean
+  finish: string
+  language?: string
   quantity: number
+  purchasePrice?: number | null
   userId: string
 }
 
 export interface CollectionRollupRow {
-  cardDefinitionId: number
+  cardId: number
   cardName: string
-  ownedQuantity: number   // SUM of non-proxy physical_copies.quantity
-  inUseCount: number      // COUNT of deck_cards referencing this card's physical_copies
+  ownedQuantity: number   // COUNT of non-proxy collection rows
+  inUseCount: number      // COUNT of deck_cards referencing this card's copies
 }
 
 export interface ProxyRollupRow {
-  cardDefinitionId: number
+  cardId: number
   cardName: string
-  proxyQuantity: number   // SUM of proxy physical_copies.quantity
-  inUseCount: number      // COUNT of deck_cards referencing this card's proxy physical_copies
+  proxyQuantity: number   // COUNT of proxy collection rows
+  inUseCount: number      // COUNT of deck_cards referencing this card's proxy copies
 }
 
 // ---------------------------------------------------------------------------
@@ -127,23 +146,29 @@ export interface CardIdentityError {
 }
 
 // ---------------------------------------------------------------------------
-// Physical Copy — Helpers
+// Collection Copy — Helpers
 // ---------------------------------------------------------------------------
 
-function mapRowToPhysicalCopy(row: any): PhysicalCopy {
+function mapRowToCollectionCopy(row: any): CollectionCopy {
   return {
     id: row.id,
-    cardDefinitionId: row.card_definition_id,
-    scryfallPrintingId: row.scryfall_printing_id ?? null,
+    cardId: row.card_id,
+    printingId: row.printing_id ?? null,
+    finish: row.finish ?? 'nonfoil',
+    language: row.language ?? 'en',
     isProxy: Boolean(row.is_proxy),
-    quantity: 1, // Post-migration-007: one row = one instance, always quantity 1
-    proxyForDefinitionId: row.proxy_for_definition_id ?? null,
+    missing: Boolean(row.missing),
+    proxyForCardId: row.proxy_for_card_id ?? null,
     condition: row.condition ?? null,
-    isFoil: Boolean(row.is_foil),
+    purchasePrice: row.purchase_price ?? null,
+    locationId: row.location_id ?? null,
     acquiredAt: row.acquired_at ?? null,
     createdAt: row.created_at,
   }
 }
+
+/** @deprecated Use mapRowToCollectionCopy instead */
+const mapRowToPhysicalCopy = mapRowToCollectionCopy
 
 // ---------------------------------------------------------------------------
 // Card Definition CRUD
@@ -161,7 +186,7 @@ export async function ensureCardDefinition(oracleId: string, cardName: string, u
 
   // Try to find existing first
   const { data: existing } = await supabase
-    .from('card_definitions')
+    .from('user_cards')
     .select('id')
     .eq('oracle_id', oracleId)
     .maybeSingle()
@@ -170,7 +195,7 @@ export async function ensureCardDefinition(oracleId: string, cardName: string, u
 
   // Insert new definition
   const { data, error } = await supabase
-    .from('card_definitions')
+    .from('user_cards')
     .insert({ oracle_id: oracleId, card_name: cardName, user_id: userId })
     .select('id')
     .single()
@@ -179,7 +204,7 @@ export async function ensureCardDefinition(oracleId: string, cardName: string, u
     // Handle race condition: another request inserted between our select and insert
     if (error.code === '23505') {
       const { data: retry } = await supabase
-        .from('card_definitions')
+        .from('user_cards')
         .select('id')
         .eq('oracle_id', oracleId)
         .single()
@@ -199,7 +224,7 @@ export async function ensureCardDefinition(oracleId: string, cardName: string, u
 export async function getCardDefinitionByOracleId(oracleId: string): Promise<CardDefinition | null> {
   const supabase = createAdminClient()
   const { data, error } = await supabase
-    .from('card_definitions')
+    .from('user_cards')
     .select('id, oracle_id, card_name, created_at')
     .eq('oracle_id', oracleId)
     .maybeSingle()
@@ -225,7 +250,7 @@ export async function getCardDefinitionByOracleId(oracleId: string): Promise<Car
 export async function getCardDefinitionById(id: number): Promise<CardDefinition | null> {
   const supabase = createAdminClient()
   const { data, error } = await supabase
-    .from('card_definitions')
+    .from('user_cards')
     .select('id, oracle_id, card_name, created_at')
     .eq('id', id)
     .maybeSingle()
@@ -244,190 +269,209 @@ export async function getCardDefinitionById(id: number): Promise<CardDefinition 
 }
 
 // ---------------------------------------------------------------------------
-// Physical Copy — CRUD
+// Collection Copy — CRUD
 // ---------------------------------------------------------------------------
 
 /**
- * Upsert a physical copy using the printing-group model.
- * Inserts a new row or increments quantity on an existing row matching the
- * unique key (card_definition_id, scryfall_printing_id, is_foil, is_proxy).
- *
- * Defaults quantity to 1 when not provided. On conflict, the existing row's
- * quantity is incremented by the provided (or default) quantity.
+ * Upsert a collection copy.
+ * Inserts N individual rows (one per copy) for the given quantity.
  *
  * Validates: Requirements 2.2, 3.1, 4.3, 8.2
  */
-export async function upsertPhysicalCopy(params: UpsertPhysicalCopyParams): Promise<PhysicalCopy> {
+export async function upsertCollectionCopy(params: UpsertCollectionCopyParams): Promise<CollectionCopy> {
   const supabase = createAdminClient()
   const isProxy = params.isProxy ?? false
-  const isFoil = params.isFoil ?? false
+  const finish = params.finish ?? 'nonfoil'
+  const language = params.language ?? 'en'
   const quantity = params.quantity ?? 1
   const userId = params.userId
 
-  // Post-migration-007: Instance-level model — insert N individual rows (one per copy)
-  // instead of incrementing quantity on a single group row.
+  // Instance-level model — insert N individual rows (one per copy)
   const insertRows = Array.from({ length: quantity }, () => ({
-    card_definition_id: params.cardDefinitionId,
-    scryfall_printing_id: params.scryfallPrintingId ?? null,
-    is_foil: isFoil,
+    card_id: params.cardId,
+    printing_id: params.printingId ?? null,
+    finish,
+    language,
     is_proxy: isProxy,
-    proxy_for_definition_id: params.proxyForDefinitionId ?? null,
+    proxy_for_card_id: params.proxyForCardId ?? null,
     condition: params.condition ?? null,
+    purchase_price: params.purchasePrice ?? null,
+    location_id: params.locationId ?? null,
     acquired_at: params.acquiredAt ?? null,
     user_id: userId,
   }))
 
   const { data, error } = await supabase
-    .from('physical_copies')
+    .from('user_copies')
     .insert(insertRows)
     .select('*')
 
-  if (error) throw new Error(`Failed to insert physical copy: ${error.message}`)
+  if (error) throw new Error(`Failed to insert collection copy: ${error.message}`)
   
-  // Return the first inserted row (interface expects single PhysicalCopy)
-  return mapRowToPhysicalCopy(data[0])
+  // Return the first inserted row (interface expects single CollectionCopy)
+  return mapRowToCollectionCopy(data[0])
 }
 
+/** @deprecated Use upsertCollectionCopy instead */
+export const upsertPhysicalCopy = upsertCollectionCopy
+
 /**
- * Create a new physical copy. Inserts a row into physical_copies.
- * No governing rule validation — all cards with valid card_definition_id are accepted.
+ * Create a new collection copy. Inserts a row into collection.
  *
- * @deprecated Use `upsertPhysicalCopy` for v2 printing-group semantics.
  * Validates: Requirements 2.1, 8.3
  */
-export async function createPhysicalCopy(
-  params: CreatePhysicalCopyParams
-): Promise<PhysicalCopy | CardIdentityError> {
+export async function createCollectionCopy(
+  params: CreateCollectionCopyParams
+): Promise<CollectionCopy | CardIdentityError> {
   const supabase = createAdminClient()
   const isProxy = params.isProxy ?? false
-  const isFoil = params.isFoil ?? false
+  const finish = params.finish ?? 'nonfoil'
+  const language = params.language ?? 'en'
   const userId = params.userId
 
   const { data, error } = await supabase
-    .from('physical_copies')
+    .from('user_copies')
     .insert({
-      card_definition_id: params.cardDefinitionId,
-      scryfall_printing_id: params.scryfallPrintingId ?? null,
+      card_id: params.cardId,
+      printing_id: params.printingId ?? null,
+      finish,
+      language,
       is_proxy: isProxy,
-      proxy_for_definition_id: params.proxyForDefinitionId ?? null,
+      proxy_for_card_id: params.proxyForCardId ?? null,
       condition: params.condition ?? null,
-      is_foil: isFoil,
+      purchase_price: params.purchasePrice ?? null,
+      location_id: params.locationId ?? null,
       acquired_at: params.acquiredAt ?? null,
       user_id: userId,
     })
     .select('*')
     .single()
 
-  if (error) throw new Error(`Failed to create physical copy: ${error.message}`)
-  return mapRowToPhysicalCopy(data)
+  if (error) throw new Error(`Failed to create collection copy: ${error.message}`)
+  return mapRowToCollectionCopy(data)
 }
 
+/** @deprecated Use createCollectionCopy instead */
+export const createPhysicalCopy = createCollectionCopy
+
 /**
- * Retrieve a physical copy by its primary key.
+ * Retrieve a collection copy by its primary key.
  */
-export async function getPhysicalCopy(id: number): Promise<PhysicalCopy | null> {
+export async function getCollectionCopy(id: number): Promise<CollectionCopy | null> {
   const supabase = createAdminClient()
   const { data, error } = await supabase
-    .from('physical_copies')
+    .from('user_copies')
     .select('*')
     .eq('id', id)
     .maybeSingle()
 
-  if (error) throw new Error(`Failed to get physical copy ${id}: ${error.message}`)
+  if (error) throw new Error(`Failed to get collection copy ${id}: ${error.message}`)
   if (!data) return null
-  return mapRowToPhysicalCopy(data)
+  return mapRowToCollectionCopy(data)
 }
 
+/** @deprecated Use getCollectionCopy instead */
+export const getPhysicalCopy = getCollectionCopy
+
 /**
- * Delete a physical copy by its primary key.
- * ON DELETE SET NULL cascades to deck_cards.physical_copy_id.
+ * Delete a collection copy by its primary key.
+ * ON DELETE SET NULL cascades to deck_cards.copy_id.
  */
-export async function deletePhysicalCopy(id: number): Promise<void> {
+export async function deleteCollectionCopy(id: number): Promise<void> {
   const supabase = createAdminClient()
   const { error } = await supabase
-    .from('physical_copies')
+    .from('user_copies')
     .delete()
     .eq('id', id)
 
-  if (error) throw new Error(`Failed to delete physical copy ${id}: ${error.message}`)
+  if (error) throw new Error(`Failed to delete collection copy ${id}: ${error.message}`)
 }
 
+/** @deprecated Use deleteCollectionCopy instead */
+export const deletePhysicalCopy = deleteCollectionCopy
+
 /**
- * List physical copies that are not referenced by any deck_cards row.
+ * List collection copies that are not referenced by any deck_cards row.
  */
-export async function listUnassignedPhysicalCopies(): Promise<PhysicalCopy[]> {
+export async function listUnassignedCollectionCopies(): Promise<CollectionCopy[]> {
   const supabase = createAdminClient()
 
-  // Get all physical_copy_ids that are referenced by deck_cards
+  // Get all copy_ids that are referenced by deck_cards
   const { data: linkedIds, error: linkedError } = await supabase
     .from('deck_cards')
-    .select('physical_copy_id')
-    .not('physical_copy_id', 'is', null)
+    .select('copy_id')
+    .not('copy_id', 'is', null)
 
   if (linkedError) throw new Error(`Failed to list linked copies: ${linkedError.message}`)
 
-  const usedIds = new Set((linkedIds ?? []).map(r => r.physical_copy_id))
+  const usedIds = new Set((linkedIds ?? []).map(r => r.copy_id))
 
-  // Get all physical copies
+  // Get all collection copies
   const { data, error } = await supabase
-    .from('physical_copies')
+    .from('user_copies')
     .select('*')
 
-  if (error) throw new Error(`Failed to list physical copies: ${error.message}`)
+  if (error) throw new Error(`Failed to list collection copies: ${error.message}`)
 
   // Filter to only unassigned ones
   return (data ?? [])
     .filter(row => !usedIds.has(row.id))
-    .map(mapRowToPhysicalCopy)
+    .map(mapRowToCollectionCopy)
 }
 
+/** @deprecated Use listUnassignedCollectionCopies instead */
+export const listUnassignedPhysicalCopies = listUnassignedCollectionCopies
+
 /**
- * List all physical copies associated with a given card definition.
+ * List all collection copies associated with a given card.
  */
-export async function listPhysicalCopiesForDefinition(
-  cardDefinitionId: number
-): Promise<PhysicalCopy[]> {
+export async function listCollectionCopiesForCard(
+  cardId: number
+): Promise<CollectionCopy[]> {
   const supabase = createAdminClient()
   const { data, error } = await supabase
-    .from('physical_copies')
+    .from('user_copies')
     .select('*')
-    .eq('card_definition_id', cardDefinitionId)
+    .eq('card_id', cardId)
 
   if (error) {
-    throw new Error(`Failed to list physical copies for definition ${cardDefinitionId}: ${error.message}`)
+    throw new Error(`Failed to list collection copies for card ${cardId}: ${error.message}`)
   }
 
-  return (data ?? []).map(mapRowToPhysicalCopy)
+  return (data ?? []).map(mapRowToCollectionCopy)
 }
 
+/** @deprecated Use listCollectionCopiesForCard instead */
+export const listPhysicalCopiesForDefinition = listCollectionCopiesForCard
+
 /**
- * Find a physical copy by its printing-group key.
- * Looks up by the unique combination of (card_definition_id, scryfall_printing_id, is_foil, is_proxy).
+ * Find a collection copy by its printing-group key.
+ * Looks up by the unique combination of (card_id, printing_id, finish, is_proxy).
  *
  * Validates: Requirements 2.2, 2.10
  */
-export async function findPrintingGroup(params: PrintingGroupKey): Promise<PhysicalCopy | null> {
+export async function findPrintingGroup(params: PrintingGroupKey): Promise<CollectionCopy | null> {
   const supabase = createAdminClient()
 
   let query = supabase
-    .from('physical_copies')
+    .from('user_copies')
     .select('*')
-    .eq('card_definition_id', params.cardDefinitionId)
-    .eq('is_foil', params.isFoil)
+    .eq('card_id', params.cardId)
+    .eq('finish', params.finish)
     .eq('is_proxy', params.isProxy)
 
-  // Handle null scryfall_printing_id
-  if (params.scryfallPrintingId === null) {
-    query = query.is('scryfall_printing_id', null)
+  // Handle null printing_id
+  if (params.printingId === null) {
+    query = query.is('printing_id', null)
   } else {
-    query = query.eq('scryfall_printing_id', params.scryfallPrintingId)
+    query = query.eq('printing_id', params.printingId)
   }
 
   const { data, error } = await query.maybeSingle()
 
   if (error) throw new Error(`Failed to find printing group: ${error.message}`)
   if (!data) return null
-  return mapRowToPhysicalCopy(data)
+  return mapRowToCollectionCopy(data)
 }
 
 // ---------------------------------------------------------------------------
@@ -435,28 +479,28 @@ export async function findPrintingGroup(params: PrintingGroupKey): Promise<Physi
 // ---------------------------------------------------------------------------
 
 /**
- * Validate that a physical copy's card identity matches a deck card's identity.
- * Returns true if the physical copy's card_definition matches the deck card's card_name.
+ * Validate that a collection copy's card identity matches a deck card's identity.
+ * Returns true if the collection copy's card matches the deck card's card_name.
  *
  * Validates: Requirements 5.6
  */
-export async function validateCardMatch(physicalCopyId: number, deckCardId: number): Promise<boolean> {
+export async function validateCardMatch(collectionCopyId: number, deckCardId: number): Promise<boolean> {
   const supabase = createAdminClient()
 
-  // Get the physical copy's card definition name
-  const { data: pc, error: pcError } = await supabase
-    .from('physical_copies')
-    .select('card_definition_id')
-    .eq('id', physicalCopyId)
+  // Get the collection copy's card name
+  const { data: cc, error: ccError } = await supabase
+    .from('user_copies')
+    .select('card_id')
+    .eq('id', collectionCopyId)
     .maybeSingle()
 
-  if (pcError) throw new Error(`Failed to validate card match: ${pcError.message}`)
-  if (!pc) return false
+  if (ccError) throw new Error(`Failed to validate card match: ${ccError.message}`)
+  if (!cc) return false
 
   const { data: cd, error: cdError } = await supabase
-    .from('card_definitions')
+    .from('user_cards')
     .select('card_name')
-    .eq('id', pc.card_definition_id)
+    .eq('id', cc.card_id)
     .single()
 
   if (cdError) throw new Error(`Failed to validate card match: ${cdError.message}`)
@@ -475,166 +519,173 @@ export async function validateCardMatch(physicalCopyId: number, deckCardId: numb
 }
 
 /**
- * Link a physical copy to a deck card slot (many-to-one).
+ * Link a collection copy to a deck card slot (many-to-one).
  * Validates card match before updating. Replaces any existing link on the deck card.
- * Multiple deck_cards rows may reference the same physical_copy_id (no UNIQUE constraint).
+ * Multiple deck_cards rows may reference the same copy_id (no UNIQUE constraint).
  *
- * GUARD: This function only updates deck_cards.physical_copy_id (linking metadata).
+ * GUARD: This function only updates deck_cards.copy_id (linking metadata).
  * It does NOT modify deck composition (card_name, quantity, categories, is_commander).
  * It does NOT fetch from Archidekt. See: deck-authority-split spec, Req 6.1, 6.2.
  *
  * Validates: Requirements 3.3, 3.4, 3.5, 5.1, 5.4, 5.5, 5.6
  */
-export async function linkPhysicalCopyToDeckCard(
-  physicalCopyId: number,
+export async function linkCollectionCopyToDeckCard(
+  collectionCopyId: number,
   deckCardId: number
 ): Promise<void | CardIdentityError> {
-  const isMatch = await validateCardMatch(physicalCopyId, deckCardId)
+  const isMatch = await validateCardMatch(collectionCopyId, deckCardId)
   if (!isMatch) {
     return {
       error: 'CARD_MISMATCH',
-      message: 'Physical copy card_definition does not match the deck card identity',
+      message: 'Collection copy card does not match the deck card identity',
     }
   }
 
   const supabase = createAdminClient()
   const { error } = await supabase
     .from('deck_cards')
-    .update({ physical_copy_id: physicalCopyId })
+    .update({ copy_id: collectionCopyId })
     .eq('id', deckCardId)
 
-  if (error) throw new Error(`Failed to link physical copy to deck card: ${error.message}`)
+  if (error) throw new Error(`Failed to link collection copy to deck card: ${error.message}`)
 }
 
+/** @deprecated Use linkCollectionCopyToDeckCard instead */
+export const linkPhysicalCopyToDeckCard = linkCollectionCopyToDeckCard
+
 /**
- * Unlink a physical copy from a deck card slot (sets physical_copy_id to NULL).
- * Does not delete the physical copy — it continues to exist independently.
+ * Unlink a collection copy from a deck card slot (sets copy_id to NULL).
+ * Does not delete the collection copy — it continues to exist independently.
  *
  * Validates: Requirements 5.7
  */
-export async function unlinkPhysicalCopyFromDeckCard(deckCardId: number): Promise<void> {
+export async function unlinkCollectionCopyFromDeckCard(deckCardId: number): Promise<void> {
   const supabase = createAdminClient()
   const { error } = await supabase
     .from('deck_cards')
-    .update({ physical_copy_id: null })
+    .update({ copy_id: null })
     .eq('id', deckCardId)
 
-  if (error) throw new Error(`Failed to unlink physical copy from deck card: ${error.message}`)
+  if (error) throw new Error(`Failed to unlink collection copy from deck card: ${error.message}`)
 }
 
+/** @deprecated Use unlinkCollectionCopyFromDeckCard instead */
+export const unlinkPhysicalCopyFromDeckCard = unlinkCollectionCopyFromDeckCard
+
 // ---------------------------------------------------------------------------
-// Authoritative Physical Copy State (Import Engine)
+// Authoritative Collection Copy State (Import Engine)
 // ---------------------------------------------------------------------------
 
 /**
- * Set the quantity and condition on a physical_copies row to exact values
- * (authoritative overwrite). Unlike upsertPhysicalCopy which INCREMENTS,
- * this SETS quantity to the provided value.
- *
- * Used by the Import_Engine for authoritative CSV sync.
+ * Set the state on a collection row to exact values (authoritative overwrite).
  * Creates the row if it doesn't exist; updates if it does.
  * Always scoped to is_proxy = FALSE.
  *
+ * Used by the Import_Engine for authoritative CSV sync.
+ *
  * Action detection via pre-read comparison:
  * - No existing row → INSERT → 'created'
- * - Existing row, quantity differs → UPDATE → 'updated_quantity'
- * - Existing row, condition differs (quantity same) → UPDATE → 'updated_condition'
+ * - Existing row, condition differs → UPDATE → 'updated_condition'
  * - Existing row, nothing changed → no write → 'unchanged'
  *
  * Validates: Requirements 5.1, 5.2, 5.3, 5.4, 5.7
  */
-export async function setPhysicalCopyState(
+export async function setCollectionCopyState(
   params: {
-    cardDefinitionId: number
-    scryfallPrintingId: string
-    isFoil: boolean
-    quantity: number
+    cardId: number
+    printingId: string
+    finish: string
+    language?: string
     condition: PhysicalCondition | null
+    purchasePrice?: number | null
+    locationId?: number | null
     userId: string
   }
-): Promise<{ id: number; action: 'created' | 'updated_quantity' | 'updated_condition' | 'unchanged' }> {
+): Promise<{ id: number; action: 'created' | 'updated_condition' | 'unchanged' }> {
   const supabase = createAdminClient()
   const userId = params.userId
+  const language = params.language ?? 'en'
 
   // Pre-read: check if a row already exists for this printing group (non-proxy)
   const { data: existing, error: findError } = await supabase
-    .from('physical_copies')
-    .select('id, quantity, condition')
-    .eq('card_definition_id', params.cardDefinitionId)
-    .eq('scryfall_printing_id', params.scryfallPrintingId)
-    .eq('is_foil', params.isFoil)
+    .from('user_copies')
+    .select('id, condition')
+    .eq('card_id', params.cardId)
+    .eq('printing_id', params.printingId)
+    .eq('finish', params.finish)
     .eq('is_proxy', false)
     .maybeSingle()
 
-  if (findError) throw new Error(`Failed to find physical copy state: ${findError.message}`)
+  if (findError) throw new Error(`Failed to find collection copy state: ${findError.message}`)
 
   if (!existing) {
     // No row exists — INSERT a new one
     const { data, error } = await supabase
-      .from('physical_copies')
+      .from('user_copies')
       .insert({
-        card_definition_id: params.cardDefinitionId,
-        scryfall_printing_id: params.scryfallPrintingId,
-        is_foil: params.isFoil,
+        card_id: params.cardId,
+        printing_id: params.printingId,
+        finish: params.finish,
+        language,
         is_proxy: false,
-        quantity: params.quantity,
         condition: params.condition ?? null,
+        purchase_price: params.purchasePrice ?? null,
+        location_id: params.locationId ?? null,
         user_id: userId,
       })
       .select('id')
       .single()
 
-    if (error) throw new Error(`Failed to create physical copy state: ${error.message}`)
+    if (error) throw new Error(`Failed to create collection copy state: ${error.message}`)
     return { id: data.id, action: 'created' }
   }
 
   // Row exists — compare pre-state vs desired state
-  const quantityChanged = existing.quantity !== params.quantity
   const conditionChanged = existing.condition !== (params.condition ?? null)
 
-  if (!quantityChanged && !conditionChanged) {
+  if (!conditionChanged) {
     // Nothing changed — no write
     return { id: existing.id, action: 'unchanged' }
   }
 
-  // Something changed — UPDATE the row
+  // Condition changed — UPDATE the row
   const { error } = await supabase
-    .from('physical_copies')
-    .update({ quantity: params.quantity, condition: params.condition ?? null })
+    .from('user_copies')
+    .update({ condition: params.condition ?? null })
     .eq('id', existing.id)
 
-  if (error) throw new Error(`Failed to update physical copy state: ${error.message}`)
-
-  // Per Requirement 7.2: if both changed, count as 'updated_quantity'
-  if (quantityChanged) {
-    return { id: existing.id, action: 'updated_quantity' }
-  }
+  if (error) throw new Error(`Failed to update collection copy state: ${error.message}`)
 
   return { id: existing.id, action: 'updated_condition' }
 }
+
+/** @deprecated Use setCollectionCopyState instead */
+export const setPhysicalCopyState = setCollectionCopyState
 
 // ---------------------------------------------------------------------------
 // Collection Import
 // ---------------------------------------------------------------------------
 
 /**
- * Import a card into the physical collection.
- * Handles the full workflow: oracle_id → card_definition → physical_copy upsert.
+ * Import a card into the collection.
+ * Handles the full workflow: oracle_id → card → collection copy upsert.
  *
- * 1. Ensures a card_definition exists for the given oracle_id
- * 2. Upserts a physical_copy row using the printing-group key
+ * 1. Ensures a card exists for the given oracle_id
+ * 2. Upserts a collection row using the printing-group key
  *
  * Validates: Requirements 8.2, 8.4, 2.9
  */
-export async function importCollectionCard(params: CollectionImportParams): Promise<PhysicalCopy> {
-  const cardDefinitionId = await ensureCardDefinition(params.oracleId, params.cardName, params.userId)
+export async function importCollectionCard(params: CollectionImportParams): Promise<CollectionCopy> {
+  const cardId = await ensureCardDefinition(params.oracleId, params.cardName, params.userId)
 
-  return upsertPhysicalCopy({
-    cardDefinitionId,
-    scryfallPrintingId: params.scryfallPrintingId,
-    isFoil: params.isFoil,
+  return upsertCollectionCopy({
+    cardId,
+    printingId: params.scryfallPrintingId,
+    finish: params.finish,
+    language: params.language ?? 'en',
     isProxy: false,
     quantity: params.quantity,
+    purchasePrice: params.purchasePrice ?? null,
     userId: params.userId,
   })
 }
@@ -644,51 +695,51 @@ export async function importCollectionCard(params: CollectionImportParams): Prom
 // ---------------------------------------------------------------------------
 
 /**
- * Count how many deck_cards rows reference any physical_copy belonging to
- * the given card_definition. This is the card-level in-use count.
+ * Count how many deck_cards rows reference any collection copy belonging to
+ * the given card. This is the card-level in-use count.
  *
  * Returns 0 if no linkages exist.
  *
  * Validates: Requirements 9.1, 9.2, 9.7
  */
-export async function getCardLevelInUseCount(cardDefinitionId: number): Promise<number> {
+export async function getCardLevelInUseCount(cardId: number): Promise<number> {
   const supabase = createAdminClient()
 
-  // Get all physical_copy ids for this card definition
+  // Get all copy ids for this card
   const { data: copies, error: copiesError } = await supabase
-    .from('physical_copies')
+    .from('user_copies')
     .select('id')
-    .eq('card_definition_id', cardDefinitionId)
+    .eq('card_id', cardId)
 
   if (copiesError) throw new Error(`Failed to get in-use count: ${copiesError.message}`)
   if (!copies || copies.length === 0) return 0
 
   const copyIds = copies.map(c => c.id)
 
-  // Count deck_cards referencing any of these physical copies
+  // Count deck_cards referencing any of these copies
   const { count, error } = await supabase
     .from('deck_cards')
     .select('id', { count: 'exact', head: true })
-    .in('physical_copy_id', copyIds)
+    .in('copy_id', copyIds)
 
   if (error) throw new Error(`Failed to get in-use count: ${error.message}`)
   return count ?? 0
 }
 
 /**
- * Count how many deck_cards rows reference a specific physical_copy.
+ * Count how many deck_cards rows reference a specific collection copy.
  * This is the subgroup-level in-use count.
  *
  * Returns 0 if no linkages exist.
  *
  * Validates: Requirements 9.1, 9.2, 9.7
  */
-export async function getSubgroupInUseCount(physicalCopyId: number): Promise<number> {
+export async function getSubgroupInUseCount(copyId: number): Promise<number> {
   const supabase = createAdminClient()
   const { count, error } = await supabase
     .from('deck_cards')
     .select('id', { count: 'exact', head: true })
-    .eq('physical_copy_id', physicalCopyId)
+    .eq('copy_id', copyId)
 
   if (error) throw new Error(`Failed to get subgroup in-use count: ${error.message}`)
   return count ?? 0
@@ -700,75 +751,71 @@ export async function getSubgroupInUseCount(physicalCopyId: number): Promise<num
 
 /**
  * Card-level rollup for the Collection view (proxies excluded).
- * Returns one row per card_definition that has at least one non-proxy physical_copy,
- * with the total owned quantity and the number of deck_cards slots referencing
- * any non-proxy physical_copy of that card.
+ * Returns one row per card that has at least one non-proxy copy,
+ * with the total owned count and the number of deck_cards slots referencing
+ * any non-proxy copy of that card.
  *
  * Validates: Requirements 9.5, 10.1, 10.2, 10.4
  */
 export async function getCollectionRollup(): Promise<CollectionRollupRow[]> {
   const supabase = createAdminClient()
 
-  // Get all non-proxy physical copies with their card definition info
+  // Get all non-proxy collection copies with their card info
   const { data: copies, error: copiesError } = await supabase
-    .from('physical_copies')
-    .select('id, card_definition_id, quantity')
+    .from('user_copies')
+    .select('id, card_id')
     .eq('is_proxy', false)
 
   if (copiesError) throw new Error(`Failed to get collection rollup: ${copiesError.message}`)
   if (!copies || copies.length === 0) return []
 
-  // Get card definitions for all relevant card_definition_ids
-  const defIds = [...new Set(copies.map(c => c.card_definition_id))]
-  const { data: defs, error: defsError } = await supabase
-    .from('card_definitions')
+  // Get cards for all relevant card_ids
+  const cardIds = [...new Set(copies.map(c => c.card_id))]
+  const { data: cards, error: cardsError } = await supabase
+    .from('user_cards')
     .select('id, card_name')
-    .in('id', defIds)
+    .in('id', cardIds)
 
-  if (defsError) throw new Error(`Failed to get collection rollup: ${defsError.message}`)
+  if (cardsError) throw new Error(`Failed to get collection rollup: ${cardsError.message}`)
 
-  const defMap = new Map((defs ?? []).map(d => [d.id, d.card_name]))
+  const cardMap = new Map((cards ?? []).map(d => [d.id, d.card_name]))
 
-  // Sum quantities per card_definition
+  // Count copies per card (each row is one physical copy)
   const quantityMap = new Map<number, number>()
-  const copyIdsByDef = new Map<number, number[]>()
   for (const copy of copies) {
-    quantityMap.set(copy.card_definition_id, (quantityMap.get(copy.card_definition_id) ?? 0) + copy.quantity)
-    const ids = copyIdsByDef.get(copy.card_definition_id) ?? []
-    ids.push(copy.id)
-    copyIdsByDef.set(copy.card_definition_id, ids)
+    quantityMap.set(copy.card_id, (quantityMap.get(copy.card_id) ?? 0) + 1)
   }
 
-  // Get in-use counts (deck_cards referencing physical copies of each definition)
+  // Get in-use counts (deck_cards referencing copies of each card)
   const allCopyIds = copies.map(c => c.id)
   const { data: linkedCards, error: linkedError } = await supabase
     .from('deck_cards')
-    .select('physical_copy_id')
-    .in('physical_copy_id', allCopyIds)
+    .select('copy_id')
+    .in('copy_id', allCopyIds)
 
   if (linkedError) throw new Error(`Failed to get collection rollup: ${linkedError.message}`)
 
-  // Count in-use per card definition
+  // Count in-use per card
   const inUseMap = new Map<number, number>()
   for (const link of (linkedCards ?? [])) {
-    if (link.physical_copy_id === null) continue
-    // Find which card_definition this physical_copy belongs to
-    const copy = copies.find(c => c.id === link.physical_copy_id)
+    if (link.copy_id === null) continue
+    // Find which card this copy belongs to
+    const copy = copies.find(c => c.id === link.copy_id)
     if (copy) {
-      inUseMap.set(copy.card_definition_id, (inUseMap.get(copy.card_definition_id) ?? 0) + 1)
+      inUseMap.set(copy.card_id, (inUseMap.get(copy.card_id) ?? 0) + 1)
     }
   }
 
   // Build result
   const result: CollectionRollupRow[] = []
-  for (const [defId, ownedQuantity] of quantityMap) {
-    const cardName = defMap.get(defId)
+  for (const [cardId, ownedQuantity] of quantityMap) {
+    const cardName = cardMap.get(cardId)
     if (!cardName) continue
     result.push({
-      cardDefinitionId: defId,
+      cardId,
       cardName,
       ownedQuantity,
-      inUseCount: inUseMap.get(defId) ?? 0,
+      inUseCount: inUseMap.get(cardId) ?? 0,
     })
   }
 
@@ -776,71 +823,71 @@ export async function getCollectionRollup(): Promise<CollectionRollupRow[]> {
 }
 
 /**
- * Card-level rollup for the Proxy tab (only proxy physical_copies).
- * Returns one row per card_definition that has at least one proxy physical_copy,
- * with the total proxy quantity and the number of deck_cards slots referencing
- * any proxy physical_copy of that card.
+ * Card-level rollup for the Proxy tab (only proxy copies).
+ * Returns one row per card that has at least one proxy copy,
+ * with the total proxy count and the number of deck_cards slots referencing
+ * any proxy copy of that card.
  *
  * Validates: Requirements 9.5, 10.1, 10.2, 10.4
  */
 export async function getProxyRollup(): Promise<ProxyRollupRow[]> {
   const supabase = createAdminClient()
 
-  // Get all proxy physical copies with their card definition info
+  // Get all proxy collection copies with their card info
   const { data: copies, error: copiesError } = await supabase
-    .from('physical_copies')
-    .select('id, card_definition_id, quantity')
+    .from('user_copies')
+    .select('id, card_id')
     .eq('is_proxy', true)
 
   if (copiesError) throw new Error(`Failed to get proxy rollup: ${copiesError.message}`)
   if (!copies || copies.length === 0) return []
 
-  // Get card definitions for all relevant card_definition_ids
-  const defIds = [...new Set(copies.map(c => c.card_definition_id))]
-  const { data: defs, error: defsError } = await supabase
-    .from('card_definitions')
+  // Get cards for all relevant card_ids
+  const cardIds = [...new Set(copies.map(c => c.card_id))]
+  const { data: cards, error: cardsError } = await supabase
+    .from('user_cards')
     .select('id, card_name')
-    .in('id', defIds)
+    .in('id', cardIds)
 
-  if (defsError) throw new Error(`Failed to get proxy rollup: ${defsError.message}`)
+  if (cardsError) throw new Error(`Failed to get proxy rollup: ${cardsError.message}`)
 
-  const defMap = new Map((defs ?? []).map(d => [d.id, d.card_name]))
+  const cardMap = new Map((cards ?? []).map(d => [d.id, d.card_name]))
 
-  // Sum quantities per card_definition
+  // Count proxies per card (each row is one proxy copy)
   const quantityMap = new Map<number, number>()
   for (const copy of copies) {
-    quantityMap.set(copy.card_definition_id, (quantityMap.get(copy.card_definition_id) ?? 0) + copy.quantity)
+    quantityMap.set(copy.card_id, (quantityMap.get(copy.card_id) ?? 0) + 1)
   }
 
-  // Get in-use counts (deck_cards referencing proxy physical copies)
+  // Get in-use counts (deck_cards referencing proxy copies)
   const allCopyIds = copies.map(c => c.id)
   const { data: linkedCards, error: linkedError } = await supabase
     .from('deck_cards')
-    .select('physical_copy_id')
-    .in('physical_copy_id', allCopyIds)
+    .select('copy_id')
+    .in('copy_id', allCopyIds)
 
   if (linkedError) throw new Error(`Failed to get proxy rollup: ${linkedError.message}`)
 
-  // Count in-use per card definition
+  // Count in-use per card
   const inUseMap = new Map<number, number>()
   for (const link of (linkedCards ?? [])) {
-    if (link.physical_copy_id === null) continue
-    const copy = copies.find(c => c.id === link.physical_copy_id)
+    if (link.copy_id === null) continue
+    const copy = copies.find(c => c.id === link.copy_id)
     if (copy) {
-      inUseMap.set(copy.card_definition_id, (inUseMap.get(copy.card_definition_id) ?? 0) + 1)
+      inUseMap.set(copy.card_id, (inUseMap.get(copy.card_id) ?? 0) + 1)
     }
   }
 
   // Build result
   const result: ProxyRollupRow[] = []
-  for (const [defId, proxyQuantity] of quantityMap) {
-    const cardName = defMap.get(defId)
+  for (const [cardId, proxyQuantity] of quantityMap) {
+    const cardName = cardMap.get(cardId)
     if (!cardName) continue
     result.push({
-      cardDefinitionId: defId,
+      cardId,
       cardName,
       proxyQuantity,
-      inUseCount: inUseMap.get(defId) ?? 0,
+      inUseCount: inUseMap.get(cardId) ?? 0,
     })
   }
 

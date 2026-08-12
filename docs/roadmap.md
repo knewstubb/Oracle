@@ -1,6 +1,6 @@
 # Product Roadmap — The Oracle
 
-> Last updated: 2026-07-23
+> Last updated: 2026-07-27
 > Owned by: Product Manager
 
 **Detailed docs:** Each section has a deeper document in `docs/roadmap/` with full descriptions, implementation notes, and idea backlogs.
@@ -20,7 +20,7 @@
 - [x] Collection value banner (total value, gain/loss, top cards)
 - [x] Manual price refresh button
 - [x] Daily automated price refresh (Vercel cron)
-- [x] Card scanning — camera with OCR capture (parked: needs GCV API key)
+- [x] Card scanning — camera with OCR capture (archived: dHash unreliable, see TD-017)
 - [ ] Card search → location ("Where is my Rhystic Study?" — show every copy and where it lives)
 - [ ] Wishlist / "Cards I Want" (per-deck or global, triggers on collection changes)
 - [ ] Trade export (cards not in any deck, formatted for Cardsphere/Deckbox)
@@ -84,6 +84,19 @@
 
 ---
 
+## Card Data & Pricing
+→ [Full details](roadmap/card-data.md)
+
+- [x] Scryfall printings cache (~100K cards with prices, images, metadata)
+- [x] Daily automated sync (Vercel cron at 10:00 UTC, catches new set releases)
+- [x] Local-first lookups (check scryfall_printings before API calls)
+- [x] Price columns: USD, USD foil, EUR, EUR foil
+- [x] Image URLs cached (small, normal, large, art_crop)
+- [x] Card lookup service with fallback chain (local DB → Scryfall API)
+- [x] Cheapest printing lookup (for budget recommendations)
+
+---
+
 ## Mobile & PWA
 → [Full details](roadmap/mobile-pwa.md)
 
@@ -91,7 +104,7 @@
 - [x] Mobile hamburger menu (slide-out drawer)
 - [x] iOS safe-area-inset handling (top + bottom)
 - [x] Version badge (v0.2.0, bottom-left)
-- [x] Camera scanner UI (shutter button, OCR pipeline)
+- [x] Camera scanner UI (archived: code in src/_archived/scan-feature/)
 
 ---
 
@@ -132,20 +145,20 @@
 
 ---
 
-## Parked
+## Parked / Archived
 
-| Feature | Why parked | Resume when |
-|---------|-----------|-------------|
-| Camera scanner (OCR) | Needs GOOGLE_CLOUD_VISION_KEY in Supabase secrets | API key configured |
-| Multi-user support | Single-user app. IDOR fixes done for future-proofing. | Decision to open signups |
-| Format legality checking | Low priority for casual Commander | User requests it |
-| Social / deck sharing | Not needed for personal use | Decision to go public |
+| Feature | Status | Why | Resume when |
+|---------|--------|-----|-------------|
+| Camera scanner | Archived | dHash matching unreliable (TD-017). Code in `src/_archived/scan-feature/`. | OCR-first approach implemented |
+| Multi-user support | Parked | Single-user app. IDOR fixes done for future-proofing. | Decision to open signups |
+| Format legality checking | Parked | Low priority for casual Commander | User requests it |
+| Social / deck sharing | Parked | Not needed for personal use | Decision to go public |
 
 ---
 
 ## Progress Summary
 
-**Built:** 62 items
+**Built:** 69 items
 **Remaining:** 16 items
 **Parked:** 4 items
 

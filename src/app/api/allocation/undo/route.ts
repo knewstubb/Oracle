@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     const { error: clearErr } = await supabase
       .from('deck_cards')
       .update({
-        physical_copy_id: null,
+        copy_id: null,
         ownership_status: null,
       })
       .eq('id', deckCardsId)
@@ -65,10 +65,10 @@ export async function POST(request: NextRequest) {
   }
 
   // ─── Case 2: restoreTo has a deckCardsId — restore to prior location ─
-  // Check that the restore target's physical_copy_id is still null
+  // Check that the restore target's copy_id is still null
   const { data: targetRow, error: targetErr } = await supabase
     .from('deck_cards')
-    .select('id, physical_copy_id')
+    .select('id, copy_id')
     .eq('id', restoreTo.deckCardsId)
     .single()
 
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
   }
 
   // If the slot has been filled by something else, block the undo
-  if (targetRow.physical_copy_id !== null) {
+  if (targetRow.copy_id !== null) {
     return Response.json({
       success: false,
       reason: 'slot_claimed_elsewhere',
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
 
   // Determine ownership_status for the restored copy
   const { data: copyInfo } = await supabase
-    .from('physical_copies')
+    .from('user_copies')
     .select('is_proxy')
     .eq('id', physicalCopyId)
     .single()
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
   const { error: clearErr } = await supabase
     .from('deck_cards')
     .update({
-      physical_copy_id: null,
+      copy_id: null,
       ownership_status: null,
     })
     .eq('id', deckCardsId)
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
   const { error: restoreErr } = await supabase
     .from('deck_cards')
     .update({
-      physical_copy_id: physicalCopyId,
+      copy_id: physicalCopyId,
       ownership_status: ownershipStatus,
     })
     .eq('id', restoreTo.deckCardsId)

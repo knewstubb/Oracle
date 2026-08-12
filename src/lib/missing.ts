@@ -1,17 +1,17 @@
 /**
- * Missing Flag — Physical Copy Lifecycle
+ * Missing Flag — Collection Copy Lifecycle
  *
- * Marks physical copies as "Missing" (lost, damaged, sold, given away).
+ * Marks collection copies as "Missing" (lost, damaged, sold, given away).
  * A Missing copy is excluded from all candidate pools and availability counts
  * without deleting the row (preserving history).
  *
  * When a copy is marked Missing:
- *   1. physical_copies.missing = true
- *   2. Any deck_cards row linked to this copy is unlinked (physical_copy_id → null)
+ *   1. collection.missing = true
+ *   2. Any deck_cards row linked to this copy is unlinked (copy_id → null)
  *   3. The affected deck's completeness recomputes automatically on next read
  *
  * When a copy is un-marked (found):
- *   1. physical_copies.missing = false
+ *   1. collection.missing = false
  *   2. No auto-relink — the copy returns to the Available pool
  *   3. User resolves the vacancy via Picklist if needed
  *
@@ -39,7 +39,7 @@ export interface UnmarkMissingResult {
 // ---------------------------------------------------------------------------
 
 /**
- * Mark a physical copy as Missing. Unlinks any deck_cards row pointing at it.
+ * Mark a collection copy as Missing. Unlinks any deck_cards row pointing at it.
  *
  * Returns the list of affected deck IDs (decks that lost completeness).
  * Idempotent: calling on an already-missing copy is a no-op that returns
@@ -49,21 +49,21 @@ export interface UnmarkMissingResult {
  * deck_cards unlink happen in a single transaction with advisory lock.
  */
 export async function markCopyMissing(
-  physicalCopyId: number,
+  copyId: number,
   userId: string
 ): Promise<MarkMissingResult> {
   const supabase = createAdminClient()
 
-  const { data, error } = await supabase.rpc('mark_copy_missing', {
-    p_physical_copy_id: physicalCopyId,
+  const { data, error } = await (supabase.rpc as any)('mark_copy_missing', {
+    p_copy_id: copyId,
     p_user_id: userId,
   })
 
   if (error) {
     if (error.message?.includes('not_found')) {
-      throw new Error(`Physical copy ${physicalCopyId} not found for user`)
+      throw new Error(`Copy ${copyId} not found for user`)
     }
-    throw new Error(`Failed to mark physical copy ${physicalCopyId} as missing: ${error.message}`)
+    throw new Error(`Failed to mark copy ${copyId} as missing: ${error.message}`)
   }
 
   const result = data as { success: boolean; affected_deck_ids: number[] | null }
@@ -75,7 +75,7 @@ export async function markCopyMissing(
 // ---------------------------------------------------------------------------
 
 /**
- * Un-mark a physical copy as Missing (mark it as found).
+ * Un-mark a collection copy as Missing (mark it as found).
  * The copy returns to the Available pool — no auto-relink to prior deck slot.
  *
  * Returns the card name for cache invalidation (so the client knows which
@@ -83,21 +83,21 @@ export async function markCopyMissing(
  * Idempotent: calling on a non-missing copy is a no-op.
  */
 export async function unmarkCopyMissing(
-  physicalCopyId: number,
+  copyId: number,
   userId: string
 ): Promise<UnmarkMissingResult> {
   const supabase = createAdminClient()
 
   // Fetch the card name before updating (for the response)
   const { data: copy, error: fetchErr } = await supabase
-    .from('physical_copies')
-    .select('card_definition_id, card_definitions!physical_copies_card_definition_id_fkey(card_name)')
-    .eq('id', physicalCopyId)
+    .from('user_copies')
+    .select('card_id, user_cards!user_copies_card_id_fkey(card_name)')
+    .eq('id', copyId)
     .eq('user_id', userId)
     .maybeSingle()
 
   if (fetchErr) {
-    throw new Error(`Failed to fetch physical copy ${physicalCopyId}: ${fetchErr.message}`)
+    throw new Error(`Failed to fetch copy ${copyId}: ${fetchErr.message}`)
   }
 
   if (!copy) {
@@ -106,16 +106,16 @@ export async function unmarkCopyMissing(
 
   // Set missing = false
   const { error: updateErr } = await supabase
-    .from('physical_copies')
+    .from('user_copies')
     .update({ missing: false })
-    .eq('id', physicalCopyId)
+    .eq('id', copyId)
     .eq('user_id', userId)
 
   if (updateErr) {
-    throw new Error(`Failed to un-mark physical copy ${physicalCopyId}: ${updateErr.message}`)
+    throw new Error(`Failed to un-mark copy ${copyId}: ${updateErr.message}`)
   }
 
-  const cardName = (copy as any).card_definitions?.card_name ?? null
+  const cardName = (copy as any).cards?.card_name ?? null
 
   return { cardName }
 }

@@ -63,11 +63,11 @@ export async function POST(request: NextRequest) {
   try {
     const { data, error: rpcErr } = await supabase.rpc('assign_physical_copy', {
       p_target_deck_card_id: deckCardsId,
-      p_physical_copy_id: physicalCopyId,
+      p_copy_id: physicalCopyId,
     })
 
     if (rpcErr) {
-      // Specific: copy is held by an allocate=true deck — not a free candidate
+      // Specific: copy is already assigned to another deck — not a free candidate
       if (rpcErr.message?.includes('copy_already_claimed') || rpcErr.code === 'P0001') {
         return Response.json(
           { error: 'That card was just claimed elsewhere. Refreshing available options.', stale: true },

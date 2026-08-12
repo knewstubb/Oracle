@@ -49,8 +49,8 @@ export async function POST(request: NextRequest) {
   if (target === 'physical_copy') {
     // Update the physical copy's printing
     const { error } = await supabase
-      .from('physical_copies')
-      .update({ scryfall_printing_id: scryfallId })
+      .from('user_copies')
+      .update({ printing_id: scryfallId })
       .eq('id', targetId)
       .eq('user_id', userId)
 

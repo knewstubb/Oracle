@@ -4,7 +4,7 @@
  * Warm-start Phase 2: Sequentially resolve selected decks against the committed collection.
  * Must be called AFTER /api/onboarding/collection completes.
  *
- * Body: { deckIds: number[] }
+ * Body: { deckIds: number[], deckActiveStates?: Record<number, boolean> }
  * Returns: BatchResolutionResult
  */
 import { NextRequest } from 'next/server'
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   if (authResult instanceof Response) return authResult
   const userId = authResult.id
 
-  let body: { deckIds?: number[]; deckStatuses?: Record<number, 'brewing' | 'in_rotation'> }
+  let body: { deckIds?: number[]; deckActiveStates?: Record<number, boolean> }
   try {
     body = await request.json()
   } catch {
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await resolveDeckBatch(deckIds, userId, body.deckStatuses)
+    const result = await resolveDeckBatch(deckIds, userId, body.deckActiveStates)
     return Response.json(result)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

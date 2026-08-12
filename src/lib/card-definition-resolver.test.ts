@@ -62,7 +62,7 @@ describe('resolveCardDefinitions', () => {
     expect(result.size).toBe(2)
 
     // Verify upsert was called with correct rows
-    expect(mockFrom).toHaveBeenCalledWith('card_definitions')
+    expect(mockFrom).toHaveBeenCalledWith('cards')
     expect(mockUpsert).toHaveBeenCalledWith(
       [
         { oracle_id: 'oracle-1', card_name: 'Sol Ring', color_identity: '', type_line: 'Artifact', user_id: 'user-123' },
@@ -193,7 +193,7 @@ describe('resolveCardDefinitions', () => {
 
     const { resolveCardDefinitions } = await import('./card-definition-resolver')
     await expect(resolveCardDefinitions(cards, 'user-123')).rejects.toThrow(
-      'Failed to upsert card_definitions batch at offset 0: connection refused'
+      'Failed to upsert cards batch at offset 0: connection refused'
     )
   })
 

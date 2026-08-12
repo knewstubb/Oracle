@@ -377,14 +377,23 @@ function annotateCardEntry(entry: CardEntry): CardEntry {
 async function annotateCardEntryAsync(entry: CardEntry): Promise<CardEntry> {
   try {
     const supabase = createAdminClient()
-    const { data: row } = await supabase
-      .from('collection')
-      .select('card_name, quantity')
-      .ilike('card_name', entry.cardName)
+    // Join through user_cards to get card_name
+    const { data: rows } = await supabase
+      .from('user_copies')
+      .select(`
+        id,
+        user_cards!user_copies_card_id_fkey ( card_name )
+      `)
+      .eq('is_proxy', false)
       .limit(1)
-      .single()
 
-    if (row && (row.quantity ?? 0) > 0) {
+    // Check if any copy matches this card name
+    const found = (rows ?? []).some(row => {
+      const cardInfo = row.user_cards as unknown as { card_name: string } | null
+      return cardInfo?.card_name?.toLowerCase() === entry.cardName.toLowerCase()
+    })
+
+    if (found) {
       entry.ownershipStatus = 'owned'
     }
   } catch {

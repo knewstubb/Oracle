@@ -59,12 +59,17 @@ export const rateLimiter = new SlidingWindowRateLimiter(10, 1000)
 
 /** Direct Scryfall card search with caching and rate limiting */
 export async function scryfallSearch(query: string): Promise<unknown> {
-  const cached = cardCache.get(query)
+  // Always filter for paper cards unless the query already specifies a game filter
+  const normalizedQuery = query.toLowerCase()
+  const hasGameFilter = normalizedQuery.includes('game:')
+  const paperQuery = hasGameFilter ? query : `${query} game:paper`
+  
+  const cached = cardCache.get(paperQuery)
   if (cached) return cached
 
   await rateLimiter.acquire()
 
-  const url = `https://api.scryfall.com/cards/search?q=${encodeURIComponent(query)}`
+  const url = `https://api.scryfall.com/cards/search?q=${encodeURIComponent(paperQuery)}`
   const response = await fetch(url, {
     headers: { 'User-Agent': 'TheOracle/0.1.0' }
   })
@@ -74,6 +79,6 @@ export async function scryfallSearch(query: string): Promise<unknown> {
   }
 
   const data = await response.json()
-  cardCache.set(query, data)
+  cardCache.set(paperQuery, data)
   return data
 }

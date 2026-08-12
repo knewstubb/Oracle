@@ -10,17 +10,15 @@ import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { computeUnresolvedStatuses } from '@/lib/card-status'
 import { fetchEnrichedSupply } from '@/lib/allocation-candidates'
-import { createAdminClient } from '@/lib/supabase'
 
 export interface BuilderStatusResult {
   cardName: string
-  status: 'original' | 'proxy' | 'available' | 'claimed' | 'unowned'
+  status: 'original' | 'proxy' | 'available' | 'alternate' | 'claimed' | 'unowned'
   /** For claimed: which deck currently holds the card */
   heldBy: {
     deckId: number
     deckName: string
-    deckStatus: string
-    allocate: boolean
+    isActive: boolean
   } | null
 }
 
@@ -50,7 +48,6 @@ export async function GET(request: NextRequest) {
 
     // For any card classified as 'claimed', fetch heldBy detail
     const results: BuilderStatusResult[] = []
-    const supabase = createAdminClient()
 
     for (const cardName of cardNames) {
       const status = statusMap.get(cardName) ?? 'unowned'
@@ -62,18 +59,10 @@ export async function GET(request: NextRequest) {
           const candidates = await fetchEnrichedSupply(cardName, userId)
           const assignedCopy = candidates.find(c => c.assignedTo !== null)
           if (assignedCopy?.assignedTo) {
-            // Fetch the holding deck's allocate status
-            const { data: deckData } = await supabase
-              .from('decks')
-              .select('allocate')
-              .eq('id', assignedCopy.assignedTo.deckId)
-              .maybeSingle()
-
             heldBy = {
               deckId: assignedCopy.assignedTo.deckId,
               deckName: assignedCopy.assignedTo.deckName,
-              deckStatus: assignedCopy.assignedTo.deckStatus,
-              allocate: deckData?.allocate ?? true,
+              isActive: assignedCopy.assignedTo.isActive ?? true,
             }
           }
         } catch {

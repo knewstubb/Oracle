@@ -1,7 +1,7 @@
 /**
- * Supply Pool — In-Memory Physical Copy Pool for Batch Resolution
+ * Supply Pool — In-Memory Collection Copy Pool for Batch Resolution
  *
- * Manages an in-memory pool of physical copies indexed by card_name.
+ * Manages an in-memory pool of collection copies indexed by card_name.
  * Replaces the per-card `fetchEnrichedSupply()` calls in `resolveDeckBatch()`
  * with O(1) lookups against a pre-loaded dataset.
  *
@@ -69,18 +69,22 @@ export class SupplyPool {
   }
 
   /**
-   * Get available copies for a card, filtered to unassigned + Tier 1-3 eligible,
+   * Get available copies for a card, filtered to unassigned + Tier 1-2 eligible,
    * sorted by tier ascending then score descending.
+   * 
+   * Note: Tier 3 (assigned to another deck) is excluded from auto-selection
+   * because all decks now claim cards equally — user must decide to pull.
    */
   getAvailableCopies(cardName: string): EnrichedSupplyEntry[] {
     const entries = this.pool.get(cardName)
     if (!entries || entries.length === 0) return []
 
-    // Filter to entries that are eligible: unassigned (Tier 1-2) or reassignable from Brew (Tier 3)
+    // Filter to entries that are eligible: unassigned only (Tier 1-2)
+    // Tier 3 (assigned to another deck) requires user decision
     const eligible = entries.filter((entry) => {
       const tier = classifyTier(entry)
-      // Tiers 1-3 are eligible for auto-selection in batch resolution
-      return tier <= 3
+      // Only Tiers 1-2 are eligible for auto-selection in batch resolution
+      return tier <= 2
     })
 
     // Sort by tier ascending, then score descending (higher score = better match)
@@ -106,7 +110,7 @@ export class SupplyPool {
     deckCardsId: number,
     deckId: number,
     deckName: string,
-    deckStatus: string = 'in_rotation'
+    isActive: boolean = true
   ): void {
     // Track this assignment in the session
     this.sessionAssignments.set(physicalCopyId, { deckId, deckName })
@@ -119,7 +123,7 @@ export class SupplyPool {
           deckCardsId,
           deckId,
           deckName,
-          deckStatus,
+          isActive,
         }
         break
       }
@@ -222,15 +226,15 @@ async function fetchAllRows<T>(
 // ---------------------------------------------------------------------------
 
 /**
- * Load the user's full physical_copies pool with assignment status into memory.
+ * Load the user's full collection copy pool with assignment status into memory.
  *
  * Implementation:
- * 1. Fetch ALL `card_definitions` for the user (paginated) → build `defIdToCardName` map
- * 2. Fetch ALL `physical_copies` for the user (paginated) with nested joins:
- *    - `deck_cards!deck_cards_physical_copy_id_fkey` (left join) → `decks!deck_cards_deck_id_fkey(name, status)`
- *    - `storage_locations(name)`
- * 3. Map each physical_copy to an `EnrichedSupplyEntry`
- * 4. Group by `card_name` (from the `defIdToCardName` map)
+ * 1. Fetch ALL `cards` for the user (paginated) → build `cardIdToCardName` map
+ * 2. Fetch ALL `collection` copies for the user (paginated) with nested joins:
+ *    - `deck_cards!deck_cards_copy_id_fkey` (left join) → `decks!deck_cards_deck_id_fkey(name, status)`
+ *    - `user_locations(name)`
+ * 3. Map each collection copy to an `EnrichedSupplyEntry`
+ * 4. Group by `card_name` (from the `cardIdToCardName` map)
  * 5. Construct and return `new SupplyPool(groupedEntries)`
  *
  * Handles PostgREST's hard 1000-row limit via pagination for both queries.
@@ -238,36 +242,36 @@ async function fetchAllRows<T>(
 export async function loadSupplyPool(userId: string): Promise<SupplyPool> {
   const supabase = createAdminClient()
 
-  // Step 1: Fetch ALL card_definitions for the user (paginated) → build defId → card_name map
+  // Step 1: Fetch ALL cards for the user (paginated) → build cardId → card_name map
   const defs = await fetchAllRows<{ id: number; card_name: string }>(
     (from, to) =>
       supabase
-        .from('card_definitions')
+        .from('user_cards')
         .select('id, card_name')
         .eq('user_id', userId)
         .range(from, to)
   )
 
-  const defIdToCardName = new Map<number, string>()
+  const cardIdToCardName = new Map<number, string>()
   for (const def of defs) {
-    defIdToCardName.set(def.id, def.card_name)
+    cardIdToCardName.set(def.id, def.card_name)
   }
 
-  // Step 2: Fetch ALL physical_copies for the user (paginated) with nested joins
+  // Step 2: Fetch ALL collection copies for the user (paginated) with nested joins
   const copies = await fetchAllRows<any>(
     (from, to) =>
       supabase
-        .from('physical_copies')
+        .from('user_copies')
         .select(`
           id,
-          card_definition_id,
-          scryfall_printing_id,
-          is_foil,
+          card_id,
+          printing_id,
+          finish,
           is_proxy,
           condition,
-          storage_location_id,
-          storage_locations(name),
-          deck_cards!deck_cards_physical_copy_id_fkey(
+          location_id,
+          user_locations!user_copies_location_id_fkey(name),
+          deck_cards!deck_cards_copy_id_fkey(
             id,
             deck_id,
             decks!deck_cards_deck_id_fkey(name, status)
@@ -277,12 +281,12 @@ export async function loadSupplyPool(userId: string): Promise<SupplyPool> {
         .range(from, to)
   )
 
-  // Step 3: Map each physical_copy to an EnrichedSupplyEntry and group by card_name
+  // Step 3: Map each collection copy to an EnrichedSupplyEntry and group by card_name
   const grouped = new Map<string, EnrichedSupplyEntry[]>()
 
   for (const copy of copies) {
-    const cardName = defIdToCardName.get(copy.card_definition_id)
-    if (!cardName) continue // orphan physical_copy with no matching definition — skip
+    const cardName = cardIdToCardName.get(copy.card_id)
+    if (!cardName) continue // orphan collection copy with no matching card — skip
 
     // deck_cards is an array (left join) — empty if unassigned
     const deckCardsArr = copy.deck_cards || []
@@ -301,13 +305,13 @@ export async function loadSupplyPool(userId: string): Promise<SupplyPool> {
 
     const entry: EnrichedSupplyEntry = {
       physicalCopyId: copy.id,
-      cardDefinitionId: copy.card_definition_id,
-      scryfallPrintingId: copy.scryfall_printing_id ?? null,
-      isFoil: copy.is_foil,
+      cardId: copy.card_id,
+      printingId: copy.printing_id ?? null,
+      finish: copy.finish ?? 'nonfoil',
       isProxy: copy.is_proxy,
       condition: copy.condition ?? null,
-      storageLocationId: copy.storage_location_id ?? null,
-      storageLocationName: copy.storage_locations?.name ?? null,
+      locationId: copy.location_id ?? null,
+      locationName: copy.user_locations?.name ?? null,
       assignedTo,
     }
 
@@ -328,7 +332,7 @@ export async function loadSupplyPool(userId: string): Promise<SupplyPool> {
 // ---------------------------------------------------------------------------
 
 /**
- * Atomically apply all physical_copy_id + ownership_status assignments for a
+ * Atomically apply all copy_id + ownership_status assignments for a
  * single deck's resolution pass.
  *
  * Uses the `batch_assign_deck` Supabase RPC which wraps all updates in a single
@@ -348,11 +352,10 @@ export async function batchAssignDeck(
   // Attempt transactional RPC
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase.rpc as any)('batch_assign_deck', {
+    p_deck_id: deckId,
     p_assignments: assignments.map((a) => ({
-      deck_cards_id: a.deckCardsId,
-      physical_copy_id: a.physicalCopyId,
-      ownership_status: a.ownershipStatus,
-      clear_deck_cards_id: a.clearDeckCardsId ?? null,
+      deckCardsId: a.deckCardsId,
+      copyId: a.physicalCopyId,
     })),
   })
 
@@ -383,7 +386,7 @@ export async function batchAssignDeck(
   for (const assignment of toClear) {
     const { error: clearError } = await supabase
       .from('deck_cards')
-      .update({ physical_copy_id: null, ownership_status: null })
+      .update({ copy_id: null, ownership_status: null })
       .eq('id', assignment.clearDeckCardsId!)
 
     if (clearError) {
@@ -398,7 +401,7 @@ export async function batchAssignDeck(
     const { error: assignError } = await supabase
       .from('deck_cards')
       .update({
-        physical_copy_id: assignment.physicalCopyId,
+        copy_id: assignment.physicalCopyId,
         ownership_status: assignment.ownershipStatus,
       })
       .eq('id', assignment.deckCardsId)

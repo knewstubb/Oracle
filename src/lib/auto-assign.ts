@@ -45,7 +45,7 @@ export async function autoAssignDeck(
     .from('deck_cards')
     .select('id, card_name')
     .eq('deck_id', deckId)
-    .is('physical_copy_id', null)
+    .is('copy_id', null)
 
   if (fetchErr) {
     result.errors.push(`Failed to fetch unresolved deck_cards: ${fetchErr.message}`)
@@ -107,11 +107,11 @@ export async function autoAssignDeck(
       // Determine ownership_status
       const ownershipStatus = candidate.isProxy ? 'proxy' : 'original'
 
-      // Atomic write — set physical_copy_id on the deck_cards row
+      // Atomic write — set copy_id on the deck_cards row
       const { error: assignErr } = await supabase
         .from('deck_cards')
         .update({
-          physical_copy_id: candidate.physicalCopyId,
+          copy_id: candidate.physicalCopyId,
           ownership_status: ownershipStatus,
         })
         .eq('id', deckCardsId)

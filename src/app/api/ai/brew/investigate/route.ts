@@ -11,6 +11,7 @@ import { requireAuth } from '@/lib/auth'
 import { buildBrewInvestigatorPrompt, buildBriefExtractionPrompt } from '@/lib/brew-prompts'
 import { getModelConfig } from '@/lib/ai-models'
 import { getMcpClient } from '@/lib/mcp-client'
+import { getUserPreferences, formatPlayerContextPrompt } from '@/lib/user-preferences'
 import type { StrategyBrief, BrewSessionRow } from '@/types/brew'
 
 // ---------------------------------------------------------------------------
@@ -35,6 +36,11 @@ interface ConversationMessage {
 export async function POST(request: NextRequest): Promise<Response> {
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
+  const userId = authResult.id
+
+  // Fetch user preferences for player context
+  const prefs = await getUserPreferences(userId)
+  const playerContext = formatPlayerContextPrompt(prefs)
 
   try {
     const body = (await request.json()) as InvestigateBody
@@ -83,7 +89,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     let systemPrompt = buildBrewInvestigatorPrompt(
       session.path_type as 'commander' | 'concept',
       session.commander_name || undefined,
-      session.concept_description || undefined
+      session.concept_description || undefined,
+      playerContext
     )
 
     // After 4+ exchanges, instruct model to attempt brief extraction

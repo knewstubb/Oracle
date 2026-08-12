@@ -40,6 +40,10 @@ interface Deck {
   last_synced_at: string | null
   raw_json: string | null
   format: string | null
+  // Commander metadata from ref_commanders
+  salt_score: number | null
+  edhrec_rank: number | null
+  edhrec_deck_count: number | null
 }
 
 interface DeckResponse {

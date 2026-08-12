@@ -16,7 +16,7 @@ interface ChangeLogEntry {
   date: string
   cut_card: string
   add_card: string
-  reason: string
+  reason: string | null
   skipped: boolean
 }
 
@@ -27,13 +27,13 @@ interface UpgradeCandidate {
   cut: {
     card_name: string
     reason: string
-    ownership_status: string
+    ownership_status: string | null
     holder_deck_name?: string
   }
   add: {
     card_name: string
     reason: string
-    ownership_status: string
+    ownership_status: string | null
     holder_deck_name?: string
     edhrec_percent?: number
     price?: number
@@ -155,24 +155,35 @@ async function resolveOwnershipStatus(
   cardName: string,
   currentDeckId: number
 ): Promise<{ ownership_status: string | null; holder_deck_name?: string }> {
-  // Check if card is in collection
-  const { data: collectionRows } = await supabase
-    .from('collection')
-    .select('quantity')
+  // Check if card is in collection by querying user_cards -> user_copies
+  // user_copies doesn't have card_name, so we join through user_cards
+  const { data: userCard } = await supabase
+    .from('user_cards')
+    .select('id')
     .eq('card_name', cardName)
+    .maybeSingle()
 
-  const totalQty = (collectionRows ?? []).reduce((sum, r) => sum + (r.quantity ?? 0), 0)
-
-  if (totalQty <= 0) {
+  if (!userCard) {
     return { ownership_status: null }
   }
 
-  // Card is owned — check if it's allocated as original in another deck
+  // Count copies for this card
+  const { count: copyCount } = await supabase
+    .from('user_copies')
+    .select('id', { count: 'exact', head: true })
+    .eq('card_id', userCard.id)
+    .eq('is_proxy', false)
+
+  if (!copyCount || copyCount <= 0) {
+    return { ownership_status: null }
+  }
+
+  // Card is owned — check if it's allocated as original in another deck via deck_cards.ownership_status
   const { data: allocationRow } = await supabase
-    .from('deck_allocations')
+    .from('deck_cards')
     .select('deck_id, decks(name)')
     .eq('card_name', cardName)
-    .eq('role', 'original')
+    .eq('ownership_status', 'original')
     .neq('deck_id', currentDeckId)
     .limit(1)
     .maybeSingle()
@@ -196,25 +207,34 @@ async function detectProxyConflict(
   cardName: string,
   currentDeckId: number
 ): Promise<{ deck_name: string } | undefined> {
-  // Check if the card is allocated as original in another deck
+  // Check if the card is allocated as original in another deck via deck_cards.ownership_status
   const { data: conflictRow } = await supabase
-    .from('deck_allocations')
+    .from('deck_cards')
     .select('deck_id, decks(name)')
     .eq('card_name', cardName)
-    .eq('role', 'original')
+    .eq('ownership_status', 'original')
     .neq('deck_id', currentDeckId)
     .limit(1)
     .maybeSingle()
 
   if (!conflictRow) return undefined
 
-  // Check collection quantity
-  const { data: collectionRows } = await supabase
-    .from('collection')
-    .select('quantity')
+  // Check collection quantity by going through user_cards -> user_copies
+  const { data: userCard } = await supabase
+    .from('user_cards')
+    .select('id')
     .eq('card_name', cardName)
+    .maybeSingle()
 
-  const totalQty = (collectionRows ?? []).reduce((sum, r) => sum + (r.quantity ?? 0), 0)
+  let totalQty = 0
+  if (userCard) {
+    const { count } = await supabase
+      .from('user_copies')
+      .select('id', { count: 'exact', head: true })
+      .eq('card_id', userCard.id)
+      .eq('is_proxy', false)
+    totalQty = count ?? 0
+  }
 
   // Count how many decks currently have this card
   const { count: deckCount } = await supabase

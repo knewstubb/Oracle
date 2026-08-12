@@ -9,11 +9,14 @@
 - **AI Brew** — Interactive deck building with EDHREC + Scryfall + Spellbook tool-use loop.
 - **AI Upgrade** — Cut/add pairs with pricing from EDHREC.
 - **AI Strategy** — Archetype identification, game plan, win conditions.
-- **Post-Game Debrief** — Structured analysis + recommendations.
 - **Combo Detection** — Commander Spellbook integration.
 - **Goldfish** — Client-side shuffle/draw/mulligan with play zones.
 - **Precon Mod Tracker** — Budget + rarity constraints.
 - **Export** — Clipboard, MTGA format.
+
+## Removed
+
+- **Post-Game Debrief** — *(Removed 2026-08-03)* Structured post-game analysis and card swap recommendations. Removed along with brewing banner and "Continue Brewing" button to simplify deck page UI.
 
 ## Planned
 

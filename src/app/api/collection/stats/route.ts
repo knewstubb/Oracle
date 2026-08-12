@@ -10,31 +10,20 @@ export async function GET() {
   try {
     // Total rows in collection
     const { count: totalCards, error: countErr } = await supabase
-      .from('collection')
+      .from('user_copies')
       .select('*', { count: 'exact', head: true })
 
     if (countErr) throw countErr
 
-    // Unique card names — fetch distinct card_name column
-    const { data: uniqueData, error: uniqueErr } = await supabase
-      .from('collection')
-      .select('card_name')
+    // Unique card names — count distinct user_cards entries
+    const { count: uniqueNames, error: uniqueErr } = await supabase
+      .from('user_cards')
+      .select('*', { count: 'exact', head: true })
 
     if (uniqueErr) throw uniqueErr
 
-    const uniqueNames = new Set((uniqueData || []).map((r) => r.card_name)).size
-
-    // Total copies (sum of quantity)
-    const { data: quantityData, error: qtyErr } = await supabase
-      .from('collection')
-      .select('quantity')
-
-    if (qtyErr) throw qtyErr
-
-    const totalCopies = (quantityData || []).reduce(
-      (sum, row) => sum + (row.quantity ?? 0),
-      0
-    )
+    // Total copies = total rows in user_copies (each row is one physical copy)
+    const totalCopies = totalCards ?? 0
 
     // Last import date from sync_meta
     const { data: metaRow } = await supabase

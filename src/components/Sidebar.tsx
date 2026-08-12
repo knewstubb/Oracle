@@ -33,9 +33,6 @@ function CollectionIcon(props: { className?: string; strokeWidth?: number }) {
 function StorageIcon(props: { className?: string; strokeWidth?: number }) {
   return <MaterialIcon name="shelves" {...props} />
 }
-function ScanIcon(props: { className?: string; strokeWidth?: number }) {
-  return <MaterialIcon name="photo_camera" {...props} />
-}
 function BrewIcon(props: { className?: string; strokeWidth?: number }) {
   return <MaterialIcon name="science" {...props} />
 }
@@ -63,7 +60,6 @@ const navItems: NavItem[] = [
   { label: 'Card Management', icon: CardManagementIcon, href: '/allocation' },
   { label: 'Collection', icon: CollectionIcon, href: '/collection' },
   { label: 'Binders', icon: StorageIcon, href: '/storage' },
-  { label: 'Scan', icon: ScanIcon, href: '/scan' },
   { label: 'Brew Deck', icon: BrewIcon, href: '/new-deck' },
   { label: 'Settings', icon: SettingsIcon, href: '/settings' },
 ]

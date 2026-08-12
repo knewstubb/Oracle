@@ -5,7 +5,7 @@
  * Used by storage detail "Assign" buttons and InstanceDetailPanel "Reassign" actions
  * where we don't have a specific deckId context.
  *
- * Returns: Array<{ deckId, deckName, deckStatus }>
+ * Returns: Array<{ deckId, deckName, isActive }>
  */
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
@@ -24,40 +24,38 @@ export async function GET(request: NextRequest) {
   const supabase = createAdminClient()
 
   try {
-    // Get the card's color identity
-    const { data: cardDef } = await supabase
-      .from('card_definitions')
+    // Get the card's color identity from ref_cards
+    const { data: refCard } = await supabase
+      .from('ref_cards')
       .select('color_identity')
-      .eq('card_name', cardName)
-      .eq('user_id', userId)
+      .eq('name', cardName)
       .maybeSingle()
 
-    const cardCI = cardDef?.color_identity
-      ? cardDef.color_identity.split(',').map((c: string) => c.trim()).filter(Boolean)
+    const cardCI = refCard?.color_identity
+      ? refCard.color_identity.split('').filter(Boolean)
       : []
 
-    // Fetch all active decks
-    const { data: allDecks } = await supabase
+    // Fetch all decks (all decks claim cards equally now)
+    const { data: allDecks } = await (supabase as any)
       .from('decks')
-      .select('id, name, status, colour_identity, format')
+      .select('id, name, is_active, colour_identity, format')
       .eq('user_id', userId)
-      .in('status', ['brewing', 'in_rotation'])
 
     // Filter to decks whose commander CI is a superset of the card's CI
     // Only applies to Commander format — other formats have no CI restriction
     const validDecks = (allDecks ?? [])
-      .filter((deck) => {
-        if ((deck as any).format && (deck as any).format !== 'commander') return true
+      .filter((deck: any) => {
+        if (deck.format && deck.format !== 'commander') return true
         if (cardCI.length === 0) return true // Colorless cards go anywhere
         const deckCI = deck.colour_identity
           ? deck.colour_identity.split(',').map((c: string) => c.trim()).filter(Boolean)
           : []
         return cardCI.every((color: string) => deckCI.includes(color))
       })
-      .map((deck) => ({
+      .map((deck: any) => ({
         deckId: deck.id,
         deckName: deck.name,
-        deckStatus: deck.status,
+        isActive: deck.is_active ?? true,
       }))
 
     return Response.json(validDecks)

@@ -18,6 +18,7 @@ import { getModelConfig, calculateCost, DEFAULT_MODEL_ID } from '@/lib/ai-models
 import { createProviderAdapter, ProviderConfigError } from '@/lib/provider-factory'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
+import { getUserPreferences, formatPlayerContextPrompt } from '@/lib/user-preferences'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -28,13 +29,16 @@ interface ChatBody {
   message: string
   history: Array<{ role: 'user' | 'assistant'; content: string }>
   modelId?: string
+  /** Collection mode for card suggestions (default: 'any') */
+  collectionMode?: 'any' | 'prioritise_owned' | 'owned_only'
 }
 
 // ---------------------------------------------------------------------------
-// Exploration System Prompt
+// System Prompt Templates
 // ---------------------------------------------------------------------------
 
-const EXPLORATION_SYSTEM_PROMPT = `You are Oracle — a peer-level deckbuilding collaborator for Commander (EDH). You explore ideas with the user, bring options and tradeoffs, and let them drive decisions. You are NOT a yes-man.
+// Static parts of the exploration prompt (player context injected dynamically)
+const EXPLORATION_PROMPT_TEMPLATE = `You are Oracle — a peer-level deckbuilding collaborator for Commander (EDH). You explore ideas with the user, bring options and tradeoffs, and let them drive decisions. You are NOT a yes-man.
 
 === PERSONALITY ===
 
@@ -47,23 +51,32 @@ const EXPLORATION_SYSTEM_PROMPT = `You are Oracle — a peer-level deckbuilding 
 - Write like texting a friend — short punchy lines, breathing room between ideas.
 - PROGRESSION: When the user confirms with "yes" or a short agreement, IMMEDIATELY move forward. Do NOT repeat or paraphrase their confirmation.
 
-=== PLAYER CONTEXT ===
-
-- Playgroup bracket: 3-4. Casual-competitive. Precon play is common.
-- No infinite combos (house rule). No stax. No MLD.
-- Player loves: engine-based strategies that overwhelm, redundancy, fun/flavour alongside viability.
-- Player dislikes: generic goodstuff, solitaire turns, decks without a clear identity.
-- Budget: ~2,700 card collection. Prefers building from owned cards. Show both premium and budget options — never filter silently.
+{{PLAYER_CONTEXT}}
 
 === CARD ACCURACY (STRICT) ===
 
 CRITICAL — THESE RULES ARE NON-NEGOTIABLE:
 1. ONLY name cards you are 100% certain exist with their EXACT printed name.
-2. A commander MUST be a "Legendary Creature" (or have explicit "can be your commander" text). NEVER suggest a non-legendary creature, planeswalker without commander text, or non-creature permanent as a commander.
+2. A commander MUST meet ONE of these criteria (per Comprehensive Rules 903.3):
+   a) Legendary Creature
+   b) Legendary Vehicle
+   c) Legendary Spacecraft with a power/toughness box
+   d) Any card with "can be your commander" text in its oracle text (rule 903.3a)
+   
+   IMPORTANT: Legendary Artifacts CAN be commanders if they have "can be your commander" text.
+   Example: Hearthhull, the Worldseed is a Legendary Artifact with "can be your commander" — it IS a legal commander.
+   The Edge of Eternities set introduced many Legendary Artifact Spacecraft that are legal commanders.
+   
+   DO NOT claim that "Legendary Artifacts can't be commanders" — this is outdated information.
+   ALWAYS check ref_commanders or use mtg_commander_deck to verify before making claims about commander legality.
+   
 3. When the user asks for commanders of a specific colour, ONLY suggest commanders whose colour identity is EXACTLY that colour. "Most popular BLUE commanders" means mono-blue identity (U only). Do NOT include multicolour cards that happen to contain blue.
 4. RESPECT THE NUMBER REQUESTED. If the user asks for "the three most popular", give EXACTLY three. Not four. Not five. Three.
-5. Use the mtg_commander_recommend tool to verify suggestions against EDHREC data when available. If the tool fails, state clearly "I couldn't verify against EDHREC" and proceed with your best knowledge.
-6. ALWAYS wrap Magic card names in [[double brackets]] like [[Sol Ring]]. This is MANDATORY — the UI uses these brackets to render card hover previews and to place commander options on the canvas. A card mentioned without [[brackets]] is invisible to the UI. Do NOT bracket non-card terms.
+5. Use the mtg_commander_deck tool to verify suggestions against the database when available. If the tool fails, state clearly "I couldn't verify against the database" and proceed with your best knowledge.
+6. ALWAYS wrap Magic card names in [[double brackets]] like [[Sol Ring]]. This is MANDATORY — the UI uses these brackets to render card hover previews and crown buttons. A card mentioned without [[brackets]] is INVISIBLE to the UI and CANNOT be selected by the user.
+   - EVERY card name MUST be bracketed: [[Alela, Cunning Conqueror]], [[Tegwyll, Duke of Splendor]], [[Sol Ring]]
+   - This applies whether you're recommending, discussing, comparing, or mentioning cards in passing
+   - Do NOT bracket non-card terms like creature types, keywords, or deck archetypes
 7. When listing commander recommendations, ALWAYS use this format:
    1. [[Commander Name]] — brief description
    The [[brackets]] around the name are what makes the card appear on the canvas. Without them, the user sees nothing.
@@ -74,18 +87,35 @@ You MUST call these tools BEFORE responding. Do NOT answer from memory when a to
 
 WHEN THE USER ASKS ABOUT POPULAR/TOP/BEST COMMANDERS OR CARDS:
 → CALL mtg_top_commanders with the colour identity to get ranked list from the database
-→ CALL mtg_commander_recommend with a specific commander name to get staple cards for that commander
-→ DO NOT say "based on community data I know" — that means you DIDN'T call the tool
+→ Then mention each commander you recommend using [[Commander Name]] brackets
+→ The user will see hover previews and can click crown icons to select
+
+WHEN YOU RECOMMEND OR DISCUSS COMMANDERS:
+→ ALWAYS use [[Commander Name]] brackets when mentioning commander names — no exceptions
+→ This applies to recommendations, comparisons, casual mentions, and discussions
+→ Example: "[[Alela, Cunning Conqueror]] is more controlly while [[Tegwyll, Duke of Splendor]] is aggro"
+→ The user clicks the crown icon next to a commander name to select it
+→ Limit to 2-4 commanders per response to avoid overwhelming the user
+
+PARTNER COMMANDERS:
+→ When recommending a partner pair, format them as: [[Name1]] & [[Name2]]
+→ Example: "[[Thrasios, Triton Hero]] & [[Tymna the Weaver]] for value-focused builds"
+→ The UI will display them as a single hoverable unit showing both cards
+→ Clicking the crown icon on a partner pair commits BOTH commanders together
+→ Partner commanders must have the "Partner" keyword (or specific "Partner with X" text)
+→ You can suggest a single partner as an option, but mention they need a second partner to be complete
 
 WHEN THE USER MENTIONS A CARD YOU DON'T RECOGNIZE:
 → CALL card_fuzzy_lookup to resolve the name — new cards exist beyond your training data
 → DO NOT say "I don't know that card" without trying the lookup first
 → If the user says "build around X", ALWAYS look up X first to confirm it exists and check its type
 
-WHEN YOU SUGGEST A COMMANDER:
-→ CALL mtg_commander_deck to verify it exists and is legal
-→ CALL display_commander_candidates with the commanders you're recommending — this is what makes them appear on the canvas
-→ DO NOT present unverified commanders
+WHEN THE USER ASKS ABOUT COMMANDERS FROM RECENT SETS OR FRANCHISES YOU DON'T KNOW:
+→ CALL search_commanders with a keyword (e.g., "Spider", "Iron Man", "Marvel", "Hearthhull")
+→ This searches the LIVE database which includes ALL recent releases (Marvel, Edge of Eternities, etc.)
+→ Your training data does NOT include sets released after your cutoff — ALWAYS use search_commanders for unfamiliar names
+→ Example: User asks "Can I build Spider-Man as a commander?" → call search_commanders with keyword "Spider"
+→ Example: User asks "What Marvel commanders exist?" → call search_commanders with keyword "Marvel" or specific hero names
 
 WHEN THE USER MENTIONS A CARD BY NICKNAME OR MISSPELLING:
 → CALL card_fuzzy_lookup to resolve the approximate name to the exact card
@@ -94,18 +124,16 @@ WHEN THE USER MENTIONS A CARD BY NICKNAME OR MISSPELLING:
 WHEN THE USER ASKS ABOUT COMBOS:
 → CALL mtg_combos_search with the card name
 
-WHEN YOU SUGGEST SPECIFIC CARDS:
-→ CALL collection_lookup to check if the user owns them
+WHEN YOU SUGGEST SPECIFIC CARDS (not commanders):
+→ MUST CALL collection_lookup FIRST to check if the user owns them
+→ Batch all card names into a single call: { "card_names": ["Card A", "Card B", "Card C"] }
+→ WAIT for the tool result before writing your suggestions
+→ Use [[Card Name]] brackets so they get hover previews
+→ Incorporate ownership info: "[[Sol Ring]] — you own this" or "[[Rhystic Study]] — not in your collection (~$35)"
 
 IF A TOOL CALL FAILS:
 → State clearly: "The [tool name] tool failed, so I'm using my training knowledge which may be outdated."
 → Never pretend you have live data when you don't.
-
-WHEN LISTING COMMANDER OPTIONS FOR THE USER TO CHOOSE FROM:
-→ ALWAYS call display_commander_candidates with the list of commander names
-→ This is what makes cards appear visually on the canvas with "Commit" buttons
-→ Without this tool call, commanders are INVISIBLE on the canvas — the user cannot commit
-→ Call it ONCE per response with ALL commanders you're recommending in that message
 
 === CONVERSATION STYLE ===
 
@@ -115,11 +143,8 @@ WHEN LISTING COMMANDER OPTIONS FOR THE USER TO CHOOSE FROM:
 - You may discuss multiple commanders as options — the user will commit when ready.
 - Keep the conversation flowing naturally. Don't force structure or extraction.`
 
-// ---------------------------------------------------------------------------
-// Building Phase System Prompt
-// ---------------------------------------------------------------------------
-
-const BUILDING_SYSTEM_PROMPT = `You are Oracle — a peer-level deckbuilding collaborator for Commander (EDH). The user has committed a commander and is now in the deck-building phase.
+// Static parts of the building prompt (player context injected dynamically)
+const BUILDING_PROMPT_TEMPLATE = `You are Oracle — a peer-level deckbuilding collaborator for Commander (EDH). The user has committed a commander and is now in the deck-building phase.
 
 === YOUR ROLE ===
 
@@ -146,6 +171,43 @@ When suggesting cards, ALWAYS use this format:
 
 If you list cards without [[brackets]], the user cannot add them. Every card name MUST be bracketed.
 
+=== COLOUR IDENTITY VALIDATION (CRITICAL) ===
+
+BEFORE suggesting ANY card, mentally verify its colour identity fits the commander's identity.
+- The commander's colour identity defines what cards are legal in the deck
+- A card's colour identity includes: mana cost colours, colour indicators, and mana symbols in rules text
+- Example: [[Assassin's Trophy]] is BG (Black/Green) — it is ILLEGAL in Rakdos (BR) decks even though it's black removal
+- Example: [[Witherbloom Command]] is BG — illegal in Golgari-less decks
+- Example: [[Kolaghan's Command]] is BR — legal in Rakdos, Jund, Mardu, etc.
+
+WHEN YOU'RE UNSURE ABOUT A CARD'S COLOUR IDENTITY:
+→ Use scryfall_search to verify: q=!"Card Name" returns the card with its colour identity
+→ Do NOT guess — verify before suggesting
+
+IF YOU REALIZE YOU SUGGESTED AN ILLEGAL CARD:
+→ Immediately correct yourself: "Actually, [[Card Name]] has G in its identity — that's not legal here. Try [[Alternative]] instead."
+
+This is a hard Commander rule (Rule 903.4). Suggesting illegal cards wastes the user's time.
+
+=== MANDATORY: CHECK COLLECTION BEFORE SUGGESTING ===
+
+CRITICAL: You MUST call the collection_lookup tool BEFORE suggesting specific cards.
+
+WORKFLOW FOR CARD SUGGESTIONS:
+1. Decide which cards you want to suggest
+2. CALL collection_lookup with ALL the card names: { "card_names": ["Card A", "Card B", "Card C"] }
+3. WAIT for the tool result
+4. Write your suggestions, incorporating the ownership data from the result
+
+DO NOT skip step 2. If you suggest cards without calling collection_lookup first, you are guessing about what the user owns. The tool exists — use it.
+
+Example workflow:
+- User asks "what removal should I add?"
+- You think of Swords to Plowshares, Path to Exile, Generous Gift
+- CALL: collection_lookup with card_names: ["Swords to Plowshares", "Path to Exile", "Generous Gift"]
+- Tool returns: Swords owned (1 copy), Path not owned, Generous Gift owned (in Korvold deck)
+- THEN respond: "For removal, [[Swords to Plowshares]] is your best option — you have a copy available. [[Generous Gift]] is versatile but it's in your Korvold deck, so you'd need to pull it or proxy. [[Path to Exile]] is excellent but you'd need to acquire it (~$3)."
+
 === ADDING CARDS ===
 
 You have two ways to add cards to the deck:
@@ -161,11 +223,9 @@ WHEN SUGGESTING CARDS FOR CONSIDERATION (user hasn't confirmed yet):
 
 Categories to use: Ramp, Draw, Removal, Protection, Finisher, Combo, Recursion, Tutor, Tribal, Tokens, Sac Outlet, Evasion, Utility, Lands
 
-=== PLAYER CONTEXT ===
+{{PLAYER_CONTEXT}}
 
-- Playgroup bracket: 3-4. Casual-competitive. No infinite combos. No stax. No MLD.
-- Player loves: engine-based strategies, redundancy, fun/flavour alongside viability.
-- Budget: ~2,700 card collection. Prefers building from owned cards. Show both premium and budget options.
+{{COLLECTION_MODE}}
 
 === CONVERSATION STYLE ===
 
@@ -174,6 +234,51 @@ Categories to use: Ramp, Draw, Removal, Protection, Finisher, Combo, Recursion, 
 - When suggesting additions, explain the SYNERGY (how it interacts with the commander/strategy).
 - Push back if the deck is unbalanced (too few lands, no interaction, too many high-CMC cards).
 - Reference the user's collection when possible (use collection_lookup tool).`
+
+/**
+ * Build the exploration system prompt with user-specific player context.
+ */
+function buildExplorationPrompt(playerContext: string): string {
+  return EXPLORATION_PROMPT_TEMPLATE.replace('{{PLAYER_CONTEXT}}', playerContext)
+}
+
+/**
+ * Build the building system prompt with user-specific player context and collection mode.
+ */
+function buildBuildingPrompt(playerContext: string, collectionMode: 'any' | 'prioritise_owned' | 'owned_only' = 'any'): string {
+  let collectionContext = ''
+  
+  if (collectionMode === 'owned_only') {
+    collectionContext = `
+=== COLLECTION MODE: OWNED ONLY ===
+
+IMPORTANT: The user has selected "Owned Only" mode. You MUST only suggest cards they already own.
+- Use the collection_lookup tool to verify ownership before suggesting any card
+- Do NOT suggest cards they don't own, even if they would be perfect for the deck
+- If the user's collection is thin in a category, suggest they consider acquiring cards rather than suggesting unowned cards
+- State clearly when the collection limits options: "Your collection has limited options for X, but [[Card A]] and [[Card B]] work"`
+  } else if (collectionMode === 'prioritise_owned') {
+    collectionContext = `
+=== COLLECTION MODE: PRIORITISE OWNED ===
+
+The user prefers cards they already own, but will consider key pieces they don't have.
+- Check the collection_lookup tool and prefer owned cards when quality is comparable
+- Only suggest unowned cards for key synergy pieces or cards that are clearly superior
+- When suggesting an unowned card, note it: "[[Card Name]] (not in your collection, but worth considering)"
+- Batch similar suggestions: owned cards first, then "cards to consider acquiring" separately`
+  } else {
+    collectionContext = `
+=== COLLECTION MODE: ANY CARD ===
+
+Suggest the best cards regardless of ownership. The user is brewing aspirationally.
+- Recommend the ideal cards for the strategy
+- You may still note ownership status when relevant (e.g., "You already own [[Sol Ring]]")`
+  }
+  
+  return BUILDING_PROMPT_TEMPLATE
+    .replace('{{PLAYER_CONTEXT}}', playerContext)
+    .replace('{{COLLECTION_MODE}}', collectionContext)
+}
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -270,8 +375,15 @@ export async function POST(request: NextRequest): Promise<Response> {
       // Non-critical — session update failure shouldn't block the chat
     }
 
-    // Select system prompt based on session phase
-    const phasePrompt = sessionStatus === 'building' ? BUILDING_SYSTEM_PROMPT : EXPLORATION_SYSTEM_PROMPT
+    // --- Fetch user preferences for player context ---
+    const userPrefs = await getUserPreferences(authResult.id)
+    const playerContext = formatPlayerContextPrompt(userPrefs)
+
+    // Select system prompt based on session phase (with dynamic player context)
+    const collectionMode = body.collectionMode || 'any'
+    const phasePrompt = sessionStatus === 'building' 
+      ? buildBuildingPrompt(playerContext, collectionMode) 
+      : buildExplorationPrompt(playerContext)
 
     // --- Build messages array ---
     const apiMessages = [
@@ -289,61 +401,22 @@ export async function POST(request: NextRequest): Promise<Response> {
       async start(controller) {
         try {
           // Callback to emit tool_status SSE events during tool execution
-          // Also tracks whether display_commander_candidates was called
-          let candidatesEmitted = false
+          // NOTE: candidates events are NO LONGER auto-emitted to canvas.
+          // With the new UX, cards only appear on canvas when user explicitly
+          // clicks the crown button or commits via the detail modal.
           const onToolEvent = (event: ToolStreamEvent) => {
-            if (event.type === 'candidates') candidatesEmitted = true
+            // Skip candidates events — canvas is populated by explicit user action now
+            if (event.type === 'candidates') {
+              console.log('[brew/chat] Skipping candidates SSE event (new UX: user must click crown to commit)')
+              return
+            }
             const sseData = JSON.stringify(event)
             controller.enqueue(encoder.encode(`data: ${sseData}\n\n`))
           }
 
-          // --- Pre-resolve: detect commander names in user message ---
-          // If the user says "build around X" or "I want X as my commander",
-          // resolve X from the database immediately and emit as candidate.
-          // This is model-independent — works regardless of AI formatting.
-          if (sessionStatus !== 'building') {
-            const userMsg = message.trim().toLowerCase()
-            const commanderPatterns = [
-              /(?:build around|brew|use|try|play)\s+(.+?)(?:\s+as\s+(?:my\s+)?commander)?$/i,
-              /(?:commander|build)\s*(?:with|around|:)?\s+(.+)/i,
-              /^(.+?)(?:\s+commander|\s+deck|\s+brew)$/i,
-            ]
-
-            let candidateName: string | null = null
-            for (const pattern of commanderPatterns) {
-              const match = message.trim().match(pattern)
-              if (match) {
-                candidateName = match[1].trim().replace(/^["']|["']$/g, '')
-                break
-              }
-            }
-
-            if (candidateName && candidateName.length > 2) {
-              try {
-                // Try exact/partial match in card_definitions
-                const { data: matches } = await supabase
-                  .from('card_definitions')
-                  .select('card_name, color_identity')
-                  .ilike('card_name', `%${candidateName}%`)
-                  .limit(5)
-
-                if (matches && matches.length > 0) {
-                  console.log('[brew/chat] Pre-resolved commander from user message:', matches.map(m => m.card_name))
-                  const preEvent = {
-                    type: 'candidates',
-                    commanders: matches.map(m => ({
-                      name: m.card_name,
-                      color_identity: m.color_identity?.split(',') ?? [],
-                    })),
-                  }
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify(preEvent)}\n\n`))
-                  candidatesEmitted = true
-                }
-              } catch {
-                // Non-critical — model will handle it
-              }
-            }
-          }
+          // NOTE: Pre-resolve disabled — candidates no longer auto-added to canvas
+          // The new UX shows crown buttons next to card names in chat instead.
+          // User clicks crown → commander is committed → card appears on canvas.
 
           // Run the tool execution loop with the resolved adapter
           const toolLoopOptions: ToolLoopOptions = {
@@ -353,6 +426,7 @@ export async function POST(request: NextRequest): Promise<Response> {
             messages: apiMessages,
             maxTokens: 4096,
             onToolEvent,
+            userId: authResult.id,
           }
 
           const finalResponse = await runToolLoop(toolLoopOptions)
@@ -374,69 +448,10 @@ export async function POST(request: NextRequest): Promise<Response> {
             encoder.encode(`data: ${JSON.stringify({ type: 'cost', inputTokens, outputTokens, estimatedCost })}\n\n`)
           )
 
-          // --- Fallback: extract commander candidates if display tool wasn't called ---
-          // If the model recommended commanders but didn't call display_commander_candidates,
-          // extract them server-side from [[brackets]] in the response text.
-          if (!candidatesEmitted && fullText.includes('[[')) {
-            console.log('[brew/chat] display_commander_candidates NOT called — running fallback extraction')
-            const bracketMatches = [...fullText.matchAll(/\[\[([^\]]+)\]\]/g)]
-            console.log('[brew/chat] Fallback: found', bracketMatches.length, 'bracket matches in response')
-            if (bracketMatches.length > 0) {
-              // Extract ALL unique card names mentioned in [[brackets]]
-              const seen = new Set<string>()
-              const commanderNames: string[] = []
-
-              for (const match of bracketMatches) {
-                const name = match[1]
-                if (seen.has(name)) continue
-                seen.add(name)
-                commanderNames.push(name)
-              }
-
-              console.log('[brew/chat] Fallback: extracted', commanderNames.length, 'unique card names:', commanderNames)
-
-              // Filter to only legendary creatures (valid commanders) using Supabase
-              if (commanderNames.length > 0) {
-                try {
-                  const { data: validCommanders } = await supabase
-                    .from('mtg_cards' as any)
-                    .select('name')
-                    .in('name', commanderNames)
-                    .eq('is_legendary', true)
-                    .eq('is_creature', true)
-                    .eq('commander_legal', true)
-
-                  const confirmedNames = validCommanders?.map(c => c.name) ?? []
-                  console.log('[brew/chat] Fallback: confirmed', confirmedNames.length, 'valid commanders:', confirmedNames)
-
-                  if (confirmedNames.length > 0) {
-                    const fallbackEvent = {
-                      type: 'candidates',
-                      commanders: confirmedNames.map(name => ({ name })),
-                    }
-                    controller.enqueue(
-                      encoder.encode(`data: ${JSON.stringify(fallbackEvent)}\n\n`)
-                    )
-                    console.log('[brew/chat] Fallback: emitted candidates SSE event')
-                  }
-                } catch (dbErr) {
-                  // DB validation failed — emit all bracketed names as candidates
-                  console.warn('[brew/chat] Fallback: DB validation failed, emitting all bracket matches:', dbErr)
-                  const fallbackEvent = {
-                    type: 'candidates',
-                    commanders: commanderNames.slice(0, 10).map(name => ({ name })),
-                  }
-                  controller.enqueue(
-                    encoder.encode(`data: ${JSON.stringify(fallbackEvent)}\n\n`)
-                  )
-                }
-              }
-            }
-          } else if (candidatesEmitted) {
-            console.log('[brew/chat] display_commander_candidates tool was called — candidates already emitted')
-          } else {
-            console.log('[brew/chat] No [[ brackets found in response — no candidates to extract')
-          }
+          // NOTE: Fallback bracket extraction disabled.
+          // With the new UX, candidates are NOT auto-added to canvas.
+          // Users click crown buttons next to card names in chat to commit commanders.
+          // This gives users explicit control over what appears on the canvas.
 
           // --- Inline decision extraction (avoids second API call blocking issue) ---
           // Run Haiku extraction server-side and emit results in the same stream.

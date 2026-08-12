@@ -19,7 +19,7 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, ChevronRight, Tags, MoreVertical, Trash2, GripVertical } from 'lucide-react'
+import { ChevronDown, ChevronRight, Tags, MoreVertical, Trash2, GripVertical, Sparkles, Check, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog'
@@ -399,6 +399,8 @@ function UnifiedCardRow({
         cardName={card.card_name}
         quantity={card.quantity || 1}
         maxCopies={maxCopies}
+        currentCategories={card.categories}
+        onCategoryChange={onCategoryChange}
       />
 
       {/* Right-click context menu */}
@@ -587,9 +589,30 @@ function GenericLandRow({ landName, count, deckId, cardIds }: { landName: string
 // CardRowKebab — hover-revealed menu with Remove action
 // ---------------------------------------------------------------------------
 
-function CardRowKebab({ deckCardsId, deckId, cardName, quantity = 1, maxCopies = 1 }: { deckCardsId: number; deckId: number; cardName: string; quantity?: number; maxCopies?: number | null }) {
+interface CardRowKebabProps {
+  deckCardsId: number
+  deckId: number
+  cardName: string
+  quantity?: number
+  maxCopies?: number | null
+  /** Current categories (JSON string from DeckCard) for pre-populating suggestions */
+  currentCategories?: string
+  /** Callback when categories are updated via suggestion */
+  onCategoryChange?: (cardId: number, categories: StructuredCategories) => void
+}
+
+function CardRowKebab({
+  deckCardsId,
+  deckId,
+  cardName,
+  quantity = 1,
+  maxCopies = 1,
+  currentCategories,
+  onCategoryChange,
+}: CardRowKebabProps) {
   const [open, setOpen] = useState(false)
   const [printingPickerOpen, setPrintingPickerOpen] = useState(false)
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false)
   const [optimisticQty, setOptimisticQty] = useState(quantity)
   const queryClient = useQueryClient()
   const allowMultiple = maxCopies === null || maxCopies > 1
@@ -665,6 +688,11 @@ function CardRowKebab({ deckCardsId, deckId, cardName, quantity = 1, maxCopies =
     removeCopyMutation.mutate()
   }
 
+  const handleSuggestCategory = () => {
+    setOpen(false)
+    setSuggestionsOpen(true)
+  }
+
   return (
     <div className="relative shrink-0">
       <button
@@ -678,7 +706,7 @@ function CardRowKebab({ deckCardsId, deckId, cardName, quantity = 1, maxCopies =
       </button>
       {open && (
         <div
-          className="absolute right-0 top-7 z-20 min-w-[140px] rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-1 shadow-lg"
+          className="absolute right-0 top-7 z-20 min-w-[160px] rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-1 shadow-lg"
           onMouseLeave={() => setOpen(false)}
         >
           {/* Qty adjuster — shown for non-singleton formats */}
@@ -704,6 +732,17 @@ function CardRowKebab({ deckCardsId, deckId, cardName, quantity = 1, maxCopies =
               </button>
             </div>
           )}
+          {/* Suggest Category — only show if callback provided */}
+          {onCategoryChange && (
+            <button
+              type="button"
+              onClick={handleSuggestCategory}
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-[length:var(--fs-xs)] text-foreground transition-colors hover:bg-white/[0.05]"
+            >
+              <Sparkles className="size-3" />
+              Suggest category
+            </button>
+          )}
           <button
             type="button"
             onClick={() => { setPrintingPickerOpen(true); setOpen(false) }}
@@ -724,6 +763,22 @@ function CardRowKebab({ deckCardsId, deckId, cardName, quantity = 1, maxCopies =
           </button>
         </div>
       )}
+
+      {/* Category Suggestions Dialog */}
+      <CategorySuggestionsDialog
+        open={suggestionsOpen}
+        cardName={cardName}
+        deckCardsId={deckCardsId}
+        deckId={deckId}
+        currentCategories={currentCategories}
+        onApply={(categories) => {
+          if (onCategoryChange) {
+            onCategoryChange(deckCardsId, categories)
+          }
+          setSuggestionsOpen(false)
+        }}
+        onClose={() => setSuggestionsOpen(false)}
+      />
 
       {/* Printing Picker Modal */}
       <PrintingPickerWithOwned
@@ -1013,5 +1068,231 @@ function SpecificLandRow({
         </div>
       </div>
     </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// CategorySuggestionsDialog — fetches and displays category suggestions
+// ---------------------------------------------------------------------------
+
+interface CategorySuggestion {
+  category: string
+  confidence: 'high' | 'medium' | 'low'
+  source: 'tag' | 'archetype' | 'theme'
+  sourceValue: string
+}
+
+interface CategorySuggestionsDialogProps {
+  open: boolean
+  cardName: string
+  deckCardsId: number
+  deckId: number
+  currentCategories?: string
+  onApply: (categories: StructuredCategories) => void
+  onClose: () => void
+}
+
+function CategorySuggestionsDialog({
+  open,
+  cardName,
+  deckCardsId,
+  deckId,
+  currentCategories,
+  onApply,
+  onClose,
+}: CategorySuggestionsDialogProps) {
+  const [selectedPrimary, setSelectedPrimary] = useState<string | null>(null)
+  const [selectedSecondary, setSelectedSecondary] = useState<string[]>([])
+
+  // Parse current categories to show what's already set
+  const parsed = useMemo(() => parseCategoriesCapped(currentCategories || '[]'), [currentCategories])
+
+  // Fetch suggestions from API
+  const { data, isLoading, error } = useQuery<{
+    cardName: string
+    suggestions: CategorySuggestion[]
+    tags: string[]
+  }>({
+    queryKey: ['category-suggestions', cardName],
+    queryFn: async () => {
+      const res = await fetch(`/api/cards/suggest-categories?cardName=${encodeURIComponent(cardName)}`)
+      if (!res.ok) throw new Error('Failed to fetch suggestions')
+      return res.json()
+    },
+    enabled: open,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  })
+
+  // Reset selections when dialog opens
+  useMemo(() => {
+    if (open && data?.suggestions) {
+      // Pre-select the highest confidence primary suggestion
+      const primary = data.suggestions.find(s => s.confidence === 'high')?.category || data.suggestions[0]?.category || null
+      setSelectedPrimary(primary)
+      setSelectedSecondary([])
+    }
+  }, [open, data])
+
+  const handleApply = () => {
+    if (!selectedPrimary) return
+    onApply({
+      primary_category: selectedPrimary,
+      additional_categories: selectedSecondary.slice(0, 2), // Max 2 secondary
+    })
+  }
+
+  const toggleSecondary = (category: string) => {
+    if (category === selectedPrimary) return // Can't add primary as secondary
+    setSelectedSecondary(prev => {
+      if (prev.includes(category)) {
+        return prev.filter(c => c !== category)
+      }
+      if (prev.length >= 2) {
+        return [...prev.slice(1), category] // Replace oldest
+      }
+      return [...prev, category]
+    })
+  }
+
+  const confidenceColors = {
+    high: 'text-emerald-500 bg-emerald-500/10',
+    medium: 'text-amber-500 bg-amber-500/10',
+    low: 'text-muted-foreground bg-white/5',
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-[400px]" showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Sparkles className="size-4 text-amber-400" />
+            Category Suggestions
+          </DialogTitle>
+          <DialogDescription>
+            Suggestions for <strong>{cardName}</strong> based on Scryfall tags.
+            {parsed.primary_category && (
+              <span className="block mt-1 text-muted-foreground">
+                Current: {parsed.primary_category}
+                {parsed.additional_categories.length > 0 && ` + ${parsed.additional_categories.join(', ')}`}
+              </span>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="py-4">
+          {isLoading && (
+            <div className="flex items-center justify-center py-8 text-muted-foreground">
+              <span className="animate-pulse">Loading suggestions...</span>
+            </div>
+          )}
+
+          {error && (
+            <div className="flex items-center gap-2 py-4 text-amber-500">
+              <AlertCircle className="size-4" />
+              <span>No tags found for this card</span>
+            </div>
+          )}
+
+          {data && data.suggestions.length === 0 && (
+            <div className="flex items-center gap-2 py-4 text-muted-foreground">
+              <AlertCircle className="size-4" />
+              <span>No category suggestions available</span>
+            </div>
+          )}
+
+          {data && data.suggestions.length > 0 && (
+            <div className="space-y-3">
+              {/* Primary category selection */}
+              <div>
+                <label className="text-[length:var(--fs-xs)] font-medium text-muted-foreground uppercase tracking-wide">
+                  Primary Category
+                </label>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {data.suggestions.slice(0, 6).map((suggestion) => (
+                    <button
+                      key={suggestion.category}
+                      type="button"
+                      onClick={() => {
+                        setSelectedPrimary(suggestion.category)
+                        // Remove from secondary if it was there
+                        setSelectedSecondary(prev => prev.filter(c => c !== suggestion.category))
+                      }}
+                      className={`
+                        inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[length:var(--fs-xs)] font-medium
+                        transition-all border
+                        ${selectedPrimary === suggestion.category
+                          ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
+                          : 'border-[var(--border-default)] hover:border-[var(--border-subtle)] hover:bg-white/5'
+                        }
+                      `}
+                    >
+                      {selectedPrimary === suggestion.category && <Check className="size-3" />}
+                      {suggestion.category}
+                      <span className={`ml-1 rounded px-1 py-0.5 text-[10px] ${confidenceColors[suggestion.confidence]}`}>
+                        {suggestion.confidence}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Secondary categories */}
+              {data.suggestions.length > 1 && (
+                <div>
+                  <label className="text-[length:var(--fs-xs)] font-medium text-muted-foreground uppercase tracking-wide">
+                    Secondary (up to 2)
+                  </label>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {data.suggestions
+                      .filter(s => s.category !== selectedPrimary)
+                      .slice(0, 8)
+                      .map((suggestion) => (
+                        <button
+                          key={suggestion.category}
+                          type="button"
+                          onClick={() => toggleSecondary(suggestion.category)}
+                          className={`
+                            inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[length:var(--fs-xs)] font-medium
+                            transition-all border
+                            ${selectedSecondary.includes(suggestion.category)
+                              ? 'border-[var(--accent-secondary)] bg-[var(--accent-secondary)]/10 text-[var(--accent-secondary)]'
+                              : 'border-[var(--border-default)] hover:border-[var(--border-subtle)] hover:bg-white/5'
+                            }
+                          `}
+                        >
+                          {selectedSecondary.includes(suggestion.category) && <Check className="size-3" />}
+                          {suggestion.category}
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Source tags for context */}
+              {data.tags.length > 0 && (
+                <div className="pt-2 border-t border-[var(--border-subtle)]">
+                  <label className="text-[length:var(--fs-xs)] text-muted-foreground">
+                    Based on tags: {data.tags.slice(0, 5).join(', ')}
+                    {data.tags.length > 5 && ` +${data.tags.length - 5} more`}
+                  </label>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" />}>
+            Cancel
+          </DialogClose>
+          <Button
+            onClick={handleApply}
+            disabled={!selectedPrimary || isLoading}
+          >
+            Apply
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, useRef, useMemo, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -24,7 +24,7 @@ interface PageHeaderContextValue {
 const PageHeaderContext = createContext<PageHeaderContextValue | null>(null)
 
 // ---------------------------------------------------------------------------
-// Provider - uses a stable callback to prevent loops
+// Provider
 // ---------------------------------------------------------------------------
 
 interface PageHeaderProviderProps {
@@ -33,28 +33,9 @@ interface PageHeaderProviderProps {
 
 export function PageHeaderProvider({ children }: PageHeaderProviderProps) {
   const [config, setConfig] = useState<PageHeaderConfig | null>(null)
-  
-  // Use a ref to track the latest config without causing re-renders
-  const configRef = useRef<PageHeaderConfig | null>(null)
-  
-  // Stable setConfig that batches updates
-  const stableSetConfig = useMemo(() => {
-    let pending = false
-    return (newConfig: PageHeaderConfig | null) => {
-      configRef.current = newConfig
-      if (!pending) {
-        pending = true
-        // Batch updates to avoid render loops
-        queueMicrotask(() => {
-          pending = false
-          setConfig(configRef.current)
-        })
-      }
-    }
-  }, [])
 
   return (
-    <PageHeaderContext.Provider value={{ config, setConfig: stableSetConfig }}>
+    <PageHeaderContext.Provider value={{ config, setConfig }}>
       {children}
     </PageHeaderContext.Provider>
   )
@@ -79,17 +60,22 @@ export function usePageHeaderContext(): PageHeaderContextValue {
 /**
  * Sets the page header config. Call this in your page component.
  * 
- * The hook handles dynamic subtitles and actions that change over time
- * (e.g., loading states, async data). Updates are batched to prevent
- * infinite render loops even when inline JSX creates new objects each render.
+ * The config is set via useEffect to avoid render-phase state updates.
+ * We track the title to determine when to update, since subtitle/actions
+ * may be new objects on every render.
  */
 export function usePageHeader(config: PageHeaderConfig): void {
   const { setConfig } = usePageHeaderContext()
+  const configRef = useRef(config)
   
-  // Set config on every render - the provider batches updates
-  // This allows dynamic content to update properly
-  setConfig(config)
-  
+  // Always keep ref in sync
+  configRef.current = config
+
+  // Set header on mount and when title changes
+  useEffect(() => {
+    setConfig(configRef.current)
+  }, [config.title, setConfig])
+
   // Clear on unmount
   useEffect(() => {
     return () => setConfig(null)

@@ -5,16 +5,15 @@ import { PageHeader } from '@/components/PageHeader'
 
 interface MainContentWrapperProps {
   children: React.ReactNode
+  sidebar?: React.ReactNode
 }
 
-export function MainContentWrapper({ children }: MainContentWrapperProps) {
+export function MainContentWrapper({ children, sidebar }: MainContentWrapperProps) {
   const { config } = usePageHeaderContext()
 
   return (
-    <main
-      id="main-content"
-      className="flex flex-1 flex-col overflow-hidden pb-[env(safe-area-inset-bottom)]"
-    >
+    <div className="flex flex-1 flex-col overflow-hidden">
+      {/* PageHeader renders at the top, above both content and sidebar */}
       {config && (
         <PageHeader
           title={config.title}
@@ -22,7 +21,16 @@ export function MainContentWrapper({ children }: MainContentWrapperProps) {
           actions={config.actions}
         />
       )}
-      {children}
-    </main>
+      {/* Content area with sidebar — flex row */}
+      <div className="flex flex-1 overflow-hidden">
+        <main
+          id="main-content"
+          className="flex flex-1 flex-col overflow-hidden pb-[env(safe-area-inset-bottom)]"
+        >
+          {children}
+        </main>
+        {sidebar}
+      </div>
+    </div>
   )
 }

@@ -59,13 +59,10 @@ export default function RootLayout({
             Skip to main content
           </a>
           <TopNav />
-          {/* Content area with sidebar — flex row, main shrinks when sidebar open */}
-          <div className="flex flex-1 overflow-hidden">
-            <MainContentWrapper>
-              {children}
-            </MainContentWrapper>
-            <OracleSidebar />
-          </div>
+          {/* MainContentWrapper renders PageHeader + content area with sidebar */}
+          <MainContentWrapper sidebar={<OracleSidebar />}>
+            {children}
+          </MainContentWrapper>
           <SmartSearch />
           <CardLocator />
           <Toaster />

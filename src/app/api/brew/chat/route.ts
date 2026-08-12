@@ -143,8 +143,14 @@ IF A TOOL CALL FAILS:
 - You may discuss multiple commanders as options — the user will commit when ready.
 - Keep the conversation flowing naturally. Don't force structure or extraction.`
 
-// Static parts of the building prompt (player context injected dynamically)
+// Static parts of the building prompt (player context and commander injected dynamically)
 const BUILDING_PROMPT_TEMPLATE = `You are Oracle — a peer-level deckbuilding collaborator for Commander (EDH). The user has committed a commander and is now in the deck-building phase.
+
+=== CURRENT COMMANDER ===
+
+{{COMMANDER_NAME}}
+
+This is the committed commander for this session. All card suggestions must fit within this commander's colour identity. Reference this commander by name when discussing synergies.
 
 === YOUR ROLE ===
 
@@ -243,9 +249,13 @@ function buildExplorationPrompt(playerContext: string): string {
 }
 
 /**
- * Build the building system prompt with user-specific player context and collection mode.
+ * Build the building system prompt with user-specific player context, collection mode, and commander name.
  */
-function buildBuildingPrompt(playerContext: string, collectionMode: 'any' | 'prioritise_owned' | 'owned_only' = 'any'): string {
+function buildBuildingPrompt(
+  playerContext: string,
+  commanderName: string | null,
+  collectionMode: 'any' | 'prioritise_owned' | 'owned_only' = 'any'
+): string {
   let collectionContext = ''
   
   if (collectionMode === 'owned_only') {
@@ -274,10 +284,16 @@ Suggest the best cards regardless of ownership. The user is brewing aspirational
 - Recommend the ideal cards for the strategy
 - You may still note ownership status when relevant (e.g., "You already own [[Sol Ring]]")`
   }
+
+  // Format commander section
+  const commanderSection = commanderName
+    ? `Commander: [[${commanderName}]]`
+    : 'Commander: Unknown (check conversation history)'
   
   return BUILDING_PROMPT_TEMPLATE
     .replace('{{PLAYER_CONTEXT}}', playerContext)
     .replace('{{COLLECTION_MODE}}', collectionContext)
+    .replace('{{COMMANDER_NAME}}', commanderSection)
 }
 
 // ---------------------------------------------------------------------------
@@ -356,16 +372,18 @@ export async function POST(request: NextRequest): Promise<Response> {
       throw err
     }
 
-    // --- Persist model_id to session ---
+    // --- Persist model_id to session and fetch commander ---
     const supabase = createAdminClient()
     let sessionStatus = 'exploring'
+    let commanderName: string | null = null
     try {
       const { data: sessionRow } = await supabase
         .from('brew_sessions')
-        .select('status')
+        .select('status, commander_name')
         .eq('id', sessionId)
         .single()
       if (sessionRow?.status) sessionStatus = sessionRow.status
+      if (sessionRow?.commander_name) commanderName = sessionRow.commander_name
 
       await supabase
         .from('brew_sessions')
@@ -382,7 +400,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     // Select system prompt based on session phase (with dynamic player context)
     const collectionMode = body.collectionMode || 'any'
     const phasePrompt = sessionStatus === 'building' 
-      ? buildBuildingPrompt(playerContext, collectionMode) 
+      ? buildBuildingPrompt(playerContext, commanderName, collectionMode) 
       : buildExplorationPrompt(playerContext)
 
     // --- Build messages array ---

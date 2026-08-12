@@ -5,6 +5,15 @@ import { useQuery } from '@tanstack/react-query'
 import type { DeckCard } from '@/components/CardGrid'
 import { getDeckSizeLabel, getFormatConfig } from '@/lib/format-config'
 import type { DeckRatingsContent } from '@/lib/rating-engine'
+import {
+  parseManaCost,
+  calculateCMC,
+  analyzeColorRequirements,
+  calculateLandRecommendations,
+  countLandSources,
+  type ColorRequirements,
+  type LandRecommendation,
+} from '@/lib/mana-analysis'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -50,18 +59,36 @@ function isLand(card: DeckCard): boolean {
 }
 
 /**
- * Compute mana curve buckets (1, 2, 3, 4, 5, 6+) from card category heuristics.
- * Since DeckCard doesn't have CMC, we estimate based on card category:
- * - Ramp → CMC 2
- * - Lands → excluded
- * - Commander → CMC 5
- * - Draw → CMC 3
- * - Removal → CMC 3
- * - Win Condition → CMC 5
- * - Other → CMC 3
- *
- * NOTE: These are rough estimates. When CMC data is available on DeckCard,
- * this function should use actual CMC values.
+ * Compute mana curve buckets (1, 2, 3, 4, 5, 6+) from actual mana costs.
+ * Falls back to category-based estimates if mana_cost is not available.
+ */
+function computeManaCurve(cards: DeckCard[]): number[] {
+  const buckets = [0, 0, 0, 0, 0, 0] // indices 0-5 → CMC 1, 2, 3, 4, 5, 6+
+  for (const card of cards) {
+    if (isLand(card)) continue
+    
+    // Use actual mana cost if available, otherwise estimate from category
+    let cmc: number
+    if (card.mana_cost) {
+      cmc = calculateCMC(card.mana_cost)
+    } else {
+      const cat = parsePrimaryCategory(card.categories)
+      cmc = estimateCmcFromCategory(cat)
+    }
+    
+    if (cmc <= 0) continue
+    const qty = card.quantity || 1
+    if (cmc >= 6) {
+      buckets[5] += qty
+    } else {
+      buckets[cmc - 1] += qty
+    }
+  }
+  return buckets
+}
+
+/**
+ * Fallback CMC estimation from category when mana_cost is unavailable.
  */
 function estimateCmcFromCategory(category: string): number {
   const lower = category.toLowerCase()
@@ -77,23 +104,6 @@ function estimateCmcFromCategory(category: string): number {
   if (lower === 'recursion') return 4
   if (lower === 'tutor') return 3
   return 3
-}
-
-function computeManaCurve(cards: DeckCard[]): number[] {
-  const buckets = [0, 0, 0, 0, 0, 0] // indices 0-5 → CMC 1, 2, 3, 4, 5, 6+
-  for (const card of cards) {
-    if (isLand(card)) continue
-    const cat = parsePrimaryCategory(card.categories)
-    const cmc = estimateCmcFromCategory(cat)
-    if (cmc <= 0) continue
-    const qty = card.quantity || 1
-    if (cmc >= 6) {
-      buckets[5] += qty
-    } else {
-      buckets[cmc - 1] += qty
-    }
-  }
-  return buckets
 }
 
 /**
@@ -119,13 +129,16 @@ function computeHeuristicRatings(cards: DeckCard[]): AttributeRating[] {
   const interactionCount = (catCounts['removal'] || 0) + (catCounts['interaction'] || 0) + (catCounts['counterspell'] || 0) + (catCounts['protection'] || 0)
   const interaction = Math.max(1, Math.min(10, Math.round(interactionCount * 10 / 15)))
 
-  // Speed = inverse of estimated avg CMC (lower avg → higher speed)
+  // Speed = inverse of actual avg CMC (lower avg → higher speed)
   const nonLand = active.filter((c) => !isLand(c))
-  const totalEstCmc = nonLand.reduce((sum, c) => {
-    return sum + estimateCmcFromCategory(parsePrimaryCategory(c.categories)) * (c.quantity || 1)
+  const totalCmc = nonLand.reduce((sum, c) => {
+    const cmc = c.mana_cost 
+      ? calculateCMC(c.mana_cost)
+      : estimateCmcFromCategory(parsePrimaryCategory(c.categories))
+    return sum + cmc * (c.quantity || 1)
   }, 0)
   const nonLandCount = nonLand.reduce((sum, c) => sum + (c.quantity || 1), 0)
-  const avgCmc = nonLandCount > 0 ? totalEstCmc / nonLandCount : 3
+  const avgCmc = nonLandCount > 0 ? totalCmc / nonLandCount : 3
   const speed = Math.max(1, Math.min(10, Math.round(11 - avgCmc * 2)))
 
   // Consistency = tutor count + draw engines, mapped 0–20 → 1–10
@@ -153,42 +166,6 @@ const COLOUR_MAP: Record<string, { name: string; swatch: string }> = {
   B: { name: 'Black', swatch: '#150B00' },
   R: { name: 'Red', swatch: '#D3202A' },
   G: { name: 'Green', swatch: '#00733E' },
-}
-
-/** Extract colour pips from cards' categories/tags (heuristic) */
-function computeColourPips(cards: DeckCard[], colourIdentity: string | null): Record<string, number> {
-  // Use the deck's colour identity to determine which colours are relevant
-  const pips: Record<string, number> = {}
-  const identity = colourIdentity
-    ? colourIdentity.includes(',')
-      ? colourIdentity.split(',').map((c) => c.trim().toUpperCase())
-      : colourIdentity.toUpperCase().split('').filter((c) => 'WUBRG'.includes(c))
-    : []
-  for (const colour of identity) {
-    if (COLOUR_MAP[colour]) {
-      pips[colour] = 0
-    }
-  }
-
-  // Simple heuristic: distribute non-land, non-colorless cards across the deck's colours
-  const active = getActiveCards(cards)
-  const nonLand = active.filter((c) => !isLand(c))
-  const totalNonLand = nonLand.reduce((sum, c) => sum + (c.quantity || 1), 0)
-
-  if (identity.length > 0 && totalNonLand > 0) {
-    // Rough estimate: distribute evenly with slight variance
-    const perColour = Math.floor(totalNonLand / identity.length)
-    for (const colour of identity) {
-      pips[colour] = perColour
-    }
-    // Assign remainder to first colour
-    const remainder = totalNonLand - perColour * identity.length
-    if (identity.length > 0) {
-      pips[identity[0]] += remainder
-    }
-  }
-
-  return pips
 }
 
 // Category distribution targets for status badges
@@ -256,14 +233,17 @@ export function AnalysisTab({ cards, deckId, bracket, format }: AnalysisTabProps
 
   const nonLandCount = useMemo(() => totalCards - landCount, [totalCards, landCount])
 
-  // Avg CMC — estimated from category heuristics
+  // Avg CMC — using actual mana costs when available
   const avgCmc = useMemo(() => {
     const nonLand = active.filter((c) => !isLand(c))
-    const totalEstCmc = nonLand.reduce((sum, c) => {
-      return sum + estimateCmcFromCategory(parsePrimaryCategory(c.categories)) * (c.quantity || 1)
+    const totalCmc = nonLand.reduce((sum, c) => {
+      const cmc = c.mana_cost 
+        ? calculateCMC(c.mana_cost)
+        : estimateCmcFromCategory(parsePrimaryCategory(c.categories))
+      return sum + cmc * (c.quantity || 1)
     }, 0)
     const count = nonLand.reduce((sum, c) => sum + (c.quantity || 1), 0)
-    return count > 0 ? totalEstCmc / count : 0
+    return count > 0 ? totalCmc / count : 0
   }, [active])
 
   // Mana curve
@@ -285,10 +265,46 @@ export function AnalysisTab({ cards, deckId, bracket, format }: AnalysisTabProps
     return computeHeuristicRatings(cards)
   }, [cards, ratings])
 
-  // Colour pips
-  const colourPips = useMemo(
-    () => computeColourPips(active, deckData?.deck?.colour_identity ?? null),
-    [active, deckData]
+  // Color requirements analysis (using actual mana costs)
+  const colorRequirements = useMemo(() => {
+    const nonLandWithMana = active
+      .filter((c) => !isLand(c) && c.mana_cost)
+      .map((c) => ({
+        card_name: c.card_name,
+        mana_cost: c.mana_cost,
+        quantity: c.quantity,
+      }))
+    return analyzeColorRequirements(nonLandWithMana)
+  }, [active])
+
+  // Land cards for source counting
+  const landCards = useMemo(
+    () => active.filter((c) => isLand(c)).map((c) => ({
+      card_name: c.card_name,
+      quantity: c.quantity,
+    })),
+    [active]
+  )
+
+  // Current land sources per color
+  const landSources = useMemo(
+    () => countLandSources(landCards, deckData?.deck?.colour_identity ?? ''),
+    [landCards, deckData]
+  )
+
+  // Land recommendations based on pip requirements
+  const landRecommendations = useMemo(
+    () => {
+      const identity = deckData?.deck?.colour_identity ?? ''
+      if (!identity) return []
+      return calculateLandRecommendations(
+        colorRequirements,
+        landSources,
+        landCount,
+        identity
+      )
+    },
+    [colorRequirements, landSources, landCount, deckData]
   )
 
   // Category distribution
@@ -363,9 +379,9 @@ export function AnalysisTab({ cards, deckId, bracket, format }: AnalysisTabProps
         </section>
       </div>
 
-      {/* ─── Two-column row: Colour Pips + Category Distribution ─── */}
+      {/* ─── Two-column row: Mana Base Analysis + Category Distribution ─── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-        {/* Left: Colour pips */}
+        {/* Left: Mana Base Analysis */}
         <section
           style={{
             background: 'rgba(255,255,255,0.02)',
@@ -373,61 +389,94 @@ export function AnalysisTab({ cards, deckId, bracket, format }: AnalysisTabProps
             borderRadius: '10px',
             padding: '16px',
           }}
-          aria-label="Colour distribution"
+          aria-label="Mana base analysis"
         >
           <h3 style={{ fontSize: '12px', fontWeight: 500, color: 'rgba(255,255,255,0.5)', marginBottom: '14px' }}>
-            Colour pips
+            Mana base analysis
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {Object.entries(colourPips).map(([colour, count]) => {
-              const info = COLOUR_MAP[colour]
-              if (!info) return null
-              const maxPips = Math.max(...Object.values(colourPips), 1)
-              const needsBorder = colour === 'B' || colour === 'W'
-              return (
-                <div key={colour} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div
-                    style={{
-                      width: '12px',
-                      height: '12px',
-                      borderRadius: '2px',
-                      flexShrink: 0,
-                      backgroundColor: info.swatch,
-                      border: needsBorder ? '0.5px solid rgba(255,255,255,0.15)' : undefined,
-                    }}
-                    aria-hidden="true"
-                  />
-                  <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', minWidth: '40px' }}>
-                    {info.name}
-                  </span>
-                  <div style={{ flex: 1, height: '4px', background: 'rgba(255,255,255,0.07)', borderRadius: '2px', overflow: 'hidden' }}>
-                    <div
-                      style={{
-                        height: '100%',
-                        borderRadius: '2px',
-                        width: `${maxPips > 0 ? (count / maxPips) * 100 : 0}%`,
-                        backgroundColor: colour === 'B' ? '#555' : info.swatch,
-                      }}
-                    />
-                  </div>
-                  <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', minWidth: '28px', textAlign: 'right' }}>
-                    {count}
-                  </span>
+            {landRecommendations.length > 0 ? (
+              <>
+                {landRecommendations.map((rec) => {
+                  const info = COLOUR_MAP[rec.color]
+                  if (!info) return null
+                  const needsBorder = rec.color === 'B' || rec.color === 'W'
+                  const statusColor = rec.status === 'low' ? '#EF9F27' : rec.status === 'high' ? '#3B82F6' : '#1D9E75'
+                  const totalPips = colorRequirements.totalPips[rec.color as keyof typeof colorRequirements.totalPips] || 0
+                  return (
+                    <div key={rec.color} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div
+                        style={{
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '2px',
+                          flexShrink: 0,
+                          backgroundColor: info.swatch,
+                          border: needsBorder ? '0.5px solid rgba(255,255,255,0.15)' : undefined,
+                        }}
+                        aria-hidden="true"
+                      />
+                      <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', minWidth: '40px' }}>
+                        {info.name}
+                      </span>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)' }}>
+                            {Math.round(totalPips)} pips
+                          </span>
+                          <span style={{ fontSize: '10px', color: statusColor }}>
+                            {rec.currentSources}/{rec.recommendedSources} sources
+                          </span>
+                        </div>
+                        <div style={{ height: '4px', background: 'rgba(255,255,255,0.07)', borderRadius: '2px', overflow: 'hidden', position: 'relative' }}>
+                          {/* Current sources bar */}
+                          <div
+                            style={{
+                              height: '100%',
+                              borderRadius: '2px',
+                              width: `${Math.min(100, (rec.currentSources / Math.max(rec.recommendedSources, 1)) * 100)}%`,
+                              backgroundColor: rec.color === 'B' ? '#555' : info.swatch,
+                            }}
+                          />
+                          {/* Target marker */}
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              bottom: 0,
+                              left: `${Math.min(100, (rec.recommendedSources / Math.max(rec.recommendedSources, rec.currentSources, 1)) * 100)}%`,
+                              width: '2px',
+                              backgroundColor: 'rgba(255,255,255,0.3)',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+                {/* Summary messages */}
+                <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
+                  {landRecommendations.some(r => r.status === 'low') && (
+                    <div style={{ fontSize: '11px', color: '#EF9F27', lineHeight: 1.6, marginBottom: '4px' }}>
+                      {landRecommendations.filter(r => r.status === 'low').map(r => r.message).join('. ')}.
+                    </div>
+                  )}
+                  {colorRequirements.doublePipCards.length > 0 && (
+                    <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '4px' }}>
+                      {colorRequirements.doublePipCards.length} cards with double-pip requirements
+                    </div>
+                  )}
+                  {colorRequirements.triplePipCards.length > 0 && (
+                    <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)' }}>
+                      {colorRequirements.triplePipCards.length} cards with triple-pip requirements
+                    </div>
+                  )}
                 </div>
-              )
-            })}
-            {Object.keys(colourPips).length === 0 && (
-              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>No colour data available</p>
-            )}
-            {Object.keys(colourPips).length > 0 && (
-              <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
-                <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', marginBottom: '6px' }}>
-                  Land recommendations
-                </div>
-                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', lineHeight: 1.6 }}>
-                  Distribute land sources proportionally to pip counts.
-                </div>
-              </div>
+              </>
+            ) : (
+              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
+                No mana cost data available. Add cards with mana costs to see recommendations.
+              </p>
             )}
           </div>
         </section>

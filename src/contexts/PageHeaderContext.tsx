@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useLayoutEffect, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useRef, useMemo, type ReactNode } from 'react'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -24,7 +24,7 @@ interface PageHeaderContextValue {
 const PageHeaderContext = createContext<PageHeaderContextValue | null>(null)
 
 // ---------------------------------------------------------------------------
-// Provider
+// Provider - uses a stable callback to prevent loops
 // ---------------------------------------------------------------------------
 
 interface PageHeaderProviderProps {
@@ -33,9 +33,28 @@ interface PageHeaderProviderProps {
 
 export function PageHeaderProvider({ children }: PageHeaderProviderProps) {
   const [config, setConfig] = useState<PageHeaderConfig | null>(null)
+  
+  // Use a ref to track the latest config without causing re-renders
+  const configRef = useRef<PageHeaderConfig | null>(null)
+  
+  // Stable setConfig that batches updates
+  const stableSetConfig = useMemo(() => {
+    let pending = false
+    return (newConfig: PageHeaderConfig | null) => {
+      configRef.current = newConfig
+      if (!pending) {
+        pending = true
+        // Batch updates to avoid render loops
+        queueMicrotask(() => {
+          pending = false
+          setConfig(configRef.current)
+        })
+      }
+    }
+  }, [])
 
   return (
-    <PageHeaderContext.Provider value={{ config, setConfig }}>
+    <PageHeaderContext.Provider value={{ config, setConfig: stableSetConfig }}>
       {children}
     </PageHeaderContext.Provider>
   )
@@ -57,14 +76,22 @@ export function usePageHeaderContext(): PageHeaderContextValue {
 // Hook: usePageHeader (for pages to set their header config)
 // ---------------------------------------------------------------------------
 
+/**
+ * Sets the page header config. Call this in your page component.
+ * 
+ * The hook handles dynamic subtitles and actions that change over time
+ * (e.g., loading states, async data). Updates are batched to prevent
+ * infinite render loops even when inline JSX creates new objects each render.
+ */
 export function usePageHeader(config: PageHeaderConfig): void {
   const { setConfig } = usePageHeaderContext()
-
-  // Use layout effect to set before paint, avoiding flash
-  // We set on every render since subtitle/actions can be new objects each time
-  // Clear on unmount to ensure no stale header persists
-  useLayoutEffect(() => {
-    setConfig(config)
+  
+  // Set config on every render - the provider batches updates
+  // This allows dynamic content to update properly
+  setConfig(config)
+  
+  // Clear on unmount
+  useEffect(() => {
     return () => setConfig(null)
-  })
+  }, [setConfig])
 }

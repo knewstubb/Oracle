@@ -19,6 +19,7 @@ import { UpgradeTab } from '@/components/UpgradeTab'
 import { StrategyTab } from '@/components/StrategyTab'
 import { PicklistV2 } from '@/components/PicklistV2'
 import { WorkbenchTab } from '@/components/WorkbenchTab'
+import { VersionHistoryPanel } from '@/components/VersionHistoryPanel'
 import { getFormatConfig } from '@/lib/format-config'
 import { exportDeckAsText } from '@/lib/deck-export'
 import { useOracle } from '@/contexts/OracleContext'
@@ -231,6 +232,7 @@ export default function DeckViewPage() {
               <ClipboardCopy className="h-4 w-4" aria-hidden="true" />
               <span className="hidden sm:inline">Export</span>
             </Button>
+            <VersionHistoryPanel deckId={deck.id} deckName={deck.name} />
             <ActiveToggle deckId={deck.id} isActive={deck.is_active} />
             <DeleteDeckButton deckId={deck.id} deckName={deck.name} />
           </>

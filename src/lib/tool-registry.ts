@@ -817,6 +817,113 @@ registry.set('collection_lookup', {
 })
 
 // ---------------------------------------------------------------------------
+// Local Tool: list_user_decks
+// ---------------------------------------------------------------------------
+
+registry.set('list_user_decks', {
+  definition: {
+    name: 'list_user_decks',
+    description:
+      'List all the user\'s Commander decks with basic info. Returns deck name, commander, card count, and status for each deck. Use this when the user asks about their decks, wants to compare them, or is viewing the deck list page.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        status_filter: {
+          type: 'string',
+          enum: ['active', 'archived', 'all'],
+          description: 'Filter decks by status. Default is "active".',
+        },
+      },
+    },
+  },
+  execute: async (input, context) => {
+    try {
+      const userId = context?.userId
+      if (!userId) {
+        return { content: 'Deck list requires authentication — userId not available', is_error: true }
+      }
+      
+      const statusFilter = (input?.status_filter as string) || 'active'
+      const supabase = createAdminClient()
+      
+      // Query decks with commander info
+      let query = supabase
+        .from('decks')
+        .select(`
+          id,
+          name,
+          format,
+          status,
+          created_at,
+          updated_at,
+          deck_cards(count)
+        `)
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false })
+      
+      if (statusFilter !== 'all') {
+        query = query.eq('status', statusFilter)
+      }
+      
+      const { data: decks, error } = await query
+      
+      if (error) {
+        throw new Error(`Failed to fetch decks: ${error.message}`)
+      }
+      
+      if (!decks || decks.length === 0) {
+        return {
+          content: statusFilter === 'all' 
+            ? 'You don\'t have any decks yet.'
+            : `You don\'t have any ${statusFilter} decks.`,
+          is_error: false,
+        }
+      }
+      
+      // Get commander for each deck
+      const deckIds = decks.map(d => d.id)
+      const { data: commanders } = await supabase
+        .from('deck_cards')
+        .select('deck_id, card_name')
+        .in('deck_id', deckIds)
+        .eq('is_commander', true)
+      
+      const commanderByDeck = new Map<number, string[]>()
+      for (const cmd of commanders ?? []) {
+        if (!commanderByDeck.has(cmd.deck_id)) {
+          commanderByDeck.set(cmd.deck_id, [])
+        }
+        commanderByDeck.get(cmd.deck_id)!.push(cmd.card_name)
+      }
+      
+      // Format output
+      const deckList = decks.map(deck => {
+        const commanders = commanderByDeck.get(deck.id) ?? []
+        const cardCount = Array.isArray(deck.deck_cards) 
+          ? (deck.deck_cards[0] as { count: number })?.count ?? 0
+          : 0
+        
+        return {
+          id: deck.id,
+          name: deck.name,
+          commander: commanders.length > 0 ? commanders.join(' + ') : 'No commander',
+          card_count: cardCount,
+          format: deck.format,
+          status: deck.status,
+          last_updated: deck.updated_at,
+        }
+      })
+      
+      return { content: JSON.stringify(deckList, null, 2), is_error: false }
+    } catch (err) {
+      console.error('[list_user_decks] Error:', err)
+      const msg = err instanceof Error ? err.message : 'Deck list failed'
+      return { content: `Deck list error: ${msg}`, is_error: true }
+    }
+  },
+})
+
+// ---------------------------------------------------------------------------
 // Local Tool: deck_context
 // ---------------------------------------------------------------------------
 

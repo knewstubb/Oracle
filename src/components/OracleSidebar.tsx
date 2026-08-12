@@ -380,7 +380,7 @@ export function OracleSidebar() {
     <>
       {/* Backdrop for mobile */}
       <div 
-        className="fixed inset-x-0 top-14 bottom-0 bg-black/50 z-40 md:hidden"
+        className="fixed inset-x-0 top-[110px] bottom-0 bg-black/50 z-40 md:hidden"
         onClick={close}
       />
       
@@ -388,9 +388,9 @@ export function OracleSidebar() {
       <aside
         ref={panelRef}
         className={cn(
-          // Mobile: fixed overlay below header
-          'fixed right-0 top-14 bottom-0 z-50 flex flex-col',
-          // Desktop: NOT fixed, just a regular flex child
+          // Mobile: fixed overlay below header (nav + page header = ~110px)
+          'fixed right-0 top-[110px] bottom-0 z-50 flex flex-col',
+          // Desktop: NOT fixed, just a regular flex child that fills available height
           'md:!static md:!top-auto md:!bottom-auto md:z-auto md:h-full',
           'bg-[rgba(24,24,27,0.95)] backdrop-blur-md border-l border-zinc-800/60',
           'shadow-2xl md:shadow-none'

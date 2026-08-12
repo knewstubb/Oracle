@@ -124,7 +124,13 @@ The user is viewing their list of decks. You can help them:
 - Talk about their overall deck portfolio
 - Help decide what to build next
 
-You may not have specific deck details unless the user tells you, but you know they have multiple Commander decks.`
+IMPORTANT: Use the list_user_decks tool to get the user's deck information. This will show you:
+- Deck names and commanders
+- Card counts
+- Last updated dates
+- Active vs archived status
+
+When the user asks about their decks, ALWAYS call list_user_decks first to see what they have.`
 
 const FORGE_CONTEXT = `
 === CURRENT CONTEXT: COMMANDER FORGE ===
@@ -175,6 +181,11 @@ You have access to tools for verifying card data and checking the user's collect
 
 --- WHEN TO USE EACH TOOL ---
 
+list_user_decks
+- Use when the user is on the deck list page or asks about their decks.
+- Returns: deck names, commanders, card counts, statuses.
+- CALL THIS FIRST when discussing the user's deck portfolio.
+
 collection_lookup
 - MANDATORY before suggesting specific cards. Check what the user owns.
 - Batch multiple card names: { "card_names": ["Card A", "Card B", "Card C"] }
@@ -221,7 +232,8 @@ DO call tools when:
 - Suggesting specific cards → collection_lookup FIRST
 - User asks about a card you're not 100% certain about → scryfall_search or card_fuzzy_lookup
 - User asks about popular commanders → mtg_top_commanders
-- User asks about combos → mtg_combos_search`
+- User asks about combos → mtg_combos_search
+- User asks about their decks → list_user_decks`
 
 // ---------------------------------------------------------------------------
 // Build System Prompt

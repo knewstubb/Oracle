@@ -8,23 +8,22 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { PersistentHeader } from '@/components/PersistentHeader'
-import { StatusControl } from '@/components/StatusControl'
+import { ActiveToggle } from '@/components/ActiveToggle'
 import { DeleteDeckButton } from '@/components/DeleteDeckButton'
-import { AllocateToggle } from '@/components/AllocateToggle'
 import { HealthStrip } from '@/components/HealthStrip'
-import { DraftBanner } from '@/components/DraftBanner'
 import { CardsTab } from '@/components/CardsTab'
 import { AnalysisTab } from '@/components/AnalysisTab'
 import { CombosPanel } from '@/components/CombosPanel'
 import { UpgradeTab } from '@/components/UpgradeTab'
 import { StrategyTab } from '@/components/StrategyTab'
 import { PicklistV2 } from '@/components/PicklistV2'
-import { GoldfishTab } from '@/components/GoldfishTab'
+import { WorkbenchTab } from '@/components/WorkbenchTab'
 import { getFormatConfig } from '@/lib/format-config'
 import { exportDeckAsText } from '@/lib/deck-export'
+import { useOracle } from '@/contexts/OracleContext'
 import { toast } from 'sonner'
 import { CardGrid, type DeckCard } from '@/components/CardGrid'
-import { DebriefPanel } from '@/components/DebriefPanel'
+import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
 
 interface Deck {
   id: number
@@ -36,10 +35,11 @@ interface Deck {
   deck_type: string | null
   precon_url: string | null
   bracket: string | null
-  status: 'brewing' | 'in_rotation' | 'graveyard'
-  allocate: boolean
+  status: 'brewing' | 'in_rotation' | 'graveyard' // Legacy, being phased out
+  is_active: boolean
   last_synced_at: string | null
   raw_json: string | null
+  format: string | null
 }
 
 interface DeckResponse {
@@ -63,18 +63,14 @@ export default function DeckViewPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const deckId = params.id
+  const { setContext } = useOracle()
 
   // State for health pill → Cards tab scroll targeting
   const [scrollTarget, setScrollTarget] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string>('cards')
-  const [showDebrief, setShowDebrief] = useState(false)
 
-  // Auto-open debrief overlay if ?debrief=true query param present
+  // Open pull list tab if ?tab=picklist query param present
   useEffect(() => {
-    if (searchParams.get('debrief') === 'true') {
-      setShowDebrief(true)
-    }
-    // Open pull list tab if ?tab=picklist query param present
     const tabParam = searchParams.get('tab')
     if (tabParam === 'picklist') {
       setActiveTab('picklist')
@@ -84,7 +80,7 @@ export default function DeckViewPage() {
   const queryClient = useQueryClient()
 
   const { data, isLoading, error, refetch } = useQuery<DeckResponse>({
-    queryKey: ['decks', deckId],
+    queryKey: deckKeys.detail(deckId),
     queryFn: () =>
       fetch(`/api/decks/${deckId}`).then((r) => {
         if (!r.ok) throw new Error('Failed to load deck')
@@ -96,7 +92,7 @@ export default function DeckViewPage() {
 
   // Health data query — deduped with HealthStrip's internal fetch by TanStack Query
   const { data: healthData } = useQuery({
-    queryKey: ['decks', deckId, 'health'],
+    queryKey: deckKeys.health(deckId),
     queryFn: async () => {
       const res = await fetch(`/api/decks/${deckId}/health`)
       if (!res.ok) throw new Error('Failed to fetch health data')
@@ -106,6 +102,18 @@ export default function DeckViewPage() {
     enabled: !!deckId,
   })
 
+  // Set Oracle context when deck data loads
+  useEffect(() => {
+    if (data?.deck) {
+      setContext({
+        type: 'deck',
+        deckId: data.deck.id,
+        deckName: data.deck.name,
+        commanderName: data.deck.commander_name,
+      })
+    }
+  }, [data?.deck, setContext])
+
   // Fresh import: delayed refetch to pick up auto-assign results
   // Auto-assign runs fire-and-forget after import — this gives it time to complete
   useEffect(() => {
@@ -113,10 +121,8 @@ export default function DeckViewPage() {
     if (!isFreshImport) return
 
     const timer = setTimeout(() => {
-      queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'card-statuses'] })
-      queryClient.invalidateQueries({ queryKey: ['decks', deckId] })
-      queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'health'] })
-      queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'picklist'] })
+      const { invalidateDeck } = createDeckInvalidators(queryClient)
+      invalidateDeck(deckId)
     }, 3000)
 
     return () => clearTimeout(timer)
@@ -202,7 +208,6 @@ export default function DeckViewPage() {
         totalCards={totalCards}
         proxyCount={proxyCount}
         totalValue={totalValue}
-        onDebriefClick={() => setShowDebrief(true)}
         actions={
           <>
             <Button
@@ -221,26 +226,11 @@ export default function DeckViewPage() {
               <ClipboardCopy className="h-4 w-4" aria-hidden="true" />
               <span className="hidden sm:inline">Export</span>
             </Button>
-            <AllocateToggle deckId={deck.id} deckStatus={deck.status as any} allocate={deck.allocate ?? false} />
-            <StatusControl deckId={deck.id} currentStatus={deck.status as any} allocate={deck.allocate ?? false} cardCount={deck.card_count ?? 0} format={deck.format ?? 'commander'} />
-            {(deck.status === 'brewing' || deck.status === 'in_rotation' || deck.status === 'graveyard') && (
-              <DeleteDeckButton deckId={deck.id} deckName={deck.name} />
-            )}
+            <ActiveToggle deckId={deck.id} isActive={deck.is_active} />
+            <DeleteDeckButton deckId={deck.id} deckName={deck.name} />
           </>
         }
       />
-
-      {/* Draft Banner — shown only for brew decks */}
-      {deck.status === 'brewing' && (
-        <DraftBanner
-          deckId={deck.id}
-          deckName={deck.name}
-          cardCount={totalCards}
-          brewSessionId={brewSessionId}
-          status={deck.status}
-          onDeleted={() => router.push('/')}
-        />
-      )}
 
       {/* Tabs + Content — scrolls independently beneath sticky header+health strip */}
       <Tabs
@@ -253,11 +243,11 @@ export default function DeckViewPage() {
           <div className="mx-auto max-w-[var(--content-max-width)]">
             <TabsList variant="line">
               <TabsTrigger value="cards">Cards</TabsTrigger>
+              <TabsTrigger value="workbench">Workbench</TabsTrigger>
               <TabsTrigger value="analysis">Analysis</TabsTrigger>
               <TabsTrigger value="combos">Combos</TabsTrigger>
               <TabsTrigger value="upgrade">Upgrade</TabsTrigger>
               <TabsTrigger value="strategy">Strategy</TabsTrigger>
-              <TabsTrigger value="goldfish">Goldfish</TabsTrigger>
               <TabsTrigger value="picklist">Pull List</TabsTrigger>
             </TabsList>
           </div>
@@ -274,6 +264,15 @@ export default function DeckViewPage() {
               maxCopies={getFormatConfig(deck.deck_type).maxCopies}
             />
           </div>
+        </TabsContent>
+
+        <TabsContent value="workbench" className="min-h-0 flex-1 overflow-hidden">
+          <WorkbenchTab
+            deckId={deck.id}
+            cards={cards}
+            commanderName={deck.commander_name}
+            commanderScryfallId={deck.commander_scryfall_id}
+          />
         </TabsContent>
 
         <TabsContent value="analysis" className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
@@ -305,12 +304,6 @@ export default function DeckViewPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="goldfish" className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-          <div className="mx-auto max-w-[var(--content-max-width)]">
-            <GoldfishTab cards={cards} />
-          </div>
-        </TabsContent>
-
         <TabsContent value="picklist" className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
           <div className="mx-auto max-w-[var(--content-max-width)]">
             <PicklistV2 deckId={deck.id} />
@@ -321,17 +314,7 @@ export default function DeckViewPage() {
       {/* Health Strip — bottom of page */}
       <HealthStrip
         deckId={deck.id}
-        onPillClick={handlePillClick}
       />
-
-      {/* Debrief overlay */}
-      {showDebrief && (
-        <DebriefPanel
-          deckId={deck.id}
-          commanderName={deck.commander_name}
-          onClose={() => setShowDebrief(false)}
-        />
-      )}
       </div>{/* end content wrapper (z-10) */}
     </div>
   )

@@ -4,13 +4,11 @@ import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowRight,
   Check,
   MessageSquare,
   Minus,
   RefreshCw,
   Sparkles,
-  Sword,
   X,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -33,17 +31,6 @@ import {
 
 interface UpgradeTabProps {
   deckId: number
-}
-
-interface DebriefSession {
-  id: number
-  date: string
-  total_fixes: number
-  reviewed_fixes: number
-  applied: number
-  skipped: number
-  pending: number
-  changes: Array<{ from: string; to: string; skipped: boolean }>
 }
 
 interface ChangeLogEntry {
@@ -87,21 +74,6 @@ export function UpgradeTab({ deckId }: UpgradeTabProps) {
   const queryClient = useQueryClient()
   const [sortMode, setSortMode] = useState<SortMode>('impact')
   const [activeFilters, setActiveFilters] = useState<Set<FilterChip>>(new Set())
-
-  // Fetch debrief session (if table exists)
-  const { data: debriefSession } = useQuery<DebriefSession | null>({
-    queryKey: ['decks', deckId, 'debrief-session'],
-    queryFn: async () => {
-      try {
-        const res = await fetch(`/api/decks/${deckId}/debrief-session`)
-        if (!res.ok) return null
-        return res.json()
-      } catch {
-        return null
-      }
-    },
-    staleTime: 5 * 60 * 1000,
-  })
 
   // Fetch upgrade data
   const { data: upgradeData, isLoading } = useQuery<UpgradeData | null>({
@@ -224,10 +196,7 @@ export function UpgradeTab({ deckId }: UpgradeTabProps) {
   // ─── Render ───
   return (
     <div className="mx-auto max-w-[var(--content-max-width)] space-y-6 pb-12">
-      {/* ─── 1. Last Debrief Banner (conditional) ─── */}
-      {debriefSession && <DebriefBanner session={debriefSession} deckId={deckId} />}
-
-      {/* ─── 2. Toolbar ─── */}
+      {/* ─── 1. Toolbar ─── */}
       <Toolbar
         sortMode={sortMode}
         onSortChange={setSortMode}
@@ -237,7 +206,7 @@ export function UpgradeTab({ deckId }: UpgradeTabProps) {
         isRefreshing={refreshMutation.isPending}
       />
 
-      {/* ─── 3. Upgrade Candidates ─── */}
+      {/* ─── 2. Upgrade Candidates ─── */}
       {candidates.length > 0 ? (
         <div className="space-y-3">
           {candidates.map((candidate, i) => (
@@ -256,13 +225,13 @@ export function UpgradeTab({ deckId }: UpgradeTabProps) {
         null
       )}
 
-      {/* ─── 4. Fresh Analysis Prompt ─── */}
+      {/* ─── 3. Fresh Analysis Prompt ─── */}
       <FreshAnalysisPrompt
         onRun={() => refreshMutation.mutate()}
         isRunning={refreshMutation.isPending}
       />
 
-      {/* ─── 5. Change Log ─── */}
+      {/* ─── 4. Change Log ─── */}
       {changeLog.length > 0 && (
         <ChangeLogSection entries={changeLog} thisMonthCount={thisMonthCount} />
       )}
@@ -273,84 +242,6 @@ export function UpgradeTab({ deckId }: UpgradeTabProps) {
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
-
-function DebriefBanner({
-  session,
-  deckId,
-}: {
-  session: DebriefSession
-  deckId: number
-}) {
-  const hasPendingFixes = session.reviewed_fixes < session.total_fixes
-
-  return (
-    <div
-      className="rounded-lg p-4 space-y-3"
-      style={{
-        background: 'rgba(29,158,117,0.05)',
-        border: '0.5px solid rgba(29,158,117,0.2)',
-      }}
-    >
-      {/* Header row */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Sword className="h-4 w-4 text-[#1D9E75]" />
-          <span className="text-[length:var(--fs-md)] font-medium">
-            Last debrief — {formatDate(session.date)} · {session.reviewed_fixes} of{' '}
-            {session.total_fixes} fixes reviewed
-          </span>
-        </div>
-        {hasPendingFixes && (
-          <a
-            href={`/decks/${deckId}?debrief=true&resume=${session.id}`}
-            className="inline-flex items-center gap-1 text-[length:var(--fs-sm)] font-medium hover:opacity-80 transition-opacity"
-            style={{ color: '#1D9E75' }}
-          >
-            Resume debrief <ArrowRight className="h-3 w-3" />
-          </a>
-        )}
-      </div>
-
-      {/* Summary line */}
-      <div className="flex items-center gap-4 text-[length:var(--fs-sm)] text-muted-foreground">
-        <span>{session.applied} change made</span>
-        <span>{session.skipped} skipped</span>
-        <span>{session.pending} pending</span>
-      </div>
-
-      {/* Changes as pills */}
-      {session.changes.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {session.changes.map((change, i) =>
-            change.skipped ? (
-              <span
-                key={i}
-                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] text-muted-foreground opacity-60"
-                style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '0.5px solid rgba(255,255,255,0.1)',
-                }}
-              >
-                Skipped: {change.from} → {change.to}
-              </span>
-            ) : (
-              <span
-                key={i}
-                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]"
-                style={{
-                  background: 'rgba(29,158,117,0.1)',
-                  color: '#1D9E75',
-                }}
-              >
-                {change.from} → {change.to}
-              </span>
-            )
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
 
 function Toolbar({
   sortMode,
@@ -479,16 +370,14 @@ function UpgradeCard({
       style={{
         background: 'var(--bg-card)',
         border: '0.5px solid rgba(255,255,255,0.06)',
-        borderLeft: candidate.source === 'debrief' ? '2px solid rgba(29,158,117,0.4)' : undefined,
       }}
     >
-      {/* Header: priority + impact bar + source badge */}
+      {/* Header: priority + impact bar */}
       <div className="flex items-center gap-3 px-4 py-2.5">
         <span className="text-[length:var(--fs-sm)] font-medium text-muted-foreground tabular-nums">
           #{candidate.priority}
         </span>
         <ImpactBar value={candidate.impact} />
-        <SourceBadge source={candidate.source} />
       </div>
 
       {/* Cut / Add two-column layout */}
@@ -605,7 +494,7 @@ function UpgradeCard({
           className="ml-auto text-[11px] text-muted-foreground"
         >
           <MessageSquare className="mr-1 h-3 w-3" />
-          Discuss in debrief
+          Discuss
         </Button>
       </div>
     </div>
@@ -632,34 +521,6 @@ function ImpactBar({ value }: { value: number }) {
         }}
       />
     </div>
-  )
-}
-
-function SourceBadge({ source }: { source: 'debrief' | 'analysis' }) {
-  if (source === 'debrief') {
-    return (
-      <span
-        className="ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[length:var(--fs-xs)] font-medium"
-        style={{
-          border: '0.5px solid rgba(29,158,117,0.4)',
-          color: '#1D9E75',
-        }}
-      >
-        <Sword className="h-2.5 w-2.5" />
-        From debrief
-      </span>
-    )
-  }
-  return (
-    <span
-      className="ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[length:var(--fs-xs)] font-medium"
-      style={{
-        border: '0.5px solid rgba(255,255,255,0.1)',
-        color: 'rgba(255,255,255,0.5)',
-      }}
-    >
-      Analysis
-    </span>
   )
 }
 

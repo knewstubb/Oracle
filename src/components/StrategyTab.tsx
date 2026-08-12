@@ -22,7 +22,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
-import { PreconModTracker } from '@/components/PreconModTracker'
 import type { DeckCard } from '@/components/CardGrid'
 
 // ---------------------------------------------------------------------------
@@ -334,8 +333,6 @@ export function StrategyTab({ deckId, deckType, commanderName, cards }: Strategy
   const categories = useMemo(() => deriveCategories(cards), [cards])
   const overlaps = useMemo(() => detectOverlaps(categories), [categories])
 
-  const isPreconMod = deckType === 'Precon Mod'
-
   // -------------------------------------------------------------------------
   // Loading / Error states
   // -------------------------------------------------------------------------
@@ -365,12 +362,7 @@ export function StrategyTab({ deckId, deckType, commanderName, cards }: Strategy
 
   return (
     <div className="space-y-6 p-4 max-w-4xl mx-auto">
-      {/* ─── Section 1: Precon mod tracker (conditional) ─────────────── */}
-      {isPreconMod && (
-        <PreconModTracker deckId={deckId} commanderName={commanderName ?? 'Commander'} />
-      )}
-
-      {/* ─── Section 2: Deck intent ─────────────────────────────────── */}
+      {/* ─── Section 1: Deck intent ─────────────────────────────────── */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-[length:var(--fs-md)] font-medium">Deck intent</h3>

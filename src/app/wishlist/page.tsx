@@ -1,6 +1,15 @@
+'use client'
+
 import { Heart } from 'lucide-react'
+import { usePageHeader } from '@/contexts/PageHeaderContext'
 
 export default function WishlistPage() {
+  // Set page header at layout level
+  usePageHeader({
+    title: 'Wishlist',
+    subtitle: 'Cards you want to acquire',
+  })
+
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
       <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">

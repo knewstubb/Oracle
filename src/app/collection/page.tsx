@@ -3,7 +3,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { PageHeader } from '@/components/PageHeader'
 import { useCollectionRollup } from '@/hooks/useCollectionRollup'
 import { useCollectionPrintings } from '@/hooks/useCollectionPrintings'
 import { CollectionImportButton } from '@/components/collection/CollectionImportButton'
@@ -19,6 +18,7 @@ import { PrintingListView } from '@/components/collection/PrintingListView'
 import { MissingToggle } from '@/components/collection/MissingToggle'
 import { PriceStaleIndicator } from '@/components/collection/PriceStaleIndicator'
 import { useOracleContext } from '@/contexts/OracleContext'
+import { usePageHeader } from '@/contexts/PageHeaderContext'
 import type {
   SortField,
   PrintingSortField,
@@ -156,28 +156,28 @@ export default function CollectionPage() {
   const showPagination = !isPrintingView && totalPages > 1
   const showPrintingPagination = isPrintingView && printingTotalPages > 1
 
+  // Set page header at layout level
+  usePageHeader({
+    title: 'Collection',
+    subtitle: (
+      <>
+        {(ownedCount ?? 0).toLocaleString()} owned
+        {includeProxies && proxyCount > 0 && ` · ${proxyCount} proxies`}
+        {activeLastPriceRefresh && ' · Prices cached'}
+      </>
+    ),
+    actions: (
+      <>
+        <CollectionExportButton />
+        <CollectionImportButton />
+      </>
+    ),
+  })
+
   return (
     <div className="flex h-full flex-col bg-[var(--bg-canvas)]">
       {/* Max-width container: 1520px centered, fluid below */}
       <div className="mx-auto flex h-full w-full max-w-[var(--content-max-width)] flex-col">
-      {/* ─── Page Header ─────────────────────────────────────────── */}
-      <PageHeader
-        title="Collection"
-        subtitle={
-          <>
-            {(ownedCount ?? 0).toLocaleString()} owned
-            {includeProxies && proxyCount > 0 && ` · ${proxyCount} proxies`}
-            {activeLastPriceRefresh && ' · Prices cached'}
-          </>
-        }
-        actions={
-          <>
-            <CollectionExportButton />
-            <CollectionImportButton />
-          </>
-        }
-      />
-
       {/* ─── Collection Value Banner ─────────────────────────────── */}
       <CollectionValueBanner />
 

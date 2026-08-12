@@ -1,19 +1,19 @@
 'use client'
 
-import { PageHeader } from '@/components/PageHeader'
+import { usePageHeader } from '@/contexts/PageHeaderContext'
 import { CollectionRollupTab } from '@/components/collection/CollectionRollupTab'
 
 export default function AllocationPage() {
+  // Set page header at layout level
+  usePageHeader({
+    title: 'Cards',
+    subtitle: 'Allocation status and proxy assignment across all decks',
+  })
+
   return (
     <div className="flex h-full flex-col bg-[var(--bg-canvas)]">
       {/* Max-width container: 1520px centered, fluid below */}
       <div className="mx-auto flex h-full w-full max-w-[var(--content-max-width)] flex-col">
-        {/* ─── Page Header ─────────────────────────────────────────── */}
-        <PageHeader
-          title="Cards"
-          subtitle="Allocation status and proxy assignment across all decks"
-        />
-
         {/* ─── Page Content ────────────────────────────────────────── */}
         <div className="flex min-h-0 flex-1 flex-col">
           <CollectionRollupTab />

@@ -12,13 +12,19 @@ import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import { CardSlotBadge } from '@/components/CardSlotBadge'
 import { DeckTile } from '@/components/DeckTile'
-import { PageHeader } from '@/components/PageHeader'
+import { usePageHeader } from '@/contexts/PageHeaderContext'
 
 // ---------------------------------------------------------------------------
 // Component Library Page
 // ---------------------------------------------------------------------------
 
 export default function ComponentLibraryPage() {
+  // Set page header at layout level
+  usePageHeader({
+    title: 'Component Library',
+    subtitle: 'Design system source of truth',
+  })
+
   return (
     <div className="min-h-full bg-[var(--bg-canvas)]">
       <div className="mx-auto max-w-[var(--content-max-width)] px-8 py-8">
@@ -32,7 +38,6 @@ export default function ComponentLibraryPage() {
             Settings
           </Link>
         </div>
-        <PageHeader title="Component Library" subtitle="Design system source of truth" />
 
         <Tabs defaultValue="tokens" className="mt-6">
           <TabsList>

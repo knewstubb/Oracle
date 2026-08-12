@@ -5,7 +5,7 @@ import { useMutation } from '@tanstack/react-query'
 import { Loader2, Trash2, Palette } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
-import { PageHeader } from '@/components/PageHeader'
+import { usePageHeader } from '@/contexts/PageHeaderContext'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -37,10 +37,13 @@ export default function SettingsPage() {
     },
   })
 
+  // Set page header at layout level
+  usePageHeader({
+    title: 'Settings',
+  })
+
   return (
     <div className="mx-auto max-w-[var(--content-max-width)] px-8 py-8 bg-[var(--bg-canvas)] min-h-full">
-      <PageHeader title="Settings" />
-
       <div className="space-y-8">
         {/* Dev Tools */}
         <section className="rounded-lg border border-destructive/30 p-6">

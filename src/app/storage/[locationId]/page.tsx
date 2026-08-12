@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation'
 import { ArrowLeft, Search, List, LayoutGrid } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { PageHeader } from '@/components/PageHeader'
+import { usePageHeader } from '@/contexts/PageHeaderContext'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { StorageLocationSelect } from '@/components/collection/StorageLocationSelect'
@@ -72,23 +72,24 @@ export default function StorageDetailPage() {
     )
   }, [data?.copies, searchQuery])
 
+  // Set page header at layout level
+  usePageHeader({
+    title: data?.locationName ?? (isUnsorted ? 'Unsorted' : 'Loading...'),
+    subtitle: data ? `${data.copies.length} cards` : undefined,
+    actions: (
+      <Link
+        href="/storage"
+        className="flex items-center gap-1 text-[length:var(--fs-sm)] text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" />
+        All locations
+      </Link>
+    ),
+  })
+
   return (
     <div className="flex h-full flex-col bg-[var(--bg-canvas)]">
       <div className="mx-auto flex h-full w-full max-w-[var(--content-max-width)] flex-col">
-        <PageHeader
-          title={data?.locationName ?? (isUnsorted ? 'Unsorted' : 'Loading...')}
-          subtitle={data ? `${data.copies.length} cards` : undefined}
-          actions={
-            <Link
-              href="/storage"
-              className="flex items-center gap-1 text-[length:var(--fs-sm)] text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="size-4" />
-              All locations
-            </Link>
-          }
-        />
-
         {/* Toolbar: Search + View Toggle */}
         {!isLoading && data && data.copies.length > 0 && (
           <div className="shrink-0 border-b px-4 py-3" style={{ borderColor: 'var(--border-default)' }}>

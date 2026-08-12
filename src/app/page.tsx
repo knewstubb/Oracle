@@ -12,9 +12,9 @@ import { DeckTile } from '@/components/DeckTile'
 import { DeckStatusCard } from '@/components/DeckStatusCard'
 import { FolderChip, NewFolderChip } from '@/components/FolderChip'
 import { CreateFolderModal } from '@/components/CreateFolderModal'
-import { PageHeader } from '@/components/PageHeader'
 import { CardImage } from '@/components/CardImage'
 import { useOracleContext } from '@/contexts/OracleContext'
+import { usePageHeader } from '@/contexts/PageHeaderContext'
 import { toast } from 'sonner'
 
 interface Deck {
@@ -91,12 +91,27 @@ export default function DashboardPage() {
   // This prevents flashing empty state on refetch
   const hasNothingAtAll = !isLoading && data !== undefined && total === 0
 
+  // Set page header at layout level
+  usePageHeader({
+    title: 'Decks',
+    subtitle: activeCount > 0 ? (
+      <span>
+        {readyCount} of {activeCount} Active {activeCount === 1 ? 'deck' : 'decks'} ready to play
+      </span>
+    ) : undefined,
+    actions: (
+      <>
+        <DeckImportButton />
+        <NewDeckModal />
+      </>
+    ),
+  })
+
   // Show loading state first
   if (isLoading) {
     return (
       <div className="flex h-full flex-col bg-[var(--bg-canvas)]">
         <div className="mx-auto flex h-full w-full max-w-[var(--content-max-width)] flex-col">
-          <PageHeader title="Decks" />
           <div className="flex-1 overflow-y-auto px-5 py-5">
             <div className="space-y-8">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -116,7 +131,6 @@ export default function DashboardPage() {
     return (
       <div className="flex h-full flex-col bg-[var(--bg-canvas)]">
         <div className="mx-auto flex h-full w-full max-w-[var(--content-max-width)] flex-col">
-          <PageHeader title="Decks" />
           <div className="flex flex-1 flex-col items-center justify-center px-5 py-24 text-center">
             {hasCollection ? (
               // User has collection but no decks — focus on deck creation
@@ -166,21 +180,6 @@ export default function DashboardPage() {
   return (
     <div className="flex h-full flex-col bg-[var(--bg-canvas)]">
       <div className="flex h-full w-full flex-col">
-        <PageHeader
-          title="Decks"
-          subtitle={activeCount > 0 ? (
-            <span>
-              {readyCount} of {activeCount} Active {activeCount === 1 ? 'deck' : 'decks'} ready to play
-            </span>
-          ) : undefined}
-          actions={
-            <>
-              <DeckImportButton />
-              <NewDeckModal />
-            </>
-          }
-        />
-
         {/* Single scrollable content area */}
         <div className="flex-1 overflow-y-auto px-5 py-5">
           {error && (

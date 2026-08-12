@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { Compass } from 'lucide-react'
 import { useOracle, useOracleContext } from '@/contexts/OracleContext'
+import { usePageHeader } from '@/contexts/PageHeaderContext'
 
 // ---------------------------------------------------------------------------
 // Explore Page — Oracle-centric exploration for deck ideas
@@ -13,6 +14,12 @@ export default function ExplorePage() {
   
   // Set exploration context for Oracle
   useOracleContext({ type: 'exploration' })
+
+  // Set page header at layout level
+  usePageHeader({
+    title: 'Explore',
+    subtitle: 'Discover deck ideas with Oracle',
+  })
 
   // Auto-open Oracle sidebar when entering explore page
   useEffect(() => {

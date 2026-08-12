@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { CardImage } from '@/components/CardImage'
-import { PageHeader } from '@/components/PageHeader'
+import { usePageHeader } from '@/contexts/PageHeaderContext'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -103,10 +103,14 @@ export default function SharedCardsPage() {
     })
   }
 
+  // Set page header at layout level
+  usePageHeader({
+    title: 'Shared Cards',
+  })
+
   return (
     <div className="mx-auto max-w-[var(--content-max-width)] px-8 py-8 bg-[var(--bg-canvas)] min-h-full">
       <header className="mb-8">
-        <PageHeader title="Shared Cards" />
         {groups && groups.length > 0 && (
           <p className="mt-1 text-[length:var(--fs-md)] text-muted-foreground" data-testid="summary-stats">
             {totalShared} cards shared{collectionSynced ? ` · ${totalNeedingProxies} need proxies` : ''}

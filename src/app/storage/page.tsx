@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Settings2 } from 'lucide-react'
 import Link from 'next/link'
-import { PageHeader } from '@/components/PageHeader'
+import { usePageHeader } from '@/contexts/PageHeaderContext'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StorageLocationsSettings } from '@/components/settings/storage-locations-settings'
 
@@ -34,11 +34,15 @@ export default function StoragePage() {
     staleTime: 60 * 1000,
   })
 
+  // Set page header at layout level
+  usePageHeader({
+    title: 'Binders',
+    subtitle: 'Your card binders',
+  })
+
   return (
     <div className="flex h-full flex-col bg-[var(--bg-canvas)]">
       <div className="mx-auto flex h-full w-full max-w-[var(--content-max-width)] flex-col">
-        <PageHeader title="Binders" subtitle="Your card binders" />
-
         <div className="flex-1 overflow-y-auto px-5 py-6">
           {isLoading ? (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">

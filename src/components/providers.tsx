@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from 'next-themes'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { OracleProvider } from '@/contexts/OracleContext'
+import { PageHeaderProvider } from '@/contexts/PageHeaderContext'
 import { useState } from 'react'
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -24,7 +25,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark">
         <TooltipProvider>
           <OracleProvider>
-            {children}
+            <PageHeaderProvider>
+              {children}
+            </PageHeaderProvider>
           </OracleProvider>
         </TooltipProvider>
       </ThemeProvider>

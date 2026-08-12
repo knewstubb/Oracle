@@ -390,7 +390,7 @@ export function OracleSidebar() {
         className={cn(
           // Mobile: fixed overlay below header (nav + page header = ~110px)
           'fixed right-0 top-[110px] bottom-0 z-50 flex flex-col',
-          // Desktop: NOT fixed, just a regular flex child that fills available height
+          // Desktop: static in flex flow, full height
           'md:!static md:!top-auto md:!bottom-auto md:z-auto md:h-full',
           'bg-[rgba(24,24,27,0.95)] backdrop-blur-md border-l border-zinc-800/60',
           'shadow-2xl md:shadow-none'

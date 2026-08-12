@@ -212,7 +212,7 @@ interface SkeletonPromptOptions {
  */
 export function buildSkeletonGenerationPrompt(
   brief: StrategyBrief,
-  edhrecStaples: Array<{ cardName: string; synergy: number }>,
+  edhrecStaples: Array<{ cardName: string; synergy: number; price?: number }>,
   collectionCards: Array<{ cardName: string; owned: boolean }>,
   scryfallFills: Array<{ cardName: string; price: number }>,
   options?: SkeletonPromptOptions
@@ -276,7 +276,8 @@ export function buildSkeletonGenerationPrompt(
     lines.push('Top synergy cards for this commander (SELECT from this list):')
     lines.push('')
     for (const staple of edhrecStaples) {
-      lines.push(`- ${staple.cardName} (synergy: ${staple.synergy}%)`)
+      const priceStr = staple.price ? ` ($${staple.price.toFixed(2)})` : ''
+      lines.push(`- ${staple.cardName} (synergy: ${staple.synergy}%)${priceStr}`)
     }
   } else {
     lines.push('(No EDHREC data available for this commander)')

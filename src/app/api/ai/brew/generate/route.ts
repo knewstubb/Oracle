@@ -182,12 +182,13 @@ export async function POST(request: NextRequest) {
 /**
  * Load EDHREC build cards from ref_build_cards database.
  * Returns staples (high inclusion), signature cards, and full card pool.
+ * Optionally filters by budget ceiling.
  */
 async function loadEdhrecBuildCards(
   commanderName: string,
   brief: StrategyBrief
 ): Promise<{
-  staples: Array<{ cardName: string; synergy: number }>
+  staples: Array<{ cardName: string; synergy: number; price?: number }>
   fills: Array<{ cardName: string; price: number }>
   cardPool: string[]
 }> {
@@ -205,22 +206,38 @@ async function loadEdhrecBuildCards(
     const buildId = bestBuild?.id ?? builds[0].id
 
     // Get full card pool for this build
-    const cardPool = await getCardPoolForBuild(buildId)
+    let cardPool = await getCardPoolForBuild(buildId)
+
+    // Load prices for budget filtering
+    const cardNames = cardPool.map(c => c.cardName)
+    const priceMap = await loadCardPrices(cardNames)
+
+    // Apply budget filter if specified
+    const budgetCeiling = brief.budgetPreference === 'budget' ? brief.budgetCeiling : null
+    if (budgetCeiling) {
+      cardPool = cardPool.filter(card => {
+        const price = priceMap.get(card.cardName) ?? 0
+        return price <= budgetCeiling
+      })
+    }
 
     // Separate into staples (high inclusion) and fills (lower inclusion)
-    const staples: Array<{ cardName: string; synergy: number }> = []
+    const staples: Array<{ cardName: string; synergy: number; price?: number }> = []
     const fills: Array<{ cardName: string; price: number }> = []
 
     for (const card of cardPool) {
+      const price = priceMap.get(card.cardName) ?? 0
+      
       if (card.inclusionRate >= 50 || card.synergyScore >= 30) {
         staples.push({
           cardName: card.cardName,
           synergy: Math.round(card.synergyScore),
+          price: price > 0 ? price : undefined,
         })
       } else {
         fills.push({
           cardName: card.cardName,
-          price: 0, // Price will be looked up separately if needed
+          price,
         })
       }
     }
@@ -237,6 +254,46 @@ async function loadEdhrecBuildCards(
     console.error('[brew/generate] Failed to load EDHREC data:', error)
     return { staples: [], fills: [], cardPool: [] }
   }
+}
+
+/**
+ * Load prices for a list of card names from ref_printings.
+ * Returns cheapest price for each card.
+ */
+async function loadCardPrices(cardNames: string[]): Promise<Map<string, number>> {
+  const priceMap = new Map<string, number>()
+  if (cardNames.length === 0) return priceMap
+
+  try {
+    const supabase = createAdminClient()
+    
+    // Query in batches to avoid Supabase limits
+    const batchSize = 100
+    for (let i = 0; i < cardNames.length; i += batchSize) {
+      const batch = cardNames.slice(i, i + batchSize)
+      
+      const { data: printings } = await supabase
+        .from('ref_printings')
+        .select('name, price_usd')
+        .in('name', batch)
+        .not('price_usd', 'is', null)
+      
+      if (printings) {
+        for (const p of printings) {
+          const existing = priceMap.get(p.name)
+          const price = p.price_usd ?? 0
+          // Keep the cheapest price
+          if (!existing || price < existing) {
+            priceMap.set(p.name, price)
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('[brew/generate] Failed to load prices:', error)
+  }
+
+  return priceMap
 }
 
 /**

@@ -3,6 +3,7 @@ import { Providers } from "@/components/providers";
 import { TopNav } from "@/components/TopNav";
 import { Toaster } from "@/components/ui/sonner";
 import { SmartSearch } from "@/components/SmartSearch";
+import { CardLocator } from "@/components/CardLocator";
 import { OracleSidebar } from "@/components/OracleSidebar";
 import { MainContentWrapper } from "@/components/MainContentWrapper";
 import "./globals.css";
@@ -66,6 +67,7 @@ export default function RootLayout({
             <OracleSidebar />
           </div>
           <SmartSearch />
+          <CardLocator />
           <Toaster />
         </Providers>
       </body>

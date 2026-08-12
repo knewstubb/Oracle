@@ -231,9 +231,9 @@ export function OracleProvider({ children }: { children: ReactNode }) {
         const res = await fetch(`/api/oracle/sessions/active?${params.toString()}`)
         
         if (!res.ok) {
-          console.error('[Oracle] Failed to fetch active session')
-          setMessages([])
-          setActiveSession(null)
+          // Session API not available — fall back to legacy history loading
+          console.log('[Oracle] Session API unavailable, using legacy mode')
+          await loadLegacyHistory(activeContext)
           return
         }
         
@@ -260,17 +260,41 @@ export function OracleProvider({ children }: { children: ReactNode }) {
             setActiveSession(transformSession(createData.session))
             setMessages([])
           } else {
-            console.error('[Oracle] Failed to create session')
-            setActiveSession(null)
-            setMessages([])
+            // Session creation failed — fall back to legacy mode
+            console.log('[Oracle] Session creation failed, using legacy mode')
+            await loadLegacyHistory(activeContext)
           }
         }
       } catch (err) {
-        console.error('[Oracle] Session load error:', err)
-        setActiveSession(null)
-        setMessages([])
+        console.log('[Oracle] Session API error, using legacy mode:', err)
+        await loadLegacyHistory(activeContext)
       } finally {
         setIsLoadingHistory(false)
+      }
+    }
+    
+    // Legacy history loading (original behavior)
+    const loadLegacyHistory = async (context: OracleContext) => {
+      setActiveSession(null)
+      try {
+        const contextType = context.type === 'deck' && context.deckId
+          ? 'deck'
+          : context.type === 'collection'
+          ? 'collection'
+          : 'general'
+        
+        const params = new URLSearchParams({ contextType })
+        if (context.deckId) params.set('deckId', String(context.deckId))
+        
+        const res = await fetch(`/api/oracle/history?${params.toString()}`)
+        if (res.ok) {
+          const data = await res.json()
+          setMessages(data.messages ?? [])
+        } else {
+          setMessages([])
+        }
+      } catch {
+        setMessages([])
       }
     }
     
@@ -406,9 +430,35 @@ export function OracleProvider({ children }: { children: ReactNode }) {
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isStreaming) return
-    if (!activeSession) {
-      console.error('[Oracle] No active session')
-      return
+    
+    // If no active session, try to create one inline
+    let sessionToUse = activeSession
+    if (!sessionToUse) {
+      console.log('[Oracle] No active session, creating one inline...')
+      try {
+        const sessionType = contextToSessionType(activeContext.type)
+        const deckId = activeContext.type === 'deck' ? activeContext.deckId : undefined
+        
+        const createRes = await fetch('/api/oracle/sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionType,
+            contextDeckId: deckId,
+          }),
+        })
+        
+        if (createRes.ok) {
+          const createData = await createRes.json()
+          sessionToUse = transformSession(createData.session)
+          setActiveSession(sessionToUse)
+        } else {
+          // Session creation failed — still allow chat to work without session tracking
+          console.warn('[Oracle] Could not create session, proceeding without session tracking')
+        }
+      } catch (err) {
+        console.warn('[Oracle] Session creation error, proceeding without session tracking:', err)
+      }
     }
 
     const userMsg: ChatMessage = {
@@ -441,7 +491,7 @@ export function OracleProvider({ children }: { children: ReactNode }) {
           message: text.trim(),
           context: activeContext,
           history: messages.slice(-20),
-          sessionId: activeSession.id,
+          sessionId: sessionToUse?.id,
         }),
       })
 
@@ -530,10 +580,10 @@ export function OracleProvider({ children }: { children: ReactNode }) {
       }
 
       // After streaming completes, generate session name if this is the first AI response
-      if (!hasGeneratedName.current && fullResponseText && activeSession) {
+      if (!hasGeneratedName.current && fullResponseText && sessionToUse) {
         hasGeneratedName.current = true
         // Fire and forget — don't block on name generation
-        fetch(`/api/oracle/sessions/${activeSession.id}/generate-name`, {
+        fetch(`/api/oracle/sessions/${sessionToUse.id}/generate-name`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ responseContent: fullResponseText }),

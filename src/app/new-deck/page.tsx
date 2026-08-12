@@ -86,6 +86,11 @@ export default function BrewModePage() {
   const [isStreaming, setIsStreaming] = useState(false)
   const [activeTools, setActiveTools] = useState<Array<{name: string; status: 'running' | 'complete' | 'error'}>>([])
   const [selectedCard, setSelectedCard] = useState<string | null>(null)
+  
+  // -------------------------------------------------------------------------
+  // Auto-commit state — for handling commander URL parameter
+  // -------------------------------------------------------------------------
+  const [pendingCommanderKey, setPendingCommanderKey] = useState<string | null>(null)
 
   // -------------------------------------------------------------------------
   // Oracle context — forge (no commander) or workbench (commander selected)
@@ -284,6 +289,16 @@ export default function BrewModePage() {
           // Validates: Requirement 7.2
           const url = new URL(window.location.href)
           url.searchParams.set('sessionId', String(data.sessionId))
+          
+          // Check for commander URL param — store it for auto-commit effect
+          const commanderKey = params.get('commander')
+          if (commanderKey) {
+            // Remove commander param from URL (it's a one-time trigger)
+            url.searchParams.delete('commander')
+            // Store the commander key to be processed by the auto-commit effect
+            setPendingCommanderKey(decodeURIComponent(commanderKey))
+          }
+          
           history.replaceState(null, '', url.toString())
         }
       } catch {
@@ -567,6 +582,60 @@ export default function BrewModePage() {
       handleCommitCommander(commanderOption)
     }
   }, [handleCommitCommander])
+
+  // -------------------------------------------------------------------------
+  // Auto-commit effect — process pending commander from URL parameter
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    if (!pendingCommanderKey || isHydrating) return
+    
+    let cancelled = false
+    
+    async function autoCommitCommander() {
+      try {
+        // Look up commander by canonical key or fuzzy name match
+        const cardRes = await fetch(
+          `/api/cards?name=${encodeURIComponent(pendingCommanderKey)}&action=full&fuzzy=true`
+        )
+        
+        if (!cardRes.ok) {
+          console.warn(`[auto-commit] Could not find commander: ${pendingCommanderKey}`)
+          setPendingCommanderKey(null)
+          return
+        }
+        
+        const cardData = await cardRes.json()
+        if (!cardData?.name || cancelled) {
+          console.warn(`[auto-commit] Invalid card data for: ${pendingCommanderKey}`)
+          setPendingCommanderKey(null)
+          return
+        }
+        
+        console.log('[auto-commit] Committing commander from URL:', cardData.name)
+        
+        // Add a welcome message acknowledging the commander
+        setMessages([{
+          id: `welcome-${Date.now()}`,
+          role: 'assistant',
+          content: `Let's build **${cardData.name}**! I'll set up the deck and we can start brewing.`,
+          timestamp: Date.now(),
+        }])
+        
+        // Clear the pending key
+        setPendingCommanderKey(null)
+        
+        // Use the chat-based commit which handles the full flow
+        handleCommitCommanderFromChat(cardData.name)
+      } catch (err) {
+        console.error('[auto-commit] Failed:', err)
+        setPendingCommanderKey(null)
+      }
+    }
+    
+    autoCommitCommander()
+    
+    return () => { cancelled = true }
+  }, [pendingCommanderKey, isHydrating, handleCommitCommanderFromChat])
 
   // -------------------------------------------------------------------------
   // Skeleton generation — fires when phase transitions to 'building'

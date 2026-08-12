@@ -33,6 +33,10 @@ export interface NavigatePrompt {
   action: string
   label: string
   url: string
+  // Commander-specific fields (when action is 'build_commander')
+  commanderName?: string
+  commanderKey?: string
+  colorIdentity?: string
 }
 
 export interface ChatMessage {
@@ -489,6 +493,7 @@ export function OracleProvider({ children }: { children: ReactNode }) {
     setMessages(prev => [...prev, assistantMsg])
 
     let fullResponseText = ''
+    let pendingNavigatePrompt: NavigatePrompt | null = null
 
     try {
       const res = await fetch('/api/oracle/chat', {
@@ -539,21 +544,18 @@ export function OracleProvider({ children }: { children: ReactNode }) {
                   )
                 )
               } else if (parsed.type === 'navigate_prompt') {
-                // Add a navigation action to the message metadata
-                setMessages(prev =>
-                  prev.map(msg =>
-                    msg.id === assistantMsgId
-                      ? { 
-                          ...msg, 
-                          navigatePrompt: {
-                            action: parsed.action,
-                            label: parsed.label,
-                            url: parsed.url,
-                          }
-                        }
-                      : msg
-                  )
-                )
+                // Store navigate prompt to apply after streaming completes
+                // (applying during streaming can be lost due to React state batching)
+                console.log('[Oracle] navigate_prompt event received:', parsed)
+                pendingNavigatePrompt = {
+                  action: parsed.action,
+                  label: parsed.label,
+                  url: parsed.url,
+                  // Include commander-specific fields if present
+                  commanderName: parsed.commanderName,
+                  commanderKey: parsed.commanderKey,
+                  colorIdentity: parsed.colorIdentity,
+                }
               } else if (parsed.type === 'action') {
                 if (parsed.invalidate) {
                   for (const key of parsed.invalidate) {
@@ -600,6 +602,19 @@ export function OracleProvider({ children }: { children: ReactNode }) {
             }
           }
         }
+      }
+
+      // Apply pending navigate prompt after streaming is complete
+      // (doing this after streaming avoids race conditions with React state batching)
+      if (pendingNavigatePrompt) {
+        console.log('[Oracle] Applying pending navigate prompt after streaming:', pendingNavigatePrompt)
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === assistantMsgId
+              ? { ...msg, navigatePrompt: pendingNavigatePrompt! }
+              : msg
+          )
+        )
       }
 
       // After streaming completes, generate session name if this is the first AI response

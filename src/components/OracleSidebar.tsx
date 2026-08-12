@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, Trash2, MessageSquare, Library, LayoutGrid, Sparkles, Wrench, Layers, History, Compass, ArrowRight } from 'lucide-react'
+import { X, Trash2, MessageSquare, Library, LayoutGrid, Sparkles, Wrench, Layers, History, Compass, ArrowRight, Crown } from 'lucide-react'
 import { useOracle, type OracleContext, type NavigatePrompt } from '@/contexts/OracleContext'
 import { useQueryClient } from '@tanstack/react-query'
 import { renderMessageContent, type CardLinkMode, type OwnershipStatus, type OwnershipLookupFn } from '@/lib/render-card-links'
@@ -627,12 +627,17 @@ function MessageBubble({
           onClick={() => onNavigate?.(message.navigatePrompt!.url)}
           className={cn(
             'mt-3 flex items-center gap-2 w-full px-3 py-2.5 rounded-lg',
-            'bg-emerald-500/15 border border-emerald-500/30',
-            'text-emerald-400 hover:bg-emerald-500/25 hover:border-emerald-500/50',
+            message.navigatePrompt.commanderName
+              ? 'bg-amber-500/15 border border-amber-500/30 text-amber-400 hover:bg-amber-500/25 hover:border-amber-500/50'
+              : 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 hover:border-emerald-500/50',
             'transition-all text-sm font-medium'
           )}
         >
-          <Sparkles className="w-4 h-4" />
+          {message.navigatePrompt.commanderName ? (
+            <Crown className="w-4 h-4" />
+          ) : (
+            <Sparkles className="w-4 h-4" />
+          )}
           <span className="flex-1 text-left">{message.navigatePrompt.label}</span>
           <ArrowRight className="w-4 h-4" />
         </button>

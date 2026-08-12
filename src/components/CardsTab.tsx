@@ -2,10 +2,11 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, List, LayoutGrid, Columns3, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react'
+import { Search, List, LayoutGrid, Columns3, ChevronDown, ChevronRight, AlertTriangle, Sparkles, Loader2, Check, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog'
 import { OwnershipBadge } from '@/components/OwnershipBadge'
 import { CardImage } from '@/components/CardImage'
 import { cn } from '@/lib/utils'
@@ -592,6 +593,9 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
           {/* Spacer */}
           <div className="flex-1" />
 
+          {/* Auto-categorize button */}
+          <AutoCategorizeButton cards={cards} deckId={deckId} />
+
           {/* Add card search */}
           <AddCardSearch deckId={deckId} />
 
@@ -1089,3 +1093,306 @@ function GridCardAction({
 }
 
 
+
+// ---------------------------------------------------------------------------
+// AutoCategorizeButton — bulk categorize uncategorized cards
+// ---------------------------------------------------------------------------
+
+interface CategorySuggestion {
+  category: string
+  confidence: 'high' | 'medium' | 'low'
+  source: 'tag' | 'archetype' | 'theme'
+  sourceValue: string
+}
+
+interface BatchSuggestionResult {
+  cardName: string
+  suggestions: CategorySuggestion[]
+  tags: string[]
+  error?: string
+}
+
+interface AutoCategorizeButtonProps {
+  cards: DeckCard[]
+  deckId: number
+}
+
+function AutoCategorizeButton({ cards, deckId }: AutoCategorizeButtonProps) {
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [processing, setProcessing] = useState(false)
+  const [results, setResults] = useState<BatchSuggestionResult[]>([])
+  const [applied, setApplied] = useState<Set<string>>(new Set())
+  const queryClient = useQueryClient()
+
+  // Find uncategorized cards (category is 'Other' or missing)
+  const uncategorizedCards = useMemo(() => {
+    return cards.filter((card) => {
+      // Skip basic lands
+      if (isBasicLand(card.card_name)) return false
+      // Skip commanders
+      if (card.is_commander) return false
+      
+      const parsed = parseCategoriesCapped(card.categories)
+      return parsed.primary_category === 'Other' || parsed.primary_category === ''
+    })
+  }, [cards])
+
+  const handleOpen = async () => {
+    setDialogOpen(true)
+    setProcessing(true)
+    setResults([])
+    setApplied(new Set())
+
+    try {
+      // Call batch API
+      const cardNames = uncategorizedCards.map(c => c.card_name)
+      const res = await fetch('/api/cards/suggest-categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cardNames }),
+      })
+
+      if (!res.ok) throw new Error('Failed to fetch suggestions')
+
+      const data = await res.json()
+      setResults(data.results || [])
+    } catch {
+      toast.error('Failed to fetch category suggestions')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const handleApplySingle = async (cardName: string, suggestion: CategorySuggestion) => {
+    const card = uncategorizedCards.find(c => c.card_name === cardName)
+    if (!card) return
+
+    try {
+      const categories: StructuredCategories = {
+        primary_category: suggestion.category,
+        additional_categories: [],
+      }
+
+      const res = await fetch(`/api/decks/${deckId}/cards/${card.id}/categories`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(categories),
+      })
+
+      if (!res.ok) throw new Error('Failed to update')
+
+      setApplied(prev => new Set([...prev, cardName]))
+      queryClient.invalidateQueries({ queryKey: deckKeys.detail(deckId) })
+      toast.success(`Categorized ${cardName} as ${suggestion.category}`)
+    } catch {
+      toast.error(`Failed to categorize ${cardName}`)
+    }
+  }
+
+  const handleApplyAll = async () => {
+    setProcessing(true)
+    let successCount = 0
+    let failCount = 0
+
+    for (const result of results) {
+      if (applied.has(result.cardName)) continue
+      if (!result.suggestions.length) continue
+
+      const card = uncategorizedCards.find(c => c.card_name === result.cardName)
+      if (!card) continue
+
+      // Get best suggestion (first one, highest confidence)
+      const best = result.suggestions[0]
+      const secondaries = result.suggestions
+        .slice(1, 3)
+        .filter(s => s.confidence !== 'low')
+        .map(s => s.category)
+
+      try {
+        const categories: StructuredCategories = {
+          primary_category: best.category,
+          additional_categories: secondaries,
+        }
+
+        const res = await fetch(`/api/decks/${deckId}/cards/${card.id}/categories`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(categories),
+        })
+
+        if (res.ok) {
+          setApplied(prev => new Set([...prev, result.cardName]))
+          successCount++
+        } else {
+          failCount++
+        }
+      } catch {
+        failCount++
+      }
+    }
+
+    queryClient.invalidateQueries({ queryKey: deckKeys.detail(deckId) })
+    setProcessing(false)
+
+    if (successCount > 0) {
+      toast.success(`Categorized ${successCount} card${successCount !== 1 ? 's' : ''}`)
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to categorize ${failCount} card${failCount !== 1 ? 's' : ''}`)
+    }
+  }
+
+  // Hide button if no uncategorized cards
+  if (uncategorizedCards.length === 0) {
+    return null
+  }
+
+  const resultsWithSuggestions = results.filter(r => r.suggestions.length > 0 && !applied.has(r.cardName))
+  const noSuggestionCount = results.filter(r => r.suggestions.length === 0).length
+
+  return (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleOpen}
+        className="gap-1.5"
+      >
+        <Sparkles className="size-3.5" />
+        Auto-Categorize ({uncategorizedCards.length})
+      </Button>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-[500px] max-h-[80vh] flex flex-col" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="size-4 text-amber-400" />
+              Auto-Categorize Cards
+            </DialogTitle>
+            <DialogDescription>
+              Found {uncategorizedCards.length} uncategorized card{uncategorizedCards.length !== 1 ? 's' : ''}.
+              Suggestions based on Scryfall function tags.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 min-h-0 overflow-y-auto py-4">
+            {processing && (
+              <div className="flex items-center justify-center py-12 text-muted-foreground">
+                <Loader2 className="size-5 animate-spin mr-2" />
+                <span>Fetching suggestions...</span>
+              </div>
+            )}
+
+            {!processing && results.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                No suggestions found. Cards may not have Scryfall tags.
+              </div>
+            )}
+
+            {!processing && results.length > 0 && (
+              <div className="space-y-3">
+                {/* Summary */}
+                {noSuggestionCount > 0 && (
+                  <div className="text-[length:var(--fs-xs)] text-muted-foreground px-1 mb-2">
+                    {noSuggestionCount} card{noSuggestionCount !== 1 ? 's' : ''} had no tag matches
+                  </div>
+                )}
+
+                {/* Cards with suggestions */}
+                {results.map((result) => {
+                  if (result.suggestions.length === 0) return null
+                  const isApplied = applied.has(result.cardName)
+
+                  return (
+                    <div
+                      key={result.cardName}
+                      className={cn(
+                        'rounded-lg border p-3 transition-colors',
+                        isApplied
+                          ? 'border-emerald-500/30 bg-emerald-500/5'
+                          : 'border-[var(--border-default)] bg-[var(--bg-card)]'
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            {isApplied && <Check className="size-4 text-emerald-500 shrink-0" />}
+                            <span className="font-medium text-[length:var(--fs-sm)] truncate">
+                              {result.cardName}
+                            </span>
+                          </div>
+                          {!isApplied && (
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              {result.suggestions.slice(0, 4).map((suggestion, idx) => (
+                                <button
+                                  key={suggestion.category}
+                                  type="button"
+                                  onClick={() => handleApplySingle(result.cardName, suggestion)}
+                                  className={cn(
+                                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[length:var(--fs-xs)] font-medium transition-colors hover:ring-1',
+                                    idx === 0
+                                      ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] hover:ring-[var(--accent-primary)]'
+                                      : 'bg-white/5 text-muted-foreground hover:text-foreground hover:ring-white/20'
+                                  )}
+                                >
+                                  {suggestion.category}
+                                  <span className={cn(
+                                    'text-[10px] opacity-70',
+                                    suggestion.confidence === 'high' && 'text-emerald-400',
+                                    suggestion.confidence === 'medium' && 'text-amber-400',
+                                    suggestion.confidence === 'low' && 'text-muted-foreground'
+                                  )}>
+                                    {suggestion.confidence === 'high' ? '★' : suggestion.confidence === 'medium' ? '◆' : '○'}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+
+                {/* Cards with no suggestions */}
+                {noSuggestionCount > 0 && (
+                  <details className="text-[length:var(--fs-xs)]">
+                    <summary className="cursor-pointer text-muted-foreground hover:text-foreground py-1">
+                      Show {noSuggestionCount} card{noSuggestionCount !== 1 ? 's' : ''} without suggestions
+                    </summary>
+                    <ul className="mt-2 space-y-1 pl-4 text-muted-foreground">
+                      {results.filter(r => r.suggestions.length === 0).map(r => (
+                        <li key={r.cardName} className="truncate">{r.cardName}</li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <DialogClose render={<Button variant="outline" />}>
+              Close
+            </DialogClose>
+            {resultsWithSuggestions.length > 0 && (
+              <Button
+                onClick={handleApplyAll}
+                disabled={processing}
+              >
+                {processing ? (
+                  <>
+                    <Loader2 className="size-3.5 animate-spin mr-1.5" />
+                    Applying...
+                  </>
+                ) : (
+                  <>Apply All ({resultsWithSuggestions.length})</>
+                )}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}

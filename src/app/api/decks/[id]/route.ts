@@ -151,7 +151,38 @@ export async function GET(
     allocationMap[card.card_name] = card.ownership_status || 'original'
   }
 
-  // Merge allocation status, mana cost, price, and edition into cards
+  // Fetch synergy scores from ref_build_cards if deck has a build_id
+  const synergyMap: Record<string, number> = {}
+  if (deck.build_id && cardNames.length > 0) {
+    // Fetch synergy scores for cards in this build
+    // Use batching for large card lists
+    for (let i = 0; i < cardNames.length; i += 200) {
+      const batch = cardNames.slice(i, i + 200)
+      const { data: buildCards } = await supabase
+        .from('ref_build_cards')
+        .select('card_name, synergy_score')
+        .eq('build_id', deck.build_id)
+        .in('card_name', batch)
+      
+      for (const row of buildCards ?? []) {
+        if (row.synergy_score !== null) {
+          synergyMap[row.card_name] = row.synergy_score
+        }
+      }
+    }
+    
+    // Handle DFC cards: propagate synergy from front-face to full name
+    for (const name of cardNames) {
+      if (name.includes(' // ') && synergyMap[name] === undefined) {
+        const front = frontFaceName(name)
+        if (synergyMap[front] !== undefined) {
+          synergyMap[name] = synergyMap[front]
+        }
+      }
+    }
+  }
+
+  // Merge allocation status, mana cost, price, edition, and synergy into cards
   const cardsWithStatus = (cards ?? []).map(card => ({
     ...card,
     allocation_role: card.ownership_status || 'original',
@@ -159,6 +190,7 @@ export async function GET(
     price_usd: priceMap[card.card_name] ?? null,
     edition_name: card.scryfall_id ? editionMap[card.scryfall_id]?.editionName || null : null,
     rarity: rarityMap[card.card_name] || null,
+    synergy_score: synergyMap[card.card_name] ?? null,
   }))
 
   return Response.json({

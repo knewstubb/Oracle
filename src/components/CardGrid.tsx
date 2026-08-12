@@ -35,6 +35,8 @@ export interface DeckCard {
   price_usd?: number | null
   edition_name?: string | null
   rarity?: string | null
+  /** Synergy score from EDHREC for the current build (null if no build set) */
+  synergy_score?: number | null
 }
 
 interface CardGridProps {

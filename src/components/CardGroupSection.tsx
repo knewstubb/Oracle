@@ -315,6 +315,22 @@ function UnifiedCardRow({
         <CardHoverPreview {...previewProps} />
       </span>
 
+      {/* Synergy score badge — only shown when deck has a build set */}
+      {card.synergy_score != null && (
+        <span
+          className={`shrink-0 text-[length:var(--fs-xs)] font-medium tabular-nums ${
+            card.synergy_score > 0
+              ? 'text-emerald-500'
+              : card.synergy_score < 0
+              ? 'text-red-400'
+              : 'text-muted-foreground'
+          }`}
+          title={`EDHREC synergy score: ${card.synergy_score > 0 ? '+' : ''}${card.synergy_score}%`}
+        >
+          {card.synergy_score > 0 ? '+' : ''}{card.synergy_score}%
+        </span>
+      )}
+
       {/* Set icon (with rarity colour) + set name */}
       {!compact && (
         <span className="hidden md:inline-flex shrink-0 items-center gap-1 text-[length:var(--fs-xs)] text-muted-foreground" style={{ width: 160 }}>

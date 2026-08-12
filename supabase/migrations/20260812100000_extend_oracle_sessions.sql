@@ -159,7 +159,8 @@ BEGIN
     SET archived_at = NOW()
     WHERE id IN (SELECT id FROM sessions_to_archive);
     
-    GET DIAGNOSTICS v_archived_count = v_archived_count + ROW_COUNT;
+    GET DIAGNOSTICS v_session_count = ROW_COUNT;
+    v_archived_count := v_archived_count + v_session_count;
   END IF;
 
   RETURN v_archived_count;

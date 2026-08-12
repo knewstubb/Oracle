@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, List, LayoutGrid, Columns3, ChevronDown, ChevronRight, AlertTriangle, Sparkles, Loader2, Check, X } from 'lucide-react'
+import { Search, List, LayoutGrid, Columns3, ChevronDown, ChevronRight, AlertTriangle, Sparkles, Loader2, Check, X, Trash2, Tags } from 'lucide-react'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -709,7 +709,17 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
               Deselect All
             </Button>
             <span className="flex-1" />
-            {/* Bulk action buttons will be added in Task 7 */}
+            {/* Bulk action buttons */}
+            <BulkActionsBar
+              selectedIds={selectedCardIds}
+              deckId={deckId}
+              availableCategories={availableCategories}
+              onComplete={() => {
+                handleDeselectAll()
+                queryClient.invalidateQueries({ queryKey: deckKeys.detail(deckId) })
+                queryClient.invalidateQueries({ queryKey: deckKeys.cardStatuses(deckId) })
+              }}
+            />
           </div>
         </div>
       )}
@@ -1459,6 +1469,267 @@ function AutoCategorizeButton({ cards, deckId }: AutoCategorizeButtonProps) {
                 )}
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// BulkActionsBar — actions for selected cards
+// ---------------------------------------------------------------------------
+
+interface BulkActionsBarProps {
+  selectedIds: Set<number>
+  deckId: number
+  availableCategories: string[]
+  onComplete: () => void
+}
+
+function BulkActionsBar({ selectedIds, deckId, availableCategories, onComplete }: BulkActionsBarProps) {
+  const [moveCategoryOpen, setMoveCategoryOpen] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [proxyConfirmOpen, setProxyConfirmOpen] = useState(false)
+  const [processing, setProcessing] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState<string>('')
+
+  const cardIds = Array.from(selectedIds)
+
+  const handleDelete = async () => {
+    setProcessing(true)
+    try {
+      const res = await fetch(`/api/decks/${deckId}/cards/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          operation: 'delete',
+          cardIds,
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to delete cards')
+      }
+
+      const data = await res.json()
+      toast.success(`Removed ${data.affected} card${data.affected !== 1 ? 's' : ''}`)
+      setDeleteConfirmOpen(false)
+      onComplete()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete cards')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const handleMoveCategory = async () => {
+    if (!selectedCategory) {
+      toast.error('Please select a category')
+      return
+    }
+
+    setProcessing(true)
+    try {
+      const res = await fetch(`/api/decks/${deckId}/cards/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          operation: 'move-category',
+          cardIds,
+          payload: {
+            primary_category: selectedCategory,
+            additional_categories: [],
+          },
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to move cards')
+      }
+
+      const data = await res.json()
+      toast.success(`Moved ${data.affected} card${data.affected !== 1 ? 's' : ''} to ${selectedCategory}`)
+      setMoveCategoryOpen(false)
+      setSelectedCategory('')
+      onComplete()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to move cards')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const handleAddProxy = async () => {
+    setProcessing(true)
+    try {
+      const res = await fetch(`/api/decks/${deckId}/cards/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          operation: 'add-proxy',
+          cardIds,
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to add proxies')
+      }
+
+      const data = await res.json()
+      if (data.affected === 0) {
+        toast.info(data.message || 'No cards needed proxies')
+      } else {
+        toast.success(`Added proxies to ${data.affected} card${data.affected !== 1 ? 's' : ''}`)
+      }
+      setProxyConfirmOpen(false)
+      onComplete()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add proxies')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  return (
+    <>
+      <div className="flex items-center gap-2">
+        {/* Move to Category */}
+        <Button
+          variant="outline"
+          size="xs"
+          onClick={() => setMoveCategoryOpen(true)}
+          className="text-[length:var(--fs-xs)] gap-1"
+        >
+          <Tags className="size-3" />
+          Move to Category
+        </Button>
+
+        {/* Add Proxy */}
+        <Button
+          variant="outline"
+          size="xs"
+          onClick={() => setProxyConfirmOpen(true)}
+          className="text-[length:var(--fs-xs)] gap-1"
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '12px' }} aria-hidden="true">
+            content_copy
+          </span>
+          Add Proxy
+        </Button>
+
+        {/* Remove */}
+        <Button
+          variant="outline"
+          size="xs"
+          onClick={() => setDeleteConfirmOpen(true)}
+          className="text-[length:var(--fs-xs)] gap-1 text-red-400 hover:text-red-300 hover:border-red-400/50"
+        >
+          <Trash2 className="size-3" />
+          Remove
+        </Button>
+      </div>
+
+      {/* Move to Category Dialog */}
+      <Dialog open={moveCategoryOpen} onOpenChange={setMoveCategoryOpen}>
+        <DialogContent className="sm:max-w-[400px]" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Move to Category</DialogTitle>
+            <DialogDescription>
+              Move {selectedIds.size} selected card{selectedIds.size !== 1 ? 's' : ''} to a category.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="w-full h-9 rounded-lg border px-3 text-[length:var(--fs-sm)]"
+              style={{
+                backgroundColor: 'var(--bg-card)',
+                borderColor: 'var(--border-emphasis)',
+              }}
+            >
+              <option value="">Select a category…</option>
+              {availableCategories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+          </div>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>
+              Cancel
+            </DialogClose>
+            <Button onClick={handleMoveCategory} disabled={processing || !selectedCategory}>
+              {processing ? (
+                <>
+                  <Loader2 className="size-3.5 animate-spin mr-1.5" />
+                  Moving...
+                </>
+              ) : (
+                'Move Cards'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-[400px]" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Remove cards?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to remove {selectedIds.size} card{selectedIds.size !== 1 ? 's' : ''} from this deck?
+              This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>
+              Cancel
+            </DialogClose>
+            <Button variant="destructive" onClick={handleDelete} disabled={processing}>
+              {processing ? (
+                <>
+                  <Loader2 className="size-3.5 animate-spin mr-1.5" />
+                  Removing...
+                </>
+              ) : (
+                `Remove ${selectedIds.size} Card${selectedIds.size !== 1 ? 's' : ''}`
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Proxy Confirmation Dialog */}
+      <Dialog open={proxyConfirmOpen} onOpenChange={setProxyConfirmOpen}>
+        <DialogContent className="sm:max-w-[400px]" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Add Proxy Copies</DialogTitle>
+            <DialogDescription>
+              Add proxy copies to {selectedIds.size} selected card{selectedIds.size !== 1 ? 's' : ''}.
+              This will only affect cards that don&apos;t already have a copy assigned.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>
+              Cancel
+            </DialogClose>
+            <Button onClick={handleAddProxy} disabled={processing}>
+              {processing ? (
+                <>
+                  <Loader2 className="size-3.5 animate-spin mr-1.5" />
+                  Adding...
+                </>
+              ) : (
+                'Add Proxies'
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

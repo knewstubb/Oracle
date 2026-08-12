@@ -13,6 +13,11 @@ import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
 import { deriveDefaultCategory } from '@/lib/card-definition-resolver'
+import {
+  createVersionSnapshot,
+  checkMilestoneCrossed,
+  getDeckCardCount,
+} from '@/lib/deck-versions'
 
 export async function POST(
   request: NextRequest,
@@ -112,6 +117,21 @@ export async function POST(
 
   if (insertErr) {
     return Response.json({ error: insertErr.message }, { status: 500 })
+  }
+
+  // Check for milestone card count
+  const newCount = await getDeckCardCount(deckId)
+  // Estimate the before count (may be slightly off due to race conditions, but good enough)
+  const beforeCount = newCount - quantity
+  const milestone = checkMilestoneCrossed(beforeCount, newCount)
+
+  if (milestone) {
+    await createVersionSnapshot(
+      deckId,
+      userId,
+      'milestone',
+      `Reached ${milestone} cards`
+    )
   }
 
   return Response.json({ id: newCard.id, cardName: newCard.card_name })

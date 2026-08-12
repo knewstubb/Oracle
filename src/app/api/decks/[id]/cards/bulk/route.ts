@@ -15,6 +15,7 @@ import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
 import { serializeCategories } from '@/lib/categoryUtils'
+import { createVersionSnapshot, BULK_CHANGE_THRESHOLD } from '@/lib/deck-versions'
 
 type BulkOperation = 'delete' | 'move-category' | 'add-proxy'
 
@@ -112,10 +113,22 @@ export async function POST(
         return Response.json({ error: deleteErr.message }, { status: 500 })
       }
 
+      const affected = count ?? body.cardIds.length
+
+      // Create version snapshot if bulk change threshold met
+      if (affected >= BULK_CHANGE_THRESHOLD) {
+        await createVersionSnapshot(
+          deckId,
+          userId,
+          'bulk_change',
+          `Removed ${affected} cards`
+        )
+      }
+
       return Response.json({
         success: true,
         operation: 'delete',
-        affected: count ?? body.cardIds.length,
+        affected,
       })
     }
 
@@ -153,10 +166,22 @@ export async function POST(
         return Response.json({ error: updateErr.message }, { status: 500 })
       }
 
+      const affected = count ?? body.cardIds.length
+
+      // Create version snapshot if bulk change threshold met
+      if (affected >= BULK_CHANGE_THRESHOLD) {
+        await createVersionSnapshot(
+          deckId,
+          userId,
+          'bulk_change',
+          `Moved ${affected} cards to "${primaryTrimmed}"`
+        )
+      }
+
       return Response.json({
         success: true,
         operation: 'move-category',
-        affected: count ?? body.cardIds.length,
+        affected,
         category: primaryTrimmed,
       })
     }
@@ -275,6 +300,16 @@ export async function POST(
         } catch (err) {
           errors.push(`Unexpected error for ${slot.card_name}: ${err instanceof Error ? err.message : String(err)}`)
         }
+      }
+
+      // Create version snapshot if bulk change threshold met
+      if (successCount >= BULK_CHANGE_THRESHOLD) {
+        await createVersionSnapshot(
+          deckId,
+          userId,
+          'bulk_change',
+          `Added ${successCount} proxy copies`
+        )
       }
 
       return Response.json({

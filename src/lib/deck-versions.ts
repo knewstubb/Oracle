@@ -2,6 +2,8 @@
  * Deck version history types and utilities
  */
 
+import { createAdminClient } from '@/lib/supabase'
+
 export type VersionTriggerType =
   | 'manual'       // User-initiated snapshot
   | 'import'       // After deck import/reimport
@@ -119,4 +121,81 @@ export function getTriggerDescription(trigger: VersionTriggerType, details?: str
     default:
       return trigger
   }
+}
+
+
+/**
+ * Create a version snapshot for a deck.
+ * Calls the RPC function directly without going through the API.
+ * Used internally by import and bulk operations.
+ * 
+ * @returns The version result, or null if creation failed (logged but not thrown)
+ */
+export async function createVersionSnapshot(
+  deckId: number,
+  userId: string,
+  triggerType: VersionTriggerType,
+  triggerDetails?: string,
+  versionName?: string
+): Promise<CreateVersionResult | null> {
+  const supabase = createAdminClient()
+
+  try {
+    const { data, error } = await supabase.rpc('create_deck_version', {
+      p_deck_id: deckId,
+      p_user_id: userId,
+      p_trigger_type: triggerType,
+      p_trigger_details: triggerDetails ?? null,
+      p_version_name: versionName ?? null,
+    })
+
+    if (error) {
+      console.error(`[deck-versions] Failed to create version for deck ${deckId}: ${error.message}`)
+      return null
+    }
+
+    return data as CreateVersionResult
+  } catch (err) {
+    console.error(
+      `[deck-versions] Unexpected error creating version for deck ${deckId}:`,
+      err instanceof Error ? err.message : err
+    )
+    return null
+  }
+}
+
+/**
+ * Get the current card count for a deck.
+ * Used to check for milestone triggers after adding cards.
+ */
+export async function getDeckCardCount(deckId: number): Promise<number> {
+  const supabase = createAdminClient()
+
+  const { count, error } = await supabase
+    .from('deck_cards')
+    .select('id', { count: 'exact', head: true })
+    .eq('deck_id', deckId)
+
+  if (error) {
+    console.error(`[deck-versions] Failed to get card count for deck ${deckId}: ${error.message}`)
+    return 0
+  }
+
+  return count ?? 0
+}
+
+/**
+ * Check if adding cards crosses a milestone boundary.
+ * Returns the milestone value if crossed, null otherwise.
+ * 
+ * @param beforeCount Card count before the operation
+ * @param afterCount Card count after the operation
+ */
+export function checkMilestoneCrossed(beforeCount: number, afterCount: number): number | null {
+  for (const milestone of MILESTONE_CARD_COUNTS) {
+    if (beforeCount < milestone && afterCount >= milestone) {
+      return milestone
+    }
+  }
+  return null
 }

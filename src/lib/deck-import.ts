@@ -12,6 +12,7 @@ import {
   type ExistingDeckCardRow,
   type IncomingCard,
 } from '@/lib/deck-cards-diff'
+import { createVersionSnapshot } from '@/lib/deck-versions'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -190,6 +191,16 @@ export async function importDeckDesign(
   const diff = diffDeckCards(existingRows, incomingCards)
   await applyDeckCardsDiff(deckId, diff, userId)
 
+  // 5. Create version snapshot after import
+  const sourceLabel = deck.platform ? `from ${deck.platform}` : 'from external source'
+  await createVersionSnapshot(
+    deckId,
+    userId,
+    'import',
+    `Imported ${sourceLabel}`,
+    deck.name
+  )
+
   // No allocation in design mode
   const allocationSummary = {
     assigned: 0,
@@ -292,6 +303,16 @@ export async function importDeckBuilt(
 
   // 5. Auto-assign from existing collection
   const autoResult = await autoAssignDeck(deckId, userId)
+
+  // 6. Create version snapshot after import
+  const sourceLabel = deck.platform ? `from ${deck.platform}` : 'from external source'
+  await createVersionSnapshot(
+    deckId,
+    userId,
+    'import',
+    `Imported ${sourceLabel} (built mode)`,
+    deck.name
+  )
 
   const allocationSummary = {
     assigned: autoResult.assigned,
@@ -419,6 +440,16 @@ export async function importDeckNewCards(
 
   // Batch insert all deck_cards
   await batchInsert(supabase, 'deck_cards', deckCardRows)
+
+  // 5. Create version snapshot after import
+  const sourceLabel = deck.platform ? `from ${deck.platform}` : 'from external source'
+  await createVersionSnapshot(
+    deckId,
+    userId,
+    'import',
+    `Imported ${sourceLabel} (new cards mode)`,
+    deck.name
+  )
 
   // No separate auto-assign needed — cards were already assigned during creation above
 

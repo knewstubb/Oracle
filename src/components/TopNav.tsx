@@ -36,6 +36,7 @@ interface NavItem {
 
 const mainNavItems: NavItem[] = [
   { label: 'Decks', href: '/' },
+  { label: 'Explore', href: '/explore' },
   { label: 'Collection', href: '/collection' },
   { label: 'Wishlist', href: '/wishlist' },
 ]
@@ -49,6 +50,7 @@ const toolsMenuItems: NavItem[] = [
 // Mobile nav includes all items
 const mobileNavItems: NavItem[] = [
   { label: 'Decks', href: '/', icon: 'grid_view' },
+  { label: 'Explore', href: '/explore', icon: 'explore' },
   { label: 'Collection', href: '/collection', icon: 'newsstand' },
   { label: 'Wishlist', href: '/wishlist', icon: 'favorite' },
   { label: 'Card Management', href: '/allocation', icon: 'modeling' },

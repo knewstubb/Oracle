@@ -1,18 +1,32 @@
 'use client'
 
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
+export type SessionType = 'exploration' | 'deck' | 'collection' | 'general'
+export type SessionStatus = 'active' | 'exploring' | 'building' | 'complete'
+
 export interface OracleContext {
-  type: 'collection' | 'deck' | 'deck-list' | 'forge' | 'workbench' | 'general'
+  type: 'collection' | 'deck' | 'deck-list' | 'forge' | 'workbench' | 'general' | 'exploration'
   deckId?: number
-  sessionId?: string
   deckName?: string
   commanderName?: string
+}
+
+export interface OracleSession {
+  id: string
+  sessionName: string | null
+  sessionType: SessionType
+  status: SessionStatus
+  contextDeckId: number | null
+  commanderName: string | null
+  lastMessageAt: string
+  messageCount: number
+  startedAt: string
 }
 
 export interface ChatMessage {
@@ -27,8 +41,10 @@ interface OracleState {
   width: number
   messages: ChatMessage[]
   activeContext: OracleContext
+  activeSession: OracleSession | null
   isStreaming: boolean
   isLoadingHistory: boolean
+  isHistoryPanelOpen: boolean
 }
 
 interface OracleContextValue extends OracleState {
@@ -38,8 +54,16 @@ interface OracleContextValue extends OracleState {
   close: () => void
   setWidth: (width: number) => void
   
+  // History panel
+  openHistoryPanel: () => void
+  closeHistoryPanel: () => void
+  
   // Context management
   setContext: (context: OracleContext) => void
+  
+  // Session management
+  loadSession: (sessionId: string) => Promise<void>
+  startNewSession: (sessionType: SessionType, deckId?: number) => Promise<OracleSession | null>
   
   // Chat
   sendMessage: (text: string) => Promise<void>
@@ -53,11 +77,48 @@ interface OracleContextValue extends OracleState {
 // Constants
 // ---------------------------------------------------------------------------
 
-const DEFAULT_WIDTH = 420
+const DEFAULT_WIDTH = 380
 const MIN_WIDTH = 320
 const MAX_WIDTH = 600
 const STORAGE_KEY_OPEN = 'oracle-sidebar-open'
 const STORAGE_KEY_WIDTH = 'oracle-sidebar-width'
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Map page context type to session type */
+function contextToSessionType(contextType: OracleContext['type']): SessionType {
+  switch (contextType) {
+    case 'deck':
+    case 'workbench':
+      return 'deck'
+    case 'collection':
+      return 'collection'
+    case 'exploration':
+      return 'exploration'
+    case 'forge':
+    case 'deck-list':
+    case 'general':
+    default:
+      return 'general'
+  }
+}
+
+/** Transform API session to OracleSession */
+function transformSession(apiSession: Record<string, unknown>): OracleSession {
+  return {
+    id: apiSession.id as string,
+    sessionName: apiSession.session_name as string | null,
+    sessionType: apiSession.session_type as SessionType,
+    status: apiSession.status as SessionStatus,
+    contextDeckId: apiSession.context_deck_id as number | null,
+    commanderName: apiSession.commander_name as string | null,
+    lastMessageAt: apiSession.last_message_at as string,
+    messageCount: apiSession.message_count as number,
+    startedAt: apiSession.started_at as string,
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Context
@@ -72,17 +133,22 @@ const OracleCtx = createContext<OracleContextValue | null>(null)
 export function OracleProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
   
-  // Initialize from localStorage (client-side only)
+  // Core state
   const [isOpen, setIsOpen] = useState(false)
   const [width, setWidthState] = useState(DEFAULT_WIDTH)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [activeContext, setActiveContext] = useState<OracleContext>({ type: 'general' })
+  const [activeSession, setActiveSession] = useState<OracleSession | null>(null)
   const [isStreaming, setIsStreaming] = useState(false)
-  const [isLoadingHistory, setIsLoadingHistory] = useState(true)
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+  const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false)
   const [isHydrated, setIsHydrated] = useState(false)
   
-  // Track last loaded context to avoid redundant fetches
-  const [lastLoadedContext, setLastLoadedContext] = useState<string | null>(null)
+  // Track context changes to trigger session loading
+  const lastContextKey = useRef<string | null>(null)
+  
+  // Track if we've generated a name for the current session
+  const hasGeneratedName = useRef(false)
 
   // Hydrate from localStorage on mount
   useEffect(() => {
@@ -104,63 +170,112 @@ export function OracleProvider({ children }: { children: ReactNode }) {
     setIsHydrated(true)
   }, [])
 
-  // Keyboard shortcut: Cmd+O to toggle Oracle
+  // Keyboard shortcut: Cmd+Shift+O to toggle Oracle (changed from Cmd+O to avoid browser conflict)
   useEffect(() => {
     if (typeof window === 'undefined') return
     
     function handleKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'o') {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'o') {
         e.preventDefault()
         setIsOpen(prev => !prev)
+      }
+      // Esc to close sidebar
+      if (e.key === 'Escape' && isOpen) {
+        if (isHistoryPanelOpen) {
+          setIsHistoryPanelOpen(false)
+        } else {
+          setIsOpen(false)
+        }
       }
     }
     
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [isOpen, isHistoryPanelOpen])
 
-  // Helper to build context key for comparison
-  const getContextKey = useCallback((ctx: OracleContext) => {
-    if (ctx.type === 'deck' && ctx.deckId) {
+  // ---------------------------------------------------------------------------
+  // Session Management
+  // ---------------------------------------------------------------------------
+
+  /** Build context key for comparison */
+  const getContextKey = useCallback((ctx: OracleContext): string => {
+    const sessionType = contextToSessionType(ctx.type)
+    if (sessionType === 'deck' && ctx.deckId) {
       return `deck-${ctx.deckId}`
     }
-    return ctx.type
+    return sessionType
   }, [])
 
-  // Load message history for current context
+  /** Load or create session when context changes */
   useEffect(() => {
     if (!isHydrated) return
     
     const contextKey = getContextKey(activeContext)
     
-    // Skip if we already loaded this context
-    if (contextKey === lastLoadedContext) return
+    // Skip if context hasn't changed
+    if (contextKey === lastContextKey.current) return
+    lastContextKey.current = contextKey
     
-    const loadHistory = async () => {
+    const loadOrCreateSession = async () => {
       setIsLoadingHistory(true)
+      hasGeneratedName.current = false
+      
       try {
-        // Build query params based on context
-        const params = new URLSearchParams()
-        params.set('contextType', activeContext.type)
-        if (activeContext.type === 'deck' && activeContext.deckId) {
-          params.set('deckId', String(activeContext.deckId))
+        const sessionType = contextToSessionType(activeContext.type)
+        const deckId = activeContext.type === 'deck' ? activeContext.deckId : undefined
+        
+        // Try to get active session within 4-hour window
+        const params = new URLSearchParams({ type: sessionType })
+        if (deckId) params.set('deckId', String(deckId))
+        
+        const res = await fetch(`/api/oracle/sessions/active?${params.toString()}`)
+        
+        if (!res.ok) {
+          console.error('[Oracle] Failed to fetch active session')
+          setMessages([])
+          setActiveSession(null)
+          return
         }
         
-        const res = await fetch(`/api/oracle/history?${params.toString()}`)
-        if (res.ok) {
-          const data = await res.json()
+        const data = await res.json()
+        
+        if (data.session && !data.shouldCreateNew) {
+          // Use existing session
+          setActiveSession(transformSession(data.session))
           setMessages(data.messages ?? [])
-          setLastLoadedContext(contextKey)
+          hasGeneratedName.current = !!data.session.session_name
+        } else {
+          // Create new session
+          const createRes = await fetch('/api/oracle/sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionType,
+              contextDeckId: deckId,
+            }),
+          })
+          
+          if (createRes.ok) {
+            const createData = await createRes.json()
+            setActiveSession(transformSession(createData.session))
+            setMessages([])
+          } else {
+            console.error('[Oracle] Failed to create session')
+            setActiveSession(null)
+            setMessages([])
+          }
         }
       } catch (err) {
-        console.error('[Oracle] Failed to load history:', err)
+        console.error('[Oracle] Session load error:', err)
+        setActiveSession(null)
+        setMessages([])
       } finally {
         setIsLoadingHistory(false)
       }
     }
     
-    loadHistory()
-  }, [isHydrated, activeContext, lastLoadedContext, getContextKey])
+    loadOrCreateSession()
+  }, [isHydrated, activeContext, getContextKey])
 
   // Persist open state to localStorage
   useEffect(() => {
@@ -186,13 +301,16 @@ export function OracleProvider({ children }: { children: ReactNode }) {
     setWidthState(Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, newWidth)))
   }, [])
 
+  const openHistoryPanel = useCallback(() => setIsHistoryPanelOpen(true), [])
+  const closeHistoryPanel = useCallback(() => setIsHistoryPanelOpen(false), [])
+
   // ---------------------------------------------------------------------------
   // Context management
   // ---------------------------------------------------------------------------
 
   const setContext = useCallback((context: OracleContext) => {
     setActiveContext(prev => {
-      // Only update if actually changed (avoid unnecessary rerenders)
+      // Only update if actually changed
       if (
         prev.type === context.type &&
         prev.deckId === context.deckId &&
@@ -201,10 +319,85 @@ export function OracleProvider({ children }: { children: ReactNode }) {
       ) {
         return prev
       }
-      // Context changed — clear lastLoadedContext to trigger history reload
-      setLastLoadedContext(null)
       return context
     })
+  }, [])
+
+  // ---------------------------------------------------------------------------
+  // Session management (public API)
+  // ---------------------------------------------------------------------------
+
+  const loadSession = useCallback(async (sessionId: string) => {
+    setIsLoadingHistory(true)
+    hasGeneratedName.current = false
+    
+    try {
+      const res = await fetch(`/api/oracle/sessions/${sessionId}`)
+      if (!res.ok) {
+        console.error('[Oracle] Failed to load session')
+        return
+      }
+      
+      const data = await res.json()
+      setActiveSession(transformSession(data.session))
+      setMessages(data.messages ?? [])
+      hasGeneratedName.current = !!data.session.session_name
+      
+      // Update context to match session
+      if (data.session.session_type === 'exploration') {
+        setActiveContext({ type: 'exploration' })
+      } else if (data.session.session_type === 'deck' && data.session.context_deck_id) {
+        setActiveContext({
+          type: 'deck',
+          deckId: data.session.context_deck_id,
+        })
+      } else if (data.session.session_type === 'collection') {
+        setActiveContext({ type: 'collection' })
+      } else {
+        setActiveContext({ type: 'general' })
+      }
+      
+      // Close history panel after selecting
+      setIsHistoryPanelOpen(false)
+    } catch (err) {
+      console.error('[Oracle] Load session error:', err)
+    } finally {
+      setIsLoadingHistory(false)
+    }
+  }, [])
+
+  const startNewSession = useCallback(async (sessionType: SessionType, deckId?: number): Promise<OracleSession | null> => {
+    try {
+      const res = await fetch('/api/oracle/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionType,
+          contextDeckId: deckId,
+        }),
+      })
+      
+      if (!res.ok) {
+        console.error('[Oracle] Failed to create session')
+        return null
+      }
+      
+      const data = await res.json()
+      const session = transformSession(data.session)
+      
+      setActiveSession(session)
+      setMessages([])
+      hasGeneratedName.current = false
+      
+      // Update lastContextKey so the effect doesn't reload
+      const newContextKey = sessionType === 'deck' && deckId ? `deck-${deckId}` : sessionType
+      lastContextKey.current = newContextKey
+      
+      return session
+    } catch (err) {
+      console.error('[Oracle] Create session error:', err)
+      return null
+    }
   }, [])
 
   // ---------------------------------------------------------------------------
@@ -213,6 +406,10 @@ export function OracleProvider({ children }: { children: ReactNode }) {
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isStreaming) return
+    if (!activeSession) {
+      console.error('[Oracle] No active session')
+      return
+    }
 
     const userMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
@@ -234,6 +431,8 @@ export function OracleProvider({ children }: { children: ReactNode }) {
     }
     setMessages(prev => [...prev, assistantMsg])
 
+    let fullResponseText = ''
+
     try {
       const res = await fetch('/api/oracle/chat', {
         method: 'POST',
@@ -241,7 +440,8 @@ export function OracleProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({
           message: text.trim(),
           context: activeContext,
-          history: messages.slice(-20), // Last 20 messages for context
+          history: messages.slice(-20),
+          sessionId: activeSession.id,
         }),
       })
 
@@ -273,6 +473,7 @@ export function OracleProvider({ children }: { children: ReactNode }) {
               const parsed = JSON.parse(data)
               
               if (parsed.type === 'text') {
+                fullResponseText += parsed.content
                 setMessages(prev =>
                   prev.map(msg =>
                     msg.id === assistantMsgId
@@ -281,14 +482,12 @@ export function OracleProvider({ children }: { children: ReactNode }) {
                   )
                 )
               } else if (parsed.type === 'action') {
-                // Oracle performed an action — invalidate relevant queries
                 if (parsed.invalidate) {
                   for (const key of parsed.invalidate) {
                     queryClient.invalidateQueries({ queryKey: [key] })
                   }
                 }
               } else if (parsed.type === 'add_cards' && parsed.cards && activeContext.deckId) {
-                // AI called add_cards_to_deck tool — add cards to the deck
                 const cards = parsed.cards as Array<{ name: string; category: string }>
                 for (const card of cards) {
                   try {
@@ -305,11 +504,9 @@ export function OracleProvider({ children }: { children: ReactNode }) {
                     console.error(`[Oracle] Failed to add card ${card.name}:`, cardErr)
                   }
                 }
-                // Invalidate deck queries to refresh UI (use normalized keys)
                 queryClient.invalidateQueries({ queryKey: ['decks', activeContext.deckId] })
                 queryClient.invalidateQueries({ queryKey: ['decks', activeContext.deckId, 'card-statuses'] })
               } else if (parsed.type === 'remove_cards' && parsed.cards && activeContext.deckId) {
-                // AI called remove_cards_from_deck tool — remove cards from the deck
                 const cards = parsed.cards as Array<{ name: string }>
                 for (const card of cards) {
                   try {
@@ -322,7 +519,6 @@ export function OracleProvider({ children }: { children: ReactNode }) {
                     console.error(`[Oracle] Failed to remove card ${card.name}:`, cardErr)
                   }
                 }
-                // Invalidate deck queries to refresh UI
                 queryClient.invalidateQueries({ queryKey: ['decks', activeContext.deckId] })
                 queryClient.invalidateQueries({ queryKey: ['decks', activeContext.deckId, 'card-statuses'] })
               }
@@ -332,6 +528,33 @@ export function OracleProvider({ children }: { children: ReactNode }) {
           }
         }
       }
+
+      // After streaming completes, generate session name if this is the first AI response
+      if (!hasGeneratedName.current && fullResponseText && activeSession) {
+        hasGeneratedName.current = true
+        // Fire and forget — don't block on name generation
+        fetch(`/api/oracle/sessions/${activeSession.id}/generate-name`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ responseContent: fullResponseText }),
+        })
+          .then(async (nameRes) => {
+            if (nameRes.ok) {
+              const nameData = await nameRes.json()
+              if (nameData.sessionName && !nameData.skipped) {
+                setActiveSession(prev =>
+                  prev ? { ...prev, sessionName: nameData.sessionName } : prev
+                )
+              }
+            }
+          })
+          .catch(err => console.error('[Oracle] Name generation failed:', err))
+      }
+
+      // Update session's message count locally
+      setActiveSession(prev =>
+        prev ? { ...prev, messageCount: prev.messageCount + 2, lastMessageAt: new Date().toISOString() } : prev
+      )
     } catch (err) {
       console.error('[Oracle] Chat error:', err)
       setMessages(prev =>
@@ -344,22 +567,35 @@ export function OracleProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsStreaming(false)
     }
-  }, [messages, activeContext, isStreaming, queryClient])
+  }, [messages, activeContext, activeSession, isStreaming, queryClient])
 
   const clearMessages = useCallback(async () => {
     setMessages([])
-    // Clear from DB for current context only
+    if (!activeSession) return
+    
+    // Clear from DB — delete the session and create a new one
     try {
-      const params = new URLSearchParams()
-      params.set('contextType', activeContext.type)
-      if (activeContext.type === 'deck' && activeContext.deckId) {
-        params.set('deckId', String(activeContext.deckId))
+      await fetch(`/api/oracle/sessions/${activeSession.id}`, { method: 'DELETE' })
+      
+      // Create a fresh session for the same context
+      const sessionType = contextToSessionType(activeContext.type)
+      const deckId = activeContext.type === 'deck' ? activeContext.deckId : undefined
+      
+      const createRes = await fetch('/api/oracle/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionType, contextDeckId: deckId }),
+      })
+      
+      if (createRes.ok) {
+        const createData = await createRes.json()
+        setActiveSession(transformSession(createData.session))
+        hasGeneratedName.current = false
       }
-      await fetch(`/api/oracle/history?${params.toString()}`, { method: 'DELETE' })
     } catch (err) {
-      console.error('[Oracle] Failed to clear history:', err)
+      console.error('[Oracle] Failed to clear session:', err)
     }
-  }, [activeContext])
+  }, [activeContext, activeSession])
 
   // ---------------------------------------------------------------------------
   // Query invalidation helper
@@ -380,13 +616,19 @@ export function OracleProvider({ children }: { children: ReactNode }) {
     width,
     messages,
     activeContext,
+    activeSession,
     isStreaming,
     isLoadingHistory,
+    isHistoryPanelOpen,
     toggle,
     open,
     close,
     setWidth,
+    openHistoryPanel,
+    closeHistoryPanel,
     setContext,
+    loadSession,
+    startNewSession,
     sendMessage,
     clearMessages,
     invalidateQueries,

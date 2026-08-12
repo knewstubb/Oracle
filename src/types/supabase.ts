@@ -881,29 +881,65 @@ export type Database = {
       oracle_sessions: {
         Row: {
           id: string
+          user_id: string
+          started_at: string
           last_message_at: string
           message_count: number
-          started_at: string
           summary: string | null
-          user_id: string
+          session_name: string | null
+          session_type: 'exploration' | 'deck' | 'collection' | 'general'
+          context_deck_id: number | null
+          archived_at: string | null
+          status: 'active' | 'exploring' | 'building' | 'complete'
+          commander_name: string | null
+          committed_deck_id: number | null
         }
         Insert: {
           id?: string
+          user_id: string
+          started_at?: string
           last_message_at?: string
           message_count?: number
-          started_at?: string
           summary?: string | null
-          user_id: string
+          session_name?: string | null
+          session_type?: 'exploration' | 'deck' | 'collection' | 'general'
+          context_deck_id?: number | null
+          archived_at?: string | null
+          status?: 'active' | 'exploring' | 'building' | 'complete'
+          commander_name?: string | null
+          committed_deck_id?: number | null
         }
         Update: {
           id?: string
+          user_id?: string
+          started_at?: string
           last_message_at?: string
           message_count?: number
-          started_at?: string
           summary?: string | null
-          user_id?: string
+          session_name?: string | null
+          session_type?: 'exploration' | 'deck' | 'collection' | 'general'
+          context_deck_id?: number | null
+          archived_at?: string | null
+          status?: 'active' | 'exploring' | 'building' | 'complete'
+          commander_name?: string | null
+          committed_deck_id?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "oracle_sessions_context_deck_id_fkey"
+            columns: ["context_deck_id"]
+            isOneToOne: false
+            referencedRelation: "decks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oracle_sessions_committed_deck_id_fkey"
+            columns: ["committed_deck_id"]
+            isOneToOne: false
+            referencedRelation: "decks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       precon_cards: {
         Row: {

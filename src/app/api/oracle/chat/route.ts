@@ -6,6 +6,7 @@
  *   message: string
  *   context: { type, deckId?, deckName?, commanderName? }
  *   history: ChatMessage[]
+ *   sessionId?: string
  * }
  * 
  * Returns: SSE stream with text chunks and tool status notifications
@@ -29,7 +30,25 @@ interface ChatBody {
   message: string
   context: OracleChatContext
   history: Array<{ role: 'user' | 'assistant'; content: string }>
+  sessionId?: string
   modelId?: string
+}
+
+// ---------------------------------------------------------------------------
+// Intent Detection
+// ---------------------------------------------------------------------------
+
+const DECK_BUILDING_PATTERNS = [
+  /\b(build|brew|create|make|start|design)\s+(a\s+)?(new\s+)?(deck|commander|edh)/i,
+  /\bi\s+want\s+to\s+(build|brew|create|make)/i,
+  /\bhelp\s+me\s+(build|brew|create|design)/i,
+  /\bwhat\s+(commander|deck)\s+should\s+i\s+(build|play)/i,
+  /\bsugg(est|estion)\s+(a\s+)?(commander|deck)/i,
+  /\b(aristocrats|aggro|control|combo|voltron|tokens|tribal|reanimator|landfall|spellslinger)/i,
+]
+
+function detectDeckBuildingIntent(message: string): boolean {
+  return DECK_BUILDING_PATTERNS.some(pattern => pattern.test(message))
 }
 
 // ---------------------------------------------------------------------------
@@ -48,7 +67,7 @@ export async function POST(request: NextRequest) {
   const userId = authResult.id
 
   const body = (await request.json()) as ChatBody
-  const { message, context, history } = body
+  const { message, context, history, sessionId } = body
 
   if (!message?.trim()) {
     return new Response(JSON.stringify({ error: 'Message is required' }), {
@@ -79,9 +98,27 @@ export async function POST(request: NextRequest) {
 
   const supabase = createAdminClient()
 
-  // Save user message to DB
+  // --- Intent detection for exploration sessions ---
+  // Only detect intent when in general/collection/forge context (not already in deck context)
+  const shouldDetectIntent = ['general', 'collection', 'forge'].includes(context.type)
+  const hasDeckBuildingIntent = shouldDetectIntent && detectDeckBuildingIntent(message)
+
+  // If deck-building intent detected and we have a session, update it to exploration type
+  if (hasDeckBuildingIntent && sessionId) {
+    await supabase
+      .from('oracle_sessions')
+      .update({ 
+        session_type: 'exploration',
+        status: 'exploring'
+      })
+      .eq('id', sessionId)
+      .eq('user_id', userId)
+  }
+
+  // Save user message to DB (with session_id if provided)
   await supabase.from('oracle_messages').insert({
     user_id: userId,
+    session_id: sessionId ?? null,
     role: 'user',
     content: message.trim(),
     context_type: context.type,
@@ -145,11 +182,20 @@ export async function POST(request: NextRequest) {
         // Save assistant response to DB
         await supabase.from('oracle_messages').insert({
           user_id: userId,
+          session_id: sessionId ?? null,
           role: 'assistant',
           content: fullResponseText,
           context_type: context.type,
           context_deck_id: context.deckId ?? null,
         })
+
+        // Update session last_message_at (message_count is updated by OracleContext locally)
+        if (sessionId) {
+          await supabase
+            .from('oracle_sessions')
+            .update({ last_message_at: new Date().toISOString() })
+            .eq('id', sessionId)
+        }
 
         controller.enqueue(encoder.encode('data: [DONE]\n\n'))
         controller.close()

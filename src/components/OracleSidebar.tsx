@@ -1,14 +1,16 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
-import { X, Trash2, MessageSquare, Library, LayoutGrid, Sparkles, Wrench, Layers } from 'lucide-react'
+import { X, Trash2, MessageSquare, Library, LayoutGrid, Sparkles, Wrench, Layers, History, Compass } from 'lucide-react'
 import { useOracle, type OracleContext } from '@/contexts/OracleContext'
 import { useQueryClient } from '@tanstack/react-query'
 import { renderMessageContent, type CardLinkMode, type OwnershipStatus, type OwnershipLookupFn } from '@/lib/render-card-links'
 import { cardOwnershipData } from '@/components/CardHoverPreview'
+import { CommanderSuggestionRow, parseCommanderSuggestions, stripCommanderSuggestions } from '@/components/CommanderSuggestionCard'
 import { deckKeys } from '@/hooks/useDeckQueryKeys'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { SessionHistoryPanel } from '@/components/SessionHistoryPanel'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -47,22 +49,24 @@ function ArrowUpIcon() {
 
 function getContextIcon(type: OracleContext['type']) {
   switch (type) {
-    case 'collection': return <Library className="w-4 h-4" />
-    case 'deck': return <Layers className="w-4 h-4" />
-    case 'deck-list': return <LayoutGrid className="w-4 h-4" />
-    case 'forge': return <Sparkles className="w-4 h-4" />
-    case 'workbench': return <Wrench className="w-4 h-4" />
-    default: return <MessageSquare className="w-4 h-4" />
+    case 'collection': return <Library className="w-3.5 h-3.5" />
+    case 'deck': return <Layers className="w-3.5 h-3.5" />
+    case 'deck-list': return <LayoutGrid className="w-3.5 h-3.5" />
+    case 'forge': return <Sparkles className="w-3.5 h-3.5" />
+    case 'workbench': return <Wrench className="w-3.5 h-3.5" />
+    case 'exploration': return <Compass className="w-3.5 h-3.5" />
+    default: return <MessageSquare className="w-3.5 h-3.5" />
   }
 }
 
 function getContextLabel(context: OracleContext): string {
   switch (context.type) {
-    case 'collection': return 'Your Collection'
+    case 'collection': return 'Collection'
     case 'deck': return context.deckName ?? 'Deck'
-    case 'deck-list': return 'All Decks'
-    case 'forge': return 'The Forge'
+    case 'deck-list': return 'Decks'
+    case 'forge': return 'Exploring'
     case 'workbench': return context.deckName ?? 'Workbench'
+    case 'exploration': return 'Exploring'
     default: return 'General'
   }
 }
@@ -72,6 +76,25 @@ function getContextSubtitle(context: OracleContext): string | null {
     return context.commanderName ?? null
   }
   return null
+}
+
+function getPlaceholderText(context: OracleContext, isStreaming: boolean): string {
+  if (isStreaming) return 'Oracle is thinking...'
+  
+  switch (context.type) {
+    case 'collection':
+      return 'Ask about your collection...'
+    case 'deck':
+    case 'workbench':
+      return 'Ask about this deck...'
+    case 'deck-list':
+      return 'Ask about your decks...'
+    case 'forge':
+    case 'exploration':
+      return 'What do you want to build?'
+    default:
+      return 'Ask Oracle anything...'
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -84,12 +107,15 @@ export function OracleSidebar() {
     width,
     messages,
     activeContext,
+    activeSession,
     isStreaming,
     isLoadingHistory,
+    isHistoryPanelOpen,
     close,
     setWidth,
     sendMessage,
     clearMessages,
+    openHistoryPanel,
   } = useOracle()
 
   const queryClient = useQueryClient()
@@ -169,7 +195,6 @@ export function OracleSidebar() {
   }, [cardNamesInChat, ownershipCache])
 
   // Ownership lookup function for renderMessageContent
-  // Uses lowercase lookup since cache is keyed by lowercase
   const ownershipLookup: OwnershipLookupFn = useCallback((cardName: string) => {
     return ownershipCache.get(cardName.toLowerCase()) ?? 'unknown'
   }, [ownershipCache])
@@ -220,10 +245,10 @@ export function OracleSidebar() {
   }, [messages, isStreaming])
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !isHistoryPanelOpen) {
       setTimeout(() => inputRef.current?.focus(), 100)
     }
-  }, [isOpen])
+  }, [isOpen, isHistoryPanelOpen])
 
   // ---------------------------------------------------------------------------
   // Resize handling
@@ -282,8 +307,48 @@ export function OracleSidebar() {
   const handleClearConfirm = useCallback(() => {
     clearMessages()
     setShowClearConfirm(false)
-    setOwnershipCache(new Map()) // Clear ownership cache too
+    setOwnershipCache(new Map())
   }, [clearMessages])
+
+  // ---------------------------------------------------------------------------
+  // Start deck from commander suggestion
+  // ---------------------------------------------------------------------------
+
+  const handleStartDeck = useCallback(async (commanderName: string) => {
+    try {
+      // Create a new deck with this commander
+      const res = await fetch('/api/decks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `${commanderName} Deck`,
+          format: 'commander',
+          commanderName,
+        }),
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || 'Failed to create deck')
+      }
+
+      const data = await res.json()
+      const deckId = data.deck?.id ?? data.id
+
+      toast.success(`Created deck for ${commanderName}`)
+      
+      // Invalidate deck list queries
+      queryClient.invalidateQueries({ queryKey: ['decks'] })
+      
+      // Navigate to the new deck
+      if (deckId) {
+        window.location.href = `/decks/${deckId}`
+      }
+    } catch (err) {
+      console.error('[OracleSidebar] Failed to create deck:', err)
+      toast.error(err instanceof Error ? err.message : 'Failed to create deck')
+    }
+  }, [queryClient])
 
   // ---------------------------------------------------------------------------
   // Determine card link mode based on context
@@ -294,6 +359,12 @@ export function OracleSidebar() {
       ? 'add'
       : 'none'
 
+  // Check if we're in exploration context (for commander suggestions)
+  const isExplorationContext = 
+    activeContext.type === 'exploration' || 
+    activeContext.type === 'forge' || 
+    activeContext.type === 'general'
+
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
@@ -301,6 +372,9 @@ export function OracleSidebar() {
   if (!isOpen) return null
 
   const contextLabel = getContextLabel(activeContext)
+  const contextSubtitle = getContextSubtitle(activeContext)
+  const sessionName = activeSession?.sessionName
+  const placeholderText = getPlaceholderText(activeContext, isStreaming)
 
   return (
     <>
@@ -316,7 +390,7 @@ export function OracleSidebar() {
         className={cn(
           'fixed right-0 top-0 h-full z-50 flex flex-col',
           'md:relative md:z-auto md:h-auto',
-          'bg-[rgba(30,30,30,0.85)] backdrop-blur-sm border-l border-zinc-800/50',
+          'bg-[rgba(24,24,27,0.95)] backdrop-blur-md border-l border-zinc-800/60',
           'shadow-2xl md:shadow-none'
         )}
         style={{ width, flexShrink: 0 }}
@@ -327,38 +401,64 @@ export function OracleSidebar() {
           className="absolute left-0 top-0 z-10 h-full w-[4px] cursor-col-resize select-none hover:bg-emerald-500/40 transition-colors"
         />
 
-        {/* Header — compact tag style */}
-        <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800/50">
-          <div className="flex items-center gap-1.5 text-zinc-400">
-            {getContextIcon(activeContext.type)}
-            <span className="text-xs font-medium">{contextLabel}</span>
+        {/* Header */}
+        <div className="flex flex-col border-b border-zinc-800/60">
+          {/* Top row: Session name + actions */}
+          <div className="flex items-center justify-between px-3 py-2">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <button
+                onClick={openHistoryPanel}
+                className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/60 transition-colors shrink-0"
+                aria-label="Session history"
+                title="Session history"
+              >
+                <History className="w-4 h-4" />
+              </button>
+              <span className="text-sm font-medium text-zinc-200 truncate">
+                {sessionName || 'New conversation'}
+              </span>
+            </div>
+            <div className="flex items-center gap-0.5 shrink-0">
+              <button
+                onClick={handleClearClick}
+                disabled={messages.length === 0}
+                className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/60 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                aria-label="Clear conversation"
+                title="Clear conversation"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={close}
+                className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/60 transition-colors"
+                aria-label="Close Oracle"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-0.5">
-            <button
-              onClick={handleClearClick}
-              disabled={messages.length === 0}
-              className="p-1 rounded text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              aria-label="Clear conversation"
-              title="Clear conversation"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={close}
-              className="p-1 rounded text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors"
-              aria-label="Close Oracle"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
+
+          {/* Context bar */}
+          <div className="flex items-center gap-1.5 px-3 pb-2">
+            <div className={cn(
+              'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs',
+              'bg-zinc-800/80 text-zinc-400'
+            )}>
+              {getContextIcon(activeContext.type)}
+              <span>{contextLabel}</span>
+            </div>
+            {contextSubtitle && (
+              <span className="text-xs text-zinc-500 truncate">
+                {contextSubtitle}
+              </span>
+            )}
           </div>
         </div>
 
         {/* Messages area */}
         <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
           {isLoadingHistory ? (
-            <div className="flex items-center justify-center h-32 text-zinc-500 text-sm">
-              Loading conversation...
-            </div>
+            <LoadingState />
           ) : messages.length === 0 ? (
             <EmptyState context={activeContext} onSuggestionClick={sendMessage} />
           ) : (
@@ -372,6 +472,8 @@ export function OracleSidebar() {
                   cardLinkMode={cardLinkMode}
                   onCardAction={handleCardAction}
                   ownershipLookup={ownershipLookup}
+                  onStartDeck={handleStartDeck}
+                  isExplorationContext={isExplorationContext}
                 />
               ))
           )}
@@ -382,8 +484,8 @@ export function OracleSidebar() {
         </div>
 
         {/* Input area */}
-        <div className="border-t border-zinc-800/50 px-3 py-2">
-          <div className="flex items-end gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 px-2.5 py-1.5 transition-all focus-within:border-emerald-500/50">
+        <div className="border-t border-zinc-800/60 px-3 py-2">
+          <div className="flex items-end gap-2 rounded-lg border border-zinc-700/60 bg-zinc-900/60 px-2.5 py-1.5 transition-all focus-within:border-emerald-500/50 focus-within:bg-zinc-900/80">
             <textarea
               ref={inputRef}
               value={inputValue}
@@ -400,9 +502,9 @@ export function OracleSidebar() {
                 }
               }}
               disabled={isStreaming}
-              placeholder={isStreaming ? 'Oracle is thinking...' : 'Ask Oracle anything...'}
+              placeholder={placeholderText}
               rows={1}
-              className="flex-1 resize-none bg-transparent text-[length:var(--fs-sm)] text-zinc-100 placeholder:text-zinc-500 focus:outline-none disabled:opacity-50"
+              className="flex-1 resize-none bg-transparent text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none disabled:opacity-50"
               style={{ minHeight: '22px', maxHeight: '120px' }}
             />
             <button
@@ -414,12 +516,18 @@ export function OracleSidebar() {
               <ArrowUpIcon />
             </button>
           </div>
+          <div className="text-[10px] text-zinc-600 mt-1 text-center">
+            <kbd className="px-1 py-0.5 bg-zinc-800/50 rounded text-zinc-500">⌘⇧O</kbd> to toggle
+          </div>
         </div>
+
+        {/* Session history panel */}
+        <SessionHistoryPanel />
 
         {/* Clear confirmation dialog */}
         {showClearConfirm && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-20">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 mx-4 max-w-sm">
+            <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-4 mx-4 max-w-sm shadow-xl">
               <p className="text-sm text-zinc-200 mb-4">
                 Clear conversation history? This cannot be undone.
               </p>
@@ -458,23 +566,62 @@ interface MessageBubbleProps {
   cardLinkMode: CardLinkMode
   onCardAction?: (name: string) => void
   ownershipLookup?: OwnershipLookupFn
+  onStartDeck?: (commanderName: string) => void
+  isExplorationContext?: boolean
 }
 
-function MessageBubble({ message, cardLinkMode, onCardAction, ownershipLookup }: MessageBubbleProps) {
+function MessageBubble({ 
+  message, 
+  cardLinkMode, 
+  onCardAction, 
+  ownershipLookup,
+  onStartDeck,
+  isExplorationContext,
+}: MessageBubbleProps) {
   if (message.role === 'user') {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] rounded-2xl bg-zinc-800/60 px-3 py-2 text-[length:var(--fs-sm)] text-zinc-100 leading-relaxed">
+        <div className="max-w-[85%] rounded-2xl bg-zinc-700/50 px-3 py-2 text-sm text-zinc-100 leading-relaxed">
           {message.content}
         </div>
       </div>
     )
   }
 
-  // Assistant message — full width, no bubble
+  // Assistant message — check for commander suggestions
+  const commanderSuggestions = isExplorationContext 
+    ? parseCommanderSuggestions(message.content)
+    : []
+  const textContent = commanderSuggestions.length > 0
+    ? stripCommanderSuggestions(message.content)
+    : message.content
+
   return (
-    <div className="text-[length:var(--fs-sm)] text-zinc-300 leading-relaxed">
-      {renderMessageContent(message.content, cardLinkMode, onCardAction, undefined, ownershipLookup)}
+    <div className="text-sm text-zinc-300 leading-relaxed">
+      {renderMessageContent(textContent, cardLinkMode, onCardAction, undefined, ownershipLookup)}
+      {commanderSuggestions.length > 0 && (
+        <CommanderSuggestionRow 
+          suggestions={commanderSuggestions}
+          onStartDeck={onStartDeck}
+        />
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// LoadingState
+// ---------------------------------------------------------------------------
+
+function LoadingState() {
+  return (
+    <div className="flex flex-col items-center justify-center h-32 gap-2">
+      <div className="flex gap-1">
+        <span className="w-2 h-2 rounded-full animate-pulse bg-emerald-400/60" style={{ animationDelay: '0ms' }} />
+        <span className="w-2 h-2 rounded-full animate-pulse bg-emerald-400/60" style={{ animationDelay: '150ms' }} />
+        <span className="w-2 h-2 rounded-full animate-pulse bg-emerald-400/60" style={{ animationDelay: '300ms' }} />
+      </div>
+      <span className="text-xs text-zinc-500">Loading conversation...</span>
     </div>
   )
 }
@@ -485,23 +632,40 @@ function MessageBubble({ message, cardLinkMode, onCardAction, ownershipLookup }:
 
 function EmptyState({ context, onSuggestionClick }: { context: OracleContext; onSuggestionClick?: (text: string) => void }) {
   const suggestions = getSuggestions(context)
+  const isExploration = context.type === 'forge' || context.type === 'exploration'
 
   return (
     <div className="flex flex-col items-center justify-center h-full text-center px-4 py-8">
-      <div className="w-12 h-12 rounded-full bg-emerald-500/15 flex items-center justify-center mb-4">
-        <MessageSquare className="w-6 h-6 text-emerald-400" />
+      <div className={cn(
+        'w-10 h-10 rounded-full flex items-center justify-center mb-3',
+        isExploration ? 'bg-amber-500/15' : 'bg-emerald-500/15'
+      )}>
+        {isExploration ? (
+          <Compass className={cn('w-5 h-5', 'text-amber-400')} />
+        ) : (
+          <MessageSquare className="w-5 h-5 text-emerald-400" />
+        )}
       </div>
-      <h3 className="text-sm font-medium text-zinc-100 mb-1">Ask Oracle</h3>
-      <p className="text-xs text-zinc-500 mb-4 max-w-[240px]">
-        I can help with deckbuilding, card suggestions, collection analysis, and more.
+      <h3 className="text-sm font-medium text-zinc-100 mb-1">
+        {isExploration ? 'Start exploring' : 'Ask Oracle'}
+      </h3>
+      <p className="text-xs text-zinc-500 mb-4 max-w-[220px]">
+        {isExploration 
+          ? 'Tell me what kind of deck you want to build.'
+          : 'I can help with deckbuilding, card suggestions, and more.'
+        }
       </p>
       {suggestions.length > 0 && (
-        <div className="space-y-1.5 w-full max-w-[280px]">
+        <div className="space-y-1.5 w-full max-w-[260px]">
           {suggestions.map((s, i) => (
             <button
               key={i}
               onClick={() => onSuggestionClick?.(s)}
-              className="w-full text-left text-xs text-zinc-400 hover:text-emerald-400 bg-zinc-800/30 hover:bg-zinc-800/60 px-3 py-2 rounded-md transition-colors"
+              className={cn(
+                'w-full text-left text-xs px-3 py-2 rounded-md transition-colors',
+                'text-zinc-400 hover:text-zinc-200',
+                'bg-zinc-800/40 hover:bg-zinc-800/70'
+              )}
             >
               {s}
             </button>
@@ -534,6 +698,7 @@ function getSuggestions(context: OracleContext): string[] {
         'Find shared expensive cards',
       ]
     case 'forge':
+    case 'exploration':
       return [
         'I want to build aristocrats',
         'Suggest a unique commander',

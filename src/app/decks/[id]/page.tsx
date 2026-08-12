@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { PersistentHeader } from '@/components/PersistentHeader'
+import { LegalityBanner } from '@/components/LegalityBanner'
 import { ActiveToggle } from '@/components/ActiveToggle'
 import { DeleteDeckButton } from '@/components/DeleteDeckButton'
 import { HealthStrip } from '@/components/HealthStrip'
@@ -235,6 +236,9 @@ export default function DeckViewPage() {
           </>
         }
       />
+
+      {/* Legality Banner — shows if deck has illegal cards */}
+      <LegalityBanner deckId={deck.id} />
 
       {/* Tabs + Content — scrolls independently beneath sticky header+health strip */}
       <Tabs

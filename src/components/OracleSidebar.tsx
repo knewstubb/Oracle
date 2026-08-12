@@ -1,8 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
-import { X, Trash2, MessageSquare, Library, LayoutGrid, Sparkles, Wrench, Layers, History, Compass } from 'lucide-react'
-import { useOracle, type OracleContext } from '@/contexts/OracleContext'
+import { useRouter } from 'next/navigation'
+import { X, Trash2, MessageSquare, Library, LayoutGrid, Sparkles, Wrench, Layers, History, Compass, ArrowRight } from 'lucide-react'
+import { useOracle, type OracleContext, type NavigatePrompt } from '@/contexts/OracleContext'
 import { useQueryClient } from '@tanstack/react-query'
 import { renderMessageContent, type CardLinkMode, type OwnershipStatus, type OwnershipLookupFn } from '@/lib/render-card-links'
 import { cardOwnershipData } from '@/components/CardHoverPreview'
@@ -118,6 +119,7 @@ export function OracleSidebar() {
     openHistoryPanel,
   } = useOracle()
 
+  const router = useRouter()
   const queryClient = useQueryClient()
   const [inputValue, setInputValue] = useState('')
   const [showClearConfirm, setShowClearConfirm] = useState(false)
@@ -126,6 +128,15 @@ export function OracleSidebar() {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const pendingLookups = useRef<Set<string>>(new Set())
+
+  // ---------------------------------------------------------------------------
+  // Navigation handler for deck-building prompts
+  // ---------------------------------------------------------------------------
+  
+  const handleNavigate = useCallback((url: string) => {
+    close() // Close sidebar before navigating
+    router.push(url)
+  }, [close, router])
 
   // ---------------------------------------------------------------------------
   // Ownership lookup — extract card names from messages and fetch ownership
@@ -476,6 +487,7 @@ export function OracleSidebar() {
                   ownershipLookup={ownershipLookup}
                   onStartDeck={handleStartDeck}
                   isExplorationContext={isExplorationContext}
+                  onNavigate={handleNavigate}
                 />
               ))
           )}
@@ -564,12 +576,14 @@ interface MessageBubbleProps {
     id: string
     role: 'user' | 'assistant' | 'system'
     content: string
+    navigatePrompt?: NavigatePrompt
   }
   cardLinkMode: CardLinkMode
   onCardAction?: (name: string) => void
   ownershipLookup?: OwnershipLookupFn
   onStartDeck?: (commanderName: string) => void
   isExplorationContext?: boolean
+  onNavigate?: (url: string) => void
 }
 
 function MessageBubble({ 
@@ -579,6 +593,7 @@ function MessageBubble({
   ownershipLookup,
   onStartDeck,
   isExplorationContext,
+  onNavigate,
 }: MessageBubbleProps) {
   if (message.role === 'user') {
     return (
@@ -606,6 +621,21 @@ function MessageBubble({
           suggestions={commanderSuggestions}
           onStartDeck={onStartDeck}
         />
+      )}
+      {message.navigatePrompt && (
+        <button
+          onClick={() => onNavigate?.(message.navigatePrompt!.url)}
+          className={cn(
+            'mt-3 flex items-center gap-2 w-full px-3 py-2.5 rounded-lg',
+            'bg-emerald-500/15 border border-emerald-500/30',
+            'text-emerald-400 hover:bg-emerald-500/25 hover:border-emerald-500/50',
+            'transition-all text-sm font-medium'
+          )}
+        >
+          <Sparkles className="w-4 h-4" />
+          <span className="flex-1 text-left">{message.navigatePrompt.label}</span>
+          <ArrowRight className="w-4 h-4" />
+        </button>
       )}
     </div>
   )

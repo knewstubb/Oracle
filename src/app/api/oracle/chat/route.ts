@@ -44,7 +44,7 @@ const DECK_BUILDING_PATTERNS = [
   /\bhelp\s+me\s+(build|brew|create|design)/i,
   /\bwhat\s+(commander|deck)\s+should\s+i\s+(build|play)/i,
   /\bsugg(est|estion)\s+(a\s+)?(commander|deck)/i,
-  /\b(aristocrats|aggro|control|combo|voltron|tokens|tribal|reanimator|landfall|spellslinger)/i,
+  /\b(aristocrats|aggro|control|combo|voltron|tokens|tribal|reanimator|landfall|spellslinger)\s+(deck|commander|build)/i,
 ]
 
 function detectDeckBuildingIntent(message: string): boolean {
@@ -148,6 +148,18 @@ export async function POST(request: NextRequest) {
       let fullResponseText = ''
       
       try {
+        // If deck-building intent detected, send a navigate prompt event BEFORE the AI response
+        // This allows the UI to show an action button alongside the response
+        if (hasDeckBuildingIntent) {
+          const navigateEvent = {
+            type: 'navigate_prompt',
+            action: 'new_deck',
+            label: 'Start building in the Commander Builder',
+            url: '/new-deck',
+          }
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(navigateEvent)}\n\n`))
+        }
+
         // Callback to emit tool SSE events during tool execution
         const onToolEvent = (event: ToolStreamEvent) => {
           // Forward tool_status and add_cards/remove_cards events

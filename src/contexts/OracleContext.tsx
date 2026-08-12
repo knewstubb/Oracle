@@ -29,11 +29,18 @@ export interface OracleSession {
   startedAt: string
 }
 
+export interface NavigatePrompt {
+  action: string
+  label: string
+  url: string
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant' | 'system'
   content: string
   timestamp: number
+  navigatePrompt?: NavigatePrompt
 }
 
 interface OracleState {
@@ -528,6 +535,22 @@ export function OracleProvider({ children }: { children: ReactNode }) {
                   prev.map(msg =>
                     msg.id === assistantMsgId
                       ? { ...msg, content: msg.content + parsed.content }
+                      : msg
+                  )
+                )
+              } else if (parsed.type === 'navigate_prompt') {
+                // Add a navigation action to the message metadata
+                setMessages(prev =>
+                  prev.map(msg =>
+                    msg.id === assistantMsgId
+                      ? { 
+                          ...msg, 
+                          navigatePrompt: {
+                            action: parsed.action,
+                            label: parsed.label,
+                            url: parsed.url,
+                          }
+                        }
                       : msg
                   )
                 )

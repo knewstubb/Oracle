@@ -440,6 +440,30 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
   const [searchQuery, setSearchQuery] = useState('')
   const [groupBy, setGroupBy] = useState<GroupBy>('category')
   const [sortBy, setSortBy] = useState<SortBy>('name')
+  const [selectedCardIds, setSelectedCardIds] = useState<Set<number>>(new Set())
+
+  // Selection handlers
+  const handleSelectionChange = useCallback((cardId: number, selected: boolean) => {
+    setSelectedCardIds(prev => {
+      const next = new Set(prev)
+      if (selected) {
+        next.add(cardId)
+      } else {
+        next.delete(cardId)
+      }
+      return next
+    })
+  }, [])
+
+  const handleSelectAll = useCallback(() => {
+    // Select all non-commander cards
+    const ids = cards.filter(c => !c.is_commander).map(c => c.id)
+    setSelectedCardIds(new Set(ids))
+  }, [cards])
+
+  const handleDeselectAll = useCallback(() => {
+    setSelectedCardIds(new Set())
+  }, [])
 
   // Persist view mode to localStorage
   useEffect(() => {
@@ -661,6 +685,35 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
         </div>
       </div>
 
+      {/* ─── Selection Toolbar (appears when cards are selected) ──────────── */}
+      {selectedCardIds.size > 0 && (
+        <div className="shrink-0 border-b px-4 py-2" style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--accent-primary-muted, rgba(29, 158, 117, 0.08))' }}>
+          <div className="mx-auto flex max-w-[var(--content-max-width)] items-center gap-3">
+            <span className="text-[length:var(--fs-sm)] font-medium">
+              {selectedCardIds.size} card{selectedCardIds.size !== 1 ? 's' : ''} selected
+            </span>
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={handleSelectAll}
+              className="text-[length:var(--fs-xs)]"
+            >
+              Select All
+            </Button>
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={handleDeselectAll}
+              className="text-[length:var(--fs-xs)]"
+            >
+              Deselect All
+            </Button>
+            <span className="flex-1" />
+            {/* Bulk action buttons will be added in Task 7 */}
+          </div>
+        </div>
+      )}
+
       {/* ─── View Content Area ─────────────────────────────────────────── */}
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         <div className="mx-auto max-w-[var(--content-max-width)]">
@@ -720,6 +773,8 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
               availableCategories={availableCategories}
               healthCategories={healthCategories}
               maxCopies={maxCopies}
+              selectedIds={selectedCardIds}
+              onSelectionChange={handleSelectionChange}
               onCategoryChange={(cardId, categories) => {
                 categoryMutation.mutate({ cardId, categories })
               }}
@@ -733,6 +788,8 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
               deckId={deckId}
               physicalCopyMap={physicalCopyMap}
               maxCopies={maxCopies}
+              selectedIds={selectedCardIds}
+              onSelectionChange={handleSelectionChange}
               onCategoryChange={(cardId, categories) => {
                 categoryMutation.mutate({ cardId, categories })
               }}
@@ -764,6 +821,8 @@ function UnifiedListLayout({
   physicalCopyMap,
   onCategoryChange,
   maxCopies,
+  selectedIds,
+  onSelectionChange,
 }: {
   groupedCards: [string, DeckCard[]][]
   healthCategories?: CardsTabProps['healthCategories']
@@ -773,6 +832,8 @@ function UnifiedListLayout({
   physicalCopyMap: Map<number, number | null>
   onCategoryChange: (cardId: number, categories: StructuredCategories) => void
   maxCopies?: number | null
+  selectedIds?: Set<number>
+  onSelectionChange?: (cardId: number, selected: boolean) => void
 }) {
   return (
     <div className="space-y-2">
@@ -792,6 +853,8 @@ function UnifiedListLayout({
             health={health}
             onCategoryChange={onCategoryChange}
             maxCopies={maxCopies}
+            selectedIds={selectedIds}
+            onSelectionChange={onSelectionChange}
           />
         )
       })}
@@ -810,6 +873,8 @@ function UnifiedGroupsLayout({
   healthCategories,
   onCategoryChange,
   maxCopies,
+  selectedIds,
+  onSelectionChange,
 }: {
   groupedCards: [string, DeckCard[]][]
   statusMap: Map<number, CardSlotStatus>
@@ -819,6 +884,8 @@ function UnifiedGroupsLayout({
   healthCategories?: CardsTabProps['healthCategories']
   onCategoryChange: (cardId: number, categories: StructuredCategories) => void
   maxCopies?: number | null
+  selectedIds?: Set<number>
+  onSelectionChange?: (cardId: number, selected: boolean) => void
 }) {
   // Distribute groups across 3 columns using a greedy shortest-column algorithm
   const columns = useMemo(() => {
@@ -856,6 +923,8 @@ function UnifiedGroupsLayout({
                 health={health}
                 onCategoryChange={onCategoryChange}
                 maxCopies={maxCopies}
+                selectedIds={selectedIds}
+                onSelectionChange={onSelectionChange}
                 compact
               />
             )

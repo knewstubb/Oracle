@@ -67,6 +67,10 @@ export interface CardGroupSectionProps {
   compact?: boolean
   /** Maximum copies per card allowed by the format (null = no limit, 1 = singleton). Defaults to 1. */
   maxCopies?: number | null
+  /** Selected card IDs for bulk operations */
+  selectedIds?: Set<number>
+  /** Callback when card selection changes */
+  onSelectionChange?: (cardId: number, selected: boolean) => void
 }
 
 // ---------------------------------------------------------------------------
@@ -85,6 +89,8 @@ export function CardGroupSection({
   defaultCollapsed = false,
   compact = false,
   maxCopies = 1,
+  selectedIds,
+  onSelectionChange,
 }: CardGroupSectionProps) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed)
   const count = groupCards.reduce((sum, c) => sum + (c.quantity || 1), 0)
@@ -172,6 +178,8 @@ export function CardGroupSection({
               count={count}
               deckId={deckId}
               cardIds={landCards.map(c => c.id)}
+              selectedIds={selectedIds}
+              onSelectionChange={onSelectionChange}
             />
           ))}
 
@@ -190,6 +198,8 @@ export function CardGroupSection({
                 deckId={deckId}
                 cardIds={landCards.map(c => c.id)}
                 scryfallId={card.scryfall_id ?? null}
+                selectedIds={selectedIds}
+                onSelectionChange={onSelectionChange}
               />
             )
           })}
@@ -206,6 +216,8 @@ export function CardGroupSection({
               onCategoryChange={onCategoryChange}
               compact={compact}
               maxCopies={maxCopies}
+              isSelected={selectedIds?.has(card.id) ?? false}
+              onSelectionChange={onSelectionChange}
             />
           ))}
         </div>
@@ -227,6 +239,8 @@ function UnifiedCardRow({
   onCategoryChange,
   compact = false,
   maxCopies = 1,
+  isSelected = false,
+  onSelectionChange,
 }: {
   card: DeckCard
   status: CardSlotStatus
@@ -236,6 +250,8 @@ function UnifiedCardRow({
   onCategoryChange?: (cardId: number, categories: StructuredCategories) => void
   compact?: boolean
   maxCopies?: number | null
+  isSelected?: boolean
+  onSelectionChange?: (cardId: number, selected: boolean) => void
 }) {
   const [popoverOpen, setPopoverOpen] = useState(false)
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null)
@@ -297,6 +313,8 @@ function UnifiedCardRow({
       {/* Checkbox */}
       <input
         type="checkbox"
+        checked={isSelected}
+        onChange={(e) => onSelectionChange?.(card.id, e.target.checked)}
         className="size-3.5 shrink-0 rounded border-[rgba(255,255,255,0.1)] bg-transparent opacity-30 checked:opacity-100 hover:opacity-60 transition-opacity accent-[var(--accent-primary)]"
         aria-label={`Select ${card.card_name}`}
       />
@@ -454,11 +472,26 @@ function UnifiedCardRow({
 // GenericLandRow — simple row for generic (untracked) basic lands
 // ---------------------------------------------------------------------------
 
-function GenericLandRow({ landName, count, deckId, cardIds }: { landName: string; count: number; deckId: number; cardIds: number[] }) {
+function GenericLandRow({ landName, count, deckId, cardIds, selectedIds, onSelectionChange }: { 
+  landName: string
+  count: number
+  deckId: number
+  cardIds: number[]
+  selectedIds?: Set<number>
+  onSelectionChange?: (cardId: number, selected: boolean) => void
+}) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [optimisticCount, setOptimisticCount] = useState(count)
   const queryClient = useQueryClient()
   const { invalidateDeck } = createDeckInvalidators(queryClient)
+
+  // Check if all cards in this group are selected
+  const allSelected = cardIds.length > 0 && cardIds.every(id => selectedIds?.has(id))
+  const someSelected = cardIds.some(id => selectedIds?.has(id))
+
+  const handleSelectAll = (checked: boolean) => {
+    cardIds.forEach(id => onSelectionChange?.(id, checked))
+  }
 
   const handleAdd = () => {
     setOptimisticCount(c => c + 1)
@@ -505,6 +538,9 @@ function GenericLandRow({ landName, count, deckId, cardIds }: { landName: string
         {/* Checkbox */}
         <input
           type="checkbox"
+          checked={allSelected}
+          ref={(el) => { if (el) el.indeterminate = someSelected && !allSelected }}
+          onChange={(e) => handleSelectAll(e.target.checked)}
           className="size-3.5 shrink-0 rounded border-[rgba(255,255,255,0.1)] bg-transparent opacity-30 checked:opacity-100 hover:opacity-60 transition-opacity accent-[var(--accent-primary)]"
           aria-label={`Select ${landName}`}
         />
@@ -930,6 +966,8 @@ function SpecificLandRow({
   deckId,
   cardIds,
   scryfallId,
+  selectedIds,
+  onSelectionChange,
 }: {
   displayName: string
   count: number
@@ -937,9 +975,19 @@ function SpecificLandRow({
   deckId: number
   cardIds: number[]
   scryfallId: string | null
+  selectedIds?: Set<number>
+  onSelectionChange?: (cardId: number, selected: boolean) => void
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const queryClient = useQueryClient()
+
+  // Check if all cards in this group are selected
+  const allSelected = cardIds.length > 0 && cardIds.every(id => selectedIds?.has(id))
+  const someSelected = cardIds.some(id => selectedIds?.has(id))
+
+  const handleSelectAll = (checked: boolean) => {
+    cardIds.forEach(id => onSelectionChange?.(id, checked))
+  }
 
   const updateQtyMutation = useMutation({
     mutationFn: async (newQty: number) => {
@@ -1001,7 +1049,14 @@ function SpecificLandRow({
     <div role="listitem" className="border-b border-[rgba(255,255,255,0.04)] last:border-b-0">
       <div className="group flex items-center gap-2 px-3 py-2 transition-colors hover:bg-white/[0.03]">
         <GripVertical className="size-3 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-40 transition-opacity cursor-grab" aria-hidden="true" />
-        <input type="checkbox" className="size-3.5 shrink-0 rounded border-[rgba(255,255,255,0.1)] bg-transparent opacity-30 checked:opacity-100 hover:opacity-60 transition-opacity accent-[var(--accent-primary)]" aria-label={`Select ${displayName}`} />
+        <input 
+          type="checkbox" 
+          checked={allSelected}
+          ref={(el) => { if (el) el.indeterminate = someSelected && !allSelected }}
+          onChange={(e) => handleSelectAll(e.target.checked)}
+          className="size-3.5 shrink-0 rounded border-[rgba(255,255,255,0.1)] bg-transparent opacity-30 checked:opacity-100 hover:opacity-60 transition-opacity accent-[var(--accent-primary)]" 
+          aria-label={`Select ${displayName}`} 
+        />
 
         <span className="w-4 shrink-0 text-right text-[length:var(--fs-xs)] text-muted-foreground">{count}</span>
         <span className="min-w-0 flex-1 truncate text-[length:var(--fs-sm)]">{displayName}</span>

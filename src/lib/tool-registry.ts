@@ -824,14 +824,13 @@ registry.set('list_user_decks', {
   definition: {
     name: 'list_user_decks',
     description:
-      'List all the user\'s Commander decks with basic info. Returns deck name, commander, card count, and status for each deck. Use this when the user asks about their decks, wants to compare them, or is viewing the deck list page.',
+      'List all the user\'s Commander decks with basic info. Returns deck name, commander, card count, and active status for each deck. Use this when the user asks about their decks, wants to compare them, or is viewing the deck list page.',
     input_schema: {
       type: 'object',
       properties: {
-        status_filter: {
-          type: 'string',
-          enum: ['active', 'archived', 'all'],
-          description: 'Filter decks by status. Default is "active".',
+        include_inactive: {
+          type: 'boolean',
+          description: 'Whether to include inactive/archived decks. Default is false (only active decks).',
         },
       },
     },
@@ -843,76 +842,47 @@ registry.set('list_user_decks', {
         return { content: 'Deck list requires authentication — userId not available', is_error: true }
       }
       
-      const statusFilter = (input?.status_filter as string) || 'active'
+      const includeInactive = (input?.include_inactive as boolean) || false
       const supabase = createAdminClient()
       
-      // Query decks with commander info
+      // Query decks - the table has commander_name and card_count directly
       let query = supabase
         .from('decks')
-        .select(`
-          id,
-          name,
-          format,
-          status,
-          created_at,
-          updated_at,
-          deck_cards(count)
-        `)
+        .select('id, name, commander_name, colour_identity, card_count, is_active, last_synced_at')
         .eq('user_id', userId)
-        .order('updated_at', { ascending: false })
+        .order('is_active', { ascending: false })
+        .order('last_synced_at', { ascending: false, nullsFirst: false })
       
-      if (statusFilter !== 'all') {
-        query = query.eq('status', statusFilter)
+      if (!includeInactive) {
+        query = query.eq('is_active', true)
       }
       
       const { data: decks, error } = await query
       
       if (error) {
+        console.error('[list_user_decks] Query error:', error)
         throw new Error(`Failed to fetch decks: ${error.message}`)
       }
       
       if (!decks || decks.length === 0) {
         return {
-          content: statusFilter === 'all' 
+          content: includeInactive 
             ? 'You don\'t have any decks yet.'
-            : `You don\'t have any ${statusFilter} decks.`,
+            : 'You don\'t have any active decks. Try asking with include_inactive: true to see archived decks.',
           is_error: false,
         }
       }
       
-      // Get commander for each deck
-      const deckIds = decks.map(d => d.id)
-      const { data: commanders } = await supabase
-        .from('deck_cards')
-        .select('deck_id, card_name')
-        .in('deck_id', deckIds)
-        .eq('is_commander', true)
-      
-      const commanderByDeck = new Map<number, string[]>()
-      for (const cmd of commanders ?? []) {
-        if (!commanderByDeck.has(cmd.deck_id)) {
-          commanderByDeck.set(cmd.deck_id, [])
-        }
-        commanderByDeck.get(cmd.deck_id)!.push(cmd.card_name)
-      }
-      
       // Format output
-      const deckList = decks.map(deck => {
-        const commanders = commanderByDeck.get(deck.id) ?? []
-        const cardCount = Array.isArray(deck.deck_cards) 
-          ? (deck.deck_cards[0] as { count: number })?.count ?? 0
-          : 0
-        
-        return {
-          id: deck.id,
-          name: deck.name,
-          commander: commanders.length > 0 ? commanders.join(' + ') : 'No commander',
-          card_count: cardCount,
-          format: deck.format,
-          status: deck.status,
-          last_updated: deck.updated_at,
-        }
-      })
+      const deckList = decks.map(deck => ({
+        id: deck.id,
+        name: deck.name,
+        commander: deck.commander_name || 'No commander set',
+        color_identity: deck.colour_identity || 'Colorless',
+        card_count: deck.card_count ?? 0,
+        is_active: deck.is_active,
+        last_updated: deck.last_synced_at,
+      }))
       
       return { content: JSON.stringify(deckList, null, 2), is_error: false }
     } catch (err) {

@@ -32,6 +32,8 @@ export async function GET(request: NextRequest) {
   
   try {
     // Build the query
+    // Note: scryfall_id in ref_commanders may not be populated, so we don't filter on it
+    // We'll look up scryfall_id from ref_printings after selection
     let dbQuery = supabase
       .from('ref_commanders')
       .select(`
@@ -39,13 +41,11 @@ export async function GET(request: NextRequest) {
         canonical_key,
         display_name,
         color_identity,
-        scryfall_id,
         edhrec_rank,
         edhrec_deck_count,
         leadership_type
       `)
       .eq('legal_commander', true)
-      .not('scryfall_id', 'is', null)
     
     // Filter by name if query provided
     if (query.length > 0) {
@@ -96,6 +96,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ commanders: [] })
     }
 
+    // Look up scryfall_ids from ref_printings for the selected commanders
+    const commanderNames = commanders.map(c => c.display_name)
+    const { data: printings } = await supabase
+      .from('ref_printings')
+      .select('name, scryfall_id')
+      .in('name', commanderNames)
+    
+    // Create name -> scryfall_id map (use first printing found for each)
+    const scryfallIdMap = new Map<string, string>()
+    if (printings) {
+      for (const p of printings) {
+        if (!scryfallIdMap.has(p.name)) {
+          scryfallIdMap.set(p.name, p.scryfall_id)
+        }
+      }
+    }
+
     // Check ownership for authenticated user
     const user = await getAuthUser()
     let ownedNames = new Set<string>()
@@ -114,13 +131,13 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Build response
+    // Build response with scryfall_id from printings lookup
     const result: SearchResult[] = commanders.map(cmd => ({
       id: cmd.id,
       canonical_key: cmd.canonical_key,
       display_name: cmd.display_name,
       color_identity: cmd.color_identity,
-      scryfall_id: cmd.scryfall_id,
+      scryfall_id: scryfallIdMap.get(cmd.display_name) ?? null,
       edhrec_rank: cmd.edhrec_rank,
       edhrec_deck_count: cmd.edhrec_deck_count,
       leadership_type: cmd.leadership_type,

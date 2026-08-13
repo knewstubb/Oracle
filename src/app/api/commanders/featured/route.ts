@@ -49,6 +49,8 @@ export async function GET(request: NextRequest) {
     }
     
     // Get top 500 popular commanders
+    // Note: scryfall_id in ref_commanders may not be populated, so we don't filter on it
+    // We'll look up scryfall_id from ref_printings when needed for display
     const { data: commanders, error } = await supabase
       .from('ref_commanders')
       .select(`
@@ -56,13 +58,11 @@ export async function GET(request: NextRequest) {
         canonical_key,
         display_name,
         color_identity,
-        scryfall_id,
         edhrec_rank,
         edhrec_deck_count,
         leadership_type
       `)
       .eq('legal_commander', true)
-      .not('scryfall_id', 'is', null)
       .not('edhrec_deck_count', 'is', null)
       .gt('edhrec_deck_count', 100) // Only commanders with at least 100 decks
       .order('edhrec_deck_count', { ascending: false })
@@ -88,6 +88,23 @@ export async function GET(request: NextRequest) {
     // Weighted random selection: use sqrt(deck_count) as weight
     const selected = weightedRandomSelect(pool, 10)
 
+    // Look up scryfall_ids from ref_printings for the selected commanders
+    const commanderNames = selected.map(c => c.display_name)
+    const { data: printings } = await supabase
+      .from('ref_printings')
+      .select('name, scryfall_id')
+      .in('name', commanderNames)
+    
+    // Create name -> scryfall_id map (use first printing found for each)
+    const scryfallIdMap = new Map<string, string>()
+    if (printings) {
+      for (const p of printings) {
+        if (!scryfallIdMap.has(p.name)) {
+          scryfallIdMap.set(p.name, p.scryfall_id)
+        }
+      }
+    }
+
     // Check ownership for authenticated user
     let ownedNames = new Set<string>()
     
@@ -106,13 +123,13 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Build response with ownership status
+    // Build response with ownership status and scryfall_id from printings
     const result: FeaturedCommander[] = selected.map(cmd => ({
       id: cmd.id,
       canonical_key: cmd.canonical_key,
       display_name: cmd.display_name,
       color_identity: cmd.color_identity,
-      scryfall_id: cmd.scryfall_id,
+      scryfall_id: scryfallIdMap.get(cmd.display_name) ?? null,
       edhrec_rank: cmd.edhrec_rank,
       edhrec_deck_count: cmd.edhrec_deck_count,
       leadership_type: cmd.leadership_type,

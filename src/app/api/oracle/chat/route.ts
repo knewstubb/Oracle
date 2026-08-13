@@ -270,7 +270,7 @@ export async function POST(request: NextRequest) {
   const supabase = createAdminClient()
 
   // --- Intent detection for exploration sessions ---
-  // Only detect intent when in general/collection/forge/deck-list context (not already in a specific deck)
+  // Only detect intent when in general/collection/forge/deck-list context (not already in commander-selection or specific deck)
   const shouldDetectIntent = ['general', 'collection', 'forge', 'deck-list'].includes(context.type)
   const hasDeckBuildingIntent = shouldDetectIntent && detectDeckBuildingIntent(message)
   
@@ -285,6 +285,20 @@ export async function POST(request: NextRequest) {
           search: potentialName, 
           found: detectedCommander.displayName,
           key: detectedCommander.canonicalKey
+        })
+      }
+    }
+  }
+  
+  // Also detect commanders when in commander-selection context (user exploring on /decks/new)
+  if (context.type === 'commander-selection') {
+    const potentialName = extractPotentialCommanderName(message)
+    if (potentialName) {
+      detectedCommander = await findCommanderByName(supabase, potentialName)
+      if (detectedCommander) {
+        console.log('[oracle/chat] Commander detected in selection context:', { 
+          search: potentialName, 
+          found: detectedCommander.displayName
         })
       }
     }
@@ -345,7 +359,10 @@ export async function POST(request: NextRequest) {
       try {
         // If deck-building intent detected OR a specific commander mentioned, send a navigate prompt event
         // This allows the UI to show an action button alongside the response
-        if (hasDeckBuildingIntent || detectedCommander) {
+        // BUT: Don't send generic "new deck" prompt if user is already on commander-selection page
+        const shouldSendNavigatePrompt = detectedCommander || (hasDeckBuildingIntent && context.type !== 'commander-selection')
+        
+        if (shouldSendNavigatePrompt) {
           const navigateEvent = detectedCommander
             ? {
                 type: 'navigate_prompt',

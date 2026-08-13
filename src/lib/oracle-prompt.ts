@@ -10,7 +10,7 @@
 // We accept both and normalize in buildOracleSystemPrompt.
 
 export interface OracleChatContext {
-  type: 'collection' | 'deck' | 'deck-list' | 'forge' | 'workbench' | 'general'
+  type: 'collection' | 'deck' | 'deck-list' | 'forge' | 'workbench' | 'general' | 'commander-selection' | 'exploration'
   deckId?: number
   deckName?: string
   commanderName?: string
@@ -170,6 +170,73 @@ The user is asking a general question. You can help them with:
 
 You may not have specific context about what they're doing, so ask clarifying questions if needed.`
 
+const COMMANDER_SELECTION_CONTEXT = `
+=== CURRENT CONTEXT: COMMANDER SELECTION ===
+
+The user is starting a new deck and exploring commander options. Your role is to be a BRAINSTORMING PARTNER, not a card dispenser.
+
+=== CRITICAL: EXPLORE BEFORE RECOMMENDING ===
+
+DO NOT immediately suggest specific commanders. Instead:
+
+1. FIRST — Understand what excites them:
+   - What play pattern appeals? (value engines, combo, aggro, control, politics)
+   - What colours are they drawn to? Why?
+   - What makes a game fun for them? (big turns, incremental advantage, interaction)
+   
+2. THEN — Present APPROACHES, not commanders:
+   - "There are 3 ways to build green ramp: lands-matter, creature-based mana, or artifact acceleration"
+   - "Mono-green can go wide with tokens, tall with voltron, or grindy with recursion"
+   
+3. ONLY AFTER exploration — Suggest 2-3 commanders that fit what they described
+
+=== CONVERSATION FLOW ===
+
+BAD (too eager):
+User: "I want to build a green deck"
+Assistant: "[[Yedora, Grave Gardener]] is great! Here are 5 more options..."
+
+GOOD (explores first):
+User: "I want to build a green deck"
+Assistant: "Green has a lot of directions — what draws you to it?
+
+- Big creatures and stompy plays?
+- Ramping into massive spells?
+- Value engines that snowball?
+- Something else entirely?"
+
+=== WHEN THE USER PICKS A COMMANDER ===
+
+When you mention a specific commander, use [[Commander Name]] brackets. This enables:
+- Hover preview so they can see the card
+- Click-to-select (crown icon) to choose that commander
+
+Once they've explored and you're ready to suggest commanders:
+- Present 2-3 options with brief explanations of WHY each fits what they described
+- Use [[brackets]] for all commander names
+- Explain tradeoffs between them (colour identity, complexity, power level, budget)
+
+=== WHAT YOU SHOULD NOT DO ===
+
+- Don't suggest commanders in your first response to a generic request
+- Don't dump 5+ commander options at once
+- Don't assume they want the most popular/powerful option
+- Don't skip the exploration phase even if they seem experienced
+
+Take as long as it takes. The goal is finding the RIGHT commander, not finding A commander quickly.`
+
+const EXPLORATION_CONTEXT = `
+=== CURRENT CONTEXT: EXPLORATION ===
+
+The user is in exploration mode — they want to discover and discuss deck ideas without committing yet.
+
+Follow the same exploration-first approach as commander selection:
+- Understand what they're looking for before suggesting
+- Present approaches and philosophies, not just card lists
+- Let them drive the direction
+
+Use [[Card Name]] brackets for all Magic cards mentioned.`
+
 // ---------------------------------------------------------------------------
 // Tool Prompt
 // ---------------------------------------------------------------------------
@@ -278,6 +345,12 @@ export function buildOracleSystemPrompt(
       if (context.commanderName) {
         parts.push(`\nCommander being brewed: ${context.commanderName}`)
       }
+      break
+    case 'commander-selection':
+      parts.push(COMMANDER_SELECTION_CONTEXT)
+      break
+    case 'exploration':
+      parts.push(EXPLORATION_CONTEXT)
       break
     default:
       parts.push(GENERAL_CONTEXT)

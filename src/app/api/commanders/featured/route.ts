@@ -2,7 +2,8 @@
  * Featured Commanders API
  * 
  * GET /api/commanders/featured
- * Returns 10 random commanders weighted by EDHREC popularity.
+ * Returns 10 random commanders from the top 500 by EDHREC popularity,
+ * excluding commanders the user already has decks built for.
  * Includes ownership status for the authenticated user.
  */
 
@@ -26,8 +27,28 @@ export async function GET(request: NextRequest) {
   const supabase = createAdminClient()
   
   try {
-    // Get commanders with EDHREC data, prioritizing popular ones
-    // Use a weighted random selection: commanders with more decks appear more often
+    // Get user early to fetch existing decks
+    const user = await getAuthUser()
+    
+    // Get commander names the user already has decks for
+    let existingDeckCommanders = new Set<string>()
+    if (user) {
+      const { data: userDecks } = await supabase
+        .from('decks')
+        .select('commander_name')
+        .eq('user_id', user.id)
+        .not('commander_name', 'is', null)
+      
+      if (userDecks) {
+        existingDeckCommanders = new Set(
+          userDecks
+            .map(d => d.commander_name?.toLowerCase())
+            .filter((n): n is string => !!n)
+        )
+      }
+    }
+    
+    // Get top 500 popular commanders
     const { data: commanders, error } = await supabase
       .from('ref_commanders')
       .select(`
@@ -45,7 +66,7 @@ export async function GET(request: NextRequest) {
       .not('edhrec_deck_count', 'is', null)
       .gt('edhrec_deck_count', 100) // Only commanders with at least 100 decks
       .order('edhrec_deck_count', { ascending: false })
-      .limit(200) // Get top 200 popular commanders
+      .limit(500) // Get top 500 popular commanders
     
     if (error) {
       console.error('[api/commanders/featured] Query error:', error)
@@ -56,15 +77,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ commanders: [] })
     }
 
-    // Weighted random selection: use deck_count as weight
-    const selected = weightedRandomSelect(commanders, 10)
+    // Filter out commanders user already has decks for
+    const availableCommanders = commanders.filter(
+      c => !existingDeckCommanders.has(c.display_name.toLowerCase())
+    )
+    
+    // If no commanders left (user has decks for all top 500), fall back to full list
+    const pool = availableCommanders.length > 0 ? availableCommanders : commanders
+
+    // Weighted random selection: use sqrt(deck_count) as weight
+    const selected = weightedRandomSelect(pool, 10)
 
     // Check ownership for authenticated user
-    const user = await getAuthUser()
     let ownedNames = new Set<string>()
     
     if (user) {
-      // Get all card names the user owns
       const commanderNames = selected.map(c => c.display_name)
       
       // For each commander, check if user has a copy via user_cards

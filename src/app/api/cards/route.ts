@@ -42,16 +42,30 @@ export async function GET(request: NextRequest) {
         if (!printing?.scryfall_id) {
           return NextResponse.json({ error: 'Card not found' }, { status: 404 })
         }
-        // Check if card exists in ref_commanders (authoritative source for commander eligibility)
+        
+        // Check commander eligibility from ref_cards.can_be_commander (primary source)
+        // This is populated by the backfill script from Scryfall's is:commander filter
         const supabase = createAdminClient()
-        const { data: commander } = await supabase
-          .from('ref_commanders')
-          .select('id')
-          .eq('display_name', printing.name)
+        const { data: refCard } = await supabase
+          .from('ref_cards')
+          .select('can_be_commander')
+          .ilike('name', printing.name) // Case-insensitive match
           .maybeSingle()
+        
+        // Fall back to checking ref_commanders if ref_cards doesn't have the flag
+        let canBeCommander = refCard?.can_be_commander ?? false
+        if (!canBeCommander) {
+          const { data: commander } = await supabase
+            .from('ref_commanders')
+            .select('id')
+            .ilike('display_name', printing.name) // Case-insensitive match
+            .maybeSingle()
+          canBeCommander = commander !== null
+        }
+        
         return NextResponse.json({ 
           scryfall_id: printing.scryfall_id,
-          can_be_commander: commander !== null,
+          can_be_commander: canBeCommander,
         })
       }
 

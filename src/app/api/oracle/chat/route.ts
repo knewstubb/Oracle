@@ -67,6 +67,24 @@ function detectDeckBuildingIntent(message: string): boolean {
  * Returns the extracted text that might be a commander name.
  */
 function extractPotentialCommanderName(message: string): string | null {
+  // Words that are definitely NOT commander names
+  const NON_COMMANDER_WORDS = new Set([
+    // Colors
+    'white', 'blue', 'black', 'red', 'green',
+    'mono', 'mono-white', 'mono-blue', 'mono-black', 'mono-red', 'mono-green',
+    'azorius', 'dimir', 'rakdos', 'gruul', 'selesnya',
+    'orzhov', 'izzet', 'golgari', 'boros', 'simic',
+    'esper', 'grixis', 'jund', 'naya', 'bant',
+    'abzan', 'jeskai', 'sultai', 'mardu', 'temur',
+    // Archetypes
+    'aristocrats', 'aggro', 'control', 'combo', 'voltron', 'tokens', 'tribal',
+    'reanimator', 'landfall', 'spellslinger', 'stompy', 'stax', 'superfriends',
+    'artifacts', 'enchantments', 'graveyard', 'ramp', 'midrange',
+    // Generic words
+    'something', 'anything', 'deck', 'commander', 'edh', 'new', 'fun', 'cool',
+    'different', 'unique', 'interesting', 'powerful', 'budget', 'competitive',
+  ])
+
   for (const pattern of COMMANDER_MENTION_PATTERNS) {
     const match = message.match(pattern)
     if (match && match[1]) {
@@ -74,8 +92,20 @@ function extractPotentialCommanderName(message: string): string | null {
       let name = match[1].trim()
       // Remove common suffixes
       name = name.replace(/\s+(deck|commander|edh)$/i, '')
-      // Only return if it looks like a card name (2+ words or known pattern)
-      if (name.length >= 3) {
+      
+      // Skip if it's a known non-commander word
+      if (NON_COMMANDER_WORDS.has(name.toLowerCase())) {
+        continue
+      }
+      
+      // Skip if it's just "in <color>" pattern (e.g., "in black", "in red")
+      if (/^in\s+(white|blue|black|red|green|mono|azorius|dimir|rakdos|gruul|selesnya)/i.test(name)) {
+        continue
+      }
+      
+      // Only return if it looks like a card name (2+ words or at least 4 chars for single word)
+      // Single-word commanders like "Ezuri" or "Yawgmoth" are at least 4+ chars
+      if (name.length >= 4) {
         return name
       }
     }

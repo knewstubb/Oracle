@@ -290,19 +290,10 @@ export async function POST(request: NextRequest) {
     }
   }
   
-  // Also detect commanders when in commander-selection context (user exploring on /decks/new)
-  if (context.type === 'commander-selection') {
-    const potentialName = extractPotentialCommanderName(message)
-    if (potentialName) {
-      detectedCommander = await findCommanderByName(supabase, potentialName)
-      if (detectedCommander) {
-        console.log('[oracle/chat] Commander detected in selection context:', { 
-          search: potentialName, 
-          found: detectedCommander.displayName
-        })
-      }
-    }
-  }
+  // In commander-selection context, we do NOT auto-detect commanders from vague phrases.
+  // The user is exploring and the Oracle should guide them, not jump to suggestions.
+  // Only detect if the message explicitly names a commander (checked below after AI responds).
+  // REMOVED: Auto-detection in commander-selection context
   
   if (hasDeckBuildingIntent || detectedCommander) {
     console.log('[oracle/chat] Deck-building intent detected:', { 

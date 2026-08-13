@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
   
   const query = searchParams.get('q')?.trim() || ''
   const colors = searchParams.get('colors')?.toUpperCase() || ''
+  const partnerType = searchParams.get('partnerType') || ''
   
   try {
     // Build the query
@@ -58,6 +59,27 @@ export async function GET(request: NextRequest) {
       // Get all valid color combinations within the provided colors
       const validIdentities = getColorCombinations(colors)
       dbQuery = dbQuery.in('color_identity', validIdentities)
+    }
+    
+    // Filter by partner type for partner selection flow
+    if (partnerType.length > 0) {
+      // Map partner types to compatible leadership types
+      let compatibleTypes: string[] = []
+      
+      if (partnerType === 'partner') {
+        // Generic partners can pair with other generic partners
+        compatibleTypes = ['partner']
+      } else if (partnerType === 'friends_forever') {
+        // Friends forever only with other friends forever
+        compatibleTypes = ['friends_forever']
+      } else if (partnerType === 'partner_with') {
+        // partner_with has specific pairings, but for now allow generic partners
+        compatibleTypes = ['partner']
+      }
+      
+      if (compatibleTypes.length > 0) {
+        dbQuery = dbQuery.in('leadership_type', compatibleTypes)
+      }
     }
     
     // Order by popularity and limit results

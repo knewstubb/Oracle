@@ -10,6 +10,8 @@
  *   commanderName?: string (required for Commander format)
  *   commanderScryfallId?: string
  *   colourIdentity?: string
+ *   partnerName?: string (optional second commander for partners)
+ *   partnerScryfallId?: string
  * }
  *
  * Returns: { deckId: number }
@@ -29,6 +31,8 @@ export async function POST(request: NextRequest) {
     commanderName?: string
     commanderScryfallId?: string
     colourIdentity?: string
+    partnerName?: string
+    partnerScryfallId?: string
   }
 
   try {
@@ -37,7 +41,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { name, format, commanderName, commanderScryfallId, colourIdentity } = body
+  const { name, format, commanderName, commanderScryfallId, colourIdentity, partnerName, partnerScryfallId } = body
 
   if (!name || !name.trim()) {
     return Response.json({ error: 'Deck name is required' }, { status: 400 })
@@ -72,23 +76,39 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: `Failed to create deck: ${error.message}` }, { status: 500 })
   }
 
-  // If commander format, add the commander as the first deck_cards row
+  // If commander format, add the commander(s) as deck_cards rows
   if (commanderName && format === 'commander') {
-    await supabase
-      .from('deck_cards')
-      .insert({
+    const commanderCards = [
+      {
         deck_id: deckId,
         card_name: commanderName.trim(),
         scryfall_id: commanderScryfallId ?? null,
         quantity: 1,
         is_commander: true,
         user_id: userId,
+      }
+    ]
+    
+    // Add partner commander if specified
+    if (partnerName) {
+      commanderCards.push({
+        deck_id: deckId,
+        card_name: partnerName.trim(),
+        scryfall_id: partnerScryfallId ?? null,
+        quantity: 1,
+        is_commander: true,
+        user_id: userId,
       })
+    }
+    
+    await supabase
+      .from('deck_cards')
+      .insert(commanderCards)
 
     // Update card count
     await supabase
       .from('decks')
-      .update({ card_count: 1 })
+      .update({ card_count: commanderCards.length })
       .eq('id', deckId)
   }
 

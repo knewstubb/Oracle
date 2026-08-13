@@ -44,7 +44,7 @@ const mainNavItems: NavItem[] = [
 const toolsMenuItems: NavItem[] = [
   { label: 'Card Management', href: '/allocation', icon: 'modeling' },
   { label: 'Binders', href: '/storage', icon: 'shelves' },
-  { label: 'Brew Deck', href: '/new-deck', icon: 'science' },
+  { label: 'New Deck', href: '/decks/new', icon: 'add_box' },
 ]
 
 // Mobile nav includes all items
@@ -55,7 +55,7 @@ const mobileNavItems: NavItem[] = [
   { label: 'Wishlist', href: '/wishlist', icon: 'favorite' },
   { label: 'Card Management', href: '/allocation', icon: 'modeling' },
   { label: 'Binders', href: '/storage', icon: 'shelves' },
-  { label: 'Brew Deck', href: '/new-deck', icon: 'science' },
+  { label: 'New Deck', href: '/decks/new', icon: 'add_box' },
   { label: 'Settings', href: '/settings', icon: 'settings' },
 ]
 

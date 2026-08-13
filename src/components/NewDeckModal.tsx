@@ -84,10 +84,10 @@ export function NewDeckModal({ variant = 'default' }: NewDeckModalProps) {
 
   function handleMethodSelect(method: 'ai' | 'manual') {
     if (method === 'ai') {
-      // AI brew — go to /new-deck (existing canvas)
+      // AI brew — go to /decks/new (commander selection page)
       setOpen(false)
       resetState()
-      router.push('/new-deck')
+      router.push('/decks/new')
     } else {
       // Manual — show details step
       setStep('details')

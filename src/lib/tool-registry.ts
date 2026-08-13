@@ -349,95 +349,163 @@ registry.set('mtg_commander_deck', {
 registry.set('mtg_top_commanders', {
   definition: {
     name: 'mtg_top_commanders',
-    description: 'Get the most popular commanders for a specific colour identity, ranked by EDHREC deck count (number of registered decks). Use this when the user asks "what are the top/most popular X commanders".',
+    description: 'Get popular commanders filtered by color identity, archetype, theme, or tribe. Use for specific requests like "show me aristocrats commanders" or "what are the top green commanders". For generic "build a deck" requests, use random=true to show diverse options.',
     input_schema: {
       type: 'object',
       properties: {
         color_identity: {
           type: 'string',
-          description: 'Colour identity to filter by. Use WUBRG letters: "W" for mono-white, "U" for mono-blue, "B" for mono-black, "R" for mono-red, "G" for mono-green, "U,B" for Dimir, "W,U,B" for Esper, etc. Also accepts guild/shard names like "dimir", "esper", "gruul".',
+          description: 'Colour identity to filter by. Use WUBRG letters: "W" for mono-white, "U" for mono-blue, "B" for mono-black, "R" for mono-red, "G" for mono-green, "UB" for Dimir, "WUB" for Esper, etc. Also accepts guild/shard names like "dimir", "esper", "gruul". Optional — omit for any color.',
+        },
+        archetype: {
+          type: 'string',
+          description: 'Archetype/playstyle to filter by: aristocrats, blink, voltron, combo, control, aggro, reanimator, tokens, spellslinger, etc.',
+        },
+        theme: {
+          type: 'string',
+          description: 'Theme/mechanic to filter by: artifacts, enchantments, graveyard, counters, treasure, sacrifice, landfall, etc.',
+        },
+        tribe: {
+          type: 'string',
+          description: 'Creature tribe to filter by: elves, goblins, zombies, dragons, vampires, merfolk, humans, etc.',
+        },
+        random: {
+          type: 'boolean',
+          description: 'If true, return random commanders from top 500 (good for generic "build a deck" requests). Default false.',
         },
         limit: {
           type: 'number',
-          description: 'Number of results to return (default: 10)',
+          description: 'Number of results to return (default: 6)',
         },
       },
-      required: ['color_identity'],
+      required: [],
     },
   },
   execute: async (input) => {
     try {
-      const limit = (input.limit as number) || 10
-      const rawCI = input.color_identity as string
+      const limit = (input.limit as number) || 6
+      const rawCI = input.color_identity as string | undefined
+      const archetype = input.archetype as string | undefined
+      const theme = input.theme as string | undefined
+      const tribe = input.tribe as string | undefined
+      const random = input.random as boolean | undefined
 
-      // Normalize colour identity to sorted WUBRG format for DB query
-      const normalizedCI = normalizeColorIdentity(rawCI)
+      // Build query params for the commanders/search API
+      const params = new URLSearchParams()
       
-      // --- Step 1: Try local ref_commanders table first ---
-      const supabase = createAdminClient()
-      const { data: localCommanders, error: localError } = await supabase
-        .from('ref_commanders')
-        .select('display_name, color_identity, edhrec_rank, edhrec_deck_count')
-        .eq('color_identity', normalizedCI)
-        .eq('legal_commander', true)
-        .not('edhrec_rank', 'is', null)
-        .order('edhrec_rank', { ascending: true })
-        .limit(limit)
-      
-      if (!localError && localCommanders && localCommanders.length >= limit) {
-        // Local data is sufficient
-        const lines = [`Top ${localCommanders.length} commanders for ${rawCI} (by EDHREC deck count):\n`]
-        for (let i = 0; i < localCommanders.length; i++) {
-          const cmd = localCommanders[i]
-          const deckCount = cmd.edhrec_deck_count ? `${cmd.edhrec_deck_count.toLocaleString()} decks` : ''
-          lines.push(`${i + 1}. ${cmd.display_name} — ${deckCount}`)
+      if (rawCI) {
+        const normalizedCI = normalizeColorIdentity(rawCI)
+        if (normalizedCI) {
+          params.set('colors', normalizedCI)
         }
-        lines.push(`\nSource: Local cache (synced from EDHREC)`)
-        return { content: lines.join('\n'), is_error: false }
       }
-
-      // --- Step 2: Fallback to EDHREC API ---
-      const slug = resolveEdhrecColorSlug(rawCI)
-      if (!slug) {
-        return { content: `Could not resolve colour identity "${rawCI}". Use WUBRG letters (e.g. "U,B") or guild names (e.g. "dimir").`, is_error: true }
+      
+      if (archetype) {
+        params.set('archetype', archetype)
       }
-
-      const res = await fetch(`https://json.edhrec.com/pages/commanders/${slug}.json`, {
-        headers: { 'User-Agent': 'The-Oracle/1.0' },
-      })
-
+      
+      if (theme) {
+        params.set('theme', theme)
+      }
+      
+      if (tribe) {
+        params.set('tribe', tribe)
+      }
+      
+      if (random) {
+        params.set('random', 'true')
+      }
+      
+      // Use the internal API which handles taxonomy filtering
+      const apiUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/commanders/search?${params.toString()}`
+      const res = await fetch(apiUrl)
+      
       if (!res.ok) {
-        return { content: `EDHREC returned ${res.status} for slug "${slug}". Try a different colour identity format.`, is_error: true }
+        // Fallback to direct DB query if API fails
+        return await fallbackDirectQuery(rawCI, limit)
       }
-
-      const json = await res.json()
-
-      // Handle redirects (e.g. "ub" → "dimir")
-      if (json.redirect) {
-        const redirectSlug = json.redirect.replace('/commanders/', '')
-        const redirectRes = await fetch(`https://json.edhrec.com/pages/commanders/${redirectSlug}.json`, {
-          headers: { 'User-Agent': 'The-Oracle/1.0' },
-        })
-        if (!redirectRes.ok) {
-          return { content: `EDHREC redirect to "${redirectSlug}" failed (${redirectRes.status}).`, is_error: true }
+      
+      const data = await res.json()
+      const commanders = (data.commanders || []).slice(0, limit)
+      
+      if (commanders.length === 0) {
+        const filters = [rawCI, archetype, theme, tribe].filter(Boolean).join(', ')
+        return { 
+          content: `No commanders found matching: ${filters || 'any criteria'}. Try broadening your search.`, 
+          is_error: false 
         }
-        const redirectJson = await redirectRes.json()
-        return formatEdhrecCommanderResults(redirectJson, rawCI, limit)
       }
-
-      return formatEdhrecCommanderResults(json, rawCI, limit)
+      
+      // Format results
+      const filterDesc = [
+        rawCI ? rawCI : null,
+        archetype ? `${archetype} archetype` : null,
+        theme ? `${theme} theme` : null,
+        tribe ? `${tribe} tribe` : null,
+      ].filter(Boolean).join(', ') || 'all colors/strategies'
+      
+      const lines = [`${random ? 'Random selection of' : 'Top'} ${commanders.length} commanders for ${filterDesc}:\n`]
+      
+      for (let i = 0; i < commanders.length; i++) {
+        const cmd = commanders[i]
+        const deckCount = cmd.edhrec_deck_count ? `${cmd.edhrec_deck_count.toLocaleString()} decks` : ''
+        const owned = cmd.owned ? ' ✓ owned' : ''
+        lines.push(`${i + 1}. ${cmd.display_name} (${cmd.color_identity || 'C'}) — ${deckCount}${owned}`)
+      }
+      
+      return { content: lines.join('\n'), is_error: false }
+      
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Top commanders lookup failed'
-      return { content: `Error: ${msg}`, is_error: true }
+      console.error('[mtg_top_commanders] Error:', err)
+      return { content: `Error fetching commanders: ${err instanceof Error ? err.message : String(err)}`, is_error: true }
     }
   },
 })
 
-/** Normalize colour identity input to sorted WUBRG format (e.g., "dimir" → "U,B") */
+// Fallback direct query when API is unavailable
+async function fallbackDirectQuery(rawCI: string | undefined, limit: number) {
+  const supabase = createAdminClient()
+  
+  let query = supabase
+    .from('ref_commanders')
+    .select('display_name, color_identity, edhrec_rank, edhrec_deck_count')
+    .eq('legal_commander', true)
+    .not('edhrec_rank', 'is', null)
+    .order('edhrec_rank', { ascending: true })
+    .limit(limit)
+  
+  if (rawCI) {
+    const normalizedCI = normalizeColorIdentity(rawCI)
+    if (normalizedCI) {
+      query = query.eq('color_identity', normalizedCI)
+    }
+  }
+  
+  const { data: localCommanders, error } = await query
+  
+  if (error || !localCommanders || localCommanders.length === 0) {
+    return { content: `Could not find commanders. Try a different search.`, is_error: true }
+  }
+  
+  const lines = [`Top ${localCommanders.length} commanders${rawCI ? ` for ${rawCI}` : ''}:\n`]
+  for (let i = 0; i < localCommanders.length; i++) {
+    const cmd = localCommanders[i]
+    const deckCount = cmd.edhrec_deck_count ? `${cmd.edhrec_deck_count.toLocaleString()} decks` : ''
+    lines.push(`${i + 1}. ${cmd.display_name} (${cmd.color_identity || 'C'}) — ${deckCount}`)
+  }
+  
+  return { content: lines.join('\n'), is_error: false }
+}
+
+// Legacy tool kept for backwards compatibility - remove the old implementation
+registry.delete('mtg_top_commanders_legacy')
+
+/** Normalize colour identity input to sorted WUBRG format (e.g., "dimir" → "UB") */
 function normalizeColorIdentity(input: string): string {
+  if (!input) return ''
   const normalized = input.trim().toLowerCase()
   
-  // Map guild/shard names to WUBRG
+  // Map guild/shard names to WUBRG (no commas - API expects "WUB" not "W,U,B")
   const nameToWubrg: Record<string, string> = {
     'mono-white': 'W', 'white': 'W', 'w': 'W',
     'mono-blue': 'U', 'blue': 'U', 'u': 'U',
@@ -446,35 +514,35 @@ function normalizeColorIdentity(input: string): string {
     'mono-green': 'G', 'green': 'G', 'g': 'G',
     'colorless': '', 'c': '',
     // Two-colour
-    'azorius': 'W,U', 'wu': 'W,U', 'uw': 'W,U',
-    'dimir': 'U,B', 'ub': 'U,B', 'bu': 'U,B',
-    'rakdos': 'B,R', 'br': 'B,R', 'rb': 'B,R',
-    'gruul': 'R,G', 'rg': 'R,G', 'gr': 'R,G',
-    'selesnya': 'G,W', 'gw': 'G,W', 'wg': 'G,W',
-    'orzhov': 'W,B', 'wb': 'W,B', 'bw': 'W,B',
-    'izzet': 'U,R', 'ur': 'U,R', 'ru': 'U,R',
-    'golgari': 'B,G', 'bg': 'B,G', 'gb': 'B,G',
-    'boros': 'R,W', 'rw': 'R,W', 'wr': 'R,W',
-    'simic': 'G,U', 'gu': 'G,U', 'ug': 'G,U',
+    'azorius': 'WU', 'wu': 'WU', 'uw': 'WU',
+    'dimir': 'UB', 'ub': 'UB', 'bu': 'UB',
+    'rakdos': 'BR', 'br': 'BR', 'rb': 'BR',
+    'gruul': 'RG', 'rg': 'RG', 'gr': 'RG',
+    'selesnya': 'GW', 'gw': 'GW', 'wg': 'GW',
+    'orzhov': 'WB', 'wb': 'WB', 'bw': 'WB',
+    'izzet': 'UR', 'ur': 'UR', 'ru': 'UR',
+    'golgari': 'BG', 'bg': 'BG', 'gb': 'BG',
+    'boros': 'RW', 'rw': 'RW', 'wr': 'RW',
+    'simic': 'GU', 'gu': 'GU', 'ug': 'GU',
     // Three-colour
-    'esper': 'W,U,B', 'wub': 'W,U,B',
-    'grixis': 'U,B,R', 'ubr': 'U,B,R',
-    'jund': 'B,R,G', 'brg': 'B,R,G',
-    'naya': 'R,G,W', 'rgw': 'R,G,W',
-    'bant': 'G,W,U', 'gwu': 'G,W,U',
-    'abzan': 'W,B,G', 'wbg': 'W,B,G',
-    'jeskai': 'U,R,W', 'urw': 'U,R,W',
-    'sultai': 'B,G,U', 'bgu': 'B,G,U',
-    'mardu': 'R,W,B', 'rwb': 'R,W,B',
-    'temur': 'G,U,R', 'gur': 'G,U,R',
+    'esper': 'WUB', 'wub': 'WUB',
+    'grixis': 'UBR', 'ubr': 'UBR',
+    'jund': 'BRG', 'brg': 'BRG',
+    'naya': 'RGW', 'rgw': 'RGW',
+    'bant': 'GWU', 'gwu': 'GWU',
+    'abzan': 'WBG', 'wbg': 'WBG',
+    'jeskai': 'URW', 'urw': 'URW',
+    'sultai': 'BGU', 'bgu': 'BGU',
+    'mardu': 'RWB', 'rwb': 'RWB',
+    'temur': 'GUR', 'gur': 'GUR',
     // Four-colour
-    'yore-tiller': 'W,U,B,R', 'wubr': 'W,U,B,R',
-    'glint-eye': 'U,B,R,G', 'ubrg': 'U,B,R,G',
-    'dune-brood': 'B,R,G,W', 'brgw': 'B,R,G,W',
-    'ink-treader': 'R,G,W,U', 'rgwu': 'R,G,W,U',
-    'witch-maw': 'G,W,U,B', 'gwub': 'G,W,U,B',
+    'yore-tiller': 'WUBR', 'wubr': 'WUBR',
+    'glint-eye': 'UBRG', 'ubrg': 'UBRG',
+    'dune-brood': 'BRGW', 'brgw': 'BRGW',
+    'ink-treader': 'RGWU', 'rgwu': 'RGWU',
+    'witch-maw': 'GWUB', 'gwub': 'GWUB',
     // Five-colour
-    'five-color': 'W,U,B,R,G', 'wubrg': 'W,U,B,R,G', '5c': 'W,U,B,R,G',
+    'five-color': 'WUBRG', 'wubrg': 'WUBRG', '5c': 'WUBRG',
   }
   
   if (nameToWubrg[normalized]) {
@@ -484,10 +552,10 @@ function normalizeColorIdentity(input: string): string {
   // Try parsing as WUBRG letters (with or without commas/spaces)
   const letters = normalized.replace(/[^wubrgc]/gi, '').toUpperCase()
   if (letters) {
-    // Sort in WUBRG order and join with commas
+    // Sort in WUBRG order (no commas)
     const order = 'WUBRG'
     const sorted = letters.split('').sort((a, b) => order.indexOf(a) - order.indexOf(b))
-    return sorted.join(',')
+    return sorted.join('')
   }
   
   return normalized.toUpperCase()

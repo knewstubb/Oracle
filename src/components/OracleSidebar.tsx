@@ -215,6 +215,13 @@ export function OracleSidebar() {
   // ---------------------------------------------------------------------------
 
   const handleCardAction = useCallback(async (cardName: string) => {
+    // In commander-selection context, clicking a card should navigate to select it
+    if (activeContext.type === 'commander-selection') {
+      // Navigate to /decks/new with commander param
+      router.push(`/decks/new?commander=${encodeURIComponent(cardName)}`)
+      return
+    }
+    
     // Only allow adding cards in deck context
     if (activeContext.type !== 'deck' || !activeContext.deckId) {
       toast.info('Open a deck to add cards')
@@ -245,7 +252,7 @@ export function OracleSidebar() {
       console.error('[OracleSidebar] Failed to add card:', err)
       toast.error(err instanceof Error ? err.message : 'Failed to add card')
     }
-  }, [activeContext, queryClient])
+  }, [activeContext, queryClient, router])
 
   // ---------------------------------------------------------------------------
   // Auto-scroll and focus
@@ -368,13 +375,16 @@ export function OracleSidebar() {
   const cardLinkMode: CardLinkMode = 
     activeContext.type === 'deck' || activeContext.type === 'workbench'
       ? 'add'
+      : activeContext.type === 'commander-selection'
+      ? 'crown'
       : 'none'
 
   // Check if we're in exploration context (for commander suggestions)
   const isExplorationContext = 
     activeContext.type === 'exploration' || 
     activeContext.type === 'forge' || 
-    activeContext.type === 'general'
+    activeContext.type === 'general' ||
+    activeContext.type === 'commander-selection'
 
   // ---------------------------------------------------------------------------
   // Render

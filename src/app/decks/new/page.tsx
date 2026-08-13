@@ -132,16 +132,43 @@ export default function NewDeckPage() {
   
   // Handle pre-selected commander from URL
   useEffect(() => {
-    if (preselectedCommander && featuredData?.commanders) {
-      // Search for the commander in featured or via API
+    if (!preselectedCommander) return
+    
+    // First, check if it's in featured data
+    if (featuredData?.commanders) {
       const found = featuredData.commanders.find(
         c => c.canonical_key === preselectedCommander || 
              c.display_name.toLowerCase() === preselectedCommander.toLowerCase()
       )
       if (found) {
         handleSelectCommander(found)
+        return
       }
     }
+    
+    // Not in featured - search via API
+    const searchForCommander = async () => {
+      try {
+        const res = await fetch(`/api/commanders/search?q=${encodeURIComponent(preselectedCommander)}`)
+        if (res.ok) {
+          const data = await res.json()
+          const found = data.commanders?.find(
+            (c: CommanderData) => 
+              c.canonical_key === preselectedCommander ||
+              c.display_name.toLowerCase() === preselectedCommander.toLowerCase()
+          )
+          if (found) {
+            handleSelectCommander(found)
+          } else {
+            toast.error(`Commander "${preselectedCommander}" not found`)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to search for pre-selected commander:', err)
+      }
+    }
+    
+    searchForCommander()
   }, [preselectedCommander, featuredData, handleSelectCommander])
   
   // Determine which commanders to show

@@ -11,7 +11,7 @@ export type SessionType = 'exploration' | 'deck' | 'collection' | 'general'
 export type SessionStatus = 'active' | 'exploring' | 'building' | 'complete'
 
 export interface OracleContext {
-  type: 'collection' | 'deck' | 'deck-list' | 'forge' | 'workbench' | 'general' | 'exploration'
+  type: 'collection' | 'deck' | 'deck-list' | 'forge' | 'workbench' | 'general' | 'exploration' | 'commander-selection'
   deckId?: number
   deckName?: string
   commanderName?: string
@@ -107,6 +107,7 @@ function contextToSessionType(contextType: OracleContext['type']): SessionType {
     case 'collection':
       return 'collection'
     case 'exploration':
+    case 'commander-selection':
       return 'exploration'
     case 'forge':
     case 'deck-list':

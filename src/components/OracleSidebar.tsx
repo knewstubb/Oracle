@@ -669,7 +669,7 @@ function LoadingState() {
 
 function EmptyState({ context, onSuggestionClick }: { context: OracleContext; onSuggestionClick?: (text: string) => void }) {
   const suggestions = getSuggestions(context)
-  const isExploration = context.type === 'forge' || context.type === 'exploration'
+  const isExploration = context.type === 'forge' || context.type === 'exploration' || context.type === 'commander-selection'
 
   return (
     <div className="flex flex-col items-center justify-center h-full text-center px-4 py-8">
@@ -733,6 +733,12 @@ function getSuggestions(context: OracleContext): string[] {
         'Compare my decks',
         'Which deck needs the most work?',
         'Find shared expensive cards',
+      ]
+    case 'commander-selection':
+      return [
+        'I want to build aristocrats',
+        'Suggest a commander for landfall',
+        'What plays well at bracket 3?',
       ]
     case 'forge':
     case 'exploration':

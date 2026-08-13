@@ -351,7 +351,7 @@ export async function POST(request: NextRequest) {
                 type: 'navigate_prompt',
                 action: 'build_commander',
                 label: `Build ${detectedCommander.displayName}`,
-                url: `/new-deck?commander=${encodeURIComponent(detectedCommander.canonicalKey)}`,
+                url: `/decks/new?commander=${encodeURIComponent(detectedCommander.canonicalKey)}`,
                 commanderName: detectedCommander.displayName,
                 commanderKey: detectedCommander.canonicalKey,
                 colorIdentity: detectedCommander.colorIdentity,
@@ -360,7 +360,7 @@ export async function POST(request: NextRequest) {
                 type: 'navigate_prompt',
                 action: 'new_deck',
                 label: 'Start building in the Commander Builder',
-                url: '/new-deck',
+                url: '/decks/new',
               }
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(navigateEvent)}\n\n`))
         }

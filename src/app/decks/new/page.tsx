@@ -44,7 +44,7 @@ export default function NewDeckPage() {
   
   // Set Oracle context for commander selection
   useEffect(() => {
-    setContext({ type: 'exploration' })
+    setContext({ type: 'commander-selection' })
   }, [setContext])
   
   // Fetch featured commanders

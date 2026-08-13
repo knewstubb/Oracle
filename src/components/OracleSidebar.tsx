@@ -64,10 +64,11 @@ function getContextLabel(context: OracleContext): string {
   switch (context.type) {
     case 'collection': return 'Collection'
     case 'deck': return context.deckName ?? 'Deck'
-    case 'deck-list': return 'Decks'
+    case 'deck-list': return 'Exploring'  // deck-list is the start of exploration flow
     case 'forge': return 'Exploring'
     case 'workbench': return context.deckName ?? 'Workbench'
     case 'exploration': return 'Exploring'
+    case 'commander-selection': return 'Exploring'
     default: return 'General'
   }
 }
@@ -134,7 +135,12 @@ export function OracleSidebar() {
   // ---------------------------------------------------------------------------
   
   const handleNavigate = useCallback((url: string) => {
-    close() // Close sidebar before navigating
+    // Don't close the sidebar when navigating to commander selection
+    // This preserves the chat context during the exploration flow
+    const isCommanderSelectionNav = url.startsWith('/decks/new')
+    if (!isCommanderSelectionNav) {
+      close() // Close sidebar for other navigations
+    }
     router.push(url)
   }, [close, router])
 

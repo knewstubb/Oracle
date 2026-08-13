@@ -108,9 +108,9 @@ function contextToSessionType(contextType: OracleContext['type']): SessionType {
       return 'collection'
     case 'exploration':
     case 'commander-selection':
+    case 'deck-list':  // deck-list uses exploration so chat persists to commander-selection
       return 'exploration'
     case 'forge':
-    case 'deck-list':
     case 'general':
     default:
       return 'general'

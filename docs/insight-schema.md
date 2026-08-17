@@ -38,7 +38,8 @@ Atraxa, Praetors' Voice:
 | `taxonomy_tags` | string[] | No | All relevant slugs for cross-referencing |
 | `card_mentions` | string[] | No | Card names mentioned (for linking) |
 | `confidence` | number | No | 0-1 confidence score |
-| `source_type` | string | Yes | "youtube", "article", "podcast", "curated" |
+| `source_type` | string | Yes | Source type (see Source Trust Model below) |
+| `source_trust` | decimal | No | 0-1 trust score for the source (default 0.50) |
 | `source_url` | string | No | Source URL |
 | `source_title` | string | No | Source title |
 | `source_author` | string | No | Content creator |
@@ -56,6 +57,81 @@ Atraxa, Praetors' Voice:
 | `matchup` | How to play against specific strategies | "Against board wipe decks, prioritize undying creatures and Inspiring Call." |
 | `meta_consideration` | Power level and meta considerations | "This build is bracket 3-4. For higher power, add Heliod combo." |
 | `upgrade_path` | How to improve the deck, flex slots | "Premium upgrades: Ancient Tomb, Chrome Mox for explosive starts." |
+
+## Source Trust Model
+
+The `source_trust` field (0-1) indicates the reliability of the insight's source. Higher values mean more trustworthy data.
+
+### Base Trust Scores by Source Type
+
+| Source Type | Base Trust | Rationale |
+|-------------|------------|-----------|
+| `edhrec` | 0.85 | Aggregated data from thousands of decks |
+| `edhrec-article` | 0.75 | Editorial content from EDHREC staff |
+| `mtggoldfish` | 0.80 | Data-driven content with price/meta analysis |
+| `mtggoldfish-article` | 0.70 | Editorial content from MTGGoldfish |
+| `youtube-tier1` | 0.75 | Top creators: Command Zone, Tolarian, EDHRECast |
+| `youtube-tier2` | 0.70 | Established creators: MTGMuddstah, Nitpicking Nerds |
+| `youtube-tier3` | 0.55 | Other YouTube content |
+| `commanders-herald` | 0.70 | Commander-focused articles |
+| `reddit` | 0.55 | Community discussion (varies widely) |
+| `discord` | 0.50 | Community discussion (unvetted) |
+| `ai-analysis` | 0.60 | AI-generated analysis (needs verification) |
+| `user-submitted` | 0.45 | User-contributed insights |
+| `curated` | 0.90 | Manually curated by domain experts |
+| `unknown` | 0.50 | Default for unclassified sources |
+
+### YouTube Creator Tiers
+
+Tier 1 creators (0.75 base trust):
+- The Command Zone / Game Knights
+- Tolarian Community College
+- EDHRECast
+- Playing with Power MTG
+- MTG Goldfish (video content)
+
+Tier 2 creators (0.70 base trust):
+- MTGMuddstah
+- Nitpicking Nerds
+- Commander Clash
+- I Hate Your Deck
+- Commander VS
+- The Spike Feeders
+
+### Recency Decay
+
+Some sources become less reliable over time as the meta shifts. The `calculateAdjustedTrust()` function in `src/lib/source-trust-config.ts` applies monthly decay:
+
+| Source Type | Monthly Decay | Min Trust |
+|-------------|---------------|-----------|
+| `edhrec` | -0.5% | 0.70 |
+| `youtube-*` | -2.0% | 0.40 |
+| `reddit` | -3.0% | 0.30 |
+| `curated` | -0.25% | 0.75 |
+
+Example: A YouTube tier-1 insight from 12 months ago: `0.75 * (1 - 0.02)^12 = 0.59`
+
+### Usage in Oracle
+
+When weighing conflicting insights:
+1. Prefer higher `source_trust` values
+2. Apply recency decay based on `source_date`
+3. Weight by `confidence` × `source_trust` for composite score
+4. For critical decisions, surface trust level to user ("According to EDHREC data...")
+
+### Implementation
+
+Trust configuration is defined in `src/lib/source-trust-config.ts`:
+
+```typescript
+import { getBaseTrust, calculateAdjustedTrust } from '@/lib/source-trust-config';
+
+// Get base trust for a source type
+const trust = getBaseTrust('edhrec'); // 0.85
+
+// Calculate adjusted trust with recency decay
+const adjustedTrust = calculateAdjustedTrust('youtube-tier1', new Date('2025-06-01')); // decayed value
+```
 
 ## Canonical Slugs
 
@@ -99,6 +175,7 @@ cascade, flashback, madness, proliferate
   "card_mentions": ["Atraxa, Praetors' Voice", "Hardened Scales", "Champion of Lambholt", "Walking Ballista", "Simic Ascendancy"],
   "confidence": 0.9,
   "source_type": "curated",
+  "source_trust": 0.90,
   "source_title": "Atraxa Counters Primer"
 }
 ```
@@ -126,6 +203,7 @@ When a user asks about a commander:
 
 ## Provenance
 
-- Schema version: 2.0.0
+- Schema version: 2.1.0
 - Authored: 2026-08-03
+- Updated: 2026-08-12 (added source trust model)
 - Motivated by: Need for structured, compositional advice that avoids hallucination

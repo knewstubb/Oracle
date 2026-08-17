@@ -28,6 +28,7 @@ import {
   normalizeTag,
   type TagMapping 
 } from './edhrec-tag-mappings';
+import { getBaseTrust } from '../src/lib/source-trust-config';
 
 // Load env
 config({ path: resolve(__dirname, '../.env.local') });
@@ -306,10 +307,13 @@ function extractBuildVariants(
   source_type: string;
   source_url: string;
   confidence: number;
+  source_trust: number;
   taxonomy_tags: string[];
 }> {
   const tagCounts = data.tag_counts || {};
   const totalDecks = data.container?.json_dict?.card?.num_decks || 1;
+  const sourceTrust = getBaseTrust('edhrec'); // 0.85 for EDHREC stats
+  
   const insights: Array<{
     commander_id: string;
     insight_type: string;
@@ -317,6 +321,9 @@ function extractBuildVariants(
     content: string;
     source_type: string;
     source_url: string;
+    confidence: number;
+    source_trust: number;
+    taxonomy_tags: string[];
     confidence: number;
     taxonomy_tags: string[];
   }> = [];
@@ -365,6 +372,7 @@ function extractBuildVariants(
       source_type: 'edhrec',
       source_url: `https://edhrec.com/commanders/${toEdhrecSlug(commanderName)}`,
       confidence: Math.min(0.9, count / 1000), // Cap at 0.9, scale by popularity
+      source_trust: sourceTrust,
       taxonomy_tags: taxonomyTags,
     });
   }

@@ -155,32 +155,6 @@ registry.set('mtg_ruling_search', {
   },
 })
 
-// --- Comprehensive rules: AI training knowledge (MCP removed) ---
-registry.set('mtg_rules_search', {
-  definition: {
-    name: 'mtg_rules_search',
-    description: 'Search the comprehensive rules by section number or keyword. Uses built-in knowledge of MTG comprehensive rules.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        query: {
-          type: 'string',
-          description: 'Rule number (e.g. "704.5k") or keyword to search for (e.g. "commander damage", "state-based actions")',
-        },
-      },
-      required: ['query'],
-    },
-  },
-  execute: async (input) => {
-    // The AI already has comprehensive rules in its training data.
-    // Return a prompt that tells it to use its knowledge.
-    return {
-      content: `[System: Use your training knowledge of the MTG Comprehensive Rules to answer the query "${input.query}". You have extensive knowledge of the rules document including section numbers. Cite the relevant rule numbers in your response.]`,
-      is_error: false,
-    }
-  },
-})
-
 // --- EDHREC: Direct client (replaces MCP) ---
 registry.set('mtg_commander_recommend', {
   definition: {
@@ -737,53 +711,6 @@ Note: The bracket system is a social contract tool — discuss with your playgro
       return { content: specific || guidelines, is_error: false }
     }
     return { content: guidelines, is_error: false }
-  },
-})
-
-// --- Card types: Supabase mtg_cards lookup (replaces MCP) ---
-registry.set('mtg_cardtypes_get', {
-  definition: {
-    name: 'mtg_cardtypes_get',
-    description: 'Get detailed card type information including subtypes and supertypes',
-    input_schema: {
-      type: 'object',
-      properties: {
-        card_name: {
-          type: 'string',
-          description: 'The card name to get type information for',
-        },
-      },
-      required: ['card_name'],
-    },
-  },
-  execute: async (input) => {
-    try {
-      const supabase = createAdminClient()
-      const { data, error } = await supabase
-        .from('mtg_cards' as any)
-        .select('name, type_line, color_identity, mana_cost, mana_value, oracle_text, power, toughness, edhrec_rank')
-        .ilike('name', input.card_name as string)
-        .limit(1)
-        .maybeSingle()
-
-      if (error) throw new Error(error.message)
-      if (!data) return { content: `Card "${input.card_name}" not found`, is_error: false }
-
-      const lines = [
-        `${data.name}`,
-        `Type: ${data.type_line}`,
-        `Mana Cost: ${data.mana_cost || 'None'} (CMC: ${data.mana_value})`,
-        `Colour Identity: ${data.color_identity || 'Colorless'}`,
-        data.power ? `P/T: ${data.power}/${data.toughness}` : null,
-        data.oracle_text ? `Text: ${data.oracle_text}` : null,
-        data.edhrec_rank ? `EDHREC Rank: #${data.edhrec_rank}` : null,
-      ].filter(Boolean)
-
-      return { content: lines.join('\n'), is_error: false }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Card lookup failed'
-      return { content: `Card type error: ${msg}`, is_error: true }
-    }
   },
 })
 

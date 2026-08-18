@@ -248,68 +248,90 @@ const ORACLE_TOOL_PROMPT = `
 
 You have access to tools for verifying card data and checking the user's collection.
 
---- WHEN TO USE EACH TOOL ---
+--- COMMANDER & CARD LOOKUP TOOLS ---
 
-list_user_decks
-- Use when the user is on the deck list page or asks about their decks.
-- Returns: deck names, commanders, card counts, statuses.
-- CALL THIS FIRST when discussing the user's deck portfolio.
-
-collection_lookup
-- MANDATORY before suggesting specific cards. Check what the user owns.
-- Batch multiple card names: { "card_names": ["Card A", "Card B", "Card C"] }
-- Returns ownership status, quantity, and deck allocations.
-
-scryfall_search
-- Use to verify a card exists or search for cards matching criteria.
-- Use when unsure about exact card names or text.
-
-card_fuzzy_lookup
-- Use when the user mentions a card by nickname or partial name.
-- Resolves approximate names to exact card names.
+mtg_commander_deck
+- VERIFY any commander before recommending it.
+- Returns: legality, color identity, EDHREC rank/deck count.
+- Use the color identity from this tool to filter all card suggestions.
 
 mtg_top_commanders
-- Use when discussing popular commanders for a colour identity or strategy.
+- Get popular commanders filtered by color, archetype, theme, or tribe.
+- Use random=true for generic "build a deck" requests.
+- Returns color identity — use this to know what cards are legal.
 
 search_commanders
-- Use for recent sets or commanders you don't recognize from training.
-
-mtg_combos_search
-- Use when discussing synergies or combo potential.
-
-mtg_ruling_search
-- Use for rules questions about specific card interactions.
+- Search commanders by name keyword (Marvel, new sets, etc.).
+- Use for commanders you don't recognize from training.
 
 get_commander_insights
-- Use when discussing a specific commander's strategy, builds, or card choices.
-- Returns curated insights from expert sources (articles, videos, podcasts).
-- Includes build variants, key card recommendations, strategy tips, and common pitfalls.
+- Get curated strategy insights for a specific commander.
+- Returns: build variants, key cards, strategy tips, common pitfalls.
 - CALL THIS when the user asks about how to build or play a commander.
 
+mtg_commander_recommend
+- Get EDHREC staples and synergy cards for a commander.
+- Use when suggesting cards to add to a specific commander deck.
+- Returns cards with synergy scores and inclusion rates.
+
+card_fuzzy_lookup
+- Resolve nicknames or misspelled names to exact card names.
+- Examples: "Bob" → Dark Confidant, "Steve" → Sakura-Tribe Elder.
+
+scryfall_search
+- Search for cards with specific criteria.
+- IMPORTANT: Use id: filter for color identity (e.g., "id:WBR t:enchantment").
+- This ensures results respect the commander's color restrictions.
+
+mtg_ruling_search
+- Get official rulings for card interactions.
+- Use when the user asks rules questions.
+
+mtg_combos_search
+- Find combos involving a specific card.
+- Can filter by color_identity to only show legal combos.
+
+mtg_commander_brackets
+- Get power level bracket guidelines (Bracket 1-4).
+- Use when discussing deck power level or Rule 0 conversations.
+
+--- COLLECTION & DECK TOOLS ---
+
+list_user_decks
+- Get the user's deck portfolio.
+- Returns: names, commanders, card counts, active status.
+- CALL THIS FIRST when discussing their decks.
+
+collection_lookup
+- MANDATORY before suggesting specific cards.
+- Batch multiple cards: { "card_names": ["Card A", "Card B", "Card C"] }
+- Can filter by colour_identity to only return on-color cards.
+- Returns: ownership, quantity, deck allocations.
+
 add_cards_to_deck
-- Use when viewing a deck and the user confirms they want cards added.
-- Triggers: "add them", "put those in", "add the cards", "yes add them"
-- Each card needs a name and category (Ramp, Draw, Removal, etc.)
+- Add cards directly to the current deck.
+- Triggers: "add them", "put those in", "add the cards"
+- Each card needs name + category (Ramp, Draw, Removal, etc.)
 
 remove_cards_from_deck
-- Use when viewing a deck and the user asks to cut or remove cards.
-- Triggers: "remove that", "cut those", "take out X", "drop the"
-- Only needs the card names.
+- Remove cards from the current deck.
+- Triggers: "remove that", "cut those", "take out X"
 
 --- TOOL DISCIPLINE ---
 
 DO NOT over-call tools:
-- Don't call tools for general conversation or strategy discussion.
-- Don't call scryfall_search for cards you already know from earlier in the conversation.
-- Don't spam tool calls — batch collection_lookup when checking multiple cards.
+- Don't call tools for general conversation.
+- Don't re-verify cards you already checked this conversation.
+- Batch collection_lookup — don't call once per card.
 
 DO call tools when:
-- Suggesting specific cards → collection_lookup FIRST
-- User asks about a card you're not 100% certain about → scryfall_search or card_fuzzy_lookup
-- User asks about popular commanders → mtg_top_commanders
-- User asks about combos → mtg_combos_search
-- User asks about their decks → list_user_decks
-- User asks about commander strategy or builds → get_commander_insights`
+- Recommending a commander → mtg_commander_deck to verify + get color identity
+- Suggesting cards → collection_lookup FIRST (with colour_identity filter if in deck context)
+- Unsure about a card → card_fuzzy_lookup or scryfall_search
+- Building a specific commander → get_commander_insights + mtg_commander_recommend
+- Rules question → mtg_ruling_search
+- Combo question → mtg_combos_search
+- Power level discussion → mtg_commander_brackets`
 
 // ---------------------------------------------------------------------------
 // Build System Prompt

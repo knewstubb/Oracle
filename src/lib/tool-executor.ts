@@ -60,6 +60,10 @@ export async function runToolLoop(options: ToolLoopOptions): Promise<ToolLoopRes
   // Debug: Log tool count and names on first call
   console.log(`[tool-executor] Loaded ${tools.length} tools:`, tools.map(t => t.name).join(', '))
   
+  // Debug: Check if search_owned_cards is present
+  const hasSearchOwned = tools.some(t => t.name === 'search_owned_cards')
+  console.log(`[tool-executor] search_owned_cards tool present: ${hasSearchOwned}`)
+  
   const loopStart = Date.now()
   let currentMessages = [...messages]
   let iterations = 0

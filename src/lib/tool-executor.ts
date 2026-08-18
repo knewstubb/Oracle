@@ -56,6 +56,10 @@ export interface ToolLoopResult {
 export async function runToolLoop(options: ToolLoopOptions): Promise<ToolLoopResult> {
   const { adapter, model, system, messages, maxTokens, onToolEvent, userId } = options
   const tools = getToolDefinitions()
+  
+  // Debug: Log tool count and names on first call
+  console.log(`[tool-executor] Loaded ${tools.length} tools:`, tools.map(t => t.name).join(', '))
+  
   const loopStart = Date.now()
   let currentMessages = [...messages]
   let iterations = 0

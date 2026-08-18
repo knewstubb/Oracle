@@ -841,7 +841,7 @@ registry.set('search_owned_cards', {
   definition: {
     name: 'search_owned_cards',
     description:
-      'Search the user\'s collection by card type or subtype. Use this when the user asks "what curses do I own", "show me my sagas", "list my equipment", etc. Returns all owned cards matching the type.',
+      'REQUIRED when user asks about owned cards by TYPE. Search the user\'s collection by card type or subtype. Use this IMMEDIATELY when the user asks "what [type] do I own", "show me my [type]s", "list my [type]", "do I have any [type]s" — where [type] is Curse, Saga, Equipment, Creature, Artifact, Enchantment, etc. ALWAYS call this tool before answering questions about what types of cards the user owns.',
     input_schema: {
       type: 'object',
       properties: {

@@ -300,30 +300,29 @@ export async function POST(request: NextRequest) {
   const supabase = createAdminClient()
 
   // --- Intent detection for exploration sessions ---
-  // Only detect intent when in general/collection/forge/deck-list context (not already in commander-selection or specific deck)
-  const shouldDetectIntent = ['general', 'collection', 'forge', 'deck-list'].includes(context.type)
-  const hasDeckBuildingIntent = shouldDetectIntent && detectDeckBuildingIntent(message)
+  // Detect deck-building intent in general contexts (not already in commander-selection or specific deck)
+  const shouldDetectGenericIntent = ['general', 'collection', 'forge', 'deck-list'].includes(context.type)
+  const hasDeckBuildingIntent = shouldDetectGenericIntent && detectDeckBuildingIntent(message)
   
-  // Try to extract a specific commander name if deck-building intent is detected
+  // Always try to extract a specific commander name (even in commander-selection context)
+  // This enables the "Build [Commander]" button when user explicitly names one
   let detectedCommander: { displayName: string; canonicalKey: string; colorIdentity: string } | null = null
-  if (shouldDetectIntent) {
-    const potentialName = extractPotentialCommanderName(message)
-    if (potentialName) {
-      detectedCommander = await findCommanderByName(supabase, potentialName)
-      if (detectedCommander) {
-        console.log('[oracle/chat] Commander detected:', { 
-          search: potentialName, 
-          found: detectedCommander.displayName,
-          key: detectedCommander.canonicalKey
-        })
-      }
+  const potentialName = extractPotentialCommanderName(message)
+  if (potentialName) {
+    detectedCommander = await findCommanderByName(supabase, potentialName)
+    if (detectedCommander) {
+      console.log('[oracle/chat] Commander detected:', { 
+        search: potentialName, 
+        found: detectedCommander.displayName,
+        key: detectedCommander.canonicalKey,
+        contextType: context.type
+      })
     }
   }
   
-  // In commander-selection context, we do NOT auto-detect commanders from vague phrases.
-  // The user is exploring and the Oracle should guide them, not jump to suggestions.
-  // Only detect if the message explicitly names a commander (checked below after AI responds).
-  // REMOVED: Auto-detection in commander-selection context
+  // In commander-selection context, we still detect explicitly named commanders so the
+  // "Build [Commander]" button appears. We just don't redirect for vague deck-building
+  // intent since the user is already on the commander selection page.
   
   if (hasDeckBuildingIntent || detectedCommander) {
     console.log('[oracle/chat] Deck-building intent detected:', { 

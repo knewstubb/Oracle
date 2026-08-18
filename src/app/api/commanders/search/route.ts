@@ -149,9 +149,16 @@ export async function GET(request: NextRequest) {
       `)
       .eq('legal_commander', true)
     
-    // Filter by name if query provided
+    // Filter by name if query provided - check both display_name and canonical_key
     if (query.length > 0) {
-      dbQuery = dbQuery.ilike('display_name', `%${query}%`)
+      // Check if it looks like a canonical_key (contains hyphens, no commas)
+      const isCanonicalKey = query.includes('-') && !query.includes(',')
+      if (isCanonicalKey) {
+        // Search by canonical_key OR display_name for flexibility
+        dbQuery = dbQuery.or(`canonical_key.eq.${query},display_name.ilike.%${query.replace(/-/g, '%')}%`)
+      } else {
+        dbQuery = dbQuery.ilike('display_name', `%${query}%`)
+      }
     }
     
     // Filter by color identity if provided

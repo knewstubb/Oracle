@@ -1,7 +1,7 @@
 /**
  * Generate AI-analyzed strategy insights for commanders PER BUILD VARIANT
  * 
- * This script creates "chef's notes" style insights for each theme/archetype:
+ * This script creates "brewer's notes" style insights for each theme/archetype:
  * - Core strategy for that build
  * - Key synergies specific to the variant
  * - Staples for that build

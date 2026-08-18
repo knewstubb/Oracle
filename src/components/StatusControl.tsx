@@ -73,7 +73,6 @@ export function StatusControl({ deckId, currentStatus, cardCount, format }: Stat
       // Invalidate all relevant queries so UI updates without manual refresh
       queryClient.invalidateQueries({ queryKey: deckKeys.all })
       queryClient.invalidateQueries({ queryKey: deckKeys.detail(deckId) })
-      queryClient.invalidateQueries({ queryKey: ['shared-cards'] })
       queryClient.invalidateQueries({ queryKey: deckKeys.allocation(deckId) })
       queryClient.invalidateQueries({ queryKey: ['proxy-report'] })
       queryClient.invalidateQueries({ queryKey: ['collection'] })
@@ -146,7 +145,6 @@ export function StatusControl({ deckId, currentStatus, cardCount, format }: Stat
       setOptimisticStatus(data.deck.status)
       queryClient.invalidateQueries({ queryKey: deckKeys.all })
       queryClient.invalidateQueries({ queryKey: deckKeys.detail(deckId) })
-      queryClient.invalidateQueries({ queryKey: ['shared-cards'] })
       queryClient.invalidateQueries({ queryKey: ['collection'] })
       toast.success('Cards released and deck moved to Graveyard')
     },

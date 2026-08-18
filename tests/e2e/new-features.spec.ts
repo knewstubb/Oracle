@@ -1,7 +1,7 @@
 /**
  * E2E Tests — New Features (2026-07-22 Sprint)
  *
- * Covers: Goldfish mode, Collection Export, Multi-platform Import, Price Refresh
+ * Covers: Collection Export, Multi-platform Import, Price Refresh
  *
  * Prerequisites:
  *   - Auth session saved (npm run test:e2e:setup)
@@ -13,103 +13,6 @@ import { test, expect } from '@playwright/test'
 
 const LOAD_TIMEOUT = 30_000
 const ACTION_TIMEOUT = 15_000
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// GOLDFISH MODE
-// ═══════════════════════════════════════════════════════════════════════════════
-
-test.describe('Goldfish Mode', () => {
-  test.beforeEach(async ({ page }) => {
-    // Navigate to first deck
-    await page.goto('/')
-    await page.waitForTimeout(2000)
-    // Click first deck tile
-    const deckLink = page.locator('a[href*="/decks/"]').first()
-    await expect(deckLink).toBeVisible({ timeout: LOAD_TIMEOUT })
-    await deckLink.click()
-    await page.waitForURL('**/decks/**')
-    await page.waitForTimeout(1000)
-  })
-
-  test('Goldfish tab is visible in deck tabs', async ({ page }) => {
-    const goldfishTab = page.getByRole('tab', { name: /goldfish/i })
-    await expect(goldfishTab).toBeVisible({ timeout: LOAD_TIMEOUT })
-  })
-
-  test('clicking Goldfish tab shows game controls', async ({ page }) => {
-    const goldfishTab = page.getByRole('tab', { name: /goldfish/i })
-    await goldfishTab.click()
-    await page.waitForTimeout(500)
-
-    // Should see control buttons
-    await expect(page.getByRole('button', { name: /new game/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /draw/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /mulligan/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /undo/i })).toBeVisible()
-  })
-
-  test('starts with 7 cards in hand', async ({ page }) => {
-    const goldfishTab = page.getByRole('tab', { name: /goldfish/i })
-    await goldfishTab.click()
-    await page.waitForTimeout(500)
-
-    // Hand section should show 7 cards
-    const handHeading = page.getByText(/Hand \(7\)/i)
-    await expect(handHeading).toBeVisible({ timeout: ACTION_TIMEOUT })
-  })
-
-  test('Draw button adds a card and advances turn', async ({ page }) => {
-    const goldfishTab = page.getByRole('tab', { name: /goldfish/i })
-    await goldfishTab.click()
-    await page.waitForTimeout(500)
-
-    const drawBtn = page.getByRole('button', { name: /draw/i })
-    await drawBtn.click()
-    await page.waitForTimeout(300)
-
-    // Hand should now show 8
-    const handHeading = page.getByText(/Hand \(8\)/i)
-    await expect(handHeading).toBeVisible()
-
-    // Turn counter should show 1
-    await expect(page.getByText(/Turn: 1/)).toBeVisible()
-  })
-
-  test('Mulligan redraws hand to 7', async ({ page }) => {
-    const goldfishTab = page.getByRole('tab', { name: /goldfish/i })
-    await goldfishTab.click()
-    await page.waitForTimeout(500)
-
-    const mulliganBtn = page.getByRole('button', { name: /mulligan/i })
-    await mulliganBtn.click()
-    await page.waitForTimeout(300)
-
-    // Hand should still show 7 (London mulligan draws 7)
-    const handHeading = page.getByText(/Hand \(7\)/i)
-    await expect(handHeading).toBeVisible()
-
-    // Mulligan count shows in button
-    await expect(page.getByRole('button', { name: /mulligan \(1\)/i })).toBeVisible()
-  })
-
-  test('New Game resets everything', async ({ page }) => {
-    const goldfishTab = page.getByRole('tab', { name: /goldfish/i })
-    await goldfishTab.click()
-    await page.waitForTimeout(500)
-
-    // Draw a card first
-    await page.getByRole('button', { name: /draw/i }).click()
-    await page.waitForTimeout(300)
-
-    // Reset
-    await page.getByRole('button', { name: /new game/i }).click()
-    await page.waitForTimeout(300)
-
-    // Back to 7 in hand, turn 0
-    await expect(page.getByText(/Hand \(7\)/i)).toBeVisible()
-    await expect(page.getByText(/Turn: 0/)).toBeVisible()
-  })
-})
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // COLLECTION EXPORT

@@ -3,12 +3,10 @@ import { render, screen, fireEvent } from '@testing-library/react'
 
 import RootError from './error'
 import DeckError from './decks/[id]/error'
-import SharedCardsError from './shared-cards/error'
 import NewDeckError from './new-deck/error'
 
 import RootLoading from './loading'
 import DeckLoading from './decks/[id]/loading'
-import SharedCardsLoading from './shared-cards/loading'
 import NewDeckLoading from './new-deck/loading'
 
 describe('Error boundaries', () => {
@@ -48,20 +46,6 @@ describe('Error boundaries', () => {
     })
   })
 
-  describe('SharedCardsError', () => {
-    it('renders error with shared-cards-specific message', () => {
-      render(<SharedCardsError error={testError} reset={mockReset} />)
-      expect(screen.getByRole('alert')).toBeInTheDocument()
-      expect(screen.getByText(/load shared cards/)).toBeInTheDocument()
-    })
-
-    it('calls reset on Retry click', () => {
-      render(<SharedCardsError error={testError} reset={mockReset} />)
-      fireEvent.click(screen.getByRole('button', { name: /Retry/ }))
-      expect(mockReset).toHaveBeenCalledOnce()
-    })
-  })
-
   describe('NewDeckError', () => {
     it('renders error message', () => {
       render(<NewDeckError error={testError} reset={mockReset} />)
@@ -89,13 +73,6 @@ describe('Loading states', () => {
     const skeletons = container.querySelectorAll('[data-slot="skeleton"]')
     // Header (circle + 2 text) + 15 card skeletons = 18+
     expect(skeletons.length).toBeGreaterThanOrEqual(15)
-  })
-
-  it('SharedCardsLoading renders skeleton rows', () => {
-    const { container } = render(<SharedCardsLoading />)
-    const skeletons = container.querySelectorAll('[data-slot="skeleton"]')
-    // Title + subtitle + 6 rows × multiple skeletons each
-    expect(skeletons.length).toBeGreaterThanOrEqual(6)
   })
 
   it('NewDeckLoading renders stepper and card skeletons', () => {

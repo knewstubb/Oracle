@@ -55,3 +55,6 @@ docs/default-cards-*.jsonl
 *.jsonl
 test-results/
 playwright-report/
+
+# sync logs
+sync-*.log

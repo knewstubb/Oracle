@@ -85,7 +85,6 @@ export function CollectionImportButton() {
       // Invalidate collection queries so the UI refreshes
       queryClient.invalidateQueries({ queryKey: ['collection'] })
       queryClient.invalidateQueries({ queryKey: ['collection-rollup'] })
-      queryClient.invalidateQueries({ queryKey: ['shared-cards'] })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       setState({ status: 'error', message })

@@ -251,39 +251,68 @@ class SupabaseCardRepository implements CardRepository {
   async searchOwnedByType(typeKeyword: string, colourIdentity?: string[]): Promise<OwnedCardInfo[]> {
     const supabase = createAdminClient()
 
-    // Step 1: Get all user's cards with their oracle IDs
-    let userCardsQuery = supabase
-      .from('user_cards')
-      .select('id, card_name, oracle_id')
+    // Step 1: Get ALL user's cards with their oracle IDs (paginate to avoid 1000 row limit)
+    const allUserCards: { id: string; card_name: string; oracle_id: string }[] = []
+    const PAGE_SIZE = 1000
+    let offset = 0
+    let hasMore = true
     
-    if (this.userId) {
-      userCardsQuery = userCardsQuery.eq('user_id', this.userId)
+    while (hasMore) {
+      let query = supabase
+        .from('user_cards')
+        .select('id, card_name, oracle_id')
+        .range(offset, offset + PAGE_SIZE - 1)
+      
+      if (this.userId) {
+        query = query.eq('user_id', this.userId)
+      }
+      
+      const { data: pageData, error: pageError } = await query
+      
+      if (pageError) {
+        throw new Error(`searchOwnedByType failed: ${pageError.message}`)
+      }
+      
+      if (pageData && pageData.length > 0) {
+        allUserCards.push(...pageData)
+        hasMore = pageData.length === PAGE_SIZE
+        offset += PAGE_SIZE
+      } else {
+        hasMore = false
+      }
     }
     
-    const { data: userCards, error: ucError } = await userCardsQuery
-    
-    if (ucError) {
-      throw new Error(`searchOwnedByType failed: ${ucError.message}`)
-    }
-    
-    if (!userCards || userCards.length === 0) {
+    if (allUserCards.length === 0) {
       return []
     }
     
     // Step 2: Get card type info from ref_cards for all owned cards
-    const cardNames = userCards.map(uc => uc.card_name)
-    const { data: refCards, error: rcError } = await supabase
-      .from('ref_cards')
-      .select('name, type_line, color_identity')
-      .in('name', cardNames)
+    // Batch the .in() query to avoid URL length limits (see supabase-query-gotchas.md)
+    const cardNames = allUserCards.map(uc => uc.card_name)
+    const uniqueNames = [...new Set(cardNames)]
+    const allRefCards: { name: string; type_line: string; color_identity: string }[] = []
     
-    if (rcError) {
-      throw new Error(`searchOwnedByType ref lookup failed: ${rcError.message}`)
+    const BATCH_SIZE = 200
+    for (let i = 0; i < uniqueNames.length; i += BATCH_SIZE) {
+      const batch = uniqueNames.slice(i, i + BATCH_SIZE)
+      const { data: refBatch, error: batchError } = await supabase
+        .from('ref_cards')
+        .select('name, type_line, color_identity')
+        .in('name', batch)
+      
+      if (batchError) {
+        console.error('[searchOwnedByType] ref_cards batch error:', batchError)
+        continue
+      }
+      
+      if (refBatch) {
+        allRefCards.push(...refBatch)
+      }
     }
     
     // Build lookup map
     const refMap = new Map(
-      (refCards ?? []).map(rc => [rc.name.toLowerCase(), rc])
+      allRefCards.map(rc => [rc.name.toLowerCase(), rc])
     )
     
     // Step 3: Filter by type keyword
@@ -294,7 +323,7 @@ class SupabaseCardRepository implements CardRepository {
     
     const matchingCards: { card_name: string; user_card_id: string }[] = []
     
-    for (const uc of userCards) {
+    for (const uc of allUserCards) {
       const ref = refMap.get(uc.card_name.toLowerCase())
       if (!ref) continue
       

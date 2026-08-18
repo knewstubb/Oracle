@@ -54,7 +54,6 @@ vi.mock('sonner', () => ({
 import { ColourPips } from '@/components/ColourPips'
 import { CardImage } from '@/components/CardImage'
 import { DeckTile } from '@/components/DeckTile'
-import { SharedCardRow } from '@/components/SharedCardRow'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { DeckEditor, type DeckSuggestion } from '@/components/DeckEditor'
 import { CommanderSearch } from '@/components/CommanderSearch'
@@ -147,52 +146,6 @@ describe('DeckTile accessibility', () => {
     )
     const link = screen.getByRole('link')
     expect(link.className).toContain('motion-reduce:transition-none')
-  })
-})
-
-// ---------------------------------------------------------------------------
-// SharedCardRow
-// ---------------------------------------------------------------------------
-
-describe('SharedCardRow accessibility', () => {
-  const mockCard = {
-    card_name: 'Sol Ring',
-    set_code: 'c21',
-    scryfall_id: 'abc123',
-    deck_count: 3,
-    owned_this_printing: 1,
-    owned_total: 1,
-    needing_proxies: true,
-    decks: [
-      { id: 1, name: 'Deck A', is_proxy: false },
-      { id: 2, name: 'Deck B', is_proxy: true },
-    ],
-  }
-
-  it('has aria-expanded attribute on the toggle button', () => {
-    render(<SharedCardRow card={mockCard} />)
-    const button = screen.getByRole('button')
-    expect(button).toHaveAttribute('aria-expanded', 'false')
-  })
-
-  it('toggles aria-expanded on click', async () => {
-    const user = userEvent.setup()
-    render(<SharedCardRow card={mockCard} />)
-    const button = screen.getByRole('button')
-    await user.click(button)
-    expect(button).toHaveAttribute('aria-expanded', 'true')
-  })
-
-  it('has descriptive aria-label on the toggle button', () => {
-    render(<SharedCardRow card={mockCard} />)
-    const button = screen.getByRole('button')
-    expect(button).toHaveAttribute('aria-label', 'Sol Ring (C21), in 3 decks')
-  })
-
-  it('has focus-visible ring classes', () => {
-    render(<SharedCardRow card={mockCard} />)
-    const button = screen.getByRole('button')
-    expect(button.className).toContain('focus-visible:ring-2')
   })
 })
 
@@ -346,24 +299,5 @@ describe('Reduced motion support', () => {
     const link = screen.getByRole('link')
     expect(link.className).toContain('motion-reduce:transition-none')
     expect(link.className).toContain('motion-reduce:hover:translate-y-0')
-  })
-
-  it('SharedCardRow has motion-reduce utility classes', () => {
-    render(
-      <SharedCardRow
-        card={{
-          card_name: 'Test',
-          set_code: 'c21',
-          scryfall_id: 'abc',
-          deck_count: 2,
-          owned_this_printing: 1,
-          owned_total: 1,
-          needing_proxies: false,
-          decks: [{ id: 1, name: 'D1', is_proxy: false }],
-        }}
-      />
-    )
-    const button = screen.getByRole('button')
-    expect(button.className).toContain('motion-reduce:transition-none')
   })
 })

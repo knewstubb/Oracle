@@ -49,7 +49,7 @@ export function CanvasViewport({
       data-testid="canvas-viewport"
     >
       <div
-        className="relative origin-top-left"
+        className="relative origin-top-left min-w-[2000px] min-h-[2000px]"
         style={{
           transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${scale})`,
           transformOrigin: '0 0',

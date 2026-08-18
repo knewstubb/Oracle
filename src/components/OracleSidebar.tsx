@@ -253,7 +253,7 @@ export function OracleSidebar() {
       
       // Invalidate deck queries to refresh the UI
       queryClient.invalidateQueries({ queryKey: deckKeys.detail(String(activeContext.deckId)) })
-      queryClient.invalidateQueries({ queryKey: deckKeys.cards(String(activeContext.deckId)) })
+      queryClient.invalidateQueries({ queryKey: deckKeys.cardStatuses(String(activeContext.deckId)) })
     } catch (err) {
       console.error('[OracleSidebar] Failed to add card:', err)
       toast.error(err instanceof Error ? err.message : 'Failed to add card')

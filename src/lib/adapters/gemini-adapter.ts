@@ -21,6 +21,7 @@ import type {
   ToolResult,
   ConversationMessage,
   AnthropicToolDefinition,
+  ToolChoice,
 } from '../provider-adapter'
 
 // ---------------------------------------------------------------------------
@@ -53,12 +54,25 @@ export class GeminiAdapter implements ProviderAdapter {
     messages: ConversationMessage[]
     tools: AnthropicToolDefinition[]
     maxTokens: number
+    toolChoice?: ToolChoice
   }): Promise<NormalizedMessage> {
-    const { model, system, messages, tools, maxTokens } = params
+    const { model, system, messages, tools, maxTokens, toolChoice } = params
 
     const geminiTools = tools.length > 0
       ? [{ functionDeclarations: this.translateTools(tools) }]
       : undefined
+    
+    // Gemini tool config for tool_choice
+    // Note: Gemini uses 'toolConfig' with mode: AUTO, ANY, or NONE
+    let toolConfig: { functionCallingConfig?: { mode: 'AUTO' | 'ANY' | 'NONE' } } | undefined
+    if (toolChoice && geminiTools) {
+      if (toolChoice === 'auto') {
+        toolConfig = { functionCallingConfig: { mode: 'AUTO' } }
+      } else if (toolChoice === 'required') {
+        toolConfig = { functionCallingConfig: { mode: 'ANY' } }
+      }
+      // Note: Gemini doesn't support forcing a specific tool by name in the same way
+    }
 
     const generativeModel = this.genAI.getGenerativeModel({
       model,
@@ -73,6 +87,7 @@ export class GeminiAdapter implements ProviderAdapter {
     const result = await generativeModel.generateContent({
       contents,
       tools: geminiTools,
+      toolConfig,
     })
 
     const response = result.response

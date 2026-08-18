@@ -15,8 +15,9 @@
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
-import { runToolLoop } from '@/lib/tool-executor'
+import { runToolLoop, detectCollectionTypeQuestion } from '@/lib/tool-executor'
 import type { ToolStreamEvent } from '@/lib/tool-types'
+import type { ToolChoice } from '@/lib/provider-adapter'
 import { getModelConfig, DEFAULT_MODEL_ID } from '@/lib/ai-models'
 import { createProviderAdapter, ProviderConfigError } from '@/lib/provider-factory'
 import { getUserPreferences, formatPlayerContextPrompt } from '@/lib/user-preferences'
@@ -413,6 +414,14 @@ export async function POST(request: NextRequest) {
         }
 
         // Run the tool execution loop
+        // Detect if this is a collection type question and force tool usage if so
+        const collectionType = detectCollectionTypeQuestion(message)
+        let toolChoice: ToolChoice | undefined
+        if (collectionType) {
+          console.log(`[oracle/chat] Collection type question detected: "${collectionType}" — forcing tool call`)
+          toolChoice = 'required'
+        }
+        
         const finalResponse = await runToolLoop({
           adapter,
           model: modelConfig.modelId,
@@ -421,6 +430,7 @@ export async function POST(request: NextRequest) {
           maxTokens: 2048,
           onToolEvent,
           userId,
+          toolChoice,
         })
 
         fullResponseText = finalResponse.text

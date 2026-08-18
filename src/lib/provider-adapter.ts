@@ -55,6 +55,16 @@ export interface ConversationMessage {
 }
 
 // ---------------------------------------------------------------------------
+// Tool Choice Types
+// ---------------------------------------------------------------------------
+
+/** Tool choice configuration for controlling tool selection behavior */
+export type ToolChoice = 
+  | 'auto'           // Model decides whether to call tools (default)
+  | 'required'       // Model MUST call at least one tool
+  | { type: 'tool'; name: string }  // Force a specific tool
+
+// ---------------------------------------------------------------------------
 // Provider Adapter Interface
 // ---------------------------------------------------------------------------
 
@@ -73,6 +83,7 @@ export interface ProviderAdapter {
     messages: ConversationMessage[]
     tools: AnthropicToolDefinition[]
     maxTokens: number
+    toolChoice?: ToolChoice
   }): Promise<NormalizedMessage>
 
   /**

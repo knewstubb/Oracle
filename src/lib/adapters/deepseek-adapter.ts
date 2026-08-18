@@ -15,6 +15,7 @@ import type {
   ToolResult,
   ConversationMessage,
   AnthropicToolDefinition,
+  ToolChoice,
 } from '../provider-adapter'
 
 export class DeepSeekAdapter implements ProviderAdapter {
@@ -34,14 +35,28 @@ export class DeepSeekAdapter implements ProviderAdapter {
     messages: ConversationMessage[]
     tools: AnthropicToolDefinition[]
     maxTokens: number
+    toolChoice?: ToolChoice
   }): Promise<NormalizedMessage> {
     const openAIMessages = this.buildMessages(params.system, params.messages)
     const tools = params.tools.length > 0 ? this.translateTools(params.tools) : undefined
+    
+    // Translate tool_choice to OpenAI format
+    let toolChoice: OpenAI.Chat.Completions.ChatCompletionToolChoiceOption | undefined
+    if (params.toolChoice && tools) {
+      if (params.toolChoice === 'auto') {
+        toolChoice = 'auto'
+      } else if (params.toolChoice === 'required') {
+        toolChoice = 'required'
+      } else if (typeof params.toolChoice === 'object' && params.toolChoice.type === 'tool') {
+        toolChoice = { type: 'function', function: { name: params.toolChoice.name } }
+      }
+    }
 
     const response = await this.client.chat.completions.create({
       model: params.model,
       messages: openAIMessages,
       tools,
+      tool_choice: toolChoice,
       max_tokens: params.maxTokens,
     })
 

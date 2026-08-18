@@ -15,6 +15,7 @@ import type {
   ToolResult,
   ConversationMessage,
   AnthropicToolDefinition,
+  ToolChoice,
 } from '../provider-adapter'
 
 export class AnthropicAdapter implements ProviderAdapter {
@@ -31,13 +32,27 @@ export class AnthropicAdapter implements ProviderAdapter {
     messages: ConversationMessage[]
     tools: AnthropicToolDefinition[]
     maxTokens: number
+    toolChoice?: ToolChoice
   }): Promise<NormalizedMessage> {
+    // Translate tool_choice to Anthropic format
+    let toolChoice: Anthropic.ToolChoice | undefined
+    if (params.toolChoice && params.tools.length > 0) {
+      if (params.toolChoice === 'auto') {
+        toolChoice = { type: 'auto' }
+      } else if (params.toolChoice === 'required') {
+        toolChoice = { type: 'any' }  // Anthropic uses 'any' for "must call a tool"
+      } else if (typeof params.toolChoice === 'object' && params.toolChoice.type === 'tool') {
+        toolChoice = { type: 'tool', name: params.toolChoice.name }
+      }
+    }
+    
     const response = await this.client.messages.create({
       model: params.model,
       system: [{ type: 'text', text: params.system, cache_control: { type: 'ephemeral' } }],
       messages: params.messages as Anthropic.MessageParam[],
       // Anthropic tools are already in internal format — pass through
       tools: params.tools as Anthropic.Tool[],
+      tool_choice: toolChoice,
       max_tokens: params.maxTokens,
     })
 

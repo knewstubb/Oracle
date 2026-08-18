@@ -14,6 +14,7 @@ import type {
   ConversationMessage,
   NormalizedMessage,
   ToolResult,
+  ToolChoice,
 } from './provider-adapter'
 
 // ---------------------------------------------------------------------------
@@ -23,6 +24,92 @@ import type {
 const TOOL_TIMEOUT_MS = 15_000
 const LOOP_TIMEOUT_MS = 30_000
 const MAX_TOOL_ITERATIONS = 10
+
+// ---------------------------------------------------------------------------
+// Collection Question Detection
+// ---------------------------------------------------------------------------
+
+/**
+ * Detect if a message is asking about owned cards by type.
+ * Returns the detected type if found, or null if not a collection type question.
+ * 
+ * Patterns detected:
+ * - "what curses do I own"
+ * - "show me my sagas"
+ * - "do I have any equipment"
+ * - "list my creatures"
+ * - "what enchantments are in my collection"
+ */
+export function detectCollectionTypeQuestion(message: string): string | null {
+  const lowerMessage = message.toLowerCase()
+  
+  // Common card types and subtypes
+  const cardTypes = [
+    'curse', 'curses',
+    'saga', 'sagas',
+    'equipment',
+    'creature', 'creatures',
+    'enchantment', 'enchantments',
+    'artifact', 'artifacts',
+    'instant', 'instants',
+    'sorcery', 'sorceries',
+    'planeswalker', 'planeswalkers',
+    'land', 'lands',
+    'aura', 'auras',
+    'vehicle', 'vehicles',
+    'treasure',
+    'food',
+    'clue', 'clues',
+    'blood',
+    'goblin', 'goblins',
+    'elf', 'elves',
+    'zombie', 'zombies',
+    'vampire', 'vampires',
+    'dragon', 'dragons',
+    'angel', 'angels',
+    'demon', 'demons',
+    'merfolk',
+    'human', 'humans',
+    'warrior', 'warriors',
+    'wizard', 'wizards',
+    'rogue', 'rogues',
+    'cleric', 'clerics',
+  ]
+  
+  // Patterns that indicate ownership questions
+  const ownershipPatterns = [
+    /what\s+(\w+)\s+do\s+i\s+(?:own|have)/i,
+    /show\s+(?:me\s+)?my\s+(\w+)/i,
+    /do\s+i\s+(?:own|have)\s+(?:any\s+)?(\w+)/i,
+    /list\s+(?:my\s+)?(\w+)/i,
+    /(?:how\s+many|what)\s+(\w+)\s+(?:are\s+)?in\s+my\s+collection/i,
+    /my\s+(\w+)\s+(?:cards?|collection)/i,
+  ]
+  
+  for (const pattern of ownershipPatterns) {
+    const match = lowerMessage.match(pattern)
+    if (match) {
+      const potentialType = match[1]?.toLowerCase()
+      // Check if the captured word is a known card type
+      if (cardTypes.includes(potentialType)) {
+        // Normalize to singular form for the tool
+        const normalized = potentialType
+          .replace(/ies$/, 'y')  // sorceries -> sorcery
+          .replace(/ves$/, 'f')  // elves -> elf (but we want Elf, not Elf)
+          .replace(/s$/, '')     // curses -> curse
+        
+        // Special cases
+        if (potentialType === 'elves') return 'Elf'
+        if (potentialType === 'merfolk') return 'Merfolk'
+        
+        // Capitalize first letter
+        return normalized.charAt(0).toUpperCase() + normalized.slice(1)
+      }
+    }
+  }
+  
+  return null
+}
 
 // ---------------------------------------------------------------------------
 // Public Interfaces
@@ -36,6 +123,8 @@ export interface ToolLoopOptions {
   maxTokens: number
   onToolEvent: (event: ToolStreamEvent) => void
   userId?: string
+  /** Optional tool choice to force tool usage on the first iteration */
+  toolChoice?: ToolChoice
 }
 
 export interface ToolLoopResult {
@@ -54,7 +143,7 @@ export interface ToolLoopResult {
  * Returns the final text response and accumulated token usage.
  */
 export async function runToolLoop(options: ToolLoopOptions): Promise<ToolLoopResult> {
-  const { adapter, model, system, messages, maxTokens, onToolEvent, userId } = options
+  const { adapter, model, system, messages, maxTokens, onToolEvent, userId, toolChoice } = options
   const tools = getToolDefinitions()
   
   // Debug: Log tool count and names on first call
@@ -64,10 +153,18 @@ export async function runToolLoop(options: ToolLoopOptions): Promise<ToolLoopRes
   const hasSearchOwned = tools.some(t => t.name === 'search_owned_cards')
   console.log(`[tool-executor] search_owned_cards tool present: ${hasSearchOwned}`)
   
+  // Debug: Log if tool choice is being forced
+  if (toolChoice) {
+    console.log(`[tool-executor] Tool choice forced:`, toolChoice)
+  }
+  
   const loopStart = Date.now()
   let currentMessages = [...messages]
   let iterations = 0
   let totalUsage = { inputTokens: 0, outputTokens: 0 }
+  
+  // Tool choice is only applied on the first iteration
+  let currentToolChoice: ToolChoice | undefined = toolChoice
 
   while (iterations < MAX_TOOL_ITERATIONS) {
     // Check total loop timeout at the start of each iteration
@@ -84,7 +181,11 @@ export async function runToolLoop(options: ToolLoopOptions): Promise<ToolLoopRes
         messages: currentMessages,
         tools,
         maxTokens,
+        toolChoice: currentToolChoice,
       })
+      
+      // Clear tool choice after first iteration — only force on the initial call
+      currentToolChoice = undefined
     } catch (err) {
       const errMessage = err instanceof Error ? err.message : 'Unknown error'
       onToolEvent({

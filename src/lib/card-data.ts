@@ -174,7 +174,7 @@ export async function getCardPrinting(cardName: string): Promise<PrintingData | 
     return findStandardPrinting(ilikeCandidates as PrintingData[])
   }
   
-  // Try front-face match for DFCs
+  // Try front-face match for DFCs (when full name given but stored differently)
   const frontFace = cardName.split(' // ')[0]
   if (frontFace !== cardName) {
     const { data: dfcCandidates } = await supabase
@@ -186,6 +186,21 @@ export async function getCardPrinting(cardName: string): Promise<PrintingData | 
     
     if (dfcCandidates && dfcCandidates.length > 0) {
       return findStandardPrinting(dfcCandidates as PrintingData[])
+    }
+  }
+  
+  // Try DFC reverse lookup: single face name → find full DFC name
+  // e.g., "Invasion of Innistrad" → "Invasion of Innistrad // Deluge of the Dead"
+  if (!cardName.includes(' // ')) {
+    const { data: dfcReverseCandidates } = await supabase
+      .from('ref_printings')
+      .select(selectFields)
+      .ilike('name', `${cardName} // %`)
+      .order('released_at', { ascending: false })
+      .limit(10)
+    
+    if (dfcReverseCandidates && dfcReverseCandidates.length > 0) {
+      return findStandardPrinting(dfcReverseCandidates as PrintingData[])
     }
   }
   

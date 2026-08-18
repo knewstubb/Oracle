@@ -295,6 +295,11 @@ mtg_commander_brackets
 - Get power level bracket guidelines (Bracket 1-4).
 - Use when discussing deck power level or Rule 0 conversations.
 
+validate_cards_for_commander
+- Bulk-check cards against a commander's color identity.
+- Use BEFORE suggesting multiple cards to ensure they're all legal.
+- Returns legal/illegal status with reasons for each card.
+
 --- COLLECTION & DECK TOOLS ---
 
 list_user_decks
@@ -326,6 +331,7 @@ DO NOT over-call tools:
 
 DO call tools when:
 - Recommending a commander → mtg_commander_deck to verify + get color identity
+- Suggesting multiple cards → validate_cards_for_commander to check color legality
 - Suggesting cards → collection_lookup FIRST (with colour_identity filter if in deck context)
 - Unsure about a card → card_fuzzy_lookup or scryfall_search
 - Building a specific commander → get_commander_insights + mtg_commander_recommend

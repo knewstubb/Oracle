@@ -8,7 +8,6 @@
 // Requirements: 6.1, 6.2, 6.4
 
 import { getToolDefinitions, executeTool } from './tool-registry'
-import { enrichCommanderSummary } from './tool-registry'
 import type { ToolStreamEvent, ToolExecutionResult } from './tool-types'
 import type {
   ProviderAdapter,
@@ -167,18 +166,6 @@ export async function runToolLoop(options: ToolLoopOptions): Promise<ToolLoopRes
             type: 'remove_cards' as any,
             cards,
           } as any)
-        }
-      }
-
-      // NOTE: commander_summary events disabled.
-      // With the new UX, commanders are shown inline as [[Card Name]] links with
-      // hover previews and crown buttons. Users click crown to select.
-      // The present_commander_summary tool may still be called by the AI,
-      // but we no longer emit summary events to render the formatted cards.
-      if (call.name === 'present_commander_summary' && !result.is_error) {
-        const input = call.arguments as { name: string; tagline: string; analysis: string } | undefined
-        if (input?.name) {
-          console.log('[tool-executor] present_commander_summary called for:', input.name, '(event disabled — new UX uses [[brackets]] instead)')
         }
       }
 

@@ -70,7 +70,6 @@ function formatToolName(name: string): string {
     'mtg_rules_search': 'rules',
     'mtg_cardtypes_get': 'card types',
     'mtg_top_commanders': 'popular commanders',
-    'present_commander_summary': 'commander details',
     'decision_extraction': 'decisions',
   }
   return map[name] || name.replace(/_/g, ' ')

@@ -715,6 +715,125 @@ Note: The bracket system is a social contract tool — discuss with your playgro
 })
 
 // ---------------------------------------------------------------------------
+// Local Tool: validate_cards_for_commander
+// ---------------------------------------------------------------------------
+
+registry.set('validate_cards_for_commander', {
+  definition: {
+    name: 'validate_cards_for_commander',
+    description:
+      'Validate that cards are legal in a commander\'s color identity. Use this BEFORE suggesting cards to ensure they can actually go in the deck. Returns which cards are legal, illegal, or unknown.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        commander_name: {
+          type: 'string',
+          description: 'The commander name to validate against',
+        },
+        card_names: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Card names to check for color identity legality',
+        },
+      },
+      required: ['commander_name', 'card_names'],
+    },
+  },
+  execute: async (input) => {
+    try {
+      const supabase = createAdminClient()
+      const commanderName = input.commander_name as string
+      const cardNames = input.card_names as string[]
+
+      // Get commander's color identity
+      const { data: commander } = await supabase
+        .from('ref_cards')
+        .select('name, color_identity')
+        .ilike('name', commanderName)
+        .limit(1)
+        .maybeSingle()
+
+      if (!commander) {
+        return {
+          content: `Commander "${commanderName}" not found in database. Cannot validate color identity.`,
+          is_error: true,
+        }
+      }
+
+      // Parse commander color identity (e.g., "WBR" → ['W', 'B', 'R'])
+      const commanderColors = new Set(
+        (commander.color_identity || '').split('').filter((c: string) => 'WUBRG'.includes(c))
+      )
+
+      // Get color identity for each card
+      const results: Array<{
+        card_name: string
+        legal: boolean
+        card_colors: string
+        reason?: string
+      }> = []
+
+      for (const cardName of cardNames) {
+        const { data: card } = await supabase
+          .from('ref_cards')
+          .select('name, color_identity')
+          .ilike('name', cardName)
+          .limit(1)
+          .maybeSingle()
+
+        if (!card) {
+          results.push({
+            card_name: cardName,
+            legal: false,
+            card_colors: '?',
+            reason: 'Card not found in database',
+          })
+          continue
+        }
+
+        // Parse card color identity
+        const cardColors = (card.color_identity || '').split('').filter((c: string) => 'WUBRG'.includes(c))
+        
+        // Check if all card colors are in commander's identity
+        const illegalColors = cardColors.filter((c: string) => !commanderColors.has(c))
+        
+        if (illegalColors.length > 0) {
+          results.push({
+            card_name: card.name,
+            legal: false,
+            card_colors: card.color_identity || 'C',
+            reason: `Contains ${illegalColors.join(', ')} which is not in ${commander.name}'s identity (${commander.color_identity || 'C'})`,
+          })
+        } else {
+          results.push({
+            card_name: card.name,
+            legal: true,
+            card_colors: card.color_identity || 'C',
+          })
+        }
+      }
+
+      const legal = results.filter(r => r.legal)
+      const illegal = results.filter(r => !r.legal)
+
+      const summary = [
+        `Color identity check for ${commander.name} (${commander.color_identity || 'C'}):`,
+        ``,
+        `Legal (${legal.length}): ${legal.map(r => r.card_name).join(', ') || 'none'}`,
+        ``,
+        `Illegal (${illegal.length}):`,
+        ...illegal.map(r => `  - ${r.card_name} (${r.card_colors}): ${r.reason}`),
+      ]
+
+      return { content: summary.join('\n'), is_error: false }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Validation failed'
+      return { content: `Color identity validation error: ${msg}`, is_error: true }
+    }
+  },
+})
+
+// ---------------------------------------------------------------------------
 // Local Tool: collection_lookup
 // ---------------------------------------------------------------------------
 
@@ -1349,228 +1468,6 @@ registry.set('display_commander_candidates', {
     }
   },
 })
-
-// ---------------------------------------------------------------------------
-// Display Tool: present_commander_summary
-// ---------------------------------------------------------------------------
-// Structured output tool for commander recommendations. When called, the tool
-// executor enriches the data with Scryfall card details and collection status,
-// then emits a `commander_summary` SSE event for the frontend to render.
-// ---------------------------------------------------------------------------
-
-registry.set('present_commander_summary', {
-  definition: {
-    name: 'present_commander_summary',
-    description: `Present a commander to the user with their card image and your analysis. 
-
-CRITICAL: You MUST call this tool whenever you mention a legendary creature by name. This is the ONLY way the user sees card images. Using [[brackets]] for commanders does NOT show images — this tool does.
-
-WHEN TO USE:
-- ALWAYS when naming a commander in your response
-- When comparing two commanders (call TWICE — once for each)
-- When breaking down a commander's mechanics (call FIRST, then discuss)
-- When the user asks "show me" or "what about [commander]"
-
-NEVER use [[Card Name]] brackets for commanders. Those are for non-legendary cards only.
-
-The user will see:
-- The full card image on the left
-- Name, mana cost, type line, oracle text on the right
-- Your analysis below
-- Collection status (owned? in which decks? proxy conflicts?)`,
-    input_schema: {
-      type: 'object',
-      properties: {
-        name: {
-          type: 'string',
-          description: 'The exact card name as printed (e.g. "Muldrotha, the Gravetide")',
-        },
-        tagline: {
-          type: 'string',
-          description: 'A short 5-10 word tagline summarizing the commander\'s playstyle (e.g. "Graveyard value engine that recurs everything")',
-        },
-        analysis: {
-          type: 'string',
-          description: 'Your analysis of this commander — strengths, weaknesses, playstyle, how it fits the user\'s preferences. 2-4 sentences.',
-        },
-      },
-      required: ['name', 'tagline', 'analysis'],
-    },
-  },
-  execute: async (input) => {
-    // This tool is a display tool — the actual enrichment happens in tool-executor
-    // which calls enrichCommanderSummary() and emits the SSE event.
-    // The execute function just acknowledges receipt.
-    const name = input.name as string
-    return {
-      content: `Presented commander summary for ${name}`,
-      is_error: false,
-    }
-  },
-})
-
-/**
- * Enrich a commander summary with Scryfall data and collection status.
- * Called by tool-executor when present_commander_summary is invoked.
- */
-export async function enrichCommanderSummary(
-  input: { name: string; tagline: string; analysis: string },
-  userId?: string
-): Promise<{
-  name: string
-  mana_cost: string
-  type_line: string
-  oracle_text: string
-  color_identity: string[]
-  image_uri: string
-  power?: string
-  toughness?: string
-  price_usd?: number
-  tagline: string
-  analysis: string
-  collection_status: {
-    owned: boolean
-    quantity: number
-    in_decks: Array<{ deck_name: string; is_commander: boolean }>
-    proxy_conflicts: string[]
-  }
-}> {
-  const supabase = createAdminClient()
-
-  // --- Step 1: Get card details from mtg_cards (canonical source with cheapest price) ---
-  const { data: mtgCard } = await supabase
-    .from('mtg_cards' as any)
-    .select('name, mana_cost, type_line, oracle_text, color_identity, power, toughness, price_usd_cheapest')
-    .ilike('name', input.name)
-    .limit(1)
-    .maybeSingle()
-
-  // --- Step 2: Get image from printings (most recent printing) ---
-  const { data: printing } = await supabase
-    .from('ref_printings')
-    .select('image_uri_normal, image_uri_large')
-    .ilike('name', input.name)
-    .order('released_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  // --- Step 2b: If card not in DB, fetch all details from Scryfall API ---
-  let scryfallData: {
-    name: string
-    mana_cost: string
-    type_line: string
-    oracle_text: string
-    color_identity: string[]
-    power?: string
-    toughness?: string
-    image_uri_large?: string
-    image_uri_normal?: string
-    prices?: { usd?: string }
-  } | null = null
-
-  if (!mtgCard || !printing) {
-    console.log('[enrichCommanderSummary] Card not in DB, fetching from Scryfall:', input.name)
-    try {
-      const scryfallUrl = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(input.name)}`
-      const resp = await fetch(scryfallUrl, {
-        headers: { 'User-Agent': 'The-Oracle/1.0' },
-      })
-      if (resp.ok) {
-        const card = await resp.json()
-        // Handle DFCs (use front face for oracle text, type line, etc.)
-        const face = card.card_faces?.[0]
-        scryfallData = {
-          name: card.name,
-          mana_cost: face?.mana_cost ?? card.mana_cost ?? '',
-          type_line: face?.type_line ?? card.type_line ?? '',
-          oracle_text: face?.oracle_text ?? card.oracle_text ?? '',
-          color_identity: card.color_identity ?? [],
-          power: face?.power ?? card.power,
-          toughness: face?.toughness ?? card.toughness,
-          image_uri_large: card.image_uris?.large ?? face?.image_uris?.large,
-          image_uri_normal: card.image_uris?.normal ?? face?.image_uris?.normal,
-          prices: card.prices,
-        }
-        console.log('[enrichCommanderSummary] Scryfall data fetched successfully')
-      } else {
-        console.log('[enrichCommanderSummary] Scryfall API failed:', resp.status)
-      }
-    } catch (err) {
-      console.error('[enrichCommanderSummary] Scryfall API error:', err)
-    }
-  }
-
-  // Combine card data: prefer DB, fallback to Scryfall
-  const cardData = mtgCard ? {
-    ...mtgCard,
-    image_uri_normal: printing?.image_uri_normal ?? scryfallData?.image_uri_normal ?? null,
-    image_uri_large: printing?.image_uri_large ?? scryfallData?.image_uri_large ?? null,
-  } : scryfallData ? {
-    name: scryfallData.name,
-    mana_cost: scryfallData.mana_cost,
-    type_line: scryfallData.type_line,
-    oracle_text: scryfallData.oracle_text,
-    color_identity: scryfallData.color_identity.join(','),
-    power: scryfallData.power,
-    toughness: scryfallData.toughness,
-    price_usd_cheapest: scryfallData.prices?.usd ? parseFloat(scryfallData.prices.usd) : null,
-    image_uri_normal: scryfallData.image_uri_normal ?? null,
-    image_uri_large: scryfallData.image_uri_large ?? null,
-  } : null
-
-  // --- Step 3: Get collection status ---
-  console.log('[enrichCommanderSummary] Checking ownership for:', input.name, 'userId:', userId ?? '(none)')
-  const repo = getCardRepository(userId)
-  const ownedCards = await repo.getOwnedCards([input.name])
-  console.log('[enrichCommanderSummary] Owned cards result:', ownedCards.length, 'cards found', ownedCards.map(c => `${c.card_name}:${c.quantity}`))
-  const owned = ownedCards.length > 0 ? ownedCards[0] : null
-  const allocations = owned ? await repo.getDeckAllocations(input.name) : []
-
-  // --- Step 4: Check for proxy conflicts ---
-  // A proxy conflict is when the card exists as a proxy in another deck
-  const proxyConflicts: string[] = []
-  if (allocations.length > 0) {
-    for (const alloc of allocations) {
-      if (alloc.allocation_status === 'proxy') {
-        proxyConflicts.push(alloc.deck_name)
-      }
-    }
-  }
-
-  // Build the enriched summary
-  const colorIdentity = cardData?.color_identity
-    ? (Array.isArray(cardData.color_identity)
-        ? cardData.color_identity
-        : (cardData.color_identity as string).split(',').map((c: string) => c.trim()))
-    : []
-
-  // Image URI: use the already-fetched data
-  const imageUri = cardData?.image_uri_large ?? cardData?.image_uri_normal ?? ''
-  console.log('[enrichCommanderSummary] Final image_uri:', imageUri || '(empty)')
-
-  return {
-    name: cardData?.name ?? input.name,
-    mana_cost: cardData?.mana_cost ?? '',
-    type_line: cardData?.type_line ?? 'Legendary Creature',
-    oracle_text: cardData?.oracle_text ?? '',
-    color_identity: colorIdentity,
-    image_uri: imageUri,
-    power: cardData?.power ?? undefined,
-    toughness: cardData?.toughness ?? undefined,
-    price_usd: cardData?.price_usd_cheapest ?? undefined,
-    tagline: input.tagline,
-    analysis: input.analysis,
-    collection_status: {
-      owned: owned !== null,
-      quantity: owned?.quantity ?? 0,
-      in_decks: allocations.map(a => ({
-        deck_name: a.deck_name,
-        is_commander: a.is_commander,
-      })),
-      proxy_conflicts: proxyConflicts,
-    },
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Display Tool: add_cards_to_deck

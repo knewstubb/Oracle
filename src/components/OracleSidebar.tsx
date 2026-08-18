@@ -494,7 +494,7 @@ export function OracleSidebar() {
             messages
               .filter(msg => msg.role !== 'system')
               .filter(msg => !(msg.role === 'assistant' && msg.content === ''))
-              .map((msg) => (
+              .map((msg, idx, arr) => (
                 <MessageBubble 
                   key={msg.id} 
                   message={msg}
@@ -504,6 +504,7 @@ export function OracleSidebar() {
                   onStartDeck={handleStartDeck}
                   isExplorationContext={isExplorationContext}
                   onNavigate={handleNavigate}
+                  isStreaming={isStreaming && msg.role === 'assistant' && idx === arr.length - 1}
                 />
               ))
           )}
@@ -600,6 +601,7 @@ interface MessageBubbleProps {
   onStartDeck?: (commanderName: string) => void
   isExplorationContext?: boolean
   onNavigate?: (url: string) => void
+  isStreaming?: boolean
 }
 
 function MessageBubble({ 
@@ -610,6 +612,7 @@ function MessageBubble({
   onStartDeck,
   isExplorationContext,
   onNavigate,
+  isStreaming,
 }: MessageBubbleProps) {
   if (message.role === 'user') {
     return (
@@ -632,6 +635,19 @@ function MessageBubble({
   return (
     <div className="text-sm text-zinc-300 leading-relaxed">
       {renderMessageContent(textContent, cardLinkMode, onCardAction, undefined, ownershipLookup)}
+      {/* Streaming indicator — shows while text is still arriving */}
+      {isStreaming && message.content.length > 0 && (
+        <span className="inline-flex items-center gap-1 ml-1 text-zinc-500">
+          <span className="w-1 h-1 rounded-full animate-pulse bg-emerald-400" />
+        </span>
+      )}
+      {/* Done indicator — shows when streaming completes (message has content and not streaming) */}
+      {!isStreaming && message.content.length > 0 && !message.navigatePrompt && commanderSuggestions.length === 0 && (
+        <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-zinc-800/50">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <span className="text-xs text-zinc-500">Done</span>
+        </div>
+      )}
       {commanderSuggestions.length > 0 && (
         <CommanderSuggestionRow 
           suggestions={commanderSuggestions}

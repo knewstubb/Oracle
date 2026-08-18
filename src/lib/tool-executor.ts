@@ -15,6 +15,7 @@ import type {
   NormalizedMessage,
   ToolResult,
   ToolChoice,
+  AnthropicToolDefinition,
 } from './provider-adapter'
 
 // ---------------------------------------------------------------------------
@@ -122,6 +123,8 @@ export interface ToolLoopOptions {
   messages: ConversationMessage[]
   maxTokens: number
   onToolEvent: (event: ToolStreamEvent) => void
+  /** Callback for streaming text deltas — called as text arrives from the model */
+  onTextDelta?: (text: string) => void
   userId?: string
   /** Optional tool choice to force tool usage on the first iteration */
   toolChoice?: ToolChoice
@@ -143,7 +146,7 @@ export interface ToolLoopResult {
  * Returns the final text response and accumulated token usage.
  */
 export async function runToolLoop(options: ToolLoopOptions): Promise<ToolLoopResult> {
-  const { adapter, model, system, messages, maxTokens, onToolEvent, userId, toolChoice } = options
+  const { adapter, model, system, messages, maxTokens, onToolEvent, onTextDelta, userId, toolChoice } = options
   const tools = getToolDefinitions()
   
   // Debug: Log tool count and names on first call
@@ -175,14 +178,28 @@ export async function runToolLoop(options: ToolLoopOptions): Promise<ToolLoopRes
 
     let response: NormalizedMessage
     try {
-      response = await adapter.sendMessage({
-        model,
-        system,
-        messages: currentMessages,
-        tools,
-        maxTokens,
-        toolChoice: currentToolChoice,
-      })
+      // Use streaming if onTextDelta callback is provided
+      if (onTextDelta && adapter.sendMessageStreaming) {
+        response = await runStreamingIteration({
+          adapter,
+          model,
+          system,
+          messages: currentMessages,
+          tools,
+          maxTokens,
+          toolChoice: currentToolChoice,
+          onTextDelta,
+        })
+      } else {
+        response = await adapter.sendMessage({
+          model,
+          system,
+          messages: currentMessages,
+          tools,
+          maxTokens,
+          toolChoice: currentToolChoice,
+        })
+      }
       
       // Clear tool choice after first iteration — only force on the initial call
       currentToolChoice = undefined
@@ -297,13 +314,26 @@ export async function runToolLoop(options: ToolLoopOptions): Promise<ToolLoopRes
   // If we hit max iterations or timeout, make one final call without tools
   // for a best-effort text response
   try {
-    const fallback = await adapter.sendMessage({
-      model,
-      system,
-      messages: currentMessages,
-      tools: [],
-      maxTokens,
-    })
+    let fallback: NormalizedMessage
+    if (onTextDelta && adapter.sendMessageStreaming) {
+      fallback = await runStreamingIteration({
+        adapter,
+        model,
+        system,
+        messages: currentMessages,
+        tools: [],
+        maxTokens,
+        onTextDelta,
+      })
+    } else {
+      fallback = await adapter.sendMessage({
+        model,
+        system,
+        messages: currentMessages,
+        tools: [],
+        maxTokens,
+      })
+    }
     totalUsage.inputTokens += fallback.usage.inputTokens
     totalUsage.outputTokens += fallback.usage.outputTokens
     return { text: fallback.textContent, usage: totalUsage }
@@ -315,4 +345,43 @@ export async function runToolLoop(options: ToolLoopOptions): Promise<ToolLoopRes
     })
     return { text: '', usage: totalUsage }
   }
+}
+
+/**
+ * Run a single streaming iteration — consumes the stream, emits text deltas,
+ * and returns the final NormalizedMessage when done.
+ */
+async function runStreamingIteration(params: {
+  adapter: ProviderAdapter
+  model: string
+  system: string
+  messages: ConversationMessage[]
+  tools: AnthropicToolDefinition[]
+  maxTokens: number
+  toolChoice?: ToolChoice
+  onTextDelta: (text: string) => void
+}): Promise<NormalizedMessage> {
+  const { adapter, model, system, messages, tools, maxTokens, toolChoice, onTextDelta } = params
+
+  for await (const chunk of adapter.sendMessageStreaming({
+    model,
+    system,
+    messages,
+    tools,
+    maxTokens,
+    toolChoice,
+  })) {
+    if (chunk.type === 'text_delta') {
+      onTextDelta(chunk.text)
+    } else if (chunk.type === 'done') {
+      return chunk.message
+    } else if (chunk.type === 'error') {
+      throw new Error(chunk.error)
+    }
+    // tool_call_start, tool_call_delta, tool_call_end — we just accumulate these
+    // The final 'done' chunk has the complete NormalizedMessage with all tool calls
+  }
+
+  // Should not reach here — stream should always end with 'done' or 'error'
+  throw new Error('Stream ended without done or error chunk')
 }

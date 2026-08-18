@@ -65,6 +65,29 @@ export type ToolChoice =
   | { type: 'tool'; name: string }  // Force a specific tool
 
 // ---------------------------------------------------------------------------
+// Streaming Types
+// ---------------------------------------------------------------------------
+
+/** A chunk from the streaming response */
+export type StreamChunk =
+  | { type: 'text_delta'; text: string }
+  | { type: 'tool_call_start'; id: string; name: string }
+  | { type: 'tool_call_delta'; id: string; argumentsDelta: string }
+  | { type: 'tool_call_end'; id: string }
+  | { type: 'done'; message: NormalizedMessage }
+  | { type: 'error'; error: string }
+
+/** Parameters for streaming requests */
+export interface StreamingParams {
+  model: string
+  system: string
+  messages: ConversationMessage[]
+  tools: AnthropicToolDefinition[]
+  maxTokens: number
+  toolChoice?: ToolChoice
+}
+
+// ---------------------------------------------------------------------------
 // Provider Adapter Interface
 // ---------------------------------------------------------------------------
 
@@ -85,6 +108,12 @@ export interface ProviderAdapter {
     maxTokens: number
     toolChoice?: ToolChoice
   }): Promise<NormalizedMessage>
+
+  /**
+   * Send a message with streaming response.
+   * Yields chunks as they arrive: text deltas, tool call progress, and final message.
+   */
+  sendMessageStreaming(params: StreamingParams): AsyncIterable<StreamChunk>
 
   /**
    * Format tool results for the next request in the provider's expected format.

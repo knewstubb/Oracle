@@ -16,6 +16,8 @@ import type {
   ConversationMessage,
   AnthropicToolDefinition,
   ToolChoice,
+  StreamChunk,
+  StreamingParams,
 } from '../provider-adapter'
 
 export class DeepSeekAdapter implements ProviderAdapter {
@@ -61,6 +63,124 @@ export class DeepSeekAdapter implements ProviderAdapter {
     })
 
     return this.normalizeResponse(response)
+  }
+
+  async *sendMessageStreaming(params: StreamingParams): AsyncIterable<StreamChunk> {
+    const openAIMessages = this.buildMessages(params.system, params.messages)
+    const tools = params.tools.length > 0 ? this.translateTools(params.tools) : undefined
+
+    // Translate tool_choice to OpenAI format
+    let toolChoice: OpenAI.Chat.Completions.ChatCompletionToolChoiceOption | undefined
+    if (params.toolChoice && tools) {
+      if (params.toolChoice === 'auto') {
+        toolChoice = 'auto'
+      } else if (params.toolChoice === 'required') {
+        toolChoice = 'required'
+      } else if (typeof params.toolChoice === 'object' && params.toolChoice.type === 'tool') {
+        toolChoice = { type: 'function', function: { name: params.toolChoice.name } }
+      }
+    }
+
+    const stream = await this.client.chat.completions.create({
+      model: params.model,
+      messages: openAIMessages,
+      tools,
+      tool_choice: toolChoice,
+      max_tokens: params.maxTokens,
+      stream: true,
+    })
+
+    // Accumulate text and tool calls as we stream
+    let accumulatedText = ''
+    const toolCallsInProgress: Map<number, {
+      id: string
+      name: string
+      arguments: string
+    }> = new Map()
+    let usage = { inputTokens: 0, outputTokens: 0 }
+
+    for await (const chunk of stream) {
+      const choice = chunk.choices[0]
+      if (!choice) continue
+
+      const delta = choice.delta
+
+      // Handle text content deltas
+      if (delta.content) {
+        accumulatedText += delta.content
+        yield { type: 'text_delta', text: delta.content }
+      }
+
+      // Handle tool call deltas
+      if (delta.tool_calls) {
+        for (const tcDelta of delta.tool_calls) {
+          const index = tcDelta.index
+
+          // New tool call starting
+          if (tcDelta.id && tcDelta.function?.name) {
+            toolCallsInProgress.set(index, {
+              id: tcDelta.id,
+              name: tcDelta.function.name,
+              arguments: tcDelta.function.arguments || '',
+            })
+            yield { type: 'tool_call_start', id: tcDelta.id, name: tcDelta.function.name }
+          }
+
+          // Tool call arguments accumulating
+          if (tcDelta.function?.arguments) {
+            const existing = toolCallsInProgress.get(index)
+            if (existing) {
+              existing.arguments += tcDelta.function.arguments
+              yield { type: 'tool_call_delta', id: existing.id, argumentsDelta: tcDelta.function.arguments }
+            }
+          }
+        }
+      }
+
+      // Capture usage from final chunk if available
+      if (chunk.usage) {
+        usage = {
+          inputTokens: chunk.usage.prompt_tokens,
+          outputTokens: chunk.usage.completion_tokens,
+        }
+      }
+    }
+
+    // Emit tool_call_end for any accumulated tool calls
+    for (const [, tc] of toolCallsInProgress) {
+      yield { type: 'tool_call_end', id: tc.id }
+    }
+
+    // Build final normalized message
+    const toolCalls: NormalizedToolCall[] = []
+    for (const [, tc] of toolCallsInProgress) {
+      try {
+        const parsedArgs = JSON.parse(tc.arguments || '{}')
+        toolCalls.push({
+          id: tc.id,
+          name: tc.name,
+          arguments: parsedArgs,
+        })
+      } catch {
+        // Skip malformed tool calls
+        console.warn(`[DeepSeekAdapter] Failed to parse tool call arguments for ${tc.name}`)
+      }
+    }
+
+    // Clean up any DSML artifacts from accumulated text (same logic as non-streaming)
+    let cleanedText = accumulatedText
+    if (cleanedText.includes('DSML') || cleanedText.includes('invoke') || cleanedText.includes('parameter')) {
+      cleanedText = this.stripResidualDsml(cleanedText)
+    }
+
+    const finalMessage: NormalizedMessage = {
+      textContent: cleanedText,
+      toolCalls,
+      wantsToolUse: toolCalls.length > 0,
+      usage,
+    }
+
+    yield { type: 'done', message: finalMessage }
   }
 
   formatToolResults(

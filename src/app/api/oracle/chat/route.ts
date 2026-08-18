@@ -257,7 +257,7 @@ async function findCommanderByName(
 // Constants
 // ---------------------------------------------------------------------------
 
-const TEXT_CHUNK_SIZE = 50
+// TEXT_CHUNK_SIZE removed — now using true streaming
 
 // ---------------------------------------------------------------------------
 // POST Handler
@@ -413,6 +413,13 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        // Callback to emit text deltas immediately as they arrive from the model
+        const onTextDelta = (text: string) => {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: 'text', content: text })}\n\n`)
+          )
+        }
+
         // Run the tool execution loop
         // Detect if this is a collection type question and force tool usage if so
         const collectionType = detectCollectionTypeQuestion(message)
@@ -429,19 +436,14 @@ export async function POST(request: NextRequest) {
           messages: apiMessages,
           maxTokens: 2048,
           onToolEvent,
+          onTextDelta,
           userId,
           toolChoice,
         })
 
         fullResponseText = finalResponse.text
 
-        // Stream text in chunks as 'text' type events (matching frontend expectation)
-        for (let i = 0; i < fullResponseText.length; i += TEXT_CHUNK_SIZE) {
-          const chunk = fullResponseText.slice(i, i + TEXT_CHUNK_SIZE)
-          controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify({ type: 'text', content: chunk })}\n\n`)
-          )
-        }
+        // Text has already been streamed via onTextDelta — no need to chunk here
 
         // Save assistant response to DB
         await supabase.from('oracle_messages').insert({

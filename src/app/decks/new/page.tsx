@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button'
 import { CommanderGrid } from '@/components/CommanderGrid'
 import { CommanderCard, type CommanderData } from '@/components/CommanderCard'
 import { ColorIdentityFilter } from '@/components/ColorIdentityFilter'
-import { OraclePromptCard } from '@/components/OraclePromptCard'
 import { useOracle } from '@/contexts/OracleContext'
 import { toast } from 'sonner'
 
@@ -56,7 +55,7 @@ function canPartnerWith(first: CommanderData, second: CommanderData): boolean {
 export default function NewDeckPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { setContext } = useOracle()
+  const { setContext, open: openOracle } = useOracle()
   
   // Check for pre-selected commander from URL (e.g., from Oracle chat)
   const preselectedCommander = searchParams.get('commander')
@@ -91,10 +90,11 @@ export default function NewDeckPage() {
     return () => clearTimeout(timeout)
   }, [partnerSearchQuery])
   
-  // Set Oracle context for commander selection
+  // Set Oracle context for commander selection and open chat panel
   useEffect(() => {
     setContext({ type: 'commander-selection' })
-  }, [setContext])
+    openOracle()
+  }, [setContext, openOracle])
   
   // Fetch featured commanders
   const {
@@ -315,76 +315,45 @@ export default function NewDeckPage() {
       
       {/* Main content */}
       <main className="max-w-7xl mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
-          {/* Left: Search and commanders */}
-          <div className="space-y-6">
-            {/* Search bar */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                <Input
-                  type="text"
-                  placeholder="Search commanders..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className={cn(
-                    'pl-10 bg-zinc-900 border-zinc-700',
-                    'focus:border-amber-500/50 focus:ring-amber-500/20'
-                  )}
-                />
-              </div>
-              <ColorIdentityFilter
-                value={colorFilter}
-                onChange={setColorFilter}
-                size="md"
+        <div className="space-y-6">
+          {/* Search bar */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+              <Input
+                type="text"
+                placeholder="Search commanders..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={cn(
+                  'pl-10 bg-zinc-900 border-zinc-700',
+                  'focus:border-amber-500/50 focus:ring-amber-500/20'
+                )}
               />
             </div>
-            
-            {/* Commander grid */}
-            <CommanderGrid
-              commanders={commanders}
-              isLoading={isLoading}
-              error={error?.message}
-              onSelect={handleSelectCommander}
-              selectedKey={selectedCommander?.canonical_key}
-              title={isSearching ? 'Search Results' : 'Popular Commanders'}
-              emptyMessage={
-                isSearching 
-                  ? 'No commanders match your search'
-                  : 'No commanders available'
-              }
-              onRefresh={!isSearching ? () => refetchFeatured() : undefined}
-              isRefreshing={featuredRefetching}
+            <ColorIdentityFilter
+              value={colorFilter}
+              onChange={setColorFilter}
+              size="md"
             />
           </div>
           
-          {/* Right: Oracle prompt */}
-          <aside className="lg:sticky lg:top-24 lg:self-start space-y-4">
-            <OraclePromptCard
-              title="Not sure where to start?"
-              description="Chat with the Oracle to explore archetypes, themes, and find the perfect commander for your playstyle."
-              buttonLabel="Ask the Oracle"
-            />
-            
-            {/* Quick tips */}
-            <div className="rounded-xl bg-zinc-900/50 border border-zinc-800 p-4">
-              <h3 className="text-sm font-medium text-zinc-300 mb-3">Quick Tips</h3>
-              <ul className="space-y-2 text-xs text-zinc-500">
-                <li className="flex gap-2">
-                  <span className="text-fuchsia-400">*</span>
-                  <span>Commanders with magenta borders are not in your collection</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="text-amber-400">*</span>
-                  <span>Use the color filter to narrow by color identity</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="text-emerald-400">*</span>
-                  <span>Hover over a card to see the full art</span>
-                </li>
-              </ul>
-            </div>
-          </aside>
+          {/* Commander grid */}
+          <CommanderGrid
+            commanders={commanders}
+            isLoading={isLoading}
+            error={error?.message}
+            onSelect={handleSelectCommander}
+            selectedKey={selectedCommander?.canonical_key}
+            title={isSearching ? 'Search Results' : 'Popular Commanders'}
+            emptyMessage={
+              isSearching 
+                ? 'No commanders match your search'
+                : 'No commanders available'
+            }
+            onRefresh={!isSearching ? () => refetchFeatured() : undefined}
+            isRefreshing={featuredRefetching}
+          />
         </div>
       </main>
       

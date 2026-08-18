@@ -60,6 +60,9 @@ export interface CardRepository {
   /** Query all cards owned within a colour identity */
   getCardsByColourIdentity(colours: string[]): Promise<OwnedCardInfo[]>
 
+  /** Search owned cards by type/subtype (e.g., "Curse", "Saga", "Equipment") */
+  searchOwnedByType(typeKeyword: string, colourIdentity?: string[]): Promise<OwnedCardInfo[]>
+
   /** Get deck allocations for a specific card */
   getDeckAllocations(cardName: string): Promise<DeckAllocation[]>
 
@@ -242,6 +245,116 @@ class SupabaseCardRepository implements CardRepository {
       }
     }
 
+    return Array.from(aggregated.values())
+  }
+
+  async searchOwnedByType(typeKeyword: string, colourIdentity?: string[]): Promise<OwnedCardInfo[]> {
+    const supabase = createAdminClient()
+
+    // Step 1: Get all user's cards with their oracle IDs
+    let userCardsQuery = supabase
+      .from('user_cards')
+      .select('id, card_name, oracle_id')
+    
+    if (this.userId) {
+      userCardsQuery = userCardsQuery.eq('user_id', this.userId)
+    }
+    
+    const { data: userCards, error: ucError } = await userCardsQuery
+    
+    if (ucError) {
+      throw new Error(`searchOwnedByType failed: ${ucError.message}`)
+    }
+    
+    if (!userCards || userCards.length === 0) {
+      return []
+    }
+    
+    // Step 2: Get card type info from ref_cards for all owned cards
+    const cardNames = userCards.map(uc => uc.card_name)
+    const { data: refCards, error: rcError } = await supabase
+      .from('ref_cards')
+      .select('name, type_line, color_identity')
+      .in('name', cardNames)
+    
+    if (rcError) {
+      throw new Error(`searchOwnedByType ref lookup failed: ${rcError.message}`)
+    }
+    
+    // Build lookup map
+    const refMap = new Map(
+      (refCards ?? []).map(rc => [rc.name.toLowerCase(), rc])
+    )
+    
+    // Step 3: Filter by type keyword
+    const typeKeywordLower = typeKeyword.toLowerCase()
+    const colourSet = colourIdentity 
+      ? new Set(colourIdentity.map(c => c.toUpperCase()))
+      : null
+    
+    const matchingCards: { card_name: string; user_card_id: string }[] = []
+    
+    for (const uc of userCards) {
+      const ref = refMap.get(uc.card_name.toLowerCase())
+      if (!ref) continue
+      
+      // Check if type_line contains the keyword
+      const typeLine = (ref.type_line || '').toLowerCase()
+      if (!typeLine.includes(typeKeywordLower)) continue
+      
+      // Check color identity if filter provided
+      if (colourSet) {
+        const cardColors = (ref.color_identity || '').split('').filter((c: string) => 'WUBRG'.includes(c))
+        if (!cardColors.every((c: string) => colourSet.has(c))) continue
+      }
+      
+      matchingCards.push({ card_name: uc.card_name, user_card_id: uc.id })
+    }
+    
+    if (matchingCards.length === 0) {
+      return []
+    }
+    
+    // Step 4: Count copies for each matching card
+    const userCardIds = matchingCards.map(mc => mc.user_card_id)
+    
+    let copiesQuery = supabase
+      .from('user_copies')
+      .select('id, card_id')
+      .eq('is_proxy', false)
+      .in('card_id', userCardIds)
+    
+    if (this.userId) {
+      copiesQuery = copiesQuery.eq('user_id', this.userId)
+    }
+    
+    const { data: copies, error: copyError } = await copiesQuery
+    
+    if (copyError) {
+      throw new Error(`searchOwnedByType copies failed: ${copyError.message}`)
+    }
+    
+    // Aggregate by card name
+    const aggregated = new Map<string, OwnedCardInfo>()
+    
+    for (const copy of copies ?? []) {
+      const mc = matchingCards.find(m => m.user_card_id === copy.card_id)
+      if (!mc) continue
+      
+      const key = mc.card_name.toLowerCase()
+      const existing = aggregated.get(key)
+      if (existing) {
+        existing.quantity += 1
+      } else {
+        aggregated.set(key, {
+          card_name: mc.card_name,
+          quantity: 1,
+          set_code: null,
+          foil: false,
+        })
+      }
+    }
+    
     return Array.from(aggregated.values())
   }
 

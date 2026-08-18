@@ -837,6 +837,66 @@ registry.set('validate_cards_for_commander', {
 // Local Tool: collection_lookup
 // ---------------------------------------------------------------------------
 
+registry.set('search_owned_cards', {
+  definition: {
+    name: 'search_owned_cards',
+    description:
+      'Search the user\'s collection by card type or subtype. Use this when the user asks "what curses do I own", "show me my sagas", "list my equipment", etc. Returns all owned cards matching the type.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        type_keyword: {
+          type: 'string',
+          description: 'Card type or subtype to search for (e.g., "Curse", "Saga", "Equipment", "Creature", "Enchantment")',
+        },
+        colour_identity: {
+          type: 'array',
+          items: { type: 'string', enum: ['W', 'U', 'B', 'R', 'G'] },
+          description: 'Optional: filter to cards within this colour identity (for commander deck building)',
+        },
+      },
+      required: ['type_keyword'],
+    },
+  },
+  execute: async (input, context) => {
+    try {
+      const userId = context?.userId
+      if (!userId) {
+        return { content: 'Collection search requires authentication — userId not available', is_error: true }
+      }
+      
+      const repo = getCardRepository(userId)
+      const typeKeyword = input.type_keyword as string
+      const colourIdentity = input.colour_identity as string[] | undefined
+
+      console.log('[search_owned_cards] Searching for type:', typeKeyword, 'colours:', colourIdentity, 'userId:', userId)
+
+      const results = await repo.searchOwnedByType(typeKeyword, colourIdentity)
+
+      console.log('[search_owned_cards] Found:', results.length, 'cards')
+
+      if (results.length === 0) {
+        return {
+          content: `No ${typeKeyword}s found in your collection${colourIdentity ? ` within colour identity ${colourIdentity.join('')}` : ''}.`,
+          is_error: false,
+        }
+      }
+
+      const lines = [
+        `Found ${results.length} ${typeKeyword}${results.length > 1 ? 's' : ''} in your collection:`,
+        '',
+        ...results.map(r => `- ${r.card_name} (qty: ${r.quantity})`),
+      ]
+
+      return { content: lines.join('\n'), is_error: false }
+    } catch (err) {
+      console.error('[search_owned_cards] Error:', err)
+      const msg = err instanceof Error ? err.message : 'Collection search failed'
+      return { content: `Collection search error: ${msg}`, is_error: true }
+    }
+  },
+})
+
 registry.set('collection_lookup', {
   definition: {
     name: 'collection_lookup',

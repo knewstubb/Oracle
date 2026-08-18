@@ -67,6 +67,19 @@ export async function POST(request: NextRequest) {
         
         if (fuzzyMatch && fuzzyMatch.length > 0) {
           allUserCards.push(fuzzyMatch[0])
+        } else if (!name.includes(' // ')) {
+          // DFC fallback: try matching front-face-only name against full DFC names
+          // e.g., "Fable of the Mirror-Breaker" → "Fable of the Mirror-Breaker // Reflection of Kiki-Jiki"
+          const { data: dfcMatch } = await supabase
+            .from('user_cards')
+            .select('id, card_name')
+            .eq('user_id', userId)
+            .ilike('card_name', `${name} // %`)
+            .limit(1)
+          
+          if (dfcMatch && dfcMatch.length > 0) {
+            allUserCards.push(dfcMatch[0])
+          }
         }
       }
     }
@@ -164,6 +177,17 @@ export async function POST(request: NextRequest) {
           
           if (fuzzy && fuzzy[0] && fuzzy[0].price_usd != null) {
             priceMap.set(name.toLowerCase(), fuzzy[0].price_usd)
+          } else if (!name.includes(' // ')) {
+            // DFC fallback: try matching front-face-only name
+            const { data: dfcPrinting } = await supabase
+              .from('ref_printings')
+              .select('name, price_usd')
+              .ilike('name', `${name} // %`)
+              .limit(1)
+            
+            if (dfcPrinting && dfcPrinting[0] && dfcPrinting[0].price_usd != null) {
+              priceMap.set(name.toLowerCase(), dfcPrinting[0].price_usd)
+            }
           }
         }
       }

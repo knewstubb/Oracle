@@ -362,7 +362,7 @@ export function WorkbenchTab({
         onDragReassign={handleDragReassign}
         onDiscussCard={handleDiscussCard}
         initialLayoutMode="free-form"
-        showToolbar={true}
+        showToolbar={false}
         transparentBackground={true}
       />
     </div>

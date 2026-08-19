@@ -87,7 +87,7 @@ function registerMcpTool(
 // MCP Tool Registrations
 // ---------------------------------------------------------------------------
 
-// --- Card rulings: Direct Scryfall API (replaces MCP) ---
+// --- Card rulings: Via Scryfall API ---
 registry.set('mtg_ruling_search', {
   definition: {
     name: 'mtg_ruling_search',
@@ -107,43 +107,14 @@ registry.set('mtg_ruling_search', {
     try {
       const cardName = input.card_name as string
       
-      // Try DB-first lookup
       const { getRulingsByCardName } = await import('@/lib/card-data')
-      const dbRulings = await getRulingsByCardName(cardName)
+      const rulings = await getRulingsByCardName(cardName)
       
-      if (dbRulings.length > 0) {
-        const lines = [`Rulings for ${cardName} (${dbRulings.length} total):\n`]
-        for (const r of dbRulings) {
-          lines.push(`[${r.published_at}] ${r.comment}`)
-        }
-        return { content: lines.join('\n'), is_error: false }
-      }
-      
-      // Fallback to Scryfall API for cards not in our DB
-      const cardRes = await fetch(
-        `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}`,
-        { headers: { 'User-Agent': 'TheOracle/0.1.0' } }
-      )
-      if (!cardRes.ok) {
-        return { content: `Card "${cardName}" not found`, is_error: true }
-      }
-      const card = await cardRes.json()
-
-      // Fetch rulings from Scryfall
-      const rulingsRes = await fetch(card.rulings_uri, {
-        headers: { 'User-Agent': 'TheOracle/0.1.0' },
-      })
-      if (!rulingsRes.ok) {
-        return { content: `Could not fetch rulings for "${cardName}"`, is_error: true }
-      }
-      const rulingsData = await rulingsRes.json()
-      const rulings = rulingsData.data || []
-
       if (rulings.length === 0) {
         return { content: `No rulings found for ${cardName}.`, is_error: false }
       }
-
-      const lines = [`Rulings for ${card.name} (${rulings.length} total):\n`]
+      
+      const lines = [`Rulings for ${cardName} (${rulings.length} total):\n`]
       for (const r of rulings) {
         lines.push(`[${r.published_at}] ${r.comment}`)
       }

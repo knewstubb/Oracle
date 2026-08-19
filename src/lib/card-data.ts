@@ -370,7 +370,7 @@ export async function validateCommanders(cardNames: string[]): Promise<Map<strin
 
 
 // ---------------------------------------------------------------------------
-// Rulings Lookup
+// Rulings Lookup (via Scryfall API — DB table dropped to save space)
 // ---------------------------------------------------------------------------
 
 export interface CardRuling {
@@ -381,57 +381,79 @@ export interface CardRuling {
 }
 
 /**
- * Get rulings for a card by name.
- * First looks up the card's oracle_id from ref_printings, then fetches rulings.
+ * Get rulings for a card by name via Scryfall API.
  * Returns empty array if card or rulings not found.
+ * 
+ * Note: Previously fetched from ref_rulings table, but that was dropped
+ * to reduce database size (~46 MB savings). Scryfall API is fast enough
+ * for the occasional ruling lookup.
  */
 export async function getRulingsByCardName(cardName: string): Promise<CardRuling[]> {
-  const supabase = createAdminClient()
-  
-  // First, get the oracle_id from ref_printings
-  const { data: printing } = await supabase
-    .from('ref_printings')
-    .select('oracle_id')
-    .eq('name', cardName)
-    .limit(1)
-    .single()
-  
-  if (!printing?.oracle_id) {
-    // Try front-face match for DFCs
-    const frontFace = cardName.split(' // ')[0]
-    if (frontFace !== cardName) {
-      const { data: dfcPrinting } = await supabase
-        .from('ref_printings')
-        .select('oracle_id')
-        .ilike('name', `${frontFace} // %`)
-        .limit(1)
-        .single()
-      
-      if (dfcPrinting?.oracle_id) {
-        return getRulingsByOracleId(dfcPrinting.oracle_id)
-      }
-    }
+  try {
+    // Fetch card to get rulings_uri
+    const cardRes = await fetch(
+      `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}`,
+      { headers: { 'User-Agent': 'TheOracle/0.1.0' } }
+    )
+    if (!cardRes.ok) return []
+    
+    const card = await cardRes.json()
+    if (!card.rulings_uri) return []
+    
+    // Fetch rulings
+    const rulingsRes = await fetch(card.rulings_uri, {
+      headers: { 'User-Agent': 'TheOracle/0.1.0' },
+    })
+    if (!rulingsRes.ok) return []
+    
+    const rulingsData = await rulingsRes.json()
+    const rulings = rulingsData.data || []
+    
+    return rulings.map((r: { oracle_id: string; source: string; published_at: string; comment: string }) => ({
+      oracle_id: r.oracle_id,
+      source: r.source as 'wotc' | 'scryfall',
+      published_at: r.published_at,
+      comment: r.comment,
+    }))
+  } catch {
     return []
   }
-  
-  return getRulingsByOracleId(printing.oracle_id)
 }
 
 /**
- * Get rulings by oracle_id directly.
+ * Get rulings by oracle_id directly via Scryfall API.
+ * @deprecated Use getRulingsByCardName instead — oracle_id lookup requires
+ * an extra API call to resolve the card first.
  */
 export async function getRulingsByOracleId(oracleId: string): Promise<CardRuling[]> {
-  const supabase = createAdminClient()
-  
-  const { data, error } = await supabase
-    .from('ref_rulings')
-    .select('oracle_id, source, published_at, comment')
-    .eq('oracle_id', oracleId)
-    .order('published_at', { ascending: false })
-  
-  if (error || !data) {
+  try {
+    // Fetch card by oracle_id to get rulings_uri
+    const cardRes = await fetch(
+      `https://api.scryfall.com/cards/search?q=oracle_id:${oracleId}&unique=cards`,
+      { headers: { 'User-Agent': 'TheOracle/0.1.0' } }
+    )
+    if (!cardRes.ok) return []
+    
+    const cardData = await cardRes.json()
+    const card = cardData.data?.[0]
+    if (!card?.rulings_uri) return []
+    
+    // Fetch rulings
+    const rulingsRes = await fetch(card.rulings_uri, {
+      headers: { 'User-Agent': 'TheOracle/0.1.0' },
+    })
+    if (!rulingsRes.ok) return []
+    
+    const rulingsData = await rulingsRes.json()
+    const rulings = rulingsData.data || []
+    
+    return rulings.map((r: { oracle_id: string; source: string; published_at: string; comment: string }) => ({
+      oracle_id: r.oracle_id,
+      source: r.source as 'wotc' | 'scryfall',
+      published_at: r.published_at,
+      comment: r.comment,
+    }))
+  } catch {
     return []
   }
-  
-  return data as CardRuling[]
 }

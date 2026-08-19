@@ -92,6 +92,9 @@ export class DeepSeekAdapter implements ProviderAdapter {
 
     // Accumulate text and tool calls as we stream
     let accumulatedText = ''
+    // Buffer for detecting DSML sequences (they may span multiple chunks)
+    let dsmlBuffer = ''
+    let inDsmlBlock = false
     const toolCallsInProgress: Map<number, {
       id: string
       name: string
@@ -105,10 +108,74 @@ export class DeepSeekAdapter implements ProviderAdapter {
 
       const delta = choice.delta
 
-      // Handle text content deltas
+      // Handle text content deltas — filter out DSML markup in real-time
       if (delta.content) {
         accumulatedText += delta.content
-        yield { type: 'text_delta', text: delta.content }
+        
+        // Check if we're entering or in a DSML block
+        // DSML blocks look like: < | DSML | tool_calls> ... </| | DSML | | tool_calls>
+        const combined = dsmlBuffer + delta.content
+        
+        // Detect start of DSML block (< followed by DSML pattern)
+        if (!inDsmlBlock && (combined.includes('<') && (combined.includes('DSML') || combined.includes('invoke') || combined.includes('tool_calls')))) {
+          // Check if this looks like the start of a DSML block
+          const dsmlStartPattern = /<[\s|]*(?:DSML[\s|]*)?(?:tool_calls|invoke)/i
+          if (dsmlStartPattern.test(combined)) {
+            inDsmlBlock = true
+            // Extract any text before the DSML block and yield it
+            const match = combined.match(/<[\s|]*(?:DSML)?/i)
+            if (match && match.index !== undefined && match.index > 0) {
+              const beforeDsml = combined.slice(0, match.index)
+              if (beforeDsml.trim()) {
+                yield { type: 'text_delta', text: beforeDsml }
+              }
+            }
+            dsmlBuffer = combined.slice(match?.index ?? 0)
+            continue
+          }
+        }
+        
+        if (inDsmlBlock) {
+          // Accumulate DSML content without yielding (it's tool call markup)
+          dsmlBuffer += delta.content
+          // Check if we've reached the end of the DSML block
+          // End markers: </| | DSML | | tool_calls> or </| | invoke> or just end of response
+          if (/<\/[\s|]*(?:DSML[\s|]*)?tool_calls[\s|]*>/i.test(dsmlBuffer)) {
+            inDsmlBlock = false
+            dsmlBuffer = ''
+          }
+          continue
+        }
+        
+        // Not in DSML block — yield text normally
+        // But still check for stray DSML-like patterns
+        let textToYield = delta.content
+        
+        // Quick check for any DSML-like content
+        if (textToYield.includes('<') || textToYield.includes('DSML') || textToYield.includes('invoke')) {
+          // Buffer it in case DSML spans chunks
+          dsmlBuffer += textToYield
+          // Only yield if it doesn't look like the start of DSML
+          if (!/<[\s|]*(?:DSML)?[\s|]*$/i.test(dsmlBuffer) && !/DSML[\s|]*$/i.test(dsmlBuffer)) {
+            // Safe to yield the buffer
+            const cleanedBuffer = this.stripResidualDsml(dsmlBuffer)
+            if (cleanedBuffer) {
+              yield { type: 'text_delta', text: cleanedBuffer }
+            }
+            dsmlBuffer = ''
+          }
+        } else {
+          // No DSML-like content, yield directly
+          if (dsmlBuffer) {
+            // Flush any pending buffer first
+            const cleanedBuffer = this.stripResidualDsml(dsmlBuffer)
+            if (cleanedBuffer) {
+              yield { type: 'text_delta', text: cleanedBuffer }
+            }
+            dsmlBuffer = ''
+          }
+          yield { type: 'text_delta', text: textToYield }
+        }
       }
 
       // Handle tool call deltas

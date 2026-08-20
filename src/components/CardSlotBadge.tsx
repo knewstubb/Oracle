@@ -39,7 +39,7 @@ const STATUS_CONFIG: Record<
   },
   available: {
     label: 'Available',
-    color: '#1D9E75',
+    color: 'rgba(255,255,255,0.3)',
     bg: '#223736',
     icon: 'circle',
     filled: false,
@@ -115,31 +115,36 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
   // Icon-only variant: 22px circular badge
   if (variant === 'icon') {
     const isFilled = status === 'original' || status === 'proxy'
+    const isAvailable = status === 'available'
+    const borderWidth = isAvailable ? '1px' : '2px'
     return (
       <span
         className={`inline-flex items-center justify-center rounded-full shrink-0 ${className ?? ''}`}
         style={{
           width: 22,
           height: 22,
-          border: isFilled ? 'none' : `2px solid ${config.color}`,
+          border: isFilled ? 'none' : `${borderWidth} solid ${config.color}`,
           backgroundColor: isFilled ? config.color : 'transparent',
         }}
         title={config.label}
         aria-label={`Status: ${config.label}`}
       >
-        <span
-          className="material-symbols-outlined"
-          style={{
-            fontSize: 14,
-            color: isFilled ? '#1a1a1a' : config.color,
-            fontVariationSettings: config.filled
-              ? "'FILL' 1, 'wght' 500, 'opsz' 20"
-              : "'FILL' 0, 'wght' 400, 'opsz' 20",
-          }}
-          aria-hidden="true"
-        >
-          {config.icon}
-        </span>
+        {/* Available shows empty circle (no inner icon), others show their icon */}
+        {!isAvailable && (
+          <span
+            className="material-symbols-outlined"
+            style={{
+              fontSize: 14,
+              color: isFilled ? '#1a1a1a' : config.color,
+              fontVariationSettings: config.filled
+                ? "'FILL' 1, 'wght' 500, 'opsz' 20"
+                : "'FILL' 0, 'wght' 400, 'opsz' 20",
+            }}
+            aria-hidden="true"
+          >
+            {config.icon}
+          </span>
+        )}
       </span>
     )
   }

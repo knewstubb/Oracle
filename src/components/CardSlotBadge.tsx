@@ -123,15 +123,31 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
     // Common hover classes for all icon badges
     const hoverClasses = 'transition-all duration-150 cursor-pointer hover:brightness-125 hover:scale-110'
     
+    // Common base classes for centering
+    const baseClasses = `grid place-items-center rounded-full shrink-0 ${hoverClasses}`
+    
+    // Icon style shared by all icon variants
+    const iconStyle: React.CSSProperties = {
+      fontSize: 14,
+      width: 14,
+      height: 14,
+      lineHeight: '14px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontVariationSettings: "'FILL' 0, 'wght' 400, 'opsz' 20",
+    }
+    
     // Original: filled green background with outline checkmark
     if (isOriginal) {
       return (
         <span
-          className={`inline-flex items-center justify-center rounded-full shrink-0 ${hoverClasses} ${className ?? ''}`}
+          className={`${baseClasses} ${className ?? ''}`}
           style={{
-            width: 21,
-            height: 21,
+            width: 24,
+            height: 24,
             backgroundColor: config.color,
+            border: '1px solid transparent', // Match border sizing with outlined states
           }}
           title={config.label}
           aria-label={`Status: ${config.label}`}
@@ -139,7 +155,7 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
           <span
             className="material-symbols-outlined"
             style={{
-              fontSize: 13,
+              ...iconStyle,
               color: '#1a1a1a',
               fontVariationSettings: "'FILL' 0, 'wght' 500, 'opsz' 20",
             }}
@@ -155,11 +171,12 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
     if (isProxy) {
       return (
         <span
-          className={`inline-flex items-center justify-center rounded-full shrink-0 ${hoverClasses} ${className ?? ''}`}
+          className={`${baseClasses} ${className ?? ''}`}
           style={{
-            width: 21,
-            height: 21,
+            width: 24,
+            height: 24,
             backgroundColor: config.color,
+            border: '1px solid transparent', // Match border sizing with outlined states
           }}
           title={config.label}
           aria-label={`Status: ${config.label}`}
@@ -167,7 +184,7 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
           <span
             className="material-symbols-outlined"
             style={{
-              fontSize: 13,
+              ...iconStyle,
               color: '#1a1a1a',
               fontVariationSettings: "'FILL' 0, 'wght' 500, 'opsz' 20",
             }}
@@ -183,10 +200,10 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
     if (isAvailable) {
       return (
         <span
-          className={`inline-flex items-center justify-center rounded-full shrink-0 ${hoverClasses} ${className ?? ''}`}
+          className={`${baseClasses} ${className ?? ''}`}
           style={{
-            width: 21,
-            height: 21,
+            width: 24,
+            height: 24,
             border: '1px solid var(--border-default)',
             backgroundColor: '#1a1a1a',
           }}
@@ -195,8 +212,8 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
         >
           <span
             style={{
-              width: 11,
-              height: 11,
+              width: 12,
+              height: 12,
               borderRadius: '50%',
               border: '1.5px solid #1D9E75',
               backgroundColor: 'transparent',
@@ -215,10 +232,10 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
     
     return (
       <span
-        className={`inline-flex items-center justify-center rounded-full shrink-0 ${hoverClasses} ${className ?? ''}`}
+        className={`${baseClasses} ${className ?? ''}`}
         style={{
-          width: 21,
-          height: 21,
+          width: 24,
+          height: 24,
           border: '1px solid var(--border-default)',
           backgroundColor: fillColor,
         }}
@@ -228,9 +245,8 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
         <span
           className="material-symbols-outlined"
           style={{
-            fontSize: 13,
+            ...iconStyle,
             color: config.color,
-            fontVariationSettings: "'FILL' 0, 'wght' 400, 'opsz' 20",
           }}
           aria-hidden="true"
         >

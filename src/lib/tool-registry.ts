@@ -1039,6 +1039,144 @@ registry.set('list_user_decks', {
 })
 
 // ---------------------------------------------------------------------------
+// Local Tool: get_deck_cards
+// ---------------------------------------------------------------------------
+
+registry.set('get_deck_cards', {
+  definition: {
+    name: 'get_deck_cards',
+    description:
+      'Get the complete card list for a specific deck. Returns all cards with their categories, quantities, mana costs, and prices. Use this when you need to see what cards are in a deck the user is viewing or asking about. The deck_id is available in the context when the user is viewing a deck page.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        deck_id: {
+          type: 'number',
+          description: 'The ID of the deck to get cards for. This is provided in the context when viewing a deck.',
+        },
+      },
+      required: ['deck_id'],
+    },
+  },
+  execute: async (input, context) => {
+    try {
+      const userId = context?.userId
+      if (!userId) {
+        return { content: 'Getting deck cards requires authentication — userId not available', is_error: true }
+      }
+      
+      const deckId = input?.deck_id as number
+      if (!deckId) {
+        return { content: 'deck_id is required', is_error: true }
+      }
+      
+      const supabase = createAdminClient()
+      
+      // First verify the deck belongs to this user
+      const { data: deck, error: deckError } = await supabase
+        .from('decks')
+        .select('id, name, commander_name, colour_identity')
+        .eq('id', deckId)
+        .eq('user_id', userId)
+        .single()
+      
+      if (deckError || !deck) {
+        return { content: `Deck not found or access denied (id: ${deckId})`, is_error: true }
+      }
+      
+      // Fetch the cards in the deck
+      const { data: cards, error: cardsError } = await supabase
+        .from('deck_cards')
+        .select(`
+          id,
+          card_name,
+          quantity,
+          categories,
+          mana_cost,
+          mana_value,
+          type_line,
+          rarity,
+          set_code,
+          price_usd
+        `)
+        .eq('deck_id', deckId)
+        .order('card_name')
+      
+      if (cardsError) {
+        console.error('[get_deck_cards] Query error:', cardsError)
+        throw new Error(`Failed to fetch deck cards: ${cardsError.message}`)
+      }
+      
+      // Group cards by category for easier reading
+      const cardsByCategory: Record<string, Array<{
+        name: string
+        quantity: number
+        mana_cost: string | null
+        mana_value: number | null
+        type_line: string | null
+        price_usd: number | null
+      }>> = {}
+      
+      let totalCards = 0
+      let totalValue = 0
+      
+      for (const card of cards || []) {
+        // Parse primary category from categories JSON
+        let primaryCategory = 'Uncategorized'
+        if (card.categories) {
+          try {
+            const parsed = typeof card.categories === 'string' 
+              ? JSON.parse(card.categories) 
+              : card.categories
+            primaryCategory = parsed.primary_category || 'Uncategorized'
+          } catch {
+            // Keep default
+          }
+        }
+        
+        if (!cardsByCategory[primaryCategory]) {
+          cardsByCategory[primaryCategory] = []
+        }
+        
+        const qty = card.quantity || 1
+        totalCards += qty
+        totalValue += (card.price_usd || 0) * qty
+        
+        cardsByCategory[primaryCategory].push({
+          name: card.card_name,
+          quantity: qty,
+          mana_cost: card.mana_cost,
+          mana_value: card.mana_value,
+          type_line: card.type_line,
+          price_usd: card.price_usd,
+        })
+      }
+      
+      const result = {
+        deck: {
+          id: deck.id,
+          name: deck.name,
+          commander: deck.commander_name,
+          color_identity: deck.colour_identity,
+        },
+        summary: {
+          total_cards: totalCards,
+          total_value_usd: Math.round(totalValue * 100) / 100,
+          categories: Object.keys(cardsByCategory).length,
+        },
+        cards_by_category: cardsByCategory,
+      }
+      
+      return { content: JSON.stringify(result, null, 2), is_error: false }
+    } catch (err) {
+      console.error('[get_deck_cards] Error:', err)
+      const msg = err instanceof Error ? err.message : 'Failed to get deck cards'
+      return { content: `Error: ${msg}`, is_error: true }
+    }
+  },
+})
+
+// ---------------------------------------------------------------------------
 // Local Tool: deck_context
 // ---------------------------------------------------------------------------
 

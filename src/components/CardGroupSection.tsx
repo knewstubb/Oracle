@@ -366,20 +366,8 @@ function UnifiedCardRow({
         <ManaCost cost={card.mana_cost} />
       </span>
 
-      {/* Gap between pips and status */}
+      {/* Gap between pips and price */}
       <span className="shrink-0 w-3" aria-hidden="true" />
-
-      {/* Interactive status chip */}
-      <StatusChipPopover
-        status={status}
-        cardName={card.card_name}
-        deckId={deckId}
-        deckCardsId={card.id}
-        physicalCopyId={physicalCopyId}
-        scryfallId={card.scryfall_id ?? null}
-        variant={compact ? 'icon' : 'badge'}
-        className="shrink-0"
-      />
 
       {/* Price — compact mode shows smaller, non-compact shows wider on desktop */}
       {compact ? (
@@ -391,6 +379,18 @@ function UnifiedCardRow({
           {card.price_usd != null ? `$${card.price_usd.toFixed(2)}` : '—'}
         </span>
       )}
+
+      {/* Interactive status chip — after price */}
+      <StatusChipPopover
+        status={status}
+        cardName={card.card_name}
+        deckId={deckId}
+        deckCardsId={card.id}
+        physicalCopyId={physicalCopyId}
+        scryfallId={card.scryfall_id ?? null}
+        variant={compact ? 'icon' : 'icon'}
+        className="shrink-0"
+      />
 
       {/* Category edit trigger — hidden in compact mode */}
       {!compact && onCategoryChange && (

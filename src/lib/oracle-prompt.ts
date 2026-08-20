@@ -156,6 +156,9 @@ The user is viewing a specific deck. You can help them:
 - Suggest sidegrades (budget alternatives or upgrades)
 - Answer questions about how the deck plays
 
+IMPORTANT: To see what cards are in the deck, you MUST call get_deck_cards first.
+The deck_id is provided in the context below — use it to fetch the card list.
+
 When suggesting cards, check ownership with collection_lookup first.
 Reference the deck's commander and strategy when making suggestions.
 
@@ -340,6 +343,13 @@ list_user_decks
 - Returns: names, commanders, card counts, active status.
 - CALL THIS FIRST when discussing their decks.
 
+get_deck_cards
+- Get the full card list for a specific deck.
+- Returns: cards grouped by category, with quantities, mana costs, prices.
+- Use when the user asks about cards IN their deck or you need to see the list.
+- The deck_id is provided when viewing a deck (check context.deckId).
+- CALL THIS when the user asks "what's in my deck", "show me my deck", "critique my deck", etc.
+
 collection_lookup
 - MANDATORY before making ANY claim about what the user owns.
 - Use when: suggesting cards, answering "what do I own", checking ownership status.
@@ -404,8 +414,11 @@ export function buildOracleSystemPrompt(
       break
     case 'deck':
       parts.push(DECK_CONTEXT)
+      if (context.deckId) {
+        parts.push(`\n**DECK ID: ${context.deckId}** — Use this with get_deck_cards to see the card list.`)
+      }
       if (context.deckName) {
-        parts.push(`\nDeck: ${context.deckName}`)
+        parts.push(`Deck Name: ${context.deckName}`)
       }
       if (context.commanderName) {
         parts.push(`Commander: ${context.commanderName}`)

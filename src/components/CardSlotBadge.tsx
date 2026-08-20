@@ -39,7 +39,7 @@ const STATUS_CONFIG: Record<
   },
   available: {
     label: 'Available',
-    color: 'var(--text-secondary)',
+    color: '#1D9E75',
     bg: '#223736',
     icon: 'circle',
     filled: false,
@@ -121,7 +121,7 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
         style={{
           width: 22,
           height: 22,
-          border: isFilled ? 'none' : `1.5px solid ${config.color}`,
+          border: isFilled ? 'none' : `2px solid ${config.color}`,
           backgroundColor: isFilled ? config.color : 'transparent',
         }}
         title={config.label}

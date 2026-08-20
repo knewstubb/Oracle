@@ -71,14 +71,14 @@ const STATUS_CONFIG: Record<
 // Status Icon — Material Symbol
 // ---------------------------------------------------------------------------
 
-function StatusIcon({ icon, filled, color }: { icon: string; filled: boolean; color: string }) {
+function StatusIcon({ icon, color }: { icon: string; color: string }) {
   return (
     <span
       className="material-symbols-outlined inline-flex items-center justify-center"
       style={{
         fontSize: '14px',
         color,
-        fontVariationSettings: filled ? "'FILL' 1, 'wght' 400, 'opsz' 20" : "'FILL' 0, 'wght' 300, 'opsz' 20",
+        fontVariationSettings: "'FILL' 0, 'wght' 400, 'opsz' 20",
       }}
       aria-hidden="true"
     >
@@ -114,14 +114,39 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
 
   // Icon-only variant: 22px circular badge
   if (variant === 'icon') {
-    const isFilled = status === 'original' // Only original is filled now
-    const isOutlined = status === 'available' || status === 'claimed' || status === 'unowned' || status === 'alternate' || status === 'proxy'
+    const isOriginal = status === 'original'
+    const isAvailable = status === 'available'
     
-    // Outlined states: 1px grey outer border with colored icon inside
-    if (isOutlined) {
-      // Available: inner teal circle instead of icon
-      const isAvailable = status === 'available'
-      
+    // Original: filled green background with outline checkmark
+    if (isOriginal) {
+      return (
+        <span
+          className={`inline-flex items-center justify-center rounded-full shrink-0 ${className ?? ''}`}
+          style={{
+            width: 22,
+            height: 22,
+            backgroundColor: config.color,
+          }}
+          title={config.label}
+          aria-label={`Status: ${config.label}`}
+        >
+          <span
+            className="material-symbols-outlined"
+            style={{
+              fontSize: 14,
+              color: '#1a1a1a',
+              fontVariationSettings: "'FILL' 0, 'wght' 500, 'opsz' 20",
+            }}
+            aria-hidden="true"
+          >
+            {config.icon}
+          </span>
+        </span>
+      )
+    }
+    
+    // Available: dark grey fill + border + inner teal circle
+    if (isAvailable) {
       return (
         <span
           className={`inline-flex items-center justify-center rounded-full shrink-0 ${className ?? ''}`}
@@ -129,46 +154,33 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
             width: 22,
             height: 22,
             border: '1px solid var(--border-default)',
-            backgroundColor: 'transparent',
+            backgroundColor: '#1a1a1a',
           }}
           title={config.label}
           aria-label={`Status: ${config.label}`}
         >
-          {isAvailable ? (
-            <span
-              style={{
-                width: 11,
-                height: 11,
-                borderRadius: '50%',
-                border: '1.5px solid #1D9E75',
-                backgroundColor: 'transparent',
-              }}
-            />
-          ) : (
-            <span
-              className="material-symbols-outlined"
-              style={{
-                fontSize: 14,
-                color: config.color,
-                fontVariationSettings: "'FILL' 0, 'wght' 400, 'opsz' 20",
-              }}
-              aria-hidden="true"
-            >
-              {config.icon}
-            </span>
-          )}
+          <span
+            style={{
+              width: 11,
+              height: 11,
+              borderRadius: '50%',
+              border: '1.5px solid #1D9E75',
+              backgroundColor: 'transparent',
+            }}
+          />
         </span>
       )
     }
     
-    // Filled states (original only): solid colored background with dark icon
+    // All other outlined states: dark grey fill + 1px border + outline colored icon
     return (
       <span
         className={`inline-flex items-center justify-center rounded-full shrink-0 ${className ?? ''}`}
         style={{
           width: 22,
           height: 22,
-          backgroundColor: config.color,
+          border: '1px solid var(--border-default)',
+          backgroundColor: '#1a1a1a',
         }}
         title={config.label}
         aria-label={`Status: ${config.label}`}
@@ -177,8 +189,8 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
           className="material-symbols-outlined"
           style={{
             fontSize: 14,
-            color: '#1a1a1a',
-            fontVariationSettings: "'FILL' 1, 'wght' 500, 'opsz' 20",
+            color: config.color,
+            fontVariationSettings: "'FILL' 0, 'wght' 400, 'opsz' 20",
           }}
           aria-hidden="true"
         >
@@ -195,7 +207,7 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
         style={{ color: config.color, backgroundColor: config.bg }}
         aria-label={`Status: ${config.label}`}
       >
-        <StatusIcon icon={config.icon} filled={config.filled} color={config.color} />
+        <StatusIcon icon={config.icon} color={config.color} />
         {config.label}
       </span>
       {status === 'claimed' && heldBy && (

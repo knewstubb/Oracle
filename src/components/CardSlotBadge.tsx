@@ -118,11 +118,14 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
     const isProxy = status === 'proxy'
     const isAvailable = status === 'available'
     
+    // Common hover classes for all icon badges
+    const hoverClasses = 'transition-all duration-150 cursor-pointer hover:brightness-125 hover:scale-110'
+    
     // Original: filled green background with outline checkmark
     if (isOriginal) {
       return (
         <span
-          className={`inline-flex items-center justify-center rounded-full shrink-0 ${className ?? ''}`}
+          className={`inline-flex items-center justify-center rounded-full shrink-0 ${hoverClasses} ${className ?? ''}`}
           style={{
             width: 21,
             height: 21,
@@ -150,7 +153,7 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
     if (isProxy) {
       return (
         <span
-          className={`inline-flex items-center justify-center rounded-full shrink-0 ${className ?? ''}`}
+          className={`inline-flex items-center justify-center rounded-full shrink-0 ${hoverClasses} ${className ?? ''}`}
           style={{
             width: 21,
             height: 21,
@@ -178,7 +181,7 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
     if (isAvailable) {
       return (
         <span
-          className={`inline-flex items-center justify-center rounded-full shrink-0 ${className ?? ''}`}
+          className={`inline-flex items-center justify-center rounded-full shrink-0 ${hoverClasses} ${className ?? ''}`}
           style={{
             width: 21,
             height: 21,
@@ -210,7 +213,7 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
     
     return (
       <span
-        className={`inline-flex items-center justify-center rounded-full shrink-0 ${className ?? ''}`}
+        className={`inline-flex items-center justify-center rounded-full shrink-0 ${hoverClasses} ${className ?? ''}`}
         style={{
           width: 21,
           height: 21,

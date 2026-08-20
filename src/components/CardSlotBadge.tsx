@@ -112,7 +112,7 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
   // Border variant: no-op as a component (borders applied via getSlotTileBorderStyle)
   if (variant === 'border') return null
 
-  // Icon-only variant: 22px circular badge
+  // Icon-only variant: 21px circular badge (odd size centers icons better)
   if (variant === 'icon') {
     const isOriginal = status === 'original'
     const isAvailable = status === 'available'
@@ -123,8 +123,8 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
         <span
           className={`inline-flex items-center justify-center rounded-full shrink-0 ${className ?? ''}`}
           style={{
-            width: 22,
-            height: 22,
+            width: 21,
+            height: 21,
             backgroundColor: config.color,
           }}
           title={config.label}
@@ -133,7 +133,7 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
           <span
             className="material-symbols-outlined"
             style={{
-              fontSize: 14,
+              fontSize: 13,
               color: '#1a1a1a',
               fontVariationSettings: "'FILL' 0, 'wght' 500, 'opsz' 20",
             }}
@@ -151,8 +151,8 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
         <span
           className={`inline-flex items-center justify-center rounded-full shrink-0 ${className ?? ''}`}
           style={{
-            width: 22,
-            height: 22,
+            width: 21,
+            height: 21,
             border: '1px solid var(--border-default)',
             backgroundColor: '#1a1a1a',
           }}
@@ -177,8 +177,8 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
       <span
         className={`inline-flex items-center justify-center rounded-full shrink-0 ${className ?? ''}`}
         style={{
-          width: 22,
-          height: 22,
+          width: 21,
+          height: 21,
           border: '1px solid var(--border-default)',
           backgroundColor: '#1a1a1a',
         }}
@@ -188,7 +188,7 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
         <span
           className="material-symbols-outlined"
           style={{
-            fontSize: 14,
+            fontSize: 13,
             color: config.color,
             fontVariationSettings: "'FILL' 0, 'wght' 400, 'opsz' 20",
           }}

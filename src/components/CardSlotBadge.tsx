@@ -115,10 +115,39 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
   // Icon-only variant: 21px circular badge (odd size centers icons better)
   if (variant === 'icon') {
     const isOriginal = status === 'original'
+    const isProxy = status === 'proxy'
     const isAvailable = status === 'available'
     
     // Original: filled green background with outline checkmark
     if (isOriginal) {
+      return (
+        <span
+          className={`inline-flex items-center justify-center rounded-full shrink-0 ${className ?? ''}`}
+          style={{
+            width: 21,
+            height: 21,
+            backgroundColor: config.color,
+          }}
+          title={config.label}
+          aria-label={`Status: ${config.label}`}
+        >
+          <span
+            className="material-symbols-outlined"
+            style={{
+              fontSize: 13,
+              color: '#1a1a1a',
+              fontVariationSettings: "'FILL' 0, 'wght' 500, 'opsz' 20",
+            }}
+            aria-hidden="true"
+          >
+            {config.icon}
+          </span>
+        </span>
+      )
+    }
+    
+    // Proxy: filled blue background with outline mask icon
+    if (isProxy) {
       return (
         <span
           className={`inline-flex items-center justify-center rounded-full shrink-0 ${className ?? ''}`}

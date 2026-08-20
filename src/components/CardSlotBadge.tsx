@@ -204,8 +204,8 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
     // All other outlined states: dark tinted fill + 1px border + outline colored icon
     // Claimed (orange): very dark orange fill
     // Unowned (pink): very dark pink fill
-    const fillColor = status === 'claimed' ? '#2a1f10' 
-                    : status === 'unowned' ? '#2a1020'
+    const fillColor = status === 'claimed' ? '#3d2a15' 
+                    : status === 'unowned' ? '#3d1830'
                     : '#1a1a1a'
     
     return (

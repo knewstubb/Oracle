@@ -201,7 +201,13 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
       )
     }
     
-    // All other outlined states: dark grey fill + 1px border + outline colored icon
+    // All other outlined states: dark tinted fill + 1px border + outline colored icon
+    // Claimed (orange): very dark orange fill
+    // Unowned (pink): very dark pink fill
+    const fillColor = status === 'claimed' ? '#2a1f10' 
+                    : status === 'unowned' ? '#2a1020'
+                    : '#1a1a1a'
+    
     return (
       <span
         className={`inline-flex items-center justify-center rounded-full shrink-0 ${className ?? ''}`}
@@ -209,7 +215,7 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
           width: 21,
           height: 21,
           border: '1px solid var(--border-default)',
-          backgroundColor: '#1a1a1a',
+          backgroundColor: fillColor,
         }}
         title={config.label}
         aria-label={`Status: ${config.label}`}

@@ -114,8 +114,8 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
 
   // Icon-only variant: 22px circular badge
   if (variant === 'icon') {
-    const isFilled = status === 'original' || status === 'proxy'
-    const isOutlined = status === 'available' || status === 'claimed' || status === 'unowned' || status === 'alternate'
+    const isFilled = status === 'original' // Only original is filled now
+    const isOutlined = status === 'available' || status === 'claimed' || status === 'unowned' || status === 'alternate' || status === 'proxy'
     
     // Outlined states: 1px grey outer border with colored icon inside
     if (isOutlined) {
@@ -161,7 +161,7 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
       )
     }
     
-    // Filled states (original, proxy): solid colored background with dark icon
+    // Filled states (original only): solid colored background with dark icon
     return (
       <span
         className={`inline-flex items-center justify-center rounded-full shrink-0 ${className ?? ''}`}

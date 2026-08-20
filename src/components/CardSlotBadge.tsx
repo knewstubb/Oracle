@@ -39,7 +39,7 @@ const STATUS_CONFIG: Record<
   },
   available: {
     label: 'Available',
-    color: 'rgba(255,255,255,0.3)',
+    color: '#1D9E75',
     bg: '#223736',
     icon: 'circle',
     filled: false,
@@ -77,6 +77,8 @@ function StatusIcon({ icon, color }: { icon: string; color: string }) {
       className="material-symbols-outlined inline-flex items-center justify-center"
       style={{
         fontSize: '14px',
+        width: '14px',
+        height: '14px',
         color,
         fontVariationSettings: "'FILL' 0, 'wght' 400, 'opsz' 20",
       }}
@@ -177,7 +179,7 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
       )
     }
     
-    // Available: dark grey fill + border + inner teal circle
+    // Available: dark grey fill + teal border + inner teal circle
     if (isAvailable) {
       return (
         <span

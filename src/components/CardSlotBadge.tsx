@@ -116,35 +116,59 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
   if (variant === 'icon') {
     const isFilled = status === 'original' || status === 'proxy'
     const isAvailable = status === 'available'
-    const borderWidth = isAvailable ? '1px' : '2px'
+    
+    // Available: two concentric circles (outer grey 22px, inner teal 11px)
+    if (isAvailable) {
+      return (
+        <span
+          className={`inline-flex items-center justify-center rounded-full shrink-0 ${className ?? ''}`}
+          style={{
+            width: 22,
+            height: 22,
+            border: '1px solid var(--border-default)',
+            backgroundColor: 'transparent',
+          }}
+          title={config.label}
+          aria-label={`Status: ${config.label}`}
+        >
+          <span
+            style={{
+              width: 11,
+              height: 11,
+              borderRadius: '50%',
+              border: '1.5px solid #1D9E75',
+              backgroundColor: 'transparent',
+            }}
+          />
+        </span>
+      )
+    }
+    
     return (
       <span
         className={`inline-flex items-center justify-center rounded-full shrink-0 ${className ?? ''}`}
         style={{
           width: 22,
           height: 22,
-          border: isFilled ? 'none' : `${borderWidth} solid ${config.color}`,
+          border: isFilled ? 'none' : `2px solid ${config.color}`,
           backgroundColor: isFilled ? config.color : 'transparent',
         }}
         title={config.label}
         aria-label={`Status: ${config.label}`}
       >
-        {/* Available shows empty circle (no inner icon), others show their icon */}
-        {!isAvailable && (
-          <span
-            className="material-symbols-outlined"
-            style={{
-              fontSize: 14,
-              color: isFilled ? '#1a1a1a' : config.color,
-              fontVariationSettings: config.filled
-                ? "'FILL' 1, 'wght' 500, 'opsz' 20"
-                : "'FILL' 0, 'wght' 400, 'opsz' 20",
-            }}
-            aria-hidden="true"
-          >
-            {config.icon}
-          </span>
-        )}
+        <span
+          className="material-symbols-outlined"
+          style={{
+            fontSize: 14,
+            color: isFilled ? '#1a1a1a' : config.color,
+            fontVariationSettings: config.filled
+              ? "'FILL' 1, 'wght' 500, 'opsz' 20"
+              : "'FILL' 0, 'wght' 400, 'opsz' 20",
+          }}
+          aria-hidden="true"
+        >
+          {config.icon}
+        </span>
       </span>
     )
   }

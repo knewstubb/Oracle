@@ -377,6 +377,7 @@ function UnifiedCardRow({
         deckCardsId={card.id}
         physicalCopyId={physicalCopyId}
         scryfallId={card.scryfall_id ?? null}
+        variant={compact ? 'icon' : 'badge'}
         className="shrink-0"
       />
 
@@ -1066,7 +1067,7 @@ function SpecificLandRow({
         <span className="min-w-0 flex-1 truncate text-[length:var(--fs-sm)]">{displayName}</span>
 
         {/* Status chip */}
-        <CardSlotBadge status={status} />
+        <CardSlotBadge status={status} variant="icon" />
 
         {/* Kebab menu */}
         <div className="relative shrink-0">

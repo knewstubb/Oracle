@@ -431,12 +431,20 @@ function StatusSection() {
         <p className="text-[length:var(--fs-sm)] text-[var(--text-tertiary)] mb-4">
           Five-state taxonomy for card allocation. Each has a unique dot style + color.
         </p>
-        <div className="flex flex-wrap gap-4">
+        <div className="flex flex-wrap gap-4 mb-4">
           <CardSlotBadge status="original" />
           <CardSlotBadge status="proxy" />
-          <CardSlotBadge status="open" />
+          <CardSlotBadge status="available" />
           <CardSlotBadge status="claimed" heldBy={{ deckName: 'Muldrotha', deckStatus: 'in_rotation' }} />
           <CardSlotBadge status="unowned" />
+        </div>
+        <p className="text-[length:var(--fs-sm)] text-[var(--text-tertiary)] mb-2">Icon variant (compact mode):</p>
+        <div className="flex flex-wrap gap-3">
+          <CardSlotBadge status="original" variant="icon" />
+          <CardSlotBadge status="proxy" variant="icon" />
+          <CardSlotBadge status="available" variant="icon" />
+          <CardSlotBadge status="claimed" variant="icon" />
+          <CardSlotBadge status="unowned" variant="icon" />
         </div>
       </div>
 

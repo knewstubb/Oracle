@@ -26,6 +26,8 @@ interface StatusChipPopoverProps {
   deckCardsId: number
   physicalCopyId: number | null
   scryfallId?: string | null
+  /** Badge display style: 'badge' (default) for full pill, 'icon' for compact icon-only */
+  variant?: 'badge' | 'icon'
   className?: string
 }
 
@@ -44,6 +46,7 @@ export function StatusChipPopover({
   deckCardsId,
   physicalCopyId,
   scryfallId,
+  variant = 'badge',
   className,
 }: StatusChipPopoverProps) {
   const [open, setOpen] = useState(false)
@@ -59,14 +62,14 @@ export function StatusChipPopover({
 
   // Don't render popover for generic_land
   if (status === 'generic_land') {
-    return <CardSlotBadge status={status} className={className} />
+    return <CardSlotBadge status={status} variant={variant} className={className} />
   }
 
   return (
     <>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger className="cursor-pointer" aria-label={`${cardName} status: ${status}`}>
-          <CardSlotBadge status={status} className={className} />
+          <CardSlotBadge status={status} variant={variant} className={className} />
         </PopoverTrigger>
         <PopoverContent
           align="end"

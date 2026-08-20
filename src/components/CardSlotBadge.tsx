@@ -10,8 +10,8 @@ export interface CardSlotBadgeProps {
   status: CardSlotStatus
   /** For claimed: which deck holds the card */
   heldBy?: { deckName: string; deckStatus: string } | null
-  /** Display style: 'badge' for list views, 'border' for tile/grid views */
-  variant?: 'badge' | 'border'
+  /** Display style: 'badge' for list views, 'border' for tile/grid views, 'icon' for compact icon-only */
+  variant?: 'badge' | 'border' | 'icon'
   className?: string
 }
 
@@ -27,7 +27,7 @@ const STATUS_CONFIG: Record<
     label: 'Original',
     color: 'var(--signal-success)',
     bg: 'rgba(29, 158, 117, 0.12)',
-    icon: 'circle',
+    icon: 'check',
     filled: true,
   },
   proxy: {
@@ -55,7 +55,7 @@ const STATUS_CONFIG: Record<
     label: 'In decks',
     color: '#F5880B',
     bg: 'rgba(245, 136, 11, 0.08)',
-    icon: 'lock',
+    icon: 'deployed_code',
     filled: false,
   },
   unowned: {
@@ -95,7 +95,12 @@ function StatusIcon({ icon, filled, color }: { icon: string; filled: boolean; co
  * Unified badge component for the five-state card slot taxonomy.
  * Uses Material Symbol icons for status indication.
  *
- * For 'claimed' status, shows a "In [deck]" subtext line.
+ * Variants:
+ * - 'badge': Full pill with icon and label text
+ * - 'icon': Compact 22px circular icon only
+ * - 'border': No-op (borders applied via getSlotTileBorderStyle)
+ *
+ * For 'claimed' status with 'badge' variant, shows a "In [deck]" subtext line.
  * For 'generic_land' status, renders nothing (exempt from taxonomy display).
  */
 export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: CardSlotBadgeProps) {
@@ -106,6 +111,38 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
 
   // Border variant: no-op as a component (borders applied via getSlotTileBorderStyle)
   if (variant === 'border') return null
+
+  // Icon-only variant: 22px circular badge
+  if (variant === 'icon') {
+    const isFilled = status === 'original' || status === 'proxy'
+    return (
+      <span
+        className={`inline-flex items-center justify-center rounded-full shrink-0 ${className ?? ''}`}
+        style={{
+          width: 22,
+          height: 22,
+          border: isFilled ? 'none' : `1.5px solid ${config.color}`,
+          backgroundColor: isFilled ? config.color : 'transparent',
+        }}
+        title={config.label}
+        aria-label={`Status: ${config.label}`}
+      >
+        <span
+          className="material-symbols-outlined"
+          style={{
+            fontSize: 14,
+            color: isFilled ? '#1a1a1a' : config.color,
+            fontVariationSettings: config.filled
+              ? "'FILL' 1, 'wght' 500, 'opsz' 20"
+              : "'FILL' 0, 'wght' 400, 'opsz' 20",
+          }}
+          aria-hidden="true"
+        >
+          {config.icon}
+        </span>
+      </span>
+    )
+  }
 
   return (
     <span className={`inline-flex flex-col items-start gap-0.5 ${className ?? ''}`}>

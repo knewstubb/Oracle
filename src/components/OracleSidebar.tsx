@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, Trash2, MessageSquare, Library, LayoutGrid, Sparkles, Wrench, Layers, History, Compass, ArrowRight, Crown } from 'lucide-react'
+import { X, MessageSquarePlus, MessageSquare, Library, LayoutGrid, Sparkles, Wrench, Layers, History, Compass, ArrowRight, Crown } from 'lucide-react'
 import { useOracle, type OracleContext, type NavigatePrompt } from '@/contexts/OracleContext'
 import { useQueryClient } from '@tanstack/react-query'
 import { renderMessageContent, type CardLinkMode, type OwnershipStatus, type OwnershipLookupFn } from '@/lib/render-card-links'
@@ -320,15 +320,14 @@ export function OracleSidebar() {
   }, [inputValue, isStreaming, sendMessage])
 
   // ---------------------------------------------------------------------------
-  // Clear history
+  // New chat
   // ---------------------------------------------------------------------------
 
-  const handleClearClick = useCallback(() => {
-    if (messages.length === 0) return
+  const handleNewChatClick = useCallback(() => {
     setShowClearConfirm(true)
-  }, [messages.length])
+  }, [])
 
-  const handleClearConfirm = useCallback(() => {
+  const handleNewChatConfirm = useCallback(() => {
     clearMessages()
     setShowClearConfirm(false)
     setOwnershipCache(new Map())
@@ -449,13 +448,12 @@ export function OracleSidebar() {
             </div>
             <div className="flex items-center gap-0.5 shrink-0">
               <button
-                onClick={handleClearClick}
-                disabled={messages.length === 0}
-                className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/60 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                aria-label="Clear conversation"
-                title="Clear conversation"
+                onClick={handleNewChatClick}
+                className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/60 transition-colors"
+                aria-label="New chat"
+                title="New chat"
               >
-                <Trash2 className="w-4 h-4" />
+                <MessageSquarePlus className="w-4 h-4" />
               </button>
               <button
                 onClick={close}
@@ -555,12 +553,12 @@ export function OracleSidebar() {
         {/* Session history panel */}
         <SessionHistoryPanel />
 
-        {/* Clear confirmation dialog */}
+        {/* New chat confirmation dialog */}
         {showClearConfirm && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-20">
             <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-4 mx-4 max-w-sm shadow-xl">
               <p className="text-sm text-zinc-200 mb-4">
-                Clear conversation history? This cannot be undone.
+                Start a new conversation? Current chat will be saved to history.
               </p>
               <div className="flex justify-end gap-2">
                 <button
@@ -570,10 +568,10 @@ export function OracleSidebar() {
                   Cancel
                 </button>
                 <button
-                  onClick={handleClearConfirm}
-                  className="px-3 py-1.5 text-sm rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors"
+                  onClick={handleNewChatConfirm}
+                  className="px-3 py-1.5 text-sm rounded-md bg-amber-600 text-white hover:bg-amber-700 transition-colors"
                 >
-                  Clear
+                  New Chat
                 </button>
               </div>
             </div>

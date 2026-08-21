@@ -359,8 +359,22 @@ export async function POST(request: NextRequest) {
   const userPrefs = await getUserPreferences(userId)
   const playerContext = formatPlayerContextPrompt(userPrefs)
 
+  // --- Look up commander color identity if viewing a deck with a commander ---
+  let commanderColorIdentity: string | null = null
+  if (context.type === 'deck' && context.commanderName) {
+    const { data: commander } = await supabase
+      .from('ref_commanders')
+      .select('color_identity')
+      .eq('display_name', context.commanderName)
+      .maybeSingle()
+    
+    if (commander?.color_identity) {
+      commanderColorIdentity = commander.color_identity
+    }
+  }
+
   // --- Build system prompt based on context ---
-  const systemPrompt = buildOracleSystemPrompt(context, playerContext)
+  const systemPrompt = buildOracleSystemPrompt(context, playerContext, commanderColorIdentity)
 
   // --- Build messages array for the AI ---
   const apiMessages = [

@@ -405,7 +405,8 @@ DO call tools when:
  */
 export function buildOracleSystemPrompt(
   context: OracleChatContext,
-  playerContext: string
+  playerContext: string,
+  commanderColorIdentity?: string | null
 ): string {
   const parts: string[] = [ORACLE_PERSONALITY]
   
@@ -432,6 +433,29 @@ export function buildOracleSystemPrompt(
       }
       if (context.commanderName) {
         parts.push(`Commander: ${context.commanderName}`)
+      }
+      // CRITICAL: Add color identity constraint when available
+      if (commanderColorIdentity) {
+        const colorNames = colorIdentityToNames(commanderColorIdentity)
+        parts.push(`
+=== COMMANDER COLOR IDENTITY: ${commanderColorIdentity} ===
+
+**CRITICAL RESTRICTION — ENFORCED:**
+This deck's commander is ${context.commanderName} with color identity: ${commanderColorIdentity} (${colorNames})
+
+You may ONLY suggest cards that are:
+- Colorless, OR
+- Contain ONLY colors in: ${commanderColorIdentity || 'colorless'}
+
+DO NOT suggest cards with colors outside this identity. Not even to say "skip" or "avoid".
+If a card would be great but is off-color, DO NOT MENTION IT AT ALL.
+
+Example: If color identity is "WBR" (Mardu):
+- [[Sol Ring]] ✓ (colorless)
+- [[Swords to Plowshares]] ✓ (white)
+- [[Lightning Bolt]] ✓ (red)
+- [[Rhystic Study]] ✗ DO NOT MENTION (blue)
+- [[Sylvan Library]] ✗ DO NOT MENTION (green)`)
       }
       break
     case 'deck-list':
@@ -460,4 +484,24 @@ export function buildOracleSystemPrompt(
   parts.push(ORACLE_TOOL_PROMPT)
   
   return parts.join('\n\n')
+}
+
+/**
+ * Convert color identity code to human-readable color names
+ */
+function colorIdentityToNames(colorIdentity: string): string {
+  const colorMap: Record<string, string> = {
+    'W': 'White',
+    'U': 'Blue',
+    'B': 'Black',
+    'R': 'Red',
+    'G': 'Green',
+  }
+  
+  if (!colorIdentity || colorIdentity === '') {
+    return 'Colorless'
+  }
+  
+  const colors = colorIdentity.split('').map(c => colorMap[c] || c).filter(Boolean)
+  return colors.join(', ')
 }

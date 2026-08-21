@@ -11,8 +11,14 @@
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
-import { appendNote } from '@/lib/deck-documentation-store'
 import { formatChangeLogEntry } from '@/lib/upgrade-changelog'
+
+async function appendNote(deckId: number, content: string, userId: string): Promise<void> {
+  const supabase = createAdminClient()
+  await supabase
+    .from('deck_notes')
+    .insert({ deck_id: deckId, content, user_id: userId })
+}
 
 export async function POST(
   request: NextRequest,

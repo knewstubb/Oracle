@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
-import { getNotes } from '@/lib/deck-documentation-store'
 import { requireAuth } from '@/lib/auth'
+import { createAdminClient } from '@/lib/supabase'
 
 export async function GET(
   request: NextRequest,
@@ -25,6 +25,23 @@ export async function GET(
     }
   }
 
-  const notes = await getNotes(deckId, limit)
-  return Response.json({ notes })
+  const supabase = createAdminClient()
+  let query = supabase
+    .from('deck_notes')
+    .select('id, deck_id, content, created_at')
+    .eq('deck_id', deckId)
+    .order('created_at', { ascending: false })
+
+  if (limit) {
+    query = query.limit(limit)
+  }
+
+  const { data: notes, error } = await query
+
+  if (error) {
+    console.error('Failed to fetch deck notes:', error)
+    return Response.json({ error: 'Failed to fetch notes' }, { status: 500 })
+  }
+
+  return Response.json({ notes: notes ?? [] })
 }

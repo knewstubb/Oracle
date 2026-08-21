@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, Lightbulb, Sparkles, AlertTriangle, TrendingUp, DollarSign, Zap } from 'lucide-react'
+import { Lightbulb, Sparkles, AlertTriangle, TrendingUp, DollarSign, Zap } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
@@ -121,90 +121,6 @@ function groupInsightsByType(insights: CommanderInsight[]): [string, CommanderIn
 // Sub-components
 // ---------------------------------------------------------------------------
 
-interface InsightSectionProps {
-  type: string
-  insights: CommanderInsight[]
-  defaultExpanded?: boolean
-  selectedBuildLabel?: string | null
-}
-
-function InsightSection({ type, insights, defaultExpanded = false, selectedBuildLabel }: InsightSectionProps) {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded)
-  const config = getInsightTypeConfig(type)
-  const Icon = config.icon
-  
-  // Separate generic vs build-specific insights
-  const genericInsights = insights.filter(isGenericInsight)
-  const buildInsights = insights.filter(i => !isGenericInsight(i))
-  
-  // Show build-specific first if available, then generic
-  const orderedInsights = [...buildInsights, ...genericInsights]
-  
-  return (
-    <div
-      className="rounded-lg overflow-hidden"
-      style={{
-        background: 'rgba(255,255,255,0.02)',
-        border: '0.5px solid rgba(255,255,255,0.08)',
-      }}
-    >
-      {/* Header - always visible */}
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors"
-      >
-        <Icon className="size-4 shrink-0" style={{ color: '#1D9E75' }} />
-        <div className="flex-1 text-left">
-          <span className="text-[length:var(--fs-md)] font-medium">{config.label}</span>
-          {config.description && (
-            <span className="text-[length:var(--fs-sm)] text-muted-foreground ml-2">
-              — {config.description}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Show count badges */}
-          {buildInsights.length > 0 && selectedBuildLabel && (
-            <Badge
-              className="text-[10px] px-1.5 py-0"
-              style={{ background: 'rgba(29,158,117,0.15)', color: '#1D9E75' }}
-            >
-              {buildInsights.length} {selectedBuildLabel}
-            </Badge>
-          )}
-          {genericInsights.length > 0 && (
-            <Badge
-              variant="secondary"
-              className="text-[10px] px-1.5 py-0"
-            >
-              {genericInsights.length} general
-            </Badge>
-          )}
-          {isExpanded ? (
-            <ChevronDown className="size-4 text-muted-foreground" />
-          ) : (
-            <ChevronRight className="size-4 text-muted-foreground" />
-          )}
-        </div>
-      </button>
-      
-      {/* Content - collapsible */}
-      {isExpanded && (
-        <div className="px-4 pb-4 space-y-3">
-          {orderedInsights.map((insight, idx) => (
-            <InsightCard
-              key={insight.id}
-              insight={insight}
-              isFirst={idx === 0}
-              selectedBuildLabel={selectedBuildLabel}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
 interface InsightCardProps {
   insight: CommanderInsight
   isFirst?: boolean
@@ -293,6 +209,90 @@ function InsightCard({ insight, isFirst, selectedBuildLabel }: InsightCardProps)
 }
 
 // ---------------------------------------------------------------------------
+// Tab Selector
+// ---------------------------------------------------------------------------
+
+interface InsightTabsProps {
+  types: string[]
+  selectedType: string
+  onSelect: (type: string) => void
+  insightsByType: Record<string, CommanderInsight[]>
+  selectedBuildLabel?: string | null
+}
+
+function InsightTabs({ types, selectedType, onSelect, insightsByType, selectedBuildLabel }: InsightTabsProps) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {types.map(type => {
+        const config = getInsightTypeConfig(type)
+        const Icon = config.icon
+        const typeInsights = insightsByType[type] || []
+        const buildCount = typeInsights.filter(i => !isGenericInsight(i)).length
+        const isSelected = selectedType === type
+        
+        return (
+          <button
+            key={type}
+            onClick={() => onSelect(type)}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[length:var(--fs-sm)] transition-colors',
+              isSelected
+                ? 'bg-[#1D9E75]/15 text-[#1D9E75]'
+                : 'bg-white/[0.03] text-muted-foreground hover:bg-white/[0.06] hover:text-foreground'
+            )}
+          >
+            <Icon className="size-3.5" />
+            <span>{config.label}</span>
+            {buildCount > 0 && selectedBuildLabel && (
+              <span
+                className="ml-1 text-[10px] px-1 rounded"
+                style={{
+                  background: isSelected ? 'rgba(29,158,117,0.2)' : 'rgba(29,158,117,0.1)',
+                  color: '#1D9E75',
+                }}
+              >
+                {buildCount}
+              </span>
+            )}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Insight List (for selected type)
+// ---------------------------------------------------------------------------
+
+interface InsightListProps {
+  insights: CommanderInsight[]
+  selectedBuildLabel?: string | null
+}
+
+function InsightList({ insights, selectedBuildLabel }: InsightListProps) {
+  // Separate generic vs build-specific insights
+  const genericInsights = insights.filter(isGenericInsight)
+  const buildInsights = insights.filter(i => !isGenericInsight(i))
+  
+  // Show build-specific first if available, then generic
+  const orderedInsights = [...buildInsights, ...genericInsights]
+  
+  return (
+    <div className="space-y-3">
+      {orderedInsights.map((insight, idx) => (
+        <InsightCard
+          key={insight.id}
+          insight={insight}
+          isFirst={idx === 0}
+          selectedBuildLabel={selectedBuildLabel}
+        />
+      ))}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Main Component
 // ---------------------------------------------------------------------------
 
@@ -302,12 +302,28 @@ export function StrategyGuide({
   selectedBuildLabel,
   commanderName,
 }: StrategyGuideProps) {
+  const groupedInsights = groupInsightsByType(insights || [])
+  const types = groupedInsights.map(([type]) => type)
+  const insightsByType = Object.fromEntries(groupedInsights)
+  
+  // Track selected insight type
+  const [selectedType, setSelectedType] = useState<string>(types[0] || '')
+  
+  // Update selected type if current selection becomes unavailable
+  if (selectedType && !types.includes(selectedType) && types.length > 0) {
+    setSelectedType(types[0])
+  }
+  
   if (isLoading) {
     return (
       <div className="space-y-3">
-        <Skeleton className="h-14 w-full rounded-lg" />
-        <Skeleton className="h-14 w-full rounded-lg" />
-        <Skeleton className="h-14 w-full rounded-lg" />
+        <div className="flex gap-2">
+          <Skeleton className="h-8 w-32 rounded-md" />
+          <Skeleton className="h-8 w-28 rounded-md" />
+          <Skeleton className="h-8 w-36 rounded-md" />
+        </div>
+        <Skeleton className="h-24 w-full rounded-lg" />
+        <Skeleton className="h-24 w-full rounded-lg" />
       </div>
     )
   }
@@ -332,19 +348,39 @@ export function StrategyGuide({
     )
   }
   
-  const groupedInsights = groupInsightsByType(insights)
+  const selectedInsights = insightsByType[selectedType] || []
+  const selectedConfig = getInsightTypeConfig(selectedType)
   
-  // Count build-specific vs generic
-  const buildSpecificCount = insights.filter(i => !isGenericInsight(i)).length
-  const genericCount = insights.filter(isGenericInsight).length
+  // Count build-specific vs generic for selected type
+  const buildSpecificCount = selectedInsights.filter(i => !isGenericInsight(i)).length
+  const genericCount = selectedInsights.filter(isGenericInsight).length
   
   return (
     <div className="space-y-4">
-      {/* Summary header */}
+      {/* Tab selector */}
+      <InsightTabs
+        types={types}
+        selectedType={selectedType}
+        onSelect={setSelectedType}
+        insightsByType={insightsByType}
+        selectedBuildLabel={selectedBuildLabel}
+      />
+      
+      {/* Section header */}
+      <div className="flex items-center gap-2">
+        <selectedConfig.icon className="size-4" style={{ color: '#1D9E75' }} />
+        <span className="text-[length:var(--fs-md)] font-medium">{selectedConfig.label}</span>
+        {selectedConfig.description && (
+          <span className="text-[length:var(--fs-sm)] text-muted-foreground">
+            — {selectedConfig.description}
+          </span>
+        )}
+      </div>
+      
+      {/* Count summary */}
       <div className="flex items-center gap-2 text-[length:var(--fs-sm)] text-muted-foreground">
-        <Lightbulb className="size-4" style={{ color: '#1D9E75' }} />
         <span>
-          {insights.length} insights
+          {selectedInsights.length} insight{selectedInsights.length !== 1 ? 's' : ''}
           {selectedBuildLabel && buildSpecificCount > 0 && (
             <> — <span style={{ color: '#1D9E75' }}>{buildSpecificCount} for {selectedBuildLabel}</span></>
           )}
@@ -354,19 +390,11 @@ export function StrategyGuide({
         </span>
       </div>
       
-      {/* Insight sections */}
-      <div className="space-y-2">
-        {groupedInsights.map(([type, typeInsights], idx) => (
-          <InsightSection
-            key={type}
-            type={type}
-            insights={typeInsights}
-            // Expand first section by default
-            defaultExpanded={idx === 0}
-            selectedBuildLabel={selectedBuildLabel}
-          />
-        ))}
-      </div>
+      {/* Insights for selected type */}
+      <InsightList
+        insights={selectedInsights}
+        selectedBuildLabel={selectedBuildLabel}
+      />
     </div>
   )
 }

@@ -4,8 +4,6 @@ import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   AlertCircle,
-  BookOpen,
-  Check,
   GripVertical,
   Loader2,
   Lock,
@@ -14,7 +12,6 @@ import {
   RefreshCw,
   Save,
   Trash2,
-  X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -55,16 +52,6 @@ interface CategoryInfo {
   cards: string[]
 }
 
-interface DeckDocumentation {
-  deck_id: number
-  strategy_playstyle: string | null
-  synergy_lines: string | null
-  strengths_weaknesses: string | null
-  matchup_notes: string | null
-  mulligan_guide: string | null
-  updated_at: string
-}
-
 interface DeckNote {
   id: number
   deck_id: number
@@ -96,14 +83,6 @@ const FORMAT_TYPE_OPTIONS = [
   { value: 'precon_mod', label: 'Precon Mod' },
   { value: 'baggy_league', label: 'Baggy League' },
   { value: 'custom', label: 'Custom' },
-]
-
-const DOCUMENTATION_SECTIONS: { key: keyof Pick<DeckDocumentation, 'strategy_playstyle' | 'synergy_lines' | 'strengths_weaknesses' | 'matchup_notes' | 'mulligan_guide'>; label: string }[] = [
-  { key: 'strategy_playstyle', label: 'Strategy & Playstyle' },
-  { key: 'synergy_lines', label: 'Key Synergy Lines' },
-  { key: 'strengths_weaknesses', label: 'Strengths & Weaknesses' },
-  { key: 'matchup_notes', label: 'Matchup Notes' },
-  { key: 'mulligan_guide', label: 'Mulligan Guide' },
 ]
 
 // ---------------------------------------------------------------------------
@@ -205,32 +184,12 @@ export function StrategyTab({ deckId, deckType, commanderName, cards }: Strategy
   const [strategyNotes, setStrategyNotes] = useState('')
   const [isEditing, setIsEditing] = useState(false)
 
-  // Documentation inline editing state
-  const [editingDocField, setEditingDocField] = useState<string | null>(null)
-  const [editDocValue, setEditDocValue] = useState('')
-  const [docSaveSuccess, setDocSaveSuccess] = useState<string | null>(null)
-
   // Fetch strategy data
   const { data: strategy, isLoading, error } = useQuery<StrategyData>({
     queryKey: ['decks', deckId, 'strategy'],
     queryFn: async () => {
       const res = await fetch(`/api/decks/${deckId}/strategy`)
       if (!res.ok) throw new Error('Failed to load strategy')
-      return res.json()
-    },
-    staleTime: 5 * 60 * 1000,
-  })
-
-  // Fetch documentation data
-  const {
-    data: documentationData,
-    isLoading: isDocLoading,
-    error: docError,
-  } = useQuery<{ documentation: DeckDocumentation | null }>({
-    queryKey: ['decks', deckId, 'documentation'],
-    queryFn: async () => {
-      const res = await fetch(`/api/decks/${deckId}/documentation`)
-      if (!res.ok) throw new Error('Failed to load documentation')
       return res.json()
     },
     staleTime: 5 * 60 * 1000,
@@ -249,28 +208,6 @@ export function StrategyTab({ deckId, deckType, commanderName, cards }: Strategy
       return res.json()
     },
     staleTime: 5 * 60 * 1000,
-  })
-
-  // Documentation save mutation
-  const docMutation = useMutation({
-    mutationFn: (fields: Record<string, string | null>) =>
-      fetch(`/api/decks/${deckId}/documentation`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(fields),
-      }).then(r => { if (!r.ok) throw new Error('Save failed'); return r.json() }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'documentation'] })
-      setDocSaveSuccess(editingDocField)
-      setEditingDocField(null)
-      setEditDocValue('')
-      // Clear success indicator after 2 seconds
-      setTimeout(() => setDocSaveSuccess(null), 2000)
-    },
-    onError: (err: Error) => {
-      // Preserve the edit state so the user can retry
-      toast.error(err.message || 'Failed to save documentation')
-    },
   })
 
   // Save mutation
@@ -642,136 +579,7 @@ export function StrategyTab({ deckId, deckType, commanderName, cards }: Strategy
         </div>
       </section>
 
-      {/* ─── Section 4: Deck Documentation ──────────────────────────── */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <BookOpen className="h-4 w-4" style={{ color: '#1D9E75' }} />
-          <h3 className="text-[length:var(--fs-md)] font-medium">Deck Documentation</h3>
-        </div>
-
-        {isDocLoading && (
-          <div className="space-y-2">
-            <Skeleton className="h-20 w-full rounded-lg" />
-            <Skeleton className="h-20 w-full rounded-lg" />
-          </div>
-        )}
-
-        {docError && (
-          <div className="flex items-center gap-2 p-3 rounded-md" style={{ background: 'rgba(239,68,68,0.05)', border: '0.5px solid rgba(239,68,68,0.2)' }}>
-            <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-            <span className="text-[length:var(--fs-md)] text-destructive">Failed to load documentation</span>
-          </div>
-        )}
-
-        {!isDocLoading && !docError && documentationData?.documentation === null && (
-          <div
-            className="rounded-lg p-6 text-center"
-            style={{
-              background: 'rgba(255,255,255,0.02)',
-              border: '0.5px dashed rgba(255,255,255,0.15)',
-            }}
-          >
-            <p className="text-[length:var(--fs-md)] text-muted-foreground">
-              No documentation generated yet.
-            </p>
-          </div>
-        )}
-
-        {!isDocLoading && !docError && documentationData?.documentation && (
-          <div className="space-y-3">
-            {DOCUMENTATION_SECTIONS.map(({ key, label }) => {
-              const value = documentationData.documentation![key]
-              const isEditingThis = editingDocField === key
-              const justSaved = docSaveSuccess === key
-
-              if (value === null && !isEditingThis) return null
-
-              return (
-                <div key={key}>
-                  <div className="flex items-center justify-between mb-0.5">
-                    <span className="text-[11px] text-muted-foreground">{label}</span>
-                    <div className="flex items-center gap-1">
-                      {justSaved && (
-                        <span className="flex items-center gap-1 text-[11px]" style={{ color: '#1D9E75' }}>
-                          <Check className="h-3 w-3" />
-                          Saved
-                        </span>
-                      )}
-                      {!isEditingThis && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-1.5 text-[11px]"
-                          onClick={() => {
-                            setEditingDocField(key)
-                            setEditDocValue(value ?? '')
-                          }}
-                        >
-                          <Pencil className="h-3 w-3 mr-0.5" />
-                          Edit
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-
-                  {isEditingThis ? (
-                    <div className="space-y-2">
-                      <Textarea
-                        value={editDocValue}
-                        onChange={e => setEditDocValue(e.target.value)}
-                        rows={5}
-                        style={fieldStyle}
-                        className="text-[length:var(--fs-md)]"
-                        placeholder={`Enter ${label.toLowerCase()}...`}
-                      />
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          className="h-7 text-[length:var(--fs-sm)] text-white hover:opacity-90"
-                          style={{ background: '#1D9E75' }}
-                          disabled={docMutation.isPending}
-                          onClick={() => {
-                            docMutation.mutate({ [key]: editDocValue || null })
-                          }}
-                        >
-                          {docMutation.isPending ? (
-                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                          ) : (
-                            <Save className="h-3 w-3 mr-1" />
-                          )}
-                          Save
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-[length:var(--fs-sm)]"
-                          disabled={docMutation.isPending}
-                          onClick={() => {
-                            setEditingDocField(null)
-                            setEditDocValue('')
-                          }}
-                        >
-                          <X className="h-3 w-3 mr-0.5" />
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div
-                      className="rounded-md px-3 py-2 text-[length:var(--fs-md)] whitespace-pre-wrap"
-                      style={fieldStyle}
-                    >
-                      {value}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* ─── Section 5: Notes ───────────────────────────────────────── */}
+      {/* ─── Section 4: Notes ───────────────────────────────────────── */}
       <section className="space-y-3">
         <h3 className="text-[length:var(--fs-md)] font-medium">Notes</h3>
 

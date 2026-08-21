@@ -80,10 +80,22 @@ interface EdhrecCardList {
   cardviews: EdhrecCardView[];
 }
 
+/**
+ * EDHREC tag_counts entry (array element)
+ * 
+ * EDHREC's API returns tag_counts as an ARRAY of objects, not a Record<string, number>.
+ * Each element has { count, slug, value }.
+ */
+interface EdhrecTagCount {
+  count: number;     // Number of decks with this tag
+  slug: string;      // URL-safe key (e.g., "enchantress")
+  value: string;     // Display name (e.g., "Enchantress")
+}
+
 interface EdhrecCommanderData {
   // Top-level fields
   header?: string;
-  tag_counts?: Record<string, number>;
+  tag_counts?: EdhrecTagCount[]; // Array of { count, slug, value }
   similar?: Array<{ name: string; sanitized: string; num_decks: number }>;
   panels?: {
     combocounts?: Array<{ cards: string[]; count: number }>;
@@ -293,6 +305,12 @@ function mapHeaderToCardType(header: string): string | null {
 
 /**
  * Extract build variant insights from tag_counts
+ * 
+ * NOTE: EDHREC's tag_counts is an ARRAY of objects, not a Record<string, number>.
+ * Each element has { count, slug, value } where:
+ *   - count: number of decks with this tag
+ *   - slug: URL-safe key (e.g., "enchantress")
+ *   - value: display name (e.g., "Enchantress")
  */
 function extractBuildVariants(
   data: EdhrecCommanderData,
@@ -310,7 +328,8 @@ function extractBuildVariants(
   source_trust: number;
   taxonomy_tags: string[];
 }> {
-  const tagCounts = data.tag_counts || {};
+  // EDHREC returns tag_counts as an array of { count, slug, value }
+  const tagCountsArray = (data.tag_counts || []) as unknown as EdhrecTagCount[];
   const totalDecks = data.container?.json_dict?.card?.num_decks || 1;
   const sourceTrust = getBaseTrust('edhrec'); // 0.85 for EDHREC stats
   
@@ -324,11 +343,13 @@ function extractBuildVariants(
     confidence: number;
     source_trust: number;
     taxonomy_tags: string[];
-    confidence: number;
-    taxonomy_tags: string[];
   }> = [];
   
-  for (const [tag, count] of Object.entries(tagCounts)) {
+  for (const tagEntry of tagCountsArray) {
+    const tag = tagEntry.slug; // Use slug as the canonical tag identifier
+    const displayName = tagEntry.value; // Human-readable name
+    const count = tagEntry.count;
+    
     // Track tag statistics
     const mapping = getTagMapping(tag);
     const normalized = normalizeTag(tag);
@@ -368,7 +389,7 @@ function extractBuildVariants(
       commander_id: commanderId,
       insight_type: 'strategy', // Use existing allowed value
       build_variant: normalized,
-      content: `${count.toLocaleString()} decks (${percentage}%) build ${commanderName} with a ${tag} focus.`,
+      content: `${count.toLocaleString()} decks (${percentage}%) build ${commanderName} with a ${displayName} focus.`,
       source_type: 'edhrec',
       source_url: `https://edhrec.com/commanders/${toEdhrecSlug(commanderName)}`,
       confidence: Math.min(0.9, count / 1000), // Cap at 0.9, scale by popularity
@@ -382,6 +403,8 @@ function extractBuildVariants(
 
 /**
  * Extract taxonomy entries from tag_counts
+ * 
+ * NOTE: EDHREC's tag_counts is an ARRAY of objects (see EdhrecTagCount type).
  */
 function extractTaxonomyEntries(
   data: EdhrecCommanderData,
@@ -393,7 +416,8 @@ function extractTaxonomyEntries(
   confidence: number;
   relevance: string;
 }> {
-  const tagCounts = data.tag_counts || {};
+  // EDHREC returns tag_counts as an array of { count, slug, value }
+  const tagCountsArray = (data.tag_counts || []) as unknown as EdhrecTagCount[];
   const totalDecks = data.container?.json_dict?.card?.num_decks || 1;
   const entries: Array<{
     commander_id: string;
@@ -405,7 +429,10 @@ function extractTaxonomyEntries(
   
   const seenSlugs = new Set<string>();
   
-  for (const [tag, count] of Object.entries(tagCounts)) {
+  for (const tagEntry of tagCountsArray) {
+    const tag = tagEntry.slug;
+    const count = tagEntry.count;
+    
     const mapping = getTagMapping(tag);
     if (!mapping) continue;
     

@@ -32,6 +32,8 @@ interface Deck {
   name: string
   commander_name: string
   commander_scryfall_id: string
+  commander_id: string | null
+  build_id: string | null
   colour_identity: string
   card_count: number
   deck_type: string | null
@@ -309,6 +311,8 @@ export default function DeckViewPage() {
               deckId={deck.id}
               deckType={deck.deck_type}
               commanderName={deck.commander_name}
+              commanderId={deck.commander_id}
+              buildId={deck.build_id}
               cards={cards}
             />
           </div>

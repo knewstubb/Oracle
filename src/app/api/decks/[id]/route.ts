@@ -137,12 +137,25 @@ export async function GET(
     .maybeSingle()
 
   // Fetch commander metadata (salt score, EDHREC rank) from ref_commanders
-  const { data: commanderMeta } = await supabase
-    .from('ref_commanders')
-    .select('salt_score, edhrec_rank, edhrec_deck_count')
-    .ilike('display_name', deck.commander_name)
-    .limit(1)
-    .maybeSingle()
+  // Use commander_id if available, otherwise fall back to name lookup
+  let commanderMeta: { id: string; salt_score: number | null; edhrec_rank: number | null; edhrec_deck_count: number | null } | null = null
+  
+  if (deck.commander_id) {
+    const { data } = await supabase
+      .from('ref_commanders')
+      .select('id, salt_score, edhrec_rank, edhrec_deck_count')
+      .eq('id', deck.commander_id)
+      .maybeSingle()
+    commanderMeta = data
+  } else if (deck.commander_name) {
+    const { data } = await supabase
+      .from('ref_commanders')
+      .select('id, salt_score, edhrec_rank, edhrec_deck_count')
+      .ilike('display_name', deck.commander_name)
+      .limit(1)
+      .maybeSingle()
+    commanderMeta = data
+  }
 
   // Allocation status is now on deck_cards.ownership_status directly
   // Build allocationMap from cards data
@@ -196,6 +209,7 @@ export async function GET(
   return Response.json({
     deck: {
       ...deck,
+      commander_id: commanderMeta?.id ?? deck.commander_id ?? null,
       salt_score: commanderMeta?.salt_score ?? null,
       edhrec_rank: commanderMeta?.edhrec_rank ?? null,
       edhrec_deck_count: commanderMeta?.edhrec_deck_count ?? null,
@@ -259,4 +273,75 @@ export async function DELETE(
   }
 
   return Response.json({ success: true })
+}
+
+/**
+ * PATCH /api/decks/[id]
+ * Updates deck metadata fields (currently: build_id)
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+
+  const { id } = await params
+  const deckId = parseInt(id, 10)
+  if (isNaN(deckId)) {
+    return Response.json({ error: 'Invalid deck ID' }, { status: 400 })
+  }
+
+  let body: { build_id?: string | null }
+  try {
+    body = await request.json()
+  } catch {
+    return Response.json({ error: 'Invalid JSON' }, { status: 400 })
+  }
+
+  const supabase = createAdminClient()
+
+  // Verify deck ownership
+  const { data: deck, error: deckErr } = await supabase
+    .from('decks')
+    .select('id')
+    .eq('id', deckId)
+    .eq('user_id', authResult.id)
+    .maybeSingle()
+
+  if (deckErr) {
+    return Response.json({ error: deckErr.message }, { status: 500 })
+  }
+  if (!deck) {
+    return Response.json({ error: 'Deck not found' }, { status: 404 })
+  }
+
+  // Build update payload with allowed fields
+  const updatePayload: Record<string, unknown> = {}
+
+  if ('build_id' in body) {
+    // Validate build_id is a valid UUID or null
+    if (body.build_id !== null) {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      if (!uuidRegex.test(body.build_id)) {
+        return Response.json({ error: 'Invalid build_id format' }, { status: 400 })
+      }
+    }
+    updatePayload.build_id = body.build_id
+  }
+
+  if (Object.keys(updatePayload).length === 0) {
+    return Response.json({ error: 'No valid fields to update' }, { status: 400 })
+  }
+
+  const { error: updateErr } = await supabase
+    .from('decks')
+    .update(updatePayload)
+    .eq('id', deckId)
+
+  if (updateErr) {
+    return Response.json({ error: updateErr.message }, { status: 500 })
+  }
+
+  return Response.json({ success: true, updated: updatePayload })
 }

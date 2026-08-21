@@ -150,11 +150,12 @@ export async function getCardPrinting(cardName: string): Promise<PrintingData | 
     return standardPrinting || candidates[0] || null
   }
   
-  // First try: exact match (fast, case-sensitive)
+  // First try: exact match (fast, case-sensitive), paper printings only
   const { data: exactCandidates, error: exactError } = await supabase
     .from('ref_printings')
     .select(selectFields)
     .eq('name', cardName)
+    .eq('digital', false)
     .order('released_at', { ascending: false })
     .limit(10)
   
@@ -167,6 +168,7 @@ export async function getCardPrinting(cardName: string): Promise<PrintingData | 
     .from('ref_printings')
     .select(selectFields)
     .ilike('name', cardName)
+    .eq('digital', false)
     .order('released_at', { ascending: false })
     .limit(10)
   
@@ -181,6 +183,7 @@ export async function getCardPrinting(cardName: string): Promise<PrintingData | 
       .from('ref_printings')
       .select(selectFields)
       .ilike('name', `${frontFace} // %`)
+      .eq('digital', false)
       .order('released_at', { ascending: false })
       .limit(10)
     
@@ -196,6 +199,7 @@ export async function getCardPrinting(cardName: string): Promise<PrintingData | 
       .from('ref_printings')
       .select(selectFields)
       .ilike('name', `${cardName} // %`)
+      .eq('digital', false)
       .order('released_at', { ascending: false })
       .limit(10)
     
@@ -315,7 +319,7 @@ export async function getCardsByNames(cardNames: string[]): Promise<Map<string, 
 
 /**
  * Get printings for multiple cards in a single query.
- * Returns most recent printing for each card.
+ * Returns most recent paper printing for each card.
  */
 export async function getPrintingsByNames(cardNames: string[]): Promise<Map<string, PrintingData | null>> {
   const supabase = createAdminClient()
@@ -325,6 +329,7 @@ export async function getPrintingsByNames(cardNames: string[]): Promise<Map<stri
     .from('ref_printings')
     .select('scryfall_id, name, set_code, set_name, collector_number, rarity, price_usd, image_uri_small, image_uri_normal, image_uri_large, image_uri_art_crop, released_at')
     .in('name', cardNames)
+    .eq('digital', false)
     .order('released_at', { ascending: false })
   
   // Keep only the most recent printing per name

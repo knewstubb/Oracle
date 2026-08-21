@@ -130,11 +130,12 @@ export async function lookupBySetAndNumber(
 export async function lookupByName(cardName: string): Promise<CardLookupResult> {
   const supabase = createAdminClient()
   
-  // Try local first — get the most recent printing
+  // Try local first — get the most recent paper printing
   const { data, error } = await supabase
     .from('ref_printings')
     .select('*')
     .eq('name', cardName)
+    .eq('digital', false)
     .order('released_at', { ascending: false })
     .limit(1)
     .single()
@@ -150,6 +151,7 @@ export async function lookupByName(cardName: string): Promise<CardLookupResult> 
       .from('ref_printings')
       .select('*')
       .ilike('name', `${frontFace} // %`)
+      .eq('digital', false)
       .order('released_at', { ascending: false })
       .limit(1)
       .single()
@@ -196,11 +198,12 @@ export async function lookupManyByName(
   const results = new Map<string, CardPrinting | null>()
   const notFound: string[] = []
   
-  // Batch query local DB
+  // Batch query local DB — paper printings only
   const { data: localCards } = await supabase
     .from('ref_printings')
     .select('*')
     .in('name', cardNames)
+    .eq('digital', false)
   
   // Build a map of name -> card (most recent printing per name)
   const localMap = new Map<string, CardPrinting>()

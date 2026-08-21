@@ -6,7 +6,6 @@ import {
   AlertCircle,
   ChevronDown,
   GripVertical,
-  Lightbulb,
   Loader2,
   Lock,
   Pencil,
@@ -21,6 +20,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
+import { StrategyGuide } from '@/components/StrategyGuide'
 import type { DeckCard } from '@/components/CardGrid'
 
 // ---------------------------------------------------------------------------
@@ -684,12 +684,11 @@ export function StrategyTab({ deckId, deckType, commanderName, commanderId, buil
         </section>
       )}
 
-      {/* ─── Section 3: Commander Insights ──────────────────────────── */}
+      {/* ─── Section 3: Strategy Guide ─────────────────────────────── */}
       {commanderId && (
         <section className="space-y-3">
           <div className="flex items-center gap-2">
-            <Lightbulb className="h-4 w-4" style={{ color: '#1D9E75' }} />
-            <h3 className="text-[length:var(--fs-md)] font-medium">Commander Insights</h3>
+            <h3 className="text-[length:var(--fs-md)] font-medium">Strategy Guide</h3>
             {selectedBuild && (
               <Badge
                 variant="secondary"
@@ -701,69 +700,12 @@ export function StrategyTab({ deckId, deckType, commanderName, commanderId, buil
             )}
           </div>
 
-          {isInsightsLoading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-16 w-full rounded-lg" />
-              <Skeleton className="h-16 w-full rounded-lg" />
-            </div>
-          ) : insightsData && insightsData.insights.length > 0 ? (
-            <div className="space-y-3">
-              {/* Group insights by type */}
-              {Object.entries(insightsData.byType).map(([type, typeInsights]) => (
-                <div key={type} className="space-y-2">
-                  <h4 className="text-[length:var(--fs-sm)] font-medium text-muted-foreground capitalize">
-                    {type.replace(/_/g, ' ')}
-                  </h4>
-                  {typeInsights.slice(0, 3).map(insight => (
-                    <div
-                      key={insight.id}
-                      className="rounded-md px-3 py-2"
-                      style={{
-                        background: 'rgba(255,255,255,0.03)',
-                        border: '0.5px solid rgba(255,255,255,0.06)',
-                      }}
-                    >
-                      <p className="text-[length:var(--fs-md)] leading-relaxed">
-                        {insight.content}
-                      </p>
-                      {insight.cardMentions && insight.cardMentions.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {insight.cardMentions.slice(0, 5).map(card => (
-                            <Badge
-                              key={card}
-                              variant="outline"
-                              className="text-[length:var(--fs-xs)] px-1.5 py-0"
-                            >
-                              {card}
-                            </Badge>
-                          ))}
-                          {insight.cardMentions.length > 5 && (
-                            <span className="text-[length:var(--fs-xs)] text-muted-foreground">
-                              +{insight.cardMentions.length - 5} more
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      {(insight.archetype || insight.buildVariant) && (
-                        <div className="flex items-center gap-1 mt-1">
-                          <Badge
-                            className="text-[9px] px-1 py-0"
-                            style={{ background: 'rgba(29,158,117,0.1)', color: '#1D9E75' }}
-                          >
-                            {insight.archetype || insight.buildVariant}
-                          </Badge>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-[length:var(--fs-md)] text-muted-foreground">
-              No insights available for this commander yet.
-            </p>
-          )}
+          <StrategyGuide
+            insights={insightsData?.insights || []}
+            isLoading={isInsightsLoading}
+            selectedBuildLabel={selectedBuild ? formatBuildLabel(selectedBuild) : null}
+            commanderName={commanderName}
+          />
         </section>
       )}
 

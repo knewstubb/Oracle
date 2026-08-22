@@ -1084,7 +1084,7 @@ registry.set('get_deck_cards', {
         return { content: `Deck not found or access denied (id: ${deckId})`, is_error: true }
       }
       
-      // Fetch the cards in the deck
+      // Fetch the cards in the deck - just the basic info from deck_cards
       const { data: cards, error: cardsError } = await supabase
         .from('deck_cards')
         .select(`
@@ -1092,12 +1092,8 @@ registry.set('get_deck_cards', {
           card_name,
           quantity,
           categories,
-          mana_cost,
-          mana_value,
-          type_line,
-          rarity,
           set_code,
-          price_usd
+          scryfall_id
         `)
         .eq('deck_id', deckId)
         .order('card_name')
@@ -1105,6 +1101,53 @@ registry.set('get_deck_cards', {
       if (cardsError) {
         console.error('[get_deck_cards] Query error:', cardsError)
         throw new Error(`Failed to fetch deck cards: ${cardsError.message}`)
+      }
+      
+      // Fetch mana costs and other metadata from ref_cards
+      const cardNames = (cards || []).map(c => c.card_name)
+      const manaCostMap: Record<string, { mana_cost: string | null; mana_value: number | null; type_line: string | null }> = {}
+      
+      if (cardNames.length > 0) {
+        // Batch fetch in groups of 200 to avoid URL length limits
+        for (let i = 0; i < cardNames.length; i += 200) {
+          const batch = cardNames.slice(i, i + 200)
+          const { data: metaRows } = await supabase
+            .from('ref_cards')
+            .select('name, mana_cost, mana_value, type_line')
+            .in('name', batch)
+          
+          for (const row of metaRows || []) {
+            manaCostMap[row.name] = {
+              mana_cost: row.mana_cost,
+              mana_value: row.mana_value,
+              type_line: row.type_line,
+            }
+          }
+        }
+      }
+      
+      // Fetch prices from ref_printings for cards with scryfall_id
+      const priceMap: Record<string, { price_usd: number | null; rarity: string | null }> = {}
+      const scryfallIds = (cards || [])
+        .map(c => c.scryfall_id)
+        .filter((id): id is string => id !== null)
+      
+      if (scryfallIds.length > 0) {
+        const uniqueIds = [...new Set(scryfallIds)]
+        for (let i = 0; i < uniqueIds.length; i += 200) {
+          const batch = uniqueIds.slice(i, i + 200)
+          const { data: priceRows } = await supabase
+            .from('ref_printings')
+            .select('scryfall_id, price_usd, rarity')
+            .in('scryfall_id', batch)
+          
+          for (const row of priceRows || []) {
+            priceMap[row.scryfall_id] = {
+              price_usd: row.price_usd,
+              rarity: row.rarity,
+            }
+          }
+        }
       }
       
       // Group cards by category for easier reading
@@ -1138,17 +1181,22 @@ registry.set('get_deck_cards', {
           cardsByCategory[primaryCategory] = []
         }
         
+        // Look up metadata from the maps we built
+        const meta = manaCostMap[card.card_name] || { mana_cost: null, mana_value: null, type_line: null }
+        const priceInfo = card.scryfall_id ? priceMap[card.scryfall_id] : null
+        const priceUsd = priceInfo?.price_usd || null
+        
         const qty = card.quantity || 1
         totalCards += qty
-        totalValue += (card.price_usd || 0) * qty
+        totalValue += (priceUsd || 0) * qty
         
         cardsByCategory[primaryCategory].push({
           name: card.card_name,
           quantity: qty,
-          mana_cost: card.mana_cost,
-          mana_value: card.mana_value,
-          type_line: card.type_line,
-          price_usd: card.price_usd,
+          mana_cost: meta.mana_cost,
+          mana_value: meta.mana_value,
+          type_line: meta.type_line,
+          price_usd: priceUsd,
         })
       }
       

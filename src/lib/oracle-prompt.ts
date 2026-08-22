@@ -138,6 +138,11 @@ When suggesting cards:
 const DECK_BUILDING_INSTRUCTIONS = `
 === DECK BUILDING (AVAILABLE FROM ANY CONTEXT) ===
 
+**REMINDER: BRACKETS ON EVERY CARD NAME**
+When writing your response, EVERY card and commander name needs [[brackets]]:
+- "[[Abdel Adrian, Corvix's Champion]] is a Boros blink commander" ✓
+- "Abdel Adrian, Corvix's Champion is a Boros blink commander" ✗ WRONG
+
 When the user asks to build a new deck, you can help from ANY page. Your behavior depends on how SPECIFIC their request is:
 
 **GENERIC REQUEST** (no specific criteria):

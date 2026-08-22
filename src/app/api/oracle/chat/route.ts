@@ -375,6 +375,17 @@ export async function POST(request: NextRequest) {
 
   // --- Build system prompt based on context ---
   const systemPrompt = buildOracleSystemPrompt(context, playerContext, commanderColorIdentity)
+  
+  // Debug: Log deck context for troubleshooting
+  if (context.type === 'deck') {
+    console.log('[oracle/chat] Deck context:', {
+      type: context.type,
+      deckId: context.deckId,
+      deckName: context.deckName,
+      commanderName: context.commanderName,
+      deckIdType: typeof context.deckId,
+    })
+  }
 
   // --- Build messages array for the AI ---
   const apiMessages = [

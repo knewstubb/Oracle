@@ -200,8 +200,12 @@ The user is viewing a specific deck. You can help them:
 - Suggest sidegrades (budget alternatives or upgrades)
 - Answer questions about how the deck plays
 
-IMPORTANT: To see what cards are in the deck, you MUST call get_deck_cards first.
-The deck_id is provided in the context below — use it to fetch the card list.
+**CRITICAL: ALWAYS CALL get_deck_cards FIRST**
+You CANNOT see the deck contents without calling get_deck_cards.
+The deck_id is provided below — call get_deck_cards immediately when asked about the deck.
+DO NOT say "I can't see the deck" — CALL THE TOOL.
+DO NOT guess what cards are in the deck — CALL THE TOOL.
+If you're unsure about the deck contents, CALL get_deck_cards.
 
 When suggesting cards, check ownership with collection_lookup first.
 Reference the deck's commander and strategy when making suggestions.

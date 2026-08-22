@@ -4,7 +4,7 @@ import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState 
 import type { ChatMessage, CommanderSummaryContext } from '@/lib/debrief-types'
 import { renderMessageContent, type CardLinkMode, type OwnershipStatus, type OwnershipLookupFn } from '@/lib/render-card-links'
 import { autoBracketCardsSync } from '@/lib/auto-bracket-cards'
-import { cardOwnershipData } from '@/components/CardHoverPreview'
+import { cardOwnershipData, usePreloadCardImages } from '@/components/CardHoverPreview'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -111,6 +111,9 @@ export function ChatPanel({ messages, onSend, inputRef, handleRef, isStreaming, 
     }
     return names
   }, [messages])
+
+  // Preload card images for instant hover previews
+  usePreloadCardImages(cardNamesInChat)
 
   // Fetch ownership data for cards not yet in cache (only when mode is 'add')
   useEffect(() => {

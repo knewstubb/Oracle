@@ -6,7 +6,7 @@ import { X, MessageSquarePlus, MessageSquare, Library, LayoutGrid, Sparkles, Wre
 import { useOracle, type OracleContext, type NavigatePrompt } from '@/contexts/OracleContext'
 import { useQueryClient } from '@tanstack/react-query'
 import { renderMessageContent, type CardLinkMode, type OwnershipStatus, type OwnershipLookupFn } from '@/lib/render-card-links'
-import { cardOwnershipData } from '@/components/CardHoverPreview'
+import { cardOwnershipData, usePreloadCardImages } from '@/components/CardHoverPreview'
 import { CommanderSuggestionRow, parseCommanderSuggestions, stripCommanderSuggestions } from '@/components/CommanderSuggestionCard'
 import { deckKeys } from '@/hooks/useDeckQueryKeys'
 import { cn } from '@/lib/utils'
@@ -162,6 +162,9 @@ export function OracleSidebar() {
     }
     return names
   }, [messages])
+
+  // Preload card images for instant hover previews
+  usePreloadCardImages(cardNamesInChat)
 
   // Fetch ownership data for cards not yet in cache
   useEffect(() => {

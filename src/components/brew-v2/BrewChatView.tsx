@@ -5,7 +5,7 @@ import type { ChatMessage } from '@/lib/debrief-types'
 import type { CommanderOption } from '@/lib/brew-v2-types'
 import { renderMessageContent, type CardLinkMode, type OwnershipStatus, type OwnershipLookupFn } from '@/lib/render-card-links'
 import { CommanderDetailModal } from './CommanderDetailModal'
-import { cardOwnershipData } from '@/components/CardHoverPreview'
+import { cardOwnershipData, usePreloadCardImages } from '@/components/CardHoverPreview'
 import { autoBracketCardsSync } from '@/lib/auto-bracket-cards'
 
 // ---------------------------------------------------------------------------
@@ -103,6 +103,9 @@ export function BrewChatView({ messages, onSend, isStreaming, activeTools, deckN
     }
     return names
   }, [messages])
+
+  // Preload card images for instant hover previews
+  usePreloadCardImages(cardNamesInChat)
 
   // Fetch ownership data for cards not yet in cache
   useEffect(() => {

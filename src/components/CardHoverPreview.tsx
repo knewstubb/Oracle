@@ -843,3 +843,110 @@ export interface CardHoverPreviewRenderProps {
   cursorX: number
   cursorY: number
 }
+
+// ---------------------------------------------------------------------------
+// Image Preloading — for instant hover previews
+// ---------------------------------------------------------------------------
+
+/** Track which card images have been preloaded */
+const preloadedImages = new Set<string>()
+const pendingPreloads = new Set<string>()
+
+/**
+ * Preload a card image by scryfall ID.
+ * Uses the browser's Image API to cache the image in memory.
+ */
+function preloadImageByScryfallId(scryfallId: string): void {
+  if (preloadedImages.has(scryfallId) || pendingPreloads.has(scryfallId)) {
+    return
+  }
+  
+  pendingPreloads.add(scryfallId)
+  
+  const a = scryfallId.charAt(0)
+  const b = scryfallId.charAt(1)
+  const url = `https://cards.scryfall.io/large/front/${a}/${b}/${scryfallId}.jpg`
+  
+  const img = new Image()
+  img.onload = () => {
+    preloadedImages.add(scryfallId)
+    pendingPreloads.delete(scryfallId)
+  }
+  img.onerror = () => {
+    pendingPreloads.delete(scryfallId)
+  }
+  img.src = url
+}
+
+/**
+ * Preload card images for a list of card names.
+ * Fetches scryfall IDs if not cached, then preloads the images.
+ * 
+ * @param cardNames - Array of card names to preload
+ * @param options - Configuration options
+ * @param options.maxConcurrent - Max concurrent preloads (default: 5)
+ * @param options.delayBetween - Delay between batches in ms (default: 100)
+ */
+export async function preloadCardImages(
+  cardNames: string[],
+  options: { maxConcurrent?: number; delayBetween?: number } = {}
+): Promise<void> {
+  const { maxConcurrent = 5, delayBetween = 100 } = options
+  
+  // Filter out cards we've already preloaded or are pending
+  const toPreload = cardNames.filter(name => {
+    const cachedId = scryfallIdCache.get(name)
+    if (cachedId && (preloadedImages.has(cachedId) || pendingPreloads.has(cachedId))) {
+      return false
+    }
+    return true
+  })
+  
+  if (toPreload.length === 0) return
+  
+  // Process in batches to avoid overwhelming the browser
+  for (let i = 0; i < toPreload.length; i += maxConcurrent) {
+    const batch = toPreload.slice(i, i + maxConcurrent)
+    
+    await Promise.all(
+      batch.map(async (cardName) => {
+        try {
+          const scryfallId = await getScryfallId(cardName)
+          if (scryfallId) {
+            preloadImageByScryfallId(scryfallId)
+          }
+        } catch {
+          // Ignore errors during preload — non-critical
+        }
+      })
+    )
+    
+    // Small delay between batches to be nice to the network
+    if (i + maxConcurrent < toPreload.length) {
+      await new Promise(resolve => setTimeout(resolve, delayBetween))
+    }
+  }
+}
+
+/**
+ * Hook to preload card images when card names change.
+ * Designed to be called in chat components with the list of card names
+ * extracted from messages.
+ * 
+ * @param cardNames - Set or array of card names to preload
+ */
+export function usePreloadCardImages(cardNames: Set<string> | string[]): void {
+  const namesArray = Array.isArray(cardNames) ? cardNames : Array.from(cardNames)
+  
+  useEffect(() => {
+    if (namesArray.length === 0) return
+    
+    // Delay preloading slightly to prioritize UI rendering
+    const timeoutId = setTimeout(() => {
+      preloadCardImages(namesArray)
+    }, 200)
+    
+    return () => clearTimeout(timeoutId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [namesArray.join(',')])
+}

@@ -12,6 +12,7 @@ import { deckKeys } from '@/hooks/useDeckQueryKeys'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { SessionHistoryPanel } from '@/components/SessionHistoryPanel'
+import { autoBracketCardsSync } from '@/lib/auto-bracket-cards'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -626,9 +627,15 @@ function MessageBubble({
   const commanderSuggestions = isExplorationContext 
     ? parseCommanderSuggestions(message.content)
     : []
-  const textContent = commanderSuggestions.length > 0
+  const rawTextContent = commanderSuggestions.length > 0
     ? stripCommanderSuggestions(message.content)
     : message.content
+  
+  // Auto-bracket card names that the AI forgot to wrap
+  // Only apply when not streaming to avoid flickering
+  const textContent = isStreaming 
+    ? rawTextContent 
+    : autoBracketCardsSync(rawTextContent)
 
   return (
     <div className="text-sm text-zinc-300 leading-relaxed">

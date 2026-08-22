@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import type { ChatMessage, CommanderSummaryContext } from '@/lib/debrief-types'
 import { renderMessageContent, type CardLinkMode, type OwnershipStatus, type OwnershipLookupFn } from '@/lib/render-card-links'
+import { autoBracketCardsSync } from '@/lib/auto-bracket-cards'
 import { cardOwnershipData } from '@/components/CardHoverPreview'
 
 // ---------------------------------------------------------------------------
@@ -325,9 +326,12 @@ function MessageBubble({ message, cardLinkMode, onCardAction, onCardNameClick, o
   }
 
   // assistant / system → oracle style (card links have crown/plus buttons)
+  // Apply auto-bracketing to ensure card names are properly wrapped
+  const processedContent = autoBracketCardsSync(message.content)
+  
   return (
     <div className="text-[length:var(--fs-sm)] bg-[rgba(255,255,255,0.03)] border-l-2 border-[#378ADD] pl-2.5 py-1.5 pr-2 rounded-r-md text-[#d4d4d0] leading-relaxed">
-      {renderMessageContent(message.content, cardLinkMode, onCardAction, onCardNameClick, ownershipLookup)}
+      {renderMessageContent(processedContent, cardLinkMode, onCardAction, onCardNameClick, ownershipLookup)}
       {message.cost !== undefined && message.cost > 0 && (
         <div className="text-[length:var(--fs-xs)] text-muted-foreground/50 mt-1">
           {message.cost < 0.01 ? `$${message.cost.toFixed(4)}` : `$${message.cost.toFixed(2)}`}

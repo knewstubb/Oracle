@@ -6,6 +6,7 @@ import type { CommanderOption } from '@/lib/brew-v2-types'
 import { renderMessageContent, type CardLinkMode, type OwnershipStatus, type OwnershipLookupFn } from '@/lib/render-card-links'
 import { CommanderDetailModal } from './CommanderDetailModal'
 import { cardOwnershipData } from '@/components/CardHoverPreview'
+import { autoBracketCardsSync } from '@/lib/auto-bracket-cards'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -413,9 +414,12 @@ function MessageBubble({
     )
   }
 
+  // Auto-bracket card names the AI forgot to wrap
+  const processedContent = autoBracketCardsSync(message.content)
+  
   return (
     <div className="text-[14px] text-zinc-300 leading-relaxed">
-      {renderMessageContent(message.content, cardLinkMode, onCardAction, onCardNameClick, ownershipLookup)}
+      {renderMessageContent(processedContent, cardLinkMode, onCardAction, onCardNameClick, ownershipLookup)}
     </div>
   )
 }

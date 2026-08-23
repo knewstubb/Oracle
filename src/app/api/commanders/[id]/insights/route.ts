@@ -87,9 +87,10 @@ export async function GET(
     // 2. Matching build-specific insights
     if (archetype || buildVariant) {
       // Build OR condition for general + specific
+      // PostgREST syntax: and(a,b) for AND, or(a,b) for OR
       const conditions: string[] = [
-        // General insights have both null
-        '(build_variant.is.null,archetype.is.null)'
+        // General insights have both null — use and() for the compound condition
+        'and(build_variant.is.null,archetype.is.null)'
       ]
       
       if (archetype) {

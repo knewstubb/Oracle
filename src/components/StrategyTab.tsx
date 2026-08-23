@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   AlertCircle,
   ChevronDown,
+  ChevronRight,
   GripVertical,
   Loader2,
   Lock,
@@ -21,6 +22,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { StrategyGuide } from '@/components/StrategyGuide'
+import { CommanderOverview } from '@/components/CommanderOverview'
 import type { DeckCard } from '@/components/CardGrid'
 
 // ---------------------------------------------------------------------------
@@ -113,7 +115,7 @@ interface InsightsResponse {
   commanderName: string
   insights: CommanderInsight[]
   byType: Record<string, CommanderInsight[]>
-  filters: { archetype: string | null; buildVariant: string | null }
+  filters: { archetype: string | null; buildVariant: string | null; generalOnly?: boolean }
 }
 
 // ---------------------------------------------------------------------------
@@ -209,16 +211,13 @@ function detectOverlaps(categories: CategoryInfo[]): Record<string, string> {
 }
 
 // ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
 // Main Component
 // ---------------------------------------------------------------------------
 
 export function StrategyTab({ deckId, deckType, commanderName, commanderId, buildId, cards }: StrategyTabProps) {
   const queryClient = useQueryClient()
   const [showSyncConfirm, setShowSyncConfirm] = useState(false)
+  const [isDeckIntentExpanded, setIsDeckIntentExpanded] = useState(false)
 
   // Build selector state - initialized from prop
   const [selectedBuildId, setSelectedBuildId] = useState<string | null>(buildId)
@@ -238,7 +237,7 @@ export function StrategyTab({ deckId, deckType, commanderName, commanderId, buil
   const [strategyNotes, setStrategyNotes] = useState('')
   const [isEditing, setIsEditing] = useState(false)
 
-  // Fetch strategy data
+  // Fetch strategy data (deck intent)
   const { data: strategy, isLoading, error } = useQuery<StrategyData>({
     queryKey: ['decks', deckId, 'strategy'],
     queryFn: async () => {
@@ -267,8 +266,21 @@ export function StrategyTab({ deckId, deckType, commanderName, commanderId, buil
     return buildsData.builds.find(b => b.id === selectedBuildId) ?? null
   }, [buildsData?.builds, selectedBuildId])
 
-  // Fetch commander insights (filtered by selected build's archetype/theme)
-  const { data: insightsData, isLoading: isInsightsLoading } = useQuery<InsightsResponse>({
+  // Fetch GENERAL commander insights (for overview section)
+  const { data: generalInsightsData, isLoading: isGeneralInsightsLoading } = useQuery<InsightsResponse>({
+    queryKey: ['commanders', commanderId, 'insights', 'general'],
+    queryFn: async () => {
+      const url = `/api/commanders/${commanderId}/insights?general=true`
+      const res = await fetch(url)
+      if (!res.ok) throw new Error('Failed to load general insights')
+      return res.json()
+    },
+    enabled: !!commanderId,
+    staleTime: 10 * 60 * 1000,
+  })
+
+  // Fetch BUILD-SPECIFIC insights (filtered by selected build's archetype/theme)
+  const { data: buildInsightsData, isLoading: isBuildInsightsLoading } = useQuery<InsightsResponse>({
     queryKey: ['commanders', commanderId, 'insights', selectedBuild?.archetype, selectedBuild?.theme],
     queryFn: async () => {
       const params = new URLSearchParams()
@@ -276,10 +288,10 @@ export function StrategyTab({ deckId, deckType, commanderName, commanderId, buil
       if (selectedBuild?.theme) params.set('build_variant', selectedBuild.theme)
       const url = `/api/commanders/${commanderId}/insights${params.toString() ? '?' + params.toString() : ''}`
       const res = await fetch(url)
-      if (!res.ok) throw new Error('Failed to load insights')
+      if (!res.ok) throw new Error('Failed to load build insights')
       return res.json()
     },
-    enabled: !!commanderId,
+    enabled: !!commanderId && !!selectedBuildId,
     staleTime: 10 * 60 * 1000,
   })
 
@@ -345,11 +357,10 @@ export function StrategyTab({ deckId, deckType, commanderName, commanderId, buil
     },
   })
 
-  // Handle build selection change
-  function handleBuildChange(newBuildId: string) {
-    const value = newBuildId === '' ? null : newBuildId
-    setSelectedBuildId(value)
-    saveBuildMutation.mutate(value)
+  // Handle build selection change (from CommanderOverview chips or dropdown)
+  function handleBuildChange(newBuildId: string | null) {
+    setSelectedBuildId(newBuildId)
+    saveBuildMutation.mutate(newBuildId)
   }
 
   // Populate form from fetched data
@@ -370,6 +381,7 @@ export function StrategyTab({ deckId, deckType, commanderName, commanderId, buil
       )
     }
     setIsEditing(true)
+    setIsDeckIntentExpanded(true)
   }
 
   function handleSave() {
@@ -457,252 +469,73 @@ export function StrategyTab({ deckId, deckType, commanderName, commanderId, buil
 
   return (
     <div className="space-y-6 p-4 max-w-4xl mx-auto">
-      {/* ─── Section 1: Deck intent ─────────────────────────────────── */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-[length:var(--fs-md)] font-medium">Deck intent</h3>
-          {!isEditing && strategy?.configured && (
-            <Button variant="ghost" size="sm" onClick={startEditing}>
-              <Pencil className="h-3.5 w-3.5 mr-1" />
-              Edit
-            </Button>
-          )}
-        </div>
-
-        {!isEditing && !strategy?.configured && (
-          <div
-            className="rounded-lg p-6 text-center"
-            style={{
-              background: 'rgba(255,255,255,0.02)',
-              border: '0.5px dashed rgba(255,255,255,0.15)',
-            }}
-          >
-            <p className="text-[length:var(--fs-md)] text-muted-foreground mb-3">
-              Configure your deck&apos;s strategic intent to drive personalised recommendations.
-            </p>
-            <Button size="sm" onClick={startEditing}>
-              Configure Strategy
-            </Button>
-          </div>
-        )}
-
-        {!isEditing && strategy?.configured && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {strategy.win_condition && (
-              <FieldDisplay label="Win condition" value={strategy.win_condition} fullWidth />
-            )}
-            {strategy.bracket && (
-              <FieldDisplay
-                label="Bracket"
-                value={BRACKET_OPTIONS.find(b => b.value === strategy.bracket)?.label || String(strategy.bracket)}
-              />
-            )}
-            {strategy.table_context && (
-              <FieldDisplay label="Table context" value={strategy.table_context} />
-            )}
-            {strategy.frustration && (
-              <FieldDisplay label="Frustrations" value={strategy.frustration} />
-            )}
-            {strategy.budget_mode && (
-              <FieldDisplay
-                label="Budget mode"
-                value={BUDGET_MODE_OPTIONS.find(b => b.value === strategy.budget_mode)?.label || strategy.budget_mode}
-              />
-            )}
-            {strategy.format_rules != null && typeof strategy.format_rules === 'object' ? (
-              <FieldDisplay
-                label="Format type"
-                value={
-                  FORMAT_TYPE_OPTIONS.find(
-                    f => f.value === String((strategy.format_rules as Record<string, string>)?.format_name ?? '')
-                  )?.label || 'Custom'
-                }
-              />
-            ) : null}
-            {strategy.strategy_notes && (
-              <FieldDisplay label="Strategy notes" value={strategy.strategy_notes} fullWidth />
-            )}
-          </div>
-        )}
-
-        {isEditing && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {/* Row 1 */}
-              <FieldInput label="Win condition" fullWidth>
-                <Textarea
-                  value={winCondition}
-                  onChange={e => setWinCondition(e.target.value)}
-                  placeholder="How does this deck win?"
-                  rows={2}
-                  className="field-input"
-                  style={fieldStyle}
-                />
-              </FieldInput>
-              <FieldInput label="Bracket">
-                <select
-                  value={bracket}
-                  onChange={e => setBracket(e.target.value ? Number(e.target.value) : '')}
-                  className="h-9 w-full rounded-md px-3 py-1 text-[length:var(--fs-md)]"
-                  style={fieldStyle}
-                >
-                  <option value="">Select bracket...</option>
-                  {BRACKET_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </FieldInput>
-
-              {/* Row 2 */}
-              <FieldInput label="Table context">
-                <Textarea
-                  value={tableContext}
-                  onChange={e => setTableContext(e.target.value)}
-                  placeholder="Describe your playgroup or meta"
-                  rows={2}
-                  style={fieldStyle}
-                />
-              </FieldInput>
-              <FieldInput label="Frustrations">
-                <Textarea
-                  value={frustration}
-                  onChange={e => setFrustration(e.target.value)}
-                  placeholder="What problems need solving?"
-                  rows={2}
-                  style={fieldStyle}
-                />
-              </FieldInput>
-
-              {/* Row 3 */}
-              <FieldInput label="Budget mode">
-                <select
-                  value={budgetMode}
-                  onChange={e => setBudgetMode(e.target.value)}
-                  className="h-9 w-full rounded-md px-3 py-1 text-[length:var(--fs-md)]"
-                  style={fieldStyle}
-                >
-                  <option value="">Select budget mode...</option>
-                  {BUDGET_MODE_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </FieldInput>
-              <FieldInput label="Format type">
-                <select
-                  value={formatType}
-                  onChange={e => setFormatType(e.target.value)}
-                  className="h-9 w-full rounded-md px-3 py-1 text-[length:var(--fs-md)]"
-                  style={fieldStyle}
-                >
-                  {FORMAT_TYPE_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </FieldInput>
-
-              {/* Row 4 */}
-              <FieldInput label="Strategy notes" fullWidth>
-                <Textarea
-                  value={strategyNotes}
-                  onChange={e => setStrategyNotes(e.target.value)}
-                  placeholder="Any other context about how you want to play this deck"
-                  rows={3}
-                  style={fieldStyle}
-                />
-              </FieldInput>
-            </div>
-
-            {/* Save button */}
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={handleSave}
-                disabled={saveMutation.isPending}
-                style={{ background: '#1D9E75' }}
-                className="text-white hover:opacity-90"
-              >
-                {saveMutation.isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                ) : (
-                  <Save className="h-3.5 w-3.5 mr-1" />
-                )}
-                Save
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsEditing(false)}
-                disabled={saveMutation.isPending}
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* ─── Section 2: Build Type Selector ─────────────────────────── */}
+      {/* ─── Section 1: Commander Overview (Build-Independent) ──────── */}
       {commanderId && (
-        <section className="space-y-3">
-          <h3 className="text-[length:var(--fs-md)] font-medium">Build Type</h3>
-          
-          {isBuildsLoading ? (
-            <Skeleton className="h-9 w-64 rounded-md" />
-          ) : buildsData && buildsData.builds.length > 0 ? (
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <select
-                  value={selectedBuildId || ''}
-                  onChange={e => handleBuildChange(e.target.value)}
-                  disabled={saveBuildMutation.isPending}
-                  className="h-9 w-64 rounded-md px-3 py-1 pr-8 text-[length:var(--fs-md)] appearance-none cursor-pointer"
-                  style={fieldStyle}
-                >
-                  <option value="">General (no specific build)</option>
-                  {buildsData.builds.map(build => (
-                    <option key={build.id} value={build.id}>
-                      {formatBuildLabel(build)} ({build.deckCount.toLocaleString()} decks)
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none text-muted-foreground" />
-              </div>
-              {saveBuildMutation.isPending && (
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-              )}
-              {selectedBuild && (
-                <span className="text-[length:var(--fs-sm)] text-muted-foreground">
-                  {selectedBuild.deckPercentage.toFixed(1)}% of {commanderName} decks
-                </span>
-              )}
+        <CommanderOverview
+          commanderName={commanderName}
+          colorIdentity={buildsData?.colorIdentity || null}
+          builds={buildsData?.builds || []}
+          generalInsights={generalInsightsData?.insights || []}
+          isLoading={isBuildsLoading || isGeneralInsightsLoading}
+          selectedBuildId={selectedBuildId}
+          onBuildSelect={handleBuildChange}
+        />
+      )}
+
+      {/* ─── Section 2: Build Selector (if not already selected via chips) ─── */}
+      {commanderId && buildsData && buildsData.builds.length > 0 && (
+        <section className="space-y-2">
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <select
+                value={selectedBuildId || ''}
+                onChange={e => handleBuildChange(e.target.value === '' ? null : e.target.value)}
+                disabled={saveBuildMutation.isPending}
+                className="h-9 w-64 rounded-md px-3 py-1 pr-8 text-[length:var(--fs-md)] appearance-none cursor-pointer"
+                style={fieldStyle}
+              >
+                <option value="">General (no specific build)</option>
+                {buildsData.builds.map(build => (
+                  <option key={build.id} value={build.id}>
+                    {formatBuildLabel(build)} ({build.deckCount.toLocaleString()} decks)
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none text-muted-foreground" />
             </div>
-          ) : (
-            <p className="text-[length:var(--fs-md)] text-muted-foreground">
-              No build data available for this commander.
-            </p>
-          )}
+            {saveBuildMutation.isPending && (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            )}
+            {selectedBuild && (
+              <span className="text-[length:var(--fs-sm)] text-muted-foreground">
+                {selectedBuild.deckPercentage.toFixed(1)}% of {commanderName} decks
+              </span>
+            )}
+          </div>
         </section>
       )}
 
-      {/* ─── Section 3: Strategy Guide ─────────────────────────────── */}
-      {commanderId && (
+      {/* ─── Section 3: Build-Specific Strategy Guide ──────────────── */}
+      {commanderId && selectedBuildId && (
         <section className="space-y-3">
           <div className="flex items-center gap-2">
-            <h3 className="text-[length:var(--fs-md)] font-medium">Strategy Guide</h3>
+            <h3 className="text-[length:var(--fs-md)] font-medium">
+              {selectedBuild ? formatBuildLabel(selectedBuild) : 'Build'} Strategy
+            </h3>
             {selectedBuild && (
               <Badge
                 variant="secondary"
                 className="text-[length:var(--fs-xs)] px-1.5 py-0"
                 style={{ background: 'rgba(29,158,117,0.1)', color: '#1D9E75' }}
               >
-                {formatBuildLabel(selectedBuild)}
+                {selectedBuild.deckCount.toLocaleString()} decks
               </Badge>
             )}
           </div>
 
           <StrategyGuide
-            insights={insightsData?.insights || []}
-            isLoading={isInsightsLoading}
+            insights={buildInsightsData?.insights || []}
+            isLoading={isBuildInsightsLoading}
             selectedBuildLabel={selectedBuild ? formatBuildLabel(selectedBuild) : null}
             commanderName={commanderName}
           />
@@ -710,141 +543,352 @@ export function StrategyTab({ deckId, deckType, commanderName, commanderId, buil
       )}
 
       {/* ─── Section 4: Category manager ────────────────────────────── */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-[length:var(--fs-md)] font-medium">Categories</h3>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-[length:var(--fs-sm)]"
-              style={{ color: '#1D9E75' }}
-            >
-              <Plus className="h-3 w-3 mr-1" />
-              Add category
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-[length:var(--fs-sm)]"
-              onClick={() => setShowSyncConfirm(true)}
-            >
-              <RefreshCw className="h-3 w-3 mr-1" />
-              Sync to Archidekt
-            </Button>
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          {categories.map(cat => {
-            // Determine if count is below or above recommended
-            const diff = cat.recommended != null ? cat.count - Math.round(cat.recommended) : null
-            const isLow = diff != null && diff < 0
-            const isHigh = diff != null && diff > 2
-
-            return (
-              <div
-                key={cat.name}
-                className="flex items-center gap-2 px-3 py-2 rounded-md"
-                style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '0.5px solid rgba(255,255,255,0.06)',
-                }}
+      {selectedBuildId && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-[length:var(--fs-md)] font-medium">Categories</h3>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-[length:var(--fs-sm)]"
+                style={{ color: '#1D9E75' }}
               >
-                {/* Drag handle or lock icon */}
-                {cat.isCore ? (
-                  <Lock className="h-3.5 w-3.5 shrink-0" style={{ color: 'rgba(29,158,117,0.6)' }} />
-                ) : (
-                  <GripVertical className="h-3.5 w-3.5 shrink-0 text-muted-foreground cursor-grab" />
-                )}
+                <Plus className="h-3 w-3 mr-1" />
+                Add category
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-[length:var(--fs-sm)]"
+                onClick={() => setShowSyncConfirm(true)}
+              >
+                <RefreshCw className="h-3 w-3 mr-1" />
+                Sync to Archidekt
+              </Button>
+            </div>
+          </div>
 
-                {/* Name */}
-                <span className="text-[length:var(--fs-md)] flex-1">{cat.name}</span>
+          <div className="space-y-1">
+            {categories.map(cat => {
+              // Determine if count is below or above recommended
+              const diff = cat.recommended != null ? cat.count - Math.round(cat.recommended) : null
+              const isLow = diff != null && diff < 0
+              const isHigh = diff != null && diff > 2
 
-                {/* Count with recommended comparison */}
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className="text-[length:var(--fs-sm)] tabular-nums"
-                    style={{
-                      color: isLow ? '#EF9F27' : isHigh ? '#3B82F6' : 'inherit',
-                    }}
-                  >
-                    {cat.count}
-                  </span>
-                  {cat.recommended != null && (
-                    <span className="text-[length:var(--fs-xs)] text-muted-foreground tabular-nums">
-                      / {Math.round(cat.recommended)}
+              return (
+                <div
+                  key={cat.name}
+                  className="flex items-center gap-2 px-3 py-2 rounded-md"
+                  style={{
+                    background: 'rgba(255,255,255,0.03)',
+                    border: '0.5px solid rgba(255,255,255,0.06)',
+                  }}
+                >
+                  {/* Drag handle or lock icon */}
+                  {cat.isCore ? (
+                    <Lock className="h-3.5 w-3.5 shrink-0" style={{ color: 'rgba(29,158,117,0.6)' }} />
+                  ) : (
+                    <GripVertical className="h-3.5 w-3.5 shrink-0 text-muted-foreground cursor-grab" />
+                  )}
+
+                  {/* Name */}
+                  <span className="text-[length:var(--fs-md)] flex-1">{cat.name}</span>
+
+                  {/* Count with recommended comparison */}
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className="text-[length:var(--fs-sm)] tabular-nums"
+                      style={{
+                        color: isLow ? '#EF9F27' : isHigh ? '#3B82F6' : 'inherit',
+                      }}
+                    >
+                      {cat.count}
                     </span>
+                    {cat.recommended != null && (
+                      <span className="text-[length:var(--fs-xs)] text-muted-foreground tabular-nums">
+                        / {Math.round(cat.recommended)}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Badge */}
+                  {cat.isCore ? (
+                    <Badge
+                      variant="secondary"
+                      className="text-[length:var(--fs-xs)] px-1.5 py-0"
+                      style={{ background: 'rgba(29,158,117,0.1)', color: '#1D9E75' }}
+                    >
+                      Core
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="text-[length:var(--fs-xs)] px-1.5 py-0">
+                      Custom
+                    </Badge>
+                  )}
+
+                  {/* Low/High warning */}
+                  {isLow && (
+                    <Badge
+                      className="text-[length:var(--fs-xs)] px-1.5 py-0"
+                      style={{ background: 'rgba(239,159,39,0.15)', color: '#EF9F27' }}
+                    >
+                      {Math.abs(diff!)} below avg
+                    </Badge>
+                  )}
+                  {isHigh && (
+                    <Badge
+                      className="text-[length:var(--fs-xs)] px-1.5 py-0"
+                      style={{ background: 'rgba(59,130,246,0.15)', color: '#3B82F6' }}
+                    >
+                      +{diff} above avg
+                    </Badge>
+                  )}
+
+                  {/* Overlap warning */}
+                  {overlaps[cat.name] && (
+                    <Badge
+                      className="text-[length:var(--fs-xs)] px-1.5 py-0"
+                      style={{ background: 'rgba(239,159,39,0.15)', color: '#EF9F27' }}
+                    >
+                      Overlaps with {overlaps[cat.name]}
+                    </Badge>
+                  )}
+
+                  {/* Actions for custom categories */}
+                  {!cat.isCore && (
+                    <div className="flex items-center gap-1 ml-1">
+                      <button
+                        className="p-0.5 rounded hover:bg-white/5"
+                        title="Edit category"
+                      >
+                        <Pencil className="h-3 w-3 text-muted-foreground" />
+                      </button>
+                      <button
+                        className="p-0.5 rounded hover:bg-white/5"
+                        title="Delete category"
+                      >
+                        <Trash2 className="h-3 w-3 text-muted-foreground" />
+                      </button>
+                    </div>
                   )}
                 </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
-                {/* Badge */}
-                {cat.isCore ? (
-                  <Badge
-                    variant="secondary"
-                    className="text-[length:var(--fs-xs)] px-1.5 py-0"
-                    style={{ background: 'rgba(29,158,117,0.1)', color: '#1D9E75' }}
-                  >
-                    Core
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary" className="text-[length:var(--fs-xs)] px-1.5 py-0">
-                    Custom
-                  </Badge>
-                )}
+      {/* ─── Section 5: Deck intent (collapsible) ───────────────────── */}
+      <section className="space-y-3">
+        <button
+          className="flex items-center gap-2 w-full text-left"
+          onClick={() => setIsDeckIntentExpanded(!isDeckIntentExpanded)}
+        >
+          {isDeckIntentExpanded ? (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          )}
+          <h3 className="text-[length:var(--fs-md)] font-medium">Deck Intent</h3>
+          {!isDeckIntentExpanded && strategy?.configured && (
+            <Badge variant="secondary" className="text-[length:var(--fs-xs)] px-1.5 py-0">
+              Configured
+            </Badge>
+          )}
+          {!isEditing && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="ml-auto"
+              onClick={(e) => {
+                e.stopPropagation()
+                startEditing()
+              }}
+            >
+              <Pencil className="h-3.5 w-3.5 mr-1" />
+              {strategy?.configured ? 'Edit' : 'Configure'}
+            </Button>
+          )}
+        </button>
 
-                {/* Low/High warning */}
-                {isLow && (
-                  <Badge
-                    className="text-[length:var(--fs-xs)] px-1.5 py-0"
-                    style={{ background: 'rgba(239,159,39,0.15)', color: '#EF9F27' }}
-                  >
-                    {Math.abs(diff!)} below avg
-                  </Badge>
-                )}
-                {isHigh && (
-                  <Badge
-                    className="text-[length:var(--fs-xs)] px-1.5 py-0"
-                    style={{ background: 'rgba(59,130,246,0.15)', color: '#3B82F6' }}
-                  >
-                    +{diff} above avg
-                  </Badge>
-                )}
+        {isDeckIntentExpanded && (
+          <div className="pl-6 space-y-4">
+            {!isEditing && !strategy?.configured && (
+              <div
+                className="rounded-lg p-6 text-center"
+                style={{
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '0.5px dashed rgba(255,255,255,0.15)',
+                }}
+              >
+                <p className="text-[length:var(--fs-md)] text-muted-foreground mb-3">
+                  Configure your deck&apos;s strategic intent to drive personalised recommendations.
+                </p>
+                <Button size="sm" onClick={startEditing}>
+                  Configure Strategy
+                </Button>
+              </div>
+            )}
 
-                {/* Overlap warning */}
-                {overlaps[cat.name] && (
-                  <Badge
-                    className="text-[length:var(--fs-xs)] px-1.5 py-0"
-                    style={{ background: 'rgba(239,159,39,0.15)', color: '#EF9F27' }}
-                  >
-                    Overlaps with {overlaps[cat.name]}
-                  </Badge>
+            {!isEditing && strategy?.configured && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {strategy.win_condition && (
+                  <FieldDisplay label="Win condition" value={strategy.win_condition} fullWidth />
                 )}
-
-                {/* Actions for custom categories */}
-                {!cat.isCore && (
-                  <div className="flex items-center gap-1 ml-1">
-                    <button
-                      className="p-0.5 rounded hover:bg-white/5"
-                      title="Edit category"
-                    >
-                      <Pencil className="h-3 w-3 text-muted-foreground" />
-                    </button>
-                    <button
-                      className="p-0.5 rounded hover:bg-white/5"
-                      title="Delete category"
-                    >
-                      <Trash2 className="h-3 w-3 text-muted-foreground" />
-                    </button>
-                  </div>
+                {strategy.bracket && (
+                  <FieldDisplay
+                    label="Bracket"
+                    value={BRACKET_OPTIONS.find(b => b.value === strategy.bracket)?.label || String(strategy.bracket)}
+                  />
+                )}
+                {strategy.table_context && (
+                  <FieldDisplay label="Table context" value={strategy.table_context} />
+                )}
+                {strategy.frustration && (
+                  <FieldDisplay label="Frustrations" value={strategy.frustration} />
+                )}
+                {strategy.budget_mode && (
+                  <FieldDisplay
+                    label="Budget mode"
+                    value={BUDGET_MODE_OPTIONS.find(b => b.value === strategy.budget_mode)?.label || strategy.budget_mode}
+                  />
+                )}
+                {strategy.format_rules != null && typeof strategy.format_rules === 'object' ? (
+                  <FieldDisplay
+                    label="Format type"
+                    value={
+                      FORMAT_TYPE_OPTIONS.find(
+                        f => f.value === String((strategy.format_rules as Record<string, string>)?.format_name ?? '')
+                      )?.label || 'Custom'
+                    }
+                  />
+                ) : null}
+                {strategy.strategy_notes && (
+                  <FieldDisplay label="Strategy notes" value={strategy.strategy_notes} fullWidth />
                 )}
               </div>
-            )
-          })}
-        </div>
+            )}
+
+            {isEditing && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Row 1 */}
+                  <FieldInput label="Win condition" fullWidth>
+                    <Textarea
+                      value={winCondition}
+                      onChange={e => setWinCondition(e.target.value)}
+                      placeholder="How does this deck win?"
+                      rows={2}
+                      className="field-input"
+                      style={fieldStyle}
+                    />
+                  </FieldInput>
+                  <FieldInput label="Bracket">
+                    <select
+                      value={bracket}
+                      onChange={e => setBracket(e.target.value ? Number(e.target.value) : '')}
+                      className="h-9 w-full rounded-md px-3 py-1 text-[length:var(--fs-md)]"
+                      style={fieldStyle}
+                    >
+                      <option value="">Select bracket...</option>
+                      {BRACKET_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </FieldInput>
+
+                  {/* Row 2 */}
+                  <FieldInput label="Table context">
+                    <Textarea
+                      value={tableContext}
+                      onChange={e => setTableContext(e.target.value)}
+                      placeholder="Describe your playgroup or meta"
+                      rows={2}
+                      style={fieldStyle}
+                    />
+                  </FieldInput>
+                  <FieldInput label="Frustrations">
+                    <Textarea
+                      value={frustration}
+                      onChange={e => setFrustration(e.target.value)}
+                      placeholder="What problems need solving?"
+                      rows={2}
+                      style={fieldStyle}
+                    />
+                  </FieldInput>
+
+                  {/* Row 3 */}
+                  <FieldInput label="Budget mode">
+                    <select
+                      value={budgetMode}
+                      onChange={e => setBudgetMode(e.target.value)}
+                      className="h-9 w-full rounded-md px-3 py-1 text-[length:var(--fs-md)]"
+                      style={fieldStyle}
+                    >
+                      <option value="">Select budget mode...</option>
+                      {BUDGET_MODE_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </FieldInput>
+                  <FieldInput label="Format type">
+                    <select
+                      value={formatType}
+                      onChange={e => setFormatType(e.target.value)}
+                      className="h-9 w-full rounded-md px-3 py-1 text-[length:var(--fs-md)]"
+                      style={fieldStyle}
+                    >
+                      {FORMAT_TYPE_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </FieldInput>
+
+                  {/* Row 4 */}
+                  <FieldInput label="Strategy notes" fullWidth>
+                    <Textarea
+                      value={strategyNotes}
+                      onChange={e => setStrategyNotes(e.target.value)}
+                      placeholder="Any other context about how you want to play this deck"
+                      rows={3}
+                      style={fieldStyle}
+                    />
+                  </FieldInput>
+                </div>
+
+                {/* Save button */}
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={handleSave}
+                    disabled={saveMutation.isPending}
+                    style={{ background: '#1D9E75' }}
+                    className="text-white hover:opacity-90"
+                  >
+                    {saveMutation.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                    ) : (
+                      <Save className="h-3.5 w-3.5 mr-1" />
+                    )}
+                    Save
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsEditing(false)}
+                    disabled={saveMutation.isPending}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
-      {/* ─── Section 5: Notes ───────────────────────────────────────── */}
+      {/* ─── Section 6: Notes ───────────────────────────────────────── */}
       <section className="space-y-3">
         <h3 className="text-[length:var(--fs-md)] font-medium">Notes</h3>
 

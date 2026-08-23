@@ -5,8 +5,14 @@
  * Returns insights for a commander from ref_commander_insights.
  * Optionally filters by archetype or build_variant.
  * 
- * Returns general insights (build_variant IS NULL) plus build-specific
- * insights if archetype/build_variant is provided.
+ * Query parameters:
+ * - archetype: Filter by archetype (e.g., "aristocrats")
+ * - build_variant: Filter by build variant (e.g., "treasure")
+ * - general: If "true", returns ONLY general insights (build_variant IS NULL AND archetype IS NULL)
+ * 
+ * Default behavior (no params): Returns general insights + all build-specific insights
+ * With archetype/build_variant: Returns general insights + matching build-specific insights
+ * With general=true: Returns ONLY general insights (for commander overview)
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -35,6 +41,7 @@ export async function GET(
   
   const archetype = searchParams.get('archetype')?.toLowerCase() || null
   const buildVariant = searchParams.get('build_variant')?.toLowerCase() || null
+  const generalOnly = searchParams.get('general') === 'true'
   
   // Validate UUID format
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -62,8 +69,6 @@ export async function GET(
     }
     
     // Build query for insights
-    // Always include general insights (build_variant IS NULL)
-    // Plus build-specific insights if archetype/buildVariant provided
     let query = supabase
       .from('ref_commander_insights')
       .select(`
@@ -82,14 +87,14 @@ export async function GET(
       .eq('commander_id', commanderId)
       .order('confidence', { ascending: false })
     
-    // If filtering by archetype or build_variant, get:
-    // 1. General insights (build_variant IS NULL AND archetype IS NULL)
-    // 2. Matching build-specific insights
-    if (archetype || buildVariant) {
-      // Build OR condition for general + specific
+    if (generalOnly) {
+      // Return ONLY general insights (for commander overview)
+      query = query.is('build_variant', null).is('archetype', null)
+    } else if (archetype || buildVariant) {
+      // Return general insights + matching build-specific insights
       // PostgREST syntax: and(a,b) for AND, or(a,b) for OR
       const conditions: string[] = [
-        // General insights have both null — use and() for the compound condition
+        // General insights have both null
         'and(build_variant.is.null,archetype.is.null)'
       ]
       
@@ -102,6 +107,7 @@ export async function GET(
       
       query = query.or(conditions.join(','))
     }
+    // If no filters, returns all insights for the commander
     
     const { data: insights, error: insightErr } = await query.limit(50)
     
@@ -139,7 +145,7 @@ export async function GET(
       commanderName: commander.display_name,
       insights: result,
       byType,
-      filters: { archetype, buildVariant },
+      filters: { archetype, buildVariant, generalOnly },
     })
   } catch (error) {
     console.error('[api/commanders/insights] Error:', error)

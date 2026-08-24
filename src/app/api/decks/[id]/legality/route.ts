@@ -52,7 +52,12 @@ export async function GET(
   }
 
   const format = deck.format || 'commander'
-  const deckColorIdentity = new Set((deck.colour_identity || '').split(''))
+  // Parse deck color identity - handle both "UB" and "U, B" formats
+  const deckColorIdentity = new Set(
+    (deck.colour_identity || '')
+      .split(/[,\s]+/)
+      .filter((c: string) => 'WUBRG'.includes(c))
+  )
 
   // Get all cards in deck
   const { data: deckCards, error: cardsErr } = await supabase
@@ -118,7 +123,12 @@ export async function GET(
 
     // Check color identity (skip for commanders as they define the identity)
     if (!deckCard.is_commander && cardData.color_identity) {
-      const cardColors = new Set(cardData.color_identity.split(''))
+      // Parse card color identity - handle comma-separated format like "B, U"
+      const cardColors = new Set(
+        cardData.color_identity
+          .split(/[,\s]+/)
+          .filter((c: string) => 'WUBRG'.includes(c))
+      )
       const invalidColors: string[] = []
       
       for (const color of cardColors) {

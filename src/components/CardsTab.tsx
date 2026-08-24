@@ -969,7 +969,7 @@ function GridView({
           <h4 className="mb-2 text-[length:var(--fs-sm)] font-medium uppercase text-muted-foreground">
             {groupName} ({groupCards.reduce((sum, c) => sum + (c.quantity || 1), 0)})
           </h4>
-          <div className="grid grid-cols-6 gap-3" role="list" aria-label={`${groupName} cards`}>
+          <div className="grid grid-cols-8 gap-3" role="list" aria-label={`${groupName} cards`}>
             {groupCards.map((card) => {
               const cardStatus = statusMap.get(card.id) ?? 'available'
               const statusLabels: Record<string, string> = {

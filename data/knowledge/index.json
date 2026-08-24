@@ -1,0 +1,169 @@
+{
+  "version": "2.0.0",
+  "lastUpdated": "2026-08-03",
+  "taxonomy": {
+    "themes": "What you build around - the deck's identity (counters, sacrifice, artifacts)",
+    "archetypes": "How you play - the deck's strategy (aggro, control, combo, midrange)",
+    "mechanics": "Keywords and ability words - the rules tools you leverage (cascade, proliferate)",
+    "tribes": "Creature types - tribal synergies (dragons, zombies, elves)"
+  },
+  "categories": {
+    "rules": {
+      "description": "Magic: The Gathering Comprehensive Rules summaries focused on Commander",
+      "files": [
+        {"name": "commander-rules.md", "path": "rules/commander-rules.md", "topics": ["commander", "EDH", "command zone", "commander tax", "color identity"]},
+        {"name": "stack-and-priority.md", "path": "rules/stack-and-priority.md", "topics": ["stack", "priority", "respond", "counterspell"]},
+        {"name": "combat-rules.md", "path": "rules/combat-rules.md", "topics": ["combat", "first strike", "double strike", "trample"]},
+        {"name": "triggers-and-replacement.md", "path": "rules/triggers-and-replacement.md", "topics": ["triggers", "replacement effects", "ETB"]},
+        {"name": "state-based-actions.md", "path": "rules/state-based-actions.md", "topics": ["state-based actions", "legend rule", "deathtouch"]},
+        {"name": "layers-and-timestamps.md", "path": "rules/layers-and-timestamps.md", "topics": ["layers", "timestamps", "copy effects"]}
+      ]
+    },
+    "fundamentals": {
+      "description": "Core deck building concepts for Commander",
+      "files": [
+        {"name": "deck-anatomy.md", "path": "fundamentals/deck-anatomy.md", "topics": ["lands", "ramp", "card draw", "removal", "win conditions"]}
+      ]
+    },
+    "themes": {
+      "description": "What you build around - the deck's core identity",
+      "files": [
+        {"name": "artifacts.md", "path": "themes/artifacts.md", "topics": ["artifacts", "affinity", "metalcraft", "improvise"]},
+        {"name": "clones.md", "path": "themes/clones.md", "topics": ["clones", "copy effects", "shapeshifter"]},
+        {"name": "counters.md", "path": "themes/counters.md", "topics": ["+1/+1 counters", "counter doublers", "hardened scales", "proliferate"]},
+        {"name": "enchantments.md", "path": "themes/enchantments.md", "topics": ["enchantments", "constellation", "enchantress"]},
+        {"name": "energy.md", "path": "themes/energy.md", "topics": ["energy counters", "kaladesh"]},
+        {"name": "equipment.md", "path": "themes/equipment.md", "topics": ["equipment", "equip", "voltron", "swords"]},
+        {"name": "exile.md", "path": "themes/exile.md", "topics": ["exile", "impulse draw", "cast from exile", "prosper"]},
+        {"name": "graveyard.md", "path": "themes/graveyard.md", "topics": ["graveyard", "self-mill", "recursion", "reanimation"]},
+        {"name": "infect.md", "path": "themes/infect.md", "topics": ["infect", "poison counters", "toxic", "proliferate"]},
+        {"name": "landfall.md", "path": "themes/landfall.md", "topics": ["landfall", "land triggers", "extra land drops", "fetch lands"]},
+        {"name": "planeswalkers.md", "path": "themes/planeswalkers.md", "topics": ["planeswalkers", "superfriends", "loyalty", "proliferate"]},
+        {"name": "sacrifice.md", "path": "themes/sacrifice.md", "topics": ["sacrifice", "death triggers", "aristocrats", "fodder"]},
+        {"name": "spellslinger.md", "path": "themes/spellslinger.md", "topics": ["spellslinger", "instants", "sorceries", "magecraft", "storm"]},
+        {"name": "tokens.md", "path": "themes/tokens.md", "topics": ["tokens", "token doublers", "go wide", "anthems"]},
+        {"name": "treasure.md", "path": "themes/treasure.md", "topics": ["treasure", "treasure tokens", "artifact tokens", "dockside"]},
+        {"name": "vehicles.md", "path": "themes/vehicles.md", "topics": ["vehicles", "crew", "pilots"]}
+      ]
+    },
+    "archetypes": {
+      "description": "How you play - strategic deck patterns",
+      "files": [
+        {"name": "aggro.md", "path": "archetypes/aggro.md", "topics": ["aggro", "aggressive", "fast", "combat damage"]},
+        {"name": "aristocrats.md", "path": "archetypes/aristocrats.md", "topics": ["aristocrats", "sacrifice", "drain", "blood artist"]},
+        {"name": "artifacts-matter.md", "path": "archetypes/artifacts-matter.md", "topics": ["artifacts matter", "affinity", "metalcraft"]},
+        {"name": "blink.md", "path": "archetypes/blink.md", "topics": ["blink", "flicker", "ETB", "exile return"]},
+        {"name": "cast-from-exile.md", "path": "archetypes/cast-from-exile.md", "topics": ["cast from exile", "impulse draw", "prosper"]},
+        {"name": "chaos.md", "path": "archetypes/chaos.md", "topics": ["chaos", "random", "coin flip"]},
+        {"name": "combo.md", "path": "archetypes/combo.md", "topics": ["combo", "infinite", "win condition", "combo lines"]},
+        {"name": "commander-matters.md", "path": "archetypes/commander-matters.md", "topics": ["commander matters", "command zone", "commander tax", "fierce guardianship"]},
+        {"name": "control.md", "path": "archetypes/control.md", "topics": ["control", "counterspells", "board wipes", "reactive"]},
+        {"name": "enchantress.md", "path": "archetypes/enchantress.md", "topics": ["enchantress", "enchantment draw", "constellation"]},
+        {"name": "group-hug.md", "path": "archetypes/group-hug.md", "topics": ["group hug", "political", "symmetrical benefits"]},
+        {"name": "group-slug.md", "path": "archetypes/group-slug.md", "topics": ["group slug", "punisher", "damage all"]},
+        {"name": "good-stuff.md", "path": "archetypes/good-stuff.md", "topics": ["good stuff", "goodstuff", "staples", "card quality"]},
+        {"name": "lands-matter.md", "path": "archetypes/lands-matter.md", "topics": ["lands matter", "landfall", "land recursion"]},
+        {"name": "legendary-matters.md", "path": "archetypes/legendary-matters.md", "topics": ["legendary matters", "historic", "sisay"]},
+        {"name": "lifegain.md", "path": "archetypes/lifegain.md", "topics": ["lifegain", "life total", "aetherflux reservoir"]},
+        {"name": "mill.md", "path": "archetypes/mill.md", "topics": ["mill", "library depletion", "thassa's oracle"]},
+        {"name": "pillowfort.md", "path": "archetypes/pillowfort.md", "topics": ["pillowfort", "ghostly prison", "propaganda"]},
+        {"name": "ramp.md", "path": "archetypes/ramp.md", "topics": ["ramp", "mana acceleration", "big mana"]},
+        {"name": "reanimator.md", "path": "archetypes/reanimator.md", "topics": ["reanimator", "graveyard", "reanimate"]},
+        {"name": "stax.md", "path": "archetypes/stax.md", "topics": ["stax", "tax effects", "resource denial", "hatebears"]},
+        {"name": "superfriends.md", "path": "archetypes/superfriends.md", "topics": ["superfriends", "planeswalkers", "proliferate"]},
+        {"name": "theft.md", "path": "archetypes/theft.md", "topics": ["theft", "steal", "clone", "threaten"]},
+        {"name": "voltron.md", "path": "archetypes/voltron.md", "topics": ["voltron", "equipment", "auras", "commander damage"]},
+        {"name": "wheels.md", "path": "archetypes/wheels.md", "topics": ["wheels", "wheel of fortune", "draw damage"]}
+      ]
+    },
+    "mechanics": {
+      "description": "Keywords and ability words - the rules tools",
+      "files": [
+        {"name": "cascade.md", "path": "mechanics/cascade.md", "topics": ["cascade", "discover", "free spells"]},
+        {"name": "flashback.md", "path": "mechanics/flashback.md", "topics": ["flashback", "graveyard casting", "jump-start"]},
+        {"name": "madness.md", "path": "mechanics/madness.md", "topics": ["madness", "discard", "discard payoffs"]},
+        {"name": "proliferate.md", "path": "mechanics/proliferate.md", "topics": ["proliferate", "counters", "poison", "loyalty"]}
+      ]
+    },
+    "tribes": {
+      "description": "Creature type specific strategies",
+      "files": [
+        {"name": "angels.md", "path": "tribes/angels.md", "topics": ["angels", "flying", "lifegain"]},
+        {"name": "bears.md", "path": "tribes/bears.md", "topics": ["bears", "fight", "ayula"]},
+        {"name": "beasts.md", "path": "tribes/beasts.md", "topics": ["beasts", "stompy", "trample"]},
+        {"name": "cats.md", "path": "tribes/cats.md", "topics": ["cats", "equipment", "lifegain"]},
+        {"name": "clerics.md", "path": "tribes/clerics.md", "topics": ["clerics", "lifegain", "sacrifice"]},
+        {"name": "constructs.md", "path": "tribes/constructs.md", "topics": ["constructs", "artifacts", "modular"]},
+        {"name": "demons.md", "path": "tribes/demons.md", "topics": ["demons", "life payment", "flying"]},
+        {"name": "dinosaurs.md", "path": "tribes/dinosaurs.md", "topics": ["dinosaurs", "enrage", "naya"]},
+        {"name": "dragons.md", "path": "tribes/dragons.md", "topics": ["dragons", "flying", "ur dragon"]},
+        {"name": "druids.md", "path": "tribes/druids.md", "topics": ["druids", "mana dorks", "ramp"]},
+        {"name": "eldrazi.md", "path": "tribes/eldrazi.md", "topics": ["eldrazi", "colorless", "annihilator"]},
+        {"name": "elementals.md", "path": "tribes/elementals.md", "topics": ["elementals", "landfall", "omnath"]},
+        {"name": "elves.md", "path": "tribes/elves.md", "topics": ["elves", "mana dorks", "elfball"]},
+        {"name": "faeries.md", "path": "tribes/faeries.md", "topics": ["faeries", "flash", "flying"]},
+        {"name": "giants.md", "path": "tribes/giants.md", "topics": ["giants", "big creatures", "boros"]},
+        {"name": "goblins.md", "path": "tribes/goblins.md", "topics": ["goblins", "krenko", "token swarm"]},
+        {"name": "gods.md", "path": "tribes/gods.md", "topics": ["gods", "indestructible", "devotion"]},
+        {"name": "golems.md", "path": "tribes/golems.md", "topics": ["golems", "splicers", "artifacts"]},
+        {"name": "humans.md", "path": "tribes/humans.md", "topics": ["humans", "hatebears", "winota"]},
+        {"name": "hydras.md", "path": "tribes/hydras.md", "topics": ["hydras", "X costs", "counters"]},
+        {"name": "knights.md", "path": "tribes/knights.md", "topics": ["knights", "equipment", "first strike"]},
+        {"name": "krakens.md", "path": "tribes/krakens.md", "topics": ["krakens", "sea monsters", "big mana"]},
+        {"name": "merfolk.md", "path": "tribes/merfolk.md", "topics": ["merfolk", "islandwalk", "lords"]},
+        {"name": "myr.md", "path": "tribes/myr.md", "topics": ["myr", "artifacts", "mana"]},
+        {"name": "ninjas.md", "path": "tribes/ninjas.md", "topics": ["ninjas", "ninjutsu", "yuriko"]},
+        {"name": "phoenixes.md", "path": "tribes/phoenixes.md", "topics": ["phoenixes", "recursion", "flying"]},
+        {"name": "pirates.md", "path": "tribes/pirates.md", "topics": ["pirates", "treasure", "theft"]},
+        {"name": "rats.md", "path": "tribes/rats.md", "topics": ["rats", "rat colony", "swarm"]},
+        {"name": "rogues.md", "path": "tribes/rogues.md", "topics": ["rogues", "mill", "evasion"]},
+        {"name": "saprolings.md", "path": "tribes/saprolings.md", "topics": ["saprolings", "fungus", "tokens"]},
+        {"name": "shamans.md", "path": "tribes/shamans.md", "topics": ["shamans", "mana dorks", "elementals"]},
+        {"name": "slivers.md", "path": "tribes/slivers.md", "topics": ["slivers", "ability sharing", "5 color"]},
+        {"name": "snakes.md", "path": "tribes/snakes.md", "topics": ["snakes", "deathtouch", "counters"]},
+        {"name": "soldiers.md", "path": "tribes/soldiers.md", "topics": ["soldiers", "tokens", "anthem"]},
+        {"name": "sphinxes.md", "path": "tribes/sphinxes.md", "topics": ["sphinxes", "flying", "card draw"]},
+        {"name": "spirits.md", "path": "tribes/spirits.md", "topics": ["spirits", "flying", "flash"]},
+        {"name": "squirrels.md", "path": "tribes/squirrels.md", "topics": ["squirrels", "tokens", "chatterfang"]},
+        {"name": "thopters.md", "path": "tribes/thopters.md", "topics": ["thopters", "artifacts", "flying tokens"]},
+        {"name": "treefolk.md", "path": "tribes/treefolk.md", "topics": ["treefolk", "toughness matters", "doran"]},
+        {"name": "vampires.md", "path": "tribes/vampires.md", "topics": ["vampires", "lifedrain", "edgar markov"]},
+        {"name": "warriors.md", "path": "tribes/warriors.md", "topics": ["warriors", "attack triggers", "najeela"]},
+        {"name": "werewolves.md", "path": "tribes/werewolves.md", "topics": ["werewolves", "transform", "tovolar"]},
+        {"name": "wizards.md", "path": "tribes/wizards.md", "topics": ["wizards", "spellcasting", "inalla"]},
+        {"name": "wolves.md", "path": "tribes/wolves.md", "topics": ["wolves", "werewolves", "pack tactics"]},
+        {"name": "zombies.md", "path": "tribes/zombies.md", "topics": ["zombies", "recursive", "gravecrawler"]}
+      ]
+    },
+    "colors": {
+      "description": "Color identity specific guidance",
+      "files": [
+        {"name": "white.md", "path": "colors/white.md", "topics": ["white", "mono white", "removal"]},
+        {"name": "blue.md", "path": "colors/blue.md", "topics": ["blue", "mono blue", "counterspells"]},
+        {"name": "black.md", "path": "colors/black.md", "topics": ["black", "mono black", "tutors"]},
+        {"name": "red.md", "path": "colors/red.md", "topics": ["red", "mono red", "damage"]},
+        {"name": "green.md", "path": "colors/green.md", "topics": ["green", "mono green", "ramp"]},
+        {"name": "azorius.md", "path": "colors/azorius.md", "topics": ["azorius", "WU", "control"]},
+        {"name": "dimir.md", "path": "colors/dimir.md", "topics": ["dimir", "UB", "mill"]},
+        {"name": "rakdos.md", "path": "colors/rakdos.md", "topics": ["rakdos", "BR", "aristocrats"]},
+        {"name": "gruul.md", "path": "colors/gruul.md", "topics": ["gruul", "RG", "ramp"]},
+        {"name": "selesnya.md", "path": "colors/selesnya.md", "topics": ["selesnya", "GW", "tokens"]},
+        {"name": "boros.md", "path": "colors/boros.md", "topics": ["boros", "RW", "equipment"]},
+        {"name": "simic.md", "path": "colors/simic.md", "topics": ["simic", "GU", "value"]},
+        {"name": "golgari.md", "path": "colors/golgari.md", "topics": ["golgari", "BG", "graveyard"]},
+        {"name": "orzhov.md", "path": "colors/orzhov.md", "topics": ["orzhov", "WB", "aristocrats"]},
+        {"name": "izzet.md", "path": "colors/izzet.md", "topics": ["izzet", "UR", "spellslinger"]},
+        {"name": "jund.md", "path": "colors/jund.md", "topics": ["jund", "BRG", "aristocrats"]},
+        {"name": "temur.md", "path": "colors/temur.md", "topics": ["temur", "GUR", "cascade"]},
+        {"name": "jeskai.md", "path": "colors/jeskai.md", "topics": ["jeskai", "URW", "spellslinger"]},
+        {"name": "abzan.md", "path": "colors/abzan.md", "topics": ["abzan", "WBG", "counters"]},
+        {"name": "sultai.md", "path": "colors/sultai.md", "topics": ["sultai", "BGU", "graveyard"]},
+        {"name": "mardu.md", "path": "colors/mardu.md", "topics": ["mardu", "RWB", "aristocrats"]},
+        {"name": "esper.md", "path": "colors/esper.md", "topics": ["esper", "WUB", "control"]},
+        {"name": "naya.md", "path": "colors/naya.md", "topics": ["naya", "RGW", "dinosaurs"]},
+        {"name": "bant.md", "path": "colors/bant.md", "topics": ["bant", "GWU", "blink"]},
+        {"name": "grixis.md", "path": "colors/grixis.md", "topics": ["grixis", "UBR", "wheels"]}
+      ]
+    }
+  }
+}

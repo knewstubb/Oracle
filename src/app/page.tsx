@@ -179,7 +179,7 @@ export default function DashboardPage() {
 
   return (
     <div className="flex h-full flex-col bg-[var(--bg-canvas)]">
-      <div className="flex h-full w-full flex-col">
+      <div className="mx-auto flex h-full w-full max-w-[var(--content-max-width)] flex-col">
         {/* Single scrollable content area */}
         <div className="flex-1 overflow-y-auto px-5 py-5">
           {error && (

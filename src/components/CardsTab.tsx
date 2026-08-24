@@ -961,7 +961,33 @@ function GridView({
 }) {
   return (
     <div className="space-y-6">
-      {groupedCards.map(([groupName, groupCards]) => (
+      {groupedCards.map(([groupName, groupCards]) => {
+        // Bundle basic lands by type
+        const basicLandBundles = new Map<string, { cards: DeckCard[]; totalQty: number; representativeCard: DeckCard }>()
+        const nonBasicCards: DeckCard[] = []
+
+        for (const card of groupCards) {
+          if (isBasicLand(card.card_name)) {
+            const existing = basicLandBundles.get(card.card_name)
+            if (existing) {
+              existing.cards.push(card)
+              existing.totalQty += card.quantity || 1
+            } else {
+              basicLandBundles.set(card.card_name, {
+                cards: [card],
+                totalQty: card.quantity || 1,
+                representativeCard: card,
+              })
+            }
+          } else {
+            nonBasicCards.push(card)
+          }
+        }
+
+        // Convert bundles to array for rendering
+        const landBundleEntries = Array.from(basicLandBundles.entries())
+
+        return (
         <section
           key={groupName}
           id={`category-${groupName.toLowerCase().replace(/\s+/g, '-')}`}
@@ -971,7 +997,61 @@ function GridView({
             {groupName} ({groupCards.reduce((sum, c) => sum + (c.quantity || 1), 0)})
           </h4>
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, var(--card-tile-width))' }} role="list" aria-label={`${groupName} cards`}>
-            {groupCards.map((card) => {
+            {/* Render bundled basic lands */}
+            {landBundleEntries.map(([landName, bundle]) => {
+              const card = bundle.representativeCard
+              const cardStatus = statusMap.get(card.id) ?? 'available'
+
+              return (
+                <div
+                  key={`land-bundle-${landName}`}
+                  role="listitem"
+                  className="flex flex-col"
+                  style={{ width: 'var(--card-tile-width)' }}
+                >
+                  {/* Card image container */}
+                  <div
+                    className="group/tile relative overflow-hidden rounded-xl"
+                    style={{ border: '0.5px solid var(--border-default)', height: 'var(--card-tile-height)' }}
+                  >
+                    {/* Full card image */}
+                    {card.scryfall_id ? (
+                      <img
+                        src={`https://cards.scryfall.io/large/front/${card.scryfall_id.charAt(0)}/${card.scryfall_id.charAt(1)}/${card.scryfall_id}.jpg`}
+                        alt={landName}
+                        loading="lazy"
+                        className="absolute inset-0 h-full w-full object-contain"
+                        style={{ imageRendering: 'auto' }}
+                      />
+                    ) : (
+                      <div
+                        className="absolute inset-0 flex items-center justify-center bg-muted text-[length:var(--fs-sm)] text-muted-foreground"
+                        role="img"
+                        aria-label={landName}
+                      >
+                        {landName}
+                      </div>
+                    )}
+
+                    {/* Quantity badge — top LEFT for basic lands */}
+                    <div
+                      className="absolute top-0 left-0 flex items-center justify-center rounded-br-lg px-2.5 py-1 text-[length:var(--fs-md)] font-bold text-white"
+                      style={{ backgroundColor: 'rgba(0,0,0,0.85)', minWidth: '28px' }}
+                    >
+                      ×{bundle.totalQty}
+                    </div>
+                  </div>
+
+                  {/* Price below card */}
+                  <div className="mt-1 text-center text-[length:var(--fs-sm)] font-medium text-[color:var(--text-secondary)]">
+                    {formatPrice(card.price_usd ?? null)}
+                  </div>
+                </div>
+              )
+            })}
+
+            {/* Render non-basic cards normally */}
+            {nonBasicCards.map((card) => {
               const cardStatus = statusMap.get(card.id) ?? 'available'
               const statusLabels: Record<string, string> = {
                 original: 'Original', proxy: 'Proxy', open: 'Open',
@@ -983,7 +1063,7 @@ function GridView({
               const tileBorderStyle: React.CSSProperties = (() => {
                 switch (cardStatus) {
                   case 'original':
-                    return { border: '1px solid var(--border-default)' }
+                    return { border: '0.5px solid var(--border-default)' }
                   case 'proxy':
                     return { border: '2px dashed var(--accent-primary)', boxShadow: '0 0 12px rgba(29, 158, 117, 0.6), 0 0 4px rgba(29, 158, 117, 0.3)' }
                   case 'available':
@@ -993,7 +1073,7 @@ function GridView({
                   case 'unowned':
                     return { border: '2.5px solid var(--status-unowned)', boxShadow: '0 0 12px rgba(240, 51, 158, 0.6), 0 0 4px rgba(240, 51, 158, 0.3)' }
                   default:
-                    return { border: '1px solid var(--border-default)' }
+                    return { border: '0.5px solid var(--border-default)' }
                 }
               })()
 
@@ -1095,16 +1175,7 @@ function GridView({
                   </div>
 
                   {/* Price below card */}
-                  <div 
-                    className="mt-1 text-center text-[length:var(--fs-xs)]"
-                    style={{ 
-                      color: cardStatus === 'unowned' 
-                        ? 'var(--status-unowned)' 
-                        : cardStatus === 'claimed' 
-                          ? 'var(--status-over)' 
-                          : 'var(--text-secondary)' 
-                    }}
-                  >
+                  <div className="mt-1 text-center text-[length:var(--fs-sm)] font-medium text-[color:var(--text-secondary)]">
                     {formatPrice(card.price_usd ?? null)}
                   </div>
                 </div>
@@ -1112,7 +1183,8 @@ function GridView({
             })}
           </div>
         </section>
-      ))}
+        )
+      })}
     </div>
   )
 }

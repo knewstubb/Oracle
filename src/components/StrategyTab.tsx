@@ -446,7 +446,7 @@ export function StrategyTab({ deckId, deckType, commanderName, commanderId, buil
 
   if (isLoading) {
     return (
-      <div className="space-y-6 p-4 max-w-4xl mx-auto">
+      <div className="space-y-6 p-4 mx-auto max-w-[var(--content-max-width)]">
         <Skeleton className="h-32 w-full rounded-lg" />
         <Skeleton className="h-48 w-full rounded-lg" />
         <Skeleton className="h-24 w-full rounded-lg" />
@@ -468,7 +468,7 @@ export function StrategyTab({ deckId, deckType, commanderName, commanderId, buil
   // -------------------------------------------------------------------------
 
   return (
-    <div className="space-y-6 p-4 max-w-4xl mx-auto">
+    <div className="space-y-6 p-4 mx-auto max-w-[var(--content-max-width)]">
       {/* ─── Section 1: Commander Overview (Build-Independent) ──────── */}
       {commanderId && (
         <CommanderOverview

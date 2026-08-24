@@ -114,11 +114,16 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
   // Border variant: no-op as a component (borders applied via getSlotTileBorderStyle)
   if (variant === 'border') return null
 
-  // Icon-only variant: 21px circular badge (odd size centers icons better)
+  // Icon-only variant: 18px circular badge
   if (variant === 'icon') {
     const isOriginal = status === 'original'
     const isProxy = status === 'proxy'
     const isAvailable = status === 'available'
+    
+    // Badge size
+    const badgeSize = 18
+    const iconSize = 11
+    const innerCircleSize = 9
     
     // Common hover classes for all icon badges
     const hoverClasses = 'transition-all duration-150 cursor-pointer hover:brightness-125 hover:scale-110'
@@ -128,10 +133,10 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
     
     // Icon style shared by all icon variants
     const iconStyle: React.CSSProperties = {
-      fontSize: 14,
-      width: 14,
-      height: 14,
-      lineHeight: '14px',
+      fontSize: iconSize,
+      width: iconSize,
+      height: iconSize,
+      lineHeight: `${iconSize}px`,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -144,8 +149,8 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
         <span
           className={`${baseClasses} ${className ?? ''}`}
           style={{
-            width: 24,
-            height: 24,
+            width: badgeSize,
+            height: badgeSize,
             backgroundColor: config.color,
             border: '1px solid transparent', // Match border sizing with outlined states
           }}
@@ -173,8 +178,8 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
         <span
           className={`${baseClasses} ${className ?? ''}`}
           style={{
-            width: 24,
-            height: 24,
+            width: badgeSize,
+            height: badgeSize,
             backgroundColor: config.color,
             border: '1px solid transparent', // Match border sizing with outlined states
           }}
@@ -202,8 +207,8 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
         <span
           className={`${baseClasses} ${className ?? ''}`}
           style={{
-            width: 24,
-            height: 24,
+            width: badgeSize,
+            height: badgeSize,
             border: '1px solid var(--border-default)',
             backgroundColor: '#1a1a1a',
           }}
@@ -212,8 +217,8 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
         >
           <span
             style={{
-              width: 12,
-              height: 12,
+              width: innerCircleSize,
+              height: innerCircleSize,
               borderRadius: '50%',
               border: '1.5px solid #1D9E75',
               backgroundColor: 'transparent',
@@ -234,8 +239,8 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
       <span
         className={`${baseClasses} ${className ?? ''}`}
         style={{
-          width: 24,
-          height: 24,
+          width: badgeSize,
+          height: badgeSize,
           border: '1px solid var(--border-default)',
           backgroundColor: fillColor,
         }}

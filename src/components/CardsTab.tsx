@@ -1072,9 +1072,9 @@ function GridView({
               const tileBorderStyle: React.CSSProperties = (() => {
                 switch (cardStatus) {
                   case 'original':
-                    return { border: '0.5px solid var(--border-default)', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2)' }
+                    return { border: '0.5px solid var(--accent-primary)', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2)' }
                   case 'proxy':
-                    return { border: '2px dashed var(--accent-primary)', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2)' }
+                    return { border: '0.5px solid var(--accent-primary)', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2)' }
                   case 'available':
                     return { border: '2.5px solid var(--signal-warning)', boxShadow: '0 0 12px rgba(239, 159, 39, 0.6), 0 0 4px rgba(239, 159, 39, 0.3)' }
                   case 'claimed':

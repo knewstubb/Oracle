@@ -1120,7 +1120,7 @@ function GridView({
                     )}
 
                     {/* Status icon — bottom left corner */}
-                    {cardStatus !== 'original' && cardStatus !== 'generic_land' && (
+                    {cardStatus !== 'generic_land' && (
                       <div className="absolute bottom-2 left-2">
                         <CardSlotBadge status={cardStatus} variant="icon" size="md" />
                       </div>

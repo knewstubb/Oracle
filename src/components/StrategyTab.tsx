@@ -473,6 +473,7 @@ export function StrategyTab({ deckId, deckType, commanderName, commanderId, buil
       {commanderId && (
         <CommanderOverview
           commanderName={commanderName}
+          commanderId={commanderId}
           colorIdentity={buildsData?.colorIdentity || null}
           builds={buildsData?.builds || []}
           generalInsights={generalInsightsData?.insights || []}

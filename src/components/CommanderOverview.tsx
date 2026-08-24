@@ -1,6 +1,7 @@
 'use client'
 
-import { Lightbulb, Zap, Sparkles, Users } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Lightbulb, Zap, Sparkles, Users, BookOpen } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { CommanderInsight } from '@/components/StrategyGuide'
@@ -18,8 +19,20 @@ interface CommanderBuild {
   deckPercentage: number
 }
 
+interface CommanderSummary {
+  commander: string
+  summary: string
+}
+
+interface CommanderSummariesFile {
+  version: string
+  generated: string
+  summaries: Record<string, CommanderSummary>
+}
+
 interface CommanderOverviewProps {
   commanderName: string | null
+  commanderId: string | null
   colorIdentity: string | null
   builds: CommanderBuild[]
   generalInsights: CommanderInsight[]
@@ -73,6 +86,9 @@ const INSIGHT_TYPE_ICONS: Record<string, React.ComponentType<{ className?: strin
   card_recommendation: Sparkles,
 }
 
+// Cache for summaries file
+let summariesCache: CommanderSummariesFile | null = null
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -94,6 +110,56 @@ function formatBuildLabel(build: CommanderBuild): string {
 
 function capitalize(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()
+}
+
+/**
+ * Parse markdown-like summary text into React elements
+ * Supports: **bold**, line breaks, bullet points
+ */
+function parseSummaryText(text: string): React.ReactNode[] {
+  const lines = text.split('\n')
+  const elements: React.ReactNode[] = []
+  
+  lines.forEach((line, lineIndex) => {
+    if (!line.trim()) {
+      elements.push(<br key={`br-${lineIndex}`} />)
+      return
+    }
+    
+    // Handle bullet points
+    const isBullet = line.trim().startsWith('- ')
+    const content = isBullet ? line.trim().slice(2) : line
+    
+    // Parse bold text (**text**)
+    const parts = content.split(/(\*\*[^*]+\*\*)/g)
+    const parsedParts = parts.map((part, partIndex) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return (
+          <strong key={`bold-${lineIndex}-${partIndex}`} className="font-semibold">
+            {part.slice(2, -2)}
+          </strong>
+        )
+      }
+      return part
+    })
+    
+    if (isBullet) {
+      elements.push(
+        <div key={`line-${lineIndex}`} className="flex gap-2 pl-2">
+          <span className="text-muted-foreground">•</span>
+          <span>{parsedParts}</span>
+        </div>
+      )
+    } else {
+      elements.push(
+        <p key={`line-${lineIndex}`} className="mb-2 last:mb-0">
+          {parsedParts}
+        </p>
+      )
+    }
+  })
+  
+  return elements
 }
 
 // ---------------------------------------------------------------------------
@@ -182,12 +248,57 @@ function InsightSummary({ insight }: { insight: CommanderInsight }) {
   )
 }
 
+function CommanderSummarySection({ summary }: { summary: string }) {
+  const [isExpanded, setIsExpanded] = useState(false)
+  
+  // Show first paragraph by default, full on expand
+  const paragraphs = summary.split('\n\n')
+  const preview = paragraphs[0]
+  const hasMore = paragraphs.length > 1
+  
+  return (
+    <div
+      className="rounded-lg overflow-hidden"
+      style={{
+        background: 'rgba(29,158,117,0.03)',
+        border: '1px solid rgba(29,158,117,0.12)',
+      }}
+    >
+      <div className="px-4 py-3">
+        <div className="flex items-center gap-2 mb-2">
+          <BookOpen className="size-4" style={{ color: '#1D9E75' }} />
+          <span className="text-[length:var(--fs-sm)] font-medium" style={{ color: '#1D9E75' }}>
+            Commander Overview
+          </span>
+        </div>
+        <div className="text-[length:var(--fs-md)] leading-relaxed">
+          {isExpanded ? (
+            parseSummaryText(summary)
+          ) : (
+            parseSummaryText(preview)
+          )}
+        </div>
+        {hasMore && (
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="mt-2 text-[length:var(--fs-sm)] font-medium hover:underline"
+            style={{ color: '#1D9E75' }}
+          >
+            {isExpanded ? 'Show less' : 'Read more...'}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Main Component
 // ---------------------------------------------------------------------------
 
 export function CommanderOverview({
   commanderName,
+  commanderId,
   colorIdentity,
   builds,
   generalInsights,
@@ -196,8 +307,43 @@ export function CommanderOverview({
   onBuildSelect,
 }: CommanderOverviewProps) {
   const colorInfo = getColorIdentityInfo(colorIdentity)
+  const [summary, setSummary] = useState<string | null>(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
   
-  // Get strategy insight for the main description
+  // Load summary from JSON file
+  useEffect(() => {
+    if (!commanderId) {
+      setSummary(null)
+      return
+    }
+    
+    async function loadSummary() {
+      setSummaryLoading(true)
+      try {
+        // Use cache if available
+        if (!summariesCache) {
+          const res = await fetch('/api/commander-summaries')
+          if (res.ok) {
+            summariesCache = await res.json()
+          }
+        }
+        
+        if (summariesCache?.summaries[commanderId]) {
+          setSummary(summariesCache.summaries[commanderId].summary)
+        } else {
+          setSummary(null)
+        }
+      } catch {
+        setSummary(null)
+      } finally {
+        setSummaryLoading(false)
+      }
+    }
+    
+    loadSummary()
+  }, [commanderId])
+  
+  // Get strategy insight for the main description (fallback if no summary)
   const strategyInsight = generalInsights.find(i => i.insightType === 'strategy')
   const otherInsights = generalInsights.filter(i => i.insightType !== 'strategy')
   
@@ -230,8 +376,16 @@ export function CommanderOverview({
         </div>
       </div>
       
-      {/* Strategy overview (if available) */}
-      {strategyInsight && (
+      {/* Pre-generated summary (primary) */}
+      {summaryLoading && (
+        <Skeleton className="h-32 w-full rounded-lg" />
+      )}
+      {!summaryLoading && summary && (
+        <CommanderSummarySection summary={summary} />
+      )}
+      
+      {/* Strategy overview from DB (fallback if no summary) */}
+      {!summary && strategyInsight && (
         <div
           className="rounded-lg px-4 py-3"
           style={{
@@ -277,7 +431,7 @@ export function CommanderOverview({
       )}
       
       {/* Empty state */}
-      {!strategyInsight && otherInsights.length === 0 && (
+      {!summary && !strategyInsight && otherInsights.length === 0 && (
         <div
           className="rounded-lg p-4 text-center"
           style={{

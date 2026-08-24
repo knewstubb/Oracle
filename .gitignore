@@ -41,7 +41,9 @@ yarn-error.log*
 next-env.d.ts
 
 # local database
-/data/
+/data/*
+!/data/commander-summaries.json
+!/data/knowledge/
 
 # migration export output
 /scripts/export/

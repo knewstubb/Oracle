@@ -52,10 +52,10 @@ export async function GET(
   }
 
   const format = deck.format || 'commander'
-  // Parse deck color identity - handle both "UB" and "U, B" formats
+  // Parse deck color identity - stored as "UB" (no separators), split each character
   const deckColorIdentity = new Set(
     (deck.colour_identity || '')
-      .split(/[,\s]+/)
+      .split('')
       .filter((c: string) => 'WUBRG'.includes(c))
   )
 

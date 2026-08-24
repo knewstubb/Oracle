@@ -1013,23 +1013,22 @@ function GridView({
                   {/* Card image container */}
                   <div
                     className="group/tile relative overflow-hidden rounded-xl"
-                    style={{ border: '0.5px solid var(--border-default)', height: 'var(--card-tile-height)' }}
+                    style={{ 
+                      border: '0.5px solid var(--border-default)', 
+                      height: 'var(--card-tile-height)',
+                      opacity: (cardStatus !== 'original' && cardStatus !== 'proxy') ? 0.6 : 1,
+                    }}
                   >
                     {/* Full card image */}
                     {(() => {
                       const scryfallId = card.scryfall_id || getBasicLandDefaultScryfallId(landName)
-                      // Basic lands are generic_land status - desaturate them
-                      const shouldDesaturate = cardStatus !== 'original' && cardStatus !== 'proxy'
                       return scryfallId ? (
                         <img
                           src={`https://cards.scryfall.io/large/front/${scryfallId.charAt(0)}/${scryfallId.charAt(1)}/${scryfallId}.jpg`}
                           alt={landName}
                           loading="lazy"
                           className="absolute inset-0 h-full w-full object-contain"
-                          style={{ 
-                            imageRendering: 'auto',
-                            filter: shouldDesaturate ? 'saturate(0.5)' : undefined,
-                          }}
+                          style={{ imageRendering: 'auto' }}
                         />
                       ) : (
                         <div
@@ -1096,7 +1095,11 @@ function GridView({
                   {/* Card image container */}
                   <div
                     className="group/tile relative overflow-hidden rounded-xl"
-                    style={{ ...tileBorderStyle, height: 'var(--card-tile-height)' }}
+                    style={{ 
+                      ...tileBorderStyle, 
+                      height: 'var(--card-tile-height)',
+                      opacity: (cardStatus !== 'original' && cardStatus !== 'proxy') ? 0.6 : 1,
+                    }}
                   >
                     {/* Full card image — high resolution */}
                     {card.scryfall_id ? (
@@ -1105,19 +1108,13 @@ function GridView({
                         alt={card.card_name}
                         loading="lazy"
                         className="absolute inset-0 h-full w-full object-contain"
-                        style={{ 
-                          imageRendering: 'auto',
-                          filter: (cardStatus !== 'original' && cardStatus !== 'proxy') ? 'saturate(0.5)' : undefined,
-                        }}
+                        style={{ imageRendering: 'auto' }}
                       />
                     ) : (
                       <div
                         className="absolute inset-0 flex items-center justify-center bg-muted text-[length:var(--fs-sm)] text-muted-foreground"
                         role="img"
                         aria-label={card.card_name}
-                        style={{
-                          filter: (cardStatus !== 'original' && cardStatus !== 'proxy') ? 'saturate(0.5)' : undefined,
-                        }}
                       >
                         {card.card_name}
                       </div>

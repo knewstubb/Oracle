@@ -1017,6 +1017,7 @@ function GridView({
                       border: '0.5px solid var(--border-default)', 
                       height: 'var(--card-tile-height)',
                       opacity: (cardStatus !== 'original' && cardStatus !== 'proxy') ? 0.6 : 1,
+                      boxShadow: (cardStatus !== 'original' && cardStatus !== 'proxy') ? 'inset 0 2px 8px rgba(0, 0, 0, 0.4)' : undefined,
                     }}
                   >
                     {/* Full card image */}
@@ -1075,11 +1076,11 @@ function GridView({
                   case 'proxy':
                     return { border: '0.5px solid var(--accent-primary)', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2)' }
                   case 'available':
-                    return { border: '2.5px solid var(--signal-warning)', boxShadow: '0 0 12px rgba(239, 159, 39, 0.6), 0 0 4px rgba(239, 159, 39, 0.3)' }
+                    return { border: '2.5px solid var(--signal-warning)', boxShadow: 'inset 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 12px rgba(239, 159, 39, 0.6), 0 0 4px rgba(239, 159, 39, 0.3)' }
                   case 'claimed':
-                    return { border: '2.5px solid #F5880B', boxShadow: '0 0 12px rgba(245, 136, 11, 0.6), 0 0 4px rgba(245, 136, 11, 0.3)' }
+                    return { border: '2.5px solid #F5880B', boxShadow: 'inset 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 12px rgba(245, 136, 11, 0.6), 0 0 4px rgba(245, 136, 11, 0.3)' }
                   case 'unowned':
-                    return { border: '2.5px solid var(--status-unowned)', boxShadow: '0 0 12px rgba(240, 51, 158, 0.6), 0 0 4px rgba(240, 51, 158, 0.3)' }
+                    return { border: '2.5px solid var(--status-unowned)', boxShadow: 'inset 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 12px rgba(240, 51, 158, 0.6), 0 0 4px rgba(240, 51, 158, 0.3)' }
                   default:
                     return { border: '0.5px solid var(--border-default)' }
                 }

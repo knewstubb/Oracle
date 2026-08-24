@@ -12,6 +12,8 @@ export interface CardSlotBadgeProps {
   heldBy?: { deckName: string; deckStatus: string } | null
   /** Display style: 'badge' for list views, 'border' for tile/grid views, 'icon' for compact icon-only */
   variant?: 'badge' | 'border' | 'icon'
+  /** Size for icon variant: 'sm' (18px default), 'md' (24px for grid view) */
+  size?: 'sm' | 'md'
   className?: string
 }
 
@@ -105,7 +107,7 @@ function StatusIcon({ icon, color }: { icon: string; color: string }) {
  * For 'claimed' status with 'badge' variant, shows a "In [deck]" subtext line.
  * For 'generic_land' status, renders nothing (exempt from taxonomy display).
  */
-export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: CardSlotBadgeProps) {
+export function CardSlotBadge({ status, heldBy, variant = 'badge', size = 'sm', className }: CardSlotBadgeProps) {
   // Generic land: no badge rendered
   if (status === 'generic_land') return null
 
@@ -114,16 +116,16 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
   // Border variant: no-op as a component (borders applied via getSlotTileBorderStyle)
   if (variant === 'border') return null
 
-  // Icon-only variant: 18px circular badge with 0.5px border
+  // Icon-only variant: circular badge with 0.5px border
   if (variant === 'icon') {
     const isOriginal = status === 'original'
     const isProxy = status === 'proxy'
     const isAvailable = status === 'available'
     
-    // Badge size and icon sizing
-    const badgeSize = 18
-    const iconSize = 12
-    const innerCircleSize = 10
+    // Badge size and icon sizing based on size prop
+    const badgeSize = size === 'md' ? 24 : 18
+    const iconSize = size === 'md' ? 16 : 12
+    const innerCircleSize = size === 'md' ? 14 : 10
     const borderWidth = 0.5
     
     // Common hover classes for all icon badges

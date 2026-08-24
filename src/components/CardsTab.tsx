@@ -1070,7 +1070,7 @@ function GridView({
                   case 'available':
                     return { border: '2.5px solid var(--signal-warning)', boxShadow: '0 0 12px rgba(239, 159, 39, 0.6), 0 0 4px rgba(239, 159, 39, 0.3)' }
                   case 'claimed':
-                    return { border: '2.5px solid var(--status-over)', boxShadow: '0 0 12px rgba(255, 95, 31, 0.6), 0 0 4px rgba(255, 95, 31, 0.3)' }
+                    return { border: '2.5px solid #F5880B', boxShadow: '0 0 12px rgba(245, 136, 11, 0.6), 0 0 4px rgba(245, 136, 11, 0.3)' }
                   case 'unowned':
                     return { border: '2.5px solid var(--status-unowned)', boxShadow: '0 0 12px rgba(240, 51, 158, 0.6), 0 0 4px rgba(240, 51, 158, 0.3)' }
                   default:
@@ -1122,7 +1122,7 @@ function GridView({
                     {/* Status icon — bottom left corner */}
                     {cardStatus !== 'original' && cardStatus !== 'generic_land' && (
                       <div className="absolute bottom-2 left-2">
-                        <CardSlotBadge status={cardStatus} variant="icon" />
+                        <CardSlotBadge status={cardStatus} variant="icon" size="md" />
                       </div>
                     )}
 

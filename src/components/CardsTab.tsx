@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, List, LayoutGrid, Columns3, ChevronDown, ChevronRight, AlertTriangle, Sparkles, Loader2, Check, X, Trash2, Tags } from 'lucide-react'
+import { Search, List, LayoutGrid, Columns3, ChevronDown, ChevronRight, Sparkles, Loader2, Check, X, Trash2, Tags } from 'lucide-react'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,7 @@ import { isBasicLand } from '@/lib/basic-lands'
 import { AddCardSearch } from '@/components/AddCardSearch'
 import { DeckImportButton } from '@/components/DeckImportButton'
 import { CardGroupSection } from '@/components/CardGroupSection'
+import { CardSlotBadge } from '@/components/CardSlotBadge'
 import { PicklistProgress, type PicklistCard } from '@/components/PicklistV2'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -1119,24 +1120,9 @@ function GridView({
                     )}
 
                     {/* Status icon — bottom left corner */}
-                    {cardStatus === 'claimed' && (
-                      <div
-                        className="absolute bottom-2 left-2 flex items-center justify-center rounded-full p-1"
-                        style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}
-                        aria-label="In another deck"
-                      >
-                        <AlertTriangle className="size-5" style={{ color: 'var(--status-over)' }} />
-                      </div>
-                    )}
-                    {cardStatus === 'available' && (
-                      <div
-                        className="absolute bottom-2 left-2 flex items-center justify-center rounded-full p-1"
-                        style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}
-                        aria-label="Open — copy available"
-                      >
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                          <path d="M10 2a8 8 0 0 1 0 16" stroke="var(--signal-warning)" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-                        </svg>
+                    {cardStatus !== 'original' && cardStatus !== 'generic_land' && (
+                      <div className="absolute bottom-2 left-2">
+                        <CardSlotBadge status={cardStatus} variant="icon" />
                       </div>
                     )}
 

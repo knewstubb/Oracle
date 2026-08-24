@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog'
 import { OwnershipBadge } from '@/components/OwnershipBadge'
+import { formatPrice } from '@/lib/collection-printing-utils'
 import { CardImage } from '@/components/CardImage'
 import { cn } from '@/lib/utils'
 import { parseCategoriesCapped } from '@/lib/categoryUtils'
@@ -990,7 +991,7 @@ function GridView({
                   case 'claimed':
                     return { border: '2.5px solid var(--status-over)', boxShadow: '0 0 12px rgba(255, 95, 31, 0.6), 0 0 4px rgba(255, 95, 31, 0.3)' }
                   case 'unowned':
-                    return { border: '2.5px solid var(--signal-critical)', boxShadow: '0 0 12px rgba(226, 75, 74, 0.6), 0 0 4px rgba(226, 75, 74, 0.3)' }
+                    return { border: '2.5px solid var(--status-unowned)', boxShadow: '0 0 12px rgba(240, 51, 158, 0.6), 0 0 4px rgba(240, 51, 158, 0.3)' }
                   default:
                     return { border: '1px solid var(--border-default)' }
                 }
@@ -1000,90 +1001,111 @@ function GridView({
                 <div
                   key={card.id}
                   role="listitem"
-                  className="group/tile relative overflow-hidden rounded-lg"
-                  style={{ ...tileBorderStyle, width: 'var(--card-tile-width)', height: 'var(--card-tile-height)' }}
+                  className="flex flex-col"
+                  style={{ width: 'var(--card-tile-width)' }}
                 >
-                  {/* Full card image — high resolution */}
-                  {card.scryfall_id ? (
-                    <img
-                      src={`https://cards.scryfall.io/large/front/${card.scryfall_id.charAt(0)}/${card.scryfall_id.charAt(1)}/${card.scryfall_id}.jpg`}
-                      alt={card.card_name}
-                      loading="lazy"
-                      className="absolute inset-0 h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div
-                      className="absolute inset-0 flex items-center justify-center bg-muted text-[length:var(--fs-sm)] text-muted-foreground"
-                      role="img"
-                      aria-label={card.card_name}
-                    >
-                      {card.card_name}
-                    </div>
-                  )}
-
-                  {/* Quantity badge — top right, shown when rolled up (quantity > 1) */}
-                  {(card.quantity || 1) > 1 && (
-                    <div
-                      className="absolute top-2 right-2 flex items-center justify-center rounded-full px-2.5 py-1 text-[length:var(--fs-md)] font-bold text-white"
-                      style={{ backgroundColor: 'rgba(0,0,0,0.85)', minWidth: '28px' }}
-                    >
-                      ×{card.quantity}
-                    </div>
-                  )}
-
-                  {/* Status icon — bottom left corner */}
-                  {cardStatus === 'claimed' && (
-                    <div
-                      className="absolute bottom-2 left-2 flex items-center justify-center rounded-full p-1"
-                      style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}
-                      aria-label="In another deck"
-                    >
-                      <AlertTriangle className="size-5" style={{ color: 'var(--status-over)' }} />
-                    </div>
-                  )}
-                  {cardStatus === 'available' && (
-                    <div
-                      className="absolute bottom-2 left-2 flex items-center justify-center rounded-full p-1"
-                      style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}
-                      aria-label="Open — copy available"
-                    >
-                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                        <path d="M10 2a8 8 0 0 1 0 16" stroke="var(--signal-warning)" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-                      </svg>
-                    </div>
-                  )}
-
-                  {/* Hover overlay */}
+                  {/* Card image container */}
                   <div
-                    className="absolute inset-0 flex flex-col items-center justify-center gap-2 opacity-0 transition-opacity group-hover/tile:opacity-100"
-                    style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}
+                    className="group/tile relative overflow-hidden rounded-xl"
+                    style={{ ...tileBorderStyle, height: 'var(--card-tile-height)' }}
                   >
-                    <span className="px-2 text-center text-[length:var(--fs-sm)] font-medium text-white">
-                      {card.card_name}
-                    </span>
-                    <span className="text-[length:var(--fs-xs)] text-white/70">
-                      {statusLabel}
-                    </span>
+                    {/* Full card image — high resolution */}
+                    {card.scryfall_id ? (
+                      <img
+                        src={`https://cards.scryfall.io/large/front/${card.scryfall_id.charAt(0)}/${card.scryfall_id.charAt(1)}/${card.scryfall_id}.jpg`}
+                        alt={card.card_name}
+                        loading="lazy"
+                        className="absolute inset-0 h-full w-full object-contain"
+                        style={{ imageRendering: 'auto' }}
+                      />
+                    ) : (
+                      <div
+                        className="absolute inset-0 flex items-center justify-center bg-muted text-[length:var(--fs-sm)] text-muted-foreground"
+                        role="img"
+                        aria-label={card.card_name}
+                      >
+                        {card.card_name}
+                      </div>
+                    )}
 
-                    {/* Action buttons — state-dependent */}
-                    {(cardStatus === 'original' || cardStatus === 'proxy') && (
-                      <div className="mt-1 flex items-center gap-2">
-                        <GridCardAction label="Reassign" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="reassign" />
-                        <GridCardAction label="Remove" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="remove" />
+                    {/* Quantity badge — top right, shown when rolled up (quantity > 1) */}
+                    {(card.quantity || 1) > 1 && (
+                      <div
+                        className="absolute top-2 right-2 flex items-center justify-center rounded-full px-2.5 py-1 text-[length:var(--fs-md)] font-bold text-white"
+                        style={{ backgroundColor: 'rgba(0,0,0,0.85)', minWidth: '28px' }}
+                      >
+                        ×{card.quantity}
+                      </div>
+                    )}
+
+                    {/* Status icon — bottom left corner */}
+                    {cardStatus === 'claimed' && (
+                      <div
+                        className="absolute bottom-2 left-2 flex items-center justify-center rounded-full p-1"
+                        style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}
+                        aria-label="In another deck"
+                      >
+                        <AlertTriangle className="size-5" style={{ color: 'var(--status-over)' }} />
                       </div>
                     )}
                     {cardStatus === 'available' && (
-                      <div className="mt-1 flex items-center gap-2">
-                        <GridCardAction label="Fill" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="fill" />
-                        <GridCardAction label="Remove" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="remove" />
+                      <div
+                        className="absolute bottom-2 left-2 flex items-center justify-center rounded-full p-1"
+                        style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}
+                        aria-label="Open — copy available"
+                      >
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                          <path d="M10 2a8 8 0 0 1 0 16" stroke="var(--signal-warning)" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+                        </svg>
                       </div>
                     )}
-                    {cardStatus === 'claimed' && (
-                      <div className="mt-1 flex items-center gap-2">
-                        <GridCardAction label="Pull" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="claim" />
-                        <GridCardAction label="Remove" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="remove" />
-                      </div>
-                    )}
+
+                    {/* Hover overlay */}
+                    <div
+                      className="absolute inset-0 flex flex-col items-center justify-center gap-2 opacity-0 transition-opacity group-hover/tile:opacity-100"
+                      style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}
+                    >
+                      <span className="px-2 text-center text-[length:var(--fs-sm)] font-medium text-white">
+                        {card.card_name}
+                      </span>
+                      <span className="text-[length:var(--fs-xs)] text-white/70">
+                        {statusLabel}
+                      </span>
+
+                      {/* Action buttons — state-dependent */}
+                      {(cardStatus === 'original' || cardStatus === 'proxy') && (
+                        <div className="mt-1 flex items-center gap-2">
+                          <GridCardAction label="Reassign" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="reassign" />
+                          <GridCardAction label="Remove" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="remove" />
+                        </div>
+                      )}
+                      {cardStatus === 'available' && (
+                        <div className="mt-1 flex items-center gap-2">
+                          <GridCardAction label="Fill" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="fill" />
+                          <GridCardAction label="Remove" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="remove" />
+                        </div>
+                      )}
+                      {cardStatus === 'claimed' && (
+                        <div className="mt-1 flex items-center gap-2">
+                          <GridCardAction label="Pull" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="claim" />
+                          <GridCardAction label="Remove" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="remove" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Price below card */}
+                  <div 
+                    className="mt-1 text-center text-[length:var(--fs-xs)]"
+                    style={{ 
+                      color: cardStatus === 'unowned' 
+                        ? 'var(--status-unowned)' 
+                        : cardStatus === 'claimed' 
+                          ? 'var(--status-over)' 
+                          : 'var(--text-secondary)' 
+                    }}
+                  >
+                    {formatPrice(card.price_usd ?? null)}
                   </div>
                 </div>
               )

@@ -3,6 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import type { StrategyBrief, CategoryGroup } from '@/types/brew'
+import { formatPrice } from '@/lib/collection-printing-utils'
 
 // ---------------------------------------------------------------------------
 // Investigation System Prompt
@@ -276,7 +277,7 @@ export function buildSkeletonGenerationPrompt(
     lines.push('Top synergy cards for this commander (SELECT from this list):')
     lines.push('')
     for (const staple of edhrecStaples) {
-      const priceStr = staple.price ? ` ($${staple.price.toFixed(2)})` : ''
+      const priceStr = staple.price ? ` (${formatPrice(staple.price)})` : ''
       lines.push(`- ${staple.cardName} (synergy: ${staple.synergy}%)${priceStr}`)
     }
   } else {
@@ -339,7 +340,7 @@ export function buildSkeletonGenerationPrompt(
     lines.push('')
     for (const fill of scryfallFills.slice(0, 30)) {
       if (fill.price > 0) {
-        lines.push(`- ${fill.cardName} ($${fill.price.toFixed(2)})`)
+        lines.push(`- ${fill.cardName} (${formatPrice(fill.price)})`)
       } else {
         lines.push(`- ${fill.cardName}`)
       }
@@ -458,7 +459,7 @@ export function buildRefinementPrompt(
 
   for (const card of category.cards) {
     const ownership = card.ownershipStatus === 'owned' ? '✅' : card.ownershipStatus === 'proxy_candidate' ? '⚠️' : '❌'
-    const price = card.price != null ? ` ($${card.price.toFixed(2)})` : ''
+    const price = card.price != null ? ` (${formatPrice(card.price)})` : ''
     lines.push(`  - ${card.cardName} ${ownership}${price}`)
   }
 

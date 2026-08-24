@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { TrendingUp, TrendingDown, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
+import { formatPrice } from '@/lib/collection-printing-utils'
 
 interface CollectionValue {
   totalMarketValue: number
@@ -97,7 +98,7 @@ export function CollectionValueBanner() {
         <div className="hidden sm:block">
           <span className="block text-[length:var(--fs-xs)] text-muted-foreground">Most Valuable</span>
           <span className="text-[length:var(--fs-md)] font-medium text-foreground">
-            {topCards[0].cardName} · ${topCards[0].totalValue.toFixed(2)}
+            {topCards[0].cardName} · {formatPrice(topCards[0].totalValue)}
           </span>
         </div>
       )}

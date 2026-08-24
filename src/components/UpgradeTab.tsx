@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { OwnershipBadge } from '@/components/OwnershipBadge'
 import { ConflictAlert } from '@/components/ConflictAlert'
+import { formatPrice } from '@/lib/collection-printing-utils'
 import {
   sortCandidates,
   filterCandidates,
@@ -445,7 +446,7 @@ function UpgradeCard({
             )}
             {candidate.add.price != null && (
               <span className="text-[length:var(--fs-xs)] text-muted-foreground">
-                ${candidate.add.price.toFixed(2)}
+                {formatPrice(candidate.add.price)}
               </span>
             )}
           </div>

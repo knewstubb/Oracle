@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useCallback, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { formatPrice } from '@/lib/collection-printing-utils'
 
 /**
  * CardHoverPreview — High-performance card image hover preview.
@@ -529,7 +530,7 @@ export function useCardHoverPreview({
           infoBar.textContent = 'Proxy only'
         } else if (data.status === 'unowned') {
           const priceText = data.priceUsd != null 
-            ? `$${data.priceUsd.toFixed(2)}`
+            ? formatPrice(data.priceUsd)
             : 'Price unknown'
           infoBar.textContent = priceText
         } else {
@@ -812,7 +813,7 @@ export function CardHoverPreview({ visible, scryfallId, cardName, cursorX, curso
             infoBar.textContent = 'Proxy only'
           } else if (data.status === 'unowned') {
             const priceText = data.priceUsd != null 
-              ? `$${data.priceUsd.toFixed(2)}`
+              ? formatPrice(data.priceUsd)
               : 'Price unknown'
             infoBar.textContent = priceText
           } else {

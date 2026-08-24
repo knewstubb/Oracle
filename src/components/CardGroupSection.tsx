@@ -36,6 +36,7 @@ import type { DeckCard } from '@/components/CardGrid'
 import type { CardSlotStatus } from '@/lib/card-status'
 import { isBasicLand } from '@/lib/basic-lands'
 import { ManaCost } from '@/components/ManaCost'
+import { formatPrice } from '@/lib/collection-printing-utils'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -356,11 +357,11 @@ function UnifiedCardRow({
       {/* Price — compact mode shows smaller, non-compact shows wider on desktop */}
       {compact ? (
         <span className="shrink-0 text-[length:var(--fs-xs)] tabular-nums text-muted-foreground" style={{ minWidth: 36, textAlign: 'right' }}>
-          {card.price_usd != null ? `$${card.price_usd < 10 ? card.price_usd.toFixed(2) : Math.round(card.price_usd)}` : ''}
+          {card.price_usd != null ? formatPrice(card.price_usd) : ''}
         </span>
       ) : (
         <span className="hidden md:inline shrink-0 text-[length:var(--fs-xs)] tabular-nums text-muted-foreground" style={{ width: 56, textAlign: 'right' }}>
-          {card.price_usd != null ? `$${card.price_usd.toFixed(2)}` : '—'}
+          {formatPrice(card.price_usd)}
         </span>
       )}
 

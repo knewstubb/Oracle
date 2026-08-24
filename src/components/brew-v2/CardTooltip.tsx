@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import type { DeckCard } from '@/lib/brew-v2-types'
+import { formatPrice } from '@/lib/collection-printing-utils'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -116,7 +117,7 @@ export function CardTooltip({ card, artUrl, visible, anchorRect }: CardTooltipPr
       {/* 7. Price */}
       {card.price_ck != null && (
         <div className="mt-0.5 text-[length:var(--fs-sm)] text-muted-foreground">
-          ${card.price_ck.toFixed(2)}
+          {formatPrice(card.price_ck)}
         </div>
       )}
 

@@ -5,6 +5,7 @@ import { ChevronDown, ChevronUp, X } from 'lucide-react'
 import { CardImage } from '@/components/CardImage'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
+import { formatPrice } from '@/lib/collection-printing-utils'
 import type {
   CollectionRollupRowWithPrice,
   PrintingSubgroupRow,
@@ -21,14 +22,9 @@ interface CollectionGridViewProps {
 
 /* ─── Helpers ───────────────────────────────────────────────────────── */
 
-function formatPrice(price: number | null, isBasicLand: boolean): string {
+function formatPriceWithLabel(price: number | null, isBasicLand: boolean): string {
   if (isBasicLand || price === null) return '—'
-  return `$${price.toFixed(2)} to add`
-}
-
-function formatOwnedValuation(price: number | null): string {
-  if (price === null) return '—'
-  return `$${price.toFixed(2)}`
+  return `${formatPrice(price)} to add`
 }
 
 /* ─── Loading Skeleton ──────────────────────────────────────────────── */
@@ -129,7 +125,7 @@ function PrintingDetail({
                 className="min-w-[52px] text-right font-mono"
                 style={{ color: sg.ownedValuation !== null ? '#1D9E75' : 'rgba(255,255,255,0.25)' }}
               >
-                {formatOwnedValuation(sg.ownedValuation)}
+                {formatPrice(sg.ownedValuation)}
               </span>
             </div>
           </div>
@@ -274,7 +270,7 @@ function CardGridTile({
                 : 'rgba(255,255,255,0.25)',
           }}
         >
-          {formatPrice(row.priceToAdd, row.isBasicLand)}
+          {formatPriceWithLabel(row.priceToAdd, row.isBasicLand)}
         </span>
       </div>
 

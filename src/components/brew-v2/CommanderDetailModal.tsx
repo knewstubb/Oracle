@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { X, Crown } from 'lucide-react'
+import { formatPrice } from '@/lib/collection-printing-utils'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -209,7 +210,7 @@ export function CommanderDetailModal({
               )}
               {cardData?.price_usd != null && cardData.price_usd > 0 && (
                 <span className="px-2 py-1 rounded text-[12px] font-medium bg-[rgba(255,255,255,0.05)] text-[rgba(255,255,255,0.6)]">
-                  ${cardData.price_usd.toFixed(2)}
+                  {formatPrice(cardData.price_usd)}
                 </span>
               )}
             </div>

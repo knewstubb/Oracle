@@ -2,6 +2,7 @@
 
 import { CardImage } from '@/components/CardImage'
 import { BuildSelector } from '@/components/BuildSelector'
+import { formatPrice } from '@/lib/collection-printing-utils'
 
 interface PersistentHeaderProps {
   deck: {
@@ -72,7 +73,7 @@ export function PersistentHeader({ deck, totalCards, proxyCount, totalValue, act
             <p className="mt-0.5 flex items-center gap-2 text-[length:var(--fs-sm)] text-muted-foreground">
               <span>{totalCards} cards · {proxyCount} proxies</span>
               {deck.bracket && <span>· Bracket {deck.bracket}</span>}
-              {totalValue != null && totalValue > 0 && <span>· ${totalValue.toFixed(2)}</span>}
+              {totalValue != null && totalValue > 0 && <span>· {formatPrice(totalValue)}</span>}
               {deck.salt_score != null && (
                 <span
                   className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[length:var(--fs-xs)] font-medium"

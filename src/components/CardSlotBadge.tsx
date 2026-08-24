@@ -114,16 +114,17 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
   // Border variant: no-op as a component (borders applied via getSlotTileBorderStyle)
   if (variant === 'border') return null
 
-  // Icon-only variant: 18px circular badge
+  // Icon-only variant: 18px circular badge with 0.5px border
   if (variant === 'icon') {
     const isOriginal = status === 'original'
     const isProxy = status === 'proxy'
     const isAvailable = status === 'available'
     
-    // Badge size
+    // Badge size and icon sizing
     const badgeSize = 18
-    const iconSize = 11
-    const innerCircleSize = 9
+    const iconSize = 12
+    const innerCircleSize = 10
+    const borderWidth = 0.5
     
     // Common hover classes for all icon badges
     const hoverClasses = 'transition-all duration-150 cursor-pointer hover:brightness-125 hover:scale-110'
@@ -131,7 +132,7 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
     // Common base classes for centering
     const baseClasses = `grid place-items-center rounded-full shrink-0 ${hoverClasses}`
     
-    // Icon style shared by all icon variants
+    // Icon style shared by all icon variants — uses 24 optical size for crisp rendering
     const iconStyle: React.CSSProperties = {
       fontSize: iconSize,
       width: iconSize,
@@ -140,10 +141,10 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      fontVariationSettings: "'FILL' 0, 'wght' 400, 'opsz' 20",
+      fontVariationSettings: "'FILL' 0, 'wght' 400, 'opsz' 24",
     }
     
-    // Original: filled green background with outline checkmark
+    // Original: filled green background with 0.5px green border
     if (isOriginal) {
       return (
         <span
@@ -152,7 +153,7 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
             width: badgeSize,
             height: badgeSize,
             backgroundColor: config.color,
-            border: '1px solid transparent', // Match border sizing with outlined states
+            border: `${borderWidth}px solid ${config.color}`,
           }}
           title={config.label}
           aria-label={`Status: ${config.label}`}
@@ -162,7 +163,7 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
             style={{
               ...iconStyle,
               color: '#1a1a1a',
-              fontVariationSettings: "'FILL' 0, 'wght' 500, 'opsz' 20",
+              fontVariationSettings: "'FILL' 0, 'wght' 500, 'opsz' 24",
             }}
             aria-hidden="true"
           >
@@ -172,7 +173,7 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
       )
     }
     
-    // Proxy: filled blue background with outline mask icon
+    // Proxy: filled blue background with 0.5px blue border
     if (isProxy) {
       return (
         <span
@@ -181,7 +182,7 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
             width: badgeSize,
             height: badgeSize,
             backgroundColor: config.color,
-            border: '1px solid transparent', // Match border sizing with outlined states
+            border: `${borderWidth}px solid ${config.color}`,
           }}
           title={config.label}
           aria-label={`Status: ${config.label}`}
@@ -191,7 +192,7 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
             style={{
               ...iconStyle,
               color: '#1a1a1a',
-              fontVariationSettings: "'FILL' 0, 'wght' 500, 'opsz' 20",
+              fontVariationSettings: "'FILL' 0, 'wght' 500, 'opsz' 24",
             }}
             aria-hidden="true"
           >
@@ -201,7 +202,7 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
       )
     }
     
-    // Available: dark grey fill + teal border + inner teal circle
+    // Available: dark fill + 0.5px teal border + inner teal circle
     if (isAvailable) {
       return (
         <span
@@ -209,7 +210,7 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
           style={{
             width: badgeSize,
             height: badgeSize,
-            border: '1px solid var(--border-default)',
+            border: `${borderWidth}px solid ${config.color}`,
             backgroundColor: '#1a1a1a',
           }}
           title={config.label}
@@ -220,7 +221,7 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
               width: innerCircleSize,
               height: innerCircleSize,
               borderRadius: '50%',
-              border: '1.5px solid #1D9E75',
+              border: `1.5px solid ${config.color}`,
               backgroundColor: 'transparent',
             }}
           />
@@ -228,9 +229,7 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
       )
     }
     
-    // All other outlined states: dark tinted fill + 1px border + outline colored icon
-    // Claimed (orange): very dark orange fill
-    // Unowned (pink): very dark pink fill
+    // Claimed & Unowned: dark tinted fill + 0.5px colored border + colored icon
     const fillColor = status === 'claimed' ? '#3d2a15' 
                     : status === 'unowned' ? '#3d1830'
                     : '#1a1a1a'
@@ -241,7 +240,7 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', className }: 
         style={{
           width: badgeSize,
           height: badgeSize,
-          border: '1px solid var(--border-default)',
+          border: `${borderWidth}px solid ${config.color}`,
           backgroundColor: fillColor,
         }}
         title={config.label}

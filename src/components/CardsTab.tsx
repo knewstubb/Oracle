@@ -17,7 +17,7 @@ import { useDeckCategories } from '@/hooks/useDeckCategories'
 import { deckKeys } from '@/hooks/useDeckQueryKeys'
 import type { DeckCard } from '@/components/CardGrid'
 import type { CardSlotStatus } from '@/lib/card-status'
-import { isBasicLand } from '@/lib/basic-lands'
+import { isBasicLand, getBasicLandDefaultScryfallId } from '@/lib/basic-lands'
 import { AddCardSearch } from '@/components/AddCardSearch'
 import { DeckImportButton } from '@/components/DeckImportButton'
 import { CardGroupSection } from '@/components/CardGroupSection'
@@ -1016,23 +1016,26 @@ function GridView({
                     style={{ border: '0.5px solid var(--border-default)', height: 'var(--card-tile-height)' }}
                   >
                     {/* Full card image */}
-                    {card.scryfall_id ? (
-                      <img
-                        src={`https://cards.scryfall.io/large/front/${card.scryfall_id.charAt(0)}/${card.scryfall_id.charAt(1)}/${card.scryfall_id}.jpg`}
-                        alt={landName}
-                        loading="lazy"
-                        className="absolute inset-0 h-full w-full object-contain"
-                        style={{ imageRendering: 'auto' }}
-                      />
-                    ) : (
-                      <div
-                        className="absolute inset-0 flex items-center justify-center bg-muted text-[length:var(--fs-sm)] text-muted-foreground"
-                        role="img"
-                        aria-label={landName}
-                      >
-                        {landName}
-                      </div>
-                    )}
+                    {(() => {
+                      const scryfallId = card.scryfall_id || getBasicLandDefaultScryfallId(landName)
+                      return scryfallId ? (
+                        <img
+                          src={`https://cards.scryfall.io/large/front/${scryfallId.charAt(0)}/${scryfallId.charAt(1)}/${scryfallId}.jpg`}
+                          alt={landName}
+                          loading="lazy"
+                          className="absolute inset-0 h-full w-full object-contain"
+                          style={{ imageRendering: 'auto' }}
+                        />
+                      ) : (
+                        <div
+                          className="absolute inset-0 flex items-center justify-center bg-muted text-[length:var(--fs-sm)] text-muted-foreground"
+                          role="img"
+                          aria-label={landName}
+                        >
+                          {landName}
+                        </div>
+                      )
+                    })()}
 
                     {/* Quantity badge — top LEFT for basic lands */}
                     <div

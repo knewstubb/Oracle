@@ -59,7 +59,11 @@
 
   /* ─── Layout – Master-Detail ─────────────────────────────────────── */
   --detail-panel-width: 320px;
-  --content-max-width: 1520px;
+  --content-max-width: 1920px;
+
+  /* ─── Card Grid ──────────────────────────────────────────────────── */
+  --card-tile-height: 300px;
+  --card-tile-width: 214px; /* 300px * 5/7 aspect ratio */
 
   /* ─── Border Radius ──────────────────────────────────────────────── */
   --border-radius-md: 8px;

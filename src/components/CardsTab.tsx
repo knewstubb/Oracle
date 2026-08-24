@@ -969,7 +969,7 @@ function GridView({
           <h4 className="mb-2 text-[length:var(--fs-sm)] font-medium uppercase text-muted-foreground">
             {groupName} ({groupCards.reduce((sum, c) => sum + (c.quantity || 1), 0)})
           </h4>
-          <div className="grid grid-cols-8 gap-3" role="list" aria-label={`${groupName} cards`}>
+          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, var(--card-tile-width))' }} role="list" aria-label={`${groupName} cards`}>
             {groupCards.map((card) => {
               const cardStatus = statusMap.get(card.id) ?? 'available'
               const statusLabels: Record<string, string> = {
@@ -1000,8 +1000,8 @@ function GridView({
                 <div
                   key={card.id}
                   role="listitem"
-                  className="group/tile relative aspect-[5/7] overflow-hidden rounded-lg"
-                  style={tileBorderStyle}
+                  className="group/tile relative overflow-hidden rounded-lg"
+                  style={{ ...tileBorderStyle, width: 'var(--card-tile-width)', height: 'var(--card-tile-height)' }}
                 >
                   {/* Full card image — high resolution */}
                   {card.scryfall_id ? (

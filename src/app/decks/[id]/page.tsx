@@ -85,11 +85,10 @@ export default function DeckViewPage() {
     const target = e.target as HTMLElement
     // Only track scroll on tab content panels (have overflow-y-auto)
     if (target.getAttribute('data-slot') === 'tabs-content' || target.classList.contains('overflow-y-auto')) {
-      // Move background at 30% of scroll speed, but clamp to prevent showing edges
-      // With scale(1.1), we have ~5% extra on each side = ~50px max shift for 1000px viewport
-      // Clamp to a safe max that won't reveal the image border
-      const rawOffset = target.scrollTop * 0.3
-      const maxOffset = 40 // Safe limit that won't exceed the scaled image bounds
+      // Move background at 20% of scroll speed for smoother parallax
+      // With scale(1.25), we have ~12.5% extra on each side = ~100px max shift
+      const rawOffset = target.scrollTop * 0.2
+      const maxOffset = 80 // Safe limit within the scaled image bounds
       setParallaxOffset(Math.min(rawOffset, maxOffset))
     }
   }, [])
@@ -211,7 +210,7 @@ export default function DeckViewPage() {
             style={{
               filter: 'blur(20px)',
               opacity: 0.4,
-              transform: `scale(1.1) translateY(${parallaxOffset}px)`,
+              transform: `scale(1.25) translateY(${parallaxOffset}px)`,
             }}
           />
           {/* Gradient fade — more visible at top, fades out toward bottom */}

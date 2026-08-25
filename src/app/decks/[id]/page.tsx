@@ -85,9 +85,9 @@ export default function DeckViewPage() {
     const target = e.target as HTMLElement
     // Only track scroll on tab content panels (have overflow-y-auto)
     if (target.getAttribute('data-slot') === 'tabs-content' || target.classList.contains('overflow-y-auto')) {
-      // Move background at 15% of scroll speed for subtle continuous parallax
+      // Move background at 8% of scroll speed for very subtle continuous parallax
       // With scale(1.5), we have ~25% extra on each side = ~200px max shift
-      const rawOffset = target.scrollTop * 0.15
+      const rawOffset = target.scrollTop * 0.08
       const maxOffset = 150 // Safe limit within the scaled image bounds
       setParallaxOffset(Math.min(rawOffset, maxOffset))
     }

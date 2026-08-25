@@ -525,9 +525,11 @@ export function useCardHoverPreview({
           const availText = data.available === data.quantity 
             ? `${data.quantity} owned (all available)`
             : `${data.quantity} owned, ${data.available} available`
-          infoBar.textContent = availText
+          const priceText = data.priceUsd != null ? ` · ${formatPrice(data.priceUsd)}` : ''
+          infoBar.textContent = availText + priceText
         } else if (data.status === 'proxy') {
-          infoBar.textContent = 'Proxy only'
+          const priceText = data.priceUsd != null ? ` · ${formatPrice(data.priceUsd)}` : ''
+          infoBar.textContent = 'Proxy only' + priceText
         } else if (data.status === 'unowned') {
           const priceText = data.priceUsd != null 
             ? formatPrice(data.priceUsd)
@@ -808,9 +810,11 @@ export function CardHoverPreview({ visible, scryfallId, cardName, cursorX, curso
             const availText = data.available === data.quantity 
               ? `${data.quantity} owned (all available)`
               : `${data.quantity} owned, ${data.available} available`
-            infoBar.textContent = availText
+            const priceText = data.priceUsd != null ? ` · ${formatPrice(data.priceUsd)}` : ''
+            infoBar.textContent = availText + priceText
           } else if (data.status === 'proxy') {
-            infoBar.textContent = 'Proxy only'
+            const priceText = data.priceUsd != null ? ` · ${formatPrice(data.priceUsd)}` : ''
+            infoBar.textContent = 'Proxy only' + priceText
           } else if (data.status === 'unowned') {
             const priceText = data.priceUsd != null 
               ? formatPrice(data.priceUsd)

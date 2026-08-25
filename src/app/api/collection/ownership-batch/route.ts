@@ -149,45 +149,42 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // For detailed mode with unowned cards, fetch prices from ref_printings
+    // For detailed mode, fetch prices from ref_printings for ALL cards
     let priceMap = new Map<string, number | null>()
-    if (includeDetails) {
-      const unownedCards = cardNames.filter(name => !ownershipMap.has(name.toLowerCase()))
-      if (unownedCards.length > 0) {
-        // Try exact match first
-        const { data: printings } = await supabase
+    if (includeDetails && cardNames.length > 0) {
+      // Try exact match first
+      const { data: printings } = await supabase
+        .from('ref_printings')
+        .select('name, price_usd')
+        .in('name', cardNames)
+      
+      for (const p of printings ?? []) {
+        if (!priceMap.has(p.name.toLowerCase()) && p.price_usd != null) {
+          priceMap.set(p.name.toLowerCase(), p.price_usd)
+        }
+      }
+      
+      // Try case-insensitive for any still missing
+      const stillMissing = cardNames.filter(n => !priceMap.has(n.toLowerCase()))
+      for (const name of stillMissing) {
+        const { data: fuzzy } = await supabase
           .from('ref_printings')
           .select('name, price_usd')
-          .in('name', unownedCards)
+          .ilike('name', name)
+          .limit(1)
         
-        for (const p of printings ?? []) {
-          if (!priceMap.has(p.name.toLowerCase()) && p.price_usd != null) {
-            priceMap.set(p.name.toLowerCase(), p.price_usd)
-          }
-        }
-        
-        // Try case-insensitive for any still missing
-        const stillMissing = unownedCards.filter(n => !priceMap.has(n.toLowerCase()))
-        for (const name of stillMissing) {
-          const { data: fuzzy } = await supabase
+        if (fuzzy && fuzzy[0] && fuzzy[0].price_usd != null) {
+          priceMap.set(name.toLowerCase(), fuzzy[0].price_usd)
+        } else if (!name.includes(' // ')) {
+          // DFC fallback: try matching front-face-only name
+          const { data: dfcPrinting } = await supabase
             .from('ref_printings')
             .select('name, price_usd')
-            .ilike('name', name)
+            .ilike('name', `${name} // %`)
             .limit(1)
           
-          if (fuzzy && fuzzy[0] && fuzzy[0].price_usd != null) {
-            priceMap.set(name.toLowerCase(), fuzzy[0].price_usd)
-          } else if (!name.includes(' // ')) {
-            // DFC fallback: try matching front-face-only name
-            const { data: dfcPrinting } = await supabase
-              .from('ref_printings')
-              .select('name, price_usd')
-              .ilike('name', `${name} // %`)
-              .limit(1)
-            
-            if (dfcPrinting && dfcPrinting[0] && dfcPrinting[0].price_usd != null) {
-              priceMap.set(name.toLowerCase(), dfcPrinting[0].price_usd)
-            }
+          if (dfcPrinting && dfcPrinting[0] && dfcPrinting[0].price_usd != null) {
+            priceMap.set(name.toLowerCase(), dfcPrinting[0].price_usd)
           }
         }
       }
@@ -212,12 +209,17 @@ export async function POST(request: NextRequest) {
           const available = ownership.originalCopyIds.filter(id => !allocatedCopyIds.has(id)).length
           result.quantity = quantity
           result.available = available
+          result.priceUsd = priceMap.get(name.toLowerCase()) ?? null
         }
         return result
       }
       
       if (ownership.hasProxy) {
-        return { cardName: name, status: 'proxy' as const }
+        const result: DetailedOwnershipResult = { cardName: name, status: 'proxy' as const }
+        if (includeDetails) {
+          result.priceUsd = priceMap.get(name.toLowerCase()) ?? null
+        }
+        return result
       }
       
       return { cardName: name, status: 'unowned' as const }

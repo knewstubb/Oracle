@@ -136,32 +136,37 @@ export function CardGroupSection({
       className="rounded-lg border border-white/[0.08]"
       style={{ backgroundColor: 'rgba(26,26,30,0.5)' }}
     >
-      {/* Section header — clickable to collapse */}
-      <button
-        type="button"
-        onClick={() => setCollapsed((v) => !v)}
-        className="flex w-full items-center gap-2 border-b px-3 py-2 text-left transition-colors hover:bg-white/[0.03]"
+      {/* Section header */}
+      <div
+        className="flex w-full items-center gap-2 border-b px-3 py-2 transition-colors"
         style={{ borderColor: collapsed ? 'transparent' : 'var(--border-default)' }}
-        aria-expanded={!collapsed}
-        aria-controls={`category-content-${groupName.toLowerCase().replace(/\s+/g, '-')}`}
       >
-        <span className="text-[length:var(--fs-sm)] font-medium uppercase tracking-wide text-muted-foreground">
-          {groupName} ({count})
-        </span>
+        {/* Clickable area to collapse — everything except the action button */}
+        <button
+          type="button"
+          onClick={() => setCollapsed((v) => !v)}
+          className="flex flex-1 items-center gap-2 text-left hover:opacity-80"
+          aria-expanded={!collapsed}
+          aria-controls={`category-content-${groupName.toLowerCase().replace(/\s+/g, '-')}`}
+        >
+          <span className="text-[length:var(--fs-sm)] font-medium uppercase tracking-wide text-muted-foreground">
+            {groupName} ({count})
+          </span>
 
-        <span className="flex-1" />
+          <span className="flex-1" />
+
+          {collapsed ? (
+            <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          ) : (
+            <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          )}
+        </button>
 
         {/* Bulk "Make all generic" — only in land groups with specific-printing lands */}
         {isLandGroup && hasSpecificLands && !collapsed && (
           <MakeAllGenericButton deckId={deckId} specificLandGroups={specificLandGroups} />
         )}
-
-        {collapsed ? (
-          <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-        ) : (
-          <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-        )}
-      </button>
+      </div>
 
       {/* Card rows */}
       {!collapsed && (

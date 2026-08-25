@@ -77,6 +77,18 @@ export default function DeckViewPage() {
   const [scrollTarget, setScrollTarget] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string>('cards')
 
+  // Parallax scroll effect for commander art background
+  const [parallaxOffset, setParallaxOffset] = useState(0)
+
+  // Handle scroll on any tab content for parallax
+  const handleContentScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement
+    // Only track scroll on tab content panels (have overflow-y-auto)
+    if (target.getAttribute('data-slot') === 'tabs-content' || target.classList.contains('overflow-y-auto')) {
+      setParallaxOffset(target.scrollTop * 0.3)
+    }
+  }, [])
+
   // Open pull list tab if ?tab=picklist query param present
   useEffect(() => {
     const tabParam = searchParams.get('tab')
@@ -181,7 +193,7 @@ export default function DeckViewPage() {
 
   return (
     <div className="relative flex h-full flex-col">
-      {/* Blurred commander art background */}
+      {/* Blurred commander art background with parallax */}
       {deck.commander_scryfall_id && (
         <div
           className="pointer-events-none absolute inset-x-0 top-0 z-0 h-full overflow-hidden"
@@ -190,11 +202,11 @@ export default function DeckViewPage() {
           <img
             src={`https://cards.scryfall.io/art_crop/front/${deck.commander_scryfall_id.charAt(0)}/${deck.commander_scryfall_id.charAt(1)}/${deck.commander_scryfall_id}.jpg`}
             alt=""
-            className="absolute inset-0 h-full w-full object-cover"
+            className="absolute inset-0 h-full w-full object-cover will-change-transform"
             style={{
               filter: 'blur(20px)',
               opacity: 0.4,
-              transform: 'scale(1.1)',
+              transform: `scale(1.1) translateY(${parallaxOffset}px)`,
             }}
           />
           {/* Gradient fade — more visible at top, fades out toward bottom */}
@@ -248,8 +260,12 @@ export default function DeckViewPage() {
       <Tabs
         defaultValue="cards"
         value={activeTab}
-        onValueChange={(val) => setActiveTab(val as string)}
+        onValueChange={(val) => {
+          setActiveTab(val as string)
+          setParallaxOffset(0) // Reset parallax when switching tabs
+        }}
         className="flex min-h-0 flex-1 flex-col"
+        onScrollCapture={handleContentScroll}
       >
         <div className="shrink-0 border-b border-border px-6">
           <div className="mx-auto max-w-[var(--content-max-width)]">

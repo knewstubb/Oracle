@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Loader2, Search } from 'lucide-react'
+import { Plus, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
 
@@ -19,38 +19,87 @@ export function AddCardSearch({ deckId }: AddCardSearchProps) {
   const [query, setQuery] = useState('')
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [showDropdown, setShowDropdown] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
   const queryClient = useQueryClient()
 
-  // Fetch autocomplete suggestions
+  // Fetch autocomplete suggestions with abort support
   const fetchSuggestions = useCallback(async (q: string) => {
+    // Cancel any in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+
     if (q.length < 2) {
       setSuggestions([])
       setShowDropdown(false)
+      setIsLoading(false)
       return
     }
 
+    // Create new abort controller for this request
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+    setIsLoading(true)
+
     try {
-      const res = await fetch(`/api/cards/autocomplete?q=${encodeURIComponent(q)}`)
+      const res = await fetch(`/api/cards/autocomplete?q=${encodeURIComponent(q)}`, {
+        signal: controller.signal,
+      })
       const json = await res.json()
-      setSuggestions(json.data ?? [])
-      setShowDropdown((json.data ?? []).length > 0)
-      setHighlightedIndex(-1)
-    } catch {
-      setSuggestions([])
-      setShowDropdown(false)
+      
+      // Only update state if this request wasn't aborted
+      if (!controller.signal.aborted) {
+        const data = json.data ?? []
+        setSuggestions(data)
+        setShowDropdown(data.length > 0)
+        setHighlightedIndex(-1)
+        setIsLoading(false)
+      }
+    } catch (err) {
+      // Ignore abort errors, handle other errors
+      if (err instanceof Error && err.name === 'AbortError') {
+        return
+      }
+      if (!controller.signal.aborted) {
+        setSuggestions([])
+        setShowDropdown(false)
+        setIsLoading(false)
+      }
     }
   }, [])
 
   // Debounced input handler
   const handleInputChange = useCallback((value: string) => {
     setQuery(value)
+    
+    // Clear pending debounce
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => fetchSuggestions(value), 200)
+    
+    // Show loading state immediately for better feedback
+    if (value.length >= 2) {
+      setIsLoading(true)
+    } else {
+      setIsLoading(false)
+      setSuggestions([])
+      setShowDropdown(false)
+    }
+    
+    // Debounce the actual fetch
+    debounceRef.current = setTimeout(() => fetchSuggestions(value), 150)
   }, [fetchSuggestions])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      if (abortControllerRef.current) abortControllerRef.current.abort()
+    }
+  }, [])
 
   // Add card mutation
   const addCardMutation = useMutation({
@@ -122,7 +171,7 @@ export function AddCardSearch({ deckId }: AddCardSearchProps) {
       <div className="relative">
         {/* Search/loading icon inside the field */}
         <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2">
-          {addCardMutation.isPending || (query.length >= 2 && suggestions.length === 0 && !showDropdown) ? (
+          {addCardMutation.isPending || isLoading ? (
             <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
           ) : (
             <Plus className="size-3.5 text-muted-foreground" />

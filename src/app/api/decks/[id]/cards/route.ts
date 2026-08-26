@@ -3,9 +3,10 @@
  *
  * Adds a new card slot to a deck by card name.
  * Creates a deck_cards row with the given card_name, quantity 1, no physical copy assigned.
- * Sets the category from card_definitions.default_category if available, otherwise derives from type_line.
+ * Sets the category from the request body if provided, otherwise from card_definitions.default_category,
+ * or derives from type_line as a fallback.
  *
- * Body: { cardName: string, quantity?: number }
+ * Body: { cardName: string, quantity?: number, category?: string }
  * Response: { id: number, cardName: string }
  */
 
@@ -37,6 +38,7 @@ export async function POST(
   const body = await request.json()
   const cardName = body.cardName?.trim()
   const quantity = body.quantity ?? 1
+  const explicitCategory = body.category?.trim() // Optional: explicit category (e.g., "Maybeboard")
 
   if (!cardName) {
     return Response.json({ error: 'cardName is required' }, { status: 400 })
@@ -99,6 +101,11 @@ export async function POST(
   if (!categories && typeLine) {
     const derived = deriveDefaultCategory(typeLine)
     categories = JSON.stringify([derived])
+  }
+
+  // Override with explicit category if provided (e.g., "Maybeboard")
+  if (explicitCategory) {
+    categories = JSON.stringify([explicitCategory])
   }
 
   // Insert the new deck_cards row

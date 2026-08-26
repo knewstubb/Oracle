@@ -166,14 +166,17 @@ export async function createVersionSnapshot(
 
 /**
  * Get the current card count for a deck.
+ * Excludes Maybeboard and Sideboard cards (they don't count toward deck limit).
  * Used to check for milestone triggers after adding cards.
  */
 export async function getDeckCardCount(deckId: number): Promise<number> {
   const supabase = createAdminClient()
 
-  const { count, error } = await supabase
+  // Fetch cards with categories to filter out Maybeboard/Sideboard
+  // These don't count toward the deck's card limit or milestone triggers
+  const { data, error } = await supabase
     .from('deck_cards')
-    .select('id', { count: 'exact', head: true })
+    .select('quantity, categories')
     .eq('deck_id', deckId)
 
   if (error) {
@@ -181,7 +184,27 @@ export async function getDeckCardCount(deckId: number): Promise<number> {
     return 0
   }
 
-  return count ?? 0
+  if (!data) return 0
+
+  // Sum quantities, excluding Maybeboard and Sideboard
+  let count = 0
+  for (const card of data) {
+    const categories = card.categories
+    if (categories) {
+      try {
+        const parsed = JSON.parse(categories)
+        const primary = Array.isArray(parsed) ? parsed[0] : null
+        if (primary === 'Maybeboard' || primary === 'Sideboard') {
+          continue // Skip these cards
+        }
+      } catch {
+        // Invalid JSON, include the card
+      }
+    }
+    count += card.quantity ?? 1
+  }
+
+  return count
 }
 
 /**

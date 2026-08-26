@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Loader2 } from 'lucide-react'
+import { Plus, Loader2, Bookmark } from 'lucide-react'
 import { toast } from 'sonner'
 import { createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
 
@@ -14,6 +14,8 @@ interface AddCardSearchProps {
  * Autocomplete search input for adding a card to a deck.
  * Fetches suggestions from Scryfall via /api/cards/autocomplete.
  * Selecting a suggestion adds the card to the deck via POST /api/decks/[id]/cards.
+ * 
+ * Supports adding cards directly to Maybeboard via a toggle button.
  */
 export function AddCardSearch({ deckId }: AddCardSearchProps) {
   const [query, setQuery] = useState('')
@@ -21,6 +23,7 @@ export function AddCardSearch({ deckId }: AddCardSearchProps) {
   const [showDropdown, setShowDropdown] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
+  const [addToMaybeboard, setAddToMaybeboard] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -104,10 +107,14 @@ export function AddCardSearch({ deckId }: AddCardSearchProps) {
   // Add card mutation
   const addCardMutation = useMutation({
     mutationFn: async (cardName: string) => {
+      const body: { cardName: string; category?: string } = { cardName }
+      if (addToMaybeboard) {
+        body.category = 'Maybeboard'
+      }
       const res = await fetch(`/api/decks/${deckId}/cards`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cardName }),
+        body: JSON.stringify(body),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
@@ -118,7 +125,7 @@ export function AddCardSearch({ deckId }: AddCardSearchProps) {
     onSuccess: (_data, cardName) => {
       const { invalidateDeck } = createDeckInvalidators(queryClient)
       invalidateDeck(deckId)
-      toast.success(`Added ${cardName}`)
+      toast.success(addToMaybeboard ? `Added ${cardName} to Maybeboard` : `Added ${cardName}`)
       setQuery('')
       setSuggestions([])
       setShowDropdown(false)
@@ -167,7 +174,23 @@ export function AddCardSearch({ deckId }: AddCardSearchProps) {
   }, [])
 
   return (
-    <div className="relative">
+    <div className="relative flex items-center gap-1">
+      {/* Maybeboard toggle */}
+      <button
+        type="button"
+        onClick={() => setAddToMaybeboard(!addToMaybeboard)}
+        className={`flex h-8 items-center justify-center rounded-lg border px-2 transition-colors ${
+          addToMaybeboard
+            ? 'border-amber-500/50 bg-amber-500/10 text-amber-500'
+            : 'border-[var(--border-default)] bg-[var(--bg-surface)] text-muted-foreground hover:text-foreground'
+        }`}
+        title={addToMaybeboard ? 'Adding to Maybeboard (click to add to deck)' : 'Click to add to Maybeboard instead'}
+        aria-pressed={addToMaybeboard}
+        aria-label={addToMaybeboard ? 'Adding to Maybeboard' : 'Add to Maybeboard'}
+      >
+        <Bookmark className={`size-3.5 ${addToMaybeboard ? 'fill-current' : ''}`} />
+      </button>
+
       <div className="relative">
         {/* Search/loading icon inside the field */}
         <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2">
@@ -184,10 +207,14 @@ export function AddCardSearch({ deckId }: AddCardSearchProps) {
           onChange={(e) => handleInputChange(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={() => { if (suggestions.length > 0) setShowDropdown(true) }}
-          placeholder="Add card..."
+          placeholder={addToMaybeboard ? 'Add to maybeboard...' : 'Add card...'}
           disabled={addCardMutation.isPending}
-          className="h-8 w-48 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] pl-8 pr-3 text-[length:var(--fs-sm)] text-foreground placeholder:text-muted-foreground focus:border-[var(--accent-primary)] focus:outline-none disabled:opacity-50"
-          aria-label="Search for a card to add"
+          className={`h-8 w-48 rounded-lg border bg-[var(--bg-surface)] pl-8 pr-3 text-[length:var(--fs-sm)] text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 ${
+            addToMaybeboard
+              ? 'border-amber-500/50 focus:border-amber-500'
+              : 'border-[var(--border-default)] focus:border-[var(--accent-primary)]'
+          }`}
+          aria-label={addToMaybeboard ? 'Search for a card to add to maybeboard' : 'Search for a card to add'}
           aria-expanded={showDropdown}
           aria-autocomplete="list"
           role="combobox"

@@ -492,6 +492,15 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
     })
   }, [cards])
 
+  // ── Extract Maybeboard cards separately ──────────────────────────────────────
+
+  const maybeboardCards = useMemo(() => {
+    return cards.filter((c) => {
+      const primary = parseCategoriesCapped(c.categories).primary_category
+      return primary === 'Maybeboard'
+    })
+  }, [cards])
+
   // ── Roll up basic lands — collapse duplicate basic land entries into one with summed quantity ──
 
   const rolledUpCards = useMemo(() => {
@@ -775,37 +784,88 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
               <p>No cards match the current filters.</p>
             </div>
           ) : viewMode === 'cards' ? (
-            <GridView cards={filteredCards} groupedCards={groupedCards} statusMap={statusMap} deckId={deckId} />
+            <>
+              <GridView cards={filteredCards} groupedCards={groupedCards} statusMap={statusMap} deckId={deckId} />
+              {maybeboardCards.length > 0 && (
+                <MaybeboardSection
+                  cards={maybeboardCards}
+                  statusMap={statusMap}
+                  deckId={deckId}
+                  physicalCopyMap={physicalCopyMap}
+                  availableCategories={availableCategories}
+                  maxCopies={maxCopies}
+                  selectedIds={selectedCardIds}
+                  onSelectionChange={handleSelectionChange}
+                  onCategoryChange={(cardId, categories) => {
+                    categoryMutation.mutate({ cardId, categories })
+                  }}
+                />
+              )}
+            </>
           ) : viewMode === 'groups' ? (
-            <UnifiedGroupsLayout
-              groupedCards={groupedCards}
-              statusMap={statusMap}
-              deckId={deckId}
-              physicalCopyMap={physicalCopyMap}
-              availableCategories={availableCategories}
-              healthCategories={healthCategories}
-              maxCopies={maxCopies}
-              selectedIds={selectedCardIds}
-              onSelectionChange={handleSelectionChange}
-              onCategoryChange={(cardId, categories) => {
-                categoryMutation.mutate({ cardId, categories })
-              }}
-            />
+            <>
+              <UnifiedGroupsLayout
+                groupedCards={groupedCards}
+                statusMap={statusMap}
+                deckId={deckId}
+                physicalCopyMap={physicalCopyMap}
+                availableCategories={availableCategories}
+                healthCategories={healthCategories}
+                maxCopies={maxCopies}
+                selectedIds={selectedCardIds}
+                onSelectionChange={handleSelectionChange}
+                onCategoryChange={(cardId, categories) => {
+                  categoryMutation.mutate({ cardId, categories })
+                }}
+              />
+              {maybeboardCards.length > 0 && (
+                <MaybeboardSection
+                  cards={maybeboardCards}
+                  statusMap={statusMap}
+                  deckId={deckId}
+                  physicalCopyMap={physicalCopyMap}
+                  availableCategories={availableCategories}
+                  maxCopies={maxCopies}
+                  selectedIds={selectedCardIds}
+                  onSelectionChange={handleSelectionChange}
+                  onCategoryChange={(cardId, categories) => {
+                    categoryMutation.mutate({ cardId, categories })
+                  }}
+                />
+              )}
+            </>
           ) : (
-            <UnifiedListLayout
-              groupedCards={groupedCards}
-              healthCategories={healthCategories}
-              availableCategories={availableCategories}
-              statusMap={statusMap}
-              deckId={deckId}
-              physicalCopyMap={physicalCopyMap}
-              maxCopies={maxCopies}
-              selectedIds={selectedCardIds}
-              onSelectionChange={handleSelectionChange}
-              onCategoryChange={(cardId, categories) => {
-                categoryMutation.mutate({ cardId, categories })
-              }}
-            />
+            <>
+              <UnifiedListLayout
+                groupedCards={groupedCards}
+                healthCategories={healthCategories}
+                availableCategories={availableCategories}
+                statusMap={statusMap}
+                deckId={deckId}
+                physicalCopyMap={physicalCopyMap}
+                maxCopies={maxCopies}
+                selectedIds={selectedCardIds}
+                onSelectionChange={handleSelectionChange}
+                onCategoryChange={(cardId, categories) => {
+                  categoryMutation.mutate({ cardId, categories })
+                }}
+              />
+              {maybeboardCards.length > 0 && (
+                <MaybeboardSection
+                  cards={maybeboardCards}
+                  statusMap={statusMap}
+                  deckId={deckId}
+                  physicalCopyMap={physicalCopyMap}
+                  availableCategories={availableCategories}
+                  maxCopies={maxCopies}
+                  selectedIds={selectedCardIds}
+                  onSelectionChange={handleSelectionChange}
+                  onCategoryChange={(cardId, categories) => {
+                    categoryMutation.mutate({ cardId, categories })
+                  }}
+                />
+              )}
+            </>
           )}
         </div>
       </div>
@@ -821,6 +881,56 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
 
 // Badge rendering now uses the shared CardGroupSection component
 import { PicklistV2 } from '@/components/PicklistV2'
+
+// ─── Maybeboard Section ──────────────────────────────────────────────────────
+
+function MaybeboardSection({
+  cards,
+  statusMap,
+  deckId,
+  physicalCopyMap,
+  availableCategories,
+  onCategoryChange,
+  maxCopies,
+  selectedIds,
+  onSelectionChange,
+}: {
+  cards: DeckCard[]
+  statusMap: Map<number, CardSlotStatus>
+  deckId: number
+  physicalCopyMap: Map<number, number | null>
+  availableCategories: string[]
+  onCategoryChange: (cardId: number, categories: StructuredCategories) => void
+  maxCopies?: number | null
+  selectedIds?: Set<number>
+  onSelectionChange?: (cardId: number, selected: boolean) => void
+}) {
+  return (
+    <div className="mt-6 border-t border-dashed pt-6" style={{ borderColor: 'var(--border-emphasis)' }}>
+      <div className="mb-2 flex items-center gap-2">
+        <span className="text-[length:var(--fs-sm)] font-medium text-muted-foreground">
+          Maybeboard
+        </span>
+        <span className="text-[length:var(--fs-xs)] text-muted-foreground">
+          ({cards.length} card{cards.length !== 1 ? 's' : ''} — not counted in deck)
+        </span>
+      </div>
+      <CardGroupSection
+        groupName="Maybeboard"
+        groupCards={cards}
+        statusMap={statusMap}
+        deckId={deckId}
+        physicalCopyMap={physicalCopyMap}
+        availableCategories={availableCategories}
+        onCategoryChange={onCategoryChange}
+        maxCopies={maxCopies}
+        selectedIds={selectedIds}
+        onSelectionChange={onSelectionChange}
+        defaultCollapsed={false}
+      />
+    </div>
+  )
+}
 
 // ─── Unified List Layout (single column, uses CardGroupSection) ──────────────
 

@@ -98,7 +98,7 @@ function calculateScore(
     }
   }
 
-  // Commander legal cards get a small boost
+  // Commander legal cards get a small boost (all results are commander-legal due to query filter)
   if (card.commander_legal) {
     score += 2
   }
@@ -173,10 +173,12 @@ export async function GET(request: NextRequest) {
 
   // Search ref_cards with ILIKE for substring matching
   // Use simple ILIKE pattern - contains query anywhere in name
+  // Filter to commander-legal cards only since this is a Commander deck builder
   const { data: localCards, error } = await supabase
     .from('ref_cards')
     .select('name, color_identity, can_be_commander, is_legendary, edhrec_rank, commander_legal')
     .ilike('name', `%${q}%`)
+    .eq('commander_legal', true)
     .limit(100) // Get more than we need for better ranking
 
   if (error) {

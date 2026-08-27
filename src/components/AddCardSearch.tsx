@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Loader2, Bookmark } from 'lucide-react'
+import { Plus, Loader2, Bookmark, Crown, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
 
@@ -10,16 +10,25 @@ interface AddCardSearchProps {
   deckId: number
 }
 
+interface CardSuggestion {
+  name: string
+  owned: boolean
+  isCommander: boolean
+}
+
 /**
- * Autocomplete search input for adding a card to a deck.
- * Fetches suggestions from Scryfall via /api/cards/autocomplete.
- * Selecting a suggestion adds the card to the deck via POST /api/decks/[id]/cards.
+ * Smart autocomplete search input for adding a card to a deck.
+ * Uses /api/cards/search which queries local database first (with ranking),
+ * then supplements with Scryfall for cards not in our database.
  * 
- * Supports adding cards directly to Maybeboard via a toggle button.
+ * Features:
+ * - Prioritizes commanders, owned cards, and deck color identity matches
+ * - Shows ownership and commander indicators
+ * - Supports adding cards directly to Maybeboard via toggle
  */
 export function AddCardSearch({ deckId }: AddCardSearchProps) {
   const [query, setQuery] = useState('')
-  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [suggestions, setSuggestions] = useState<CardSuggestion[]>([])
   const [showDropdown, setShowDropdown] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
@@ -30,7 +39,7 @@ export function AddCardSearch({ deckId }: AddCardSearchProps) {
   const abortControllerRef = useRef<AbortController | null>(null)
   const queryClient = useQueryClient()
 
-  // Fetch autocomplete suggestions with abort support
+  // Fetch suggestions from smart search endpoint
   const fetchSuggestions = useCallback(async (q: string) => {
     // Cancel any in-flight request
     if (abortControllerRef.current) {
@@ -50,14 +59,16 @@ export function AddCardSearch({ deckId }: AddCardSearchProps) {
     setIsLoading(true)
 
     try {
-      const res = await fetch(`/api/cards/autocomplete?q=${encodeURIComponent(q)}`, {
-        signal: controller.signal,
-      })
+      // Use smart search endpoint with deck context for better ranking
+      const res = await fetch(
+        `/api/cards/search?q=${encodeURIComponent(q)}&deckId=${deckId}`,
+        { signal: controller.signal }
+      )
       const json = await res.json()
       
       // Only update state if this request wasn't aborted
       if (!controller.signal.aborted) {
-        const data = json.data ?? []
+        const data: CardSuggestion[] = json.data ?? []
         setSuggestions(data)
         setShowDropdown(data.length > 0)
         setHighlightedIndex(-1)
@@ -74,7 +85,7 @@ export function AddCardSearch({ deckId }: AddCardSearchProps) {
         setIsLoading(false)
       }
     }
-  }, [])
+  }, [deckId])
 
   // Debounced input handler
   const handleInputChange = useCallback((value: string) => {
@@ -134,8 +145,8 @@ export function AddCardSearch({ deckId }: AddCardSearchProps) {
   })
 
   // Select a suggestion
-  const selectCard = useCallback((cardName: string) => {
-    addCardMutation.mutate(cardName)
+  const selectCard = useCallback((suggestion: CardSuggestion) => {
+    addCardMutation.mutate(suggestion.name)
   }, [addCardMutation])
 
   // Keyboard navigation
@@ -225,23 +236,38 @@ export function AddCardSearch({ deckId }: AddCardSearchProps) {
       {showDropdown && suggestions.length > 0 && (
         <div
           ref={dropdownRef}
-          className="absolute left-0 top-full z-50 mt-1 max-h-[240px] w-64 overflow-y-auto rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-lg"
+          className="absolute left-0 top-full z-50 mt-1 max-h-[240px] w-72 overflow-y-auto rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-lg"
           role="listbox"
         >
-          {suggestions.map((name, idx) => (
+          {suggestions.map((suggestion, idx) => (
             <button
-              key={name}
+              key={suggestion.name}
               type="button"
               role="option"
               aria-selected={idx === highlightedIndex}
-              onClick={() => selectCard(name)}
-              className={`w-full px-3 py-1.5 text-left text-[length:var(--fs-sm)] transition-colors ${
+              onClick={() => selectCard(suggestion)}
+              className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-[length:var(--fs-sm)] transition-colors ${
                 idx === highlightedIndex
                   ? 'bg-[var(--accent-primary)] text-white'
                   : 'text-foreground hover:bg-white/[0.05]'
               }`}
             >
-              {name}
+              <span className="flex-1 truncate">{suggestion.name}</span>
+              {/* Indicators */}
+              <span className="flex shrink-0 items-center gap-1">
+                {suggestion.isCommander && (
+                  <Crown 
+                    className={`size-3 ${idx === highlightedIndex ? 'text-amber-200' : 'text-amber-500'}`} 
+                    title="Commander"
+                  />
+                )}
+                {suggestion.owned && (
+                  <Check 
+                    className={`size-3 ${idx === highlightedIndex ? 'text-emerald-200' : 'text-emerald-500'}`}
+                    title="Owned"
+                  />
+                )}
+              </span>
             </button>
           ))}
         </div>

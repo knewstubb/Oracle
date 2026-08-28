@@ -7,7 +7,7 @@
 // ---------------------------------------------------------------------------
 // Requirements: 6.1, 6.2, 6.4
 
-import { getToolDefinitions, executeTool } from './tool-registry'
+import { getToolDefinitions, getToolDefinitionsForContext, executeTool } from './tool-registry'
 import type { ToolStreamEvent, ToolExecutionResult } from './tool-types'
 import type {
   ProviderAdapter,
@@ -128,6 +128,8 @@ export interface ToolLoopOptions {
   userId?: string
   /** Optional tool choice to force tool usage on the first iteration */
   toolChoice?: ToolChoice
+  /** Context type for filtering available tools (e.g., 'deck-list', 'deck', 'exploration') */
+  contextType?: string
 }
 
 export interface ToolLoopResult {
@@ -146,8 +148,9 @@ export interface ToolLoopResult {
  * Returns the final text response and accumulated token usage.
  */
 export async function runToolLoop(options: ToolLoopOptions): Promise<ToolLoopResult> {
-  const { adapter, model, system, messages, maxTokens, onToolEvent, onTextDelta, userId, toolChoice } = options
-  const tools = getToolDefinitions()
+  const { adapter, model, system, messages, maxTokens, onToolEvent, onTextDelta, userId, toolChoice, contextType } = options
+  // Use context-aware tool filtering to exclude deck-building tools in exploration contexts
+  const tools = contextType ? getToolDefinitionsForContext(contextType) : getToolDefinitions()
   
   const loopStart = Date.now()
   let currentMessages = [...messages]

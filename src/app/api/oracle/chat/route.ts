@@ -470,6 +470,7 @@ export async function POST(request: NextRequest) {
           onTextDelta,
           userId,
           toolChoice,
+          contextType: context.type, // Filter out deck-building tools in exploration contexts
         })
 
         fullResponseText = finalResponse.text

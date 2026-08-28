@@ -26,9 +26,42 @@ import { createAdminClient } from './supabase'
 
 const registry = new Map<string, RegisteredTool>()
 
+// Tools that modify deck contents - should only be available in deck/workbench contexts
+const DECK_BUILDING_TOOLS = new Set([
+  'add_cards_to_deck',
+  'remove_cards_from_deck',
+  'update_deck_card',
+])
+
+// Contexts where deck-building tools should NOT be available
+const EXPLORATION_CONTEXTS = new Set([
+  'deck-list',
+  'forge',
+  'exploration',
+  'general',
+  'collection',
+])
+
 /** Get all tool definitions for the Anthropic API `tools` parameter */
 export function getToolDefinitions(): AnthropicToolDefinition[] {
   return Array.from(registry.values()).map(t => t.definition)
+}
+
+/** 
+ * Get tool definitions filtered by context.
+ * Excludes deck-building tools when in exploration contexts.
+ */
+export function getToolDefinitionsForContext(contextType?: string): AnthropicToolDefinition[] {
+  const excludeDeckBuilding = contextType && EXPLORATION_CONTEXTS.has(contextType)
+  
+  return Array.from(registry.values())
+    .filter(t => {
+      if (excludeDeckBuilding && DECK_BUILDING_TOOLS.has(t.definition.name)) {
+        return false
+      }
+      return true
+    })
+    .map(t => t.definition)
 }
 
 /** Execute a tool by name, returning the result */

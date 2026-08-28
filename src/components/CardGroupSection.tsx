@@ -271,16 +271,7 @@ function UnifiedCardRow({
 
   const parsed = parseCategoriesCapped(card.categories)
 
-  const invalidateAll = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['decks', String(deckId)] })
-    queryClient.invalidateQueries({ queryKey: ['decks', deckId] })
-    queryClient.invalidateQueries({ queryKey: ['decks', String(deckId), 'card-statuses'] })
-    queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'card-statuses'] })
-    queryClient.invalidateQueries({ queryKey: ['decks', String(deckId), 'health'] })
-    queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'health'] })
-    queryClient.invalidateQueries({ queryKey: ['picklist', deckId] })
-    queryClient.invalidateQueries({ queryKey: ['picklist', String(deckId)] })
-  }, [queryClient, deckId])
+  const { invalidateDeck } = createDeckInvalidators(queryClient)
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -288,12 +279,40 @@ function UnifiedCardRow({
       if (!res.ok) throw new Error('Delete failed')
       return res.json()
     },
-    onSuccess: () => {
-      invalidateAll()
+    onMutate: async () => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: deckKeys.detail(deckId) })
+      
+      // Snapshot previous value
+      const previousDeck = queryClient.getQueryData(deckKeys.detail(deckId))
+      
+      // Optimistically remove the card
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      queryClient.setQueryData(deckKeys.detail(deckId), (old: any) => {
+        if (!old) return old
+        return {
+          ...old,
+          cards: old.cards.filter((c: DeckCard) => c.id !== card.id),
+        }
+      })
+      
+      // Show toast immediately
       toast.success(`Removed ${card.card_name}`)
       setDeleteDialogOpen(false)
+      
+      return { previousDeck }
     },
-    onError: () => toast.error('Failed to remove card'),
+    onError: (_err, _vars, context) => {
+      // Rollback on error
+      if (context?.previousDeck) {
+        queryClient.setQueryData(deckKeys.detail(deckId), context.previousDeck)
+      }
+      toast.error('Failed to remove card')
+    },
+    onSettled: () => {
+      // Always refetch to sync with server
+      invalidateDeck(deckId)
+    },
   })
 
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -518,7 +537,7 @@ function GenericLandRow({ landName, count, deckId, cardIds, selectedIds, onSelec
     Promise.all(cardIds.map(id => fetch(`/api/decks/${deckId}/cards/${id}`, { method: 'DELETE' })))
       .then(() => {
         toast.success(`Removed all ${landName}`)
-        invalidateAll()
+        invalidateDeck(deckId)
       })
       .catch(() => setOptimisticCount(prev))
     setMenuOpen(false)
@@ -648,16 +667,7 @@ function CardRowKebab({
   const queryClient = useQueryClient()
   const allowMultiple = maxCopies === null || maxCopies > 1
 
-  const invalidateAll = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['decks', String(deckId)] })
-    queryClient.invalidateQueries({ queryKey: ['decks', deckId] })
-    queryClient.invalidateQueries({ queryKey: ['decks', String(deckId), 'card-statuses'] })
-    queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'card-statuses'] })
-    queryClient.invalidateQueries({ queryKey: ['decks', String(deckId), 'health'] })
-    queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'health'] })
-    queryClient.invalidateQueries({ queryKey: ['picklist', deckId] })
-    queryClient.invalidateQueries({ queryKey: ['picklist', String(deckId)] })
-  }, [queryClient, deckId])
+  const { invalidateDeck } = createDeckInvalidators(queryClient)
 
   const removeMutation = useMutation({
     mutationFn: async () => {
@@ -665,11 +675,40 @@ function CardRowKebab({
       if (!res.ok) throw new Error('Remove failed')
       return res.json()
     },
-    onSuccess: () => {
-      invalidateAll()
+    onMutate: async () => {
+      // Cancel any outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: deckKeys.detail(deckId) })
+
+      // Snapshot the previous value
+      const previousDeck = queryClient.getQueryData(deckKeys.detail(deckId))
+
+      // Optimistically remove the card from the cache
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      queryClient.setQueryData(deckKeys.detail(deckId), (old: any) => {
+        if (!old) return old
+        return {
+          ...old,
+          cards: old.cards.filter((c: DeckCard) => c.id !== deckCardsId),
+        }
+      })
+
+      // Show toast immediately for snappy feedback
       toast.success(`Removed ${cardName}`)
+
+      // Return context with the snapshotted value
+      return { previousDeck }
     },
-    onError: () => toast.error('Failed to remove card'),
+    onError: (_err, _variables, context) => {
+      // Rollback to the previous value on error
+      if (context?.previousDeck) {
+        queryClient.setQueryData(deckKeys.detail(deckId), context.previousDeck)
+      }
+      toast.error('Failed to remove card')
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure server state
+      invalidateDeck(deckId)
+    },
   })
 
   const addCopyMutation = useMutation({
@@ -683,7 +722,7 @@ function CardRowKebab({
       return res.json()
     },
     onSuccess: () => {
-      invalidateAll()
+      invalidateDeck(deckId)
       toast.success(`Added copy of ${cardName}`)
     },
     onError: () => {
@@ -699,7 +738,7 @@ function CardRowKebab({
       return res.json()
     },
     onSuccess: () => {
-      invalidateAll()
+      invalidateDeck(deckId)
     },
     onError: () => {
       setOptimisticQty(q => q + 1)
@@ -831,7 +870,7 @@ function CardRowKebab({
           })
           if (res.ok) {
             toast.success(`Changed to ${printing.setName} printing`)
-            invalidateAll()
+            invalidateDeck(deckId)
           } else {
             toast.error('Failed to change printing')
           }

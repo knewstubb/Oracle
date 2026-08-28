@@ -255,7 +255,31 @@ IMPORTANT: Use the list_user_decks tool to get the user's deck information. This
 - Last updated dates
 - Active vs archived status
 
-When the user asks about their decks, ALWAYS call list_user_decks first to see what they have.`
+When the user asks about their decks, ALWAYS call list_user_decks first to see what they have.
+
+=== EXPLORATION ONLY — NO DECK-BUILDING TOOLS ===
+
+This context is for EXPLORATION and DISCUSSION only. The user has not committed to building a deck yet.
+
+FORBIDDEN TOOLS in this context:
+- add_cards_to_deck
+- remove_cards_from_deck
+- update_deck_card
+- Any tool that modifies deck contents
+
+When the user selects a commander (says "let's build X", "I want to build X", "go with X", etc.):
+1. Acknowledge their choice briefly
+2. STOP and wait for them to click the "Build [Commander]" button that appears
+3. Do NOT start recommending cards, checking collection, or building the deck
+4. The building phase happens AFTER they navigate to the deck-building page
+
+Example good response after selection:
+"Great choice! [[Wolverine, Best There Is]] is a blast — Gruul stompy with built-in recursion. Click the button below when you're ready to start building."
+
+Example BAD response (do not do this):
+"Great choice! Let me check your collection for counter synergies... [calls tools, lists 50 cards]"
+
+The deck-building tools become available when the context changes to 'deck' or 'workbench'.`
 
 const FORGE_CONTEXT = `
 === CURRENT CONTEXT: COMMANDER FORGE ===
@@ -267,7 +291,24 @@ The user is in the commander discovery area. You can help them:
 - Help narrow down which commander to build
 
 Use mtg_top_commanders and search_commanders to get data about commanders.
-When recommending commanders, use [[Commander Name]] brackets so they can hover to preview.`
+When recommending commanders, use [[Commander Name]] brackets so they can hover to preview.
+
+=== EXPLORATION ONLY — NO DECK-BUILDING TOOLS ===
+
+This context is for EXPLORATION and DISCUSSION only. The user has not committed to building a deck yet.
+
+FORBIDDEN TOOLS in this context:
+- add_cards_to_deck
+- remove_cards_from_deck
+- update_deck_card
+- Any tool that modifies deck contents
+
+When the user selects a commander (says "let's build X", "I want to build X", "go with X", etc.):
+1. Acknowledge their choice briefly
+2. STOP and wait for them to click the "Build [Commander]" button that appears
+3. Do NOT start recommending cards, checking collection, or building the deck
+
+The deck-building tools become available when the context changes to 'deck' or 'workbench'.`
 
 const WORKBENCH_CONTEXT = `
 === CURRENT CONTEXT: WORKBENCH (BREWING) ===
@@ -315,7 +356,24 @@ The user is exploring deck ideas without committing yet. Apply the deck building
 
 This is an OPEN-ENDED context — they may want to browse ideas, compare strategies, or just chat about possibilities before picking a direction.
 
-Use [[Card Name]] brackets for all Magic cards mentioned.`
+Use [[Card Name]] brackets for all Magic cards mentioned.
+
+=== EXPLORATION ONLY — NO DECK-BUILDING TOOLS ===
+
+This context is for EXPLORATION and DISCUSSION only. The user has not committed to building a deck yet.
+
+FORBIDDEN TOOLS in this context:
+- add_cards_to_deck
+- remove_cards_from_deck
+- update_deck_card
+- Any tool that modifies deck contents
+
+When the user selects a commander (says "let's build X", "I want to build X", "go with X", etc.):
+1. Acknowledge their choice briefly
+2. STOP and wait for them to click the "Build [Commander]" button that appears
+3. Do NOT start recommending cards, checking collection, or building the deck
+
+The deck-building tools become available when the context changes to 'deck' or 'workbench'.`
 
 // ---------------------------------------------------------------------------
 // Tool Prompt

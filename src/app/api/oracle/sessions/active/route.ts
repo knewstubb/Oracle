@@ -77,6 +77,17 @@ export async function GET(request: NextRequest) {
   // RPC returns an array; get first result or null
   const session = data && data.length > 0 ? data[0] : null
 
+  // Debug: log what the RPC returned
+  console.log('[oracle/sessions/active] RPC returned:', {
+    sessionType,
+    sessionFound: !!session,
+    sessionId: session?.id,
+    sessionName: session?.session_name,
+    lastMessageAt: session?.last_message_at,
+    startedAt: session?.started_at,
+    windowHours: 4,
+  })
+
   if (!session) {
     // No active session within window — client should create a new one
     return NextResponse.json({ session: null, shouldCreateNew: true })

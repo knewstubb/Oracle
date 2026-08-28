@@ -57,6 +57,12 @@ const COMMANDER_MENTION_PATTERNS = [
   /\bhelp\s+(?:me\s+)?(?:build|brew)\s+(.+?)(?:\s+deck)?$/i,
   /\b(?:let'?s|lets)\s+(?:build|brew|make|try)\s+(.+?)(?:\s+deck)?$/i,
   /\b(?:let'?s|lets)\s+(?:build|brew|make)\s+(?:a\s+)?(.+?)(?:\s+deck)?$/i,
+  // Selection patterns — user picks a commander after discussion
+  /^(.+?)\s+(?:looks|sounds)\s+(?:interesting|good|fun|cool|great|nice)\.?$/i,
+  /^(?:i(?:'ll|'d)?\s+)?(?:go\s+with|pick|choose|take|like)\s+(.+?)\.?$/i,
+  /^(?:yeah|yes|ok|okay),?\s+(?:let'?s\s+(?:do|try|go\s+with))?\s*(.+?)\.?$/i,
+  /^(.+?)(?:,?\s+please)\.?$/i,  // "Wolverine, please" or "Wolverine please"
+  /^i\s+like\s+(.+?)\.?$/i,  // "I like Wolverine"
 ]
 
 function detectDeckBuildingIntent(message: string): boolean {

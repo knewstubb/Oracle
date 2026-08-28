@@ -133,15 +133,26 @@ export function AddCardSearch({ deckId }: AddCardSearchProps) {
       }
       return res.json()
     },
-    onSuccess: (_data, cardName) => {
-      const { invalidateDeck } = createDeckInvalidators(queryClient)
-      invalidateDeck(deckId)
+    onMutate: async (cardName) => {
+      // Show toast immediately for snappy feedback
       toast.success(addToMaybeboard ? `Added ${cardName} to Maybeboard` : `Added ${cardName}`)
+      
+      // Clear UI immediately
       setQuery('')
       setSuggestions([])
       setShowDropdown(false)
+      
+      // Return context for potential rollback (card name for error message)
+      return { cardName }
     },
-    onError: (err) => toast.error(err.message),
+    onSuccess: () => {
+      // Trigger background refetch to sync with server
+      const { invalidateDeck } = createDeckInvalidators(queryClient)
+      invalidateDeck(deckId)
+    },
+    onError: (err, _cardName, context) => {
+      toast.error(err.message || `Failed to add ${context?.cardName}`)
+    },
   })
 
   // Select a suggestion

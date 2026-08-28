@@ -6,7 +6,7 @@ import { Crown, Sparkles } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { CardImage } from '@/components/CardImage'
-import { ManaSymbol } from '@/components/ManaSymbol'
+import { ColourPips } from '@/components/ColourPips'
 import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------
@@ -134,10 +134,8 @@ function CommanderSuggestionCard({ commander, onCommit }: CommanderSuggestionCar
 
         {/* Color Identity */}
         {commander.colorIdentity.length > 0 && (
-          <div className="flex gap-0.5 mt-1">
-            {commander.colorIdentity.map((color) => (
-              <ManaSymbol key={color} symbol={color} size="xs" />
-            ))}
+          <div className="mt-1">
+            <ColourPips colours={commander.colorIdentity} size={14} />
           </div>
         )}
 

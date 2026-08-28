@@ -94,6 +94,7 @@ export const TAG_MAPPINGS: Record<string, TagMapping | null> = {
   // Exile / Cast from Exile
   'exile': { slug: 'exile', category: 'themes' },
   'impulse draw': { slug: 'exile', category: 'themes' },
+  'impulse-draw': { slug: 'exile', category: 'themes' },  // hyphenated
   'cast from exile': { slug: 'cast-from-exile', category: 'archetypes' },
   
   // Graveyard
@@ -160,6 +161,14 @@ export const TAG_MAPPINGS: Record<string, TagMapping | null> = {
   // Snow — dedicated card pool, real theme
   'snow': { slug: 'snow', category: 'themes' },
   'snow-covered': { slug: 'snow', category: 'themes' },
+  
+  // Devotion — mono-color pip counting, distinct payoff pool (Theros gods, etc.)
+  'devotion': { slug: 'devotion', category: 'themes' },
+  
+  // Power Matters — cards that scale with creature power (Fling, Rishkar's Expertise, etc.)
+  'power': { slug: 'power-matters', category: 'themes' },
+  'power matters': { slug: 'power-matters', category: 'themes' },
+  'power-matters': { slug: 'power-matters', category: 'themes' },
   
   // ═══════════════════════════════════════════════════════════════════════════
   // ARCHETYPES - How you play
@@ -242,6 +251,7 @@ export const TAG_MAPPINGS: Record<string, TagMapping | null> = {
   
   // Commander Matters (cards that reference the commander zone/mechanic)
   'commander matters': { slug: 'commander-matters', category: 'archetypes' },
+  'commander-matters': { slug: 'commander-matters', category: 'archetypes' },  // hyphenated
   
   // Lifegain
   'lifegain': { slug: 'lifegain', category: 'archetypes' },
@@ -406,6 +416,8 @@ export const TAG_MAPPINGS: Record<string, TagMapping | null> = {
   'krakens': { slug: 'kindred:krakens', category: 'themes' },
   'kraken': { slug: 'kindred:krakens', category: 'themes' },
   'sea monsters': { slug: 'kindred:krakens', category: 'themes' },
+  'sea creatures': { slug: 'kindred:krakens', category: 'themes' },
+  'sea-creatures': { slug: 'kindred:krakens', category: 'themes' },  // hyphenated
   'merfolk': { slug: 'kindred:merfolk', category: 'themes' },
   'myr': { slug: 'kindred:myr', category: 'themes' },
   'ninjas': { slug: 'kindred:ninjas', category: 'themes' },
@@ -450,10 +462,12 @@ export const TAG_MAPPINGS: Record<string, TagMapping | null> = {
   'wolf': { slug: 'kindred:wolves', category: 'themes' },
   'zombies': { slug: 'kindred:zombies', category: 'themes' },
   'zombie': { slug: 'kindred:zombies', category: 'themes' },
+  'skeletons': { slug: 'kindred:zombies', category: 'themes', isSubVariant: true },  // mechanically similar to zombies
   
   // Additional tribes
   'phyrexians': { slug: 'kindred:phyrexians', category: 'themes' },
   'phyrexian': { slug: 'kindred:phyrexians', category: 'themes' },
+  'praetors': { slug: 'kindred:phyrexians', category: 'themes', isSubVariant: true },  // praetor subtype
   'assassins': { slug: 'kindred:assassins', category: 'themes' },
   'assassin': { slug: 'kindred:assassins', category: 'themes' },
   'birds': { slug: 'kindred:birds', category: 'themes' },
@@ -486,6 +500,7 @@ export const TAG_MAPPINGS: Record<string, TagMapping | null> = {
   // → Spellslinger — now in archetypes section
   'prowess': { slug: 'spellslinger', category: 'archetypes', isSubVariant: true },
   'all spells': { slug: 'spellslinger', category: 'archetypes', isSubVariant: true },
+  'all-spells': { slug: 'spellslinger', category: 'archetypes', isSubVariant: true },  // hyphenated
   'arcane': { slug: 'spellslinger', category: 'archetypes', isSubVariant: true },
   'suspend': { slug: 'spellslinger', category: 'archetypes', isSubVariant: true },
   'spell-copy': { slug: 'spellslinger', category: 'archetypes', isSubVariant: true },  // hyphenated
@@ -520,11 +535,14 @@ export const TAG_MAPPINGS: Record<string, TagMapping | null> = {
   'relentless rats': { slug: 'kindred:rats', category: 'themes', isSubVariant: true },
   'relentless-rats': { slug: 'kindred:rats', category: 'themes', isSubVariant: true },  // hyphenated
   'shadowborn apostles': { slug: 'kindred:demons', category: 'themes', isSubVariant: true },
+  'shadowborn-apostles': { slug: 'kindred:demons', category: 'themes', isSubVariant: true },  // hyphenated
   'templar knights': { slug: 'kindred:knights', category: 'themes', isSubVariant: true },
+  'templar-knights': { slug: 'kindred:knights', category: 'themes', isSubVariant: true },  // hyphenated
   "dragon's approach": { slug: 'kindred:dragons', category: 'themes', isSubVariant: true },
   'dragons-approach': { slug: 'kindred:dragons', category: 'themes', isSubVariant: true },  // hyphenated
   'annihilator': { slug: 'kindred:eldrazi', category: 'themes', isSubVariant: true },
   'day / night': { slug: 'kindred:werewolves', category: 'themes', isSubVariant: true },
+  'day-night': { slug: 'kindred:werewolves', category: 'themes', isSubVariant: true },  // hyphenated
   'enrage': { slug: 'kindred:dinosaurs', category: 'themes', isSubVariant: true },
   'fungi': { slug: 'kindred:saprolings', category: 'themes', isSubVariant: true },
   'robots': { slug: 'kindred:constructs', category: 'themes', isSubVariant: true },
@@ -536,6 +554,8 @@ export const TAG_MAPPINGS: Record<string, TagMapping | null> = {
   'attack triggers': { slug: 'aggro', category: 'archetypes', isSubVariant: true },
   'attack-triggers': { slug: 'aggro', category: 'archetypes', isSubVariant: true },  // hyphenated
   'stompy': { slug: 'aggro', category: 'archetypes', isSubVariant: true },
+  'glass cannon': { slug: 'aggro', category: 'archetypes', isSubVariant: true },
+  'glass-cannon': { slug: 'aggro', category: 'archetypes', isSubVariant: true },  // hyphenated
 
   // → Combo (named build-around packages)
   'eggs': { slug: 'combo', category: 'archetypes', isSubVariant: true },
@@ -543,17 +563,23 @@ export const TAG_MAPPINGS: Record<string, TagMapping | null> = {
   'ad nauseam': { slug: 'combo', category: 'archetypes', isSubVariant: true },
   'ad-nauseam': { slug: 'combo', category: 'archetypes', isSubVariant: true },  // hyphenated
   'primal surge': { slug: 'combo', category: 'archetypes', isSubVariant: true },
+  'primal-surge': { slug: 'combo', category: 'archetypes', isSubVariant: true },  // hyphenated
   'sneak attack': { slug: 'combo', category: 'archetypes', isSubVariant: true },
+  'sneak-attack': { slug: 'combo', category: 'archetypes', isSubVariant: true },  // hyphenated
   'polymorph': { slug: 'combo', category: 'archetypes', isSubVariant: true },
   'doomsday': { slug: 'combo', category: 'archetypes', isSubVariant: true },
 
   // → Counters
   'counters matter': { slug: 'counters', category: 'themes' },
+  'counters-matter': { slug: 'counters', category: 'themes' },  // hyphenated
   'modular': { slug: 'counters', category: 'themes', isSubVariant: true },
   'spore counters': { slug: 'counters', category: 'themes', isSubVariant: true },
+  'spore-counters': { slug: 'counters', category: 'themes', isSubVariant: true },  // hyphenated
   'stun': { slug: 'counters', category: 'themes', isSubVariant: true },
   'time counters': { slug: 'counters', category: 'themes', isSubVariant: true },
+  'time-counters': { slug: 'counters', category: 'themes', isSubVariant: true },  // hyphenated
   'oil counters': { slug: 'counters', category: 'themes', isSubVariant: true },
+  'oil-counters': { slug: 'counters', category: 'themes', isSubVariant: true },  // hyphenated
 
   // → Stax
   'prison': { slug: 'stax', category: 'archetypes' },
@@ -567,10 +593,13 @@ export const TAG_MAPPINGS: Record<string, TagMapping | null> = {
   // → Lands Matter
   'tron': { slug: 'lands-matter', category: 'archetypes', isSubVariant: true },
   'land animation': { slug: 'lands-matter', category: 'archetypes', isSubVariant: true },
+  'land-animation': { slug: 'lands-matter', category: 'archetypes', isSubVariant: true },  // hyphenated
 
   // → Ramp
   'mana dorks': { slug: 'ramp', category: 'archetypes', isSubVariant: true },
+  'mana-dorks': { slug: 'ramp', category: 'archetypes', isSubVariant: true },  // hyphenated
   'mana rocks': { slug: 'ramp', category: 'archetypes', isSubVariant: true },
+  'mana-rocks': { slug: 'ramp', category: 'archetypes', isSubVariant: true },  // hyphenated
 
   // → Graveyard
   'self-discard': { slug: 'graveyard', category: 'themes', isSubVariant: true },
@@ -591,9 +620,11 @@ export const TAG_MAPPINGS: Record<string, TagMapping | null> = {
   // → Blink
   'bounce': { slug: 'blink', category: 'archetypes', isSubVariant: true },
   'ltb effects': { slug: 'blink', category: 'archetypes', isSubVariant: true },
+  'ltb-effects': { slug: 'blink', category: 'archetypes', isSubVariant: true },  // hyphenated
 
   // → Wheels
   'hand size': { slug: 'wheels', category: 'archetypes', isSubVariant: true },
+  'hand-size': { slug: 'wheels', category: 'archetypes', isSubVariant: true },  // hyphenated
   'hellbent': { slug: 'wheels', category: 'archetypes', isSubVariant: true },
 
   // → Theft
@@ -607,6 +638,7 @@ export const TAG_MAPPINGS: Record<string, TagMapping | null> = {
 
   // → Pillowfort
   'turbo fog': { slug: 'pillowfort', category: 'archetypes', isSubVariant: true },
+  'turbo-fog': { slug: 'pillowfort', category: 'archetypes', isSubVariant: true },  // hyphenated
   'aikido': { slug: 'pillowfort', category: 'archetypes', isSubVariant: true },
 
   // → Good Stuff
@@ -621,6 +653,7 @@ export const TAG_MAPPINGS: Record<string, TagMapping | null> = {
 
   // → Lifegain
   'life exchange': { slug: 'lifegain', category: 'archetypes', isSubVariant: true },
+  'life-exchange': { slug: 'lifegain', category: 'archetypes', isSubVariant: true },  // hyphenated
 
   // → Exile
   'mayhem': { slug: 'exile', category: 'themes', isSubVariant: true },
@@ -657,6 +690,9 @@ export const TAG_MAPPINGS: Record<string, TagMapping | null> = {
   // Set-specific mechanics (too niche)
   'amass': null,
   'the ring': null,
+  'the-ring': null,  // hyphenated
+  'foretell': null,  // Kaldheim mechanic, small payoff pool
+  'miracle': null,  // tiny payoff pool
   
   // Niche tribes not in our taxonomy
   'wraiths': null,
@@ -706,8 +742,6 @@ export const TAG_MAPPINGS: Record<string, TagMapping | null> = {
   'dungeon': null,  // AFR mechanic, small payoff pool
   'rad-counters': null,  // Fallout UB
   'zoo': null,  // 60-card format concept
-  'kaheera-companion': null,  // companion restriction tag
-  'obosh-companion': null,  // companion restriction tag
   'card-draw': null,  // too generic (hyphenated variant)
   'multicolor-matters': null,  // colors handled separately (hyphenated variant)
   'experience-counters': null,  // commander mechanic, doesn't interact with counters synergy (hyphenated)
@@ -725,10 +759,12 @@ export const TAG_MAPPINGS: Record<string, TagMapping | null> = {
   'daleks': null,
   'cybermen': null,
   'time lords': null,
+  'time-lords': null,  // hyphenated
   'necrons': null,
   'tyranids': null,
   'astartes': null,
   'job select': null,
+  'job-select': null,  // hyphenated
   'cid': null,
   'opus': null,
   'web-slinging': null,
@@ -737,13 +773,21 @@ export const TAG_MAPPINGS: Record<string, TagMapping | null> = {
 
   // Companion legality tags — format restriction, not a strategy
   'kaheera companion': null,
+  'kaheera-companion': null,  // hyphenated
   'keruga companion': null,
+  'keruga-companion': null,  // hyphenated
   'obosh companion': null,
+  'obosh-companion': null,  // hyphenated
   'zirda companion': null,
+  'zirda-companion': null,  // hyphenated
   'umori companion': null,
+  'umori-companion': null,  // hyphenated
   'jegantha companion': null,
+  'jegantha-companion': null,  // hyphenated
   'lurrus companion': null,
+  'lurrus-companion': null,  // hyphenated
   'gyruda companion': null,
+  'gyruda-companion': null,  // hyphenated
 
   // Niche/meme creature types with no dedicated payoff package
   'frogs': null,
@@ -807,7 +851,6 @@ export const TAG_MAPPINGS: Record<string, TagMapping | null> = {
   'heroes': null,
   'toys': null,
   'books': null,
-  'sea creatures': null,
   'horrors': null,
   'atogs': null,
   'illusions': null,
@@ -819,16 +862,24 @@ export const TAG_MAPPINGS: Record<string, TagMapping | null> = {
   // Single-card, format, or meta tags — not deck-building strategies
   'sunforger': null,
   'persistent petitioners': null,
+  'persistent-petitioners': null,  // hyphenated
   'hare apparent': null,
+  'hare-apparent': null,  // hyphenated
+  'slime against humanity': null,
+  'slime-against-humanity': null,  // hyphenated
   'dandan': null,
   'european highlander': null,
   'planechase': null,
   'old school': null,
+  'old-school': null,  // hyphenated
   'custom cards': null,
+  'custom-cards': null,  // hyphenated
   'repartee': null,
   'shades': null,
   'rube goldberg': null,
+  'rube-goldberg': null,  // hyphenated
   'tempest hawk': null,
+  'tempest-hawk': null,  // hyphenated
   'clash': null,
   'banding': null,
   'lure': null,
@@ -838,11 +889,11 @@ export const TAG_MAPPINGS: Record<string, TagMapping | null> = {
   'paradigm': null,
   'value vintage': null,
   'blue moon': null,
+  'blue-moon': null,  // hyphenated
   'villainous choice': null,
+  'villainous-choice': null,  // hyphenated
   'stickers': null,
   'attractions': null,
-  'slime against humanity': null,
-  'glass cannon': null,
   'lessons': null,
   'rooms': null,
   'spacecraft': null,
@@ -877,7 +928,9 @@ export const TAG_MAPPINGS: Record<string, TagMapping | null> = {
   'scry': null,
   'explore': null,
   'triggered abilities': null,
+  'triggered-abilities': null,  // hyphenated
   'activated abilities': null,
+  'activated-abilities': null,  // hyphenated
   'keywords': null,
   'transform': null,
   'kicker': null,

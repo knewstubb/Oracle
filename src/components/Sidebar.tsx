@@ -60,7 +60,7 @@ const navItems: NavItem[] = [
   { label: 'Card Management', icon: CardManagementIcon, href: '/allocation' },
   { label: 'Collection', icon: CollectionIcon, href: '/collection' },
   { label: 'Binders', icon: StorageIcon, href: '/storage' },
-  { label: 'Brew Deck', icon: BrewIcon, href: '/new-deck' },
+  { label: 'Explore', icon: BrewIcon, href: '/explore' },
   { label: 'Settings', icon: SettingsIcon, href: '/settings' },
 ]
 

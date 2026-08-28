@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useReducer, useRef, useState, useEffect, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 import type {
   BrewSessionState,
@@ -47,11 +47,28 @@ function frontFace(name: string): string {
 
 // ---------------------------------------------------------------------------
 // Brew Mode V2 Page — Canvas-First Layout
+// Redirects to /explore if no sessionId — /explore is the new entry point
 // ---------------------------------------------------------------------------
 
 export default function BrewModePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { setContext, close: closeOracle } = useOracle()
+
+  // -------------------------------------------------------------------------
+  // Redirect to /explore if no sessionId — /explore is the new entry point
+  // Only allow direct access to /new-deck with an existing session
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    const sessionId = searchParams.get('sessionId')
+    const commander = searchParams.get('commander')
+    
+    // If no sessionId and no commander param, redirect to /explore
+    if (!sessionId && !commander) {
+      router.replace('/explore')
+      return
+    }
+  }, [searchParams, router])
 
   // -------------------------------------------------------------------------
   // Close Oracle sidebar when entering brew flow — the brew has its own chat

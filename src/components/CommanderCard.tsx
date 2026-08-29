@@ -168,7 +168,7 @@ export function CommanderCard({
       onClick={handleClick}
       {...triggerProps}
       className={cn(
-        'group relative block w-full aspect-[236/260] min-w-[160px] overflow-hidden rounded-2xl',
+        'group relative block w-full aspect-[236/260] min-w-[200px] overflow-hidden rounded-2xl',
         '[box-shadow:0px_1px_3px_rgba(0,0,0,0.4),0px_4px_8px_3px_rgba(0,0,0,0.2)]',
         'transition-all duration-200 ease-out text-left',
         'hover:-translate-y-1 hover:[box-shadow:0px_4px_8px_3px_rgba(0,0,0,0.4),0px_1px_3px_rgba(0,0,0,0.5)]',

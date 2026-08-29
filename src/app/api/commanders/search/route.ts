@@ -240,21 +240,39 @@ async function buildResponse(
   }
 
   // Look up scryfall_ids from ref_printings
-  // Prefer English paper printings by excluding digital and problematic sets,
-  // and ordering by most recent release date
-  const excludedSets = ['sld', 'plst', 'plist', 'pmtg1', 'pw21', 'pw22', 'slu', 'slp', 'fca']
+  // Prefer standard English paper printings by:
+  // 1. Excluding digital cards
+  // 2. Excluding problematic sets (Secret Lair, promos, etc.)
+  // 3. Preferring lower collector numbers (regular prints vs extended art/showcase variants)
+  const excludedSets = ['sld', 'plst', 'plist', 'pmtg1', 'pw21', 'pw22', 'slu', 'slp', 'fca', 'pclb', 'prm', 'phed', 'pmom']
   const commanderNames = commanders.map(c => c.display_name)
   const { data: printings } = await supabase
     .from('ref_printings')
-    .select('name, scryfall_id, set_code, released_at')
+    .select('name, scryfall_id, set_code, collector_number, released_at')
     .in('name', commanderNames)
     .eq('digital', false)
     .order('released_at', { ascending: false })
   
+  // Helper: check if collector number is a standard print (numeric, < 400)
+  // Extended art/showcase variants typically have higher numbers or letters
+  const isStandardPrint = (collectorNumber: string): boolean => {
+    const num = parseInt(collectorNumber, 10)
+    return !isNaN(num) && num < 400 && collectorNumber === String(num)
+  }
+  
   // Create name -> scryfall_id map
-  // Use the first (most recent) printing found that isn't from an excluded set
+  // Priority: non-excluded set + standard collector number > non-excluded > any
   const scryfallIdMap = new Map<string, string>()
   if (printings) {
+    // First pass: find standard prints from non-excluded sets
+    for (const p of printings) {
+      if (!scryfallIdMap.has(p.name) && 
+          !excludedSets.includes(p.set_code) && 
+          isStandardPrint(p.collector_number)) {
+        scryfallIdMap.set(p.name, p.scryfall_id)
+      }
+    }
+    // Second pass: any non-excluded set printing
     for (const p of printings) {
       if (!scryfallIdMap.has(p.name) && !excludedSets.includes(p.set_code)) {
         scryfallIdMap.set(p.name, p.scryfall_id)

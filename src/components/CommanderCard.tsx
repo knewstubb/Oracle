@@ -265,18 +265,13 @@ export function CommanderCard({
         ) : (
           /* Colorless — silver/gray gradient bar */
           <div
-            className="h-1 rounded-full overflow-hidden"
+            className="h-1 rounded-full"
+            style={{ 
+              background: 'linear-gradient(90deg, #6B6B6B 0%, #9A9A9A 50%, #6B6B6B 100%)'
+            }}
             role="img"
             aria-label="Colorless"
-          >
-            <div
-              className="h-full w-full rounded-full"
-              style={{ 
-                background: 'linear-gradient(90deg, #6B6B6B 0%, #9A9A9A 50%, #6B6B6B 100%)'
-              }}
-              aria-hidden="true"
-            />
-          </div>
+          />
         )}
       </div>
     </button>

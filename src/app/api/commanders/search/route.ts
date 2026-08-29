@@ -319,16 +319,30 @@ async function buildResponse(
 
 /**
  * Generate all valid color identity combinations within the given colors.
- * E.g., for "WUB" returns: ["", "W", "U", "B", "WU", "WB", "UB", "WUB"]
+ * E.g., for "WUB" returns: ["W", "U", "B", "WU", "WB", "UB", "WUB"]
+ * For "C" (colorless) returns: [""] (only colorless commanders)
+ * 
+ * Note: Colorless ("") is only included when explicitly requested via "C".
+ * Regular color filters exclude colorless commanders.
  */
 function getColorCombinations(colors: string): string[] {
-  // Normalize color order: WUBRG
+  // Handle colorless filter explicitly
+  if (colors === 'C') {
+    return [''] // Only colorless commanders
+  }
+  
+  // Normalize color order: WUBRG (ignore C if mixed with colors)
   const colorOrder = ['W', 'U', 'B', 'R', 'G']
   const normalizedColors = colorOrder.filter(c => colors.includes(c))
   
-  const combinations: string[] = [''] // Empty string for colorless
+  // If no valid colors, return empty (no results)
+  if (normalizedColors.length === 0) {
+    return []
+  }
   
-  // Generate all subsets using bit manipulation
+  const combinations: string[] = []
+  
+  // Generate all subsets using bit manipulation (excluding empty set = colorless)
   const n = normalizedColors.length
   for (let mask = 1; mask < (1 << n); mask++) {
     let combo = ''

@@ -289,9 +289,9 @@ export default function NewDeckPage() {
   const error = isSearching ? searchError : featuredError
 
   return (
-    <div className="min-h-screen bg-zinc-950">
+    <div className="h-full flex flex-col bg-zinc-950">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-zinc-950/95 backdrop-blur-sm border-b border-zinc-800">
+      <header className="shrink-0 z-40 bg-zinc-950/95 backdrop-blur-sm border-b border-zinc-800">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center gap-4">
             <Button
@@ -313,47 +313,49 @@ export default function NewDeckPage() {
         </div>
       </header>
       
-      {/* Main content */}
-      <main className="max-w-7xl mx-auto px-4 py-6">
-        <div className="space-y-6">
-          {/* Search bar */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-              <Input
-                type="text"
-                placeholder="Search commanders..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={cn(
-                  'pl-10 bg-zinc-900 border-zinc-700',
-                  'focus:border-amber-500/50 focus:ring-amber-500/20'
-                )}
+      {/* Main content - scrollable */}
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <div className="space-y-6">
+            {/* Search bar */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                <Input
+                  type="text"
+                  placeholder="Search commanders..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className={cn(
+                    'pl-10 bg-zinc-900 border-zinc-700',
+                    'focus:border-amber-500/50 focus:ring-amber-500/20'
+                  )}
+                />
+              </div>
+              <ColorIdentityFilter
+                value={colorFilter}
+                onChange={setColorFilter}
+                size="md"
               />
             </div>
-            <ColorIdentityFilter
-              value={colorFilter}
-              onChange={setColorFilter}
-              size="md"
+            
+            {/* Commander grid */}
+            <CommanderGrid
+              commanders={commanders}
+              isLoading={isLoading}
+              error={error?.message}
+              onSelect={handleSelectCommander}
+              selectedKey={selectedCommander?.canonical_key}
+              title={isSearching ? 'Search Results' : 'Popular Commanders'}
+              emptyMessage={
+                isSearching 
+                  ? 'No commanders match your search'
+                  : 'No commanders available'
+              }
+              onRefresh={!isSearching ? () => refetchFeatured() : undefined}
+              isRefreshing={featuredRefetching}
             />
           </div>
-          
-          {/* Commander grid */}
-          <CommanderGrid
-            commanders={commanders}
-            isLoading={isLoading}
-            error={error?.message}
-            onSelect={handleSelectCommander}
-            selectedKey={selectedCommander?.canonical_key}
-            title={isSearching ? 'Search Results' : 'Popular Commanders'}
-            emptyMessage={
-              isSearching 
-                ? 'No commanders match your search'
-                : 'No commanders available'
-            }
-            onRefresh={!isSearching ? () => refetchFeatured() : undefined}
-            isRefreshing={featuredRefetching}
-          />
         </div>
       </main>
       

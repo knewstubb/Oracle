@@ -119,8 +119,13 @@ export async function GET(request: NextRequest) {
       }
       
       if (colors.length > 0) {
-        const validIdentities = getColorCombinations(colors)
-        dbQuery = dbQuery.in('color_identity', validIdentities)
+        // Handle colorless specially - .in() doesn't match empty strings
+        if (colors === 'C') {
+          dbQuery = dbQuery.eq('color_identity', '')
+        } else {
+          const validIdentities = getColorCombinations(colors)
+          dbQuery = dbQuery.in('color_identity', validIdentities)
+        }
       }
       
       const { data: commanders, error } = await dbQuery
@@ -163,8 +168,13 @@ export async function GET(request: NextRequest) {
     
     // Filter by color identity if provided
     if (colors.length > 0) {
-      const validIdentities = getColorCombinations(colors)
-      dbQuery = dbQuery.in('color_identity', validIdentities)
+      // Handle colorless specially - .in() doesn't match empty strings
+      if (colors === 'C') {
+        dbQuery = dbQuery.eq('color_identity', '')
+      } else {
+        const validIdentities = getColorCombinations(colors)
+        dbQuery = dbQuery.in('color_identity', validIdentities)
+      }
     }
     
     // Filter by partner type for partner selection flow

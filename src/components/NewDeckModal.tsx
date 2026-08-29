@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Loader2, Sparkles, PenLine, Crown } from 'lucide-react'
+import { Plus, Loader2, Sparkles, PenLine, Crown, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -177,7 +177,7 @@ export function NewDeckModal({ variant = 'default' }: NewDeckModalProps) {
             </>
           )}
 
-          {/* ─── Step 2: Method Selection ─── */}
+          {/* ─── Step 2: Method Selection (Commander) ─── */}
           {step === 'method' && (
             <>
               <DialogHeader>
@@ -186,7 +186,25 @@ export function NewDeckModal({ variant = 'default' }: NewDeckModalProps) {
               </DialogHeader>
 
               <div className="flex flex-col gap-3 py-2">
-                {/* AI Brew option */}
+                {/* I know my commander — with embedded search */}
+                <div className="rounded-lg border border-[var(--border-default)] px-4 py-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <PenLine className="size-5 shrink-0 text-[var(--text-secondary)]" />
+                    <span className="text-[length:var(--fs-md)] font-medium text-[var(--text-primary)]">
+                      I know my commander
+                    </span>
+                  </div>
+                  <MethodCommanderSearch
+                    onSelect={(name, scryfallId, colorIdentity) => {
+                      setCommanderName(name)
+                      setCommanderScryfallId(scryfallId)
+                      setCommanderCI(colorIdentity)
+                      setStep('details')
+                    }}
+                  />
+                </div>
+
+                {/* Help me find one — AI option */}
                 <button
                   type="button"
                   onClick={() => handleMethodSelect('ai')}
@@ -196,33 +214,10 @@ export function NewDeckModal({ variant = 'default' }: NewDeckModalProps) {
                   <Sparkles className="size-5 shrink-0 mt-0.5 text-[var(--accent-primary)]" />
                   <div>
                     <span className="block text-[length:var(--fs-md)] font-medium text-[var(--text-primary)]">
-                      AI Brew
+                      Help me find one
                     </span>
                     <span className="block text-[length:var(--fs-sm)] text-[var(--text-tertiary)]">
-                      {formatConfig.brewEnabled
-                        ? 'Explore commanders, get suggestions, build with AI assistance'
-                        : `Not available for ${formatConfig.label} — Commander only`
-                      }
-                    </span>
-                  </div>
-                </button>
-
-                {/* Manual option */}
-                <button
-                  type="button"
-                  onClick={() => handleMethodSelect('manual')}
-                  className="flex items-start gap-3 rounded-lg border border-[var(--border-default)] px-4 py-4 text-left transition-colors hover:border-[var(--accent-primary)] hover:bg-[var(--accent-primary-bg)]"
-                >
-                  <PenLine className="size-5 shrink-0 mt-0.5 text-[var(--text-secondary)]" />
-                  <div>
-                    <span className="block text-[length:var(--fs-md)] font-medium text-[var(--text-primary)]">
-                      Manual
-                    </span>
-                    <span className="block text-[length:var(--fs-sm)] text-[var(--text-tertiary)]">
-                      {formatConfig.hasCommander
-                        ? 'Choose your commander and build the deck yourself'
-                        : 'Create an empty deck and add cards yourself'
-                      }
+                      Get AI suggestions based on strategy or colors
                     </span>
                   </div>
                 </button>
@@ -294,6 +289,147 @@ export function NewDeckModal({ variant = 'default' }: NewDeckModalProps) {
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+
+// ---------------------------------------------------------------------------
+// MethodCommanderSearch — Search input with dropdown for step 2
+// ---------------------------------------------------------------------------
+
+interface CommanderResult {
+  name: string
+  scryfallId: string
+  colorIdentity: string[]
+  imageUri: string | null
+}
+
+function MethodCommanderSearch({
+  onSelect,
+}: {
+  onSelect: (name: string, scryfallId: string, colorIdentity: string) => void
+}) {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<CommanderResult[]>([])
+  const [isOpen, setIsOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [selectedIndex, setSelectedIndex] = useState(-1)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function handleInputChange(input: string) {
+    setQuery(input)
+    setSelectedIndex(-1)
+
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+
+    if (input.trim().length < 2) {
+      setResults([])
+      setIsOpen(false)
+      return
+    }
+
+    debounceRef.current = setTimeout(async () => {
+      setIsLoading(true)
+      try {
+        const res = await fetch(`/api/scryfall/commanders?q=${encodeURIComponent(input.trim())}`)
+        if (res.ok) {
+          const data: CommanderResult[] = await res.json()
+          setResults(data)
+          setIsOpen(data.length > 0)
+        }
+      } catch {
+        setResults([])
+      }
+      setIsLoading(false)
+    }, 250)
+  }
+
+  function handleSelect(result: CommanderResult) {
+    onSelect(result.name, result.scryfallId, result.colorIdentity.join(','))
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (!isOpen || results.length === 0) return
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setSelectedIndex(prev => Math.min(prev + 1, results.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setSelectedIndex(prev => Math.max(prev - 1, 0))
+    } else if (e.key === 'Enter' && selectedIndex >= 0) {
+      e.preventDefault()
+      handleSelect(results[selectedIndex])
+    } else if (e.key === 'Escape') {
+      setIsOpen(false)
+    }
+  }
+
+  return (
+    <div className="relative">
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-[var(--text-tertiary)]" />
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => handleInputChange(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onFocus={() => { if (results.length > 0) setIsOpen(true) }}
+          onBlur={() => { setTimeout(() => setIsOpen(false), 200) }}
+          placeholder="Search commanders"
+          className="h-9 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] pl-9 pr-3 py-1 text-[length:var(--fs-md)] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]"
+          role="combobox"
+          aria-expanded={isOpen}
+          aria-autocomplete="list"
+          aria-controls="method-commander-results"
+        />
+        {isLoading && (
+          <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+            <Loader2 className="size-3.5 animate-spin text-[var(--text-tertiary)]" />
+          </div>
+        )}
+      </div>
+
+      {/* Dropdown results */}
+      {isOpen && results.length > 0 && (
+        <div
+          id="method-commander-results"
+          role="listbox"
+          className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[240px] overflow-y-auto rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-lg"
+        >
+          {results.map((result, idx) => (
+            <button
+              key={result.scryfallId}
+              type="button"
+              role="option"
+              aria-selected={idx === selectedIndex}
+              onClick={() => handleSelect(result)}
+              className={`flex w-full items-center gap-3 px-3 py-2 text-left transition-colors ${
+                idx === selectedIndex ? 'bg-[var(--accent-primary-bg)]' : 'hover:bg-[rgba(255,255,255,0.03)]'
+              }`}
+            >
+              {/* Card art thumbnail */}
+              {result.imageUri && (
+                <img
+                  src={result.imageUri}
+                  alt=""
+                  className="size-8 rounded object-cover"
+                  loading="lazy"
+                />
+              )}
+              <div className="min-w-0 flex-1">
+                <span className="block truncate text-[length:var(--fs-sm)] font-medium text-[var(--text-primary)]">
+                  {result.name}
+                </span>
+                <span className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)]">
+                  {result.colorIdentity.length > 0 ? result.colorIdentity.join('') : 'Colorless'}
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 

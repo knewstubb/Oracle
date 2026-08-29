@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Loader2, Sparkles, PenLine } from 'lucide-react'
+import { Plus, Loader2, Sparkles, PenLine, Crown } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,7 +15,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { FORMAT_OPTIONS, getFormatConfig, type DeckFormat } from '@/lib/format-config'
+import { FORMAT_DEFINITIONS, getFormatConfig, type DeckFormat } from '@/lib/format-config'
 
 // ---------------------------------------------------------------------------
 // Component
@@ -128,26 +128,51 @@ export function NewDeckModal({ variant = 'default' }: NewDeckModalProps) {
                 <DialogDescription>What format is this deck?</DialogDescription>
               </DialogHeader>
 
-              <div className="grid grid-cols-2 gap-2 py-2">
-                {FORMAT_OPTIONS.map(opt => {
-                  const config = getFormatConfig(opt.value)
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => handleFormatSelect(opt.value)}
-                      className="flex flex-col items-start rounded-lg border border-[var(--border-default)] px-4 py-3 text-left transition-colors hover:border-[var(--accent-primary)] hover:bg-[var(--accent-primary-bg)]"
-                    >
-                      <span className="text-[length:var(--fs-md)] font-medium text-[var(--text-primary)]">
-                        {opt.label}
-                      </span>
-                      <span className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)]">
-                        {config.deckSize ? `${config.deckSize} cards` : 'No size limit'}
-                        {config.singleton ? ' · singleton' : ''}
-                      </span>
-                    </button>
-                  )
-                })}
+              <div className="flex flex-col gap-4 py-2">
+                {/* Commander — Primary/Featured Option */}
+                <button
+                  type="button"
+                  onClick={() => handleFormatSelect('commander')}
+                  className="flex items-center gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3 text-left transition-colors hover:border-[var(--accent-primary)] hover:bg-[var(--accent-primary-bg)]"
+                >
+                  <Crown className="size-5 text-[var(--text-tertiary)]" aria-hidden="true" />
+                  <div>
+                    <span className="block text-[length:var(--fs-md)] font-medium text-[var(--text-primary)]">
+                      Commander
+                    </span>
+                    <span className="text-[length:var(--fs-sm)] text-[var(--text-tertiary)]">
+                      100 cards · singleton
+                    </span>
+                  </div>
+                </button>
+
+                {/* Other Formats — Secondary List */}
+                <div>
+                  <span className="block text-[length:var(--fs-xs)] font-medium uppercase tracking-wide text-[var(--text-tertiary)] mb-2">
+                    Other formats
+                  </span>
+                  <div className="flex flex-col divide-y divide-[var(--border-subtle)] rounded-lg border border-[var(--border-subtle)]">
+                    {(['standard', 'modern', 'legacy', 'vintage', 'pioneer', 'pauper', 'cube', 'casual'] as DeckFormat[]).map(formatId => {
+                      const config = FORMAT_DEFINITIONS[formatId]
+                      return (
+                        <button
+                          key={formatId}
+                          type="button"
+                          onClick={() => handleFormatSelect(formatId)}
+                          className="flex items-center justify-between px-4 py-2.5 text-left transition-colors hover:bg-[rgba(255,255,255,0.03)] first:rounded-t-lg last:rounded-b-lg"
+                        >
+                          <span className="text-[length:var(--fs-md)] text-[var(--text-primary)]">
+                            {config.label}
+                          </span>
+                          <span className="text-[length:var(--fs-sm)] text-[var(--text-tertiary)]">
+                            {config.deckSize ? `${config.deckSize} cards` : 'no size limit'}
+                            {config.singleton ? ' · singleton' : ''}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
               </div>
             </>
           )}

@@ -131,7 +131,7 @@ export function CommanderCard({
           </span>
           <div className="flex items-center gap-2 mt-0.5">
             {/* Colour bar inline */}
-            {colors.length > 0 && (
+            {colors.length > 0 ? (
               <div className="flex h-1 w-12 gap-0.5 rounded-full overflow-hidden">
                 {colors.map(c => {
                   const colour = COLOUR_BAR_MAP[c]
@@ -144,9 +144,13 @@ export function CommanderCard({
                   )
                 })}
               </div>
-            )}
-            {colors.length === 0 && (
-              <span className="text-[10px] text-zinc-500">Colorless</span>
+            ) : (
+              <div 
+                className="h-1 w-12 rounded-full"
+                style={{ 
+                  background: 'linear-gradient(90deg, #6B6B6B 0%, #9A9A9A 50%, #6B6B6B 100%)'
+                }}
+              />
             )}
             {deckCountDisplay && (
               <span className="text-xs text-zinc-500">{deckCountDisplay}</span>
@@ -259,15 +263,17 @@ export function CommanderCard({
             })}
           </div>
         ) : (
-          /* Colorless — gray bar */
+          /* Colorless — silver/gray gradient bar */
           <div
-            className="flex h-1 rounded-full overflow-hidden"
+            className="h-1 rounded-full overflow-hidden"
             role="img"
             aria-label="Colorless"
           >
             <div
-              className="h-full w-full"
-              style={{ backgroundColor: '#808080' }}
+              className="h-full w-full rounded-full"
+              style={{ 
+                background: 'linear-gradient(90deg, #6B6B6B 0%, #9A9A9A 50%, #6B6B6B 100%)'
+              }}
               aria-hidden="true"
             />
           </div>

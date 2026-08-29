@@ -17,6 +17,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'api.scryfall.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'svgs.scryfall.io',
+      },
     ],
   },
   headers: async () => [

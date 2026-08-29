@@ -1,18 +1,20 @@
 'use client'
 
 import { useCallback } from 'react'
+import Image from 'next/image'
 import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------
-// Color definitions
+// Color definitions with Scryfall SVG URLs
 // ---------------------------------------------------------------------------
 
 const COLORS = [
-  { id: 'W', label: 'White', hex: '#F9FAF4', ring: '#D4D4D8' },
-  { id: 'U', label: 'Blue', hex: '#0E68AB', ring: '#3B82F6' },
-  { id: 'B', label: 'Black', hex: '#150B00', ring: '#52525B' },
-  { id: 'R', label: 'Red', hex: '#D3202A', ring: '#EF4444' },
-  { id: 'G', label: 'Green', hex: '#00733E', ring: '#22C55E' },
+  { id: 'C', label: 'Colorless', ring: '#9CA3AF', svg: 'https://svgs.scryfall.io/card-symbols/C.svg' },
+  { id: 'W', label: 'White', ring: '#D4D4D8', svg: 'https://svgs.scryfall.io/card-symbols/W.svg' },
+  { id: 'U', label: 'Blue', ring: '#3B82F6', svg: 'https://svgs.scryfall.io/card-symbols/U.svg' },
+  { id: 'B', label: 'Black', ring: '#52525B', svg: 'https://svgs.scryfall.io/card-symbols/B.svg' },
+  { id: 'R', label: 'Red', ring: '#EF4444', svg: 'https://svgs.scryfall.io/card-symbols/R.svg' },
+  { id: 'G', label: 'Green', ring: '#22C55E', svg: 'https://svgs.scryfall.io/card-symbols/G.svg' },
 ] as const
 
 type ColorId = typeof COLORS[number]['id']
@@ -73,9 +75,9 @@ export function ColorIdentityFilter({
   
   // Size classes
   const sizeClasses = {
-    sm: { button: 'w-6 h-6', pip: 'w-4 h-4', text: 'text-[10px]' },
-    md: { button: 'w-8 h-8', pip: 'w-5 h-5', text: 'text-xs' },
-    lg: { button: 'w-10 h-10', pip: 'w-6 h-6', text: 'text-sm' },
+    sm: { button: 'w-6 h-6', iconSize: 20, text: 'text-[10px]' },
+    md: { button: 'w-8 h-8', iconSize: 28, text: 'text-xs' },
+    lg: { button: 'w-10 h-10', iconSize: 36, text: 'text-sm' },
   }[size]
   
   return (
@@ -101,13 +103,13 @@ export function ColorIdentityFilter({
               ringColor: isSelected ? color.ring : undefined,
             }}
           >
-            <span
-              className={cn(
-                'rounded-full border border-white/20',
-                sizeClasses.pip
-              )}
-              style={{ backgroundColor: color.hex }}
-              aria-hidden="true"
+            <Image
+              src={color.svg}
+              alt={color.label}
+              width={sizeClasses.iconSize}
+              height={sizeClasses.iconSize}
+              className="rounded-full"
+              unoptimized
             />
           </button>
         )

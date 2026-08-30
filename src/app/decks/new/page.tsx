@@ -14,6 +14,12 @@ import { useOracle } from '@/contexts/OracleContext'
 import { toast } from 'sonner'
 
 // ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+type OwnershipFilter = 'any' | 'owned' | 'unowned'
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -63,6 +69,7 @@ export default function NewDeckPage() {
   // Search state
   const [searchQuery, setSearchQuery] = useState('')
   const [colorFilter, setColorFilter] = useState('')
+  const [ownershipFilter, setOwnershipFilter] = useState<OwnershipFilter>('any')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   
   // Selection state
@@ -114,18 +121,19 @@ export default function NewDeckPage() {
   })
   
   // Search commanders when query or color filter changes
-  const isSearching = debouncedQuery.length > 0 || colorFilter.length > 0
+  const isSearching = debouncedQuery.length > 0 || colorFilter.length > 0 || ownershipFilter !== 'any'
   
   const {
     data: searchData,
     isLoading: searchLoading,
     error: searchError,
   } = useQuery({
-    queryKey: ['commanders', 'search', debouncedQuery, colorFilter],
+    queryKey: ['commanders', 'search', debouncedQuery, colorFilter, ownershipFilter],
     queryFn: async () => {
       const params = new URLSearchParams()
       if (debouncedQuery) params.set('q', debouncedQuery)
       if (colorFilter) params.set('colors', colorFilter)
+      if (ownershipFilter !== 'any') params.set('ownership', ownershipFilter)
       
       const res = await fetch(`/api/commanders/search?${params}`)
       if (!res.ok) throw new Error('Search failed')
@@ -332,11 +340,30 @@ export default function NewDeckPage() {
                   )}
                 />
               </div>
-              <ColorIdentityFilter
-                value={colorFilter}
-                onChange={setColorFilter}
-                size="md"
-              />
+              <div className="flex items-center gap-2">
+                <ColorIdentityFilter
+                  value={colorFilter}
+                  onChange={setColorFilter}
+                  size="md"
+                />
+                {/* Ownership filter */}
+                <div className="flex items-center rounded-lg bg-zinc-900 border border-zinc-700 p-0.5">
+                  {(['any', 'owned', 'unowned'] as const).map((option) => (
+                    <button
+                      key={option}
+                      onClick={() => setOwnershipFilter(option)}
+                      className={cn(
+                        'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
+                        ownershipFilter === option
+                          ? 'bg-zinc-700 text-zinc-100'
+                          : 'text-zinc-400 hover:text-zinc-200'
+                      )}
+                    >
+                      {option === 'any' ? 'Any' : option === 'owned' ? 'Owned' : 'Unowned'}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
             
             {/* Commander grid */}

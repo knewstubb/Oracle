@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
   const theme = searchParams.get('theme')?.toLowerCase() || ''
   const tribe = searchParams.get('tribe')?.toLowerCase() || ''
   const random = searchParams.get('random') === 'true'
+  const ownership = searchParams.get('ownership') as 'owned' | 'unowned' | null
   
   try {
     // If filtering by archetype, theme, or tribe, we need to join with ref_commander_taxonomy
@@ -142,7 +143,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Database error' }, { status: 500 })
       }
       
-      return await buildResponse(supabase, commanders || [])
+      return await buildResponse(supabase, commanders || [], ownership)
     }
     
     // Standard search without taxonomy filters
@@ -220,7 +221,7 @@ export async function GET(request: NextRequest) {
       const shuffled = (topCommanders || []).sort(() => Math.random() - 0.5)
       const commanders = shuffled.slice(0, 20)
       
-      return await buildResponse(supabase, commanders)
+      return await buildResponse(supabase, commanders, ownership)
     }
     
     // Order by popularity and limit results
@@ -233,7 +234,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Database error' }, { status: 500 })
     }
 
-    return await buildResponse(supabase, commanders || [])
+    return await buildResponse(supabase, commanders || [], ownership)
   } catch (error) {
     console.error('[api/commanders/search] Error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -253,7 +254,8 @@ async function buildResponse(
     edhrec_rank: number | null
     edhrec_deck_count: number | null
     leadership_type: string
-  }>
+  }>,
+  ownership: 'owned' | 'unowned' | null = null
 ): Promise<NextResponse> {
   if (commanders.length === 0) {
     return NextResponse.json({ commanders: [] })
@@ -322,10 +324,23 @@ async function buildResponse(
     }
   }
 
+  // Apply ownership filter if specified
+  let filteredCommanders = commanders
+  if (ownership === 'owned') {
+    filteredCommanders = commanders.filter(c => ownedNames.has(c.display_name))
+  } else if (ownership === 'unowned') {
+    filteredCommanders = commanders.filter(c => !ownedNames.has(c.display_name))
+  }
+
+  // Return early if no commanders match the filter
+  if (filteredCommanders.length === 0) {
+    return NextResponse.json({ commanders: [] })
+  }
+
   // Compute global rank for each commander
   // Global rank = 1 + count of commanders with higher deck count
   const globalRankMap = new Map<string, number>()
-  const deckCounts = commanders
+  const deckCounts = filteredCommanders
     .map(c => c.edhrec_deck_count)
     .filter((dc): dc is number => dc !== null)
   
@@ -345,7 +360,7 @@ async function buildResponse(
       const rank = (count ?? 0) + 1
       
       // Map this deck count to its global rank
-      for (const cmd of commanders) {
+      for (const cmd of filteredCommanders) {
         if (cmd.edhrec_deck_count === deckCount) {
           globalRankMap.set(cmd.id, rank)
         }
@@ -353,7 +368,7 @@ async function buildResponse(
     }
   }
 
-  const result: SearchResult[] = commanders.map(cmd => ({
+  const result: SearchResult[] = filteredCommanders.map(cmd => ({
     id: cmd.id,
     canonical_key: cmd.canonical_key,
     display_name: cmd.display_name,

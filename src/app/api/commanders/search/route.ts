@@ -123,7 +123,11 @@ export async function GET(request: NextRequest) {
         // Handle colorless specially - .in() doesn't match empty strings
         if (colors === 'C') {
           dbQuery = dbQuery.eq('color_identity', '')
+        } else if (colors.length > 1) {
+          // Multiple colors selected: filter to exact color identity only
+          dbQuery = dbQuery.eq('color_identity', colors)
         } else {
+          // Single color: show all commanders within that color identity
           const validIdentities = getColorCombinations(colors)
           dbQuery = dbQuery.in('color_identity', validIdentities)
         }
@@ -172,7 +176,12 @@ export async function GET(request: NextRequest) {
       // Handle colorless specially - .in() doesn't match empty strings
       if (colors === 'C') {
         dbQuery = dbQuery.eq('color_identity', '')
+      } else if (colors.length > 1) {
+        // Multiple colors selected: filter to exact color identity only
+        // (e.g., selecting U+B shows only Dimir commanders, not mono-U or mono-B)
+        dbQuery = dbQuery.eq('color_identity', colors)
       } else {
+        // Single color: show all commanders within that color identity
         const validIdentities = getColorCombinations(colors)
         dbQuery = dbQuery.in('color_identity', validIdentities)
       }

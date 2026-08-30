@@ -45,6 +45,56 @@ const COLOUR_BAR_MAP: Record<string, { hex: string; label: string }> = {
 
 const COLOUR_ORDER = ['W', 'U', 'B', 'R', 'G']
 
+// Guild/Shard/Wedge names for color combinations
+const COLOR_IDENTITY_NAMES: Record<string, string> = {
+  // Mono-color
+  'W': 'White',
+  'U': 'Blue',
+  'B': 'Black',
+  'R': 'Red',
+  'G': 'Green',
+  '': 'Colorless',
+  // Guilds (2-color)
+  'WU': 'Azorius',
+  'WB': 'Orzhov',
+  'UB': 'Dimir',
+  'UR': 'Izzet',
+  'BR': 'Rakdos',
+  'BG': 'Golgari',
+  'RG': 'Gruul',
+  'RW': 'Boros',
+  'GW': 'Selesnya',
+  'GU': 'Simic',
+  // Shards (3-color)
+  'WUB': 'Esper',
+  'UBR': 'Grixis',
+  'BRG': 'Jund',
+  'RGW': 'Naya',
+  'GWU': 'Bant',
+  // Wedges (3-color)
+  'WBG': 'Abzan',
+  'WUR': 'Jeskai',
+  'UBG': 'Sultai',
+  'WBR': 'Mardu',
+  'URG': 'Temur',
+  // 4-color (no official names, use excluded color)
+  'WUBR': 'Sans-Green',
+  'WUBG': 'Sans-Red',
+  'WURG': 'Sans-Black',
+  'WBRG': 'Sans-Blue',
+  'UBRG': 'Sans-White',
+  // 5-color
+  'WUBRG': 'Five-Color',
+}
+
+/** Get the display name for a color identity string */
+function getColorIdentityName(colorIdentity: string): string {
+  // Normalize to WUBRG order
+  const order = 'WUBRG'
+  const normalized = order.split('').filter(c => colorIdentity.includes(c)).join('')
+  return COLOR_IDENTITY_NAMES[normalized] || normalized || 'Colorless'
+}
+
 // ---------------------------------------------------------------------------
 // CommanderCard
 // ---------------------------------------------------------------------------
@@ -83,8 +133,8 @@ export function CommanderCard({
     : []
   const colourLabel = colors.map(c => COLOUR_BAR_MAP[c]?.label).filter(Boolean).join(', ')
   
-  // Format color identity label for display
-  const colorLabel = commander.color_identity || 'C'
+  // Get color identity name for display (e.g., "Dimir" instead of "UB")
+  const colorIdentityName = getColorIdentityName(commander.color_identity)
 
   if (compact) {
     // Compact mode: horizontal row for partner selection overlay
@@ -155,7 +205,7 @@ export function CommanderCard({
             )}
             {commander.edhrec_rank && (
               <span className="text-xs text-zinc-500">
-                #{commander.edhrec_rank} {colorLabel}
+                #{commander.edhrec_rank} {colorIdentityName}
               </span>
             )}
             {!commander.owned && (
@@ -247,7 +297,7 @@ export function CommanderCard({
             )}
             {commander.edhrec_rank && (
               <span>
-                #{commander.edhrec_rank} {commander.color_identity ? commander.color_identity : 'C'}
+                #{commander.edhrec_rank} {colorIdentityName}
               </span>
             )}
           </div>

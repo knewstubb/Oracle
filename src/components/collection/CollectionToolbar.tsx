@@ -199,9 +199,9 @@ export function CollectionToolbar({
       style={{ borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}
     >
       {/* ─── Top Row: Search + Sort + View Toggle ─────────────── */}
-      <div className="flex items-center gap-2">
-        {/* Search input */}
-        <div className="relative max-w-[260px] flex-1">
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Search input — full width on mobile */}
+        <div className="relative w-full flex-1 sm:max-w-[260px] sm:w-auto">
           <Search
             className="pointer-events-none absolute left-2.5 top-1/2 size-[13px] -translate-y-1/2"
             style={{ color: 'rgba(255,255,255,0.25)' }}
@@ -221,58 +221,61 @@ export function CollectionToolbar({
           />
         </div>
 
-        {/* Sort field selector */}
-        <div className="relative">
-          <select
-            value={sortField}
-            onChange={(e) => handleSortFieldChange(e.target.value as SortField | PrintingSortField)}
-            className="appearance-none rounded-md py-1.5 pl-2.5 pr-7 text-[length:var(--fs-sm)] text-white"
+        {/* Sort controls — wrap below search on mobile */}
+        <div className="flex items-center gap-2">
+          {/* Sort field selector */}
+          <div className="relative">
+            <select
+              value={sortField}
+              onChange={(e) => handleSortFieldChange(e.target.value as SortField | PrintingSortField)}
+              className="appearance-none rounded-md py-1.5 pl-2.5 pr-7 text-[length:var(--fs-sm)] text-white"
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                border: '0.5px solid rgba(255,255,255,0.1)',
+              }}
+              aria-label="Sort by field"
+            >
+              {sortContext === 'printing'
+                ? PRINTING_SORT_FIELDS.map((field) => (
+                    <option key={field} value={field} className="bg-[#1a1a1a] text-white">
+                      {PRINTING_SORT_FIELD_LABELS[field]}
+                    </option>
+                  ))
+                : SORT_FIELDS.map((field) => (
+                    <option key={field} value={field} className="bg-[#1a1a1a] text-white">
+                      {SORT_FIELD_LABELS[field]}
+                    </option>
+                  ))
+              }
+            </select>
+            <ChevronDown
+              className="pointer-events-none absolute right-2 top-1/2 size-3 -translate-y-1/2"
+              style={{ color: 'rgba(255,255,255,0.3)' }}
+              aria-hidden="true"
+            />
+          </div>
+
+          {/* Sort direction toggle */}
+          <button
+            type="button"
+            onClick={toggleDirection}
+            className="rounded-md p-1.5 transition-colors hover:bg-[rgba(255,255,255,0.06)]"
             style={{
-              background: 'rgba(255,255,255,0.05)',
+              background: 'rgba(255,255,255,0.04)',
               border: '0.5px solid rgba(255,255,255,0.1)',
             }}
-            aria-label="Sort by field"
+            aria-label={`Sort direction: ${sortDirection === 'asc' ? 'ascending' : 'descending'}`}
+            title={sortDirection === 'asc' ? 'Ascending' : 'Descending'}
           >
-            {sortContext === 'printing'
-              ? PRINTING_SORT_FIELDS.map((field) => (
-                  <option key={field} value={field} className="bg-[#1a1a1a] text-white">
-                    {PRINTING_SORT_FIELD_LABELS[field]}
-                  </option>
-                ))
-              : SORT_FIELDS.map((field) => (
-                  <option key={field} value={field} className="bg-[#1a1a1a] text-white">
-                    {SORT_FIELD_LABELS[field]}
-                  </option>
-                ))
-            }
-          </select>
-          <ChevronDown
-            className="pointer-events-none absolute right-2 top-1/2 size-3 -translate-y-1/2"
-            style={{ color: 'rgba(255,255,255,0.3)' }}
-            aria-hidden="true"
-          />
+            {sortDirection === 'asc' ? (
+              <ArrowUpAZ className="size-3.5" style={{ color: 'rgba(255,255,255,0.5)' }} />
+            ) : (
+              <ArrowDownAZ className="size-3.5" style={{ color: 'rgba(255,255,255,0.5)' }} />
+            )}
+          </button>
         </div>
 
-        {/* Sort direction toggle */}
-        <button
-          type="button"
-          onClick={toggleDirection}
-          className="rounded-md p-1.5 transition-colors hover:bg-[rgba(255,255,255,0.06)]"
-          style={{
-            background: 'rgba(255,255,255,0.04)',
-            border: '0.5px solid rgba(255,255,255,0.1)',
-          }}
-          aria-label={`Sort direction: ${sortDirection === 'asc' ? 'ascending' : 'descending'}`}
-          title={sortDirection === 'asc' ? 'Ascending' : 'Descending'}
-        >
-          {sortDirection === 'asc' ? (
-            <ArrowUpAZ className="size-3.5" style={{ color: 'rgba(255,255,255,0.5)' }} />
-          ) : (
-            <ArrowDownAZ className="size-3.5" style={{ color: 'rgba(255,255,255,0.5)' }} />
-          )}
-        </button>
-
-        <div className="flex-1" />
+        <div className="hidden flex-1 sm:block" />
 
         {/* View toggle (List/Grid) */}
         <div
@@ -312,7 +315,9 @@ export function CollectionToolbar({
       </div>
 
       {/* ─── Bottom Row: Color Identity Filter + Status Filter ── */}
-      <div className="flex items-center gap-3">
+      {/* Horizontally scrollable on mobile */}
+      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <div className="flex w-max items-center gap-3 sm:w-auto">
         <ColorIdentityFilter
           selectedColors={selectedColors}
           onColorsChange={onColorsChange}
@@ -330,6 +335,7 @@ export function CollectionToolbar({
           activeStatuses={activeStatuses}
           onStatusChange={onStatusChange}
         />
+        </div>
       </div>
     </div>
   )

@@ -240,7 +240,7 @@ export default function DashboardPage() {
               <DeckStatusSection decks={decks ?? []} />
 
               {/* ═══ Decks Section ═══ */}
-              <DecksSection decks={decks ?? []} folders={folders} />
+              <DecksSection decks={decks ?? []} folders={folders} isLoading={false} />
             </div>
           )}
         </div>
@@ -449,7 +449,7 @@ function DeckStatusSection({ decks }: { decks: Deck[] }) {
 // Decks Section (grouped grid)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function DecksSection({ decks, folders }: { decks: Deck[]; folders: DeckFolder[] }) {
+function DecksSection({ decks, folders, isLoading }: { decks: Deck[]; folders: DeckFolder[]; isLoading?: boolean }) {
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null)
   const [createFolderOpen, setCreateFolderOpen] = useState(false)
   
@@ -477,7 +477,7 @@ function DecksSection({ decks, folders }: { decks: Deck[]; folders: DeckFolder[]
   }
 
   const renderDeckGrid = (deckList: Deck[]) => (
-    <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
       {deckList.map((deck) => (
         <DeckTile
           key={deck.id}
@@ -507,7 +507,9 @@ function DecksSection({ decks, folders }: { decks: Deck[]; folders: DeckFolder[]
           <h2 className="mb-3 text-[length:var(--fs-xs)] font-medium uppercase tracking-wider text-muted-foreground">
             Folders
           </h2>
-          <div className="flex flex-wrap gap-2">
+          {/* Horizontally scrollable on mobile */}
+          <div className="-mx-5 overflow-x-auto px-5 sm:mx-0 sm:px-0">
+            <div className="flex w-max gap-2 sm:w-auto sm:flex-wrap">
             {folders.map((folder) => (
               <FolderChip
                 key={folder.id}
@@ -522,6 +524,7 @@ function DecksSection({ decks, folders }: { decks: Deck[]; folders: DeckFolder[]
               />
             ))}
             <NewFolderChip onClick={() => setCreateFolderOpen(true)} />
+            </div>
           </div>
         </div>
       )}
@@ -532,8 +535,10 @@ function DecksSection({ decks, folders }: { decks: Deck[]; folders: DeckFolder[]
           <h2 className="mb-3 text-[length:var(--fs-xs)] font-medium uppercase tracking-wider text-muted-foreground">
             Folders
           </h2>
-          <div className="flex flex-wrap gap-2">
+          <div className="-mx-5 overflow-x-auto px-5 sm:mx-0 sm:px-0">
+            <div className="flex w-max gap-2 sm:w-auto sm:flex-wrap">
             <NewFolderChip onClick={() => setCreateFolderOpen(true)} />
+            </div>
           </div>
         </div>
       )}

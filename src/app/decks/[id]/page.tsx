@@ -197,10 +197,10 @@ export default function DeckViewPage() {
 
   return (
     <div className="relative flex h-full flex-col">
-      {/* Blurred commander art background with parallax */}
+      {/* Blurred commander art background with parallax — hidden on mobile */}
       {deck.commander_scryfall_id && (
         <div
-          className="pointer-events-none absolute inset-x-0 top-0 z-0 h-full overflow-hidden"
+          className="pointer-events-none absolute inset-x-0 top-0 z-0 hidden h-full overflow-hidden sm:block"
           aria-hidden="true"
         >
           <img
@@ -273,15 +273,19 @@ export default function DeckViewPage() {
       >
         <div className="shrink-0 border-b border-border px-6">
           <div className="mx-auto max-w-[var(--content-max-width)]">
-            <TabsList variant="line">
-              <TabsTrigger value="cards">Cards</TabsTrigger>
-              <TabsTrigger value="workbench">Workbench</TabsTrigger>
-              <TabsTrigger value="analysis">Analysis</TabsTrigger>
-              <TabsTrigger value="combos">Combos</TabsTrigger>
-              <TabsTrigger value="upgrade">Upgrade</TabsTrigger>
-              <TabsTrigger value="strategy">Strategy</TabsTrigger>
-              <TabsTrigger value="picklist">Pull List</TabsTrigger>
-            </TabsList>
+            {/* Tab list with horizontally scrollable wrapper on mobile */}
+            <div className="-mx-6 overflow-x-auto px-6 sm:mx-0 sm:px-0">
+              <TabsList variant="line" className="w-max sm:w-auto">
+                <TabsTrigger value="cards">Cards</TabsTrigger>
+                <TabsTrigger value="picklist">Pull List</TabsTrigger>
+                {/* Non-essential tabs hidden on mobile */}
+                <TabsTrigger value="workbench" className="hidden sm:inline-flex">Workbench</TabsTrigger>
+                <TabsTrigger value="analysis" className="hidden sm:inline-flex">Analysis</TabsTrigger>
+                <TabsTrigger value="combos" className="hidden sm:inline-flex">Combos</TabsTrigger>
+                <TabsTrigger value="upgrade" className="hidden sm:inline-flex">Upgrade</TabsTrigger>
+                <TabsTrigger value="strategy" className="hidden sm:inline-flex">Strategy</TabsTrigger>
+              </TabsList>
+            </div>
           </div>
         </div>
 

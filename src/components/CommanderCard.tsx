@@ -14,8 +14,9 @@ export interface CommanderData {
   display_name: string
   color_identity: string
   scryfall_id: string | null
-  edhrec_rank: number | null
+  edhrec_rank: number | null      // Rank within color identity (1 = most popular in that color)
   edhrec_deck_count: number | null
+  global_rank: number | null      // Rank across all commanders (1 = most popular overall)
   leadership_type: string
   owned: boolean
 }
@@ -82,12 +83,8 @@ export function CommanderCard({
     : []
   const colourLabel = colors.map(c => COLOUR_BAR_MAP[c]?.label).filter(Boolean).join(', ')
   
-  // Format deck count for display
-  const deckCountDisplay = commander.edhrec_deck_count
-    ? commander.edhrec_deck_count >= 1000
-      ? `${(commander.edhrec_deck_count / 1000).toFixed(1)}k decks`
-      : `${commander.edhrec_deck_count} decks`
-    : null
+  // Format color identity label for display
+  const colorLabel = commander.color_identity || 'C'
 
   if (compact) {
     // Compact mode: horizontal row for partner selection overlay
@@ -152,8 +149,14 @@ export function CommanderCard({
                 }}
               />
             )}
-            {deckCountDisplay && (
-              <span className="text-xs text-zinc-500">{deckCountDisplay}</span>
+            {/* Rankings */}
+            {commander.global_rank && (
+              <span className="text-xs text-zinc-500">#{commander.global_rank}</span>
+            )}
+            {commander.edhrec_rank && (
+              <span className="text-xs text-zinc-500">
+                #{commander.edhrec_rank} {colorLabel}
+              </span>
             )}
             {!commander.owned && (
               <span className="text-[10px] text-zinc-500 font-medium">
@@ -234,12 +237,20 @@ export function CommanderCard({
             {commander.display_name}
           </h3>
           
-          {/* Deck count — muted gray */}
-          {deckCountDisplay && (
-            <p className="mt-1 text-[12px] text-[#808080] leading-[15px]">
-              {deckCountDisplay}
-            </p>
-          )}
+          {/* Rankings — global and color-specific */}
+          <div className="mt-1 flex items-center gap-2 text-[12px] text-[#808080] leading-[15px]">
+            {commander.global_rank && (
+              <span>#{commander.global_rank}</span>
+            )}
+            {commander.edhrec_rank && commander.global_rank && (
+              <span className="text-zinc-600">•</span>
+            )}
+            {commander.edhrec_rank && (
+              <span>
+                #{commander.edhrec_rank} {commander.color_identity ? commander.color_identity : 'C'}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Colour identity bar — at bottom */}

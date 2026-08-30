@@ -16,8 +16,9 @@ interface SearchResult {
   display_name: string
   color_identity: string
   scryfall_id: string | null
-  edhrec_rank: number | null
+  edhrec_rank: number | null      // Rank within color identity (1 = most popular in that color)
   edhrec_deck_count: number | null
+  global_rank: number | null      // Rank across all commanders (1 = most popular overall)
   leadership_type: string
   owned: boolean
 }
@@ -231,7 +232,7 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * Build the response with scryfall IDs and ownership status
+ * Build the response with scryfall IDs, ownership status, and global rank
  */
 async function buildResponse(
   supabase: ReturnType<typeof createAdminClient>,
@@ -312,6 +313,37 @@ async function buildResponse(
     }
   }
 
+  // Compute global rank for each commander
+  // Global rank = 1 + count of commanders with higher deck count
+  const globalRankMap = new Map<string, number>()
+  const deckCounts = commanders
+    .map(c => c.edhrec_deck_count)
+    .filter((dc): dc is number => dc !== null)
+  
+  if (deckCounts.length > 0) {
+    // For each unique deck count, get the number of commanders with higher counts
+    const uniqueDeckCounts = [...new Set(deckCounts)]
+    
+    // Batch query: count commanders with deck_count > each threshold
+    for (const deckCount of uniqueDeckCounts) {
+      const { count } = await supabase
+        .from('ref_commanders')
+        .select('*', { count: 'exact', head: true })
+        .eq('legal_commander', true)
+        .gt('edhrec_deck_count', deckCount)
+      
+      // Global rank is count + 1 (1-indexed)
+      const rank = (count ?? 0) + 1
+      
+      // Map this deck count to its global rank
+      for (const cmd of commanders) {
+        if (cmd.edhrec_deck_count === deckCount) {
+          globalRankMap.set(cmd.id, rank)
+        }
+      }
+    }
+  }
+
   const result: SearchResult[] = commanders.map(cmd => ({
     id: cmd.id,
     canonical_key: cmd.canonical_key,
@@ -320,6 +352,7 @@ async function buildResponse(
     scryfall_id: scryfallIdMap.get(cmd.display_name) ?? null,
     edhrec_rank: cmd.edhrec_rank,
     edhrec_deck_count: cmd.edhrec_deck_count,
+    global_rank: globalRankMap.get(cmd.id) ?? null,
     leadership_type: cmd.leadership_type,
     owned: ownedNames.has(cmd.display_name),
   }))

@@ -95,8 +95,8 @@ export function CommanderGrid({
             ))}
           </div>
         ) : (
-          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-            {Array.from({ length: 10 }).map((_, i) => (
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            {Array.from({ length: 12 }).map((_, i) => (
               <CommanderCardSkeleton key={i} />
             ))}
           </div>
@@ -195,7 +195,7 @@ export function CommanderGrid({
           ))}
         </div>
       ) : (
-        <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {commanders.map(commander => (
             <CommanderCard
               key={commander.canonical_key}

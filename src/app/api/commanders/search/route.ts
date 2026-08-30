@@ -36,10 +36,89 @@ export async function GET(request: NextRequest) {
   const random = searchParams.get('random') === 'true'
   const ownership = searchParams.get('ownership') as 'owned' | 'unowned' | null
   
+  // Check if we have taxonomy filters (archetype/theme/tribe)
+  const hasTaxonomyFilter = archetype || theme || tribe
+  
   try {
+    // -------------------------------------------------------------------------
+    // When ownership filter is set, we need to query owned/unowned commanders
+    // directly rather than filtering after the fact (which loses results)
+    // -------------------------------------------------------------------------
+    if (ownership && !hasTaxonomyFilter) {
+      const user = await getAuthUser()
+      if (!user) {
+        // No user = no ownership data, return empty for owned filter
+        if (ownership === 'owned') {
+          return NextResponse.json({ commanders: [] })
+        }
+        // For unowned, fall through to normal query (all are unowned)
+      } else {
+        // Get user's owned legendary creatures that can be commanders
+        const { data: ownedCards } = await supabase
+          .from('user_cards')
+          .select('card_name')
+          .eq('user_id', user.id)
+        
+        const ownedNames = new Set((ownedCards || []).map(c => c.card_name))
+        
+        // Build query for commanders
+        let dbQuery = supabase
+          .from('ref_commanders')
+          .select(`
+            id,
+            canonical_key,
+            display_name,
+            color_identity,
+            edhrec_rank,
+            edhrec_deck_count,
+            leadership_type
+          `)
+          .eq('legal_commander', true)
+        
+        // Apply text search if provided
+        if (query.length > 0) {
+          dbQuery = dbQuery.ilike('display_name', `%${query}%`)
+        }
+        
+        // Apply color filter
+        if (colors.length > 0) {
+          if (colors === 'C') {
+            dbQuery = dbQuery.eq('color_identity', '')
+          } else if (colors.length > 1) {
+            dbQuery = dbQuery.eq('color_identity', colors)
+          } else {
+            const validIdentities = getColorCombinations(colors)
+            dbQuery = dbQuery.in('color_identity', validIdentities)
+          }
+        }
+        
+        // Get results (limit higher to account for ownership filter)
+        const { data: allCommanders, error } = await dbQuery
+          .order('edhrec_deck_count', { ascending: false, nullsFirst: false })
+          .limit(500)
+        
+        if (error) {
+          console.error('[api/commanders/search] Query error:', error)
+          return NextResponse.json({ error: 'Database error' }, { status: 500 })
+        }
+        
+        // Filter by ownership
+        let filtered = allCommanders || []
+        if (ownership === 'owned') {
+          filtered = filtered.filter(c => ownedNames.has(c.display_name))
+        } else {
+          filtered = filtered.filter(c => !ownedNames.has(c.display_name))
+        }
+        
+        // Return top 20 (already sorted by popularity)
+        const commanders = filtered.slice(0, 20)
+        
+        // Build response (skip ownership filtering in buildResponse since we did it here)
+        return await buildResponse(supabase, commanders, null)
+      }
+    }
+
     // If filtering by archetype, theme, or tribe, we need to join with ref_commander_taxonomy
-    const hasTaxonomyFilter = archetype || theme || tribe
-    
     if (hasTaxonomyFilter) {
       // Get commander IDs that match the taxonomy filters
       let commanderIds: string[] = []

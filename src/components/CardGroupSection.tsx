@@ -29,8 +29,10 @@ import { PrintingPicker } from '@/components/PrintingPicker'
 import { StatusChipPopover } from '@/components/StatusChipPopover'
 import { CardSlotBadge } from '@/components/CardSlotBadge'
 import { CategoryTagEditor } from '@/components/CategoryTagEditor'
+import { MobileCardPreview } from '@/components/MobileCardPreview'
 import { parseCategoriesCapped } from '@/lib/categoryUtils'
 import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import type { StructuredCategories } from '@/lib/categoryUtils'
 import type { DeckCard } from '@/components/CardGrid'
 import type { CardSlotStatus } from '@/lib/card-status'
@@ -262,7 +264,9 @@ function UnifiedCardRow({
   const [popoverOpen, setPopoverOpen] = useState(false)
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false)
   const queryClient = useQueryClient()
+  const isMobile = useIsMobile()
 
   const { triggerProps, previewProps } = useCardHoverPreview({
     scryfallId: card.scryfall_id,
@@ -325,22 +329,29 @@ function UnifiedCardRow({
     setDeleteDialogOpen(true)
   }
 
+  // On mobile, tap opens preview; on desktop, use hover
+  const handleCardNameClick = () => {
+    if (isMobile) {
+      setMobilePreviewOpen(true)
+    }
+  }
+
   return (
     <>
       <div
         role="listitem"
-        className="group flex items-center gap-2 px-3 py-1.5 transition-colors hover:bg-white/[0.03] border-b border-[rgba(255,255,255,0.04)] last:border-b-0"
+        className="group flex items-center gap-2 px-3 py-1.5 sm:py-1.5 transition-colors hover:bg-white/[0.03] border-b border-[rgba(255,255,255,0.04)] last:border-b-0"
         onContextMenu={handleContextMenu}
     >
-      {/* Drag handle — visible on hover */}
-      <GripVertical className="size-3 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-40 transition-opacity cursor-grab" aria-hidden="true" />
+      {/* Drag handle — hidden on mobile, visible on hover on desktop */}
+      <GripVertical className="hidden sm:block size-3 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-40 transition-opacity cursor-grab" aria-hidden="true" />
 
-      {/* Checkbox */}
+      {/* Checkbox — hidden on mobile for cleaner compact view */}
       <input
         type="checkbox"
         checked={isSelected}
         onChange={(e) => onSelectionChange?.(card.id, e.target.checked)}
-        className="size-3.5 shrink-0 rounded border-[rgba(255,255,255,0.1)] bg-transparent opacity-30 checked:opacity-100 hover:opacity-60 transition-opacity accent-[var(--accent-primary)]"
+        className="hidden sm:block size-3.5 shrink-0 rounded border-[rgba(255,255,255,0.1)] bg-transparent opacity-30 checked:opacity-100 hover:opacity-60 transition-opacity accent-[var(--accent-primary)]"
         aria-label={`Select ${card.card_name}`}
       />
 
@@ -349,16 +360,17 @@ function UnifiedCardRow({
         {card.quantity || 1}
       </span>
 
-      {/* Card name with hover preview */}
+      {/* Card name — on mobile: tap to preview; on desktop: hover preview */}
       <span
-        className="min-w-0 flex-1 truncate text-[length:var(--fs-sm)] cursor-default"
-        {...triggerProps}
+        className="min-w-0 flex-1 truncate text-[length:var(--fs-sm)] cursor-default sm:cursor-default"
+        {...(isMobile ? { onClick: handleCardNameClick } : triggerProps)}
       >
         {card.card_name}
-        <CardHoverPreview {...previewProps} />
+        {/* Hover preview only shown on desktop */}
+        {!isMobile && <CardHoverPreview {...previewProps} />}
       </span>
 
-      {/* Set icon (with rarity colour) + set name */}
+      {/* Set icon (with rarity colour) + set name — desktop only, hidden on mobile */}
       {!compact && (
         <span className="hidden md:inline-flex shrink-0 items-center gap-1 text-[length:var(--fs-xs)] text-muted-foreground" style={{ width: 160 }}>
           {card.set_code && (
@@ -370,17 +382,17 @@ function UnifiedCardRow({
         </span>
       )}
 
-      {/* Mana cost pips — fixed-width column, right-aligned */}
-      <span className="shrink-0 flex justify-end" style={{ width: 80 }}>
+      {/* Mana cost pips — hidden on mobile for compact view */}
+      <span className="hidden sm:flex shrink-0 justify-end" style={{ width: 80 }}>
         <ManaCost cost={card.mana_cost} />
       </span>
 
-      {/* Gap between pips and price */}
-      <span className="shrink-0 w-3" aria-hidden="true" />
+      {/* Gap between pips and price — hidden on mobile */}
+      <span className="hidden sm:block shrink-0 w-3" aria-hidden="true" />
 
-      {/* Price — compact mode shows smaller, non-compact shows wider on desktop */}
+      {/* Price — hidden on mobile */}
       {compact ? (
-        <span className="shrink-0 text-[length:var(--fs-xs)] tabular-nums text-muted-foreground" style={{ minWidth: 36, textAlign: 'right' }}>
+        <span className="hidden sm:inline shrink-0 text-[length:var(--fs-xs)] tabular-nums text-muted-foreground" style={{ minWidth: 36, textAlign: 'right' }}>
           {card.price_usd != null ? formatPrice(card.price_usd) : ''}
         </span>
       ) : (
@@ -389,20 +401,24 @@ function UnifiedCardRow({
         </span>
       )}
 
-      {/* Interactive status chip — after price */}
-      <StatusChipPopover
-        status={status}
-        cardName={card.card_name}
-        deckId={deckId}
-        deckCardsId={card.id}
-        physicalCopyId={physicalCopyId}
-        scryfallId={card.scryfall_id ?? null}
-        variant={compact ? 'icon' : 'icon'}
-        className="shrink-0"
-      />
+      {/* Status indicator — simple dot on mobile, full chip on desktop */}
+      {isMobile ? (
+        <MobileStatusDot status={status} />
+      ) : (
+        <StatusChipPopover
+          status={status}
+          cardName={card.card_name}
+          deckId={deckId}
+          deckCardsId={card.id}
+          physicalCopyId={physicalCopyId}
+          scryfallId={card.scryfall_id ?? null}
+          variant={compact ? 'icon' : 'icon'}
+          className="shrink-0"
+        />
+      )}
 
-      {/* Category edit trigger — hidden in compact mode */}
-      {!compact && onCategoryChange && (
+      {/* Category edit trigger — hidden on mobile and compact mode */}
+      {!compact && !isMobile && onCategoryChange && (
         <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
           <PopoverTrigger
             className="inline-flex items-center justify-center size-6 rounded-[min(var(--radius-md),10px)] opacity-0 transition-opacity group-hover:opacity-100 text-muted-foreground hover:text-foreground hover:bg-white/[0.06]"
@@ -424,19 +440,21 @@ function UnifiedCardRow({
         </Popover>
       )}
 
-      {/* Kebab menu — Remove */}
-      <CardRowKebab
-        deckCardsId={card.id}
-        deckId={deckId}
-        cardName={card.card_name}
-        quantity={card.quantity || 1}
-        maxCopies={maxCopies}
-        currentCategories={card.categories}
-        onCategoryChange={onCategoryChange}
-      />
+      {/* Kebab menu — hidden on mobile */}
+      {!isMobile && (
+        <CardRowKebab
+          deckCardsId={card.id}
+          deckId={deckId}
+          cardName={card.card_name}
+          quantity={card.quantity || 1}
+          maxCopies={maxCopies}
+          currentCategories={card.categories}
+          onCategoryChange={onCategoryChange}
+        />
+      )}
 
-      {/* Right-click context menu */}
-      {contextMenuPos && (
+      {/* Right-click context menu — desktop only */}
+      {!isMobile && contextMenuPos && (
         <div
           className="fixed z-50 min-w-[140px] rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-1 shadow-lg"
           style={{ top: contextMenuPos.y, left: contextMenuPos.x }}
@@ -478,7 +496,61 @@ function UnifiedCardRow({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {/* Mobile card preview modal */}
+    <MobileCardPreview
+      cardName={card.card_name}
+      scryfallId={card.scryfall_id}
+      isOpen={mobilePreviewOpen}
+      onClose={() => setMobilePreviewOpen(false)}
+    />
     </>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// MobileStatusDot — Simple ●/◐/○ status indicator for mobile
+// ---------------------------------------------------------------------------
+
+function MobileStatusDot({ status }: { status: CardSlotStatus }) {
+  // Map status to simple dot indicator
+  const config: Record<CardSlotStatus, { color: string; label: string; filled: 'full' | 'half' | 'empty' }> = {
+    original: { color: 'var(--signal-success)', label: 'Original', filled: 'full' },
+    proxy: { color: 'var(--signal-info)', label: 'Proxy', filled: 'full' },
+    open: { color: 'var(--signal-success)', label: 'Open', filled: 'half' },
+    available: { color: 'var(--signal-success)', label: 'Available', filled: 'half' },
+    claimed: { color: 'var(--signal-warning)', label: 'Claimed', filled: 'half' },
+    unowned: { color: 'var(--signal-error)', label: 'Unowned', filled: 'empty' },
+    generic_land: { color: 'var(--signal-success)', label: 'Land', filled: 'full' },
+  }
+
+  const { color, label, filled } = config[status] ?? config.available
+
+  return (
+    <span
+      className="shrink-0 flex items-center justify-center size-5"
+      title={label}
+      aria-label={label}
+    >
+      {filled === 'full' && (
+        <span
+          className="size-2.5 rounded-full"
+          style={{ backgroundColor: color }}
+        />
+      )}
+      {filled === 'half' && (
+        <span
+          className="size-2.5 rounded-full border-2"
+          style={{ borderColor: color, backgroundColor: 'transparent' }}
+        />
+      )}
+      {filled === 'empty' && (
+        <span
+          className="size-2.5 rounded-full border"
+          style={{ borderColor: color, borderStyle: 'dashed', backgroundColor: 'transparent' }}
+        />
+      )}
+    </span>
   )
 }
 

@@ -62,8 +62,21 @@ export default function CollectionPage() {
   const [printingSortDirection, setPrintingSortDirection] = useState<SortDirection>('asc')
 
   // Sync viewMode from localStorage after hydration (avoids SSR mismatch)
+  // Default to list view on mobile for better readability
   useEffect(() => {
     const persisted = getPersistedViewMode()
+    const isMobile = window.matchMedia('(max-width: 639px)').matches
+    
+    // On mobile, default to list unless user explicitly saved a preference
+    if (isMobile && persisted === 'grid') {
+      // Check if there's an explicit preference stored
+      const hasExplicitPreference = localStorage.getItem('oracle:collection:viewMode') !== null
+      if (!hasExplicitPreference) {
+        setViewMode('list')
+        return
+      }
+    }
+    
     if (persisted !== 'grid') setViewMode(persisted)
   }, [])
 

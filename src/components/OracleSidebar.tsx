@@ -396,21 +396,50 @@ export function OracleSidebar() {
     activeContext.type === 'commander-selection'
 
   // Extract commander suggestions from the last assistant message for quick action buttons
-  const lastAssistantMessage = useMemo(() => {
+  // Look for legendary creatures mentioned in [[brackets]] that look like commanders
+  const quickBuildCommanders = useMemo(() => {
+    if (!isExplorationContext || isStreaming) return []
+    
+    // Find the last assistant message
+    let lastAssistantMsg: { content: string; navigatePrompt?: NavigatePrompt } | null = null
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i].role === 'assistant' && messages[i].content) {
-        return messages[i]
+        lastAssistantMsg = messages[i]
+        break
       }
     }
-    return null
-  }, [messages])
-
-  const quickBuildCommanders = useMemo(() => {
-    if (!isExplorationContext || !lastAssistantMessage || isStreaming) return []
-    const suggestions = parseCommanderSuggestions(lastAssistantMessage.content)
-    // Return just the names, limited to 3 for UI space
-    return suggestions.slice(0, 3).map(s => s.name)
-  }, [isExplorationContext, lastAssistantMessage, isStreaming])
+    if (!lastAssistantMsg) return []
+    
+    // If there's already a navigatePrompt with a specific commander, don't show redundant buttons
+    if (lastAssistantMsg.navigatePrompt?.commanderName) return []
+    
+    // Extract all [[Card Name]] mentions from the message
+    const cardPattern = /\[\[([^\]]+)\]\]/g
+    const mentionedCards: string[] = []
+    let match
+    while ((match = cardPattern.exec(lastAssistantMsg.content)) !== null) {
+      mentionedCards.push(match[1])
+    }
+    
+    // Filter to likely commanders: names with commas (title format) or multi-word legendary creatures
+    // Common commander name patterns: "Name, Title" or "The Name" or "Name of Place"
+    const likelyCommanders = mentionedCards.filter(name => {
+      // Has a comma (e.g., "Anikthea, Regent of Growth")
+      if (name.includes(',')) return true
+      // Starts with "The" (e.g., "The Gitrog Monster")
+      if (name.startsWith('The ')) return true
+      // Contains " of " (e.g., "Queen Marchesa")
+      if (name.includes(' of ')) return true
+      // Multi-word name that could be legendary (heuristic)
+      const words = name.split(' ')
+      if (words.length >= 2 && words[0][0] === words[0][0].toUpperCase()) return true
+      return false
+    })
+    
+    // Deduplicate and limit to 3
+    const unique = [...new Set(likelyCommanders)]
+    return unique.slice(0, 3)
+  }, [isExplorationContext, messages, isStreaming])
 
   // ---------------------------------------------------------------------------
   // Render

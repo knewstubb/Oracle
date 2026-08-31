@@ -12,7 +12,6 @@ import { deckKeys } from '@/hooks/useDeckQueryKeys'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { SessionHistoryPanel } from '@/components/SessionHistoryPanel'
-import { autoBracketCardsSync } from '@/lib/auto-bracket-cards'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -434,15 +433,25 @@ export function OracleSidebar() {
     // If there's already a navigatePrompt with a specific commander, don't show redundant buttons
     if (lastAssistantMsg.navigatePrompt?.commanderName) return []
     
-    // Apply auto-bracketing first (same logic as display), then extract from brackets
-    const bracketedContent = autoBracketCardsSync(lastAssistantMsg.content)
-    
-    // Extract all [[Card Name]] mentions from the auto-bracketed message
-    const cardPattern = /\[\[([^\]]+)\]\]/g
+    const content = lastAssistantMsg.content
     const mentionedCards: string[] = []
+    
+    // Extract from [[Card Name]] brackets
+    const bracketPattern = /\[\[([^\]]+)\]\]/g
     let match
-    while ((match = cardPattern.exec(bracketedContent)) !== null) {
+    while ((match = bracketPattern.exec(content)) !== null) {
       mentionedCards.push(match[1])
+    }
+    
+    // Also extract from **Bold Text** that looks like "Name, Title" (common commander format)
+    // This catches cases where AI uses bold instead of brackets
+    const boldPattern = /\*\*([A-Z][^*]+,\s+[^*]+)\*\*/g
+    while ((match = boldPattern.exec(content)) !== null) {
+      const name = match[1].trim()
+      // Don't add if already extracted from brackets
+      if (!mentionedCards.some(m => m.toLowerCase() === name.toLowerCase())) {
+        mentionedCards.push(name)
+      }
     }
     
     // Filter to only legal commanders using the ref_commanders table

@@ -12,6 +12,7 @@ import { deckKeys } from '@/hooks/useDeckQueryKeys'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { SessionHistoryPanel } from '@/components/SessionHistoryPanel'
+import { autoBracketCardsSync } from '@/lib/auto-bracket-cards'
 
 // ---------------------------------------------------------------------------
 // Constants

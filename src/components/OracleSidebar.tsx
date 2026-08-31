@@ -363,8 +363,8 @@ export function OracleSidebar() {
 
   const handleStartDeck = useCallback(async (commanderName: string) => {
     try {
-      // Create a new deck with this commander
-      const res = await fetch('/api/decks', {
+      // Create a new deck with this commander via the create endpoint
+      const res = await fetch('/api/decks/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -375,12 +375,19 @@ export function OracleSidebar() {
       })
 
       if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || 'Failed to create deck')
+        const errorText = await res.text()
+        let errorMsg = 'Failed to create deck'
+        try {
+          const errorJson = JSON.parse(errorText)
+          errorMsg = errorJson.error || errorMsg
+        } catch {
+          // Response wasn't JSON
+        }
+        throw new Error(errorMsg)
       }
 
       const data = await res.json()
-      const deckId = data.deck?.id ?? data.id
+      const deckId = data.deckId ?? data.deck?.id ?? data.id
 
       toast.success(`Created deck for ${commanderName}`)
       
@@ -455,10 +462,11 @@ export function OracleSidebar() {
     }
     
     // Extract "Name, Title" patterns anywhere (e.g., in bullet points, plain text)
-    // Pattern: Capitalized word, comma, then more text until punctuation or end
-    const commaNamePattern = /\b([A-Z][a-z]+(?:[-'][A-Z]?[a-z]+)*),\s+((?:the\s+)?[A-Z][a-zA-Z\s'-]+?)(?=\s*[\(\[\*\n]|\s+—|\s+is|\s+\(|$)/g
-    while ((match = commaNamePattern.exec(content)) !== null) {
-      const name = (match[1] + ', ' + match[2]).trim()
+    // Pattern: Capitalized word, comma, then title words (stopping at punctuation or common sentence connectors)
+    const commaNamePattern = /\b([A-Z][a-z]+(?:[-'][A-Z]?[a-z]+)*),\s+((?:the\s+)?[A-Z][a-zA-Z\s'-]+?)(?=[.!?\n]|\s+—|\s+is\b|\s+has\b|\s+can\b|\s+and\b|\s+or\b|\s+for\b|\s+with\b|\s*\(|\s*\[|\s*\*|$)/g
+    let commaMatch
+    while ((commaMatch = commaNamePattern.exec(content)) !== null) {
+      const name = (commaMatch[1] + ', ' + commaMatch[2]).trim()
       if (!mentionedCards.some(m => m.toLowerCase() === name.toLowerCase())) {
         mentionedCards.push(name)
       }

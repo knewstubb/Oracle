@@ -395,6 +395,23 @@ export function OracleSidebar() {
     activeContext.type === 'general' ||
     activeContext.type === 'commander-selection'
 
+  // Extract commander suggestions from the last assistant message for quick action buttons
+  const lastAssistantMessage = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'assistant' && messages[i].content) {
+        return messages[i]
+      }
+    }
+    return null
+  }, [messages])
+
+  const quickBuildCommanders = useMemo(() => {
+    if (!isExplorationContext || !lastAssistantMessage || isStreaming) return []
+    const suggestions = parseCommanderSuggestions(lastAssistantMessage.content)
+    // Return just the names, limited to 3 for UI space
+    return suggestions.slice(0, 3).map(s => s.name)
+  }, [isExplorationContext, lastAssistantMessage, isStreaming])
+
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
@@ -518,6 +535,25 @@ export function OracleSidebar() {
 
         {/* Input area */}
         <div className="border-t border-zinc-800/60 px-3 py-2">
+          {/* Quick build buttons when commanders are suggested */}
+          {quickBuildCommanders.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {quickBuildCommanders.map((name) => (
+                <button
+                  key={name}
+                  onClick={() => handleStartDeck(name)}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium',
+                    'bg-amber-500/15 border border-amber-500/30 text-amber-400',
+                    'hover:bg-amber-500/25 hover:border-amber-500/50 transition-colors'
+                  )}
+                >
+                  <Crown className="w-3 h-3" />
+                  Build {name.split(',')[0]}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="flex items-end gap-2 rounded-lg border border-zinc-700/60 bg-zinc-900/60 px-2.5 py-1.5 transition-all focus-within:border-emerald-500/50 focus-within:bg-zinc-900/80">
             <textarea
               ref={inputRef}

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { X, MessageSquarePlus, MessageSquare, Library, LayoutGrid, Sparkles, Wrench, Layers, History, Compass, ArrowRight, Crown } from 'lucide-react'
 import { useOracle, type OracleContext, type NavigatePrompt } from '@/contexts/OracleContext'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQueryClient, useQuery } from '@tanstack/react-query'
 import { renderMessageContent, type CardLinkMode, type OwnershipStatus, type OwnershipLookupFn } from '@/lib/render-card-links'
 import { cardOwnershipData, usePreloadCardImages } from '@/components/CardHoverPreview'
 import { CommanderSuggestionRow, parseCommanderSuggestions, stripCommanderSuggestions } from '@/components/CommanderSuggestionCard'
@@ -130,6 +130,26 @@ export function OracleSidebar() {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const pendingLookups = useRef<Set<string>>(new Set())
+
+  // ---------------------------------------------------------------------------
+  // Fetch legal commander names for quick build button validation
+  // ---------------------------------------------------------------------------
+  
+  const { data: commanderNamesData } = useQuery({
+    queryKey: ['commander-names'],
+    queryFn: async () => {
+      const res = await fetch('/api/commanders/names')
+      if (!res.ok) return { names: [] }
+      return res.json() as Promise<{ names: string[] }>
+    },
+    staleTime: 1000 * 60 * 60, // 1 hour
+    gcTime: 1000 * 60 * 60 * 24, // 24 hours
+  })
+  
+  const commanderNamesSet = useMemo(() => {
+    if (!commanderNamesData?.names) return new Set<string>()
+    return new Set(commanderNamesData.names.map(n => n.toLowerCase()))
+  }, [commanderNamesData])
 
   // ---------------------------------------------------------------------------
   // Navigation handler for deck-building prompts
@@ -397,9 +417,9 @@ export function OracleSidebar() {
     activeContext.type === 'commander-selection'
 
   // Extract commander suggestions from the last assistant message for quick action buttons
-  // Look for legendary creatures mentioned in [[brackets]] or "Name, Subtitle" patterns
+  // Validates against the actual ref_commanders table for accuracy
   const quickBuildCommanders = useMemo(() => {
-    if (!isExplorationContext || isStreaming) return []
+    if (!isExplorationContext) return []
     
     // Find the last assistant message
     let lastAssistantMsg: { content: string; navigatePrompt?: NavigatePrompt } | null = null
@@ -425,25 +445,15 @@ export function OracleSidebar() {
       mentionedCards.push(match[1])
     }
     
-    // Filter to likely commanders: names with commas (title format) or multi-word legendary creatures
-    // Common commander name patterns: "Name, Title" or "The Name" or "Name of Place"
-    const likelyCommanders = mentionedCards.filter(name => {
-      // Has a comma (e.g., "Anikthea, Hand of Erebos")
-      if (name.includes(',')) return true
-      // Starts with "The" (e.g., "The Gitrog Monster")
-      if (name.startsWith('The ')) return true
-      // Contains " of " (e.g., "Queen Marchesa")
-      if (name.includes(' of ')) return true
-      // Multi-word name that could be legendary (heuristic)
-      const words = name.split(' ')
-      if (words.length >= 2 && words[0][0] === words[0][0].toUpperCase()) return true
-      return false
-    })
+    // Filter to only legal commanders using the ref_commanders table
+    const validCommanders = mentionedCards.filter(name => 
+      commanderNamesSet.has(name.toLowerCase())
+    )
     
     // Deduplicate and limit to 3
-    const unique = [...new Set(likelyCommanders)]
+    const unique = [...new Set(validCommanders)]
     return unique.slice(0, 3)
-  }, [isExplorationContext, messages, isStreaming])
+  }, [isExplorationContext, messages, commanderNamesSet])
 
   // ---------------------------------------------------------------------------
   // Render

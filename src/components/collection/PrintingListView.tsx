@@ -1,12 +1,14 @@
 'use client'
 
-import { useCallback, useRef, useEffect } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { ChevronUp, ChevronDown, MoreVertical } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { truncateName, formatPrice } from '@/lib/collection-printing-utils'
 import type { PrintingRowResponse } from '@/lib/collection-printing-utils'
 import type { PrintingSortField, SortDirection } from '@/lib/collection-filters'
+import { useIsMobile } from '@/hooks/useIsMobile'
+import { MobileCardPreview } from '@/components/MobileCardPreview'
 
 /* ─── High-Performance Hover Preview (Direct DOM, No React State) ───── */
 
@@ -334,6 +336,11 @@ export function PrintingListView({
   onSort,
   showMissing = false,
 }: PrintingListViewProps) {
+  const isMobile = useIsMobile()
+  
+  // Mobile preview state
+  const [previewCard, setPreviewCard] = useState<{ name: string; scryfallId: string | null } | null>(null)
+  
   // Track active hover state via ref (no React state = no rerenders)
   const activeHoverRef = useRef<string | null>(null)
 
@@ -354,13 +361,21 @@ export function PrintingListView({
     activeHoverRef.current = null
     hidePreview()
   }, [])
+  
+  // Mobile tap handler
+  const handleTap = useCallback((row: PrintingRowResponse) => {
+    setPreviewCard({
+      name: row.cardName,
+      scryfallId: row.scryfallPrintingId,
+    })
+  }, [])
 
   // Virtualization
   const parentRef = useRef<HTMLDivElement>(null)
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 44,
+    estimateSize: () => isMobile ? 48 : 44,
     overscan: 20,
   })
 
@@ -368,41 +383,56 @@ export function PrintingListView({
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* Table header */}
       <div
-        className="flex items-center gap-10 px-4 py-2"
+        className={cn(
+          "flex items-center px-4 py-2",
+          isMobile ? "gap-3" : "gap-10"
+        )}
         style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '0.5px solid rgba(255,255,255,0.07)' }}
       >
-        {/* Group 1: Checkbox + Qty + Name (FLEX) */}
-        <div className="flex flex-1 items-center gap-6">
-          <div className={cn(COL.checkbox, 'shrink-0 flex items-center justify-center')}>
-            <input type="checkbox" className="size-3.5 rounded border-[rgba(255,255,255,0.1)] bg-transparent opacity-30 checked:opacity-100 hover:opacity-60 transition-opacity accent-[var(--accent-primary)]" aria-label="Select all" />
-          </div>
-          <SortableHeader label="Qty" field="quantity" align="center" className={COL.qty} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
-          <SortableHeader label="Name" field="cardName" align="left" className="flex-1 min-w-0" shrink={false} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
-        </div>
+        {isMobile ? (
+          /* Mobile header: QTY | NAME | PRICE */
+          <>
+            <SortableHeader label="Qty" field="quantity" align="center" className="w-8 shrink-0" sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
+            <SortableHeader label="Name" field="cardName" align="left" className="flex-1 min-w-0" shrink={false} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
+            <SortableHeader label="Price" field="price" align="right" className="w-14 shrink-0" sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
+          </>
+        ) : (
+          /* Desktop header: full layout */
+          <>
+            {/* Group 1: Checkbox + Qty + Name (FLEX) */}
+            <div className="flex flex-1 items-center gap-6">
+              <div className={cn(COL.checkbox, 'shrink-0 flex items-center justify-center')}>
+                <input type="checkbox" className="size-3.5 rounded border-[rgba(255,255,255,0.1)] bg-transparent opacity-30 checked:opacity-100 hover:opacity-60 transition-opacity accent-[var(--accent-primary)]" aria-label="Select all" />
+              </div>
+              <SortableHeader label="Qty" field="quantity" align="center" className={COL.qty} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
+              <SortableHeader label="Name" field="cardName" align="left" className="flex-1 min-w-0" shrink={false} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
+            </div>
 
-        {/* Group 2: Rarity + Set (FLEX) */}
-        <div className="flex flex-1 items-center gap-6">
-          <SortableHeader label="Rarity" field="rarity" align="center" className={COL.rarity} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
-          <SortableHeader label="Set" field="setCode" align="left" className="flex-1 min-w-0" shrink={false} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
-        </div>
+            {/* Group 2: Rarity + Set (FLEX) */}
+            <div className="flex flex-1 items-center gap-6">
+              <SortableHeader label="Rarity" field="rarity" align="center" className={COL.rarity} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
+              <SortableHeader label="Set" field="setCode" align="left" className="flex-1 min-w-0" shrink={false} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
+            </div>
 
-        {/* Finish (standalone 40px) */}
-        <SortableHeader label="Finish" field={null} align="center" className={COL.finish} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
+            {/* Finish (standalone 40px) */}
+            <SortableHeader label="Finish" field={null} align="center" className={COL.finish} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
 
-        {/* Group 3: Cost + Type (288px fixed) */}
-        <div className="flex w-[288px] shrink-0 items-center gap-12">
-          <SortableHeader label="Cost" field={null} align="right" className={COL.colors} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
-          <SortableHeader label="Type" field={null} align="left" className={COL.type} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
-        </div>
+            {/* Group 3: Cost + Type (288px fixed) */}
+            <div className="flex w-[288px] shrink-0 items-center gap-12">
+              <SortableHeader label="Cost" field={null} align="right" className={COL.colors} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
+              <SortableHeader label="Type" field={null} align="left" className={COL.type} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
+            </div>
 
-        {/* Group 4: Price + Added (176px fixed) */}
-        <div className="flex w-[176px] shrink-0 items-center gap-12">
-          <SortableHeader label="Price" field="price" align="right" className={COL.price} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
-          <SortableHeader label="Added" field={null} align="left" className={COL.added} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
-        </div>
+            {/* Group 4: Price + Added (176px fixed) */}
+            <div className="flex w-[176px] shrink-0 items-center gap-12">
+              <SortableHeader label="Price" field="price" align="right" className={COL.price} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
+              <SortableHeader label="Added" field={null} align="left" className={COL.added} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
+            </div>
 
-        {/* Actions (standalone 40px) */}
-        <div className={cn(COL.actions, 'shrink-0')} aria-hidden="true" />
+            {/* Actions (standalone 40px) */}
+            <div className={cn(COL.actions, 'shrink-0')} aria-hidden="true" />
+          </>
+        )}
       </div>
 
       {/* Virtualized rows */}
@@ -415,6 +445,60 @@ export function PrintingListView({
           <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
               const row = rows[virtualRow.index]
+              
+              if (isMobile) {
+                // Mobile row: QTY | NAME (tappable) | PRICE
+                return (
+                  <div
+                    key={`${row.id}-${row.isFoil}-${row.isProxy}`}
+                    className={cn(
+                      'absolute left-0 flex w-full items-center gap-3 px-4 active:bg-[rgba(255,255,255,0.04)]',
+                      row.isProxy && 'opacity-60',
+                      row.isMissing && 'opacity-40'
+                    )}
+                    style={{
+                      height: `${virtualRow.size}px`,
+                      top: `${virtualRow.start}px`,
+                      borderBottom: '0.5px solid rgba(255,255,255,0.04)',
+                      borderLeft: row.isMissing ? '2px solid rgba(228,75,74,0.4)' : row.isProxy ? '2px dashed rgba(255,255,255,0.15)' : '2px solid transparent',
+                    }}
+                    onClick={() => handleTap(row)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === 'Enter' && handleTap(row)}
+                  >
+                    {/* Quantity */}
+                    <span className="w-8 shrink-0 text-center text-[length:var(--fs-base)] tabular-nums" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                      {row.quantity}
+                    </span>
+
+                    {/* Name (full width, truncated) */}
+                    <span
+                      className={cn('flex-1 min-w-0 truncate text-[length:var(--fs-base)]', row.isMissing && 'line-through')}
+                    >
+                      <span style={{ color: row.isMissing ? 'rgba(255,255,255,0.4)' : 'var(--color-primary-text)', fontWeight: 500 }}>
+                        {row.cardName}
+                      </span>
+                      {row.isProxy && (
+                        <span className="ml-1.5 text-[9px] uppercase" style={{ color: 'rgba(255,255,255,0.3)' }}>proxy</span>
+                      )}
+                      {row.isMissing && (
+                        <span className="ml-1.5 text-[9px] font-medium uppercase" style={{ color: 'rgba(228,75,74,0.8)' }}>missing</span>
+                      )}
+                    </span>
+
+                    {/* Price */}
+                    <span
+                      className="w-14 shrink-0 text-right text-[length:var(--fs-sm)] tabular-nums"
+                      style={{ color: row.price === null ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.5)' }}
+                    >
+                      {formatPrice(row.price)}
+                    </span>
+                  </div>
+                )
+              }
+              
+              // Desktop row: full layout
               return (
                 <div
                   key={`${row.id}-${row.isFoil}-${row.isProxy}`}
@@ -533,6 +617,16 @@ export function PrintingListView({
           </div>
         )}
       </div>
+      
+      {/* Mobile card preview modal */}
+      {previewCard && (
+        <MobileCardPreview
+          cardName={previewCard.name}
+          scryfallId={previewCard.scryfallId}
+          isOpen={true}
+          onClose={() => setPreviewCard(null)}
+        />
+      )}
     </div>
   )
 }

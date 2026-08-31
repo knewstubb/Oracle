@@ -392,6 +392,7 @@ export function OracleSidebar() {
   const isExplorationContext = 
     activeContext.type === 'exploration' || 
     activeContext.type === 'forge' || 
+    activeContext.type === 'deck-list' ||
     activeContext.type === 'general' ||
     activeContext.type === 'commander-selection'
 

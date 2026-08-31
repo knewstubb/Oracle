@@ -106,7 +106,7 @@ export function TopNav() {
   return (
     <>
       {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-40 border-b border-border bg-sidebar">
+      <header className="sticky top-0 z-40 border-b border-border bg-sidebar pt-[env(safe-area-inset-top)]">
         <div className="flex h-14 items-center justify-between px-4">
           {/* Left: Logo + Main Nav */}
           <div className="flex items-center gap-6">
@@ -278,7 +278,7 @@ export function TopNav() {
 
           {/* Drawer */}
           <nav
-            className="absolute right-0 top-0 flex h-full w-[280px] flex-col border-l border-border bg-sidebar pb-[env(safe-area-inset-bottom)]"
+            className="absolute right-0 top-0 flex h-full w-[280px] flex-col border-l border-border bg-sidebar pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
             role="dialog"
             aria-modal="true"
             aria-label="Navigation menu"

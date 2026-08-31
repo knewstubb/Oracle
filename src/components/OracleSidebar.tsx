@@ -396,7 +396,7 @@ export function OracleSidebar() {
     activeContext.type === 'commander-selection'
 
   // Extract commander suggestions from the last assistant message for quick action buttons
-  // Look for legendary creatures mentioned in [[brackets]] that look like commanders
+  // Look for legendary creatures mentioned in [[brackets]] or "Name, Subtitle" patterns
   const quickBuildCommanders = useMemo(() => {
     if (!isExplorationContext || isStreaming) return []
     
@@ -413,18 +413,21 @@ export function OracleSidebar() {
     // If there's already a navigatePrompt with a specific commander, don't show redundant buttons
     if (lastAssistantMsg.navigatePrompt?.commanderName) return []
     
-    // Extract all [[Card Name]] mentions from the message
+    // Apply auto-bracketing first (same logic as display), then extract from brackets
+    const bracketedContent = autoBracketCardsSync(lastAssistantMsg.content)
+    
+    // Extract all [[Card Name]] mentions from the auto-bracketed message
     const cardPattern = /\[\[([^\]]+)\]\]/g
     const mentionedCards: string[] = []
     let match
-    while ((match = cardPattern.exec(lastAssistantMsg.content)) !== null) {
+    while ((match = cardPattern.exec(bracketedContent)) !== null) {
       mentionedCards.push(match[1])
     }
     
     // Filter to likely commanders: names with commas (title format) or multi-word legendary creatures
     // Common commander name patterns: "Name, Title" or "The Name" or "Name of Place"
     const likelyCommanders = mentionedCards.filter(name => {
-      // Has a comma (e.g., "Anikthea, Regent of Growth")
+      // Has a comma (e.g., "Anikthea, Hand of Erebos")
       if (name.includes(',')) return true
       // Starts with "The" (e.g., "The Gitrog Monster")
       if (name.startsWith('The ')) return true

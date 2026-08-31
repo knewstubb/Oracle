@@ -420,6 +420,7 @@ export function OracleSidebar() {
   // Validates against the actual ref_commanders table for accuracy
   const quickBuildCommanders = useMemo(() => {
     if (!isExplorationContext) return []
+    if (commanderNamesSet.size === 0) return [] // Wait for names to load
     
     // Find the last assistant message
     let lastAssistantMsg: { content: string; navigatePrompt?: NavigatePrompt } | null = null
@@ -437,19 +438,27 @@ export function OracleSidebar() {
     const content = lastAssistantMsg.content
     const mentionedCards: string[] = []
     
-    // Extract from [[Card Name]] brackets
+    // Extract from [[Card Name]] brackets (highest priority)
     const bracketPattern = /\[\[([^\]]+)\]\]/g
     let match
     while ((match = bracketPattern.exec(content)) !== null) {
       mentionedCards.push(match[1])
     }
     
-    // Also extract from **Bold Text** that looks like "Name, Title" (common commander format)
-    // This catches cases where AI uses bold instead of brackets
+    // Extract from **Bold Text** that looks like "Name, Title"
     const boldPattern = /\*\*([A-Z][^*]+,\s+[^*]+)\*\*/g
     while ((match = boldPattern.exec(content)) !== null) {
       const name = match[1].trim()
-      // Don't add if already extracted from brackets
+      if (!mentionedCards.some(m => m.toLowerCase() === name.toLowerCase())) {
+        mentionedCards.push(name)
+      }
+    }
+    
+    // Extract "Name, Title" patterns anywhere (e.g., in bullet points, plain text)
+    // Pattern: Capitalized word, comma, then more text until punctuation or end
+    const commaNamePattern = /\b([A-Z][a-z]+(?:[-'][A-Z]?[a-z]+)*),\s+((?:the\s+)?[A-Z][a-zA-Z\s'-]+?)(?=\s*[\(\[\*\n]|\s+—|\s+is|\s+\(|$)/g
+    while ((match = commaNamePattern.exec(content)) !== null) {
+      const name = (match[1] + ', ' + match[2]).trim()
       if (!mentionedCards.some(m => m.toLowerCase() === name.toLowerCase())) {
         mentionedCards.push(name)
       }

@@ -74,7 +74,7 @@ export async function GET(
 
   // Filter out Maybeboard and Sideboard from counts (they don't count toward deck size)
   const countableStatuses = statuses.filter(s => {
-    const category = categoryMap.get(s.id)
+    const category = categoryMap.get(s.deckCardsId)
     return category !== 'Maybeboard' && category !== 'Sideboard'
   })
 

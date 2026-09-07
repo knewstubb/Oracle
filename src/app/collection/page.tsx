@@ -158,8 +158,14 @@ export default function CollectionPage() {
   const printingRows = printingData?.rows ?? []
   const printingTotalCount = printingData?.totalCount ?? 0
   
-  // Counts for UI display (approximations from current page for proxy/missing toggles)
-  const ownedCount = printingRows.filter((r) => !r.isProxy).length
+  // Counts for UI display
+  // Use the appropriate total count based on which view is active
+  // Grid view uses rollup totalCount; list view uses printingTotalCount
+  const ownedCount = isPrintingView
+    ? (includeProxies 
+        ? printingRows.filter((r) => !r.isProxy).length  // page approximation when showing mixed
+        : printingTotalCount)  // total when only showing owned
+    : totalCount  // grid view uses rollup count (which doesn't include proxies)
   const proxyCount = printingRows.filter((r) => r.isProxy).length
   const missingCount = printingRows.filter((r) => r.isMissing).length
 

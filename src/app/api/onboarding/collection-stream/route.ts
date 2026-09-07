@@ -29,6 +29,7 @@ interface ProgressEvent {
     totalEntries: number
     userCardsCreated: number
     userCopiesCreated: number
+    physicalCopiesCreated: number // Alias for UI compatibility
     errors: string[]
     durationMs: number
   }
@@ -245,6 +246,7 @@ export async function POST() {
           totalEntries: entries.length,
           userCardsCreated,
           userCopiesCreated,
+          physicalCopiesCreated: userCopiesCreated, // Alias for UI compatibility
           errors,
           durationMs: Date.now() - startTime,
         },

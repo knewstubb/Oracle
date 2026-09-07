@@ -71,10 +71,10 @@ export function usePageHeader(config: PageHeaderConfig): void {
   // Always keep ref in sync
   configRef.current = config
 
-  // Set header on mount and when title changes
+  // Set header on mount and when title/subtitle changes
   useEffect(() => {
     setConfig(configRef.current)
-  }, [config.title, setConfig])
+  }, [config.title, config.subtitle, setConfig])
 
   // Clear on unmount
   useEffect(() => {

@@ -74,7 +74,6 @@ export async function POST() {
             phase: 'error',
             error: 'Your Archidekt collection is private. Set it to Public in Archidekt settings first, then try again.',
           })
-          await writer.close()
           return
         }
         if (message.includes('429') || message.toLowerCase().includes('rate limit')) {
@@ -82,11 +81,9 @@ export async function POST() {
             phase: 'error',
             error: 'Archidekt is rate limiting requests. Please wait 1-2 minutes and try again.',
           })
-          await writer.close()
           return
         }
         await sendProgress({ phase: 'error', error: `Failed to fetch: ${message}` })
-        await writer.close()
         return
       }
 
@@ -97,11 +94,11 @@ export async function POST() {
             totalEntries: 0,
             userCardsCreated: 0,
             userCopiesCreated: 0,
+            physicalCopiesCreated: 0,
             errors: ['Collection is empty — no entries found.'],
             durationMs: Date.now() - startTime,
           },
         })
-        await writer.close()
         return
       }
 
@@ -196,8 +193,8 @@ export async function POST() {
       let userCopiesCreated = 0
       const copyRows: Array<{
         card_id: number
-        scryfall_id: string | null
-        is_foil: boolean
+        printing_id: string | null
+        finish: string
         is_proxy: boolean
         condition: string
         source_tag: string
@@ -213,15 +210,15 @@ export async function POST() {
           continue
         }
 
-        const scryfallId = entry.card.uid || null
-        const isFoil = entry.foil
+        const printingId = entry.card.uid || null
+        const finish = entry.foil ? 'foil' : 'nonfoil'
         const quantity = Math.min(entry.quantity, 100)
 
         for (let q = 0; q < quantity; q++) {
           copyRows.push({
             card_id: defId,
-            scryfall_id: scryfallId,
-            is_foil: isFoil,
+            printing_id: printingId,
+            finish,
             is_proxy: false,
             condition: 'near_mint',
             source_tag: 'archidekt',

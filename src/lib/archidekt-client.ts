@@ -164,6 +164,43 @@ export async function fetchCollection(): Promise<ArchidektCollectionEntry[]> {
   return entries
 }
 
+/**
+ * Same as fetchCollection but with a progress callback for streaming UI updates.
+ */
+export async function fetchCollectionWithProgress(
+  onProgress: (pageNum: number) => Promise<void>
+): Promise<ArchidektCollectionEntry[]> {
+  const entries: ArchidektCollectionEntry[] = []
+  let url: string | null = `${BASE_URL}/collection/${USER_ID}/?page_size=500`
+  let pageCount = 0
+  while (url) {
+    if (pageCount > 0) {
+      await new Promise(resolve => setTimeout(resolve, 300))
+    }
+    
+    await onProgress(pageCount + 1)
+    
+    const fetchUrl = url.replace(/^http:\/\//, 'https://')
+    const res: Response = await fetch(fetchUrl)
+    if (res.status === 429) {
+      await new Promise(resolve => setTimeout(resolve, 3000))
+      const retryRes: Response = await fetch(fetchUrl)
+      if (!retryRes.ok) throw new Error(`Collection fetch failed: ${retryRes.status}`)
+      const retryData: { results: ArchidektCollectionEntry[]; next: string | null } = await retryRes.json()
+      entries.push(...retryData.results)
+      url = retryData.next
+    } else if (!res.ok) {
+      throw new Error(`Collection fetch failed: ${res.status}`)
+    } else {
+      const data: { results: ArchidektCollectionEntry[]; next: string | null } = await res.json()
+      entries.push(...data.results)
+      url = data.next
+    }
+    pageCount++
+  }
+  return entries
+}
+
 export async function fetchUserDecks(): Promise<ArchidektDeckSummary[]> {
   const res = await fetch(`${BASE_URL}/users/${USER_ID}/decks/`)
   if (!res.ok) throw new Error(`Archidekt API error: ${res.status} ${res.statusText}`)

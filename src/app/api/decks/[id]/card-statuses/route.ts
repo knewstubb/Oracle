@@ -25,7 +25,7 @@ export async function GET(
 
   const supabase = createAdminClient()
 
-  // Fetch deck_cards with user_copies join for is_proxy
+  // Fetch deck_cards with user_copies join for is_proxy, include categories for filtering
   const { data: deckCards, error } = await supabase
     .from('deck_cards')
     .select(`
@@ -33,6 +33,7 @@ export async function GET(
       card_name,
       scryfall_id,
       copy_id,
+      categories,
       user_copies!deck_cards_copy_id_fkey(is_proxy)
     `)
     .eq('deck_id', deckId)
@@ -42,6 +43,17 @@ export async function GET(
     return Response.json({ error: error.message }, { status: 500 })
   }
 
+  // Helper to parse primary category from JSON categories string
+  function parsePrimaryCategory(raw: string | null | undefined): string {
+    if (!raw) return 'Other'
+    try {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'string')
+        return parsed[0].replace(/\(top\)|\(bottom\)/gi, '').trim()
+    } catch { /* */ }
+    return raw.split(',')[0]?.trim().replace(/\(top\)|\(bottom\)/gi, '') || 'Other'
+  }
+
   // Map to the shape computeDeckCardStatuses expects
   const cards = (deckCards ?? []).map((row: any) => ({
     id: row.id,
@@ -49,20 +61,33 @@ export async function GET(
     scryfall_id: row.scryfall_id ?? null,
     copy_id: row.copy_id,
     is_proxy: row.user_copies?.is_proxy ?? null,
+    categories: row.categories,
   }))
 
   const statuses = await computeDeckCardStatuses(cards, userId)
 
+  // Build a map of card id -> primary category for filtering counts
+  const categoryMap = new Map<number, string>()
+  for (const card of cards) {
+    categoryMap.set(card.id, parsePrimaryCategory(card.categories))
+  }
+
+  // Filter out Maybeboard and Sideboard from counts (they don't count toward deck size)
+  const countableStatuses = statuses.filter(s => {
+    const category = categoryMap.get(s.id)
+    return category !== 'Maybeboard' && category !== 'Sideboard'
+  })
+
   // Compute summary counts (exclude generic_land from total — it's an exemption, not a status)
   // 'alternate' counts as 'available' since it represents owned cards in storage (different printing)
   const counts = {
-    total: statuses.filter(s => s.status !== 'generic_land').length,
-    original: statuses.filter(s => s.status === 'original').length,
-    proxy: statuses.filter(s => s.status === 'proxy').length,
-    available: statuses.filter(s => s.status === 'available' || s.status === 'alternate').length,
-    claimed: statuses.filter(s => s.status === 'claimed').length,
-    unowned: statuses.filter(s => s.status === 'unowned').length,
-    generic_land: statuses.filter(s => s.status === 'generic_land').length,
+    total: countableStatuses.filter(s => s.status !== 'generic_land').length,
+    original: countableStatuses.filter(s => s.status === 'original').length,
+    proxy: countableStatuses.filter(s => s.status === 'proxy').length,
+    available: countableStatuses.filter(s => s.status === 'available' || s.status === 'alternate').length,
+    claimed: countableStatuses.filter(s => s.status === 'claimed').length,
+    unowned: countableStatuses.filter(s => s.status === 'unowned').length,
+    generic_land: countableStatuses.filter(s => s.status === 'generic_land').length,
   }
 
   return Response.json({ cards: statuses, counts })

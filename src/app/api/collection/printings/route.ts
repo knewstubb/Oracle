@@ -116,37 +116,6 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    let query = supabase
-      .from('user_copies')
-      .select(`
-        id,
-        card_id,
-        printing_id,
-        finish,
-        is_proxy,
-        missing,
-        created_at,
-        user_cards!user_copies_card_id_fkey (
-          card_name
-        )
-      `, { count: 'exact' })
-      .eq('user_id', userId)
-
-    // Apply search filter via card_ids
-    if (matchingCardIds) {
-      query = query.in('card_id', matchingCardIds)
-    }
-
-    // Apply proxy filter at database level
-    if (!includeProxies) {
-      query = query.eq('is_proxy', false)
-    }
-
-    // Apply missing filter at database level
-    if (!includeMissing) {
-      query = query.or('missing.is.null,missing.eq.false')
-    }
-
     // Note: We can only sort by columns directly on user_copies at the DB level.
     // For card_name sort, we need to sort after enriching with user_cards data.
     // For other sorts (setCode, rarity, price), we need ref_printings data.
@@ -154,13 +123,63 @@ export async function GET(request: NextRequest) {
     // This is acceptable for collections up to ~50k copies; larger collections
     // would need a materialized view or denormalized sort columns.
     
-    // Remove the range for now - we'll paginate after sorting
-    const { data: collectionRawAll, error: collErrAll, count: dbTotalCountAll } = await query
-
-    if (collErrAll) throw collErrAll
+    // Fetch ALL matching copies in batches to avoid Supabase 1000-row limit
+    // First get total count, then paginate through all results
+    const BATCH_SIZE = 1000
+    let allCopiesRaw: any[] = []
+    let batchOffset = 0
+    let hasMore = true
+    let dbTotalCountAll: number | null = null
+    
+    while (hasMore) {
+      const batchQuery = supabase
+        .from('user_copies')
+        .select(`
+          id,
+          card_id,
+          printing_id,
+          finish,
+          is_proxy,
+          missing,
+          created_at,
+          user_cards!user_copies_card_id_fkey (
+            card_name
+          )
+        `, { count: batchOffset === 0 ? 'exact' : undefined })
+        .eq('user_id', userId)
+        .range(batchOffset, batchOffset + BATCH_SIZE - 1)
+      
+      // Apply same filters
+      let filteredQuery = batchQuery
+      if (matchingCardIds) {
+        filteredQuery = filteredQuery.in('card_id', matchingCardIds)
+      }
+      if (!includeProxies) {
+        filteredQuery = filteredQuery.eq('is_proxy', false)
+      }
+      if (!includeMissing) {
+        filteredQuery = filteredQuery.or('missing.is.null,missing.eq.false')
+      }
+      
+      const { data: batchData, error: batchErr, count } = await filteredQuery
+      
+      if (batchErr) throw batchErr
+      
+      if (batchOffset === 0 && count !== null) {
+        dbTotalCountAll = count
+      }
+      
+      if (batchData && batchData.length > 0) {
+        allCopiesRaw.push(...batchData)
+        batchOffset += BATCH_SIZE
+        hasMore = batchData.length === BATCH_SIZE
+      } else {
+        hasMore = false
+      }
+    }
 
     // Normalize results
-    let allCopies = (collectionRawAll || []).map((row: any) => {
+    let allCopies = allCopiesRaw.map((row: any) => {
       const card = row.user_cards as { card_name: string } | null
       return {
         id: row.id,

@@ -11,7 +11,7 @@
  */
 
 import { createAdminClient } from '@/lib/supabase'
-import { fetchDeck } from '@/lib/archidekt-client'
+import { fetchDeck, type ArchidektDeckFull } from '@/lib/archidekt-client'
 import { importDeckDesign } from '@/lib/deck-import'
 import { normalizeArchidektDeck } from '@/lib/deck-normalizer'
 import type { EnrichedSupplyEntry } from '@/lib/allocation-candidates'
@@ -625,4 +625,71 @@ async function resolveSingleDeckFromNormalized(
     },
     assignments,
   }
+}
+
+// ---------------------------------------------------------------------------
+// Single Deck Resolution with Prefetched Data (exported)
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve a single deck using prefetched Archidekt data.
+ *
+ * This is the entry point for resolve-one when the client has already fetched
+ * the deck data via prefetch-decks. Skips the network fetch and goes straight
+ * to normalize → import → allocate.
+ *
+ * Unlike resolveDeckBatch, this creates a fresh supply pool per call since
+ * the client is making sequential calls. The pool load is fast (single query)
+ * and ensures each resolve sees the previous one's committed results.
+ */
+export async function resolveSingleDeckWithPrefetch(
+  archidektDeckId: number,
+  prefetchedDeck: ArchidektDeckFull,
+  userId: string,
+  isActive: boolean = true
+): Promise<DeckResolutionResult> {
+  // Normalize the prefetched deck data
+  const sourceUrl = `https://archidekt.com/decks/${archidektDeckId}`
+  let normalizedDeck: ReturnType<typeof normalizeArchidektDeck>
+  try {
+    normalizedDeck = normalizeArchidektDeck(prefetchedDeck, sourceUrl)
+  } catch (err) {
+    return {
+      deckId: archidektDeckId,
+      deckName: prefetchedDeck.name || `Deck ${archidektDeckId}`,
+      totalCards: 0,
+      matched: 0,
+      unresolved: 0,
+      unresolvedCards: [],
+      errors: [`Failed to normalize deck: ${err instanceof Error ? err.message : String(err)}`],
+    }
+  }
+
+  // Load a fresh supply pool (sees previous resolve-one commits)
+  const pool = await loadSupplyPool(userId)
+
+  // Resolve using the shared internal function
+  const { result, assignments } = await resolveSingleDeckFromNormalized(
+    archidektDeckId,
+    normalizedDeck,
+    userId,
+    isActive,
+    pool
+  )
+
+  // Commit assignments (unlike batch mode, we commit immediately per deck)
+  if (assignments.length > 0) {
+    try {
+      await batchAssignDeck(result.deckId, assignments)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      console.error(`[resolveSingleDeckWithPrefetch] batchAssignDeck failed: ${message}`)
+      result.errors.push(`Assignment failed: ${message}`)
+      // Adjust counts since the write didn't commit
+      result.unresolved = result.matched + result.unresolved
+      result.matched = 0
+    }
+  }
+
+  return result
 }

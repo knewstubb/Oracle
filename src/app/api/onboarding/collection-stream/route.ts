@@ -147,12 +147,14 @@ export async function POST() {
       const BATCH_SIZE = 500
 
       if (missingCards.length > 0) {
+        const totalBatches = Math.ceil(missingCards.length / BATCH_SIZE)
         for (let i = 0; i < missingCards.length; i += BATCH_SIZE) {
+          const batchNum = Math.floor(i / BATCH_SIZE) + 1
           await sendProgress({
             phase: 'process',
             current: i,
             total: missingCards.length,
-            message: `Creating card records (${i}/${missingCards.length})…`,
+            message: `Creating card records (batch ${batchNum}/${totalBatches})…`,
           })
 
           const batch = missingCards.slice(i, i + BATCH_SIZE).map(cardName => {
@@ -220,12 +222,14 @@ export async function POST() {
       }
 
       // Step 6: Insert user_copies in batches
+      const totalCopyBatches = Math.ceil(copyRows.length / BATCH_SIZE)
       for (let i = 0; i < copyRows.length; i += BATCH_SIZE) {
+        const batchNum = Math.floor(i / BATCH_SIZE) + 1
         await sendProgress({
           phase: 'process',
           current: i,
           total: copyRows.length,
-          message: `Importing copies (${i.toLocaleString()}/${copyRows.length.toLocaleString()})…`,
+          message: `Importing copies (batch ${batchNum}/${totalCopyBatches}, ${copyRows.length.toLocaleString()} total)…`,
         })
 
         const batch = copyRows.slice(i, i + BATCH_SIZE)

@@ -24,6 +24,23 @@ export interface DeckRow {
   folder: DeckFolder | null
 }
 
+// Helper to parse primary category from JSON categories string
+function parsePrimaryCategory(raw: string | null | undefined): string {
+  if (!raw) return 'Other'
+  try {
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'string')
+      return parsed[0].replace(/\(top\)|\(bottom\)/gi, '').trim()
+  } catch { /* */ }
+  return raw.split(',')[0]?.trim().replace(/\(top\)|\(bottom\)/gi, '') || 'Other'
+}
+
+// Check if a card should be counted toward deck size (excludes Maybeboard/Sideboard)
+function isCountableCard(categories: string | null | undefined): boolean {
+  const primary = parsePrimaryCategory(categories)
+  return primary !== 'Maybeboard' && primary !== 'Sideboard'
+}
+
 export async function GET() {
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
@@ -60,13 +77,15 @@ export async function GET() {
 
   let completenessMap: Record<number, { resolved: number; total: number; availableCount: number; claimedCount: number; unownedCount: number }> = {}
   let pipMap: Record<number, Record<string, number>> = {}
+  // Track computed card counts per deck (excluding Maybeboard/Sideboard)
+  let computedCardCounts: Record<number, number> = {}
 
   if (allDeckIds.length > 0) {
     // Fetch deck_cards for all decks, counting resolved (copy_id IS NOT NULL) vs total
-    // Basic lands are exempt from allocation — don't count them
+    // Include categories to filter out Maybeboard/Sideboard from counts
     const { data: deckCards, error: cardsErr } = await supabase
       .from('deck_cards')
-      .select('deck_id, card_name, copy_id')
+      .select('deck_id, card_name, copy_id, categories')
       .in('deck_id', allDeckIds)
 
     // Collect unresolved card names per deck for status breakdown
@@ -74,10 +93,17 @@ export async function GET() {
 
     if (!cardsErr && deckCards) {
       for (const card of deckCards) {
+        // Skip Maybeboard/Sideboard from all counts
+        if (!isCountableCard(card.categories)) continue
+
         if (!completenessMap[card.deck_id]) {
           completenessMap[card.deck_id] = { resolved: 0, total: 0, availableCount: 0, claimedCount: 0, unownedCount: 0 }
         }
         completenessMap[card.deck_id].total += 1
+        
+        // Track computed card count
+        computedCardCounts[card.deck_id] = (computedCardCounts[card.deck_id] ?? 0) + 1
+
         if (card.copy_id != null) {
           completenessMap[card.deck_id].resolved += 1
         } else {
@@ -115,14 +141,15 @@ export async function GET() {
   // Compute pip distribution for all decks (for proportional color bar)
   if (allDeckIds.length > 0) {
     // Get card names per deck, then look up mana costs from card_metadata
+    // Include categories to filter out Maybeboard/Sideboard
     const PAGE_SIZE = 1000
-    const allDeckCards: Array<{ deck_id: number; card_name: string }> = []
+    const allDeckCards: Array<{ deck_id: number; card_name: string; categories: string | null }> = []
     let offset = 0
 
     while (true) {
       const { data, error } = await supabase
         .from('deck_cards')
-        .select('deck_id, card_name')
+        .select('deck_id, card_name, categories')
         .in('deck_id', allDeckIds)
         .range(offset, offset + PAGE_SIZE - 1)
 
@@ -132,8 +159,11 @@ export async function GET() {
       offset += PAGE_SIZE
     }
 
+    // Filter to only countable cards (exclude Maybeboard/Sideboard)
+    const countableDeckCards = allDeckCards.filter(c => isCountableCard(c.categories))
+
     // Get unique card names and fetch mana costs
-    const uniqueNames = [...new Set(allDeckCards.map(c => c.card_name))]
+    const uniqueNames = [...new Set(countableDeckCards.map(c => c.card_name))]
     const manaCostMap = new Map<string, string>()
 
     for (let i = 0; i < uniqueNames.length; i += PAGE_SIZE) {
@@ -149,7 +179,7 @@ export async function GET() {
     }
 
     // Count pips per deck
-    for (const dc of allDeckCards) {
+    for (const dc of countableDeckCards) {
       const manaCost = manaCostMap.get(dc.card_name)
       if (!manaCost) continue
 
@@ -164,8 +194,10 @@ export async function GET() {
   }
 
   // Merge completeness, pip distribution, and folder into deck response
+  // Override card_count with computed value (excludes Maybeboard/Sideboard)
   const decksWithCompleteness = (decks ?? []).map((deck) => ({
     ...deck,
+    card_count: computedCardCounts[deck.id] ?? deck.card_count ?? 0,
     completeness: completenessMap[deck.id] ?? null,
     pipDistribution: pipMap[deck.id] ?? null,
     folder: deck.folder_id ? folderMap.get(deck.folder_id) ?? null : null,

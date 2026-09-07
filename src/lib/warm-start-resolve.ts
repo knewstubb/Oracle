@@ -54,17 +54,23 @@ export interface BatchResolutionResult {
 // ---------------------------------------------------------------------------
 
 /**
- * Resolve a batch of decks sequentially against the shared supply pool.
+ * Resolve a batch of decks against the shared supply pool.
+ *
+ * Optimized two-phase approach:
+ * - Phase 1 (parallel): Fetch all decks from Archidekt concurrently
+ * - Phase 2 (sequential): Import and allocate decks one at a time
+ *
+ * The fetch phase is network-bound and can safely run in parallel since
+ * it's read-only. The allocation phase must remain sequential because
+ * deck N's resolution must see deck N-1's committed assignments.
  *
  * For each deck:
- * 1. Fetch full deck data from Archidekt (fetchDeck)
- * 2. Normalize and import the deck (creates deck + deck_cards rows)
- * 3. For each unresolved deck_cards row, find candidates via pool.getAvailableCopies
- * 4. Assign from Tiers 1–2 only (free original, free proxy)
- * 5. Anything that would need Tier 3 or higher → left unresolved
- *
- * Sequential processing ensures deck N sees deck N-1's committed assignments
- * reflected in pool state.
+ * 1. [parallel] Fetch full deck data from Archidekt (fetchDeck)
+ * 2. [parallel] Normalize the deck data
+ * 3. [sequential] Import the deck (creates deck + deck_cards rows)
+ * 4. [sequential] For each unresolved deck_cards row, find candidates via pool.getAvailableCopies
+ * 5. [sequential] Assign from Tiers 1–2 only (free original, free proxy)
+ * 6. Anything that would need Tier 3 or higher → left unresolved
  */
 export async function resolveDeckBatch(
   deckIds: number[],
@@ -76,12 +82,78 @@ export async function resolveDeckBatch(
   let totalMatched = 0
   let totalUnresolved = 0
 
+  // ─── Phase 1: Parallel fetch from Archidekt ────────────────────────────────
+  // Network-bound operations can safely run concurrently
+  const fetchStartTime = Date.now()
+  
+  type PrefetchedDeck = {
+    archidektDeckId: number
+    deckData: Awaited<ReturnType<typeof fetchDeck>> | null
+    normalizedDeck: ReturnType<typeof normalizeArchidektDeck> | null
+    error: string | null
+  }
+
+  const prefetchPromises = deckIds.map(async (archidektDeckId): Promise<PrefetchedDeck> => {
+    try {
+      const deckData = await fetchDeck(archidektDeckId)
+      const sourceUrl = `https://archidekt.com/decks/${archidektDeckId}`
+      const normalizedDeck = normalizeArchidektDeck(deckData, sourceUrl)
+      return { archidektDeckId, deckData, normalizedDeck, error: null }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      if (message.includes('403')) {
+        return {
+          archidektDeckId,
+          deckData: null,
+          normalizedDeck: null,
+          error: `Deck is private — set it to Public in Archidekt first.`,
+        }
+      }
+      return {
+        archidektDeckId,
+        deckData: null,
+        normalizedDeck: null,
+        error: `Failed to fetch deck: ${message}`,
+      }
+    }
+  })
+
+  const prefetchedDecks = await Promise.all(prefetchPromises)
+  console.log(`[warm-start-resolve] Phase 1 (parallel fetch): ${deckIds.length} decks in ${Date.now() - fetchStartTime}ms`)
+
+  // ─── Phase 2: Sequential import + allocation ───────────────────────────────
+  // Must be serial — deck N's allocation sees deck N-1's committed results
+  const allocationStartTime = Date.now()
+
   // Load the supply pool ONCE for the entire batch
   const pool = await loadSupplyPool(userId)
 
-  for (const archidektDeckId of deckIds) {
+  for (const prefetched of prefetchedDecks) {
+    const { archidektDeckId, normalizedDeck, error: fetchError } = prefetched
     const isActive = deckActiveStates?.[archidektDeckId] ?? true
-    const { result, assignments } = await resolveSingleDeck(archidektDeckId, userId, isActive, pool)
+
+    // Handle fetch failures from Phase 1
+    if (fetchError || !normalizedDeck) {
+      results.push({
+        deckId: archidektDeckId,
+        deckName: `Deck ${archidektDeckId}`,
+        totalCards: 0,
+        matched: 0,
+        unresolved: 0,
+        unresolvedCards: [],
+        errors: [fetchError || 'Unknown fetch error'],
+      })
+      continue
+    }
+
+    // Import and allocate this deck (now using pre-fetched data)
+    const { result, assignments } = await resolveSingleDeckFromNormalized(
+      archidektDeckId,
+      normalizedDeck,
+      userId,
+      isActive,
+      pool
+    )
     results.push(result)
 
     // Attempt batch assignment write for this deck
@@ -125,6 +197,8 @@ export async function resolveDeckBatch(
     totalMatched += result.matched
     totalUnresolved += result.unresolved
   }
+
+  console.log(`[warm-start-resolve] Phase 2 (sequential allocation): ${deckIds.length} decks in ${Date.now() - allocationStartTime}ms`)
 
   // Detect contentions from in-memory pool state (no re-querying needed)
   const allUnresolvedCards: Array<{ cardName: string; deckId: number; deckName: string }> = []
@@ -327,6 +401,166 @@ async function resolveSingleDeck(
   }
 
   // Step 6: For each unique card_name, get candidates from pool and assign Tiers 1–3 only
+  let matched = 0
+  const unresolvedCards: string[] = []
+
+  for (const [cardName, deckCardsIds] of cardNameGroups) {
+    // Use the pool instead of fetchEnrichedSupply — O(1) lookup
+    const candidates: EnrichedSupplyEntry[] = pool.getAvailableCopies(cardName)
+
+    // Pool already filters to Tier 1-3 eligible and sorts by tier/score
+    // Assign one candidate per deck_cards row
+    let candidateIdx = 0
+
+    for (const deckCardsId of deckCardsIds) {
+      if (candidateIdx >= candidates.length) {
+        // No more eligible candidates for remaining copies of this card
+        break
+      }
+
+      const candidate = candidates[candidateIdx]
+      candidateIdx++
+
+      const ownershipStatus: 'original' | 'proxy' = candidate.isProxy ? 'proxy' : 'original'
+
+      // If Tier 3 (reassign from Brew deck), capture the clear operation
+      // and update pool state immediately so subsequent cards in this deck see it
+      let clearDeckCardsId: number | null = null
+      if (candidate.assignedTo) {
+        clearDeckCardsId = candidate.assignedTo.deckCardsId
+        // Mark the copy as freed in the pool so it's recognized as available
+        // (the actual DB write happens in batchAssignDeck)
+        pool.markFreed(candidate.physicalCopyId)
+      }
+
+      // Collect the assignment (no direct DB write)
+      assignments.push({
+        deckCardsId,
+        physicalCopyId: candidate.physicalCopyId,
+        ownershipStatus,
+        clearDeckCardsId,
+      })
+
+      matched++
+    }
+
+    // Track cards that have at least one unresolved copy
+    const resolvedForThisCard = Math.min(candidateIdx, deckCardsIds.length)
+    if (resolvedForThisCard < deckCardsIds.length) {
+      unresolvedCards.push(cardName)
+    }
+  }
+
+  const unresolved = unresolvedRows.length - matched
+
+  return {
+    result: {
+      deckId: importedDeckId,
+      deckName: normalizedDeck.name,
+      totalCards,
+      matched,
+      unresolved,
+      unresolvedCards,
+      errors,
+    },
+    assignments,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Per-Deck Resolution (from pre-fetched normalized data)
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve a single deck against the shared supply pool using pre-fetched data.
+ *
+ * This is the optimized version used by resolveDeckBatch's two-phase approach.
+ * The fetch+normalize steps have already been done in parallel, so this function
+ * only handles import and allocation.
+ *
+ * Returns an assignment list alongside the result summary rather than writing
+ * directly — the caller batches the write via batchAssignDeck().
+ */
+async function resolveSingleDeckFromNormalized(
+  archidektDeckId: number,
+  normalizedDeck: ReturnType<typeof normalizeArchidektDeck>,
+  userId: string,
+  isActive: boolean = true,
+  pool: SupplyPool
+): Promise<{ result: DeckResolutionResult; assignments: Assignment[] }> {
+  const errors: string[] = []
+  const assignments: Assignment[] = []
+  const supabase = createAdminClient()
+
+  // Step 1: Import the deck (creates deck + deck_cards rows)
+  let importedDeckId: number
+  try {
+    const importResult = await importDeckDesign(normalizedDeck, userId, { isActive })
+    importedDeckId = importResult.deckId
+  } catch (err) {
+    return {
+      result: {
+        deckId: archidektDeckId,
+        deckName: normalizedDeck.name || `Deck ${archidektDeckId}`,
+        totalCards: normalizedDeck.cardCount || 0,
+        matched: 0,
+        unresolved: 0,
+        unresolvedCards: [],
+        errors: [`Failed to import deck: ${err instanceof Error ? err.message : String(err)}`],
+      },
+      assignments: [],
+    }
+  }
+
+  // Step 2: Fetch all unresolved deck_cards for this newly imported deck
+  const { data: unresolvedRows, error: fetchErr } = await supabase
+    .from('deck_cards')
+    .select('id, card_name')
+    .eq('deck_id', importedDeckId)
+    .is('copy_id', null)
+
+  if (fetchErr) {
+    errors.push(`Failed to fetch unresolved deck_cards: ${fetchErr.message}`)
+    return {
+      result: {
+        deckId: importedDeckId,
+        deckName: normalizedDeck.name,
+        totalCards: normalizedDeck.cardCount || 0,
+        matched: 0,
+        unresolved: 0,
+        unresolvedCards: [],
+        errors,
+      },
+      assignments: [],
+    }
+  }
+
+  const totalCards = normalizedDeck.cardCount || 0
+  if (!unresolvedRows || unresolvedRows.length === 0) {
+    // All cards were already resolved (e.g. auto-assign completed first)
+    return {
+      result: {
+        deckId: importedDeckId,
+        deckName: normalizedDeck.name,
+        totalCards,
+        matched: totalCards,
+        unresolved: 0,
+        unresolvedCards: [],
+        errors,
+      },
+      assignments: [],
+    }
+  }
+
+  // Step 3: Group unresolved cards by name for efficient candidate lookup
+  const cardNameGroups = new Map<string, number[]>() // card_name → [deckCardsId, ...]
+  for (const row of unresolvedRows) {
+    const existing = cardNameGroups.get(row.card_name)
+    if (existing) existing.push(row.id)
+    else cardNameGroups.set(row.card_name, [row.id])
+  }
+
+  // Step 4: For each unique card_name, get candidates from pool and assign Tiers 1–3 only
   let matched = 0
   const unresolvedCards: string[] = []
 

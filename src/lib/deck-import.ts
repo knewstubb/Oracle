@@ -129,7 +129,8 @@ export async function importDeckDesign(
   const deckFormat = options?.format || 'commander'
 
   // 1. Upsert deck row
-  const { error: deckErr } = await (supabase as any)
+  console.log(`[deck-import] Upserting deck ${deckId} "${deck.name}" for user ${userId}`)
+  const { data: deckData, error: deckErr } = await (supabase as any)
     .from('decks')
     .upsert(
       {
@@ -147,9 +148,16 @@ export async function importDeckDesign(
       },
       { onConflict: 'id' }
     )
+    .select('id, name')
+
+  console.log(`[deck-import] Upsert result - data:`, deckData, `error:`, deckErr)
 
   if (deckErr) {
     throw new Error(`Failed to upsert deck ${deckId}: ${deckErr.message}`)
+  }
+
+  if (!deckData || deckData.length === 0) {
+    console.error(`[deck-import] WARNING: Upsert returned no data for deck ${deckId}`)
   }
 
   // 2. Fetch existing deck_cards (paginated — may exceed 1000 rows)

@@ -741,6 +741,34 @@ function CardRowKebab({
 
   const { invalidateDeck } = createDeckInvalidators(queryClient)
 
+  // Parse current category to determine if card is in Maybeboard
+  const parsed = parseCategoriesCapped(currentCategories)
+  const isInMaybeboard = parsed.primary_category === 'Maybeboard'
+
+  // Handle moving card between deck and maybeboard
+  const handleMoveToMaybeboard = () => {
+    if (onCategoryChange) {
+      onCategoryChange(deckCardsId, {
+        primary_category: 'Maybeboard',
+        additional_categories: [],
+      })
+      toast.success(`Moved ${cardName} to Maybeboard`)
+    }
+    setOpen(false)
+  }
+
+  const handleMoveToDeck = () => {
+    if (onCategoryChange) {
+      // Move to "Other" as a sensible default when returning from Maybeboard
+      onCategoryChange(deckCardsId, {
+        primary_category: 'Other',
+        additional_categories: [],
+      })
+      toast.success(`Moved ${cardName} to deck`)
+    }
+    setOpen(false)
+  }
+
   const removeMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch(`/api/decks/${deckId}/cards/${deckCardsId}`, { method: 'DELETE' })
@@ -884,6 +912,28 @@ function CardRowKebab({
               <Sparkles className="size-3" />
               Suggest category
             </button>
+          )}
+          {/* Move to Maybeboard / Move to Deck — context-aware */}
+          {onCategoryChange && (
+            isInMaybeboard ? (
+              <button
+                type="button"
+                onClick={handleMoveToDeck}
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-[length:var(--fs-xs)] text-foreground transition-colors hover:bg-white/[0.05]"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '14px' }} aria-hidden="true">arrow_back</span>
+                Move to deck
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleMoveToMaybeboard}
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-[length:var(--fs-xs)] text-foreground transition-colors hover:bg-white/[0.05]"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '14px' }} aria-hidden="true">bookmark_add</span>
+                Move to Maybeboard
+              </button>
+            )
           )}
           <button
             type="button"

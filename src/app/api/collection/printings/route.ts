@@ -147,16 +147,20 @@ export async function GET(request: NextRequest) {
       query = query.or('missing.is.null,missing.eq.false')
     }
 
-    // Apply pagination and ordering
-    query = query.order('id', { ascending: true })
-      .range(offset, offset + pageSize - 1)
+    // Note: We can only sort by columns directly on user_copies at the DB level.
+    // For card_name sort, we need to sort after enriching with user_cards data.
+    // For other sorts (setCode, rarity, price), we need ref_printings data.
+    // So we fetch all matching copies, then sort and paginate in memory.
+    // This is acceptable for collections up to ~50k copies; larger collections
+    // would need a materialized view or denormalized sort columns.
+    
+    // Remove the range for now - we'll paginate after sorting
+    const { data: collectionRawAll, error: collErrAll, count: dbTotalCountAll } = await query
 
-    const { data: collectionRaw, error: collErr, count: dbTotalCount } = await query
-
-    if (collErr) throw collErr
+    if (collErrAll) throw collErrAll
 
     // Normalize results
-    let allCopies = (collectionRaw || []).map((row: any) => {
+    let allCopies = (collectionRawAll || []).map((row: any) => {
       const card = row.user_cards as { card_name: string } | null
       return {
         id: row.id,
@@ -169,10 +173,8 @@ export async function GET(request: NextRequest) {
         card_name: card?.card_name || '',
       }
     })
-    
-    const totalCount = dbTotalCount ?? 0
 
-    // ──── Step 3: Fetch scryfall data for page copies ───────────────
+    // ──── Step 3: Fetch scryfall data for ALL copies ────────────────
     // Get all data from ref_printings (set info, color identity, prices)
     const printingIds = [...new Set(allCopies.map((c) => c.printing_id).filter(Boolean) as string[])]
 
@@ -261,7 +263,7 @@ export async function GET(request: NextRequest) {
     if (pageTotalCount === 0) {
       return Response.json({
         rows: [],
-        totalCount,
+        totalCount: 0,
         page,
         pageSize,
         lastPriceRefresh,
@@ -269,8 +271,8 @@ export async function GET(request: NextRequest) {
       } as CollectionPrintingsResponse)
     }
 
-    // ──── Step 4: Sort (note: for full sorting, would need DB-level sort) ──
-    // For now, sort the current page (approximate for multi-page results)
+    // ──── Step 4: Sort the FULL dataset before pagination ──────────
+    // This ensures sorting works correctly across all pages
     const dir = sortDir === 'asc' ? 1 : -1
     enrichedCopies.sort((a, b) => {
       switch (sort) {
@@ -284,16 +286,23 @@ export async function GET(request: NextRequest) {
           return dir * (aRarity - bRarity)
         }
         case 'quantity':
+          // For quantity, we'd need to group first - fall back to name for now
           return dir * a.card_name.toLowerCase().localeCompare(b.card_name.toLowerCase())
-        case 'price':
-          return dir * a.card_name.toLowerCase().localeCompare(b.card_name.toLowerCase())
+        case 'price': {
+          // Sort by price (nulls last)
+          if (a.price === null && b.price === null) return dir * a.card_name.toLowerCase().localeCompare(b.card_name.toLowerCase())
+          if (a.price === null) return 1
+          if (b.price === null) return -1
+          return dir * (a.price - b.price)
+        }
         default:
           return dir * a.card_name.toLowerCase().localeCompare(b.card_name.toLowerCase())
       }
     })
 
-    // Data is already paginated from DB query - use enrichedCopies as pageCopies
-    const pageCopies = enrichedCopies
+    // ──── Step 4b: Apply pagination AFTER sorting ──────────────────
+    const totalCount = enrichedCopies.length
+    const pageCopies = enrichedCopies.slice(offset, offset + pageSize)
 
     // ──── Step 5: Fetch deck usage for page only ───────────────────
     const pageCopyIds = pageCopies.map((c) => c.id)

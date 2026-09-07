@@ -54,10 +54,35 @@ const COLLECTION_STATUS_MESSAGES = [
 // ---------------------------------------------------------------------------
 
 interface ImportProgress {
+  phase: 'prefetch' | 'resolve'
   current: number
   total: number
   currentDeckName: string
   completedResults: DeckResolutionResult[]
+}
+
+interface CollectionProgress {
+  phase: 'fetch' | 'process'
+  current: number
+  total: number | null
+  message: string
+}
+
+// Prefetch response types (matching server)
+interface PrefetchedDeck {
+  deckId: number
+  data: unknown // ArchidektDeckFull, but we pass it opaquely
+}
+
+interface PrefetchError {
+  deckId: number
+  error: string
+}
+
+interface PrefetchResponse {
+  decks: PrefetchedDeck[]
+  errors: PrefetchError[]
+  durationMs: number
 }
 
 // ---------------------------------------------------------------------------
@@ -90,6 +115,9 @@ export default function OnboardingPage() {
   // 6a: Rotating collection status text
   const [collectionStatusIdx, setCollectionStatusIdx] = useState(0)
 
+  // 6a-stream: Streaming collection progress
+  const [collectionProgress, setCollectionProgress] = useState<CollectionProgress | null>(null)
+
   // 6b: Per-deck import progress
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null)
 
@@ -97,10 +125,13 @@ export default function OnboardingPage() {
 
   const archidektCollectionMutation = useMutation({
     mutationFn: async (): Promise<CollectionImportResult> => {
-      const res = await fetch('/api/onboarding/collection', {
+      setCollectionProgress(null)
+      
+      const res = await fetch('/api/onboarding/collection-stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       })
+      
       if (!res.ok) {
         const body = await res.json().catch(() => ({ error: 'Import failed' }))
         if (res.status === 403) {
@@ -110,9 +141,57 @@ export default function OnboardingPage() {
         }
         throw new Error(body.error || 'Something went wrong. Please try again.')
       }
-      return res.json()
+      
+      // Read SSE stream
+      const reader = res.body?.getReader()
+      if (!reader) throw new Error('No response stream')
+      
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let finalResult: CollectionImportResult | null = null
+      
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+        
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const json = line.slice(6)
+          if (!json) continue
+          
+          try {
+            const event = JSON.parse(json)
+            
+            if (event.phase === 'fetch' || event.phase === 'process') {
+              setCollectionProgress({
+                phase: event.phase,
+                current: event.current ?? 0,
+                total: event.total ?? null,
+                message: event.message ?? '',
+              })
+            } else if (event.phase === 'complete') {
+              finalResult = event.result
+              setCollectionProgress(null)
+            } else if (event.phase === 'error') {
+              throw new Error(event.error)
+            }
+          } catch (parseErr) {
+            // Skip malformed JSON
+            if (parseErr instanceof SyntaxError) continue
+            throw parseErr
+          }
+        }
+      }
+      
+      if (!finalResult) throw new Error('Import completed without result')
+      return finalResult
     },
     onSuccess: async (data) => {
+      setCollectionProgress(null)
       setCollectionResult(data)
       if (data.errors.length > 0) {
         toast.warning(`Collection imported with ${data.errors.length} warning(s)`)
@@ -136,6 +215,9 @@ export default function OnboardingPage() {
       } catch {
         toast.error('Failed to fetch deck list')
       }
+    },
+    onError: () => {
+      setCollectionProgress(null)
     },
   })
 
@@ -199,7 +281,7 @@ export default function OnboardingPage() {
     return () => clearInterval(interval)
   }, [archidektCollectionMutation.isPending, moxfieldCollectionMutation.isPending])
 
-  // ─── Archidekt: Deck Resolution (Sequential per-deck) ────────────────────
+  // ─── Archidekt: Deck Resolution (Two-phase: prefetch + resolve) ───────────
 
   const archidektResolveMutation = useMutation({
     mutationFn: async (deckIds: number[]): Promise<BatchResolutionResult> => {
@@ -207,15 +289,62 @@ export default function OnboardingPage() {
       let totalMatched = 0
       let totalUnresolved = 0
 
-      for (let i = 0; i < deckIds.length; i++) {
-        const deckId = deckIds[i]
+      // ─── Phase 1: Parallel prefetch from Archidekt ─────────────────────────
+      setImportProgress({
+        phase: 'prefetch',
+        current: 0,
+        total: deckIds.length,
+        currentDeckName: 'Fetching deck data…',
+        completedResults: [],
+      })
+
+      const prefetchRes = await fetch('/api/onboarding/prefetch-decks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deckIds }),
+      })
+
+      if (!prefetchRes.ok) {
+        const body = await prefetchRes.json().catch(() => ({ error: 'Prefetch failed' }))
+        throw new Error(body.error || 'Failed to prefetch decks')
+      }
+
+      const prefetchData: PrefetchResponse = await prefetchRes.json()
+      
+      // Create a map for quick lookup
+      const prefetchedMap = new Map<number, unknown>()
+      for (const deck of prefetchData.decks) {
+        prefetchedMap.set(deck.deckId, deck.data)
+      }
+
+      // Handle prefetch errors as failed results
+      for (const err of prefetchData.errors) {
+        const deckEntry = deckList.find(d => d.id === err.deckId)
+        completedResults.push({
+          deckId: err.deckId,
+          deckName: deckEntry?.name ?? `Deck ${err.deckId}`,
+          totalCards: 0,
+          matched: 0,
+          unresolved: 0,
+          unresolvedCards: [],
+          errors: [err.error],
+        })
+      }
+
+      // ─── Phase 2: Sequential resolve with prefetched data ──────────────────
+      const successfulDeckIds = deckIds.filter(id => prefetchedMap.has(id))
+
+      for (let i = 0; i < successfulDeckIds.length; i++) {
+        const deckId = successfulDeckIds[i]
         const status = deckStatuses.get(deckId) ?? 'in_rotation'
+        const prefetchedDeck = prefetchedMap.get(deckId)
 
         // Find deck name for progress display
         const deckEntry = deckList.find(d => d.id === deckId)
         setImportProgress({
+          phase: 'resolve',
           current: i + 1,
-          total: deckIds.length,
+          total: successfulDeckIds.length,
           currentDeckName: deckEntry?.name ?? `Deck ${deckId}`,
           completedResults: [...completedResults],
         })
@@ -223,7 +352,7 @@ export default function OnboardingPage() {
         const res = await fetch('/api/onboarding/resolve-one', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deckId, status }),
+          body: JSON.stringify({ deckId, status, prefetchedDeck }),
         })
 
         if (!res.ok) {
@@ -311,6 +440,7 @@ export default function OnboardingPage() {
         // Find deck name for progress display
         const deckEntry = moxfieldDeckList.find(d => d.id === deckId)
         setImportProgress({
+          phase: 'resolve',
           current: i + 1,
           total: deckIds.length,
           currentDeckName: deckEntry?.name ?? `Deck ${deckId}`,
@@ -463,7 +593,7 @@ export default function OnboardingPage() {
             error={archidektCollectionMutation.isError ? archidektCollectionMutation.error.message : null}
             onSubmit={() => archidektCollectionMutation.mutate()}
             onBack={() => setStep('source')}
-            statusMessage={COLLECTION_STATUS_MESSAGES[collectionStatusIdx]}
+            statusMessage={collectionProgress?.message ?? COLLECTION_STATUS_MESSAGES[collectionStatusIdx]}
           />
         )}
 
@@ -859,7 +989,8 @@ function DeckPickerScreen({
     const selectedDeckList = deckList.filter((d) => selectedDecks.has(d.id))
     const decks = selectedDeckList.map((d, idx) => {
       const completedResult = importProgress?.completedResults.find((r) => r.deckId === d.id || r.deckName === d.name)
-      const isActive = importProgress && idx === importProgress.current - 1 && !completedResult
+      // During prefetch phase, no deck is "active" yet (all appear queued)
+      const isActive = importProgress?.phase === 'resolve' && idx === importProgress.current - 1 && !completedResult
       return {
         id: d.id,
         name: d.name,
@@ -874,7 +1005,9 @@ function DeckPickerScreen({
           <h1 className="text-[length:var(--fs-xl)] font-semibold">Importing decks</h1>
           {importProgress && (
             <p className="mt-1 text-[length:var(--fs-md)] text-muted-foreground">
-              Deck {importProgress.current} of {importProgress.total}
+              {importProgress.phase === 'prefetch' 
+                ? 'Fetching deck data from Archidekt…' 
+                : `Importing deck ${importProgress.current} of ${importProgress.total}`}
             </p>
           )}
         </div>
@@ -1015,7 +1148,7 @@ function MoxfieldDeckPickerScreen({
     const selectedDeckList = deckList.filter((d) => selectedDecks.has(d.id))
     const decks = selectedDeckList.map((d, idx) => {
       const completedResult = importProgress?.completedResults.find((r) => r.deckName === d.name)
-      const isActive = importProgress && idx === importProgress.current - 1 && !completedResult
+      const isActive = importProgress?.phase === 'resolve' && idx === importProgress.current - 1 && !completedResult
       return {
         id: d.id,
         name: d.name,
@@ -1030,7 +1163,7 @@ function MoxfieldDeckPickerScreen({
           <h1 className="text-[length:var(--fs-xl)] font-semibold">Importing decks</h1>
           {importProgress && (
             <p className="mt-1 text-[length:var(--fs-md)] text-muted-foreground">
-              Deck {importProgress.current} of {importProgress.total}
+              Importing deck {importProgress.current} of {importProgress.total}
             </p>
           )}
         </div>

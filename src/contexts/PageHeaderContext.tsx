@@ -9,6 +9,8 @@ import { createContext, useContext, useState, useEffect, useRef, type ReactNode 
 export interface PageHeaderConfig {
   title: string
   subtitle?: ReactNode
+  /** Optional key to track when subtitle changes. Use when subtitle is JSX that changes based on data. */
+  subtitleKey?: string | number
   actions?: ReactNode
 }
 
@@ -71,10 +73,12 @@ export function usePageHeader(config: PageHeaderConfig): void {
   // Always keep ref in sync
   configRef.current = config
 
-  // Set header on mount and when title/subtitle changes
+  // Set header on mount and when title/subtitleKey changes
+  // Note: We use subtitleKey instead of subtitle directly because subtitle
+  // is often a JSX element that's recreated on every render
   useEffect(() => {
     setConfig(configRef.current)
-  }, [config.title, config.subtitle, setConfig])
+  }, [config.title, config.subtitleKey, setConfig])
 
   // Clear on unmount
   useEffect(() => {

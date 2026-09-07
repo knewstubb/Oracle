@@ -185,6 +185,7 @@ export default function CollectionPage() {
         {activeLastPriceRefresh && ' · Prices cached'}
       </>
     ),
+    subtitleKey: `${ownedCount}-${proxyCount}-${includeProxies}-${!!activeLastPriceRefresh}`,
     actions: (
       <>
         <CollectionExportButton />

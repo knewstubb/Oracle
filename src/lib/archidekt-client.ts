@@ -133,8 +133,8 @@ export interface ArchidektCollectionEntry {
 
 export async function fetchCollection(): Promise<ArchidektCollectionEntry[]> {
   const entries: ArchidektCollectionEntry[] = []
-  // Use page_size=500 to minimize pagination (Archidekt supports up to 500)
-  let url: string | null = `${BASE_URL}/collection/${USER_ID}/?page_size=500`
+  // Archidekt caps collection page_size at 25 regardless of what we request
+  let url: string | null = `${BASE_URL}/collection/${USER_ID}/`
   let pageCount = 0
   while (url) {
     // Rate limit: wait 300ms between pages to avoid 429 from Archidekt
@@ -171,7 +171,8 @@ export async function fetchCollectionWithProgress(
   onProgress: (pageNum: number) => Promise<void>
 ): Promise<ArchidektCollectionEntry[]> {
   const entries: ArchidektCollectionEntry[] = []
-  let url: string | null = `${BASE_URL}/collection/${USER_ID}/?page_size=500`
+  // Archidekt caps collection page_size at 25 regardless of what we request
+  let url: string | null = `${BASE_URL}/collection/${USER_ID}/`
   let pageCount = 0
   while (url) {
     if (pageCount > 0) {

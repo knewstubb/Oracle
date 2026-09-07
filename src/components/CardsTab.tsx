@@ -799,6 +799,7 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
                   onCategoryChange={(cardId, categories) => {
                     categoryMutation.mutate({ cardId, categories })
                   }}
+                  viewMode="cards"
                 />
               )}
             </>
@@ -831,6 +832,7 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
                   onCategoryChange={(cardId, categories) => {
                     categoryMutation.mutate({ cardId, categories })
                   }}
+                  viewMode="groups"
                 />
               )}
             </>
@@ -863,6 +865,7 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
                   onCategoryChange={(cardId, categories) => {
                     categoryMutation.mutate({ cardId, categories })
                   }}
+                  viewMode="list"
                 />
               )}
             </>
@@ -894,6 +897,7 @@ function MaybeboardSection({
   maxCopies,
   selectedIds,
   onSelectionChange,
+  viewMode,
 }: {
   cards: DeckCard[]
   statusMap: Map<number, CardSlotStatus>
@@ -904,6 +908,7 @@ function MaybeboardSection({
   maxCopies?: number | null
   selectedIds?: Set<number>
   onSelectionChange?: (cardId: number, selected: boolean) => void
+  viewMode: 'cards' | 'groups' | 'list'
 }) {
   return (
     <div className="mt-6 border-t border-dashed pt-6" style={{ borderColor: 'var(--border-emphasis)' }}>
@@ -915,19 +920,66 @@ function MaybeboardSection({
           ({cards.length} card{cards.length !== 1 ? 's' : ''} — not counted in deck)
         </span>
       </div>
-      <CardGroupSection
-        groupName="Maybeboard"
-        groupCards={cards}
-        statusMap={statusMap}
-        deckId={deckId}
-        physicalCopyMap={physicalCopyMap}
-        availableCategories={availableCategories}
-        onCategoryChange={onCategoryChange}
-        maxCopies={maxCopies}
-        selectedIds={selectedIds}
-        onSelectionChange={onSelectionChange}
-        defaultCollapsed={false}
-      />
+      
+      {viewMode === 'cards' ? (
+        // Gallery view for maybeboard
+        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, var(--card-tile-width))' }}>
+          {cards.map((card) => {
+            const cardStatus = statusMap.get(card.id) ?? 'available'
+            return (
+              <div
+                key={card.id}
+                className="flex flex-col"
+                style={{ width: 'var(--card-tile-width)' }}
+              >
+                <div
+                  className="group/tile relative overflow-hidden rounded-xl"
+                  style={{ 
+                    border: '0.5px solid var(--border-default)', 
+                    height: 'var(--card-tile-height)',
+                    opacity: (cardStatus !== 'original' && cardStatus !== 'proxy') ? 0.6 : 1,
+                  }}
+                >
+                  {card.scryfall_id ? (
+                    <img
+                      src={`https://cards.scryfall.io/large/front/${card.scryfall_id.charAt(0)}/${card.scryfall_id.charAt(1)}/${card.scryfall_id}.jpg`}
+                      alt={card.card_name}
+                      loading="lazy"
+                      className="absolute inset-0 h-full w-full object-contain"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center bg-muted text-[length:var(--fs-sm)] text-muted-foreground">
+                      {card.card_name}
+                    </div>
+                  )}
+                  {/* Status badge */}
+                  <div className="absolute right-1 top-1">
+                    <CardSlotBadge status={cardStatus} variant="icon" />
+                  </div>
+                </div>
+                <span className="mt-1 truncate text-[length:var(--fs-xs)] text-muted-foreground">
+                  {card.card_name}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        // List/Groups view for maybeboard (uses CardGroupSection)
+        <CardGroupSection
+          groupName="Maybeboard"
+          groupCards={cards}
+          statusMap={statusMap}
+          deckId={deckId}
+          physicalCopyMap={physicalCopyMap}
+          availableCategories={availableCategories}
+          onCategoryChange={onCategoryChange}
+          maxCopies={maxCopies}
+          selectedIds={selectedIds}
+          onSelectionChange={onSelectionChange}
+          defaultCollapsed={false}
+        />
+      )}
     </div>
   )
 }

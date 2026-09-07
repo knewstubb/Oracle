@@ -77,6 +77,14 @@ export async function POST() {
           await writer.close()
           return
         }
+        if (message.includes('429') || message.toLowerCase().includes('rate limit')) {
+          await sendProgress({
+            phase: 'error',
+            error: 'Archidekt is rate limiting requests. Please wait 1-2 minutes and try again.',
+          })
+          await writer.close()
+          return
+        }
         await sendProgress({ phase: 'error', error: `Failed to fetch: ${message}` })
         await writer.close()
         return
@@ -173,6 +181,7 @@ export async function POST() {
             .select('id, card_name')
 
           if (insertErr) {
+            console.error('[collection-stream] user_cards insert error:', insertErr)
             errors.push(`user_cards batch at offset ${i}: ${insertErr.message}`)
           } else {
             for (const row of inserted ?? []) {
@@ -238,6 +247,7 @@ export async function POST() {
           .insert(batch as any)
 
         if (copyErr) {
+          console.error('[collection-stream] user_copies insert error:', copyErr)
           errors.push(`user_copies batch at offset ${i}: ${copyErr.message}`)
         } else {
           userCopiesCreated += batch.length
@@ -254,6 +264,13 @@ export async function POST() {
           errors,
           durationMs: Date.now() - startTime,
         },
+      })
+      
+      console.log('[collection-stream] Complete:', {
+        totalEntries: entries.length,
+        userCardsCreated,
+        userCopiesCreated,
+        errorCount: errors.length,
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)

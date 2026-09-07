@@ -131,34 +131,53 @@ export interface ArchidektCollectionEntry {
   modifier: string
 }
 
+/**
+ * Fetch with exponential backoff retry for rate limits.
+ * Retries up to 3 times with 5s, 15s, 45s delays.
+ */
+async function fetchWithRetry(url: string, maxRetries = 3): Promise<Response> {
+  const fetchUrl = url.replace(/^http:\/\//, 'https://')
+  let lastError: Error | null = null
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const res = await fetch(fetchUrl)
+    
+    if (res.status === 429) {
+      if (attempt === maxRetries) {
+        throw new Error('Rate limited by Archidekt. Please wait 1-2 minutes and try again.')
+      }
+      // Exponential backoff: 5s, 15s, 45s
+      const delay = 5000 * Math.pow(3, attempt)
+      console.log(`[archidekt] Rate limited, waiting ${delay/1000}s before retry ${attempt + 1}/${maxRetries}`)
+      await new Promise(resolve => setTimeout(resolve, delay))
+      continue
+    }
+    
+    if (!res.ok) {
+      throw new Error(`Collection fetch failed: ${res.status}`)
+    }
+    
+    return res
+  }
+  
+  throw lastError ?? new Error('Fetch failed after retries')
+}
+
 export async function fetchCollection(): Promise<ArchidektCollectionEntry[]> {
   const entries: ArchidektCollectionEntry[] = []
   // Archidekt caps collection page_size at 25 regardless of what we request
   let url: string | null = `${BASE_URL}/collection/${USER_ID}/`
   let pageCount = 0
   while (url) {
-    // Rate limit: wait 300ms between pages to avoid 429 from Archidekt
+    // Rate limit: wait 500ms between pages to avoid 429 from Archidekt
     if (pageCount > 0) {
-      await new Promise(resolve => setTimeout(resolve, 300))
+      await new Promise(resolve => setTimeout(resolve, 500))
     }
-    // Normalize http → https (Archidekt's pagination URLs sometimes use http)
-    const fetchUrl = url.replace(/^http:\/\//, 'https://')
-    const res: Response = await fetch(fetchUrl)
-    if (res.status === 429) {
-      // Rate limited — wait 3 seconds and retry this page
-      await new Promise(resolve => setTimeout(resolve, 3000))
-      const retryRes: Response = await fetch(fetchUrl)
-      if (!retryRes.ok) throw new Error(`Collection fetch failed: ${retryRes.status}`)
-      const retryData: { results: ArchidektCollectionEntry[]; next: string | null } = await retryRes.json()
-      entries.push(...retryData.results)
-      url = retryData.next
-    } else if (!res.ok) {
-      throw new Error(`Collection fetch failed: ${res.status}`)
-    } else {
-      const data: { results: ArchidektCollectionEntry[]; next: string | null } = await res.json()
-      entries.push(...data.results)
-      url = data.next
-    }
+    
+    const res = await fetchWithRetry(url)
+    const data: { results: ArchidektCollectionEntry[]; next: string | null } = await res.json()
+    entries.push(...data.results)
+    url = data.next
     pageCount++
   }
   return entries
@@ -176,27 +195,15 @@ export async function fetchCollectionWithProgress(
   let pageCount = 0
   while (url) {
     if (pageCount > 0) {
-      await new Promise(resolve => setTimeout(resolve, 300))
+      await new Promise(resolve => setTimeout(resolve, 500))
     }
     
     await onProgress(pageCount + 1)
     
-    const fetchUrl = url.replace(/^http:\/\//, 'https://')
-    const res: Response = await fetch(fetchUrl)
-    if (res.status === 429) {
-      await new Promise(resolve => setTimeout(resolve, 3000))
-      const retryRes: Response = await fetch(fetchUrl)
-      if (!retryRes.ok) throw new Error(`Collection fetch failed: ${retryRes.status}`)
-      const retryData: { results: ArchidektCollectionEntry[]; next: string | null } = await retryRes.json()
-      entries.push(...retryData.results)
-      url = retryData.next
-    } else if (!res.ok) {
-      throw new Error(`Collection fetch failed: ${res.status}`)
-    } else {
-      const data: { results: ArchidektCollectionEntry[]; next: string | null } = await res.json()
-      entries.push(...data.results)
-      url = data.next
-    }
+    const res = await fetchWithRetry(url)
+    const data: { results: ArchidektCollectionEntry[]; next: string | null } = await res.json()
+    entries.push(...data.results)
+    url = data.next
     pageCount++
   }
   return entries

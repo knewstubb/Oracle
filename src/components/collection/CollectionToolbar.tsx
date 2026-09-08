@@ -346,7 +346,7 @@ export function CollectionToolbar({
 /**
  * Mana symbol using official Scryfall SVGs.
  * - Selected: fully visible
- * - Unselected: 25% opacity
+ * - Unselected: 25% opacity, 75% on hover
  * - Hover: primary ring on parent button
  */
 function ManaIcon({ color, isSelected }: { color: string; isSelected: boolean }) {
@@ -360,7 +360,7 @@ function ManaIcon({ color, isSelected }: { color: string; isSelected: boolean })
       height={24}
       className={cn(
         'rounded-full transition-opacity',
-        isSelected ? 'opacity-100' : 'opacity-25'
+        isSelected ? 'opacity-100' : 'opacity-25 group-hover:opacity-75'
       )}
     />
   )
@@ -402,7 +402,7 @@ function ColorIdentityFilter({
             key={color.value}
             type="button"
             onClick={() => toggleColor(color.value)}
-            className="flex size-7 items-center justify-center rounded-full transition-all hover:ring-1 hover:ring-[var(--ring)]"
+            className="group flex size-7 items-center justify-center rounded-full transition-all hover:ring-1 hover:ring-[var(--ring)]"
             aria-label={`${color.label}${isSelected ? ' (selected)' : ''}`}
             aria-pressed={isSelected}
             title={color.label}

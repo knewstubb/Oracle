@@ -24,7 +24,7 @@ import { toast } from 'sonner'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { CardHoverPreview, useCardHoverPreview } from '@/components/CardHoverPreview'
+import { CardHoverPreview, useCardHoverPreview, showCardPreview, updateCardPreviewPosition, hideCardPreview } from '@/components/CardHoverPreview'
 import { PrintingPicker } from '@/components/PrintingPicker'
 import { StatusChipPopover } from '@/components/StatusChipPopover'
 import { CardSlotBadge } from '@/components/CardSlotBadge'
@@ -268,7 +268,7 @@ function UnifiedCardRow({
   const queryClient = useQueryClient()
   const isMobile = useIsMobile()
 
-  const { triggerProps, previewProps } = useCardHoverPreview({
+  const { triggerProps } = useCardHoverPreview({
     scryfallId: card.scryfall_id,
     cardName: card.card_name,
   })
@@ -366,8 +366,6 @@ function UnifiedCardRow({
         {...(isMobile ? { onClick: handleCardNameClick } : triggerProps)}
       >
         {card.card_name}
-        {/* Hover preview only shown on desktop */}
-        {!isMobile && <CardHoverPreview {...previewProps} />}
       </span>
 
       {/* Set icon (with rarity colour) + set name — desktop only, hidden on mobile */}

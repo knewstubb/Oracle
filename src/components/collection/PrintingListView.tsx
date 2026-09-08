@@ -9,117 +9,11 @@ import type { PrintingRowResponse } from '@/lib/collection-printing-utils'
 import type { PrintingSortField, SortDirection } from '@/lib/collection-filters'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { MobileCardPreview } from '@/components/MobileCardPreview'
-
-/* ─── High-Performance Hover Preview (Direct DOM, No React State) ───── */
-
-const PREVIEW_WIDTH = 220
-const PREVIEW_HEIGHT = 308
-const VIEWPORT_PAD = 8
-
-let previewContainer: HTMLDivElement | null = null
-
-function getPreviewContainer(): HTMLDivElement {
-  if (typeof document === 'undefined') {
-    throw new Error('Cannot create preview container on server')
-  }
-  
-  if (!previewContainer) {
-    previewContainer = document.createElement('div')
-    previewContainer.id = 'printing-list-hover-preview'
-    previewContainer.style.cssText = `
-      position: fixed;
-      left: 0;
-      top: 0;
-      width: ${PREVIEW_WIDTH}px;
-      z-index: 9999;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 50ms ease-out;
-      will-change: transform, opacity;
-    `
-    
-    const img = document.createElement('img')
-    img.id = 'printing-list-hover-img'
-    img.alt = ''
-    img.style.cssText = `
-      width: 100%;
-      aspect-ratio: 5/7;
-      border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
-    `
-    img.onerror = () => { img.style.display = 'none' }
-    img.onload = () => { img.style.display = 'block' }
-    
-    previewContainer.appendChild(img)
-    document.body.appendChild(previewContainer)
-  }
-  
-  return previewContainer
-}
-
-function calcPreviewPos(cursorX: number, cursorY: number, viewW: number, viewH: number) {
-  const GAP = 16 // Distance from cursor to card edge
-  
-  // Determine horizontal position: left or right of cursor based on screen half
-  const cursorInLeftHalf = cursorX < viewW / 2
-  let left: number
-  if (cursorInLeftHalf) {
-    // Card to the right of cursor
-    left = cursorX + GAP
-  } else {
-    // Card to the left of cursor
-    left = cursorX - PREVIEW_WIDTH - GAP
-  }
-  
-  // Determine vertical position: above or below cursor based on screen half
-  const cursorInTopHalf = cursorY < viewH / 2
-  let top: number
-  if (cursorInTopHalf) {
-    // Card below cursor (diagonal down)
-    top = cursorY + GAP
-  } else {
-    // Card above cursor (diagonal up)
-    top = cursorY - PREVIEW_HEIGHT - GAP
-  }
-  
-  // Clamp to viewport bounds
-  if (left < VIEWPORT_PAD) left = VIEWPORT_PAD
-  if (left + PREVIEW_WIDTH > viewW - VIEWPORT_PAD) left = viewW - PREVIEW_WIDTH - VIEWPORT_PAD
-  if (top < VIEWPORT_PAD) top = VIEWPORT_PAD
-  if (top + PREVIEW_HEIGHT > viewH - VIEWPORT_PAD) top = viewH - PREVIEW_HEIGHT - VIEWPORT_PAD
-
-  return { left, top }
-}
-
-function showPreview(scryfallId: string, cursorX: number, cursorY: number) {
-  const container = getPreviewContainer()
-  const img = document.getElementById('printing-list-hover-img') as HTMLImageElement | null
-  if (!img) return
-
-  const a = scryfallId.charAt(0)
-  const b = scryfallId.charAt(1)
-  const url = `https://cards.scryfall.io/normal/front/${a}/${b}/${scryfallId}.jpg`
-  
-  if (img.src !== url) {
-    img.src = url
-  }
-  
-  const { left, top } = calcPreviewPos(cursorX, cursorY, window.innerWidth, window.innerHeight)
-  container.style.transform = `translate3d(${left}px, ${top}px, 0)`
-  container.style.opacity = '1'
-}
-
-function updatePreviewPos(cursorX: number, cursorY: number) {
-  const container = getPreviewContainer()
-  const { left, top } = calcPreviewPos(cursorX, cursorY, window.innerWidth, window.innerHeight)
-  container.style.transform = `translate3d(${left}px, ${top}px, 0)`
-}
-
-function hidePreview() {
-  const container = getPreviewContainer()
-  container.style.opacity = '0'
-}
+import {
+  showCardPreview,
+  updateCardPreviewPosition,
+  hideCardPreview,
+} from '@/components/CardHoverPreview'
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
 
@@ -347,19 +241,19 @@ export function PrintingListView({
   const handleMouseEnter = useCallback((e: React.MouseEvent, row: PrintingRowResponse) => {
     if (row.scryfallPrintingId) {
       activeHoverRef.current = row.scryfallPrintingId
-      showPreview(row.scryfallPrintingId, e.clientX, e.clientY)
+      showCardPreview(row.scryfallPrintingId, row.cardName, e.clientX, e.clientY)
     }
   }, [])
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (activeHoverRef.current) {
-      updatePreviewPos(e.clientX, e.clientY)
+      updateCardPreviewPosition(e.clientX, e.clientY)
     }
   }, [])
 
   const handleMouseLeave = useCallback(() => {
     activeHoverRef.current = null
-    hidePreview()
+    hideCardPreview()
   }, [])
   
   // Mobile tap handler

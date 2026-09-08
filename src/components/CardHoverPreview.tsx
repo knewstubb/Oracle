@@ -955,3 +955,91 @@ export function usePreloadCardImages(cardNames: Set<string> | string[]): void {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [namesArray.join(',')])
 }
+
+// ---------------------------------------------------------------------------
+// Direct DOM functions — for components that manage their own mouse events
+// ---------------------------------------------------------------------------
+
+/**
+ * Show the card hover preview at a given cursor position.
+ * Uses direct DOM manipulation for 60fps performance.
+ * 
+ * @param scryfallId - Scryfall ID for image URL
+ * @param cardName - Card name for alt text and tracking
+ * @param cursorX - Mouse X position
+ * @param cursorY - Mouse Y position
+ */
+export function showCardPreview(
+  scryfallId: string,
+  cardName: string,
+  cursorX: number,
+  cursorY: number
+): void {
+  if (typeof document === 'undefined') return
+  
+  const container = getPortalContainer()
+  const img = document.getElementById('card-hover-preview-img') as HTMLImageElement | null
+  const infoBar = document.getElementById('card-hover-preview-info') as HTMLDivElement | null
+  
+  if (!img) {
+    console.warn('[CardHoverPreview] img element not found in portal')
+    return
+  }
+  
+  // Build image URL
+  const a = scryfallId.charAt(0)
+  const b = scryfallId.charAt(1)
+  const url = `https://cards.scryfall.io/large/front/${a}/${b}/${scryfallId}.jpg`
+  
+  // Calculate and apply position directly to DOM
+  const { left, top } = calculatePosition(cursorX, cursorY, window.innerWidth, window.innerHeight)
+  container.style.transform = `translate3d(${left}px, ${top}px, 0)`
+  
+  // If switching to a different card, hide until new image loads
+  if (currentCardName !== cardName) {
+    container.style.opacity = '0'
+    currentCardName = cardName
+  }
+  
+  // Update image (only if changed)
+  if (img.src !== url) {
+    img.src = url
+    img.alt = cardName
+    // Image will show via onload handler once loaded
+  } else {
+    // Same image already loaded, show immediately
+    container.style.opacity = '1'
+  }
+  
+  // Hide info bar for collection view (no ownership context)
+  if (infoBar) {
+    infoBar.style.display = 'none'
+  }
+}
+
+/**
+ * Update the card hover preview position.
+ * Call this on mousemove for smooth tracking.
+ * 
+ * @param cursorX - Mouse X position
+ * @param cursorY - Mouse Y position
+ */
+export function updateCardPreviewPosition(cursorX: number, cursorY: number): void {
+  if (typeof document === 'undefined') return
+  
+  const container = getPortalContainer()
+  const { left, top } = calculatePosition(cursorX, cursorY, window.innerWidth, window.innerHeight)
+  container.style.transform = `translate3d(${left}px, ${top}px, 0)`
+}
+
+/**
+ * Hide the card hover preview.
+ * Call this on mouseleave.
+ */
+export function hideCardPreview(): void {
+  if (typeof document === 'undefined') return
+  
+  const container = getPortalContainer()
+  container.style.opacity = '0'
+  currentCardName = null
+}

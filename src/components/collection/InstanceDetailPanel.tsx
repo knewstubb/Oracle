@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { X, Plus, Unlink, Shuffle, Trash2, Loader2, ArrowRightLeft, MoreVertical, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
-import { CardHoverPreview } from '@/components/CardHoverPreview'
+import { CardHoverPreview, showCardPreview, updateCardPreviewPosition, hideCardPreview } from '@/components/CardHoverPreview'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { LocationPickerModal } from '@/components/LocationPickerModal'
 import { DeckPickerPopover, type ValidDeck } from '@/components/DeckPickerPopover'
@@ -691,21 +691,27 @@ function InstanceRowItem({
 }: InstanceRowItemProps) {
   const queryClient = useQueryClient()
   const assignment = getAssignmentLabel(instance)
-  const [showPreview, setShowPreview] = useState(false)
-  const [previewPos, setPreviewPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
   const thumbRef = useRef<HTMLDivElement>(null)
 
   const scryfallSmallUrl = instance.scryfallPrintingId
     ? `https://cards.scryfall.io/small/front/${instance.scryfallPrintingId.charAt(0)}/${instance.scryfallPrintingId.charAt(1)}/${instance.scryfallPrintingId}.jpg`
     : null
 
-  const handleMouseEnter = () => {
-    if (thumbRef.current) {
-      const rect = thumbRef.current.getBoundingClientRect()
-      setPreviewPos({ x: rect.left, y: rect.top })
+  const handleMouseEnter = useCallback((e: React.MouseEvent) => {
+    if (instance.scryfallPrintingId) {
+      showCardPreview(instance.scryfallPrintingId, cardName, e.clientX, e.clientY)
     }
-    setShowPreview(true)
-  }
+  }, [instance.scryfallPrintingId, cardName])
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (instance.scryfallPrintingId) {
+      updateCardPreviewPosition(e.clientX, e.clientY)
+    }
+  }, [instance.scryfallPrintingId])
+
+  const handleMouseLeave = useCallback(() => {
+    hideCardPreview()
+  }, [])
 
   return (
     <div className="flex gap-3 px-4 py-2 border-b border-[rgba(255,255,255,0.04)]">
@@ -726,7 +732,8 @@ function InstanceRowItem({
           ref={thumbRef}
           className="relative shrink-0"
           onMouseEnter={handleMouseEnter}
-          onMouseLeave={() => setShowPreview(false)}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
         >
           <img
             src={scryfallSmallUrl}
@@ -735,16 +742,6 @@ function InstanceRowItem({
             className="h-[56px] w-[40px] shrink-0 rounded object-cover"
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
           />
-          {/* Hover preview — smart positioned via shared component */}
-          {instance.scryfallPrintingId && (
-            <CardHoverPreview
-              scryfallId={instance.scryfallPrintingId}
-              cardName={cardName}
-              cursorX={previewPos.x}
-              cursorY={previewPos.y}
-              visible={showPreview}
-            />
-          )}
         </div>
       )}
 

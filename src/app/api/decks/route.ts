@@ -46,190 +46,224 @@ export async function GET() {
   if (authResult instanceof Response) return authResult
 
   const userId = authResult.id
-
   const supabase = createAdminClient()
 
-  const { data: decks, error: decksErr } = await supabase
-    .from('decks')
-    .select('id, name, commander_name, commander_scryfall_id, colour_identity, card_count, last_synced_at, deck_type, status, is_active, folder_id')
-    .eq('user_id', userId)
-    .order('is_active', { ascending: false }) // Active decks first
-    .order('name')
+  // ══════════════════════════════════════════════════════════════════════════
+  // PARALLEL FETCH: Get decks, folders, deck_cards, brew sessions, collection count
+  // This reduces ~7 sequential DB calls to 1 parallel batch
+  // ══════════════════════════════════════════════════════════════════════════
+  
+  const [
+    decksResult,
+    foldersResult,
+    deckCardsResult,
+    brewSessionsResult,
+    collectionCountResult,
+  ] = await Promise.all([
+    // 1. Fetch decks
+    supabase
+      .from('decks')
+      .select('id, name, commander_name, commander_scryfall_id, colour_identity, card_count, last_synced_at, deck_type, status, is_active, folder_id')
+      .eq('user_id', userId)
+      .order('is_active', { ascending: false })
+      .order('name'),
+    
+    // 2. Fetch folders
+    (supabase as any)
+      .from('deck_folders')
+      .select('id, name, color')
+      .eq('user_id', userId),
+    
+    // 3. Fetch ALL deck_cards in one query (we need card_name for pip calc anyway)
+    // This replaces both the completeness query and pip distribution query
+    supabase
+      .from('deck_cards')
+      .select('deck_id, card_name, copy_id, categories')
+      .eq('user_id', userId),
+    
+    // 4. Fetch active brew sessions
+    supabase
+      .from('brew_sessions')
+      .select('deck_id')
+      .eq('user_id', userId)
+      .in('status', ['exploring', 'building', 'investigating', 'confirming', 'generating', 'refining'])
+      .not('deck_id', 'is', null),
+    
+    // 5. Check if user has any collection
+    supabase
+      .from('user_copies')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId),
+  ])
 
-  if (decksErr) {
-    return Response.json({ error: decksErr.message }, { status: 500 })
+  if (decksResult.error) {
+    return Response.json({ error: decksResult.error.message }, { status: 500 })
   }
 
-  // Fetch folders for this user to join with decks
-  const { data: folders } = await (supabase as any)
-    .from('deck_folders')
-    .select('id, name, color')
-    .eq('user_id', userId)
+  const decks = decksResult.data ?? []
+  const folders = foldersResult.data ?? []
+  const allDeckCards = deckCardsResult.data ?? []
+  const activeSessions = brewSessionsResult.data ?? []
+  const hasCollection = (collectionCountResult.count ?? 0) > 0
 
+  // Build folder map
   const folderMap = new Map<number, DeckFolder>()
-  for (const f of folders ?? []) {
+  for (const f of folders) {
     folderMap.set(f.id, { id: f.id, name: f.name, color: f.color })
   }
 
-  // Compute completeness for all decks — count deck_cards with non-null copy_id
-  // (Previously only computed for in_rotation decks, but now all decks claim cards equally)
-  const allDeckIds = (decks ?? []).map((d) => d.id)
+  // Build brewing deck IDs set
+  const brewingDeckIds = new Set(
+    activeSessions.map((s: { deck_id: number | null }) => s.deck_id).filter((id): id is number => id !== null)
+  )
 
-  let completenessMap: Record<number, { resolved: number; total: number; availableCount: number; claimedCount: number; unownedCount: number }> = {}
-  let pipMap: Record<number, Record<string, number>> = {}
-  // Track computed card counts per deck (excluding Maybeboard/Sideboard)
-  let computedCardCounts: Record<number, number> = {}
+  // ══════════════════════════════════════════════════════════════════════════
+  // PROCESS DECK CARDS: Compute completeness, card counts, and collect unresolved
+  // ══════════════════════════════════════════════════════════════════════════
 
-  if (allDeckIds.length > 0) {
-    // Fetch deck_cards for all decks, counting resolved (copy_id IS NOT NULL) vs total
-    // Include categories to filter out Maybeboard/Sideboard from counts
-    const { data: deckCards, error: cardsErr } = await supabase
-      .from('deck_cards')
-      .select('deck_id, card_name, copy_id, categories')
-      .in('deck_id', allDeckIds)
+  const deckIdSet = new Set(decks.map(d => d.id))
+  const completenessMap: Record<number, { 
+    resolved: number; 
+    total: number; 
+    availableCount: number; 
+    claimedCount: number; 
+    unownedCount: number 
+  }> = {}
+  const computedCardCounts: Record<number, number> = {}
+  const unresolvedByDeck = new Map<number, string[]>()
+  const cardNamesPerDeck = new Map<number, string[]>()
 
-    // Collect unresolved card names per deck for status breakdown
-    const unresolvedByDeck = new Map<number, string[]>()
+  for (const card of allDeckCards) {
+    // Only process cards that belong to fetched decks (filter for user's decks)
+    if (!deckIdSet.has(card.deck_id)) continue
+    
+    // Skip Maybeboard/Sideboard from all counts
+    if (!isCountableCard(card.categories)) continue
 
-    if (!cardsErr && deckCards) {
-      for (const card of deckCards) {
-        // Skip Maybeboard/Sideboard from all counts
-        if (!isCountableCard(card.categories)) continue
-
-        if (!completenessMap[card.deck_id]) {
-          completenessMap[card.deck_id] = { resolved: 0, total: 0, availableCount: 0, claimedCount: 0, unownedCount: 0 }
-        }
-        completenessMap[card.deck_id].total += 1
-        
-        // Track computed card count
-        computedCardCounts[card.deck_id] = (computedCardCounts[card.deck_id] ?? 0) + 1
-
-        if (card.copy_id != null) {
-          completenessMap[card.deck_id].resolved += 1
-        } else {
-          // Track unresolved card names for status breakdown
-          if (!unresolvedByDeck.has(card.deck_id)) unresolvedByDeck.set(card.deck_id, [])
-          unresolvedByDeck.get(card.deck_id)!.push(card.card_name)
-        }
-      }
+    // Initialize completeness tracking
+    if (!completenessMap[card.deck_id]) {
+      completenessMap[card.deck_id] = { resolved: 0, total: 0, availableCount: 0, claimedCount: 0, unownedCount: 0 }
     }
+    completenessMap[card.deck_id].total += 1
+    computedCardCounts[card.deck_id] = (computedCardCounts[card.deck_id] ?? 0) + 1
 
-    // Compute unresolved status breakdown (available/claimed/unowned) for all decks
-    // Collect ALL unresolved card names across all decks in one batch
-    const allUnresolvedNames = [...new Set(Array.from(unresolvedByDeck.values()).flat())]
-    if (allUnresolvedNames.length > 0) {
-      const statusMap = await computeUnresolvedStatuses(allUnresolvedNames, userId)
+    // Track card names for pip calculation
+    if (!cardNamesPerDeck.has(card.deck_id)) cardNamesPerDeck.set(card.deck_id, [])
+    cardNamesPerDeck.get(card.deck_id)!.push(card.card_name)
 
-      // Distribute results back to each deck's completeness
-      for (const [deckId, cardNames] of unresolvedByDeck) {
-        const comp = completenessMap[deckId]
-        if (!comp) continue
-        for (const name of cardNames) {
-          const status = statusMap.get(name) ?? 'unowned'
-          if (status === 'available' || status === 'alternate') {
-            comp.availableCount += 1
-          } else if (status === 'claimed') {
-            comp.claimedCount += 1
-          } else {
-            comp.unownedCount += 1
-          }
-        }
+    if (card.copy_id != null) {
+      completenessMap[card.deck_id].resolved += 1
+    } else {
+      if (!unresolvedByDeck.has(card.deck_id)) unresolvedByDeck.set(card.deck_id, [])
+      unresolvedByDeck.get(card.deck_id)!.push(card.card_name)
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // PARALLEL: Compute unresolved statuses AND fetch mana costs
+  // ══════════════════════════════════════════════════════════════════════════
+
+  const allUnresolvedNames = [...new Set(Array.from(unresolvedByDeck.values()).flat())]
+  const allCardNames = [...new Set(Array.from(cardNamesPerDeck.values()).flat())]
+
+  const [statusMap, manaCostMap] = await Promise.all([
+    // Unresolved status calculation (available/claimed/unowned)
+    allUnresolvedNames.length > 0
+      ? computeUnresolvedStatuses(allUnresolvedNames, userId)
+      : Promise.resolve(new Map<string, 'available' | 'alternate' | 'claimed' | 'unowned'>()),
+    
+    // Mana costs for pip distribution
+    allCardNames.length > 0
+      ? fetchManaCosts(supabase, allCardNames)
+      : Promise.resolve(new Map<string, string>()),
+  ])
+
+  // Distribute unresolved statuses back to completeness
+  for (const [deckId, cardNames] of unresolvedByDeck) {
+    const comp = completenessMap[deckId]
+    if (!comp) continue
+    for (const name of cardNames) {
+      const status = statusMap.get(name) ?? 'unowned'
+      if (status === 'available' || status === 'alternate') {
+        comp.availableCount += 1
+      } else if (status === 'claimed') {
+        comp.claimedCount += 1
+      } else {
+        comp.unownedCount += 1
       }
     }
   }
 
-  // Compute pip distribution for all decks (for proportional color bar)
-  if (allDeckIds.length > 0) {
-    // Get card names per deck, then look up mana costs from card_metadata
-    // Include categories to filter out Maybeboard/Sideboard
-    const PAGE_SIZE = 1000
-    const allDeckCards: Array<{ deck_id: number; card_name: string; categories: string | null }> = []
-    let offset = 0
+  // ══════════════════════════════════════════════════════════════════════════
+  // COMPUTE PIP DISTRIBUTION (in-memory, fast)
+  // ══════════════════════════════════════════════════════════════════════════
 
-    while (true) {
-      const { data, error } = await supabase
-        .from('deck_cards')
-        .select('deck_id, card_name, categories')
-        .in('deck_id', allDeckIds)
-        .range(offset, offset + PAGE_SIZE - 1)
-
-      if (error || !data || data.length === 0) break
-      allDeckCards.push(...data)
-      if (data.length < PAGE_SIZE) break
-      offset += PAGE_SIZE
-    }
-
-    // Filter to only countable cards (exclude Maybeboard/Sideboard)
-    const countableDeckCards = allDeckCards.filter(c => isCountableCard(c.categories))
-
-    // Get unique card names and fetch mana costs
-    const uniqueNames = [...new Set(countableDeckCards.map(c => c.card_name))]
-    const manaCostMap = new Map<string, string>()
-
-    for (let i = 0; i < uniqueNames.length; i += PAGE_SIZE) {
-      const batch = uniqueNames.slice(i, i + PAGE_SIZE)
-      const { data: metaRows } = await supabase
-        .from('ref_cards')
-        .select('name, mana_cost')
-        .in('name', batch)
-
-      for (const row of metaRows ?? []) {
-        if (row.mana_cost) manaCostMap.set(row.name, row.mana_cost)
-      }
-    }
-
-    // Count pips per deck
-    for (const dc of countableDeckCards) {
-      const manaCost = manaCostMap.get(dc.card_name)
+  const pipMap: Record<number, Record<string, number>> = {}
+  
+  for (const [deckId, cardNames] of cardNamesPerDeck) {
+    for (const cardName of cardNames) {
+      const manaCost = manaCostMap.get(cardName)
       if (!manaCost) continue
 
-      if (!pipMap[dc.deck_id]) pipMap[dc.deck_id] = {}
+      if (!pipMap[deckId]) pipMap[deckId] = {}
       const matches = manaCost.match(/\{([WUBRGC])\}/g) || []
       for (const m of matches) {
         const color = m.replace(/[{}]/g, '')
         if (color === 'C') continue // Skip colorless
-        pipMap[dc.deck_id][color] = (pipMap[dc.deck_id][color] || 0) + 1
+        pipMap[deckId][color] = (pipMap[deckId][color] || 0) + 1
       }
     }
   }
 
-  // Merge completeness, pip distribution, and folder into deck response
-  // Override card_count with computed value (excludes Maybeboard/Sideboard)
-  const decksWithCompleteness = (decks ?? []).map((deck) => ({
+  // ══════════════════════════════════════════════════════════════════════════
+  // BUILD RESPONSE
+  // ══════════════════════════════════════════════════════════════════════════
+
+  const decksWithCompleteness = decks.map((deck) => ({
     ...deck,
     card_count: computedCardCounts[deck.id] ?? deck.card_count ?? 0,
     completeness: completenessMap[deck.id] ?? null,
     pipDistribution: pipMap[deck.id] ?? null,
     folder: deck.folder_id ? folderMap.get(deck.folder_id) ?? null : null,
-  }))
-
-  // Find decks with active brew sessions (not complete/abandoned)
-  const { data: activeSessions } = await supabase
-    .from('brew_sessions')
-    .select('deck_id')
-    .eq('user_id', userId)
-    .in('status', ['exploring', 'building', 'investigating', 'confirming', 'generating', 'refining'])
-    .not('deck_id', 'is', null)
-
-  const brewingDeckIds = new Set((activeSessions ?? []).map(s => s.deck_id).filter((id): id is number => id !== null))
-
-  // Add hasBrew flag to decks
-  const decksWithBrewStatus = decksWithCompleteness.map((deck) => ({
-    ...deck,
     hasBrew: brewingDeckIds.has(deck.id),
   }))
 
-  // Check if user has any collection (used for empty state messaging)
-  const { count: collectionCount } = await supabase
-    .from('user_copies')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
-
-  const hasCollection = (collectionCount ?? 0) > 0
-
   return Response.json({ 
-    decks: decksWithBrewStatus, 
+    decks: decksWithCompleteness, 
     folders: folders ?? [],
     hasCollection 
   })
+}
+
+// Helper to fetch mana costs in batches
+async function fetchManaCosts(
+  supabase: ReturnType<typeof createAdminClient>,
+  cardNames: string[]
+): Promise<Map<string, string>> {
+  const manaCostMap = new Map<string, string>()
+  const PAGE_SIZE = 1000
+
+  // Parallel batch fetches for large card lists
+  const batches: string[][] = []
+  for (let i = 0; i < cardNames.length; i += PAGE_SIZE) {
+    batches.push(cardNames.slice(i, i + PAGE_SIZE))
+  }
+
+  const results = await Promise.all(
+    batches.map(batch =>
+      supabase
+        .from('ref_cards')
+        .select('name, mana_cost')
+        .in('name', batch)
+        .then(({ data }) => data ?? [])
+    )
+  )
+
+  for (const rows of results) {
+    for (const row of rows) {
+      if (row.mana_cost) manaCostMap.set(row.name, row.mana_cost)
+    }
+  }
+
+  return manaCostMap
 }

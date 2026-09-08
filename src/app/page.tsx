@@ -73,7 +73,9 @@ export default function DashboardPage() {
       if (!r.ok) throw new Error('Failed to load decks')
       return r.json()
     }),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 5 * 60 * 1000, // 5 min — consider fresh
+    gcTime: 60 * 60 * 1000, // 1 hour — keep in cache
+    refetchOnWindowFocus: false, // Don't refetch on tab switch
   })
 
   const decks = data?.decks

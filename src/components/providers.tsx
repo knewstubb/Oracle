@@ -13,8 +13,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 5 * 60 * 1000, // 5 min for Archidekt data
+            staleTime: 5 * 60 * 1000, // 5 min — consider data fresh
+            gcTime: 60 * 60 * 1000, // 1 hour — keep in cache much longer
             retry: 1,
+            refetchOnWindowFocus: false, // Don't refetch when tab becomes active
           },
         },
       })

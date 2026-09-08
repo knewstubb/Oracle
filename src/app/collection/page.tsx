@@ -280,12 +280,13 @@ export default function CollectionPage() {
 
           {/* ─── Main Content: Loading / Error / Empty / Data ──── */}
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            {activeIsLoading ? (
-              <LoadingSkeleton viewMode={viewMode} />
-            ) : activeError ? (
+            {activeError ? (
               <ErrorState onRetry={() => window.location.reload()} />
             ) : isPrintingView ? (
-              printingRows.length === 0 ? (
+              // Show skeleton only on first load (no data yet), not when refreshing
+              printingLoading && printingRows.length === 0 ? (
+                <LoadingSkeleton viewMode={viewMode} />
+              ) : printingRows.length === 0 ? (
                 <EmptyState hasFilters={debouncedSearch !== '' || selectedColors.length > 0 || activeStatuses.length > 0} />
               ) : (
                 <div className={cn("flex-1 overflow-y-auto", printingIsFetching && "opacity-70 transition-opacity")}>
@@ -301,7 +302,10 @@ export default function CollectionPage() {
                 </div>
               )
             ) : (
-              rows.length === 0 ? (
+              // Show skeleton only on first load (no data yet), not when refreshing
+              isLoading && rows.length === 0 ? (
+                <LoadingSkeleton viewMode={viewMode} />
+              ) : rows.length === 0 ? (
                 <EmptyState hasFilters={debouncedSearch !== '' || selectedColors.length > 0} />
               ) : (
                 <div className={cn("flex-1 overflow-y-auto p-4", isFetching && "opacity-70 transition-opacity")}>

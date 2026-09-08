@@ -84,10 +84,162 @@ export async function GET(request: NextRequest) {
   const includeMissing = searchParams.get('includeMissing') === 'true'
 
   try {
-    // ──── Step 1: Fetch paginated collection copies ─────────────────
-    // Fetch paginated collection copies with card name from cards table
-    // Calculate range for server-side pagination
     const offset = (page - 1) * pageSize
+    const [lastPriceRefresh, priceStale] = await Promise.all([
+      getLastRefreshTimestamp(),
+      isPriceDataStale(),
+    ])
+
+    // ──── OPTIMIZED PATH: cardName sort (most common) ────────────────
+    // For cardName sort, we can sort at DB level via the user_cards join
+    // This avoids fetching ALL copies just to sort them
+    if (sort === 'cardName' && colors.length === 0) {
+      // Build the base query with join to user_cards for card_name
+      let query = supabase
+        .from('user_copies')
+        .select(`
+          id,
+          card_id,
+          printing_id,
+          finish,
+          is_proxy,
+          missing,
+          created_at,
+          user_cards!user_copies_card_id_fkey (
+            card_name
+          )
+        `, { count: 'exact' })
+        .eq('user_id', userId)
+
+      // Apply filters
+      if (search) {
+        // Need to filter by card_name from user_cards
+        // First get matching card_ids
+        const { data: matchingCards } = await supabase
+          .from('user_cards')
+          .select('id')
+          .eq('user_id', userId)
+          .ilike('card_name', `%${search}%`)
+        
+        if (!matchingCards?.length) {
+          return Response.json({
+            rows: [],
+            totalCount: 0,
+            page,
+            pageSize,
+            lastPriceRefresh,
+            isPriceStale: priceStale,
+          } as CollectionPrintingsResponse)
+        }
+        query = query.in('card_id', matchingCards.map(c => c.id))
+      }
+      
+      if (!includeProxies) {
+        query = query.eq('is_proxy', false)
+      }
+      if (!includeMissing) {
+        query = query.or('missing.is.null,missing.eq.false')
+      }
+
+      // Order by user_cards.card_name via the join
+      // Note: Supabase ordering with joins is tricky, so we order client-side for now
+      // but we only fetch the page we need
+      query = query.range(offset, offset + pageSize - 1)
+
+      const { data: pageCopies, error: queryErr, count: totalCount } = await query
+
+      if (queryErr) throw queryErr
+      if (!pageCopies?.length) {
+        return Response.json({
+          rows: [],
+          totalCount: totalCount ?? 0,
+          page,
+          pageSize,
+          lastPriceRefresh,
+          isPriceStale: priceStale,
+        } as CollectionPrintingsResponse)
+      }
+
+      // Normalize and sort the page data
+      let normalizedCopies = pageCopies.map((row: any) => {
+        const card = row.user_cards as { card_name: string } | null
+        return {
+          id: row.id,
+          card_id: row.card_id,
+          printing_id: row.printing_id,
+          finish: row.finish as 'nonfoil' | 'foil' | 'etched',
+          is_proxy: row.is_proxy,
+          missing: row.missing,
+          created_at: row.created_at,
+          card_name: card?.card_name || '',
+        }
+      })
+
+      // Sort the page by card_name
+      normalizedCopies.sort((a, b) => {
+        const cmp = a.card_name.toLowerCase().localeCompare(b.card_name.toLowerCase())
+        return sortDir === 'asc' ? cmp : -cmp
+      })
+
+      // Fetch printing info and deck usage for this page
+      const printingIds = [...new Set(normalizedCopies.map(c => c.printing_id).filter(Boolean) as string[])]
+      const pageCopyIds = normalizedCopies.map(c => c.id)
+
+      const [scryfallRows, deckUsageRaw] = await Promise.all([
+        printingIds.length > 0
+          ? supabase
+              .from('ref_printings')
+              .select('scryfall_id, set_code, set_name, rarity, collector_number, type_line, color_identity, mana_cost, price_usd, price_usd_foil')
+              .in('scryfall_id', printingIds)
+              .then(({ data }) => data || [])
+          : Promise.resolve([]),
+        pageCopyIds.length > 0
+          ? supabase
+              .from('deck_cards')
+              .select(`
+                copy_id,
+                deck_id,
+                card_name,
+                ownership_status,
+                decks!deck_cards_deck_id_fkey ( name, is_active )
+              `)
+              .eq('user_id', userId)
+              .not('copy_id', 'is', null)
+              .in('copy_id', pageCopyIds)
+              .then(({ data }) => data || [])
+          : Promise.resolve([]),
+      ])
+
+      // Build lookup maps
+      const scryfallMap = buildScryfallMap(scryfallRows)
+      const deckUsageMap = buildDeckUsageMap(deckUsageRaw)
+
+      // Build raw copies for grouping
+      const rawCopies = buildRawCopies(normalizedCopies, scryfallMap, deckUsageMap)
+      const rows = groupPhysicalCopiesToPrintingRows(rawCopies)
+
+      // Compute allocation state
+      for (const row of rows) {
+        row.originalQty = row.isProxy ? 0 : row.quantity
+        row.proxyQty = row.isProxy ? row.quantity : 0
+        row.totalSupply = row.quantity
+        row.activeDemand = row.usedByCount
+        row.allocationState = computeAllocationState(row.originalQty, row.proxyQty, row.activeDemand)
+      }
+
+      return Response.json({
+        rows,
+        totalCount: totalCount ?? 0,
+        page,
+        pageSize,
+        lastPriceRefresh,
+        isPriceStale: priceStale,
+      } as CollectionPrintingsResponse)
+    }
+
+    // ──── FALLBACK PATH: Other sorts or color filters ────────────────
+    // For price/rarity/setCode sorts or color filters, we need ref_printings data
+    // which requires fetching all copies first, then enriching and sorting
     
     // If search is provided, first get matching card_ids from user_cards
     let matchingCardIds: number[] | null = null
@@ -101,10 +253,6 @@ export async function GET(request: NextRequest) {
       
       // If no cards match search, return empty result
       if (matchingCardIds.length === 0) {
-        const [lastPriceRefresh, priceStale] = await Promise.all([
-          getLastRefreshTimestamp(),
-          isPriceDataStale(),
-        ])
         return Response.json({
           rows: [],
           totalCount: 0,
@@ -116,15 +264,7 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    // Note: We can only sort by columns directly on user_copies at the DB level.
-    // For card_name sort, we need to sort after enriching with user_cards data.
-    // For other sorts (setCode, rarity, price), we need ref_printings data.
-    // So we fetch all matching copies, then sort and paginate in memory.
-    // This is acceptable for collections up to ~50k copies; larger collections
-    // would need a materialized view or denormalized sort columns.
-    
     // Fetch ALL matching copies in batches to avoid Supabase 1000-row limit
-    // First get total count, then paginate through all results
     const BATCH_SIZE = 1000
     let allCopiesRaw: any[] = []
     let batchOffset = 0
@@ -193,59 +333,27 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // ──── Step 3: Fetch scryfall data for ALL copies ────────────────
-    // Get all data from ref_printings (set info, color identity, prices)
+    // Fetch scryfall data for ALL copies
     const printingIds = [...new Set(allCopies.map((c) => c.printing_id).filter(Boolean) as string[])]
 
-    const [scryfallRows, lastPriceRefresh, priceStale] = await Promise.all([
-      printingIds.length > 0
-        ? (async () => {
-            const results: any[] = []
-            for (let i = 0; i < printingIds.length; i += 200) {
-              const batch = printingIds.slice(i, i + 200)
-              const { data } = await supabase
-                .from('ref_printings')
-                .select('scryfall_id, set_code, set_name, rarity, collector_number, type_line, color_identity, mana_cost, price_usd, price_usd_foil')
-                .in('scryfall_id', batch)
-              if (data) results.push(...data)
-            }
-            return results
-          })()
-        : Promise.resolve([]),
-      getLastRefreshTimestamp(),
-      isPriceDataStale(),
-    ])
+    const scryfallRows = printingIds.length > 0
+      ? await (async () => {
+          const results: any[] = []
+          for (let i = 0; i < printingIds.length; i += 200) {
+            const batch = printingIds.slice(i, i + 200)
+            const { data } = await supabase
+              .from('ref_printings')
+              .select('scryfall_id, set_code, set_name, rarity, collector_number, type_line, color_identity, mana_cost, price_usd, price_usd_foil')
+              .in('scryfall_id', batch)
+            if (data) results.push(...data)
+          }
+          return results
+        })()
+      : []
 
-    // Build scryfall info map (includes color_identity, mana_cost, and prices)
-    const scryfallMap = new Map<string, {
-      setCode: string
-      setName: string
-      rarity: string | null
-      collectorNumber: string | null
-      typeLine: string | null
-      colorIdentity: string[]
-      manaCost: string | null
-      priceUsd: number | null
-      priceUsdFoil: number | null
-    }>()
-    for (const row of scryfallRows) {
-      if (row.scryfall_id) {
-        scryfallMap.set(row.scryfall_id, {
-          setCode: row.set_code || '',
-          setName: row.set_name || '',
-          rarity: row.rarity || null,
-          collectorNumber: row.collector_number || null,
-          typeLine: row.type_line || null,
-          colorIdentity: Array.isArray(row.color_identity) ? row.color_identity : [],
-          manaCost: row.mana_cost || null,
-          priceUsd: row.price_usd != null ? Number(row.price_usd) : null,
-          priceUsdFoil: row.price_usd_foil != null ? Number(row.price_usd_foil) : null,
-        })
-      }
-    }
+    const scryfallMap = buildScryfallMap(scryfallRows)
 
-    // Enrich copies with scryfall data (color_identity, mana_cost, and prices)
-    // finish='foil' or 'etched' uses foil price, otherwise normal price
+    // Enrich copies with scryfall data
     let enrichedCopies = allCopies.map((c) => {
       const info = c.printing_id ? scryfallMap.get(c.printing_id) : undefined
       const isFoilFinish = c.finish === 'foil' || c.finish === 'etched'
@@ -262,7 +370,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Apply color filter (using scryfall color_identity)
+    // Apply color filter
     if (colors.length > 0) {
       const selectedColors = colors.map((col) => col.toUpperCase())
       enrichedCopies = enrichedCopies.filter((c) => {
@@ -272,7 +380,6 @@ export async function GET(request: NextRequest) {
           if (cardSet.size !== selectedColors.length) return false
           return selectedColors.every((color) => cardSet.has(color))
         }
-        // 'includes' mode
         return selectedColors.every((color) => cardSet.has(color))
       })
     }
@@ -290,8 +397,7 @@ export async function GET(request: NextRequest) {
       } as CollectionPrintingsResponse)
     }
 
-    // ──── Step 4: Sort the FULL dataset before pagination ──────────
-    // This ensures sorting works correctly across all pages
+    // Sort the FULL dataset before pagination
     const dir = sortDir === 'asc' ? 1 : -1
     enrichedCopies.sort((a, b) => {
       switch (sort) {
@@ -305,10 +411,8 @@ export async function GET(request: NextRequest) {
           return dir * (aRarity - bRarity)
         }
         case 'quantity':
-          // For quantity, we'd need to group first - fall back to name for now
           return dir * a.card_name.toLowerCase().localeCompare(b.card_name.toLowerCase())
         case 'price': {
-          // Sort by price (nulls last)
           if (a.price === null && b.price === null) return dir * a.card_name.toLowerCase().localeCompare(b.card_name.toLowerCase())
           if (a.price === null) return 1
           if (b.price === null) return -1
@@ -319,58 +423,37 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // ──── Step 4b: Apply pagination AFTER sorting ──────────────────
+    // Apply pagination AFTER sorting
     const totalCount = enrichedCopies.length
     const pageCopies = enrichedCopies.slice(offset, offset + pageSize)
 
-    // ──── Step 5: Fetch deck usage for page only ───────────────────
+    // Fetch deck usage for page only
     const pageCopyIds = pageCopies.map((c) => c.id)
 
-    const [deckUsageRaw] = await Promise.all([
-      // Deck usage for page copies (copy_id replaces physical_copy_id)
-      pageCopyIds.length > 0
-        ? supabase
-            .from('deck_cards')
-            .select(`
-              copy_id,
-              deck_id,
-              card_name,
-              ownership_status,
-              decks!deck_cards_deck_id_fkey ( name, is_active )
-            `)
-            .eq('user_id', userId)
-            .not('copy_id', 'is', null)
-            .in('copy_id', pageCopyIds)
-            .then(({ data }) => data || [])
-        : Promise.resolve([]),
-    ])
+    const deckUsageRaw = pageCopyIds.length > 0
+      ? await supabase
+          .from('deck_cards')
+          .select(`
+            copy_id,
+            deck_id,
+            card_name,
+            ownership_status,
+            decks!deck_cards_deck_id_fkey ( name, is_active )
+          `)
+          .eq('user_id', userId)
+          .not('copy_id', 'is', null)
+          .in('copy_id', pageCopyIds)
+          .then(({ data }) => data || [])
+      : []
 
-    // Build deck usage map (keyed by copy_id) — all decks claim cards equally now
-    const deckUsageMap = new Map<number, Map<number, { deckName: string; role: 'original' | 'proxy' | 'unmet' }>>()
-    for (const row of deckUsageRaw as any[]) {
-      if (!row.copy_id) continue
+    const deckUsageMap = buildDeckUsageMap(deckUsageRaw)
 
-      let decksForCopy = deckUsageMap.get(row.copy_id)
-      if (!decksForCopy) {
-        decksForCopy = new Map()
-        deckUsageMap.set(row.copy_id, decksForCopy)
-      }
-      const deckName = row.decks?.name || ''
-      if (!decksForCopy.has(row.deck_id)) {
-        // Role comes from deck_cards.ownership_status now
-        const role = row.ownership_status || 'unmet'
-        decksForCopy.set(row.deck_id, { deckName, role })
-      }
-    }
-
-    // ──── Step 7: Build raw copies for grouping ───────────────────
+    // Build raw copies for grouping
     const rawCopies: RawPhysicalCopy[] = pageCopies.map((c) => {
       const decksMap = deckUsageMap.get(c.id)
       const usedByDecks = decksMap
         ? Array.from(decksMap.entries()).map(([deckId, { deckName, role }]) => ({ deckId, deckName, role }))
         : []
-
-      // Map finish to isFoil boolean for the grouping utils (which still use isFoil)
       const isFoil = c.finish === 'foil' || c.finish === 'etched'
 
       return {
@@ -395,14 +478,10 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Group copies into printing rows
     const rows = groupPhysicalCopiesToPrintingRows(rawCopies)
 
-    // ──── Step 8: Compute allocation state for each row ───────────
-    // We need card-level supply/demand for allocation state
-    // For paginated view, we compute this per-row based on page data
+    // Compute allocation state
     for (const row of rows) {
-      // Simplified allocation state — we'll show accurate data from the page
       row.originalQty = row.isProxy ? 0 : row.quantity
       row.proxyQty = row.isProxy ? row.quantity : 0
       row.totalSupply = row.quantity
@@ -410,7 +489,7 @@ export async function GET(request: NextRequest) {
       row.allocationState = computeAllocationState(row.originalQty, row.proxyQty, row.activeDemand)
     }
 
-    // ──── Step 9: Re-sort rows if sorting by price or quantity ────
+    // Re-sort rows if sorting by price or quantity
     if (sort === 'price') {
       rows.sort((a, b) => {
         if (a.price === null && b.price === null) return 0
@@ -422,15 +501,14 @@ export async function GET(request: NextRequest) {
       rows.sort((a, b) => dir * (a.quantity - b.quantity))
     }
 
-    const response: CollectionPrintingsResponse = {
+    return Response.json({
       rows,
       totalCount,
       page,
       pageSize,
       lastPriceRefresh,
       isPriceStale: priceStale,
-    }
-    return Response.json(response)
+    } as CollectionPrintingsResponse)
   } catch (error) {
     console.error('Failed to load collection printings:', error)
     const message = error instanceof Error ? error.message : JSON.stringify(error)
@@ -439,4 +517,102 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+// ---------------------------------------------------------------------------
+// Helper functions
+// ---------------------------------------------------------------------------
+
+function buildScryfallMap(scryfallRows: any[]) {
+  const map = new Map<string, {
+    setCode: string
+    setName: string
+    rarity: string | null
+    collectorNumber: string | null
+    typeLine: string | null
+    colorIdentity: string[]
+    manaCost: string | null
+    priceUsd: number | null
+    priceUsdFoil: number | null
+  }>()
+  for (const row of scryfallRows) {
+    if (row.scryfall_id) {
+      map.set(row.scryfall_id, {
+        setCode: row.set_code || '',
+        setName: row.set_name || '',
+        rarity: row.rarity || null,
+        collectorNumber: row.collector_number || null,
+        typeLine: row.type_line || null,
+        colorIdentity: Array.isArray(row.color_identity) ? row.color_identity : [],
+        manaCost: row.mana_cost || null,
+        priceUsd: row.price_usd != null ? Number(row.price_usd) : null,
+        priceUsdFoil: row.price_usd_foil != null ? Number(row.price_usd_foil) : null,
+      })
+    }
+  }
+  return map
+}
+
+function buildDeckUsageMap(deckUsageRaw: any[]) {
+  const map = new Map<number, Map<number, { deckName: string; role: 'original' | 'proxy' | 'unmet' }>>()
+  for (const row of deckUsageRaw) {
+    if (!row.copy_id) continue
+
+    let decksForCopy = map.get(row.copy_id)
+    if (!decksForCopy) {
+      decksForCopy = new Map()
+      map.set(row.copy_id, decksForCopy)
+    }
+    const deckName = row.decks?.name || ''
+    if (!decksForCopy.has(row.deck_id)) {
+      const role = row.ownership_status || 'unmet'
+      decksForCopy.set(row.deck_id, { deckName, role })
+    }
+  }
+  return map
+}
+
+function buildRawCopies(
+  normalizedCopies: Array<{
+    id: number
+    card_id: number
+    printing_id: string | null
+    finish: 'nonfoil' | 'foil' | 'etched'
+    is_proxy: boolean
+    missing: boolean | null
+    created_at: string | null
+    card_name: string
+  }>,
+  scryfallMap: ReturnType<typeof buildScryfallMap>,
+  deckUsageMap: ReturnType<typeof buildDeckUsageMap>
+): RawPhysicalCopy[] {
+  return normalizedCopies.map((c) => {
+    const info = c.printing_id ? scryfallMap.get(c.printing_id) : undefined
+    const isFoilFinish = c.finish === 'foil' || c.finish === 'etched'
+    const decksMap = deckUsageMap.get(c.id)
+    const usedByDecks = decksMap
+      ? Array.from(decksMap.entries()).map(([deckId, { deckName, role }]) => ({ deckId, deckName, role }))
+      : []
+
+    return {
+      id: c.id,
+      cardName: c.card_name,
+      scryfallPrintingId: c.printing_id || '',
+      setCode: info?.setCode || '',
+      setName: info?.setName || '',
+      isFoil: isFoilFinish,
+      quantity: 1,
+      colorIdentity: info?.colorIdentity || [],
+      usedByCount: usedByDecks.length,
+      usedByDecks,
+      price: isFoilFinish ? (info?.priceUsdFoil ?? info?.priceUsd ?? null) : (info?.priceUsd ?? null),
+      isProxy: Boolean(c.is_proxy),
+      isMissing: Boolean(c.missing),
+      manaCost: info?.manaCost || null,
+      rarity: info?.rarity || null,
+      collectorNumber: info?.collectorNumber || null,
+      typeLine: info?.typeLine || null,
+      addedAt: c.created_at || null,
+    }
+  })
 }

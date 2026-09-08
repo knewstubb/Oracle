@@ -79,8 +79,10 @@ export function useCollectionPrintings(params: CollectionPrintingsParams = {}): 
       }
       return res.json()
     },
-    staleTime: 60 * 1000, // 1 min — pages change frequently during interaction
+    staleTime: 5 * 60 * 1000, // 5 min — collection data is relatively stable
+    gcTime: 60 * 60 * 1000, // 1 hour — keep in memory for fast navigation
     placeholderData: (prev) => prev, // Keep previous data visible while loading next page
+    refetchOnWindowFocus: false, // Don't refetch on tab switch
     enabled,
   })
 }

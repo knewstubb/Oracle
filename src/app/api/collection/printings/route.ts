@@ -109,21 +109,39 @@ export async function GET(request: NextRequest) {
       }
 
       // We need to know which cards have copies matching our filters
-      // First get all card_ids that have matching copies
-      let copiesFilterQuery = supabase
-        .from('user_copies')
-        .select('card_id')
-        .eq('user_id', userId)
-      
-      if (!includeProxies) {
-        copiesFilterQuery = copiesFilterQuery.eq('is_proxy', false)
-      }
-      if (!includeMissing) {
-        copiesFilterQuery = copiesFilterQuery.or('missing.is.null,missing.eq.false')
-      }
+      // First get all card_ids that have matching copies (paginated to avoid 1000-row limit)
+      const cardIdsWithCopies: number[] = []
+      const FILTER_PAGE_SIZE = 1000
+      let filterOffset = 0
+      let hasMoreFilterResults = true
 
-      const { data: copiesWithFilter } = await copiesFilterQuery
-      const cardIdsWithCopies = [...new Set((copiesWithFilter ?? []).map(c => c.card_id))]
+      while (hasMoreFilterResults) {
+        let copiesFilterQuery = supabase
+          .from('user_copies')
+          .select('card_id')
+          .eq('user_id', userId)
+          .range(filterOffset, filterOffset + FILTER_PAGE_SIZE - 1)
+        
+        if (!includeProxies) {
+          copiesFilterQuery = copiesFilterQuery.eq('is_proxy', false)
+        }
+        if (!includeMissing) {
+          copiesFilterQuery = copiesFilterQuery.or('missing.is.null,missing.eq.false')
+        }
+
+        const { data: copiesWithFilter } = await copiesFilterQuery
+        if (copiesWithFilter && copiesWithFilter.length > 0) {
+          for (const c of copiesWithFilter) {
+            if (!cardIdsWithCopies.includes(c.card_id)) {
+              cardIdsWithCopies.push(c.card_id)
+            }
+          }
+          hasMoreFilterResults = copiesWithFilter.length === FILTER_PAGE_SIZE
+          filterOffset += FILTER_PAGE_SIZE
+        } else {
+          hasMoreFilterResults = false
+        }
+      }
 
       if (cardIdsWithCopies.length === 0) {
         return Response.json({
@@ -136,13 +154,47 @@ export async function GET(request: NextRequest) {
         } as CollectionPrintingsResponse)
       }
 
-      // Apply card_id filter to user_cards query
-      cardsQuery = cardsQuery.in('id', cardIdsWithCopies)
+      // Apply card_id filter to user_cards query - need to batch due to URL length limit
+      // Also need to paginate to avoid 1000-row limit on user_cards
+      let allMatchingCards: { id: number; card_name: string }[] = []
+      const CARD_BATCH_SIZE = 200 // For .in() URL limit
+      const CARD_PAGE_SIZE = 1000
 
-      // Get total count and paginated cards
-      const { data: allMatchingCards, count: cardCount, error: cardsErr } = await cardsQuery
+      // Batch the card_id filter and paginate results
+      for (let i = 0; i < cardIdsWithCopies.length; i += CARD_BATCH_SIZE) {
+        const batchIds = cardIdsWithCopies.slice(i, i + CARD_BATCH_SIZE)
+        let batchOffset = 0
+        let hasMoreCards = true
 
-      if (cardsErr) throw cardsErr
+        while (hasMoreCards) {
+          let batchCardsQuery = supabase
+            .from('user_cards')
+            .select('id, card_name')
+            .eq('user_id', userId)
+            .in('id', batchIds)
+            .order('card_name', { ascending: sortDir === 'asc' })
+            .range(batchOffset, batchOffset + CARD_PAGE_SIZE - 1)
+
+          if (search) {
+            batchCardsQuery = batchCardsQuery.ilike('card_name', `%${search}%`)
+          }
+
+          const { data: batchCards } = await batchCardsQuery
+          if (batchCards && batchCards.length > 0) {
+            allMatchingCards.push(...batchCards)
+            hasMoreCards = batchCards.length === CARD_PAGE_SIZE
+            batchOffset += CARD_PAGE_SIZE
+          } else {
+            hasMoreCards = false
+          }
+        }
+      }
+
+      // Re-sort all cards since we fetched in batches
+      allMatchingCards.sort((a, b) => {
+        const cmp = a.card_name.toLowerCase().localeCompare(b.card_name.toLowerCase())
+        return sortDir === 'asc' ? cmp : -cmp
+      })
       if (!allMatchingCards?.length) {
         return Response.json({
           rows: [],
@@ -161,26 +213,40 @@ export async function GET(request: NextRequest) {
       
       // Fetch ALL copies for matching cards (we'll paginate in memory)
       // This is still better than fetching ALL copies in the collection
-      const BATCH_SIZE = 1000
+      // Use smaller batch for .in() URL limit, and paginate each batch for 1000-row limit
+      const COPY_BATCH_SIZE = 200 // For .in() URL limit
+      const COPY_PAGE_SIZE = 1000 // Supabase row limit
       let allCopiesRaw: any[] = []
       
-      for (let i = 0; i < matchingCardIds.length; i += BATCH_SIZE) {
-        const batchIds = matchingCardIds.slice(i, i + BATCH_SIZE)
-        let batchQuery = supabase
-          .from('user_copies')
-          .select('id, card_id, printing_id, finish, is_proxy, missing, created_at')
-          .eq('user_id', userId)
-          .in('card_id', batchIds)
-        
-        if (!includeProxies) {
-          batchQuery = batchQuery.eq('is_proxy', false)
-        }
-        if (!includeMissing) {
-          batchQuery = batchQuery.or('missing.is.null,missing.eq.false')
-        }
+      for (let i = 0; i < matchingCardIds.length; i += COPY_BATCH_SIZE) {
+        const batchIds = matchingCardIds.slice(i, i + COPY_BATCH_SIZE)
+        let batchOffset = 0
+        let hasMoreCopies = true
 
-        const { data: batchCopies } = await batchQuery
-        if (batchCopies) allCopiesRaw.push(...batchCopies)
+        while (hasMoreCopies) {
+          let batchQuery = supabase
+            .from('user_copies')
+            .select('id, card_id, printing_id, finish, is_proxy, missing, created_at')
+            .eq('user_id', userId)
+            .in('card_id', batchIds)
+            .range(batchOffset, batchOffset + COPY_PAGE_SIZE - 1)
+          
+          if (!includeProxies) {
+            batchQuery = batchQuery.eq('is_proxy', false)
+          }
+          if (!includeMissing) {
+            batchQuery = batchQuery.or('missing.is.null,missing.eq.false')
+          }
+
+          const { data: batchCopies } = await batchQuery
+          if (batchCopies && batchCopies.length > 0) {
+            allCopiesRaw.push(...batchCopies)
+            hasMoreCopies = batchCopies.length === COPY_PAGE_SIZE
+            batchOffset += COPY_PAGE_SIZE
+          } else {
+            hasMoreCopies = false
+          }
+        }
       }
 
       // Build card_id -> card_name map

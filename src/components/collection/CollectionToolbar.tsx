@@ -345,8 +345,9 @@ export function CollectionToolbar({
 
 /**
  * Mana symbol using official Scryfall SVGs.
- * - Selected: fully saturated
- * - Unselected: 50% desaturated, fully saturated on hover
+ * - Selected: fully visible
+ * - Unselected: 25% opacity
+ * - Hover: primary ring on parent button
  */
 function ManaIcon({ color, isSelected }: { color: string; isSelected: boolean }) {
   const svgUrl = `https://svgs.scryfall.io/card-symbols/${color}.svg`
@@ -355,13 +356,11 @@ function ManaIcon({ color, isSelected }: { color: string; isSelected: boolean })
     <img
       src={svgUrl}
       alt={color}
-      width={20}
-      height={20}
+      width={24}
+      height={24}
       className={cn(
-        'rounded-full transition-all',
-        isSelected 
-          ? 'saturate-100' 
-          : 'saturate-50 group-hover:saturate-100'
+        'rounded-full transition-opacity',
+        isSelected ? 'opacity-100' : 'opacity-25'
       )}
     />
   )
@@ -403,7 +402,10 @@ function ColorIdentityFilter({
             key={color.value}
             type="button"
             onClick={() => toggleColor(color.value)}
-            className="group flex size-7 items-center justify-center rounded-full transition-all"
+            className={cn(
+              'flex size-8 items-center justify-center rounded-full transition-all',
+              !isSelected && 'hover:ring-2 hover:ring-[var(--ring)]'
+            )}
             aria-label={`${color.label}${isSelected ? ' (selected)' : ''}`}
             aria-pressed={isSelected}
             title={color.label}

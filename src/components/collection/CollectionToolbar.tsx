@@ -402,10 +402,7 @@ function ColorIdentityFilter({
             key={color.value}
             type="button"
             onClick={() => toggleColor(color.value)}
-            className={cn(
-              'flex size-8 items-center justify-center rounded-full transition-all',
-              !isSelected && 'hover:ring-2 hover:ring-[var(--ring)]'
-            )}
+            className="flex size-8 items-center justify-center rounded-full transition-all hover:ring-1 hover:ring-[var(--ring)] hover:ring-offset-1 hover:ring-offset-zinc-900"
             aria-label={`${color.label}${isSelected ? ' (selected)' : ''}`}
             aria-pressed={isSelected}
             title={color.label}

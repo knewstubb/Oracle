@@ -46,7 +46,7 @@ async function main() {
   });
 
   // Get transcript counts from SQLite
-  const dbPath = path.join(__dirname, '../../research/commander-content/content-raw.sqlite');
+  const dbPath = process.env.COMMANDER_CONTENT_DB_PATH || path.join(__dirname, '../../research/commander-content/content-raw.sqlite');
   const db = sqlite3(dbPath);
   const transcriptCounts = {};
   

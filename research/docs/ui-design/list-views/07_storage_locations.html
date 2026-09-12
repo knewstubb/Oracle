@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Storage Locations View - Wireframe</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .wireframe-note {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 12px 16px;
+      margin-bottom: 24px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-gray-100 p-8">
+  
+  <div class="max-w-6xl mx-auto">
+    <h1 class="text-2xl font-bold mb-2">Storage Locations View</h1>
+    <p class="text-gray-400 mb-6">Layout: Card grid for locations, table/list for contents</p>
+    
+    <div class="wireframe-note">
+      <strong>Design Rationale:</strong> Storage locations are "as real as a deck" — they represent physical containers 
+      (binders, boxes, folders). Card grid for browsing locations (like Decks list). When you click into a location, 
+      you see its contents as a searchable table. This answers "What's in my Staples Binder?" and "Where should I put this card?"
+    </div>
+
+    <!-- Storage Locations Grid -->
+    <div class="mb-8">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold">Storage Locations</h2>
+        <button class="bg-indigo-600 hover:bg-indigo-700 px-4 py-1.5 rounded text-sm font-medium">
+          + New Location
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        
+        <!-- Location Card: Staples Binder -->
+        <div class="bg-gray-800 rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition cursor-pointer">
+          <div class="flex">
+            <div class="w-20 h-24 bg-gradient-to-br from-blue-900 to-blue-700 flex-shrink-0 flex items-center justify-center">
+              <svg class="w-10 h-10 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+              </svg>
+            </div>
+            <div class="flex-1 p-3">
+              <h3 class="font-semibold text-white mb-1">Staples Binder</h3>
+              <p class="text-sm text-gray-400 mb-2">High-value staples for sharing</p>
+              <div class="flex items-center gap-3 text-xs text-gray-500">
+                <span>87 cards</span>
+                <span>•</span>
+                <span class="text-green-400">$2,450 value</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Location Card: Trade Box -->
+        <div class="bg-gray-800 rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition cursor-pointer">
+          <div class="flex">
+            <div class="w-20 h-24 bg-gradient-to-br from-amber-900 to-amber-700 flex-shrink-0 flex items-center justify-center">
+              <svg class="w-10 h-10 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+              </svg>
+            </div>
+            <div class="flex-1 p-3">
+              <h3 class="font-semibold text-white mb-1">Trade Box</h3>
+              <p class="text-sm text-gray-400 mb-2">Cards available for trade</p>
+              <div class="flex items-center gap-3 text-xs text-gray-500">
+                <span>234 cards</span>
+                <span>•</span>
+                <span class="text-green-400">$680 value</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Location Card: Bulk Box -->
+        <div class="bg-gray-800 rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition cursor-pointer">
+          <div class="flex">
+            <div class="w-20 h-24 bg-gradient-to-br from-gray-700 to-gray-600 flex-shrink-0 flex items-center justify-center">
+              <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+              </svg>
+            </div>
+            <div class="flex-1 p-3">
+              <h3 class="font-semibold text-white mb-1">Bulk Box</h3>
+              <p class="text-sm text-gray-400 mb-2">Commons and uncommons</p>
+              <div class="flex items-center gap-3 text-xs text-gray-500">
+                <span>1,240 cards</span>
+                <span>•</span>
+                <span class="text-gray-400">$85 value</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Location Card: Precon Folder -->
+        <div class="bg-gray-800 rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition cursor-pointer">
+          <div class="flex">
+            <div class="w-20 h-24 bg-gradient-to-br from-purple-900 to-purple-700 flex-shrink-0 flex items-center justify-center">
+              <svg class="w-10 h-10 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+              </svg>
+            </div>
+            <div class="flex-1 p-3">
+              <h3 class="font-semibold text-white mb-1">Precon Folder</h3>
+              <p class="text-sm text-gray-400 mb-2">Original precon cards</p>
+              <div class="flex items-center gap-3 text-xs text-gray-500">
+                <span>456 cards</span>
+                <span>•</span>
+                <span class="text-green-400">$320 value</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Location Card: Reserved List -->
+        <div class="bg-gray-800 rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition cursor-pointer">
+          <div class="flex">
+            <div class="w-20 h-24 bg-gradient-to-br from-yellow-800 to-yellow-600 flex-shrink-0 flex items-center justify-center">
+              <svg class="w-10 h-10 text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+              </svg>
+            </div>
+            <div class="flex-1 p-3">
+              <h3 class="font-semibold text-white mb-1">Reserved List</h3>
+              <p class="text-sm text-gray-400 mb-2">High-value RL cards</p>
+              <div class="flex items-center gap-3 text-xs text-gray-500">
+                <span>12 cards</span>
+                <span>•</span>
+                <span class="text-green-400">$4,200 value</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add New Location -->
+        <div class="bg-gray-800 rounded-lg overflow-hidden border-2 border-dashed border-gray-600 hover:border-indigo-500 transition cursor-pointer">
+          <div class="flex items-center justify-center h-24">
+            <div class="text-center">
+              <svg class="w-8 h-8 text-gray-500 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+              </svg>
+              <span class="text-sm text-gray-500">Add Location</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Divider -->
+    <hr class="border-gray-700 my-8">
+
+    <!-- Location Contents (when a location is selected) -->
+    <div>
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-3">
+          <button class="text-gray-400 hover:text-white">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+          </button>
+          <div class="w-10 h-10 bg-gradient-to-br from-blue-900 to-blue-700 rounded flex items-center justify-center">
+            <svg class="w-5 h-5 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-lg font-semibold">Staples Binder</h2>
+            <p class="text-sm text-gray-400">87 cards • $2,450 value</p>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <input type="text" placeholder="Search in location..." 
+                 class="bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm w-48">
+          <button class="bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded text-sm">
+            Edit Location
+          </button>
+        </div>
+      </div>
+
+      <!-- Contents Table -->
+      <div class="bg-gray-800 rounded-lg overflow-hidden">
+        <table class="w-full">
+          <thead class="bg-gray-750 text-left text-sm text-gray-400">
+            <tr>
+              <th class="px-4 py-3 font-medium">Card</th>
+              <th class="px-4 py-3 font-medium">Set</th>
+              <th class="px-4 py-3 font-medium text-center">Qty</th>
+              <th class="px-4 py-3 font-medium">Claimed By</th>
+              <th class="px-4 py-3 font-medium text-right">Price</th>
+              <th class="px-4 py-3 font-medium"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-700">
+            
+            <tr class="hover:bg-gray-750 transition">
+              <td class="px-4 py-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-11 bg-gray-700 rounded flex-shrink-0"></div>
+                  <div>
+                    <div class="font-medium">Ragavan, Nimble Pilferer</div>
+                    <div class="text-xs text-gray-500">Legendary Creature — Monkey Pirate</div>
+                  </div>
+                </div>
+              </td>
+              <td class="px-4 py-3 text-sm text-gray-400">MH2</td>
+              <td class="px-4 py-3 text-center">
+                <span class="bg-gray-700 px-2 py-0.5 rounded text-sm">1</span>
+              </td>
+              <td class="px-4 py-3">
+                <span class="text-xs bg-amber-900 text-amber-300 px-2 py-0.5 rounded">Korvold (claimed)</span>
+              </td>
+              <td class="px-4 py-3 text-right text-sm">$52.00</td>
+              <td class="px-4 py-3 text-right">
+                <button class="text-gray-400 hover:text-white">
+                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/>
+                  </svg>
+                </button>
+              </td>
+            </tr>
+            
+            <tr class="hover:bg-gray-750 transition">
+              <td class="px-4 py-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-11 bg-gray-700 rounded flex-shrink-0"></div>
+                  <div>
+                    <div class="font-medium">Jeweled Lotus</div>
+                    <div class="text-xs text-gray-500">Artifact</div>
+                  </div>
+                </div>
+              </td>
+              <td class="px-4 py-3 text-sm text-gray-400">CMR</td>
+              <td class="px-4 py-3 text-center">
+                <span class="bg-gray-700 px-2 py-0.5 rounded text-sm">1</span>
+              </td>
+              <td class="px-4 py-3">
+                <span class="text-xs text-gray-500">Available</span>
+              </td>
+              <td class="px-4 py-3 text-right text-sm">$95.00</td>
+              <td class="px-4 py-3 text-right">
+                <button class="text-gray-400 hover:text-white">
+                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/>
+                  </svg>
+                </button>
+              </td>
+            </tr>
+            
+            <tr class="hover:bg-gray-750 transition">
+              <td class="px-4 py-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-11 bg-gray-700 rounded flex-shrink-0"></div>
+                  <div>
+                    <div class="font-medium">Fierce Guardianship</div>
+                    <div class="text-xs text-gray-500">Instant</div>
+                  </div>
+                </div>
+              </td>
+              <td class="px-4 py-3 text-sm text-gray-400">C20</td>
+              <td class="px-4 py-3 text-center">
+                <span class="bg-gray-700 px-2 py-0.5 rounded text-sm">2</span>
+              </td>
+              <td class="px-4 py-3">
+                <div class="flex gap-1">
+                  <span class="text-xs bg-amber-900 text-amber-300 px-2 py-0.5 rounded">Talrand</span>
+                  <span class="text-xs text-gray-500">+1 avail</span>
+                </div>
+              </td>
+              <td class="px-4 py-3 text-right text-sm">$32.00 ea</td>
+              <td class="px-4 py-3 text-right">
+                <button class="text-gray-400 hover:text-white">
+                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/>
+                  </svg>
+                </button>
+              </td>
+            </tr>
+            
+            <tr class="hover:bg-gray-750 transition">
+              <td class="px-4 py-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-11 bg-gray-700 rounded flex-shrink-0"></div>
+                  <div>
+                    <div class="font-medium">Deflecting Swat</div>
+                    <div class="text-xs text-gray-500">Instant</div>
+                  </div>
+                </div>
+              </td>
+              <td class="px-4 py-3 text-sm text-gray-400">C20</td>
+              <td class="px-4 py-3 text-center">
+                <span class="bg-gray-700 px-2 py-0.5 rounded text-sm">1</span>
+              </td>
+              <td class="px-4 py-3">
+                <span class="text-xs text-gray-500">Available</span>
+              </td>
+              <td class="px-4 py-3 text-right text-sm">$28.00</td>
+              <td class="px-4 py-3 text-right">
+                <button class="text-gray-400 hover:text-white">
+                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/>
+                  </svg>
+                </button>
+              </td>
+            </tr>
+
+          </tbody>
+        </table>
+        
+        <div class="px-4 py-3 border-t border-gray-700 text-center text-sm text-gray-500">
+          Showing 4 of 87 cards
+        </div>
+      </div>
+    </div>
+
+    <!-- Design Notes -->
+    <div class="mt-8 p-4 bg-gray-800 rounded-lg">
+      <h3 class="text-sm font-semibold mb-3 text-gray-300">Key Interactions</h3>
+      <ul class="text-sm text-gray-400 space-y-2">
+        <li>• <strong>Location icons:</strong> User-selectable or auto-assigned based on type (binder, box, folder)</li>
+        <li>• <strong>Claimed By column:</strong> Shows which deck has claimed this card from storage</li>
+        <li>• <strong>Kebab menu:</strong> Move to deck, Move to different storage, Change printing, Remove</li>
+        <li>• <strong>Drag & drop:</strong> Future enhancement — drag cards between storage locations</li>
+        <li>• <strong>Quick add:</strong> "Add cards to this location" button for intake workflow</li>
+      </ul>
+    </div>
+
+  </div>
+</body>
+</html>

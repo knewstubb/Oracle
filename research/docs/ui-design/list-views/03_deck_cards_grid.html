@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deck Cards View - Grid Mode - Wireframe</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .wireframe-note {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 12px 16px;
+      margin-bottom: 24px;
+      font-size: 14px;
+    }
+    .card-slot {
+      aspect-ratio: 5/7;
+      position: relative;
+    }
+    .status-badge {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .status-badge:hover {
+      transform: scale(1.1);
+    }
+    .card-image {
+      background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-gray-100 p-8">
+  
+  <div class="max-w-6xl mx-auto">
+    <h1 class="text-2xl font-bold mb-2">Deck Cards View - Grid Mode</h1>
+    <p class="text-gray-400 mb-6">Layout: Card image grid (visual browsing)</p>
+    
+    <div class="wireframe-note">
+      <strong>Design Rationale:</strong> Grid view is for visual browsing — recognizing cards by artwork. 
+      Minimal text, maximum card images. Status badges overlay the card art. Good for "what's in this deck?" overview.
+      Less useful for allocation work than the grouped list view.
+    </div>
+
+    <!-- Toolbar (same as grouped view) -->
+    <div class="bg-gray-800 rounded-lg p-4 mb-6">
+      <div class="flex flex-wrap items-center gap-4">
+        <div class="flex items-center gap-1 bg-gray-700 rounded-lg p-1">
+          <button class="px-3 py-1 rounded text-gray-300 text-sm hover:bg-gray-600">Grouped</button>
+          <button class="px-3 py-1 rounded bg-indigo-600 text-white text-sm font-medium">Grid</button>
+          <button class="px-3 py-1 rounded text-gray-300 text-sm hover:bg-gray-600">List</button>
+        </div>
+        
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-gray-400">Group by:</span>
+          <select class="bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm">
+            <option selected>Type</option>
+            <option>Category</option>
+            <option>CMC</option>
+            <option>Color</option>
+            <option>Status</option>
+          </select>
+        </div>
+        
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-gray-400">Sort:</span>
+          <select class="bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm">
+            <option selected>Name (A-Z)</option>
+            <option>CMC</option>
+            <option>Price</option>
+          </select>
+        </div>
+        
+        <div class="ml-auto">
+          <input type="text" placeholder="Search cards..." 
+                 class="bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm w-48">
+        </div>
+      </div>
+    </div>
+
+    <!-- Grid Sections -->
+    <div class="space-y-6">
+      
+      <!-- Section: Creatures -->
+      <div>
+        <div class="flex items-center gap-3 mb-3">
+          <h2 class="font-semibold text-lg">Creatures</h2>
+          <span class="text-gray-500">(32)</span>
+          <div class="flex items-center gap-2 text-sm ml-4">
+            <span class="text-green-400">28 ready</span>
+            <span class="text-gray-500">•</span>
+            <span class="text-amber-400">4 claimed</span>
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+          <!-- Card: Original -->
+          <div class="card-slot rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition">
+            <div class="card-image w-full h-full flex items-center justify-center text-gray-500 text-xs">
+              [Card Art]
+            </div>
+            <div class="status-badge">
+              <span class="bg-green-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium shadow-md">
+                ✓
+              </span>
+            </div>
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
+              <span class="text-[10px] text-white font-medium truncate block">Dockside Extortionist</span>
+            </div>
+          </div>
+          
+          <!-- Card: Claimed -->
+          <div class="card-slot rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition">
+            <div class="card-image w-full h-full flex items-center justify-center text-gray-500 text-xs">
+              [Card Art]
+            </div>
+            <div class="status-badge">
+              <span class="bg-amber-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium shadow-md">
+                C
+              </span>
+            </div>
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
+              <span class="text-[10px] text-white font-medium truncate block">Ragavan, Nimble Pilferer</span>
+            </div>
+          </div>
+          
+          <!-- Card: Proxy -->
+          <div class="card-slot rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition">
+            <div class="card-image w-full h-full flex items-center justify-center text-gray-500 text-xs border-2 border-dashed border-gray-500">
+              [Card Art]
+            </div>
+            <div class="status-badge">
+              <span class="bg-gray-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium shadow-md border border-dashed border-gray-400">
+                P
+              </span>
+            </div>
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
+              <span class="text-[10px] text-white font-medium truncate block">Jeska's Will</span>
+            </div>
+          </div>
+          
+          <!-- Card: Open -->
+          <div class="card-slot rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition">
+            <div class="card-image w-full h-full flex items-center justify-center text-gray-500 text-xs">
+              [Card Art]
+            </div>
+            <div class="status-badge">
+              <span class="bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium shadow-md">
+                +
+              </span>
+            </div>
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
+              <span class="text-[10px] text-white font-medium truncate block">Professional Face-Breaker</span>
+            </div>
+          </div>
+          
+          <!-- Card: Unowned -->
+          <div class="card-slot rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition opacity-70">
+            <div class="card-image w-full h-full flex items-center justify-center text-gray-500 text-xs">
+              [Card Art]
+            </div>
+            <div class="status-badge">
+              <span class="bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium shadow-md">
+                !
+              </span>
+            </div>
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
+              <span class="text-[10px] text-white font-medium truncate block">Imperial Recruiter</span>
+            </div>
+          </div>
+          
+          <!-- More placeholder cards -->
+          <div class="card-slot rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition">
+            <div class="card-image w-full h-full flex items-center justify-center text-gray-500 text-xs">[Card Art]</div>
+            <div class="status-badge"><span class="bg-green-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium shadow-md">✓</span></div>
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1"><span class="text-[10px] text-white font-medium truncate block">Birgi, God of Storytelling</span></div>
+          </div>
+          <div class="card-slot rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition">
+            <div class="card-image w-full h-full flex items-center justify-center text-gray-500 text-xs">[Card Art]</div>
+            <div class="status-badge"><span class="bg-green-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium shadow-md">✓</span></div>
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1"><span class="text-[10px] text-white font-medium truncate block">Goblin Engineer</span></div>
+          </div>
+          <div class="card-slot rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition">
+            <div class="card-image w-full h-full flex items-center justify-center text-gray-500 text-xs">[Card Art]</div>
+            <div class="status-badge"><span class="bg-green-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium shadow-md">✓</span></div>
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1"><span class="text-[10px] text-white font-medium truncate block">Grim Hireling</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Instants -->
+      <div>
+        <div class="flex items-center gap-3 mb-3">
+          <h2 class="font-semibold text-lg">Instants</h2>
+          <span class="text-gray-500">(14)</span>
+          <div class="flex items-center gap-2 text-sm ml-4">
+            <span class="text-green-400">14 ready</span>
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+          <div class="card-slot rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition">
+            <div class="card-image w-full h-full flex items-center justify-center text-gray-500 text-xs">[Card Art]</div>
+            <div class="status-badge"><span class="bg-green-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium shadow-md">✓</span></div>
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1"><span class="text-[10px] text-white font-medium truncate block">Chaos Warp</span></div>
+          </div>
+          <div class="card-slot rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition">
+            <div class="card-image w-full h-full flex items-center justify-center text-gray-500 text-xs">[Card Art]</div>
+            <div class="status-badge"><span class="bg-green-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium shadow-md">✓</span></div>
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1"><span class="text-[10px] text-white font-medium truncate block">Dark Ritual</span></div>
+          </div>
+          <div class="card-slot rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition">
+            <div class="card-image w-full h-full flex items-center justify-center text-gray-500 text-xs">[Card Art]</div>
+            <div class="status-badge"><span class="bg-green-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium shadow-md">✓</span></div>
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1"><span class="text-[10px] text-white font-medium truncate block">Vampiric Tutor</span></div>
+          </div>
+          <div class="card-slot rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition">
+            <div class="card-image w-full h-full flex items-center justify-center text-gray-500 text-xs">[Card Art]</div>
+            <div class="status-badge"><span class="bg-green-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium shadow-md">✓</span></div>
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1"><span class="text-[10px] text-white font-medium truncate block">Deflecting Swat</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Artifacts -->
+      <div>
+        <div class="flex items-center gap-3 mb-3">
+          <h2 class="font-semibold text-lg">Artifacts</h2>
+          <span class="text-gray-500">(12)</span>
+          <div class="flex items-center gap-2 text-sm ml-4">
+            <span class="text-green-400">11 ready</span>
+            <span class="text-gray-500">•</span>
+            <span class="text-gray-400">1 proxy</span>
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+          <div class="card-slot rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition">
+            <div class="card-image w-full h-full flex items-center justify-center text-gray-500 text-xs">[Card Art]</div>
+            <div class="status-badge"><span class="bg-green-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium shadow-md">✓</span></div>
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1"><span class="text-[10px] text-white font-medium truncate block">Sol Ring</span></div>
+          </div>
+          <div class="card-slot rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition">
+            <div class="card-image w-full h-full flex items-center justify-center text-gray-500 text-xs">[Card Art]</div>
+            <div class="status-badge"><span class="bg-green-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium shadow-md">✓</span></div>
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1"><span class="text-[10px] text-white font-medium truncate block">Arcane Signet</span></div>
+          </div>
+          <div class="card-slot rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition">
+            <div class="card-image w-full h-full flex items-center justify-center text-gray-500 text-xs">[Card Art]</div>
+            <div class="status-badge"><span class="bg-green-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium shadow-md">✓</span></div>
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1"><span class="text-[10px] text-white font-medium truncate block">Talisman of Indulgence</span></div>
+          </div>
+          <div class="card-slot rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition">
+            <div class="card-image w-full h-full flex items-center justify-center text-gray-500 text-xs border-2 border-dashed border-gray-500">[Card Art]</div>
+            <div class="status-badge"><span class="bg-gray-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium shadow-md border border-dashed border-gray-400">P</span></div>
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1"><span class="text-[10px] text-white font-medium truncate block">Mana Crypt</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Legend -->
+    <div class="mt-8 p-4 bg-gray-800 rounded-lg">
+      <h3 class="text-sm font-semibold mb-3 text-gray-300">Grid Badge Legend</h3>
+      <div class="flex flex-wrap gap-6 text-sm">
+        <div class="flex items-center gap-2">
+          <span class="bg-green-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium">✓</span>
+          <span class="text-gray-400">Original (in deck)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium">+</span>
+          <span class="text-gray-400">Open (available)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="bg-amber-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium">C</span>
+          <span class="text-gray-400">Claimed (borrowed)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="bg-gray-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium border border-dashed border-gray-400">P</span>
+          <span class="text-gray-400">Proxy</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium">!</span>
+          <span class="text-gray-400">Unowned</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

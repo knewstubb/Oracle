@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Oracle - List Views Wireframes</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 p-8">
+  
+  <div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold mb-2">The Oracle — List View Wireframes</h1>
+    <p class="text-gray-400 mb-8">Design exploration for all list views in the app. Click to view each wireframe.</p>
+
+    <!-- Summary Table -->
+    <div class="bg-gray-800 rounded-lg overflow-hidden mb-8">
+      <table class="w-full">
+        <thead class="bg-gray-750 text-left text-sm text-gray-400">
+          <tr>
+            <th class="px-4 py-3 font-medium">View</th>
+            <th class="px-4 py-3 font-medium">Layout Pattern</th>
+            <th class="px-4 py-3 font-medium">Primary Use Case</th>
+            <th class="px-4 py-3 font-medium"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-700">
+          <tr class="hover:bg-gray-750 transition">
+            <td class="px-4 py-3 font-medium">Decks List</td>
+            <td class="px-4 py-3"><span class="bg-indigo-900 text-indigo-300 px-2 py-0.5 rounded text-sm">Card Grid</span></td>
+            <td class="px-4 py-3 text-sm text-gray-400">"Which deck do I want to play tonight?"</td>
+            <td class="px-4 py-3 text-right">
+              <a href="01_decks_list.html" class="text-indigo-400 hover:text-indigo-300 text-sm">View →</a>
+            </td>
+          </tr>
+          <tr class="hover:bg-gray-750 transition">
+            <td class="px-4 py-3 font-medium">Deck Cards (Grouped)</td>
+            <td class="px-4 py-3"><span class="bg-green-900 text-green-300 px-2 py-0.5 rounded text-sm">Grouped List</span></td>
+            <td class="px-4 py-3 text-sm text-gray-400">"What's in this deck? What needs attention?"</td>
+            <td class="px-4 py-3 text-right">
+              <a href="02_deck_cards_grouped.html" class="text-indigo-400 hover:text-indigo-300 text-sm">View →</a>
+            </td>
+          </tr>
+          <tr class="hover:bg-gray-750 transition">
+            <td class="px-4 py-3 font-medium">Deck Cards (Grid)</td>
+            <td class="px-4 py-3"><span class="bg-purple-900 text-purple-300 px-2 py-0.5 rounded text-sm">Image Grid</span></td>
+            <td class="px-4 py-3 text-sm text-gray-400">"Visual overview of the 99"</td>
+            <td class="px-4 py-3 text-right">
+              <a href="03_deck_cards_grid.html" class="text-indigo-400 hover:text-indigo-300 text-sm">View →</a>
+            </td>
+          </tr>
+          <tr class="hover:bg-gray-750 transition">
+            <td class="px-4 py-3 font-medium">Picklist</td>
+            <td class="px-4 py-3"><span class="bg-amber-900 text-amber-300 px-2 py-0.5 rounded text-sm">Action Queue</span></td>
+            <td class="px-4 py-3 text-sm text-gray-400">"What do I need to resolve before I can play?"</td>
+            <td class="px-4 py-3 text-right">
+              <a href="04_picklist.html" class="text-indigo-400 hover:text-indigo-300 text-sm">View →</a>
+            </td>
+          </tr>
+          <tr class="hover:bg-gray-750 transition">
+            <td class="px-4 py-3 font-medium">Collection</td>
+            <td class="px-4 py-3"><span class="bg-blue-900 text-blue-300 px-2 py-0.5 rounded text-sm">Search + Table</span></td>
+            <td class="px-4 py-3 text-sm text-gray-400">"What do I own? Where is card X?"</td>
+            <td class="px-4 py-3 text-right">
+              <a href="05_collection.html" class="text-indigo-400 hover:text-indigo-300 text-sm">View →</a>
+            </td>
+          </tr>
+          <tr class="hover:bg-gray-750 transition">
+            <td class="px-4 py-3 font-medium">Shared Cards</td>
+            <td class="px-4 py-3"><span class="bg-red-900 text-red-300 px-2 py-0.5 rounded text-sm">Diagnostic Table</span></td>
+            <td class="px-4 py-3 text-sm text-gray-400">"What staples should I buy duplicates of?"</td>
+            <td class="px-4 py-3 text-right">
+              <a href="06_shared_cards.html" class="text-indigo-400 hover:text-indigo-300 text-sm">View →</a>
+            </td>
+          </tr>
+          <tr class="hover:bg-gray-750 transition">
+            <td class="px-4 py-3 font-medium">Storage Locations</td>
+            <td class="px-4 py-3"><span class="bg-gray-700 text-gray-300 px-2 py-0.5 rounded text-sm">Card Grid → Table</span></td>
+            <td class="px-4 py-3 text-sm text-gray-400">"What's in my Staples Binder?"</td>
+            <td class="px-4 py-3 text-right">
+              <a href="07_storage_locations.html" class="text-indigo-400 hover:text-indigo-300 text-sm">View →</a>
+            </td>
+          </tr>
+          <tr class="hover:bg-gray-750 transition bg-indigo-900/20">
+            <td class="px-4 py-3 font-medium">Global Search ⭐</td>
+            <td class="px-4 py-3"><span class="bg-indigo-900 text-indigo-300 px-2 py-0.5 rounded text-sm">Command Palette</span></td>
+            <td class="px-4 py-3 text-sm text-gray-400">"Where is card X? Add to deck / wishlist / proxy list"</td>
+            <td class="px-4 py-3 text-right">
+              <a href="08_global_search.html" class="text-indigo-400 hover:text-indigo-300 text-sm">View →</a>
+            </td>
+          </tr>
+          <tr class="hover:bg-gray-750 transition bg-cyan-900/20">
+            <td class="px-4 py-3 font-medium">Collection with Views ⭐</td>
+            <td class="px-4 py-3"><span class="bg-cyan-900 text-cyan-300 px-2 py-0.5 rounded text-sm">View Tabs</span></td>
+            <td class="px-4 py-3 text-sm text-gray-400">"Show me my Japanese foils over $50"</td>
+            <td class="px-4 py-3 text-right">
+              <a href="09_collection_with_views.html" class="text-indigo-400 hover:text-indigo-300 text-sm">View →</a>
+            </td>
+          </tr>
+          <tr class="hover:bg-gray-750 transition bg-pink-900/20">
+            <td class="px-4 py-3 font-medium">Wishlist ⭐</td>
+            <td class="px-4 py-3"><span class="bg-pink-900 text-pink-300 px-2 py-0.5 rounded text-sm">View Tabs</span></td>
+            <td class="px-4 py-3 text-sm text-gray-400">"What do I want to buy? Which decks need cards?"</td>
+            <td class="px-4 py-3 text-right">
+              <a href="10_wishlist.html" class="text-indigo-400 hover:text-indigo-300 text-sm">View →</a>
+            </td>
+          </tr>
+          <tr class="hover:bg-gray-750 transition bg-emerald-900/20">
+            <td class="px-4 py-3 font-medium">Card Management Detail ⭐</td>
+            <td class="px-4 py-3"><span class="bg-emerald-900 text-emerald-300 px-2 py-0.5 rounded text-sm">Modal</span></td>
+            <td class="px-4 py-3 text-sm text-gray-400">"Show me all copies of Sol Ring and where they are"</td>
+            <td class="px-4 py-3 text-right">
+              <a href="11_card_management_detail.html" class="text-indigo-400 hover:text-indigo-300 text-sm">View →</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Design Decisions Summary -->
+    <div class="bg-gray-800 rounded-lg p-6 mb-8">
+      <h2 class="text-lg font-semibold mb-4">Layout Pattern Rationale</h2>
+      
+      <div class="space-y-4">
+        <div>
+          <h3 class="font-medium text-indigo-400 mb-1">Card Grid</h3>
+          <p class="text-sm text-gray-400">
+            Used when visual identity matters. Decks are recognized by commander art. Storage locations are 
+            recognized by icons/colors. Grid enables quick scanning of many items.
+          </p>
+        </div>
+        
+        <div>
+          <h3 class="font-medium text-green-400 mb-1">Grouped List</h3>
+          <p class="text-sm text-gray-400">
+            Default for deck contents. Groups by Type (or Category) map to how players think about decks.
+            Collapsible sections keep large lists manageable. Status chips are the key interactive element.
+          </p>
+        </div>
+        
+        <div>
+          <h3 class="font-medium text-purple-400 mb-1">Image Grid</h3>
+          <p class="text-sm text-gray-400">
+            Alternative deck view for visual browsing. Minimal text, maximum card art. Good for "what's in this deck?"
+            but less useful for allocation work than grouped list.
+          </p>
+        </div>
+        
+        <div>
+          <h3 class="font-medium text-amber-400 mb-1">Action Queue</h3>
+          <p class="text-sm text-gray-400">
+            Task-oriented layout for Picklist. Only shows items needing resolution. Grouped by action type 
+            (Pull, Proxy, Buy). Each row has one-click resolution buttons.
+          </p>
+        </div>
+        
+        <div>
+          <h3 class="font-medium text-blue-400 mb-1">Search + Table</h3>
+          <p class="text-sm text-gray-400">
+            Collection is search-first because users rarely browse — they look for specific cards.
+            Autocomplete shows copies and locations before selecting. Table for result density.
+          </p>
+        </div>
+        
+        <div>
+          <h3 class="font-medium text-indigo-400 mb-1">Command Palette (Global Search)</h3>
+          <p class="text-sm text-gray-400">
+            ⌘K anywhere opens the search. Card image + inline actions for rich experience.
+            Answers "where is card X?" and enables immediate actions (add to deck, wishlist, proxy list).
+          </p>
+        </div>
+        
+        <div>
+          <h3 class="font-medium text-red-400 mb-1">Diagnostic Table</h3>
+          <p class="text-sm text-gray-400">
+            Shared Cards is analytical — "where am I stretched thin?" Sorted by conflict severity.
+            Visual conflict bars show at-a-glance where to buy duplicates.
+          </p>
+        </div>
+        
+        <div>
+          <h3 class="font-medium text-cyan-400 mb-1">View Tabs (ClickUp-style)</h3>
+          <p class="text-sm text-gray-400">
+            Collection has built-in views (All Cards, By Card, Storage, Proxy List) plus user-created 
+            saved filters. "+ View" opens a filter builder. Views are persistent tabs, not temporary filters.
+          </p>
+        </div>
+        
+        <div>
+          <h3 class="font-medium text-emerald-400 mb-1">Card Management Modal</h3>
+          <p class="text-sm text-gray-400">
+            Opens from "By Card" view (grouped by oracle_id). Shows all copies across printings, 
+            all deck slots using this card, and wishlist status. Enables Pull/Assign/Release actions inline.
+            This is the "tell me everything about this card" view.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Key Design Principles -->
+    <div class="bg-gray-800 rounded-lg p-6">
+      <h2 class="text-lg font-semibold mb-4">Key Design Principles</h2>
+      
+      <div class="grid md:grid-cols-2 gap-6">
+        <div>
+          <h3 class="font-medium text-white mb-2">Top Bar Navigation</h3>
+          <p class="text-sm text-gray-400">
+            Main nav lives in the top bar: Logo | <strong>Decks | Collection | Wishlist | Tools</strong> | Search | Settings | Avatar.
+            Settings (gear icon) and Avatar (initials) are on the far right. Search is centered.
+          </p>
+        </div>
+        
+        <div>
+          <h3 class="font-medium text-white mb-2">Status Chips as Buttons</h3>
+          <p class="text-sm text-gray-400">
+            Every status chip (Original, Claimed, Proxy, Open, Unowned) is clickable. 
+            Shadow, hover state, and cursor signal interactivity. This is the core allocation UX.
+          </p>
+        </div>
+        
+        <div>
+          <h3 class="font-medium text-white mb-2">Playability is Hero</h3>
+          <p class="text-sm text-gray-400">
+            The most important thing about a deck is "can I play this right now?" 
+            Playability badges are prominent on deck cards and in toolbar context.
+          </p>
+        </div>
+        
+        <div>
+          <h3 class="font-medium text-white mb-2">Remember User Preferences</h3>
+          <p class="text-sm text-gray-400">
+            Group-by, sort, and view mode choices persist. If user switches to Category grouping,
+            that's their default until they change it again.
+          </p>
+        </div>
+        
+        <div>
+          <h3 class="font-medium text-white mb-2">Global Search Everywhere</h3>
+          <p class="text-sm text-gray-400">
+            Collection search is the primary way to find cards. Autocomplete shows "Card X: 3 copies — 
+            1 in Prosper, 1 in Korvold, 1 in Staples Binder" before selecting.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="mt-8 text-center text-sm text-gray-500">
+      <p>Wireframes created July 2026 • Based on product vision interview</p>
+      <p class="mt-1">See <code class="bg-gray-800 px-1 rounded">.kiro/specs/list-views/design.md</code> for full design rationale</p>
+    </div>
+
+  </div>
+</body>
+</html>

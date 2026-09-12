@@ -1,0 +1,310 @@
+═══════════════════════════════════════════════════════════════
+COMMANDER: Korvold, Fae-Cursed King
+═══════════════════════════════════════════════════════════════
+Canonical key: korvold-fae-cursed-king
+Color identity: BRG
+Scryfall ID: null
+Leadership type: single
+Salt score: 1.6494156928213697
+Similar commanders: [
+  {},
+  {},
+  {},
+  {},
+  {},
+  {}
+]
+EDHREC synced: 2026-08-05T10:52:33.955+00:00
+
+═══════════════════════════════════════════════════════════════
+INSIGHTS (21 total)
+═══════════════════════════════════════════════════════════════
+
+--- [1] TREASURE-ARISTOCRATS ---
+Type: strategy
+Confidence: 0.95
+Source: youtube
+Taxonomy tags: ["sacrifice","treasure","card-advantage","voltron-secondary"]
+Card mentions: null
+Content:
+Korvold is one of the most powerful Jund commanders because every sacrifice becomes card advantage and commander damage pressure. The treasure-aristocrats build leverages treasure tokens as the primary sacrifice fodder since they're self-sacrificing and generate mana. Your gameplan: deploy treasure generators early, land Korvold, then chain sacrifices to draw through your deck while growing Korvold to lethal commander damage. The deck can pivot between value-grinding and explosive turns where you sacrifice 10+ permanents. Commander damage is always relevant because Korvold grows so quickly — often attacking for 10+ damage by turn 6-7.
+
+--- [2] TREASURE-ARISTOCRATS ---
+Type: card_recommendation
+Confidence: 0.95
+Source: youtube
+Taxonomy tags: ["treasure","token-doubling","value-engine"]
+Card mentions: null
+Content:
+Academy Manufacturer is the single highest-impact card for treasure Korvold. When you create a Clue, Food, or Treasure, you instead create one of each — tripling your sacrifice fodder. With Korvold out, every treasure producer now draws 3 cards and adds 3 counters. Xorn doubles your treasure output (create 1, get 2 instead). Dockside Extortionist is the explosive play that can generate 5-10+ treasures in a single ETB. Tireless Provisioner gives landfall treasure generation that's extremely consistent. Pitiless Plunderer turns every creature death into a treasure, creating sacrifice chains. Goldspan Dragon doubles mana from treasures while generating more on attacks.
+
+--- [3] TREASURE-ARISTOCRATS ---
+Type: synergy
+Confidence: 0.9
+Source: youtube
+Taxonomy tags: ["sacrifice","ping-damage","death-triggers"]
+Card mentions: null
+Content:
+Mayhem Devil is your removal engine — every sacrifice (yours AND opponents' fetch lands) pings any target. With Korvold generating constant sacrifices, Mayhem Devil becomes a machine gun. Chatterfang, Squirrel General creates a squirrel for every token you make, then can sacrifice squirrels to remove creatures. Marionette Master with +1/+1 counters deals 4+ damage whenever an artifact is sacrificed — treasure chains become lethal quickly. Dictate of Erebos forces opponents to sacrifice whenever your creatures die, keeping the board clear. Prossh, Skyraider of Kher was the previous Jund sacrifice king and still provides 6 sacrifice-ready Kobolds when cast.
+
+--- [4] TREASURE-ARISTOCRATS ---
+Type: budget_alternative
+Confidence: 0.9
+Source: youtube
+Taxonomy tags: ["budget","treasure","sacrifice"]
+Card mentions: null
+Content:
+Pitiless Plunderer ($3) does Dockside-like work over multiple turns instead of one explosive play. Deadly Dispute ($0.50) is incredibly efficient — sacrifice something, draw 2, make a treasure for just 2 mana. Revel in Riches doubles as treasure generation and alternate win condition. Ruthless Knave lets you sacrifice creatures for treasures or cash in treasures for cards. Tireless Provisioner and Tireless Tracker provide consistent value without premium price tags. Reassembling Skeleton ($0.25) returns from graveyard repeatedly for infinite sacrifice loops. Viscera Seer and Carrion Feeder are free sacrifice outlets under $1. The deck functions well on budget because treasure synergies are printed at common/uncommon frequently.
+
+--- [5] TREASURE-ARISTOCRATS ---
+Type: common_mistake
+Confidence: 0.85
+Source: youtube
+Taxonomy tags: ["threat-assessment","politics","pacing"]
+Card mentions: null
+Content:
+Korvold has a massive target on its back — players know how dangerous it is and will focus you. The biggest mistake is casting Korvold without protection or without a way to immediately capitalize. Wait until you have 3-4 permanents ready to sacrifice or a way to protect Korvold. Don't forget Korvold's ETB and attack triggers are mandatory — you MUST sacrifice something. Build with enough cheap permanents that you're never stuck sacrificing lands or important pieces. Another mistake is over-focusing on treasure generation without enough payoffs — you need Mayhem Devil, Marionette Master, or commander damage as actual win conditions, not just card advantage.
+
+--- [6] TREASURE-ARISTOCRATS ---
+Type: upgrade_path
+Confidence: 0.9
+Source: youtube
+Taxonomy tags: ["upgrades","combo","fast-mana"]
+Card mentions: null
+Content:
+First upgrade: Dockside Extortionist — explosive treasure generation that can generate 5-15 treasures in one ETB. Second: Old Gnawbone — makes treasures equal to combat damage dealt, often 10+ per attack. Third: tutors like Demonic Tutor, Vampiric Tutor, and Diabolic Intent (which also sacrifices) to find combo pieces consistently. Fourth: Finale of Devastation as a finisher that can tutor Dockside or pump your board. Consider Temur Sabertooth to bounce and replay Dockside for repeated treasure explosions. For the combo-inclined, Reassembling Skeleton + Pitiless Plunderer + Phyrexian Altar creates infinite sacrifices, draws, and commander damage.
+
+--- [7] SACRIFICE ---
+Type: strategy
+Confidence: 0.9
+Source: edhrec
+Taxonomy tags: ["themes/sacrifice"]
+Card mentions: null
+Content:
+1,658 decks (8%) build Korvold, Fae-Cursed King with a Sacrifice focus.
+
+--- [8] TREASURE ---
+Type: strategy
+Confidence: 0.9
+Source: edhrec
+Taxonomy tags: ["themes/treasure"]
+Card mentions: null
+Content:
+1,630 decks (8%) build Korvold, Fae-Cursed King with a Treasure focus.
+
+--- [9] ARISTOCRATS ---
+Type: strategy
+Confidence: 0.867
+Source: edhrec
+Taxonomy tags: ["archetypes/aristocrats"]
+Card mentions: null
+Content:
+867 decks (4%) build Korvold, Fae-Cursed King with a Aristocrats focus.
+
+--- [10] TOKENS ---
+Type: strategy
+Confidence: 0.734
+Source: edhrec
+Taxonomy tags: ["themes/tokens"]
+Card mentions: null
+Content:
+734 decks (4%) build Korvold, Fae-Cursed King with a Tokens focus.
+
+--- [11] COMBO ---
+Type: strategy
+Confidence: 0.64
+Source: edhrec
+Taxonomy tags: ["archetypes/combo"]
+Card mentions: null
+Content:
+640 decks (3%) build Korvold, Fae-Cursed King with a Combo focus.
+
+--- [12] +1/+1 COUNTERS ---
+Type: strategy
+Confidence: 0.432
+Source: edhrec
+Taxonomy tags: ["themes/counters"]
+Card mentions: null
+Content:
+432 decks (2%) build Korvold, Fae-Cursed King with a +1/+1 Counters focus.
+
+--- [13] LANDS MATTER ---
+Type: strategy
+Confidence: 0.415
+Source: edhrec
+Taxonomy tags: ["archetypes/lands-matter"]
+Card mentions: null
+Content:
+415 decks (2%) build Korvold, Fae-Cursed King with a Lands Matter focus.
+
+--- [14] CEDH ---
+Type: strategy
+Confidence: 0.355
+Source: edhrec
+Taxonomy tags: []
+Card mentions: null
+Content:
+355 decks (2%) build Korvold, Fae-Cursed King with a cEDH focus.
+
+--- [15] REANIMATOR ---
+Type: strategy
+Confidence: 0.214
+Source: edhrec
+Taxonomy tags: ["archetypes/reanimator"]
+Card mentions: null
+Content:
+214 decks (1%) build Korvold, Fae-Cursed King with a Reanimator focus.
+
+--- [16] RAMP ---
+Type: strategy
+Confidence: 0.2
+Source: edhrec
+Taxonomy tags: ["archetypes/ramp"]
+Card mentions: null
+Content:
+200 decks (1%) build Korvold, Fae-Cursed King with a Ramp focus.
+
+--- [17] MIDRANGE ---
+Type: strategy
+Confidence: 0.19
+Source: edhrec
+Taxonomy tags: []
+Card mentions: null
+Content:
+190 decks (1%) build Korvold, Fae-Cursed King with a Midrange focus.
+
+--- [18] ARTIFACTS ---
+Type: strategy
+Confidence: 0.172
+Source: edhrec
+Taxonomy tags: ["themes/artifacts"]
+Card mentions: null
+Content:
+172 decks (1%) build Korvold, Fae-Cursed King with a Artifacts focus.
+
+--- [19] AGGRO ---
+Type: strategy
+Confidence: 0.119
+Source: edhrec
+Taxonomy tags: ["archetypes/aggro"]
+Card mentions: null
+Content:
+119 decks (1%) build Korvold, Fae-Cursed King with a Aggro focus.
+
+--- [20] VOLTRON ---
+Type: strategy
+Confidence: 0.102
+Source: edhrec
+Taxonomy tags: ["archetypes/voltron"]
+Card mentions: null
+Content:
+102 decks (1%) build Korvold, Fae-Cursed King with a Voltron focus.
+
+--- [21] GOBLINS ---
+Type: strategy
+Confidence: 0.101
+Source: edhrec
+Taxonomy tags: ["tribes/goblins"]
+Card mentions: null
+Content:
+101 decks (0%) build Korvold, Fae-Cursed King with a Goblins focus.
+
+═══════════════════════════════════════════════════════════════
+CARD RECOMMENDATIONS (50 total)
+═══════════════════════════════════════════════════════════════
+1. Goldspan Dragon | synergy: 27.0% | inclusion: 35.0% | category: undefined
+2. Ruthless Technomancer | synergy: 26.7% | inclusion: 32.7% | category: undefined
+3. Professional Face-Breaker | synergy: 25.5% | inclusion: 34.0% | category: undefined
+4. Ashnod's Altar | synergy: 25.0% | inclusion: 35.1% | category: undefined
+5. Ragavan, Nimble Pilferer | synergy: 24.0% | inclusion: 29.5% | category: undefined
+6. Viscera Seer | synergy: 23.1% | inclusion: 33.0% | category: undefined
+7. Bootleggers' Stash | synergy: 23.0% | inclusion: 28.7% | category: undefined
+8. Xorn | synergy: 22.3% | inclusion: 28.4% | category: undefined
+9. Zulaport Cutthroat | synergy: 22.1% | inclusion: 31.5% | category: undefined
+10. Reassembling Skeleton | synergy: 21.1% | inclusion: 24.8% | category: undefined
+11. Old Gnawbone | synergy: 20.8% | inclusion: 27.3% | category: undefined
+12. Revel in Riches | synergy: 20.3% | inclusion: 25.3% | category: undefined
+13. Squee, the Immortal | synergy: 20.2% | inclusion: 24.1% | category: undefined
+14. Deflecting Swat | synergy: 20.0% | inclusion: 35.9% | category: undefined
+15. Awakening Zone | synergy: 19.9% | inclusion: 23.9% | category: undefined
+16. Mahadi, Emporium Master | synergy: 19.6% | inclusion: 28.6% | category: undefined
+17. Lotus Petal | synergy: 19.6% | inclusion: 24.7% | category: undefined
+18. Phyrexian Tower | synergy: 19.1% | inclusion: 28.6% | category: undefined
+19. Bloodstained Mire | synergy: 18.8% | inclusion: 55.7% | category: undefined
+20. Verdant Catacombs | synergy: 18.7% | inclusion: 53.6% | category: undefined
+21. Blood Artist | synergy: 18.4% | inclusion: 28.6% | category: undefined
+22. Wooded Foothills | synergy: 18.0% | inclusion: 54.9% | category: undefined
+23. Abrupt Decay | synergy: 17.8% | inclusion: 29.2% | category: undefined
+24. Marionette Apprentice | synergy: 17.7% | inclusion: 22.5% | category: undefined
+25. Veil of Summer | synergy: 17.1% | inclusion: 22.9% | category: undefined
+26. Black Market Connections | synergy: 17.1% | inclusion: 24.6% | category: undefined
+27. Tinder Wall | synergy: 17.0% | inclusion: 21.2% | category: undefined
+28. Culling the Weak | synergy: 17.0% | inclusion: 21.0% | category: undefined
+29. Marsh Flats | synergy: 16.9% | inclusion: 26.2% | category: undefined
+30. Windswept Heath | synergy: 16.8% | inclusion: 27.5% | category: undefined
+31. Reliquary Tower | synergy: 16.7% | inclusion: 35.9% | category: undefined
+32. Polluted Delta | synergy: 16.2% | inclusion: 25.2% | category: undefined
+33. Misty Rainforest | synergy: 15.6% | inclusion: 25.2% | category: undefined
+34. Arid Mesa | synergy: 15.6% | inclusion: 24.3% | category: undefined
+35. Grim Hireling | synergy: 15.3% | inclusion: 19.1% | category: undefined
+36. The Reaver Cleaver | synergy: 15.2% | inclusion: 21.6% | category: undefined
+37. Goblin Bombardment | synergy: 14.8% | inclusion: 24.4% | category: undefined
+38. Prossh, Skyraider of Kher | synergy: 14.8% | inclusion: 16.6% | category: undefined
+39. Phyrexian Altar | synergy: 14.7% | inclusion: 21.5% | category: undefined
+40. Pyroblast | synergy: 14.6% | inclusion: 19.1% | category: undefined
+41. Red Elemental Blast | synergy: 14.5% | inclusion: 19.1% | category: undefined
+42. Fabled Passage | synergy: 14.5% | inclusion: 40.6% | category: undefined
+43. Treasure Vault | synergy: 14.5% | inclusion: 17.8% | category: undefined
+44. Ziatora, the Incinerator | synergy: 14.5% | inclusion: 27.7% | category: undefined
+45. Stomping Ground | synergy: 14.3% | inclusion: 64.0% | category: undefined
+46. Scalding Tarn | synergy: 14.1% | inclusion: 21.9% | category: undefined
+47. Delighted Halfling | synergy: 13.6% | inclusion: 25.5% | category: undefined
+48. Blood Crypt | synergy: 13.5% | inclusion: 59.0% | category: undefined
+49. Noxious Revival | synergy: 13.2% | inclusion: 18.9% | category: undefined
+50. Gilded Goose | synergy: 12.8% | inclusion: 15.0% | category: undefined
+
+═══════════════════════════════════════════════════════════════
+TAXONOMY LINKS (42 total)
+═══════════════════════════════════════════════════════════════
+- undefined (weight: undefined, source: ai)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)
+- undefined (weight: undefined, source: edhrec)

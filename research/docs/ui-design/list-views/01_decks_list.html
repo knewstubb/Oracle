@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Decks List View - Wireframe</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .wireframe-note {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 12px 16px;
+      margin-bottom: 24px;
+      font-size: 14px;
+    }
+    .mana-pip {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: bold;
+      color: white;
+    }
+    .mana-w { background: #f9fafb; color: #374151; border: 1px solid #d1d5db; }
+    .mana-u { background: #3b82f6; }
+    .mana-b { background: #1f2937; }
+    .mana-r { background: #ef4444; }
+    .mana-g { background: #22c55e; }
+  </style>
+</head>
+<body class="bg-gray-900 text-gray-100">
+  
+  <!-- Top Navigation -->
+  <nav class="bg-gray-800 border-b border-gray-700 px-4 py-3">
+    <div class="flex items-center justify-between">
+      <!-- Left: Logo + Main Nav -->
+      <div class="flex items-center gap-6">
+        <!-- Logo -->
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">O</div>
+          <span class="font-semibold text-lg">The Oracle</span>
+        </div>
+        
+        <!-- Main Nav -->
+        <div class="flex items-center gap-1">
+          <a href="#" class="px-3 py-2 rounded-lg bg-gray-700 text-white">Decks</a>
+          <a href="#" class="px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-700 hover:text-white">Collection</a>
+          <a href="#" class="px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-700 hover:text-white">Wishlist</a>
+          <div class="relative">
+            <button class="px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-1">
+              Tools
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Center: Search -->
+      <div class="flex-1 max-w-md mx-8">
+        <div class="relative">
+          <input type="text" placeholder="Search cards... ⌘K" 
+                 class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 pl-10 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+          <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+        </div>
+      </div>
+      
+      <!-- Right: Settings + Avatar -->
+      <div class="flex items-center gap-3">
+        <button class="w-9 h-9 rounded-lg bg-gray-700 flex items-center justify-center text-gray-300 hover:bg-gray-600 hover:text-white transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+        </button>
+        <button class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-medium text-sm hover:ring-2 hover:ring-indigo-400 hover:ring-offset-2 hover:ring-offset-gray-800 transition">
+          BK
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-6xl mx-auto p-6">
+    
+    <div class="wireframe-note">
+      <strong>Design Rationale:</strong> Cards (not tables) because decks are visual — the commander image is a key identifier. 
+      Grid layout allows scanning multiple decks quickly. Playability badge is the hero element.
+    </div>
+
+    <!-- Toolbar -->
+    <div class="bg-gray-800 rounded-lg p-4 mb-6 flex flex-wrap items-center gap-4">
+      <!-- Sort -->
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-gray-400">Sort:</span>
+        <select class="bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm">
+          <option selected>Playability → Modified</option>
+          <option>Alphabetical (A-Z)</option>
+          <option>Last Played</option>
+          <option>Last Modified</option>
+        </select>
+      </div>
+      
+      <!-- Filters -->
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-gray-400">Status:</span>
+        <select class="bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm">
+          <option selected>All</option>
+          <option>Active</option>
+          <option>Brewing</option>
+          <option>Graveyard</option>
+        </select>
+      </div>
+      
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-gray-400">Colors:</span>
+        <div class="flex gap-1">
+          <button class="mana-pip mana-w opacity-50">W</button>
+          <button class="mana-pip mana-u">U</button>
+          <button class="mana-pip mana-b">B</button>
+          <button class="mana-pip mana-r">R</button>
+          <button class="mana-pip mana-g opacity-50">G</button>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-gray-400">Playability:</span>
+        <select class="bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm">
+          <option selected>All</option>
+          <option>Ready to Play</option>
+          <option>Needs Work</option>
+        </select>
+      </div>
+      
+      <div class="ml-auto">
+        <button class="bg-indigo-600 hover:bg-indigo-700 px-4 py-1.5 rounded text-sm font-medium">
+          + New Deck
+        </button>
+      </div>
+    </div>
+
+    <!-- Deck Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      
+      <!-- Deck Card: Ready to Play -->
+      <div class="bg-gray-800 rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition cursor-pointer">
+        <div class="flex">
+          <!-- Commander Image -->
+          <div class="w-24 h-32 bg-gray-700 flex-shrink-0 flex items-center justify-center text-gray-500 text-xs">
+            [Commander Art]
+          </div>
+          <!-- Info -->
+          <div class="flex-1 p-3">
+            <div class="flex items-start justify-between mb-1">
+              <h3 class="font-semibold text-white">Prosper, Tome-Bound</h3>
+              <!-- Playability Badge -->
+              <span class="bg-green-600 text-white text-xs px-2 py-0.5 rounded-full font-medium">
+                Ready
+              </span>
+            </div>
+            <p class="text-sm text-gray-400 mb-2">Prosper, Tome-Bound</p>
+            
+            <!-- Color Identity -->
+            <div class="flex gap-1 mb-2">
+              <span class="mana-pip mana-b">B</span>
+              <span class="mana-pip mana-r">R</span>
+            </div>
+            
+            <!-- Meta Row -->
+            <div class="flex items-center gap-3 text-xs text-gray-500">
+              <span class="bg-gray-700 px-2 py-0.5 rounded">Active</span>
+              <span>Bracket 3</span>
+              <span>Played 2d ago</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Deck Card: Needs Resolution -->
+      <div class="bg-gray-800 rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition cursor-pointer">
+        <div class="flex">
+          <div class="w-24 h-32 bg-gray-700 flex-shrink-0 flex items-center justify-center text-gray-500 text-xs">
+            [Commander Art]
+          </div>
+          <div class="flex-1 p-3">
+            <div class="flex items-start justify-between mb-1">
+              <h3 class="font-semibold text-white">Korvold Sacrifice</h3>
+              <!-- Playability Badge - Needs Work -->
+              <span class="bg-amber-600 text-white text-xs px-2 py-0.5 rounded-full font-medium">
+                3 to resolve
+              </span>
+            </div>
+            <p class="text-sm text-gray-400 mb-2">Korvold, Fae-Cursed King</p>
+            
+            <div class="flex gap-1 mb-2">
+              <span class="mana-pip mana-b">B</span>
+              <span class="mana-pip mana-r">R</span>
+              <span class="mana-pip mana-g">G</span>
+            </div>
+            
+            <div class="flex items-center gap-3 text-xs text-gray-500">
+              <span class="bg-gray-700 px-2 py-0.5 rounded">Active</span>
+              <span>Bracket 4</span>
+              <span>Played 1w ago</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Deck Card: Brewing -->
+      <div class="bg-gray-800 rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition cursor-pointer">
+        <div class="flex">
+          <div class="w-24 h-32 bg-gray-700 flex-shrink-0 flex items-center justify-center text-gray-500 text-xs">
+            [Commander Art]
+          </div>
+          <div class="flex-1 p-3">
+            <div class="flex items-start justify-between mb-1">
+              <h3 class="font-semibold text-white">Atraxa Superfriends</h3>
+              <!-- Playability Badge - Brewing -->
+              <span class="bg-purple-600 text-white text-xs px-2 py-0.5 rounded-full font-medium">
+                12 unowned
+              </span>
+            </div>
+            <p class="text-sm text-gray-400 mb-2">Atraxa, Praetors' Voice</p>
+            
+            <div class="flex gap-1 mb-2">
+              <span class="mana-pip mana-w">W</span>
+              <span class="mana-pip mana-u">U</span>
+              <span class="mana-pip mana-b">B</span>
+              <span class="mana-pip mana-g">G</span>
+            </div>
+            
+            <div class="flex items-center gap-3 text-xs text-gray-500">
+              <span class="bg-purple-900 text-purple-300 px-2 py-0.5 rounded">Brewing</span>
+              <span>Bracket 4</span>
+              <span>Modified 3d ago</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Deck Card: Graveyard -->
+      <div class="bg-gray-800 rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition cursor-pointer opacity-60">
+        <div class="flex">
+          <div class="w-24 h-32 bg-gray-700 flex-shrink-0 flex items-center justify-center text-gray-500 text-xs">
+            [Commander Art]
+          </div>
+          <div class="flex-1 p-3">
+            <div class="flex items-start justify-between mb-1">
+              <h3 class="font-semibold text-white">Old Teysa Deck</h3>
+              <span class="bg-gray-600 text-gray-300 text-xs px-2 py-0.5 rounded-full font-medium">
+                Archived
+              </span>
+            </div>
+            <p class="text-sm text-gray-400 mb-2">Teysa Karlov</p>
+            
+            <div class="flex gap-1 mb-2">
+              <span class="mana-pip mana-w">W</span>
+              <span class="mana-pip mana-b">B</span>
+            </div>
+            
+            <div class="flex items-center gap-3 text-xs text-gray-500">
+              <span class="bg-gray-700 px-2 py-0.5 rounded">Graveyard</span>
+              <span>Bracket 2</span>
+              <span>Played 3mo ago</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Legend -->
+    <div class="mt-8 p-4 bg-gray-800 rounded-lg">
+      <h3 class="text-sm font-semibold mb-3 text-gray-300">Playability Badge Legend</h3>
+      <div class="flex flex-wrap gap-4 text-sm">
+        <div class="flex items-center gap-2">
+          <span class="bg-green-600 text-white text-xs px-2 py-0.5 rounded-full">Ready</span>
+          <span class="text-gray-400">All cards accounted for</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="bg-amber-600 text-white text-xs px-2 py-0.5 rounded-full">N to resolve</span>
+          <span class="text-gray-400">Cards need pulling/assignment</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="bg-purple-600 text-white text-xs px-2 py-0.5 rounded-full">N unowned</span>
+          <span class="text-gray-400">Brewing deck with missing cards</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="bg-gray-600 text-gray-300 text-xs px-2 py-0.5 rounded-full">Archived</span>
+          <span class="text-gray-400">Graveyard deck</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

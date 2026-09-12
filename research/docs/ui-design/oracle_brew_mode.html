@@ -1,0 +1,341 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+.shell { background: #0f0f0f; border-radius: var(--border-radius-lg); overflow: hidden; font-family: var(--font-sans); }
+
+.chat-topbar { display: flex; align-items: center; gap: 12px; padding: 13px 20px; border-bottom: 0.5px solid rgba(255,255,255,0.06); }
+.back-btn { font-size: 12px; color: rgba(255,255,255,0.35); background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: var(--border-radius-md); }
+.mode-badge { font-size: 10px; font-weight: 500; padding: 3px 8px; border-radius: 99px; background: rgba(55,138,221,0.15); color: #378ADD; }
+.topbar-title { font-size: 13px; font-weight: 500; color: #e8e8e6; }
+.topbar-sub { font-size: 11px; color: rgba(255,255,255,0.35); }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.session-indicator { font-size: 10px; color: rgba(255,255,255,0.25); display: flex; align-items: center; gap: 4px; }
+.session-dot { width: 5px; height: 5px; border-radius: 50%; background: #378ADD; }
+.mode-toggle { display: flex; background: rgba(255,255,255,0.05); border: 0.5px solid rgba(255,255,255,0.08); border-radius: var(--border-radius-md); overflow: hidden; }
+.mt-btn { padding: 5px 12px; font-size: 11px; color: rgba(255,255,255,0.3); cursor: pointer; border: none; background: none; }
+.mt-btn.active { background: rgba(55,138,221,0.2); color: #378ADD; }
+
+.chat-layout { display: flex; }
+.chat-main { flex: 1; display: flex; flex-direction: column; border-right: 0.5px solid rgba(255,255,255,0.06); }
+.chat-thread { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+
+.msg { display: flex; flex-direction: column; gap: 4px; }
+.msg.oracle { align-items: flex-start; }
+.msg.user { align-items: flex-end; }
+.msg-label { font-size: 10px; color: rgba(255,255,255,0.25); padding: 0 4px; }
+.bubble { max-width: 88%; padding: 9px 13px; font-size: 12px; line-height: 1.6; }
+.bubble.oracle { background: rgba(255,255,255,0.06); color: #d4d4d0; border-left: 2px solid rgba(55,138,221,0.4); border-radius: 0; }
+.bubble.user { background: rgba(55,138,221,0.1); color: #e8e8e6; border: 0.5px solid rgba(55,138,221,0.2); border-radius: var(--border-radius-lg); }
+
+.commander-confirm-card { background: rgba(55,138,221,0.06); border: 0.5px solid rgba(55,138,221,0.2); border-radius: var(--border-radius-lg); overflow: hidden; max-width: 95%; }
+.cc-header { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 0.5px solid rgba(55,138,221,0.12); }
+.cc-art { width: 40px; height: 56px; border-radius: 4px; background: linear-gradient(135deg, #0d1a2e, #1a0d2e); flex-shrink: 0; }
+.cc-name { font-size: 14px; font-weight: 500; color: #e8e8e6; margin-bottom: 3px; }
+.cc-type { font-size: 11px; color: rgba(255,255,255,0.35); margin-bottom: 5px; }
+.cc-pips { display: flex; gap: 4px; }
+.pip { width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 500; }
+.pip-w { background: #F9FAF4; color: #444; }
+.pip-u { background: #0E68AB; color: #fff; }
+.pip-b { background: #150B00; color: #ccc; border: 0.5px solid rgba(255,255,255,0.15); }
+.pip-r { background: #D3202A; color: #fff; }
+.pip-g { background: #00733E; color: #fff; }
+.pip-c { background: #888780; color: #fff; }
+
+.cc-body { padding: 10px 14px; font-size: 12px; color: rgba(255,255,255,0.5); line-height: 1.5; }
+.cc-actions { display: flex; gap: 8px; padding: 10px 14px; border-top: 0.5px solid rgba(55,138,221,0.12); background: rgba(255,255,255,0.02); }
+.cc-btn { flex: 1; padding: 7px; border-radius: var(--border-radius-md); font-size: 11px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; border: 0.5px solid transparent; }
+.cc-btn.confirm { background: rgba(55,138,221,0.2); border-color: rgba(55,138,221,0.4); color: #378ADD; }
+.cc-btn.change { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.4); }
+
+.chat-input-area { padding: 12px 16px; border-top: 0.5px solid rgba(255,255,255,0.06); display: flex; gap: 8px; align-items: flex-end; }
+.chat-input { flex: 1; background: rgba(255,255,255,0.05); border: 0.5px solid rgba(255,255,255,0.1); border-radius: var(--border-radius-lg); padding: 9px 13px; font-size: 12px; color: #e8e8e6; resize: none; font-family: var(--font-sans); }
+.chat-input::placeholder { color: rgba(255,255,255,0.2); }
+.send-btn { width: 34px; height: 34px; border-radius: var(--border-radius-md); background: #378ADD; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; }
+
+.chat-right { width: 220px; display: flex; flex-direction: column; flex-shrink: 0; }
+.right-tabs { display: flex; border-bottom: 0.5px solid rgba(255,255,255,0.06); }
+.rt { flex: 1; padding: 8px; font-size: 11px; text-align: center; color: rgba(255,255,255,0.3); cursor: pointer; border-bottom: 2px solid transparent; }
+.rt.active { color: #378ADD; border-bottom-color: #378ADD; }
+
+.right-panel { padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+.rp-label { font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.25); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+
+.colour-picker { display: flex; flex-direction: column; gap: 8px; }
+.colour-row { display: flex; gap: 6px; justify-content: center; }
+.colour-btn { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; border: 2px solid transparent; transition: border-color 0.1s; position: relative; }
+.colour-btn.selected { border-color: rgba(255,255,255,0.6); }
+.colour-btn.selected::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 0.5px solid rgba(255,255,255,0.2); }
+.cb-w { background: #F9FAF4; color: #444; }
+.cb-u { background: #0E68AB; color: #fff; }
+.cb-b { background: #150B00; color: #aaa; border: 1px solid rgba(255,255,255,0.1); }
+.cb-r { background: #D3202A; color: #fff; }
+.cb-g { background: #00733E; color: #fff; }
+.cb-c { background: #888780; color: #fff; }
+
+.identity-display { background: rgba(255,255,255,0.04); border: 0.5px solid rgba(255,255,255,0.08); border-radius: var(--border-radius-md); padding: 8px 10px; }
+.id-label { font-size: 10px; color: rgba(255,255,255,0.25); margin-bottom: 5px; }
+.id-value { font-size: 11px; color: #378ADD; font-weight: 500; }
+.id-note { font-size: 10px; color: rgba(255,255,255,0.2); margin-top: 3px; }
+
+.hint-list { display: flex; flex-direction: column; gap: 6px; }
+.hint-item { background: rgba(255,255,255,0.03); border: 0.5px solid rgba(255,255,255,0.07); border-radius: var(--border-radius-md); padding: 8px 10px; cursor: pointer; }
+.hint-item:hover { background: rgba(55,138,221,0.06); border-color: rgba(55,138,221,0.2); }
+.hint-text { font-size: 11px; color: rgba(255,255,255,0.35); line-height: 1.4; }
+.hint-item:hover .hint-text { color: rgba(55,138,221,0.8); }
+
+.divider-line { border: none; border-top: 0.5px solid rgba(255,255,255,0.06); margin: 4px 0; }
+
+.section-b { margin-top: 2rem; }
+.section-label-outer { font-size: 11px; font-weight: 500; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; padding: 0 2px; }
+
+.commander-confirmed-panel { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.cmd-art-large { width: 100%; padding-top: 60%; background: linear-gradient(135deg, #0d1a2e 0%, #1a0d2e 50%, #0d2e1a 100%); border-radius: var(--border-radius-md); position: relative; overflow: hidden; }
+.cmd-art-overlay { position: absolute; bottom: 0; left: 0; right: 0; padding: 8px; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); }
+.cmd-art-name { font-size: 12px; font-weight: 500; color: #fff; }
+.cmd-art-type { font-size: 10px; color: rgba(255,255,255,0.5); }
+.cmd-pips-row { display: flex; gap: 4px; margin-top: 4px; }
+
+.skeleton-section { display: flex; flex-direction: column; gap: 4px; }
+.sk-cat-row { display: flex; align-items: center; gap: 6px; padding: 5px 0; border-bottom: 0.5px solid rgba(255,255,255,0.04); }
+.sk-cat-row:last-child { border-bottom: none; }
+.sk-cat-name { font-size: 11px; color: rgba(255,255,255,0.4); flex: 1; }
+.sk-cat-bar { flex: 1; height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; max-width: 60px; }
+.sk-cat-fill { height: 100%; border-radius: 2px; }
+.sk-fill-own { background: #1D9E75; }
+.sk-fill-need { background: rgba(255,255,255,0.15); }
+.sk-owned { font-size: 10px; color: #1D9E75; min-width: 22px; text-align: right; }
+.sk-needed { font-size: 10px; color: rgba(255,255,255,0.2); }
+
+.sk-legend { display: flex; gap: 10px; margin-top: 4px; }
+.sk-leg-item { display: flex; align-items: center; gap: 4px; font-size: 9px; color: rgba(255,255,255,0.25); }
+.sk-leg-dot { width: 6px; height: 6px; border-radius: 1px; }
+</style>
+
+<div style="padding: 0.5rem 0.25rem; display: flex; flex-direction: column; gap: 2rem;">
+  <h2 class="sr-only">OracleChat brew mode — two states: investigating with colour picker, and commander confirmed with skeleton</h2>
+
+  <div style="font-size:11px; font-weight:500; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:0.08em; padding:0 2px; margin-bottom:6px;">State 1 — Investigating (commander not yet confirmed)</div>
+
+  <div class="shell">
+    <div class="chat-topbar">
+      <button class="back-btn"><i class="ti ti-arrow-left" style="font-size:13px;" aria-hidden="true"></i> Decks</button>
+      <div style="width:0.5px; height:16px; background:rgba(255,255,255,0.08);"></div>
+      <div>
+        <div style="display:flex; align-items:center; gap:7px;">
+          <span class="topbar-title">New deck</span>
+          <span class="mode-badge">Brew</span>
+        </div>
+        <div class="topbar-sub">Tell Oracle what you want to build</div>
+      </div>
+      <div class="topbar-right">
+        <div class="session-indicator"><div class="session-dot"></div> Session active</div>
+        <div class="mode-toggle">
+          <button class="mt-btn">Debrief</button>
+          <button class="mt-btn active">Brew</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-layout">
+      <div class="chat-main">
+        <div class="chat-thread">
+          <div class="msg oracle">
+            <span class="msg-label">Oracle</span>
+            <div class="bubble oracle">What do you want to build? You can name a commander, or just describe what you want the deck to do — I'll figure out the rest.</div>
+          </div>
+          <div class="msg user">
+            <span class="msg-label">You</span>
+            <div class="bubble user">I want something that punishes my opponents for drawing cards. Preferably blue/black.</div>
+          </div>
+          <div class="msg oracle">
+            <span class="msg-label">Oracle</span>
+            <div class="bubble oracle">Good space. A few commanders fit that well in Dimir — I'm thinking Nekusar, the Mindrazer for wheel-based group slug, or Phenax, God of Deception if you want to lean into mill as the punishment. There's also Obeka if you want something more unusual.<br><br>Which direction pulls you more — making opponents draw too much, or punishing them for drawing at all?</div>
+          </div>
+          <div class="msg user">
+            <span class="msg-label">You</span>
+            <div class="bubble user">Making them draw too much. Wheels and that kind of thing.</div>
+          </div>
+          <div class="msg oracle">
+            <span class="msg-label">Oracle</span>
+            <div class="bubble oracle">Nekusar is the move then. Wheels become burn spells, every draw they make costs them life. Classic bracket 3 build. What power level are you aiming for — do you want this to be competitive at your table or more of a fun chaos deck?</div>
+          </div>
+        </div>
+        <div class="chat-input-area">
+          <textarea class="chat-input" placeholder="Reply to Oracle..." rows="1"></textarea>
+          <button class="send-btn"><i class="ti ti-arrow-up" style="font-size:15px;" aria-hidden="true"></i></button>
+        </div>
+      </div>
+
+      <div class="chat-right">
+        <div class="right-tabs">
+          <div class="rt active">Identity</div>
+          <div class="rt">Hints</div>
+        </div>
+        <div class="right-panel">
+          <div>
+            <div class="rp-label">Colour identity</div>
+            <div class="colour-picker">
+              <div class="colour-row">
+                <button class="colour-btn cb-w" aria-label="White" title="White">W</button>
+                <button class="colour-btn cb-u selected" aria-label="Blue" title="Blue">U</button>
+                <button class="colour-btn cb-b selected" aria-label="Black" title="Black">B</button>
+                <button class="colour-btn cb-r" aria-label="Red" title="Red">R</button>
+                <button class="colour-btn cb-g" aria-label="Green" title="Green">G</button>
+              </div>
+              <div class="identity-display">
+                <div class="id-label">Selected identity</div>
+                <div class="id-value">Dimir (U/B)</div>
+                <div class="id-note">Oracle will filter suggestions to this identity</div>
+              </div>
+            </div>
+          </div>
+          <hr class="divider-line">
+          <div>
+            <div class="rp-label">Try saying...</div>
+            <div class="hint-list">
+              <div class="hint-item"><span class="hint-text">"I want something aggressive that wins fast"</span></div>
+              <div class="hint-item"><span class="hint-text">"Something that combos off but isn't too competitive"</span></div>
+              <div class="hint-item"><span class="hint-text">"I have [[Sol Ring]] and want to build around it"</span></div>
+              <div class="hint-item"><span class="hint-text">"Suggest a commander from my collection"</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="font-size:11px; font-weight:500; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:0.08em; padding:0 2px; margin-bottom:6px; margin-top: 1rem;">State 2 — Commander confirmed, skeleton building</div>
+
+  <div class="shell">
+    <div class="chat-topbar">
+      <button class="back-btn"><i class="ti ti-arrow-left" style="font-size:13px;" aria-hidden="true"></i> Decks</button>
+      <div style="width:0.5px; height:16px; background:rgba(255,255,255,0.08);"></div>
+      <div>
+        <div style="display:flex; align-items:center; gap:7px;">
+          <span class="topbar-title">Nekusar, the Mindrazer</span>
+          <span class="mode-badge">Brew</span>
+        </div>
+        <div class="topbar-sub">Grixis · Bracket 3 · Wheels/Group slug</div>
+      </div>
+      <div class="topbar-right">
+        <div class="session-indicator"><div class="session-dot"></div> Session active</div>
+        <div class="mode-toggle">
+          <button class="mt-btn">Debrief</button>
+          <button class="mt-btn active">Brew</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-layout">
+      <div class="chat-main">
+        <div class="chat-thread">
+          <div class="msg oracle">
+            <span class="msg-label">Oracle</span>
+            <div class="bubble oracle">Nekusar confirmed. Here's what I'm passing to the analyst:<br><br>
+            <span style="color:rgba(255,255,255,0.35); font-size:11px;">Commander: Nekusar · Identity: Grixis (U/B/R) · Archetype: Group slug/wheels · Bracket: 3 · Known includes: none yet · Budget: open</span><br><br>
+            Ready to build the skeleton?</div>
+          </div>
+          <div class="msg user">
+            <span class="msg-label">You</span>
+            <div class="bubble user">Yes. I definitely want Wheel of Fortune and Windfall in there.</div>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:10px; margin: 4px 0;">
+            <div style="flex:1; height:0.5px; background:rgba(255,255,255,0.06);"></div>
+            <span style="font-size:10px; color:rgba(255,255,255,0.2); white-space:nowrap;"><i class="ti ti-sparkles" style="font-size:10px;" aria-hidden="true"></i> Analyst building skeleton</span>
+            <div style="flex:1; height:0.5px; background:rgba(255,255,255,0.06);"></div>
+          </div>
+
+          <div class="msg oracle">
+            <span class="msg-label">Oracle</span>
+            <div class="bubble oracle">Skeleton is ready — I've pulled 67 cards from your collection that fit. You own both Wheel of Fortune and Windfall already.<br><br>You're short on protection and have a gap in the wheel package. Want me to walk through the weak categories first, or start with what you already own?</div>
+          </div>
+          <div class="msg user">
+            <span class="msg-label">You</span>
+            <div class="bubble user">Show me the gaps first.</div>
+          </div>
+          <div class="msg oracle">
+            <span class="msg-label">Oracle</span>
+            <div class="bubble oracle">Biggest gap is protection — you only have 2 pieces in your collection that fit here. For a Nekusar build you want 5–6 minimum, he's a target from turn 3 onwards.<br><br>Swiftfoot Boots and Lightning Greaves you own. I'd add Propaganda and Spellskite — both under $3 and in your budget.</div>
+          </div>
+        </div>
+        <div class="chat-input-area">
+          <textarea class="chat-input" placeholder="Reply to Oracle..." rows="1"></textarea>
+          <button class="send-btn"><i class="ti ti-arrow-up" style="font-size:15px;" aria-hidden="true"></i></button>
+        </div>
+      </div>
+
+      <div class="chat-right">
+        <div class="right-tabs">
+          <div class="rt active">Skeleton</div>
+          <div class="rt">Commander</div>
+        </div>
+        <div class="commander-confirmed-panel">
+          <div>
+            <div class="rp-label">Deck skeleton</div>
+            <div class="skeleton-section">
+              <div class="sk-cat-row">
+                <span class="sk-cat-name">Wheels</span>
+                <div class="sk-cat-bar"><div class="sk-cat-fill sk-fill-own" style="width:80%;"></div></div>
+                <span class="sk-owned">8</span>
+                <span class="sk-needed">/ 10</span>
+              </div>
+              <div class="sk-cat-row">
+                <span class="sk-cat-name">Ramp</span>
+                <div class="sk-cat-bar"><div class="sk-cat-fill sk-fill-own" style="width:90%;"></div></div>
+                <span class="sk-owned">9</span>
+                <span class="sk-needed">/ 10</span>
+              </div>
+              <div class="sk-cat-row">
+                <span class="sk-cat-name">Payoffs</span>
+                <div class="sk-cat-bar"><div class="sk-cat-fill sk-fill-own" style="width:70%;"></div></div>
+                <span class="sk-owned">7</span>
+                <span class="sk-needed">/ 10</span>
+              </div>
+              <div class="sk-cat-row">
+                <span class="sk-cat-name">Removal</span>
+                <div class="sk-cat-bar"><div class="sk-cat-fill sk-fill-own" style="width:75%;"></div></div>
+                <span class="sk-owned">6</span>
+                <span class="sk-needed">/ 8</span>
+              </div>
+              <div class="sk-cat-row" style="background:rgba(226,75,74,0.05); margin: 0 -14px; padding: 5px 14px;">
+                <span class="sk-cat-name" style="color:#E24B4A;">Protection</span>
+                <div class="sk-cat-bar"><div class="sk-cat-fill" style="width:33%; background:#E24B4A;"></div></div>
+                <span class="sk-owned" style="color:#E24B4A;">2</span>
+                <span class="sk-needed">/ 6</span>
+              </div>
+              <div class="sk-cat-row">
+                <span class="sk-cat-name">Lands</span>
+                <div class="sk-cat-bar"><div class="sk-cat-fill sk-fill-own" style="width:94%;"></div></div>
+                <span class="sk-owned">34</span>
+                <span class="sk-needed">/ 36</span>
+              </div>
+            </div>
+            <div class="sk-legend">
+              <div class="sk-leg-item"><div class="sk-leg-dot" style="background:#1D9E75;"></div> Owned</div>
+              <div class="sk-leg-item"><div class="sk-leg-dot" style="background:rgba(255,255,255,0.15);"></div> To acquire</div>
+              <div class="sk-leg-item"><div class="sk-leg-dot" style="background:#E24B4A;"></div> Gap</div>
+            </div>
+          </div>
+
+          <hr class="divider-line">
+          <div style="display:flex; flex-direction:column; gap:5px;">
+            <div class="rp-label">Collection coverage</div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline;">
+              <span style="font-size:22px; font-weight:500; color:#1D9E75;">67</span>
+              <span style="font-size:11px; color:rgba(255,255,255,0.3);">of ~100 cards owned</span>
+            </div>
+            <div style="width:100%; height:4px; background:rgba(255,255,255,0.07); border-radius:2px; overflow:hidden;">
+              <div style="width:67%; height:100%; background:#1D9E75; border-radius:2px;"></div>
+            </div>
+            <div style="font-size:10px; color:rgba(255,255,255,0.25); margin-top:2px;">~33 cards to acquire · est. $18–$35</div>
+          </div>
+
+          <button style="width:100%; padding:8px; background:rgba(55,138,221,0.15); border:0.5px solid rgba(55,138,221,0.35); border-radius:var(--border-radius-md); font-size:12px; color:#378ADD; cursor:pointer; font-weight:500; display:flex; align-items:center; justify-content:center; gap:6px; font-family:var(--font-sans);">
+            <i class="ti ti-device-floppy" style="font-size:13px;" aria-hidden="true"></i> Save as draft deck
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -150,18 +150,18 @@ The large number of passing tests is useful, but the failing baseline means regr
 
 | Area | Source |
 |---|---|
-| Runtime behavior | `app/src/` |
-| Build/dependencies | `app/package.json`, lockfile, Next/Vitest/Playwright config |
-| Deployment | `app/vercel.json`, `app/.github/workflows/` |
+| Runtime behavior | `src/` |
+| Build/dependencies | `package.json`, lockfile, Next/Vitest/Playwright config |
+| Deployment | `vercel.json`, `.github/workflows/` |
 | Intended normalized card schema | `.kiro/steering/schema-card-data.md`, verified against deployed DB before changes |
 | Feature history | `.kiro/specs/<feature>/` where present |
-| Operational/product docs | `app/docs/`, after code verification |
+| Operational/product docs | `docs/`, after code verification |
 
-### Current structural risk
+### Repository consolidation status
 
-`app/` is the Git repository. `.kiro/`, root `research/`, root `specs/`, and root `supabase/` sit outside it. Production-relevant migrations and Edge Functions therefore exist outside the application audit trail. There are also migration copies/collisions under `app/supabase`, `supabase/migrations`, and `supabase/supabase/migrations`.
+`app/` is now both the Git repository and the intended Kiro workspace root. Durable `.kiro`, research, standalone specs, editor settings, and Supabase history have been moved under it. `supabase/migrations/` matches the linked hosted ledger; competing pre-ledger histories and undeployed function sources are inactive under `supabase/reconciliation/`.
 
-**Target organization:** one repository and one canonical `supabase/` directory. Either make the workspace root the repository or move required `.kiro`, research, specs, migrations, and functions under `app/`. Reconcile deployed migration history before moving/deleting files.
+The remaining structural risk is clean schema replay: Docker and native `pg_dump` were unavailable, so pre-ledger objects have not yet been reproduced from an empty project. Large/private research exports and the raw commander-content SQLite database remain outside Git by design.
 
 ## Cleanup Classification
 
@@ -176,10 +176,10 @@ The large number of passing tests is useful, but the failing baseline means regr
 ### Archive after transferring unique decisions
 
 - `.kiro/specs/CODE-CLEANUP-AUDIT.md` and `SPEC-VALIDITY-AUDIT.md` (dated snapshots now superseded by this audit).
-- Root `specs/list-views/` if its unique decisions are moved into current feature specs.
+- `.kiro/specs/list-views/` after its unique decisions are transferred into current feature specs.
 - Completed one-off migration/backfill/fix scripts, only after execution status and recovery value are recorded.
 - Notion-era research utilities once no source data depends on them.
-- Historical research outputs after durable conclusions are promoted to `app/docs/`.
+- Historical research outputs after durable conclusions are promoted to `docs/`.
 
 ### Safe to regenerate/delete locally
 

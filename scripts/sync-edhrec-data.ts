@@ -58,7 +58,7 @@ const LIMIT = parseInt(process.argv.find(a => a.startsWith('--limit='))?.split('
 const OFFSET = parseInt(process.argv.find(a => a.startsWith('--offset='))?.split('=')[1] || '0');
 
 // Report directory
-const REPORT_DIR = resolve(__dirname, '../../research/edhrec-sync');
+const REPORT_DIR = resolve(__dirname, '../research/edhrec-sync');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Types

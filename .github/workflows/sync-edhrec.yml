@@ -75,8 +75,8 @@ jobs:
         with:
           name: edhrec-sync-report
           path: |
-            ../research/edhrec-sync/tag-mapping-report.md
-            ../research/edhrec-sync/unmapped-tags.json
+            research/edhrec-sync/tag-mapping-report.md
+            research/edhrec-sync/unmapped-tags.json
           retention-days: 30
           if-no-files-found: ignore
 
@@ -93,9 +93,9 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
           fi
           
-          if [ -f "../research/edhrec-sync/tag-mapping-report.md" ]; then
+          if [ -f "research/edhrec-sync/tag-mapping-report.md" ]; then
             echo "### Tag Mapping Report" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             # Extract summary section from report
-            head -30 ../research/edhrec-sync/tag-mapping-report.md >> $GITHUB_STEP_SUMMARY
+            head -30 research/edhrec-sync/tag-mapping-report.md >> $GITHUB_STEP_SUMMARY
           fi

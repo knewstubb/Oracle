@@ -1,0 +1,619 @@
+{
+  "generatedAt": "2026-08-29T02:02:27.475Z",
+  "stats": {
+    "commandersProcessed": 117,
+    "commandersSkipped": 6253,
+    "commandersFailed": 871,
+    "cardsInserted": 0,
+    "insightsInserted": 0,
+    "taxonomyInserted": 376
+  },
+  "unmappedTags": {},
+  "mappedTags": {
+    "saprolings": {
+      "count": 3,
+      "slug": "kindred:saprolings",
+      "category": "themes"
+    },
+    "tokens": {
+      "count": 78,
+      "slug": "tokens",
+      "category": "themes"
+    },
+    "plus-1-plus-1-counters": {
+      "count": 116,
+      "slug": "counters",
+      "category": "themes"
+    },
+    "proliferate": {
+      "count": 1,
+      "slug": "proliferate",
+      "category": "themes"
+    },
+    "ramp": {
+      "count": 60,
+      "slug": "ramp",
+      "category": "archetypes"
+    },
+    "artifacts": {
+      "count": 35,
+      "slug": "artifacts",
+      "category": "themes"
+    },
+    "graveyard": {
+      "count": 3,
+      "slug": "graveyard",
+      "category": "themes"
+    },
+    "reanimator": {
+      "count": 15,
+      "slug": "reanimator",
+      "category": "archetypes"
+    },
+    "cats": {
+      "count": 6,
+      "slug": "kindred:cats",
+      "category": "themes"
+    },
+    "aggro": {
+      "count": 94,
+      "slug": "aggro",
+      "category": "archetypes"
+    },
+    "control": {
+      "count": 14,
+      "slug": "control",
+      "category": "archetypes"
+    },
+    "lifegain": {
+      "count": 87,
+      "slug": "lifegain",
+      "category": "archetypes"
+    },
+    "planeswalkers": {
+      "count": 2,
+      "slug": "planeswalkers",
+      "category": "themes"
+    },
+    "populate": {
+      "count": 5,
+      "slug": "tokens",
+      "category": "themes"
+    },
+    "stax": {
+      "count": 7,
+      "slug": "stax",
+      "category": "archetypes"
+    },
+    "x-spells": {
+      "count": 11,
+      "slug": "spellslinger",
+      "category": "archetypes"
+    },
+    "wolves": {
+      "count": 26,
+      "slug": "kindred:wolves",
+      "category": "themes"
+    },
+    "anthems": {
+      "count": 16,
+      "slug": "tokens",
+      "category": "themes"
+    },
+    "elves": {
+      "count": 11,
+      "slug": "kindred:elves",
+      "category": "themes"
+    },
+    "werewolves": {
+      "count": 8,
+      "slug": "kindred:werewolves",
+      "category": "themes"
+    },
+    "voltron": {
+      "count": 56,
+      "slug": "voltron",
+      "category": "archetypes"
+    },
+    "equipment": {
+      "count": 54,
+      "slug": "equipment",
+      "category": "themes"
+    },
+    "group-slug": {
+      "count": 9,
+      "slug": "group-slug",
+      "category": "archetypes"
+    },
+    "auras": {
+      "count": 17,
+      "slug": "enchantments",
+      "category": "themes"
+    },
+    "forced-combat": {
+      "count": 3,
+      "slug": "group-slug",
+      "category": "archetypes"
+    },
+    "goblins": {
+      "count": 2,
+      "slug": "kindred:goblins",
+      "category": "themes"
+    },
+    "theft": {
+      "count": 6,
+      "slug": "theft",
+      "category": "archetypes"
+    },
+    "unblockable": {
+      "count": 3,
+      "slug": "voltron",
+      "category": "archetypes"
+    },
+    "birds": {
+      "count": 4,
+      "slug": "kindred:birds",
+      "category": "themes"
+    },
+    "enchantress": {
+      "count": 21,
+      "slug": "enchantress",
+      "category": "archetypes"
+    },
+    "commander-matters": {
+      "count": 24,
+      "slug": "commander-matters",
+      "category": "archetypes"
+    },
+    "counters-matter": {
+      "count": 2,
+      "slug": "counters",
+      "category": "themes"
+    },
+    "counterspells": {
+      "count": 2,
+      "slug": "control",
+      "category": "archetypes"
+    },
+    "spellslinger": {
+      "count": 8,
+      "slug": "spellslinger",
+      "category": "archetypes"
+    },
+    "discard": {
+      "count": 1,
+      "slug": "wheels",
+      "category": "archetypes"
+    },
+    "infect": {
+      "count": 7,
+      "slug": "infect",
+      "category": "archetypes"
+    },
+    "toolbox": {
+      "count": 5,
+      "slug": "toolbox",
+      "category": "archetypes"
+    },
+    "combo": {
+      "count": 30,
+      "slug": "combo",
+      "category": "archetypes"
+    },
+    "pillow-fort": {
+      "count": 8,
+      "slug": "pillowfort",
+      "category": "archetypes"
+    },
+    "minus-1-minus-1-counters": {
+      "count": 1,
+      "slug": "counters",
+      "category": "themes"
+    },
+    "hatebears": {
+      "count": 6,
+      "slug": "stax",
+      "category": "archetypes"
+    },
+    "prison": {
+      "count": 1,
+      "slug": "stax",
+      "category": "archetypes"
+    },
+    "vampires": {
+      "count": 4,
+      "slug": "kindred:vampires",
+      "category": "themes"
+    },
+    "attack-triggers": {
+      "count": 3,
+      "slug": "aggro",
+      "category": "archetypes"
+    },
+    "power": {
+      "count": 25,
+      "slug": "power-matters",
+      "category": "themes"
+    },
+    "burn": {
+      "count": 14,
+      "slug": "group-slug",
+      "category": "archetypes"
+    },
+    "arcane": {
+      "count": 1,
+      "slug": "spellslinger",
+      "category": "archetypes"
+    },
+    "chaos": {
+      "count": 1,
+      "slug": "chaos",
+      "category": "archetypes"
+    },
+    "group-hug": {
+      "count": 6,
+      "slug": "group-hug",
+      "category": "archetypes"
+    },
+    "treasure": {
+      "count": 5,
+      "slug": "treasure",
+      "category": "themes"
+    },
+    "dragons": {
+      "count": 4,
+      "slug": "kindred:dragons",
+      "category": "themes"
+    },
+    "clones": {
+      "count": 51,
+      "slug": "clones",
+      "category": "themes"
+    },
+    "sacrifice": {
+      "count": 6,
+      "slug": "sacrifice",
+      "category": "themes"
+    },
+    "big-mana": {
+      "count": 20,
+      "slug": "ramp",
+      "category": "archetypes"
+    },
+    "elementals": {
+      "count": 2,
+      "slug": "kindred:elementals",
+      "category": "themes"
+    },
+    "madness": {
+      "count": 1,
+      "slug": "madness",
+      "category": "themes"
+    },
+    "self-discard": {
+      "count": 1,
+      "slug": "graveyard",
+      "category": "themes"
+    },
+    "stompy": {
+      "count": 19,
+      "slug": "aggro",
+      "category": "archetypes"
+    },
+    "extra-combats": {
+      "count": 13,
+      "slug": "extra-combats",
+      "category": "archetypes"
+    },
+    "wheels": {
+      "count": 7,
+      "slug": "wheels",
+      "category": "archetypes"
+    },
+    "cascade": {
+      "count": 4,
+      "slug": "cascade",
+      "category": "themes"
+    },
+    "eldrazi": {
+      "count": 5,
+      "slug": "kindred:eldrazi",
+      "category": "themes"
+    },
+    "cycling": {
+      "count": 3,
+      "slug": "graveyard",
+      "category": "themes"
+    },
+    "storm": {
+      "count": 5,
+      "slug": "spellslinger",
+      "category": "archetypes"
+    },
+    "tap-untap": {
+      "count": 2,
+      "slug": "tap-untap",
+      "category": "archetypes"
+    },
+    "good-stuff": {
+      "count": 7,
+      "slug": "good-stuff",
+      "category": "archetypes"
+    },
+    "mill": {
+      "count": 2,
+      "slug": "mill",
+      "category": "archetypes"
+    },
+    "legends": {
+      "count": 18,
+      "slug": "legendary-matters",
+      "category": "archetypes"
+    },
+    "bounce": {
+      "count": 1,
+      "slug": "blink",
+      "category": "archetypes"
+    },
+    "sea-creatures": {
+      "count": 1,
+      "slug": "kindred:krakens",
+      "category": "themes"
+    },
+    "angels": {
+      "count": 67,
+      "slug": "kindred:angels",
+      "category": "themes"
+    },
+    "historic": {
+      "count": 16,
+      "slug": "legendary-matters",
+      "category": "archetypes"
+    },
+    "topdeck": {
+      "count": 1,
+      "slug": "topdeck",
+      "category": "archetypes"
+    },
+    "humans": {
+      "count": 10,
+      "slug": "kindred:humans",
+      "category": "themes"
+    },
+    "knights": {
+      "count": 1,
+      "slug": "kindred:knights",
+      "category": "themes"
+    },
+    "soldiers": {
+      "count": 2,
+      "slug": "kindred:soldiers",
+      "category": "themes"
+    },
+    "slivers": {
+      "count": 4,
+      "slug": "kindred:slivers",
+      "category": "themes"
+    },
+    "clerics": {
+      "count": 1,
+      "slug": "kindred:clerics",
+      "category": "themes"
+    },
+    "relentless-rats": {
+      "count": 1,
+      "slug": "kindred:rats",
+      "category": "themes"
+    },
+    "blink": {
+      "count": 26,
+      "slug": "blink",
+      "category": "archetypes"
+    },
+    "birthing-pod": {
+      "count": 1,
+      "slug": "toolbox",
+      "category": "archetypes"
+    },
+    "energy": {
+      "count": 1,
+      "slug": "energy",
+      "category": "themes"
+    },
+    "turbo-fog": {
+      "count": 1,
+      "slug": "pillowfort",
+      "category": "archetypes"
+    },
+    "stoneblade": {
+      "count": 1,
+      "slug": "equipment",
+      "category": "themes"
+    },
+    "lands-matter": {
+      "count": 19,
+      "slug": "lands-matter",
+      "category": "archetypes"
+    },
+    "monarch": {
+      "count": 2,
+      "slug": "monarch",
+      "category": "themes"
+    },
+    "weenies": {
+      "count": 1,
+      "slug": "tokens",
+      "category": "themes"
+    },
+    "lifedrain": {
+      "count": 1,
+      "slug": "aristocrats",
+      "category": "archetypes"
+    },
+    "saboteurs": {
+      "count": 1,
+      "slug": "kindred:ninjas",
+      "category": "themes"
+    },
+    "self-damage": {
+      "count": 1,
+      "slug": "aggro",
+      "category": "archetypes"
+    },
+    "self-mill": {
+      "count": 1,
+      "slug": "graveyard",
+      "category": "themes"
+    },
+    "toughness-matters": {
+      "count": 1,
+      "slug": "toughness-matters",
+      "category": "themes"
+    },
+    "land-animation": {
+      "count": 8,
+      "slug": "lands-matter",
+      "category": "archetypes"
+    },
+    "landfall": {
+      "count": 2,
+      "slug": "landfall",
+      "category": "themes"
+    },
+    "cantrips": {
+      "count": 1,
+      "slug": "spellslinger",
+      "category": "archetypes"
+    },
+    "polymorph": {
+      "count": 1,
+      "slug": "combo",
+      "category": "archetypes"
+    },
+    "etb": {
+      "count": 3,
+      "slug": "blink",
+      "category": "archetypes"
+    },
+    "rock": {
+      "count": 3,
+      "slug": "good-stuff",
+      "category": "archetypes"
+    },
+    "rogues": {
+      "count": 1,
+      "slug": "kindred:rogues",
+      "category": "themes"
+    },
+    "spell-copy": {
+      "count": 1,
+      "slug": "spellslinger",
+      "category": "archetypes"
+    },
+    "dogs": {
+      "count": 1,
+      "slug": "kindred:dogs",
+      "category": "themes"
+    },
+    "extra-turns": {
+      "count": 1,
+      "slug": "extra-turns",
+      "category": "archetypes"
+    },
+    "impulse-draw": {
+      "count": 1,
+      "slug": "exile",
+      "category": "themes"
+    },
+    "fling": {
+      "count": 3,
+      "slug": "sacrifice",
+      "category": "themes"
+    },
+    "day-night": {
+      "count": 1,
+      "slug": "kindred:werewolves",
+      "category": "themes"
+    },
+    "hydras": {
+      "count": 2,
+      "slug": "kindred:hydras",
+      "category": "themes"
+    },
+    "aristocrats": {
+      "count": 2,
+      "slug": "aristocrats",
+      "category": "archetypes"
+    },
+    "vehicles": {
+      "count": 1,
+      "slug": "vehicles",
+      "category": "themes"
+    },
+    "power-matters": {
+      "count": 1,
+      "slug": "power-matters",
+      "category": "themes"
+    },
+    "land-destruction": {
+      "count": 1,
+      "slug": "stax",
+      "category": "archetypes"
+    },
+    "sagas": {
+      "count": 1,
+      "slug": "enchantments",
+      "category": "themes"
+    },
+    "ad-nauseam": {
+      "count": 1,
+      "slug": "combo",
+      "category": "archetypes"
+    },
+    "enrage": {
+      "count": 1,
+      "slug": "kindred:dinosaurs",
+      "category": "themes"
+    },
+    "spirits": {
+      "count": 1,
+      "slug": "kindred:spirits",
+      "category": "themes"
+    },
+    "clues": {
+      "count": 6,
+      "slug": "artifacts",
+      "category": "themes"
+    },
+    "ninjas": {
+      "count": 6,
+      "slug": "kindred:ninjas",
+      "category": "themes"
+    },
+    "affinity": {
+      "count": 2,
+      "slug": "artifacts",
+      "category": "themes"
+    },
+    "devotion": {
+      "count": 1,
+      "slug": "devotion",
+      "category": "themes"
+    },
+    "modular": {
+      "count": 1,
+      "slug": "counters",
+      "category": "themes"
+    },
+    "food": {
+      "count": 1,
+      "slug": "artifacts",
+      "category": "themes"
+    },
+    "ninjutsu": {
+      "count": 3,
+      "slug": "kindred:ninjas",
+      "category": "themes"
+    }
+  }
+}

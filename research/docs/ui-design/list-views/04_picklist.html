@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Picklist View - Wireframe</title>
+  <!-- Terminology: "Claimed" = status, "Pull" = action -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .wireframe-note {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 12px 16px;
+      margin-bottom: 24px;
+      font-size: 14px;
+    }
+    .action-btn {
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .action-btn:hover {
+      transform: scale(1.02);
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-gray-100 p-8">
+  
+  <div class="max-w-4xl mx-auto">
+    <h1 class="text-2xl font-bold mb-2">Picklist View</h1>
+    <p class="text-gray-400 mb-6">Layout: Action queue — grouped stacks by resolution type</p>
+    
+    <div class="wireframe-note">
+      <strong>Design Rationale:</strong> Picklist is a task queue, not a browsing view. Only shows cards that need attention.
+      Grouped by action type (Pull, Proxy, Buy). Each card is an actionable row with one-click resolution.
+      This is the "get ready to play" workflow.
+    </div>
+
+    <!-- Header Stats -->
+    <div class="bg-gray-800 rounded-lg p-4 mb-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-semibold">Items Needing Resolution</h2>
+          <p class="text-sm text-gray-400">Across all active decks</p>
+        </div>
+        <div class="flex gap-6 text-center">
+          <div>
+            <div class="text-2xl font-bold text-amber-400">7</div>
+            <div class="text-xs text-gray-500">To Pull</div>
+          </div>
+          <div>
+            <div class="text-2xl font-bold text-gray-400">3</div>
+            <div class="text-xs text-gray-500">To Proxy</div>
+          </div>
+          <div>
+            <div class="text-2xl font-bold text-red-400">4</div>
+            <div class="text-xs text-gray-500">To Buy</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="flex items-center gap-4 mb-6">
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-gray-400">Filter by deck:</span>
+        <select class="bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm">
+          <option selected>All Decks</option>
+          <option>Prosper, Tome-Bound</option>
+          <option>Korvold Sacrifice</option>
+          <option>Atraxa Superfriends</option>
+        </select>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-gray-400">Show:</span>
+        <select class="bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm">
+          <option selected>All Types</option>
+          <option>To Pull Only</option>
+          <option>Proxies Only</option>
+          <option>Unowned Only</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Action Groups -->
+    <div class="space-y-6">
+      
+      <!-- Group: Cards to Pull -->
+      <div class="bg-gray-800 rounded-lg overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-700 flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-amber-600 flex items-center justify-center">
+            <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="font-semibold">Cards to Pull</h3>
+            <p class="text-xs text-gray-400">These cards exist in your collection but are assigned elsewhere</p>
+          </div>
+          <span class="ml-auto bg-amber-900 text-amber-300 px-2 py-1 rounded text-sm">7 items</span>
+        </div>
+        
+        <div class="divide-y divide-gray-700">
+          <!-- Picklist Row -->
+          <div class="px-4 py-3 flex items-center gap-4 hover:bg-gray-750 transition">
+            <div class="w-12 h-16 bg-gray-700 rounded flex-shrink-0 flex items-center justify-center text-gray-500 text-[8px]">
+              [Art]
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="font-medium">Dockside Extortionist</div>
+              <div class="text-sm text-gray-400">Needed in: <span class="text-white">Korvold Sacrifice</span></div>
+              <div class="text-xs text-gray-500">Currently in: Prosper, Tome-Bound</div>
+            </div>
+            <div class="flex gap-2">
+              <button class="action-btn bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-md flex items-center gap-2">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd"/>
+                </svg>
+                Pull
+              </button>
+              <button class="action-btn bg-gray-600 hover:bg-gray-500 text-white px-3 py-2 rounded-lg text-sm">
+                Proxy Instead
+              </button>
+            </div>
+          </div>
+          
+          <!-- Picklist Row 2 -->
+          <div class="px-4 py-3 flex items-center gap-4 hover:bg-gray-750 transition">
+            <div class="w-12 h-16 bg-gray-700 rounded flex-shrink-0 flex items-center justify-center text-gray-500 text-[8px]">
+              [Art]
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="font-medium">Ragavan, Nimble Pilferer</div>
+              <div class="text-sm text-gray-400">Needed in: <span class="text-white">Korvold Sacrifice</span></div>
+              <div class="text-xs text-gray-500">Currently in: Staples Binder</div>
+            </div>
+            <div class="flex gap-2">
+              <button class="action-btn bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-md flex items-center gap-2">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd"/>
+                </svg>
+                Pull
+              </button>
+              <button class="action-btn bg-gray-600 hover:bg-gray-500 text-white px-3 py-2 rounded-lg text-sm">
+                Proxy Instead
+              </button>
+            </div>
+          </div>
+          
+          <!-- Picklist Row 3 - Multiple sources -->
+          <div class="px-4 py-3 flex items-center gap-4 hover:bg-gray-750 transition">
+            <div class="w-12 h-16 bg-gray-700 rounded flex-shrink-0 flex items-center justify-center text-gray-500 text-[8px]">
+              [Art]
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="font-medium">Sol Ring</div>
+              <div class="text-sm text-gray-400">Needed in: <span class="text-white">Atraxa Superfriends</span></div>
+              <div class="text-xs text-gray-500">Available from: 3 locations</div>
+            </div>
+            <div class="flex gap-2">
+              <button class="action-btn bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-md flex items-center gap-2">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                </svg>
+                Pull From...
+              </button>
+              <button class="action-btn bg-gray-600 hover:bg-gray-500 text-white px-3 py-2 rounded-lg text-sm">
+                Proxy Instead
+              </button>
+            </div>
+          </div>
+          
+          <div class="px-4 py-2 text-center text-sm text-gray-500">
+            ... 4 more to pull
+          </div>
+        </div>
+      </div>
+
+      <!-- Group: Cards to Proxy -->
+      <div class="bg-gray-800 rounded-lg overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-700 flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="font-semibold">Cards Marked for Proxy</h3>
+            <p class="text-xs text-gray-400">Slots you've decided to fill with proxies</p>
+          </div>
+          <span class="ml-auto bg-gray-700 text-gray-300 px-2 py-1 rounded text-sm">3 items</span>
+        </div>
+        
+        <div class="divide-y divide-gray-700">
+          <div class="px-4 py-3 flex items-center gap-4 hover:bg-gray-750 transition">
+            <div class="w-12 h-16 bg-gray-700 rounded flex-shrink-0 flex items-center justify-center text-gray-500 text-[8px] border-2 border-dashed border-gray-500">
+              [Art]
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="font-medium">Mana Crypt</div>
+              <div class="text-sm text-gray-400">In deck: <span class="text-white">Prosper, Tome-Bound</span></div>
+              <div class="text-xs text-gray-500">Marked as proxy on Jun 15</div>
+            </div>
+            <div class="flex gap-2">
+              <button class="action-btn bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-md">
+                Print Proxy
+              </button>
+              <button class="action-btn bg-gray-600 hover:bg-gray-500 text-white px-3 py-2 rounded-lg text-sm">
+                Add to Cart
+              </button>
+            </div>
+          </div>
+          
+          <div class="px-4 py-3 flex items-center gap-4 hover:bg-gray-750 transition">
+            <div class="w-12 h-16 bg-gray-700 rounded flex-shrink-0 flex items-center justify-center text-gray-500 text-[8px] border-2 border-dashed border-gray-500">
+              [Art]
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="font-medium">Jeweled Lotus</div>
+              <div class="text-sm text-gray-400">In deck: <span class="text-white">Korvold Sacrifice</span></div>
+              <div class="text-xs text-gray-500">Marked as proxy on Jun 12</div>
+            </div>
+            <div class="flex gap-2">
+              <button class="action-btn bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-md">
+                Print Proxy
+              </button>
+              <button class="action-btn bg-gray-600 hover:bg-gray-500 text-white px-3 py-2 rounded-lg text-sm">
+                Add to Cart
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Group: Cards to Buy -->
+      <div class="bg-gray-800 rounded-lg overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-700 flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center">
+            <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="font-semibold">Cards to Purchase</h3>
+            <p class="text-xs text-gray-400">Unowned cards you need for brewing decks</p>
+          </div>
+          <div class="ml-auto flex items-center gap-3">
+            <span class="text-sm text-gray-400">Est. total: <span class="text-white font-medium">$127.50</span></span>
+            <span class="bg-red-900 text-red-300 px-2 py-1 rounded text-sm">4 items</span>
+          </div>
+        </div>
+        
+        <div class="divide-y divide-gray-700">
+          <div class="px-4 py-3 flex items-center gap-4 hover:bg-gray-750 transition">
+            <div class="w-12 h-16 bg-gray-700 rounded flex-shrink-0 flex items-center justify-center text-gray-500 text-[8px]">
+              [Art]
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="font-medium">Smothering Tithe</div>
+              <div class="text-sm text-gray-400">Needed in: <span class="text-white">Atraxa Superfriends</span></div>
+              <div class="text-xs text-green-400">TCG Low: $28.50</div>
+            </div>
+            <div class="flex gap-2">
+              <button class="action-btn bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-md flex items-center gap-2">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/>
+                </svg>
+                Add to Cart
+              </button>
+              <button class="action-btn bg-gray-600 hover:bg-gray-500 text-white px-3 py-2 rounded-lg text-sm">
+                Proxy Instead
+              </button>
+            </div>
+          </div>
+          
+          <div class="px-4 py-3 flex items-center gap-4 hover:bg-gray-750 transition">
+            <div class="w-12 h-16 bg-gray-700 rounded flex-shrink-0 flex items-center justify-center text-gray-500 text-[8px]">
+              [Art]
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="font-medium">Doubling Season</div>
+              <div class="text-sm text-gray-400">Needed in: <span class="text-white">Atraxa Superfriends</span></div>
+              <div class="text-xs text-green-400">TCG Low: $62.00</div>
+            </div>
+            <div class="flex gap-2">
+              <button class="action-btn bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-md flex items-center gap-2">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/>
+                </svg>
+                Add to Cart
+              </button>
+              <button class="action-btn bg-gray-600 hover:bg-gray-500 text-white px-3 py-2 rounded-lg text-sm">
+                Proxy Instead
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Export Actions -->
+        <div class="px-4 py-3 border-t border-gray-700 bg-gray-750 flex justify-end gap-3">
+          <button class="text-sm text-gray-400 hover:text-white">Export to CSV</button>
+          <button class="text-sm bg-indigo-600 hover:bg-indigo-500 px-4 py-1.5 rounded font-medium">
+            Open in TCGPlayer
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Empty State Note -->
+    <div class="mt-8 p-4 bg-gray-800 rounded-lg border border-dashed border-gray-600">
+      <h3 class="text-sm font-semibold mb-2 text-gray-300">When Picklist is Empty</h3>
+      <p class="text-sm text-gray-400">
+        When all cards are resolved, show a success state: "All decks ready to play!" with a link back to the Decks list.
+        The Picklist only shows items needing action — it's not a browsing view.
+      </p>
+    </div>
+
+  </div>
+</body>
+</html>

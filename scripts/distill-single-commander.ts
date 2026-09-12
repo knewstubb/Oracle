@@ -20,7 +20,10 @@ const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY!;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
-const db = new Database(resolve(__dirname, '../../research/commander-content/content-raw.sqlite'), { readonly: true });
+const db = new Database(
+  process.env.COMMANDER_CONTENT_DB_PATH ?? resolve(__dirname, '../../research/commander-content/content-raw.sqlite'),
+  { readonly: true }
+);
 
 const commanderName = process.argv[2];
 const dryRun = process.argv.includes('--dry-run');

@@ -25,7 +25,7 @@ async function main() {
     .select('commander_id, build_variant, archetype, taxonomy_tags')
 
   // Get transcript counts from raw_content sqlite
-  const db = new Database('../research/commander-content/content-raw.sqlite', { readonly: true })
+  const db = new Database(process.env.COMMANDER_CONTENT_DB_PATH ?? '../research/commander-content/content-raw.sqlite', { readonly: true })
   const transcripts = db.prepare('SELECT card_name, COUNT(*) as cnt FROM raw_content WHERE full_content IS NOT NULL GROUP BY card_name').all() as { card_name: string, cnt: number }[]
   const transcriptMap = new Map(transcripts.map(t => [t.card_name, t.cnt]))
   db.close()

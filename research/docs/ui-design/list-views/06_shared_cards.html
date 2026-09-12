@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shared Cards View - Wireframe</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .wireframe-note {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 12px 16px;
+      margin-bottom: 24px;
+      font-size: 14px;
+    }
+    .conflict-bar {
+      height: 6px;
+      border-radius: 3px;
+      background: #374151;
+      overflow: hidden;
+    }
+    .conflict-fill {
+      height: 100%;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-gray-100 p-8">
+  
+  <div class="max-w-5xl mx-auto">
+    <h1 class="text-2xl font-bold mb-2">Shared Cards View</h1>
+    <p class="text-gray-400 mb-6">Layout: Diagnostic table — sorted by demand/conflict severity</p>
+    
+    <div class="wireframe-note">
+      <strong>Design Rationale:</strong> This is a diagnostic view: "Show me my most-shared staples so I know what to buy duplicates of."
+      Table format sorted by how many decks want each card vs. how many copies exist. 
+      Visual conflict bars show at-a-glance where you're stretched thin.
+    </div>
+
+    <!-- Summary Header -->
+    <div class="bg-gradient-to-r from-amber-900/50 to-red-900/50 border border-amber-700 rounded-lg p-4 mb-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-semibold">Shared Card Analysis</h2>
+          <p class="text-sm text-gray-400">Cards that appear in multiple decks — sorted by conflict severity</p>
+        </div>
+        <div class="flex gap-6 text-center">
+          <div>
+            <div class="text-2xl font-bold text-red-400">12</div>
+            <div class="text-xs text-gray-500">High Conflict</div>
+          </div>
+          <div>
+            <div class="text-2xl font-bold text-amber-400">28</div>
+            <div class="text-xs text-gray-500">Some Sharing</div>
+          </div>
+          <div>
+            <div class="text-2xl font-bold text-gray-400">156</div>
+            <div class="text-xs text-gray-500">Total Shared</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="flex items-center gap-4 mb-4">
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-gray-400">Show:</span>
+        <select class="bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm">
+          <option selected>All Shared Cards</option>
+          <option>High Conflict Only (3+ decks)</option>
+          <option>Cards Needing Purchase</option>
+        </select>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-gray-400">Sort:</span>
+        <select class="bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm">
+          <option selected>Conflict Severity</option>
+          <option>Price (High to Low)</option>
+          <option>Deck Count</option>
+          <option>Card Name</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Shared Cards Table -->
+    <div class="bg-gray-800 rounded-lg overflow-hidden">
+      <table class="w-full">
+        <thead class="bg-gray-750 text-left text-sm text-gray-400">
+          <tr>
+            <th class="px-4 py-3 font-medium">Card</th>
+            <th class="px-4 py-3 font-medium text-center">Owned</th>
+            <th class="px-4 py-3 font-medium text-center">Wanted</th>
+            <th class="px-4 py-3 font-medium">Conflict</th>
+            <th class="px-4 py-3 font-medium">In Decks</th>
+            <th class="px-4 py-3 font-medium text-right">Price</th>
+            <th class="px-4 py-3 font-medium"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-700">
+          
+          <!-- High Conflict: 1 owned, 4 decks want it -->
+          <tr class="hover:bg-gray-750 transition">
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-11 bg-gray-700 rounded flex-shrink-0"></div>
+                <div>
+                  <div class="font-medium">Dockside Extortionist</div>
+                  <div class="text-xs text-gray-500">Creature — Goblin Pirate</div>
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-center">
+              <span class="bg-green-900 text-green-300 px-2 py-0.5 rounded text-sm font-medium">1</span>
+            </td>
+            <td class="px-4 py-3 text-center">
+              <span class="bg-red-900 text-red-300 px-2 py-0.5 rounded text-sm font-medium">4</span>
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-2">
+                <div class="conflict-bar w-24">
+                  <div class="conflict-fill bg-red-500" style="width: 100%"></div>
+                </div>
+                <span class="text-xs text-red-400 font-medium">-3 short</span>
+              </div>
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex flex-wrap gap-1 max-w-xs">
+                <span class="text-xs bg-green-900 text-green-300 px-1.5 py-0.5 rounded">Prosper ✓</span>
+                <span class="text-xs bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded">Korvold</span>
+                <span class="text-xs bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded">Magda</span>
+                <span class="text-xs bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded">Krenko</span>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-right">
+              <div class="text-sm">$48.00</div>
+              <div class="text-xs text-gray-500">$144 to fill</div>
+            </td>
+            <td class="px-4 py-3 text-right">
+              <button class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1.5 rounded font-medium">
+                Buy 3
+              </button>
+            </td>
+          </tr>
+
+          <!-- High Conflict: 1 owned, 3 decks want it -->
+          <tr class="hover:bg-gray-750 transition">
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-11 bg-gray-700 rounded flex-shrink-0"></div>
+                <div>
+                  <div class="font-medium">Smothering Tithe</div>
+                  <div class="text-xs text-gray-500">Enchantment</div>
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-center">
+              <span class="bg-green-900 text-green-300 px-2 py-0.5 rounded text-sm font-medium">1</span>
+            </td>
+            <td class="px-4 py-3 text-center">
+              <span class="bg-red-900 text-red-300 px-2 py-0.5 rounded text-sm font-medium">3</span>
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-2">
+                <div class="conflict-bar w-24">
+                  <div class="conflict-fill bg-red-500" style="width: 85%"></div>
+                </div>
+                <span class="text-xs text-red-400 font-medium">-2 short</span>
+              </div>
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex flex-wrap gap-1 max-w-xs">
+                <span class="text-xs bg-green-900 text-green-300 px-1.5 py-0.5 rounded">Teysa ✓</span>
+                <span class="text-xs bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded">Atraxa</span>
+                <span class="text-xs bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded">Jetmir</span>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-right">
+              <div class="text-sm">$28.50</div>
+              <div class="text-xs text-gray-500">$57 to fill</div>
+            </td>
+            <td class="px-4 py-3 text-right">
+              <button class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1.5 rounded font-medium">
+                Buy 2
+              </button>
+            </td>
+          </tr>
+
+          <!-- Medium Conflict: 2 owned, 4 decks want it -->
+          <tr class="hover:bg-gray-750 transition">
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-11 bg-gray-700 rounded flex-shrink-0"></div>
+                <div>
+                  <div class="font-medium">Rhystic Study</div>
+                  <div class="text-xs text-gray-500">Enchantment</div>
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-center">
+              <span class="bg-green-900 text-green-300 px-2 py-0.5 rounded text-sm font-medium">2</span>
+            </td>
+            <td class="px-4 py-3 text-center">
+              <span class="bg-amber-900 text-amber-300 px-2 py-0.5 rounded text-sm font-medium">4</span>
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-2">
+                <div class="conflict-bar w-24">
+                  <div class="conflict-fill bg-amber-500" style="width: 50%"></div>
+                </div>
+                <span class="text-xs text-amber-400 font-medium">-2 short</span>
+              </div>
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex flex-wrap gap-1 max-w-xs">
+                <span class="text-xs bg-green-900 text-green-300 px-1.5 py-0.5 rounded">Talrand ✓</span>
+                <span class="text-xs bg-green-900 text-green-300 px-1.5 py-0.5 rounded">Urza ✓</span>
+                <span class="text-xs bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded">Atraxa</span>
+                <span class="text-xs bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded">Tivit</span>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-right">
+              <div class="text-sm">$38.00</div>
+              <div class="text-xs text-gray-500">$76 to fill</div>
+            </td>
+            <td class="px-4 py-3 text-right">
+              <button class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1.5 rounded font-medium">
+                Buy 2
+              </button>
+            </td>
+          </tr>
+
+          <!-- Low Conflict: Adequate supply -->
+          <tr class="hover:bg-gray-750 transition">
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-11 bg-gray-700 rounded flex-shrink-0"></div>
+                <div>
+                  <div class="font-medium">Sol Ring</div>
+                  <div class="text-xs text-gray-500">Artifact</div>
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-center">
+              <span class="bg-green-900 text-green-300 px-2 py-0.5 rounded text-sm font-medium">14</span>
+            </td>
+            <td class="px-4 py-3 text-center">
+              <span class="bg-gray-700 text-gray-300 px-2 py-0.5 rounded text-sm font-medium">12</span>
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-2">
+                <div class="conflict-bar w-24">
+                  <div class="conflict-fill bg-green-500" style="width: 15%"></div>
+                </div>
+                <span class="text-xs text-green-400 font-medium">+2 spare</span>
+              </div>
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex flex-wrap gap-1 max-w-xs">
+                <span class="text-xs bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded">12 decks</span>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-right">
+              <div class="text-sm">$2.50</div>
+              <div class="text-xs text-green-400">Covered</div>
+            </td>
+            <td class="px-4 py-3 text-right">
+              <span class="text-xs text-gray-500">—</span>
+            </td>
+          </tr>
+
+          <!-- Low Conflict: Adequate supply -->
+          <tr class="hover:bg-gray-750 transition">
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-11 bg-gray-700 rounded flex-shrink-0"></div>
+                <div>
+                  <div class="font-medium">Arcane Signet</div>
+                  <div class="text-xs text-gray-500">Artifact</div>
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-center">
+              <span class="bg-green-900 text-green-300 px-2 py-0.5 rounded text-sm font-medium">15</span>
+            </td>
+            <td class="px-4 py-3 text-center">
+              <span class="bg-gray-700 text-gray-300 px-2 py-0.5 rounded text-sm font-medium">12</span>
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-2">
+                <div class="conflict-bar w-24">
+                  <div class="conflict-fill bg-green-500" style="width: 10%"></div>
+                </div>
+                <span class="text-xs text-green-400 font-medium">+3 spare</span>
+              </div>
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex flex-wrap gap-1 max-w-xs">
+                <span class="text-xs bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded">12 decks</span>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-right">
+              <div class="text-sm">$1.50</div>
+              <div class="text-xs text-green-400">Covered</div>
+            </td>
+            <td class="px-4 py-3 text-right">
+              <span class="text-xs text-gray-500">—</span>
+            </td>
+          </tr>
+
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Summary Actions -->
+    <div class="mt-6 bg-gray-800 rounded-lg p-4 flex items-center justify-between">
+      <div>
+        <div class="text-sm text-gray-400">To eliminate all conflicts:</div>
+        <div class="text-lg font-semibold">Buy 18 cards • Est. <span class="text-green-400">$485</span></div>
+      </div>
+      <div class="flex gap-3">
+        <button class="text-sm text-gray-400 hover:text-white px-3 py-1.5">Export Shopping List</button>
+        <button class="text-sm bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded font-medium">
+          Add All to Cart
+        </button>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="mt-6 p-4 bg-gray-800 rounded-lg">
+      <h3 class="text-sm font-semibold mb-3 text-gray-300">Reading the Conflict Bar</h3>
+      <div class="flex flex-wrap gap-6 text-sm">
+        <div class="flex items-center gap-2">
+          <div class="conflict-bar w-16"><div class="conflict-fill bg-red-500" style="width: 100%"></div></div>
+          <span class="text-gray-400">High conflict — many more decks than copies</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="conflict-bar w-16"><div class="conflict-fill bg-amber-500" style="width: 50%"></div></div>
+          <span class="text-gray-400">Some sharing — a few decks competing</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="conflict-bar w-16"><div class="conflict-fill bg-green-500" style="width: 15%"></div></div>
+          <span class="text-gray-400">Adequate — enough copies for all decks</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Collection with View Tabs - Wireframe</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .wireframe-note {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 12px 16px;
+      margin-bottom: 24px;
+      font-size: 14px;
+    }
+    .view-tab {
+      transition: all 0.15s;
+    }
+    .view-tab:hover {
+      background: #374151;
+    }
+    .view-tab.active {
+      background: #1f2937;
+      border-bottom: 2px solid #6366f1;
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-gray-100">
+  
+  <!-- Top Navigation -->
+  <nav class="bg-gray-800 border-b border-gray-700 px-4 py-3">
+    <div class="flex items-center justify-between">
+      <!-- Left: Logo + Main Nav -->
+      <div class="flex items-center gap-6">
+        <!-- Logo -->
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">O</div>
+          <span class="font-semibold text-lg">The Oracle</span>
+        </div>
+        
+        <!-- Main Nav -->
+        <div class="flex items-center gap-1">
+          <a href="#" class="px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-700 hover:text-white">Decks</a>
+          <a href="#" class="px-3 py-2 rounded-lg bg-gray-700 text-white">Collection</a>
+          <a href="#" class="px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-700 hover:text-white">Wishlist</a>
+          <div class="relative">
+            <button class="px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-1">
+              Tools
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Center: Search -->
+      <div class="flex-1 max-w-md mx-8">
+        <div class="relative">
+          <input type="text" placeholder="Search cards... ⌘K" 
+                 class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 pl-10 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+          <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+        </div>
+      </div>
+      
+      <!-- Right: Settings + Avatar -->
+      <div class="flex items-center gap-3">
+        <!-- Settings -->
+        <button class="w-9 h-9 rounded-lg bg-gray-700 flex items-center justify-center text-gray-300 hover:bg-gray-600 hover:text-white transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+        </button>
+        
+        <!-- Avatar -->
+        <button class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-medium text-sm hover:ring-2 hover:ring-indigo-400 hover:ring-offset-2 hover:ring-offset-gray-800 transition">
+          BK
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- View Tabs Bar (ClickUp-style) -->
+  <div class="bg-gray-850 border-b border-gray-700 px-4" style="background: #1a1d24;">
+    <div class="max-w-7xl mx-auto flex items-center">
+      <!-- View Tabs -->
+      <div class="flex items-center overflow-x-auto">
+        <!-- All Cards (default/built-in) -->
+        <button class="view-tab active px-4 py-3 flex items-center gap-2 text-sm font-medium text-white border-b-2 border-indigo-500 whitespace-nowrap">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+          </svg>
+          All Cards
+        </button>
+        
+        <!-- By Card (built-in) -->
+        <button class="view-tab px-4 py-3 flex items-center gap-2 text-sm font-medium text-gray-400 hover:text-white whitespace-nowrap">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+          </svg>
+          By Card
+        </button>
+        
+        <!-- Storage (built-in) -->
+        <button class="view-tab px-4 py-3 flex items-center gap-2 text-sm font-medium text-gray-400 hover:text-white whitespace-nowrap">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+          </svg>
+          Storage
+        </button>
+        
+        <!-- Proxy List (built-in) -->
+        <button class="view-tab px-4 py-3 flex items-center gap-2 text-sm font-medium text-gray-400 hover:text-white whitespace-nowrap">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+          </svg>
+          Proxy List
+          <span class="bg-gray-600 text-gray-300 text-xs px-1.5 py-0.5 rounded-full">8</span>
+        </button>
+        
+        <!-- Divider -->
+        <div class="h-6 w-px bg-gray-700 mx-2"></div>
+        
+        <!-- Custom View: Japanese Foils -->
+        <button class="view-tab px-4 py-3 flex items-center gap-2 text-sm font-medium text-gray-400 hover:text-white whitespace-nowrap group">
+          <span class="text-base">🇯🇵</span>
+          JP Foils >$50
+          <svg class="w-3 h-3 opacity-0 group-hover:opacity-100 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/>
+          </svg>
+        </button>
+        
+        <!-- Custom View: Reserved List -->
+        <button class="view-tab px-4 py-3 flex items-center gap-2 text-sm font-medium text-gray-400 hover:text-white whitespace-nowrap group">
+          <span class="text-base">📈</span>
+          Reserved List
+          <svg class="w-3 h-3 opacity-0 group-hover:opacity-100 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/>
+          </svg>
+        </button>
+        
+        <!-- + View Button -->
+        <button class="view-tab px-4 py-3 flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-indigo-400 whitespace-nowrap">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+          </svg>
+          View
+        </button>
+      </div>
+      
+      <!-- View Options (right side) -->
+      <div class="ml-auto flex items-center gap-2 py-2">
+        <button class="text-gray-400 hover:text-white text-sm flex items-center gap-1 px-2 py-1 rounded hover:bg-gray-700">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+          </svg>
+          Filter
+        </button>
+        <button class="text-gray-400 hover:text-white text-sm flex items-center gap-1 px-2 py-1 rounded hover:bg-gray-700">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"/>
+          </svg>
+          Sort
+        </button>
+        <div class="h-4 w-px bg-gray-700 mx-1"></div>
+        <button class="text-gray-400 hover:text-white p-1 rounded hover:bg-gray-700">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+          </svg>
+        </button>
+        <button class="text-gray-400 hover:text-white p-1 rounded hover:bg-gray-700">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content Area -->
+  <main class="max-w-7xl mx-auto p-6">
+    
+    <div class="wireframe-note">
+      <strong>Design Pattern:</strong> ClickUp-style view tabs. Built-in views (All Cards, By Card, Storage, Proxy List) 
+      are always present. Users can create custom views with "+ View". Each view is a saved filter/query against the collection.
+      Badges show item counts. Hover reveals kebab menu for custom views. <strong>Note:</strong> Wishlist is a separate peer-level section, not a tab here.
+      <br><br>
+      <strong>All Cards</strong> = grouped by printing (card_definition_id) — "Sol Ring (CMM, Foil) × 2"<br>
+      <strong>By Card</strong> = grouped by card name (oracle_id) — "Sol Ring — 4 owned, 2 proxied, 1 wanted". Click row → Card Management Detail modal.
+    </div>
+
+    <!-- Stats Bar -->
+    <div class="bg-gray-800 rounded-lg p-4 mb-6 flex items-center gap-8">
+      <div>
+        <div class="text-2xl font-bold">3,247</div>
+        <div class="text-xs text-gray-500">Total Cards</div>
+      </div>
+      <div>
+        <div class="text-2xl font-bold">1,892</div>
+        <div class="text-xs text-gray-500">Unique</div>
+      </div>
+      <div>
+        <div class="text-2xl font-bold text-green-400">$12,450</div>
+        <div class="text-xs text-gray-500">Est. Value</div>
+      </div>
+      <div class="ml-auto">
+        <button class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-lg text-sm font-medium">
+          + Add Cards
+        </button>
+      </div>
+    </div>
+
+    <!-- Table Content (abbreviated) -->
+    <div class="bg-gray-800 rounded-lg overflow-hidden">
+      <table class="w-full">
+        <thead class="bg-gray-750 text-left text-sm text-gray-400">
+          <tr>
+            <th class="px-4 py-3 font-medium">Card Name</th>
+            <th class="px-4 py-3 font-medium">Set</th>
+            <th class="px-4 py-3 font-medium text-center">Qty</th>
+            <th class="px-4 py-3 font-medium">Location(s)</th>
+            <th class="px-4 py-3 font-medium text-right">Price</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-700">
+          <tr class="hover:bg-gray-750">
+            <td class="px-4 py-3 font-medium">Dockside Extortionist</td>
+            <td class="px-4 py-3 text-sm text-gray-400">2X2</td>
+            <td class="px-4 py-3 text-center"><span class="bg-gray-700 px-2 py-0.5 rounded text-sm">2</span></td>
+            <td class="px-4 py-3">
+              <span class="text-xs bg-green-900 text-green-300 px-2 py-0.5 rounded mr-1">Prosper</span>
+              <span class="text-xs bg-amber-900 text-amber-300 px-2 py-0.5 rounded">Korvold (claimed)</span>
+            </td>
+            <td class="px-4 py-3 text-right text-sm">$48.00</td>
+          </tr>
+          <tr class="hover:bg-gray-750">
+            <td class="px-4 py-3 font-medium">Ragavan, Nimble Pilferer</td>
+            <td class="px-4 py-3 text-sm text-gray-400">MH2</td>
+            <td class="px-4 py-3 text-center"><span class="bg-gray-700 px-2 py-0.5 rounded text-sm">1</span></td>
+            <td class="px-4 py-3">
+              <span class="text-xs bg-blue-900 text-blue-300 px-2 py-0.5 rounded">Staples Binder</span>
+            </td>
+            <td class="px-4 py-3 text-right text-sm">$52.00</td>
+          </tr>
+          <tr class="hover:bg-gray-750">
+            <td class="px-4 py-3 font-medium">Sol Ring</td>
+            <td class="px-4 py-3 text-sm text-gray-400">Various</td>
+            <td class="px-4 py-3 text-center"><span class="bg-gray-700 px-2 py-0.5 rounded text-sm">14</span></td>
+            <td class="px-4 py-3">
+              <span class="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded">12 decks + 2 storage</span>
+            </td>
+            <td class="px-4 py-3 text-right text-sm">$2.50 ea</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </main>
+
+  <!-- "+ View" Dropdown (shown separately for reference) -->
+  <div class="max-w-7xl mx-auto px-6 mt-8">
+    <h3 class="text-sm font-semibold mb-3 text-gray-300">+ View Dropdown</h3>
+    <div class="bg-gray-800 rounded-lg p-2 w-64 shadow-xl border border-gray-700">
+      <div class="px-3 py-2 text-xs text-gray-500 uppercase">From template</div>
+      <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 text-sm flex items-center gap-2">
+        <span>💰</span> High Value (>$20)
+      </button>
+      <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 text-sm flex items-center gap-2">
+        <span>🌐</span> By Language
+      </button>
+      <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 text-sm flex items-center gap-2">
+        <span>✨</span> Foils Only
+      </button>
+      <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 text-sm flex items-center gap-2">
+        <span>📈</span> Reserved List
+      </button>
+      <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 text-sm flex items-center gap-2">
+        <span>🔄</span> Shared Cards
+      </button>
+      <hr class="border-gray-700 my-2">
+      <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 text-sm flex items-center gap-2 text-indigo-400">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+        </svg>
+        Custom View...
+      </button>
+    </div>
+  </div>
+
+  <!-- Custom View Editor (shown separately for reference) -->
+  <div class="max-w-7xl mx-auto px-6 mt-8 mb-12">
+    <h3 class="text-sm font-semibold mb-3 text-gray-300">Custom View Editor (modal)</h3>
+    <div class="bg-gray-800 rounded-lg p-6 w-96 shadow-xl border border-gray-700">
+      <h2 class="text-lg font-semibold mb-4">Create Custom View</h2>
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">View Name</label>
+          <input type="text" placeholder="e.g., Japanese Foils >$50" 
+                 class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm">
+        </div>
+        
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Icon (optional)</label>
+          <div class="flex gap-2">
+            <button class="w-8 h-8 rounded bg-gray-700 hover:bg-gray-600 text-lg">🇯🇵</button>
+            <button class="w-8 h-8 rounded bg-gray-700 hover:bg-gray-600 text-lg">💰</button>
+            <button class="w-8 h-8 rounded bg-gray-700 hover:bg-gray-600 text-lg">✨</button>
+            <button class="w-8 h-8 rounded bg-gray-700 hover:bg-gray-600 text-lg">📈</button>
+            <button class="w-8 h-8 rounded bg-gray-700 hover:bg-gray-600 text-lg">🔥</button>
+            <button class="w-8 h-8 rounded bg-gray-700 hover:bg-gray-600 text-sm text-gray-400">...</button>
+          </div>
+        </div>
+        
+        <div>
+          <label class="block text-sm text-gray-400 mb-2">Filters</label>
+          <div class="space-y-2">
+            <div class="flex items-center gap-2">
+              <select class="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm flex-1">
+                <option>Language</option>
+                <option>Price</option>
+                <option>Foil</option>
+                <option>Set</option>
+                <option>Color</option>
+                <option>Type</option>
+              </select>
+              <select class="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm">
+                <option>is</option>
+                <option>is not</option>
+                <option>contains</option>
+              </select>
+              <select class="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm flex-1">
+                <option>Japanese</option>
+                <option>English</option>
+                <option>German</option>
+              </select>
+              <button class="text-gray-500 hover:text-red-400">×</button>
+            </div>
+            <div class="flex items-center gap-2">
+              <select class="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm flex-1">
+                <option>Price</option>
+              </select>
+              <select class="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm">
+                <option>></option>
+                <option><</option>
+                <option>=</option>
+              </select>
+              <input type="text" value="50" class="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm w-20">
+              <button class="text-gray-500 hover:text-red-400">×</button>
+            </div>
+            <div class="flex items-center gap-2">
+              <select class="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm flex-1">
+                <option>Foil</option>
+              </select>
+              <select class="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm">
+                <option>is</option>
+              </select>
+              <select class="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm flex-1">
+                <option>Yes</option>
+                <option>No</option>
+              </select>
+              <button class="text-gray-500 hover:text-red-400">×</button>
+            </div>
+            <button class="text-indigo-400 text-sm hover:text-indigo-300">+ Add filter</button>
+          </div>
+        </div>
+        
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Default Sort</label>
+          <select class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm">
+            <option>Price (High to Low)</option>
+            <option>Price (Low to High)</option>
+            <option>Name (A-Z)</option>
+            <option>Recently Added</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="flex justify-end gap-3 mt-6">
+        <button class="px-4 py-2 text-sm text-gray-400 hover:text-white">Cancel</button>
+        <button class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded text-sm font-medium">Create View</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Tab Context Menu -->
+  <div class="max-w-7xl mx-auto px-6 mb-12">
+    <h3 class="text-sm font-semibold mb-3 text-gray-300">Custom View Context Menu (right-click or kebab)</h3>
+    <div class="bg-gray-800 rounded-lg p-2 w-48 shadow-xl border border-gray-700">
+      <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 text-sm">Rename</button>
+      <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 text-sm">Edit Filters</button>
+      <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 text-sm">Duplicate</button>
+      <hr class="border-gray-700 my-1">
+      <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 text-sm text-red-400">Delete View</button>
+    </div>
+  </div>
+
+</body>
+</html>

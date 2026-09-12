@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Global Search - Wireframe</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .wireframe-note {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 12px 16px;
+      margin-bottom: 24px;
+      font-size: 14px;
+    }
+    .search-result:hover {
+      background: #374151;
+    }
+    .action-btn {
+      transition: all 0.15s;
+    }
+    .action-btn:hover {
+      transform: scale(1.02);
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-gray-100 p-8">
+  
+  <div class="max-w-3xl mx-auto">
+    <h1 class="text-2xl font-bold mb-2">Global Search</h1>
+    <p class="text-gray-400 mb-6">Layout: Command palette style with card image + inline actions</p>
+    
+    <div class="wireframe-note">
+      <strong>Design Rationale:</strong> Global search is the "where is card X?" answer machine. 
+      Option C chosen: card image + actions for rich inline experience. Autocomplete from Scryfall names.
+      Results show ownership, locations, price, and actionable buttons without drilling into a detail view.
+    </div>
+
+    <!-- Search Bar (as it would appear in nav) -->
+    <div class="bg-gray-800 rounded-lg p-4 mb-6">
+      <p class="text-sm text-gray-400 mb-2">Search bar in navigation header:</p>
+      <div class="flex items-center gap-3">
+        <div class="flex-1 relative">
+          <input type="text" 
+                 placeholder="Search cards... (⌘K)" 
+                 class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 pl-10 focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+          <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+        </div>
+        <span class="text-xs text-gray-500">or press ⌘K anywhere</span>
+      </div>
+    </div>
+
+    <!-- Search Modal / Dropdown -->
+    <div class="bg-gray-800 rounded-xl shadow-2xl border border-gray-700 overflow-hidden">
+      
+      <!-- Search Input -->
+      <div class="p-4 border-b border-gray-700">
+        <div class="relative">
+          <input type="text" 
+                 value="Dockside"
+                 autofocus
+                 class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 pl-10 text-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+          <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 bg-gray-600 px-1.5 py-0.5 rounded">ESC</span>
+        </div>
+      </div>
+
+      <!-- Results List -->
+      <div class="max-h-[500px] overflow-y-auto">
+        
+        <!-- Result: Owned Card -->
+        <div class="search-result p-4 border-b border-gray-700 cursor-pointer">
+          <div class="flex gap-4">
+            <!-- Card Image -->
+            <div class="w-16 h-22 bg-gray-700 rounded flex-shrink-0 flex items-center justify-center text-gray-500 text-[8px]">
+              [Card Art]
+            </div>
+            
+            <!-- Card Info -->
+            <div class="flex-1 min-w-0">
+              <div class="flex items-start justify-between mb-1">
+                <div>
+                  <h3 class="font-semibold text-white">Dockside Extortionist</h3>
+                  <p class="text-sm text-gray-400">1R · Creature — Goblin Pirate</p>
+                </div>
+                <div class="text-right">
+                  <div class="text-sm font-medium text-green-400">$48.00</div>
+                  <div class="text-xs text-gray-500">TCG Low</div>
+                </div>
+              </div>
+              
+              <!-- Ownership Status -->
+              <div class="mb-3">
+                <div class="flex items-center gap-2 text-sm">
+                  <span class="bg-green-900 text-green-300 px-2 py-0.5 rounded font-medium">2 copies owned</span>
+                </div>
+                <div class="mt-1 text-sm text-gray-400">
+                  <span class="text-green-400">✓ Prosper</span> · 
+                  <span class="text-amber-400">Claimed by Korvold</span>
+                </div>
+              </div>
+              
+              <!-- Actions -->
+              <div class="flex flex-wrap gap-2">
+                <button class="action-btn bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-3 py-1.5 rounded font-medium">
+                  Add to Deck
+                </button>
+                <button class="action-btn bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1.5 rounded font-medium">
+                  Pull to Deck
+                </button>
+                <button class="action-btn bg-gray-600 hover:bg-gray-500 text-white text-xs px-3 py-1.5 rounded font-medium">
+                  Wishlist
+                </button>
+                <button class="action-btn bg-gray-600 hover:bg-gray-500 text-white text-xs px-3 py-1.5 rounded font-medium">
+                  Proxy List
+                </button>
+                <button class="action-btn text-gray-400 hover:text-white text-xs px-2 py-1.5">
+                  More ▾
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Result: Unowned Card -->
+        <div class="search-result p-4 border-b border-gray-700 cursor-pointer">
+          <div class="flex gap-4">
+            <div class="w-16 h-22 bg-gray-700 rounded flex-shrink-0 flex items-center justify-center text-gray-500 text-[8px] opacity-60">
+              [Card Art]
+            </div>
+            
+            <div class="flex-1 min-w-0">
+              <div class="flex items-start justify-between mb-1">
+                <div>
+                  <h3 class="font-semibold text-white">Dockside Chef</h3>
+                  <p class="text-sm text-gray-400">B · Enchantment Creature — Human Citizen</p>
+                </div>
+                <div class="text-right">
+                  <div class="text-sm font-medium text-gray-400">$0.25</div>
+                  <div class="text-xs text-gray-500">TCG Low</div>
+                </div>
+              </div>
+              
+              <!-- Ownership Status -->
+              <div class="mb-3">
+                <div class="flex items-center gap-2 text-sm">
+                  <span class="bg-gray-700 text-gray-400 px-2 py-0.5 rounded">Not owned</span>
+                </div>
+              </div>
+              
+              <!-- Actions (different for unowned) -->
+              <div class="flex flex-wrap gap-2">
+                <button class="action-btn bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-3 py-1.5 rounded font-medium">
+                  Add to Deck
+                </button>
+                <button class="action-btn bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1.5 rounded font-medium">
+                  Add to Wishlist
+                </button>
+                <button class="action-btn bg-gray-600 hover:bg-gray-500 text-white text-xs px-3 py-1.5 rounded font-medium">
+                  Proxy List
+                </button>
+                <button class="action-btn text-gray-400 hover:text-white text-xs px-2 py-1.5">
+                  More ▾
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Result: Multiple Copies in Multiple Locations -->
+        <div class="search-result p-4 border-b border-gray-700 cursor-pointer">
+          <div class="flex gap-4">
+            <div class="w-16 h-22 bg-gray-700 rounded flex-shrink-0 flex items-center justify-center text-gray-500 text-[8px]">
+              [Card Art]
+            </div>
+            
+            <div class="flex-1 min-w-0">
+              <div class="flex items-start justify-between mb-1">
+                <div>
+                  <h3 class="font-semibold text-white">Sol Ring</h3>
+                  <p class="text-sm text-gray-400">1 · Artifact</p>
+                </div>
+                <div class="text-right">
+                  <div class="text-sm font-medium text-green-400">$2.50</div>
+                  <div class="text-xs text-gray-500">TCG Low</div>
+                </div>
+              </div>
+              
+              <!-- Ownership Status - Many copies -->
+              <div class="mb-3">
+                <div class="flex items-center gap-2 text-sm">
+                  <span class="bg-green-900 text-green-300 px-2 py-0.5 rounded font-medium">14 copies owned</span>
+                  <span class="text-gray-500">in 12 decks + 2 in storage</span>
+                </div>
+                <div class="mt-1 text-xs text-gray-500">
+                  Click to see all locations →
+                </div>
+              </div>
+              
+              <!-- Actions -->
+              <div class="flex flex-wrap gap-2">
+                <button class="action-btn bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-3 py-1.5 rounded font-medium">
+                  Add to Deck
+                </button>
+                <button class="action-btn bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded font-medium">
+                  Assign from Storage
+                </button>
+                <button class="action-btn text-gray-400 hover:text-white text-xs px-2 py-1.5">
+                  More ▾
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Result: On Wishlist -->
+        <div class="search-result p-4 border-b border-gray-700 cursor-pointer">
+          <div class="flex gap-4">
+            <div class="w-16 h-22 bg-gray-700 rounded flex-shrink-0 flex items-center justify-center text-gray-500 text-[8px] opacity-60">
+              [Card Art]
+            </div>
+            
+            <div class="flex-1 min-w-0">
+              <div class="flex items-start justify-between mb-1">
+                <div>
+                  <h3 class="font-semibold text-white">Dockside Evacuator</h3>
+                  <p class="text-sm text-gray-400">2R · Creature — Viashino Pirate</p>
+                </div>
+                <div class="text-right">
+                  <div class="text-sm font-medium text-gray-400">$1.50</div>
+                  <div class="text-xs text-gray-500">TCG Low</div>
+                </div>
+              </div>
+              
+              <!-- Ownership Status -->
+              <div class="mb-3">
+                <div class="flex items-center gap-2 text-sm">
+                  <span class="bg-gray-700 text-gray-400 px-2 py-0.5 rounded">Not owned</span>
+                  <span class="bg-purple-900 text-purple-300 px-2 py-0.5 rounded">On Wishlist</span>
+                </div>
+              </div>
+              
+              <!-- Actions -->
+              <div class="flex flex-wrap gap-2">
+                <button class="action-btn bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-3 py-1.5 rounded font-medium">
+                  Add to Deck
+                </button>
+                <button class="action-btn bg-gray-600 hover:bg-gray-500 text-white text-xs px-3 py-1.5 rounded font-medium">
+                  Remove from Wishlist
+                </button>
+                <button class="action-btn bg-gray-600 hover:bg-gray-500 text-white text-xs px-3 py-1.5 rounded font-medium">
+                  Proxy List
+                </button>
+                <button class="action-btn text-gray-400 hover:text-white text-xs px-2 py-1.5">
+                  More ▾
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Footer -->
+      <div class="p-3 border-t border-gray-700 bg-gray-750 flex items-center justify-between text-xs text-gray-500">
+        <div>
+          <span class="bg-gray-600 px-1.5 py-0.5 rounded mr-1">↑↓</span> Navigate
+          <span class="bg-gray-600 px-1.5 py-0.5 rounded mx-1">↵</span> Select
+          <span class="bg-gray-600 px-1.5 py-0.5 rounded mx-1">ESC</span> Close
+        </div>
+        <a href="#" class="text-indigo-400 hover:text-indigo-300">Advanced Search →</a>
+      </div>
+    </div>
+
+    <!-- "More" Dropdown Actions -->
+    <div class="mt-8 bg-gray-800 rounded-lg p-4">
+      <h3 class="text-sm font-semibold mb-3 text-gray-300">"More ▾" Dropdown Actions</h3>
+      <div class="bg-gray-700 rounded-lg p-2 w-48">
+        <div class="space-y-1">
+          <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-600 text-sm">View on Scryfall</button>
+          <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-600 text-sm">View on EDHREC</button>
+          <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-600 text-sm">See all printings</button>
+          <hr class="border-gray-600 my-1">
+          <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-600 text-sm">Open on TCGPlayer</button>
+          <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-600 text-sm">Open on CardKingdom</button>
+          <hr class="border-gray-600 my-1">
+          <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-600 text-sm">See which decks run this</button>
+          <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-600 text-sm">Add copies to collection</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- "Add to Deck" Flow -->
+    <div class="mt-6 bg-gray-800 rounded-lg p-4">
+      <h3 class="text-sm font-semibold mb-3 text-gray-300">"Add to Deck" Submenu</h3>
+      <p class="text-sm text-gray-400 mb-3">When clicked, shows deck picker:</p>
+      <div class="bg-gray-700 rounded-lg p-2 w-64">
+        <div class="px-3 py-2 text-xs text-gray-500 uppercase">Add to deck...</div>
+        <div class="space-y-1">
+          <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-600 text-sm flex items-center gap-2">
+            <div class="w-6 h-6 bg-gray-600 rounded"></div>
+            Prosper, Tome-Bound
+          </button>
+          <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-600 text-sm flex items-center gap-2">
+            <div class="w-6 h-6 bg-gray-600 rounded"></div>
+            Korvold Sacrifice
+          </button>
+          <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-600 text-sm flex items-center gap-2">
+            <div class="w-6 h-6 bg-gray-600 rounded"></div>
+            Atraxa Superfriends
+          </button>
+          <hr class="border-gray-600 my-1">
+          <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-600 text-sm text-indigo-400">
+            + Create new deck
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- "Pull to Deck" Flow -->
+    <div class="mt-6 bg-gray-800 rounded-lg p-4">
+      <h3 class="text-sm font-semibold mb-3 text-gray-300">"Pull to Deck" Submenu (when card is claimed elsewhere)</h3>
+      <p class="text-sm text-gray-400 mb-3">Shows source options + destination picker:</p>
+      <div class="bg-gray-700 rounded-lg p-2 w-72">
+        <div class="px-3 py-2 text-xs text-gray-500 uppercase">Pull from...</div>
+        <div class="space-y-1">
+          <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-600 text-sm flex items-center justify-between">
+            <span class="flex items-center gap-2">
+              <div class="w-6 h-6 bg-amber-900 rounded"></div>
+              Korvold Sacrifice
+            </span>
+            <span class="text-xs text-amber-400">Claimed</span>
+          </button>
+          <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-600 text-sm flex items-center justify-between">
+            <span class="flex items-center gap-2">
+              <div class="w-6 h-6 bg-blue-900 rounded"></div>
+              Staples Binder
+            </span>
+            <span class="text-xs text-blue-400">Available</span>
+          </button>
+        </div>
+        <hr class="border-gray-600 my-2">
+        <div class="px-3 py-2 text-xs text-gray-500 uppercase">Into...</div>
+        <div class="space-y-1">
+          <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-600 text-sm flex items-center gap-2">
+            <div class="w-6 h-6 bg-gray-600 rounded"></div>
+            Prosper, Tome-Bound
+          </button>
+          <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-600 text-sm flex items-center gap-2">
+            <div class="w-6 h-6 bg-gray-600 rounded"></div>
+            Magda, Brazen Outlaw
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Summary -->
+    <div class="mt-8 p-4 bg-gray-800 rounded-lg">
+      <h3 class="text-sm font-semibold mb-3 text-gray-300">MVP Actions Summary</h3>
+      <table class="w-full text-sm">
+        <thead class="text-gray-400 text-left">
+          <tr>
+            <th class="py-2">Action</th>
+            <th class="py-2">Shows When</th>
+            <th class="py-2">Placement</th>
+          </tr>
+        </thead>
+        <tbody class="text-gray-300">
+          <tr class="border-t border-gray-700">
+            <td class="py-2 font-medium">Add to Deck</td>
+            <td class="py-2">Always</td>
+            <td class="py-2">Primary button</td>
+          </tr>
+          <tr class="border-t border-gray-700">
+            <td class="py-2 font-medium">Pull to Deck</td>
+            <td class="py-2">When copies exist (owned or claimed)</td>
+            <td class="py-2">Primary button</td>
+          </tr>
+          <tr class="border-t border-gray-700">
+            <td class="py-2 font-medium">Assign from Storage</td>
+            <td class="py-2">When free copies in storage</td>
+            <td class="py-2">Primary button</td>
+          </tr>
+          <tr class="border-t border-gray-700">
+            <td class="py-2 font-medium">Add to Wishlist</td>
+            <td class="py-2">When not owned & not on wishlist</td>
+            <td class="py-2">Secondary button</td>
+          </tr>
+          <tr class="border-t border-gray-700">
+            <td class="py-2 font-medium">Add to Proxy List</td>
+            <td class="py-2">Always</td>
+            <td class="py-2">Secondary button</td>
+          </tr>
+          <tr class="border-t border-gray-700">
+            <td class="py-2 font-medium">View on Scryfall</td>
+            <td class="py-2">Always</td>
+            <td class="py-2">More menu</td>
+          </tr>
+          <tr class="border-t border-gray-700">
+            <td class="py-2 font-medium">View on EDHREC</td>
+            <td class="py-2">Always</td>
+            <td class="py-2">More menu</td>
+          </tr>
+          <tr class="border-t border-gray-700">
+            <td class="py-2 font-medium">See all printings</td>
+            <td class="py-2">Always</td>
+            <td class="py-2">More menu</td>
+          </tr>
+          <tr class="border-t border-gray-700">
+            <td class="py-2 font-medium">Open on TCGPlayer</td>
+            <td class="py-2">Always</td>
+            <td class="py-2">More menu</td>
+          </tr>
+          <tr class="border-t border-gray-700">
+            <td class="py-2 font-medium">Open on CardKingdom</td>
+            <td class="py-2">Always</td>
+            <td class="py-2">More menu</td>
+          </tr>
+          <tr class="border-t border-gray-700">
+            <td class="py-2 font-medium">See which decks run this</td>
+            <td class="py-2">When owned</td>
+            <td class="py-2">More menu</td>
+          </tr>
+          <tr class="border-t border-gray-700">
+            <td class="py-2 font-medium">Add copies to collection</td>
+            <td class="py-2">Always</td>
+            <td class="py-2">More menu</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Keyboard Navigation -->
+    <div class="mt-6 p-4 bg-gray-800 rounded-lg">
+      <h3 class="text-sm font-semibold mb-3 text-gray-300">Keyboard Navigation</h3>
+      <ul class="text-sm text-gray-400 space-y-1">
+        <li>• <code class="bg-gray-700 px-1 rounded">⌘K</code> — Open search from anywhere</li>
+        <li>• <code class="bg-gray-700 px-1 rounded">↑↓</code> — Navigate results</li>
+        <li>• <code class="bg-gray-700 px-1 rounded">Enter</code> — Open card detail / expand</li>
+        <li>• <code class="bg-gray-700 px-1 rounded">⌘1</code> — Quick action: Add to Deck</li>
+        <li>• <code class="bg-gray-700 px-1 rounded">⌘2</code> — Quick action: Wishlist</li>
+        <li>• <code class="bg-gray-700 px-1 rounded">ESC</code> — Close search</li>
+      </ul>
+    </div>
+
+  </div>
+</body>
+</html>

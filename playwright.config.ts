@@ -2,6 +2,8 @@ import { defineConfig, devices } from '@playwright/test'
 import path from 'path'
 import fs from 'fs'
 
+type E2EMode = 'isolated' | 'shared-readonly'
+
 const authFile = path.join(__dirname, 'tests/e2e/.auth/session.json')
 const hasAuth = fs.existsSync(authFile)
 
@@ -13,16 +15,38 @@ const unsafeE2EHosts = new Set([
   '[::1]',
 ])
 
-function requireIsolatedBaseURL(): string {
-  if (process.env.E2E_ISOLATED !== 'true') {
-    throw new Error(
-      'E2E disabled: set E2E_ISOLATED=true only after verifying a dedicated Supabase-backed test environment.',
-    )
+function resolveE2EMode(): E2EMode {
+  const configuredMode = process.env.E2E_MODE?.trim()
+
+  if (configuredMode === 'shared-readonly') {
+    if (process.env.E2E_ISOLATED === 'true') {
+      throw new Error(
+        'E2E disabled: shared-readonly mode must not claim E2E_ISOLATED=true.',
+      )
+    }
+    return 'shared-readonly'
   }
 
+  // Preserve the existing isolated contract for current callers. E2E_MODE=isolated
+  // makes that intent explicit, while the legacy E2E_ISOLATED=true form remains safe.
+  if (configuredMode === undefined || configuredMode === '' || configuredMode === 'isolated') {
+    if (process.env.E2E_ISOLATED !== 'true') {
+      throw new Error(
+        'E2E disabled: set E2E_ISOLATED=true only after verifying a dedicated Supabase-backed test environment.',
+      )
+    }
+    return 'isolated'
+  }
+
+  throw new Error(
+    `E2E disabled: unsupported E2E_MODE=${configuredMode}. Use isolated or shared-readonly.`,
+  )
+}
+
+function requireSafeBaseURL(mode: E2EMode): string {
   const configuredURL = process.env.E2E_BASE_URL?.trim()
   if (!configuredURL) {
-    throw new Error('E2E disabled: E2E_BASE_URL is required for the isolated test environment.')
+    throw new Error(`E2E disabled: E2E_BASE_URL is required for ${mode} mode.`)
   }
 
   let target: URL
@@ -42,14 +66,16 @@ function requireIsolatedBaseURL(): string {
   return target.toString().replace(/\/$/, '')
 }
 
-const isolatedBaseURL = requireIsolatedBaseURL()
+const e2eMode = resolveE2EMode()
+const baseURL = requireSafeBaseURL(e2eMode)
 
 /**
  * Playwright configuration for The Oracle E2E tests.
  *
- * Every invocation requires an explicitly attested isolated frontend backed by
- * a dedicated Supabase project. Production and localhost are always denied.
- * See tests/e2e/README.md for the provisioning and execution contract.
+ * Isolated mode preserves the full mutable suite's dedicated-backend contract.
+ * Shared-readonly mode is an explicit, temporary exception for one dedicated
+ * identity against a separate frontend sharing the Oracle backend. It exposes
+ * only the reviewed smoke spec and never claims isolation.
  */
 export default defineConfig({
   testDir: './tests/e2e',
@@ -63,37 +89,55 @@ export default defineConfig({
   timeout: 60_000,
 
   use: {
-    baseURL: isolatedBaseURL,
+    baseURL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: process.env.CI ? 'on-first-retry' : 'off',
   },
 
-  projects: [
-    // Auth setup — run FIRST, once, with --headed (local only)
-    {
-      name: 'setup',
-      testMatch: /auth\.setup\.ts/,
-      timeout: 180_000,
-    },
-    // Main tests — use saved auth if available
-    {
-      name: 'chromium',
-      use: {
-        ...devices['Desktop Chrome'],
-        storageState: hasAuth ? authFile : undefined,
-      },
-      testIgnore: /auth\.setup\.ts/,
-    },
-    // Mobile viewport tests
-    {
-      name: 'mobile',
-      use: {
-        ...devices['iPhone 14'],
-        storageState: hasAuth ? authFile : undefined,
-      },
-      testIgnore: /auth\.setup\.ts/,
-      testMatch: /mobile\.spec\.ts/,
-    },
-  ],
+  projects: e2eMode === 'shared-readonly'
+    ? [
+        // This project is intentionally separate from the smoke command. It
+        // exists only to refresh the dedicated test identity's browser state.
+        {
+          name: 'shared-readonly-auth',
+          testMatch: /auth\.setup\.ts/,
+          timeout: 180_000,
+        },
+        {
+          name: 'shared-readonly',
+          testMatch: /shared-readonly-smoke\.spec\.ts/,
+          use: {
+            ...devices['Desktop Chrome'],
+            storageState: hasAuth ? authFile : undefined,
+          },
+        },
+      ]
+    : [
+        // Auth setup — run first, once, with --headed (local only).
+        {
+          name: 'setup',
+          testMatch: /auth\.setup\.ts/,
+          timeout: 180_000,
+        },
+        // The full suite remains available only to a dedicated isolated backend.
+        {
+          name: 'chromium',
+          use: {
+            ...devices['Desktop Chrome'],
+            storageState: hasAuth ? authFile : undefined,
+          },
+          testIgnore: [/auth\.setup\.ts/, /shared-readonly-smoke\.spec\.ts/],
+        },
+        // Mobile viewport tests
+        {
+          name: 'mobile',
+          use: {
+            ...devices['iPhone 14'],
+            storageState: hasAuth ? authFile : undefined,
+          },
+          testIgnore: [/auth\.setup\.ts/, /shared-readonly-smoke\.spec\.ts/],
+          testMatch: /mobile\.spec\.ts/,
+        },
+      ],
 })

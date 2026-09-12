@@ -1,0 +1,89 @@
+name: Shared Read-only Smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 8 * * 1-5'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shared-readonly-smoke-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  shared-readonly-smoke:
+    name: Shared read-only smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: e2e-shared-readonly
+    env:
+      E2E_MODE: ${{ vars.E2E_MODE }}
+      E2E_BASE_URL: ${{ vars.E2E_BASE_URL }}
+
+    steps:
+      - name: Verify shared-readonly configuration
+        env:
+          PLAYWRIGHT_SHARED_READONLY_AUTH_SESSION: ${{ secrets.PLAYWRIGHT_SHARED_READONLY_AUTH_SESSION }}
+        run: |
+          node -e '
+            if (process.env.E2E_MODE !== "shared-readonly") {
+              throw new Error("Shared smoke disabled: E2E_MODE must equal shared-readonly")
+            }
+            const raw = process.env.E2E_BASE_URL
+            if (!raw) {
+              throw new Error("Shared smoke disabled: E2E_BASE_URL is required")
+            }
+            const target = new URL(raw)
+            const denied = new Set(["oracle-alpha-two.vercel.app", "localhost", "127.0.0.1", "0.0.0.0", "[::1]"])
+            const hostname = target.hostname.toLowerCase()
+            if (target.protocol !== "https:" || denied.has(hostname) || hostname.endsWith(".localhost")) {
+              throw new Error(`Shared smoke disabled: refusing unsafe target ${target.origin}`)
+            }
+            if (!process.env.PLAYWRIGHT_SHARED_READONLY_AUTH_SESSION) {
+              throw new Error("Shared smoke disabled: dedicated auth session is not configured")
+            }
+          '
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install chromium --with-deps
+
+      - name: Restore dedicated shared-readonly session
+        env:
+          PLAYWRIGHT_SHARED_READONLY_AUTH_SESSION: ${{ secrets.PLAYWRIGHT_SHARED_READONLY_AUTH_SESSION }}
+        run: |
+          mkdir -p tests/e2e/.auth
+          printf '%s' "$PLAYWRIGHT_SHARED_READONLY_AUTH_SESSION" | base64 --decode > tests/e2e/.auth/session.json
+
+      - name: Run allowlisted shared-readonly smoke
+        run: npm run test:e2e:shared-readonly
+        env:
+          CI: true
+
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shared-readonly-playwright-report
+          path: playwright-report/
+          retention-days: 14
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: shared-readonly-test-results
+          path: test-results/
+          retention-days: 7

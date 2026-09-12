@@ -120,11 +120,12 @@ The temporary mode uses a separate Vercel frontend and dedicated Supabase Auth u
 
 Safety controls:
 
-- Playwright config exposes only a dedicated smoke project in this mode.
-- The allowlist contains navigation/rendering tests that do not call mutation routes.
-- Production frontend hostname remains denied; tests target the separate E2E deployment.
+- `E2E_MODE=shared-readonly` is the sole explicit activation. It rejects `E2E_ISOLATED=true`, so the exception cannot be mislabeled as a dedicated database.
+- Playwright config exposes only `shared-readonly` and `shared-readonly-auth` projects in this mode; the `chromium`, `mobile`, and isolated `setup` projects do not exist.
+- The allowlist is the single named file `tests/e2e/shared-readonly-smoke.spec.ts`; it contains navigation/rendering assertions only and may not use direct mutation requests.
+- Production frontend hostname remains denied; tests target the separate E2E Preview deployment.
 - The dedicated test user receives only deterministic read-only fixtures and is never the real collection owner.
-- CI carries an explicit accepted-risk mode variable and cannot select the full Chromium suite.
+- The `Shared Read-only Smoke` workflow uses the separate protected `e2e-shared-readonly` environment and `PLAYWRIGHT_SHARED_READONLY_AUTH_SESSION`; it cannot select the full Chromium suite.
 - Allocation, import, cron, reset, deck creation, and direct mutation API coverage remain disabled until a separate database exists.
 
 This exception does not resolve TD-027. It provides limited deployment smoke evidence while preserving the fail-closed mutable-suite gate.

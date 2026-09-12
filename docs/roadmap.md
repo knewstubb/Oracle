@@ -14,7 +14,7 @@
 - [x] Instance-level physical copy tracking (one row per card)
 - [x] Collection grid view + list/printing view
 - [x] Search and filter by name, color identity, status
-- [x] Collection CSV export (full backup with all fields)
+- [x] Collection CSV export (portable card/copy export; **not** a complete relational backup)
 - [x] Purchase price capture on import
 - [x] Market price tracking (Scryfall-sourced)
 - [x] Collection value banner (total value, gain/loss, top cards)

@@ -6,7 +6,7 @@
 - **Instance-Level Tracking** — Every physical card is a unique row. Not "3 Sol Rings" but three distinct copies with locations.
 - **Grid + List Views** — Card images grid (filterable) and table view with set icon, edition, price.
 - **Search & Filter** — Name, color identity, status, proxy flag. Persistent view mode.
-- **CSV Export** — Full backup with all fields. Compatible with re-import.
+- **CSV Export** — Portable card/copy export. Not a full backup: it does not restore all storage, missing, deck, and allocation relationships.
 - **Purchase Price** — Captured from CSV import and scan. Collection value banner shows total/gain/loss.
 - **Market Prices** — Scryfall-sourced, stored in card_metadata. Manual refresh + daily cron.
 - **Card Scanner** — Camera with OCR capture. Parked: needs GCV API key.

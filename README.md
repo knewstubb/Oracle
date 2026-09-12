@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# The Oracle
 
-## Getting Started
+The Oracle is a private Magic: The Gathering Commander collection and deck-management application. It tracks individual owned copies, storage locations, proxies, and deck allocations, with supporting deck-building and card-data tools.
 
-First, run the development server:
+> **Migration status:** Do not use Oracle as the only source of truth for a real collection yet. Read the [collection migration readiness audit](docs/audits/collection-migration-readiness-2026-09-03.md) before importing authoritative data.
+
+## Stack
+
+- Next.js 16 / React 19 / TypeScript
+- Supabase Postgres and Auth
+- TanStack Query
+- Tailwind CSS and shadcn/ui
+- Vitest and Playwright
+- Vercel deployment and cron routes
+
+## Local Development
+
+Requirements: Node.js 20+, npm, and access to a configured Supabase project.
 
 ```bash
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The app runs at <http://localhost:3000>.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Copy `.env.local.example` to `.env.local` and provide the required Supabase/auth/integration values. Never commit service-role keys or authenticated Playwright state.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Validation
 
-## Learn More
+```bash
+npm test
+npx tsc --noEmit
+npm run lint
+npm run build
+```
 
-To learn more about Next.js, take a look at the following resources:
+The 2026-09-03 audit found that tests, typecheck, and lint do not currently pass. Build success is not a sufficient quality signal because `next.config.ts` temporarily ignores TypeScript build errors.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Repository Map
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `src/app/` — pages and API route handlers
+- `src/components/` — shared UI
+- `src/lib/` — domain, data, and integration logic
+- `src/hooks/` — client data/query hooks
+- `supabase/` — application-local migrations/functions; not yet the only migration source
+- `scripts/` — active sync plus historical maintenance scripts
+- `tests/e2e/` — Playwright tests; must target isolated test data, not production
+- `docs/` — operational and product documentation
 
-## Deploy on Vercel
+The workspace currently also contains `.kiro/`, research, specs, and additional Supabase assets outside this nested Git repository. Do not delete or consolidate those until deployed migration/function history is reconciled.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Documentation
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Start with [`docs/README.md`](docs/README.md). Feature requirements, designs, and delivery logs live under the workspace `.kiro/specs/` directory.
+
+## Safety Rules
+
+- Preserve Archidekt and independent exports until backup restore and import round-trip are proven.
+- Never run destructive collection replacement without a native database backup.
+- Multi-row state transitions must use atomic Postgres RPCs.
+- Normal user routes should prefer an authenticated RLS-backed Supabase client; service-role access requires explicit ownership scoping.
+- Production must not be used as mutable CI test data.

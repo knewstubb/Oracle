@@ -12,10 +12,8 @@ import type { StrategyBrief, DeckSkeleton } from '@/types/brew'
 
 // Data layers for grounded card pools
 import {
-  getBuildsByCommander,
+  getBuildsByCommanderName,
   getCardPoolForBuild,
-  formatBuildCardsForPrompt,
-  type BuildCard,
 } from '@/lib/commander-build-data'
 import {
   getCardsForAllSlots,
@@ -27,6 +25,8 @@ import {
   getBrewContext,
   findArchetypeForStrategy,
 } from '@/lib/knowledge-data'
+
+export const runtime = 'nodejs'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -194,7 +194,8 @@ async function loadEdhrecBuildCards(
 }> {
   try {
     // Find builds for this commander
-    const builds = await getBuildsByCommander(commanderName)
+    const resolvedBuilds = await getBuildsByCommanderName(commanderName)
+    const builds = resolvedBuilds?.builds ?? []
 
     if (builds.length === 0) {
       console.warn(`[brew/generate] No EDHREC builds found for ${commanderName}`)
@@ -206,7 +207,8 @@ async function loadEdhrecBuildCards(
     const buildId = bestBuild?.id ?? builds[0].id
 
     // Get full card pool for this build
-    let cardPool = await getCardPoolForBuild(buildId)
+    const cardPoolResult = await getCardPoolForBuild(buildId)
+    let cardPool = cardPoolResult.allCards
 
     // Load prices for budget filtering
     const cardNames = cardPool.map(c => c.cardName)
@@ -252,7 +254,7 @@ async function loadEdhrecBuildCards(
     }
   } catch (error) {
     console.error('[brew/generate] Failed to load EDHREC data:', error)
-    return { staples: [], fills: [], cardPool: [] }
+    throw error
   }
 }
 

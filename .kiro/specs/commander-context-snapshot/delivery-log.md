@@ -7,6 +7,42 @@
 
 ---
 
+## 2026-09-12 — Runtime reads migrated behind dual-source repository
+
+**Context:** Phase 2 required every live `ref_build_cards` consumer to use one server-only contract before Supabase rows could be compared with or replaced by the immutable SQLite snapshot.
+
+**What changed:**
+- Added canonical build-card types plus Supabase and read-only SQLite repositories for ranked cards, signatures, staples, and batched synergy-score lookups.
+- Added `COMMANDER_CONTEXT_SOURCE=supabase|shadow|snapshot`; `supabase` remains the default, `shadow` returns Supabase while logging count/digest parity, and `snapshot` serves only a fully validated artifact.
+- Migrated the commander build facade, deck detail synergy lookup, deck build detection, and brew generation grounding to the repository; all affected routes explicitly use the Node.js runtime.
+- Made snapshot startup fail closed on manifest schema, safe artifact name, byte size, SHA-256, SQLite integrity, or row-count mismatch. Brew generation now propagates source failures instead of silently continuing without EDHREC grounding.
+- Made shadow startup lazy and fault-tolerant: a missing or invalid snapshot emits `shadow_error` without exposing card names and preserves the Supabase response.
+- Replaced broad dynamic-route trace includes with a literal bundled artifact path. Next.js now traces the 33.95 MiB snapshot only into `/api/decks/[id]`, `/api/decks/[id]/build`, and `/api/ai/brew/generate`, together with the manifests, repository modules, and native SQLite runtime.
+
+**Validation evidence:**
+- `npm run build` passes on Next.js 16.2.4; the existing middleware deprecation warning remains, and project-wide type validation remains intentionally skipped by existing configuration.
+- Targeted ESLint reports 0 errors and 6 pre-existing unused-symbol warnings in the migrated route files.
+- Snapshot smoke returned 5 ranked cards, 5 signatures, 5 staples, and 5 synergy scores from the representative build.
+- Production-backed shadow smoke reported exact digest matches for all four repository operations.
+- A forced missing-manifest shadow smoke emitted `status=shadow_error` and still returned the expected 5 Supabase cards.
+- Generated NFT traces contain the immutable SQLite artifact in exactly the three intended route trace files; direct source search finds all runtime `ref_build_cards` queries centralized in the Supabase repository.
+
+**Decisions made:**
+- Preserve `supabase` as the default until deployed shadow evidence is collected; this increment performs no production mutation or deletion.
+- Treat live `category` as the canonical source for `cardType`. This deliberately repairs the prior `card_type` projection, which does not exist in production and silently returned empty recommendation data.
+- Use deterministic cross-source tie-breakers before limits so snapshot parity is reproducible; parity compares the canonical repaired contract rather than preserving the broken empty-result behavior.
+- Keep the bundled artifact filename explicit in server code so per-route static tracing stays narrow and a manifest pointing at an unbundled snapshot fails visibly.
+
+**Loop-back:**
+- Backtrack-one: semantic review found that brew generation swallowed snapshot bootstrap failures and that eager shadow construction bypassed fallback. Brew now rethrows source failures, while shadow initialization is cached and lazy inside the guarded comparison operation; both failure paths were re-verified.
+
+**Refs:**
+- Runtime repository: `src/lib/commander-context/`
+- Feature tasks: `.kiro/specs/commander-context-snapshot/tasks.md`
+- Commit: task #11 checkpoint
+
+---
+
 ## 2026-09-12 — Versioned build-card snapshot exported
 
 **Context:** Phase 1 required a deterministic, validated local artifact before any runtime reads or production rows could move away from Supabase.
@@ -37,7 +73,7 @@
 **Refs:**
 - Exporter: `scripts/export-commander-context.ts`
 - Current manifest: `data/commander-context/manifest.json`
-- Commit: pending
+- Commit: `1587c0a`
 
 ---
 

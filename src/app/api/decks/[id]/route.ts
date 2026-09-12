@@ -1,7 +1,10 @@
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
 import { frontFaceName } from '@/lib/basic-lands'
+import { getCommanderBuildCardRepository } from '@/lib/commander-context'
 import { NextRequest } from 'next/server'
+
+export const runtime = 'nodejs'
 
 export async function GET(
   request: NextRequest,
@@ -164,26 +167,16 @@ export async function GET(
     allocationMap[card.card_name] = card.ownership_status || 'original'
   }
 
-  // Fetch synergy scores from ref_build_cards if deck has a build_id
+  // Fetch synergy scores from the configured commander-context source.
   const synergyMap: Record<string, number> = {}
   if (deck.build_id && cardNames.length > 0) {
-    // Fetch synergy scores for cards in this build
-    // Use batching for large card lists
-    for (let i = 0; i < cardNames.length; i += 200) {
-      const batch = cardNames.slice(i, i + 200)
-      const { data: buildCards } = await supabase
-        .from('ref_build_cards')
-        .select('card_name, synergy_score')
-        .eq('build_id', deck.build_id)
-        .in('card_name', batch)
-      
-      for (const row of buildCards ?? []) {
-        if (row.synergy_score !== null) {
-          synergyMap[row.card_name] = row.synergy_score
-        }
-      }
+    const scores = await getCommanderBuildCardRepository()
+      .getSynergyScores(deck.build_id, cardNames)
+
+    for (const [cardName, synergyScore] of scores) {
+      synergyMap[cardName] = synergyScore
     }
-    
+
     // Handle DFC cards: propagate synergy from front-face to full name
     for (const name of cardNames) {
       if (name.includes(' // ') && synergyMap[name] === undefined) {

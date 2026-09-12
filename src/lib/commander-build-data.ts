@@ -7,6 +7,13 @@
  */
 
 import { createAdminClient } from '@/lib/supabase'
+import {
+  getCommanderBuildCardRepository,
+  type BuildCard,
+  type BuildCardQuery,
+} from '@/lib/commander-context'
+
+export type { BuildCard } from '@/lib/commander-context'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -27,16 +34,6 @@ export interface CommanderBuild {
   avgArtifacts: number | null
   avgEnchantments: number | null
   avgPlaneswalkers: number | null
-}
-
-export interface BuildCard {
-  cardName: string
-  cardType: string
-  synergyScore: number
-  inclusionRate: number
-  position: number
-  isSignature: boolean
-  isStaple: boolean
 }
 
 export interface CommanderInfo {
@@ -240,45 +237,9 @@ export async function getBuildById(
  */
 export async function getBuildCards(
   buildId: string,
-  options?: {
-    limit?: number
-    cardType?: string
-    minInclusionRate?: number
-  }
+  options?: BuildCardQuery
 ): Promise<BuildCard[]> {
-  const supabase = createAdminClient()
-  
-  let query = supabase
-    .from('ref_build_cards')
-    .select('card_name, card_type, synergy_score, inclusion_rate, position, is_signature, is_staple')
-    .eq('build_id', buildId)
-    .order('synergy_score', { ascending: false })
-  
-  if (options?.cardType) {
-    query = query.eq('card_type', options.cardType.toLowerCase())
-  }
-  
-  if (options?.minInclusionRate !== undefined) {
-    query = query.gte('inclusion_rate', options.minInclusionRate)
-  }
-  
-  if (options?.limit) {
-    query = query.limit(options.limit)
-  }
-  
-  const { data, error } = await query
-  
-  if (error || !data) return []
-  
-  return data.map(row => ({
-    cardName: row.card_name,
-    cardType: row.card_type ?? 'unknown',
-    synergyScore: row.synergy_score ?? 0,
-    inclusionRate: row.inclusion_rate ?? 0,
-    position: row.position ?? 0,
-    isSignature: row.is_signature ?? false,
-    isStaple: row.is_staple ?? false,
-  }))
+  return getCommanderBuildCardRepository().getBuildCards(buildId, options)
 }
 
 /**
@@ -315,27 +276,7 @@ export async function getSignatureCards(
   buildId: string,
   limit = 20
 ): Promise<BuildCard[]> {
-  const supabase = createAdminClient()
-  
-  const { data, error } = await supabase
-    .from('ref_build_cards')
-    .select('card_name, card_type, synergy_score, inclusion_rate, position, is_signature, is_staple')
-    .eq('build_id', buildId)
-    .eq('is_signature', true)
-    .order('synergy_score', { ascending: false })
-    .limit(limit)
-  
-  if (error || !data) return []
-  
-  return data.map(row => ({
-    cardName: row.card_name,
-    cardType: row.card_type ?? 'unknown',
-    synergyScore: row.synergy_score ?? 0,
-    inclusionRate: row.inclusion_rate ?? 0,
-    position: row.position ?? 0,
-    isSignature: true,
-    isStaple: row.is_staple ?? false,
-  }))
+  return getCommanderBuildCardRepository().getSignatureCards(buildId, limit)
 }
 
 /**
@@ -346,27 +287,7 @@ export async function getStapleCards(
   buildId: string,
   limit = 30
 ): Promise<BuildCard[]> {
-  const supabase = createAdminClient()
-  
-  const { data, error } = await supabase
-    .from('ref_build_cards')
-    .select('card_name, card_type, synergy_score, inclusion_rate, position, is_signature, is_staple')
-    .eq('build_id', buildId)
-    .eq('is_staple', true)
-    .order('inclusion_rate', { ascending: false })
-    .limit(limit)
-  
-  if (error || !data) return []
-  
-  return data.map(row => ({
-    cardName: row.card_name,
-    cardType: row.card_type ?? 'unknown',
-    synergyScore: row.synergy_score ?? 0,
-    inclusionRate: row.inclusion_rate ?? 0,
-    position: row.position ?? 0,
-    isSignature: row.is_signature ?? false,
-    isStaple: true,
-  }))
+  return getCommanderBuildCardRepository().getStapleCards(buildId, limit)
 }
 
 // ---------------------------------------------------------------------------

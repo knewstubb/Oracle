@@ -15,11 +15,11 @@
 
 ## Phase 2 — Runtime dual read
 
-- [ ] Add server-only Supabase and snapshot repositories behind one interface.
-- [ ] Route build-card, signature, staple, and synergy reads through the interface.
-- [ ] Add `supabase`, `shadow`, and `snapshot` source modes.
-- [ ] Add checksum/manifest validation and explicit failure behavior.
-- [ ] Configure narrow Next.js output tracing and confirm emitted artifacts.
+- [x] Add server-only Supabase and snapshot repositories behind one interface.
+- [x] Route build-card, signature, staple, and synergy reads through the interface.
+- [x] Add `supabase`, `shadow`, and `snapshot` source modes.
+- [x] Add checksum/manifest validation and explicit failure behavior.
+- [x] Configure narrow Next.js output tracing and confirm emitted artifacts.
 
 ## Phase 3 — Verification and cutover
 

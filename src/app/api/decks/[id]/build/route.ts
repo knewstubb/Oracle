@@ -21,14 +21,9 @@
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
+import { getCommanderBuildCardRepository } from '@/lib/commander-context'
 
-interface BuildCard {
-  card_name: string
-  synergy_score: number
-  inclusion_rate: number
-  is_signature: boolean
-  is_staple: boolean
-}
+export const runtime = 'nodejs'
 
 interface Build {
   id: string
@@ -75,25 +70,27 @@ async function detectBuild(
   const deckCards = new Set(deckCardNames.map(n => n.toLowerCase()))
   let bestMatch: BuildMatch | null = null
 
-  for (const build of builds) {
-    // Get cards for this build
-    const { data: buildCards } = await supabase
-      .from('ref_build_cards')
-      .select('card_name, synergy_score, inclusion_rate, is_signature, is_staple')
-      .eq('build_id', build.id)
+  const buildCardRepository = getCommanderBuildCardRepository()
+  const buildCardSets = await Promise.all(
+    builds.map(async build => ({
+      build,
+      cards: await buildCardRepository.getBuildCards(build.id),
+    }))
+  )
 
-    if (!buildCards || buildCards.length === 0) continue
+  for (const { build, cards: buildCards } of buildCardSets) {
+    if (buildCards.length === 0) continue
 
     let score = 0
     let matchedCards = 0
 
     for (const card of buildCards) {
-      if (deckCards.has(card.card_name.toLowerCase())) {
+      if (deckCards.has(card.cardName.toLowerCase())) {
         matchedCards++
         // Weight signature cards highest, staples medium, regular cards base
-        if (card.is_signature) {
+        if (card.isSignature) {
           score += 3
-        } else if (card.is_staple) {
+        } else if (card.isStaple) {
           score += 1.5
         } else {
           score += 1

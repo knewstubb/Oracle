@@ -60,3 +60,6 @@ playwright-report/
 
 # sync logs
 sync-*.log
+
+# generated Supabase CLI link state
+/supabase/.temp/

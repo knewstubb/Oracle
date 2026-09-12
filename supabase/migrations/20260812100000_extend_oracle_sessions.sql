@@ -11,35 +11,28 @@
 -- Add session_name column for AI-generated or user-edited names
 ALTER TABLE oracle_sessions
   ADD COLUMN IF NOT EXISTS session_name VARCHAR(100);
-
 -- Add session_type to distinguish exploration vs deck vs general sessions
 -- Values: 'exploration' | 'deck' | 'collection' | 'general'
 ALTER TABLE oracle_sessions
   ADD COLUMN IF NOT EXISTS session_type TEXT NOT NULL DEFAULT 'general'
   CHECK (session_type IN ('exploration', 'deck', 'collection', 'general'));
-
 -- Add context_deck_id for deck-context sessions (nullable)
 ALTER TABLE oracle_sessions
   ADD COLUMN IF NOT EXISTS context_deck_id INTEGER REFERENCES decks(id) ON DELETE SET NULL;
-
 -- Add archived_at for soft archive (nullable = not archived)
 ALTER TABLE oracle_sessions
   ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
-
 -- Add status for exploration sessions: exploring, building, complete
 -- Values: 'active' | 'exploring' | 'building' | 'complete'
 ALTER TABLE oracle_sessions
   ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active'
   CHECK (status IN ('active', 'exploring', 'building', 'complete'));
-
 -- Add commander_name for exploration sessions that have selected a commander
 ALTER TABLE oracle_sessions
   ADD COLUMN IF NOT EXISTS commander_name TEXT;
-
 -- Add committed_deck_id for exploration sessions that have been committed to a deck
 ALTER TABLE oracle_sessions
   ADD COLUMN IF NOT EXISTS committed_deck_id INTEGER REFERENCES decks(id) ON DELETE SET NULL;
-
 -- ---------------------------------------------------------------------------
 -- Indexes for common query patterns
 -- ---------------------------------------------------------------------------
@@ -48,17 +41,14 @@ ALTER TABLE oracle_sessions
 CREATE INDEX IF NOT EXISTS idx_oracle_sessions_type_active
   ON oracle_sessions(user_id, session_type, last_message_at DESC)
   WHERE archived_at IS NULL;
-
 -- Index for fetching sessions by deck context
 CREATE INDEX IF NOT EXISTS idx_oracle_sessions_deck_context
   ON oracle_sessions(user_id, context_deck_id, last_message_at DESC)
   WHERE context_deck_id IS NOT NULL;
-
 -- Index for archival queries (finding old sessions to archive)
 CREATE INDEX IF NOT EXISTS idx_oracle_sessions_archival
   ON oracle_sessions(user_id, last_message_at)
   WHERE archived_at IS NULL AND committed_deck_id IS NULL;
-
 -- ---------------------------------------------------------------------------
 -- RLS policies already exist from original migration, no changes needed
 -- ---------------------------------------------------------------------------
@@ -114,7 +104,6 @@ BEGIN
   LIMIT 1;
 END;
 $$;
-
 -- ---------------------------------------------------------------------------
 -- Helper function: Auto-archive old sessions (called by cron or on-demand)
 -- ---------------------------------------------------------------------------
@@ -166,7 +155,6 @@ BEGIN
   RETURN v_archived_count;
 END;
 $$;
-
 -- ---------------------------------------------------------------------------
 -- Comments
 -- ---------------------------------------------------------------------------

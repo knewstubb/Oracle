@@ -16,28 +16,22 @@ CREATE TABLE IF NOT EXISTS ref_edhrec_recommendations (
   -- Prevent duplicate card entries per commander
   UNIQUE (commander_id, card_name)
 );
-
 -- Index for querying recommendations by commander
 CREATE INDEX IF NOT EXISTS idx_edhrec_recommendations_commander 
   ON ref_edhrec_recommendations(commander_id);
-
 -- Index for finding high-synergy cards across all commanders
 CREATE INDEX IF NOT EXISTS idx_edhrec_recommendations_synergy 
   ON ref_edhrec_recommendations(synergy_score DESC NULLS LAST);
-
 -- Index for card lookup (e.g., "which commanders want Dockside?")
 CREATE INDEX IF NOT EXISTS idx_edhrec_recommendations_card_name 
   ON ref_edhrec_recommendations(card_name);
-
 -- RLS: Read-only for all authenticated users
 ALTER TABLE ref_edhrec_recommendations ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Allow read access for authenticated users" 
   ON ref_edhrec_recommendations 
   FOR SELECT 
   TO authenticated 
   USING (true);
-
 -- Comments
 COMMENT ON TABLE ref_edhrec_recommendations IS 'EDHREC card recommendations per commander. Synced weekly from EDHREC API.';
 COMMENT ON COLUMN ref_edhrec_recommendations.synergy_score IS 'EDHREC synergy score (0.0-1.0). How much more likely this card appears in this commander vs others.';

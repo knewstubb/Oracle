@@ -20,7 +20,6 @@ WHERE deck_id IS NULL
        OR (conversation_json IS NOT NULL 
            AND conversation_json != '[]' 
            AND conversation_json != 'null'));
-
 -- Delete sessions with no deck AND no meaningful content
 DELETE FROM brew_sessions
 WHERE deck_id IS NULL

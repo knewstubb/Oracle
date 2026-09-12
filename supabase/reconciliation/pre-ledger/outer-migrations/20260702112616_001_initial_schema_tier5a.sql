@@ -1,0 +1,16 @@
+CREATE TABLE deck_cards (id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, deck_id INTEGER NOT NULL REFERENCES decks(id) ON DELETE CASCADE, card_name TEXT NOT NULL, scryfall_id TEXT, set_code TEXT, quantity INTEGER DEFAULT 1, categories TEXT, tags TEXT, is_commander BOOLEAN DEFAULT FALSE, dead_weight_flag TEXT CHECK(dead_weight_flag IN ('redundant', 'off_strategy', 'bracket_mismatch', 'format_violation')), dead_weight_reason TEXT, ownership_status TEXT DEFAULT NULL CHECK (ownership_status IN ('original', 'proxy', 'not_owned')), proxy_of_deck_id INTEGER DEFAULT NULL REFERENCES decks(id) ON DELETE SET NULL, physical_copy_id INTEGER REFERENCES physical_copies(id) ON DELETE SET NULL, user_id UUID NOT NULL);
+CREATE INDEX idx_deck_cards_name ON deck_cards(card_name);
+CREATE INDEX idx_deck_cards_deck ON deck_cards(deck_id);
+CREATE INDEX idx_deck_cards_physical_copy_id ON deck_cards(physical_copy_id) WHERE physical_copy_id IS NOT NULL;
+CREATE INDEX idx_deck_cards_user_id ON deck_cards(user_id);
+CREATE TABLE deck_allocations (id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, card_name TEXT NOT NULL, scryfall_id TEXT, set_code TEXT, collector_number TEXT, deck_id INTEGER NOT NULL REFERENCES decks(id) ON DELETE CASCADE, role TEXT NOT NULL CHECK(role IN ('original', 'proxy')), priority_override BOOLEAN DEFAULT FALSE, written_to_archidekt BOOLEAN DEFAULT FALSE, written_at TIMESTAMPTZ, assigned_at TIMESTAMPTZ DEFAULT now(), user_id UUID NOT NULL, UNIQUE(card_name, deck_id));
+CREATE INDEX idx_deck_alloc_card ON deck_allocations(card_name);
+CREATE INDEX idx_deck_alloc_deck ON deck_allocations(deck_id);
+CREATE INDEX idx_deck_alloc_scryfall ON deck_allocations(scryfall_id);
+CREATE INDEX idx_deck_alloc_user_id ON deck_allocations(user_id);
+CREATE TABLE proxy_allocations (id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, card_name TEXT NOT NULL, deck_id INTEGER NOT NULL REFERENCES decks(id) ON DELETE CASCADE, role TEXT NOT NULL CHECK(role IN ('original', 'proxy')), assigned_at TIMESTAMPTZ DEFAULT now(), written_to_archidekt BOOLEAN DEFAULT FALSE, written_at TIMESTAMPTZ, user_id UUID NOT NULL, UNIQUE(card_name, deck_id));
+CREATE INDEX idx_proxy_alloc_card ON proxy_allocations(card_name);
+CREATE INDEX idx_proxy_alloc_deck ON proxy_allocations(deck_id);
+CREATE INDEX idx_proxy_alloc_user_id ON proxy_allocations(user_id);
+CREATE TABLE deck_priority (deck_id INTEGER PRIMARY KEY REFERENCES decks(id) ON DELETE CASCADE, priority INTEGER NOT NULL DEFAULT 100, user_id UUID NOT NULL, updated_at TIMESTAMPTZ DEFAULT now());
+CREATE INDEX idx_deck_priority_user_id ON deck_priority(user_id);;

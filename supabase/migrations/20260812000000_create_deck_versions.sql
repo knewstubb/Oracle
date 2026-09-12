@@ -41,16 +41,13 @@ CREATE TABLE deck_versions (
   -- Timestamps
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
 -- Indexes for efficient queries
 CREATE INDEX idx_deck_versions_deck_id ON deck_versions(deck_id);
 CREATE INDEX idx_deck_versions_user_id ON deck_versions(user_id);
 CREATE INDEX idx_deck_versions_deck_version ON deck_versions(deck_id, version_number DESC);
 CREATE INDEX idx_deck_versions_created_at ON deck_versions(deck_id, created_at DESC);
-
 -- Unique constraint: one version number per deck
 CREATE UNIQUE INDEX idx_deck_versions_unique_version ON deck_versions(deck_id, version_number);
-
 -- Function to get the next version number for a deck
 CREATE OR REPLACE FUNCTION get_next_deck_version_number(p_deck_id INTEGER)
 RETURNS INTEGER
@@ -66,7 +63,6 @@ BEGIN
   RETURN v_max + 1;
 END;
 $$;
-
 -- Function to compute diff between two card snapshots
 CREATE OR REPLACE FUNCTION compute_card_diff(
   p_old_snapshot JSONB,
@@ -136,7 +132,6 @@ BEGIN
   );
 END;
 $$;
-
 -- Function to create a deck version snapshot
 CREATE OR REPLACE FUNCTION create_deck_version(
   p_deck_id INTEGER,
@@ -241,7 +236,6 @@ BEGIN
   );
 END;
 $$;
-
 -- Add comments for documentation
 COMMENT ON TABLE deck_versions IS 'Stores snapshots of deck card lists for version history';
 COMMENT ON COLUMN deck_versions.trigger_type IS 'What caused this snapshot: manual, import, bulk_change, session_end, milestone';

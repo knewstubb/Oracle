@@ -15,7 +15,6 @@
 
 -- Drop the inherited constraint from storage_locations
 ALTER TABLE user_locations DROP CONSTRAINT IF EXISTS storage_locations_name_user_id_key;
-
 -- Create a new partial unique index for storage-type locations only
 -- (decks can have duplicate names, storage locations cannot)
 CREATE UNIQUE INDEX IF NOT EXISTS idx_user_locations_name_user_storage 

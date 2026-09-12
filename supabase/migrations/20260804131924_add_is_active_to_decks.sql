@@ -4,11 +4,9 @@
 
 -- Step 1: Add is_active column with default false
 ALTER TABLE decks ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT FALSE;
-
 -- Step 2: Migrate existing data
 -- in_rotation decks become active (these are the user's "ready to play" decks)
 UPDATE decks SET is_active = TRUE WHERE status = 'in_rotation';
-
 -- brewing and graveyard decks remain is_active = FALSE (the default)
 
 -- Note: We keep the status column for now (rollback safety), but it will no longer

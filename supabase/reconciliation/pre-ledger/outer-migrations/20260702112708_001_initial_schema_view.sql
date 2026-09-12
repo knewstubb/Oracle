@@ -1,0 +1,1 @@
+CREATE OR REPLACE VIEW shared_cards AS SELECT dc.card_name, COUNT(DISTINCT dc.deck_id) AS deck_count, string_agg(DISTINCT dc.deck_id::TEXT, ',') AS deck_ids, (SELECT COALESCE(SUM(c.quantity), 0) FROM collection c WHERE c.card_name = dc.card_name) AS owned_copies FROM deck_cards dc GROUP BY dc.card_name HAVING COUNT(DISTINCT dc.deck_id) > 1;;

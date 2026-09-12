@@ -19,23 +19,19 @@ UPDATE ref_commander_builds
 SET primary_theme = 'kindred:' || tribe
 WHERE tribe IS NOT NULL 
   AND primary_theme IS NULL;
-
 -- If primary_theme was already set, add tribe as secondary theme
 UPDATE ref_commander_builds
 SET secondary_themes = array_append(secondary_themes, 'kindred:' || tribe)
 WHERE tribe IS NOT NULL 
   AND primary_theme IS NOT NULL
   AND NOT (secondary_themes @> ARRAY['kindred:' || tribe]);
-
 -- =============================================================================
 -- Step 2: Drop tribe column (data has been migrated)
 -- =============================================================================
 
 ALTER TABLE ref_commander_builds DROP COLUMN IF EXISTS tribe;
-
 -- Also drop the index we created in previous migration
 DROP INDEX IF EXISTS idx_commander_builds_tribe;
-
 -- =============================================================================
 -- Comments
 -- =============================================================================

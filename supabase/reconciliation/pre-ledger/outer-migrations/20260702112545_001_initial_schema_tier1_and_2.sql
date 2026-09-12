@@ -1,0 +1,12 @@
+CREATE TABLE _migrations (name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ DEFAULT now());
+CREATE TABLE sets (code TEXT PRIMARY KEY, name TEXT NOT NULL);
+CREATE TABLE sync_meta (key TEXT PRIMARY KEY, value TEXT, updated_at TIMESTAMPTZ DEFAULT now());
+CREATE TABLE card_metadata (card_name TEXT PRIMARY KEY, rarity TEXT, price_usd NUMERIC, set_code TEXT, type_line TEXT, mana_cost TEXT, cmc DOUBLE PRECISION, updated_at TIMESTAMPTZ DEFAULT now());
+CREATE TABLE precon_cards (id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, precon_url TEXT NOT NULL, card_name TEXT NOT NULL, UNIQUE(precon_url, card_name));
+CREATE INDEX idx_precon_cards_url ON precon_cards(precon_url);
+CREATE TABLE card_kingdom_prices (scryfall_printing_id TEXT PRIMARY KEY, price_retail NUMERIC NOT NULL CHECK(price_retail >= 0.0 AND price_retail <= 999999.99), is_foil BOOLEAN NOT NULL DEFAULT FALSE, updated_at TIMESTAMPTZ NOT NULL DEFAULT now());
+CREATE TABLE oracle_to_printings (oracle_id TEXT NOT NULL, scryfall_printing_id TEXT NOT NULL, UNIQUE(oracle_id, scryfall_printing_id));
+CREATE INDEX idx_oracle_to_printings_oracle_id ON oracle_to_printings(oracle_id);
+CREATE TABLE card_definitions (id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, oracle_id TEXT NOT NULL UNIQUE, card_name TEXT NOT NULL, color_identity TEXT DEFAULT '', type_line TEXT DEFAULT '', user_id UUID NOT NULL, created_at TIMESTAMPTZ DEFAULT now());
+CREATE INDEX idx_card_definitions_card_name ON card_definitions(card_name);
+CREATE INDEX idx_card_definitions_user_id ON card_definitions(user_id);;

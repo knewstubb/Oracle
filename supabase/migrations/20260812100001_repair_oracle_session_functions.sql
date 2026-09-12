@@ -7,7 +7,6 @@
 -- Drop if exists to ensure clean state
 DROP FUNCTION IF EXISTS get_active_oracle_session(UUID, TEXT, INTEGER, INTEGER);
 DROP FUNCTION IF EXISTS archive_old_oracle_sessions(UUID, INTEGER, INTEGER);
-
 -- ---------------------------------------------------------------------------
 -- Helper function: Get active session for context (respects 4-hour window)
 -- ---------------------------------------------------------------------------
@@ -59,7 +58,6 @@ BEGIN
   LIMIT 1;
 END;
 $$;
-
 -- ---------------------------------------------------------------------------
 -- Helper function: Auto-archive old sessions (called by cron or on-demand)
 -- ---------------------------------------------------------------------------
@@ -112,7 +110,6 @@ BEGIN
   RETURN v_archived_count;
 END;
 $$;
-
 -- ---------------------------------------------------------------------------
 -- Comments
 -- ---------------------------------------------------------------------------

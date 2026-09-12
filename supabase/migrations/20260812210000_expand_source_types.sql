@@ -3,7 +3,6 @@
 
 ALTER TABLE ref_commander_insights
 DROP CONSTRAINT IF EXISTS commander_insights_source_type_check;
-
 ALTER TABLE ref_commander_insights
 ADD CONSTRAINT commander_insights_source_type_check CHECK (source_type IN (
   -- Original values

@@ -42,13 +42,11 @@ CREATE TABLE IF NOT EXISTS ref_commander_builds (
   -- Ensure unique builds per commander
   UNIQUE(commander_id, edhrec_theme_slug)
 );
-
 -- Indexes for common queries
 CREATE INDEX idx_commander_builds_commander ON ref_commander_builds(commander_id);
 CREATE INDEX idx_commander_builds_archetype ON ref_commander_builds(archetype);
 CREATE INDEX idx_commander_builds_theme ON ref_commander_builds(theme);
 CREATE INDEX idx_commander_builds_deck_count ON ref_commander_builds(deck_count DESC);
-
 -- =============================================================================
 -- ref_build_cards: Cards specific to each build
 -- =============================================================================
@@ -81,7 +79,6 @@ CREATE TABLE IF NOT EXISTS ref_build_cards (
   -- Ensure unique cards per build
   UNIQUE(build_id, card_name)
 );
-
 -- Indexes for common queries
 CREATE INDEX idx_build_cards_build ON ref_build_cards(build_id);
 CREATE INDEX idx_build_cards_card_name ON ref_build_cards(card_name);
@@ -89,7 +86,6 @@ CREATE INDEX idx_build_cards_category ON ref_build_cards(build_id, category);
 CREATE INDEX idx_build_cards_synergy ON ref_build_cards(build_id, synergy_score DESC);
 CREATE INDEX idx_build_cards_inclusion ON ref_build_cards(build_id, inclusion_rate DESC);
 CREATE INDEX idx_build_cards_staple ON ref_build_cards(build_id, is_staple) WHERE is_staple = TRUE;
-
 -- =============================================================================
 -- Add build_id to decks table
 -- =============================================================================
@@ -97,26 +93,20 @@ CREATE INDEX idx_build_cards_staple ON ref_build_cards(build_id, is_staple) WHER
 
 ALTER TABLE decks 
 ADD COLUMN IF NOT EXISTS build_id UUID REFERENCES ref_commander_builds(id) ON DELETE SET NULL;
-
 -- Index for finding decks by build
 CREATE INDEX IF NOT EXISTS idx_decks_build ON decks(build_id) WHERE build_id IS NOT NULL;
-
 -- =============================================================================
 -- RLS Policies
 -- =============================================================================
 
 -- ref_commander_builds: Read-only for all authenticated users
 ALTER TABLE ref_commander_builds ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "ref_commander_builds_read" ON ref_commander_builds
   FOR SELECT TO authenticated USING (true);
-
 -- ref_build_cards: Read-only for all authenticated users  
 ALTER TABLE ref_build_cards ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "ref_build_cards_read" ON ref_build_cards
   FOR SELECT TO authenticated USING (true);
-
 -- =============================================================================
 -- Comments
 -- =============================================================================

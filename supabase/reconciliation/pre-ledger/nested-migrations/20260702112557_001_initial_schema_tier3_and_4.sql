@@ -1,0 +1,12 @@
+CREATE TABLE decks (id INTEGER PRIMARY KEY, name TEXT NOT NULL, commander_name TEXT, commander_scryfall_id TEXT, colour_identity TEXT, card_count INTEGER, last_synced_at TIMESTAMPTZ, raw_json TEXT, precon_url TEXT, deck_type TEXT DEFAULT 'Custom', bracket TEXT, status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'draft', 'concept')), is_precon_mod BOOLEAN DEFAULT FALSE, user_id UUID NOT NULL);
+CREATE INDEX idx_decks_user_id ON decks(user_id);
+CREATE TABLE collection (id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, card_name TEXT NOT NULL, scryfall_id TEXT, set_code TEXT, quantity INTEGER DEFAULT 1, foil BOOLEAN DEFAULT FALSE, finish TEXT DEFAULT 'Normal', condition TEXT DEFAULT 'Near Mint', date_added TEXT, language TEXT DEFAULT 'English', purchase_price NUMERIC DEFAULT 0, collector_number TEXT, color_identity TEXT, types TEXT, edition_name TEXT, user_id UUID NOT NULL);
+CREATE INDEX idx_collection_name ON collection(card_name);
+CREATE INDEX idx_collection_identity ON collection(color_identity);
+CREATE INDEX idx_collection_types ON collection(types);
+CREATE INDEX idx_collection_user_id ON collection(user_id);
+CREATE TABLE physical_copies (id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, card_definition_id INTEGER NOT NULL REFERENCES card_definitions(id), scryfall_printing_id TEXT, is_proxy BOOLEAN NOT NULL DEFAULT FALSE, proxy_for_definition_id INTEGER REFERENCES card_definitions(id) ON DELETE SET NULL, condition TEXT CHECK (condition IS NULL OR condition IN ('near_mint', 'lightly_played', 'moderately_played', 'heavily_played', 'damaged')), is_foil BOOLEAN NOT NULL DEFAULT FALSE, acquired_at TEXT, quantity INTEGER NOT NULL DEFAULT 1, user_id UUID NOT NULL, created_at TIMESTAMPTZ DEFAULT now());
+CREATE INDEX idx_physical_copies_card_definition_id ON physical_copies(card_definition_id);
+CREATE INDEX idx_physical_copies_is_proxy ON physical_copies(is_proxy);
+CREATE INDEX idx_physical_copies_user_id ON physical_copies(user_id);
+CREATE UNIQUE INDEX idx_physical_copies_group ON physical_copies(card_definition_id, scryfall_printing_id, is_foil, is_proxy);;

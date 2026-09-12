@@ -21,10 +21,8 @@ CREATE TABLE ref_taxonomy (
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
-
 -- Index for category filtering
 CREATE INDEX idx_ref_taxonomy_category ON ref_taxonomy(category);
-
 -- =============================================================================
 -- 2. ref_commander_taxonomy - Links commanders to taxonomy entries
 -- =============================================================================
@@ -39,32 +37,26 @@ CREATE TABLE ref_commander_taxonomy (
   created_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE (commander_id, taxonomy_slug)
 );
-
 -- Indexes for common queries
 CREATE INDEX idx_ref_commander_taxonomy_commander ON ref_commander_taxonomy(commander_id);
 CREATE INDEX idx_ref_commander_taxonomy_slug ON ref_commander_taxonomy(taxonomy_slug);
 CREATE INDEX idx_ref_commander_taxonomy_relevance ON ref_commander_taxonomy(relevance);
-
 -- =============================================================================
 -- 3. Add taxonomy_tags to ref_commander_insights
 -- =============================================================================
 
 ALTER TABLE ref_commander_insights 
 ADD COLUMN taxonomy_tags TEXT[];
-
 -- Index for filtering insights by taxonomy
 CREATE INDEX idx_ref_commander_insights_taxonomy ON ref_commander_insights USING GIN (taxonomy_tags);
-
 -- =============================================================================
 -- 4. Add keywords to ref_cards
 -- =============================================================================
 
 ALTER TABLE ref_cards 
 ADD COLUMN keywords TEXT[];
-
 -- Index for keyword queries
 CREATE INDEX idx_ref_cards_keywords ON ref_cards USING GIN (keywords);
-
 -- =============================================================================
 -- 5. Helpful views
 -- =============================================================================
@@ -82,17 +74,14 @@ FROM ref_commanders c
 LEFT JOIN ref_commander_taxonomy ct ON c.id = ct.commander_id
 LEFT JOIN ref_taxonomy t ON ct.taxonomy_slug = t.slug
 GROUP BY c.id, c.display_name, c.color_identity;
-
 -- =============================================================================
 -- 6. RLS Policies (read-only for all authenticated users)
 -- =============================================================================
 
 ALTER TABLE ref_taxonomy ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ref_commander_taxonomy ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "ref_taxonomy_read" ON ref_taxonomy FOR SELECT TO authenticated USING (true);
 CREATE POLICY "ref_commander_taxonomy_read" ON ref_commander_taxonomy FOR SELECT TO authenticated USING (true);
-
 -- Service role can write
 CREATE POLICY "ref_taxonomy_service_write" ON ref_taxonomy FOR ALL TO service_role USING (true);
 CREATE POLICY "ref_commander_taxonomy_service_write" ON ref_commander_taxonomy FOR ALL TO service_role USING (true);

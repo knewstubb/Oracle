@@ -9,15 +9,15 @@
 
 The Oracle has substantial working product surface: authentication, collection browsing, instance-level copies, deck allocation, CSV import/export, price data, storage locations, and automated tests. It is not yet safe to replace Archidekt as the only authoritative copy of the collection.
 
-The main barriers are not missing UI polish. They are data-safety and operational controls:
+The main barriers are not missing UI polish. They are deterministic rebuild correctness and operational controls:
 
 1. Collection replacement deletes live rows before the complete import is validated and cannot roll back.
 2. Large imports are split into independently committed chunks, so interruption leaves a partial collection.
-3. A successful replacement creates new copy IDs and loses deck allocation links.
-4. The CSV export is not a complete, proven restore format.
+3. Replacement nulls existing allocations; this is acceptable for the initial disposable reset, but deck reimport and allocation review must rebuild a coherent state.
+4. Current import/export paths do not prove that the selected full-fidelity source fields can be reconstructed deterministically.
 5. CI runs authenticated, state-mutating tests against the production URL.
 6. Some multi-row allocation flows are non-atomic; the undo route also lacks user ownership scoping while using the service-role client.
-7. No verified database backup/restore rehearsal, staging environment, durable mutation audit, or production alerting is documented.
+7. No isolated staging environment, durable mutation audit, or production alerting is documented.
 8. Quality gates are not green: 277 unit tests fail, TypeScript does not parse generated Supabase types, lint has 334 errors, and production builds ignore TypeScript errors.
 9. Database migrations and Edge Functions are split across multiple directories, including paths outside the application Git repository.
 10. Product and feature documentation describes superseded table names and guarantees that the current implementation does not provide.
@@ -26,16 +26,15 @@ The main barriers are not missing UI polish. They are data-safety and operationa
 
 ### Safe today
 
+- Treat the current Oracle user dataset as disposable.
+- Retain the authoritative collection export and deck input files needed for a complete rebuild.
 - Continue evaluating collection browsing and deck workflows with non-authoritative data.
-- Keep the Archidekt export and another independent backup unchanged.
 - Use non-destructive manual testing only after disabling production-mutating CI.
-- Export data for inspection, but do not treat the CSV as a complete disaster-recovery backup.
 
 ### Not safe today
 
-- Do not use Collection **Replace** with the only copy of the collection.
-- Do not make Oracle the sole system of record.
-- Do not delete Archidekt data after import.
+- Do not present a partial or interrupted rebuild as successful.
+- Do not make Oracle authoritative until the real source files rebuild with agreed fidelity and reconciliation totals.
 - Do not rely on current CI, tests, or build success as proof that migration is safe.
 - Do not delete or consolidate migration/function trees until deployed Supabase history is reconciled.
 
@@ -46,17 +45,19 @@ All gates are required unless the user explicitly accepts the residual risk.
 | Gate | Required evidence | Current state |
 |---|---|---|
 | Production-mutating CI removed | E2E uses isolated test project and deterministic reset/cleanup | **Fail** |
-| Native database backup | Fresh backup of user cards, copies, decks, deck cards, storage, and preferences | **Unknown / not documented** |
-| Restore rehearsal | Backup restored into isolated Supabase project and row/invariant checks pass | **Fail / no evidence** |
-| Staged import | Complete file parsed/resolved into an import run before live rows change | **Fail** |
-| Atomic cutover | One Postgres transaction/RPC applies the approved import | **Fail** |
-| Allocation preservation | Matched copies retain IDs or allocations are deterministically relinked | **Fail** |
-| Round-trip fidelity | Export → clean restore reproduces counts and required metadata | **Fail / untested** |
-| Import idempotency | Retry/resume cannot duplicate or partially replace copies | **Fail** |
+| Rebuild inputs retained | Authoritative collection export and deck files are available and immutable during rehearsal | **Partial / collection file present** |
+| Rebuild rehearsal | Isolated project is reset and rebuilt from the real source files with invariant checks | **Fail / no evidence** |
+| Staged import | Complete file parsed/resolved before the rebuild is reported as successful | **Fail** |
+| Deterministic apply | Retry/restart produces the same logical collection without duplicates or hidden partial success | **Fail** |
+| Allocation reconstruction | Deck imports preserve unchanged assignments, assign free copies, and surface Claimed/Unowned review states | **Fail** |
+| Source fidelity | Rebuild reproduces agreed counts and exact source metadata | **Fail / untested** |
+| Import idempotency | Retry/resume cannot duplicate copies | **Fail** |
 | Tenant safety | Every user-data route is RLS-backed or ownership-scoped and tested with two users | **Fail** |
 | Green quality gate | Typecheck, lint baseline, critical unit/integration tests, build, isolated E2E | **Fail** |
 | Canonical schema source | One committed migration/function tree reproduces deployed schema | **Fail** |
 | Operational detection | Failed/partial import and sudden count-drop alerts plus durable audit event | **Fail** |
+
+Native database backup and restore are not MVP gates. The user accepts reset-and-rebuild recovery on Supabase Free.
 
 ## Critical Findings
 
@@ -72,13 +73,13 @@ The browser importer sends the first chunk as `replace` and later chunks as `add
 
 Deleting `user_copies` nulls `deck_cards.copy_id`. Re-imported copies receive new IDs and the collection importer does not relink deck slots. Even a technically successful replace can make decks incomplete.
 
-**Required fix:** preserve matched copy IDs or include allocation reconciliation in the atomic cutover. Show the user the expected allocation impact before approval.
+**Required MVP behavior:** stable IDs and current assignments do not need to survive the initial disposable reset. After collection rebuild, deck imports reconstruct assignments using the finalized rules: preserve deterministic unchanged matches, assign free owned copies, leave contested copies Claimed, and explicitly review Unowned choices. Ongoing deck reimports must preserve valid unchanged assignments.
 
 ### 3. Export is not a complete restore artifact
 
 The export includes card/printing, finish, condition, proxy, purchase price, and date. It omits missing status, storage location, language, source provenance, proxy target, notes, copy identity, decks, and allocation relationships. The importer does not preserve all exported semantics, and no export/import round-trip test exists.
 
-**Required fix:** define a versioned Oracle backup format with manifest, schema version, source hash, counts/checksums, full metadata, allocations, and restore verification. Keep a human-portable CSV separately.
+**Accepted risk / deferred fix:** a versioned relational backup remains the correct long-term solution, but it is not an MVP gate. On Supabase Free, the user accepts losing Oracle-only state and rebuilding from retained collection/deck source files. The CSV must not be presented as a complete database backup.
 
 ### 4. CI mutates production
 
@@ -94,11 +95,11 @@ The export includes card/printing, finish, condition, proxy, purchase price, and
 
 **Required fix:** ownership guards, advisory lock, source/target validation, and all writes inside one Postgres RPC transaction.
 
-### 6. Recovery and observability are not established
+### 6. Recovery is intentionally rebuild-only; observability is not established
 
-No repository evidence demonstrates automatic database backups, PITR retention, restore rehearsal, RPO/RTO, mutation audit logs, error tracking, slow-query monitoring, or alerts for partial imports/count drops.
+Supabase Free does not provide the managed daily backup/PITR posture originally recommended. The user accepts deleting and rebuilding from retained collection/deck files rather than restoring database state. No durable mutation audit logs, error tracking, slow-query monitoring, or alerts for partial imports/count drops are documented.
 
-**Required fix:** verify hosted controls, document them, rehearse restore, and add durable import/allocation audit events before authoritative migration.
+**Required MVP behavior:** rehearse the deterministic reset-and-rebuild process in isolated staging and add durable import/allocation audit events plus failure/count-drop detection. Native backup/restore remains deferred accepted risk.
 
 ## High Findings
 
@@ -208,99 +209,102 @@ These are workspace cleanup actions, not product fixes.
 - Infrastructure docs call production-targeted E2E and security hardening "built" without noting the production mutation and admin-client gaps.
 - The application README is still the create-next-app template.
 
-## Recommended Work Order
+## Reduced Implementation Sequence
 
-### Phase 0 — Contain risk now
+### Phase 0 — Contain risk and restore a meaningful quality gate
 
-1. Disable production-mutating E2E.
-2. Disable/hide collection Replace and Sync, or add a hard warning while they remain unsafe.
-3. Preserve Archidekt and the source export as authoritative.
-4. Verify current Supabase backup/PITR settings; take a fresh native backup.
-5. Fix the generated type file so validation tools can run meaningfully.
+1. Disable production-mutating E2E and rotate the stored production browser session.
+2. Hide or disable unsafe Collection Replace/Sync until the rebuild path replaces them.
+3. Retain the authoritative collection export and all deck input files needed to start again.
+4. Create an isolated Supabase/Vercel test environment; it is a rehearsal environment, not a backup.
+5. Repair generated Supabase types and the critical auth/import test harness so migration tests are trustworthy.
 
-### Phase 1 — Safe migration path
+### Phase 1 — Deterministic collection reset and rebuild
 
-1. Create versioned import-run staging tables and a dry-run reconciliation report.
-2. Build atomic approval/cutover RPC with allocation preservation.
-3. Define source-specific identity and retry/idempotency behavior.
-4. Build complete backup export plus restore tool and round-trip tests.
-5. Test at 3,650+ copies, including interruption, retry, malformed CSV, and unmatched cards.
+1. Define a user-scoped reset operation and require explicit confirmation.
+2. Parse the complete source before applying it; validate full-fidelity fields and produce reconciliation totals.
+3. Apply a deterministic, restartable rebuild that cannot report partial state as success.
+4. Record source hash/provenance and make retries idempotent.
+5. Test the real 3,650+ copy file, malformed input, interruption, retry, duplicate input, and unmatched cards.
+6. Replace the in-memory collection list assembly with database-native filtering, grouping, sorting, counting, and pagination so the rebuilt collection is correct and usable.
 
-### Phase 2 — Trustworthy release process
+### Phase 2 — Authoritative deck reimport and allocation
 
-1. Create isolated Supabase/Vercel test environment.
-2. Repair critical test harness and make migration tests deterministic.
-3. Add CI: typecheck, lint baseline, unit/integration tests, build, migration replay, isolated E2E.
-4. Fix IDOR/non-atomic allocation routes and move normal user operations to RLS-backed clients.
-5. Add import/allocation audit logs, error tracking, and alerts.
+1. Implement one shared diff-based CSV/text reimport path for a selected deck.
+2. Preserve unchanged Oracle metadata and valid assignments.
+3. Release copies from removed slots.
+4. Assign deterministic free owned copies to new slots.
+5. Leave cards held by other decks Claimed and require an explicit Pull.
+6. For Unowned slots, offer explicit confirm-purchased, add-proxy, or leave-unowned actions.
+7. Make allocation mutations ownership-scoped and transactional, including undo and proxy creation.
 
-### Phase 3 — Simplify and organize
+### Phase 3 — Release confidence
 
-1. Consolidate repository and Supabase boundaries.
-2. Reconcile/archive stale specs and audits.
-3. Classify scripts as active, maintenance, or archive.
-4. Remove duplicate/legacy endpoints only after caller and deployment-log checks.
-5. Replace in-memory collection list assembly with a database projection/RPC.
+1. Enforce tenant-scoped access and add two-user isolation tests despite the private first release.
+2. Add CI for strict typecheck, lint baseline, critical unit/integration tests, build, migration replay, and isolated E2E.
+3. Persist import/allocation audit events and detect failed/partial rebuilds or unexpected count drops.
+4. Rehearse reset → collection rebuild → deck imports → allocation review in staging with the real inputs.
+5. Approve cutover only after counts, metadata, deck compositions, and allocation invariants reconcile.
 
-## Product Direction Captured
+### Phase 4 — Repository and documentation consolidation
 
-The user has narrowed the product to a fundamentals-first collection and deck system. These decisions govern the next implementation plan:
+1. Confirm the repository-boundary recommendation.
+2. Reconcile deployed Supabase migrations/functions and choose one canonical tree.
+3. Move durable specs/research into the chosen Git boundary.
+4. Archive stale audits and one-off scripts only after unique decisions and execution history are retained.
 
-1. **One-time cutover:** Archidekt remains the collection authority until a single reviewed migration. Oracle becomes authoritative afterward; ongoing Archidekt reconciliation is not an MVP requirement.
-2. **Allocation preservation with review:** Preserve existing copy-to-deck assignments when they can be matched deterministically. Recalculate and explicitly review the remainder rather than silently discarding or guessing.
-3. **Authoritative deck imports:** An explicit CSV/text reimport replaces that deck's composition. It must not affect other decks or collection ownership. The treatment of Oracle-only metadata on unchanged rows still needs confirmation.
-4. **Private first release, tenant-safe foundation:** Release one serves one user, but all data access, imports, restores, and allocation mutations must remain user-scoped so future multi-user support does not require a security rewrite.
-5. **Separate staging accepted:** The user is willing to create an isolated Supabase project for migration rehearsals and automated tests.
-6. **Reduced feature surface:** Historical scanner runtime residue was removed on 2026-09-03; any future physical capture tool must produce the supported CSV/text input rather than introduce another write path. Card Kingdom pricing, AI Brew, and Monitor/Upgrade are frozen and must not expand while collection, deck, allocation, backup, and recovery fundamentals are stabilized.
-7. **No deadline:** Safety and verifiable recovery take priority over migration speed.
-8. **Current authority retained:** Archidekt and independent exports remain authoritative until all agreed migration and restore gates pass.
+## Final Fundamentals-First MVP Decisions
 
-### Clarification: required migration fidelity
+The interview is complete. These decisions define the MVP and supersede the earlier open questions.
 
-"Required fidelity" means deciding which facts must survive the one-time migration exactly. This determines the import schema, reconciliation report, backup format, and acceptance tests.
+1. **Required weekly jobs:** Oracle must reliably show what is owned, maintain authoritative deck lists, and show where every physical copy is allocated.
+2. **Source fidelity:** Collection rebuild uses full fidelity: exact printing, quantity, finish, condition, language, purchase price, date added, and retained source-row provenance. Unresolved rows block completion unless explicitly accepted.
+3. **Disposable current state:** Existing Oracle data does not require in-place migration or preservation. It may be deleted and rebuilt from collection and deck files. Stable IDs and current Oracle-only metadata do not need to survive the initial reset.
+4. **Allocation outcome:** Preserve deterministic matches and review/recalculate the rest. No allocation may silently disappear or be guessed.
+5. **Authoritative deck reimport:** An explicit CSV/text reimport replaces only that deck's composition. It must not affect another deck's composition or silently change collection ownership.
+6. **Post-cutover collection maintenance:** Support manual per-copy editing plus safe additive CSV import. Ongoing authoritative Archidekt reconciliation is out of scope.
+7. **Recovery choice:** The project uses Supabase Free. The user accepts deleting and rebuilding instead of funding or implementing native backup/PITR recovery for the MVP.
+8. **Private release, tenant-safe foundation:** Release one serves one user, but user-owned data and mutations remain ownership-scoped for future multi-user support.
+9. **Reduced surface:** Scanner code is removed. Card Kingdom pricing, AI Brew, and Monitor/Upgrade remain frozen while fundamentals are stabilized.
 
-- **Identity fidelity:** card name/oracle identity, exact printing, set and collector number.
-- **Ownership fidelity:** quantity and one row per physical copy.
-- **Copy fidelity:** finish, condition, language, purchase price, and acquired/date-added value.
-- **Oracle-only fidelity:** storage location, missing state, notes, proxy relationships, stable copy IDs, and deck allocations.
+### Collection rebuild contract
 
-Recommended default: preserve all source fields available in the Archidekt export, retain the original source row/hash for audit, preserve Oracle-only data when it can be matched safely, and block cutover on unexplained rows. Do not silently downgrade exact printings to card-name-only ownership.
+The rebuild process must be deterministic and reviewable even though it does not preserve the current Oracle database:
 
-### Clarification: recovery posture
+- Parse and validate the complete collection source before reporting success.
+- Preserve exact source fields selected above; do not downgrade exact printings to card-name-only ownership.
+- Record source identity/hash and row-level provenance so a rebuild can be explained.
+- Produce source-row, physical-copy, resolved, unresolved, and rejected totals.
+- Handle the full real collection without PostgREST's 1,000-row cap or oversized `.in()` requests.
+- Retrying the same rebuild input must produce the same logical collection without duplicates.
+- A failed run must be clearly incomplete and safe to restart; partial state must never be presented as a successful collection.
 
-A staging project and a backup solve different problems:
+The current production state may be reset before this rebuild. Preserving existing copy IDs, storage, notes, and allocations across that reset is not an MVP requirement.
 
-- **Staging** is an isolated place to rehearse migrations, destructive operations, restore procedures, and automated tests without touching production.
-- **A database backup/PITR** recovers production after deletion, corruption, or operator error.
-- **The portable CSV export** is useful for inspection and interoperability, but it is not a full backup because it does not reproduce decks, allocations, copy identity, storage, preferences, or all metadata.
+### Authoritative deck reimport and allocation contract
 
-Recommended private-MVP posture: separate staging, a managed/native backup at least daily, a fresh snapshot before high-risk mutations, recovery point objective of no more than 24 hours, recovery time objective of one business day, and a successful restore rehearsal before cutover. The current Supabase plan and enabled backup controls still need confirmation.
+For each explicit deck reimport:
 
-### Clarification: repository boundary
+- **Unchanged slot:** Preserve Oracle category, selected printing, proxy/ownership state, and valid assigned copy.
+- **Removed slot:** Remove it from that deck and release any assigned copy back to the available pool.
+- **New slot with a free owned copy:** Assign a deterministic free copy to the slot. Prefer the requested exact printing when supplied; otherwise use a consistent best-match rule.
+- **New slot whose owned copies are all in other decks:** Leave it **Claimed** and require an explicit **Pull**. Never move a copy out of another deck automatically.
+- **New unowned slot:** Offer explicit choices to confirm a purchase, add a proxy, or leave it Unowned. Confirming a purchase creates an Original copy and assigns it; adding a proxy creates and assigns a Proxy. The import itself must not infer ownership.
+- **Ambiguous match:** Leave the slot for review rather than guessing.
+- **Scope:** Reimport changes only the selected deck and explicitly confirmed collection additions.
 
-The current workspace has a nested Git repository at `app/`, while Kiro specifications and production-relevant Supabase assets exist beside it. Those sibling assets are not included when `app/` is cloned or committed.
+### Accepted recovery risk
 
-Two valid end states exist:
+Supabase documentation states that managed daily backups begin on paid plans and PITR is a paid add-on; Free projects are advised to make manual CLI exports. The user has chosen not to make database backup/restore part of this MVP.
 
-- Make `The_Oracle/` the Git root and retain `app/` as the deployment subdirectory. This preserves the current workspace layout but requires carefully absorbing or preserving the nested repository history.
-- Keep `app/` as the Git root, move durable `.kiro`, canonical Supabase, research, and specification assets inside it, then open `app/` as the workspace root. This is the smaller Git/deployment change but requires updating workspace paths.
+The recovery model is therefore **reset and deterministic rebuild from retained source files**, not restoration of Oracle's database state. This deliberately accepts that Oracle-only changes made after the latest retained collection/deck files—including manual copy metadata, storage changes, and allocation work—may be lost and need to be recreated.
 
-Recommended default: keep `app/` as the repository and make it the canonical project/workspace root. Reconcile deployed Supabase migration and function history before moving or deleting any database assets.
+A separate staging project remains required for safe testing and migration rehearsal; staging is not a backup. A full relational Oracle backup/restore capability is deferred and should be reconsidered if Oracle-only data becomes costly to recreate or before public/multi-user release.
 
-## Fundamentals-First MVP Interview
+### Repository boundary still pending
 
-Please answer these together; recommendations are included so only meaningful disagreements need discussion.
-
-1. **Weekly value:** What are the three jobs Oracle must do reliably each week to be worth switching from Archidekt? Suggested shortlist: know what you own, maintain authoritative deck lists, and know where each physical copy is allocated.
-2. **Migration fidelity:** Choose **A** (preserve exact printing, quantity, finish, condition, language, purchase price, date added, and source row), **B** (printing, quantity, finish, condition only), or **C** (card name and quantity only). Recommendation: **A**.
-3. **Existing Oracle data:** Choose **A** (keep decks and Oracle-authored metadata, replace collection ownership from Archidekt, reconcile allocations), **B** (back up then rebuild Oracle data), or **C** (merge both collections). Recommendation: **A**; avoid ambiguous collection merging.
-4. **Allocation outcome:** Choose **A** (every assignment survives exactly), **B** (preserve deterministic matches and review/recalculate the rest), or **C** (recalculate all assignments). Current answer appears to be **B**; please confirm.
-5. **Deck reimport behavior:** Should unchanged cards preserve Oracle categories, selected printing, proxy/ownership state, and valid allocation while the imported file authoritatively adds/removes quantities? Recommendation: **yes**; removed slots release copies and unmatched additions enter review.
-6. **Post-cutover collection maintenance:** Choose **A** (manual per-copy editing plus safe additive CSV import), **B** (manual editing only), or **C** (continued authoritative Archidekt imports). Recommendation: **A** if bulk purchases are common, otherwise **B**; do not choose C for a one-time cutover.
-7. **Operations and structure:** What Supabase plan is active, are backups/PITR enabled, and does production contain unique data? Also confirm the recommended repository choice: keep `app/` as Git root, move durable project assets into it after migration-history reconciliation, and open it as the workspace root.
-
-Unresolved imported rows will default to blocking cutover unless each exception is explicitly reviewed and accepted.
+The only unanswered structural decision is the Git/workspace boundary. Recommended default: keep `app/` as the repository, move durable `.kiro`, canonical Supabase, research, and specification assets inside it after deployed migration history is reconciled, then open `app/` as the workspace root.
 
 ## Go/No-Go Rule
 
-Oracle becomes eligible to replace Archidekt only when Phase 0 and Phase 1 gates pass in an isolated environment, a native restore rehearsal succeeds, the imported collection reconciles to agreed totals/metadata, and the user approves the dry-run report. Until then, Archidekt plus independent exports remain the authoritative backup.
+Oracle becomes eligible to replace Archidekt when the reset-and-rebuild flow passes in an isolated environment, the complete real collection reconciles to agreed totals and full-fidelity metadata, authoritative deck reimport/allocation behavior passes, tenant isolation is verified, and the user approves the reconciliation report. Native database restore is explicitly waived for this private Free-plan MVP; retained collection and deck source files are the rebuild inputs.

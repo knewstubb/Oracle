@@ -1,9 +1,40 @@
 # Delivery Log — Commander Context Snapshot
 
 > Feature: Commander Context Snapshot
-> Status: In Progress
+> Status: Complete (Phases 1–4)
 > Last updated: 2026-09-12
 > Maintained by: Delivery Lead
+
+---
+
+## 2026-09-12 — Production cutover and storage reclamation
+
+**Context:** With deployed shadow parity proven and the user satisfied with live snapshot-backed results, the user approved switching production reads to the snapshot and reclaiming the Supabase storage.
+
+**What changed:**
+- **Step A (reversible):** Set `COMMANDER_CONTEXT_SOURCE=snapshot` in the production Vercel environment and deployed production (`oracle-60ss8cpsp-…`, aliased `oracle-alpha-two.vercel.app`). The app now reads commander build data from the bundled SQLite snapshot.
+- **Step B (destructive, separately approved):** Deleted all 94,250 rows from `public.ref_build_cards` and ran `VACUUM FULL` to reclaim disk.
+
+**Verification:**
+- Pre-delete safety checks: live count 94,250 matched the snapshot, 1,885 distinct builds, and **0 inbound foreign keys** referencing `ref_build_cards`, so the delete was self-contained.
+- Production, in snapshot mode, returned correct data end to end for the fixture deck: deck detail HTTP 200 with 13 cards and 12 synergy scores; build detection HTTP 200 with the assigned build and one available build. No `snapshot_error`.
+- Post-delete: `ref_build_cards` now has 0 rows; table size 187 MB → 72 kB; **database size 504 MB → 317 MB (~187 MB / 37% reclaimed).**
+
+**Decisions made:**
+- Kept the empty `ref_build_cards` table structure so the exporter and any future re-import retain a target.
+- Sequenced Step A before Step B and paused for user validation so instant config-flip rollback existed until the user was satisfied.
+
+**Recovery path:**
+- The bundled snapshot (`data/commander-context/…sqlite`, committed and pushed to `origin/backup/commander-context-and-e2e-20260912`) is the source of truth and is regenerable via `npm run export:commander-context`. Restoring rows to Supabase would require a re-import, not a config flip.
+
+**Follow-ups:**
+- Rotate the Supabase service-role/publishable, DeepSeek, and Anthropic keys that were shared in chat during local `.env.local` restoration.
+- Updating commander build data is now "regenerate snapshot + redeploy," not a live Supabase write.
+
+**Refs:**
+- Production env: `COMMANDER_CONTEXT_SOURCE=snapshot`
+- Snapshot: `data/commander-context/manifest.json`
+- Debt: TD-036 (E2E), TD-037 (RLS)
 
 ---
 

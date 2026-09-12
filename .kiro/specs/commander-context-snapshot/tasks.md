@@ -25,16 +25,16 @@
 
 - [x] Compare aggregate counts and representative build queries.
 - [x] Deploy shadow mode and collect mismatch evidence.
-- [ ] Switch deployed reads to snapshot while retaining Supabase rows.
-- [ ] Verify API, AI grounding, deck analysis, and rollback.
+- [x] Switch deployed reads to snapshot while retaining Supabase rows.
+- [x] Verify API, AI grounding, deck analysis, and rollback.
 
 ## Phase 4 — Storage reclamation
 
-- [ ] Verify no live runtime or job writes require `ref_build_cards`.
-- [ ] Verify the deprecated recommendation relation has no rows or consumers.
-- [ ] Prepare measured, reversible storage-reclamation migration.
-- [ ] Obtain explicit destructive-change approval.
-- [ ] Apply migration, run advisors, and measure database size after reclamation.
+- [x] Verify no live runtime or job writes require `ref_build_cards`.
+- [x] Verify the deprecated recommendation relation has no rows or consumers.
+- [x] Prepare measured, reversible storage-reclamation migration.
+- [x] Obtain explicit destructive-change approval.
+- [x] Apply migration, run advisors, and measure database size after reclamation.
 
 ## Phase 5 — Later context migration
 

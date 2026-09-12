@@ -6,9 +6,9 @@
 
 ## Summary
 
-- **Total items:** 36
-- **Open severity:** **Critical:** 3 | **High:** 5 | **Medium:** 4 | **Low:** 2
-- **Resolved:** 17 (TD-001–TD-004, TD-006–TD-013, TD-016, TD-017, TD-019, TD-020, TD-022) | **Accepted-risk:** 5 (TD-005, TD-015, TD-018, TD-028, TD-036) | **Deferred:** 0 | **Open:** 14 (TD-014, TD-021, TD-023–TD-027, TD-029–TD-035)
+- **Total items:** 37
+- **Open severity:** **Critical:** 4 | **High:** 5 | **Medium:** 4 | **Low:** 2
+- **Resolved:** 17 (TD-001–TD-004, TD-006–TD-013, TD-016, TD-017, TD-019, TD-020, TD-022) | **Accepted-risk:** 5 (TD-005, TD-015, TD-018, TD-028, TD-036) | **Deferred:** 0 | **Open:** 15 (TD-014, TD-021, TD-023–TD-027, TD-029–TD-035, TD-037)
 - **Oldest unresolved:** TD-014 — Pricing data limited and potentially stale
 - **Immediate paydown candidates:** TD-026, TD-027, and TD-029 before authoritative collection rebuild
 
@@ -520,3 +520,15 @@
 - **Blocked by:** A free hosted project slot or approval for a paid persistent branch.
 - **Status:** accepted-risk
 - **Accepted risk:** 2026-09-12 — User chose to retain both active free projects and temporarily use the Oracle backend. Only read-only smoke coverage is permitted. Review by 2026-10-12 or when an alternate database becomes available, whichever comes first.
+---
+
+## TD-037: Production user-data tables lack Row Level Security
+- **Category:** security
+- **Severity:** critical
+- **Logged:** 2026-09-12 by Delivery Lead
+- **Feature origin:** cross-cutting — `.kiro/specs/commander-context-snapshot/`
+- **Description:** Supabase's schema advisor reports Row Level Security disabled on 30 production tables, including `user_cards`, `user_copies`, `decks`, `deck_cards`, and multiple deck/session tables. Depending on current grants, anon or authenticated clients may be able to read or mutate rows outside their tenant; service-role routes do not mitigate direct client exposure.
+- **Impact if unresolved:** A client with the public Supabase key may gain cross-user access to collection, deck, or session data, creating a compounding confidentiality and integrity risk as more users and routes are added.
+- **Proposed fix:** Audit grants and every direct client query, define owner-scoped policies using `auth.uid()`, enable RLS in staged table groups, and run two-tenant read/write regression coverage before and after each group. Estimated effort: high.
+- **Blocked by:** Policy inventory and a safe integration environment; enabling RLS without complete policies could block legitimate production access.
+- **Status:** open

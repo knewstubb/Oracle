@@ -18,6 +18,7 @@ The stack is Next.js 16 (App Router), React 19, Supabase (Postgres + Auth), TanS
 | User Authentication | shipped | Infrastructure | `specs/user-authentication/` | 2026-04 |
 | Supabase Migration | shipped | Infrastructure | `specs/supabase-migration/` | 2026-04 |
 | E2E Test Isolation | in-progress | Infrastructure | `specs/e2e-test-isolation/` | 2026-09-12 |
+| Commander Context Snapshot | in-progress | Architectural | `specs/commander-context-snapshot/` | 2026-09-12 |
 | Card Definition Storage | shipped | Architectural | `specs/card-identity-physical-copies/` (Req 1 only) | 2026-07-01 |
 | Instance-Level Physical Copy Tracking | shipped | Architectural | `specs/_archive/instance-level-card-tracking/` | 2026-07-07 |
 | Collection CSV Import | shipped | User-facing | `specs/collection-csv-upsert/` | 2026-04 |

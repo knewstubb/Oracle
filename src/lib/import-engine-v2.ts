@@ -37,6 +37,54 @@ function parsePurchasePrice(raw: string | undefined): number | null {
   return isNaN(num) || num < 0 ? null : Math.round(num * 100) / 100
 }
 
+/**
+ * Resolve the user's default storage location id, creating one if none exists.
+ *
+ * Imported copies are placed here so that every owned-but-unsleeved copy has a
+ * real location (the one-location invariant) instead of a NULL "unsorted" state.
+ * Returns null only if the lookup/creation fails, in which case callers fall
+ * back to leaving location_id unset rather than aborting the import.
+ */
+async function resolveDefaultLocationId(
+  supabase: ReturnType<typeof createAdminClient>,
+  userId: string
+): Promise<number | null> {
+  // The user_locations is_default/type columns are newer than the generated
+  // Supabase types, so this table access is cast like other writes in this file.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const locations = () => (supabase as any).from('user_locations')
+
+  const existing = await locations()
+    .select('id')
+    .eq('user_id', userId)
+    .eq('type', 'storage')
+    .eq('is_default', true)
+    .limit(1)
+    .maybeSingle()
+
+  if (existing.data?.id != null) return existing.data.id as number
+
+  // No default yet — create the canonical "Unsorted" default storage location.
+  const created = await locations()
+    .insert({
+      name: 'Unsorted',
+      type: 'storage',
+      deck_id: null,
+      color: '#6B7280',
+      sort_order: 0,
+      user_id: userId,
+      is_default: true,
+    })
+    .select('id')
+    .single()
+
+  if (created.error || created.data?.id == null) {
+    // Non-fatal: fall back to leaving location unset; a later backfill can fix it.
+    return null
+  }
+  return created.data.id as number
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -822,7 +870,9 @@ async function executeSyncMode(
   // Stage 6: Determine inserts and removals
   // -------------------------------------------------------------------
 
-  // Rows to insert (in CSV but not enough in DB)
+  // Rows to insert (in CSV but not enough in DB).
+  // New copies go to the user's default storage location (one-location invariant).
+  const syncDefaultLocationId = await resolveDefaultLocationId(supabase, options.userId)
   const rowsToInsert: any[] = []
   for (const [printingId, demand] of csvDemandMap) {
     const dbCopies = dbSupplyMap.get(printingId) ?? []
@@ -836,6 +886,7 @@ async function executeSyncMode(
           is_proxy: demand.isProxy,
           condition: demand.condition,
           source_tag: sourceTag,
+          location_id: syncDefaultLocationId,
           user_id: options.userId,
         }
         // Pass through dateAdded as created_at if provided; otherwise DB defaults to NOW()
@@ -1175,6 +1226,9 @@ export async function executeInstanceLevelImport(
   // -------------------------------------------------------------------
   // Stage 4: Build collection insert payload (one row per instance)
   // -------------------------------------------------------------------
+  // Imported copies go to the user's default storage location so every
+  // owned-but-unsleeved copy has a real location (one-location invariant).
+  const defaultLocationId = await resolveDefaultLocationId(supabase, options.userId)
   const copyRows: any[] = []
 
   for (const row of resolvedRows) {
@@ -1192,6 +1246,7 @@ export async function executeInstanceLevelImport(
         is_proxy: row.isProxy,
         condition: row.condition,
         source_tag: sourceTag,
+        location_id: defaultLocationId,
         user_id: options.userId,
       }
       // Pass through dateAdded as created_at if provided; otherwise DB defaults to NOW()

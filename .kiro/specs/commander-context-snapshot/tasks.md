@@ -23,8 +23,8 @@
 
 ## Phase 3 — Verification and cutover
 
-- [ ] Compare aggregate counts and representative build queries.
-- [ ] Deploy shadow mode and collect mismatch evidence.
+- [x] Compare aggregate counts and representative build queries.
+- [x] Deploy shadow mode and collect mismatch evidence.
 - [ ] Switch deployed reads to snapshot while retaining Supabase rows.
 - [ ] Verify API, AI grounding, deck analysis, and rollback.
 

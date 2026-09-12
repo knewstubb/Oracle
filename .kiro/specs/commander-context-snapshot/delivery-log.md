@@ -7,6 +7,44 @@
 
 ---
 
+## 2026-09-12 — Deployed shadow parity passed
+
+**Context:** Phase 3 required production-backed evidence from the Linux/Vercel runtime before snapshot-only reads could be considered. The existing saved test identity initially had one empty deck, so authenticated routes succeeded but could not invoke either commander-context operation.
+
+**What changed:**
+- Re-exported all 94,250 production `ref_build_cards` rows into an isolated directory and matched the bundled snapshot's content and SQLite SHA-256 exactly across 13 representative queries.
+- Added `.vercelignore` entries for the 650,506,240-byte local Scryfall database and browser/test artifacts while preserving runtime snapshot and knowledge files.
+- Deployed commit `c278513` to the isolated Preview with `COMMANDER_CONTEXT_SOURCE=shadow`; production was not promoted and Supabase commander rows were not changed.
+- Verified the configured saved session belongs to the dedicated test identity, then converted that identity's sole empty deck into a deterministic read-only fixture in one transaction: one commander, 12 build cards, a non-null build assignment, and allocation disabled. No real-user, collection-ownership, or reference-table rows were changed.
+- Exercised authenticated GETs for the deck list, deck detail, and build detection. The detail returned 13 cards with 12 synergy scores; build detection found the assigned build and one available build.
+
+**Deployed evidence:**
+- Preview: `https://oracle-q21c9kuik-brads-projects-0ca079f3.vercel.app`
+- Deployment: `dpl_2cFEYAMHYRXv2BCYg9f1RY9bQyyb`
+- `getSynergyScores`: `status=match`, input 13, primary/shadow 12, equal SHA-256.
+- `getBuildCards`: `status=match`, primary/shadow 50, equal SHA-256.
+- Vercel searches returned no `shadow_parity mismatch` and no `shadow_error` events for the evidence window.
+- Both events reported snapshot version `d0da1021fad9f72db87c9121164aa44b4e9cc060cb5a9ff651da9fffe31d3487` and HTTP 200.
+
+**Operational incident:**
+- `vercel link` and a later `vercel env pull` overwrote `.env.local`; sensitive Vercel values were emitted locally as empty values. Local Supabase, AI, and YouTube integrations remain unusable until those values—especially `YOUTUBE_API_KEY`—are restored from the user's secret source. No secret values were committed or logged.
+
+**Loop-back:**
+- **Backtrack-one:** The first Preview upload exceeded Vercel's 100 MB per-file limit because `data/AllPrintings.sqlite` is 650,506,240 bytes. The narrow `.vercelignore` exclusion removed only local bulk/test artifacts; the next Linux build and deployment passed.
+- **Backtrack-one:** The first fixture transaction failed on unsupported `min(uuid)` before any write. The guard was corrected to aggregate the UUID as text, and the atomic retry created exactly 13 fixture rows.
+
+**Decisions made:**
+- Mark aggregate and deployed shadow parity complete, but do not switch production to `snapshot` yet; API/AI rollback verification and a separate cutover decision remain open.
+- Keep the shared-backend fixture read-only and scoped to the dedicated test identity. It is evidence for route/snapshot parity only, not mutation or tenant-isolation safety.
+- Do not delete or truncate `ref_build_cards` until snapshot-only deployment evidence passes and the user separately approves storage reclamation.
+
+**Refs:**
+- Preview inspect: `https://vercel.com/brads-projects-0ca079f3/oracle/2cFEYAMHYRXv2BCYg9f1RY9bQyyb`
+- Runtime commit: `c278513`
+- Accepted shared-backend risk: TD-036
+
+---
+
 ## 2026-09-12 — Runtime reads migrated behind dual-source repository
 
 **Context:** Phase 2 required every live `ref_build_cards` consumer to use one server-only contract before Supabase rows could be compared with or replaced by the immutable SQLite snapshot.

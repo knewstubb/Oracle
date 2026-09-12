@@ -242,18 +242,64 @@ These are workspace cleanup actions, not product fixes.
 4. Remove duplicate/legacy endpoints only after caller and deployment-log checks.
 5. Replace in-memory collection list assembly with a database projection/RPC.
 
-## Product Decisions Required
+## Product Direction Captured
 
-Please answer these together before implementation planning:
+The user has narrowed the product to a fundamentals-first collection and deck system. These decisions govern the next implementation plan:
 
-1. **Cutover model:** Do you want a one-time migration from Archidekt, or ongoing Archidekt ↔ Oracle reconciliation for a period?
-2. **Allocation preservation:** Must existing Oracle deck assignments survive collection migration exactly, or can they be recomputed/reviewed afterward?
-3. **Required fidelity:** Which fields are non-negotiable: printing, finish, condition, purchase price, acquired date, language, storage location, proxy status, notes, and deck allocation?
-4. **Recovery posture:** Which Supabase plan is active, and are PITR/backups enabled? Are you willing to create a separate staging Supabase project?
-5. **Single-user scope:** Is this permanently a private single-user system, or should migration hardening preserve multi-user isolation?
-6. **Repository boundary:** Prefer making `The_Oracle/` the Git root, or moving `.kiro`, research, specs, and canonical Supabase assets into `app/`?
-7. **Feature retention:** Should vendor-specific Card Kingdom pricing, AI Brew, Monitor/Upgrade, and historical scanner code remain active priorities, be maintained but frozen, or be archived while collection migration is stabilized?
-8. **Migration timing:** Is there a target date or event driving the move, and how much downtime/manual verification is acceptable?
+1. **One-time cutover:** Archidekt remains the collection authority until a single reviewed migration. Oracle becomes authoritative afterward; ongoing Archidekt reconciliation is not an MVP requirement.
+2. **Allocation preservation with review:** Preserve existing copy-to-deck assignments when they can be matched deterministically. Recalculate and explicitly review the remainder rather than silently discarding or guessing.
+3. **Authoritative deck imports:** An explicit CSV/text reimport replaces that deck's composition. It must not affect other decks or collection ownership. The treatment of Oracle-only metadata on unchanged rows still needs confirmation.
+4. **Private first release, tenant-safe foundation:** Release one serves one user, but all data access, imports, restores, and allocation mutations must remain user-scoped so future multi-user support does not require a security rewrite.
+5. **Separate staging accepted:** The user is willing to create an isolated Supabase project for migration rehearsals and automated tests.
+6. **Reduced feature surface:** Remove historical scanner code. Freeze Card Kingdom pricing, AI Brew, and Monitor/Upgrade; do not expand them while collection, deck, allocation, backup, and recovery fundamentals are stabilized.
+7. **No deadline:** Safety and verifiable recovery take priority over migration speed.
+8. **Current authority retained:** Archidekt and independent exports remain authoritative until all agreed migration and restore gates pass.
+
+### Clarification: required migration fidelity
+
+"Required fidelity" means deciding which facts must survive the one-time migration exactly. This determines the import schema, reconciliation report, backup format, and acceptance tests.
+
+- **Identity fidelity:** card name/oracle identity, exact printing, set and collector number.
+- **Ownership fidelity:** quantity and one row per physical copy.
+- **Copy fidelity:** finish, condition, language, purchase price, and acquired/date-added value.
+- **Oracle-only fidelity:** storage location, missing state, notes, proxy relationships, stable copy IDs, and deck allocations.
+
+Recommended default: preserve all source fields available in the Archidekt export, retain the original source row/hash for audit, preserve Oracle-only data when it can be matched safely, and block cutover on unexplained rows. Do not silently downgrade exact printings to card-name-only ownership.
+
+### Clarification: recovery posture
+
+A staging project and a backup solve different problems:
+
+- **Staging** is an isolated place to rehearse migrations, destructive operations, restore procedures, and automated tests without touching production.
+- **A database backup/PITR** recovers production after deletion, corruption, or operator error.
+- **The portable CSV export** is useful for inspection and interoperability, but it is not a full backup because it does not reproduce decks, allocations, copy identity, storage, preferences, or all metadata.
+
+Recommended private-MVP posture: separate staging, a managed/native backup at least daily, a fresh snapshot before high-risk mutations, recovery point objective of no more than 24 hours, recovery time objective of one business day, and a successful restore rehearsal before cutover. The current Supabase plan and enabled backup controls still need confirmation.
+
+### Clarification: repository boundary
+
+The current workspace has a nested Git repository at `app/`, while Kiro specifications and production-relevant Supabase assets exist beside it. Those sibling assets are not included when `app/` is cloned or committed.
+
+Two valid end states exist:
+
+- Make `The_Oracle/` the Git root and retain `app/` as the deployment subdirectory. This preserves the current workspace layout but requires carefully absorbing or preserving the nested repository history.
+- Keep `app/` as the Git root, move durable `.kiro`, canonical Supabase, research, and specification assets inside it, then open `app/` as the workspace root. This is the smaller Git/deployment change but requires updating workspace paths.
+
+Recommended default: keep `app/` as the repository and make it the canonical project/workspace root. Reconcile deployed Supabase migration and function history before moving or deleting any database assets.
+
+## Fundamentals-First MVP Interview
+
+Please answer these together; recommendations are included so only meaningful disagreements need discussion.
+
+1. **Weekly value:** What are the three jobs Oracle must do reliably each week to be worth switching from Archidekt? Suggested shortlist: know what you own, maintain authoritative deck lists, and know where each physical copy is allocated.
+2. **Migration fidelity:** Choose **A** (preserve exact printing, quantity, finish, condition, language, purchase price, date added, and source row), **B** (printing, quantity, finish, condition only), or **C** (card name and quantity only). Recommendation: **A**.
+3. **Existing Oracle data:** Choose **A** (keep decks and Oracle-authored metadata, replace collection ownership from Archidekt, reconcile allocations), **B** (back up then rebuild Oracle data), or **C** (merge both collections). Recommendation: **A**; avoid ambiguous collection merging.
+4. **Allocation outcome:** Choose **A** (every assignment survives exactly), **B** (preserve deterministic matches and review/recalculate the rest), or **C** (recalculate all assignments). Current answer appears to be **B**; please confirm.
+5. **Deck reimport behavior:** Should unchanged cards preserve Oracle categories, selected printing, proxy/ownership state, and valid allocation while the imported file authoritatively adds/removes quantities? Recommendation: **yes**; removed slots release copies and unmatched additions enter review.
+6. **Post-cutover collection maintenance:** Choose **A** (manual per-copy editing plus safe additive CSV import), **B** (manual editing only), or **C** (continued authoritative Archidekt imports). Recommendation: **A** if bulk purchases are common, otherwise **B**; do not choose C for a one-time cutover.
+7. **Operations and structure:** What Supabase plan is active, are backups/PITR enabled, and does production contain unique data? Also confirm the recommended repository choice: keep `app/` as Git root, move durable project assets into it after migration-history reconciliation, and open it as the workspace root.
+
+Unresolved imported rows will default to blocking cutover unless each exception is explicitly reviewed and accepted.
 
 ## Go/No-Go Rule
 

@@ -25,3 +25,14 @@
 - [ ] Re-enable mutating suites against disposable fixtures.
 - [ ] Decide when isolated E2E becomes a required branch-protection gate.
 - [ ] Rotate/revoke the prior production browser session and audit possible historical mutations.
+
+## Temporary Shared-Backend Smoke Increment
+
+- [ ] Add an explicit `shared-readonly` execution mode without weakening isolated-mode guards.
+- [ ] Create a dedicated smoke-only Playwright project and mutation-free allowlist.
+- [ ] Create a dedicated test identity and deterministic read-only fixture rows.
+- [ ] Provision a separate Vercel E2E frontend connected to the shared backend.
+- [ ] Configure protected GitHub variables/secret for shared-readonly smoke.
+- [ ] Verify no write-capable spec or direct mutation request is selected.
+- [ ] Record accepted risk with review date 2026-10-12.
+- [ ] Retire this mode when an alternate hosted database becomes available.

@@ -113,3 +113,18 @@ Revert the containment commit only if an equivalent or stronger production deny 
 - Resource names and ownership for the isolated Vercel/Supabase environment.
 - Reset mechanism and least-privilege credential design.
 - Whether branch protection should require E2E only after the isolated environment is operational.
+
+## Temporary Shared-Backend Mode
+
+The temporary mode uses a separate Vercel frontend and dedicated Supabase Auth user but points to the existing Oracle backend. It is intentionally named `shared-readonly`, not isolated.
+
+Safety controls:
+
+- Playwright config exposes only a dedicated smoke project in this mode.
+- The allowlist contains navigation/rendering tests that do not call mutation routes.
+- Production frontend hostname remains denied; tests target the separate E2E deployment.
+- The dedicated test user receives only deterministic read-only fixtures and is never the real collection owner.
+- CI carries an explicit accepted-risk mode variable and cannot select the full Chromium suite.
+- Allocation, import, cron, reset, deck creation, and direct mutation API coverage remain disabled until a separate database exists.
+
+This exception does not resolve TD-027. It provides limited deployment smoke evidence while preserving the fail-closed mutable-suite gate.

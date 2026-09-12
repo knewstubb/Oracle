@@ -6,9 +6,9 @@
 
 ## Summary
 
-- **Total items:** 35
+- **Total items:** 36
 - **Open severity:** **Critical:** 3 | **High:** 5 | **Medium:** 4 | **Low:** 2
-- **Resolved:** 17 (TD-001–TD-004, TD-006–TD-013, TD-016, TD-017, TD-019, TD-020, TD-022) | **Accepted-risk:** 4 (TD-005, TD-015, TD-018, TD-028) | **Deferred:** 0 | **Open:** 14 (TD-014, TD-021, TD-023–TD-027, TD-029–TD-035)
+- **Resolved:** 17 (TD-001–TD-004, TD-006–TD-013, TD-016, TD-017, TD-019, TD-020, TD-022) | **Accepted-risk:** 5 (TD-005, TD-015, TD-018, TD-028, TD-036) | **Deferred:** 0 | **Open:** 14 (TD-014, TD-021, TD-023–TD-027, TD-029–TD-035)
 - **Oldest unresolved:** TD-014 — Pricing data limited and potentially stale
 - **Immediate paydown candidates:** TD-026, TD-027, and TD-029 before authoritative collection rebuild
 
@@ -506,3 +506,17 @@
 - **Proposed fix:** Persist mutation/import audit events, add correlation IDs and structured error tracking, alert on partial failures/count anomalies, and monitor route/database latency. Estimated effort: medium.
 - **Blocked by:** Observability platform choice.
 - **Status:** open
+
+---
+
+## TD-036: E2E smoke tests temporarily share the production backend
+- **Category:** infrastructure
+- **Severity:** high
+- **Logged:** 2026-09-12 by Delivery Lead
+- **Feature origin:** E2E Test Isolation — `.kiro/specs/e2e-test-isolation/`
+- **Description:** The account's two active free Supabase project slots are required, so a separate E2E frontend and dedicated test identity will temporarily use the production Oracle Supabase project. The exception is restricted to an explicitly allowlisted read-only smoke project; mutating allocation, import, reset, cron, deck-creation, and direct write-API tests remain disabled.
+- **Impact if unresolved:** The environment cannot prove mutation safety or tenant isolation, and service-role routes retain a non-zero blast radius even for a dedicated user. Expanding the allowlist carelessly could expose real collection state to test writes.
+- **Proposed fix:** Move the complete E2E suite to a separate Supabase project as soon as a free project slot becomes available; recreate deterministic fixtures there, rotate the shared-backend test session, and remove shared-readonly mode. Estimated effort: medium.
+- **Blocked by:** A free hosted project slot or approval for a paid persistent branch.
+- **Status:** accepted-risk
+- **Accepted risk:** 2026-09-12 — User chose to retain both active free projects and temporarily use the Oracle backend. Only read-only smoke coverage is permitted. Review by 2026-10-12 or when an alternate database becomes available, whichever comes first.

@@ -79,3 +79,22 @@ No E2E invocation can send requests until it has an explicitly configured, non-p
 | 1 | Which isolated Supabase and Vercel projects will host E2E? | Blocks re-enabling the workflow |
 | 2 | Should fixture reset use migrations plus seed SQL or a test-only RPC? | Determines reset implementation and credential scope |
 | 3 | Which existing test account/session should be rotated or revoked? | Required production containment follow-up |
+
+## 9. Temporary Shared-Backend Exception
+
+Until a free hosted project becomes available, the user accepts a temporary shared-production-backend mode for **read-only smoke coverage only**.
+
+### 9.1 Shared-backend smoke safety
+
+**US-9.1.1** As an operator, I want limited deployment smoke evidence without allowing tests to mutate real collection state.
+
+#### Acceptance Criteria
+- WHEN E2E uses the production Supabase project, THE SYSTEM SHALL identify the mode as `shared-readonly`; it SHALL NOT claim isolation.
+- WHEN mode is `shared-readonly`, THE SYSTEM SHALL run only an explicitly allowlisted smoke project whose tests perform no application or API mutations.
+- WHEN mode is `shared-readonly`, THE SYSTEM SHALL use a dedicated test identity and SHALL NOT authenticate as the real collection owner.
+- WHEN a test requires collection, deck, allocation, import, reset, cron, or other writes, THE SYSTEM SHALL exclude it from shared-backend execution.
+- WHEN a separate hosted database becomes available, THE SYSTEM SHALL retire this exception and restore the isolated mutable-suite requirements in section 5.3.
+
+### 9.2 Accepted risk
+
+The shared database still has a non-zero blast radius because some server routes use the service-role client and known ownership-scoping debt exists. Therefore this exception permits navigation/rendering smoke tests only, has no authority as mutation or tenant-isolation evidence, and must be reviewed by 2026-10-12 or when an alternate database becomes available, whichever comes first.

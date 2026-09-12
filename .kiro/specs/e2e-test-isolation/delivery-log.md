@@ -63,3 +63,21 @@
 - Files: `playwright.config.ts`, `.github/workflows/e2e-tests.yml`, `tests/e2e/README.md`
 - Requirements: `.kiro/specs/e2e-test-isolation/requirements.md`
 - Debt: TD-027
+
+---
+
+## 2026-09-12 — Temporary shared-backend smoke exception approved
+
+**Context:** Free hosted project creation was blocked by the account's two-active-project limit, and the user needs both current projects. The user chose to use the Oracle backend temporarily and expects another database to become available in the coming weeks.
+
+**Decision:**
+- Permit a separate E2E frontend and dedicated test identity against the shared backend for read-only navigation/rendering smoke tests only.
+- Do not label the environment isolated and do not enable allocation, import, reset, cron, deck creation, or direct mutation API tests.
+- Preserve the existing fail-closed requirement for the full/mutating suite.
+- Review by 2026-10-12 or when an alternate database becomes available, whichever comes first.
+
+**Risk:**
+- Service-role routes and known ownership-scoping debt mean a shared database cannot provide a trustworthy blast-radius boundary. This is accepted only for the constrained smoke allowlist.
+
+**Loop-back:**
+- **Branch:** DevOps provisions the separate frontend and protected mode; Tester proves the allowlist is mutation-free; Developer fixes any route needed to keep smoke execution read-only.

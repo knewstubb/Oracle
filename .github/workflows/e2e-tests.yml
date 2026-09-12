@@ -7,15 +7,36 @@ on:
     branches: [main]
 
 env:
-  BASE_URL: https://oracle-alpha-two.vercel.app
+  E2E_BASE_URL: ${{ vars.E2E_BASE_URL }}
+  E2E_ISOLATED: ${{ vars.E2E_ISOLATED }}
 
 jobs:
   e2e:
     name: Playwright E2E
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    environment: e2e
 
     steps:
+      - name: Verify isolated E2E configuration
+        env:
+          PLAYWRIGHT_E2E_AUTH_SESSION: ${{ secrets.PLAYWRIGHT_E2E_AUTH_SESSION }}
+        run: |
+          node -e '
+            const raw = process.env.E2E_BASE_URL
+            if (process.env.E2E_ISOLATED !== "true" || !raw) {
+              throw new Error("E2E disabled: isolated environment variables are not configured")
+            }
+            const target = new URL(raw)
+            const denied = new Set(["oracle-alpha-two.vercel.app", "localhost", "127.0.0.1", "0.0.0.0", "[::1]"])
+            if (target.protocol !== "https:" || denied.has(target.hostname.toLowerCase()) || target.hostname.toLowerCase().endsWith(".localhost")) {
+              throw new Error(`E2E disabled: refusing unsafe target ${target.origin}`)
+            }
+            if (!process.env.PLAYWRIGHT_E2E_AUTH_SESSION) {
+              throw new Error("E2E disabled: isolated auth session is not configured")
+            }
+          '
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
@@ -30,15 +51,16 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
 
-      - name: Restore auth session
+      - name: Restore isolated auth session
+        env:
+          PLAYWRIGHT_E2E_AUTH_SESSION: ${{ secrets.PLAYWRIGHT_E2E_AUTH_SESSION }}
         run: |
           mkdir -p tests/e2e/.auth
-          echo "${{ secrets.PLAYWRIGHT_AUTH_SESSION }}" | base64 -d > tests/e2e/.auth/session.json
+          printf '%s' "$PLAYWRIGHT_E2E_AUTH_SESSION" | base64 --decode > tests/e2e/.auth/session.json
 
       - name: Run E2E tests
         run: npm run test:e2e
         env:
-          BASE_URL: ${{ env.BASE_URL }}
           CI: true
 
       - name: Upload test report

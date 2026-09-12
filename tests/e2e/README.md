@@ -1,71 +1,88 @@
 # E2E Tests
 
-## Quick Start (Local)
+## Containment Status
+
+E2E execution is intentionally fail-closed until a dedicated Vercel deployment and Supabase project are configured. Production and localhost targets are denied because the local application currently uses the shared backend from `.env.local`.
+
+Do **not** set `E2E_ISOLATED=true` for a preview deployment that still uses production Supabase credentials. The flag is an attestation that frontend, database, test user, and fixtures are disposable and isolated.
+
+## Required Environment
+
+Every Playwright command, including auth setup and UI mode, requires:
+
+- `E2E_ISOLATED=true`
+- `E2E_BASE_URL=https://<isolated-deployment>`
+- A dedicated isolated Supabase project and test user
+- Deterministic seed/reset and cleanup for mutation-capable tests
+
+Without these inputs, Playwright exits while loading its configuration and sends no requests.
+
+## Local Execution Against the Isolated Environment
 
 ```bash
-# 1. Install Playwright browsers (one-time)
+# Install Playwright browsers (one-time)
 npx playwright install chromium
 
-# 2. Start dev server
-npm run dev
-
-# 3. Save auth session (opens browser — log in manually)
+# Generate auth state for the isolated test user
+E2E_ISOLATED=true \
+E2E_BASE_URL=https://<isolated-deployment> \
+TEST_USER_EMAIL=<isolated-test-email> \
+TEST_USER_PASSWORD=<isolated-test-password> \
 npm run test:e2e:setup
 
-# 4. Run tests
+# Run the suite
+E2E_ISOLATED=true \
+E2E_BASE_URL=https://<isolated-deployment> \
 npm run test:e2e
 
-# Or with visible browser:
-npm run test:e2e:headed
-
-# Or with interactive UI:
-npm run test:e2e:ui
+# The same variables are required for headed or UI mode
 ```
 
-## Running Against Production
-
-```bash
-BASE_URL=https://oracle-alpha-two.vercel.app npm run test:e2e
-```
+Never point these commands at `oracle-alpha-two.vercel.app`, localhost, or a deployment connected to the production Supabase project.
 
 ## CI Setup (GitHub Actions)
 
-The CI pipeline needs a `PLAYWRIGHT_AUTH_SESSION` secret containing your base64-encoded auth session.
+Create a protected GitHub Environment named `e2e` only after infrastructure isolation and deterministic reset are verified.
 
-### Generate the secret:
+Configure these environment variables:
+
+- `E2E_ISOLATED`: `true`
+- `E2E_BASE_URL`: the isolated HTTPS deployment
+
+Configure this environment secret:
+
+- `PLAYWRIGHT_E2E_AUTH_SESSION`: base64-encoded `tests/e2e/.auth/session.json` generated against the isolated test user
 
 ```bash
-# 1. Run auth setup locally first
-npm run test:e2e:setup
-
-# 2. Base64 encode the session file
+# After running isolated auth setup locally on macOS:
 base64 -i tests/e2e/.auth/session.json | pbcopy
-# (this copies to clipboard on macOS)
-
-# 3. Add to GitHub:
-#    Repo → Settings → Secrets → Actions → New repository secret
-#    Name: PLAYWRIGHT_AUTH_SESSION
-#    Value: (paste the base64 string)
 ```
 
-### Session expiry
+The workflow preflight rejects missing configuration, the production hostname, localhost/loopback targets, non-HTTPS URLs, and a missing isolated auth session before browser installation.
 
-Supabase sessions expire after ~1 week by default. When CI tests start failing with 401s:
-1. Re-run `npm run test:e2e:setup` locally
-2. Re-encode and update the GitHub secret
+## Session Rotation
+
+When the isolated Supabase session expires:
+
+1. Re-run auth setup against the isolated deployment.
+2. Re-encode the session file.
+3. Replace `PLAYWRIGHT_E2E_AUTH_SESSION` in the protected `e2e` environment.
+
+The previous production-capable Playwright session must be rotated or revoked separately; it must not be reused here.
 
 ## Test Files
 
 | File | Coverage |
 |------|----------|
 | `oracle-smoke.spec.ts` | Navigation, page loading, core layout |
-| `card-management.spec.ts` | Status chip actions (fill, claim, proxy, remove) |
+| `card-management.spec.ts` | Status chip actions (fill, pull, proxy, remove) |
 | `card-movement.spec.ts` | Cross-deck movement, status propagation, API contracts |
 | `new-features.spec.ts` | Goldfish, export, price refresh, multi-platform import |
 
 ## Writing New Tests
 
-- Use `page.waitForTimeout(SETTLE_TIMEOUT)` after navigation (data fetching)
-- Check `isVisible()` before acting on elements that may not exist in all states
-- API contract tests (`request.get/post`) are fast and don't need UI interaction
-- Always use `{ timeout: LOAD_TIMEOUT }` for `expect().toBeVisible()` on data-dependent elements
+- Treat every UI action and API request as mutation-capable unless the route is proven read-only.
+- Add deterministic fixture setup and cleanup before adding mutating coverage.
+- Use `page.waitForTimeout(SETTLE_TIMEOUT)` after navigation while data fetching remains asynchronous.
+- Check `isVisible()` before acting on elements that may not exist in all fixture states.
+- Always use `{ timeout: LOAD_TIMEOUT }` for `expect().toBeVisible()` on data-dependent elements.

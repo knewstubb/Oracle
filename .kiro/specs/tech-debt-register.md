@@ -1,6 +1,6 @@
 # Technical Debt Register
 
-> Last updated: 2026-09-03
+> Last updated: 2026-09-12
 > Owned by: Delivery Lead
 > Prioritised by: Product Manager
 
@@ -395,12 +395,12 @@
 - **Category:** infrastructure
 - **Severity:** critical
 - **Logged:** 2026-09-03 by Delivery Lead
-- **Feature origin:** cross-cutting — `app/.github/workflows/e2e-tests.yml`
-- **Description:** CI restores an authenticated browser session and runs Playwright against the production Vercel URL. Card movement tests perform allocation mutations without guaranteed teardown.
-- **Impact if unresolved:** Pushes and pull requests can alter real collection/deck state, make tests nondeterministic, and hide regressions behind production data conditions.
-- **Proposed fix:** Disable the production workflow immediately; create isolated Vercel/Supabase test infrastructure with seeded data and deterministic reset/cleanup. Rotate the Playwright session. Estimated effort: medium.
-- **Blocked by:** Test-environment decision and credentials.
-- **Status:** open
+- **Feature origin:** E2E Test Isolation — `.kiro/specs/e2e-test-isolation/`
+- **Description:** CI previously restored a reusable authenticated browser session and ran Playwright against the production Vercel URL. On 2026-09-12, containment removed the production literal and added fail-closed CI and Playwright guards that require an explicitly attested isolated HTTPS target and reject production/loopback hosts. A dedicated test environment, deterministic fixtures, and cleanup do not yet exist.
+- **Impact if unresolved:** Production targeting is now blocked by code, but E2E cannot provide release evidence until isolated infrastructure is operational. The prior browser session may remain valid, and historical runs may have changed real allocations.
+- **Proposed fix:** Provision isolated Vercel/Supabase test infrastructure with seeded data and deterministic reset/cleanup; create a dedicated test user/session; rotate or revoke the prior production session; review possible historical allocation mutations; then re-enable the workflow. Estimated remaining effort: medium.
+- **Blocked by:** Isolated Supabase/Vercel resources and credentials.
+- **Status:** in-progress
 
 ---
 

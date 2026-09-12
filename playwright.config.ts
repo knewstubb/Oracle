@@ -5,22 +5,51 @@ import fs from 'fs'
 const authFile = path.join(__dirname, 'tests/e2e/.auth/session.json')
 const hasAuth = fs.existsSync(authFile)
 
+const unsafeE2EHosts = new Set([
+  'oracle-alpha-two.vercel.app',
+  'localhost',
+  '127.0.0.1',
+  '0.0.0.0',
+  '[::1]',
+])
+
+function requireIsolatedBaseURL(): string {
+  if (process.env.E2E_ISOLATED !== 'true') {
+    throw new Error(
+      'E2E disabled: set E2E_ISOLATED=true only after verifying a dedicated Supabase-backed test environment.',
+    )
+  }
+
+  const configuredURL = process.env.E2E_BASE_URL?.trim()
+  if (!configuredURL) {
+    throw new Error('E2E disabled: E2E_BASE_URL is required for the isolated test environment.')
+  }
+
+  let target: URL
+  try {
+    target = new URL(configuredURL)
+  } catch {
+    throw new Error('E2E disabled: E2E_BASE_URL must be a valid absolute URL.')
+  }
+
+  const hostname = target.hostname.toLowerCase()
+  const isLoopback = unsafeE2EHosts.has(hostname) || hostname.endsWith('.localhost')
+
+  if (target.protocol !== 'https:' || isLoopback) {
+    throw new Error(`E2E disabled: refusing unsafe target ${target.origin}.`)
+  }
+
+  return target.toString().replace(/\/$/, '')
+}
+
+const isolatedBaseURL = requireIsolatedBaseURL()
+
 /**
  * Playwright configuration for The Oracle E2E tests.
  *
- * Running locally:
- *   1. Start the dev server: npm run dev
- *   2. Install browsers: npx playwright install chromium
- *   3. Save auth session: npm run test:e2e:setup
- *      (log in manually in the browser, then it auto-saves)
- *   4. Run tests: npm run test:e2e
- *
- * Running against production/preview:
- *   BASE_URL=https://oracle-alpha-two.vercel.app npm run test:e2e
- *
- * CI (GitHub Actions):
- *   Uses PLAYWRIGHT_AUTH_SESSION secret (base64-encoded session.json)
- *   and BASE_URL from Vercel deployment.
+ * Every invocation requires an explicitly attested isolated frontend backed by
+ * a dedicated Supabase project. Production and localhost are always denied.
+ * See tests/e2e/README.md for the provisioning and execution contract.
  */
 export default defineConfig({
   testDir: './tests/e2e',
@@ -34,7 +63,7 @@ export default defineConfig({
   timeout: 60_000,
 
   use: {
-    baseURL: process.env.BASE_URL ?? 'http://localhost:3000',
+    baseURL: isolatedBaseURL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: process.env.CI ? 'on-first-retry' : 'off',

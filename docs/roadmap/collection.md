@@ -7,9 +7,9 @@
 - **Grid + List Views** — Card images grid (filterable) and table view with set icon, edition, price.
 - **Search & Filter** — Name, color identity, status, proxy flag. Persistent view mode.
 - **CSV Export** — Portable card/copy export. Not a full backup: it does not restore all storage, missing, deck, and allocation relationships.
-- **Purchase Price** — Captured from CSV import and scan. Collection value banner shows total/gain/loss.
+- **Purchase Price** — Captured from CSV import. Collection value banner shows total/gain/loss.
 - **Market Prices** — Scryfall-sourced, stored in card_metadata. Manual refresh + daily cron.
-- **Card Scanner** — Camera with OCR capture. Parked: needs GCV API key.
+- **Card Scanner** — Removed after unreliable dHash/OCR experiments. Future capture tools must produce the supported CSV/text import format.
 
 ## Planned
 

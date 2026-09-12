@@ -28,7 +28,6 @@ const navItems = [
   { label: 'Card Management', icon: 'modeling', href: '/allocation' },
   { label: 'Collection', icon: 'newsstand', href: '/collection' },
   { label: 'Binders', icon: 'shelves', href: '/storage' },
-  { label: 'Scan', icon: 'photo_camera', href: '/scan' },
   { label: 'Brew Deck', icon: 'science', href: '/new-deck' },
   { label: 'Settings', icon: 'settings', href: '/settings' },
 ]
@@ -40,11 +39,6 @@ const navItems = [
 export function MobileHeader() {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
-
-  // Close drawer on navigation
-  useEffect(() => {
-    setOpen(false)
-  }, [pathname])
 
   // Close on escape key
   useEffect(() => {
@@ -132,6 +126,7 @@ export function MobileHeader() {
                     <li key={item.href}>
                       <Link
                         href={item.href}
+                        onClick={() => setOpen(false)}
                         className={cn(
                           'flex items-center gap-3 rounded-lg px-3 py-2.5 text-[length:var(--fs-md)] font-medium transition-colors',
                           active

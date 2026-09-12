@@ -20,7 +20,6 @@
 - [x] Collection value banner (total value, gain/loss, top cards)
 - [x] Manual price refresh button
 - [x] Daily automated price refresh (Vercel cron)
-- [x] Card scanning — camera with OCR capture (archived: dHash unreliable, see TD-017)
 - [ ] Card search → location ("Where is my Rhystic Study?" — show every copy and where it lives)
 - [ ] Wishlist / "Cards I Want" (per-deck or global, triggers on collection changes)
 - [ ] Trade export (cards not in any deck, formatted for Cardsphere/Deckbox)
@@ -104,7 +103,6 @@
 - [x] Mobile hamburger menu (slide-out drawer)
 - [x] iOS safe-area-inset handling (top + bottom)
 - [x] Version badge (v0.2.0, bottom-left)
-- [x] Camera scanner UI (archived: code in src/_archived/scan-feature/)
 
 ---
 
@@ -145,11 +143,11 @@
 
 ---
 
-## Parked / Archived
+## Parked / Removed
 
 | Feature | Status | Why | Resume when |
 |---------|--------|-----|-------------|
-| Camera scanner | Archived | dHash matching unreliable (TD-017). Code in `src/_archived/scan-feature/`. | OCR-first approach implemented |
+| Camera scanner | Removed | dHash/OCR matching was unreliable; runtime residue removed 2026-09-03. | Not planned; any future capture tool must produce the supported import format |
 | Multi-user support | Parked | Single-user app. IDOR fixes done for future-proofing. | Decision to open signups |
 | Format legality checking | Parked | Low priority for casual Commander | User requests it |
 | Social / deck sharing | Parked | Not needed for personal use | Decision to go public |
@@ -158,8 +156,9 @@
 
 ## Progress Summary
 
-**Built:** 69 items
+**Built:** 68 items
 **Remaining:** 16 items
-**Parked:** 4 items
+**Parked:** 3 items
+**Removed:** 1 item
 
-The app is functionally complete for daily use. The remaining items are quality-of-life improvements that make existing workflows faster (feasibility check, game night view, card search, proxy sheets).
+The current priority is not additional feature breadth. Collection migration safety, authoritative deck maintenance, allocation correctness, backup/restore, isolated testing, and future tenant safety must be trustworthy before Oracle replaces Archidekt.

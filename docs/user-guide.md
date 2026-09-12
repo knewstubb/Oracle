@@ -182,14 +182,16 @@ Below the grid: rotation summary ("5 decks in rotation") + "N decks need cards" 
 
 ---
 
-## Card Scanner (Archived)
+## Card Scanner (Removed)
 
-> **Note:** The card scanner feature has been archived. The camera-based OCR approach proved unreliable for card identification. Cards can still be added via:
-> - **CSV import** — bulk import from Archidekt, Moxfield, ManaBox, or generic formats
-> - **Manual search** — use the Add Card search in any deck's Cards tab
-> - **URL import** — paste a deck URL from any major deckbuilding site
+The experimental camera scanner was removed because image matching was not reliable enough for collection data. Scanner output is not part of the current product or MVP.
 
-The scanner code is preserved in `src/_archived/scan-feature/` for potential future revival with an improved approach.
+Use the supported import paths instead:
+- **Collection CSV import** — bulk import a collection export
+- **Deck CSV/text import** — authoritatively replace one deck's composition
+- **Manual search** — add cards directly when maintaining a deck or collection
+
+A future physical scanner should produce the same validated CSV/text input rather than introduce a separate collection-write path.
 
 ---
 
@@ -250,7 +252,7 @@ The Oracle can be installed to your phone's home screen for a native app experie
 1. Tap the three-dot menu
 2. Tap "Add to Home Screen" or "Install app"
 
-Once installed: full-screen (no browser chrome), persistent camera permissions, and faster load times.
+Once installed: full-screen (no browser chrome) with faster access from the home screen.
 
 ---
 
@@ -329,7 +331,5 @@ Test-draw your deck without a real game:
 
 ## Known Limitations
 
-- Single-user only (no sharing/collaboration)
-- Card scanner requires Google Cloud Vision API key to be configured
-- Some double-faced cards (names with `//`) may not resolve images from camera (manual entry works)
+- Private single-user release; data access is being hardened for future multi-user isolation
 - Goldfish mode shows card names only (not full card images in zones) for performance

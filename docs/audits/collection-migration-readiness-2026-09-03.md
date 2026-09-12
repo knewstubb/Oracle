@@ -251,7 +251,7 @@ The user has narrowed the product to a fundamentals-first collection and deck sy
 3. **Authoritative deck imports:** An explicit CSV/text reimport replaces that deck's composition. It must not affect other decks or collection ownership. The treatment of Oracle-only metadata on unchanged rows still needs confirmation.
 4. **Private first release, tenant-safe foundation:** Release one serves one user, but all data access, imports, restores, and allocation mutations must remain user-scoped so future multi-user support does not require a security rewrite.
 5. **Separate staging accepted:** The user is willing to create an isolated Supabase project for migration rehearsals and automated tests.
-6. **Reduced feature surface:** Remove historical scanner code. Freeze Card Kingdom pricing, AI Brew, and Monitor/Upgrade; do not expand them while collection, deck, allocation, backup, and recovery fundamentals are stabilized.
+6. **Reduced feature surface:** Historical scanner runtime residue was removed on 2026-09-03; any future physical capture tool must produce the supported CSV/text input rather than introduce another write path. Card Kingdom pricing, AI Brew, and Monitor/Upgrade are frozen and must not expand while collection, deck, allocation, backup, and recovery fundamentals are stabilized.
 7. **No deadline:** Safety and verifiable recovery take priority over migration speed.
 8. **Current authority retained:** Archidekt and independent exports remain authoritative until all agreed migration and restore gates pass.
 

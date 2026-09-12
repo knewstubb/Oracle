@@ -22,7 +22,7 @@ The current deployment is not approved as the sole source of truth for a real co
 ### Rate Limiting
 **Priority:** Medium | **Effort:** Medium
 
-Protect expensive endpoints (AI brew, price refresh, OCR) from abuse. Options: Vercel KV sliding window, Upstash Redis, or in-memory (resets on cold start).
+Protect expensive endpoints (AI brew and price refresh) from abuse. Options: Vercel KV sliding window, Upstash Redis, or in-memory (resets on cold start).
 
 ### Type Cleanup
 **Priority:** Low | **Effort:** Medium

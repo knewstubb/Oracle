@@ -9,18 +9,24 @@
 - Moved two local-only migrations to `supabase/reconciliation/pending-local/` so they cannot be mistaken for deployed history.
 - Preserved competing pre-ledger migration trees and undeployed Edge Function sources under `supabase/reconciliation/pre-ledger/` after byte-for-byte comparison.
 - Removed generated Supabase `.temp` state from Git and updated workspace-relative documentation and script paths.
+- Excluded preserved `research/` artifacts from the production ESLint scope so relocating historical scripts does not create application-gate noise.
 
 ### Decisions Made
 
 - The linked hosted ledger is authoritative for active migration history; filename similarity is not sufficient to merge competing histories.
 - Large/private research exports and the commander-content SQLite database remain outside Git. Scripts can locate the latter through `COMMANDER_CONTENT_DB_PATH`.
+- Preserved research remains reviewable and executable on demand, but is not shipped application code and is not part of the production lint gate.
 - Clean replay remains open because Docker and native `pg_dump` were unavailable; TD-032 now tracks that narrower residual risk.
 
 ### Verification
 
 - `supabase migration list --linked` reported matching local and remote versions from `20260730032938` through `20260907061101`.
 - Archived source and destination trees returned no differences with recursive byte comparison before outer copies were removed.
-- The repository relocation diff passed `git diff --check`.
+- Repository path assertions, documentation targets, `git diff --check`, moved TypeScript syntax transpilation, JavaScript syntax, and shell syntax checks passed.
+- `npm run build` passed. Next.js still skips type validation because of the pre-existing configuration.
+- `npm test` remains red at 53 failed files and 277 failed tests; 62 files and 1,073 tests pass, eight more passing tests than the audit baseline with the failure count unchanged.
+- `npx tsc --noEmit` still stops on the known CLI text embedded at `src/types/supabase.ts:2075-2076`.
+- `npm run lint` remains red at 333 errors and 340 warnings after excluding research, versus the audit baseline of 334 errors and 340 warnings.
 
 ### Refs
 

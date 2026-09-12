@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Working research is preserved for reference, not shipped or lint-gated.
+    "research/**",
   ]),
 ]);
 

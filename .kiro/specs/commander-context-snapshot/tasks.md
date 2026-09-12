@@ -8,10 +8,10 @@
 
 ## Phase 1 — Snapshot generation
 
-- [ ] Implement deterministic paginated `ref_build_cards` export. Refs: requirements 5.1.
-- [ ] Create SQLite schema, indexes, manifest, checksum, and atomic publication. Refs: NFR-2–NFR-3, NFR-7.
-- [ ] Add structural and representative query validation. Refs: requirements 5.1–5.2.
-- [ ] Generate the first production snapshot and record its measured size.
+- [x] Implement deterministic paginated `ref_build_cards` export. Refs: requirements 5.1.
+- [x] Create SQLite schema, indexes, manifest, checksum, and atomic publication. Refs: NFR-2–NFR-3, NFR-7.
+- [x] Add structural and representative query validation. Refs: requirements 5.1–5.2.
+- [x] Generate the first production snapshot and record its measured size.
 
 ## Phase 2 — Runtime dual read
 

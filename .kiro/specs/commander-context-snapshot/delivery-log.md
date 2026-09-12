@@ -7,6 +7,40 @@
 
 ---
 
+## 2026-09-12 — Versioned build-card snapshot exported
+
+**Context:** Phase 1 required a deterministic, validated local artifact before any runtime reads or production rows could move away from Supabase.
+
+**What changed:**
+- Added `scripts/export-commander-context.ts` with exact-count reads and stable two-key pagination in pages of at most 1,000 rows.
+- Probed production schema at runtime and mapped the live `category` column to canonical SQLite `card_type`; no secrets or user data enter the artifact.
+- Added row validation, duplicate detection, pre/post source-state checks, SQLite integrity/count/content validation, representative read checks, SHA-256 manifests, immutable versioned files, and manifest-last atomic publication.
+- Exported 94,250 unique `ref_build_cards` rows into a 35,594,240-byte (33.95 MiB) SQLite file, down from the measured 187 MiB Postgres relation plus indexes.
+- Reopened the artifact independently and verified count, integrity, and SHA-256. A second isolated export produced the same content digest and byte-identical SQLite SHA-256.
+
+**Validation evidence:**
+- Source and snapshot content SHA-256: `ac2860ad2bc007116c6f29f7cfaca8f7da2faa1873ea539e28681dc50fea6588`.
+- SQLite file SHA-256: `d0da1021fad9f72db87c9121164aa44b4e9cc060cb5a9ff651da9fffe31d3487`.
+- `PRAGMA integrity_check`: `ok`.
+- Row count and unique key count: 94,250 each.
+- Representative query checks: 13, covering ranked cards, type/minimum-inclusion filters, signatures, staples, batched synergy lookups, and an empty build.
+- TypeScript and ESLint checks pass for the exporter.
+
+**Loop-back:**
+- Backtrack-one: the first export aborted before publication because the validation code compared Postgres ordering using JavaScript binary ordering. The exporter now treats database ordering as the pagination contract, detects duplicate keys independently, and computes cross-system content hashes using canonical UTF-8/SQLite binary ordering. The second and reproducibility exports passed.
+
+**Decisions made:**
+- `data/commander-context/manifest.json` is the atomic current-snapshot pointer; immutable versioned database and manifest files are published first.
+- Keep the 33.95 MiB artifact bundled for the first runtime increment; Vercel trace/deployment size remains a Phase 2 gate.
+- Production `ref_build_cards` remains untouched until dual-read and deployment parity pass and destructive approval is obtained.
+
+**Refs:**
+- Exporter: `scripts/export-commander-context.ts`
+- Current manifest: `data/commander-context/manifest.json`
+- Commit: pending
+
+---
+
 ## 2026-09-12 — Storage pressure measured and migration scoped
 
 **Context:** The user asked whether shared commander context could move to a local source to reduce Supabase database usage.

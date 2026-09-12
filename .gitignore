@@ -44,6 +44,8 @@ next-env.d.ts
 /data/*
 !/data/commander-summaries.json
 !/data/knowledge/
+!/data/commander-context/
+/data/commander-context/.*.tmp.*
 
 # migration export output
 /scripts/export/

@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-12T04:23:47.921Z",
+  "artifact": "commander-context-v1-20260912T042347921Z-ac2860ad2bc0.sqlite",
+  "sourceProjectRefHash": "78c6ea99a38ec63930be921e5cc40b9861b01ddcbb5a99fe1ed14035b7bf6172",
+  "sourceTables": {
+    "ref_build_cards": {
+      "rowCount": 94250,
+      "maxUpdatedAt": "2026-08-06T23:07:22.021187+00:00",
+      "typeColumn": "category",
+      "sourceColumns": [
+        "build_id",
+        "card_name",
+        "category",
+        "created_at",
+        "deck_count",
+        "id",
+        "inclusion_rate",
+        "is_signature",
+        "is_staple",
+        "position",
+        "synergy_score",
+        "updated_at"
+      ],
+      "contentSha256": "ac2860ad2bc007116c6f29f7cfaca8f7da2faa1873ea539e28681dc50fea6588"
+    }
+  },
+  "snapshotBytes": 35594240,
+  "sha256": "d0da1021fad9f72db87c9121164aa44b4e9cc060cb5a9ff651da9fffe31d3487",
+  "validation": {
+    "sqliteIntegrity": "ok",
+    "rowCount": 94250,
+    "uniqueRowCount": 94250,
+    "contentSha256": "ac2860ad2bc007116c6f29f7cfaca8f7da2faa1873ea539e28681dc50fea6588",
+    "representativeBuildIds": [
+      "00af3b87-9617-4498-8688-f2d1494a8c12",
+      "ffefa6bb-53ac-40fe-8ac3-6eb0564c3247"
+    ],
+    "representativeQueriesChecked": 13,
+    "nullFlagsNormalizedToFalse": 0
+  }
+}

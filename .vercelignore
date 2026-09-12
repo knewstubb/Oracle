@@ -1,0 +1,7 @@
+# Local Scryfall bulk database; runtime card data comes from Supabase.
+data/AllPrintings.sqlite
+
+# Local test and browser artifacts.
+.playwright-mcp/
+playwright-report/
+test-results/

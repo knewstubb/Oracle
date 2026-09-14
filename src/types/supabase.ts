@@ -1921,6 +1921,10 @@ export type Database = {
         Args: { p_deck_id: number; p_user_id: string }
         Returns: Json
       }
+      remove_deck_card_with_release: {
+        Args: { p_deck_card_id: number; p_deck_id: number; p_user_id: string }
+        Returns: Json
+      }
       delete_storage_location: {
         Args: { p_location_id: number; p_user_id: string }
         Returns: Json

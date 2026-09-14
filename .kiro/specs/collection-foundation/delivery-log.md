@@ -187,3 +187,18 @@
 - Design: `.kiro/specs/collection-foundation/design.md`
 - Tasks: `.kiro/specs/collection-foundation/tasks.md`
 - Technical debt intentionally left open: TD-026, TD-029, TD-037
+
+## 2026-09-12 — Hosted personal-app prototype verification
+
+**Context:** The committed code was ready, but the linked hosted database had not yet received the personal-scope migration. Existing data preservation was not required for this private prototype; the migration itself does not clear collection data.
+
+**What changed:**
+- Applied the committed personal-scope SQL to hosted project `udocxsyzzvrceiuupprj`. Supabase recorded it as migration version `20260914034408` with logical name `atomic_collection_personal_scope`.
+- Installed the canonical identity trigger, atomic missing restoration, transactional collection replacement, and final service-role-only privilege boundary.
+
+**Read-only verification:**
+- `replace_collection`, `unmark_copy_missing`, `validate_deck_card_copy_identity`, `apply_collection_sync`, and `apply_ai_deck_delta` all report `public_execute=false`, `authenticated_execute=false`, and `service_execute=true`.
+- `user_copies.location_id` and `user_locations.is_default` are present, and `trg_validate_deck_card_copy_identity` is active.
+- Integrity counts remain zero for copies in both storage and a deck, unsleeved copies without storage, multiply referenced copies, and duplicate default locations.
+
+**Gate result:** The personal-app prototype runtime gate passes for this atomic collection increment. No additional production hardening is required before personal use. Planned/Sleeved UX, hard XOR, broad RLS, durable staging, audit/alerting, backup/DR, and full repository quality-baseline repair remain deferred.

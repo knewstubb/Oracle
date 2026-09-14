@@ -433,15 +433,15 @@ export function DeckImportButton({
                 <button
                   type="button"
                   className="rounded-lg border px-4 py-3 text-left transition-colors"
-                  style={importMode === 'design'
+                  style={importMode === 'theorycrafted'
                     ? { borderColor: 'var(--accent-primary)', background: 'var(--accent-primary-bg)' }
                     : { borderColor: 'var(--border-default)' }
                   }
-                  onClick={() => setImportMode('design')}
+                  onClick={() => setImportMode('theorycrafted')}
                 >
-                  <span className="block text-[length:var(--fs-md)] font-medium">This is a design</span>
+                  <span className="block text-[length:var(--fs-md)] font-medium">This is theorycrafted</span>
                   <span className="block text-[length:var(--fs-sm)] text-muted-foreground">
-                    Just save the decklist, no allocation needed
+                    Save the decklist as Planned, with no physical allocation
                   </span>
                 </button>
               </div>

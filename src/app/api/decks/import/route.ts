@@ -7,7 +7,7 @@
  * Import modes:
  * - new_cards: Add cards to collection and assign to deck slots (for purchased decks)
  * - built: Create deck_cards then auto-pull from existing collection (user has physical deck)
- * - design: Create deck_cards only, no allocation (brewing/designing)
+ * - theorycrafted: Create deck_cards only, no allocation (brewing/theorycrafteding)
  *
  * Returns 200 even when allocation has errors (errors included in summary).
  * Returns 500 only on actual failures (deck creation, DB writes, etc.).
@@ -15,11 +15,11 @@
 
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
-import { importDeckDesign, importDeckBuilt, importDeckNewCards } from '@/lib/deck-import'
+import { importDeckTheorycrafted, importDeckBuilt, importDeckNewCards } from '@/lib/deck-import'
 import type { ImportMode } from '@/lib/deck-import'
 import type { NormalizedDeck } from '@/lib/deck-normalizer'
 
-const VALID_MODES: ImportMode[] = ['new_cards', 'built', 'design']
+const VALID_MODES: ImportMode[] = ['new_cards', 'built', 'theorycrafted']
 
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth()
@@ -72,8 +72,8 @@ export async function POST(request: NextRequest) {
       case 'built':
         result = await importDeckBuilt(deck, userId, importOpts)
         break
-      case 'design':
-        result = await importDeckDesign(deck, userId, importOpts)
+      case 'theorycrafted':
+        result = await importDeckTheorycrafted(deck, userId, importOpts)
         break
     }
 

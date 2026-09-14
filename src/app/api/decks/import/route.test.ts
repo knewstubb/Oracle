@@ -15,12 +15,12 @@ vi.mock('@/lib/auth', () => ({
 // Mock Import Executors
 // ---------------------------------------------------------------------------
 
-const mockImportDesign = vi.fn()
+const mockImportTheorycrafted = vi.fn()
 const mockImportBuilt = vi.fn()
 const mockImportNewCards = vi.fn()
 
 vi.mock('@/lib/deck-import', () => ({
-  importDeckDesign: (...args: unknown[]) => mockImportDesign(...args),
+  importDeckTheorycrafted: (...args: unknown[]) => mockImportTheorycrafted(...args),
   importDeckBuilt: (...args: unknown[]) => mockImportBuilt(...args),
   importDeckNewCards: (...args: unknown[]) => mockImportNewCards(...args),
 }))
@@ -78,7 +78,7 @@ describe('POST /api/decks/import', () => {
       deckId: 12345,
       allocationSummary: { assigned: 1, shortfall: 0, errors: [] },
     }
-    mockImportDesign.mockResolvedValue(defaultResult)
+    mockImportTheorycrafted.mockResolvedValue(defaultResult)
     mockImportBuilt.mockResolvedValue(defaultResult)
     mockImportNewCards.mockResolvedValue(defaultResult)
   })
@@ -90,7 +90,7 @@ describe('POST /api/decks/import', () => {
       Response.json({ error: 'Unauthorized' }, { status: 401 })
     )
 
-    const response = await POST(makeRequest({ deck: makeDeck(), mode: 'design' }))
+    const response = await POST(makeRequest({ deck: makeDeck(), mode: 'theorycrafted' }))
     expect(response.status).toBe(401)
   })
 
@@ -110,7 +110,7 @@ describe('POST /api/decks/import', () => {
   })
 
   it('returns 400 when deck is missing', async () => {
-    const response = await POST(makeRequest({ mode: 'design' }))
+    const response = await POST(makeRequest({ mode: 'theorycrafted' }))
     expect(response.status).toBe(400)
     const data = await response.json()
     expect(data.error).toContain('Deck data is required')
@@ -119,7 +119,7 @@ describe('POST /api/decks/import', () => {
   it('returns 400 when deck has no cards', async () => {
     const response = await POST(makeRequest({
       deck: makeDeck({ cards: [] }),
-      mode: 'design',
+      mode: 'theorycrafted',
     }))
     expect(response.status).toBe(400)
     const data = await response.json()
@@ -144,10 +144,10 @@ describe('POST /api/decks/import', () => {
 
   it('routes to importDeckDesign for design mode', async () => {
     const deck = makeDeck()
-    const response = await POST(makeRequest({ deck, mode: 'design' }))
+    const response = await POST(makeRequest({ deck, mode: 'theorycrafted' }))
 
     expect(response.status).toBe(200)
-    expect(mockImportDesign).toHaveBeenCalled()
+    expect(mockImportTheorycrafted).toHaveBeenCalled()
     expect(mockImportBuilt).not.toHaveBeenCalled()
     expect(mockImportNewCards).not.toHaveBeenCalled()
   })
@@ -158,7 +158,7 @@ describe('POST /api/decks/import', () => {
 
     expect(response.status).toBe(200)
     expect(mockImportBuilt).toHaveBeenCalled()
-    expect(mockImportDesign).not.toHaveBeenCalled()
+    expect(mockImportTheorycrafted).not.toHaveBeenCalled()
     expect(mockImportNewCards).not.toHaveBeenCalled()
   })
 
@@ -168,19 +168,19 @@ describe('POST /api/decks/import', () => {
 
     expect(response.status).toBe(200)
     expect(mockImportNewCards).toHaveBeenCalled()
-    expect(mockImportDesign).not.toHaveBeenCalled()
+    expect(mockImportTheorycrafted).not.toHaveBeenCalled()
     expect(mockImportBuilt).not.toHaveBeenCalled()
   })
 
   // --- Success responses ---
 
   it('returns deckId and allocationSummary on success', async () => {
-    mockImportDesign.mockResolvedValue({
+    mockImportTheorycrafted.mockResolvedValue({
       deckId: 42,
       allocationSummary: { assigned: 10, shortfall: 3, errors: [] },
     })
 
-    const response = await POST(makeRequest({ deck: makeDeck(), mode: 'design' }))
+    const response = await POST(makeRequest({ deck: makeDeck(), mode: 'theorycrafted' }))
     expect(response.status).toBe(200)
 
     const data = await response.json()
@@ -211,9 +211,9 @@ describe('POST /api/decks/import', () => {
   // --- Error handling ---
 
   it('returns 500 when executor throws', async () => {
-    mockImportDesign.mockRejectedValue(new Error('Failed to upsert deck'))
+    mockImportTheorycrafted.mockRejectedValue(new Error('Failed to upsert deck'))
 
-    const response = await POST(makeRequest({ deck: makeDeck(), mode: 'design' }))
+    const response = await POST(makeRequest({ deck: makeDeck(), mode: 'theorycrafted' }))
     expect(response.status).toBe(500)
 
     const data = await response.json()

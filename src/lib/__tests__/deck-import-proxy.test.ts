@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { importDeckDesign, importDeckNewCards } from '@/lib/deck-import'
+import { importDeckTheorycrafted, importDeckNewCards } from '@/lib/deck-import'
 import type { NormalizedCard, NormalizedDeck } from '@/lib/deck-normalizer'
 
 const mockFrom = vi.fn()
@@ -128,8 +128,8 @@ describe('current deck import proxy contract', () => {
     expect(replaceCall[1].p_rows.every((row: Record<string, unknown>) => row.is_proxy === true)).toBe(true)
   })
 
-  it('keeps design mode on the atomic deck diff path without collection writes', async () => {
-    await importDeckDesign(makeDeck([makeCard({ isProxy: true })]), TEST_USER_ID)
+  it('keeps theorycrafted mode on the atomic deck diff path without collection writes', async () => {
+    await importDeckTheorycrafted(makeDeck([makeCard({ isProxy: true })]), TEST_USER_ID)
 
     expect(mockRpc).toHaveBeenCalledWith(
       'apply_deck_cards_diff',

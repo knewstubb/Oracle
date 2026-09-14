@@ -12,7 +12,7 @@
 
 import { createAdminClient } from '@/lib/supabase'
 import { fetchDeck, type ArchidektDeckFull } from '@/lib/archidekt-client'
-import { importDeckDesign } from '@/lib/deck-import'
+import { importDeckTheorycrafted } from '@/lib/deck-import'
 import { normalizeArchidektDeck } from '@/lib/deck-normalizer'
 import type { EnrichedSupplyEntry } from '@/lib/allocation-candidates'
 import {
@@ -334,7 +334,7 @@ async function resolveSingleDeck(
   // with the fire-and-forget auto-assign that would otherwise run.
   let importedDeckId: number
   try {
-    const importResult = await importDeckDesign(normalizedDeck, userId, { isActive })
+    const importResult = await importDeckTheorycrafted(normalizedDeck, userId, { isActive })
     importedDeckId = importResult.deckId
   } catch (err) {
     return {
@@ -495,7 +495,7 @@ async function resolveSingleDeckFromNormalized(
   // Step 1: Import the deck (creates deck + deck_cards rows)
   let importedDeckId: number
   try {
-    const importResult = await importDeckDesign(normalizedDeck, userId, { isActive })
+    const importResult = await importDeckTheorycrafted(normalizedDeck, userId, { isActive })
     importedDeckId = importResult.deckId
   } catch (err) {
     return {

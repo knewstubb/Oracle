@@ -35,7 +35,7 @@ Each phase is validated against `requirements.md` before the next begins. All au
 
 ## Phase 4 — Import alignment
 
-- [ ] Rename the user-facing and API `design` import intent to `theorycrafted`; create/update its deck slots as Planned without collection or physical-allocation writes. Refs: 5.5.
+- [ ] Rename the user-facing and API `theorycrafted` import intent to `theorycrafted`; create/update its deck slots as Planned without collection or physical-allocation writes. Refs: 5.5.
 - [ ] Make Built import/reimport reconcile stated physical reality: preserve matching valid assignments, atomically pull eligible free copies, release removed Sleeved copies to default storage, and return structured unresolved conflicts without taking cards from other decks. Refs: 5.5, 5.4.
 - [ ] Retain New-cards import as the guarded atomic create-and-sleeve path, including Original/Proxy results. Refs: 5.5, NFR-1.
 - [ ] Align canonical lifecycle/API results and shared UI with the import outcomes: Planned plus allocation context, or Sleeved plus Original/Proxy. Refs: 5.3, 5.5.

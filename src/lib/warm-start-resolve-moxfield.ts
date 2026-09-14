@@ -10,7 +10,7 @@
 
 import { createAdminClient } from '@/lib/supabase'
 import { fetchMoxfieldDeck } from '@/lib/moxfield-client'
-import { importDeckDesign } from '@/lib/deck-import'
+import { importDeckTheorycrafted } from '@/lib/deck-import'
 import { normalizeMoxfieldDeck } from '@/lib/deck-normalizer'
 import { fetchEnrichedSupply, classifyTier, scoreCandidate } from '@/lib/allocation-candidates'
 import { batchAssignDeck, type Assignment } from '@/lib/supply-pool'
@@ -144,7 +144,7 @@ async function resolveSingleMoxfieldDeck(
   // Step 3: Import the deck (creates deck + deck_cards rows)
   let importedDeckId: number
   try {
-    const importResult = await importDeckDesign(normalizedDeck, userId, { isActive })
+    const importResult = await importDeckTheorycrafted(normalizedDeck, userId, { isActive })
     importedDeckId = importResult.deckId
   } catch (err) {
     return {

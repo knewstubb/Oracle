@@ -21,9 +21,9 @@ import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
  * Import modes:
  * - new_cards: Add cards to collection (user_cards + user_copies) and assign to deck slots
  * - built: Create deck_cards then auto-pull from existing collection (user holds physical deck)
- * - design: Create deck_cards only, no allocation or collection changes
+ * - theorycrafted: Create deck_cards only, no allocation or collection changes
  */
-export type ImportMode = 'new_cards' | 'built' | 'design'
+export type ImportMode = 'new_cards' | 'built' | 'theorycrafted'
 
 export interface ImportResult {
   deckId: number
@@ -82,13 +82,13 @@ function generateDeckId(deck: NormalizedDeck): number {
   return Math.abs(hashCode(deck.platformDeckId)) % 2147483647
 }
 
-// ─── Import: Design Mode ─────────────────────────────────────────────────────
+// ─── Import: Theorycrafted Mode ─────────────────────────────────────────────────────
 
 /**
- * Execute a deck import in "design" mode.
+ * Execute a deck import in "theorycrafted" mode.
  *
  * Creates deck_cards only — no collection changes, no allocation.
- * Use when the user is designing and doesn't want to allocate yet.
+ * Use when the user is theorycrafteding and doesn't want to allocate yet.
  *
  * 1. Generate deck ID
  * 2. Upsert deck row
@@ -97,14 +97,14 @@ function generateDeckId(deck: NormalizedDeck): number {
  * 5. Compute diff (preserves enriched columns on persisting rows)
  * 6. Apply diff transactionally
  */
-export async function importDeckDesign(
+export async function importDeckTheorycrafted(
   deck: NormalizedDeck,
   userId: string,
   options?: { format?: string; isActive?: boolean }
 ): Promise<ImportResult> {
   const supabase = createAdminClient()
   const deckId = generateDeckId(deck)
-  // Design mode defaults to inactive (user is still working on it)
+  // Theorycrafted mode defaults to inactive (user is still working on it)
   const isActive = options?.isActive ?? false
   const deckFormat = options?.format || 'commander'
 
@@ -189,7 +189,7 @@ export async function importDeckDesign(
     deck.name
   )
 
-  // No allocation in design mode
+  // No allocation in theorycrafted mode
   const allocationSummary = {
     assigned: 0,
     shortfall: 0,

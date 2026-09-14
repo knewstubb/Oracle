@@ -48,7 +48,7 @@ vi.mock('@/lib/card-definition-resolver', () => ({
 
 import { parseDeckUrl, isParseError } from '@/lib/url-parser'
 import { normalizeArchidektDeck, normalizeMoxfieldDeck, groupCardsByType } from '@/lib/deck-normalizer'
-import { importDeckDesign, importDeckNewCards } from '@/lib/deck-import'
+import { importDeckTheorycrafted, importDeckNewCards } from '@/lib/deck-import'
 import type { ArchidektDeckFull } from '@/lib/archidekt-client'
 import type { MoxfieldDeckFull } from '@/lib/moxfield-client'
 
@@ -338,9 +338,9 @@ describe('Integration: Archidekt URL → preview → existing mode → deck in D
     expect(cardsByType.groups.Creature.length).toBe(2) // Korvold + Dockside
     expect(cardsByType.groups.Artifact.length).toBe(1) // Sol Ring
 
-    // Step 4: Import in design mode
+    // Step 4: Import in theorycrafted mode
     const tracker = createSupabaseTracker()
-    const result = await importDeckDesign(normalizedDeck, TEST_USER_ID)
+    const result = await importDeckTheorycrafted(normalizedDeck, TEST_USER_ID)
 
     // Verify deck row was upserted
     const deckUpserts = tracker.getOps('decks', 'upsert')
@@ -485,7 +485,7 @@ describe('Integration: Proxy cards create is_proxy collection rows', () => {
 
     // Import
     const tracker = createSupabaseTracker()
-    await importDeckDesign(normalizedDeck, TEST_USER_ID)
+    await importDeckTheorycrafted(normalizedDeck, TEST_USER_ID)
 
     // Verify that a collection insert was made with is_proxy=true
     const collectionInserts = tracker.getOps('collection', 'insert')
@@ -535,13 +535,13 @@ describe('Integration: Re-import same Archidekt URL upserts', () => {
 
     // First import
     const tracker1 = createSupabaseTracker()
-    const result1 = await importDeckDesign(normalizedDeck, TEST_USER_ID)
+    const result1 = await importDeckTheorycrafted(normalizedDeck, TEST_USER_ID)
     expect(result1.deckId).toBe(12345678)
 
     // Second import (same deck)
     vi.clearAllMocks()
     const tracker2 = createSupabaseTracker()
-    const result2 = await importDeckDesign(normalizedDeck, TEST_USER_ID)
+    const result2 = await importDeckTheorycrafted(normalizedDeck, TEST_USER_ID)
 
     // Same deck ID both times (Archidekt uses its own numeric ID)
     expect(result2.deckId).toBe(12345678)
@@ -596,7 +596,7 @@ describe('Integration: Allocation resolver runs post-import', () => {
     const normalizedDeck = normalizeArchidektDeck(rawDeck, ARCHIDEKT_URL)
 
     createSupabaseTracker()
-    const result = await importDeckDesign(normalizedDeck, TEST_USER_ID)
+    const result = await importDeckTheorycrafted(normalizedDeck, TEST_USER_ID)
 
     // Verify allocation resolver was called with the correct userId
     expect(mockRunAllocationResolver).toHaveBeenCalledTimes(1)
@@ -643,7 +643,7 @@ describe('Integration: Allocation resolver runs post-import', () => {
     const normalizedDeck = normalizeArchidektDeck(rawDeck, ARCHIDEKT_URL)
 
     createSupabaseTracker()
-    const result = await importDeckDesign(normalizedDeck, TEST_USER_ID)
+    const result = await importDeckTheorycrafted(normalizedDeck, TEST_USER_ID)
 
     // Import still returns a deckId (deck was created successfully)
     expect(result.deckId).toBe(12345678)

@@ -20,10 +20,10 @@ Each phase is validated against `requirements.md` before the next begins. All au
 
 ## Phase 2 — Slot lifecycle (Planned vs Sleeved)
 
-- [ ] Introduce an explicit Planned/Sleeved distinction for deck slots. Refs: 5.3.
-- [ ] Redefine the slot-state derivation around Empty / Planned(owned|proxy|unowned, with availability) / Sleeved(original|proxy) as a single source of truth. Refs: 5.3, NFR-2.
+- [x] Introduce an explicit Planned/Sleeved distinction for deck slots. Refs: 5.3. Evidence: `DeckCardLifecycle` is derived from nullable `copy_id` in `src/lib/card-status.ts`; committed in `bc4e9d3`.
+- [x] Redefine the slot-state derivation around Empty / Planned(owned|proxy|unowned, with availability) / Sleeved(original|proxy) as a single source of truth. Refs: 5.3, NFR-2. Evidence: canonical `allocationStatus` plus compatibility `status` are returned by `computeDeckCardStatuses` and `/card-statuses`.
 - [ ] Retire or auto-reconcile the stale `ownership_status` so it can no longer drift. Refs: NFR-2.
-- [ ] Update the deck-detail and cards views to show planned-context vs sleeved-context correctly. Refs: 5.3.
+- [x] Update the deck-detail and cards views to show planned-context vs sleeved-context correctly. Refs: 5.3. Evidence: deck detail, picklist, CardsTab, CardGroupSection, CardSlotBadge, StatusChipPopover, and PicklistV2 consume lifecycle-aware fields in `bc4e9d3`.
 
 ## Phase 3 — Movement & confirmation
 
@@ -35,10 +35,10 @@ Each phase is validated against `requirements.md` before the next begins. All au
 
 ## Phase 4 — Import alignment
 
-- [ ] Rename the user-facing and API `theorycrafted` import intent to `theorycrafted`; create/update its deck slots as Planned without collection or physical-allocation writes. Refs: 5.5.
-- [ ] Make Built import/reimport reconcile stated physical reality: preserve matching valid assignments, atomically pull eligible free copies, release removed Sleeved copies to default storage, and return structured unresolved conflicts without taking cards from other decks. Refs: 5.5, 5.4.
-- [ ] Retain New-cards import as the guarded atomic create-and-sleeve path, including Original/Proxy results. Refs: 5.5, NFR-1.
-- [ ] Align canonical lifecycle/API results and shared UI with the import outcomes: Planned plus allocation context, or Sleeved plus Original/Proxy. Refs: 5.3, 5.5.
+- [x] Rename the user-facing and API `theorycrafted` import intent to `theorycrafted`; create/update its deck slots as Planned without collection or physical-allocation writes. Refs: 5.5. Evidence: committed in `9d688f5`.
+- [x] Make Built import/reimport reconcile stated physical reality: preserve matching valid assignments, atomically pull eligible free copies, release removed Sleeved copies to default storage, and return structured unresolved conflicts without taking cards from other decks. Refs: 5.5, 5.4. Evidence: `reconcile_built_deck` RPC and executor committed in `2ba479d`; focused Built test passes 1/1.
+- [x] Retain New-cards import as the guarded atomic create-and-sleeve path, including Original/Proxy results. Refs: 5.5, NFR-1. Evidence: existing `replace_deck_with_new_cards` path remains the `new_cards` executor; focused import route suite passes 12/12.
+- [x] Align canonical lifecycle/API results and shared UI with the import outcomes: Planned plus allocation context, or Sleeved plus Original/Proxy. Refs: 5.3, 5.5. Evidence: `DeckCardLifecycle`, `allocationStatus`, canonical `copyId`, compatibility aliases, and shared UI wiring committed in `bc4e9d3`.
 - [x] Keep collection import instance-level into default/specified storage, separate from deck import. Refs: 5.2, NFR-3. Evidence: V2 add/sync imports use default-location RPC insertion and replacement preflight; focused import-client tests pass.
 
 ## Phase 5 — Verification

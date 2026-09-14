@@ -226,3 +226,31 @@
 - Integrity counts remain zero for copies in both storage and a deck, unsleeved copies without storage, multiply referenced copies, and duplicate default locations.
 
 **Gate result:** The personal-app prototype runtime gate passes for this atomic collection increment. No additional production hardening is required before personal use. Planned/Sleeved UX, hard XOR, broad RLS, durable staging, audit/alerting, backup/DR, and full repository quality-baseline repair remain deferred.
+
+## 2026-09-12 — Lifecycle read model and shared UI completed
+
+**Context:** The import executors now distinguish Theorycrafted, Built, and New-cards behavior, but the read paths still exposed nullable slots as implicit Original allocations. This entry records the lifecycle contract and the release-gate evidence for the shared deck views.
+
+**What changed:**
+- Added `DeckCardLifecycle` (`planned | sleeved`) and `allocationStatus` to the canonical card-status result. `status`, `copyId`, and `physicalCopyId` compatibility fields remain available for existing consumers.
+- Corrected deck-detail allocation mapping so `copy_id IS NULL` returns Planned/null rather than Original.
+- Added lifecycle and canonical copy fields to the picklist response while retaining `isResolved`, `physicalCopyId`, and `ownershipStatus` compatibility fields.
+- Threaded lifecycle through the existing shared CardsTab, CardGroupSection, CardSlotBadge, StatusChipPopover, and PicklistV2 components. Planned rows now retain Available/Alternate/Claimed/Unowned context; only Sleeved rows present Original or Proxy.
+- Replaced stale Open/Unallocated presentation and changed the storage action toast from Fill to Assign/Pull terminology.
+
+**Validation evidence:**
+- `src/lib/card-status.test.ts`: 15/15 passed.
+- `src/lib/__tests__/deck-import-built.test.ts`: 1/1 passed.
+- `src/lib/__tests__/deck-import-proxy.test.ts`: 3/3 passed.
+- `src/app/api/decks/import/route.test.ts`: 12/12 passed.
+- `npm run build` passed. Next.js reported the existing middleware-convention deprecation and missing optional Gemini key warnings.
+- Lifecycle-specific TypeScript filtering returned no errors; the repository-wide typecheck remains a known baseline failure outside this change.
+- Targeted ESLint reported existing `any`, hook, unused-symbol, and image warnings/errors in the touched legacy files; no new lifecycle-specific lint finding was introduced.
+- `git diff --check` passed.
+- `npx supabase db lint` could not run because local Postgres was unavailable at `127.0.0.1:54322`; the new migration has not been applied or claimed as hosted-validated.
+
+**Refs:**
+- Implementation: `bc4e9d3`
+- Requirements: `.kiro/specs/collection-foundation/requirements.md`
+- Design: `.kiro/specs/collection-foundation/design.md`
+- Tasks: `.kiro/specs/collection-foundation/tasks.md`

@@ -7,16 +7,19 @@
 ## Design Goals
 
 - Preserve the current personal-app collection and allocation model while preventing crash- and race-induced orphaning.
+- Make **Empty → Planned → Sleeved** a derived lifecycle: a named slot with no copy is Planned; an assigned copy is Sleeved; no named slot is Empty.
+- Make import intent describe physical reality: a Theorycrafted list has no physical allocation, a Built deck is reconciled with free collection copies, and New cards are created directly into the deck.
 - Make the current schema, rather than retired table and column names, the only write contract.
 - Fail closed when a destructive input is incomplete or an RPC returns an invalid success payload.
-- Keep the implementation small enough to adopt before Planned/Sleeved UX and broader production hardening.
-- Preserve recoverability through complete preflight, transactional replacement, and read-only integrity checks.
+- Preserve recoverability through complete preflight, transactional replacement, structured reconciliation conflicts, and read-only integrity checks.
 
 ## Design Principles for This Feature
 
 | Principle | Application |
 |---|---|
 | Option A is the model of record | Storage uses `user_copies.location_id`; a sleeved copy is represented by `deck_cards.copy_id` and has no storage location. |
+| Lifecycle and allocation are separate | `planned`/`sleeved` comes from `copy_id`; `original`, `proxy`, `available`, `alternate`, `claimed`, and `unowned` explain the physical context. A nullable/stale `ownership_status` is never lifecycle truth. |
+| Import intent is an attestation of reality | Theorycrafted means no physical cards move; Built means the imported list is physically assembled and free copies should be reconciled; New cards means the copied cards enter directly into the target deck. |
 | One physical copy, one place | The existing unique partial index prevents a copy from backing multiple deck slots; movement RPCs clear and assign within one transaction. |
 | Current schema only | RPCs and callers use `user_copies`, `deck_cards`, `ref_cards`, `ref_printings`, and `user_locations`; retired legacy contracts are not used as fallbacks. |
 | Validate before mutation | Destructive imports resolve and validate the complete input before replacement; unresolved identities cannot produce a partial desired collection. |
@@ -24,30 +27,46 @@
 
 ## Screens & Components
 
-This increment changes the data and API foundation rather than introducing a new screen. Existing collection, allocation, deck, and onboarding screens continue to consume their current APIs.
+### Import Deck confirmation
 
-### Current collection and allocation surfaces
+The existing `DeckImportButton` preview remains the import confirmation surface. Rename its user-facing **This is a design** choice to **This is theorycrafted** and align the internal/API value from `design` to `theorycrafted`.
 
-- Collection imports now land copies in the user's default storage location, including add and sync paths.
-- Explicit allocation actions call current-schema atomic RPCs. The route authenticates first and passes the authenticated user ID into the RPC.
-- AI or batch deck-card deltas use one transaction and return planned additions; sleeving, origin choice, and confirmation UX remain a later phase.
-- Missing-card restoration returns a copy to default storage atomically when that supported action is used.
+| Intent | User-facing meaning | Lifecycle result |
+|---|---|---|
+| Theorycrafted | “This is a deck I am considering.” | Create/update named slots as Planned. Do not create, move, or release physical copies. |
+| Built | “This deck is assembled in physical reality.” | Preserve valid assignments and atomically pull eligible free copies into required slots. Assigned slots are Sleeved; shortages/conflicts remain Planned. |
+| New cards | “These physical cards are new to my collection and belong in this deck.” | Atomically create the copies and assign them to this deck. The result is Sleeved/Original or Sleeved/Proxy. |
+
+The intent selection plus **Import Deck** is the user confirmation for the declared reconciliation. Built imports do not ask for a second confirmation per card. They also never take a card from another deck; those shortages are surfaced as conflicts for later manual resolution.
+
+### Shared deck and allocation surfaces
+
+`CardsTab`, `CardGroupSection`, `StatusChipPopover`, `CardSlotBadge`, `PicklistV2`, and `CopyRow` consume one canonical state rather than creating view-specific Planned/Sleeved variants. Parent views own layout; the shared components own lifecycle presentation, allocation context, hover preview, and available actions.
+
+- A Planned row shows `Available`, `Alternate`, `Claimed`, `Unowned`, or the generic-land exception.
+- A Sleeved row shows only `Original` or `Proxy`.
+- Manual Pull, Assign, Release, Reassign, and Proxy actions use their explicit source/target affordances. A manual action with multiple candidates requires source selection.
+- Built-import conflicts list the card, requested quantity, assigned quantity, unresolved quantity, and reason (for example, all copies are claimed by another deck).
 
 ### Deferred lifecycle UI
 
-Planned/Sleeved presentation, origin-picker UX, warn-before-apply import confirmation, and always-confirm AI controls are not implemented by this increment. Their future design must specify default, loading, empty, error, success, and partial states; keyboard behavior and responsive behavior; and accessible names/focus transitions before implementation begins.
+The shared Planned/Sleeved presentation, manual origin-picker, and always-confirm AI controls are not implemented by the atomic movement/import increment. They must specify default, loading, empty, error, success, and partial states; keyboard behavior, focus transitions, responsive behavior, and accessible names before implementation begins.
 
 ## Interactions
 
-1. **Explicit allocation:** the user selects a source and target, then the route calls one movement RPC. No second confirmation is added because intent is already explicit.
-2. **Collection add/sync:** the complete CSV is parsed and resolved before current-schema insert/sync RPCs apply the rows. Reads of large supply collections paginate beyond PostgREST's default 1,000-row limit.
-3. **Collection replace:** the route accepts one complete CSV request. The replacement RPC takes a per-user advisory transaction lock, validates the desired membership, removes the old rows, and inserts the new rows in one transaction. Any error rolls the operation back.
-4. **Legacy import mode:** `upsert` is retained only as a compatibility alias to the safe V2 add path. Retired destructive modes return HTTP 410 rather than silently selecting an unsafe implementation.
-5. **Deck replacement/delta:** deck-card diffs use the current JSONB contract. Batch AI changes resolve metadata before the single transaction and validate returned counts before responding success.
+1. **Theorycrafted import:** create or diff named deck-card rows only. Additions are Planned. Reimport preserves existing Sleeved assignments and never moves or releases a physical copy.
+2. **Built import:** treat the selected intent as the owner’s confirmation that the source list reflects the physical deck. Preserve valid matching sleeve assignments, then use guarded atomic allocation to pull eligible free copies from storage. Never automatically pull a copy from another deck. A card that cannot be reconciled remains Planned and is returned in a structured conflict summary; the import still completes.
+3. **Built reimport removal:** when an existing Sleeved card is absent from the reconciled physical list, atomically release its copy to default storage and remove its slot. The imported list is the owner’s declared physical reality.
+4. **New-cards import:** use one guarded transaction to release existing affected assignments as necessary, create one physical copy per imported card instance, and assign each new copy to its target slot. No intermediate storage or orphan state is observable.
+5. **Collection add/sync:** the complete CSV is parsed and resolved before current-schema insert/sync RPCs apply the rows to default or specified storage. It never assigns a copy to a deck. Reads of large supply collections paginate beyond PostgREST's default 1,000-row limit.
+6. **Collection replace:** the route accepts one complete CSV request. The replacement RPC takes a per-user advisory transaction lock, validates the desired membership, removes the old rows, and inserts the new rows in one transaction. Any error rolls the operation back.
+7. **Explicit allocation:** the user selects a source and target, then the route calls one movement RPC. No second confirmation is added because intent is already explicit; source selection remains mandatory when the user has not selected a specific candidate.
+8. **Legacy collection import mode:** `upsert` is retained only as a compatibility alias to the safe V2 add path. Retired destructive modes return HTTP 410 rather than silently selecting an unsafe implementation.
+9. **Deck replacement/delta:** deck-card diffs use the current JSONB contract. Batch AI changes resolve metadata before the single transaction and validate returned counts before responding success; AI actions remain always-confirm.
 
 ## Accessibility Notes
 
-No new UI controls are introduced in this increment. Existing controls retain their current keyboard and screen-reader behavior. The deferred Planned/Sleeved and confirmation work must not be treated as complete until the design gate covers keyboard interaction, focus management, accessible labels, and all declared states.
+The import intent controls must expose mutually exclusive choices with accessible labels that explain the physical effect. Keyboard users can select an intent, review its effect, and activate Import Deck without pointer-only interaction. On Built completion, focus moves to the reconciliation summary; on partial completion, the conflict list has a programmatic summary and each conflict identifies the available next action. The deferred shared lifecycle controls must provide accessible names, keyboard behavior, focus management, and all declared default/loading/empty/error/success/partial states before implementation begins.
 
 ## Design Decisions & Alternatives
 

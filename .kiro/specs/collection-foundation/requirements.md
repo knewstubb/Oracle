@@ -66,30 +66,34 @@ The data model and core flows provably match this mental model:
 **US-5.3.1** As the owner building a deck, I want each of the ~100 slots to progress from empty to planned to physically sleeved, showing the right info at each stage.
 
 #### Acceptance Criteria
-- A slot with no intended card SHALL be **Empty**.
-- WHEN the owner names a card for a slot without moving a physical card, THE SYSTEM SHALL mark the slot **Planned** and show ownership context: owned or not, proxy available, and for any owned copy whether it is available in storage or held in another deck (for both original and proxy).
-- WHEN a physical copy is placed in the deck, THE SYSTEM SHALL mark the slot **Sleeved** and show only whether the sleeved copy is **original** or **proxy**.
-- THE SYSTEM SHALL derive slot state from a single source of truth (copy assignment + sleeved flag + proxy flag), with no independently-stored status permitted to drift.
+- A slot with no intended card SHALL be **Empty**; a named deck-card row with no assigned copy SHALL be **Planned**, never Empty.
+- WHEN the owner names a card for a slot without moving a physical card, THE SYSTEM SHALL mark the slot **Planned** and show an allocation context: **Available**, **Alternate**, **Claimed**, **Unowned**, or the generic-land exception where applicable.
+- WHEN a physical copy is placed in the deck, THE SYSTEM SHALL mark the slot **Sleeved** and show only whether the sleeved copy is **Original** or **Proxy**.
+- THE SYSTEM SHALL derive lifecycle from copy assignment and allocation context from physical-copy availability/proxy state, with no independently-stored lifecycle or ownership status permitted to drift.
 
 ### 5.4 Confirmed, atomic movement
 
-**US-5.4.1** As the owner, I want to confirm physical movements that I didn't directly trigger or that are ambiguous, and never confirm the ones I explicitly click.
+**US-5.4.1** As the owner, I want physical movements to be deliberate, match the import intent I selected, and never leave the collection in an impossible state.
 
 #### Acceptance Criteria
-- WHEN the owner clicks an explicit move/assign action, THE SYSTEM SHALL perform the move without a second confirmation (intent already shown).
-- WHEN an imported/updated decklist changes which cards are in a deck, THE SYSTEM SHALL warn the owner that physical cards will move before applying.
-- WHEN a card to be placed has more than one possible source copy (e.g. a copy in another deck and one in storage), THE SYSTEM SHALL require the owner to choose the source.
+- WHEN the owner clicks an explicit move/assign action, THE SYSTEM SHALL perform the move without a second confirmation because the source and target intent are already shown.
+- WHEN the owner confirms **Built** import intent, THE SYSTEM SHALL treat that choice as confirmation that the imported list represents the physical deck and SHALL reconcile eligible free copies into that deck without individual per-card confirmations.
+- A Built import SHALL NOT silently pull a copy from another deck. WHEN no eligible free copy can satisfy a requested slot, THE SYSTEM SHALL leave that slot Planned and return a structured conflict explaining the requested, assigned, and unresolved quantities and the reason.
+- WHEN a manual allocation has multiple candidate source copies, THE SYSTEM SHALL require the owner to choose the source.
 - WHEN the AI proposes adding or removing cards, THE SYSTEM SHALL require explicit owner confirmation before applying (current policy: always confirm).
-- Every confirmed movement SHALL be applied atomically.
+- Every physical movement or release SHALL be applied atomically.
 
-### 5.5 Import respects the lifecycle
+### 5.5 Import respects the lifecycle and physical reality
 
-**US-5.5.1** As the owner, I want imports to fit the planned/sleeved model instead of silently assigning copies.
+**US-5.5.1** As the owner, I want each import to state whether it is a theorycrafted list, an already-built deck, or new physical cards so the resulting lifecycle matches reality.
 
 #### Acceptance Criteria
-- WHEN a decklist import adds a card, THE SYSTEM SHALL create the slot as **Planned**, not silently Sleeved, unless a specific physical source is resolved through the confirmation flow.
-- WHEN import changes deck composition, THE SYSTEM SHALL preserve existing sleeved assignments that still apply and surface the pending physical moves for confirmation (per 5.4).
-- Collection import SHALL continue to create instance-level copies in the default (or specified) storage location.
+- WHEN the owner imports a **Theorycrafted** deck, THE SYSTEM SHALL create or update named deck-card slots as Planned, SHALL NOT create collection copies, and SHALL NOT move any physical copy.
+- WHEN the owner imports a **Built** deck, THE SYSTEM SHALL preserve matching valid sleeve assignments, SHALL reconcile eligible free collection copies into newly required slots, and SHALL leave every unmatched slot Planned with a structured conflict rather than taking a copy from another deck.
+- WHEN the owner imports **New cards**, THE SYSTEM SHALL atomically create the imported physical copies and assign them to the target deck; non-proxy copies SHALL be Sleeved/Original and proxy copies SHALL be Sleeved/Proxy.
+- WHEN a Built reimport removes a previously Sleeved card, THE SYSTEM SHALL atomically release its copy to default storage because the imported list is the owner’s stated physical reality.
+- WHEN a Theorycrafted reimport changes a list, THE SYSTEM SHALL NOT move or release physical copies; matching existing assignments remain Sleeved until the owner explicitly changes them.
+- Collection import SHALL remain separate from deck import and SHALL create instance-level copies in the default (or specified) storage location without assigning them to a deck.
 
 ## 6. In Scope
 
@@ -116,7 +120,6 @@ The data model and core flows provably match this mental model:
 | # | Question | Impact |
 |---|----------|--------|
 | 1 | Exact UI affordance for the origin-picker (inline vs modal) | Design detail, not model |
-| 2 | Whether "Planned" needs sub-states beyond the ownership context already listed | Could simplify or expand 5.3 |
 
 ## 9. Provenance
 

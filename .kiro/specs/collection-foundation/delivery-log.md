@@ -188,6 +188,30 @@
 - Tasks: `.kiro/specs/collection-foundation/tasks.md`
 - Technical debt intentionally left open: TD-026, TD-029, TD-037
 
+## 2026-09-12 — Planned/Sleeved import intent aligned with physical reality
+
+**Context:** Planning uncovered that the existing deck-import UI and API already offer three intents—`new_cards`, `built`, and `design`—but the feature requirements still described imports as one generic flow. The user clarified that a Built import is a reconciliation statement: the source deck physically exists, so free copies must be pulled into it; a theorycrafted list must remain Planned; and New cards are created already sleeved in the target deck.
+
+**Decisions made:**
+- Rename the user-facing and internal `design` intent to **Theorycrafted**. It creates or updates Planned slots only and never creates, moves, or releases physical copies.
+- Keep **Built** as an explicit physical-reconciliation import. Selection of that intent and Import Deck confirms the operation; it preserves valid assignments and automatically pulls eligible free copies, but never takes a copy from another deck.
+- A Built shortage is a successful partial reconciliation, not a silent reassignment or fatal import failure. The unmatched slot remains Planned and the result identifies the requested, assigned, and unresolved quantities plus the reason.
+- Keep **New cards** as the atomic creation-and-sleeving import for purchased decks or cards that physically belong in the target deck.
+- Built reimports release previously Sleeved cards that are absent from the stated physical deck to default storage. Theorycrafted reimports never release or move physical copies.
+- Collection CSV import remains a separate storage-only operation.
+
+**What remains:**
+- Rename and align the current `design` implementation/API contract.
+- Replace the older automatic Built assignment path with the guarded lifecycle-aware reconciliation boundary and conflict result.
+- Align lifecycle status responses and shared deck UI with Theorycrafted, Built, and New-cards outcomes.
+
+**Refs:**
+- Requirements: `.kiro/specs/collection-foundation/requirements.md`
+- Design: `.kiro/specs/collection-foundation/design.md`
+- Tasks: `.kiro/specs/collection-foundation/tasks.md`
+
+---
+
 ## 2026-09-12 — Hosted personal-app prototype verification
 
 **Context:** The committed code was ready, but the linked hosted database had not yet received the personal-scope migration. Existing data preservation was not required for this private prototype; the migration itself does not clear collection data.

@@ -21,7 +21,7 @@ import { parseDeckCSV, isCSVParseError } from '@/lib/csv-deck-parser'
 import { parseTextDecklist, isTextParseError } from '@/lib/text-deck-parser'
 import { FORMAT_OPTIONS } from '@/lib/format-config'
 import type { NormalizedDeck, CardsByType } from '@/lib/deck-normalizer'
-import type { ImportMode } from '@/lib/deck-import'
+import type { ImportMode, AllocationConflict } from '@/lib/deck-import'
 
 type InputTab = 'url' | 'paste' | 'csv' | 'precon'
 
@@ -55,6 +55,7 @@ interface ImportResponse {
     assigned: number
     shortfall: number
     errors: string[]
+    conflicts: AllocationConflict[]
   }
 }
 

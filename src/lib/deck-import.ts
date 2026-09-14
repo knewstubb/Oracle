@@ -3,8 +3,8 @@
 // ---------------------------------------------------------------------------
 
 import { createAdminClient } from '@/lib/supabase'
-import { autoAssignDeck } from '@/lib/auto-assign'
 import type { NormalizedDeck, NormalizedCard } from '@/lib/deck-normalizer'
+import { isBasicLand } from '@/lib/basic-lands'
 import { resolveCardDefinitions } from '@/lib/card-definition-resolver'
 import {
   diffDeckCards,
@@ -25,12 +25,23 @@ import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
  */
 export type ImportMode = 'new_cards' | 'built' | 'theorycrafted'
 
+export interface AllocationConflict {
+  cardName: string
+  scryfallId: string | null
+  requested: number
+  assigned: number
+  unresolved: number
+  reason: 'unowned' | 'claimed' | 'no_free_copy'
+  claimedDecks: Array<{ deckId: number; deckName: string }>
+}
+
 export interface ImportResult {
   deckId: number
   allocationSummary: {
     assigned: number
     shortfall: number
     errors: string[]
+    conflicts: AllocationConflict[]
   }
 }
 
@@ -82,13 +93,135 @@ function generateDeckId(deck: NormalizedDeck): number {
   return Math.abs(hashCode(deck.platformDeckId)) % 2147483647
 }
 
+interface BuiltImportRow extends IncomingCard {
+  is_generic_land: boolean
+}
+
+function buildBuiltImportRows(deck: NormalizedDeck): BuiltImportRow[] {
+  const grouped = new Map<string, BuiltImportRow>()
+
+  for (const card of deck.cards) {
+    const key = `${card.cardName}|${card.scryfallId ?? ''}`
+    const existing = grouped.get(key)
+    if (existing) {
+      existing.quantity += card.quantity
+      continue
+    }
+
+    const categories = card.sourceCategories.length > 0
+      ? JSON.stringify(card.sourceCategories)
+      : JSON.stringify([deriveCategory(card)])
+
+    grouped.set(key, {
+      card_name: card.cardName,
+      scryfall_id: card.scryfallId,
+      set_code: card.setCode,
+      quantity: card.quantity,
+      categories,
+      is_commander: card.isCommander,
+      is_generic_land: isBasicLand(card.cardName) && !card.scryfallId,
+    })
+  }
+
+  return [...grouped.values()]
+}
+
+function parseBuiltConflicts(value: unknown): AllocationConflict[] {
+  if (!Array.isArray(value)) {
+    throw new Error('reconcile_built_deck returned invalid conflicts')
+  }
+
+  return value.map((raw, index) => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      throw new Error(`reconcile_built_deck returned invalid conflict at index ${index}`)
+    }
+
+    const conflict = raw as Record<string, unknown>
+    const claimedDecks = conflict.claimedDecks
+    if (!Array.isArray(claimedDecks)) {
+      throw new Error(`reconcile_built_deck returned invalid claimedDecks at index ${index}`)
+    }
+
+    const parsedClaimedDecks = claimedDecks.map((rawDeck, deckIndex) => {
+      if (!rawDeck || typeof rawDeck !== 'object' || Array.isArray(rawDeck)) {
+        throw new Error(`reconcile_built_deck returned invalid claimed deck at ${index}:${deckIndex}`)
+      }
+      const deck = rawDeck as Record<string, unknown>
+      if (!Number.isInteger(deck.deckId) || typeof deck.deckName !== 'string') {
+        throw new Error(`reconcile_built_deck returned invalid claimed deck fields at ${index}:${deckIndex}`)
+      }
+      return { deckId: deck.deckId as number, deckName: deck.deckName }
+    })
+
+    const reason = conflict.reason
+    if (reason !== 'unowned' && reason !== 'claimed' && reason !== 'no_free_copy') {
+      throw new Error(`reconcile_built_deck returned invalid conflict reason at index ${index}`)
+    }
+
+    if (
+      typeof conflict.cardName !== 'string' ||
+      (conflict.scryfallId !== null && typeof conflict.scryfallId !== 'string') ||
+      !Number.isInteger(conflict.requested) ||
+      !Number.isInteger(conflict.assigned) ||
+      !Number.isInteger(conflict.unresolved)
+    ) {
+      throw new Error(`reconcile_built_deck returned invalid conflict fields at index ${index}`)
+    }
+
+    return {
+      cardName: conflict.cardName,
+      scryfallId: conflict.scryfallId as string | null,
+      requested: conflict.requested as number,
+      assigned: conflict.assigned as number,
+      unresolved: conflict.unresolved as number,
+      reason,
+      claimedDecks: parsedClaimedDecks,
+    }
+  })
+}
+
+async function reconcileBuiltDeck(
+  deckId: number,
+  userId: string,
+  rows: BuiltImportRow[]
+): Promise<{
+  assigned: number
+  shortfall: number
+  released: number
+  conflicts: AllocationConflict[]
+}> {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase.rpc('reconcile_built_deck', {
+    p_deck_id: deckId,
+    p_user_id: userId,
+    p_rows: rows,
+  })
+
+  if (error) {
+    throw new Error(`Failed to reconcile built deck atomically: ${error.message}`)
+  }
+
+  const result = assertAtomicRpcSuccess(data, 'reconcile_built_deck')
+  const assigned = assertAtomicRpcCount(result, 'assigned_count', 'reconcile_built_deck')
+  const shortfall = assertAtomicRpcCount(result, 'shortfall_count', 'reconcile_built_deck')
+  const released = assertAtomicRpcCount(result, 'released_count', 'reconcile_built_deck')
+  const conflicts = parseBuiltConflicts(result.conflicts)
+  const conflictShortfall = conflicts.reduce((total, conflict) => total + conflict.unresolved, 0)
+
+  if (shortfall !== conflictShortfall) {
+    throw new Error('reconcile_built_deck returned inconsistent shortfall and conflicts')
+  }
+
+  return { assigned, shortfall, released, conflicts }
+}
+
 // ─── Import: Theorycrafted Mode ─────────────────────────────────────────────────────
 
 /**
  * Execute a deck import in "theorycrafted" mode.
  *
  * Creates deck_cards only — no collection changes, no allocation.
- * Use when the user is theorycrafteding and doesn't want to allocate yet.
+ * Use when the user is theorycrafting and doesn't want to allocate yet.
  *
  * 1. Generate deck ID
  * 2. Upsert deck row
@@ -194,6 +327,7 @@ export async function importDeckTheorycrafted(
     assigned: 0,
     shortfall: 0,
     errors: [] as string[],
+    conflicts: [] as AllocationConflict[],
   }
 
   return { deckId, allocationSummary }
@@ -204,16 +338,10 @@ export async function importDeckTheorycrafted(
 /**
  * Execute a deck import in "built" mode.
  *
- * Creates deck_cards then auto-assigns from the user's existing collection.
- * Use when the user already has a physical deck built and wants to allocate
- * copies from their collection to the deck slots.
- *
- * 1. Generate deck ID
- * 2. Upsert deck row
- * 3. Fetch existing deck_cards (paginated)
- * 4. Build incoming card list
- * 5. Compute diff and apply
- * 6. Run autoAssignDeck to pull from collection
+ * Built mode treats the imported list as the owner's statement of physical
+ * reality. Matching assignments are preserved, free storage copies are pulled
+ * atomically, removed sleeved copies return to default storage, and shortages
+ * remain Planned with structured conflicts.
  */
 export async function importDeckBuilt(
   deck: NormalizedDeck,
@@ -222,11 +350,10 @@ export async function importDeckBuilt(
 ): Promise<ImportResult> {
   const supabase = createAdminClient()
   const deckId = generateDeckId(deck)
-  // Built decks default to active since user has the physical deck ready
+  // Built decks default to active since the user has the physical deck ready.
   const isActive = options?.isActive ?? true
   const deckFormat = options?.format || 'commander'
 
-  // 1. Upsert deck row
   const { error: deckErr } = await (supabase as any)
     .from('decks')
     .upsert(
@@ -250,49 +377,12 @@ export async function importDeckBuilt(
     throw new Error(`Failed to upsert deck ${deckId}: ${deckErr.message}`)
   }
 
-  // 2. Fetch existing deck_cards (paginated — may exceed 1000 rows)
-  const PAGE_SIZE = 1000
-  const existingRows: ExistingDeckCardRow[] = []
-  let offset = 0
+  const reconciliation = await reconcileBuiltDeck(
+    deckId,
+    userId,
+    buildBuiltImportRows(deck)
+  )
 
-  while (true) {
-    const { data, error: fetchErr } = await (supabase as any)
-      .from('deck_cards')
-      .select('id, deck_id, card_name, scryfall_id, set_code, quantity, categories, is_commander, user_id, copy_id, ownership_status, proxy_of_deck_id, dead_weight_flag, dead_weight_reason')
-      .eq('deck_id', deckId)
-      .range(offset, offset + PAGE_SIZE - 1)
-
-    if (fetchErr) throw new Error(`Failed to fetch deck_cards for deck ${deckId}: ${fetchErr.message}`)
-    if (!data || data.length === 0) break
-    existingRows.push(...(data as unknown as ExistingDeckCardRow[]))
-    if (data.length < PAGE_SIZE) break
-    offset += PAGE_SIZE
-  }
-
-  // 3. Build incoming card list from deck.cards
-  const incomingCards: IncomingCard[] = deck.cards.map((card) => {
-    const categories = card.sourceCategories.length > 0
-      ? JSON.stringify(card.sourceCategories)
-      : JSON.stringify([deriveCategory(card)])
-
-    return {
-      card_name: card.cardName,
-      scryfall_id: card.scryfallId,
-      set_code: card.setCode,
-      quantity: card.quantity,
-      categories,
-      is_commander: card.isCommander,
-    }
-  })
-
-  // 4. Compute diff and apply transactionally
-  const diff = diffDeckCards(existingRows, incomingCards)
-  await applyDeckCardsDiff(deckId, diff, userId)
-
-  // 5. Auto-assign from existing collection
-  const autoResult = await autoAssignDeck(deckId, userId)
-
-  // 6. Create version snapshot after import
   const sourceLabel = deck.platform ? `from ${deck.platform}` : 'from external source'
   await createVersionSnapshot(
     deckId,
@@ -302,13 +392,22 @@ export async function importDeckBuilt(
     deck.name
   )
 
-  const allocationSummary = {
-    assigned: autoResult.assigned,
-    shortfall: autoResult.skipped,
-    errors: autoResult.errors,
-  }
+  const errors = reconciliation.conflicts.map((conflict) => {
+    const holderText = conflict.claimedDecks.length > 0
+      ? ` Claimed by ${conflict.claimedDecks.map((deck) => deck.deckName).join(', ')}.`
+      : ''
+    return `${conflict.cardName}: ${conflict.unresolved} unresolved (${conflict.reason}).${holderText}`
+  })
 
-  return { deckId, allocationSummary }
+  return {
+    deckId,
+    allocationSummary: {
+      assigned: reconciliation.assigned,
+      shortfall: reconciliation.shortfall,
+      errors,
+      conflicts: reconciliation.conflicts,
+    },
+  }
 }
 
 // ─── Import: New Cards Mode ──────────────────────────────────────────────────
@@ -436,6 +535,7 @@ export async function importDeckNewCards(
     assigned: insertedCount,
     shortfall: 0,
     errors: [] as string[],
+    conflicts: [] as AllocationConflict[],
   }
 
   return { deckId, allocationSummary }

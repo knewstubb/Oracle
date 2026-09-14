@@ -2012,6 +2012,10 @@ export type Database = {
         Args: { p_copy_id: number; p_location_id: number | null; p_user_id: string }
         Returns: Json
       }
+      reconcile_built_deck: {
+        Args: { p_deck_id: number; p_rows: Json; p_user_id: string }
+        Returns: Json
+      }
       replace_collection: {
         Args: { p_insert_rows: Json; p_user_id: string }
         Returns: Json

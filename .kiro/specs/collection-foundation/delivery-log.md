@@ -254,3 +254,30 @@
 - Requirements: `.kiro/specs/collection-foundation/requirements.md`
 - Design: `.kiro/specs/collection-foundation/design.md`
 - Tasks: `.kiro/specs/collection-foundation/tasks.md`
+
+## 2026-09-12 — Individual deck-card removal releases sleeved copies atomically
+
+**Context:** With Planned/Sleeved lifecycle states now represented, deleting an individual deck slot could no longer use the batch AI-diff contract: `apply_ai_deck_delta` correctly rejects assigned rows because it does not own explicit release semantics. The user flow needed to remove a slot and return its sleeved copy to storage without a crash window between those writes.
+
+**What changed:**
+- Added `remove_deck_card_with_release` in `supabase/migrations/20260912190000_atomic_remove_deck_card.sql`.
+- The service-role-only RPC validates the owned deck and slot inside the transaction, locks the deck, slot, and copy, returns non-missing copies to the user's default storage, preserves `NULL` location for missing copies, and deletes exactly one slot.
+- Updated `DELETE /api/decks/[id]/cards/[cardId]` to be a thin RPC wrapper with fail-closed success/count/ID/result validation. It maps ownership and missing-row guards to HTTP 404.
+- Added the generated Supabase function contract in `src/types/supabase.ts`.
+
+**Decisions made:**
+- Kept `apply_ai_deck_delta`'s `assigned_row_in_diff` guard intact; explicit individual removal now has its own release-aware contract.
+- Planned slots delete without a release count; Sleeved non-missing slots release to default storage; missing copies remain location-less.
+- No focused route or SQL integration test was added because this repository has no existing test harness for this route or local RPC integration. The migration has not been claimed as hosted-applied.
+
+**Validation evidence:**
+- Focused ESLint for the changed route and generated types passes.
+- Changed-file TypeScript filtering reports no errors; repository-wide typechecking remains a known baseline failure outside this increment.
+- `npm run build` passes. Next.js reports the existing middleware-convention deprecation and missing optional Gemini key warnings.
+- `git diff --check` passes.
+- `npx supabase db lint` was attempted but local Postgres was unavailable at `127.0.0.1:54322`.
+
+**Refs:**
+- Migration: `supabase/migrations/20260912190000_atomic_remove_deck_card.sql`
+- Route: `src/app/api/decks/[id]/cards/[cardId]/route.ts`
+- Tasks: `.kiro/specs/collection-foundation/tasks.md`

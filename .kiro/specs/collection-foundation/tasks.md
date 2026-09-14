@@ -14,7 +14,7 @@ Each phase is validated against `requirements.md` before the next begins. All au
 - [x] Guarantee a default storage location per user and backfill any copy with no location into it. Refs: 5.2.
 - [x] Make location-aware import so copies land in the default location, not NULL. Refs: 5.2, 5.5.
 - [x] Make every location-changing operation atomic (RPC/transaction), fixing the flagged non-atomic flows. Refs: 5.1, NFR-1. Evidence: current-schema movement, batch, missing-restoration, import, and replacement RPC callers now fail closed; full lifecycle hard XOR remains deferred.
-- [ ] Ensure unsleeve/remove/deck-delete returns copies to storage rather than orphaning them. Refs: 5.1. (Deferred to Phase 2 with the Sleeved concept.)
+- [x] Ensure unsleeve/remove/deck-delete returns copies to storage rather than orphaning them. Refs: 5.1. Evidence: `remove_deck_card_with_release`, `release_deck_copies`, and `delete_deck_with_release` return non-missing copies to default storage atomically; missing copies retain `NULL` location.
 - [ ] Add a hard XOR constraint once sleeve/unsleeve is wired. Refs: 5.1, NFR-1. (Deferred to Phase 2.)
 - [x] Re-run integrity checks; confirm zero two-location and zero no-location copies. Refs: NFR-5.
 

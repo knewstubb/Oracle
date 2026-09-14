@@ -1,6 +1,6 @@
 'use client'
 
-import type { CardSlotStatus } from '@/lib/card-status'
+import type { CardSlotStatus, DeckCardLifecycle } from '@/lib/card-status'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -8,6 +8,7 @@ import type { CardSlotStatus } from '@/lib/card-status'
 
 export interface CardSlotBadgeProps {
   status: CardSlotStatus
+  lifecycle?: DeckCardLifecycle
   /** For claimed: which deck holds the card */
   heldBy?: { deckName: string; deckStatus: string } | null
   /** Display style: 'badge' for list views, 'border' for tile/grid views, 'icon' for compact icon-only */
@@ -107,11 +108,12 @@ function StatusIcon({ icon, color }: { icon: string; color: string }) {
  * For 'claimed' status with 'badge' variant, shows a "In [deck]" subtext line.
  * For 'generic_land' status, renders nothing (exempt from taxonomy display).
  */
-export function CardSlotBadge({ status, heldBy, variant = 'badge', size = 'sm', className }: CardSlotBadgeProps) {
+export function CardSlotBadge({ status, lifecycle, heldBy, variant = 'badge', size = 'sm', className }: CardSlotBadgeProps) {
   // Generic land: no badge rendered
   if (status === 'generic_land') return null
 
   const config = STATUS_CONFIG[status]
+  const displayLabel = lifecycle === 'planned' ? `Planned · ${config.label}` : config.label
 
   // Border variant: no-op as a component (borders applied via getSlotTileBorderStyle)
   if (variant === 'border') return null
@@ -157,8 +159,8 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', size = 'sm', 
             backgroundColor: config.color,
             border: `${borderWidth}px solid ${config.color}`,
           }}
-          title={config.label}
-          aria-label={`Status: ${config.label}`}
+          title={displayLabel}
+          aria-label={`Status: ${displayLabel}`}
         >
           <span
             className="material-symbols-outlined"
@@ -186,8 +188,8 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', size = 'sm', 
             backgroundColor: config.color,
             border: `${borderWidth}px solid ${config.color}`,
           }}
-          title={config.label}
-          aria-label={`Status: ${config.label}`}
+          title={displayLabel}
+          aria-label={`Status: ${displayLabel}`}
         >
           <span
             className="material-symbols-outlined"
@@ -215,8 +217,8 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', size = 'sm', 
             border: `${borderWidth}px solid ${config.color}`,
             backgroundColor: '#1a1a1a',
           }}
-          title={config.label}
-          aria-label={`Status: ${config.label}`}
+          title={displayLabel}
+          aria-label={`Status: ${displayLabel}`}
         >
           <span
             style={{
@@ -245,8 +247,8 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', size = 'sm', 
           border: `${borderWidth}px solid ${config.color}`,
           backgroundColor: fillColor,
         }}
-        title={config.label}
-        aria-label={`Status: ${config.label}`}
+        title={displayLabel}
+        aria-label={`Status: ${displayLabel}`}
       >
         <span
           className="material-symbols-outlined"
@@ -267,10 +269,10 @@ export function CardSlotBadge({ status, heldBy, variant = 'badge', size = 'sm', 
       <span
         className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[length:var(--fs-xs)] font-medium transition-all duration-150 cursor-pointer hover:brightness-125 hover:scale-105"
         style={{ color: config.color, backgroundColor: config.bg }}
-        aria-label={`Status: ${config.label}`}
+        aria-label={`Status: ${displayLabel}`}
       >
         <StatusIcon icon={config.icon} color={config.color} />
-        {config.label}
+        {displayLabel}
       </span>
       {status === 'claimed' && heldBy && (
         <span className="max-w-[20ch] truncate text-[length:var(--fs-xs)] text-muted-foreground">

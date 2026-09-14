@@ -82,12 +82,14 @@ export async function GET(
   // 'alternate' counts as 'available' since it represents owned cards in storage (different printing)
   const counts = {
     total: countableStatuses.filter(s => s.status !== 'generic_land').length,
-    original: countableStatuses.filter(s => s.status === 'original').length,
-    proxy: countableStatuses.filter(s => s.status === 'proxy').length,
-    available: countableStatuses.filter(s => s.status === 'available' || s.status === 'alternate').length,
-    claimed: countableStatuses.filter(s => s.status === 'claimed').length,
-    unowned: countableStatuses.filter(s => s.status === 'unowned').length,
-    generic_land: countableStatuses.filter(s => s.status === 'generic_land').length,
+    original: countableStatuses.filter(s => s.allocationStatus === 'original').length,
+    proxy: countableStatuses.filter(s => s.allocationStatus === 'proxy').length,
+    available: countableStatuses.filter(s => s.allocationStatus === 'available' || s.allocationStatus === 'alternate').length,
+    claimed: countableStatuses.filter(s => s.allocationStatus === 'claimed').length,
+    unowned: countableStatuses.filter(s => s.allocationStatus === 'unowned').length,
+    generic_land: countableStatuses.filter(s => s.allocationStatus === 'generic_land').length,
+    planned: countableStatuses.filter(s => s.lifecycle === 'planned' && s.status !== 'generic_land').length,
+    sleeved: countableStatuses.filter(s => s.lifecycle === 'sleeved').length,
   }
 
   return Response.json({ cards: statuses, counts })

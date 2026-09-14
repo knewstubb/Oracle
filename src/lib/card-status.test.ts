@@ -33,7 +33,7 @@ describe('classifySlotStatus', () => {
     expect(classifySlotStatus(42, true)).toBe('proxy')
   })
 
-  it('returns "unallocated" as default for unresolved slot', () => {
+  it('returns "available" as the default for unresolved slot', () => {
     expect(classifySlotStatus(null, null)).toBe('available')
   })
 })
@@ -71,7 +71,7 @@ describe('computeUnresolvedStatuses', () => {
     expect(result.get('Nonexistent Card')).toBe('unowned')
   })
 
-  it('returns "unallocated" when a free non-missing copy exists', async () => {
+  it('returns "available" when a free non-missing copy exists', async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === 'user_cards') {
         return {
@@ -146,7 +146,7 @@ describe('computeUnresolvedStatuses', () => {
     expect(result.get('Rhystic Study')).toBe('claimed')
   })
 
-  it('returns "unallocated" when one of multiple copies is free', async () => {
+  it('returns "available" when one of multiple copies is free', async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === 'user_cards') {
         return {
@@ -335,7 +335,13 @@ describe('computeDeckCardStatuses', () => {
 
     const result = await computeDeckCardStatuses(cards, 'user-1')
     expect(result[0].status).toBe('original')
+    expect(result[0].lifecycle).toBe('sleeved')
+    expect(result[0].allocationStatus).toBe('original')
+    expect(result[0].copyId).toBe(10)
+    expect(result[0].physicalCopyId).toBe(10)
     expect(result[1].status).toBe('proxy')
+    expect(result[1].lifecycle).toBe('sleeved')
+    expect(result[1].allocationStatus).toBe('proxy')
   })
 
   it('classifies basic lands as "generic_land"', async () => {
@@ -346,7 +352,21 @@ describe('computeDeckCardStatuses', () => {
 
     const result = await computeDeckCardStatuses(cards, 'user-1')
     expect(result[0].status).toBe('generic_land')
+    expect(result[0].lifecycle).toBe('planned')
+    expect(result[0].allocationStatus).toBe('generic_land')
     expect(result[1].status).toBe('generic_land')
+  })
+
+  it('classifies unresolved cards as planned with an allocation context', async () => {
+    const cards = [
+      { id: 1, card_name: 'Sol Ring', copy_id: null, is_proxy: null },
+    ]
+
+    const result = await computeDeckCardStatuses(cards, 'user-1')
+    expect(result[0].lifecycle).toBe('planned')
+    expect(result[0].allocationStatus).toBe('unowned')
+    expect(result[0].copyId).toBeNull()
+    expect(result[0].physicalCopyId).toBeNull()
   })
 
   it('classifies basic land with assigned copy through normal taxonomy', async () => {

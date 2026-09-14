@@ -16,7 +16,7 @@ import type { StructuredCategories } from '@/lib/categoryUtils'
 import { useDeckCategories } from '@/hooks/useDeckCategories'
 import { deckKeys } from '@/hooks/useDeckQueryKeys'
 import type { DeckCard } from '@/components/CardGrid'
-import type { CardSlotStatus } from '@/lib/card-status'
+import type { CardSlotStatus, DeckCardLifecycle } from '@/lib/card-status'
 import { isBasicLand, getBasicLandDefaultScryfallId } from '@/lib/basic-lands'
 import { AddCardSearch } from '@/components/AddCardSearch'
 import { DeckImportButton } from '@/components/DeckImportButton'
@@ -53,8 +53,11 @@ interface CardStatusResponse {
   cards: Array<{
     deckCardsId: number
     cardName: string
-    physicalCopyId: number | null
+    copyId: number | null
+    physicalCopyId?: number | null
     isProxy: boolean | null
+    lifecycle: DeckCardLifecycle
+    allocationStatus: CardSlotStatus
     status: CardSlotStatus
   }>
   counts: {
@@ -64,6 +67,8 @@ interface CardStatusResponse {
     available: number
     claimed: number
     unowned: number
+    planned?: number
+    sleeved?: number
   }
 }
 
@@ -208,13 +213,14 @@ function groupByStatus(
   statusMap: Map<number, CardSlotStatus>
 ): [string, DeckCard[]][] {
   const groups: Record<string, DeckCard[]> = {}
-  const statusOrder = ['original', 'proxy', 'available', 'claimed', 'unowned', 'generic_land']
+  const statusOrder = ['original', 'proxy', 'available', 'alternate', 'claimed', 'unowned', 'generic_land']
   const labels: Record<string, string> = {
     original: 'Original',
     proxy: 'Proxy',
-    open: 'Open',
-    claimed: 'In Decks',
-    unowned: 'Unowned',
+    available: 'Planned · Available',
+    alternate: 'Planned · Alternate',
+    claimed: 'Planned · In decks',
+    unowned: 'Planned · Unowned',
     generic_land: 'Basic Lands (generic)',
   }
   for (const card of cards) {
@@ -358,7 +364,17 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
     const map = new Map<number, CardSlotStatus>()
     if (statusData?.cards) {
       for (const s of statusData.cards) {
-        map.set(s.deckCardsId, s.status)
+        map.set(s.deckCardsId, s.allocationStatus ?? s.status)
+      }
+    }
+    return map
+  }, [statusData])
+
+  const lifecycleMap = useMemo(() => {
+    const map = new Map<number, DeckCardLifecycle>()
+    if (statusData?.cards) {
+      for (const s of statusData.cards) {
+        map.set(s.deckCardsId, s.lifecycle)
       }
     }
     return map
@@ -369,7 +385,7 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
     const map = new Map<number, number | null>()
     if (statusData?.cards) {
       for (const s of statusData.cards) {
-        map.set(s.deckCardsId, s.physicalCopyId)
+        map.set(s.deckCardsId, s.copyId ?? s.physicalCopyId ?? null)
       }
     }
     return map
@@ -380,7 +396,7 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
   const counts = useMemo(() => {
     if (statusData?.counts) return statusData.counts
     // Fallback if statuses haven't loaded yet
-    return { total: cards.length, original: 0, proxy: 0, open: 0, claimed: 0, unowned: 0 }
+    return { total: cards.length, original: 0, proxy: 0, available: 0, claimed: 0, unowned: 0 }
   }, [statusData, cards.length])
 
   // ── Category Mutation ────────────────────────────────────────────────────────
@@ -785,11 +801,13 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
             </div>
           ) : viewMode === 'cards' ? (
             <>
-              <GridView cards={filteredCards} groupedCards={groupedCards} statusMap={statusMap} deckId={deckId} />
+              <GridView cards={filteredCards} groupedCards={groupedCards} statusMap={statusMap}
+                  lifecycleMap={lifecycleMap} deckId={deckId} />
               {maybeboardCards.length > 0 && (
                 <MaybeboardSection
                   cards={maybeboardCards}
                   statusMap={statusMap}
+                  lifecycleMap={lifecycleMap}
                   deckId={deckId}
                   physicalCopyMap={physicalCopyMap}
                   availableCategories={availableCategories}
@@ -808,6 +826,7 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
               <UnifiedGroupsLayout
                 groupedCards={groupedCards}
                 statusMap={statusMap}
+                  lifecycleMap={lifecycleMap}
                 deckId={deckId}
                 physicalCopyMap={physicalCopyMap}
                 availableCategories={availableCategories}
@@ -823,6 +842,7 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
                 <MaybeboardSection
                   cards={maybeboardCards}
                   statusMap={statusMap}
+                  lifecycleMap={lifecycleMap}
                   deckId={deckId}
                   physicalCopyMap={physicalCopyMap}
                   availableCategories={availableCategories}
@@ -843,6 +863,7 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
                 healthCategories={healthCategories}
                 availableCategories={availableCategories}
                 statusMap={statusMap}
+                  lifecycleMap={lifecycleMap}
                 deckId={deckId}
                 physicalCopyMap={physicalCopyMap}
                 maxCopies={maxCopies}
@@ -856,6 +877,7 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
                 <MaybeboardSection
                   cards={maybeboardCards}
                   statusMap={statusMap}
+                  lifecycleMap={lifecycleMap}
                   deckId={deckId}
                   physicalCopyMap={physicalCopyMap}
                   availableCategories={availableCategories}
@@ -890,6 +912,7 @@ import { PicklistV2 } from '@/components/PicklistV2'
 function MaybeboardSection({
   cards,
   statusMap,
+  lifecycleMap,
   deckId,
   physicalCopyMap,
   availableCategories,
@@ -901,6 +924,7 @@ function MaybeboardSection({
 }: {
   cards: DeckCard[]
   statusMap: Map<number, CardSlotStatus>
+  lifecycleMap: Map<number, DeckCardLifecycle>
   deckId: number
   physicalCopyMap: Map<number, number | null>
   availableCategories: string[]
@@ -926,6 +950,7 @@ function MaybeboardSection({
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, var(--card-tile-width))' }}>
           {cards.map((card) => {
             const cardStatus = statusMap.get(card.id) ?? 'available'
+            const cardLifecycle = lifecycleMap.get(card.id) ?? (cardStatus === 'original' || cardStatus === 'proxy' ? 'sleeved' : 'planned')
             return (
               <div
                 key={card.id}
@@ -954,7 +979,7 @@ function MaybeboardSection({
                   )}
                   {/* Status badge */}
                   <div className="absolute right-1 top-1">
-                    <CardSlotBadge status={cardStatus} variant="icon" />
+                    <CardSlotBadge status={cardStatus} lifecycle={cardLifecycle} variant="icon" />
                   </div>
                 </div>
                 <span className="mt-1 truncate text-[length:var(--fs-xs)] text-muted-foreground">
@@ -970,6 +995,7 @@ function MaybeboardSection({
           groupName="Maybeboard"
           groupCards={cards}
           statusMap={statusMap}
+                  lifecycleMap={lifecycleMap}
           deckId={deckId}
           physicalCopyMap={physicalCopyMap}
           availableCategories={availableCategories}
@@ -991,6 +1017,7 @@ function UnifiedListLayout({
   healthCategories,
   availableCategories,
   statusMap,
+  lifecycleMap,
   deckId,
   physicalCopyMap,
   onCategoryChange,
@@ -1002,6 +1029,7 @@ function UnifiedListLayout({
   healthCategories?: CardsTabProps['healthCategories']
   availableCategories: string[]
   statusMap: Map<number, CardSlotStatus>
+  lifecycleMap: Map<number, DeckCardLifecycle>
   deckId: number
   physicalCopyMap: Map<number, number | null>
   onCategoryChange: (cardId: number, categories: StructuredCategories) => void
@@ -1021,6 +1049,7 @@ function UnifiedListLayout({
             groupName={groupName}
             groupCards={groupCards}
             statusMap={statusMap}
+                  lifecycleMap={lifecycleMap}
             deckId={deckId}
             physicalCopyMap={physicalCopyMap}
             availableCategories={availableCategories}
@@ -1041,6 +1070,7 @@ function UnifiedListLayout({
 function UnifiedGroupsLayout({
   groupedCards,
   statusMap,
+  lifecycleMap,
   deckId,
   physicalCopyMap,
   availableCategories,
@@ -1052,6 +1082,7 @@ function UnifiedGroupsLayout({
 }: {
   groupedCards: [string, DeckCard[]][]
   statusMap: Map<number, CardSlotStatus>
+  lifecycleMap: Map<number, DeckCardLifecycle>
   deckId: number
   physicalCopyMap: Map<number, number | null>
   availableCategories: string[]
@@ -1091,6 +1122,7 @@ function UnifiedGroupsLayout({
                 groupName={groupName}
                 groupCards={groupCards}
                 statusMap={statusMap}
+                  lifecycleMap={lifecycleMap}
                 deckId={deckId}
                 physicalCopyMap={physicalCopyMap}
                 availableCategories={availableCategories}
@@ -1115,11 +1147,13 @@ function GridView({
   cards,
   groupedCards,
   statusMap,
+  lifecycleMap,
   deckId,
 }: {
   cards: DeckCard[]
   groupedCards: [string, DeckCard[]][]
   statusMap: Map<number, CardSlotStatus>
+  lifecycleMap: Map<number, DeckCardLifecycle>
   deckId: number
 }) {
   return (
@@ -1164,6 +1198,7 @@ function GridView({
             {landBundleEntries.map(([landName, bundle]) => {
               const card = bundle.representativeCard
               const cardStatus = statusMap.get(card.id) ?? 'available'
+              const cardLifecycle = lifecycleMap.get(card.id) ?? (cardStatus === 'original' || cardStatus === 'proxy' ? 'sleeved' : 'planned')
 
               return (
                 <div
@@ -1224,9 +1259,10 @@ function GridView({
             {/* Render non-basic cards normally */}
             {nonBasicCards.map((card) => {
               const cardStatus = statusMap.get(card.id) ?? 'available'
+              const cardLifecycle = lifecycleMap.get(card.id) ?? (cardStatus === 'original' || cardStatus === 'proxy' ? 'sleeved' : 'planned')
               const statusLabels: Record<string, string> = {
-                original: 'Original', proxy: 'Proxy', open: 'Open',
-                claimed: 'In Decks', unowned: 'Unowned', generic_land: '',
+                original: 'Original', proxy: 'Proxy', available: 'Planned · Available', alternate: 'Planned · Alternate',
+                claimed: 'Planned · In Decks', unowned: 'Planned · Unowned', generic_land: '',
               }
               const statusLabel = statusLabels[cardStatus] || ''
 
@@ -1296,7 +1332,7 @@ function GridView({
                     {/* Status icon — bottom left corner */}
                     {cardStatus !== 'generic_land' && (
                       <div className="absolute bottom-2 left-2">
-                        <CardSlotBadge status={cardStatus} variant="icon" size="md" />
+                        <CardSlotBadge status={cardStatus} lifecycle={cardLifecycle} variant="icon" size="md" />
                       </div>
                     )}
 

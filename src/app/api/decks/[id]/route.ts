@@ -161,11 +161,13 @@ export async function GET(
     commanderMeta = data
   }
 
-  // Allocation status is now on deck_cards.ownership_status directly
-  // Build allocationMap from cards data
-  const allocationMap: Record<string, string> = {}
+  // Allocation status is meaningful only when a physical copy is sleeved.
+  // Planned rows intentionally stay nullable instead of defaulting to Original.
+  const allocationMap: Record<string, string | null> = {}
   for (const card of cards ?? []) {
-    allocationMap[card.card_name] = card.ownership_status || 'original'
+    allocationMap[card.card_name] = card.copy_id != null
+      ? (card.ownership_status || 'original')
+      : null
   }
 
   // Fetch synergy scores from the configured commander-context source.
@@ -192,7 +194,13 @@ export async function GET(
   // Merge allocation status, mana cost, price, edition, and synergy into cards
   const cardsWithStatus = (cards ?? []).map(card => ({
     ...card,
-    allocation_role: card.ownership_status || 'original',
+    lifecycle: card.copy_id != null ? 'sleeved' as const : 'planned' as const,
+    allocation_status: card.copy_id != null
+      ? (card.ownership_status || 'original')
+      : null,
+    allocation_role: card.copy_id != null
+      ? (card.ownership_status || 'original')
+      : null,
     mana_cost: manaCostMap[card.card_name] || null,
     price_usd: priceMap[card.card_name] ?? null,
     edition_name: card.scryfall_id ? editionMap[card.scryfall_id]?.editionName || null : null,

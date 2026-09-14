@@ -12,7 +12,7 @@ import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { DeckPickerPopover, type ValidDeck } from '@/components/DeckPickerPopover'
 import { Button } from '@/components/ui/button'
 import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
-import type { CardSlotStatus } from '@/lib/card-status'
+import type { CardSlotStatus, DeckCardLifecycle } from '@/lib/card-status'
 import type { CardActionContext } from '@/app/api/decks/[id]/card-actions/[cardName]/route'
 
 // ---------------------------------------------------------------------------
@@ -21,6 +21,7 @@ import type { CardActionContext } from '@/app/api/decks/[id]/card-actions/[cardN
 
 interface StatusChipPopoverProps {
   status: CardSlotStatus
+  lifecycle?: DeckCardLifecycle
   cardName: string
   deckId: number
   deckCardsId: number
@@ -41,6 +42,7 @@ interface StatusChipPopoverProps {
  */
 export function StatusChipPopover({
   status,
+  lifecycle,
   cardName,
   deckId,
   deckCardsId,
@@ -69,7 +71,7 @@ export function StatusChipPopover({
     <>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger className="cursor-pointer" aria-label={`${cardName} status: ${status}`}>
-          <CardSlotBadge status={status} variant={variant} className={className} />
+          <CardSlotBadge status={status} lifecycle={lifecycle} variant={variant} className={className} />
         </PopoverTrigger>
         <PopoverContent
           align="end"
@@ -239,7 +241,7 @@ function PopoverBody({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'card-statuses'] })
       queryClient.invalidateQueries({ queryKey: ['picklist', deckId] })
-      toast.success(`Claimed ${cardName}`)
+      toast.success(`Pulled ${cardName}`)
       onClose()
     },
     onError: (err) => toast.error(err.message),

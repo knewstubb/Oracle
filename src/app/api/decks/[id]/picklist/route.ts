@@ -21,6 +21,7 @@ import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { getBatchRankedCandidates, type RankedCandidate } from '@/lib/allocation-candidates'
+import { computeDeckCardStatuses } from '@/lib/card-status'
 import { isBasicLand } from '@/lib/basic-lands'
 
 export async function GET(
@@ -56,7 +57,14 @@ export async function GET(
   // Fetch all deck_cards for this deck
   const { data: deckCards, error: cardsErr } = await supabase
     .from('deck_cards')
-    .select('id, card_name, scryfall_id, copy_id, ownership_status')
+    .select(`
+      id,
+      card_name,
+      scryfall_id,
+      copy_id,
+      ownership_status,
+      user_copies!deck_cards_copy_id_fkey(is_proxy)
+    `)
     .eq('deck_id', deckId)
     .order('card_name')
 
@@ -65,6 +73,18 @@ export async function GET(
   }
 
   const cards = deckCards ?? []
+  const statuses = await computeDeckCardStatuses(
+    cards.map((card) => ({
+      id: card.id,
+      card_name: card.card_name,
+      copy_id: card.copy_id,
+      scryfall_id: card.scryfall_id,
+      is_proxy: card.user_copies?.is_proxy ?? null,
+    })),
+    userId,
+  )
+  const statusByDeckCardId = new Map(statuses.map((status) => [status.deckCardsId, status]))
+
   // Generic lands = basic land name + no specific printing (scryfall_id is null)
   const isGenericLand = (c: any) => isBasicLand(c.card_name) && !c.scryfall_id
   const genericLandCount = cards.filter(isGenericLand).length
@@ -93,16 +113,23 @@ export async function GET(
   // Build response — exclude generic lands (they're always satisfied)
   const responseCards = cards
     .filter(card => !isGenericLand(card))
-    .map(card => ({
-      deckCardsId: card.id,
-      cardName: card.card_name,
-      isResolved: card.copy_id !== null,
-      physicalCopyId: card.copy_id,
-      ownershipStatus: card.ownership_status,
-      candidates: card.copy_id === null
-        ? (candidatesByName.get(card.card_name) ?? [])
-        : [],
-    }))
+    .map(card => {
+      const status = statusByDeckCardId.get(card.id)
+      return {
+        deckCardsId: card.id,
+        cardName: card.card_name,
+        lifecycle: status?.lifecycle ?? (card.copy_id !== null ? 'sleeved' : 'planned'),
+        allocationStatus: status?.allocationStatus ?? null,
+        copyId: card.copy_id,
+        isResolved: card.copy_id !== null,
+        // Compatibility fields retained for existing picklist consumers.
+        physicalCopyId: card.copy_id,
+        ownershipStatus: card.ownership_status,
+        candidates: card.copy_id === null
+          ? (candidatesByName.get(card.card_name) ?? [])
+          : [],
+      }
+    })
 
   return Response.json({
     deckName: deck.name,

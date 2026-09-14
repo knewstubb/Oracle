@@ -30,12 +30,19 @@ import { isBasicLand } from '@/lib/basic-lands'
 // ---------------------------------------------------------------------------
 
 export type CardSlotStatus = 'original' | 'proxy' | 'available' | 'alternate' | 'claimed' | 'unowned' | 'generic_land'
+export type DeckCardLifecycle = 'planned' | 'sleeved'
+export type AllocationStatus = CardSlotStatus
 
 export interface CardSlotWithStatus {
   deckCardsId: number
   cardName: string
   copyId: number | null
+  /** Compatibility alias for consumers that still use the physical-copy name. */
+  physicalCopyId: number | null
   isProxy: boolean | null
+  lifecycle: DeckCardLifecycle
+  allocationStatus: AllocationStatus
+  /** Compatibility alias for the pre-lifecycle status contract. */
   status: CardSlotStatus
 }
 
@@ -46,7 +53,7 @@ export interface CardSlotWithStatus {
 /**
  * Classify a single card slot's status from its DB fields.
  * NOTE: For unresolved slots, this returns 'available' by default —
- * call computeBatchStatus() to distinguish open vs claimed vs unowned.
+ * call computeBatchStatus() to distinguish available vs claimed vs unowned.
  */
 export function classifySlotStatus(
   physicalCopyId: number | null,
@@ -60,11 +67,11 @@ export function classifySlotStatus(
 }
 
 // ---------------------------------------------------------------------------
-// Batch computation — distinguishes unallocated from unowned
+// Batch computation — distinguishes available from unowned
 // ---------------------------------------------------------------------------
 
 /**
- * For a list of unresolved card names, determine which are "unallocated"
+ * For a list of unresolved card names, determine which are "available"
  * (at least one free candidate exists), "claimed" (copies exist but all
  * are held by other decks), or "unowned" (no copy exists at all).
  *
@@ -72,7 +79,7 @@ export function classifySlotStatus(
  * 1. Resolve all card_names → card_definition_ids in one query
  * 2. Fetch physical_copies (non-missing) with deck_cards join to determine
  *    which copies are free vs held
- * 3. Classify: free copy exists → unallocated, all held → claimed, none exist → unowned
+ * 3. Classify: free copy exists → available, all held → claimed, none exist → unowned
  *
  * Returns a Map<cardName, 'available' | 'claimed' | 'unowned'>
  */
@@ -246,7 +253,10 @@ export async function computeDeckCardStatuses(
         deckCardsId: card.id,
         cardName: card.card_name,
         copyId: card.copy_id,
+        physicalCopyId: card.copy_id,
         isProxy: card.is_proxy,
+        lifecycle: 'sleeved',
+        allocationStatus: card.is_proxy ? 'proxy' : 'original',
         status: card.is_proxy ? 'proxy' : 'original',
       })
     } else if (isBasicLand(card.card_name) && !card.scryfall_id) {
@@ -255,7 +265,10 @@ export async function computeDeckCardStatuses(
         deckCardsId: card.id,
         cardName: card.card_name,
         copyId: null,
+        physicalCopyId: null,
         isProxy: null,
+        lifecycle: 'planned',
+        allocationStatus: 'generic_land',
         status: 'generic_land',
       })
     } else {
@@ -265,7 +278,7 @@ export async function computeDeckCardStatuses(
     }
   }
 
-  // Batch compute unallocated vs claimed vs unowned for unresolved cards
+  // Batch compute available vs claimed vs unowned for unresolved cards
   // Pass preferred printings so we can distinguish 'available' (exact) from 'alternate'
   const preferredPrintings = new Map<string, string | null>()
   for (const card of deckCards) {
@@ -276,13 +289,19 @@ export async function computeDeckCardStatuses(
 
   const statusMap = await computeUnresolvedStatuses(unresolvedNames, userId, preferredPrintings)
 
-  const unresolvedWithStatus: CardSlotWithStatus[] = unresolvedCards.map(card => ({
-    deckCardsId: card.id,
-    cardName: card.card_name,
-    copyId: null,
-    isProxy: null,
-    status: statusMap.get(card.card_name) ?? 'unowned',
-  }))
+  const unresolvedWithStatus: CardSlotWithStatus[] = unresolvedCards.map(card => {
+    const allocationStatus = statusMap.get(card.card_name) ?? 'unowned'
+    return {
+      deckCardsId: card.id,
+      cardName: card.card_name,
+      copyId: null,
+      physicalCopyId: null,
+      isProxy: null,
+      lifecycle: 'planned',
+      allocationStatus,
+      status: allocationStatus,
+    }
+  })
 
   return [...resolved, ...unresolvedWithStatus]
 }

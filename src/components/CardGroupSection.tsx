@@ -35,7 +35,7 @@ import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import type { StructuredCategories } from '@/lib/categoryUtils'
 import type { DeckCard } from '@/components/CardGrid'
-import type { CardSlotStatus } from '@/lib/card-status'
+import type { CardSlotStatus, DeckCardLifecycle } from '@/lib/card-status'
 import { isBasicLand } from '@/lib/basic-lands'
 import { ManaCost } from '@/components/ManaCost'
 import { formatPrice } from '@/lib/collection-printing-utils'
@@ -56,6 +56,7 @@ export interface CardGroupSectionProps {
   groupName: string
   groupCards: DeckCard[]
   statusMap: Map<number, CardSlotStatus>
+  lifecycleMap: Map<number, DeckCardLifecycle>
   deckId: number
   physicalCopyMap: Map<number, number | null>
   /** Available categories for the tag editor */
@@ -84,6 +85,7 @@ export function CardGroupSection({
   groupName,
   groupCards,
   statusMap,
+  lifecycleMap,
   deckId,
   physicalCopyMap,
   availableCategories = [],
@@ -197,12 +199,14 @@ export function CardGroupSection({
               ? `${card.card_name} (${card.set_code.toUpperCase()})`
               : card.card_name
             const status = (statusMap.get(card.id) === 'generic_land' ? 'original' : statusMap.get(card.id)) ?? 'available'
+            const lifecycle = lifecycleMap.get(card.id) ?? (status === 'original' || status === 'proxy' ? 'sleeved' : 'planned')
             return (
               <SpecificLandRow
                 key={`land-${scryfallId}`}
                 displayName={displayName}
                 count={count}
                 status={status}
+                lifecycle={lifecycle}
                 deckId={deckId}
                 cardIds={landCards.map(c => c.id)}
                 scryfallId={card.scryfall_id ?? null}
@@ -213,21 +217,26 @@ export function CardGroupSection({
           })}
 
           {/* Normal card rows */}
-          {normalCards.map((card) => (
-            <UnifiedCardRow
-              key={card.id}
-              card={card}
-              status={(statusMap.get(card.id) === 'generic_land' ? 'original' : statusMap.get(card.id)) ?? 'available'}
-              deckId={deckId}
-              physicalCopyId={physicalCopyMap.get(card.id) ?? null}
-              availableCategories={availableCategories}
-              onCategoryChange={onCategoryChange}
-              compact={compact}
-              maxCopies={maxCopies}
-              isSelected={selectedIds?.has(card.id) ?? false}
-              onSelectionChange={onSelectionChange}
-            />
-          ))}
+          {normalCards.map((card) => {
+            const status = (statusMap.get(card.id) === 'generic_land' ? 'original' : statusMap.get(card.id)) ?? 'available'
+            const lifecycle = lifecycleMap.get(card.id) ?? (status === 'original' || status === 'proxy' ? 'sleeved' : 'planned')
+            return (
+              <UnifiedCardRow
+                key={card.id}
+                card={card}
+                status={status}
+                lifecycle={lifecycle}
+                deckId={deckId}
+                physicalCopyId={physicalCopyMap.get(card.id) ?? null}
+                availableCategories={availableCategories}
+                onCategoryChange={onCategoryChange}
+                compact={compact}
+                maxCopies={maxCopies}
+                isSelected={selectedIds?.has(card.id) ?? false}
+                onSelectionChange={onSelectionChange}
+              />
+            )
+          })}
         </div>
       )}
     </section>
@@ -241,6 +250,7 @@ export function CardGroupSection({
 function UnifiedCardRow({
   card,
   status,
+  lifecycle,
   deckId,
   physicalCopyId,
   availableCategories,
@@ -252,6 +262,7 @@ function UnifiedCardRow({
 }: {
   card: DeckCard
   status: CardSlotStatus
+  lifecycle: DeckCardLifecycle
   deckId: number
   physicalCopyId: number | null
   availableCategories: string[]
@@ -395,7 +406,7 @@ function UnifiedCardRow({
         </span>
       ) : (
         <span className="hidden md:inline shrink-0 text-[length:var(--fs-xs)] tabular-nums text-muted-foreground" style={{ width: 56, textAlign: 'right' }}>
-          {formatPrice(card.price_usd)}
+          {formatPrice(card.price_usd ?? null)}
         </span>
       )}
 
@@ -405,6 +416,7 @@ function UnifiedCardRow({
       ) : (
         <StatusChipPopover
           status={status}
+          lifecycle={lifecycle}
           cardName={card.card_name}
           deckId={deckId}
           deckCardsId={card.id}
@@ -515,10 +527,10 @@ function MobileStatusDot({ status }: { status: CardSlotStatus }) {
   const config: Record<CardSlotStatus, { color: string; label: string; filled: 'full' | 'half' | 'empty' }> = {
     original: { color: 'var(--signal-success)', label: 'Original', filled: 'full' },
     proxy: { color: 'var(--signal-info)', label: 'Proxy', filled: 'full' },
-    open: { color: 'var(--signal-success)', label: 'Open', filled: 'half' },
-    available: { color: 'var(--signal-success)', label: 'Available', filled: 'half' },
-    claimed: { color: 'var(--signal-warning)', label: 'Claimed', filled: 'half' },
-    unowned: { color: 'var(--signal-error)', label: 'Unowned', filled: 'empty' },
+    available: { color: 'var(--signal-success)', label: 'Planned · Available', filled: 'half' },
+    alternate: { color: 'var(--text-secondary)', label: 'Planned · Alternate', filled: 'half' },
+    claimed: { color: 'var(--signal-warning)', label: 'Planned · Claimed', filled: 'half' },
+    unowned: { color: 'var(--signal-error)', label: 'Planned · Unowned', filled: 'empty' },
     generic_land: { color: 'var(--signal-success)', label: 'Land', filled: 'full' },
   }
 
@@ -1117,6 +1129,7 @@ function SpecificLandRow({
   displayName,
   count,
   status,
+  lifecycle,
   deckId,
   cardIds,
   scryfallId,
@@ -1126,6 +1139,7 @@ function SpecificLandRow({
   displayName: string
   count: number
   status: CardSlotStatus
+  lifecycle: DeckCardLifecycle
   deckId: number
   cardIds: number[]
   scryfallId: string | null
@@ -1156,7 +1170,7 @@ function SpecificLandRow({
         }
       }
     },
-    onSuccess: () => {
+    onSuccess: (_data, newQty) => {
       queryClient.invalidateQueries({ queryKey: ['decks', String(deckId)] })
       queryClient.invalidateQueries({ queryKey: ['decks', deckId] })
       queryClient.invalidateQueries({ queryKey: ['decks', String(deckId), 'card-statuses'] })
@@ -1165,7 +1179,7 @@ function SpecificLandRow({
       queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'health'] })
       queryClient.invalidateQueries({ queryKey: ['picklist', deckId] })
       queryClient.invalidateQueries({ queryKey: ['picklist', String(deckId)] })
-      toast.success(`Updated to ${qty} copies`)
+      toast.success(`Updated to ${newQty} copies`)
       setMenuOpen(false)
     },
     onError: (err: Error) => toast.error(err.message),
@@ -1216,7 +1230,7 @@ function SpecificLandRow({
         <span className="min-w-0 flex-1 truncate text-[length:var(--fs-sm)]">{displayName}</span>
 
         {/* Status chip */}
-        <CardSlotBadge status={status} variant="icon" />
+        <CardSlotBadge status={status} lifecycle={lifecycle} variant="icon" />
 
         {/* Kebab menu */}
         <div className="relative shrink-0">

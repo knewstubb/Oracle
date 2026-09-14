@@ -9,6 +9,7 @@ import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { CardHoverPreview, useCardHoverPreview } from '@/components/CardHoverPreview'
 import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
 import type { RankedCandidate } from '@/lib/allocation-candidates'
+import type { DeckCardLifecycle, CardSlotStatus } from '@/lib/card-status'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -21,7 +22,11 @@ interface PicklistV2Props {
 export interface PicklistCard {
   deckCardsId: number
   cardName: string
+  lifecycle: DeckCardLifecycle
+  allocationStatus: CardSlotStatus | null
+  copyId: number | null
   isResolved: boolean
+  // Compatibility fields retained for existing allocation controls.
   physicalCopyId: number | null
   ownershipStatus: string | null
   candidates: RankedCandidate[]
@@ -62,7 +67,7 @@ function categorizeCards(cards: PicklistCard[], currentDeckId: number) {
   const seen = new Set<number>() // track which deckCardsIds we've already placed
 
   for (const card of cards) {
-    if (card.isResolved) continue
+    if (card.lifecycle === 'sleeved' || card.isResolved) continue
 
     // Filter out candidates assigned to the current deck (self-reference)
     const candidates = card.candidates.filter(c => !c.entry.assignedTo || c.entry.assignedTo.deckId !== currentDeckId)
@@ -145,7 +150,7 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
 
   const { available, claimed, unowned } = useMemo(() => {
     if (!picklist) return { available: [], claimed: [], unowned: [] }
-    const unresolvedCards = picklist.cards.filter(c => !c.isResolved)
+    const unresolvedCards = picklist.cards.filter(c => c.lifecycle === 'planned' && !c.isResolved)
     return categorizeCards(unresolvedCards, deckId)
   }, [picklist])
 
@@ -248,7 +253,7 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
     } else {
       // Available: assign
       assignMutation.mutate({ deckCardsId: card.deckCardsId, physicalCopyId: candidate.entry.physicalCopyId })
-      toast.success(`Filled ${card.cardName}`)
+      toast.success(`Assigned ${card.cardName}`)
     }
   }, [assignMutation, claimMutation])
 

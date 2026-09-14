@@ -19,6 +19,7 @@
  */
 
 import { createAdminClient } from '@/lib/supabase'
+import { assertAtomicRpcIdList, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -66,8 +67,13 @@ export async function markCopyMissing(
     throw new Error(`Failed to mark copy ${copyId} as missing: ${error.message}`)
   }
 
-  const result = data as { success: boolean; affected_deck_ids: number[] | null }
-  return { affectedDeckIds: result.affected_deck_ids ?? [] }
+  const result = assertAtomicRpcSuccess(data, 'mark_copy_missing')
+  const affectedDeckIds = assertAtomicRpcIdList(
+    result,
+    'affected_deck_ids',
+    'mark_copy_missing'
+  )
+  return { affectedDeckIds }
 }
 
 // ---------------------------------------------------------------------------
@@ -76,7 +82,8 @@ export async function markCopyMissing(
 
 /**
  * Un-mark a collection copy as Missing (mark it as found).
- * The copy returns to the Available pool — no auto-relink to prior deck slot.
+ * The atomic RPC restores the copy to the user's default storage location;
+ * it never leaves a found copy in neither storage nor a deck slot.
  *
  * Returns the card name for cache invalidation (so the client knows which
  * card's availability changed).
@@ -88,34 +95,22 @@ export async function unmarkCopyMissing(
 ): Promise<UnmarkMissingResult> {
   const supabase = createAdminClient()
 
-  // Fetch the card name before updating (for the response)
-  const { data: copy, error: fetchErr } = await supabase
-    .from('user_copies')
-    .select('card_id, user_cards!user_copies_card_id_fkey(card_name)')
-    .eq('id', copyId)
-    .eq('user_id', userId)
-    .maybeSingle()
+  const { data, error } = await (supabase.rpc as any)('unmark_copy_missing', {
+    p_copy_id: copyId,
+    p_user_id: userId,
+  })
 
-  if (fetchErr) {
-    throw new Error(`Failed to fetch copy ${copyId}: ${fetchErr.message}`)
+  if (error) {
+    if (error.message?.includes('not_found')) {
+      throw new Error(`Copy ${copyId} not found for user`)
+    }
+    throw new Error(`Failed to un-mark copy ${copyId}: ${error.message}`)
   }
 
-  if (!copy) {
-    return { cardName: null }
+  const result = assertAtomicRpcSuccess(data, 'unmark_copy_missing')
+  if (typeof result.card_name !== 'string') {
+    throw new Error(`Failed to un-mark copy ${copyId}: invalid card_name`)
   }
 
-  // Set missing = false
-  const { error: updateErr } = await supabase
-    .from('user_copies')
-    .update({ missing: false })
-    .eq('id', copyId)
-    .eq('user_id', userId)
-
-  if (updateErr) {
-    throw new Error(`Failed to un-mark copy ${copyId}: ${updateErr.message}`)
-  }
-
-  const cardName = (copy as any).cards?.card_name ?? null
-
-  return { cardName }
+  return { cardName: result.card_name }
 }

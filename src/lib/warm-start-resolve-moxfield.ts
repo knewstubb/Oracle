@@ -13,6 +13,7 @@ import { fetchMoxfieldDeck } from '@/lib/moxfield-client'
 import { importDeckDesign } from '@/lib/deck-import'
 import { normalizeMoxfieldDeck } from '@/lib/deck-normalizer'
 import { fetchEnrichedSupply, classifyTier, scoreCandidate } from '@/lib/allocation-candidates'
+import { batchAssignDeck, type Assignment } from '@/lib/supply-pool'
 import type { EnrichedSupplyEntry } from '@/lib/allocation-candidates'
 import type { BatchResolutionResult, DeckResolutionResult, ContentionEntry } from '@/lib/warm-start-resolve'
 
@@ -198,9 +199,11 @@ async function resolveSingleMoxfieldDeck(
     else cardNameGroups.set(row.card_name, [row.id])
   }
 
-  // Step 6: For each unique card_name, fetch candidates and assign Tiers 1–3
+  // Step 6: For each unique card_name, collect candidate assignments.
+  // The whole deck's assignment set is committed atomically below.
   let matched = 0
   const unresolvedCards: string[] = []
+  const assignments: Assignment[] = []
 
   for (const [cardName, deckCardsIds] of cardNameGroups) {
     let candidates: EnrichedSupplyEntry[]
@@ -225,6 +228,7 @@ async function resolveSingleMoxfieldDeck(
       })
 
     let candidateIdx = 0
+    let assignmentsForCard = 0
 
     for (const deckCardsId of deckCardsIds) {
       if (candidateIdx >= eligibleCandidates.length) break
@@ -233,39 +237,30 @@ async function resolveSingleMoxfieldDeck(
       candidateIdx++
 
       const ownershipStatus = candidate.isProxy ? 'proxy' : 'original'
-
-      // If Tier 3, clear the source assignment first
-      if (candidate.assignedTo) {
-        const { error: clearErr } = await supabase
-          .from('deck_cards')
-          .update({ copy_id: null, ownership_status: null })
-          .eq('id', candidate.assignedTo.deckCardsId)
-
-        if (clearErr) {
-          errors.push(`Failed to clear source assignment for "${cardName}": ${clearErr.message}`)
-          continue
-        }
-      }
-
-      // Assign to the target deck_cards row
-      const { error: assignErr } = await supabase
-        .from('deck_cards')
-        .update({
-          copy_id: candidate.physicalCopyId,
-          ownership_status: ownershipStatus,
-        })
-        .eq('id', deckCardsId)
-
-      if (assignErr) {
-        errors.push(`Failed to assign "${cardName}" (deck_cards ${deckCardsId}): ${assignErr.message}`)
-      } else {
-        matched++
-      }
+      assignments.push({
+        deckCardsId,
+        physicalCopyId: candidate.physicalCopyId,
+        ownershipStatus,
+        clearDeckCardsId: candidate.assignedTo?.deckCardsId ?? null,
+      })
+      assignmentsForCard++
     }
 
-    const resolvedForThisCard = Math.min(candidateIdx, deckCardsIds.length)
-    if (resolvedForThisCard < deckCardsIds.length) {
+    if (assignmentsForCard < deckCardsIds.length) {
       unresolvedCards.push(cardName)
+    }
+  }
+
+  if (assignments.length > 0) {
+    try {
+      await batchAssignDeck(importedDeckId, userId, assignments)
+      matched = assignments.length
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      errors.push(`Assignment batch failed: ${message}`)
+      matched = 0
+      unresolvedCards.length = 0
+      unresolvedCards.push(...cardNameGroups.keys())
     }
   }
 

@@ -12,6 +12,7 @@
 import type { EnrichedSupplyEntry, CopyAssignment, CandidateTier } from '@/lib/allocation-candidates'
 import { classifyTier, scoreCandidate } from '@/lib/allocation-candidates'
 import { createAdminClient } from '@/lib/supabase'
+import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 
 // ---------------------------------------------------------------------------
 // Assignment Types (for batchAssignDeck)
@@ -336,13 +337,14 @@ export async function loadSupplyPool(userId: string): Promise<SupplyPool> {
  * single deck's resolution pass.
  *
  * Uses the `batch_assign_deck` Supabase RPC which wraps all updates in a single
- * Postgres transaction. If the RPC is unavailable (migration not yet applied),
- * falls back to sequential client-side UPDATE operations with a warning.
+ * Postgres transaction. If the RPC is unavailable, the operation fails closed
+ * instead of falling back to sequential client-side updates.
  *
  * On failure: throws so the caller knows not to update pool state or proceed.
  */
 export async function batchAssignDeck(
   deckId: number,
+  userId: string,
   assignments: Assignment[]
 ): Promise<void> {
   if (assignments.length === 0) return
@@ -351,65 +353,22 @@ export async function batchAssignDeck(
 
   // Attempt transactional RPC
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase.rpc as any)('batch_assign_deck', {
+  const { data, error } = await (supabase.rpc as any)('batch_assign_deck', {
     p_deck_id: deckId,
+    p_user_id: userId,
     p_assignments: assignments.map((a) => ({
       deckCardsId: a.deckCardsId,
       copyId: a.physicalCopyId,
+      clearDeckCardsId: a.clearDeckCardsId ?? null,
     })),
   })
 
-  if (!error) {
-    return
-  }
-
-  // Check if the error indicates the RPC function doesn't exist
-  // Same detection pattern as deck-cards-diff.ts
-  const isRpcNotFound =
-    error.code === '42883' || // PG: undefined_function
-    error.message?.includes('not found') ||
-    error.message?.includes('does not exist') ||
-    error.message?.includes('Could not find the function')
-
-  if (!isRpcNotFound) {
-    // Real error from the RPC — rethrow
+  if (error) {
     throw new Error(
       `[supply-pool] RPC batch_assign_deck failed for deck ${deckId}: ${error.message}`
     )
   }
 
-  // ─── Fallback: non-atomic sequential operations ─────────────────────────
-  console.warn('[supply-pool] RPC unavailable, using non-atomic fallback')
-
-  // 1. Clear source assignments (Tier 3 reassigns)
-  const toClear = assignments.filter((a) => a.clearDeckCardsId != null)
-  for (const assignment of toClear) {
-    const { error: clearError } = await supabase
-      .from('deck_cards')
-      .update({ copy_id: null, ownership_status: null })
-      .eq('id', assignment.clearDeckCardsId!)
-
-    if (clearError) {
-      throw new Error(
-        `[supply-pool] Fallback clear failed for deck_cards ${assignment.clearDeckCardsId}: ${clearError.message}`
-      )
-    }
-  }
-
-  // 2. Apply new assignments
-  for (const assignment of assignments) {
-    const { error: assignError } = await supabase
-      .from('deck_cards')
-      .update({
-        copy_id: assignment.physicalCopyId,
-        ownership_status: assignment.ownershipStatus,
-      })
-      .eq('id', assignment.deckCardsId)
-
-    if (assignError) {
-      throw new Error(
-        `[supply-pool] Fallback assign failed for deck_cards ${assignment.deckCardsId}: ${assignError.message}`
-      )
-    }
-  }
+  const result = assertAtomicRpcSuccess(data, 'batch_assign_deck')
+  assertAtomicRpcCount(result, 'assigned_count', 'batch_assign_deck', assignments.length)
 }

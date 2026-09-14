@@ -13,6 +13,9 @@
  */
 
 import { createAdminClient } from '@/lib/supabase'
+import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
+import type { Json } from '@/types/supabase'
+import { mapCondition, mapFinishToFinishString } from './identity-resolver'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -204,13 +207,16 @@ function rowKey(row: { name: string; editionCode: string; finish: string }): str
  * Each copy is its own row, so we count copies per card_name|printing_id|finish
  */
 export async function computeCollectionDelta(
-  newRows: CollectionCSVRow[]
+  newRows: CollectionCSVRow[],
+  userId?: string
 ): Promise<ImportDelta> {
   const supabase = createAdminClient()
 
-  // Read current DB state by joining user_copies → user_cards for card_name
-  // and counting copies grouped by card_name, printing_id, finish
-  const { data: currentCopies, error } = await supabase
+  // Read current DB state by joining user_copies → user_cards for card_name.
+  // Every API caller supplies the authenticated user so this read remains
+  // tenant-scoped; the optional argument preserves the old unit-test helper
+  // signature while those tests use an isolated mock client.
+  let currentCopiesQuery = supabase
     .from('user_copies')
     .select(`
       id,
@@ -218,6 +224,12 @@ export async function computeCollectionDelta(
       finish,
       user_cards!inner(card_name)
     `)
+
+  if (userId) {
+    currentCopiesQuery = currentCopiesQuery.eq('user_id', userId)
+  }
+
+  const { data: currentCopies, error } = await currentCopiesQuery
 
   if (error) {
     throw new Error(`Failed to read current collection: ${error.message}`)
@@ -332,46 +344,9 @@ export async function applyCollectionImport(
     return { totalInserted: 0, batches: [], errors: ['No user ID provided'] }
   }
 
-  // Step 1: Delete ALL existing collection data (only on first chunk)
-  if (!options?.skipDelete) {
-    // Delete all user_copies first
-    for (let attempt = 0; attempt < 20; attempt++) {
-      const { error: deleteError } = await supabase
-        .from('user_copies')
-        .delete()
-        .eq('user_id', userId)
-
-      if (deleteError) {
-        throw new Error(`Failed to clear copies before import: ${deleteError.message}`)
-      }
-
-      const { count } = await supabase
-        .from('user_copies')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
-
-      if (!count || count === 0) break
-    }
-
-    // Delete all user_cards (now orphaned)
-    for (let attempt = 0; attempt < 20; attempt++) {
-      const { error: deleteError } = await supabase
-        .from('user_cards')
-        .delete()
-        .eq('user_id', userId)
-
-      if (deleteError) {
-        throw new Error(`Failed to clear cards before import: ${deleteError.message}`)
-      }
-
-      const { count } = await supabase
-        .from('user_cards')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
-
-      if (!count || count === 0) break
-    }
-  }
+  // Step 1: The copy replacement is performed later, after the complete
+  // payload is resolved. Keeping the read separate from the mutation means
+  // the RPC can atomically clear affected deck links and insert every copy.
 
   // Step 2: Deduplicate rows — merge quantities for same (name, scryfallId, finish)
   const deduped = new Map<string, typeof rows[0]>()
@@ -422,32 +397,21 @@ export async function applyCollectionImport(
 
     const { data: insertedCards, error: insertError } = await supabase
       .from('user_cards')
-      .insert(insertRows)
+      .upsert(insertRows, { onConflict: 'oracle_id,user_id' })
       .select('id, card_name')
 
     if (insertError) {
-      errors.push(`user_cards batch ${i}: ${insertError.message}`)
-    } else {
-      for (const card of insertedCards ?? []) {
-        cardIdMap.set(card.card_name, card.id)
-      }
+      throw new Error(`user_cards upsert batch ${i} failed: ${insertError.message}`)
+    }
+
+    for (const card of insertedCards ?? []) {
+      cardIdMap.set(card.card_name, card.id)
     }
   }
 
   // Step 5: Create user_copies entries (one per physical copy)
   // Expand quantity into individual rows
-  const copyRows: Array<{
-    card_id: number
-    printing_id: string | null
-    finish: string | null
-    condition: string | null
-    language: string | null
-    purchase_price: number | null
-    acquired_at: string | null
-    source_tag: string | null
-    is_proxy: boolean
-    user_id: string
-  }> = []
+  const copyRows: Array<{ [key: string]: Json | undefined }> = []
 
   for (const row of dedupedRows) {
     const cardId = cardIdMap.get(row.name)
@@ -457,51 +421,103 @@ export async function applyCollectionImport(
       continue
     }
 
-    // Create one copy row per quantity
+    const { condition } = mapCondition(row.condition)
+    const finish = mapFinishToFinishString(row.finish)
+
+    // Create one copy row per quantity. Null location_id means the RPC will
+    // resolve the user's default storage location in the same transaction.
     for (let q = 0; q < row.quantity; q++) {
       copyRows.push({
         card_id: cardId,
         printing_id: row.scryfallId || null,
-        finish: row.finish || 'Normal',
-        condition: row.condition || 'Near Mint',
-        language: row.language || 'English',
-        purchase_price: row.purchasePrice || null,
+        finish,
+        card_condition: condition,
+        language: row.language?.trim().toLowerCase() || 'en',
+        purchase_price: row.purchasePrice > 0 ? row.purchasePrice : null,
         acquired_at: row.dateAdded || null,
-        source_tag: row.tags || null,
+        source_tag: row.tags || 'legacy-csv',
         is_proxy: false,
-        user_id: userId,
+        location_id: null,
       })
     }
   }
 
-  // Insert copies in batches
-  const copyChunks = chunk(copyRows, BATCH_SIZE)
-  for (let i = 0; i < copyChunks.length; i++) {
-    const batch = copyChunks[i]
-    const batchErrors: string[] = []
-
-    try {
-      const { error: insertError } = await supabase
+  // Step 5: Apply the copy mutation through one atomic RPC. Replacement uses
+  // apply_collection_sync so slot links are cleared in the same transaction;
+  // subsequent legacy chunks are append-only insert_user_copies calls.
+  const copyIdsToRemove: number[] = []
+  if (!options?.skipDelete) {
+    let offset = 0
+    while (true) {
+      const { data: existingCopies, error: existingError } = await supabase
         .from('user_copies')
-        .insert(batch)
+        .select('id')
+        .eq('user_id', userId)
+        .range(offset, offset + 999)
 
-      if (insertError) {
-        const errorDetail = `Batch ${i}: ${insertError.message}`
-        batchErrors.push(errorDetail)
-        errors.push(errorDetail)
-      } else {
-        totalInserted += batch.length
+      if (existingError) {
+        throw new Error(`Failed to read existing collection for replacement: ${existingError.message}`)
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      batchErrors.push(`Batch ${i}: Unexpected error — ${message}`)
-      errors.push(`Batch ${i}: Unexpected error — ${message}`)
+
+      copyIdsToRemove.push(...(existingCopies ?? []).map(copy => copy.id))
+      if (!existingCopies || existingCopies.length < 1000) break
+      offset += 1000
+    }
+  }
+
+  if (copyIdsToRemove.length > 0 || (!options?.skipDelete && copyRows.length > 0)) {
+    const { data: mutationResult, error: mutationError } = options?.skipDelete
+      ? await supabase.rpc('insert_user_copies', {
+          p_user_id: userId,
+          p_rows: copyRows,
+        })
+      : await supabase.rpc('apply_collection_sync', {
+          p_user_id: userId,
+          p_remove_copy_ids: copyIdsToRemove,
+          p_insert_rows: copyRows,
+        })
+
+    if (mutationError) {
+      throw new Error(`Atomic collection import failed: ${mutationError.message}`)
+    }
+
+    const result = assertAtomicRpcSuccess(mutationResult, options?.skipDelete ? 'insert_user_copies' : 'apply_collection_sync')
+    totalInserted = assertAtomicRpcCount(
+      result,
+      'inserted_count',
+      options?.skipDelete ? 'insert_user_copies' : 'apply_collection_sync',
+      copyRows.length
+    )
+    if (!options?.skipDelete) {
+      assertAtomicRpcCount(result, 'removed_count', 'apply_collection_sync', copyIdsToRemove.length)
     }
 
     batches.push({
-      batchIndex: i,
-      rowsProcessed: batchErrors.length === 0 ? batch.length : 0,
-      errors: batchErrors,
+      batchIndex: 0,
+      rowsProcessed: totalInserted,
+      errors: [],
+    })
+  } else if (copyRows.length > 0) {
+    const { data: insertResult, error: insertError } = await supabase.rpc('insert_user_copies', {
+      p_user_id: userId,
+      p_rows: copyRows,
+    })
+
+    if (insertError) {
+      throw new Error(`Atomic collection insert failed: ${insertError.message}`)
+    }
+
+    totalInserted = assertAtomicRpcCount(
+      assertAtomicRpcSuccess(insertResult, 'insert_user_copies'),
+      'inserted_count',
+      'insert_user_copies',
+      copyRows.length
+    )
+
+    batches.push({
+      batchIndex: 0,
+      rowsProcessed: totalInserted,
+      errors: [],
     })
   }
 

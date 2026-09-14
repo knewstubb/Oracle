@@ -1,16 +1,16 @@
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
+import { assertAtomicRpcIdList, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 
 /**
  * POST /api/collection/instances/add-proxy
  *
- * Creates a new physical_copies row with is_proxy=true for the given oracle_id.
- * Used when the Instance Panel shows a shortfall and the user wants to add a proxy.
+ * Creates a proxy copy in the user's default storage location through the
+ * atomic collection-insert RPC. Allocation into a deck slot is separate and
+ * uses add_proxy_to_slot.
  *
  * Body: { oracleId: string }
- *
- * Validates: Requirements 10.6
  */
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth()
@@ -24,45 +24,53 @@ export async function POST(request: NextRequest) {
   }
 
   const { oracleId } = body
-
   if (!oracleId) {
     return Response.json({ error: 'oracleId is required' }, { status: 400 })
   }
 
   const supabase = createAdminClient()
-
-  // Resolve card_definition_id from oracle_id
-  const { data: cardDef, error: cdErr } = await (supabase as any)
-    .from('card_definitions')
+  const { data: card, error: cardErr } = await supabase
+    .from('user_cards')
     .select('id')
     .eq('oracle_id', oracleId)
-    .limit(1)
+    .eq('user_id', authResult.id)
     .maybeSingle()
 
-  if (cdErr) {
-    return Response.json({ error: cdErr.message }, { status: 500 })
+  if (cardErr) {
+    return Response.json({ error: cardErr.message }, { status: 500 })
   }
 
-  if (!cardDef) {
+  if (!card) {
     return Response.json({ error: 'Card definition not found for oracle_id' }, { status: 404 })
   }
 
-  // Insert a new physical copy with is_proxy=true
-  const { data: newCopy, error: insertErr } = await (supabase as any)
-    .from('physical_copies')
-    .insert({
-      card_definition_id: cardDef.id,
-      is_proxy: true,
-      is_foil: false,
-      user_id: authResult.id,
-      source_tag: 'manual',
-    })
-    .select('id')
-    .single()
+  const { data, error: insertErr } = await supabase.rpc('insert_user_copies', {
+    p_user_id: authResult.id,
+    p_rows: [
+      {
+        card_id: card.id,
+        finish: 'nonfoil',
+        is_proxy: true,
+        source_tag: 'manual',
+        location_id: null,
+      },
+    ],
+  })
 
   if (insertErr) {
+    if (insertErr.message.includes('card_not_found')) {
+      return Response.json({ error: 'Card definition not found for oracle_id' }, { status: 404 })
+    }
     return Response.json({ error: insertErr.message }, { status: 500 })
   }
 
-  return Response.json({ created: true, physicalCopyId: newCopy.id }, { status: 201 })
+  const result = assertAtomicRpcSuccess(data, 'insert_user_copies')
+  const insertedIds = assertAtomicRpcIdList(
+    result,
+    'inserted_ids',
+    'insert_user_copies',
+    1
+  )
+
+  return Response.json({ created: true, physicalCopyId: insertedIds[0] }, { status: 201 })
 }

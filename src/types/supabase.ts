@@ -1787,6 +1787,7 @@ export type Database = {
           deck_id: number | null
           description: string | null
           id: number
+          is_default: boolean
           name: string
           sort_order: number | null
           type: string
@@ -1798,6 +1799,7 @@ export type Database = {
           deck_id?: number | null
           description?: string | null
           id?: never
+          is_default?: boolean
           name: string
           sort_order?: number | null
           type?: string
@@ -1809,6 +1811,7 @@ export type Database = {
           deck_id?: number | null
           description?: string | null
           id?: never
+          is_default?: boolean
           name?: string
           sort_order?: number | null
           type?: string
@@ -1852,24 +1855,88 @@ export type Database = {
       }
     }
     Functions: {
+      _default_storage_location_id: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
+      _ensure_default_storage_location_id: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
+      _insert_user_copy_rows: {
+        Args: { p_default_location_id: number; p_rows: Json; p_user_id: string }
+        Returns: number
+      }
+      _insert_user_copy_rows_with_ids: {
+        Args: { p_default_location_id: number; p_rows: Json; p_user_id: string }
+        Returns: Json
+      }
       allocation_clear_active_decks: {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      add_proxy_to_slot: {
+        Args: { p_card_id: number; p_target_deck_card_id: number; p_user_id: string }
+        Returns: Json
+      }
+      add_proxies_to_slots: {
+        Args: { p_assignments: Json; p_user_id: string }
+        Returns: Json
+      }
+      apply_ai_deck_delta: {
+        Args: {
+          p_additions: Json
+          p_deck_id: number
+          p_remove_deck_card_ids: number[]
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      apply_collection_sync: {
+        Args: { p_insert_rows: Json; p_remove_copy_ids: number[]; p_user_id: string }
+        Returns: Json
+      }
+      apply_deck_cards_diff: {
+        Args: { p_deck_id: number; p_delete_ids: number[]; p_insert_rows: Json; p_user_id: string }
+        Returns: Json
+      }
       assign_free_copy: {
         Args: {
           p_card_name: string
-          p_physical_copy_id: number
+          p_copy_id: number
           p_target_deck_id: number
           p_user_id: string
         }
         Returns: Json
       }
       assign_physical_copy: {
-        Args: { p_copy_id: number; p_target_deck_card_id: number }
+        Args: { p_copy_id: number; p_target_deck_card_id: number; p_user_id: string }
         Returns: Json
       }
-      batch_assign_deck: { Args: { p_assignments: Json }; Returns: undefined }
+      batch_assign_deck: {
+        Args: { p_assignments: Json; p_deck_id: number; p_user_id: string }
+        Returns: Json
+      }
+      delete_deck_with_release: {
+        Args: { p_deck_id: number; p_user_id: string }
+        Returns: Json
+      }
+      delete_storage_location: {
+        Args: { p_location_id: number; p_user_id: string }
+        Returns: Json
+      }
+      delete_user_copy: {
+        Args: { p_copy_id: number; p_user_id: string }
+        Returns: Json
+      }
+      delete_user_copies: {
+        Args: { p_copy_ids: number[]; p_user_id: string }
+        Returns: Json
+      }
+      force_claim_copy: {
+        Args: { p_copy_id: number; p_target_deck_card_id: number; p_user_id: string }
+        Returns: Json
+      }
       get_bulk_price_to_add: {
         Args: never
         Returns: {
@@ -1925,17 +1992,67 @@ export type Database = {
           owned_copies: number
         }[]
       }
+      insert_user_copies: {
+        Args: { p_rows: Json; p_user_id: string }
+        Returns: Json
+      }
       mark_copy_missing: {
-        Args: { p_physical_copy_id: number; p_user_id: string }
+        Args: { p_copy_id: number; p_user_id: string }
+        Returns: Json
+      }
+      unmark_copy_missing: {
+        Args: { p_copy_id: number; p_user_id: string }
+        Returns: Json
+      }
+      move_copies_to_storage: {
+        Args: { p_copy_ids: number[]; p_location_id: number | null; p_user_id: string }
+        Returns: Json
+      }
+      move_copy_to_storage: {
+        Args: { p_copy_id: number; p_location_id: number | null; p_user_id: string }
+        Returns: Json
+      }
+      replace_collection: {
+        Args: { p_insert_rows: Json; p_user_id: string }
         Returns: Json
       }
       reassign_to_deck: {
         Args: {
-          p_card_name: string
-          p_physical_copy_id: number
+          p_copy_id: number
           p_target_deck_id: number
+          p_card_name: string
           p_user_id: string
         }
+        Returns: Json
+      }
+      release_deck_copies: {
+        Args: { p_deck_id: number; p_user_id: string }
+        Returns: Json
+      }
+      replace_deck_with_new_cards: {
+        Args: { p_deck_id: number; p_rows: Json; p_user_id: string }
+        Returns: Json
+      }
+      replace_proxy_with_original: {
+        Args: {
+          p_deck_card_id: number
+          p_original_copy_id: number
+          p_proxy_storage_location_id: number | null
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      undo_copy_move: {
+        Args: {
+          p_copy_id: number
+          p_current_deck_card_id: number
+          p_restore_deck_card_id: number | null
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      unassign_copy_to_storage: {
+        Args: { p_copy_id: number; p_user_id: string }
         Returns: Json
       }
       show_limit: { Args: never; Returns: number }

@@ -10,6 +10,7 @@
 
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
+import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 import { requireAuth } from '@/lib/auth'
 
 export async function POST(
@@ -40,16 +41,19 @@ export async function POST(
     return Response.json({ error: 'Deck not found' }, { status: 404 })
   }
 
-  // Clear all claims: set copy_id and ownership_status to null
-  const { error: updateErr, count } = await supabase
-    .from('deck_cards')
-    .update({ copy_id: null, ownership_status: null })
-    .eq('deck_id', deckId)
-    .not('copy_id', 'is', null)
+  const { data, error: releaseErr } = await (supabase.rpc as any)('release_deck_copies', {
+    p_deck_id: deckId,
+    p_user_id: userId,
+  })
 
-  if (updateErr) {
-    return Response.json({ error: updateErr.message }, { status: 500 })
+  if (releaseErr) {
+    if (releaseErr.message?.includes('deck_not_found')) {
+      return Response.json({ error: 'Deck not found' }, { status: 404 })
+    }
+    return Response.json({ error: releaseErr.message }, { status: 500 })
   }
 
-  return Response.json({ released: count ?? 0 })
+  const result = assertAtomicRpcSuccess(data, 'release_deck_copies')
+  const released = assertAtomicRpcCount(result, 'released_count', 'release_deck_copies')
+  return Response.json({ released })
 }

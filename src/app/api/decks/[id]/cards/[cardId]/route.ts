@@ -12,6 +12,7 @@
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
+import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 
 export async function DELETE(
   _request: NextRequest,
@@ -62,17 +63,23 @@ export async function DELETE(
     )
   }
 
-  // Delete the deck_cards row — no cascade needed on physical_copies
-  const { error: deleteErr } = await supabase
-    .from('deck_cards')
-    .delete()
-    .eq('id', deckCardsId)
+  const { data, error: rpcErr } = await (supabase.rpc as any)('apply_ai_deck_delta', {
+    p_deck_id: deckId,
+    p_user_id: userId,
+    p_additions: [],
+    p_remove_deck_card_ids: [deckCardsId],
+  })
 
-  if (deleteErr) {
-    return Response.json({ error: deleteErr.message }, { status: 500 })
+  if (rpcErr) {
+    if (rpcErr.message?.includes('deck_not_found') || rpcErr.message?.includes('deck_card_not_found')) {
+      return Response.json({ error: 'Card not found in this deck' }, { status: 404 })
+    }
+    return Response.json({ error: rpcErr.message }, { status: 500 })
   }
 
-  return Response.json({ deleted: true, deckCardsId })
+  const result = assertAtomicRpcSuccess(data, 'apply_ai_deck_delta')
+  assertAtomicRpcCount(result, 'removed_count', 'apply_ai_deck_delta', 1)
+  return Response.json({ deleted: true, deckCardsId, ...result })
 }
 
 

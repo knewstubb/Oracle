@@ -16,6 +16,7 @@
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
+import { assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth()
@@ -40,54 +41,27 @@ export async function POST(request: NextRequest) {
   try {
     console.log('[claim-from-deck] Request:', { deckCardsId, physicalCopyId, userId })
 
-    // Verify the target slot exists and is currently empty
-    const { data: targetSlot, error: targetErr } = await supabase
-      .from('deck_cards')
-      .select('id, copy_id')
-      .eq('id', deckCardsId)
-      .maybeSingle()
+    const { data, error: rpcErr } = await (supabase.rpc as any)('force_claim_copy', {
+      p_target_deck_card_id: deckCardsId,
+      p_copy_id: physicalCopyId,
+      p_user_id: userId,
+    })
 
-    if (targetErr || !targetSlot) {
-      return Response.json({ error: 'Target slot not found' }, { status: 404 })
+    if (rpcErr) {
+      if (rpcErr.message?.includes('target_not_found')) {
+        return Response.json({ error: 'Target slot not found' }, { status: 404 })
+      }
+      if (rpcErr.message?.includes('target_filled')) {
+        return Response.json({ error: 'Target slot is already filled' }, { status: 409 })
+      }
+      if (rpcErr.message?.includes('copy_not_found')) {
+        return Response.json({ error: 'Physical copy not found' }, { status: 404 })
+      }
+      return Response.json({ error: `Failed to claim copy: ${rpcErr.message}` }, { status: 500 })
     }
 
-    if (targetSlot.copy_id !== null) {
-      return Response.json({ error: 'Target slot is already filled' }, { status: 409 })
-    }
-
-    // Verify the copy exists in user_copies
-    const { data: copy, error: copyErr } = await supabase
-      .from('user_copies')
-      .select('id, is_proxy')
-      .eq('id', physicalCopyId)
-      .maybeSingle()
-
-    if (copyErr || !copy) {
-      return Response.json({ error: 'Physical copy not found' }, { status: 404 })
-    }
-
-    // Step 1: Clear the source — find and unlink any deck_cards row holding this copy
-    const { error: clearErr } = await supabase
-      .from('deck_cards')
-      .update({ copy_id: null, ownership_status: null })
-      .eq('copy_id', physicalCopyId)
-
-    if (clearErr) {
-      return Response.json({ error: `Failed to clear source: ${clearErr.message}` }, { status: 500 })
-    }
-
-    // Step 2: Fill the target slot
-    const ownershipStatus = copy.is_proxy ? 'proxy' : 'original'
-    const { error: fillErr } = await supabase
-      .from('deck_cards')
-      .update({ copy_id: physicalCopyId, ownership_status: ownershipStatus })
-      .eq('id', deckCardsId)
-
-    if (fillErr) {
-      return Response.json({ error: `Failed to fill target: ${fillErr.message}` }, { status: 500 })
-    }
-
-    return Response.json({ success: true })
+    const result = assertAtomicRpcSuccess(data, 'force_claim_copy')
+    return Response.json({ success: true, ...result })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     return Response.json({ error: message }, { status: 500 })

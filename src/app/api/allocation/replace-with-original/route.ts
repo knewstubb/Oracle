@@ -1,27 +1,20 @@
 /**
  * POST /api/allocation/replace-with-original
  *
- * Atomically replaces a proxy in a deck slot with a free original copy.
- * The slot's copy_id is updated in a single UPDATE (never empty),
- * and the outgoing proxy is moved to a chosen storage location.
+ * Atomically replaces a proxy in a deck slot with a free original copy and
+ * returns the outgoing proxy to storage.
  *
  * Body: {
- *   deckCardsId?: number              — the deck_cards row currently holding the proxy
- *   proxyCopyId?: number              — alternative: look up deck_cards by copy_id
- *   originalCopyId: number            — the free original copy to swap in
- *   proxyStorageLocationId: number | null — where the outgoing proxy goes (null = Unsorted)
+ *   deckCardsId?: number
+ *   proxyCopyId?: number
+ *   originalCopyId: number
+ *   proxyStorageLocationId: number | null
  * }
- *
- * Returns: { success: true }
- *
- * Guarantees:
- * - Deck completeness never transiently drops (single UPDATE swaps copy_id)
- * - The proxy is NOT deleted — it moves to the chosen storage location
- * - The slot's ownership_status becomes 'original'
  */
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
+import { assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 
 interface ReplaceBody {
   deckCardsId?: number
@@ -42,16 +35,18 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { deckCardsId: providedDeckCardsId, proxyCopyId: bodyProxyCopyId, originalCopyId, proxyStorageLocationId } = body
+  const {
+    deckCardsId: providedDeckCardsId,
+    proxyCopyId: bodyProxyCopyId,
+    originalCopyId,
+    proxyStorageLocationId,
+  } = body
 
-  if (!originalCopyId) {
-    return Response.json(
-      { error: 'originalCopyId is required' },
-      { status: 400 }
-    )
+  if (typeof originalCopyId !== 'number') {
+    return Response.json({ error: 'originalCopyId is required' }, { status: 400 })
   }
 
-  if (!providedDeckCardsId && !bodyProxyCopyId) {
+  if (providedDeckCardsId == null && bodyProxyCopyId == null) {
     return Response.json(
       { error: 'Either deckCardsId or proxyCopyId is required' },
       { status: 400 }
@@ -66,119 +61,67 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createAdminClient()
+  let deckCardsId = providedDeckCardsId
 
   try {
-    // Resolve deckCardsId — either provided directly or looked up via proxyCopyId
-    let deckCardsId = providedDeckCardsId
-    if (!deckCardsId && bodyProxyCopyId) {
-      const { data: dcRow, error: dcLookupErr } = await supabase
+    if (deckCardsId == null && bodyProxyCopyId != null) {
+      const { data: deckCard, error: lookupError } = await supabase
         .from('deck_cards')
         .select('id')
         .eq('copy_id', bodyProxyCopyId)
         .eq('user_id', userId)
         .maybeSingle()
 
-      if (dcLookupErr || !dcRow) {
+      if (lookupError) {
+        return Response.json({ error: lookupError.message }, { status: 500 })
+      }
+      if (!deckCard) {
         return Response.json({ error: 'Could not find deck slot for this proxy' }, { status: 404 })
       }
-      deckCardsId = dcRow.id
+      deckCardsId = deckCard.id
     }
 
-    if (!deckCardsId) {
+    if (deckCardsId == null) {
       return Response.json({ error: 'Could not resolve deck cards ID' }, { status: 400 })
     }
 
-    // 1. Verify the deck_cards row belongs to this user and currently holds a proxy
-    const { data: deckCard, error: dcErr } = await supabase
-      .from('deck_cards')
-      .select('id, deck_id, copy_id, ownership_status, user_id')
-      .eq('id', deckCardsId)
-      .eq('user_id', userId)
-      .maybeSingle()
+    const { data, error: rpcError } = await supabase.rpc('replace_proxy_with_original', {
+      p_deck_card_id: deckCardsId,
+      p_original_copy_id: originalCopyId,
+      p_proxy_storage_location_id: proxyStorageLocationId,
+      p_user_id: userId,
+    })
 
-    if (dcErr || !deckCard) {
-      return Response.json({ error: 'Deck card slot not found' }, { status: 404 })
+    if (rpcError) {
+      if (rpcError.message.includes('proxy_slot_not_found') || rpcError.message.includes('proxy_copy_not_found')) {
+        return Response.json({ error: 'Proxy deck slot not found' }, { status: 404 })
+      }
+      if (rpcError.message.includes('original_copy_not_found')) {
+        return Response.json({ error: 'Original copy not found' }, { status: 404 })
+      }
+      if (rpcError.message.includes('storage_location_not_found')) {
+        return Response.json({ error: 'Storage location not found' }, { status: 404 })
+      }
+      if (rpcError.message.includes('replacement_copy_is_proxy')) {
+        return Response.json(
+          { error: 'Target copy is also a proxy — must be an original' },
+          { status: 400 }
+        )
+      }
+      if (
+        rpcError.message.includes('replacement_copy_already_assigned') ||
+        rpcError.message.includes('replacement_copy_missing')
+      ) {
+        return Response.json(
+          { error: 'Original copy is unavailable for replacement' },
+          { status: 409 }
+        )
+      }
+      return Response.json({ error: `Replacement failed: ${rpcError.message}` }, { status: 500 })
     }
 
-    if (deckCard.ownership_status !== 'proxy' || !deckCard.copy_id) {
-      return Response.json(
-        { error: 'Slot does not contain a proxy — cannot replace' },
-        { status: 409 }
-      )
-    }
-
-    const outgoingProxyId = deckCard.copy_id
-
-    // 2. Verify the original copy exists, belongs to this user, and is NOT a proxy
-    const { data: originalCopy, error: ocErr } = await supabase
-      .from('user_copies')
-      .select('id, is_proxy')
-      .eq('id', originalCopyId)
-      .eq('user_id', userId)
-      .maybeSingle()
-
-    if (ocErr || !originalCopy) {
-      return Response.json({ error: 'Original copy not found' }, { status: 404 })
-    }
-
-    if (originalCopy.is_proxy) {
-      return Response.json(
-        { error: 'Target copy is also a proxy — must be an original' },
-        { status: 400 }
-      )
-    }
-
-    // 3. Verify the original is free (not assigned to any deck)
-    const { data: assignedSlots, error: asErr } = await supabase
-      .from('deck_cards')
-      .select('id')
-      .eq('copy_id', originalCopyId)
-      .limit(1)
-
-    if (asErr) {
-      return Response.json({ error: `Check failed: ${asErr.message}` }, { status: 500 })
-    }
-
-    if (assignedSlots && assignedSlots.length > 0) {
-      return Response.json(
-        { error: 'Original copy is already assigned to a deck — not free' },
-        { status: 409 }
-      )
-    }
-
-    // 4. ATOMIC SWAP: Update deck_cards to point to the original (single UPDATE)
-    //    This ensures the slot is never empty between unlink and relink.
-    const { error: swapErr } = await supabase
-      .from('deck_cards')
-      .update({
-        copy_id: originalCopyId,
-        ownership_status: 'original',
-      })
-      .eq('id', deckCardsId)
-
-    if (swapErr) {
-      return Response.json(
-        { error: `Swap failed: ${swapErr.message}` },
-        { status: 500 }
-      )
-    }
-
-    // 5. Move the outgoing proxy to the chosen storage location
-    const { error: moveErr } = await supabase
-      .from('user_copies')
-      .update({
-        location_id: proxyStorageLocationId,
-      })
-      .eq('id', outgoingProxyId)
-
-    if (moveErr) {
-      // The swap already succeeded — log but don't fail the whole operation
-      console.error(
-        `[replace-with-original] Swap succeeded but proxy storage move failed: ${moveErr.message}`
-      )
-    }
-
-    return Response.json({ success: true })
+    const result = assertAtomicRpcSuccess(data, 'replace_proxy_with_original')
+    return Response.json({ success: true, ...result })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     return Response.json({ error: message }, { status: 500 })

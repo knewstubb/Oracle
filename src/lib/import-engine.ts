@@ -19,15 +19,15 @@
  */
 
 import { createAdminClient } from '@/lib/supabase'
+import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
+import type { Json } from '@/types/supabase'
 
 import {
   type ParsedCSVRow,
-  type ResolvedRow,
   type UnmatchedRowDetail,
   type UnmatchedReason,
   resolveIdentities,
 } from './identity-resolver'
-import { ensureCardDefinition, setPhysicalCopyState } from './card-identity-store'
 import type { ScryfallBulkIndex } from './scryfall-bulk-cache'
 
 // Re-export types used by consumers
@@ -219,6 +219,11 @@ export async function executeCollectionImport(
   options: ImportOptions
 ): Promise<ImportSummary> {
   const startTime = Date.now()
+  const userId = options.userId?.trim()
+
+  if (!userId) {
+    throw new Error('No user ID provided for collection import')
+  }
 
   // -------------------------------------------------------------------------
   // Stage 1: Parse CSV
@@ -259,16 +264,12 @@ export async function executeCollectionImport(
   // Stages 3–4: Upsert + Soft-delete (chunked processing)
   // -------------------------------------------------------------------------
   let created = 0
-  let updatedQuantity = 0
-  let updatedCondition = 0
-  let unchanged = 0
-  let softDeleted = 0
+  const updatedQuantity = 0
+  const updatedCondition = 0
+  const unchanged = 0
+  const softDeleted = 0
   const batchErrors: string[] = []
 
-  const touchedIds = new Set<number>()
-
-  // Stage 3: Bulk insert resolved rows
-  // Post-migration: batch-insert user_cards and user_copies in large chunks.
   const supabaseImport = createAdminClient()
 
   // 3a: Collect unique oracle_ids and ensure user_cards exist (batched)
@@ -281,10 +282,14 @@ export async function executeCollectionImport(
 
   // Pre-fetch ALL existing user_cards for this user in one query
   const cardDefMap = new Map<string, number>() // oracle_id → user_cards.id
-  const { data: existingDefs } = await supabaseImport
+  const { data: existingDefs, error: existingDefsError } = await supabaseImport
     .from('user_cards')
     .select('id, oracle_id')
-    .eq('user_id', options.userId ?? '')
+    .eq('user_id', userId)
+
+  if (existingDefsError) {
+    throw new Error(`Failed to read user card definitions: ${existingDefsError.message}`)
+  }
 
   for (const def of existingDefs ?? []) {
     cardDefMap.set(def.oracle_id, def.id)
@@ -298,34 +303,29 @@ export async function executeCollectionImport(
     const defInsertChunks = chunk(missingDefs.map(d => ({
       oracle_id: d.oracleId,
       card_name: d.cardName,
-      user_id: options.userId ?? '',
+      user_id: userId,
     })), BATCH_SIZE)
 
     for (const defBatch of defInsertChunks) {
       const { data: inserted, error: defErr } = await supabaseImport
         .from('user_cards')
-        .upsert(defBatch as any, { onConflict: 'oracle_id' })
+        .upsert(defBatch, { onConflict: 'oracle_id,user_id' })
         .select('id, oracle_id')
 
       if (defErr) {
-        batchErrors.push(`user_cards upsert: ${defErr.message}`)
-      } else {
-        for (const row of inserted ?? []) {
-          cardDefMap.set(row.oracle_id, row.id)
-        }
+        throw new Error(`Failed to upsert user card definitions: ${defErr.message}`)
+      }
+
+      for (const row of inserted ?? []) {
+        cardDefMap.set(row.oracle_id, row.id)
       }
     }
   }
 
-  // 3b: Build user_copies insert payload (one row per instance)
-  const copyRows: Array<{
-    card_id: number
-    printing_id: string
-    finish: string | null
-    is_proxy: boolean
-    condition: string | null
-    user_id: string
-  }> = []
+  // 3b: Build user_copies insert payload (one row per instance).
+  // The atomic RPC resolves null locations to the user's default storage
+  // location and validates every card reference before inserting anything.
+  const copyRows: Array<{ [key: string]: Json | undefined }> = []
 
   for (const row of resolved) {
     const cardId = cardDefMap.get(row.oracleId)
@@ -335,30 +335,36 @@ export async function executeCollectionImport(
       copyRows.push({
         card_id: cardId,
         printing_id: row.scryfallPrintingId,
-        finish: row.isFoil ? 'foil' : 'normal',
+        finish: row.isFoil ? 'foil' : 'nonfoil',
         is_proxy: false,
-        condition: row.condition ?? null,
-        user_id: options.userId ?? '',
+        card_condition: row.condition ?? null,
+        location_id: null,
       })
     }
   }
 
-  // 3c: Bulk insert user_copies in chunks of 500
-  const insertChunks = chunk(copyRows, BATCH_SIZE)
-  for (const insertBatch of insertChunks) {
-    try {
-      const { error: insertErr } = await supabaseImport
-        .from('user_copies')
-        .insert(insertBatch)
-
-      if (insertErr) {
-        batchErrors.push(`user_copies insert: ${insertErr.message}`)
-      } else {
-        created += insertBatch.length
+  // 3c: Insert every copy through one transaction boundary. Do not fall back
+  // to direct table writes if the RPC is unavailable or rejects the payload.
+  if (copyRows.length > 0) {
+    const { data: insertResult, error: insertError } = await supabaseImport.rpc(
+      'insert_user_copies',
+      {
+        p_user_id: userId,
+        p_rows: copyRows,
       }
-    } catch (err) {
-      batchErrors.push(`user_copies insert: ${err instanceof Error ? err.message : String(err)}`)
+    )
+
+    if (insertError) {
+      throw new Error(`Atomic user_copies insert failed: ${insertError.message}`)
     }
+
+    const insertedCount = assertAtomicRpcCount(
+      assertAtomicRpcSuccess(insertResult, 'insert_user_copies'),
+      'inserted_count',
+      'insert_user_copies',
+      copyRows.length
+    )
+    created = insertedCount
   }
 
   // 3d: oracle_to_printings caching is no longer needed — ref_printings has all data
@@ -374,7 +380,7 @@ export async function executeCollectionImport(
   //
   // The V1 upsert mode is now purely additive: it creates/updates but never deletes.
   // if (resolved.length > 0 && touchedIds.size > 0) {
-  //   softDeleted = await softDeleteAbsentCopies(touchedIds, options.userId ?? '')
+  //   softDeleted = await softDeleteAbsentCopies(touchedIds, userId)
   // }
 
   // -------------------------------------------------------------------------
@@ -440,16 +446,22 @@ async function softDeleteAbsentCopies(touchedIds: Set<number>, userId: string): 
   const deleteChunks = chunk(toDelete, BATCH_SIZE)
 
   for (const batch of deleteChunks) {
-    const { error: deleteError } = await supabase
-      .from('user_copies')
-      .delete()
-      .in('id', batch)
+    const { data: deleteResult, error: deleteError } = await (supabase.rpc as any)('delete_user_copies', {
+      p_copy_ids: batch,
+      p_user_id: userId,
+    })
 
     if (deleteError) {
-      throw new Error(`Failed to delete user_copies batch: ${deleteError.message}`)
+      throw new Error(`Failed to delete user_copies batch atomically: ${deleteError.message}`)
     }
 
-    totalDeleted += batch.length
+    const result = assertAtomicRpcSuccess(deleteResult, 'delete_user_copies')
+    totalDeleted += assertAtomicRpcCount(
+      result,
+      'deleted_count',
+      'delete_user_copies',
+      batch.length
+    )
   }
 
   return totalDeleted

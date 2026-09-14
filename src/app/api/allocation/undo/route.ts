@@ -14,6 +14,7 @@
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
+import { assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 
 interface UndoBody {
   deckCardsId: number
@@ -43,90 +44,37 @@ export async function POST(request: NextRequest) {
 
   const supabase = createAdminClient()
 
-  // ─── Case 1: restoreTo is null — card goes back to free/storage ────
-  if (!restoreTo) {
-    // Clear the current assignment
-    const { error: clearErr } = await supabase
-      .from('deck_cards')
-      .update({
-        copy_id: null,
-        ownership_status: null,
+  const { data, error: rpcErr } = await (supabase.rpc as any)('undo_copy_move', {
+    p_current_deck_card_id: deckCardsId,
+    p_copy_id: physicalCopyId,
+    p_restore_deck_card_id: restoreTo?.deckCardsId ?? null,
+    p_user_id: authResult.id,
+  })
+
+  if (rpcErr) {
+    if (rpcErr.message?.includes('slot_claimed_elsewhere')) {
+      return Response.json({
+        success: false,
+        reason: 'slot_claimed_elsewhere',
       })
-      .eq('id', deckCardsId)
-
-    if (clearErr) {
-      return Response.json(
-        { error: `Failed to clear assignment: ${clearErr.message}` },
-        { status: 500 }
-      )
     }
-
-    return Response.json({ success: true })
+    if (rpcErr.message?.includes('copy_not_found') || rpcErr.message?.includes('target_not_found')) {
+      return Response.json({ error: 'Copy or current slot not found' }, { status: 404 })
+    }
+    if (rpcErr.message?.includes('restore_target_not_found')) {
+      return Response.json({ error: 'Restore target not found' }, { status: 404 })
+    }
+    if (rpcErr.message?.includes('current_assignment_mismatch')) {
+      return Response.json({ error: 'The assignment has changed; undo is no longer available' }, { status: 409 })
+    }
+    return Response.json({ error: `Undo failed: ${rpcErr.message}` }, { status: 500 })
   }
 
-  // ─── Case 2: restoreTo has a deckCardsId — restore to prior location ─
-  // Check that the restore target's copy_id is still null
-  const { data: targetRow, error: targetErr } = await supabase
-    .from('deck_cards')
-    .select('id, copy_id')
-    .eq('id', restoreTo.deckCardsId)
-    .single()
-
-  if (targetErr) {
-    return Response.json(
-      { error: `Failed to check restore target: ${targetErr.message}` },
-      { status: 500 }
-    )
+  try {
+    const result = assertAtomicRpcSuccess(data, 'undo_copy_move')
+    return Response.json({ success: true, ...result })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return Response.json({ error: message }, { status: 500 })
   }
-
-  // If the slot has been filled by something else, block the undo
-  if (targetRow.copy_id !== null) {
-    return Response.json({
-      success: false,
-      reason: 'slot_claimed_elsewhere',
-    })
-  }
-
-  // Determine ownership_status for the restored copy
-  const { data: copyInfo } = await supabase
-    .from('user_copies')
-    .select('is_proxy')
-    .eq('id', physicalCopyId)
-    .single()
-
-  const ownershipStatus = copyInfo?.is_proxy ? 'proxy' : 'original'
-
-  // Clear the current assignment
-  const { error: clearErr } = await supabase
-    .from('deck_cards')
-    .update({
-      copy_id: null,
-      ownership_status: null,
-    })
-    .eq('id', deckCardsId)
-
-  if (clearErr) {
-    return Response.json(
-      { error: `Failed to clear current assignment: ${clearErr.message}` },
-      { status: 500 }
-    )
-  }
-
-  // Restore the physical copy to its original location
-  const { error: restoreErr } = await supabase
-    .from('deck_cards')
-    .update({
-      copy_id: physicalCopyId,
-      ownership_status: ownershipStatus,
-    })
-    .eq('id', restoreTo.deckCardsId)
-
-  if (restoreErr) {
-    return Response.json(
-      { error: `Failed to restore assignment: ${restoreErr.message}` },
-      { status: 500 }
-    )
-  }
-
-  return Response.json({ success: true })
 }

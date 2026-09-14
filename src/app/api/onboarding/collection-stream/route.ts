@@ -12,6 +12,7 @@
  */
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
+import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 import {
   fetchCollectionWithProgress,
   type ArchidektCollectionEntry,
@@ -189,16 +190,17 @@ export async function POST() {
         }
       }
 
-      // Step 5: Build user_copies rows
+      // Step 5: Build user_copies rows. The atomic RPC places all unsleeved
+      // copies in the default storage location in one transaction.
       let userCopiesCreated = 0
       const copyRows: Array<{
         card_id: number
         printing_id: string | null
         finish: string
         is_proxy: boolean
-        condition: string
+        card_condition: string
         source_tag: string
-        user_id: string
+        location_id: null
       }> = []
 
       for (const entry of entries) {
@@ -220,35 +222,38 @@ export async function POST() {
             printing_id: printingId,
             finish,
             is_proxy: false,
-            condition: 'near_mint',
+            card_condition: 'near_mint',
             source_tag: 'archidekt',
-            user_id: userId,
+            location_id: null,
           })
         }
       }
 
-      // Step 6: Insert user_copies in batches
-      const totalCopyBatches = Math.ceil(copyRows.length / BATCH_SIZE)
-      for (let i = 0; i < copyRows.length; i += BATCH_SIZE) {
-        const batchNum = Math.floor(i / BATCH_SIZE) + 1
+      if (copyRows.length > 0) {
         await sendProgress({
           phase: 'process',
-          current: i,
+          current: 0,
           total: copyRows.length,
-          message: `Importing copies (batch ${batchNum}/${totalCopyBatches}, ${copyRows.length.toLocaleString()} total)…`,
+          message: `Importing ${copyRows.length.toLocaleString()} copies atomically…`,
         })
 
-        const batch = copyRows.slice(i, i + BATCH_SIZE)
-        const { error: copyErr } = await supabase
-          .from('user_copies')
-          .insert(batch as any)
+        const { data, error: copyErr } = await supabase.rpc('insert_user_copies', {
+          p_user_id: userId,
+          p_rows: copyRows,
+        })
 
         if (copyErr) {
-          console.error('[collection-stream] user_copies insert error:', copyErr)
-          errors.push(`user_copies batch at offset ${i}: ${copyErr.message}`)
-        } else {
-          userCopiesCreated += batch.length
+          throw new Error(`Atomic collection insert failed: ${copyErr.message}`)
         }
+
+        const result = assertAtomicRpcSuccess(data, 'insert_user_copies')
+        const insertedCount = assertAtomicRpcCount(
+          result,
+          'inserted_count',
+          'insert_user_copies',
+          copyRows.length
+        )
+        userCopiesCreated = insertedCount
       }
 
       await sendProgress({

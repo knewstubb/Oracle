@@ -55,15 +55,19 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Update deck_cards: clear copy_id and ownership_status
-  // If no deck_cards reference this copy_id, this is a no-op (still success)
-  const { error: updateErr } = await supabase
-    .from('deck_cards')
-    .update({ copy_id: null, ownership_status: null })
-    .eq('copy_id', copyId)
+  const { error: rpcErr } = await (supabase.rpc as any)('unassign_copy_to_storage', {
+    p_copy_id: copyId,
+    p_user_id: userId,
+  })
 
-  if (updateErr) {
-    return Response.json({ error: updateErr.message }, { status: 500 })
+  if (rpcErr) {
+    if (rpcErr.message?.includes('copy_not_found')) {
+      return Response.json(
+        { error: 'Copy not found or does not belong to user' },
+        { status: 404 }
+      )
+    }
+    return Response.json({ error: rpcErr.message }, { status: 500 })
   }
 
   return Response.json({ success: true, copyId })

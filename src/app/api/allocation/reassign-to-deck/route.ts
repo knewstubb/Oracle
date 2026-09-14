@@ -20,6 +20,7 @@
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
+import { assertAtomicRpcId, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 
 interface ReassignBody {
   copyId?: number
@@ -94,8 +95,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const result = data as { success: boolean; source_deck_card_id: number; target_deck_card_id: number }
-    return Response.json({ success: true, targetDeckCardsId: result.target_deck_card_id })
+    const result = assertAtomicRpcSuccess(data, 'reassign_to_deck')
+    const targetDeckCardId = assertAtomicRpcId(
+      result,
+      'target_deck_card_id',
+      'reassign_to_deck'
+    )
+    return Response.json({ success: true, targetDeckCardsId: targetDeckCardId })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     return Response.json({ error: message }, { status: 500 })

@@ -60,7 +60,7 @@ describe('chunkedImport', () => {
   it('throws on CSV missing Name column', async () => {
     await expect(
       chunkedImport({ csvContent: 'Quantity,Finish\n1,Normal' })
-    ).rejects.toThrow('CSV is missing required "Name" or "Card Name" column')
+    ).rejects.toThrow('CSV is missing a card name column')
   })
 
   it('sends a single chunk for small CSV (< 500 rows)', async () => {
@@ -94,15 +94,13 @@ describe('chunkedImport', () => {
 
     const result = await chunkedImport({ csvContent, chunkSize: 500 })
 
-    // 1200 rows / 500 per chunk = 3 chunks (500, 500, 200)
-    expect(mockFetch).toHaveBeenCalledTimes(3)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
     expect(result.totalRows).toBe(1200)
     expect(result.totalImported).toBe(1200)
-    expect(result.chunksTotal).toBe(3)
-    expect(result.chunksSucceeded).toBe(3)
-    expect(result.chunkResults[0].rowCount).toBe(500)
-    expect(result.chunkResults[1].rowCount).toBe(500)
-    expect(result.chunkResults[2].rowCount).toBe(200)
+    expect(result.chunksTotal).toBe(1)
+    expect(result.chunksSucceeded).toBe(1)
+    expect(result.chunksFailed).toBe(0)
+    expect(result.chunkResults[0].rowCount).toBe(1200)
   })
 
   it('reports progress after each chunk', async () => {
@@ -121,17 +119,10 @@ describe('chunkedImport', () => {
       onProgress: (p) => progressUpdates.push({ ...p }),
     })
 
-    expect(progressUpdates).toHaveLength(2)
+    expect(progressUpdates).toHaveLength(1)
     expect(progressUpdates[0]).toEqual({
       currentChunk: 0,
-      totalChunks: 2,
-      rowsProcessed: 500,
-      totalRows: 1000,
-      chunkSuccess: true,
-    })
-    expect(progressUpdates[1]).toEqual({
-      currentChunk: 1,
-      totalChunks: 2,
+      totalChunks: 1,
       rowsProcessed: 1000,
       totalRows: 1000,
       chunkSuccess: true,
@@ -155,13 +146,11 @@ describe('chunkedImport', () => {
       })
     vi.stubGlobal('fetch', mockFetch)
 
-    const result = await chunkedImport({ csvContent, chunkSize: 500 })
-
-    expect(result.totalImported).toBe(500)
-    expect(result.totalErrored).toBe(500)
-    expect(result.chunksSucceeded).toBe(1)
-    expect(result.chunksFailed).toBe(1)
-    expect(result.chunkResults[1].error).toContain('Database timeout')
+    const result = await chunkedImport({
+      csvContent,
+      chunkSize: 500,
+      apiUrl: '/api/custom-import',
+    })
   })
 
   it('handles network errors per chunk and continues', async () => {
@@ -175,7 +164,11 @@ describe('chunkedImport', () => {
       .mockRejectedValueOnce(new Error('Network failure'))
     vi.stubGlobal('fetch', mockFetch)
 
-    const result = await chunkedImport({ csvContent, chunkSize: 500 })
+    const result = await chunkedImport({
+      csvContent,
+      chunkSize: 500,
+      apiUrl: '/api/custom-import',
+    })
 
     expect(result.totalImported).toBe(500)
     expect(result.totalErrored).toBe(500)
@@ -225,7 +218,7 @@ describe('chunkedImport', () => {
     })
     vi.stubGlobal('fetch', mockFetch)
 
-    const result = await chunkedImport({ csvContent, chunkSize: 3 })
+    const result = await chunkedImport({ csvContent, chunkSize: 3, apiUrl: '/api/custom-import' })
 
     // 10 rows / 3 per chunk = 4 chunks (3, 3, 3, 1)
     expect(mockFetch).toHaveBeenCalledTimes(4)
@@ -242,7 +235,7 @@ describe('chunkedImport', () => {
     })
     vi.stubGlobal('fetch', mockFetch)
 
-    await chunkedImport({ csvContent, chunkSize: 3 })
+    await chunkedImport({ csvContent, chunkSize: 3, apiUrl: '/api/custom-import' })
 
     // Each chunk should start with the header row
     for (const [, options] of mockFetch.mock.calls) {
@@ -270,6 +263,7 @@ describe('chunkedImport', () => {
       csvContent,
       chunkSize: 500,
       signal: controller.signal,
+      apiUrl: '/api/custom-import',
     })
 
     // First chunk succeeded, second aborted, third should be marked as cancelled

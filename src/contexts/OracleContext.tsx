@@ -565,35 +565,39 @@ export function OracleProvider({ children }: { children: ReactNode }) {
                 }
               } else if (parsed.type === 'add_cards' && parsed.cards && activeContext.deckId) {
                 const cards = parsed.cards as Array<{ name: string; category: string }>
-                for (const card of cards) {
-                  try {
-                    await fetch(`/api/decks/${activeContext.deckId}/cards`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        cardName: card.name,
-                        quantity: 1,
+                try {
+                  const response = await fetch(`/api/decks/${activeContext.deckId}/cards/batch`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      additions: cards.map((card) => ({
+                        name: card.name,
                         category: card.category,
-                      }),
-                    })
-                  } catch (cardErr) {
-                    console.error(`[Oracle] Failed to add card ${card.name}:`, cardErr)
+                        quantity: 1,
+                      })),
+                    }),
+                  })
+                  if (!response.ok) {
+                    throw new Error(await response.text())
                   }
+                } catch (cardErr) {
+                  console.error('[Oracle] Failed to apply added cards atomically:', cardErr)
                 }
                 queryClient.invalidateQueries({ queryKey: ['decks', activeContext.deckId] })
                 queryClient.invalidateQueries({ queryKey: ['decks', activeContext.deckId, 'card-statuses'] })
               } else if (parsed.type === 'remove_cards' && parsed.cards && activeContext.deckId) {
                 const cards = parsed.cards as Array<{ name: string }>
-                for (const card of cards) {
-                  try {
-                    await fetch(`/api/decks/${activeContext.deckId}/cards`, {
-                      method: 'DELETE',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ cardName: card.name }),
-                    })
-                  } catch (cardErr) {
-                    console.error(`[Oracle] Failed to remove card ${card.name}:`, cardErr)
+                try {
+                  const response = await fetch(`/api/decks/${activeContext.deckId}/cards/batch`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ removeCards: cards }),
+                  })
+                  if (!response.ok) {
+                    throw new Error(await response.text())
                   }
+                } catch (cardErr) {
+                  console.error('[Oracle] Failed to apply removed cards atomically:', cardErr)
                 }
                 queryClient.invalidateQueries({ queryKey: ['decks', activeContext.deckId] })
                 queryClient.invalidateQueries({ queryKey: ['decks', activeContext.deckId, 'card-statuses'] })

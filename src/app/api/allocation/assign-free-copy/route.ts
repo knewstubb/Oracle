@@ -20,6 +20,7 @@
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
+import { assertAtomicRpcId, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth()
@@ -87,8 +88,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const result = data as { success: boolean; deck_card_id: number }
-    return Response.json({ success: true, deckCardsId: result.deck_card_id })
+    const result = assertAtomicRpcSuccess(data, 'assign_free_copy')
+    const deckCardId = assertAtomicRpcId(result, 'deck_card_id', 'assign_free_copy')
+    return Response.json({ success: true, deckCardsId: deckCardId })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     return Response.json({ error: message }, { status: 500 })

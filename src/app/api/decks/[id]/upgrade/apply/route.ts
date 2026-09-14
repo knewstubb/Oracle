@@ -11,6 +11,7 @@
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
+import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 import { formatChangeLogEntry } from '@/lib/upgrade-changelog'
 
 async function appendNote(deckId: number, content: string, userId: string): Promise<void> {
@@ -67,17 +68,45 @@ export async function POST(
     )
   }
 
-  // DELETE the cut card from deck_cards for this deck
-  await supabase
+  // Replace the cut/add composition through the atomic delta RPC. If any cut
+  // slot is sleeved, its copy returns to storage in the same transaction.
+  const { data: cutRows, error: cutErr } = await supabase
     .from('deck_cards')
-    .delete()
+    .select('id')
     .eq('deck_id', deckId)
+    .eq('user_id', userId)
     .eq('card_name', cut)
 
-  // INSERT the add card into deck_cards for this deck
-  await supabase
-    .from('deck_cards')
-    .insert({ deck_id: deckId, card_name: add, quantity: 1, user_id: userId })
+  if (cutErr) {
+    return Response.json({ error: cutErr.message }, { status: 500 })
+  }
+
+  const { data: deltaResult, error: deltaErr } = await (supabase.rpc as any)('apply_ai_deck_delta', {
+    p_deck_id: deckId,
+    p_user_id: userId,
+    p_additions: [{
+      card_name: add,
+      scryfall_id: null,
+      set_code: null,
+      categories: null,
+      quantity: 1,
+      is_commander: false,
+    }],
+    p_remove_deck_card_ids: (cutRows ?? []).map((row) => row.id),
+  })
+
+  if (deltaErr) {
+    return Response.json({ error: `Failed to apply upgrade: ${deltaErr.message}` }, { status: 500 })
+  }
+
+  try {
+    const result = assertAtomicRpcSuccess(deltaResult, 'apply_ai_deck_delta')
+    assertAtomicRpcCount(result, 'added_count', 'apply_ai_deck_delta', 1)
+    assertAtomicRpcCount(result, 'removed_count', 'apply_ai_deck_delta', (cutRows ?? []).length)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return Response.json({ error: message }, { status: 500 })
+  }
 
   // INSERT into upgrade_change_log with skipped = false
   const today = new Date().toISOString().split('T')[0]

@@ -29,34 +29,35 @@ export async function GET(
 
   const supabase = createAdminClient()
 
-  // Step 1: Resolve card_definition IDs from oracle_id
-  const { data: cardDefs, error: cdErr } = await (supabase as any)
-    .from('card_definitions')
+  // Step 1: Resolve user_cards IDs from the oracle_id
+  const { data: cards, error: cardErr } = await supabase
+    .from('user_cards')
     .select('id')
     .eq('oracle_id', oracleId)
+    .eq('user_id', userId)
 
-  if (cdErr) {
-    return Response.json({ error: cdErr.message }, { status: 500 })
+  if (cardErr) {
+    return Response.json({ error: cardErr.message }, { status: 500 })
   }
 
-  if (!cardDefs || cardDefs.length === 0) {
+  if (!cards || cards.length === 0) {
     return Response.json({ oracleId, physicalCopyIds: [] })
   }
 
-  const cardDefIds = cardDefs.map((cd: { id: number }) => cd.id)
+  const cardIds = cards.map((card) => card.id)
 
-  // Step 2: Get physical_copies IDs for those card_definition_ids belonging to the user
-  const { data: copies, error: pcErr } = await (supabase as any)
-    .from('physical_copies')
+  // Step 2: Get current-schema user_copies IDs for this user's card identities
+  const { data: copies, error: copyErr } = await supabase
+    .from('user_copies')
     .select('id')
-    .in('card_definition_id', cardDefIds)
+    .in('card_id', cardIds)
     .eq('user_id', userId)
 
-  if (pcErr) {
-    return Response.json({ error: pcErr.message }, { status: 500 })
+  if (copyErr) {
+    return Response.json({ error: copyErr.message }, { status: 500 })
   }
 
-  const physicalCopyIds = (copies || []).map((pc: { id: number }) => pc.id)
+  const physicalCopyIds = (copies || []).map((copy) => copy.id)
 
   return Response.json({ oracleId, physicalCopyIds })
 }

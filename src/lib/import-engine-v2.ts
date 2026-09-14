@@ -13,16 +13,17 @@
  */
 
 import { createAdminClient } from '@/lib/supabase'
+import type { Json } from '@/types/supabase'
 import { detectSourceTag } from '@/lib/csv-normalizer'
 import {
   resolveOracleIdFromPrinting,
   ensureOracleToPrintingMapping,
   batchResolveOracleIds,
   mapCondition,
-  mapFinishToFoil,
   mapFinishToFinishString,
 } from '@/lib/identity-resolver'
 import { ensureCardDefinition } from '@/lib/card-identity-store'
+import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -38,51 +39,21 @@ function parsePurchasePrice(raw: string | undefined): number | null {
 }
 
 /**
- * Resolve the user's default storage location id, creating one if none exists.
- *
- * Imported copies are placed here so that every owned-but-unsleeved copy has a
- * real location (the one-location invariant) instead of a NULL "unsorted" state.
- * Returns null only if the lookup/creation fails, in which case callers fall
- * back to leaving location_id unset rather than aborting the import.
+ * Resolve the user's default storage location id through the atomic database
+ * helper. A null result is returned only for compatibility with callers that
+ * turn the failure into a user-visible error; no caller may insert locationless
+ * storage copies after this fails.
  */
-async function resolveDefaultLocationId(
+export async function resolveDefaultLocationId(
   supabase: ReturnType<typeof createAdminClient>,
   userId: string
 ): Promise<number | null> {
-  // The user_locations is_default/type columns are newer than the generated
-  // Supabase types, so this table access is cast like other writes in this file.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const locations = () => (supabase as any).from('user_locations')
+  const { data, error } = await supabase.rpc('_ensure_default_storage_location_id', {
+    p_user_id: userId,
+  })
 
-  const existing = await locations()
-    .select('id')
-    .eq('user_id', userId)
-    .eq('type', 'storage')
-    .eq('is_default', true)
-    .limit(1)
-    .maybeSingle()
-
-  if (existing.data?.id != null) return existing.data.id as number
-
-  // No default yet — create the canonical "Unsorted" default storage location.
-  const created = await locations()
-    .insert({
-      name: 'Unsorted',
-      type: 'storage',
-      deck_id: null,
-      color: '#6B7280',
-      sort_order: 0,
-      user_id: userId,
-      is_default: true,
-    })
-    .select('id')
-    .single()
-
-  if (created.error || created.data?.id == null) {
-    // Non-fatal: fall back to leaving location unset; a later backfill can fix it.
-    return null
-  }
-  return created.data.id as number
+  if (error || typeof data !== 'number') return null
+  return data
 }
 
 // ---------------------------------------------------------------------------
@@ -91,7 +62,7 @@ async function resolveDefaultLocationId(
 
 export interface ImportEngineV2Options {
   csvContent: string
-  mode: 'add' | 'sync'
+  mode: 'add' | 'sync' | 'replace'
   userId: string
   signal?: AbortSignal
 }
@@ -697,6 +668,38 @@ function chunk<T>(array: T[], size: number): T[][] {
   return chunks
 }
 
+async function fetchAllUserCopies(
+  userId: string,
+  sourceTag?: string
+): Promise<Array<{ id: number; printing_id: string | null; finish: string | null; is_proxy: boolean; condition: string | null; card_id: number }>> {
+  const supabase = createAdminClient()
+  const pageSize = 1000
+  const rows: Array<{ id: number; printing_id: string | null; finish: string | null; is_proxy: boolean; condition: string | null; card_id: number }> = []
+  let offset = 0
+
+  while (true) {
+    let query = supabase
+      .from('user_copies')
+      .select('id, printing_id, finish, is_proxy, condition, card_id')
+      .eq('user_id', userId)
+      .order('id', { ascending: true })
+      .range(offset, offset + pageSize - 1)
+
+    if (sourceTag !== undefined) {
+      query = query.eq('source_tag', sourceTag)
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+
+    rows.push(...(data ?? []))
+    if (!data || data.length < pageSize) break
+    offset += pageSize
+  }
+
+  return rows
+}
+
 // ---------------------------------------------------------------------------
 // Sync Mode — Source-Scoped Upsert
 // ---------------------------------------------------------------------------
@@ -805,31 +808,43 @@ async function executeSyncMode(
     })
   }
 
-  // -------------------------------------------------------------------
-  // Stage 4: Fetch existing collection copies for this user + source_tag
-  // -------------------------------------------------------------------
-  const supabase = createAdminClient()
-
-  // NOTE: source_tag was added in migration 007 but the generated supabase types
-  // haven't been regenerated yet. Cast query to `any` to allow the extra column filter.
-  const { data: existingCopies, error: fetchError } = await (supabase
-    .from('user_copies')
-    .select('id, printing_id, finish, is_proxy, condition, card_id')
-    .eq('user_id', options.userId) as any)
-    .eq('source_tag', sourceTag)
-
-  if (fetchError) {
+  if (errors.length > 0 || skipped > 0) {
     return {
       inserted: 0,
       skipped,
       removed: 0,
       sourceTag,
-      errors: [...errors, `Failed to fetch existing copies: ${fetchError.message}`],
+      errors: errors.length > 0
+        ? errors
+        : ['Sync aborted because one or more rows could not be resolved'],
       durationMs: Date.now() - startTime,
     }
   }
 
-  const existingRows = existingCopies ?? []
+  // -------------------------------------------------------------------
+  // Stage 4: Fetch every existing source copy, not just PostgREST's first page
+  // -------------------------------------------------------------------
+  let existingRows: Array<{
+    id: number
+    printing_id: string | null
+    finish: string | null
+    is_proxy: boolean
+    condition: string | null
+    card_id: number
+  }>
+  try {
+    existingRows = await fetchAllUserCopies(options.userId, sourceTag)
+  } catch (fetchError) {
+    const message = fetchError instanceof Error ? fetchError.message : String(fetchError)
+    return {
+      inserted: 0,
+      skipped,
+      removed: 0,
+      sourceTag,
+      errors: [...errors, `Failed to fetch existing copies: ${message}`],
+      durationMs: Date.now() - startTime,
+    }
+  }
 
   // -------------------------------------------------------------------
   // Stage 5: Build match maps to determine inserts and removals
@@ -870,30 +885,26 @@ async function executeSyncMode(
   // Stage 6: Determine inserts and removals
   // -------------------------------------------------------------------
 
-  // Rows to insert (in CSV but not enough in DB).
-  // New copies go to the user's default storage location (one-location invariant).
-  const syncDefaultLocationId = await resolveDefaultLocationId(supabase, options.userId)
-  const rowsToInsert: any[] = []
+  // Rows to insert (in CSV but not enough in DB). The RPC assigns the
+  // user's default storage location inside the same transaction.
+  const rowsToInsert: Array<{ [key: string]: Json | undefined }> = []
   for (const [printingId, demand] of csvDemandMap) {
     const dbCopies = dbSupplyMap.get(printingId) ?? []
     const deficit = demand.totalQuantity - dbCopies.length
     if (deficit > 0) {
       for (let i = 0; i < deficit; i++) {
-        const insertRow: Record<string, unknown> = {
+        const insertRow: { [key: string]: Json | undefined } = {
           card_id: demand.cardDefinitionId,
           printing_id: printingId,
           finish: demand.finish,
           is_proxy: demand.isProxy,
-          condition: demand.condition,
+          card_condition: demand.condition,
           source_tag: sourceTag,
-          location_id: syncDefaultLocationId,
-          user_id: options.userId,
+          location_id: null,
         }
-        // Pass through dateAdded as created_at if provided; otherwise DB defaults to NOW()
         if (demand.dateAdded) {
-          insertRow.created_at = demand.dateAdded
+          insertRow.acquired_at = demand.dateAdded
         }
-        // Pass through purchase price if provided
         if (demand.purchasePrice != null) {
           insertRow.purchase_price = demand.purchasePrice
         }
@@ -916,71 +927,37 @@ async function executeSyncMode(
   }
 
   // -------------------------------------------------------------------
-  // Stage 7: Before removing assigned copies, unlink from deck_cards
-  //
-  // Requirement 4.3: If a copy to be removed is currently assigned
-  // to a deck_cards row, set copy_id = NULL and
-  // ownership_status = NULL before deleting.
+  // Stage 7: Apply removals and inserts in one database transaction.
   // -------------------------------------------------------------------
-  if (copyIdsToRemove.length > 0) {
-    // Unlink any deck_cards rows that reference copies we're about to remove
-    const { error: unlinkError } = await supabase
-      .from('deck_cards')
-      .update({
-        copy_id: null,
-        ownership_status: null,
-      })
-      .in('copy_id', copyIdsToRemove)
-
-    if (unlinkError) {
-      errors.push(`Warning: failed to unlink deck_cards before removal: ${unlinkError.message}`)
-      // Continue with removal anyway — the FK constraint may prevent deletion
-      // but we should try
-    }
-  }
-
-  // -------------------------------------------------------------------
-  // Stage 8: Delete collection copies that are no longer in the CSV
-  // -------------------------------------------------------------------
-  let removed = 0
-  if (copyIdsToRemove.length > 0) {
-    // Delete in batches to avoid hitting query size limits
-    const deleteBatches = chunk(copyIdsToRemove, INSERT_BATCH_SIZE)
-    for (const batch of deleteBatches) {
-      const { error: deleteError, count } = await supabase
-        .from('user_copies')
-        .delete()
-        .in('id', batch)
-
-      if (deleteError) {
-        errors.push(`Failed to remove ${batch.length} collection copies: ${deleteError.message}`)
-      } else {
-        removed += count ?? batch.length
-      }
-    }
-  }
-
-  // -------------------------------------------------------------------
-  // Stage 9: Insert new collection copies
-  // -------------------------------------------------------------------
+  const supabase = createAdminClient()
   let inserted = 0
-  if (rowsToInsert.length > 0) {
-    const insertBatches = chunk(rowsToInsert, INSERT_BATCH_SIZE)
-    for (const batch of insertBatches) {
-      const { error: insertError } = await supabase
-        .from('user_copies')
-        .insert(batch)
+  let removed = 0
+  const { data: syncResult, error: syncError } = await supabase.rpc('apply_collection_sync', {
+    p_user_id: options.userId,
+    p_remove_copy_ids: copyIdsToRemove,
+    p_insert_rows: rowsToInsert,
+  })
 
-      if (insertError) {
-        errors.push(`Failed to insert ${batch.length} collection copies: ${insertError.message}`)
-      } else {
-        inserted += batch.length
-      }
-    }
+  if (syncError) {
+    throw new Error(`Atomic collection sync failed: ${syncError.message}`)
   }
 
+  const result = assertAtomicRpcSuccess(syncResult, 'Atomic collection sync')
+  inserted = assertAtomicRpcCount(
+    result,
+    'inserted_count',
+    'Atomic collection sync',
+    rowsToInsert.length
+  )
+  removed = assertAtomicRpcCount(
+    result,
+    'removed_count',
+    'Atomic collection sync',
+    copyIdsToRemove.length
+  )
+
   // -------------------------------------------------------------------
-  // Stage 10: Return summary
+  // Stage 8: Return summary
   // -------------------------------------------------------------------
   return {
     inserted,
@@ -1012,6 +989,8 @@ export async function executeInstanceLevelImport(
   if (options.mode === 'sync') {
     return executeSyncMode(options, startTime)
   }
+
+  const isReplaceMode = options.mode === 'replace'
 
   // -------------------------------------------------------------------
   // Stage 1: Detect source tag from CSV headers
@@ -1123,7 +1102,7 @@ export async function executeInstanceLevelImport(
           purchasePrice: parsePurchasePrice(row.purchasePrice),
         })
       } else {
-        // Couldn't resolve via DB — fall through to API resolution
+        // Couldn't resolve via DB — fall through to API resolution.
         needsApiResolution.push(row)
       }
     }
@@ -1148,12 +1127,19 @@ export async function executeInstanceLevelImport(
     }
 
     if (!identity) {
+      errors.push(
+        `Row ${row.rowIndex} (${row.name}): identity resolution failed — ` +
+        `set=${row.editionCode}, collector=${row.collectorNumber}, scryfall_id=${row.scryfallId}`
+      )
       skipped++
       continue
     }
 
     const oracleId = await resolveOracleIdFromPrinting(identity.scryfallPrintingId).catch(() => null)
     if (!oracleId) {
+      errors.push(
+        `Row ${row.rowIndex} (${row.name}): resolved printing has no oracle identity`
+      )
       skipped++
       continue
     }
@@ -1175,12 +1161,29 @@ export async function executeInstanceLevelImport(
     })
   }
 
+  if (errors.length > 0 || skipped > 0) {
+    return {
+      inserted: 0,
+      skipped,
+      removed: 0,
+      sourceTag,
+      errors: errors.length > 0
+        ? errors
+        : ['Import aborted because one or more rows could not be resolved'],
+      durationMs: Date.now() - startTime,
+    }
+  }
+
   // 3c: Pre-fetch ALL existing cards for this user in one query
   const cardMap = new Map<string, number>() // oracle_id → card_id
-  const { data: existingCards } = await supabase
+  const { data: existingCards, error: existingCardsError } = await supabase
     .from('user_cards')
     .select('id, oracle_id')
     .eq('user_id', options.userId)
+
+  if (existingCardsError) {
+    throw new Error(`Failed to read user card definitions: ${existingCardsError.message}`)
+  }
 
   for (const card of existingCards ?? []) {
     cardMap.set(card.oracle_id, card.id)
@@ -1208,15 +1211,15 @@ export async function executeInstanceLevelImport(
     for (const batch of cardBatches) {
       const { data: inserted, error: cardErr } = await supabase
         .from('user_cards')
-        .upsert(batch, { onConflict: 'oracle_id' })
+        .upsert(batch, { onConflict: 'oracle_id,user_id' })
         .select('id, oracle_id')
 
       if (cardErr) {
-        errors.push(`cards upsert: ${cardErr.message}`)
-      } else {
-        for (const row of inserted ?? []) {
-          cardMap.set(row.oracle_id, row.id)
-        }
+        throw new Error(`Failed to upsert user card definitions: ${cardErr.message}`)
+      }
+
+      for (const row of inserted ?? []) {
+        cardMap.set(row.oracle_id, row.id)
       }
     }
   }
@@ -1226,34 +1229,31 @@ export async function executeInstanceLevelImport(
   // -------------------------------------------------------------------
   // Stage 4: Build collection insert payload (one row per instance)
   // -------------------------------------------------------------------
-  // Imported copies go to the user's default storage location so every
-  // owned-but-unsleeved copy has a real location (one-location invariant).
-  const defaultLocationId = await resolveDefaultLocationId(supabase, options.userId)
-  const copyRows: any[] = []
+  // The atomic RPC resolves the user's default storage location for every
+  // unsleeved copy. A null location in the payload means "use that default".
+  const copyRows: Array<{ [key: string]: Json | undefined }> = []
 
   for (const row of resolvedRows) {
     const cardId = cardMap.get(row.oracleId)
     if (!cardId) {
+      errors.push(`Unable to create or resolve user card for "${row.cardName}"`)
       skipped++
       continue
     }
 
     for (let i = 0; i < row.quantity; i++) {
-      const copyRow: Record<string, unknown> = {
+      const copyRow: { [key: string]: Json | undefined } = {
         card_id: cardId,
         printing_id: row.scryfallPrintingId,
         finish: row.finish,
         is_proxy: row.isProxy,
-        condition: row.condition,
+        card_condition: row.condition,
         source_tag: sourceTag,
-        location_id: defaultLocationId,
-        user_id: options.userId,
+        location_id: null,
       }
-      // Pass through dateAdded as created_at if provided; otherwise DB defaults to NOW()
       if (row.dateAdded) {
-        copyRow.created_at = row.dateAdded
+        copyRow.acquired_at = row.dateAdded
       }
-      // Pass through purchase price if provided
       if (row.purchasePrice != null) {
         copyRow.purchase_price = row.purchasePrice
       }
@@ -1261,23 +1261,63 @@ export async function executeInstanceLevelImport(
     }
   }
 
+  if (skipped > 0 || errors.length > 0) {
+    return {
+      inserted: 0,
+      skipped,
+      removed: 0,
+      sourceTag,
+      errors: errors.length > 0
+        ? errors
+        : ['Import aborted because one or more rows could not be resolved'],
+      durationMs: Date.now() - startTime,
+    }
+  }
+
   // -------------------------------------------------------------------
-  // Stage 5: Bulk-insert collection copies in batches
+  // Stage 5: Apply the collection mutation through one RPC.
   // -------------------------------------------------------------------
   let inserted = 0
-  if (copyRows.length > 0) {
-    const insertBatches = chunk(copyRows, INSERT_BATCH_SIZE)
-    for (const batch of insertBatches) {
-      const { error: insertError } = await supabase
-        .from('user_copies')
-        .insert(batch)
+  let removed = 0
 
-      if (insertError) {
-        errors.push(`collection insert (${batch.length} rows): ${insertError.message}`)
-      } else {
-        inserted += batch.length
-      }
+  if (isReplaceMode) {
+    const { data: replaceResult, error: replaceError } = await supabase.rpc('replace_collection', {
+      p_user_id: options.userId,
+      p_insert_rows: copyRows,
+    })
+
+    if (replaceError) {
+      throw new Error(`Atomic collection replacement failed: ${replaceError.message}`)
     }
+
+    const result = assertAtomicRpcSuccess(replaceResult, 'Atomic collection replacement')
+    inserted = assertAtomicRpcCount(
+      result,
+      'inserted_count',
+      'Atomic collection replacement',
+      copyRows.length
+    )
+    removed = assertAtomicRpcCount(
+      result,
+      'removed_count',
+      'Atomic collection replacement'
+    )
+  } else if (copyRows.length > 0) {
+    const { data: insertResult, error: insertError } = await supabase.rpc('insert_user_copies', {
+      p_user_id: options.userId,
+      p_rows: copyRows,
+    })
+
+    if (insertError) {
+      throw new Error(`Atomic collection insert failed: ${insertError.message}`)
+    }
+
+    inserted = assertAtomicRpcCount(
+      assertAtomicRpcSuccess(insertResult, 'Atomic collection insert'),
+      'inserted_count',
+      'Atomic collection insert',
+      copyRows.length
+    )
   }
 
   // (Legacy printing_set_info write removed — printings is now authoritative)
@@ -1288,7 +1328,7 @@ export async function executeInstanceLevelImport(
   return {
     inserted,
     skipped,
-    removed: 0, // 'add' mode never removes
+    removed,
     sourceTag,
     errors,
     durationMs: Date.now() - startTime,

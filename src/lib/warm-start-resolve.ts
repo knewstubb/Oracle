@@ -159,7 +159,7 @@ export async function resolveDeckBatch(
     // Attempt batch assignment write for this deck
     if (assignments.length > 0) {
       try {
-        await batchAssignDeck(result.deckId, assignments)
+        await batchAssignDeck(result.deckId, userId, assignments)
 
         // On success: update pool state so subsequent decks see these assignments
         for (const assignment of assignments) {
@@ -680,7 +680,7 @@ export async function resolveSingleDeckWithPrefetch(
   // Commit assignments (unlike batch mode, we commit immediately per deck)
   if (assignments.length > 0) {
     try {
-      await batchAssignDeck(result.deckId, assignments)
+      await batchAssignDeck(result.deckId, userId, assignments)
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       console.error(`[resolveSingleDeckWithPrefetch] batchAssignDeck failed: ${message}`)

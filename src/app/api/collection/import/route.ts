@@ -1,12 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import {
-  parseCollectionCSV,
-  computeCollectionDelta,
-  applyCollectionImport,
-} from '@/lib/csv-import'
-import { executeCollectionImportAsync } from '@/lib/import-engine'
 import { executeInstanceLevelImport } from '@/lib/import-engine-v2'
-import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
 
 /**
@@ -31,13 +24,11 @@ export async function POST(request: NextRequest) {
   const mode = searchParams.get('mode') || 'upsert'
 
   // ---------------------------------------------------------------------------
-  // Mode: replace — Wipe all physical_copies for user, then add from CSV
-  // Use when you want the CSV to become the complete authoritative collection.
+  // Mode: replace — parse and reconcile the complete collection atomically.
+  // The RPC removes existing copies and inserts the resolved rows in one
+  // transaction; the route never deletes live data before import succeeds.
   // ---------------------------------------------------------------------------
   if (mode === 'replace') {
-    const supabase = createAdminClient()
-
-    // Read CSV body
     let csvContent: string
     const contentType = request.headers.get('content-type') || ''
 
@@ -60,27 +51,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Delete all existing user_copies for this user
-    const { error: deleteErr } = await supabase
-      .from('user_copies')
-      .delete()
-      .eq('user_id', userId)
-
-    if (deleteErr) {
-      return NextResponse.json(
-        { error: `Failed to clear collection: ${deleteErr.message}` },
-        { status: 500 }
-      )
-    }
-
-    // Also clear the user_cards lookup table
-    await supabase.from('user_cards').delete().eq('user_id', userId).then(() => {}, () => {})
-
-    // Now run as 'add' mode (pure append into empty table)
     try {
       const summary = await executeInstanceLevelImport({
         csvContent,
-        mode: 'add',
+        mode: 'replace',
         userId,
       })
 
@@ -91,6 +65,12 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({ ...summary, replaced: true })
     } catch (err) {
+      if (isCsvParseError(err)) {
+        return NextResponse.json(
+          { error: err instanceof Error ? err.message : 'CSV parse error' },
+          { status: 400 }
+        )
+      }
       const message = err instanceof Error ? err.message : String(err)
       return NextResponse.json({ error: `Replace import failed: ${message}` }, { status: 500 })
     }
@@ -208,7 +188,11 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      const summary = await executeCollectionImportAsync({ csvInput: csvContent })
+      const summary = await executeInstanceLevelImport({
+        csvContent,
+        mode: 'add',
+        userId,
+      })
       return NextResponse.json(summary)
     } catch (err) {
       if (isCsvParseError(err)) {
@@ -225,75 +209,10 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Mode: legacy — existing DELETE+INSERT behavior (writes to collection table)
-  // Gated: requires confirm_delete=true to proceed (Requirement 3)
-  // ---------------------------------------------------------------------------
-
-  const confirmDelete = searchParams.get('confirm_delete')
-
-  if (confirmDelete !== 'true') {
-    const message = confirmDelete === null
-      ? 'Legacy destructive import path is disabled. To proceed with the DELETE-ALL operation, include confirm_delete=true as a query parameter.'
-      : `Legacy destructive import path rejected: confirm_delete must be exactly 'true', received '${confirmDelete}'.`
-
-    return Response.json(
-      { error: message },
-      { status: 403 }
-    )
-  }
-
-  // Read CSV from request body
-  let csvContent: string
-  try {
-    const body = await request.text()
-    if (!body.trim()) {
-      return Response.json(
-        { error: 'No CSV content provided in request body' },
-        { status: 400 }
-      )
-    }
-    csvContent = body
-  } catch {
-    return Response.json(
-      { error: 'No CSV content provided in request body' },
-      { status: 400 }
-    )
-  }
-
-  const rows = parseCollectionCSV(csvContent)
-
-  const apply = searchParams.get('apply') === 'true'
-  const reallocate = searchParams.get('reallocate') === 'true'
-  const chunkIndex = parseInt(searchParams.get('chunk_index') || '0', 10)
-
-  // Only compute delta for the first chunk (or when not applying)
-  const delta = chunkIndex === 0 ? await computeCollectionDelta(rows) : null
-
-  if (apply) {
-    // Reallocate mode removed — the collection-reallocator is decommissioned.
-    // Reallocation now happens via the Picklist (per-deck, instance-level).
-    if (reallocate) {
-      return Response.json(
-        { error: 'reallocate=true is no longer supported. Use the per-deck Picklist for reallocation.' },
-        { status: 410 }
-      )
-    }
-
-    // Standard import without reallocation
-    const importResult = await applyCollectionImport(rows, { skipDelete: chunkIndex > 0, userId })
-    const response = Response.json({
-      delta,
-      applied: true,
-      reallocated: false,
-      entryCount: importResult.totalInserted,
-      errors: importResult.errors.length > 0 ? importResult.errors : undefined,
-    })
-    response.headers.set('X-Import-Warning', 'Destructive legacy import performed: existing collection data was deleted before re-import.')
-    return response
-  }
-
-  const response = Response.json({ delta, applied: false })
-  response.headers.set('X-Import-Warning', 'Destructive legacy import performed: existing collection data was deleted before re-import.')
-  return response
+  // The retired DELETE+INSERT path is intentionally unavailable. Use the
+  // current-schema add, sync, or replace modes above.
+  return Response.json(
+    { error: 'Unsupported import mode. Use mode=add, mode=sync, or mode=replace.' },
+    { status: 410 }
+  )
 }

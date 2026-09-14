@@ -15,6 +15,8 @@
  */
 
 import { createAdminClient } from '@/lib/supabase'
+import { assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
+import type { Json } from '@/types/supabase'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -170,6 +172,47 @@ function mapRowToCollectionCopy(row: any): CollectionCopy {
 /** @deprecated Use mapRowToCollectionCopy instead */
 const mapRowToPhysicalCopy = mapRowToCollectionCopy
 
+interface AtomicCopyInsertRow {
+  card_id: number
+  printing_id?: string | null
+  finish?: string | null
+  language?: string | null
+  is_proxy?: boolean
+  proxy_for_card_id?: number | null
+  card_condition?: string | null
+  purchase_price?: number | null
+  acquired_at?: string | null
+  source_tag?: string | null
+  location_id?: number | null
+}
+
+/**
+ * Insert one or more collection copies through the transaction boundary.
+ * The RPC assigns the default storage location whenever location_id is null
+ * and returns the created IDs for callers that need the inserted instances.
+ */
+async function insertCopiesAtomically(
+  supabase: ReturnType<typeof createAdminClient>,
+  userId: string,
+  rows: AtomicCopyInsertRow[]
+): Promise<number[]> {
+  const { data, error } = await supabase.rpc('insert_user_copies', {
+    p_user_id: userId,
+    p_rows: rows as unknown as Json,
+  })
+
+  if (error) {
+    throw new Error(`Failed to insert collection copies atomically: ${error.message}`)
+  }
+
+  const insertedIds = (data as { inserted_ids?: unknown } | null)?.inserted_ids
+  if (!Array.isArray(insertedIds) || insertedIds.length !== rows.length || insertedIds.some((id): id is number => typeof id !== 'number')) {
+    throw new Error('Atomic collection insert returned invalid copy IDs')
+  }
+
+  return insertedIds
+}
+
 // ---------------------------------------------------------------------------
 // Card Definition CRUD
 // ---------------------------------------------------------------------------
@@ -184,11 +227,12 @@ const mapRowToPhysicalCopy = mapRowToCollectionCopy
 export async function ensureCardDefinition(oracleId: string, cardName: string, userId: string): Promise<number> {
   const supabase = createAdminClient()
 
-  // Try to find existing first
+  // Try to find an existing definition for this user first
   const { data: existing } = await supabase
     .from('user_cards')
     .select('id')
     .eq('oracle_id', oracleId)
+    .eq('user_id', userId)
     .maybeSingle()
 
   if (existing) return existing.id
@@ -207,6 +251,7 @@ export async function ensureCardDefinition(oracleId: string, cardName: string, u
         .from('user_cards')
         .select('id')
         .eq('oracle_id', oracleId)
+        .eq('user_id', userId)
         .single()
       if (retry) return retry.id
     }
@@ -286,30 +331,37 @@ export async function upsertCollectionCopy(params: UpsertCollectionCopyParams): 
   const quantity = params.quantity ?? 1
   const userId = params.userId
 
-  // Instance-level model — insert N individual rows (one per copy)
-  const insertRows = Array.from({ length: quantity }, () => ({
+  const insertRows: AtomicCopyInsertRow[] = Array.from({ length: quantity }, () => ({
     card_id: params.cardId,
     printing_id: params.printingId ?? null,
     finish,
     language,
     is_proxy: isProxy,
     proxy_for_card_id: params.proxyForCardId ?? null,
-    condition: params.condition ?? null,
+    card_condition: params.condition ?? null,
     purchase_price: params.purchasePrice ?? null,
     location_id: params.locationId ?? null,
     acquired_at: params.acquiredAt ?? null,
-    user_id: userId,
   }))
+
+  const insertedIds = await insertCopiesAtomically(supabase, userId, insertRows)
+  const firstId = insertedIds[0]
+  if (firstId == null) {
+    throw new Error('Atomic collection insert returned no copy ID')
+  }
 
   const { data, error } = await supabase
     .from('user_copies')
-    .insert(insertRows)
     .select('*')
+    .eq('id', firstId)
+    .eq('user_id', userId)
+    .single()
 
-  if (error) throw new Error(`Failed to insert collection copy: ${error.message}`)
-  
-  // Return the first inserted row (interface expects single CollectionCopy)
-  return mapRowToCollectionCopy(data[0])
+  if (error || !data) {
+    throw new Error(`Failed to read inserted collection copy: ${error?.message ?? 'row not found'}`)
+  }
+
+  return mapRowToCollectionCopy(data)
 }
 
 /** @deprecated Use upsertCollectionCopy instead */
@@ -329,25 +381,34 @@ export async function createCollectionCopy(
   const language = params.language ?? 'en'
   const userId = params.userId
 
+  const [copyId] = await insertCopiesAtomically(supabase, userId, [{
+    card_id: params.cardId,
+    printing_id: params.printingId ?? null,
+    finish,
+    language,
+    is_proxy: isProxy,
+    proxy_for_card_id: params.proxyForCardId ?? null,
+    card_condition: params.condition ?? null,
+    purchase_price: params.purchasePrice ?? null,
+    location_id: params.locationId ?? null,
+    acquired_at: params.acquiredAt ?? null,
+  }])
+
+  if (copyId == null) {
+    throw new Error('Atomic collection insert returned no copy ID')
+  }
+
   const { data, error } = await supabase
     .from('user_copies')
-    .insert({
-      card_id: params.cardId,
-      printing_id: params.printingId ?? null,
-      finish,
-      language,
-      is_proxy: isProxy,
-      proxy_for_card_id: params.proxyForCardId ?? null,
-      condition: params.condition ?? null,
-      purchase_price: params.purchasePrice ?? null,
-      location_id: params.locationId ?? null,
-      acquired_at: params.acquiredAt ?? null,
-      user_id: userId,
-    })
     .select('*')
+    .eq('id', copyId)
+    .eq('user_id', userId)
     .single()
 
-  if (error) throw new Error(`Failed to create collection copy: ${error.message}`)
+  if (error || !data) {
+    throw new Error(`Failed to read inserted collection copy: ${error?.message ?? 'row not found'}`)
+  }
+
   return mapRowToCollectionCopy(data)
 }
 
@@ -374,17 +435,27 @@ export async function getCollectionCopy(id: number): Promise<CollectionCopy | nu
 export const getPhysicalCopy = getCollectionCopy
 
 /**
- * Delete a collection copy by its primary key.
- * ON DELETE SET NULL cascades to deck_cards.copy_id.
+ * Delete a collection copy by its primary key through the atomic copy-delete RPC.
+ * Any deck slot reference becomes a planned, unassigned slot in the same transaction.
  */
 export async function deleteCollectionCopy(id: number): Promise<void> {
   const supabase = createAdminClient()
-  const { error } = await supabase
+  const { data: copy, error: lookupError } = await supabase
     .from('user_copies')
-    .delete()
+    .select('user_id')
     .eq('id', id)
+    .maybeSingle()
+
+  if (lookupError) throw new Error(`Failed to find collection copy ${id}: ${lookupError.message}`)
+  if (!copy) throw new Error(`Collection copy ${id} not found`)
+
+  const { data, error } = await (supabase.rpc as any)('delete_user_copy', {
+    p_copy_id: id,
+    p_user_id: copy.user_id,
+  })
 
   if (error) throw new Error(`Failed to delete collection copy ${id}: ${error.message}`)
+  assertAtomicRpcSuccess(data, 'delete_user_copy')
 }
 
 /** @deprecated Use deleteCollectionCopy instead */
@@ -519,13 +590,11 @@ export async function validateCardMatch(collectionCopyId: number, deckCardId: nu
 }
 
 /**
- * Link a collection copy to a deck card slot (many-to-one).
- * Validates card match before updating. Replaces any existing link on the deck card.
- * Multiple deck_cards rows may reference the same copy_id (no UNIQUE constraint).
+ * Link a collection copy to a deck card slot through the atomic assignment RPC.
+ * Validates card match before moving the copy. A copy already held by another
+ * allocating deck is rejected unless the caller uses the explicit force-claim flow.
  *
- * GUARD: This function only updates deck_cards.copy_id (linking metadata).
- * It does NOT modify deck composition (card_name, quantity, categories, is_commander).
- * It does NOT fetch from Archidekt. See: deck-authority-split spec, Req 6.1, 6.2.
+ * The RPC updates the deck slot and clears the copy's storage location together.
  *
  * Validates: Requirements 3.3, 3.4, 3.5, 5.1, 5.4, 5.5, 5.6
  */
@@ -542,31 +611,54 @@ export async function linkCollectionCopyToDeckCard(
   }
 
   const supabase = createAdminClient()
-  const { error } = await supabase
-    .from('deck_cards')
-    .update({ copy_id: collectionCopyId })
-    .eq('id', deckCardId)
+  const { data: copy, error: copyError } = await supabase
+    .from('user_copies')
+    .select('user_id')
+    .eq('id', collectionCopyId)
+    .maybeSingle()
+
+  if (copyError) throw new Error(`Failed to resolve collection copy owner: ${copyError.message}`)
+  if (!copy) throw new Error(`Collection copy ${collectionCopyId} not found`)
+
+  const { data, error } = await (supabase.rpc as any)('assign_physical_copy', {
+    p_target_deck_card_id: deckCardId,
+    p_copy_id: collectionCopyId,
+    p_user_id: copy.user_id,
+  })
 
   if (error) throw new Error(`Failed to link collection copy to deck card: ${error.message}`)
+  assertAtomicRpcSuccess(data, 'assign_physical_copy')
 }
 
 /** @deprecated Use linkCollectionCopyToDeckCard instead */
 export const linkPhysicalCopyToDeckCard = linkCollectionCopyToDeckCard
 
 /**
- * Unlink a collection copy from a deck card slot (sets copy_id to NULL).
- * Does not delete the collection copy — it continues to exist independently.
+ * Unlink a collection copy from a deck card slot through the atomic release RPC.
+ * The copy is returned to the user's default storage location, and all stale
+ * references to that copy are cleared together.
  *
  * Validates: Requirements 5.7
  */
 export async function unlinkCollectionCopyFromDeckCard(deckCardId: number): Promise<void> {
   const supabase = createAdminClient()
-  const { error } = await supabase
+  const { data: deckCard, error: lookupError } = await supabase
     .from('deck_cards')
-    .update({ copy_id: null })
+    .select('copy_id, user_id')
     .eq('id', deckCardId)
+    .maybeSingle()
+
+  if (lookupError) throw new Error(`Failed to find deck card ${deckCardId}: ${lookupError.message}`)
+  if (!deckCard) throw new Error(`Deck card ${deckCardId} not found`)
+  if (deckCard.copy_id === null) return
+
+  const { data, error } = await (supabase.rpc as any)('unassign_copy_to_storage', {
+    p_copy_id: deckCard.copy_id,
+    p_user_id: deckCard.user_id,
+  })
 
   if (error) throw new Error(`Failed to unlink collection copy from deck card: ${error.message}`)
+  assertAtomicRpcSuccess(data, 'unassign_copy_to_storage')
 }
 
 /** @deprecated Use unlinkCollectionCopyFromDeckCard instead */
@@ -619,25 +711,22 @@ export async function setCollectionCopyState(
   if (findError) throw new Error(`Failed to find collection copy state: ${findError.message}`)
 
   if (!existing) {
-    // No row exists — INSERT a new one
-    const { data, error } = await supabase
-      .from('user_copies')
-      .insert({
-        card_id: params.cardId,
-        printing_id: params.printingId,
-        finish: params.finish,
-        language,
-        is_proxy: false,
-        condition: params.condition ?? null,
-        purchase_price: params.purchasePrice ?? null,
-        location_id: params.locationId ?? null,
-        user_id: userId,
-      })
-      .select('id')
-      .single()
+    // No row exists — insert through the same atomic boundary used by imports.
+    const [copyId] = await insertCopiesAtomically(supabase, userId, [{
+      card_id: params.cardId,
+      printing_id: params.printingId,
+      finish: params.finish,
+      language,
+      is_proxy: false,
+      card_condition: params.condition ?? null,
+      purchase_price: params.purchasePrice ?? null,
+      location_id: params.locationId ?? null,
+    }])
 
-    if (error) throw new Error(`Failed to create collection copy state: ${error.message}`)
-    return { id: data.id, action: 'created' }
+    if (copyId == null) {
+      throw new Error('Atomic collection insert returned no copy ID')
+    }
+    return { id: copyId, action: 'created' }
   }
 
   // Row exists — compare pre-state vs desired state

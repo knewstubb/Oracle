@@ -65,8 +65,8 @@ export async function PUT(
 
 /**
  * DELETE /api/settings/storage-locations/[id]
- * Delete a storage location. Cards assigned to it will have their location set to null.
- * Only allows deleting locations with type='storage'.
+ * Delete a storage location. Copies assigned to it move to the user's default
+ * storage location in the same transaction. The default location cannot be deleted.
  */
 export async function DELETE(
   _request: NextRequest,
@@ -82,17 +82,28 @@ export async function DELETE(
   }
 
   const supabase = createAdminClient()
-
-  const { error } = await (supabase as any)
-    .from('user_locations')
-    .delete()
-    .eq('id', locationId)
-    .eq('user_id', authResult.id)
-    .eq('type', 'storage')
+  const { data, error } = await supabase.rpc('delete_storage_location', {
+    p_location_id: locationId,
+    p_user_id: authResult.id,
+  })
 
   if (error) {
+    if (error.message.includes('storage_location_not_found')) {
+      return Response.json({ error: 'Location not found' }, { status: 404 })
+    }
+    if (error.message.includes('default_storage_location_cannot_be_deleted')) {
+      return Response.json(
+        { error: 'The default storage location cannot be deleted' },
+        { status: 409 }
+      )
+    }
     return Response.json({ error: error.message }, { status: 500 })
   }
 
-  return Response.json({ deleted: true })
+  const result = data as { moved_count?: number; target_location_id?: number }
+  return Response.json({
+    deleted: true,
+    moved: result.moved_count ?? 0,
+    targetLocationId: result.target_location_id,
+  })
 }

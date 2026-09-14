@@ -13,6 +13,7 @@ import {
   type IncomingCard,
 } from '@/lib/deck-cards-diff'
 import { createVersionSnapshot } from '@/lib/deck-versions'
+import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -32,10 +33,6 @@ export interface ImportResult {
     errors: string[]
   }
 }
-
-// ─── Constants ───────────────────────────────────────────────────────────────
-
-const BATCH_SIZE = 500
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -83,23 +80,6 @@ function generateDeckId(deck: NormalizedDeck): number {
   }
   // Moxfield: stable hash-based ID
   return Math.abs(hashCode(deck.platformDeckId)) % 2147483647
-}
-
-/**
- * Insert rows in batches of BATCH_SIZE.
- */
-async function batchInsert(
-  supabase: ReturnType<typeof createAdminClient>,
-  table: string,
-  rows: Record<string, unknown>[]
-): Promise<void> {
-  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-    const batch = rows.slice(i, i + BATCH_SIZE)
-    const { error } = await (supabase as any).from(table).insert(batch)
-    if (error) {
-      throw new Error(`Failed to insert batch into ${table} at offset ${i}: ${error.message}`)
-    }
-  }
 }
 
 // ─── Import: Design Mode ─────────────────────────────────────────────────────
@@ -383,21 +363,13 @@ export async function importDeckNewCards(
     throw new Error(`Failed to upsert deck ${deckId}: ${deckErr.message}`)
   }
 
-  // 2. Delete existing deck_cards for re-import
-  const { error: deleteErr } = await (supabase as any)
-    .from('deck_cards')
-    .delete()
-    .eq('deck_id', deckId)
-
-  if (deleteErr) {
-    throw new Error(`Failed to clear deck_cards for deck ${deckId}: ${deleteErr.message}`)
-  }
-
-  // 3. Batch resolve cards for all cards
+  // 2. Batch resolve cards for all cards
   const oracleIdToCardId = await resolveCardDefinitions(deck.cards, userId)
 
-  // 4. For each card: create collection row (copy), create deck_card
-  const deckCardRows: Record<string, unknown>[] = []
+  // 3. Build one transaction payload. The RPC returns any existing sleeved
+  // copies to storage, deletes the old slots, creates the new copies, and
+  // links each new copy to its slot without an intermediate orphan state.
+  const newCardRows: Record<string, unknown>[] = []
 
   for (const card of deck.cards) {
     const cardId = oracleIdToCardId.get(card.oracleId)
@@ -412,44 +384,42 @@ export async function importDeckNewCards(
       ? JSON.stringify(card.sourceCategories)
       : JSON.stringify([deriveCategory(card)])
 
-    // Create collection rows for each quantity
     for (let q = 0; q < card.quantity; q++) {
-      const { data: copyData, error: copyErr } = await (supabase as any)
-        .from('user_copies')
-        .insert({
-          card_id: cardId,
-          printing_id: card.scryfallId,
-          is_proxy: card.isProxy,
-          user_id: userId,
-        })
-        .select('id')
-        .single()
-
-      if (copyErr) {
-        throw new Error(
-          `Failed to create collection row for "${card.cardName}": ${copyErr.message}`
-        )
-      }
-
-      deckCardRows.push({
+      newCardRows.push({
+        card_id: cardId,
         card_name: card.cardName,
-        deck_id: deckId,
+        printing_id: card.scryfallId,
         scryfall_id: card.scryfallId,
         set_code: card.setCode,
-        quantity: 1,
         categories,
         is_commander: card.isCommander,
-        user_id: userId,
-        ownership_status: 'original',
-        copy_id: copyData.id,
+        is_proxy: card.isProxy,
       })
     }
   }
 
-  // Batch insert all deck_cards
-  await batchInsert(supabase, 'deck_cards', deckCardRows)
+  const { data: replaceResult, error: replaceErr } = await (supabase.rpc as any)(
+    'replace_deck_with_new_cards',
+    {
+      p_deck_id: deckId,
+      p_user_id: userId,
+      p_rows: newCardRows,
+    }
+  )
 
-  // 5. Create version snapshot after import
+  if (replaceErr) {
+    throw new Error(`Failed to replace deck cards atomically: ${replaceErr.message}`)
+  }
+
+  const result = assertAtomicRpcSuccess(replaceResult, 'replace_deck_with_new_cards')
+  const insertedCount = assertAtomicRpcCount(
+    result,
+    'inserted_count',
+    'replace_deck_with_new_cards',
+    newCardRows.length
+  )
+  assertAtomicRpcCount(result, 'removed_count', 'replace_deck_with_new_cards')
+
   const sourceLabel = deck.platform ? `from ${deck.platform}` : 'from external source'
   await createVersionSnapshot(
     deckId,
@@ -459,10 +429,11 @@ export async function importDeckNewCards(
     deck.name
   )
 
-  // No separate auto-assign needed — cards were already assigned during creation above
+  // No separate auto-assign needed — cards were already assigned during the
+  // atomic replacement above.
 
   const allocationSummary = {
-    assigned: 0,
+    assigned: insertedCount,
     shortfall: 0,
     errors: [] as string[],
   }

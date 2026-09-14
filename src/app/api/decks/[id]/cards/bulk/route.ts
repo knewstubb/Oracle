@@ -15,6 +15,7 @@ import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
 import { serializeCategories } from '@/lib/categoryUtils'
+import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 import { createVersionSnapshot, BULK_CHANGE_THRESHOLD } from '@/lib/deck-versions'
 
 type BulkOperation = 'delete' | 'move-category' | 'add-proxy'
@@ -103,17 +104,30 @@ export async function POST(
   // Execute the operation
   switch (body.operation) {
     case 'delete': {
-      const { error: deleteErr, count } = await supabase
-        .from('deck_cards')
-        .delete()
-        .eq('deck_id', deckId)
-        .in('id', body.cardIds)
+      const { data: deleteResult, error: deleteErr } = await (supabase.rpc as any)(
+        'apply_ai_deck_delta',
+        {
+          p_deck_id: deckId,
+          p_user_id: userId,
+          p_additions: [],
+          p_remove_deck_card_ids: body.cardIds,
+        }
+      )
 
       if (deleteErr) {
+        if (deleteErr.message?.includes('deck_not_found') || deleteErr.message?.includes('deck_card_not_found')) {
+          return Response.json({ error: 'Cards not found in this deck' }, { status: 404 })
+        }
         return Response.json({ error: deleteErr.message }, { status: 500 })
       }
 
-      const affected = count ?? body.cardIds.length
+      const result = assertAtomicRpcSuccess(deleteResult, 'apply_ai_deck_delta')
+      const affected = assertAtomicRpcCount(
+        result,
+        'removed_count',
+        'apply_ai_deck_delta',
+        body.cardIds.length
+      )
 
       // Create version snapshot if bulk change threshold met
       if (affected >= BULK_CHANGE_THRESHOLD) {
@@ -187,16 +201,8 @@ export async function POST(
     }
 
     case 'add-proxy': {
-      // For add-proxy, we need to:
-      // 1. Get the card names for each card ID
-      // 2. Create proxy physical copies
-      // 3. Link them to the deck_cards rows
-      // 
-      // This is a multi-step operation but doesn't violate atomicity rules
-      // since adding a proxy to an unowned slot is idempotent — the invariant
-      // is that a slot can have a copy or not, and we're filling empty slots.
-
-      // Get card details
+      // Resolve all selected slots first, then create every proxy and sleeve it in
+      // one Postgres transaction. No per-slot loop can leave a partial batch.
       const { data: cardDetails, error: detailsErr } = await supabase
         .from('deck_cards')
         .select('id, card_name, copy_id')
@@ -207,9 +213,7 @@ export async function POST(
         return Response.json({ error: detailsErr.message }, { status: 500 })
       }
 
-      // Filter to cards that don't already have a copy assigned
       const slotsNeedingProxy = cardDetails?.filter(c => c.copy_id === null) ?? []
-
       if (slotsNeedingProxy.length === 0) {
         return Response.json({
           success: true,
@@ -219,104 +223,48 @@ export async function POST(
         })
       }
 
-      let successCount = 0
-      const errors: string[] = []
+      const { data, error: proxyErr } = await supabase.rpc('add_proxies_to_slots', {
+        p_user_id: userId,
+        p_assignments: slotsNeedingProxy.map(slot => ({
+          deck_card_id: slot.id,
+          card_name: slot.card_name,
+        })),
+      })
 
-      // Process each card that needs a proxy
-      for (const slot of slotsNeedingProxy) {
-        try {
-          // Get oracle_id for the card
-          const { data: printing } = await supabase
-            .from('ref_printings')
-            .select('oracle_id')
-            .eq('name', slot.card_name)
-            .limit(1)
-            .single()
-
-          if (!printing?.oracle_id) {
-            errors.push(`No oracle_id found for ${slot.card_name}`)
-            continue
-          }
-
-          // Check if user_cards entry exists
-          let { data: userCard } = await supabase
-            .from('user_cards')
-            .select('id')
-            .eq('user_id', userId)
-            .eq('oracle_id', printing.oracle_id)
-            .maybeSingle()
-
-          // Create user_cards entry if needed
-          if (!userCard) {
-            const { data: newUserCard, error: insertErr } = await supabase
-              .from('user_cards')
-              .insert({
-                user_id: userId,
-                oracle_id: printing.oracle_id,
-                card_name: slot.card_name,
-              })
-              .select('id')
-              .single()
-
-            if (insertErr) {
-              errors.push(`Failed to create user_cards for ${slot.card_name}: ${insertErr.message}`)
-              continue
-            }
-            userCard = newUserCard
-          }
-
-          // Create proxy physical copy
-          const { data: newCopy, error: copyErr } = await supabase
-            .from('user_copies')
-            .insert({
-              user_id: userId,
-              card_id: userCard.id,
-              is_proxy: true,
-              is_foil: false,
-            })
-            .select('id')
-            .single()
-
-          if (copyErr) {
-            errors.push(`Failed to create proxy for ${slot.card_name}: ${copyErr.message}`)
-            continue
-          }
-
-          // Link to deck_cards
-          const { error: linkErr } = await supabase
-            .from('deck_cards')
-            .update({
-              copy_id: newCopy.id,
-              ownership_status: 'proxy',
-            })
-            .eq('id', slot.id)
-
-          if (linkErr) {
-            errors.push(`Failed to link proxy to ${slot.card_name}: ${linkErr.message}`)
-            continue
-          }
-
-          successCount++
-        } catch (err) {
-          errors.push(`Unexpected error for ${slot.card_name}: ${err instanceof Error ? err.message : String(err)}`)
+      if (proxyErr) {
+        if (proxyErr.message.includes('target_not_found')) {
+          return Response.json({ error: 'One or more deck card slots were not found' }, { status: 404 })
         }
+        if (proxyErr.message.includes('target_filled')) {
+          return Response.json({ error: 'One or more selected slots are already resolved' }, { status: 409 })
+        }
+        if (proxyErr.message.includes('card_printing_not_found')) {
+          return Response.json({ error: 'A selected card could not be resolved to a printing' }, { status: 404 })
+        }
+        return Response.json({ error: `Failed to add proxies: ${proxyErr.message}` }, { status: 500 })
       }
 
-      // Create version snapshot if bulk change threshold met
-      if (successCount >= BULK_CHANGE_THRESHOLD) {
+      const result = assertAtomicRpcSuccess(data, 'add_proxies_to_slots')
+      const affected = assertAtomicRpcCount(
+        result,
+        'created_count',
+        'add_proxies_to_slots',
+        slotsNeedingProxy.length
+      )
+
+      if (affected >= BULK_CHANGE_THRESHOLD) {
         await createVersionSnapshot(
           deckId,
           userId,
           'bulk_change',
-          `Added ${successCount} proxy copies`
+          `Added ${affected} proxy copies`
         )
       }
 
       return Response.json({
-        success: successCount > 0,
+        success: true,
         operation: 'add-proxy',
-        affected: successCount,
-        errors: errors.length > 0 ? errors : undefined,
+        affected,
       })
     }
 

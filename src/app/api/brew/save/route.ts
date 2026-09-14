@@ -12,6 +12,7 @@
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
+import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 import type { DecisionLog, DeckCard } from '@/lib/brew-v2-types'
 
 // ---------------------------------------------------------------------------
@@ -148,29 +149,53 @@ export async function POST(request: NextRequest) {
           })
           .eq('id', deckId)
 
-        // Clear existing deck_cards and re-insert
-        await supabase.from('deck_cards').delete().eq('deck_id', deckId)
+        // Replace the deck composition through the atomic delta RPC so any
+        // existing sleeved copies return to storage with their slots removed.
+        const { data: currentCards, error: currentCardsErr } = await supabase
+          .from('deck_cards')
+          .select('id')
+          .eq('deck_id', deckId)
+          .eq('user_id', userId)
 
-        // Insert deck cards
+        if (currentCardsErr) throw new Error(currentCardsErr.message)
+
         const cardsToInsert = deckCards!.map((card) => {
           const categories = [card.primary_category, ...card.additional_categories].join(',')
           const isCommander = session.commander_name
             ? card.card_name.toLowerCase() === session.commander_name.toLowerCase()
             : false
           return {
-            deck_id: deckId!,
             card_name: card.card_name,
-            quantity: 1,
+            scryfall_id: null,
+            set_code: null,
             categories,
+            quantity: 1,
             is_commander: isCommander,
-            user_id: userId,
           }
         })
 
-        if (cardsToInsert.length > 0) {
-          const { error: insertErr } = await supabase.from('deck_cards').insert(cardsToInsert)
-          if (insertErr) throw new Error(insertErr.message)
-        }
+        const { data: deltaResult, error: deltaErr } = await (supabase.rpc as any)('apply_ai_deck_delta', {
+          p_deck_id: deckId,
+          p_user_id: userId,
+          p_additions: cardsToInsert,
+          p_remove_deck_card_ids: (currentCards ?? []).map((card) => card.id),
+        })
+
+        if (deltaErr) throw new Error(deltaErr.message)
+
+        const deltaResultValidated = assertAtomicRpcSuccess(deltaResult, 'apply_ai_deck_delta')
+        assertAtomicRpcCount(
+          deltaResultValidated,
+          'added_count',
+          'apply_ai_deck_delta',
+          cardsToInsert.length
+        )
+        assertAtomicRpcCount(
+          deltaResultValidated,
+          'removed_count',
+          'apply_ai_deck_delta',
+          (currentCards ?? []).length
+        )
 
         // Update session status
         const newSessionStatus = mode === 'active' ? 'complete' : 'building'

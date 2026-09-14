@@ -8,6 +8,7 @@
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
+import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 import { createVersionSnapshot, type CardSnapshot } from '@/lib/deck-versions'
 
 interface RouteParams {
@@ -64,44 +65,60 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     `Pre-restore snapshot (before reverting to v${version.version_number})`
   )
 
-  // Delete all existing deck_cards
-  const { error: deleteErr } = await supabase
+  // Replace the composition through the atomic delta RPC. Assigned copies are
+  // returned to the default storage location before their slots are removed.
+  const { data: currentCards, error: currentCardsErr } = await supabase
     .from('deck_cards')
-    .delete()
+    .select('id')
     .eq('deck_id', deckId)
+    .eq('user_id', userId)
 
-  if (deleteErr) {
+  if (currentCardsErr) {
     return Response.json(
-      { error: `Failed to clear deck: ${deleteErr.message}` },
+      { error: `Failed to read current deck cards: ${currentCardsErr.message}` },
       { status: 500 }
     )
   }
 
-  // Restore cards from snapshot
   const snapshot = version.cards_snapshot as CardSnapshot[]
+  const additions = (snapshot ?? []).map((card) => ({
+    card_name: card.card_name,
+    scryfall_id: card.scryfall_id,
+    set_code: card.set_code,
+    categories: card.categories,
+    quantity: card.quantity ?? 1,
+    is_commander: card.is_commander,
+  }))
 
-  if (snapshot && snapshot.length > 0) {
-    const rows = snapshot.map((card) => ({
-      deck_id: deckId,
-      card_name: card.card_name,
-      scryfall_id: card.scryfall_id,
-      set_code: card.set_code,
-      quantity: card.quantity,
-      categories: card.categories,
-      is_commander: card.is_commander,
-      user_id: userId,
-      // Note: allocation state (copy_id, ownership_status) is NOT restored
-      // User will need to re-allocate after restore
-    }))
+  const { data: restoreResult, error: restoreErr } = await (supabase.rpc as any)('apply_ai_deck_delta', {
+    p_deck_id: deckId,
+    p_user_id: userId,
+    p_additions: additions,
+    p_remove_deck_card_ids: (currentCards ?? []).map((card) => card.id),
+  })
 
-    const { error: insertErr } = await supabase.from('deck_cards').insert(rows)
-
-    if (insertErr) {
-      return Response.json(
-        { error: `Failed to restore cards: ${insertErr.message}` },
-        { status: 500 }
-      )
+  if (restoreErr) {
+    if (restoreErr.message?.includes('deck_not_found') || restoreErr.message?.includes('deck_card_not_found')) {
+      return Response.json({ error: 'Deck cards could not be restored' }, { status: 404 })
     }
+    return Response.json(
+      { error: `Failed to restore cards: ${restoreErr.message}` },
+      { status: 500 }
+    )
+  }
+
+  try {
+    const result = assertAtomicRpcSuccess(restoreResult, 'apply_ai_deck_delta')
+    assertAtomicRpcCount(
+      result,
+      'added_count',
+      'apply_ai_deck_delta',
+      additions.reduce((total, addition) => total + addition.quantity, 0)
+    )
+    assertAtomicRpcCount(result, 'removed_count', 'apply_ai_deck_delta', (currentCards ?? []).length)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return Response.json({ error: message }, { status: 500 })
   }
 
   // Create a snapshot marking the restore

@@ -13,6 +13,7 @@
  */
 
 import { createAdminClient } from '@/lib/supabase'
+import { batchAssignDeck, type Assignment } from '@/lib/supply-pool'
 import { fetchEnrichedSupply, classifyTier, scoreCandidate } from '@/lib/allocation-candidates'
 import type { EnrichedSupplyEntry } from '@/lib/allocation-candidates'
 import { isBasicLand } from '@/lib/basic-lands'
@@ -53,6 +54,9 @@ export async function autoAssignDeck(
   }
 
   if (!unresolvedRows || unresolvedRows.length === 0) return result
+
+  const pendingAssignments: Assignment[] = []
+  const pendingResults: AutoAssignResult['assignments'] = []
 
   // 2. Deduplicate card names for candidate lookup
   const cardNameGroups = new Map<string, number[]>() // card_name → [deckCardsId, ...]
@@ -104,30 +108,32 @@ export async function autoAssignDeck(
       const candidate = freeCandidates[candidateIdx]
       candidateIdx++
 
-      // Determine ownership_status
       const ownershipStatus = candidate.isProxy ? 'proxy' : 'original'
+      const tier = classifyTier(candidate) as 1 | 2
 
-      // Atomic write — set copy_id on the deck_cards row
-      const { error: assignErr } = await supabase
-        .from('deck_cards')
-        .update({
-          copy_id: candidate.physicalCopyId,
-          ownership_status: ownershipStatus,
-        })
-        .eq('id', deckCardsId)
+      pendingAssignments.push({
+        deckCardsId,
+        physicalCopyId: candidate.physicalCopyId,
+        ownershipStatus,
+      })
+      pendingResults.push({
+        deckCardsId,
+        cardName,
+        physicalCopyId: candidate.physicalCopyId,
+        tier,
+      })
+    }
+  }
 
-      if (assignErr) {
-        result.errors.push(`Failed to assign ${cardName} (deck_cards ${deckCardsId}): ${assignErr.message}`)
-        result.skipped++
-      } else {
-        result.assigned++
-        result.assignments.push({
-          deckCardsId,
-          cardName,
-          physicalCopyId: candidate.physicalCopyId,
-          tier: classifyTier(candidate) as 1 | 2,
-        })
-      }
+  if (pendingAssignments.length > 0) {
+    try {
+      await batchAssignDeck(deckId, userId, pendingAssignments)
+      result.assigned = pendingAssignments.length
+      result.assignments = pendingResults
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      result.errors.push(`Atomic auto-assignment failed: ${message}`)
+      result.skipped += pendingAssignments.length
     }
   }
 

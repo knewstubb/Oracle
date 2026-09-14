@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
+import { assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 import { frontFaceName } from '@/lib/basic-lands'
 import { getCommanderBuildCardRepository } from '@/lib/commander-context'
 import { NextRequest } from 'next/server'
@@ -241,31 +242,20 @@ export async function DELETE(
     return Response.json({ error: 'Deck not found' }, { status: 404 })
   }
 
-  // Release all allocated copies back to default storage before deleting
-  // This clears deck_cards.copy_id so copies return to unassigned state
-  await supabase
-    .from('deck_cards')
-    .update({ copy_id: null, ownership_status: null })
-    .eq('deck_id', deckId)
-
-  // Delete deck_cards (FK constraint)
-  await supabase
-    .from('deck_cards')
-    .delete()
-    .eq('deck_id', deckId)
-
-  // Delete the deck
-  const { error: deleteErr } = await supabase
-    .from('decks')
-    .delete()
-    .eq('id', deckId)
-    .eq('user_id', authResult.id)
+  const { data, error: deleteErr } = await (supabase.rpc as any)('delete_deck_with_release', {
+    p_deck_id: deckId,
+    p_user_id: authResult.id,
+  })
 
   if (deleteErr) {
-    return Response.json({ error: deleteErr.message }, { status: 500 })
+    if (deleteErr.message?.includes('deck_not_found')) {
+      return Response.json({ error: 'Deck not found' }, { status: 404 })
+    }
+    return Response.json({ error: `Failed to delete deck: ${deleteErr.message}` }, { status: 500 })
   }
 
-  return Response.json({ success: true })
+  const result = assertAtomicRpcSuccess(data, 'delete_deck_with_release')
+  return Response.json({ success: true, ...result })
 }
 
 /**

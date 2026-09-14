@@ -16,6 +16,7 @@
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
+import { assertAtomicRpcBoolean, assertAtomicRpcOptionalId, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 
 interface AssignBody {
   deckCardsId: number
@@ -59,22 +60,33 @@ export async function POST(request: NextRequest) {
   }
 
   // Atomic assign via RPC — serialized with advisory lock, no race condition
-  let rpcResult: { success: boolean; cleared_from_deck_card_id: number | null; already_assigned: boolean }
+  let rpcResult: {
+    success: true
+    cleared_from_deck_card_id: number | null
+    already_assigned: boolean
+  }
   try {
-    const { data, error: rpcErr } = await supabase.rpc('assign_physical_copy', {
+    const { data, error: rpcErr } = await (supabase.rpc as any)('assign_physical_copy', {
       p_target_deck_card_id: deckCardsId,
       p_copy_id: physicalCopyId,
+      p_user_id: userId,
     })
 
     if (rpcErr) {
-      // Specific: copy is already assigned to another deck — not a free candidate
-      if (rpcErr.message?.includes('copy_already_claimed') || rpcErr.code === 'P0001') {
+      // Only contention errors are stale; other P0001 errors describe a bad
+      // target/input and must not be presented as a retryable race.
+      if (rpcErr.message?.includes('copy_already_claimed')) {
         return Response.json(
           { error: 'That card was just claimed elsewhere. Refreshing available options.', stale: true },
           { status: 409 }
         )
       }
-      // Belt-and-suspenders: catch unique constraint violations
+      if (rpcErr.message?.includes('target_not_found') || rpcErr.message?.includes('copy_not_found')) {
+        return Response.json({ error: 'Assignment target or copy not found' }, { status: 404 })
+      }
+      if (rpcErr.message?.includes('target_filled') || rpcErr.message?.includes('card_identity_mismatch')) {
+        return Response.json({ error: 'The selected copy cannot be assigned to this slot' }, { status: 409 })
+      }
       if (rpcErr.message?.includes('unique') || rpcErr.code === '23505') {
         return Response.json(
           { error: 'That card was just claimed elsewhere. Refreshing available options.', stale: true },
@@ -87,7 +99,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    rpcResult = data as any
+    const result = assertAtomicRpcSuccess(data, 'assign_physical_copy')
+    rpcResult = {
+      success: true,
+      cleared_from_deck_card_id: assertAtomicRpcOptionalId(
+        result,
+        'cleared_from_deck_card_id',
+        'assign_physical_copy'
+      ),
+      already_assigned: assertAtomicRpcBoolean(
+        result,
+        'already_assigned',
+        'assign_physical_copy'
+      ),
+    }
   } catch (err) {
     // Catch any other constraint errors that might slip through
     const msg = err instanceof Error ? err.message : String(err)

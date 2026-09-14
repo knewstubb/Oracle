@@ -7,10 +7,11 @@
  *   to keep, delete, or insert. No I/O, no database calls.
  *
  * - applyDeckCardsDiff(): Executes a DiffResult transactionally via Supabase RPC.
- *   Falls back to sequential client-side operations if the RPC is unavailable.
+ *   If the RPC is unavailable, it fails closed instead of writing sequentially.
  */
 
 import { createAdminClient } from '@/lib/supabase'
+import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -206,8 +207,8 @@ export function diffDeckCards(
  * Execute a DiffResult against the database transactionally.
  *
  * Calls the `apply_deck_cards_diff` Supabase RPC which wraps delete/insert in
- * a single Postgres transaction. If the RPC is unavailable (migration not yet
- * applied), falls back to sequential client-side delete + insert with a warning.
+ * a single Postgres transaction. If the RPC is unavailable, it fails closed
+ * instead of writing sequentially.
  */
 export async function applyDeckCardsDiff(
   deckId: number,
@@ -224,78 +225,27 @@ export async function applyDeckCardsDiff(
   // Attempt transactional RPC
   // Note: Type assertion needed until migration is applied and Supabase types are regenerated
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase.rpc as any)('apply_deck_cards_diff', {
+  const { data, error } = await (supabase.rpc as any)('apply_deck_cards_diff', {
     p_deck_id: deckId,
+    p_user_id: userId,
     p_delete_ids: diff.toDelete,
-    p_insert_rows: JSON.stringify(diff.toInsert.map(row => ({
+    p_insert_rows: diff.toInsert.map(row => ({
       card_name: row.card_name,
       scryfall_id: row.scryfall_id,
       set_code: row.set_code,
       categories: row.categories,
       is_commander: row.is_commander,
       user_id: userId,
-    }))),
+    })),
   })
 
-  if (!error) {
-    return
-  }
-
-  // Check if the error indicates the RPC function doesn't exist
-  // PostgREST returns 404 or a message containing "not found" / "does not exist"
-  const isRpcNotFound =
-    error.code === '42883' || // PG: undefined_function
-    error.message?.includes('not found') ||
-    error.message?.includes('does not exist') ||
-    error.message?.includes('Could not find the function')
-
-  if (!isRpcNotFound) {
-    // Real error from the RPC — rethrow
+  if (error) {
     throw new Error(
       `[deck-cards-diff] RPC apply_deck_cards_diff failed: ${error.message}`
     )
   }
 
-  // ─── Fallback: non-atomic sequential operations ─────────────────────────
-  console.warn('[deck-cards-diff] RPC unavailable, using non-atomic fallback')
-
-  // 1. Delete removed rows
-  if (diff.toDelete.length > 0) {
-    const { error: deleteError } = await supabase
-      .from('deck_cards')
-      .delete()
-      .in('id', diff.toDelete)
-
-    if (deleteError) {
-      throw new Error(
-        `[deck-cards-diff] Fallback delete failed: ${deleteError.message}`
-      )
-    }
-  }
-
-  // 2. Insert new rows
-  if (diff.toInsert.length > 0) {
-    const insertRows = diff.toInsert.map(row => ({
-      deck_id: deckId,
-      card_name: row.card_name,
-      scryfall_id: row.scryfall_id,
-      set_code: row.set_code,
-      quantity: 1,
-      categories: row.categories,
-      is_commander: row.is_commander,
-      user_id: userId,
-      copy_id: null,
-      ownership_status: null,
-    }))
-
-    const { error: insertError } = await supabase
-      .from('deck_cards')
-      .insert(insertRows)
-
-    if (insertError) {
-      throw new Error(
-        `[deck-cards-diff] Fallback insert failed: ${insertError.message}`
-      )
-    }
-  }
+  const result = assertAtomicRpcSuccess(data, 'apply_deck_cards_diff')
+  assertAtomicRpcCount(result, 'deleted_count', 'apply_deck_cards_diff', diff.toDelete.length)
+  assertAtomicRpcCount(result, 'inserted_count', 'apply_deck_cards_diff', diff.toInsert.length)
 }

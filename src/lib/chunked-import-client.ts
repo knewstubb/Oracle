@@ -8,14 +8,14 @@
  * Strategy:
  *   1. Detect CSV format (Archidekt, Moxfield, etc.) and normalize to Archidekt format
  *   2. Parse CSV into rows using pure string processing (no Node.js APIs)
- *   3. Split rows into chunks of ~500
- *   4. POST each chunk sequentially to /api/collection/import
- *   5. Report progress via callback after each chunk
- *   6. Handle per-chunk errors (log, continue to next chunk)
- *   7. Return a summary with totals and per-chunk results
+ *   3. Send the complete normalized CSV in one request for the default full-import path
+ *   4. Split and POST chunks sequentially only for append-only or custom endpoints
+ *   5. Report progress via callback after each request
+ *   6. Return a summary with totals and per-request results
  *
- * Each chunk is processed as an independent server-side transaction,
- * so individual chunk failures are recoverable without losing prior progress.
+ * The default full-import request must remain one server-side transaction. It
+ * is intentionally not split into an independent replace request followed by
+ * add requests, which could leave a partial collection after interruption.
  *
  * Validates: Requirements 6.3, 6.5
  */
@@ -304,11 +304,14 @@ export async function chunkedImport(
     }
   }
 
-  // Step 2: Split into chunks
-  const chunks = chunk(dataLines, chunkSize)
+  // Full replacement must reach the server as one complete CSV so the
+  // server-side apply_collection_sync call can be all-or-nothing. Append-only
+  // and custom endpoint imports retain chunking for request-size/timeout needs.
+  const shouldUseChunks = addOnly || Boolean(userApiUrl)
+  const chunks = shouldUseChunks ? chunk(dataLines, chunkSize) : [dataLines]
   const totalChunks = chunks.length
 
-  // Step 3: Process each chunk sequentially
+  // Step 3: Process each request sequentially
   const chunkResults: ChunkResult[] = []
   let totalImported = 0
   let totalErrored = 0

@@ -122,3 +122,68 @@
 - Tasks: `.kiro/specs/collection-foundation/tasks.md`
 
 ---
+## 2026-09-12 — Atomic collection boundary implementation review rejected
+
+**Context:** Delivery Lead reviewed the uncommitted atomic movement/import increment before the requested feature commit and Tester handoff. This is a **Backtrack-one** loop: implementation returns to the Developer for correction before forward verification resumes; DevOps supports the database privilege and rollout checks.
+
+**Gate decision:** **Needs changes — do not commit or release yet.** The linked hosted database is currently in a safe final state: migrations through `20260912163000` are applied, reviewed RPCs are executable by `service_role` but not `PUBLIC`/`authenticated`, the production build passes, `git diff --check` passes, and read-only integrity checks report zero copies in both storage and deck, zero unsleeved copies without storage, zero stale ownership statuses, zero multiply referenced copies, and zero duplicate default locations.
+
+**Blocking gaps:**
+- Destructive collection sync/replace and deck replacement can skip unresolved identities and still atomically apply a partial desired set.
+- Assignment RPCs validate ownership but do not prove that the selected copy represents the same card as the target deck slot.
+- The first two migrations temporarily grant caller-selected-user `SECURITY DEFINER` functions to `authenticated`; a stopped fresh deployment is unsafe even though the final migration repairs the live state.
+- Source sync does not paginate beyond PostgREST's 1,000-row default, and full replacement membership is selected before the transaction lock, so concurrent/new rows can be omitted.
+- Deck-diff passes stringified JSON to a JSONB recordset contract; missing/found is not an invariant-preserving inverse; `proxy_for_card_id` lacks a tenant guard; and several callers accept malformed RPC success payloads.
+- New-user/empty-deck flows can require a default storage location that has not yet been created.
+- Targeted tests still encode the old chunking/RPC contracts, and changed-file lint/type findings are not at a clean regression gate.
+
+**Documentation gate gaps:**
+- The atomicity task remains correctly unchecked; the completed audit evidence is not reflected in `tasks.md`.
+- `design.md` is still missing from the feature folder.
+- The living product spec has no in-progress Collection Foundation index entry.
+- TD-026 and TD-029 remain open and must not be marked resolved until corrected behavior is verified; TD-037 remains explicitly out of scope for this increment.
+
+**Decisions made:**
+- Route the blocking implementation defects to the Developer; use DevOps as support for function grants/migration sequencing and Tester after corrections.
+- Keep hard XOR enforcement, Planned/Sleeved UX, origin/confirmation UX, AI confirmation, and broad RLS remediation deferred as previously agreed.
+- Exclude `.playwright-mcp/` and generated `semantic-review/` artifacts from the eventual product commit.
+- Do not create the requested feature commit until blocking findings, targeted regression tests, and feature records pass the gate.
+
+**Refs:**
+- Semantic review: `semantic-review/2026-09-14-131743-pr-local.md`
+- Tasks: `.kiro/specs/collection-foundation/tasks.md`
+- Migrations: `supabase/migrations/20260912150000_atomic_collection_movements.sql` through `20260912163000_atomic_collection_insert_ids.sql`
+
+---
+
+## 2026-09-12 — Backtrack-one correction: atomic boundary increment completed for personal-app scope
+
+**Context:** The rejected atomicity review identified incomplete destructive-input validation, retired-schema RPC callers, malformed-success acceptance, missing identity guards, pagination gaps, and unsafe migration privilege sequencing. This entry records the correction before the feature commit and forward release review.
+
+**What changed:**
+- Replaced the flagged sequential movement, collection, import, deck-diff, missing-restoration, onboarding, and warm-start write paths with current-schema RPC calls or one-statement writes where no multi-row invariant was involved.
+- Added strict RPC success/count/ID/boolean validation so a malformed success payload fails closed instead of being reported as a completed movement.
+- Added canonical copy/slot identity validation, default-storage resolution, paginated supply reads, complete destructive-import preflight, per-user locked transactional collection replacement, and current-schema JSONB deck-diff input.
+- Kept the legacy `upsert` import entry point only as a compatibility alias to safe V2 `add`; retired destructive modes return HTTP 410. No TD-038 entry is needed because no legacy destructive branch remains in the route.
+- Added `design.md`, updated task evidence, and added the Collection Foundation as an in-progress feature in the living product spec. Planned/Sleeved UX, hard XOR, confirmation/origin-picker UX, broad RLS, staging/revisions, audit/alerts, backup/DR, and the broader missing workflow remain deferred.
+
+**Decisions made:**
+- Preserve Option A: storage uses `user_copies.location_id`; sleeved deck slots use `deck_cards.copy_id` with storage cleared.
+- Keep service-role-only write RPCs and explicit authenticated `p_user_id` guards. Do not add a sequential fallback when an atomic RPC is unavailable.
+- Treat current personal-app correctness as the release scope; defer production hardening when it can be adopted later without destructive or incompatible changes.
+
+**Validation evidence:**
+- Focused tests pass individually with one worker: `missing.test.ts` 8/8, `chunked-import-client.test.ts` 15/15, and `deck-import-proxy.test.ts` 3/3 (26 total).
+- `npm run build` passes; Next.js reports only the existing middleware-convention deprecation and missing optional Gemini key warnings.
+- `git diff --check` passes.
+- The new batch deck route passes targeted ESLint. Tracked changed files retain the repository's pre-existing `any`, hook, and unused-symbol lint findings.
+- `npx tsc --noEmit --incremental false` remains a repository baseline failure with 293 errors in 81 files; no new errors were found in the atomic helper/import/allocation paths. Existing deck route/version and stale test errors remain.
+- The full `npm run test` run did not complete within ten minutes and was stopped; the focused changed-behavior suite passes.
+- `npx supabase db lint` could not run because local Postgres was unavailable at `127.0.0.1:54322`.
+- Previously recorded hosted read-only privilege and integrity checks remain clean: service-role-only execution for changed RPCs and zero invalid location/identity/default-location counts.
+
+**Refs:**
+- Requirements: `.kiro/specs/collection-foundation/requirements.md`
+- Design: `.kiro/specs/collection-foundation/design.md`
+- Tasks: `.kiro/specs/collection-foundation/tasks.md`
+- Technical debt intentionally left open: TD-026, TD-029, TD-037

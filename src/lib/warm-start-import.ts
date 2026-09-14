@@ -10,6 +10,7 @@
  */
 
 import { createAdminClient } from '@/lib/supabase'
+import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 import {
   fetchCollection,
   fetchUserDecks,
@@ -172,20 +173,18 @@ export async function importArchidektCollection(
     }
   }
 
-  // Step 4: Create user_copies — one row per instance (quantity exploded)
-  // Note: source_tag and storage_location_id exist in the DB but
-  // the generated Supabase types may be stale. We cast to satisfy the type checker.
+  // Step 4: Create user_copies — one row per instance (quantity exploded).
+  // The atomic RPC assigns every unsleeved copy to the user's default storage
+  // location and rolls the whole insert back if any row is invalid.
   let userCopiesCreated = 0
-  const BATCH_SIZE = 500
-
   const copyRows: Array<{
     card_id: number
-    scryfall_id: string | null
-    is_foil: boolean
+    printing_id: string | null
+    finish: string
     is_proxy: boolean
-    condition: string
+    card_condition: string
     source_tag: string
-    user_id: string
+    location_id: null
   }> = []
 
   for (const entry of entries) {
@@ -197,36 +196,40 @@ export async function importArchidektCollection(
       continue
     }
 
-    const scryfallId = entry.card.uid || null
-    const isFoil = entry.foil
-    const quantity = Math.min(entry.quantity, 100) // Cap at 100 per entry
+    const printingId = entry.card.uid || null
+    const finish = entry.foil ? 'foil' : 'nonfoil'
+    const quantity = Math.min(entry.quantity, 100)
 
     for (let q = 0; q < quantity; q++) {
       copyRows.push({
         card_id: defId,
-        scryfall_id: scryfallId,
-        is_foil: isFoil,
+        printing_id: printingId,
+        finish,
         is_proxy: false,
-        condition: 'near_mint', // Archidekt doesn't track condition
+        card_condition: 'near_mint',
         source_tag: 'archidekt',
-        user_id: userId,
+        location_id: null,
       })
     }
   }
 
-  // Batch insert user_copies
-  // Cast needed because generated Supabase types may be stale
-  for (let i = 0; i < copyRows.length; i += BATCH_SIZE) {
-    const batch = copyRows.slice(i, i + BATCH_SIZE)
-    const { error: copyErr } = await supabase
-      .from('user_copies')
-      .insert(batch as any)
+  if (copyRows.length > 0) {
+    const { data, error: copyErr } = await supabase.rpc('insert_user_copies', {
+      p_user_id: userId,
+      p_rows: copyRows,
+    })
 
     if (copyErr) {
-      errors.push(`user_copies batch at offset ${i}: ${copyErr.message}`)
-    } else {
-      userCopiesCreated += batch.length
+      throw new Error(`Atomic collection insert failed: ${copyErr.message}`)
     }
+
+    const insertedCount = assertAtomicRpcCount(
+      assertAtomicRpcSuccess(data, 'insert_user_copies'),
+      'inserted_count',
+      'insert_user_copies',
+      copyRows.length
+    )
+    userCopiesCreated = insertedCount
   }
 
   return {

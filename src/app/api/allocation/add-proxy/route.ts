@@ -18,6 +18,7 @@
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
+import { assertAtomicRpcId, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth()
@@ -45,97 +46,35 @@ export async function POST(request: NextRequest) {
   const supabase = createAdminClient()
 
   try {
-    // Verify the deck_cards row belongs to this user and is unresolved
-    const { data: deckCard, error: dcErr } = await supabase
-      .from('deck_cards')
-      .select('id, deck_id, copy_id')
-      .eq('id', deckCardsId)
-      .eq('user_id', userId)
-      .maybeSingle()
+    const { data, error: rpcErr } = await (supabase.rpc as any)('add_proxy_to_slot', {
+      p_target_deck_card_id: deckCardsId,
+      p_card_id: cardId,
+      p_user_id: userId,
+    })
 
-    if (dcErr || !deckCard) {
-      return Response.json({ error: 'Deck card slot not found' }, { status: 404 })
-    }
-
-    if (deckCard.copy_id !== null) {
-      return Response.json(
-        { error: 'Slot is already resolved — cannot add proxy to an occupied slot' },
-        { status: 409 }
-      )
-    }
-
-    // Verify the card belongs to this user and get oracle_id for printing lookup
-    const { data: card, error: cardErr } = await supabase
-      .from('user_cards')
-      .select('id, oracle_id')
-      .eq('id', cardId)
-      .eq('user_id', userId)
-      .maybeSingle()
-
-    if (cardErr || !card) {
-      return Response.json({ error: 'Card not found' }, { status: 404 })
-    }
-
-    // Resolve a default printing from ref_printings (best-effort, fall back to null)
-    let printingId: string | null = null
-    if (card.oracle_id) {
-      const { data: printing } = await supabase
-        .from('ref_printings')
-        .select('scryfall_id')
-        .eq('oracle_id', card.oracle_id)
-        .order('released_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      if (printing?.scryfall_id) {
-        printingId = printing.scryfall_id
+    if (rpcErr) {
+      if (rpcErr.message?.includes('target_not_found')) {
+        return Response.json({ error: 'Deck card slot not found' }, { status: 404 })
       }
+      if (rpcErr.message?.includes('target_filled')) {
+        return Response.json(
+          { error: 'Slot is already resolved — cannot add proxy to an occupied slot' },
+          { status: 409 }
+        )
+      }
+      if (rpcErr.message?.includes('card_not_found')) {
+        return Response.json({ error: 'Card not found' }, { status: 404 })
+      }
+      return Response.json({ error: `Failed to create proxy: ${rpcErr.message}` }, { status: 500 })
     }
 
-    // Step 1: Create the proxy collection row
-    const { data: newCopy, error: createErr } = await supabase
-      .from('user_copies')
-      .insert({
-        card_id: cardId,
-        is_proxy: true,
-        finish: 'nonfoil',
-        source_tag: 'manual',
-        printing_id: printingId,
-        user_id: userId,
-      })
-      .select('id')
-      .single()
-
-    if (createErr || !newCopy) {
-      return Response.json(
-        { error: `Failed to create proxy: ${createErr?.message ?? 'unknown error'}` },
-        { status: 500 }
-      )
-    }
-
-    // Step 2: Assign the new proxy to the deck slot
-    const { error: assignErr } = await supabase
-      .from('deck_cards')
-      .update({
-        copy_id: newCopy.id,
-        ownership_status: 'proxy',
-      })
-      .eq('id', deckCardsId)
-
-    if (assignErr) {
-      // Rollback: delete the created copy since assignment failed
-      await supabase.from('user_copies').delete().eq('id', newCopy.id)
-      return Response.json(
-        { error: `Failed to assign proxy to slot: ${assignErr.message}` },
-        { status: 500 }
-      )
-    }
-
+    const result = assertAtomicRpcSuccess(data, 'add_proxy_to_slot')
+    const copyId = assertAtomicRpcId(result, 'copy_id', 'add_proxy_to_slot')
     return Response.json({
       success: true,
-      copyId: newCopy.id,
+      copyId,
       // Deprecated alias for backwards compatibility
-      physicalCopyId: newCopy.id,
+      physicalCopyId: copyId,
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

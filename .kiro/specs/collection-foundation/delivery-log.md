@@ -281,3 +281,30 @@
 - Migration: `supabase/migrations/20260912190000_atomic_remove_deck_card.sql`
 - Route: `src/app/api/decks/[id]/cards/[cardId]/route.ts`
 - Tasks: `.kiro/specs/collection-foundation/tasks.md`
+
+## 2026-09-14 — Hosted migration applied and atomic removal runtime-verified
+
+**Context:** The atomic individual deck-card removal code was implementation-complete but not yet applied to the hosted database or runtime-verified. The user explicitly accepted the risk of running migration history repair and a hosted push against the real personal collection database rather than gating further on a local Postgres instance.
+
+**What changed:**
+- Found the hosted migration history out of sync: remote had version `20260914034408` (the personal-scope hardening content, applied earlier under an ad-hoc timestamp) with no matching local file, blocking `supabase db push`.
+- Ran `supabase migration repair --status reverted 20260914034408` to correct the tracking metadata only; this does not touch any data table.
+- Ran `supabase db push` (after a clean dry run) and applied the three pending migrations to hosted project `udocxsyzzvrceiuupprj`: `20260912170000_atomic_collection_personal_scope.sql`, `20260912180000_built_import_reconciliation.sql`, `20260912190000_atomic_remove_deck_card.sql`. `supabase migration list` now shows all nine local migrations matched to remote versions.
+- Wrote a temporary `tsx` verification script (deleted after use) using `createAdminClient()` to run read-only integrity checks and smoke-test `remove_deck_card_with_release` directly against the hosted database, then deleted its own temporary rows.
+
+**Runtime verification results (hosted database):**
+- Integrity: 0 copies in both storage and a deck slot; 0 orphaned non-missing unlocated copies; exactly 1 default storage location for the target user.
+- Planned removal: `deleted_count=1`, `released_count=0`, `copy_id=null` — slot removed, no copy touched.
+- Sleeved (non-missing) removal: `deleted_count=1`, `released_count=1`, `copy_id` set, `target_location_id` equal to the user's default storage location id; the copy's `location_id` was confirmed updated to that same default location after the call.
+- Missing Sleeved removal: `deleted_count=1`, `released_count=1`, `target_location_id=null`; the copy's `location_id` was confirmed to remain `null` and `missing=true` after the call.
+- Not-found removal (fabricated deck_card_id): RPC returned error `deck_card_not_found`, matching the route's 404 mapping.
+- Post-test cleanup confirmed zero residual verification rows in `user_cards`, `user_copies`, and `deck_cards`.
+
+**Decisions made:**
+- Migration history repair only corrects tracking metadata; it was chosen over any destructive reset because a purge would not fix a metadata mismatch and would discard real, non-reproducible collection data. This is documented here because the user asked about purging as an alternative and it was explicitly declined with rationale.
+- The user accepted the risk of running schema changes against the real hosted personal database without a separate backup step for this increment.
+
+**Refs:**
+- Migration: `supabase/migrations/20260912190000_atomic_remove_deck_card.sql`
+- Route: `src/app/api/decks/[id]/cards/[cardId]/route.ts`
+- Tasks: `.kiro/specs/collection-foundation/tasks.md`

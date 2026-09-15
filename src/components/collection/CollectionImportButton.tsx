@@ -17,6 +17,7 @@ import { useQueryClient } from '@tanstack/react-query'
 
 type ImportState =
   | { status: 'idle' }
+  | { status: 'confirming'; csvContent: string; fileName: string }
   | { status: 'importing'; progress: ChunkProgress }
   | { status: 'complete'; summary: ChunkedImportSummary }
   | { status: 'error'; message: string }
@@ -44,19 +45,7 @@ export function CollectionImportButton() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const queryClient = useQueryClient()
 
-  const handleFileSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    // Reset file input so same file can be re-selected
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-    }
-
-    // Read file content
-    const csvContent = await file.text()
-
-    // Create abort controller for cancellation
+  const startImport = useCallback(async (csvContent: string) => {
     const controller = new AbortController()
     abortControllerRef.current = controller
 
@@ -64,10 +53,11 @@ export function CollectionImportButton() {
       status: 'importing',
       progress: {
         currentChunk: 0,
-        totalChunks: 0,
+        totalChunks: 1,
         rowsProcessed: 0,
         totalRows: 0,
         chunkSuccess: true,
+        phase: 'validating',
       },
     })
 
@@ -92,6 +82,24 @@ export function CollectionImportButton() {
       abortControllerRef.current = null
     }
   }, [queryClient])
+
+  const handleFileSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Reset file input so the same file can be re-selected
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+
+    const csvContent = await file.text()
+    setState({ status: 'confirming', csvContent, fileName: file.name })
+  }, [])
+
+  const handleConfirmImport = useCallback(() => {
+    if (state.status !== 'confirming') return
+    void startImport(state.csvContent)
+  }, [startImport, state])
 
   const handleCancel = useCallback(() => {
     abortControllerRef.current?.abort()
@@ -130,6 +138,14 @@ export function CollectionImportButton() {
         </Button>
       )}
 
+      {state.status === 'confirming' && (
+        <ImportConfirmation
+          fileName={state.fileName}
+          onConfirm={handleConfirmImport}
+          onCancel={handleDismiss}
+        />
+      )}
+
       {state.status === 'importing' && (
         <ImportProgress progress={state.progress} onCancel={handleCancel} />
       )}
@@ -149,6 +165,44 @@ export function CollectionImportButton() {
 // Sub-Components
 // ---------------------------------------------------------------------------
 
+function ImportConfirmation({
+  fileName,
+  onConfirm,
+  onCancel,
+}: {
+  fileName: string
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  return (
+    <div
+      className="flex max-w-[360px] flex-col gap-2 rounded-md border border-amber-400/30 bg-amber-400/5 p-3"
+      role="alertdialog"
+      aria-labelledby="collection-replace-warning"
+    >
+      <div className="flex items-start gap-2">
+        <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-amber-400" aria-hidden="true" />
+        <div className="min-w-0">
+          <p id="collection-replace-warning" className="text-[length:var(--fs-sm)] font-medium text-amber-200">
+            Replace your entire collection?
+          </p>
+          <p className="mt-1 text-[length:var(--fs-xs)] leading-relaxed text-white/60">
+            {fileName} will replace the current collection. Deck allocations will be cleared and need Built-deck reconciliation afterward. Storage locations, notes, purchase prices, and missing flags will not carry over.
+          </p>
+        </div>
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button size="sm" onClick={onConfirm}>
+          Replace collection
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 function ImportProgress({
   progress,
   onCancel,
@@ -156,10 +210,19 @@ function ImportProgress({
   progress: ChunkProgress
   onCancel: () => void
 }) {
+  const progressTotal = progress.totalCards ?? progress.totalRows
+  const progressProcessed = progress.cardsProcessed ?? progress.rowsProcessed
   const percent =
-    progress.totalRows > 0
-      ? Math.round((progress.rowsProcessed / progress.totalRows) * 100)
+    progressTotal > 0
+      ? Math.round((progressProcessed / progressTotal) * 100)
       : 0
+  const phaseLabel = progress.phase === 'replacing'
+    ? 'Replacing collection'
+    : progress.phase === 'preparing'
+      ? 'Preparing cards'
+      : progress.phase === 'resolving'
+        ? 'Resolving cards'
+        : 'Validating collection'
 
   return (
     <div className="flex items-center gap-2.5">
@@ -169,7 +232,7 @@ function ImportProgress({
       />
       <div className="flex flex-col gap-0.5">
         <span className="text-[11px] text-white/60">
-          Importing... chunk {progress.currentChunk + 1}/{progress.totalChunks}
+          {phaseLabel} · {progressProcessed.toLocaleString()} / {progressTotal.toLocaleString()}
         </span>
         {/* Progress bar */}
         <div
@@ -185,7 +248,9 @@ function ImportProgress({
           />
         </div>
         <span className="text-[length:var(--fs-xs)] text-white/40">
-          {progress.rowsProcessed.toLocaleString()} / {progress.totalRows.toLocaleString()} rows
+          {progress.cardsProcessed !== undefined
+            ? `${progress.cardsProcessed.toLocaleString()} / ${progress.totalCards?.toLocaleString() ?? '—'} cards`
+            : `${progress.rowsProcessed.toLocaleString()} / ${progress.totalRows.toLocaleString()} rows`}
         </span>
       </div>
       <Button

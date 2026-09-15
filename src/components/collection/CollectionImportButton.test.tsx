@@ -84,6 +84,7 @@ describe('CollectionImportButton', () => {
     await act(async () => {
       fireEvent.change(fileInput, { target: { files: [file] } })
     })
+    fireEvent.click(screen.getByRole('button', { name: 'Replace collection' }))
 
     await waitFor(() => {
       expect(mockChunkedImport).toHaveBeenCalledTimes(1)
@@ -116,6 +117,7 @@ describe('CollectionImportButton', () => {
     await act(async () => {
       fireEvent.change(fileInput, { target: { files: [file] } })
     })
+    fireEvent.click(screen.getByRole('button', { name: 'Replace collection' }))
 
     await waitFor(() => {
       expect(screen.getByText('500 rows imported')).toBeInTheDocument()
@@ -133,6 +135,7 @@ describe('CollectionImportButton', () => {
     await act(async () => {
       fireEvent.change(fileInput, { target: { files: [file] } })
     })
+    fireEvent.click(screen.getByRole('button', { name: 'Replace collection' }))
 
     await waitFor(() => {
       expect(screen.getByText('CSV is empty — no header row found')).toBeInTheDocument()
@@ -159,6 +162,7 @@ describe('CollectionImportButton', () => {
     await act(async () => {
       fireEvent.change(fileInput, { target: { files: [file] } })
     })
+    fireEvent.click(screen.getByRole('button', { name: 'Replace collection' }))
 
     await waitFor(() => {
       expect(screen.getByText(/500 rows imported/)).toBeInTheDocument()
@@ -186,6 +190,7 @@ describe('CollectionImportButton', () => {
     await act(async () => {
       fireEvent.change(fileInput, { target: { files: [file] } })
     })
+    fireEvent.click(screen.getByRole('button', { name: 'Replace collection' }))
 
     await waitFor(() => {
       expect(screen.getByText('10 rows imported')).toBeInTheDocument()

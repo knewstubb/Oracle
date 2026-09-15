@@ -33,18 +33,34 @@ const CHUNK_SIZE = 500
 // Types
 // ---------------------------------------------------------------------------
 
-/** Progress callback invoked after each chunk is processed */
+export type ImportProgressPhase =
+  | 'validating'
+  | 'resolving'
+  | 'preparing'
+  | 'replacing'
+  | 'complete'
+  | 'error'
+
+/** Progress callback invoked after each chunk or streamed progress event */
 export interface ChunkProgress {
   /** Current chunk index (0-based) */
   currentChunk: number
   /** Total number of chunks */
   totalChunks: number
-  /** Total rows processed so far (including current chunk) */
+  /** Total source rows processed so far */
   rowsProcessed: number
-  /** Total rows to process */
+  /** Total source rows to process */
   totalRows: number
   /** Whether the current chunk succeeded */
   chunkSuccess: boolean
+  /** Current server-side import phase, when available */
+  phase?: ImportProgressPhase
+  /** Physical cards processed so far, when available */
+  cardsProcessed?: number
+  /** Total physical cards to import, when available */
+  totalCards?: number
+  /** Human-readable phase detail, when available */
+  message?: string
 }
 
 /** Result of a single chunk upload */
@@ -65,6 +81,8 @@ export interface ChunkResult {
 export interface ChunkedImportSummary {
   /** Total rows parsed from the CSV */
   totalRows: number
+  /** Total physical cards represented by the CSV, when known */
+  totalCards?: number
   /** Total rows successfully imported (from successful chunks) */
   totalImported: number
   /** Total rows that errored (from failed chunks) */
@@ -235,6 +253,110 @@ function reassembleCSVChunk(header: string, dataLines: string[]): string {
   return [header, ...dataLines].join('\n')
 }
 
+interface StreamingProgressEvent {
+  type: 'progress'
+  phase: ImportProgressPhase
+  processed: number
+  total: number
+  cardsProcessed: number
+  totalCards: number
+}
+
+interface StreamingCompleteEvent {
+  type: 'complete'
+  summary: Record<string, unknown>
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function parseStreamingEvent(line: string): StreamingProgressEvent | StreamingCompleteEvent {
+  let value: unknown
+  try {
+    value = JSON.parse(line)
+  } catch {
+    throw new Error('Collection import returned malformed progress data')
+  }
+
+  if (!isRecord(value) || typeof value.type !== 'string') {
+    throw new Error('Collection import returned an invalid progress event')
+  }
+
+  if (value.type === 'progress') {
+    if (
+      typeof value.phase !== 'string' ||
+      !Number.isInteger(value.processed) ||
+      !Number.isInteger(value.total) ||
+      !Number.isInteger(value.cardsProcessed) ||
+      !Number.isInteger(value.totalCards)
+    ) {
+      throw new Error('Collection import returned an invalid progress event')
+    }
+
+    return value as unknown as StreamingProgressEvent
+  }
+
+  if (value.type === 'complete' && isRecord(value.summary)) {
+    return value as unknown as StreamingCompleteEvent
+  }
+
+  if (value.type === 'error') {
+    const message = typeof value.message === 'string' ? value.message : 'Collection import failed'
+    throw new Error(message)
+  }
+
+  throw new Error('Collection import returned an unknown progress event')
+}
+
+async function readStreamingImportResponse(
+  response: Response,
+  onProgress: (event: StreamingProgressEvent) => void
+): Promise<Record<string, unknown>> {
+  if (!response.body) {
+    throw new Error('Collection import returned an empty progress stream')
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let completeEvent: StreamingCompleteEvent | null = null
+
+  const consumeLine = (rawLine: string) => {
+    const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine
+    if (!line.trim()) return
+
+    const event = parseStreamingEvent(line)
+    if (event.type === 'progress') {
+      onProgress(event)
+    } else {
+      completeEvent = event
+    }
+  }
+
+  while (true) {
+    const { done, value } = await reader.read()
+    buffer += decoder.decode(value, { stream: !done })
+
+    let newlineIndex = buffer.indexOf('\n')
+    while (newlineIndex >= 0) {
+      consumeLine(buffer.slice(0, newlineIndex))
+      buffer = buffer.slice(newlineIndex + 1)
+      newlineIndex = buffer.indexOf('\n')
+    }
+
+    if (done) break
+  }
+
+  if (buffer.trim()) consumeLine(buffer)
+  const terminalEvent = completeEvent
+  if (!terminalEvent) {
+    throw new Error('Collection import progress stream ended before completion')
+  }
+
+  return (completeEvent as unknown as StreamingCompleteEvent).summary
+}
+
 // ---------------------------------------------------------------------------
 // Main Export: Chunked Import Orchestrator
 // ---------------------------------------------------------------------------
@@ -316,6 +438,8 @@ export async function chunkedImport(
   let totalImported = 0
   let totalErrored = 0
   let rowsProcessedSoFar = 0
+  let totalCardsFromStream: number | undefined
+
 
   for (let i = 0; i < chunks.length; i++) {
     // Check for cancellation
@@ -338,6 +462,7 @@ export async function chunkedImport(
     let chunkSuccess = false
     let chunkError: string | undefined
     let serverResponse: unknown
+    const isStreamingReplace = !shouldUseChunks && !userApiUrl && !addOnly
 
     try {
       // Determine mode for this chunk:
@@ -361,15 +486,42 @@ export async function chunkedImport(
 
       const response = await fetch(chunkUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/csv' },
+        headers: {
+          'Content-Type': 'text/csv',
+          ...(isStreamingReplace ? { Accept: 'application/x-ndjson' } : {}),
+        },
         body: chunkCSV,
         signal,
       })
 
       if (response.ok) {
-        serverResponse = await response.json()
+        if (isStreamingReplace) {
+          serverResponse = await readStreamingImportResponse(response, (event) => {
+            onProgress?.({
+              currentChunk: i,
+              totalChunks,
+              rowsProcessed: event.processed,
+              totalRows: event.total,
+              chunkSuccess: true,
+              phase: event.phase,
+              cardsProcessed: event.cardsProcessed,
+              totalCards: event.totalCards,
+            })
+            totalCardsFromStream = event.totalCards
+          })
+        } else {
+          serverResponse = await response.json()
+        }
         chunkSuccess = true
-        totalImported += chunkData.length
+        if (
+          isStreamingReplace &&
+          isRecord(serverResponse) &&
+          Number.isInteger(serverResponse.inserted)
+        ) {
+          totalImported += serverResponse.inserted as number
+        } else {
+          totalImported += chunkData.length
+        }
       } else {
         const errorBody = await response.text()
         let errorMessage: string
@@ -401,14 +553,17 @@ export async function chunkedImport(
       serverResponse: chunkSuccess ? serverResponse : undefined,
     })
 
-    // Report progress
-    onProgress?.({
-      currentChunk: i,
-      totalChunks,
-      rowsProcessed: rowsProcessedSoFar,
-      totalRows,
-      chunkSuccess,
-    })
+    // Report progress for chunked paths. The streaming replace path already
+    // reported server-side progress and must not overwrite its final phase.
+    if (!isStreamingReplace || !chunkSuccess) {
+      onProgress?.({
+        currentChunk: i,
+        totalChunks,
+        rowsProcessed: rowsProcessedSoFar,
+        totalRows,
+        chunkSuccess,
+      })
+    }
   }
 
   // Step 4: Build and return summary
@@ -417,6 +572,7 @@ export async function chunkedImport(
 
   return {
     totalRows,
+    totalCards: totalCardsFromStream,
     totalImported,
     totalErrored,
     chunksTotal: totalChunks,

@@ -9,7 +9,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   chunkedImport,
   type ChunkProgress,
-  type ChunkedImportSummary,
 } from './chunked-import-client'
 
 // ---------------------------------------------------------------------------
@@ -25,6 +24,40 @@ function buildCSV(rowCount: number): string {
     )
   }
   return lines.join('\n')
+}
+
+function makeStreamingResponse(inserted: number, totalCards = inserted, split = false) {
+  const body = [
+    JSON.stringify({
+      type: 'progress',
+      phase: 'resolving',
+      processed: totalCards,
+      total: totalCards,
+      cardsProcessed: totalCards,
+      totalCards,
+    }),
+    JSON.stringify({
+      type: 'complete',
+      summary: { inserted, removed: 0, skipped: 0, sourceTag: 'archidekt', errors: [], durationMs: 1 },
+    }),
+  ].join('\n')
+  const encoded = new TextEncoder().encode(body)
+
+  return {
+    ok: true,
+    body: new ReadableStream({
+      start(controller) {
+        if (split) {
+          const midpoint = Math.floor(encoded.length / 2)
+          controller.enqueue(encoded.slice(0, midpoint))
+          controller.enqueue(encoded.slice(midpoint))
+        } else {
+          controller.enqueue(encoded)
+        }
+        controller.close()
+      },
+    }),
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -66,10 +99,7 @@ describe('chunkedImport', () => {
   it('sends a single chunk for small CSV (< 500 rows)', async () => {
     const csvContent = buildCSV(10)
 
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ created: 10 }),
-    })
+    const mockFetch = vi.fn().mockResolvedValue(makeStreamingResponse(10))
     vi.stubGlobal('fetch', mockFetch)
 
     const result = await chunkedImport({ csvContent })
@@ -86,10 +116,7 @@ describe('chunkedImport', () => {
   it('splits into multiple chunks for large CSV', async () => {
     const csvContent = buildCSV(1200)
 
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ created: 500 }),
-    })
+    const mockFetch = vi.fn().mockResolvedValue(makeStreamingResponse(1200))
     vi.stubGlobal('fetch', mockFetch)
 
     const result = await chunkedImport({ csvContent, chunkSize: 500 })
@@ -107,10 +134,7 @@ describe('chunkedImport', () => {
     const csvContent = buildCSV(1000)
     const progressUpdates: ChunkProgress[] = []
 
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ created: 500 }),
-    })
+    const mockFetch = vi.fn().mockResolvedValue(makeStreamingResponse(1000))
     vi.stubGlobal('fetch', mockFetch)
 
     await chunkedImport({
@@ -126,6 +150,9 @@ describe('chunkedImport', () => {
       rowsProcessed: 1000,
       totalRows: 1000,
       chunkSuccess: true,
+      phase: 'resolving',
+      cardsProcessed: 1000,
+      totalCards: 1000,
     })
   })
 
@@ -146,7 +173,7 @@ describe('chunkedImport', () => {
       })
     vi.stubGlobal('fetch', mockFetch)
 
-    const result = await chunkedImport({
+    await chunkedImport({
       csvContent,
       chunkSize: 500,
       apiUrl: '/api/custom-import',
@@ -178,10 +205,7 @@ describe('chunkedImport', () => {
   it('sends CSV data with text/csv content type', async () => {
     const csvContent = buildCSV(5)
 
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ created: 5 }),
-    })
+    const mockFetch = vi.fn().mockResolvedValue(makeStreamingResponse(5))
     vi.stubGlobal('fetch', mockFetch)
 
     await chunkedImport({ csvContent })
@@ -193,6 +217,67 @@ describe('chunkedImport', () => {
     // Body should include the header + data lines
     expect(options.body).toContain('Quantity,Name,')
     expect(options.body).toContain('Card 1')
+  })
+
+  it('parses NDJSON progress when records are split across stream chunks', async () => {
+    const progressUpdates: ChunkProgress[] = []
+    const mockFetch = vi.fn().mockResolvedValue(makeStreamingResponse(2, 2, true))
+    vi.stubGlobal('fetch', mockFetch)
+
+    const result = await chunkedImport({
+      csvContent: buildCSV(2),
+      onProgress: (progress) => progressUpdates.push(progress),
+    })
+
+    expect(result.totalImported).toBe(2)
+    expect(progressUpdates).toHaveLength(1)
+    expect(progressUpdates[0].cardsProcessed).toBe(2)
+    expect(mockFetch.mock.calls[0][1].headers.Accept).toBe('application/x-ndjson')
+  })
+
+  it('surfaces a streamed protocol error as an import failure', async () => {
+    const errorLine = JSON.stringify({ type: 'error', message: 'Identity resolution failed' })
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(`${errorLine}\n`))
+          controller.close()
+        },
+      }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const result = await chunkedImport({ csvContent: buildCSV(1) })
+
+    expect(result.totalErrored).toBe(1)
+    expect(result.chunkResults[0].error).toContain('Identity resolution failed')
+  })
+
+  it('rejects a streamed response that never reaches completion', async () => {
+    const progressLine = JSON.stringify({
+      type: 'progress',
+      phase: 'resolving',
+      processed: 1,
+      total: 1,
+      cardsProcessed: 1,
+      totalCards: 1,
+    })
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(`${progressLine}\n`))
+          controller.close()
+        },
+      }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const result = await chunkedImport({ csvContent: buildCSV(1) })
+
+    expect(result.totalErrored).toBe(1)
+    expect(result.chunkResults[0].error).toContain('ended before completion')
   })
 
   it('uses custom API URL when provided', async () => {
@@ -275,10 +360,7 @@ describe('chunkedImport', () => {
   it('tracks duration in durationMs', async () => {
     const csvContent = buildCSV(5)
 
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ created: 5 }),
-    })
+    const mockFetch = vi.fn().mockResolvedValue(makeStreamingResponse(5))
     vi.stubGlobal('fetch', mockFetch)
 
     const result = await chunkedImport({ csvContent })
@@ -291,10 +373,7 @@ describe('chunkedImport', () => {
     const header = 'Quantity,Name,Finish,Condition,Date Added,Language,Purchase Price,Tags,Edition Name,Edition Code,Multiverse Id,Scryfall ID,Collector Number,Identities,Types,Scryfall Oracle ID'
     const csvContent = `${header}\n1,"Card, The Great",Normal,Near Mint,2024-01-01,English,0,,Test Set,tst,1,scryfall-1,1,G,Creature,oracle-1`
 
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ created: 1 }),
-    })
+    const mockFetch = vi.fn().mockResolvedValue(makeStreamingResponse(1))
     vi.stubGlobal('fetch', mockFetch)
 
     const result = await chunkedImport({ csvContent })

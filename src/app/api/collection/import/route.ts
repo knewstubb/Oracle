@@ -1,6 +1,70 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { executeInstanceLevelImport } from '@/lib/import-engine-v2'
+import { executeInstanceLevelImport, type ImportProgress } from '@/lib/import-engine-v2'
 import { requireAuth } from '@/lib/auth'
+
+export const runtime = 'nodejs'
+export const maxDuration = 120
+
+function ndjsonLine(value: unknown): Uint8Array {
+  return new TextEncoder().encode(`${JSON.stringify(value)}\n`)
+}
+
+function streamReplaceImport(csvContent: string, userId: string): Response {
+  let streamClosed = false
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const send = (event: unknown) => {
+        if (streamClosed) return
+        try {
+          controller.enqueue(ndjsonLine(event))
+        } catch {
+          streamClosed = true
+        }
+      }
+
+      void executeInstanceLevelImport({
+        csvContent,
+        mode: 'replace',
+        userId,
+        onProgress: async (progress: ImportProgress) => {
+          send({ type: 'progress', ...progress })
+        },
+      })
+        .then((summary) => {
+          send({ type: 'complete', summary: { ...summary, replaced: true } })
+        })
+        .catch((err: unknown) => {
+          const message = err instanceof Error ? err.message : String(err)
+          send({
+            type: 'error',
+            message,
+            isCsvParseError: isCsvParseError(err),
+          })
+        })
+        .finally(() => {
+          if (!streamClosed) {
+            streamClosed = true
+            try {
+              controller.close()
+            } catch {
+              // The client may have cancelled the request while the import was running.
+            }
+          }
+        })
+    },
+    cancel() {
+      streamClosed = true
+    },
+  })
+
+  return new Response(stream, {
+    headers: {
+      'Cache-Control': 'no-cache, no-transform',
+      'Content-Type': 'application/x-ndjson; charset=utf-8',
+      'X-Accel-Buffering': 'no',
+    },
+  })
+}
 
 /**
  * Determines if an error is a CSV parse error (invalid format, missing columns, etc.).
@@ -51,29 +115,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    try {
-      const summary = await executeInstanceLevelImport({
-        csvContent,
-        mode: 'replace',
-        userId,
-      })
-
-      // [Phase 4] Collection changes no longer trigger allocation.
-      // If a collection edit invalidates an existing link, it surfaces as a
-      // completeness drop (Section 5) on the affected deck's picklist.
-      // See spec Section 6f: "Retire, no replacement."
-
-      return NextResponse.json({ ...summary, replaced: true })
-    } catch (err) {
-      if (isCsvParseError(err)) {
-        return NextResponse.json(
-          { error: err instanceof Error ? err.message : 'CSV parse error' },
-          { status: 400 }
-        )
-      }
-      const message = err instanceof Error ? err.message : String(err)
-      return NextResponse.json({ error: `Replace import failed: ${message}` }, { status: 500 })
-    }
+    return streamReplaceImport(csvContent, userId)
   }
 
   // ---------------------------------------------------------------------------

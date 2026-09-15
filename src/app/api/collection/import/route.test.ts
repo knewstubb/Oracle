@@ -1,28 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
-// Mock dependencies before importing the route
+const mocks = vi.hoisted(() => ({
+  requireAuth: vi.fn(),
+  executeInstanceLevelImport: vi.fn(),
+}))
+
 vi.mock('@/lib/auth', () => ({
-  requireAuth: vi.fn().mockResolvedValue({ id: 'test-user-123' }),
+  requireAuth: mocks.requireAuth,
 }))
 
-vi.mock('@/lib/csv-import', () => ({
-  parseCollectionCSV: vi.fn().mockReturnValue([]),
-  computeCollectionDelta: vi.fn().mockResolvedValue({ added: [], removed: [], changed: [] }),
-  applyCollectionImport: vi.fn().mockResolvedValue({ totalInserted: 0, errors: [] }),
-}))
-
-vi.mock('@/lib/collection-reallocator', () => ({
-  importCollectionAndReallocate: vi.fn(),
-}))
-
-vi.mock('@/lib/import-engine', () => ({
-  executeCollectionImportAsync: vi.fn().mockResolvedValue({ inserted: 0, skipped: 0 }),
+vi.mock('@/lib/import-engine-v2', () => ({
+  executeInstanceLevelImport: mocks.executeInstanceLevelImport,
 }))
 
 import { POST } from './route'
 
-function makeRequest(url: string, body: string = 'Card Name,Quantity\nSol Ring,1') {
+function makeRequest(url = '/api/collection/import?mode=replace', body = 'Name,Quantity\nSol Ring,1') {
   return new NextRequest(new URL(url, 'http://localhost:3000'), {
     method: 'POST',
     body,
@@ -30,87 +24,115 @@ function makeRequest(url: string, body: string = 'Card Name,Quantity\nSol Ring,1
   })
 }
 
-describe('POST /api/collection/import — confirm_delete guard (Req 3)', () => {
+async function readNdjson(response: Response): Promise<Array<Record<string, unknown>>> {
+  const text = await response.text()
+  return text
+    .trim()
+    .split('\n')
+    .map((line) => JSON.parse(line) as Record<string, unknown>)
+}
+
+describe('POST /api/collection/import', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.requireAuth.mockResolvedValue({ id: 'test-user-123' })
+    mocks.executeInstanceLevelImport.mockImplementation(async ({ onProgress }) => {
+      await onProgress?.({
+        phase: 'resolving',
+        processed: 1,
+        total: 1,
+        cardsProcessed: 1,
+        totalCards: 1,
+      })
+      return {
+        inserted: 1,
+        skipped: 0,
+        removed: 1,
+        sourceTag: 'archidekt',
+        errors: [],
+        durationMs: 10,
+      }
+    })
   })
 
-  it('returns 403 when mode=legacy and confirm_delete is missing', async () => {
-    const req = makeRequest('/api/collection/import?mode=legacy')
-    const res = await POST(req)
+  it('streams progress and a terminal completion event for replace mode', async () => {
+    const response = await POST(makeRequest())
 
-    expect(res.status).toBe(403)
-    const json = await res.json()
-    expect(json.error).toContain('Legacy destructive import path is disabled')
-    expect(json.error).toContain('confirm_delete=true')
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toContain('application/x-ndjson')
+    expect(response.headers.get('cache-control')).toContain('no-cache')
+
+    const events = await readNdjson(response)
+    expect(events).toEqual([
+      {
+        type: 'progress',
+        phase: 'resolving',
+        processed: 1,
+        total: 1,
+        cardsProcessed: 1,
+        totalCards: 1,
+      },
+      {
+        type: 'complete',
+        summary: {
+          inserted: 1,
+          skipped: 0,
+          removed: 1,
+          sourceTag: 'archidekt',
+          errors: [],
+          durationMs: 10,
+          replaced: true,
+        },
+      },
+    ])
+
+    expect(mocks.executeInstanceLevelImport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        csvContent: 'Name,Quantity\nSol Ring,1',
+        mode: 'replace',
+        userId: 'test-user-123',
+        onProgress: expect.any(Function),
+      })
+    )
   })
 
-  it('returns 403 when mode=legacy and confirm_delete is empty string', async () => {
-    const req = makeRequest('/api/collection/import?mode=legacy&confirm_delete=')
-    const res = await POST(req)
+  it('streams engine failures as an error event', async () => {
+    mocks.executeInstanceLevelImport.mockRejectedValueOnce(new Error('Database timeout'))
 
-    expect(res.status).toBe(403)
-    const json = await res.json()
-    expect(json.error).toContain("confirm_delete must be exactly 'true'")
+    const response = await POST(makeRequest())
+    const events = await readNdjson(response)
+
+    expect(response.status).toBe(200)
+    expect(events).toEqual([
+      {
+        type: 'error',
+        message: 'Database timeout',
+        isCsvParseError: false,
+      },
+    ])
   })
 
-  it('returns 403 when mode=legacy and confirm_delete is "True" (case-sensitive)', async () => {
-    const req = makeRequest('/api/collection/import?mode=legacy&confirm_delete=True')
-    const res = await POST(req)
+  it('returns a normal HTTP error before starting a stream for an empty body', async () => {
+    const response = await POST(makeRequest('/api/collection/import?mode=replace', ''))
 
-    expect(res.status).toBe(403)
-    const json = await res.json()
-    expect(json.error).toContain("received 'True'")
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: 'No CSV content provided' })
+    expect(mocks.executeInstanceLevelImport).not.toHaveBeenCalled()
   })
 
-  it('returns 403 when mode=legacy and confirm_delete is "yes"', async () => {
-    const req = makeRequest('/api/collection/import?mode=legacy&confirm_delete=yes')
-    const res = await POST(req)
+  it('keeps add mode as a normal JSON response', async () => {
+    mocks.executeInstanceLevelImport.mockResolvedValueOnce({
+      inserted: 1,
+      skipped: 0,
+      removed: 0,
+      sourceTag: 'archidekt',
+      errors: [],
+      durationMs: 4,
+    })
 
-    expect(res.status).toBe(403)
-    const json = await res.json()
-    expect(json.error).toContain("received 'yes'")
-  })
+    const response = await POST(makeRequest('/api/collection/import?mode=add'))
 
-  it('returns 403 when mode=legacy and confirm_delete is "1"', async () => {
-    const req = makeRequest('/api/collection/import?mode=legacy&confirm_delete=1')
-    const res = await POST(req)
-
-    expect(res.status).toBe(403)
-    const json = await res.json()
-    expect(json.error).toContain("received '1'")
-  })
-
-  it('proceeds (not 403) when mode=legacy and confirm_delete=true', async () => {
-    const req = makeRequest('/api/collection/import?mode=legacy&confirm_delete=true')
-    const res = await POST(req)
-
-    // Should not be 403 — it proceeds with the legacy flow
-    expect(res.status).not.toBe(403)
-    // Should not be 404 either (Req 3.4 — route exists)
-    expect(res.status).not.toBe(404)
-  })
-
-  it('adds X-Import-Warning header when confirm_delete=true and proceeding', async () => {
-    const req = makeRequest('/api/collection/import?mode=legacy&confirm_delete=true')
-    const res = await POST(req)
-
-    expect(res.headers.get('X-Import-Warning')).toContain('Destructive legacy import performed')
-  })
-
-  it('route returns 403 (not 404) ensuring the route is exposed (Req 3.4)', async () => {
-    const req = makeRequest('/api/collection/import?mode=legacy')
-    const res = await POST(req)
-
-    // Explicitly verifies the route responds with 403, not 404
-    expect(res.status).toBe(403)
-  })
-
-  it('does NOT apply the guard when mode=upsert (default mode)', async () => {
-    const req = makeRequest('/api/collection/import?mode=upsert')
-    const res = await POST(req)
-
-    // upsert mode should not get a 403 — it goes through the normal upsert path
-    expect(res.status).not.toBe(403)
+    expect(response.headers.get('content-type')).toContain('application/json')
+    expect(await response.json()).toMatchObject({ inserted: 1, sourceTag: 'archidekt' })
   })
 })

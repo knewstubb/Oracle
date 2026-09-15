@@ -60,11 +60,22 @@ export async function resolveDefaultLocationId(
 // Types
 // ---------------------------------------------------------------------------
 
+export type ImportProgressPhase = 'validating' | 'resolving' | 'preparing' | 'replacing'
+
+export interface ImportProgress {
+  phase: ImportProgressPhase
+  processed: number
+  total: number
+  cardsProcessed: number
+  totalCards: number
+}
+
 export interface ImportEngineV2Options {
   csvContent: string
   mode: 'add' | 'sync' | 'replace'
   userId: string
   signal?: AbortSignal
+  onProgress?: (progress: ImportProgress) => void | Promise<void>
 }
 
 export interface ImportSummaryV2 {
@@ -1015,6 +1026,29 @@ export async function executeInstanceLevelImport(
     }
   }
 
+  const totalCards = parsedRows.reduce(
+    (total, row) => total + Math.min(row.quantity, MAX_COPIES_PER_ROW),
+    0
+  )
+  let processedRows = 0
+  let processedCards = 0
+
+  const reportProgress = async (
+    phase: ImportProgressPhase,
+    rows = processedRows,
+    cards = processedCards
+  ) => {
+    await options.onProgress?.({
+      phase,
+      processed: rows,
+      total: parsedRows.length,
+      cardsProcessed: cards,
+      totalCards,
+    })
+  }
+
+  await reportProgress('validating', 0, 0)
+
   // -------------------------------------------------------------------
   // Stage 3: Batch resolve identities (card_definitions)
   //
@@ -1068,6 +1102,9 @@ export async function executeInstanceLevelImport(
         dateAdded: row.dateAdded || '',
         purchasePrice: parsePurchasePrice(row.purchasePrice),
       })
+      processedRows += 1
+      processedCards += Math.min(row.quantity, MAX_COPIES_PER_ROW)
+      await reportProgress('resolving')
     } else if (scryfallId && !oracleId) {
       // Has scryfall_id but no oracle_id — can batch-resolve from scryfall_printings
       needsOracleIdOnly.push(row)
@@ -1104,7 +1141,12 @@ export async function executeInstanceLevelImport(
       } else {
         // Couldn't resolve via DB — fall through to API resolution.
         needsApiResolution.push(row)
+        continue
       }
+
+      processedRows += 1
+      processedCards += Math.min(row.quantity, MAX_COPIES_PER_ROW)
+      await reportProgress('resolving')
     }
   }
 
@@ -1113,7 +1155,10 @@ export async function executeInstanceLevelImport(
   for (const row of needsApiResolution) {
     if (options.signal?.aborted) {
       errors.push('Import aborted by user')
-      break
+      processedRows += 1
+      processedCards += Math.min(row.quantity, MAX_COPIES_PER_ROW)
+      await reportProgress('resolving')
+      continue
     }
 
     let identity: { cardDefinitionId: number; scryfallPrintingId: string } | null = null
@@ -1123,42 +1168,43 @@ export async function executeInstanceLevelImport(
       const message = err instanceof Error ? err.message : String(err)
       errors.push(`Row ${row.rowIndex} (${row.name}): identity resolution error — ${message}`)
       skipped++
-      continue
     }
 
-    if (!identity) {
+    if (identity) {
+      const oracleId = await resolveOracleIdFromPrinting(identity.scryfallPrintingId).catch(() => null)
+      if (!oracleId) {
+        errors.push(
+          `Row ${row.rowIndex} (${row.name}): resolved printing has no oracle identity`
+        )
+        skipped++
+      } else {
+        const finish = mapFinishToFinishString(row.finish)
+        const { condition } = mapCondition(row.condition)
+        resolvedRows.push({
+          oracleId,
+          cardName: row.name,
+          scryfallPrintingId: identity.scryfallPrintingId,
+          finish,
+          isProxy: row.isProxy,
+          condition,
+          quantity: Math.min(row.quantity, MAX_COPIES_PER_ROW),
+          editionCode: row.editionCode,
+          editionName: row.editionName,
+          dateAdded: row.dateAdded || '',
+          purchasePrice: parsePurchasePrice(row.purchasePrice),
+        })
+      }
+    } else if (!errors.some(error => error.startsWith(`Row ${row.rowIndex} (${row.name}):`))) {
       errors.push(
         `Row ${row.rowIndex} (${row.name}): identity resolution failed — ` +
         `set=${row.editionCode}, collector=${row.collectorNumber}, scryfall_id=${row.scryfallId}`
       )
       skipped++
-      continue
     }
 
-    const oracleId = await resolveOracleIdFromPrinting(identity.scryfallPrintingId).catch(() => null)
-    if (!oracleId) {
-      errors.push(
-        `Row ${row.rowIndex} (${row.name}): resolved printing has no oracle identity`
-      )
-      skipped++
-      continue
-    }
-
-    const finish = mapFinishToFinishString(row.finish)
-    const { condition } = mapCondition(row.condition)
-    resolvedRows.push({
-      oracleId,
-      cardName: row.name,
-      scryfallPrintingId: identity.scryfallPrintingId,
-      finish,
-      isProxy: row.isProxy,
-      condition,
-      quantity: Math.min(row.quantity, MAX_COPIES_PER_ROW),
-      editionCode: row.editionCode,
-      editionName: row.editionName,
-      dateAdded: row.dateAdded || '',
-      purchasePrice: parsePurchasePrice(row.purchasePrice),
-    })
+    processedRows += 1
+    processedCards += Math.min(row.quantity, MAX_COPIES_PER_ROW)
+    await reportProgress('resolving')
   }
 
   if (errors.length > 0 || skipped > 0) {
@@ -1175,6 +1221,7 @@ export async function executeInstanceLevelImport(
   }
 
   // 3c: Pre-fetch ALL existing cards for this user in one query
+  await reportProgress('preparing', parsedRows.length, totalCards)
   const cardMap = new Map<string, number>() // oracle_id → card_id
   const { data: existingCards, error: existingCardsError } = await supabase
     .from('user_cards')
@@ -1223,6 +1270,8 @@ export async function executeInstanceLevelImport(
       }
     }
   }
+
+  await reportProgress('preparing', parsedRows.length, totalCards)
 
   // 3f: (Legacy oracle_to_printings write removed — printings is now authoritative)
 
@@ -1281,6 +1330,7 @@ export async function executeInstanceLevelImport(
   let removed = 0
 
   if (isReplaceMode) {
+    await reportProgress('replacing', parsedRows.length, totalCards)
     const { data: replaceResult, error: replaceError } = await supabase.rpc('replace_collection', {
       p_user_id: options.userId,
       p_insert_rows: copyRows,

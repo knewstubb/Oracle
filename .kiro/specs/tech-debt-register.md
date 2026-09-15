@@ -1,16 +1,16 @@
 # Technical Debt Register
 
-> Last updated: 2026-09-12
+> Last updated: 2026-09-14
 > Owned by: Delivery Lead
 > Prioritised by: Product Manager
 
 ## Summary
 
-- **Total items:** 37
-- **Open severity:** **Critical:** 4 | **High:** 5 | **Medium:** 4 | **Low:** 2
-- **Resolved:** 17 (TD-001–TD-004, TD-006–TD-013, TD-016, TD-017, TD-019, TD-020, TD-022) | **Accepted-risk:** 5 (TD-005, TD-015, TD-018, TD-028, TD-036) | **Deferred:** 0 | **Open:** 15 (TD-014, TD-021, TD-023–TD-027, TD-029–TD-035, TD-037)
+- **Total items:** 39
+- **Open severity:** **Critical:** 3 | **High:** 5 | **Medium:** 5 | **Low:** 2
+- **Resolved:** 18 (TD-001–TD-004, TD-006–TD-013, TD-016, TD-017, TD-019, TD-020, TD-022, TD-026) | **Accepted-risk:** 5 (TD-005, TD-015, TD-018, TD-028, TD-036) | **Deferred:** 0 | **Open:** 16 (TD-014, TD-021, TD-023–TD-025, TD-027, TD-029–TD-035, TD-037, TD-039)
 - **Oldest unresolved:** TD-014 — Pricing data limited and potentially stale
-- **Immediate paydown candidates:** TD-026, TD-027, and TD-029 before authoritative collection rebuild
+- **Immediate paydown candidates:** TD-027 and TD-029, then TD-037 (RLS) ahead of any multi-user rollout
 
 ---
 
@@ -387,7 +387,8 @@
 - **Impact if unresolved:** Authoritative collection migration can cause irreversible data loss or a partially reconstructed collection; replacement also assigns new copy IDs and breaks deck allocations.
 - **Proposed fix:** Stage the complete import under an import-run ID, validate and reconcile counts/metadata, then apply the approved cutover in one Postgres transaction/RPC while preserving or relinking allocations. Estimated effort: large.
 - **Blocked by:** Product decisions on source-of-truth model, required metadata fidelity, and allocation preservation.
-- **Status:** open
+- **Status:** resolved
+- **Resolved:** 2026-09-14 — Fixed as part of the `collection-foundation` spec's atomic-boundary increment (2026-09-12 through 2026-09-14 delivery log entries), discovered already-shipped during `collection-trust-and-security` spec planning. `chunkedImport()` now sends the full CSV as one request for the default full-import path instead of chunking replace-then-add; `executeInstanceLevelImport()` resolves every row before any database write; `replace_collection()`/`apply_collection_sync()` RPCs perform the delete+insert inside one per-user advisory-locked transaction. Hosted-verified: a resolution failure now leaves the existing collection fully untouched. Note: this entry sat marked "open" for two days after the fix shipped because the register was not updated at feature close-out — see TD-039 for the process gap this reveals.
 
 ---
 
@@ -531,4 +532,17 @@
 - **Impact if unresolved:** A client with the public Supabase key may gain cross-user access to collection, deck, or session data, creating a compounding confidentiality and integrity risk as more users and routes are added.
 - **Proposed fix:** Audit grants and every direct client query, define owner-scoped policies using `auth.uid()`, enable RLS in staged table groups, and run two-tenant read/write regression coverage before and after each group. Estimated effort: high.
 - **Blocked by:** Policy inventory and a safe integration environment; enabling RLS without complete policies could block legitimate production access.
+- **Status:** open
+
+---
+
+## TD-039: Tech debt register not updated at feature close-out (process gap)
+- **Category:** process
+- **Severity:** medium
+- **Logged:** 2026-09-14 by Delivery Lead
+- **Feature origin:** cross-cutting — surfaced while planning `.kiro/specs/collection-trust-and-security/`
+- **Description:** TD-026 (collection replace deletes live data before validation) was fully fixed and hosted-verified across the `collection-foundation` spec's 2026-09-12 through 2026-09-14 delivery-log entries, but the register entry was left marked `open`. A new spec (`collection-trust-and-security`) was drafted for two days on the assumption that TD-026 was still an unfixed critical risk, including a design doc and task list for redundant implementation work, before the discrepancy was caught by tracing the actual code rather than trusting the register.
+- **Impact if unresolved:** Recurrence risk is real and compounding: any stale "open" entry can trigger redundant spec/design work, conflicting RPCs, or wasted implementation effort. As more features close out, the register's reliability as "what's actually still broken" degrades unless closure is enforced as part of the workflow, not left to be remembered.
+- **Proposed fix:** When a feature's delivery log records a fix that also resolves an open tech-debt item, the Delivery Lead updates the register entry to `resolved` in the same session as the close-out, not later. Consider a lightweight cross-reference check (e.g., grep tech-debt IDs mentioned in delivery logs against register status) before starting new spec work that assumes a debt item is still open.
+- **Blocked by:** None — this is a workflow discipline fix, not a technical one.
 - **Status:** open

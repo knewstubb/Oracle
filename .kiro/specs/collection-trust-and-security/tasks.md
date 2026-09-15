@@ -23,9 +23,19 @@ The safe replace route remains one request and one transaction. It now streams p
 - [ ] **1.7** Confirm Option A limitations are already documented for the user: manual per-card edits (storage location, notes, purchase price, missing flags) do not survive reimport — reflect in UI copy if not already present.
 
 ### Housekeeping
-- [ ] **1.8** Update `.kiro/specs/tech-debt-register.md`: mark TD-026 `resolved` with date and reference to the `collection-foundation` delivery log entries that fixed it.
+- [x] **1.8** Update `.kiro/specs/tech-debt-register.md`: mark TD-026 `resolved` with date and reference to the `collection-foundation` delivery log entries that fixed it. (Done — also logged TD-039 for the register-staleness process gap.)
 
-## Phase 2: Row Level Security (RLS)
+## Phase 2: Row Level Security (RLS) — DEFERRED 2026-09-14
+
+**Decision (user, 2026-09-14):** Defer RLS while the app remains single-user. Expected to stay solo for ~1 month.
+
+**Why this is safe to defer** (per `convention-personal-app-scope`): app-code `user_id` filtering + service-role ownership guards already protect the single user; there is no second tenant to leak to; enabling RLS later is additive (policies only), not a destructive migration, so deferral costs no rework.
+
+**Re-entry trigger (hard):** RLS MUST land *before the first non-owner login*, not after. Concretely: when a friend is about to be given an account, schedule this work with ~1 week lead time (it needs staged rollout + two-account isolation testing, so it is not a same-day task). "When we need it" = "when a second user is imminent," NOT "after someone reports seeing another user's data."
+
+**Tracked in the register as TD-037 (open, critical).**
+
+### Database Policy Implementation
 
 ### Database Policy Implementation
 - [ ] **2.1** Audit `user_cards`, `user_copies`, `decks`, `deck_cards` for `user_id` FK consistency and add any missing columns if needed.

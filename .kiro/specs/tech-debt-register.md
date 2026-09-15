@@ -533,6 +533,7 @@
 - **Proposed fix:** Audit grants and every direct client query, define owner-scoped policies using `auth.uid()`, enable RLS in staged table groups, and run two-tenant read/write regression coverage before and after each group. Estimated effort: high.
 - **Blocked by:** Policy inventory and a safe integration environment; enabling RLS without complete policies could block legitimate production access.
 - **Status:** open
+- **Deferral note (2026-09-14):** User confirmed the app stays single-user for ~1 month; RLS deliberately deferred per `convention-personal-app-scope`. **Hard re-entry trigger: RLS must be implemented and two-account-isolation-tested BEFORE the first non-owner login, with ~1 week lead time — not same-day, and never after a leak is reported.** Deferral is safe because app-layer `user_id` guards protect the sole current user and enabling RLS later is additive, not a destructive migration. Deferral plan detailed in `.kiro/specs/collection-trust-and-security/tasks.md` Phase 2.
 
 ---
 

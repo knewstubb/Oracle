@@ -1,8 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
-import { Loader2, Check, AlertTriangle, ChevronRight, ExternalLink } from 'lucide-react'
+import { Loader2, Check, AlertTriangle, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { DeckResolutionResult } from '@/lib/warm-start-resolve'
 
@@ -133,18 +132,6 @@ function DeckProgressRow({
           >
             {result.matched}/{result.totalCards}
           </span>
-        )}
-
-        {/* Picklist link (only when done, has unresolved, and not expandable for errors) */}
-        {state === 'done' && result && result.unresolved > 0 && result.errors.length === 0 && (
-          <Link
-            href={`/decks/${result.deckId}?tab=cards&mode=picklist`}
-            onClick={(e) => e.stopPropagation()}
-            className="flex items-center gap-1 text-[length:var(--fs-xs)] text-amber-400 hover:underline"
-          >
-            review picklist
-            <ExternalLink className="size-3" aria-hidden="true" />
-          </Link>
         )}
 
         {/* Error message */}

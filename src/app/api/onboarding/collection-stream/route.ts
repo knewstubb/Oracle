@@ -16,6 +16,7 @@ import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 import {
   fetchCollectionWithProgress,
   type ArchidektCollectionEntry,
+  type CollectionFetchProgress,
 } from '@/lib/archidekt-client'
 
 // Allow up to 120s for this function
@@ -60,12 +61,17 @@ export async function POST() {
       // Step 1: Fetch collection from Archidekt with progress
       let entries: ArchidektCollectionEntry[]
       try {
-        entries = await fetchCollectionWithProgress(async (pageNum) => {
+        entries = await fetchCollectionWithProgress(async (progress: CollectionFetchProgress) => {
+          const { fetched, total } = progress
+          const totalStr = total != null ? total.toLocaleString() : '…'
+          const message = fetched === 0 && total === null
+            ? 'Connecting to Archidekt…'
+            : `Fetched ${fetched.toLocaleString()} of ${totalStr} cards from Archidekt…`
           await sendProgress({
             phase: 'fetch',
-            current: pageNum,
-            total: null,
-            message: `Fetching page ${pageNum} from Archidekt…`,
+            current: fetched,
+            total: total,
+            message,
           })
         })
       } catch (err) {

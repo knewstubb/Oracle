@@ -183,29 +183,46 @@ export async function fetchCollection(): Promise<ArchidektCollectionEntry[]> {
   return entries
 }
 
+export interface CollectionFetchProgress {
+  /** Number of cards fetched so far */
+  fetched: number
+  /** Total cards in the collection (from API count field, null if unknown) */
+  total: number | null
+}
+
 /**
  * Same as fetchCollection but with a progress callback for streaming UI updates.
+ * Reports fetched card count vs total rather than opaque page numbers.
  */
 export async function fetchCollectionWithProgress(
-  onProgress: (pageNum: number) => Promise<void>
+  onProgress: (progress: CollectionFetchProgress) => Promise<void>
 ): Promise<ArchidektCollectionEntry[]> {
   const entries: ArchidektCollectionEntry[] = []
   // Archidekt caps collection page_size at 25 regardless of what we request
   let url: string | null = `${BASE_URL}/collection/${USER_ID}/`
   let pageCount = 0
+  let totalCount: number | null = null
   while (url) {
     if (pageCount > 0) {
       await new Promise(resolve => setTimeout(resolve, 500))
     }
     
-    await onProgress(pageCount + 1)
+    await onProgress({ fetched: entries.length, total: totalCount })
     
     const res = await fetchWithRetry(url)
-    const data: { results: ArchidektCollectionEntry[]; next: string | null } = await res.json()
+    const data: { count?: number; results: ArchidektCollectionEntry[]; next: string | null } = await res.json()
+
+    // DRF paginated responses include a count field on every page
+    if (data.count != null && totalCount === null) {
+      totalCount = data.count
+    }
+
     entries.push(...data.results)
     url = data.next
     pageCount++
   }
+  // Final progress update so the UI shows the complete count
+  await onProgress({ fetched: entries.length, total: totalCount })
   return entries
 }
 

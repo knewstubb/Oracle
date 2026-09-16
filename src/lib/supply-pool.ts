@@ -13,6 +13,7 @@ import type { EnrichedSupplyEntry, CopyAssignment, CandidateTier } from '@/lib/a
 import { classifyTier, scoreCandidate } from '@/lib/allocation-candidates'
 import { createAdminClient } from '@/lib/supabase'
 import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
+import { isBasicLand } from '@/lib/basic-lands'
 
 // ---------------------------------------------------------------------------
 // Assignment Types (for batchAssignDeck)
@@ -163,6 +164,11 @@ export class SupplyPool {
     const contentions: ContentionEntry[] = []
 
     for (const { cardName, deckId: lostByDeckId, deckName: lostByDeckName } of unresolvedCards) {
+      // Basic lands are never a real contention — you don't physically share a
+      // Forest between decks, you just own/proxy as many as you need. Skip them
+      // so the conflict count reflects genuine copy contention.
+      if (isBasicLand(cardName)) continue
+
       // Check if any copies of this card were assigned during this batch session
       // to a different deck (meaning the current deck lost out)
       const entries = this.pool.get(cardName)

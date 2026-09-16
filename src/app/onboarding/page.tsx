@@ -575,8 +575,8 @@ export default function OnboardingPage() {
   const isResolving = archidektResolveMutation.isPending || moxfieldResolveMutation.isPending
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--bg-canvas)] px-4 py-12">
-      <div className="flex max-h-[calc(100vh-6rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-[var(--border-default)] bg-card p-8 shadow-lg">
+    <div className="flex min-h-screen justify-center bg-[var(--bg-canvas)] px-4 py-12">
+      <div className="h-fit w-full max-w-lg rounded-2xl border border-[var(--border-default)] bg-card p-8 shadow-lg">
         {step === 'source' && (
           <SourcePickerScreen
             source={source}
@@ -1000,8 +1000,8 @@ function DeckPickerScreen({
     })
 
     return (
-      <div className="flex min-h-0 flex-1 flex-col gap-5">
-        <div className="shrink-0">
+      <div className="flex flex-col gap-5">
+        <div>
           <h1 className="text-[length:var(--fs-xl)] font-semibold">Importing decks</h1>
           {importProgress && (
             <p className="mt-1 text-[length:var(--fs-md)] text-muted-foreground">
@@ -1012,11 +1012,9 @@ function DeckPickerScreen({
           )}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <DeckImportProgressList decks={decks} isRunning={true} />
-        </div>
+        <DeckImportProgressList decks={decks} isRunning={true} />
 
-        <div className="flex shrink-0 items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3">
           <Button variant="outline" disabled>Skip</Button>
           <Button disabled>
             <Loader2 className="size-4 animate-spin" aria-hidden="true" />
@@ -1028,8 +1026,8 @@ function DeckPickerScreen({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-5">
-      <div className="shrink-0">
+    <div className="flex flex-col gap-5">
+      <div>
         <h1 className="text-[length:var(--fs-xl)] font-semibold">Choose decks to import</h1>
         {collectionResult && (
           <p className="mt-1 text-[length:var(--fs-md)] text-muted-foreground">
@@ -1039,7 +1037,7 @@ function DeckPickerScreen({
       </div>
 
       {/* Deck list */}
-      <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto rounded-lg border border-[var(--border-default)] p-2">
+      <div className="flex max-h-[360px] flex-col gap-1 overflow-y-auto rounded-lg border border-[var(--border-default)] p-2">
         {deckList.length === 0 ? (
           <p className="px-3 py-4 text-center text-[length:var(--fs-sm)] text-muted-foreground">
             No public decks found.
@@ -1099,12 +1097,12 @@ function DeckPickerScreen({
         )}
       </div>
 
-      <p className="shrink-0 text-[length:var(--fs-sm)] text-muted-foreground">
+      <p className="text-[length:var(--fs-sm)] text-muted-foreground">
         {selectedCount > 0 ? `${selectedCount} selected` : 'None selected'} &middot; imported
         decks assume <em>use collection</em> — you can adjust individual cards after
       </p>
 
-      <div className="flex shrink-0 items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3">
         <Button variant="outline" onClick={onSkip}>
           Skip
         </Button>

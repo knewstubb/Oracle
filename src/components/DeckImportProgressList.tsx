@@ -70,6 +70,7 @@ function DeckProgressRow({
 }) {
   const { state, result } = deck
   const isComplete = state === 'done' && result && result.unresolved === 0 && result.errors.length === 0
+  const hasUnresolved = state === 'done' && result && result.unresolved > 0
 
   return (
     <div
@@ -79,13 +80,16 @@ function DeckProgressRow({
         state === 'active' && 'bg-white/[0.02]'
       )}
     >
-      {/* Status icon (queued/active only — completion is shown by the count check) */}
+      {/* Status icon — completion check sits before the deck name */}
       <span className="flex size-5 shrink-0 items-center justify-center">
         {state === 'queued' && (
           <span className="size-2 rounded-full bg-white/20" />
         )}
         {state === 'active' && (
           <Loader2 className="size-4 animate-spin text-[#14b8a6]" aria-label="Importing" />
+        )}
+        {state === 'done' && isComplete && (
+          <Check className="size-4 text-green-400" aria-label="Complete" />
         )}
       </span>
 
@@ -97,19 +101,14 @@ function DeckProgressRow({
         {deck.name}
       </span>
 
-      {/* Resolution count */}
+      {/* Resolution count — amber when the deck has unresolved (conflicted) cards */}
       {state === 'done' && result && (
         <span
           className="text-[length:var(--fs-sm)] tabular-nums"
-          style={{ color: 'var(--text-secondary)' }}
+          style={hasUnresolved ? { color: '#ef9f27' } : { color: 'var(--text-secondary)' }}
         >
           {result.matched}/{result.totalCards}
         </span>
-      )}
-
-      {/* Completion check — sits next to the count */}
-      {state === 'done' && isComplete && (
-        <Check className="size-4 shrink-0 text-green-400" aria-label="Complete" />
       )}
 
       {/* Error message */}

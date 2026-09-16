@@ -575,8 +575,8 @@ export default function OnboardingPage() {
   const isResolving = archidektResolveMutation.isPending || moxfieldResolveMutation.isPending
 
   return (
-    <div className="flex min-h-screen justify-center bg-[var(--bg-canvas)] px-4 py-12">
-      <div className="h-fit w-full max-w-lg rounded-2xl border border-[var(--border-default)] bg-card p-8 shadow-lg">
+    <div className="min-h-screen bg-[var(--bg-canvas)] px-4 py-12">
+      <div className="mx-auto w-full max-w-2xl">
         {step === 'source' && (
           <SourcePickerScreen
             source={source}

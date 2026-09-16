@@ -272,12 +272,12 @@ export async function fetchArchidektDeckList(): Promise<DeckListResult> {
     throw new Error(`Failed to fetch Archidekt deck list: ${message}`)
   }
 
-  // fetchUserDecks returns ArchidektDeckSummary which doesn't include cardCount.
-  // Return what we have — the UI can fetch card counts lazily per deck via fetchDeck.
+  // The v3 deck-search endpoint includes `size` (card count) per deck, so we
+  // can populate cardCount directly without a per-deck fetchDeck round-trip.
   const deckEntries: DeckListEntry[] = decks.map(d => ({
     id: d.id,
     name: d.name,
-    cardCount: 0, // Not available from fetchUserDecks — needs fetchDeck per deck
+    cardCount: d.size ?? 0,
     isPrivate: d.private,
   }))
 

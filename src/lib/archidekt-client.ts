@@ -8,6 +8,10 @@ export interface ArchidektDeckSummary {
   featured: string
   customFeatured: string
   viewCount: number
+  /** Card count in the deck (from v3 `size` field) */
+  size?: number
+  /** Folder the deck lives in, if any (from v3 `parentFolderName`) */
+  parentFolderName?: string | null
 }
 
 export interface ArchidektEdition {
@@ -226,11 +230,57 @@ export async function fetchCollectionWithProgress(
   return entries
 }
 
+/**
+ * Shape of a deck entry in the v3 deck-search response.
+ */
+interface ArchidektV3Deck {
+  id: number
+  name: string
+  size?: number
+  private?: boolean
+  featured?: string
+  customFeatured?: string
+  viewCount?: number
+  parentFolderName?: string | null
+}
+
+/**
+ * Fetch all of the user's decks, including decks nested inside folders.
+ *
+ * Uses the v3 deck-search endpoint filtered by `ownerId`. The older
+ * `/users/{id}/decks/` endpoint only returned top-level decks (folder-nested
+ * decks were silently omitted), which caused decks in folders like
+ * "Experiments" or "Precon Upgrades" to go missing from the import list.
+ *
+ * The v3 endpoint is paginated (`count` + `next`), so we walk all pages.
+ */
 export async function fetchUserDecks(): Promise<ArchidektDeckSummary[]> {
-  const res = await fetch(`${BASE_URL}/users/${USER_ID}/decks/`)
-  if (!res.ok) throw new Error(`Archidekt API error: ${res.status} ${res.statusText}`)
-  const data = await res.json()
-  return data.decks ?? []
+  const decks: ArchidektDeckSummary[] = []
+  let url: string | null =
+    `${BASE_URL}/decks/v3/?ownerId=${USER_ID}&orderBy=-updatedAt&pageSize=100`
+
+  while (url) {
+    const res = await fetchWithRetry(url)
+    const data: { count?: number; next: string | null; results: ArchidektV3Deck[] } =
+      await res.json()
+
+    for (const d of data.results ?? []) {
+      decks.push({
+        id: d.id,
+        name: d.name,
+        private: d.private ?? false,
+        featured: d.featured ?? '',
+        customFeatured: d.customFeatured ?? '',
+        viewCount: d.viewCount ?? 0,
+        size: d.size,
+        parentFolderName: d.parentFolderName ?? null,
+      })
+    }
+
+    url = data.next
+  }
+
+  return decks
 }
 
 export async function fetchDeck(deckId: number): Promise<ArchidektDeckFull> {

@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       _migrations: {
@@ -736,10 +761,67 @@ export type Database = {
           },
         ]
       }
+      deck_versions: {
+        Row: {
+          card_count: number
+          cards_snapshot: Json
+          created_at: string
+          creature_count: number | null
+          deck_id: number
+          diff_from_previous: Json | null
+          id: number
+          land_count: number | null
+          trigger_details: string | null
+          trigger_type: string
+          user_id: string
+          version_name: string | null
+          version_number: number
+        }
+        Insert: {
+          card_count: number
+          cards_snapshot: Json
+          created_at?: string
+          creature_count?: number | null
+          deck_id: number
+          diff_from_previous?: Json | null
+          id?: never
+          land_count?: number | null
+          trigger_details?: string | null
+          trigger_type: string
+          user_id: string
+          version_name?: string | null
+          version_number: number
+        }
+        Update: {
+          card_count?: number
+          cards_snapshot?: Json
+          created_at?: string
+          creature_count?: number | null
+          deck_id?: number
+          diff_from_previous?: Json | null
+          id?: never
+          land_count?: number | null
+          trigger_details?: string | null
+          trigger_type?: string
+          user_id?: string
+          version_name?: string | null
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deck_versions_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: false
+            referencedRelation: "decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       decks: {
         Row: {
           allocate: boolean
           bracket: string | null
+          build_id: string | null
           card_count: number | null
           colour_identity: string | null
           commander_id: string | null
@@ -763,6 +845,7 @@ export type Database = {
         Insert: {
           allocate?: boolean
           bracket?: string | null
+          build_id?: string | null
           card_count?: number | null
           colour_identity?: string | null
           commander_id?: string | null
@@ -786,6 +869,7 @@ export type Database = {
         Update: {
           allocate?: boolean
           bracket?: string | null
+          build_id?: string | null
           card_count?: number | null
           colour_identity?: string | null
           commander_id?: string | null
@@ -808,6 +892,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "decks_build_id_fkey"
+            columns: ["build_id"]
+            isOneToOne: false
+            referencedRelation: "ref_commander_builds"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "decks_commander_id_fkey"
             columns: ["commander_id"]
             isOneToOne: false
@@ -826,6 +917,51 @@ export type Database = {
             columns: ["folder_id"]
             isOneToOne: false
             referencedRelation: "deck_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_sleeve_claims: {
+        Row: {
+          card_name: string
+          created_at: string | null
+          deck_cards_id: number
+          deck_id: number
+          id: number
+          printing_id: string | null
+          user_id: string
+        }
+        Insert: {
+          card_name: string
+          created_at?: string | null
+          deck_cards_id: number
+          deck_id: number
+          id?: never
+          printing_id?: string | null
+          user_id: string
+        }
+        Update: {
+          card_name?: string
+          created_at?: string | null
+          deck_cards_id?: number
+          deck_id?: number
+          id?: never
+          printing_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_sleeve_claims_deck_cards_id_fkey"
+            columns: ["deck_cards_id"]
+            isOneToOne: true
+            referencedRelation: "deck_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_sleeve_claims_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: false
+            referencedRelation: "decks"
             referencedColumns: ["id"]
           },
         ]
@@ -880,61 +1016,61 @@ export type Database = {
       }
       oracle_sessions: {
         Row: {
-          id: string
-          user_id: string
-          started_at: string
-          last_message_at: string
-          message_count: number
-          summary: string | null
-          session_name: string | null
-          session_type: 'exploration' | 'deck' | 'collection' | 'general'
-          context_deck_id: number | null
           archived_at: string | null
-          status: 'active' | 'exploring' | 'building' | 'complete'
           commander_name: string | null
           committed_deck_id: number | null
+          context_deck_id: number | null
+          id: string
+          last_message_at: string
+          message_count: number
+          session_name: string | null
+          session_type: string
+          started_at: string
+          status: string
+          summary: string | null
+          user_id: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          started_at?: string
-          last_message_at?: string
-          message_count?: number
-          summary?: string | null
-          session_name?: string | null
-          session_type?: 'exploration' | 'deck' | 'collection' | 'general'
-          context_deck_id?: number | null
           archived_at?: string | null
-          status?: 'active' | 'exploring' | 'building' | 'complete'
           commander_name?: string | null
           committed_deck_id?: number | null
+          context_deck_id?: number | null
+          id?: string
+          last_message_at?: string
+          message_count?: number
+          session_name?: string | null
+          session_type?: string
+          started_at?: string
+          status?: string
+          summary?: string | null
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          started_at?: string
-          last_message_at?: string
-          message_count?: number
-          summary?: string | null
-          session_name?: string | null
-          session_type?: 'exploration' | 'deck' | 'collection' | 'general'
-          context_deck_id?: number | null
           archived_at?: string | null
-          status?: 'active' | 'exploring' | 'building' | 'complete'
           commander_name?: string | null
           committed_deck_id?: number | null
+          context_deck_id?: number | null
+          id?: string
+          last_message_at?: string
+          message_count?: number
+          session_name?: string | null
+          session_type?: string
+          started_at?: string
+          status?: string
+          summary?: string | null
+          user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "oracle_sessions_context_deck_id_fkey"
-            columns: ["context_deck_id"]
+            foreignKeyName: "oracle_sessions_committed_deck_id_fkey"
+            columns: ["committed_deck_id"]
             isOneToOne: false
             referencedRelation: "decks"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "oracle_sessions_committed_deck_id_fkey"
-            columns: ["committed_deck_id"]
+            foreignKeyName: "oracle_sessions_context_deck_id_fkey"
+            columns: ["context_deck_id"]
             isOneToOne: false
             referencedRelation: "decks"
             referencedColumns: ["id"]
@@ -1009,6 +1145,59 @@ export type Database = {
           },
         ]
       }
+      ref_build_cards: {
+        Row: {
+          build_id: string
+          card_name: string
+          category: string | null
+          created_at: string | null
+          deck_count: number | null
+          id: string
+          inclusion_rate: number | null
+          is_signature: boolean | null
+          is_staple: boolean | null
+          position: number | null
+          synergy_score: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          build_id: string
+          card_name: string
+          category?: string | null
+          created_at?: string | null
+          deck_count?: number | null
+          id?: string
+          inclusion_rate?: number | null
+          is_signature?: boolean | null
+          is_staple?: boolean | null
+          position?: number | null
+          synergy_score?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          build_id?: string
+          card_name?: string
+          category?: string | null
+          created_at?: string | null
+          deck_count?: number | null
+          id?: string
+          inclusion_rate?: number | null
+          is_signature?: boolean | null
+          is_staple?: boolean | null
+          position?: number | null
+          synergy_score?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ref_build_cards_build_id_fkey"
+            columns: ["build_id"]
+            isOneToOne: false
+            referencedRelation: "ref_commander_builds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ref_cards: {
         Row: {
           can_be_commander: boolean | null
@@ -1062,6 +1251,108 @@ export type Database = {
           type_line?: string
         }
         Relationships: []
+      }
+      ref_commander_builds: {
+        Row: {
+          archetype: string | null
+          avg_artifacts: number | null
+          avg_creatures: number | null
+          avg_draw: number | null
+          avg_enchantments: number | null
+          avg_instants: number | null
+          avg_lands: number | null
+          avg_planeswalkers: number | null
+          avg_ramp: number | null
+          avg_removal: number | null
+          avg_sorceries: number | null
+          avg_wipes: number | null
+          commander_id: string
+          created_at: string | null
+          deck_count: number | null
+          deck_percentage: number | null
+          edhrec_theme_slug: string | null
+          edhrec_url: string | null
+          id: string
+          primary_archetype: string | null
+          primary_theme: string | null
+          secondary_archetypes: string[] | null
+          secondary_themes: string[] | null
+          synced_at: string | null
+          theme: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          archetype?: string | null
+          avg_artifacts?: number | null
+          avg_creatures?: number | null
+          avg_draw?: number | null
+          avg_enchantments?: number | null
+          avg_instants?: number | null
+          avg_lands?: number | null
+          avg_planeswalkers?: number | null
+          avg_ramp?: number | null
+          avg_removal?: number | null
+          avg_sorceries?: number | null
+          avg_wipes?: number | null
+          commander_id: string
+          created_at?: string | null
+          deck_count?: number | null
+          deck_percentage?: number | null
+          edhrec_theme_slug?: string | null
+          edhrec_url?: string | null
+          id?: string
+          primary_archetype?: string | null
+          primary_theme?: string | null
+          secondary_archetypes?: string[] | null
+          secondary_themes?: string[] | null
+          synced_at?: string | null
+          theme?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          archetype?: string | null
+          avg_artifacts?: number | null
+          avg_creatures?: number | null
+          avg_draw?: number | null
+          avg_enchantments?: number | null
+          avg_instants?: number | null
+          avg_lands?: number | null
+          avg_planeswalkers?: number | null
+          avg_ramp?: number | null
+          avg_removal?: number | null
+          avg_sorceries?: number | null
+          avg_wipes?: number | null
+          commander_id?: string
+          created_at?: string | null
+          deck_count?: number | null
+          deck_percentage?: number | null
+          edhrec_theme_slug?: string | null
+          edhrec_url?: string | null
+          id?: string
+          primary_archetype?: string | null
+          primary_theme?: string | null
+          secondary_archetypes?: string[] | null
+          secondary_themes?: string[] | null
+          synced_at?: string | null
+          theme?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ref_commander_builds_commander_id_fkey"
+            columns: ["commander_id"]
+            isOneToOne: false
+            referencedRelation: "ref_commanders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ref_commander_builds_commander_id_fkey"
+            columns: ["commander_id"]
+            isOneToOne: false
+            referencedRelation: "v_commander_archetypes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ref_commander_cards: {
         Row: {
@@ -1119,6 +1410,7 @@ export type Database = {
           source_author: string | null
           source_date: string | null
           source_title: string | null
+          source_trust: number | null
           source_type: string
           source_url: string | null
           taxonomy_tags: string[] | null
@@ -1137,6 +1429,7 @@ export type Database = {
           source_author?: string | null
           source_date?: string | null
           source_title?: string | null
+          source_trust?: number | null
           source_type: string
           source_url?: string | null
           taxonomy_tags?: string[] | null
@@ -1155,6 +1448,7 @@ export type Database = {
           source_author?: string | null
           source_date?: string | null
           source_title?: string | null
+          source_trust?: number | null
           source_type?: string
           source_url?: string | null
           taxonomy_tags?: string[] | null
@@ -1871,17 +2165,30 @@ export type Database = {
         Args: { p_default_location_id: number; p_rows: Json; p_user_id: string }
         Returns: Json
       }
-      allocation_clear_active_decks: {
-        Args: { p_user_id: string }
-        Returns: undefined
-      }
-      add_proxy_to_slot: {
-        Args: { p_card_id: number; p_target_deck_card_id: number; p_user_id: string }
+      _move_copy_to_slot: {
+        Args: {
+          p_copy_id: number
+          p_force_claim: boolean
+          p_target_deck_card_id: number
+          p_user_id: string
+        }
         Returns: Json
       }
       add_proxies_to_slots: {
         Args: { p_assignments: Json; p_user_id: string }
         Returns: Json
+      }
+      add_proxy_to_slot: {
+        Args: {
+          p_card_id: number
+          p_target_deck_card_id: number
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      allocation_clear_active_decks: {
+        Args: { p_user_id: string }
+        Returns: undefined
       }
       apply_ai_deck_delta: {
         Args: {
@@ -1893,12 +2200,29 @@ export type Database = {
         Returns: Json
       }
       apply_collection_sync: {
-        Args: { p_insert_rows: Json; p_remove_copy_ids: number[]; p_user_id: string }
+        Args: {
+          p_insert_rows: Json
+          p_remove_copy_ids: number[]
+          p_user_id: string
+        }
         Returns: Json
       }
       apply_deck_cards_diff: {
-        Args: { p_deck_id: number; p_delete_ids: number[]; p_insert_rows: Json; p_user_id: string }
+        Args: {
+          p_deck_id: number
+          p_delete_ids: number[]
+          p_insert_rows: Json
+          p_user_id: string
+        }
         Returns: Json
+      }
+      archive_old_oracle_sessions: {
+        Args: {
+          p_days_inactive?: number
+          p_max_active_sessions?: number
+          p_user_id: string
+        }
+        Returns: number
       }
       assign_free_copy: {
         Args: {
@@ -1910,36 +2234,77 @@ export type Database = {
         Returns: Json
       }
       assign_physical_copy: {
-        Args: { p_copy_id: number; p_target_deck_card_id: number; p_user_id: string }
+        Args: {
+          p_copy_id: number
+          p_target_deck_card_id: number
+          p_user_id: string
+        }
         Returns: Json
       }
       batch_assign_deck: {
         Args: { p_assignments: Json; p_deck_id: number; p_user_id: string }
         Returns: Json
       }
-      delete_deck_with_release: {
-        Args: { p_deck_id: number; p_user_id: string }
+      compute_card_diff: {
+        Args: { p_new_snapshot: Json; p_old_snapshot: Json }
         Returns: Json
       }
-      remove_deck_card_with_release: {
-        Args: { p_deck_card_id: number; p_deck_id: number; p_user_id: string }
+      create_deck_version: {
+        Args: {
+          p_deck_id: number
+          p_trigger_details?: string
+          p_trigger_type: string
+          p_user_id: string
+          p_version_name?: string
+        }
+        Returns: Json
+      }
+      delete_deck_with_release: {
+        Args: { p_deck_id: number; p_user_id: string }
         Returns: Json
       }
       delete_storage_location: {
         Args: { p_location_id: number; p_user_id: string }
         Returns: Json
       }
-      delete_user_copy: {
-        Args: { p_copy_id: number; p_user_id: string }
-        Returns: Json
-      }
       delete_user_copies: {
         Args: { p_copy_ids: number[]; p_user_id: string }
         Returns: Json
       }
-      force_claim_copy: {
-        Args: { p_copy_id: number; p_target_deck_card_id: number; p_user_id: string }
+      delete_user_copy: {
+        Args: { p_copy_id: number; p_user_id: string }
         Returns: Json
+      }
+      finalize_import_claims: {
+        Args: { p_printing_id?: string; p_user_id: string }
+        Returns: Json
+      }
+      force_claim_copy: {
+        Args: {
+          p_copy_id: number
+          p_target_deck_card_id: number
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      get_active_oracle_session: {
+        Args: {
+          p_context_deck_id?: number
+          p_session_type: string
+          p_user_id: string
+          p_window_hours?: number
+        }
+        Returns: {
+          commander_name: string
+          context_deck_id: number
+          id: string
+          last_message_at: string
+          message_count: number
+          session_name: string
+          session_type: string
+          started_at: string
+          status: string
+        }[]
       }
       get_bulk_price_to_add: {
         Args: never
@@ -1970,6 +2335,11 @@ export type Database = {
           total_quantity: number
           type_line: string
         }[]
+      }
+      get_import_conflicts: { Args: { p_user_id: string }; Returns: Json }
+      get_next_deck_version_number: {
+        Args: { p_deck_id: number }
+        Returns: number
       }
       get_price_to_add: { Args: { card_def_id: number }; Returns: number }
       get_printings_by_name: {
@@ -2004,37 +2374,37 @@ export type Database = {
         Args: { p_copy_id: number; p_user_id: string }
         Returns: Json
       }
-      unmark_copy_missing: {
-        Args: { p_copy_id: number; p_user_id: string }
-        Returns: Json
-      }
       move_copies_to_storage: {
-        Args: { p_copy_ids: number[]; p_location_id: number | null; p_user_id: string }
+        Args: { p_copy_ids: number[]; p_location_id: number; p_user_id: string }
         Returns: Json
       }
       move_copy_to_storage: {
-        Args: { p_copy_id: number; p_location_id: number | null; p_user_id: string }
+        Args: { p_copy_id: number; p_location_id: number; p_user_id: string }
+        Returns: Json
+      }
+      reassign_to_deck: {
+        Args: {
+          p_card_name: string
+          p_copy_id: number
+          p_target_deck_id: number
+          p_user_id: string
+        }
         Returns: Json
       }
       reconcile_built_deck: {
         Args: { p_deck_id: number; p_rows: Json; p_user_id: string }
         Returns: Json
       }
-      replace_collection: {
-        Args: { p_insert_rows: Json; p_user_id: string }
-        Returns: Json
-      }
-      reassign_to_deck: {
-        Args: {
-          p_copy_id: number
-          p_target_deck_id: number
-          p_card_name: string
-          p_user_id: string
-        }
-        Returns: Json
-      }
       release_deck_copies: {
         Args: { p_deck_id: number; p_user_id: string }
+        Returns: Json
+      }
+      remove_deck_card_with_release: {
+        Args: { p_deck_card_id: number; p_deck_id: number; p_user_id: string }
+        Returns: Json
+      }
+      replace_collection: {
+        Args: { p_insert_rows: Json; p_user_id: string }
         Returns: Json
       }
       replace_deck_with_new_cards: {
@@ -2045,26 +2415,38 @@ export type Database = {
         Args: {
           p_deck_card_id: number
           p_original_copy_id: number
-          p_proxy_storage_location_id: number | null
+          p_proxy_storage_location_id: number
           p_user_id: string
         }
+        Returns: Json
+      }
+      resolve_import_conflict_proxy: {
+        Args: { p_claim_id: number; p_user_id: string }
+        Returns: Json
+      }
+      resolve_import_conflict_release: {
+        Args: { p_claim_id: number; p_user_id: string }
+        Returns: Json
+      }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
+      unassign_copy_to_storage: {
+        Args: { p_copy_id: number; p_user_id: string }
         Returns: Json
       }
       undo_copy_move: {
         Args: {
           p_copy_id: number
           p_current_deck_card_id: number
-          p_restore_deck_card_id: number | null
+          p_restore_deck_card_id: number
           p_user_id: string
         }
         Returns: Json
       }
-      unassign_copy_to_storage: {
+      unmark_copy_missing: {
         Args: { p_copy_id: number; p_user_id: string }
         Returns: Json
       }
-      show_limit: { Args: never; Returns: number }
-      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       [_ in never]: never
@@ -2083,12 +2465,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2112,11 +2494,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2137,11 +2519,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2162,11 +2544,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2179,11 +2561,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2193,6 +2575,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

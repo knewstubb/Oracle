@@ -14,6 +14,7 @@ import { createAdminClient } from '@/lib/supabase'
 import { fetchDeck, type ArchidektDeckFull } from '@/lib/archidekt-client'
 import { importDeckTheorycrafted } from '@/lib/deck-import'
 import { normalizeArchidektDeck } from '@/lib/deck-normalizer'
+import { createSleeveClaimsForDeck } from '@/lib/import-sleeve-claims'
 import type { EnrichedSupplyEntry } from '@/lib/allocation-candidates'
 import {
   SupplyPool,
@@ -646,7 +647,8 @@ export async function resolveSingleDeckWithPrefetch(
   archidektDeckId: number,
   prefetchedDeck: ArchidektDeckFull,
   userId: string,
-  isActive: boolean = true
+  isActive: boolean = true,
+  format?: string
 ): Promise<DeckResolutionResult> {
   // Normalize the prefetched deck data
   const sourceUrl = `https://archidekt.com/decks/${archidektDeckId}`
@@ -665,30 +667,73 @@ export async function resolveSingleDeckWithPrefetch(
     }
   }
 
-  // Load a fresh supply pool (sees previous resolve-one commits)
-  const pool = await loadSupplyPool(userId)
-
-  // Resolve using the shared internal function
-  const { result, assignments } = await resolveSingleDeckFromNormalized(
-    archidektDeckId,
-    normalizedDeck,
-    userId,
-    isActive,
-    pool
-  )
-
-  // Commit assignments (unlike batch mode, we commit immediately per deck)
-  if (assignments.length > 0) {
-    try {
-      await batchAssignDeck(result.deckId, userId, assignments)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      console.error(`[resolveSingleDeckWithPrefetch] batchAssignDeck failed: ${message}`)
-      result.errors.push(`Assignment failed: ${message}`)
-      // Adjust counts since the write didn't commit
-      result.unresolved = result.matched + result.unresolved
-      result.matched = 0
+  // Import the deck as planned rows (copy_id null). The claim + finalization
+  // model — not the supply pool — is now the authority on physical sleeving.
+  const supabase = createAdminClient()
+  let importedDeckId: number
+  try {
+    const importResult = await importDeckTheorycrafted(normalizedDeck, userId, {
+      isActive,
+      format,
+    })
+    importedDeckId = importResult.deckId
+  } catch (err) {
+    return {
+      deckId: archidektDeckId,
+      deckName: normalizedDeck.name || `Deck ${archidektDeckId}`,
+      totalCards: normalizedDeck.cardCount || 0,
+      matched: 0,
+      unresolved: 0,
+      unresolvedCards: [],
+      errors: [`Failed to import deck: ${err instanceof Error ? err.message : String(err)}`],
     }
+  }
+
+  const totalCards = normalizedDeck.cardCount || 0
+  const result: DeckResolutionResult = {
+    deckId: importedDeckId,
+    deckName: normalizedDeck.name,
+    totalCards,
+    matched: 0,
+    unresolved: 0,
+    unresolvedCards: [],
+    errors: [],
+  }
+
+  // Persist the user-selected format if provided (import default already applied
+  // by importDeckTheorycrafted, but an explicit choice overrides it).
+  if (format) {
+    const { error: fmtErr } = await supabase
+      .from('decks')
+      .update({ format })
+      .eq('id', importedDeckId)
+      .eq('user_id', userId)
+    if (fmtErr) result.errors.push(`Failed to set format: ${fmtErr.message}`)
+  }
+
+  if (isActive) {
+    // Active deck: create sleeve claims for non-basic slots, then finalize.
+    // Finalization assigns real copies where supply is sufficient; the rest
+    // remain as open claims and surface as conflicts on the summary.
+    const { error } = await createSleeveClaimsForDeck(importedDeckId, userId)
+    if (error) result.errors.push(error)
+
+    // Report matched vs unresolved from the post-finalization DB state.
+    const { count: sleevedCount } = await supabase
+      .from('deck_cards')
+      .select('id', { count: 'exact', head: true })
+      .eq('deck_id', importedDeckId)
+      .not('copy_id', 'is', null)
+
+    result.matched = sleevedCount ?? 0
+
+    // Slots that still carry an open claim are the unresolved (conflicted) ones.
+    const { count: openClaims } = await supabase
+      .from('import_sleeve_claims')
+      .select('id', { count: 'exact', head: true })
+      .eq('deck_id', importedDeckId)
+
+    result.unresolved = openClaims ?? 0
   }
 
   return result

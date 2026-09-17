@@ -12,6 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { DeckImportProgressList } from '@/components/DeckImportProgressList'
 import type { CollectionImportResult, DeckListEntry } from '@/lib/warm-start-import'
 import type { BatchResolutionResult, DeckResolutionResult } from '@/lib/warm-start-resolve'
+import { type DeckFormat, FORMAT_DEFINITIONS } from '@/lib/format-config'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -101,6 +102,9 @@ export default function OnboardingPage() {
   const [deckList, setDeckList] = useState<DeckListEntry[]>([])
   const [selectedDecks, setSelectedDecks] = useState<Set<number>>(new Set())
   const [deckStatuses, setDeckStatuses] = useState<Map<number, 'brewing' | 'in_rotation'>>(new Map())
+  // Import-wide default format + per-deck overrides (user-selected; not from source platform)
+  const [importFormat, setImportFormat] = useState<DeckFormat>('commander')
+  const [deckFormats, setDeckFormats] = useState<Map<number, DeckFormat>>(new Map())
 
   // Moxfield state
   const [moxfieldUsername, setMoxfieldUsername] = useState('')
@@ -336,7 +340,11 @@ export default function OnboardingPage() {
 
       for (let i = 0; i < successfulDeckIds.length; i++) {
         const deckId = successfulDeckIds[i]
+        // Map the picker's Brew/Active toggle to lifecycle: in_rotation = Active
+        // (sleeve its cards → creates claims), brewing = Brew (stays planned).
         const status = deckStatuses.get(deckId) ?? 'in_rotation'
+        const lifecycle: 'active' | 'brew' = status === 'in_rotation' ? 'active' : 'brew'
+        const format = deckFormats.get(deckId) ?? importFormat
         const prefetchedDeck = prefetchedMap.get(deckId)
 
         // Find deck name for progress display
@@ -352,7 +360,7 @@ export default function OnboardingPage() {
         const res = await fetch('/api/onboarding/resolve-one', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deckId, status, prefetchedDeck }),
+          body: JSON.stringify({ deckId, lifecycle, format, prefetchedDeck }),
         })
 
         if (!res.ok) {
@@ -617,6 +625,10 @@ export default function OnboardingPage() {
             selectedDecks={selectedDecks}
             deckStatuses={deckStatuses}
             collectionResult={collectionResult}
+            importFormat={importFormat}
+            deckFormats={deckFormats}
+            onSetImportFormat={setImportFormat}
+            onSetDeckFormat={(id, f) => setDeckFormats((prev) => new Map(prev).set(id, f))}
             onToggleDeck={handleToggleDeck}
             onToggleStatus={handleToggleStatus}
             onImport={handleImportDecks}
@@ -964,6 +976,10 @@ function DeckPickerScreen({
   selectedDecks,
   deckStatuses,
   collectionResult,
+  importFormat,
+  deckFormats,
+  onSetImportFormat,
+  onSetDeckFormat,
   onToggleDeck,
   onToggleStatus,
   onImport,
@@ -975,6 +991,10 @@ function DeckPickerScreen({
   selectedDecks: Set<number>
   deckStatuses: Map<number, 'brewing' | 'in_rotation'>
   collectionResult: CollectionImportResult | null
+  importFormat: DeckFormat
+  deckFormats: Map<number, DeckFormat>
+  onSetImportFormat: (f: DeckFormat) => void
+  onSetDeckFormat: (id: number, f: DeckFormat) => void
   onToggleDeck: (id: number) => void
   onToggleStatus: (id: number) => void
   onImport: () => void
@@ -983,6 +1003,7 @@ function DeckPickerScreen({
   importProgress: ImportProgress | null
 }) {
   const selectedCount = selectedDecks.size
+  const formatOptions = Object.values(FORMAT_DEFINITIONS)
 
   // When importing, show the progress list instead of the picker
   if (isPending) {
@@ -1034,6 +1055,26 @@ function DeckPickerScreen({
             {collectionResult.physicalCopiesCreated.toLocaleString()} cards found in your collection.
           </p>
         )}
+      </div>
+
+      {/* Import-wide default format (per-deck override available in each row) */}
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-default)] px-3 py-2">
+        <div>
+          <p className="text-[length:var(--fs-sm)] font-medium">Default format</p>
+          <p className="text-[length:var(--fs-xs)] text-muted-foreground">
+            Applied to all decks. Override per deck below.
+          </p>
+        </div>
+        <select
+          value={importFormat}
+          onChange={(e) => onSetImportFormat(e.target.value as DeckFormat)}
+          className="rounded-md border border-[var(--border-emphasis)] bg-transparent px-2 py-1 text-[length:var(--fs-sm)]"
+          aria-label="Default import format"
+        >
+          {formatOptions.map((f) => (
+            <option key={f.id} value={f.id}>{f.label}</option>
+          ))}
+        </select>
       </div>
 
       {/* Deck list */}
@@ -1091,6 +1132,20 @@ function DeckPickerScreen({
                     Active
                   </button>
                 </div>
+
+                <select
+                  value={deckFormats.get(deck.id) ?? importFormat}
+                  onChange={(e) => onSetDeckFormat(deck.id, e.target.value as DeckFormat)}
+                  disabled={!isSelected}
+                  aria-label={`Format for ${deck.name}`}
+                  className={`rounded-md border border-[var(--border-emphasis)] bg-transparent px-1.5 py-1 text-[length:var(--fs-xs)] ${
+                    !isSelected ? 'opacity-40 pointer-events-none' : ''
+                  }`}
+                >
+                  {formatOptions.map((f) => (
+                    <option key={f.id} value={f.id}>{f.label}</option>
+                  ))}
+                </select>
               </div>
             )
           })

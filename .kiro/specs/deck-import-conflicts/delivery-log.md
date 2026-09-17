@@ -64,3 +64,32 @@
 **Implementation gate:** No remaining product decisions block architecture/design. Developer must next produce `design.md` covering claim/session schema, conflict/reconciliation RPC contracts, exact-printing queries, failure/rollback behavior, format-picker state, and the Active/Brew request wiring correction.
 
 ---
+## 2026-09-17 — Phase 1 implemented and verified
+
+**Context:** User approved building Phase 1 end-to-end (data disposable). Developer (Margaret) implemented the full claim-based reconciliation.
+
+**What changed (commits):**
+- `2b2d381` — `import_sleeve_claims` table + RPCs: `get_import_conflicts`, `finalize_import_claims`, `resolve_import_conflict_release`, `resolve_import_conflict_proxy`. All SECURITY DEFINER, per-user ownership checks, advisory lock per printing (`import-printing:<printing_id>`).
+- `5586367` — Claim-based Active import: `resolveSingleDeckWithPrefetch` now imports planned then (if Active) creates sleeve claims via new `src/lib/import-sleeve-claims.ts` and finalizes. Fixed the latent Active/Brew wiring bug (client now sends `lifecycle`; route maps `in_rotation→active`, `brewing→brew`). Added user-selected format picker (import-wide default + per-deck override) persisted to `decks.format`. Regenerated `src/types/supabase.ts`.
+- `16bfaaf` — Import summary two-list UI (decks + card conflicts) with derived deck Conflict overlay badge; Release / Convert-to-Proxy controls; `GET /api/onboarding/conflicts` + `POST /api/onboarding/conflicts/resolve`. Extended `get_import_conflicts` to return `claimId`/`deckCardsId` per deck ref.
+
+**Verification (against hosted DB, then cleaned up):**
+- Conflict detection: 1 owned + 2 Active claims for a printing → exactly 1 conflict (owned 1, sleeved 2), both decks listed with claim ids. Correct.
+- Finalization: demand > supply → no assignment (claims stay open). Correct.
+- Release: released slot → Planned (`copy_id` null); remaining claim auto-finalized with the real copy (`ownership=original`); conflict cleared; 0 residual claims. Correct.
+- Convert-to-Proxy: resolved slot got a new `is_proxy=true` copy (`source_tag=import-conflict-proxy`) sleeved; remaining claim auto-finalized with the real copy; conflict cleared. Correct.
+- `npx next build` passes clean.
+- Fixed a pre-existing type error (`physicalCopiesCreated` → `userCopiesCreated`) that would have broken the build, since this feature heavily edits that file.
+
+**Decisions / notes:**
+- Basic lands excluded from claims (generic/untracked). Slots without an exact `scryfall_id` are not claimed (printing-keyed conflicts require an exact printing).
+- Steady-state isolation holds: allocation/rollup code reads `copy_id` only and never sees `import_sleeve_claims`; over-committed printings appear as planned slots to that code.
+- RLS advisory: the Supabase advisor flags RLS disabled on all 30 tables. Deferred per convention-personal-app-scope (TD-037); not touched by this feature. Flagged to user.
+
+**Deferred to Phase 2:** cross-page persistent conflict bar + per-card markers on deck pages (will read the same `import_sleeve_claims` + `get_import_conflicts`).
+
+**Status:** Phase 1 complete, ready for user testing via a fresh import.
+
+**Refs:** commits 2b2d381, 5586367, 16bfaaf; `requirements.md`, `design.md`, `tasks.md`.
+
+---

@@ -1052,7 +1052,7 @@ function DeckPickerScreen({
         <h1 className="text-[length:var(--fs-xl)] font-semibold">Choose decks to import</h1>
         {collectionResult && (
           <p className="mt-1 text-[length:var(--fs-md)] text-muted-foreground">
-            {collectionResult.physicalCopiesCreated.toLocaleString()} cards found in your collection.
+            {collectionResult.userCopiesCreated.toLocaleString()} cards found in your collection.
           </p>
         )}
       </div>
@@ -1242,7 +1242,7 @@ function MoxfieldDeckPickerScreen({
         <h1 className="text-[length:var(--fs-xl)] font-semibold">Choose decks to import</h1>
         {collectionResult && (
           <p className="mt-1 text-[length:var(--fs-md)] text-muted-foreground">
-            {collectionResult.physicalCopiesCreated.toLocaleString()} cards found in your collection.
+            {collectionResult.userCopiesCreated.toLocaleString()} cards found in your collection.
           </p>
         )}
       </div>
@@ -1332,6 +1332,21 @@ function MoxfieldDeckPickerScreen({
 // Screen 4: End-of-Batch Summary
 // ---------------------------------------------------------------------------
 
+interface ImportConflictDeckRef {
+  deckId: number
+  deckName: string
+  source: 'claim' | 'sleeved'
+  claimId: number | null
+  deckCardsId: number
+}
+interface ImportConflict {
+  printingId: string
+  cardName: string
+  owned: number
+  sleeved: number
+  decks: ImportConflictDeckRef[]
+}
+
 function SummaryScreen({
   batchResult,
   onFinish,
@@ -1339,19 +1354,72 @@ function SummaryScreen({
   batchResult: BatchResolutionResult | null
   onFinish: () => void
 }) {
+  const [conflicts, setConflicts] = useState<ImportConflict[]>([])
+  const [conflictsLoading, setConflictsLoading] = useState(true)
+  const [resolvingClaimId, setResolvingClaimId] = useState<number | null>(null)
+
+  // Fetch open conflicts once the import summary mounts.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/onboarding/conflicts')
+        if (!res.ok) throw new Error('Failed to load conflicts')
+        const data: { conflicts: ImportConflict[] } = await res.json()
+        if (!cancelled) setConflicts(data.conflicts ?? [])
+      } catch {
+        if (!cancelled) setConflicts([])
+      } finally {
+        if (!cancelled) setConflictsLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  async function resolveClaim(claimId: number, action: 'release' | 'proxy') {
+    setResolvingClaimId(claimId)
+    try {
+      const res = await fetch('/api/onboarding/conflicts/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ claimId, action }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: 'Failed' }))
+        throw new Error(body.error || 'Failed to resolve conflict')
+      }
+      const data: { conflicts: ImportConflict[] } = await res.json()
+      setConflicts(data.conflicts ?? [])
+      toast.success(action === 'release' ? 'Card released to Planned' : 'Proxy added and sleeved')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to resolve conflict')
+    } finally {
+      setResolvingClaimId(null)
+    }
+  }
+
   if (!batchResult) return null
 
   const totalDecks = batchResult.decksProcessed
   const totalMatched = batchResult.totalMatched
-  const contentions = (batchResult as any).contentions ?? []
 
-  // Build deck rows in the same shape as the progress list
+  // Derived deck-level conflict overlay: a deck is conflicted iff it has an
+  // open claim participating in an open conflict.
+  const conflictedDeckIds = new Set<number>()
+  for (const c of conflicts) {
+    for (const d of c.decks) {
+      if (d.source === 'claim') conflictedDeckIds.add(d.deckId)
+    }
+  }
+
   const decks = batchResult.results.map((result) => ({
     id: result.deckId,
     name: result.deckName,
     state: 'done' as const,
     result,
   }))
+
+  const conflictCount = conflicts.length
 
   return (
     <div className="flex flex-col gap-6">
@@ -1369,12 +1437,12 @@ function SummaryScreen({
           <p className="text-[length:var(--fs-xl)] font-semibold">{totalDecks}</p>
         </div>
         <div className="rounded-lg border border-[var(--border-default)] px-4 py-3">
-          <p className="text-[length:var(--fs-xs)] text-muted-foreground">Cards resolved</p>
+          <p className="text-[length:var(--fs-xs)] text-muted-foreground">Cards sleeved</p>
           <p className="text-[length:var(--fs-xl)] font-semibold">{totalMatched.toLocaleString()}</p>
         </div>
         <div
           className="rounded-lg border px-4 py-3"
-          style={contentions.length > 0
+          style={conflictCount > 0
             ? { borderColor: 'rgba(239,159,39,0.4)', background: 'rgba(239,159,39,0.05)' }
             : { borderColor: 'var(--border-default)' }
           }
@@ -1382,23 +1450,108 @@ function SummaryScreen({
           <p className="text-[length:var(--fs-xs)] text-muted-foreground">Conflicts</p>
           <p
             className="text-[length:var(--fs-xl)] font-semibold"
-            style={contentions.length > 0 ? { color: '#ef9f27' } : undefined}
+            style={conflictCount > 0 ? { color: '#ef9f27' } : undefined}
           >
-            {contentions.length}
+            {conflictsLoading ? '…' : conflictCount}
           </p>
         </div>
       </div>
 
-      {/* Per-deck results — same component as progress, in completed state */}
-      <DeckImportProgressList
-        decks={decks}
-        contentions={contentions}
-        isRunning={false}
-      />
+      {/* List 1: decks imported (with derived conflict overlay) */}
+      <div className="flex flex-col gap-2">
+        <h2 className="text-[length:var(--fs-md)] font-medium">Decks</h2>
+        <DeckImportProgressList
+          decks={decks.map((d) => ({ ...d, conflicted: conflictedDeckIds.has(d.id) }))}
+          isRunning={false}
+        />
+      </div>
+
+      {/* List 2: card conflicts */}
+      {conflictCount > 0 && (
+        <div className="flex flex-col gap-2">
+          <h2 className="text-[length:var(--fs-md)] font-medium">
+            Card conflicts
+            <span className="ml-2 text-[length:var(--fs-sm)] font-normal text-muted-foreground">
+              more sleeved than you own — resolve each to reconcile
+            </span>
+          </h2>
+          <div className="flex flex-col gap-3">
+            {conflicts.map((c) => (
+              <ImportConflictCard
+                key={c.printingId}
+                conflict={c}
+                resolvingClaimId={resolvingClaimId}
+                onResolve={resolveClaim}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       <Button onClick={onFinish} className="w-full">
         Go to Decks
       </Button>
+    </div>
+  )
+}
+
+function ImportConflictCard({
+  conflict,
+  resolvingClaimId,
+  onResolve,
+}: {
+  conflict: ImportConflict
+  resolvingClaimId: number | null
+  onResolve: (claimId: number, action: 'release' | 'proxy') => void
+}) {
+  return (
+    <div
+      className="rounded-lg border px-4 py-3"
+      style={{ borderColor: 'rgba(239,159,39,0.4)', background: 'rgba(239,159,39,0.04)' }}
+    >
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-[length:var(--fs-md)] font-medium">{conflict.cardName}</span>
+        <span className="text-[length:var(--fs-sm)] tabular-nums" style={{ color: '#ef9f27' }}>
+          {conflict.sleeved} sleeved · {conflict.owned} owned
+        </span>
+      </div>
+      <div className="mt-2 flex flex-col gap-1.5">
+        {conflict.decks.map((d) => (
+          <div
+            key={`${d.deckId}-${d.deckCardsId}`}
+            className="flex items-center justify-between gap-3 text-[length:var(--fs-sm)]"
+          >
+            <span className="truncate">
+              {d.deckName}
+              {d.source === 'sleeved' && (
+                <span className="ml-1.5 text-[length:var(--fs-xs)] text-muted-foreground">
+                  (holds real copy)
+                </span>
+              )}
+            </span>
+            {d.source === 'claim' && d.claimId != null && (
+              <div className="flex shrink-0 items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="xs"
+                  disabled={resolvingClaimId === d.claimId}
+                  onClick={() => onResolve(d.claimId!, 'release')}
+                >
+                  Release
+                </Button>
+                <Button
+                  variant="outline"
+                  size="xs"
+                  disabled={resolvingClaimId === d.claimId}
+                  onClick={() => onResolve(d.claimId!, 'proxy')}
+                >
+                  Proxy
+                </Button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

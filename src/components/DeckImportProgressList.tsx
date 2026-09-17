@@ -23,6 +23,8 @@ interface DeckRowData {
   name: string
   state: DeckRowState
   result?: DeckResolutionResult
+  /** Derived overlay: deck participates in an unresolved import conflict. */
+  conflicted?: boolean
 }
 
 export interface DeckImportProgressListProps {
@@ -75,7 +77,8 @@ function DeckProgressRow({
   return (
     <div
       className={cn(
-        'flex w-full items-center gap-3 rounded-md border border-[var(--border-default)] px-4 py-3 text-left',
+        'flex w-full items-center gap-3 rounded-md border px-4 py-3 text-left',
+        deck.conflicted ? 'border-[rgba(239,159,39,0.4)]' : 'border-[var(--border-default)]',
         state === 'queued' && 'opacity-50',
         state === 'active' && 'bg-white/[0.02]'
       )}
@@ -100,6 +103,16 @@ function DeckProgressRow({
       )}>
         {deck.name}
       </span>
+
+      {/* Conflict overlay badge */}
+      {deck.conflicted && (
+        <span
+          className="shrink-0 rounded-full px-2 py-0.5 text-[length:var(--fs-xs)] font-medium"
+          style={{ background: 'rgba(239,159,39,0.15)', color: '#ef9f27' }}
+        >
+          Conflict
+        </span>
+      )}
 
       {/* Resolution count — amber when the deck has unresolved (conflicted) cards */}
       {state === 'done' && result && (

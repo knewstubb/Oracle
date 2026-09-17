@@ -96,6 +96,9 @@ export interface ImportConflictDeckRef {
   deckId: number
   deckName: string
   source: 'claim' | 'sleeved'
+  /** The claim to Release/Convert; null for already-finalized real sleeves. */
+  claimId: number | null
+  deckCardsId: number
 }
 
 export interface ImportConflict {

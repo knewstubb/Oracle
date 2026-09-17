@@ -73,7 +73,8 @@ export async function createSleeveClaimsForDeck(
     return { claimsCreated: 0, error: `Failed to create sleeve claims: ${insertErr.message}` }
   }
 
-  // Finalize: assign real copies to claims wherever supply covers demand.
+  // Finalize: assign real copies (by card identity) to claims wherever supply
+  // covers demand; retags printing to the owned copy when they differ.
   const { error: finalizeErr } = await supabase.rpc('finalize_import_claims', {
     p_user_id: userId,
   })
@@ -102,7 +103,6 @@ export interface ImportConflictDeckRef {
 }
 
 export interface ImportConflict {
-  printingId: string
   cardName: string
   owned: number
   sleeved: number

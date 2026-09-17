@@ -1347,7 +1347,6 @@ interface ImportConflictDeckRef {
   deckCardsId: number
 }
 interface ImportConflict {
-  printingId: string
   cardName: string
   owned: number
   sleeved: number
@@ -1485,7 +1484,7 @@ function SummaryScreen({
           <div className="flex flex-col gap-3">
             {conflicts.map((c) => (
               <ImportConflictCard
-                key={c.printingId}
+                key={c.cardName}
                 conflict={c}
                 resolvingClaimId={resolvingClaimId}
                 onResolve={resolveClaim}

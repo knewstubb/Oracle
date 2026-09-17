@@ -40,3 +40,27 @@
 - Codebase investigation (this session): `src/lib/card-status.ts` (DeckCardLifecycle derived from copy_id), `src/lib/supply-pool.ts` (old detectContentions), `src/lib/warm-start-resolve.ts` (resolve flow), `src/lib/deck-normalizer.ts` (maybeboard/sideboard excluded, deckFormat ignored), `src/lib/deck-import.ts` (importDeckTheorycrafted vs importDeckBuilt), `src/lib/format-config.ts` (commander=100).
 
 ---
+## 2026-09-16 — Final design review: reconciliation-claim architecture selected
+
+**Context:** User requested a final design review, supplied screenshots of the current Archidekt format display and Oracle import flow, and resolved the remaining product decisions.
+
+**What changed:**
+- Updated `requirements.md` to replace source-derived format detection with a source-agnostic, user-selected import format (import-wide default + per-deck override).
+- Replaced the open over-sleeve representation question with the selected **durable initial-import sleeve-claim** architecture.
+- Added the derived per-deck Conflict overlay and exact-printing proxy decision.
+
+**Decisions made:**
+- **Provisional initial-import sleeves are durable claims, not duplicate physical assignments.** An Active import creates one exact-printing claim per main-deck slot. Multiple claims can coexist for one printing only during reconciliation; `deck_cards.copy_id` remains protected by the normal one-copy-one-slot invariant.
+- **Conflict query:** one open conflict per printing where active real sleeve claims exceed owned non-proxy, non-missing copies. The deck Conflict overlay is derived from its participating claims, not stored in `decks.status`.
+- **Resolution:** Release removes an excess claim and leaves the slot Planned. Convert-to-Proxy creates an `is_proxy = true` `user_copies` row matching the slot printing, sleeves that proxy, and removes the provisional real claim.
+- **Format:** user chooses format for every import source. Use an import-wide default with per-deck override; do not build Archidekt/Moxfield numeric mappings.
+- **Lifecycle wiring:** no user decision required — implementation must correct the existing `status`/`isActive` request mismatch so Active creates claims and Brew remains Planned.
+- **Source Proxy tags:** ignored; they are custom metadata, not an ownership signal.
+
+**Design verification:**
+- Current screenshots show the retired design: opaque page-based collection progress, source-specific format display, old supply-pool assignment failures, ambiguous incomplete deck counts, generic amber warnings, review-picklist navigation, and a 698 contention count. None represents the required printing-keyed physical reconciliation workflow.
+- The updated requirements now distinguish normal planned-card allocation from the one-time initial-import physical reconciliation workflow, preserving the steady-state one-copy-one-slot invariant.
+
+**Implementation gate:** No remaining product decisions block architecture/design. Developer must next produce `design.md` covering claim/session schema, conflict/reconciliation RPC contracts, exact-printing queries, failure/rollback behavior, format-picker state, and the Active/Brew request wiring correction.
+
+---

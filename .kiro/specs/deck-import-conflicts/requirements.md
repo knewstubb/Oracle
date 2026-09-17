@@ -15,11 +15,12 @@ The previous "conflict" metric counted intra-batch contention over *any* card (i
 ## 2. Outcome
 
 After import, the user sees:
-- A clear list of imported decks (with correct, format-aware card counts).
+- A clear list of imported decks (with user-selected, format-aware card counts).
+- A derived **Conflict** overlay on each deck involved in unresolved initial-import claims; this overlay is distinct from the deck lifecycle (Active/Brew).
 - A precise list of genuine conflicts: for each over-committed printing — the card, quantity owned, quantity sleeved, and every deck it is sleeved into.
 - The ability to resolve each conflict on the import screen (Release the excess to Planned, or Convert to a sleeved Proxy) until sleeved ≤ owned.
 
-Once resolved, the collection reconciles into the normal steady-state allocation model with no lingering impossible states.
+Once resolved, the collection reconciles into the normal steady-state allocation model with no lingering impossible states. The conflict records remain durable enough for the later cross-page conflict UI, but no steady-state allocation query may treat provisional import claims as physical copy assignments.
 
 ## 3. Users
 
@@ -79,38 +80,45 @@ Two independent axes, one word-pair each:
 
 ## 5. User Stories & Acceptance Criteria
 
-### 5.1 Detect deck format on import, allow override
+### 5.1 Choose deck format on import
 
-**US-5.1.1** As a collection owner, I want each imported deck's format detected from Archidekt (with the ability to change it), so that card counts and singleton rules are correct per deck.
+**US-5.1.1** As a collection owner, I want to choose each imported deck's format (with an efficient default and per-deck overrides), so that card counts and singleton rules are correct without relying on source-platform format metadata.
 
 #### Acceptance Criteria
-- WHEN a deck is imported from Archidekt, THE SYSTEM SHALL map the Archidekt `deckFormat` numeric field to a known format (e.g. Commander) and store it on `decks.format`.
-- WHEN the Archidekt `deckFormat` has no known mapping, THE SYSTEM SHALL default the format to `commander` and surface it as user-changeable.
-- WHEN the user changes a deck's format on the import screen, THE SYSTEM SHALL update `decks.format` and recompute the expected card count and singleton rules for that deck.
+- WHEN the user selects decks for import, THE SYSTEM SHALL require the user to choose an import format before any deck is imported; it SHALL NOT depend on Archidekt, Moxfield, or another source platform's format metadata.
+- THE SYSTEM SHALL offer an import-wide format default and let the user override the format for each selected deck before import.
+- WHEN the user changes a deck's format on the import screen, THE SYSTEM SHALL persist the selected value to `decks.format` and recompute the expected card count and singleton rules for that deck.
 - WHERE a deck's format defines an expected size (e.g. Commander = 100), THE SYSTEM SHALL display the deck's card count against that expectation.
+- THE SYSTEM SHALL apply the same user-selected format workflow to supported import sources, rather than introducing source-specific format mappings.
 
 ### 5.2 Sleeve Active decks; keep Brew decks planned
 
 **US-5.2.1** As a collection owner, I want decks I bring in as Active to sleeve their real cards, and Brew decks to stay planned, so conflicts reflect only genuine physical commitments.
 
 #### Acceptance Criteria
-- WHEN a deck is imported as **Active**, THE SYSTEM SHALL sleeve all of its main-deck cards (assign the owned exact printing where available).
-- WHEN a deck is imported as **Brew**, THE SYSTEM SHALL leave its cards **Planned** (no physical copy committed) and exclude it from conflict detection.
-- WHEN the number of Active decks sleeving a specific printing exceeds the copies owned, THE SYSTEM SHALL allow all involved slots to be sleeved (deliberate over-sleeve) during the initial-import reconciliation window, with no deck given priority.
-- THE SYSTEM SHALL NOT let the over-sleeved (over-committed) state leak into steady-state code paths that assume the one-copy-one-slot invariant; over-committed printings SHALL be marked pending reconciliation until resolved.
+- WHEN a deck is imported as **Active**, THE SYSTEM SHALL create a durable initial-import sleeve claim for every main-deck slot, keyed to the exact printing requested by that slot.
+- WHEN a deck is imported as **Brew**, THE SYSTEM SHALL leave its cards **Planned** (no sleeve claim and no physical copy committed) and exclude it from initial-import conflict detection.
+- THE SYSTEM SHALL allow multiple Active sleeve claims for the same printing during the initial-import reconciliation window, with no deck given priority.
+- THE SYSTEM SHALL NOT duplicate `deck_cards.copy_id`, create a proxy automatically, or otherwise violate the steady-state one-copy-one-slot invariant while representing initial-import sleeve claims.
+- THE SYSTEM SHALL derive an **import-conflict overlay** for each printing where active exact-printing sleeve claims exceed owned non-proxy, non-missing copies.
+- THE SYSTEM SHALL derive a **deck conflict overlay** for every deck with at least one slot participating in an unresolved import conflict. This overlay SHALL be separate from and SHALL NOT overwrite the deck's Active/Brew lifecycle.
+- THE SYSTEM SHALL finalize non-conflicted claims, and shall finalize remaining claims after each conflict is resolved, into normal one-copy-one-slot `copy_id` assignments.
 - Maybeboard and sideboard cards SHALL be excluded (they are already dropped at Archidekt normalization).
 - Basic lands SHALL be treated as `Generic Land` and excluded from sleeving-conflict logic.
+- THE SYSTEM SHALL ignore source-platform Proxy labels/tags when creating or evaluating initial-import sleeve claims; source tags are custom metadata and are not a reliable ownership signal.
+- WHEN the user chooses **Active** or **Brew** on the import screen, THE SYSTEM SHALL persist and use that choice; it SHALL NOT silently import every deck as Active.
 
 ### 5.3 Compute conflicts keyed on printing
 
 **US-5.3.1** As a collection owner, I want conflicts computed precisely per printing, so the count reflects real physical impossibilities and nothing else.
 
 #### Acceptance Criteria
-- WHEN import completes, THE SYSTEM SHALL compute conflicts from persisted data (deck_cards with a committed exact copy, grouped by printing) against owned non-proxy, non-missing `user_copies`, not from the in-flight resolution pool.
-- WHERE a printing has sleeved-count > owned-count, THE SYSTEM SHALL record exactly **one** conflict for that printing.
-- Each conflict SHALL identify: card name, specific printing, quantity owned, quantity sleeved, and every deck the printing is sleeved into.
-- Basic lands and proxy copies SHALL be excluded from conflict computation.
-- Cards owned only as an Alternate printing SHALL NOT count as satisfying an exact-printing sleeve (printings are significant).
+- WHEN import completes, THE SYSTEM SHALL compute conflicts from persisted active initial-import sleeve claims, grouped by exact printing, against owned non-proxy, non-missing `user_copies`; it SHALL NOT compute them from the in-flight supply pool or ordinary Planned slots.
+- WHERE a printing has active sleeve-claim count > owned real-copy count, THE SYSTEM SHALL record exactly **one** open conflict for that printing.
+- Each conflict SHALL identify: card name, specific printing, quantity owned, quantity sleeved (active claims), and every deck the printing is claimed sleeved into.
+- THE SYSTEM SHALL derive the deck-level Conflict overlay from open conflicts; it SHALL clear automatically when none of the deck's slots participates in an open conflict.
+- Basic lands and proxy copies SHALL be excluded from owned-copy conflict computation.
+- Cards owned only as an Alternate printing SHALL NOT count as satisfying an exact-printing sleeve claim (printings are significant).
 
 ### 5.4 Import screen shows two lists
 
@@ -127,15 +135,15 @@ Two independent axes, one word-pair each:
 **US-5.5.1** As a collection owner, I want to resolve each conflict by marking excess sleeved instances as Proxy or Unallocated, so the collection reconciles to a valid physical state.
 
 #### Acceptance Criteria
-- WHEN the user selects **Release** on an excess sleeved slot, THE SYSTEM SHALL clear that slot's copy (set it to Planned) and decrement the sleeved-count for the printing.
-- WHEN the user selects **Convert to Proxy** on an excess sleeved slot, THE SYSTEM SHALL add a proxy copy to the collection (`user_copies` with `is_proxy = true`) and sleeve that proxy into the slot (state becomes `Sleeved Proxy`).
-- WHEN a printing's sleeved-count (of real copies) is reduced to ≤ owned-count, THE SYSTEM SHALL clear the `Conflicted` overlay for that printing.
-- Resolution actions SHALL be atomic per the atomic-writes convention (a single Postgres RPC for multi-row changes).
+- WHEN the user selects **Release** on an excess sleeve claim, THE SYSTEM SHALL remove that claim, leave the slot Planned (`copy_id` remains null), and recompute the printing's claim count.
+- WHEN the user selects **Convert to Proxy** on an excess sleeve claim, THE SYSTEM SHALL create a proxy `user_copies` row that matches the slot's exact printing (`is_proxy = true` with the slot's `printing_id`), sleeve that proxy into the slot, and remove the provisional real-copy claim.
+- WHEN a printing's remaining real sleeve-claim count is ≤ owned real-copy count, THE SYSTEM SHALL assign distinct matching real copies to the remaining claims and clear the `Conflicted` overlay for that printing.
+- Resolution actions SHALL be atomic per the atomic-writes convention (a single Postgres RPC for all records changed by the action).
 - After all conflicts are resolved, THE SYSTEM SHALL leave the data in the valid steady-state model (each real copy in exactly one slot).
 
 ## 6. In Scope (Phase 1)
 
-- Archidekt `deckFormat` → format-name mapping and per-deck format override on the import screen.
+- User-selected import-wide format default plus per-deck format override for all supported import sources (no source-platform format mapping).
 - Active → sleeved (built) import path; Brew → planned import path, driven by the existing Brew/Active picker toggle.
 - Over-sleeve reconciliation convention (initial import only) with a pending-reconciliation marker that steady-state paths respect.
 - Printing-keyed conflict detection computed from persisted data.
@@ -153,16 +161,20 @@ Two independent axes, one word-pair each:
 | Foil-vs-nonfoil-as-distinct-supply nuance beyond "specific printing" | Covered by printing-keyed logic; no extra modelling this pass unless printing granularity proves insufficient. |
 | Repository-wide rename of internal `...Theorycrafted` symbols | Optional cleanup; not required for behaviour. |
 
-## 8. Open Questions
+## 8. Architecture Decisions & Implementation Constraints
 
-| # | Question | Impact |
-|---|----------|--------|
-| 1 | Exact representation of an over-sleeved slot in the DB: provisional-proxy-flagged vs a true over-assignment with a pending-reconciliation marker. Design session leaned toward "all decks over-sleeved, marked pending until resolved," but the concrete schema mechanism (new column/flag vs status) is an architecture decision. | Architecture (Developer) — must not break steady-state invariant or leak into allocation/rollup queries. |
-| 2 | Archidekt `deckFormat` numeric → format-name mapping is not defined anywhere in the code today. Need the authoritative mapping (only `3 = Commander` is confirmed from fixtures). | Blocks 5.1 accuracy for non-commander formats. |
-| 3 | Latent bug: onboarding sends `status` but `resolve-one` route reads `isActive`, so the Brew/Active choice is currently dropped (all decks import active). Must be fixed for 5.2 to work. | Blocks 5.2. |
-| 4 | Does `Convert to Proxy` on import create a *specific-printing* proxy (matching the slot's wanted printing) or a generic proxy? Affects the proxy `user_copies` row's `printing_id`. | Minor — Developer to choose sensible default (match slot printing). |
+| # | Decision / constraint | Implementation impact |
+|---|-----------------------|-----------------------|
+| 1 | **Represent provisional initial-import sleeving with durable import sleeve claims, not duplicate `deck_cards.copy_id` assignments.** Claims reference the deck slot and exact wanted printing; many claims may exist for one printing during reconciliation. | Preserves the steady-state one-copy-one-slot invariant. Conflict queries group active claims by printing; ordinary allocation/rollup code must ignore unfinalized claims. |
+| 2 | **Conflict status is a derived deck overlay, not `decks.status`.** A deck is conflicted iff an active slot claim participates in an open printing conflict. | Keeps Active/Brew lifecycle separate from reconciliation state and prevents stale status flags. Phase 2 can query the same durable records for deck-list bars and card markers. |
+| 3 | **Format is user-selected for every import source.** The picker offers an import-wide default plus per-deck override; source-platform format metadata is not used. | Avoids Archidekt/Moxfield-specific mappings. Persist selection to `decks.format` before import and use `format-config` for expected size/rules. |
+| 4 | **Active/Brew must be wired through correctly.** The current client sends `status` while `resolve-one` reads `isActive`; implementation shall map the selected lifecycle consistently. | Required for Active → sleeve claim / Brew → planned behavior. No further product decision needed. |
+| 5 | **Convert-to-Proxy creates a printing-matched proxy.** The new `user_copies` row shall use the slot's requested `printing_id` and `is_proxy = true`. | Maintains printing-specific conflict semantics and turns the slot into `Sleeved Proxy`. |
+| 6 | **Source Proxy labels are ignored.** Archidekt/Moxfield custom tags do not determine proxy ownership or conflict counts. | Proxy state only arises from an actual proxy copy in the collection or the explicit Convert-to-Proxy action. |
 
-## Provenance
+## 9. Open Questions
+
+No remaining product decisions block design. The Developer architecture pass must specify the migration, claim lifecycle, RPC contracts, and reconciliation queries that satisfy Section 8.
 
 - Authored: 2026-09-16 by Product Manager (Marty), from a design session between the user and Delivery Lead (Gene).
 - Motivated by: the import "conflict" metric being meaningless (counted planned claims and basics). Redefined as a printing-keyed physical-impossibility signal with an on-import reconciliation workflow.

@@ -302,27 +302,34 @@ export default function OnboardingPage() {
         completedResults: [],
       })
 
-      const prefetchRes = await fetch('/api/onboarding/prefetch-decks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deckIds }),
-      })
-
-      if (!prefetchRes.ok) {
-        const body = await prefetchRes.json().catch(() => ({ error: 'Prefetch failed' }))
-        throw new Error(body.error || 'Failed to prefetch decks')
-      }
-
-      const prefetchData: PrefetchResponse = await prefetchRes.json()
-      
-      // Create a map for quick lookup
+      // Prefetch in chunks — the server caps each batch at 30 decks to stay
+      // within the serverless timeout, so a larger selection must be split.
+      const PREFETCH_BATCH_SIZE = 30
       const prefetchedMap = new Map<number, unknown>()
-      for (const deck of prefetchData.decks) {
-        prefetchedMap.set(deck.deckId, deck.data)
+      const prefetchErrors: PrefetchError[] = []
+
+      for (let start = 0; start < deckIds.length; start += PREFETCH_BATCH_SIZE) {
+        const batch = deckIds.slice(start, start + PREFETCH_BATCH_SIZE)
+        const prefetchRes = await fetch('/api/onboarding/prefetch-decks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deckIds: batch }),
+        })
+
+        if (!prefetchRes.ok) {
+          const body = await prefetchRes.json().catch(() => ({ error: 'Prefetch failed' }))
+          throw new Error(body.error || 'Failed to prefetch decks')
+        }
+
+        const prefetchData: PrefetchResponse = await prefetchRes.json()
+        for (const deck of prefetchData.decks) {
+          prefetchedMap.set(deck.deckId, deck.data)
+        }
+        prefetchErrors.push(...prefetchData.errors)
       }
 
       // Handle prefetch errors as failed results
-      for (const err of prefetchData.errors) {
+      for (const err of prefetchErrors) {
         const deckEntry = deckList.find(d => d.id === err.deckId)
         completedResults.push({
           deckId: err.deckId,

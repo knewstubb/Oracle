@@ -8,7 +8,6 @@
 -- from other decks.
 
 DROP FUNCTION IF EXISTS public.reconcile_built_deck(integer, uuid, jsonb);
-
 CREATE FUNCTION public.reconcile_built_deck(
   p_deck_id integer,
   p_user_id uuid,
@@ -322,6 +321,5 @@ BEGIN
   );
 END;
 $function$;
-
 REVOKE ALL ON FUNCTION public.reconcile_built_deck(integer, uuid, jsonb) FROM PUBLIC, authenticated;
 GRANT EXECUTE ON FUNCTION public.reconcile_built_deck(integer, uuid, jsonb) TO service_role;

@@ -63,6 +63,5 @@ BEGIN
   );
 END;
 $function$;
-
-REVOKE ALL ON FUNCTION public.delete_user_copies(integer[], uuid) FROM PUBLIC, authenticated;
-GRANT EXECUTE ON FUNCTION public.delete_user_copies(integer[], uuid) TO service_role;
+REVOKE ALL ON FUNCTION public.delete_user_copies(integer[], uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.delete_user_copies(integer[], uuid) TO authenticated, service_role;

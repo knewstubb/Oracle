@@ -16,7 +16,6 @@ BEGIN
   RETURN public._ensure_default_storage_location_id(p_user_id);
 END;
 $function$;
-
 -- Enforce canonical card identity at the current-schema write boundary. This
 -- protects every movement RPC, including any future caller that forgets to
 -- repeat the check in application code.
@@ -72,14 +71,12 @@ BEGIN
   RETURN NEW;
 END;
 $function$;
-
 DROP TRIGGER IF EXISTS trg_validate_deck_card_copy_identity ON public.deck_cards;
 CREATE TRIGGER trg_validate_deck_card_copy_identity
 BEFORE INSERT OR UPDATE OF copy_id, card_name, scryfall_id, user_id
 ON public.deck_cards
 FOR EACH ROW
 EXECUTE FUNCTION public.validate_deck_card_copy_identity();
-
 -- Supported "found" operations must restore a copy to storage atomically.
 CREATE OR REPLACE FUNCTION public.unmark_copy_missing(
   p_copy_id integer,
@@ -153,7 +150,6 @@ BEGIN
   );
 END;
 $function$;
-
 -- Replace the complete collection only after the caller has preflighted the
 -- complete source file. The removal membership is selected after acquiring a
 -- per-user transaction lock, so no pre-lock ID snapshot can drive deletion.
@@ -190,13 +186,11 @@ BEGIN
   );
 END;
 $function$;
-
 -- No browser role may invoke these SECURITY DEFINER write functions. Routes
 -- authenticate first and use the service-role client with explicit user guards.
 REVOKE ALL ON FUNCTION public._default_storage_location_id(uuid) FROM PUBLIC, authenticated;
 REVOKE ALL ON FUNCTION public.validate_deck_card_copy_identity() FROM PUBLIC, authenticated;
 REVOKE ALL ON FUNCTION public.unmark_copy_missing(integer, uuid) FROM PUBLIC, authenticated;
-
 REVOKE ALL ON FUNCTION public.assign_physical_copy(integer, integer, uuid) FROM PUBLIC, authenticated;
 REVOKE ALL ON FUNCTION public.force_claim_copy(integer, integer, uuid) FROM PUBLIC, authenticated;
 REVOKE ALL ON FUNCTION public.assign_free_copy(integer, integer, text, uuid) FROM PUBLIC, authenticated;
@@ -221,7 +215,6 @@ REVOKE ALL ON FUNCTION public.insert_user_copies(uuid, jsonb) FROM PUBLIC, authe
 REVOKE ALL ON FUNCTION public.apply_collection_sync(uuid, integer[], jsonb) FROM PUBLIC, authenticated;
 REVOKE ALL ON FUNCTION public.replace_collection(uuid, jsonb) FROM PUBLIC, authenticated;
 REVOKE ALL ON FUNCTION public.delete_storage_location(integer, uuid) FROM PUBLIC, authenticated;
-
 GRANT EXECUTE ON FUNCTION public.unmark_copy_missing(integer, uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.assign_physical_copy(integer, integer, uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.force_claim_copy(integer, integer, uuid) TO service_role;

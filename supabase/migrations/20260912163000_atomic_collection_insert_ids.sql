@@ -100,9 +100,7 @@ BEGIN
   RETURN v_inserted_ids;
 END;
 $function$;
-
 DROP FUNCTION IF EXISTS public.insert_user_copies(uuid, jsonb);
-
 CREATE FUNCTION public.insert_user_copies(
   p_user_id uuid,
   p_rows jsonb
@@ -138,7 +136,6 @@ BEGIN
   );
 END;
 $function$;
-
 REVOKE ALL ON FUNCTION public._insert_user_copy_rows_with_ids(uuid, jsonb, integer) FROM PUBLIC, authenticated;
 REVOKE ALL ON FUNCTION public.insert_user_copies(uuid, jsonb) FROM PUBLIC, authenticated;
 GRANT EXECUTE ON FUNCTION public.insert_user_copies(uuid, jsonb) TO service_role;

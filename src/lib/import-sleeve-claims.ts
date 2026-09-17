@@ -64,7 +64,10 @@ export async function createSleeveClaimsForDeck(
     return { claimsCreated: 0 }
   }
 
-  // Insert claims. UNIQUE(deck_cards_id) makes this idempotent per slot.
+  // Insert claims only. Nothing is sleeved during import — claims are the
+  // single source of truth during reconciliation so every deck keeps equal,
+  // editable footing. Real copies are assigned by finalizeImportClaims() when
+  // the user finishes (Go to Decks). UNIQUE(deck_cards_id) is idempotent.
   const { error: insertErr } = await supabase
     .from('import_sleeve_claims')
     .upsert(claimRows, { onConflict: 'deck_cards_id' })
@@ -73,20 +76,19 @@ export async function createSleeveClaimsForDeck(
     return { claimsCreated: 0, error: `Failed to create sleeve claims: ${insertErr.message}` }
   }
 
-  // Finalize: assign real copies (by card identity) to claims wherever supply
-  // covers demand; retags printing to the owned copy when they differ.
-  const { error: finalizeErr } = await supabase.rpc('finalize_import_claims', {
-    p_user_id: userId,
-  })
-
-  if (finalizeErr) {
-    return {
-      claimsCreated: claimRows.length,
-      error: `Finalization failed: ${finalizeErr.message}`,
-    }
-  }
-
   return { claimsCreated: claimRows.length }
+}
+
+/**
+ * Finalize all balanced cards: for every card where owned real copies cover the
+ * sleeved demand, assign distinct owned copies to the claimed slots (retagging
+ * printing to the owned copy) and clear those claims. Over-allocated cards keep
+ * their claims. Called when the user finishes the import (Go to Decks).
+ */
+export async function finalizeImportClaims(userId: string): Promise<void> {
+  const supabase = createAdminClient()
+  const { error } = await supabase.rpc('finalize_import_claims', { p_user_id: userId })
+  if (error) throw new Error(`finalize_import_claims failed: ${error.message}`)
 }
 
 // ---------------------------------------------------------------------------
@@ -102,22 +104,28 @@ export interface ImportConflictDeckRef {
   deckCardsId: number
 }
 
-export interface ImportConflict {
+export interface ImportAllocation {
   cardName: string
   owned: number
   sleeved: number
+  /** True when sleeved demand exceeds owned copies (a genuine conflict). */
+  overAllocated: boolean
   decks: ImportConflictDeckRef[]
 }
 
-/** Read the user's current open import conflicts. */
-export async function getImportConflicts(userId: string): Promise<ImportConflict[]> {
+/**
+ * Read the user's full import allocation view: every card with open sleeve
+ * claims, whether over-allocated or balanced. Balanced cards remain editable
+ * (all decks show Release/Proxy) — no deck is pre-assigned the real copy.
+ */
+export async function getImportAllocations(userId: string): Promise<ImportAllocation[]> {
   const supabase = createAdminClient()
-  const { data, error } = await supabase.rpc('get_import_conflicts', {
+  const { data, error } = await supabase.rpc('get_import_allocations', {
     p_user_id: userId,
   })
-  if (error) throw new Error(`get_import_conflicts failed: ${error.message}`)
-  const payload = data as { success?: boolean; conflicts?: ImportConflict[] } | null
-  return payload?.conflicts ?? []
+  if (error) throw new Error(`get_import_allocations failed: ${error.message}`)
+  const payload = data as { success?: boolean; allocations?: ImportAllocation[] } | null
+  return payload?.allocations ?? []
 }
 
 /** Release an excess sleeve claim — slot stays Planned. */

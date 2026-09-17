@@ -104,7 +104,6 @@ BEGIN
   );
 END;
 $function$;
-
 -- Keep this destructive, ownership-guarded operation unavailable to clients.
 REVOKE ALL ON FUNCTION public.remove_deck_card_with_release(integer, integer, uuid)
   FROM PUBLIC, authenticated;

@@ -712,28 +712,15 @@ export async function resolveSingleDeckWithPrefetch(
   }
 
   if (isActive) {
-    // Active deck: create sleeve claims for non-basic slots, then finalize.
-    // Finalization assigns real copies where supply is sufficient; the rest
-    // remain as open claims and surface as conflicts on the summary.
-    const { error } = await createSleeveClaimsForDeck(importedDeckId, userId)
+    // Active deck: create sleeve claims for non-basic slots. Nothing is sleeved
+    // yet — claims are reconciled (and real copies assigned) on import finish.
+    const { claimsCreated, error } = await createSleeveClaimsForDeck(importedDeckId, userId)
     if (error) result.errors.push(error)
 
-    // Report matched vs unresolved from the post-finalization DB state.
-    const { count: sleevedCount } = await supabase
-      .from('deck_cards')
-      .select('id', { count: 'exact', head: true })
-      .eq('deck_id', importedDeckId)
-      .not('copy_id', 'is', null)
-
-    result.matched = sleevedCount ?? 0
-
-    // Slots that still carry an open claim are the unresolved (conflicted) ones.
-    const { count: openClaims } = await supabase
-      .from('import_sleeve_claims')
-      .select('id', { count: 'exact', head: true })
-      .eq('deck_id', importedDeckId)
-
-    result.unresolved = openClaims ?? 0
+    // Report per-deck progress from the imported slot count; sleeving is deferred
+    // to the finalize step, so "matched" here reflects claimed slots.
+    result.matched = claimsCreated
+    result.unresolved = 0
   }
 
   return result

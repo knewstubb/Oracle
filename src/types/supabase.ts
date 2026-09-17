@@ -2276,7 +2276,7 @@ export type Database = {
         Returns: Json
       }
       finalize_import_claims: {
-        Args: { p_printing_id?: string; p_user_id: string }
+        Args: { p_card_name?: string; p_user_id: string }
         Returns: Json
       }
       force_claim_copy: {
@@ -2336,6 +2336,7 @@ export type Database = {
           type_line: string
         }[]
       }
+      get_import_allocations: { Args: { p_user_id: string }; Returns: Json }
       get_import_conflicts: { Args: { p_user_id: string }; Returns: Json }
       get_next_deck_version_number: {
         Args: { p_deck_id: number }

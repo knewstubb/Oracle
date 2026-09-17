@@ -8,16 +8,17 @@
  * - proxy:   create a printing-matched proxy copy, sleeve it into the slot,
  *            and drop the claim.
  *
- * Both actions re-run finalization for the affected printing (via the RPC),
- * so any remaining claims that now fit within supply are assigned real copies.
- * Returns the updated conflict list.
+ * These only adjust claims during reconciliation — they do NOT assign real
+ * copies. Every deck stays an equal, editable claim until the user finishes
+ * the import (which triggers the single finalize pass). Returns the updated
+ * allocation list.
  */
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import {
   releaseSleeveClaim,
   proxySleeveClaim,
-  getImportConflicts,
+  getImportAllocations,
 } from '@/lib/import-sleeve-claims'
 
 export async function POST(request: NextRequest) {
@@ -46,8 +47,8 @@ export async function POST(request: NextRequest) {
     } else {
       await proxySleeveClaim(userId, claimId)
     }
-    const conflicts = await getImportConflicts(userId)
-    return Response.json({ success: true, conflicts })
+    const allocations = await getImportAllocations(userId)
+    return Response.json({ success: true, allocations })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     return Response.json({ error: message }, { status: 500 })

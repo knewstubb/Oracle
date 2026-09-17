@@ -1346,10 +1346,11 @@ interface ImportConflictDeckRef {
   claimId: number | null
   deckCardsId: number
 }
-interface ImportConflict {
+interface ImportAllocation {
   cardName: string
   owned: number
   sleeved: number
+  overAllocated: boolean
   decks: ImportConflictDeckRef[]
 }
 
@@ -1360,23 +1361,24 @@ function SummaryScreen({
   batchResult: BatchResolutionResult | null
   onFinish: () => void
 }) {
-  const [conflicts, setConflicts] = useState<ImportConflict[]>([])
-  const [conflictsLoading, setConflictsLoading] = useState(true)
+  const [allocations, setAllocations] = useState<ImportAllocation[]>([])
+  const [allocationsLoading, setAllocationsLoading] = useState(true)
   const [resolvingClaimId, setResolvingClaimId] = useState<number | null>(null)
+  const [finishing, setFinishing] = useState(false)
 
-  // Fetch open conflicts once the import summary mounts.
+  // Fetch the full allocation view once the import summary mounts.
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
         const res = await fetch('/api/onboarding/conflicts')
-        if (!res.ok) throw new Error('Failed to load conflicts')
-        const data: { conflicts: ImportConflict[] } = await res.json()
-        if (!cancelled) setConflicts(data.conflicts ?? [])
+        if (!res.ok) throw new Error('Failed to load allocations')
+        const data: { allocations: ImportAllocation[] } = await res.json()
+        if (!cancelled) setAllocations(data.allocations ?? [])
       } catch {
-        if (!cancelled) setConflicts([])
+        if (!cancelled) setAllocations([])
       } finally {
-        if (!cancelled) setConflictsLoading(false)
+        if (!cancelled) setAllocationsLoading(false)
       }
     })()
     return () => { cancelled = true }
@@ -1392,29 +1394,42 @@ function SummaryScreen({
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({ error: 'Failed' }))
-        throw new Error(body.error || 'Failed to resolve conflict')
+        throw new Error(body.error || 'Failed to update allocation')
       }
-      const data: { conflicts: ImportConflict[] } = await res.json()
-      setConflicts(data.conflicts ?? [])
-      toast.success(action === 'release' ? 'Card released to Planned' : 'Proxy added and sleeved')
+      const data: { allocations: ImportAllocation[] } = await res.json()
+      setAllocations(data.allocations ?? [])
+      toast.success(action === 'release' ? 'Released — slot set to Planned' : 'Proxy added and sleeved')
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to resolve conflict')
+      toast.error(err instanceof Error ? err.message : 'Failed to update allocation')
     } finally {
       setResolvingClaimId(null)
+    }
+  }
+
+  // On finish, run the single finalize pass (materializes balanced cards into
+  // real sleeves) before leaving the import.
+  async function handleFinish() {
+    setFinishing(true)
+    try {
+      await fetch('/api/onboarding/finalize', { method: 'POST' })
+    } catch {
+      // Non-fatal — decks are still imported; balanced cards can finalize later.
+    } finally {
+      onFinish()
     }
   }
 
   if (!batchResult) return null
 
   const totalDecks = batchResult.decksProcessed
-  const totalMatched = batchResult.totalMatched
 
-  // Derived deck-level conflict overlay: a deck is conflicted iff it has an
-  // open claim participating in an open conflict.
-  const conflictedDeckIds = new Set<number>()
-  for (const c of conflicts) {
-    for (const d of c.decks) {
-      if (d.source === 'claim') conflictedDeckIds.add(d.deckId)
+  // Derived deck-level overlay: a deck is over-allocated iff it holds a claim on
+  // a still-over-allocated card.
+  const overAllocatedDeckIds = new Set<number>()
+  for (const a of allocations) {
+    if (!a.overAllocated) continue
+    for (const d of a.decks) {
+      if (d.source === 'claim') overAllocatedDeckIds.add(d.deckId)
     }
   }
 
@@ -1425,7 +1440,7 @@ function SummaryScreen({
     result,
   }))
 
-  const conflictCount = conflicts.length
+  const overAllocatedCount = allocations.filter((a) => a.overAllocated).length
 
   return (
     <div className="flex flex-col gap-6">
@@ -1443,49 +1458,51 @@ function SummaryScreen({
           <p className="text-[length:var(--fs-xl)] font-semibold">{totalDecks}</p>
         </div>
         <div className="rounded-lg border border-[var(--border-default)] px-4 py-3">
-          <p className="text-[length:var(--fs-xs)] text-muted-foreground">Cards sleeved</p>
-          <p className="text-[length:var(--fs-xl)] font-semibold">{totalMatched.toLocaleString()}</p>
+          <p className="text-[length:var(--fs-xs)] text-muted-foreground">Cards to allocate</p>
+          <p className="text-[length:var(--fs-xl)] font-semibold">
+            {allocationsLoading ? '…' : allocations.length.toLocaleString()}
+          </p>
         </div>
         <div
           className="rounded-lg border px-4 py-3"
-          style={conflictCount > 0
+          style={overAllocatedCount > 0
             ? { borderColor: 'rgba(239,159,39,0.4)', background: 'rgba(239,159,39,0.05)' }
             : { borderColor: 'var(--border-default)' }
           }
         >
-          <p className="text-[length:var(--fs-xs)] text-muted-foreground">Conflicts</p>
+          <p className="text-[length:var(--fs-xs)] text-muted-foreground">Over-allocated</p>
           <p
             className="text-[length:var(--fs-xl)] font-semibold"
-            style={conflictCount > 0 ? { color: '#ef9f27' } : undefined}
+            style={overAllocatedCount > 0 ? { color: '#ef9f27' } : undefined}
           >
-            {conflictsLoading ? '…' : conflictCount}
+            {allocationsLoading ? '…' : overAllocatedCount}
           </p>
         </div>
       </div>
 
-      {/* List 1: decks imported (with derived conflict overlay) */}
+      {/* List 1: decks imported (over-allocated overlay) */}
       <div className="flex flex-col gap-2">
         <h2 className="text-[length:var(--fs-md)] font-medium">Decks</h2>
         <DeckImportProgressList
-          decks={decks.map((d) => ({ ...d, conflicted: conflictedDeckIds.has(d.id) }))}
+          decks={decks.map((d) => ({ ...d, conflicted: overAllocatedDeckIds.has(d.id) }))}
           isRunning={false}
         />
       </div>
 
-      {/* List 2: card conflicts */}
-      {conflictCount > 0 && (
+      {/* List 2: card allocations — every claimed card, editable, coloured by state */}
+      {allocations.length > 0 && (
         <div className="flex flex-col gap-2">
           <h2 className="text-[length:var(--fs-md)] font-medium">
-            Card conflicts
+            Card allocations
             <span className="ml-2 text-[length:var(--fs-sm)] font-normal text-muted-foreground">
-              more sleeved than you own — resolve each to reconcile
+              amber = more sleeved than owned. Adjust any deck.
             </span>
           </h2>
           <div className="flex flex-col gap-3">
-            {conflicts.map((c) => (
-              <ImportConflictCard
-                key={c.cardName}
-                conflict={c}
+            {allocations.map((a) => (
+              <ImportAllocationCard
+                key={a.cardName}
+                allocation={a}
                 resolvingClaimId={resolvingClaimId}
                 onResolve={resolveClaim}
               />
@@ -1494,47 +1511,44 @@ function SummaryScreen({
         </div>
       )}
 
-      <Button onClick={onFinish} className="w-full">
-        Go to Decks
+      <Button onClick={handleFinish} disabled={finishing} className="w-full">
+        {finishing && <Loader2 className="size-4 animate-spin" aria-hidden="true" data-icon="inline-start" />}
+        {finishing ? 'Finalizing…' : 'Go to Decks'}
       </Button>
     </div>
   )
 }
 
-function ImportConflictCard({
-  conflict,
+function ImportAllocationCard({
+  allocation,
   resolvingClaimId,
   onResolve,
 }: {
-  conflict: ImportConflict
+  allocation: ImportAllocation
   resolvingClaimId: number | null
   onResolve: (claimId: number, action: 'release' | 'proxy') => void
 }) {
+  const over = allocation.overAllocated
+  // Amber when over-allocated; neutral/resolved otherwise. Both stay editable.
+  const accent = over ? '#ef9f27' : '#14b8a6'
+  const border = over ? 'rgba(239,159,39,0.4)' : 'rgba(20,184,166,0.3)'
+  const bg = over ? 'rgba(239,159,39,0.04)' : 'rgba(20,184,166,0.03)'
+
   return (
-    <div
-      className="rounded-lg border px-4 py-3"
-      style={{ borderColor: 'rgba(239,159,39,0.4)', background: 'rgba(239,159,39,0.04)' }}
-    >
+    <div className="rounded-lg border px-4 py-3" style={{ borderColor: border, background: bg }}>
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-[length:var(--fs-md)] font-medium">{conflict.cardName}</span>
-        <span className="text-[length:var(--fs-sm)] tabular-nums" style={{ color: '#ef9f27' }}>
-          {conflict.sleeved} sleeved · {conflict.owned} owned
+        <span className="text-[length:var(--fs-md)] font-medium">{allocation.cardName}</span>
+        <span className="text-[length:var(--fs-sm)] tabular-nums" style={{ color: accent }}>
+          {allocation.sleeved} sleeved · {allocation.owned} owned
         </span>
       </div>
       <div className="mt-2 flex flex-col gap-1.5">
-        {conflict.decks.map((d) => (
+        {allocation.decks.map((d) => (
           <div
             key={`${d.deckId}-${d.deckCardsId}`}
             className="flex items-center justify-between gap-3 text-[length:var(--fs-sm)]"
           >
-            <span className="truncate">
-              {d.deckName}
-              {d.source === 'sleeved' && (
-                <span className="ml-1.5 text-[length:var(--fs-xs)] text-muted-foreground">
-                  (holds real copy)
-                </span>
-              )}
-            </span>
+            <span className="truncate">{d.deckName}</span>
             {d.source === 'claim' && d.claimId != null && (
               <div className="flex shrink-0 items-center gap-2">
                 <Button

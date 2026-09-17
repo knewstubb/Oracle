@@ -1,13 +1,13 @@
 /**
  * GET /api/onboarding/conflicts
  *
- * Returns the current user's open initial-import sleeve conflicts:
- * printings where sleeved demand (open claims + finalized real sleeves)
- * exceeds owned non-proxy copies. Each conflict lists the decks involved
- * with the claim id needed to resolve (Release / Convert to Proxy).
+ * Returns the user's full import allocation view: every card with open sleeve
+ * claims, each flagged `overAllocated` when sleeved demand exceeds owned copies.
+ * Nothing is pre-sleeved during reconciliation, so every deck is an editable
+ * claim (Release / Convert to Proxy) — no deck is given the real copy up front.
  */
 import { requireAuth } from '@/lib/auth'
-import { getImportConflicts } from '@/lib/import-sleeve-claims'
+import { getImportAllocations } from '@/lib/import-sleeve-claims'
 
 export async function GET() {
   const authResult = await requireAuth()
@@ -15,8 +15,8 @@ export async function GET() {
   const userId = authResult.id
 
   try {
-    const conflicts = await getImportConflicts(userId)
-    return Response.json({ conflicts })
+    const allocations = await getImportAllocations(userId)
+    return Response.json({ allocations })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     return Response.json({ error: message }, { status: 500 })

@@ -20,7 +20,6 @@ DROP FUNCTION IF EXISTS public.batch_assign_deck(jsonb);
 DROP FUNCTION IF EXISTS public.apply_deck_cards_diff(bigint, bigint[], jsonb);
 DROP FUNCTION IF EXISTS public.apply_deck_cards_diff(integer, integer[], jsonb);
 DROP FUNCTION IF EXISTS public.mark_copy_missing(integer, uuid);
-
 -- Return the one storage location that receives a released copy.
 CREATE OR REPLACE FUNCTION public._default_storage_location_id(p_user_id uuid)
 RETURNS integer
@@ -50,7 +49,6 @@ BEGIN
   RETURN v_location_id;
 END;
 $function$;
-
 -- Shared implementation for normal assignment and confirmed force-claim.
 CREATE OR REPLACE FUNCTION public._move_copy_to_slot(
   p_target_deck_card_id integer,
@@ -164,7 +162,6 @@ BEGIN
   );
 END;
 $function$;
-
 -- Normal explicit assignment. A copy held by an allocating deck requires the
 -- separate force-claim contract so the UI can distinguish the confirmation path.
 CREATE OR REPLACE FUNCTION public.assign_physical_copy(
@@ -186,7 +183,6 @@ BEGIN
   );
 END;
 $function$;
-
 CREATE OR REPLACE FUNCTION public.force_claim_copy(
   p_target_deck_card_id integer,
   p_copy_id integer,
@@ -206,7 +202,6 @@ BEGIN
   );
 END;
 $function$;
-
 -- Assign a copy that is currently free in storage to an open slot.
 CREATE OR REPLACE FUNCTION public.assign_free_copy(
   p_copy_id integer,
@@ -294,7 +289,6 @@ BEGIN
   );
 END;
 $function$;
-
 -- Move a copy from one deck slot to an open slot in another deck.
 CREATE OR REPLACE FUNCTION public.reassign_to_deck(
   p_copy_id integer,
@@ -388,7 +382,6 @@ BEGIN
   );
 END;
 $function$;
-
 -- Undo either to storage (NULL restore target) or to the original deck slot.
 CREATE OR REPLACE FUNCTION public.undo_copy_move(
   p_current_deck_card_id integer,
@@ -507,7 +500,6 @@ BEGIN
   );
 END;
 $function$;
-
 -- Create a proxy and sleeve it into a slot in the same transaction.
 CREATE OR REPLACE FUNCTION public.add_proxy_to_slot(
   p_target_deck_card_id integer,
@@ -595,7 +587,6 @@ BEGIN
   );
 END;
 $function$;
-
 -- Mark missing and unlink in one transaction. Missing copies stay locationless.
 CREATE OR REPLACE FUNCTION public.mark_copy_missing(
   p_copy_id integer,
@@ -656,7 +647,6 @@ BEGIN
   );
 END;
 $function$;
-
 -- Apply a composition diff atomically. A diff may not silently delete a
 -- sleeved slot; the caller must resolve that physical movement explicitly.
 CREATE OR REPLACE FUNCTION public.apply_deck_cards_diff(
@@ -787,7 +777,6 @@ BEGIN
   );
 END;
 $function$;
-
 -- Apply a whole deck's physical assignments atomically. Each JSON object uses
 -- deckCardsId, copyId, and optionally clearDeckCardsId for a Tier 3 move.
 CREATE OR REPLACE FUNCTION public.batch_assign_deck(
@@ -955,7 +944,6 @@ BEGIN
   );
 END;
 $function$;
-
 -- Release all sleeved copies in one deck back to the user's default storage.
 CREATE OR REPLACE FUNCTION public.release_deck_copies(
   p_deck_id integer,
@@ -1024,7 +1012,6 @@ BEGIN
   );
 END;
 $function$;
-
 -- Release copies and delete a deck in one transaction.
 CREATE OR REPLACE FUNCTION public.delete_deck_with_release(
   p_deck_id integer,
@@ -1098,7 +1085,6 @@ BEGIN
   );
 END;
 $function$;
-
 -- Release one copy from every slot that references it.
 CREATE OR REPLACE FUNCTION public.unassign_copy_to_storage(
   p_copy_id integer,
@@ -1154,7 +1140,6 @@ BEGIN
   );
 END;
 $function$;
-
 -- Delete a copy and let its FK references become planned slots atomically.
 CREATE OR REPLACE FUNCTION public.delete_user_copy(
   p_copy_id integer,
@@ -1190,7 +1175,6 @@ BEGIN
   RETURN jsonb_build_object('success', true, 'copy_id', p_copy_id);
 END;
 $function$;
-
 -- AI batch delta. Added slots are planned; removed sleeved copies are returned
 -- to storage in the same transaction as the slot deletion.
 CREATE OR REPLACE FUNCTION public.apply_ai_deck_delta(
@@ -1325,7 +1309,6 @@ BEGIN
   );
 END;
 $function$;
-
 -- Replace a deck's new_cards contents atomically after card identities have
 -- been resolved by the application. Newly-created copies are immediately
 -- sleeved, so they intentionally have location_id = NULL.
@@ -1473,23 +1456,21 @@ BEGIN
   );
 END;
 $function$;
-
 -- The helper is only callable through the public contracts above.
 REVOKE ALL ON FUNCTION public._default_storage_location_id(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public._move_copy_to_slot(integer, integer, uuid, boolean) FROM PUBLIC;
-
-GRANT EXECUTE ON FUNCTION public.assign_physical_copy(integer, integer, uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.force_claim_copy(integer, integer, uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.assign_free_copy(integer, integer, text, uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.reassign_to_deck(integer, integer, text, uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.undo_copy_move(integer, integer, integer, uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.add_proxy_to_slot(integer, integer, uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.mark_copy_missing(integer, uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.apply_deck_cards_diff(integer, uuid, integer[], jsonb) TO service_role;
-GRANT EXECUTE ON FUNCTION public.batch_assign_deck(integer, uuid, jsonb) TO service_role;
-GRANT EXECUTE ON FUNCTION public.release_deck_copies(integer, uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.delete_deck_with_release(integer, uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.unassign_copy_to_storage(integer, uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.delete_user_copy(integer, uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.apply_ai_deck_delta(integer, uuid, jsonb, integer[]) TO service_role;
-GRANT EXECUTE ON FUNCTION public.replace_deck_with_new_cards(integer, uuid, jsonb) TO service_role;
+GRANT EXECUTE ON FUNCTION public.assign_physical_copy(integer, integer, uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.force_claim_copy(integer, integer, uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.assign_free_copy(integer, integer, text, uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.reassign_to_deck(integer, integer, text, uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.undo_copy_move(integer, integer, integer, uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.add_proxy_to_slot(integer, integer, uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.mark_copy_missing(integer, uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.apply_deck_cards_diff(integer, uuid, integer[], jsonb) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.batch_assign_deck(integer, uuid, jsonb) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.release_deck_copies(integer, uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.delete_deck_with_release(integer, uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.unassign_copy_to_storage(integer, uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.delete_user_copy(integer, uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.apply_ai_deck_delta(integer, uuid, jsonb, integer[]) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.replace_deck_with_new_cards(integer, uuid, jsonb) TO authenticated, service_role;

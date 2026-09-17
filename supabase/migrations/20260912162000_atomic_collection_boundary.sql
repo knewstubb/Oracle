@@ -76,7 +76,6 @@ BEGIN
   RETURN v_location_id;
 END;
 $function$;
-
 -- ---------------------------------------------------------------------------
 -- Atomic storage placement
 -- ---------------------------------------------------------------------------
@@ -163,7 +162,6 @@ BEGIN
   );
 END;
 $function$;
-
 CREATE OR REPLACE FUNCTION public.move_copies_to_storage(
   p_copy_ids integer[],
   p_location_id integer,
@@ -269,7 +267,6 @@ BEGIN
   );
 END;
 $function$;
-
 -- ---------------------------------------------------------------------------
 -- Atomic proxy-to-original replacement
 -- ---------------------------------------------------------------------------
@@ -415,7 +412,6 @@ BEGIN
   );
 END;
 $function$;
-
 -- ---------------------------------------------------------------------------
 -- Atomic bulk proxy creation and sleeving
 -- ---------------------------------------------------------------------------
@@ -548,7 +544,6 @@ BEGIN
   );
 END;
 $function$;
-
 -- ---------------------------------------------------------------------------
 -- Atomic collection copy insertion/synchronisation helpers
 -- ---------------------------------------------------------------------------
@@ -642,7 +637,6 @@ BEGIN
   RETURN v_inserted_count;
 END;
 $function$;
-
 CREATE OR REPLACE FUNCTION public.insert_user_copies(
   p_user_id uuid,
   p_rows jsonb
@@ -673,7 +667,6 @@ BEGIN
   );
 END;
 $function$;
-
 CREATE OR REPLACE FUNCTION public.apply_collection_sync(
   p_user_id uuid,
   p_remove_copy_ids integer[],
@@ -753,7 +746,6 @@ BEGIN
   );
 END;
 $function$;
-
 -- ---------------------------------------------------------------------------
 -- Storage-location deletion: never let FK ON DELETE SET NULL orphan copies
 -- ---------------------------------------------------------------------------
@@ -811,7 +803,6 @@ BEGIN
   );
 END;
 $function$;
-
 -- ---------------------------------------------------------------------------
 -- Strengthen existing deletion and AI contracts
 -- ---------------------------------------------------------------------------
@@ -856,7 +847,6 @@ BEGIN
   RETURN jsonb_build_object('success', true, 'copy_id', p_copy_id);
 END;
 $function$;
-
 CREATE OR REPLACE FUNCTION public.delete_user_copies(
   p_copy_ids integer[],
   p_user_id uuid
@@ -922,7 +912,6 @@ BEGIN
   );
 END;
 $function$;
-
 CREATE OR REPLACE FUNCTION public.apply_ai_deck_delta(
   p_deck_id integer,
   p_user_id uuid,
@@ -1068,7 +1057,6 @@ BEGIN
   );
 END;
 $function$;
-
 -- The service role is the only caller. Routes authenticate the user first and
 -- every function still checks the supplied user_id against owned rows.
 REVOKE ALL ON FUNCTION public._ensure_default_storage_location_id(uuid) FROM PUBLIC, authenticated;
@@ -1096,7 +1084,6 @@ REVOKE ALL ON FUNCTION public.delete_user_copy(integer, uuid) FROM PUBLIC, authe
 REVOKE ALL ON FUNCTION public.delete_user_copies(integer[], uuid) FROM PUBLIC, authenticated;
 REVOKE ALL ON FUNCTION public.apply_ai_deck_delta(integer, uuid, jsonb, integer[]) FROM PUBLIC, authenticated;
 REVOKE ALL ON FUNCTION public.replace_deck_with_new_cards(integer, uuid, jsonb) FROM PUBLIC, authenticated;
-
 GRANT EXECUTE ON FUNCTION public.move_copy_to_storage(integer, integer, uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.move_copies_to_storage(integer[], integer, uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.replace_proxy_with_original(integer, integer, integer, uuid) TO service_role;

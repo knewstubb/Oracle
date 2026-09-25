@@ -428,10 +428,15 @@ export async function getRankedCandidates(
  * Batch version of getRankedCandidates — fetches supply for all card names
  * in 2 bulk queries instead of 2*N queries.
  * Returns a Map<cardName, RankedCandidate[]>.
+ *
+ * `preferredScryfallByName` is optional and additive to the contract's
+ * `(cardNames, userId)` signature: when supplied, each name's candidates are
+ * scored against that name's preferred printing id.
  */
 export async function getBatchRankedCandidates(
   cardNames: string[],
-  userId: string
+  userId: string,
+  preferredScryfallByName?: Record<string, string | null>
 ): Promise<Map<string, RankedCandidate[]>> {
   const supplyByName = await fetchBatchEnrichedSupply(cardNames, userId)
   const result = new Map<string, RankedCandidate[]>()
@@ -459,9 +464,11 @@ export async function getBatchRankedCandidates(
       continue
     }
 
+    const preferredScryfallId = preferredScryfallByName?.[cardName] ?? null
+
     const ranked: RankedCandidate[] = entries.map(entry => {
       const tier = classifyTier(entry)
-      const withinTierScore = scoreCandidate(entry, null)
+      const withinTierScore = scoreCandidate(entry, preferredScryfallId)
       return {
         entry,
         tier,

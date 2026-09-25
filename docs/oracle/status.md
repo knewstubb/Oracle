@@ -17,7 +17,9 @@ Read `docs/oracle/roadmap.md` first. Only tasks in the **current milestone** may
 | T-04 | Move the Allocation Tab off the frozen `deck_allocations` table | Backend | T-03 | DONE |
 | T-05a | Replace placeholder sequential IDs in rollup-level selection with real `physical_copy_id` values (API / data-access) | Backend | T-01 | DONE |
 | T-05b | Update UI to consume real `physical_copy_id` values from rollup API | Frontend | T-05a | DONE |
-| T-13 | M1 exit test: import owner's real Archidekt collection and decks; reconcile counts, deck lists and copy assignments against Archidekt; report differences | Architect (read-only report) | T-04, T-05, T-11, T-12 | DONE — report has open owner decisions before M1 exit |
+| T-13 | M1 exit test: import owner's real Archidekt collection and decks; reconcile counts, deck lists and copy assignments against Archidekt; report differences | Architect (read-only report) | T-04, T-05, T-11, T-12 | DONE — owner decisions locked as D-018 to D-021 |
+| T-20 | Update deck importer to import Archidekt maybeboard and sideboard cards into Oracle's maybeboard relation | Backend | T-13, D-018 | TODO |
+| T-21 | Update deck importer to assign copies only when the exact printing (`scryfall_id`) is owned; otherwise leave the slot unassigned | Backend | T-13, D-021 | TODO |
 
 ## M2 — AI advisor v0 (next)
 | ID | Task | Owner role | Depends on | Status |

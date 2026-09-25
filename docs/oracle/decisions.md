@@ -29,6 +29,12 @@ Locked means: build on it, don't relitigate it. To change one, an agent raises a
 - **D-016** Structured data from LLMs comes via tool use or a JSON sidecar block. No regex parsing of prose.
 - **D-017** Category-count vs curve-target conflict (EDHREC archetype data vs Karsten CMC maths) is handled with cross-referenced warning messages, not a full category-by-CMC target matrix.
 
+## Import and collection parity
+- **D-018** Archidekt maybeboard and sideboard cards are both imported into Oracle's maybeboard relation (`deck_cards` with the maybeboard relation per D-005). *(Locked 2026-09-26 after T-13 M1 exit test.)*
+- **D-019** Archidekt proxy labels are **not** automatically honoured during built-deck import. Proxy status is set manually in Oracle. *(Locked 2026-09-26 after T-13 M1 exit test.)*
+- **D-020** Import does **not** run an automatic allocation pass. Unassigned `deck_cards` slots remain planned until the user explicitly assigns them. *(Locked 2026-09-26 after T-13 M1 exit test.)*
+- **D-021** Copy assignments must match the exact printing (`scryfall_id`) when possible. Instance-level accuracy is a core concept: the app must know exactly which physical copy is in which deck. *(Locked 2026-09-26 after T-13 M1 exit test.)*
+
 ## Open — not locked; do not build on these without owner input
 - **O-001** Moxfield import path: needs a direct curl test of `api.moxfield.com/v2/decks/all/{id}` before committing.
 - **O-002** Multi-user scale: connection pooling, indexes, concurrent-write races and external API rate limits are unvalidated.

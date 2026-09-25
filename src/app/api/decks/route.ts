@@ -59,6 +59,7 @@ export async function GET() {
     deckCardsResult,
     brewSessionsResult,
     collectionCountResult,
+    conflictCountsResult,
   ] = await Promise.all([
     // 1. Fetch decks
     supabase
@@ -94,6 +95,11 @@ export async function GET() {
       .from('user_copies')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId),
+
+    // 6. Per-deck unresolved import conflicts (claims the user chose to leave
+    // unresolved on Go to Decks). Feeds the amber deck-tile badge. If the RPC
+    // has not been applied to the database yet, data is null → count 0.
+    supabase.rpc('get_deck_conflict_counts', { p_user_id: userId }),
   ])
 
   if (decksResult.error) {
@@ -219,6 +225,14 @@ export async function GET() {
   // BUILD RESPONSE
   // ══════════════════════════════════════════════════════════════════════════
 
+  // Per-deck unresolved import conflicts (RPC payload {success, decks:[{deckId,count,cards}]}).
+  const conflictCountsMap = new Map<number, number>()
+  for (const entry of
+    ((conflictCountsResult.data as { decks?: { deckId: number; count: number }[] } | null)?.decks ?? [])
+  ) {
+    conflictCountsMap.set(entry.deckId, entry.count)
+  }
+
   const decksWithCompleteness = decks.map((deck) => ({
     ...deck,
     card_count: computedCardCounts[deck.id] ?? deck.card_count ?? 0,
@@ -226,6 +240,7 @@ export async function GET() {
     pipDistribution: pipMap[deck.id] ?? null,
     folder: deck.folder_id ? folderMap.get(deck.folder_id) ?? null : null,
     hasBrew: brewingDeckIds.has(deck.id),
+    conflictCount: conflictCountsMap.get(deck.id) ?? 0,
   }))
 
   return Response.json({ 

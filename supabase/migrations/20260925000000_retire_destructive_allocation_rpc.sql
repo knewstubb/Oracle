@@ -1,0 +1,26 @@
+-- DRAFT — pending owner approval before deployment
+-- Migration: retire the destructive clear-and-recompute allocation RPC
+--
+-- Context:
+--   D-007 retires the destructive clear-and-recompute Allocation Resolver as a write path.
+--   The compute layer is reused as a read-only suggestion engine; suggestions are returned
+--   to the client and applied through atomic, single-copy/single-slot RPCs.
+--
+-- This migration:
+--   1. Drops allocation_clear_active_decks, which bulk-clears copy_id / ownership_status
+--      on deck_cards rows for all active decks as a prelude to recomputation.
+--
+-- Safety:
+--   - Verified [Confirmed: src/types/supabase.ts] that allocation_clear_active_decks is the
+--     only bulk allocation-clearing RPC in the live function catalog.
+--   - Verified [Confirmed: src/app/api/allocation/resolve/route.ts] that the allocation/resolve
+--     endpoint no longer calls this RPC; it uses autoAssignAllBrewDecks without clearing.
+--   - Verified [Confirmed: src/components/collection/CollectionImportButton.tsx] that collection
+--     import warnings about allocations being cleared refer to FK/collection-sync side effects,
+--     not to this RPC.
+--   - No active application code calls allocation_clear_active_decks [Confirmed: grep across src/].
+--
+-- Reversibility: NOT REVERSIBLE. Recreating this function would reintroduce the destructive
+-- pattern D-007 explicitly retires. Rollback requires a new, explicit owner decision.
+
+DROP FUNCTION IF EXISTS public.allocation_clear_active_decks(UUID);

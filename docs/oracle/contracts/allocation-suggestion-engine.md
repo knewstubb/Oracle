@@ -1,5 +1,9 @@
 # Contract: Allocation Suggestion Engine
 
+Status: ACTIVE  
+Owner: Architect  
+Locked decision: D-007
+
 ## 1. Scope and purpose
 
 This contract defines the **read-only** allocation suggestion engine for Oracle.
@@ -52,12 +56,23 @@ Column semantics:
 - `deck_cards.copy_id` is the FK to the physical copy currently filling the slot.
   [Confirmed: src/types/supabase.ts]
 
-## 4. API surface
+## 4. Identifier rules
+
+- `copy_id` refers to `physical_copies.id` / `user_copies.id` (a specific owned
+  finish/printing).
+- `deck_card_id` refers to `deck_cards.id` (a card's membership in a deck).
+- `card_name` is used for identity matching only when a `copy_id` is not yet
+  selected.
+- `scryfall_id` identifies a specific printing. `oracle_id` identifies the
+  canonical card across all printings.
+  [Confirmed: src/types/supabase.ts, src/lib/allocation-candidates.ts]
+
+## 5. API surface
 
 All endpoints are authenticated. Unauthenticated requests are rejected by the
 route's auth guard before any data is read.
 
-### 4.1 Get ranked candidates for a single card
+### 5.1 Get ranked candidates for a single card
 
 ```
 GET /api/allocation/candidates?cardName={cardName}&preferredScryfall={scryfall_id}
@@ -110,7 +125,7 @@ GET /api/allocation/candidates?cardName={cardName}&preferredScryfall={scryfall_i
 
 [Confirmed: src/app/api/allocation/candidates/route.ts]
 
-### 4.2 Get ranked candidates for many cards
+### 5.2 Get ranked candidates for many cards
 
 ```
 POST /api/allocation/candidates/batch
@@ -164,7 +179,7 @@ Tier 5 candidate indicating "print new proxy" is the only option.
 | `404` | (auth guard) | User is not authenticated. |
 | `500` | `"Failed to fetch batch candidates: {message}"` | Unexpected database or compute failure. |
 
-## 5. Tier semantics
+## 6. Tier semantics
 
 Candidates are classified into tiers. Lower tiers are better.
 
@@ -182,7 +197,7 @@ Notes:
   `assignedTo = null`.
   [Confirmed: src/lib/allocation-candidates.ts]
 
-## 6. Within-tier scoring
+## 7. Within-tier scoring
 
 The engine scores candidates inside the same tier using the following additive
 rules:
@@ -197,11 +212,11 @@ Results are sorted by tier ascending, then `withinTierScore` descending.
 
 [Confirmed: src/lib/allocation-candidates.ts]
 
-## 7. Allowed compute functions and RPCs
+## 8. Allowed compute functions and RPCs
+
+### 8.1 Application-layer compute (TypeScript)
 
 The suggestion engine may call **only** the following read-only functions:
-
-### 7.1 Application-layer compute (TypeScript)
 
 - `getRankedCandidates(cardName, userId, preferredScryfallId?)`
 - `getBatchRankedCandidates(cardNames, userId)`
@@ -212,7 +227,7 @@ The suggestion engine may call **only** the following read-only functions:
 
 [Confirmed: src/lib/allocation-candidates.ts]
 
-### 7.2 Database reads
+### 8.2 Database reads
 
 Direct `SELECT` against:
 - `public.user_cards`
@@ -227,21 +242,52 @@ may be consumed by callers that want a card-level allocation summary, but it is
 not part of the candidate-ranking compute layer.
 [Confirmed: supabase/migrations/20260917205918_get_import_allocations_rpc.sql]
 
-## 8. Forbidden operations
+### 8.3 Allowed allocation write paths
+
+All allocation mutations must be atomic and scoped to a single copy or single
+deck slot:
+
+- `assign_physical_copy(copy_id, target_deck_card_id, user_id)`
+- `assign_free_copy(card_name, copy_id, target_deck_id, user_id)`
+- `reassign_to_deck(card_name, copy_id, target_deck_id, user_id)`
+- `batch_assign_deck(assignments, deck_id, user_id)` — scoped to one deck
+- `replace_proxy_with_original(...)`
+- `add_proxy_to_slot(...)` / `add_proxies_to_slots(...)`
+- `unassign_copy_to_storage(copy_id, user_id)`
+- `undo_copy_move(...)`
+- `force_claim_copy(...)`
+- `_move_copy_to_slot(...)`
+
+Collection-level mutations (`replace_collection`, `apply_collection_sync`,
+`delete_user_copies`) may release allocations only via FK cascade or explicit
+per-copy removal as part of their own transaction; they are not allocation RPCs
+and must not be used as allocation resolvers.
+
+## 9. Retired write paths
+
+The following destructive clear-and-recompute pattern is retired and must not be
+reintroduced:
+
+- `allocation_clear_active_decks(p_user_id UUID)` — bulk cleared `copy_id` /
+  `ownership_status` on all active-deck `deck_cards` rows as a prelude to
+  recomputation.
+
+No RPC may clear allocations across multiple decks or multiple cards in a single
+call.
+
+## 10. Forbidden operations
 
 The suggestion engine **must not** invoke or trigger any of the following:
 
-- `assign_physical_copy` RPC
-- `force_claim_copy` RPC
-- `add_proxy_to_slot` RPC
 - `allocation_clear_active_decks` RPC (retired per D-007)
+- Any bulk clear-and-recompute allocation pattern
 - Any `INSERT`, `UPDATE`, or `DELETE` on `deck_cards`, `user_copies`, `user_cards`,
   `decks`, `user_locations`, or `import_sleeve_claims`
 - Any operation that creates deck versions, audit log entries, or side effects
 
 [Confirmed: docs/oracle/decisions.md, src/types/supabase.ts]
 
-## 9. Error shapes
+## 11. Error shapes
 
 All error responses use this JSON shape:
 
@@ -258,7 +304,7 @@ Read-only suggestions do not produce `409 Conflict` / `stale` errors because the
 never contend for writes. A `409` from the auth layer or middleware is outside
 the engine's scope.
 
-## 10. Multi-user considerations
+## 12. Multi-user considerations
 
 Every query in the compute layer must filter by `user_id`:
 - `user_cards.user_id`
@@ -269,7 +315,12 @@ Every query in the compute layer must filter by `user_id`:
 The current implementation already applies these filters.
 [Confirmed: src/lib/allocation-candidates.ts]
 
-## 11. Path citations
+## 13. Migration history
+
+- `20260925000000_retire_destructive_allocation_rpc.sql` — drops
+  `allocation_clear_active_decks`.
+
+## 14. Path citations
 
 - D-007 (retire destructive resolver, reuse compute as suggestion engine):
   [Confirmed: docs/oracle/decisions.md]

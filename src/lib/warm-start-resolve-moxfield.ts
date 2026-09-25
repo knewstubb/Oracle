@@ -253,7 +253,7 @@ async function resolveSingleMoxfieldDeck(
 
   if (assignments.length > 0) {
     try {
-      await batchAssignDeck(importedDeckId, userId, assignments)
+      await batchAssignDeck(importedDeckId, userId, assignments, 'ai')
       matched = assignments.length
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)

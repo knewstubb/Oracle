@@ -624,6 +624,7 @@ export async function linkCollectionCopyToDeckCard(
     p_target_deck_card_id: deckCardId,
     p_copy_id: collectionCopyId,
     p_user_id: copy.user_id,
+    p_source: 'manual',
   })
 
   if (error) throw new Error(`Failed to link collection copy to deck card: ${error.message}`)

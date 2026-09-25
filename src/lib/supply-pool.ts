@@ -14,6 +14,7 @@ import { classifyTier, scoreCandidate } from '@/lib/allocation-candidates'
 import { createAdminClient } from '@/lib/supabase'
 import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 import { isBasicLand } from '@/lib/basic-lands'
+import type { PlacementSource } from '@/types/placement-source'
 
 // ---------------------------------------------------------------------------
 // Assignment Types (for batchAssignDeck)
@@ -25,6 +26,8 @@ export interface Assignment {
   ownershipStatus: 'original' | 'proxy'
   /** If this is a Tier 3 reassign, the source deck_cards row to clear */
   clearDeckCardsId?: number | null
+  /** Per-assignment override. Falls back to the batch source. Defaults to 'manual'. */
+  source?: PlacementSource
 }
 
 // ---------------------------------------------------------------------------
@@ -351,7 +354,8 @@ export async function loadSupplyPool(userId: string): Promise<SupplyPool> {
 export async function batchAssignDeck(
   deckId: number,
   userId: string,
-  assignments: Assignment[]
+  assignments: Assignment[],
+  source: PlacementSource = 'manual'
 ): Promise<void> {
   if (assignments.length === 0) return
 
@@ -366,6 +370,7 @@ export async function batchAssignDeck(
       deckCardsId: a.deckCardsId,
       copyId: a.physicalCopyId,
       clearDeckCardsId: a.clearDeckCardsId ?? null,
+      source: a.source ?? source,
     })),
   })
 

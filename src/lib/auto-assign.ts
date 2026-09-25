@@ -127,7 +127,7 @@ export async function autoAssignDeck(
 
   if (pendingAssignments.length > 0) {
     try {
-      await batchAssignDeck(deckId, userId, pendingAssignments)
+      await batchAssignDeck(deckId, userId, pendingAssignments, 'ai')
       result.assigned = pendingAssignments.length
       result.assignments = pendingResults
     } catch (err) {

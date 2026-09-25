@@ -17,12 +17,7 @@ import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { assertAtomicRpcBoolean, assertAtomicRpcOptionalId, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
-
-interface AssignBody {
-  deckCardsId: number
-  physicalCopyId?: number
-  tier?: number
-}
+import type { AssignBody } from '@/types/placement-source'
 
 interface PreviousAssignment {
   deckCardsId: number
@@ -70,6 +65,8 @@ export async function POST(request: NextRequest) {
       p_target_deck_card_id: deckCardsId,
       p_copy_id: physicalCopyId,
       p_user_id: userId,
+      // Manual route: the client cannot choose a placement source (contract §Validation 2).
+      p_source: 'manual',
     })
 
     if (rpcErr) {

@@ -312,6 +312,7 @@ export type Database = {
           id: number
           is_commander: boolean | null
           ownership_status: string | null
+          placement_source: string | null
           proxy_of_deck_id: number | null
           quantity: number | null
           scryfall_id: string | null
@@ -329,6 +330,7 @@ export type Database = {
           id?: never
           is_commander?: boolean | null
           ownership_status?: string | null
+          placement_source?: string | null
           proxy_of_deck_id?: number | null
           quantity?: number | null
           scryfall_id?: string | null
@@ -346,6 +348,7 @@ export type Database = {
           id?: never
           is_commander?: boolean | null
           ownership_status?: string | null
+          placement_source?: string | null
           proxy_of_deck_id?: number | null
           quantity?: number | null
           scryfall_id?: string | null
@@ -2175,12 +2178,13 @@ export type Database = {
         Returns: Json
       }
       add_proxies_to_slots: {
-        Args: { p_assignments: Json; p_user_id: string }
+        Args: { p_assignments: Json; p_source?: string; p_user_id: string }
         Returns: Json
       }
       add_proxy_to_slot: {
         Args: {
           p_card_id: number
+          p_source?: string
           p_target_deck_card_id: number
           p_user_id: string
         }
@@ -2228,6 +2232,7 @@ export type Database = {
         Args: {
           p_card_name: string
           p_copy_id: number
+          p_source?: string
           p_target_deck_id: number
           p_user_id: string
         }
@@ -2236,6 +2241,7 @@ export type Database = {
       assign_physical_copy: {
         Args: {
           p_copy_id: number
+          p_source?: string
           p_target_deck_card_id: number
           p_user_id: string
         }
@@ -2282,6 +2288,7 @@ export type Database = {
       force_claim_copy: {
         Args: {
           p_copy_id: number
+          p_source?: string
           p_target_deck_card_id: number
           p_user_id: string
         }
@@ -2387,6 +2394,7 @@ export type Database = {
         Args: {
           p_card_name: string
           p_copy_id: number
+          p_source?: string
           p_target_deck_id: number
           p_user_id: string
         }
@@ -2416,7 +2424,8 @@ export type Database = {
         Args: {
           p_deck_card_id: number
           p_original_copy_id: number
-          p_proxy_storage_location_id: number
+          p_proxy_storage_location_id: number | null
+          p_source?: string
           p_user_id: string
         }
         Returns: Json
@@ -2440,6 +2449,7 @@ export type Database = {
           p_copy_id: number
           p_current_deck_card_id: number
           p_restore_deck_card_id: number
+          p_source?: string
           p_user_id: string
         }
         Returns: Json

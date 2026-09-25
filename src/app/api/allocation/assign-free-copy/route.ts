@@ -21,13 +21,14 @@ import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { assertAtomicRpcId, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
+import type { AssignFreeCopyBody } from '@/types/placement-source'
 
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
   const userId = authResult.id
 
-  let body: { copyId?: number; physicalCopyId?: number; targetDeckId: number; cardName: string }
+  let body: AssignFreeCopyBody
   try {
     body = await request.json()
   } catch {
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
       p_target_deck_id: targetDeckId,
       p_card_name: cardName,
       p_user_id: userId,
+      p_source: 'manual',
     })
 
     if (rpcErr) {

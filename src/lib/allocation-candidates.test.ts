@@ -8,13 +8,13 @@ import { classifyTier, scoreCandidate, type EnrichedSupplyEntry } from './alloca
 function makeEntry(overrides: Partial<EnrichedSupplyEntry> = {}): EnrichedSupplyEntry {
   return {
     physicalCopyId: 1,
-    cardDefinitionId: 100,
-    scryfallPrintingId: null,
-    isFoil: false,
+    cardId: 100,
+    printingId: null,
+    finish: 'nonfoil',
     isProxy: false,
     condition: null,
-    storageLocationId: null,
-    storageLocationName: null,
+    locationId: null,
+    locationName: null,
     assignedTo: null,
     ...overrides,
   }
@@ -35,40 +35,37 @@ describe('classifyTier', () => {
     expect(classifyTier(entry)).toBe(2)
   })
 
-  it('returns 3 for copy assigned to a brew-status deck', () => {
+  it('returns 3 for a copy assigned to another deck (all decks claim equally)', () => {
     const entry = makeEntry({
       assignedTo: {
         deckCardsId: 10,
         deckId: 5,
         deckName: 'My Brew Deck',
-        deckStatus: 'brewing',
       },
     })
     expect(classifyTier(entry)).toBe(3)
   })
 
-  it('returns 4 for copy assigned to a boxed-status deck', () => {
+  it('returns 3 for a copy assigned to a boxed deck (Tier 4 was retired)', () => {
     const entry = makeEntry({
       assignedTo: {
         deckCardsId: 11,
         deckId: 6,
         deckName: 'My Boxed Deck',
-        deckStatus: 'in_rotation',
       },
     })
-    expect(classifyTier(entry)).toBe(4)
+    expect(classifyTier(entry)).toBe(3)
   })
 
-  it('returns 4 for copy assigned to an archived-status deck', () => {
+  it('returns 3 for a copy assigned to an archived deck', () => {
     const entry = makeEntry({
       assignedTo: {
         deckCardsId: 12,
         deckId: 7,
         deckName: 'My Archived Deck',
-        deckStatus: 'graveyard',
       },
     })
-    expect(classifyTier(entry)).toBe(4)
+    expect(classifyTier(entry)).toBe(3)
   })
 })
 
@@ -79,8 +76,8 @@ describe('classifyTier', () => {
 describe('scoreCandidate', () => {
   it('gives +2 for matching scryfall printing', () => {
     const entry = makeEntry({
-      scryfallPrintingId: 'abc-123',
-      isFoil: true, // foil so non-foil bonus doesn't apply
+      printingId: 'abc-123',
+      finish: 'foil', // foil so non-foil bonus doesn't apply
       condition: 'lightly_played',
     })
     expect(scoreCandidate(entry, 'abc-123')).toBe(2)
@@ -88,8 +85,8 @@ describe('scoreCandidate', () => {
 
   it('gives +1 for non-foil', () => {
     const entry = makeEntry({
-      scryfallPrintingId: null,
-      isFoil: false,
+      printingId: null,
+      finish: 'nonfoil',
       condition: 'lightly_played',
     })
     expect(scoreCandidate(entry, null)).toBe(1)
@@ -97,8 +94,8 @@ describe('scoreCandidate', () => {
 
   it('gives +1 for near_mint condition', () => {
     const entry = makeEntry({
-      scryfallPrintingId: null,
-      isFoil: true, // foil so non-foil bonus doesn't apply
+      printingId: null,
+      finish: 'foil', // foil so non-foil bonus doesn't apply
       condition: 'near_mint',
     })
     expect(scoreCandidate(entry, null)).toBe(1)
@@ -106,8 +103,8 @@ describe('scoreCandidate', () => {
 
   it('scores accumulate: matching + non-foil + near_mint = 4', () => {
     const entry = makeEntry({
-      scryfallPrintingId: 'xyz-789',
-      isFoil: false,
+      printingId: 'xyz-789',
+      finish: 'nonfoil',
       condition: 'near_mint',
     })
     expect(scoreCandidate(entry, 'xyz-789')).toBe(4)

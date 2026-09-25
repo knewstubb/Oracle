@@ -111,6 +111,10 @@ vi.mock('@/lib/supabase', () => ({
   }),
 }))
 
+vi.mock('@/lib/auth', () => ({
+  requireAuth: () => Promise.resolve({ id: 'user-123' }),
+}))
+
 // Mock the price-store functions
 vi.mock('@/lib/price-store', () => ({
   getOwnedValuation: vi.fn(),
@@ -134,8 +138,8 @@ function callGET(cardDefinitionId: string) {
 }
 
 function seedCardDefinition(id: number, oracleId: string, cardName: string, typeLine = '') {
-  if (!mockTables['cards']) mockTables['cards'] = []
-  mockTables['cards'].push({ id, oracle_id: oracleId, card_name: cardName, type_line: typeLine })
+  if (!mockTables['user_cards']) mockTables['user_cards'] = []
+  mockTables['user_cards'].push({ id, oracle_id: oracleId, card_name: cardName, type_line: typeLine })
 }
 
 function seedPhysicalCopy(
@@ -146,8 +150,8 @@ function seedPhysicalCopy(
   isProxy: boolean,
   quantity: number
 ) {
-  if (!mockTables['collection']) mockTables['collection'] = []
-  mockTables['collection'].push({
+  if (!mockTables['user_copies']) mockTables['user_copies'] = []
+  mockTables['user_copies'].push({
     id,
     card_id: cardId,
     printing_id: printingId,
@@ -174,8 +178,8 @@ function seedDeckCard(deckId: number, cardName: string, physicalCopyId: number |
 }
 
 function seedScryfallPrinting(scryfallId: string, setCode: string, setName: string) {
-  if (!mockTables['printings']) mockTables['printings'] = []
-  mockTables['printings'].push({
+  if (!mockTables['ref_printings']) mockTables['ref_printings'] = []
+  mockTables['ref_printings'].push({
     scryfall_id: scryfallId,
     set_code: setCode,
     set_name: setName,
@@ -219,7 +223,7 @@ describe('GET /api/collection/rollup/[cardDefinitionId]', () => {
   it('returns printing subgroups for a card with physical copies', async () => {
     seedCardDefinition(1, 'oracle-1', 'Sol Ring', 'Artifact')
     seedScryfallPrinting('print-1', 'cmm', 'Commander Masters')
-    seedPhysicalCopy(1, 1, 'print-1', 'nonfoil', false, 2)
+    seedPhysicalCopy(1, 1, 'print-1', 'nonfoil', false, 1)
 
     mockGetOwnedValuation.mockResolvedValue(1.49)
 
@@ -230,12 +234,14 @@ describe('GET /api/collection/rollup/[cardDefinitionId]', () => {
     expect(body.subgroups).toHaveLength(1)
     expect(body.proxyPlacementCount).toBe(0)
     expect(body.subgroups[0]).toMatchObject({
+      // Real physical copy id — the rollup selection consumes this directly.
       copyId: 1,
+      physicalCopyId: 1,
       printingId: 'print-1',
       setCode: 'cmm',
       setName: 'Commander Masters',
       finish: 'nonfoil',
-      quantity: 2,
+      quantity: 1,
       inUseCount: 0,
       ownedValuation: 1.49,
       deckUsage: [],
@@ -307,9 +313,9 @@ describe('GET /api/collection/rollup/[cardDefinitionId]', () => {
 
   it('handles multiple printings of the same card', async () => {
     seedCardDefinition(1, 'oracle-1', 'Sol Ring', 'Artifact')
-    seedCollection('Sol Ring', 'print-1', 'cmm', 'Commander Masters')
-    seedCollection('Sol Ring', 'print-2', 'c21', 'Commander 2021')
-    seedPhysicalCopy(1, 1, 'print-1', 'nonfoil', false, 2)
+    seedScryfallPrinting('print-1', 'cmm', 'Commander Masters')
+    seedScryfallPrinting('print-2', 'c21', 'Commander 2021')
+    seedPhysicalCopy(1, 1, 'print-1', 'nonfoil', false, 1)
     seedPhysicalCopy(2, 1, 'print-2', 'foil', false, 1)
 
     mockGetOwnedValuation
@@ -328,7 +334,7 @@ describe('GET /api/collection/rollup/[cardDefinitionId]', () => {
     )
 
     expect(nonFoil.finish).toBe('nonfoil')
-    expect(nonFoil.quantity).toBe(2)
+    expect(nonFoil.quantity).toBe(1)
     expect(nonFoil.ownedValuation).toBe(1.49)
 
     expect(foil.finish).toBe('foil')

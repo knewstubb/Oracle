@@ -13,10 +13,11 @@ import { BulkActionBar } from './BulkActionBar'
 /* ─── useIsMobile Hook ──────────────────────────────────────────────── */
 
 function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false)
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 900px)').matches : false
+  )
   useEffect(() => {
     const mql = window.matchMedia('(max-width: 900px)')
-    setIsMobile(mql.matches)
     const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
     mql.addEventListener('change', handler)
     return () => mql.removeEventListener('change', handler)
@@ -171,8 +172,11 @@ export function CollectionRollupTab() {
       try {
         const res = await fetch(`/api/collection/instances/${oracleId}/ids`)
         if (!res.ok) throw new Error('Failed to resolve')
-        const data = await res.json()
-        selectAllInstances(oracleId, data.physicalCopyIds)
+        const payload = (await res.json()) as { physicalCopyIds?: unknown }
+        const physicalCopyIds = Array.isArray(payload.physicalCopyIds)
+          ? payload.physicalCopyIds.filter((id): id is number => typeof id === 'number' && Number.isInteger(id))
+          : []
+        selectAllInstances(oracleId, physicalCopyIds)
       } catch {
         toast.error('Failed to resolve instances')
       }

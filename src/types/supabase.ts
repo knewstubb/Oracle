@@ -2186,10 +2186,6 @@ export type Database = {
         }
         Returns: Json
       }
-      allocation_clear_active_decks: {
-        Args: { p_user_id: string }
-        Returns: undefined
-      }
       apply_ai_deck_delta: {
         Args: {
           p_additions: Json

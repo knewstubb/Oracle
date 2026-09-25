@@ -13,6 +13,14 @@ import { DeckImportProgressList } from '@/components/DeckImportProgressList'
 import type { CollectionImportResult, DeckListEntry } from '@/lib/warm-start-import'
 import type { BatchResolutionResult, DeckResolutionResult } from '@/lib/warm-start-resolve'
 import { type DeckFormat, FORMAT_DEFINITIONS } from '@/lib/format-config'
+import {
+  resolveAllocationState,
+  countAllocationStates,
+  shouldDisplayAllocation,
+  ALLOCATION_STATE_ACCENTS,
+  type ImportAllocationState,
+} from '@/lib/import-allocation-state'
+import type { ClaimResolution } from '@/lib/import-sleeve-claims'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -115,6 +123,14 @@ export default function OnboardingPage() {
 
   // Shared state
   const [batchResult, setBatchResult] = useState<BatchResolutionResult | null>(null)
+  // One id per import run. Every claim created in this run carries it, so the
+  // summary, resolve and finalize calls are scoped to this run's claims only —
+  // leftovers from an earlier run can never inflate or be materialized by it.
+  const [importBatchId, setImportBatchId] = useState<string | null>(null)
+  // Whether THIS run imported at least one Active deck. Read in onSuccess (a
+  // fresh closure would be stale) to skip the summary when there is nothing to
+  // reconcile — an all-Brew run has no claims, no conflicts, and no finalize.
+  const importHasActiveRef = useRef(false)
 
   // 6a: Rotating collection status text
   const [collectionStatusIdx, setCollectionStatusIdx] = useState(0)
@@ -211,7 +227,11 @@ export default function OnboardingPage() {
         setDeckList(deckData.decks)
         const initialStatuses = new Map<number, 'brewing' | 'in_rotation'>()
         for (const deck of deckData.decks) {
-          initialStatuses.set(deck.id, 'in_rotation')
+          // Default to Brew. Active asserts every card is physically sleeved in
+          // that deck, which creates a sleeve claim per non-basic slot and is the
+          // sole reason an import can report a large batch of conflicts. Opt in
+          // per deck (or via "All Active") only for decks you have actually built.
+          initialStatuses.set(deck.id, 'brewing')
         }
         setDeckStatuses(initialStatuses)
         if (deckData.errors.length > 0) toast.info(deckData.errors[0])
@@ -262,7 +282,8 @@ export default function OnboardingPage() {
       setMoxfieldDeckList(deckData.decks)
       const initialStatuses = new Map<string, 'brewing' | 'in_rotation'>()
       for (const deck of deckData.decks) {
-        initialStatuses.set(deck.id, 'in_rotation')
+        // Default to Brew — see the Archidekt picker for why. Active is opt-in.
+        initialStatuses.set(deck.id, 'brewing')
       }
       setMoxfieldDeckStatuses(initialStatuses)
       if (deckData.errors.length > 0) toast.info(deckData.errors[0])
@@ -292,6 +313,12 @@ export default function OnboardingPage() {
       const completedResults: DeckResolutionResult[] = []
       let totalMatched = 0
       let totalUnresolved = 0
+
+      // One batch id per run: claims created by this import carry it, so the
+      // summary/resolve/finalize traffic is scoped to this run only.
+      const batchId = crypto.randomUUID()
+      setImportBatchId(batchId)
+      importHasActiveRef.current = false
 
       // ─── Phase 1: Parallel prefetch from Archidekt ─────────────────────────
       setImportProgress({
@@ -349,7 +376,8 @@ export default function OnboardingPage() {
         const deckId = successfulDeckIds[i]
         // Map the picker's Brew/Active toggle to lifecycle: in_rotation = Active
         // (sleeve its cards → creates claims), brewing = Brew (stays planned).
-        const status = deckStatuses.get(deckId) ?? 'in_rotation'
+        const status = deckStatuses.get(deckId) ?? 'brewing'
+        if (status === 'in_rotation') importHasActiveRef.current = true
         const lifecycle: 'active' | 'brew' = status === 'in_rotation' ? 'active' : 'brew'
         const format = deckFormats.get(deckId) ?? importFormat
         const prefetchedDeck = prefetchedMap.get(deckId)
@@ -367,7 +395,7 @@ export default function OnboardingPage() {
         const res = await fetch('/api/onboarding/resolve-one', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deckId, lifecycle, format, prefetchedDeck }),
+          body: JSON.stringify({ deckId, lifecycle, format, prefetchedDeck, batchId }),
         })
 
         if (!res.ok) {
@@ -435,8 +463,14 @@ export default function OnboardingPage() {
       }
     },
     onSuccess: (data) => {
-      setBatchResult(data)
-      setStep('summary')
+      // All-Brew run: nothing to reconcile — skip the summary entirely.
+      if (importHasActiveRef.current) {
+        setBatchResult(data)
+        setStep('summary')
+      } else {
+        setBatchResult(null)
+        router.push('/')
+      }
     },
   })
 
@@ -444,13 +478,23 @@ export default function OnboardingPage() {
 
   const moxfieldResolveMutation = useMutation({
     mutationFn: async (deckIds: string[]): Promise<BatchResolutionResult> => {
+      // One batch id per import run — the summary's allocations and the finalize
+      // pass are scoped to it, same as the Archidekt flow.
+      const batchId = crypto.randomUUID()
+      setImportBatchId(batchId)
+      importHasActiveRef.current = false
+
       const completedResults: DeckResolutionResult[] = []
       let totalMatched = 0
       let totalUnresolved = 0
 
       for (let i = 0; i < deckIds.length; i++) {
         const deckId = deckIds[i]
-        const status = moxfieldDeckStatuses.get(deckId) ?? 'in_rotation'
+        // Map the picker's Brew/Active toggle explicitly. The route defaults to
+        // Active when isActive is absent, so Brew must be sent as `false`.
+        const status = moxfieldDeckStatuses.get(deckId) ?? 'brewing'
+        const isActive = status === 'in_rotation'
+        if (isActive) importHasActiveRef.current = true
 
         // Find deck name for progress display
         const deckEntry = moxfieldDeckList.find(d => d.id === deckId)
@@ -465,7 +509,7 @@ export default function OnboardingPage() {
         const res = await fetch('/api/onboarding/moxfield/resolve-one', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deckId, status }),
+          body: JSON.stringify({ deckId, isActive, batchId }),
         })
 
         if (!res.ok) {
@@ -532,8 +576,14 @@ export default function OnboardingPage() {
       }
     },
     onSuccess: (data) => {
-      setBatchResult(data)
-      setStep('summary')
+      // All-Brew run: nothing to reconcile — skip the summary entirely.
+      if (importHasActiveRef.current) {
+        setBatchResult(data)
+        setStep('summary')
+      } else {
+        setBatchResult(null)
+        router.push('/')
+      }
     },
   })
 
@@ -571,6 +621,21 @@ export default function OnboardingPage() {
       next.set(deckId, next.get(deckId) === 'in_rotation' ? 'brewing' : 'in_rotation')
       return next
     })
+  }
+
+  // Bulk lifecycle setters for the pickers. Active on a large selection is the
+  // single biggest driver of import conflicts, so make both directions one click
+  // and let the picker show the consequence before importing.
+  function handleSetAllDeckStatuses(status: 'brewing' | 'in_rotation') {
+    const next = new Map<number, 'brewing' | 'in_rotation'>()
+    for (const deck of deckList) next.set(deck.id, status)
+    setDeckStatuses(next)
+  }
+
+  function handleSetAllMoxfieldStatuses(status: 'brewing' | 'in_rotation') {
+    const next = new Map<string, 'brewing' | 'in_rotation'>()
+    for (const deck of moxfieldDeckList) next.set(deck.id, status)
+    setMoxfieldDeckStatuses(next)
   }
 
   function handleImportDecks() {
@@ -638,6 +703,7 @@ export default function OnboardingPage() {
             onSetDeckFormat={(id, f) => setDeckFormats((prev) => new Map(prev).set(id, f))}
             onToggleDeck={handleToggleDeck}
             onToggleStatus={handleToggleStatus}
+            onSetAllStatuses={handleSetAllDeckStatuses}
             onImport={handleImportDecks}
             onSkip={() => router.push('/')}
             isPending={isResolving}
@@ -653,6 +719,7 @@ export default function OnboardingPage() {
             collectionResult={collectionResult}
             onToggleDeck={handleToggleMoxfieldDeck}
             onToggleStatus={handleToggleMoxfieldStatus}
+            onSetAllStatuses={handleSetAllMoxfieldStatuses}
             onImport={handleImportDecks}
             onSkip={() => router.push('/')}
             isPending={isResolving}
@@ -663,6 +730,7 @@ export default function OnboardingPage() {
         {step === 'summary' && (
           <SummaryScreen
             batchResult={batchResult}
+            batchId={importBatchId}
             onFinish={() => router.push('/')}
           />
         )}
@@ -989,6 +1057,7 @@ function DeckPickerScreen({
   onSetDeckFormat,
   onToggleDeck,
   onToggleStatus,
+  onSetAllStatuses,
   onImport,
   onSkip,
   isPending,
@@ -1004,6 +1073,7 @@ function DeckPickerScreen({
   onSetDeckFormat: (id: number, f: DeckFormat) => void
   onToggleDeck: (id: number) => void
   onToggleStatus: (id: number) => void
+  onSetAllStatuses: (status: 'brewing' | 'in_rotation') => void
   onImport: () => void
   onSkip: () => void
   isPending: boolean
@@ -1093,7 +1163,7 @@ function DeckPickerScreen({
         ) : (
           deckList.map((deck) => {
             const isSelected = selectedDecks.has(deck.id)
-            const status = deckStatuses.get(deck.id) ?? 'in_rotation'
+            const status = deckStatuses.get(deck.id) ?? 'brewing'
             return (
               <div
                 key={deck.id}
@@ -1159,9 +1229,31 @@ function DeckPickerScreen({
         )}
       </div>
 
+      {/* Deck lifecycle. Active asserts the deck is physically built, so each
+          non-basic card becomes a sleeve claim that has to be reconciled after
+          import. Active on a large selection is the whole reason an import can
+          report a long conflict list, so both directions are one click. */}
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-default)] px-3 py-2">
+        <div>
+          <p className="text-[length:var(--fs-sm)] font-medium">Deck lifecycle</p>
+          <p className="text-[length:var(--fs-xs)] text-muted-foreground">
+            <strong>Active</strong> = physically built. Sleeves real copies and creates a
+            claim per card. <strong>Brew</strong> = saved as Planned, nothing sleeved.
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button variant="outline" size="xs" onClick={() => onSetAllStatuses('brewing')}>
+            All Brew
+          </Button>
+          <Button variant="outline" size="xs" onClick={() => onSetAllStatuses('in_rotation')}>
+            All Active
+          </Button>
+        </div>
+      </div>
+
       <p className="text-[length:var(--fs-sm)] text-muted-foreground">
-        {selectedCount > 0 ? `${selectedCount} selected` : 'None selected'} &middot; imported
-        decks assume <em>use collection</em> — you can adjust individual cards after
+        {selectedCount > 0 ? `${selectedCount} selected` : 'None selected'} &middot; decks
+        marked <strong>Active</strong> sleeve real copies — adjust individual cards after
       </p>
 
       <div className="flex items-center justify-between gap-3">
@@ -1187,6 +1279,7 @@ function MoxfieldDeckPickerScreen({
   collectionResult,
   onToggleDeck,
   onToggleStatus,
+  onSetAllStatuses,
   onImport,
   onSkip,
   isPending,
@@ -1198,6 +1291,7 @@ function MoxfieldDeckPickerScreen({
   collectionResult: CollectionImportResult | null
   onToggleDeck: (id: string) => void
   onToggleStatus: (id: string) => void
+  onSetAllStatuses: (status: 'brewing' | 'in_rotation') => void
   onImport: () => void
   onSkip: () => void
   isPending: boolean
@@ -1262,7 +1356,7 @@ function MoxfieldDeckPickerScreen({
         ) : (
           deckList.map((deck) => {
             const isSelected = selectedDecks.has(deck.id)
-            const status = deckStatuses.get(deck.id) ?? 'in_rotation'
+            const status = deckStatuses.get(deck.id) ?? 'brewing'
             return (
               <div
                 key={deck.id}
@@ -1318,9 +1412,31 @@ function MoxfieldDeckPickerScreen({
         )}
       </div>
 
+      {/* Deck lifecycle. Active asserts the deck is physically built, so each
+          non-basic card becomes a sleeve claim that has to be reconciled after
+          import. Active on a large selection is the whole reason an import can
+          report a long conflict list, so both directions are one click. */}
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-default)] px-3 py-2">
+        <div>
+          <p className="text-[length:var(--fs-sm)] font-medium">Deck lifecycle</p>
+          <p className="text-[length:var(--fs-xs)] text-muted-foreground">
+            <strong>Active</strong> = physically built. Sleeves real copies and creates a
+            claim per card. <strong>Brew</strong> = saved as Planned, nothing sleeved.
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button variant="outline" size="xs" onClick={() => onSetAllStatuses('brewing')}>
+            All Brew
+          </Button>
+          <Button variant="outline" size="xs" onClick={() => onSetAllStatuses('in_rotation')}>
+            All Active
+          </Button>
+        </div>
+      </div>
+
       <p className="text-[length:var(--fs-sm)] text-muted-foreground">
-        {selectedCount > 0 ? `${selectedCount} selected` : 'None selected'} &middot; imported
-        decks assume <em>use collection</em> — you can adjust individual cards after
+        {selectedCount > 0 ? `${selectedCount} selected` : 'None selected'} &middot; decks
+        marked <strong>Active</strong> sleeve real copies — adjust individual cards after
       </p>
 
       <div className="flex items-center justify-between gap-3">
@@ -1345,20 +1461,29 @@ interface ImportConflictDeckRef {
   source: 'claim' | 'sleeved'
   claimId: number | null
   deckCardsId: number
+  /** Recorded intent for claim rows; 'sleeve' for finalized physical sleeves. */
+  resolution?: ClaimResolution
 }
 interface ImportAllocation {
   cardName: string
   owned: number
   sleeved: number
   overAllocated: boolean
+  /** Server state: 'over' | 'unowned' | 'resolved'; derived locally if absent. */
+  state?: ImportAllocationState
+  /** Slots with a recorded non-sleeve decision; drives list visibility. */
+  decidedCount?: number
   decks: ImportConflictDeckRef[]
 }
 
 function SummaryScreen({
   batchResult,
+  batchId,
   onFinish,
 }: {
   batchResult: BatchResolutionResult | null
+  /** This run's claim scope; allocations and finalize only touch these. */
+  batchId: string | null
   onFinish: () => void
 }) {
   const [allocations, setAllocations] = useState<ImportAllocation[]>([])
@@ -1366,12 +1491,13 @@ function SummaryScreen({
   const [resolvingClaimId, setResolvingClaimId] = useState<number | null>(null)
   const [finishing, setFinishing] = useState(false)
 
-  // Fetch the full allocation view once the import summary mounts.
+  // Fetch THIS run's allocations (batch-scoped) when the summary mounts.
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
-        const res = await fetch('/api/onboarding/conflicts')
+        const qs = batchId ? `?batchId=${encodeURIComponent(batchId)}` : ''
+        const res = await fetch(`/api/onboarding/conflicts${qs}`)
         if (!res.ok) throw new Error('Failed to load allocations')
         const data: { allocations: ImportAllocation[] } = await res.json()
         if (!cancelled) setAllocations(data.allocations ?? [])
@@ -1382,15 +1508,17 @@ function SummaryScreen({
       }
     })()
     return () => { cancelled = true }
-  }, [])
+  }, [batchId])
 
-  async function resolveClaim(claimId: number, action: 'release' | 'proxy') {
+  // Record a deck's intent for one claimed card. Reversible: the decision only
+  // becomes physical when the user presses Go to Decks.
+  async function resolveClaim(claimId: number, resolution: ClaimResolution) {
     setResolvingClaimId(claimId)
     try {
       const res = await fetch('/api/onboarding/conflicts/resolve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ claimId, action }),
+        body: JSON.stringify({ claimId, resolution, batchId }),
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({ error: 'Failed' }))
@@ -1398,7 +1526,13 @@ function SummaryScreen({
       }
       const data: { allocations: ImportAllocation[] } = await res.json()
       setAllocations(data.allocations ?? [])
-      toast.success(action === 'release' ? 'Released — slot set to Planned' : 'Proxy added and sleeved')
+      toast.success(
+        resolution === 'release'
+          ? 'Marked as Release — slot will stay Planned'
+          : resolution === 'proxy'
+            ? 'Marked as Proxy — proxy will be added on finish'
+            : 'Marked as Sleeve'
+      )
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update allocation')
     } finally {
@@ -1406,16 +1540,73 @@ function SummaryScreen({
     }
   }
 
-  // On finish, run the single finalize pass (materializes balanced cards into
-  // real sleeves) before leaving the import.
+  // On finish, run the single materialization pass — this is what actually
+  // applies the recorded decisions (sleeve → real copy, proxy → proxy copy,
+  // release → stays Planned). It must never fail silently, and when conflicts
+  // remain the user should know they are choosing to leave them unresolved.
   async function handleFinish() {
+    // Nothing is finalized until this point, so the live counts are exactly the
+    // user's working state. If conflicts remain, make leaving them a choice.
+    if (counts.over > 0) {
+      const ok = window.confirm(
+        `${counts.over.toLocaleString()} conflict${counts.over === 1 ? '' : 's'} still undecided. ` +
+          'Those decks will keep asserting copies you do not have (shown as a badge on the deck list). ' +
+          'Continue to Decks?'
+      )
+      if (!ok) return
+    }
+
     setFinishing(true)
     try {
-      await fetch('/api/onboarding/finalize', { method: 'POST' })
-    } catch {
-      // Non-fatal — decks are still imported; balanced cards can finalize later.
-    } finally {
+      const res = await fetch('/api/onboarding/finalize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batchId }),
+      })
+      if (!res.ok) {
+        const body: { error?: string } = await res.json().catch(() => ({}))
+        throw new Error(body.error || `Finalize failed (HTTP ${res.status})`)
+      }
+      const data = (await res.json().catch(() => ({}))) as {
+        finalizedCount?: number
+        proxiedCount?: number
+        releasedCount?: number
+        leftOpenCount?: number
+      }
+
+      // Confirm the pass really landed: re-read THIS batch's allocations and
+      // count what is still over-committed. A 200 response alone is not proof.
+      let stillOpen = data.leftOpenCount ?? 0
+      try {
+        const qs = batchId ? `?batchId=${encodeURIComponent(batchId)}` : ''
+        const check = await fetch(`/api/onboarding/conflicts${qs}`)
+        if (check.ok) {
+          const payload: { allocations?: ImportAllocation[] } = await check.json()
+          stillOpen = countAllocationStates(payload.allocations ?? []).over
+        }
+      } catch {
+        // Verification is best-effort; the finalize counts still stand.
+      }
+
+      const parts: string[] = []
+      const sleeved = data.finalizedCount ?? 0
+      if (sleeved > 0) parts.push(`sleeved ${sleeved.toLocaleString()}`)
+      const proxied = data.proxiedCount ?? 0
+      if (proxied > 0) parts.push(`added ${proxied.toLocaleString()} proxy copies`)
+      const released = data.releasedCount ?? 0
+      if (released > 0) parts.push(`kept ${released.toLocaleString()} slot(s) planned`)
+      if (parts.length === 0) parts.push('nothing to assign')
+      toast.success(
+        parts.join(' · ') +
+          (stillOpen > 0 ? ` · ${stillOpen.toLocaleString()} left unresolved` : '')
+      )
       onFinish()
+    } catch (err) {
+      // Stay on the summary so the failure is visible and retryable. The decks are
+      // still imported and their claims intact — but nothing was sleeved.
+      toast.error(err instanceof Error ? err.message : 'Finalize failed')
+    } finally {
+      setFinishing(false)
     }
   }
 
@@ -1423,13 +1614,25 @@ function SummaryScreen({
 
   const totalDecks = batchResult.decksProcessed
 
-  // Derived deck-level overlay: a deck is over-allocated iff it holds a claim on
-  // a still-over-allocated card.
+  // Counts FIRST (handleFinish closes over them). `over` is the real conflict
+  // count; `hidden` counts covered cards with no decisions, which are listed
+  // nowhere — the user said "we do not need to list the cards that are covered".
+  const counts = countAllocationStates(allocations)
+
+  // Only cards that need attention or carry a decision reach the list:
+  // over-committed (amber), unowned (pink), or resolved-by-decision (green).
+  const visibleAllocations = allocations.filter(shouldDisplayAllocation)
+
+  // Deck-level overlay: a deck is flagged iff it still asserts a real copy of a
+  // genuinely over-committed card. A deck that decided Release/Proxy on every
+  // claim it holds is not contending — flipping one back to Sleeve re-flags it.
   const overAllocatedDeckIds = new Set<number>()
   for (const a of allocations) {
-    if (!a.overAllocated) continue
+    if (resolveAllocationState(a) !== 'over') continue
     for (const d of a.decks) {
-      if (d.source === 'claim') overAllocatedDeckIds.add(d.deckId)
+      if (d.source === 'claim' && (d.resolution ?? 'sleeve') === 'sleeve') {
+        overAllocatedDeckIds.add(d.deckId)
+      }
     }
   }
 
@@ -1439,8 +1642,6 @@ function SummaryScreen({
     state: 'done' as const,
     result,
   }))
-
-  const overAllocatedCount = allocations.filter((a) => a.overAllocated).length
 
   return (
     <div className="flex flex-col gap-6">
@@ -1458,27 +1659,31 @@ function SummaryScreen({
           <p className="text-[length:var(--fs-xl)] font-semibold">{totalDecks}</p>
         </div>
         <div className="rounded-lg border border-[var(--border-default)] px-4 py-3">
-          <p className="text-[length:var(--fs-xs)] text-muted-foreground">Cards to allocate</p>
-          <p className="text-[length:var(--fs-xl)] font-semibold">
-            {allocationsLoading ? '…' : allocations.length.toLocaleString()}
-          </p>
-        </div>
-        <div
-          className="rounded-lg border px-4 py-3"
-          style={overAllocatedCount > 0
-            ? { borderColor: 'rgba(239,159,39,0.4)', background: 'rgba(239,159,39,0.05)' }
-            : { borderColor: 'var(--border-default)' }
-          }
-        >
-          <p className="text-[length:var(--fs-xs)] text-muted-foreground">Over-allocated</p>
+          <p className="text-[length:var(--fs-xs)] text-muted-foreground">Needs a decision</p>
           <p
             className="text-[length:var(--fs-xl)] font-semibold"
-            style={overAllocatedCount > 0 ? { color: '#ef9f27' } : undefined}
+            style={(counts.over > 0 || counts.unowned > 0) ? { color: 'var(--signal-warning)' } : undefined}
           >
-            {allocationsLoading ? '…' : overAllocatedCount}
+            {allocationsLoading ? '…' : (counts.over + counts.unowned).toLocaleString()}
+          </p>
+        </div>
+        <div className="rounded-lg border border-[var(--border-default)] px-4 py-3">
+          <p className="text-[length:var(--fs-xs)] text-muted-foreground">Marked Release/Proxy</p>
+          <p className="text-[length:var(--fs-xl)] font-semibold text-[var(--signal-success)]">
+            {allocationsLoading ? '…' : counts.resolved.toLocaleString()}
           </p>
         </div>
       </div>
+
+      {!allocationsLoading && (
+        <p className="text-[length:var(--fs-sm)] text-muted-foreground">
+          A conflict is a card your decks want more copies of than you own. Only conflicts,
+          cards you don&apos;t own
+          {counts.unowned > 0 && <> ({counts.unowned.toLocaleString()})</>}
+          , and cards you&apos;ve marked Release/Proxy are listed. Nothing physical happens
+          until you press Go to Decks — every choice stays changeable until then.
+        </p>
+      )}
 
       {/* List 1: decks imported (over-allocated overlay) */}
       <div className="flex flex-col gap-2">
@@ -1489,17 +1694,17 @@ function SummaryScreen({
         />
       </div>
 
-      {/* List 2: card allocations — every claimed card, editable, coloured by state */}
-      {allocations.length > 0 && (
+      {/* List 2: only what needs attention or carries a decision, coloured by state */}
+      {!allocationsLoading && visibleAllocations.length > 0 && (
         <div className="flex flex-col gap-2">
           <h2 className="text-[length:var(--fs-md)] font-medium">
             Card allocations
             <span className="ml-2 text-[length:var(--fs-sm)] font-normal text-muted-foreground">
-              amber = more sleeved than owned. Adjust any deck.
+              amber = more wanted than owned · pink = not in your collection · green = decided
             </span>
           </h2>
           <div className="flex flex-col gap-3">
-            {allocations.map((a) => (
+            {visibleAllocations.map((a) => (
               <ImportAllocationCard
                 key={a.cardName}
                 allocation={a}
@@ -1510,10 +1715,19 @@ function SummaryScreen({
           </div>
         </div>
       )}
+      {!allocationsLoading && visibleAllocations.length === 0 && counts.over === 0 && (
+        <p className="text-[length:var(--fs-sm)] text-[var(--signal-success)]">
+          Everything your decks want is covered — go ahead and finish.
+        </p>
+      )}
 
       <Button onClick={handleFinish} disabled={finishing} className="w-full">
         {finishing && <Loader2 className="size-4 animate-spin" aria-hidden="true" data-icon="inline-start" />}
-        {finishing ? 'Finalizing…' : 'Go to Decks'}
+        {finishing
+          ? 'Applying…'
+          : counts.over > 0
+            ? `Go to Decks (${counts.over.toLocaleString()} unresolved)`
+            : 'Go to Decks'}
       </Button>
     </div>
   )
@@ -1526,51 +1740,50 @@ function ImportAllocationCard({
 }: {
   allocation: ImportAllocation
   resolvingClaimId: number | null
-  onResolve: (claimId: number, action: 'release' | 'proxy') => void
+  onResolve: (claimId: number, resolution: ClaimResolution) => void
 }) {
-  const over = allocation.overAllocated
-  // Amber when over-allocated; neutral/resolved otherwise. Both stay editable.
-  const accent = over ? '#ef9f27' : '#14b8a6'
-  const border = over ? 'rgba(239,159,39,0.4)' : 'rgba(20,184,166,0.3)'
-  const bg = over ? 'rgba(239,159,39,0.04)' : 'rgba(20,184,166,0.03)'
+  const state = resolveAllocationState(allocation)
+  const { accent, border, background: bg } = ALLOCATION_STATE_ACCENTS[state]
+  const stateLabel =
+    state === 'over' ? 'more wanted than owned' : state === 'unowned' ? 'not in collection' : 'decided'
 
   return (
     <div className="rounded-lg border px-4 py-3" style={{ borderColor: border, background: bg }}>
       <div className="flex items-baseline justify-between gap-3">
         <span className="text-[length:var(--fs-md)] font-medium">{allocation.cardName}</span>
         <span className="text-[length:var(--fs-sm)] tabular-nums" style={{ color: accent }}>
-          {allocation.sleeved} sleeved · {allocation.owned} owned
+          {allocation.sleeved} wanted · {allocation.owned} owned · {stateLabel}
         </span>
       </div>
       <div className="mt-2 flex flex-col gap-1.5">
-        {allocation.decks.map((d) => (
-          <div
-            key={`${d.deckId}-${d.deckCardsId}`}
-            className="flex items-center justify-between gap-3 text-[length:var(--fs-sm)]"
-          >
-            <span className="truncate">{d.deckName}</span>
-            {d.source === 'claim' && d.claimId != null && (
-              <div className="flex shrink-0 items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="xs"
-                  disabled={resolvingClaimId === d.claimId}
-                  onClick={() => onResolve(d.claimId!, 'release')}
-                >
-                  Release
-                </Button>
-                <Button
-                  variant="outline"
-                  size="xs"
-                  disabled={resolvingClaimId === d.claimId}
-                  onClick={() => onResolve(d.claimId!, 'proxy')}
-                >
-                  Proxy
-                </Button>
-              </div>
-            )}
-          </div>
-        ))}
+        {allocation.decks.map((d) => {
+          const current = d.resolution ?? 'sleeve'
+          return (
+            <div
+              key={`${d.deckId}-${d.deckCardsId}`}
+              className="flex items-center justify-between gap-3 text-[length:var(--fs-sm)]"
+            >
+              <span className="truncate">{d.deckName}</span>
+              {d.source === 'claim' && d.claimId != null ? (
+                <div className="flex shrink-0 items-center gap-1">
+                  {(['sleeve', 'release', 'proxy'] as const).map((option) => (
+                    <Button
+                      key={option}
+                      variant={current === option ? 'default' : 'outline'}
+                      size="xs"
+                      disabled={resolvingClaimId === d.claimId}
+                      onClick={() => onResolve(d.claimId!, option)}
+                    >
+                      {option === 'sleeve' ? 'Sleeve' : option === 'release' ? 'Release' : 'Proxy'}
+                    </Button>
+                  ))}
+                </div>
+              ) : (
+                <span className="shrink-0 text-muted-foreground">Sleeved</span>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )

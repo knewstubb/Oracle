@@ -71,7 +71,11 @@ function DeckProgressRow({
   isRunning: boolean
 }) {
   const { state, result } = deck
-  const isComplete = state === 'done' && result && result.unresolved === 0 && result.errors.length === 0
+  // Brew decks import as Planned rows with no claims — matched is 0 by design,
+  // not a failure, so they get a neutral label instead of a green check + 0/N.
+  const isBrew = result?.lifecycle === 'brew'
+  const isComplete =
+    state === 'done' && result && !isBrew && result.unresolved === 0 && result.errors.length === 0
   const hasUnresolved = state === 'done' && result && result.unresolved > 0
 
   return (
@@ -92,7 +96,7 @@ function DeckProgressRow({
           <Loader2 className="size-4 animate-spin text-[#14b8a6]" aria-label="Importing" />
         )}
         {state === 'done' && isComplete && (
-          <Check className="size-4 text-green-400" aria-label="Complete" />
+          <Check className="size-4" style={{ color: 'var(--signal-success)' }} aria-label="Complete" />
         )}
       </span>
 
@@ -114,13 +118,17 @@ function DeckProgressRow({
         </span>
       )}
 
-      {/* Resolution count — amber when the deck has unresolved (conflicted) cards */}
+      {/* Resolution summary — honest labels per lifecycle. Brew: planned, no
+          claims. Active: how many slots were claimed, out of the deck's cards
+          (the gap is basic lands and printing-less slots, which are exempt). */}
       {state === 'done' && result && (
         <span
           className="text-[length:var(--fs-sm)] tabular-nums"
           style={hasUnresolved ? { color: '#ef9f27' } : { color: 'var(--text-secondary)' }}
         >
-          {result.matched}/{result.totalCards}
+          {isBrew
+            ? `Planned · ${result.totalCards} card${result.totalCards === 1 ? '' : 's'}`
+            : `${result.matched} claimed · ${result.totalCards} card${result.totalCards === 1 ? '' : 's'}`}
         </span>
       )}
 

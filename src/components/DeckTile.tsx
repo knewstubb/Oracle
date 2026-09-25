@@ -33,6 +33,8 @@ export interface DeckTileProps {
   proxyCount?: number
   isActive?: boolean
   completeness?: { resolved: number; total: number; availableCount?: number; claimedCount?: number; unownedCount?: number } | null
+  /** Unresolved import conflicts left standing after "Go to Decks" (amber badge). */
+  conflictCount?: number
   pipDistribution?: Record<string, number>
   hasBrew?: boolean  // Has an active brew session
   folderId?: number | null
@@ -100,6 +102,7 @@ export function DeckTile({
   format,
   isActive,
   completeness,
+  conflictCount,
   pipDistribution,
   hasBrew,
   folderId,
@@ -265,12 +268,28 @@ export function DeckTile({
         
         {/* Inactive deck badge — brew flask */}
         {!isActive && (
-          <div 
+          <div
             className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-full"
             style={{ backgroundColor: '#8F51D5' }}
             aria-label="Deck in progress"
           >
             <FlaskConical className="size-3.5 text-black" strokeWidth={2.5} />
+          </div>
+        )}
+
+        {/* Unresolved import conflicts — top-left (top-right holds the status badge).
+            Set when the user finished an import with conflicts left unresolved:
+            the deck still asserts real copies that do not exist. */}
+        {conflictCount != null && conflictCount > 0 && (
+          <div
+            className="absolute top-2 left-2 flex min-w-6 items-center justify-center rounded-full px-1.5 py-0.5"
+            style={{ backgroundColor: 'var(--signal-warning)' }}
+            title={`${conflictCount} card${conflictCount === 1 ? '' : 's'} need${conflictCount === 1 ? 's' : ''} a copy you don't have`}
+            aria-label={`${conflictCount} unresolved ${conflictCount === 1 ? 'conflict' : 'conflicts'}`}
+          >
+            <span className="text-[11px] font-semibold leading-none text-black tabular-nums">
+              {conflictCount > 99 ? '99+' : conflictCount}
+            </span>
           </div>
         )}
       </div>

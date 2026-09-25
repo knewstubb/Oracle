@@ -1357,13 +1357,13 @@ function GridView({
                       )}
                       {cardStatus === 'available' && (
                         <div className="mt-1 flex items-center gap-2">
-                          <GridCardAction label="Fill" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="fill" />
+                          <GridCardAction label="Sleeve" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="fill" />
                           <GridCardAction label="Remove" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="remove" />
                         </div>
                       )}
                       {cardStatus === 'claimed' && (
                         <div className="mt-1 flex items-center gap-2">
-                          <GridCardAction label="Pull" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="claim" />
+                          <GridCardAction label="Sleeve" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="claim" />
                           <GridCardAction label="Remove" deckId={deckId} deckCardsId={card.id} cardName={card.card_name} action="remove" />
                         </div>
                       )}
@@ -1416,7 +1416,7 @@ function GridCardAction({
         toast.success(`Removed ${cardName}`)
       } else if (action === 'fill' || action === 'claim') {
         // Direct to the status chip for the full flow (candidate selection, confirmation)
-        toast.info(`Click the status badge on this card to ${action}`)
+        toast.info('Click the status badge on this card to sleeve it')
       } else if (action === 'reassign') {
         toast.info('Click the status badge on this card to reassign')
       }

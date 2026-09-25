@@ -277,7 +277,7 @@ export default function DeckViewPage() {
             <div className="-mx-6 overflow-x-auto px-6 sm:mx-0 sm:px-0">
               <TabsList variant="line" className="w-max sm:w-auto">
                 <TabsTrigger value="cards">Cards</TabsTrigger>
-                <TabsTrigger value="picklist">Pull List</TabsTrigger>
+                <TabsTrigger value="picklist">Sleeve List</TabsTrigger>
                 {/* Non-essential tabs hidden on mobile */}
                 <TabsTrigger value="workbench" className="hidden sm:inline-flex">Workbench</TabsTrigger>
                 <TabsTrigger value="analysis" className="hidden sm:inline-flex">Analysis</TabsTrigger>

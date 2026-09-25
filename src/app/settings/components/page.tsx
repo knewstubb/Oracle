@@ -611,7 +611,7 @@ function CardsSection() {
   const variants = [
     { id: 'all', label: 'All Variants' },
     { id: 'ready', label: 'Ready (Green)' },
-    { id: 'amber-pull', label: 'Needs Pull (Amber)' },
+    { id: 'amber-pull', label: 'Needs Sleeve (Amber)' },
     { id: 'amber-overcount', label: 'Overcount (Amber)' },
     { id: 'red', label: 'Unowned (Red)' },
     { id: 'brewing', label: 'Brewing' },
@@ -685,10 +685,10 @@ function CardsSection() {
       {/* ─── Needs Pull (Amber) ────────────────────────────────── */}
       {showVariant('amber-pull') && (
         <div>
-          <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-2">Needs Pull (Amber)</h3>
+          <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-2">Needs Sleeve (Amber)</h3>
           <p className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)] mb-4">
             Some slots unresolved but cards are available in storage. Amber border, book icon.
-            User needs to pull cards from binder/storage.
+            User needs to sleeve cards from binder/storage.
           </p>
           <div className="flex flex-wrap gap-4">
             <DeckTile
@@ -892,7 +892,7 @@ function CardsSection() {
             <p className="font-medium text-[var(--text-secondary)] mb-1">Status borders</p>
             <ul className="space-y-0.5">
               <li><span style={{ color: 'var(--accent-primary)' }}>Green:</span> Ready (100% resolved)</li>
-              <li><span style={{ color: 'var(--signal-warning)' }}>Amber:</span> Needs pull / Overcount + glow</li>
+              <li><span style={{ color: 'var(--signal-warning)' }}>Amber:</span> Needs sleeve / Overcount + glow</li>
               <li><span style={{ color: 'var(--signal-critical)' }}>Red:</span> Unowned slots + glow</li>
               <li><span style={{ color: '#8F51D5' }}>Purple:</span> Brewing (solid)</li>
               <li><span className="opacity-50">Grayscale:</span> Graveyard</li>
@@ -902,7 +902,7 @@ function CardsSection() {
             <p className="font-medium text-[var(--text-secondary)] mb-1">Icons by state</p>
             <ul className="space-y-0.5">
               <li>Ready: Check (✓)</li>
-              <li>Needs pull: BookOpen</li>
+              <li>Needs sleeve: BookOpen</li>
               <li>Overcount: Hash (#)</li>
               <li>Unowned: Ban (⊘)</li>
               <li>Brewing: FlaskConical</li>

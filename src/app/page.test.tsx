@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import DashboardPage from './page'
+import { OracleProvider } from '@/contexts/OracleContext'
+import { PageHeaderProvider } from '@/contexts/PageHeaderContext'
 
 // Mock next/image
 vi.mock('next/image', () => ({
@@ -28,6 +30,18 @@ vi.mock('next/navigation', () => ({
 
 const mockFetch = vi.fn()
 
+// jsdom in this runner has no localStorage; OracleProvider hydrates from it.
+const localStorageMock = (() => {
+  let store: Record<string, string> = {}
+  return {
+    getItem: vi.fn((key: string) => store[key] ?? null),
+    setItem: vi.fn((key: string, value: string) => { store[key] = value }),
+    removeItem: vi.fn((key: string) => { delete store[key] }),
+    clear: () => { store = {} },
+  }
+})()
+Object.defineProperty(window, 'localStorage', { value: localStorageMock })
+
 function createWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -38,7 +52,9 @@ function createWrapper() {
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
-        {children}
+        <OracleProvider>
+          <PageHeaderProvider>{children}</PageHeaderProvider>
+        </OracleProvider>
       </QueryClientProvider>
     )
   }
@@ -92,30 +108,33 @@ describe('DashboardPage', () => {
     const decks = makeDecks(16)
     mockDecks(decks)
 
-    render(<DashboardPage />, { wrapper: createWrapper() })
+    const { container } = render(<DashboardPage />, { wrapper: createWrapper() })
 
     await waitFor(() => {
-      expect(screen.getByRole('list', { name: 'Deck list' })).toBeInTheDocument()
+      expect(container.querySelectorAll('a[href^="/decks/"]')).toHaveLength(16)
     })
 
-    const items = screen.getAllByRole('listitem')
-    expect(items).toHaveLength(16)
+    const grid = container.querySelector<HTMLElement>('[style*="grid-template-columns"]')!
+    expect(grid.children).toHaveLength(16)
   })
 
-  it('renders responsive grid classes (4→3→2→1 cols)', async () => {
-    mockDecks(makeDecks(4))
+  it('sizes deck tiles to fill the row (auto-fill tracks, 1fr max)', async () => {
+    mockDecks(makeDecks(16))
 
-    render(<DashboardPage />, { wrapper: createWrapper() })
+    const { container } = render(<DashboardPage />, { wrapper: createWrapper() })
 
     await waitFor(() => {
-      expect(screen.getByRole('list', { name: 'Deck list' })).toBeInTheDocument()
+      expect(container.querySelectorAll('a[href^="/decks/"]')).toHaveLength(16)
     })
 
-    const grid = screen.getByRole('list', { name: 'Deck list' })
-    expect(grid.className).toContain('grid-cols-1')
-    expect(grid.className).toContain('sm:grid-cols-2')
-    expect(grid.className).toContain('md:grid-cols-3')
-    expect(grid.className).toContain('lg:grid-cols-4')
+    const grid = container.querySelector<HTMLElement>('[style*="grid-template-columns"]')!
+    expect(grid).toBeInTheDocument()
+    // A fixed max track size (e.g. 280px) leaves dead space at the right edge.
+    // 1fr makes every column grow to fill the row; the 200px min matches
+    // DeckTile's own min-w-[200px], so tiles shrink to that floor to let one
+    // more column fit rather than leaving a gap.
+    expect(grid.style.gridTemplateColumns).toBe('repeat(auto-fill, minmax(min(100%, 200px), 1fr))')
+    expect(grid.style.gridTemplateColumns).not.toContain('280px')
   })
 
   it('shows loading skeleton tiles', () => {

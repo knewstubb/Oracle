@@ -135,26 +135,26 @@ export function StatusChipPopover({
             })
             if (!res.ok) {
               const err = await res.json().catch(() => ({}))
-              throw new Error(err.error || 'Pull failed')
+              throw new Error(err.error || 'Sleeve failed')
             }
             queryClient.invalidateQueries({ queryKey: deckKeys.cardStatuses(deckId) })
             queryClient.invalidateQueries({ queryKey: deckKeys.picklist(deckId) })
-            toast.success(`Pulled ${cardName} from ${tier4Confirm?.deckName ?? 'deck'}`)
+            toast.success(`Sleeved ${cardName} from ${tier4Confirm?.deckName ?? 'deck'}`)
           } catch (err) {
-            toast.error(err instanceof Error ? err.message : 'Failed to pull')
+            toast.error(err instanceof Error ? err.message : 'Failed to sleeve')
           } finally {
             setTier4Loading(false)
             setTier4Confirm(null)
           }
         }}
         onCancel={() => setTier4Confirm(null)}
-        title="Pull from Active deck?"
+        title="Sleeve from Active deck?"
         description={
           tier4Confirm
             ? `This copy is currently in ${tier4Confirm.holderDeckName}. Removing it will make that deck incomplete. Continue?`
             : undefined
         }
-        confirmLabel="Pull"
+        confirmLabel="Sleeve"
         isLoading={tier4Loading}
       />
     </>
@@ -211,14 +211,14 @@ function PopoverBody({
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || 'Fill failed')
+        throw new Error(err.error || 'Sleeve failed')
       }
       return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'card-statuses'] })
       queryClient.invalidateQueries({ queryKey: ['picklist', deckId] })
-      toast.success(`Pulled ${cardName}`)
+      toast.success(`Sleeved ${cardName}`)
       onClose()
     },
     onError: (err) => toast.error(err.message),
@@ -234,14 +234,14 @@ function PopoverBody({
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || 'Pull failed')
+        throw new Error(err.error || 'Sleeve failed')
       }
       return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'card-statuses'] })
       queryClient.invalidateQueries({ queryKey: ['picklist', deckId] })
-      toast.success(`Pulled ${cardName}`)
+      toast.success(`Sleeved ${cardName}`)
       onClose()
     },
     onError: (err) => toast.error(err.message),
@@ -413,7 +413,7 @@ function PopoverBody({
             storageLocationName={copy.storageLocationName}
             isFoil={copy.isFoil}
             isProxy={copy.isProxy}
-            primaryLabel="Pull"
+            primaryLabel="Sleeve"
             onPrimary={() => fillMutation.mutate(copy.physicalCopyId)}
             isPending={isPending}
           />
@@ -451,7 +451,7 @@ function PopoverBody({
             storageLocationName={holder.editionName || holder.setCode?.toUpperCase() || null}
             isFoil={false}
             isProxy={holder.isProxy}
-            primaryLabel="Pull"
+            primaryLabel="Sleeve"
             onPrimary={() => {
               if (holder.deckStatus === 'brewing') {
                 claimMutation.mutate(holder.physicalCopyId)

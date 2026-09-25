@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import { AlertCircle, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -9,13 +9,10 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { DeckImportButton } from '@/components/DeckImportButton'
 import { NewDeckModal } from '@/components/NewDeckModal'
 import { DeckTile } from '@/components/DeckTile'
-import { DeckStatusCard } from '@/components/DeckStatusCard'
 import { FolderChip, NewFolderChip } from '@/components/FolderChip'
 import { CreateFolderModal } from '@/components/CreateFolderModal'
-import { CardImage } from '@/components/CardImage'
 import { useOracleContext } from '@/contexts/OracleContext'
 import { usePageHeader } from '@/contexts/PageHeaderContext'
-import { toast } from 'sonner'
 
 interface Deck {
   id: number
@@ -28,6 +25,7 @@ interface Deck {
   status: 'brewing' | 'in_rotation' | 'graveyard' // Legacy, being phased out
   is_active: boolean
   completeness?: { resolved: number; total: number; availableCount?: number; claimedCount?: number; unownedCount?: number } | null
+  conflictCount?: number
   format?: string | null
   pipDistribution?: Record<string, number> | null
   hasBrew?: boolean  // Has an active brew session
@@ -46,20 +44,25 @@ interface DecksResponse {
   hasCollection: boolean
 }
 
-type ReadinessTier = 'green' | 'amber' | 'red'
-
-function getReadinessTier(deck: Deck): ReadinessTier {
-  const c = deck.completeness
-  if (!c) return 'green'
-  if (c.resolved === c.total) return 'green'
-  if ((c.unownedCount ?? 0) > 0) return 'red'
-  return 'amber'
-}
-
 function parseColourIdentity(ci: string | null | undefined): string[] {
   if (!ci) return []
   return ci.split(',').flatMap(s => s.trim().length === 1 ? [s.trim()] : s.trim().split(''))
 }
+
+/**
+ * Deck grid track sizing.
+ *
+ * Tracks are counted from the deck tile's minimum width (DeckTile is
+ * `aspect-[236/260]` and floors at 200px) and then grow with `1fr`, so:
+ *   - the last column always ends flush with the content edge (a fixed max
+ *     track size such as 280px leaves dead space on the right), and
+ *   - tiles shrink rather than staying oversized when that shrink buys
+ *     another column.
+ *
+ * `auto-fill` (not `auto-fit`) keeps tile size stable when a row is not full —
+ * with fewer decks the empty tracks simply stay empty.
+ */
+const DECK_GRID_COLUMNS = 'repeat(auto-fill, minmax(min(100%, 200px), 1fr))'
 
 export default function DashboardPage() {
   // Set Oracle context for this page
@@ -84,10 +87,6 @@ export default function DashboardPage() {
 
   const total = decks?.length ?? 0
   const activeCount = decks?.filter(d => d.is_active).length ?? 0
-  const inactiveCount = total - activeCount
-  const readyCount = decks?.filter(d =>
-    d.is_active && getReadinessTier(d) === 'green'
-  ).length ?? 0
 
   // Don't show empty state until we've actually loaded data once
   // This prevents flashing empty state on refetch
@@ -98,7 +97,7 @@ export default function DashboardPage() {
     title: 'Decks',
     subtitle: activeCount > 0 ? (
       <span>
-        {readyCount} of {activeCount} Active {activeCount === 1 ? 'deck' : 'decks'} ready to play
+        {activeCount} Active {activeCount === 1 ? 'deck' : 'decks'}
       </span>
     ) : undefined,
     actions: (
@@ -238,11 +237,8 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="space-y-8">
-              {/* ═══ Deck Status Section ═══ */}
-              <DeckStatusSection decks={decks ?? []} />
-
               {/* ═══ Decks Section ═══ */}
-              <DecksSection decks={decks ?? []} folders={folders} isLoading={false} />
+              <DecksSection decks={decks ?? []} folders={folders} />
             </div>
           )}
         </div>
@@ -252,211 +248,12 @@ export default function DashboardPage() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Deck Status Section (Ready to Play + Needs Attention)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function getStatusMessage(deck: Deck): string {
-  const c = deck.completeness
-  if (!c || c.resolved === c.total) return 'Ready'
-  
-  const unowned = c.unownedCount ?? 0
-  const available = c.availableCount ?? 0
-  const claimed = c.claimedCount ?? 0
-  
-  // Red tier: has unowned cards (may also have pullable cards)
-  if (unowned > 0) {
-    const parts: string[] = []
-    if (available > 0) parts.push(`${available} in storage`)
-    if (claimed > 0) parts.push(`${claimed} in other decks`)
-    parts.push(`${unowned} to buy`)
-    return parts.join(', ')
-  }
-  
-  // Amber tier: all owned, but some need pulling
-  if (available > 0 && claimed > 0) {
-    return `${available} in storage, ${claimed} in other decks`
-  }
-  if (available > 0) {
-    return `${available} in storage`
-  }
-  if (claimed > 0) {
-    return `${claimed} in other decks`
-  }
-  
-  return 'Ready'
-}
-
-function DeckStatusSection({ decks }: { decks: Deck[] }) {
-  const queryClient = useQueryClient()
-  const activeDecks = decks.filter(d => d.is_active)
-  const inactiveDecks = decks.filter(d => !d.is_active)
-
-  const activateMutation = useMutation({
-    mutationFn: async (deckId: number) => {
-      const res = await fetch(`/api/decks/${deckId}/active`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_active: true }),
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || 'Failed to activate deck')
-      }
-      return res.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['decks'] })
-      toast.success('Deck marked as Active')
-    },
-    onError: (err) => {
-      toast.error(err instanceof Error ? err.message : 'Failed to activate')
-    },
-  })
-
-  // No Active decks but Inactive exists
-  if (activeDecks.length === 0) {
-    if (inactiveDecks.length > 0) {
-      return (
-        <div className="space-y-8">
-          <div>
-            <h2 className="mb-3 text-[length:var(--fs-xs)] font-medium uppercase tracking-wider text-muted-foreground">
-              Ready to Play
-            </h2>
-            <p className="mb-4 text-[length:var(--fs-sm)] text-muted-foreground">
-              No Active decks yet. Mark a deck as Active to start tracking:
-            </p>
-            <div className="space-y-2">
-              {inactiveDecks.slice(0, 5).map((deck) => (
-                <div
-                  key={deck.id}
-                  className="flex items-center gap-3 rounded-lg border border-dashed border-[var(--border-default)] px-3 py-2.5"
-                >
-                  <div className="size-8 shrink-0 overflow-hidden rounded">
-                    <CardImage
-                      scryfallId={deck.commander_scryfall_id}
-                      alt=""
-                      width={32}
-                      height={32}
-                      artCrop
-                      noPreview
-                      className="size-full object-cover"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="truncate text-[length:var(--fs-md)] font-medium text-foreground">{deck.name}</p>
-                    <p className="truncate text-[length:var(--fs-xs)] text-muted-foreground">{deck.commander_name}</p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => activateMutation.mutate(deck.id)}
-                    disabled={activateMutation.isPending}
-                    className="shrink-0 text-[length:var(--fs-xs)]"
-                  >
-                    Mark Active
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )
-    }
-
-    return (
-      <div className="space-y-8">
-        <div>
-          <h2 className="mb-3 text-[length:var(--fs-xs)] font-medium uppercase tracking-wider text-muted-foreground">
-            Ready to Play
-          </h2>
-          <p className="text-[length:var(--fs-sm)] text-muted-foreground">
-            No decks ready yet — import or brew a deck to get started
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  // Categorize active decks by tier
-  const readyDecks = activeDecks.filter(d => getReadinessTier(d) === 'green')
-  const attentionDecks = activeDecks.filter(d => getReadinessTier(d) !== 'green')
-    .sort((a, b) => {
-      // Sort by tier (amber before red), then by name
-      const tierA = getReadinessTier(a)
-      const tierB = getReadinessTier(b)
-      if (tierA !== tierB) return tierA === 'amber' ? -1 : 1
-      return a.name.localeCompare(b.name)
-    })
-
-  return (
-    <div className="space-y-8">
-      {/* Ready to Play */}
-      <div>
-        <h2 className="mb-3 text-[length:var(--fs-xs)] font-medium uppercase tracking-wider text-muted-foreground">
-          Ready to Play
-        </h2>
-        {readyDecks.length > 0 ? (
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {readyDecks.map((deck) => (
-              <DeckStatusCard
-                key={deck.id}
-                id={deck.id}
-                name={deck.name}
-                commanderName={deck.commander_name}
-                commanderScryfallId={deck.commander_scryfall_id}
-                colourIdentity={parseColourIdentity(deck.colour_identity)}
-                tier="green"
-                message={getStatusMessage(deck)}
-              />
-            ))}
-          </div>
-        ) : (
-          <p className="text-[length:var(--fs-sm)] text-muted-foreground">
-            No decks ready — see Needs Attention
-          </p>
-        )}
-      </div>
-
-      {/* Needs Attention */}
-      {attentionDecks.length > 0 && (
-        <div>
-          <h2 className="mb-3 text-[length:var(--fs-xs)] font-medium uppercase tracking-wider text-muted-foreground">
-            Needs Attention
-          </h2>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {attentionDecks.map((deck) => {
-              const tier = getReadinessTier(deck)
-              return (
-                <DeckStatusCard
-                  key={deck.id}
-                  id={deck.id}
-                  name={deck.name}
-                  commanderName={deck.commander_name}
-                  commanderScryfallId={deck.commander_scryfall_id}
-                  colourIdentity={parseColourIdentity(deck.colour_identity)}
-                  tier={tier}
-                  message={getStatusMessage(deck)}
-                  href={tier === 'amber' ? `/decks/${deck.id}?tab=picklist` : undefined}
-                />
-              )
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
 // Decks Section (grouped grid)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function DecksSection({ decks, folders, isLoading }: { decks: Deck[]; folders: DeckFolder[]; isLoading?: boolean }) {
+function DecksSection({ decks, folders }: { decks: Deck[]; folders: DeckFolder[] }) {
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null)
   const [createFolderOpen, setCreateFolderOpen] = useState(false)
-  
-  const activeDecks = decks.filter(d => d.is_active)
-  const inactiveDecks = decks.filter(d => !d.is_active)
 
   // Filter decks by selected folder
   const filteredDecks = selectedFolderId !== null
@@ -467,8 +264,6 @@ function DecksSection({ decks, folders, isLoading }: { decks: Deck[]; folders: D
   const filteredInactive = filteredDecks.filter(d => !d.is_active)
 
   const total = filteredDecks.length
-  const activeCount = filteredActive.length
-  const inactiveCount = filteredInactive.length
 
   // Compute deck counts per folder
   const folderCounts = new Map<number, number>()
@@ -479,7 +274,10 @@ function DecksSection({ decks, folders, isLoading }: { decks: Deck[]; folders: D
   }
 
   const renderDeckGrid = (deckList: Deck[]) => (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+    <div
+      className="grid gap-3"
+      style={{ gridTemplateColumns: DECK_GRID_COLUMNS }}
+    >
       {deckList.map((deck) => (
         <DeckTile
           key={deck.id}
@@ -491,6 +289,7 @@ function DecksSection({ decks, folders, isLoading }: { decks: Deck[]; folders: D
           cardCount={deck.card_count}
           isActive={deck.is_active}
           completeness={deck.completeness}
+          conflictCount={deck.conflictCount}
           format={deck.format}
           pipDistribution={deck.pipDistribution}
           hasBrew={deck.hasBrew}

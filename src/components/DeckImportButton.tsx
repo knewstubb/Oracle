@@ -428,7 +428,7 @@ export function DeckImportButton({
                 >
                   <span className="block text-[length:var(--fs-md)] font-medium">I have this deck built</span>
                   <span className="block text-[length:var(--fs-sm)] text-muted-foreground">
-                    Pull cards from my existing collection automatically
+                    Sleeve cards from my existing collection automatically
                   </span>
                 </button>
                 <button

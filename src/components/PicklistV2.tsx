@@ -202,7 +202,7 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || 'Pull failed')
+        throw new Error(err.error || 'Sleeve failed')
       }
       return res.json()
     },
@@ -249,7 +249,7 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
       }
       // Tier 3 (brewing/graveyard): instant
       claimMutation.mutate({ deckCardsId: card.deckCardsId, physicalCopyId: candidate.entry.physicalCopyId })
-      toast.success(`Pulled ${card.cardName}`)
+      toast.success(`Sleeved ${card.cardName}`)
     } else {
       // Available: assign
       assignMutation.mutate({ deckCardsId: card.deckCardsId, physicalCopyId: candidate.entry.physicalCopyId })
@@ -381,7 +381,7 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
                         className="hover:bg-[rgba(29,158,117,0.15)] hover:scale-105 transition-all"
                         style={{ color: 'rgba(29,158,117,0.7)', borderColor: 'rgba(29,158,117,0.5)' }}
                       >
-                        Pull
+                        Sleeve
                       </Button>
                     }
                   />
@@ -418,7 +418,7 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
                         onClick={() => handleClaim(card, candidate)}
                         className="hover:bg-[rgba(245,136,11,0.15)] hover:scale-105 transition-all" style={{ color: '#F5880B', borderColor: '#F5880B' }}
                       >
-                        Pull
+                        Sleeve
                       </Button>
                     }
                   />
@@ -471,22 +471,22 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
               deckCardsId: tier4Pending.card.deckCardsId,
               physicalCopyId: tier4Pending.candidate.entry.physicalCopyId,
             })
-            toast.success(`Pulled ${tier4Pending.card.cardName}`)
+            toast.success(`Sleeved ${tier4Pending.card.cardName}`)
           } catch (err) {
-            toast.error(err instanceof Error ? err.message : 'Pull failed')
+            toast.error(err instanceof Error ? err.message : 'Sleeve failed')
           } finally {
             setTier4Loading(false)
             setTier4Pending(null)
           }
         }}
         onCancel={() => setTier4Pending(null)}
-        title="Pull from Active deck?"
+        title="Sleeve from Active deck?"
         description={
           tier4Pending
             ? `This copy is currently in ${tier4Pending.candidate.entry.assignedTo?.deckName ?? 'another deck'}. Removing it will make that deck incomplete. Continue?`
             : undefined
         }
-        confirmLabel="Pull"
+        confirmLabel="Sleeve"
         isLoading={tier4Loading}
       />
     </>

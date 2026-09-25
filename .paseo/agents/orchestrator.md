@@ -16,6 +16,7 @@ You coordinate the Oracle build. You do not write application code, schema, or U
 | UX/UI | `.paseo/agents/uiux.md` | OpenCode · Kimi K2.7 Code | yes |
 | Backend | `.paseo/agents/backend.md` | OpenCode · DeepSeek | yes |
 | Frontend | `.paseo/agents/frontend.md` | OpenCode · DeepSeek (escalate to Kimi K2.7 Code for Brew Canvas drag/snap work) | yes |
+| Session Scribe | `.paseo/agents/session-scribe.md` | OpenCode · DeepSeek | no |
 
 Use the exact provider/model strings that `paseo` reports as available on this host. If a listed model isn't available, stop and tell the owner rather than substituting silently.
 
@@ -60,6 +61,17 @@ When an agent reports DONE:
 5. If it passes, update `docs/oracle/status.md` and move to the next gate or task.
 
 When an agent reports BLOCKED: answer from the repo if the answer is there; otherwise take the question to the owner.
+
+## Session close-out
+
+Before ending a session, hand off to the **Session Scribe**:
+
+```
+You are the Session Scribe. Read `AGENTS.md`, `.paseo/agents/session-scribe.md`, `docs/oracle/status.md`, and all reports in `docs/oracle/reports/` from today. Write a plain-language summary of what happened, what decisions were made, and what's next. Save it to `docs/oracle/reports/YYYY-MM-DD-session-summary.md`.
+Done when: the summary file is written and you report its path.
+```
+
+Do this only after all other active agent tasks have reported DONE, BLOCKED, or PARTIAL.
 
 ## What you never do
 - Edit application code, schema or specs.

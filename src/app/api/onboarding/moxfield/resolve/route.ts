@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   if (authResult instanceof Response) return authResult
   const userId = authResult.id
 
-  let body: { deckIds?: string[]; deckActiveStates?: Record<string, boolean> }
+  let body: { deckIds?: string[]; deckActiveStates?: Record<string, boolean>; batchId?: string }
   try {
     body = await request.json()
   } catch {
@@ -39,8 +39,11 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'All deckIds must be valid non-empty strings' }, { status: 400 })
   }
 
+  const batchId =
+    typeof body.batchId === 'string' && body.batchId.trim() !== '' ? body.batchId : null
+
   try {
-    const result = await resolveMoxfieldDeckBatch(deckIds, userId, body.deckActiveStates)
+    const result = await resolveMoxfieldDeckBatch(deckIds, userId, body.deckActiveStates, batchId)
     return Response.json(result)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

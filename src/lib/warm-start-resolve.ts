@@ -36,6 +36,12 @@ export interface DeckResolutionResult {
   unresolved: number
   unresolvedCards: string[] // card names that couldn't be matched
   errors: string[]
+  /**
+   * Whether the deck was imported Active (claims created; matched = claimed
+   * slots) or Brew (nothing claimed; matched = 0). Lets the progress list label
+   * rows honestly instead of showing a misleading 0/N for Brew decks.
+   */
+  lifecycle?: 'active' | 'brew'
 }
 
 export type { ContentionEntry }
@@ -648,7 +654,8 @@ export async function resolveSingleDeckWithPrefetch(
   prefetchedDeck: ArchidektDeckFull,
   userId: string,
   isActive: boolean = true,
-  format?: string
+  format?: string,
+  batchId?: string | null
 ): Promise<DeckResolutionResult> {
   // Normalize the prefetched deck data
   const sourceUrl = `https://archidekt.com/decks/${archidektDeckId}`
@@ -698,6 +705,7 @@ export async function resolveSingleDeckWithPrefetch(
     unresolved: 0,
     unresolvedCards: [],
     errors: [],
+    lifecycle: isActive ? 'active' : 'brew',
   }
 
   // Persist the user-selected format if provided (import default already applied
@@ -714,7 +722,12 @@ export async function resolveSingleDeckWithPrefetch(
   if (isActive) {
     // Active deck: create sleeve claims for non-basic slots. Nothing is sleeved
     // yet — claims are reconciled (and real copies assigned) on import finish.
-    const { claimsCreated, error } = await createSleeveClaimsForDeck(importedDeckId, userId)
+    // Claims are scoped to the import run's batch id.
+    const { claimsCreated, error } = await createSleeveClaimsForDeck(
+      importedDeckId,
+      userId,
+      batchId ?? null
+    )
     if (error) result.errors.push(error)
 
     // Report per-deck progress from the imported slot count; sleeving is deferred

@@ -1,21 +1,25 @@
 /**
- * GET /api/onboarding/conflicts
+ * GET /api/onboarding/conflicts?batchId=<uuid>
  *
- * Returns the user's full import allocation view: every card with open sleeve
- * claims, each flagged `overAllocated` when sleeved demand exceeds owned copies.
- * Nothing is pre-sleeved during reconciliation, so every deck is an editable
- * claim (Release / Convert to Proxy) — no deck is given the real copy up front.
+ * Returns the import allocation view: every card with claims in the batch (or
+ * every unsettled claim when no batchId is given), with `state` ('over' /
+ * 'unowned' / 'resolved'), `overAllocated` for genuine over-commitments, and
+ * per-deck `resolution` intents. Nothing is pre-sleeved during reconciliation —
+ * every deck is an editable, reversible claim until "Go to Decks".
  */
+import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { getImportAllocations } from '@/lib/import-sleeve-claims'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
   const userId = authResult.id
 
+  const batchId = request.nextUrl.searchParams.get('batchId')
+
   try {
-    const allocations = await getImportAllocations(userId)
+    const allocations = await getImportAllocations(userId, batchId)
     return Response.json({ allocations })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

@@ -7,21 +7,32 @@
  * we cannot assign the same `user_copies` row to multiple `deck_cards.copy_id`
  * slots (that breaks the one-copy-one-slot invariant).
  *
- * Instead we record a durable, provisional CLAIM per slot. Claims may overlap
- * on a printing. A finalization pass then assigns real copies to claims for any
- * printing where supply is sufficient (clearing those claims), leaving only the
- * genuinely over-committed printings as open conflicts for the user to resolve.
+ * Instead we record a durable, provisional CLAIM per slot, grouped by the
+ * import run's batch id. Claims may overlap on a printing. During
+ * reconciliation a claim carries an INTENT (`resolution`): 'sleeve' (default),
+ * 'release' (slot stays Planned) or 'proxy' (printing-matched proxy). Changing
+ * intent is instant and reversible; nothing physical is touched. A single
+ * finalization pass on "Go to Decks" materializes the decisions for cards fully
+ * within supply, and settles (stamps `settled_at` on) claims the run leaves
+ * unresolved — the durable record behind the cross-page conflict badge.
  *
  * See `.kiro/specs/deck-import-conflicts/design.md`.
  */
 
 import { createAdminClient } from '@/lib/supabase'
 import { isBasicLand } from '@/lib/basic-lands'
+import type { ImportAllocationState } from '@/lib/import-allocation-state'
+
+/** The three-way per-deck intent. 'sleeve' is the default and re-introduces
+ *  demand; 'release' and 'proxy' remove the deck from the supply competition. */
+export type ClaimResolution = 'sleeve' | 'release' | 'proxy'
 
 /**
  * Create sleeve claims for all non-basic main-deck slots of an imported Active
- * deck, then run the finalization pass so any printing with sufficient supply
- * is immediately assigned real copies (and its claims cleared).
+ * deck. Nothing is sleeved during import — claims are the single source of
+ * truth during reconciliation so every deck keeps equal, editable footing. Real
+ * copies are assigned by finalizeImportClaims() when the user finishes (Go to
+ * Decks). UNIQUE(deck_cards_id) makes re-runs idempotent.
  *
  * Basic lands are excluded (they are generic/untracked and never contended).
  * Slots without a scryfall_id (no specific printing) are excluded — an exact
@@ -29,7 +40,8 @@ import { isBasicLand } from '@/lib/basic-lands'
  */
 export async function createSleeveClaimsForDeck(
   deckId: number,
-  userId: string
+  userId: string,
+  batchId?: string | null
 ): Promise<{ claimsCreated: number; error?: string }> {
   const supabase = createAdminClient()
 
@@ -58,16 +70,19 @@ export async function createSleeveClaimsForDeck(
       deck_cards_id: r.id,
       card_name: r.card_name,
       printing_id: r.scryfall_id,
+      // Scope the claim to its import run so reconciliation and finalize only
+      // ever see the current batch. A reset upsert keeps the fresh intent.
+      batch_id: batchId ?? null,
+      resolution: 'sleeve' as const,
+      settled_at: null,
     }))
 
   if (claimRows.length === 0) {
     return { claimsCreated: 0 }
   }
 
-  // Insert claims only. Nothing is sleeved during import — claims are the
-  // single source of truth during reconciliation so every deck keeps equal,
-  // editable footing. Real copies are assigned by finalizeImportClaims() when
-  // the user finishes (Go to Decks). UNIQUE(deck_cards_id) is idempotent.
+  // Upsert on deck_cards_id so a re-imported slot replaces any stale claim
+  // (e.g. one left settled by an earlier run) instead of colliding.
   const { error: insertErr } = await supabase
     .from('import_sleeve_claims')
     .upsert(claimRows, { onConflict: 'deck_cards_id' })
@@ -80,70 +95,122 @@ export async function createSleeveClaimsForDeck(
 }
 
 /**
- * Finalize all balanced cards: for every card where owned real copies cover the
- * sleeved demand, assign distinct owned copies to the claimed slots (retagging
- * printing to the owned copy) and clear those claims. Over-allocated cards keep
- * their claims. Called when the user finishes the import (Go to Decks).
+ * The single materializer, run on "Go to Decks". For every card whose real-copy
+ * supply covers its remaining sleeve-intent demand, applies each deck's
+ * decision: 'sleeve' assigns a distinct owned copy, 'proxy' creates the
+ * printing-matched proxy and sleeves it, 'release' drops the claim (slot stays
+ * Planned). Cards still over-committed keep every claim — stamped settled_at as
+ * the durable record for the deck-list badge — and are counted in leftOpenCount.
+ *
+ * Scoped to p_batch_id when provided, so a run can never materialize another
+ * run's leftover claims.
  */
-export async function finalizeImportClaims(userId: string): Promise<void> {
+export interface FinalizeResult {
+  finalizedCount: number
+  proxiedCount: number
+  releasedCount: number
+  leftOpenCount: number
+}
+
+export async function finalizeImportClaims(
+  userId: string,
+  batchId?: string | null
+): Promise<FinalizeResult> {
   const supabase = createAdminClient()
-  const { error } = await supabase.rpc('finalize_import_claims', { p_user_id: userId })
+  const { data, error } = await supabase.rpc('finalize_import_claims', {
+    p_user_id: userId,
+    p_batch_id: batchId ?? undefined,
+  })
   if (error) throw new Error(`finalize_import_claims failed: ${error.message}`)
+
+  const payload = data as
+    | {
+        success?: boolean
+        finalized_count?: number
+        proxied_count?: number
+        released_count?: number
+        left_open_count?: number
+      }
+    | null
+  const finalizedCount = payload?.finalized_count
+  if (typeof finalizedCount !== 'number') {
+    throw new Error('finalize_import_claims returned an invalid finalized_count')
+  }
+  return {
+    finalizedCount,
+    proxiedCount: payload?.proxied_count ?? 0,
+    releasedCount: payload?.released_count ?? 0,
+    leftOpenCount: payload?.left_open_count ?? 0,
+  }
 }
 
 // ---------------------------------------------------------------------------
-// Conflict querying + resolution wrappers
+// Allocation querying + resolution
 // ---------------------------------------------------------------------------
 
 export interface ImportConflictDeckRef {
   deckId: number
   deckName: string
   source: 'claim' | 'sleeved'
-  /** The claim to Release/Convert; null for already-finalized real sleeves. */
+  /** The claim whose intent can be changed; null for already-finalized real sleeves. */
   claimId: number | null
   deckCardsId: number
+  /** Recorded intent for claim rows; 'sleeve' for finalized physical sleeves. */
+  resolution?: ClaimResolution
 }
 
 export interface ImportAllocation {
   cardName: string
   owned: number
+  /** Slots demanding a REAL copy: sleeve-intent claims + finalized real sleeves. */
   sleeved: number
-  /** True when sleeved demand exceeds owned copies (a genuine conflict). */
+  /** True when real-copy demand exceeds owned copies (a genuine conflict). */
   overAllocated: boolean
+  /**
+   * Server-derived state: 'over' | 'unowned' | 'resolved'. Absent on payloads
+   * from an older database — use `resolveAllocationState()` from
+   * `@/lib/import-allocation-state` rather than reading `overAllocated` directly.
+   */
+  state?: ImportAllocationState
+  /** Slots with a recorded non-sleeve decision; drives list visibility. */
+  decidedCount?: number
   decks: ImportConflictDeckRef[]
 }
 
 /**
- * Read the user's full import allocation view: every card with open sleeve
- * claims, whether over-allocated or balanced. Balanced cards remain editable
- * (all decks show Release/Proxy) — no deck is pre-assigned the real copy.
+ * Read the import allocation view for one batch: every card with claims in that
+ * batch (or, with no batch id, every unsettled claim), with per-deck intents.
+ * The client decides visibility via `shouldDisplayAllocation()`.
  */
-export async function getImportAllocations(userId: string): Promise<ImportAllocation[]> {
+export async function getImportAllocations(
+  userId: string,
+  batchId?: string | null
+): Promise<ImportAllocation[]> {
   const supabase = createAdminClient()
   const { data, error } = await supabase.rpc('get_import_allocations', {
     p_user_id: userId,
+    p_batch_id: batchId ?? undefined,
   })
   if (error) throw new Error(`get_import_allocations failed: ${error.message}`)
   const payload = data as { success?: boolean; allocations?: ImportAllocation[] } | null
   return payload?.allocations ?? []
 }
 
-/** Release an excess sleeve claim — slot stays Planned. */
-export async function releaseSleeveClaim(userId: string, claimId: number): Promise<void> {
+/**
+ * Record (or change) a deck's intent for one claimed card. Pure intent write —
+ * nothing physical is touched, so Sleeve ↔ Release ↔ Proxy stay freely
+ * reversible until the finalize pass runs.
+ */
+export async function setClaimResolution(
+  userId: string,
+  claimId: number,
+  resolution: ClaimResolution
+): Promise<void> {
   const supabase = createAdminClient()
-  const { error } = await supabase.rpc('resolve_import_conflict_release', {
+  const { error } = await supabase.rpc('set_import_claim_resolution', {
     p_user_id: userId,
     p_claim_id: claimId,
+    p_resolution: resolution,
   })
-  if (error) throw new Error(`resolve_import_conflict_release failed: ${error.message}`)
-}
-
-/** Convert an excess sleeve claim to a printing-matched proxy copy. */
-export async function proxySleeveClaim(userId: string, claimId: number): Promise<void> {
-  const supabase = createAdminClient()
-  const { error } = await supabase.rpc('resolve_import_conflict_proxy', {
-    p_user_id: userId,
-    p_claim_id: claimId,
-  })
-  if (error) throw new Error(`resolve_import_conflict_proxy failed: ${error.message}`)
+  if (error) throw new Error(`set_import_claim_resolution failed: ${error.message}`)
 }

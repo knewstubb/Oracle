@@ -1,20 +1,19 @@
 /**
  * Warm-Start Batch Resolution — Moxfield Variant
  *
- * Same sequential resolve pattern as the Archidekt version but uses:
- * - fetchMoxfieldDeck (string public IDs)
- * - normalizeMoxfieldDeck
+ * Same import model as the Archidekt version: Active decks are imported as
+ * planned rows plus one sleeve claim per non-basic slot (nothing physical is
+ * assigned during import — the finalize pass on "Go to Decks" is the only
+ * authority on real copies), and Brew decks stay fully planned.
  *
  * Processes decks sequentially so each deck sees the previous deck's committed results.
  */
 
-import { createAdminClient } from '@/lib/supabase'
 import { fetchMoxfieldDeck } from '@/lib/moxfield-client'
 import { importDeckTheorycrafted } from '@/lib/deck-import'
+import { createSleeveClaimsForDeck } from '@/lib/import-sleeve-claims'
 import { normalizeMoxfieldDeck } from '@/lib/deck-normalizer'
-import { fetchEnrichedSupply, classifyTier, scoreCandidate } from '@/lib/allocation-candidates'
-import { batchAssignDeck, type Assignment } from '@/lib/supply-pool'
-import type { EnrichedSupplyEntry } from '@/lib/allocation-candidates'
+import { fetchEnrichedSupply } from '@/lib/allocation-candidates'
 import type { BatchResolutionResult, DeckResolutionResult, ContentionEntry } from '@/lib/warm-start-resolve'
 
 // ---------------------------------------------------------------------------
@@ -22,19 +21,19 @@ import type { BatchResolutionResult, DeckResolutionResult, ContentionEntry } fro
 // ---------------------------------------------------------------------------
 
 /**
- * Resolve a batch of Moxfield decks sequentially against the shared supply pool.
+ * Resolve a batch of Moxfield decks sequentially.
  *
  * For each deck:
  * 1. Fetch full deck data from Moxfield (fetchMoxfieldDeck)
  * 2. Normalize and import the deck (creates deck + deck_cards rows)
- * 3. For each unresolved deck_cards row, find candidates via fetchEnrichedSupply
- * 4. Assign from Tiers 1–2 only (Tier 3 requires user decision)
- * 5. Anything that would need Tier 3 or higher → left unresolved
+ * 3. Active: create sleeve claims for non-basic slots (batch-scoped)
+ *    Brew: leave everything planned
  */
 export async function resolveMoxfieldDeckBatch(
   publicIds: string[],
   userId: string,
-  deckActiveStates?: Record<string, boolean>
+  deckActiveStates?: Record<string, boolean>,
+  batchId?: string | null
 ): Promise<BatchResolutionResult> {
   const startTime = Date.now()
   const results: DeckResolutionResult[] = []
@@ -43,7 +42,7 @@ export async function resolveMoxfieldDeckBatch(
 
   for (const publicId of publicIds) {
     const isActive = deckActiveStates?.[publicId] ?? true
-    const result = await resolveSingleMoxfieldDeck(publicId, userId, isActive)
+    const result = await resolveSingleMoxfieldDeck(publicId, userId, isActive, batchId)
     results.push(result)
     totalMatched += result.matched
     totalUnresolved += result.unresolved
@@ -102,10 +101,10 @@ export async function resolveMoxfieldDeckBatch(
 async function resolveSingleMoxfieldDeck(
   publicId: string,
   userId: string,
-  isActive: boolean = true
+  isActive: boolean = true,
+  batchId?: string | null
 ): Promise<DeckResolutionResult> {
   const errors: string[] = []
-  const supabase = createAdminClient()
 
   // Step 1: Fetch deck from Moxfield
   let deckData: Awaited<ReturnType<typeof fetchMoxfieldDeck>>
@@ -158,19 +157,40 @@ async function resolveSingleMoxfieldDeck(
     }
   }
 
-  // Step 4: Fetch all unresolved deck_cards for this newly imported deck
-  const { data: unresolvedRows, error: fetchErr } = await supabase
-    .from('deck_cards')
-    .select('id, card_name')
-    .eq('deck_id', importedDeckId)
-    .is('copy_id', null)
-
-  if (fetchErr) {
-    errors.push(`Failed to fetch unresolved deck_cards: ${fetchErr.message}`)
+  // Claims model: Active decks reconcile exactly like Archidekt imports — one
+  // claim per non-basic slot, intents editable on the import summary, physical
+  // copies materialized by the finalize pass on "Go to Decks". The supply-pool
+  // path below remains only for Brew decks (pre-existing behaviour).
+  if (isActive) {
+    const { claimsCreated, error } = await createSleeveClaimsForDeck(
+      importedDeckId,
+      userId,
+      batchId
+    )
+    if (error) errors.push(error)
     return {
       deckId: importedDeckId,
       deckName: normalizedDeck.name,
       totalCards: normalizedDeck.cardCount || 0,
+      matched: claimsCreated,
+      unresolved: 0,
+      unresolvedCards: [],
+      errors,
+    }
+  }
+
+  // Step 4: claims, not assignments — matching the Archidekt import model.
+  // Active decks assert every non-basic slot as a sleeve claim; nothing physical
+  // is assigned during import, so every deck stays equally editable on the
+  // reconciliation summary, and the single finalize pass on "Go to Decks" is the
+  // only authority on real assignment. Brew decks stay fully planned.
+  const totalCards = normalizedDeck.cardCount || 0
+
+  if (!isActive) {
+    return {
+      deckId: importedDeckId,
+      deckName: normalizedDeck.name,
+      totalCards,
       matched: 0,
       unresolved: 0,
       unresolvedCards: [],
@@ -178,102 +198,22 @@ async function resolveSingleMoxfieldDeck(
     }
   }
 
-  const totalCards = normalizedDeck.cardCount || 0
-  if (!unresolvedRows || unresolvedRows.length === 0) {
-    return {
-      deckId: importedDeckId,
-      deckName: normalizedDeck.name,
-      totalCards,
-      matched: totalCards,
-      unresolved: 0,
-      unresolvedCards: [],
-      errors,
-    }
-  }
-
-  // Step 5: Group unresolved cards by name
-  const cardNameGroups = new Map<string, number[]>()
-  for (const row of unresolvedRows) {
-    const existing = cardNameGroups.get(row.card_name)
-    if (existing) existing.push(row.id)
-    else cardNameGroups.set(row.card_name, [row.id])
-  }
-
-  // Step 6: For each unique card_name, collect candidate assignments.
-  // The whole deck's assignment set is committed atomically below.
-  let matched = 0
-  const unresolvedCards: string[] = []
-  const assignments: Assignment[] = []
-
-  for (const [cardName, deckCardsIds] of cardNameGroups) {
-    let candidates: EnrichedSupplyEntry[]
-    try {
-      candidates = await fetchEnrichedSupply(cardName, userId)
-    } catch (err) {
-      errors.push(`Failed to fetch candidates for "${cardName}": ${err instanceof Error ? err.message : String(err)}`)
-      unresolvedCards.push(cardName)
-      continue
-    }
-
-    const eligibleCandidates = candidates
-      .filter(c => {
-        const tier = classifyTier(c)
-        return tier === 1 || tier === 2 || tier === 3
-      })
-      .sort((a, b) => {
-        const tierA = classifyTier(a)
-        const tierB = classifyTier(b)
-        if (tierA !== tierB) return tierA - tierB
-        return scoreCandidate(b, null) - scoreCandidate(a, null)
-      })
-
-    let candidateIdx = 0
-    let assignmentsForCard = 0
-
-    for (const deckCardsId of deckCardsIds) {
-      if (candidateIdx >= eligibleCandidates.length) break
-
-      const candidate = eligibleCandidates[candidateIdx]
-      candidateIdx++
-
-      const ownershipStatus = candidate.isProxy ? 'proxy' : 'original'
-      assignments.push({
-        deckCardsId,
-        physicalCopyId: candidate.physicalCopyId,
-        ownershipStatus,
-        clearDeckCardsId: candidate.assignedTo?.deckCardsId ?? null,
-      })
-      assignmentsForCard++
-    }
-
-    if (assignmentsForCard < deckCardsIds.length) {
-      unresolvedCards.push(cardName)
-    }
-  }
-
-  if (assignments.length > 0) {
-    try {
-      await batchAssignDeck(importedDeckId, userId, assignments)
-      matched = assignments.length
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      errors.push(`Assignment batch failed: ${message}`)
-      matched = 0
-      unresolvedCards.length = 0
-      unresolvedCards.push(...cardNameGroups.keys())
-    }
-  }
-
-  const unresolved = unresolvedRows.length - matched
+  const { claimsCreated, error: claimsError } = await createSleeveClaimsForDeck(
+    importedDeckId,
+    userId,
+    batchId
+  )
+  if (claimsError) errors.push(claimsError)
 
   return {
     deckId: importedDeckId,
     deckName: normalizedDeck.name,
     totalCards,
-    matched,
-    unresolved,
-    unresolvedCards,
+    matched: claimsCreated,
+    unresolved: 0,
+    unresolvedCards: [],
     errors,
+    lifecycle: isActive ? 'active' : 'brew',
   }
 }
 

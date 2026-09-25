@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
     lifecycle?: 'active' | 'brew'
     format?: string
     prefetchedDeck?: ArchidektDeckFull
+    batchId?: string
   }
   try {
     body = await request.json()
@@ -39,6 +40,8 @@ export async function POST(request: NextRequest) {
 
   // Active decks sleeve their cards (create claims); Brew decks stay planned.
   const isActive = lifecycle === 'active'
+  const batchId =
+    typeof body.batchId === 'string' && body.batchId.trim() !== '' ? body.batchId : null
 
   try {
     // If prefetched data is provided, use the fast path (no Archidekt API call)
@@ -48,7 +51,8 @@ export async function POST(request: NextRequest) {
         prefetchedDeck,
         userId,
         isActive,
-        format
+        format,
+        batchId
       )
       return Response.json(result)
     }

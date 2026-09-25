@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
   if (authResult instanceof Response) return authResult
   const userId = authResult.id
 
-  let body: { deckId?: string; isActive?: boolean }
+  let body: { deckId?: string; isActive?: boolean; batchId?: string }
   try {
     body = await request.json()
   } catch {
@@ -29,9 +29,11 @@ export async function POST(request: NextRequest) {
   }
 
   const deckActiveStates: Record<string, boolean> = { [deckId]: isActive ?? true }
+  const batchId =
+    typeof body.batchId === 'string' && body.batchId.trim() !== '' ? body.batchId : null
 
   try {
-    const result = await resolveMoxfieldDeckBatch([deckId], userId, deckActiveStates)
+    const result = await resolveMoxfieldDeckBatch([deckId], userId, deckActiveStates, batchId)
     return Response.json(
       result.results[0] ?? {
         deckId: 0,

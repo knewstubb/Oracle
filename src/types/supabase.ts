@@ -923,30 +923,39 @@ export type Database = {
       }
       import_sleeve_claims: {
         Row: {
+          batch_id: string | null
           card_name: string
           created_at: string | null
           deck_cards_id: number
           deck_id: number
           id: number
           printing_id: string | null
+          resolution: string
+          settled_at: string | null
           user_id: string
         }
         Insert: {
+          batch_id?: string | null
           card_name: string
           created_at?: string | null
           deck_cards_id: number
           deck_id: number
           id?: never
           printing_id?: string | null
+          resolution?: string
+          settled_at?: string | null
           user_id: string
         }
         Update: {
+          batch_id?: string | null
           card_name?: string
           created_at?: string | null
           deck_cards_id?: number
           deck_id?: number
           id?: never
           printing_id?: string | null
+          resolution?: string
+          settled_at?: string | null
           user_id?: string
         }
         Relationships: [
@@ -2276,7 +2285,7 @@ export type Database = {
         Returns: Json
       }
       finalize_import_claims: {
-        Args: { p_card_name?: string; p_user_id: string }
+        Args: { p_batch_id?: string; p_card_name?: string; p_user_id: string }
         Returns: Json
       }
       force_claim_copy: {
@@ -2336,7 +2345,8 @@ export type Database = {
           type_line: string
         }[]
       }
-      get_import_allocations: { Args: { p_user_id: string }; Returns: Json }
+      get_deck_conflict_counts: { Args: { p_user_id: string }; Returns: Json }
+      get_import_allocations: { Args: { p_batch_id?: string; p_user_id: string }; Returns: Json }
       get_import_conflicts: { Args: { p_user_id: string }; Returns: Json }
       get_next_deck_version_number: {
         Args: { p_deck_id: number }
@@ -2423,6 +2433,10 @@ export type Database = {
       }
       resolve_import_conflict_proxy: {
         Args: { p_claim_id: number; p_user_id: string }
+        Returns: Json
+      }
+      set_import_claim_resolution: {
+        Args: { p_claim_id: number; p_resolution: string; p_user_id: string }
         Returns: Json
       }
       resolve_import_conflict_release: {

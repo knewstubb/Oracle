@@ -12,11 +12,11 @@ Read `docs/oracle/roadmap.md` first. Only tasks in the **current milestone** may
 | T-02 | Validate the V2 allocation resolver against real deck data (read-only) | Architect | T-01 | DONE |
 | T-10 | Owner decision pack: for each T-01 mismatch, present "fix the code" vs "update the decision" in plain language; owner decides | Orchestrator → Owner | T-01, T-02 | DONE |
 | T-03 | Contract: allocation suggestion engine (reuse resolver compute, no writes) — D-007 | Architect | T-02, T-10 | DONE |
-| T-11 | Draft migration retiring `allocation_clear_active_decks` and any other destructive allocation RPC — D-007 | Architect | T-03 | DONE — migration pending owner approval |
+| T-11 | Draft migration retiring `allocation_clear_active_decks` and any other destructive allocation RPC — D-007 | Architect | T-03 | DONE — migration approved and applied 2026-09-26 |
 | T-12 | Contract + draft migration adding a `source` parameter (`manual` / `ai` / `import`) to every placement write — D-009 | Architect | T-10 | DONE — migration approved by owner 2026-09-25 |
-| T-04 | Move the Allocation Tab off the frozen `deck_allocations` table | Backend | T-03 | IN PROGRESS |
+| T-04 | Move the Allocation Tab off the frozen `deck_allocations` table | Backend | T-03 | DONE |
 | T-05a | Replace placeholder sequential IDs in rollup-level selection with real `physical_copy_id` values (API / data-access) | Backend | T-01 | DONE |
-| T-05b | Update UI to consume real `physical_copy_id` values from rollup API | Frontend | T-05a | IN PROGRESS |
+| T-05b | Update UI to consume real `physical_copy_id` values from rollup API | Frontend | T-05a | DONE |
 | T-13 | M1 exit test: import owner's real Archidekt collection and decks; reconcile counts, deck lists and copy assignments against Archidekt; report differences | Architect (read-only report) | T-04, T-05, T-11, T-12 | TODO |
 
 ## M2 — AI advisor v0 (next)

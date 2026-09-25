@@ -29,18 +29,21 @@ Use **OpenCode · DeepSeek** (`opencode-go/deepseek-v4.1-flash`). This is a read
 
 Write in this order:
 
-1. **Headline.** One sentence: what kind of session was this? (e.g. "We planned and merged ten parallel agent deliverables.")
-2. **What got done.** Bullet list of completed tasks or outcomes. Use the task IDs from `docs/oracle/status.md` when they exist.
-3. **Decisions made.** Any owner decisions, contract approvals, or resolved mismatches. Say what was decided, not how it was implemented.
-4. **Blockers or risks.** Anything still blocked, any risks raised in agent reports, or any conflicts that were resolved.
-5. **What's next.** The next logical step, based on `docs/oracle/status.md` and the Orchestrator's handoff pattern. Do not invent new tasks.
+1. **Headline.** One sentence: what kind of session was this? Focus on the app, not the process. (e.g. "We made deck card suggestions safer and more accurate, and removed a risky bulk-reset function.")
+2. **What changed in the app and why.** For each meaningful change, write three short bullets:
+   - **What.** What changed in the app from the user's point of view.
+   - **Why.** Why it mattered enough to do.
+   - **Impact.** How the user will experience the app differently because of it.
+3. **Decisions made.** Any owner decisions, approvals, or resolved mismatches. Say what was decided in plain language.
+4. **Blockers or risks.** Anything still blocked, or any risks raised in agent reports, explained in app terms.
+5. **What's next.** The next logical step for the app, based on `docs/oracle/status.md`. Do not invent new tasks.
 
 ## Tone and format
 
-- Verdict first, then detail.
-- Avoid implementation detail unless the owner specifically needs to know it.
-- If you mention a file, say what it is in plain language ("the merge report", "the allocation contract").
-- Use concrete examples over abstract summaries.
+- App-first, not process-first. Talk about what the user can do or see, not about branches, merges, or files unless absolutely necessary.
+- Avoid developer terms like "merge", "branch", "RPC", "migration", "schema", "typecheck", "contract", "API", or "worktree". If you must refer to one, explain what it means in app terms.
+- Use simple sentences. Imagine explaining the session to someone who uses the app but does not build software.
+- Use concrete examples: "when you open a deck", "when you click a card", "when you import a deck".
 - Keep it to one page if possible.
 
 ## Output

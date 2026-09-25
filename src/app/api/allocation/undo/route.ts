@@ -15,12 +15,7 @@ import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
-
-interface UndoBody {
-  deckCardsId: number
-  physicalCopyId: number
-  restoreTo: { deckCardsId: number } | null
-}
+import type { UndoBody } from '@/types/placement-source'
 
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth()
@@ -49,6 +44,7 @@ export async function POST(request: NextRequest) {
     p_copy_id: physicalCopyId,
     p_restore_deck_card_id: restoreTo?.deckCardsId ?? null,
     p_user_id: authResult.id,
+    p_source: 'manual',
   })
 
   if (rpcErr) {

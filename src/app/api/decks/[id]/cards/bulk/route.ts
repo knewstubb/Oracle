@@ -229,6 +229,7 @@ export async function POST(
           deck_card_id: slot.id,
           card_name: slot.card_name,
         })),
+        p_source: 'manual',
       })
 
       if (proxyErr) {

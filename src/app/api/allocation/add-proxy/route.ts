@@ -19,13 +19,14 @@ import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { assertAtomicRpcId, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
+import type { AddProxyBody } from '@/types/placement-source'
 
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
   const userId = authResult.id
 
-  let body: { deckCardsId: number; cardId?: number; cardDefinitionId?: number }
+  let body: AddProxyBody
   try {
     body = await request.json()
   } catch {
@@ -50,6 +51,7 @@ export async function POST(request: NextRequest) {
       p_target_deck_card_id: deckCardsId,
       p_card_id: cardId,
       p_user_id: userId,
+      p_source: 'manual',
     })
 
     if (rpcErr) {

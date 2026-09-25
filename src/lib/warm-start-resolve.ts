@@ -166,7 +166,7 @@ export async function resolveDeckBatch(
     // Attempt batch assignment write for this deck
     if (assignments.length > 0) {
       try {
-        await batchAssignDeck(result.deckId, userId, assignments)
+        await batchAssignDeck(result.deckId, userId, assignments, 'ai')
 
         // On success: update pool state so subsequent decks see these assignments
         for (const assignment of assignments) {

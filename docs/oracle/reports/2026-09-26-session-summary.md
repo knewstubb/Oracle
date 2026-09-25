@@ -1,54 +1,58 @@
 # Session Summary — 2026-09-26
 
-## What happened
+## Headline
 
-We took all the work the agents had finished in their separate workspaces and brought it back into the main Oracle app. This means the app now has the latest fixes and features for managing your card collection and decks.
+We made Oracle's card assignment features safer and more accurate, added clearer tracking for how cards end up in decks, and set up an automatic note-taker for future sessions.
 
 ## What changed in the app and why
 
-### Card assignment suggestions are now safer
-- **What:** The app can suggest which physical card copy should fill a slot in a deck, but it no longer has a hidden "wipe all assignments and start over" function.
-- **Why:** That old function was risky — it could undo a lot of careful placement decisions at once. Removing it protects your deck assignments.
-- **Impact:** When you build or edit a deck, the suggestions you see are read-only until you explicitly choose one. Nothing gets reassigned unless you say so.
+### Deck card suggestions no longer risk wiping your work
+- **What:** The app can no longer run a hidden command that clears every card placement across all active decks at once.
+- **Why:** That command was dangerous. A single mistake could undo a lot of careful assignment work.
+- **Impact:** When you build or edit a deck, suggestions appear as suggestions only. Nothing moves unless you explicitly choose it.
 
-### The Allocation Tab uses live suggestions
-- **What:** The Allocation Tab (where you pick which copy of a card goes into a deck) now uses the live suggestion engine instead of an old frozen table.
-- **Why:** The old table did not reflect your actual collection or current deck assignments.
-- **Impact:** When you open a card's picklist, you will see real options: free copies in storage, copies already used in other decks, or the option to print a proxy. The ranking is clearer and matches your actual cards.
+### The Allocation Tab now shows real suggestions from your collection
+- **What:** The Allocation Tab — the screen where you pick which physical copy of a card fills a deck slot — now pulls live suggestions from your actual collection.
+- **Why:** It was still using an outdated table that did not reflect your real cards or current deck assignments.
+- **Impact:** When you open a card's picklist, you will see free copies in storage, copies already used in other decks, and the option to print a proxy — all ranked in a useful order.
 
-### Collection rollup shows real cards
-- **What:** The collection rollup view no longer uses fake placeholder IDs. It now shows the real IDs of your physical cards.
-- **Why:** Placeholder IDs were temporary stand-ins that did not match real cards, which made the rollup unreliable.
-- **Impact:** When you look at a card in your collection rollup and open its detail panel, the app points to the actual copy you own.
+### The collection rollup points to real cards
+- **What:** The collection rollup view now links to the actual physical cards you own instead of temporary placeholder IDs.
+- **Why:** Placeholder IDs were stand-ins that did not match real cards, so the rollup could be misleading.
+- **Impact:** When you click into a card's detail panel from the rollup, you see the real copy and where it is assigned.
 
-### Every card placement now remembers its source
-- **What:** The app now tracks whether a card was placed in a deck manually by you, suggested by the AI, or brought in from an import.
-- **Why:** This makes it possible to tell at a glance why a particular copy is where it is, and it supports future features like undoing AI suggestions or filtering by how cards were assigned.
-- **Impact:** Deck assignments are now labeled with their source. This is mostly behind the scenes today, but it unlocks smarter advice and clearer history later.
+### Every deck placement remembers how it got there
+- **What:** Each card in a deck is now tagged as manually placed by you, suggested by the AI, or imported from Archidekt or Moxfield.
+- **Why:** Without this label, there is no way to tell later whether a placement was your decision, the app's suggestion, or part of an import.
+- **Impact:** This is mostly behind the scenes for now, but it will power future features like undoing AI suggestions, filtering by source, or showing why a card is where it is.
 
-### AI features were audited
-- **What:** We reviewed what data the AI advisor and brew helper can currently access.
-- **Why:** Before expanding AI features, we need to make sure the AI only sees what it should and returns structured, trustworthy suggestions.
-- **Impact:** No immediate visible change, but the audit identified what needs to be tightened before the AI advisor work begins.
+### AI features were reviewed for safety
+- **What:** We checked what information the AI advisor and brew helper can currently access when helping with decks.
+- **Why:** Before expanding AI features, we want to make sure the AI only sees appropriate data and gives reliable, structured advice.
+- **Impact:** No visible change yet, but the review cleared the path for the AI advisor work planned next.
 
-### Jev research for card recommendations
-- **What:** We looked into a tool called Jev that could help classify card recommendations quickly.
-- **Why:** The AI advisor will eventually suggest cards for your deck, and Jev might make those suggestions faster and cheaper.
-- **Impact:** No visible change yet. This is background research for the advisor feature coming in Milestone 2.
+### Card recommendation research
+- **What:** We looked into a tool called Jev that could speed up card recommendation suggestions.
+- **Why:** The upcoming AI advisor will suggest cards for your decks, and Jev might make those suggestions faster and cheaper to run.
+- **Impact:** No visible change yet. This is preparation for the advisor feature coming in the next phase.
 
-### New Session Scribe agent
-- **What:** We added a new agent whose only job is to write these plain-language session summaries.
-- **Why:** You should not need to decode developer reports to understand what happened in a session.
-- **Impact:** From now on, every session should end with a simple summary like this one, focused on what changed in the app and why it matters to you.
+### Sessions will now get automatic plain-language summaries
+- **What:** We added a Session Scribe whose only job is to write summaries like this one at the end of each session.
+- **Why:** You should not need to read developer reports to understand what happened.
+- **Impact:** Future sessions will end with a short, app-focused summary explaining what changed and why it matters.
 
 ## Decisions made
 
-- Local tool logs and review files should be ignored by git, not saved as part of the project.
-- The old bulk-clear assignment function stays removed.
-- The Moxfield importer keeps its newer, safer flow for now. Placement-source labels for Moxfield imports will be added later.
+- Tool logs and temporary review files should be ignored, not saved as part of the project.
+- The hidden bulk-clear assignment function stays removed.
+- The Moxfield importer will keep its current safer flow for now. Placement-source labels for Moxfield will be added later.
+
+## Blockers or risks
+
+- Nothing is blocked. The Moxfield importer does not yet record placement sources, but that is intentional and can be addressed when the importer is next worked on.
 
 ## What's next
 
-- The next major step is the **M1 exit test**: we will import your real Archidekt collection and decks, then compare the results to Archidekt to confirm counts, deck lists, and card assignments match.
-- After that, work begins on the **AI advisor** in Milestone 2.
+- The next step is the **M1 exit test**: import your real Archidekt collection and decks, then compare the results to Archidekt to confirm card counts, deck lists, and assignments match.
+- After that, work begins on the **AI advisor**.
 - Future sessions will close with a Session Scribe summary.

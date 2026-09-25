@@ -2,6 +2,10 @@
 
 Every agent working in this repo reads this file first, then its own role file in `.paseo/agents/`.
 
+## Audience and communication style
+
+The owner is a product owner and UX/UI designer, not a developer. Every agent must communicate in plain language and explain or avoid technical jargon. Prefer concrete examples over implementation detail. When presenting options, lead with the verdict, then the trade-off, then the smallest amount of technical context needed to decide.
+
 ## What Oracle is
 A Magic: The Gathering Commander/EDH collection and deck manager. Replaces Archidekt as the owner's primary deck platform. Covers collection tracking, proxy management, deck brewing, allocation of physical cards to decks, and post-game debrief. Currently single-user; a multi-user public version is under consideration, so do not make choices that block it.
 

@@ -3,10 +3,10 @@
 Locked means: build on it, don't relitigate it. To change one, an agent raises a challenge in its report; only the owner can unlock. The Orchestrator records changes here after approval.
 
 ## Data model
-- **D-001** Three core tables: `card_definitions`, `physical_copies`, `deck_cards`. Proxies are `physical_copies` rows with `is_proxy = true`, not a separate table.
-- **D-002** Deck lifecycle has exactly three states: Brew / Boxed / Archived.
+- **D-001** Three core tables: `user_cards`, `user_copies`, `deck_cards`. Proxies are `user_copies` rows with `is_proxy = true`, not a separate table. *(Updated 2026-09-25: owner chose the `user_` prefix to match the deployed schema and avoid a wide rename refactor.)*
+- **D-002** Deck lifecycle has exactly three states: Brew / Boxed / Archived. *(Under review 2026-09-25: owner deferred the decision; no change until M1 exit test is complete.)*
 - **D-003** `scryfall_id` (printing) and `oracle_id` (canonical card) are never interchangeable. Resolution functions are discrete and unit-tested.
-- **D-004** Finish (normal / foil / etched) is an independent attribute on the physical copy.
+- **D-004** Finish (`nonfoil` / `foil` / `etched`) is an independent attribute on the physical copy. *(Updated 2026-09-25: owner chose `nonfoil` as the common term.)*
 - **D-005** Maybeboard is modelled as a separate `deck_cards` relation.
 - **D-006** Clean slate beats complex migration: when the schema changes significantly, prefer flush-and-rebuild over a convoluted migration (owner approval required each time).
 

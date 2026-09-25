@@ -1,0 +1,7 @@
+{
+  "scripts": {
+    "setup": {
+      "command": "npm ci --ignore-scripts --no-audit --no-fund"
+    }
+  }
+}

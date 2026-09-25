@@ -2,11 +2,11 @@
 
 ## Headline
 
-We made Oracle's card assignment features safer and more accurate, added clearer tracking for how cards end up in decks, and set up an automatic note-taker for future sessions.
+We merged all finished agent work into Oracle, tested it against the owner's real Archidekt collection, locked four product decisions, and set up tools so future sessions close with a simple summary.
 
 ## What changed in the app and why
 
-### Deck card suggestions no longer risk wiping your work
+### Deck card suggestions are now safer
 - **What:** The app can no longer run a hidden command that clears every card placement across all active decks at once.
 - **Why:** That command was dangerous. A single mistake could undo a lot of careful assignment work.
 - **Impact:** When you build or edit a deck, suggestions appear as suggestions only. Nothing moves unless you explicitly choose it.
@@ -36,23 +36,27 @@ We made Oracle's card assignment features safer and more accurate, added clearer
 - **Why:** The upcoming AI advisor will suggest cards for your decks, and Jev might make those suggestions faster and cheaper to run.
 - **Impact:** No visible change yet. This is preparation for the advisor feature coming in the next phase.
 
-### Sessions will now get automatic plain-language summaries
-- **What:** We added a Session Scribe whose only job is to write summaries like this one at the end of each session.
-- **Why:** You should not need to read developer reports to understand what happened.
-- **Impact:** Future sessions will end with a short, app-focused summary explaining what changed and why it matters.
+### The app was tested against real data
+- **What:** We imported the owner's real Archidekt collection and all 41 decks into Oracle and compared them card by card.
+- **Why:** Milestone 1 is about trustworthy data. Before moving on, we needed to know how Oracle compares to the source of truth.
+- **Impact:** We now know collection counts and main-deck lists match perfectly. We also know exactly what still needs work: maybeboard/sideboard cards are missing, and the importer needs to respect exact card printings.
 
 ## Decisions made
 
 - Tool logs and temporary review files should be ignored, not saved as part of the project.
-- The hidden bulk-clear assignment function stays removed.
-- The Moxfield importer will keep its current safer flow for now. Placement-source labels for Moxfield will be added later.
+- The old bulk-clear assignment function stays removed.
+- **D-018:** Archidekt maybeboard and sideboard cards will both import into Oracle's maybeboard relation.
+- **D-019:** Archidekt proxy labels will not be automatically honoured during import.
+- **D-020:** Import will not run an automatic allocation pass; unassigned slots stay planned.
+- **D-021:** Copy assignments must match the exact printing. Instance-level accuracy is a core principle.
 
 ## Blockers or risks
 
-- Nothing is blocked. The Moxfield importer does not yet record placement sources, but that is intentional and can be addressed when the importer is next worked on.
+- Nothing is blocked. Two small importer fixes are queued but do not prevent the app from being used.
 
 ## What's next
 
-- The next step is the **M1 exit test**: import your real Archidekt collection and decks, then compare the results to Archidekt to confirm card counts, deck lists, and assignments match.
-- After that, work begins on the **AI advisor**.
-- Future sessions will close with a Session Scribe summary.
+- **T-20:** Update the deck importer to bring maybeboard and sideboard cards into Oracle.
+- **T-21:** Update the deck importer to assign copies only when the exact printing is owned.
+- After those fixes, Milestone 1 can be formally exited and work begins on the **AI advisor** in Milestone 2.
+- Future sessions can be summarized at any time by typing `/scribe`.

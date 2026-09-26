@@ -32,7 +32,7 @@ function makeCard(overrides: Partial<NormalizedCard> = {}): NormalizedCard {
   }
 }
 
-function makeDeck(cards: NormalizedCard[]): NormalizedDeck {
+function makeDeck(cards: NormalizedCard[], maybeboard: NormalizedCard[] = []): NormalizedDeck {
   return {
     name: 'Built Test Deck',
     platform: 'archidekt',
@@ -40,6 +40,7 @@ function makeDeck(cards: NormalizedCard[]): NormalizedDeck {
     sourceUrl: 'https://archidekt.com/decks/99999',
     commander: null,
     cards,
+    maybeboard,
     cardCount: cards.reduce((sum, card) => sum + card.quantity, 0),
     colourIdentity: '',
   }
@@ -118,5 +119,30 @@ describe('Built deck import reconciliation', () => {
       }),
     ])
     expect(result.allocationSummary.errors[0]).toContain('Other Deck')
+  })
+
+  it('passes maybeboard cards as maybeboard rows and leaves main-deck rows unchanged', async () => {
+    const mainCard = makeCard()
+    const maybeCard = makeCard({
+      cardName: 'Gilded Goose',
+      scryfallId: 'scry-goose',
+      oracleId: 'oracle-goose',
+      typeLine: 'Creature — Bird',
+      sourceCategories: ['Maybeboard'],
+    })
+
+    await importDeckBuilt(makeDeck([mainCard], [maybeCard]), TEST_USER_ID)
+
+    expect(mockRpc).toHaveBeenCalledTimes(1)
+    const payload = mockRpc.mock.calls[0][1].p_rows as Array<Record<string, unknown>>
+
+    const mainRow = payload.find((row) => row.card_name === 'Sol Ring')!
+    expect(mainRow.is_maybeboard).toBe(false)
+    expect(mainRow.is_commander).toBe(false)
+
+    const maybeRow = payload.find((row) => row.card_name === 'Gilded Goose')!
+    expect(maybeRow.is_maybeboard).toBe(true)
+    expect(maybeRow.categories).toBe('["Maybeboard"]')
+    expect(maybeRow.is_generic_land).toBe(false)
   })
 })

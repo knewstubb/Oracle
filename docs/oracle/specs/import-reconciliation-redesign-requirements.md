@@ -37,24 +37,27 @@ Each tab shows a count of unresolved conflicts. A conflict is counted per printi
 
 ### 3. Decks tab
 
-- Only decks with conflicts are shown, and only those decks can be expanded.
+- Only decks with conflicts are shown. Decks with zero conflicts are hidden entirely.
 - Expanding a deck shows only its conflicted cards.
 - Each conflicted card shows the deck it belongs to and supports the same Planned / Sleeved / Proxy buttons and alternate-printing dropdown as the owned/unowned tabs.
+- Alternate printing selection applies to that one deck-card instance.
 
 ### 4. Owned cards: state model
 
-For each owned printing in conflict, the user selects a state that applies to all instances of that printing across decks:
+For each owned printing in conflict, the Owned tab groups all instances of that printing across decks into one row. Within that row, each deck instance has its own controls.
 
-- **Planned** (default for every printing) — the instances stay as planned slots. They are not assigned to physical copies.
-- **Sleeved** — the instances are assigned to physical copies in the user's collection. This can be originals or existing proxies.
-- **Proxy** — proxy copies are used. If free proxy copies already exist, they are used. Otherwise new proxy copies are added to the collection.
+For each **instance**, the user selects a state:
+
+- **Planned** (default for every instance) — the instance stays as a planned slot. It is not assigned to a physical copy.
+- **Sleeved** — the instance is assigned to a physical copy in the user's collection. This can be an original or an existing proxy.
+- **Proxy** — a proxy copy is used. If a free proxy copy already exists, it is used. Otherwise a new proxy copy is added to the collection.
 
 Controls:
-- Use **buttons** for Planned / Sleeved / Proxy, not a dropdown.
-- A separate **dropdown** appears only when an alternate printing is available.
-- A user cannot sleeve more copies than they own. The Sleeved option becomes disabled once all owned copies are allocated.
-- If one deck sleeves a printing, other decks with instances of that printing show as **Planned (used elsewhere)**.
-- If a printing is not manually sleeved, it remains Planned.
+- Use **buttons** for Planned / Sleeved / Proxy per instance, not a dropdown.
+- A separate **dropdown** appears only when an alternate printing is available for that instance.
+- A user cannot sleeve more copies than they own. The Sleeved option becomes disabled for other instances once all owned copies are allocated.
+- If one instance sleeves a printing, other instances of that printing show as **Planned (used elsewhere)**.
+- If an instance is not manually sleeved, it remains Planned.
 - **Already claimed** state is shown in amber.
 
 ### 5. Unowned cards
@@ -72,11 +75,11 @@ Each printing row shows the **printing identifier** (set code, collector number,
 
 ### 7. Alternate printing selector
 
-If the user owns a different printing of the same card that is available, show a "Use alternate printing" dropdown. Selecting an alternate printing:
+If the user owns a different printing of the same card that is available, show a "Use alternate printing" dropdown next to the relevant instance. Selecting an alternate printing:
 
-- Applies per printing.
-- Removes the printing from conflicts involving the original printing.
-- May create a new conflict if the selected alternate printing is already sleeved in another deck. In that case the UI warns: "This card is already sleeved in another deck." The warning does not block the action.
+- Applies per instance (one deck-card).
+- Removes that instance from conflicts involving the original printing.
+- If the selected alternate printing is already sleeved in another deck, the UI shows it as an option, not a warning. The action is not blocked.
 
 Alternate printing is available for owned cards in all three tabs. Unowned cards can only select an existing proxy.
 
@@ -95,7 +98,7 @@ Alternate printing is available for owned cards in all three tabs. Unowned cards
 - Wishlist deck relationship: **tags** (can be added later).
 - Resolved rows: **stay inline** with a green-tinted background.
 - Already-claimed indicator: **amber**.
-- Alternate-printing conflict: **warn only**, do not block.
+- Alternate-printing conflict: **not a warning**, just an option. Non-blocking.
 
 ## Open questions for the designer
 

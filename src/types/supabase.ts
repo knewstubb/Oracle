@@ -934,8 +934,10 @@ export type Database = {
           id: number
           printing_id: string | null
           resolution: string
+          selected_printing_id: string | null
           settled_at: string | null
           user_id: string
+          wishlist: boolean
         }
         Insert: {
           batch_id?: string | null
@@ -946,8 +948,10 @@ export type Database = {
           id?: never
           printing_id?: string | null
           resolution?: string
+          selected_printing_id?: string | null
           settled_at?: string | null
           user_id: string
+          wishlist?: boolean
         }
         Update: {
           batch_id?: string | null
@@ -958,8 +962,10 @@ export type Database = {
           id?: never
           printing_id?: string | null
           resolution?: string
+          selected_printing_id?: string | null
           settled_at?: string | null
           user_id?: string
+          wishlist?: boolean
         }
         Relationships: [
           {
@@ -2351,6 +2357,10 @@ export type Database = {
       get_deck_conflict_counts: { Args: { p_user_id: string }; Returns: Json }
       get_import_allocations: { Args: { p_batch_id?: string; p_user_id: string }; Returns: Json }
       get_import_conflicts: { Args: { p_user_id: string }; Returns: Json }
+      get_import_reconciliation: {
+        Args: { p_batch_id?: string; p_include_resolved?: boolean; p_user_id: string }
+        Returns: Json
+      }
       get_next_deck_version_number: {
         Args: { p_deck_id: number }
         Returns: number
@@ -2440,8 +2450,20 @@ export type Database = {
         Args: { p_claim_id: number; p_user_id: string }
         Returns: Json
       }
+      set_import_claim_printing: {
+        Args: { p_claim_id: number; p_printing_id?: string; p_user_id: string }
+        Returns: Json
+      }
       set_import_claim_resolution: {
         Args: { p_claim_id: number; p_resolution: string; p_user_id: string }
+        Returns: Json
+      }
+      set_import_claim_state: {
+        Args: { p_claim_id: number; p_state: string; p_user_id: string }
+        Returns: Json
+      }
+      set_import_claim_wishlist: {
+        Args: { p_claim_id: number; p_user_id: string; p_wishlisted: boolean }
         Returns: Json
       }
       resolve_import_conflict_release: {

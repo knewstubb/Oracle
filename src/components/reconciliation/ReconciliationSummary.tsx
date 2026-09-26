@@ -79,7 +79,7 @@ function EmptyState({ onFinish }: { onFinish: () => void }) {
       <p className="max-w-sm text-[length:var(--fs-sm)] text-[var(--text-secondary)]">
         Every slot fits within your collection or has been marked Proxy/Planned.
       </p>
-      <Button onClick={onFinish}>Go to Decks</Button>
+      <Button onClick={onFinish}>Allocate Cards</Button>
     </div>
   )
 }
@@ -311,7 +311,7 @@ export function ReconciliationSummary({
         <h1 className="text-[length:var(--fs-xl)] font-semibold">Reconcile imported decks</h1>
         <p className="mt-1 text-[length:var(--fs-md)] text-muted-foreground">
           Choose how each card slot is filled. Nothing is final until you press{' '}
-          <strong>Go to Decks</strong>.
+          <strong>Allocate Cards</strong>.
         </p>
       </div>
 
@@ -417,8 +417,8 @@ export function ReconciliationSummary({
             {finishing
               ? 'Applying…'
               : unresolvedTotal > 0
-                ? `Go to Decks (${unresolvedTotal})`
-                : 'Go to Decks'}
+                ? `Allocate Cards (${unresolvedTotal})`
+                : 'Allocate Cards'}
           </Button>
         </div>
       </div>

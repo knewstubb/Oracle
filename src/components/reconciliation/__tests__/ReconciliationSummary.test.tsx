@@ -47,6 +47,7 @@ const mockView: ReconciliationView = {
           wishlisted: true,
           canSleeve: true,
           alreadyClaimed: false,
+          resolved: true,
           claimedBy: [],
         },
       ],

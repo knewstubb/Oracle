@@ -1,7 +1,6 @@
--- DRAFT migration — pending Architect sign-off and owner approval. Do not apply
--- to production until this header is removed.
+-- Migration applied 2026-09-27.
 --
--- Task T-22: import reconciliation redesign.
+-- Task T-22/T-24: import reconciliation redesign.
 -- Contract: docs/oracle/contracts/import-reconciliation-redesign.md
 -- UX spec:  docs/oracle/specs/import-reconciliation-redesign.md
 --
@@ -241,6 +240,26 @@ BEGIN
     GROUP BY card_name, effective_printing_id
   ),
 
+  -- Room on a printing means available_supply > sleeved_intent. A planned
+  -- instance is unresolved while ANY owned printing of the card still has room
+  -- (the user could sleeve or switch printing); it is resolved only when every
+  -- owned printing has lost the allocation race (contract section 5).
+  printing_room AS (
+    SELECT ps.card_name,
+           ps.printing_id,
+           (ps.available_supply > COALESCE(pd.sleeved_intent, 0)) AS has_room
+    FROM printing_supply ps
+    LEFT JOIN printing_demand pd ON pd.card_name = ps.card_name
+                                AND pd.printing_id = ps.printing_id
+  ),
+  instance_room_anywhere AS (
+    SELECT s.claim_id,
+           COALESCE(bool_or(pr.has_room), false) AS has_room_anywhere
+    FROM scope s
+    LEFT JOIN printing_room pr ON pr.card_name = s.card_name AND pr.has_room
+    GROUP BY s.claim_id
+  ),
+
   instances AS (
     SELECT s.*,
            d.name                                AS deck_name,
@@ -268,8 +287,17 @@ BEGIN
              ELSE i.eff_sleeved_intent < i.eff_available
            END AS can_sleeve,
            (i.resolution = 'sleeved' AND i.eff_sleeved_intent > i.eff_available)
-             AS sleeve_unsatisfiable
+             AS sleeve_unsatisfiable,
+           -- Slot-level resolved per contract section 5.
+           CASE
+             WHEN i.resolution = 'proxy' THEN true
+             WHEN i.resolution = 'sleeved' THEN
+               i.eff_sleeved_intent <= i.eff_available
+             WHEN i.resolution = 'planned' THEN
+               NOT COALESCE(ira.has_room_anywhere, false)
+           END AS instance_resolved
     FROM instances i
+    LEFT JOIN instance_room_anywhere ira ON ira.claim_id = i.claim_id
   ),
   instance_display AS (
     SELECT f.*,
@@ -287,10 +315,10 @@ BEGIN
   row_progress AS (
     SELECT card_name,
            imported_printing_id,
-           count(*)::int                                        AS instance_count,
-           count(*) FILTER (WHERE resolution = 'planned')::int   AS planned_count,
-           bool_or(sleeve_unsatisfiable)                         AS has_unsatisfiable_sleeve,
-           bool_or(already_claimed)                              AS has_already_claimed
+           count(*)::int                              AS instance_count,
+           bool_and(instance_resolved)                AS row_resolved,
+           bool_or(sleeve_unsatisfiable)              AS has_unsatisfiable_sleeve,
+           bool_or(already_claimed)                   AS has_already_claimed
     FROM instance_display
     GROUP BY card_name, imported_printing_id
   ),
@@ -326,11 +354,9 @@ BEGIN
   row_flags AS (
     SELECT rm.*,
            rpg.instance_count,
-           rpg.planned_count,
-           -- Resolved: nothing still Planned, and no sleeved instance is
-           -- unsatisfiable. Proxy always resolves; it consumes no real supply.
-           (rpg.planned_count = 0
-            AND NOT COALESCE(rpg.has_unsatisfiable_sleeve, false)) AS resolved,
+           -- Printing-level resolved: every instance in the row is slot-level
+           -- resolved (contract section 5).
+           COALESCE(rpg.row_resolved, true)           AS resolved,
            (COALESCE(rpg.has_unsatisfiable_sleeve, false)
             OR COALESCE(rpg.has_already_claimed, false))           AS over_allocated,
            CASE WHEN rm.owned_any = 0 THEN 'unowned' ELSE 'owned' END AS ownership,
@@ -374,11 +400,12 @@ BEGIN
                         'state',               f.resolution,
                         'selectedPrintingId',  f.selected_printing_id,
                         'effectivePrintingId', f.effective_printing_id,
-                        'wishlisted',          f.wishlist,
-                        'canSleeve',           f.can_sleeve,
-                        'alreadyClaimed',      f.already_claimed,
-                        'claimedBy',           f.eff_claimed_by
-                      ) ORDER BY f.deck_name, f.claim_id), '[]'::jsonb)
+                         'wishlisted',          f.wishlist,
+                         'canSleeve',           f.can_sleeve,
+                         'alreadyClaimed',      f.already_claimed,
+                         'resolved',            f.instance_resolved,
+                         'claimedBy',           f.eff_claimed_by
+                       ) ORDER BY f.deck_name, f.claim_id), '[]'::jsonb)
                FROM instance_display f
                WHERE f.card_name = rf.card_name
                  AND f.imported_printing_id = rf.imported_printing_id
@@ -1222,11 +1249,12 @@ $function$;
 -- report zero conflicts for every deck immediately after import — a silently
 -- empty badge.
 --
--- New definition: a deck's badge counts distinct (card_name, printing_id) pairs
--- where the deck has a claim, open or settled, whose deck_cards row still has
--- copy_id IS NULL and whose state is planned or sleeved. That reads as "import
--- slots this deck has not filled yet", which is correct under the new default
--- and easier to explain than the supply-maths version.
+-- New definition (contract section 7.6): a deck's badge counts distinct
+-- (card_name, printing_id) pairs where the deck has a claim, open or settled,
+-- whose deck_cards row still has copy_id IS NULL, and where at least one of
+-- the deck's instances for that printing is unresolved per the same slot-level
+-- resolved predicate used by get_import_reconciliation. That reads as "import
+-- slots this deck can still do something about".
 -- ===========================================================================
 
 CREATE OR REPLACE FUNCTION public.get_deck_conflict_counts(p_user_id uuid)
@@ -1238,22 +1266,102 @@ AS $function$
 DECLARE
   v_result jsonb;
 BEGIN
-  WITH unresolved AS (
-    SELECT c.deck_id,
+  WITH scope AS (
+    SELECT c.id                                                           AS claim_id,
+           c.deck_id,
            c.card_name,
-           COALESCE(NULLIF(btrim(c.selected_printing_id), ''), c.printing_id, '') AS printing_id
+           c.printing_id                                                  AS imported_printing_id,
+           COALESCE(NULLIF(btrim(c.selected_printing_id), ''), c.printing_id)
+                                                                          AS effective_printing_id,
+           c.resolution
     FROM public.import_sleeve_claims c
     JOIN public.deck_cards dc ON dc.id = c.deck_cards_id
     WHERE c.user_id = p_user_id
       AND dc.user_id = p_user_id
       AND dc.copy_id IS NULL
-      AND c.resolution IN ('planned', 'sleeved')
+  ),
+  scope_cards AS (
+    SELECT DISTINCT card_name FROM scope
+  ),
+  real_copies AS (
+    SELECT ucard.card_name,
+           uc.printing_id,
+           uc.id          AS copy_id,
+           held.id        AS held_slot_id
+    FROM public.user_copies uc
+    JOIN public.user_cards ucard ON ucard.id = uc.card_id
+    JOIN scope_cards sc          ON sc.card_name = ucard.card_name
+    LEFT JOIN public.deck_cards held ON held.copy_id = uc.id
+    WHERE uc.user_id = p_user_id
+      AND uc.is_proxy = false
+      AND COALESCE(uc.missing, false) = false
+  ),
+  printing_supply AS (
+    SELECT card_name,
+           printing_id,
+           count(*) FILTER (WHERE held_slot_id IS NULL)::int AS available_supply
+    FROM real_copies
+    WHERE printing_id IS NOT NULL
+    GROUP BY card_name, printing_id
+  ),
+  printing_demand AS (
+    SELECT card_name,
+           effective_printing_id AS printing_id,
+           count(*) FILTER (WHERE resolution = 'sleeved')::int AS sleeved_intent
+    FROM scope
+    GROUP BY card_name, effective_printing_id
+  ),
+  printing_room AS (
+    SELECT ps.card_name,
+           ps.printing_id,
+           (ps.available_supply > COALESCE(pd.sleeved_intent, 0)) AS has_room
+    FROM printing_supply ps
+    LEFT JOIN printing_demand pd ON pd.card_name = ps.card_name
+                                AND pd.printing_id = ps.printing_id
+  ),
+  instance_demand AS (
+    SELECT s.claim_id,
+           COALESCE(pd.sleeved_intent, 0) AS eff_sleeved_intent,
+           ps.available_supply            AS eff_available
+    FROM scope s
+    LEFT JOIN printing_demand pd ON pd.card_name = s.card_name
+                                AND pd.printing_id = s.effective_printing_id
+    LEFT JOIN printing_supply ps ON ps.card_name = s.card_name
+                                AND ps.printing_id = s.effective_printing_id
+  ),
+  instance_room_anywhere AS (
+    SELECT s.claim_id,
+           COALESCE(bool_or(pr.has_room), false) AS has_room_anywhere
+    FROM scope s
+    LEFT JOIN printing_room pr ON pr.card_name = s.card_name AND pr.has_room
+    GROUP BY s.claim_id
+  ),
+  instance_resolved AS (
+    SELECT s.claim_id,
+           s.deck_id,
+           s.card_name,
+           s.imported_printing_id,
+           CASE
+             WHEN s.resolution = 'proxy' THEN true
+             WHEN s.resolution = 'sleeved' THEN
+               id.eff_sleeved_intent <= id.eff_available
+             WHEN s.resolution = 'planned' THEN
+               NOT COALESCE(ira.has_room_anywhere, false)
+           END AS resolved
+    FROM scope s
+    JOIN instance_demand id ON id.claim_id = s.claim_id
+    LEFT JOIN instance_room_anywhere ira ON ira.claim_id = s.claim_id
+  ),
+  unresolved_pairs AS (
+    SELECT DISTINCT deck_id, card_name, imported_printing_id
+    FROM instance_resolved
+    WHERE NOT resolved
   ),
   per_deck AS (
     SELECT deck_id,
-           count(DISTINCT card_name || '|' || printing_id)::int AS conflict_count,
-           jsonb_agg(DISTINCT card_name ORDER BY card_name)     AS cards
-    FROM unresolved
+           count(DISTINCT card_name || '|' || imported_printing_id)::int AS conflict_count,
+           jsonb_agg(DISTINCT card_name ORDER BY card_name)              AS cards
+    FROM unresolved_pairs
     GROUP BY deck_id
   )
   SELECT COALESCE(jsonb_agg(jsonb_build_object(

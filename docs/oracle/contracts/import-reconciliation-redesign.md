@@ -2,7 +2,9 @@
 
 ## Status
 
-DRAFT — pending Orchestrator review and owner approval.
+APPROVED — owner decisions incorporated (Q3/Q4 closed, button renamed to
+"Allocate Cards", §5 resolved semantics updated). Ready for Backend
+implementation.
 
 Defines the data model, API surface, persistence behaviour and correctness
 properties needed to implement the UX spec in
@@ -29,7 +31,7 @@ substance of this contract:
 | 3 | Claims default to `resolution = 'sleeve'`, and the DB value set is `('sleeve','release','proxy')` [Confirmed: `supabase/migrations/20260920140000_import_claim_resolution_columns.sql`] | The spec's default is **Planned** for every instance, and `release` no longer means "release" — it means "stays planned". Keeping the old words guarantees permanent mistranslation between spec, UI and DB. |
 
 Everything else — the claims table, batch scoping, `settled_at` as the durable
-record, a single materialisation pass on "Go to Decks" — is kept.
+record, a single materialisation pass on "Allocate Cards" — is kept.
 
 ---
 
@@ -268,7 +270,7 @@ interface ConflictPrintingRow {
   printingMismatch: boolean
   /** Any instance wants a real copy it cannot get. Amber row warning. */
   overAllocated: boolean
-  /** Every instance has a terminal decision that fits supply. Green row. */
+  /** Every instance in this row is slot-level resolved (§5). Green row. */
   resolved: boolean
 
   instances: ConflictInstance[]
@@ -293,7 +295,13 @@ interface ConflictInstance {
   canSleeve: boolean
   /** true ⇒ render the amber "Already claimed" descriptor (spec §8.1). */
   alreadyClaimed: boolean
-  /** Decks holding the real copies of THIS instance's effective printing. */
+  /**
+   * true when this slot has no remaining actionable option (§5).
+   * `sleeved` with supply, `proxy`, and `planned` slots that have lost the
+   * allocation race on every printing option are all resolved.
+   */
+  resolved: boolean
+  /** Decks holding the real copies of this instance's effective printing (spec §7). */
   claimedBy: DeckRef[]
 }
 
@@ -422,18 +430,33 @@ This answers the handoff's open question directly.
 in three decks with the same printing is one count. The same card name in two
 different printings is two counts (spec §6).
 
-**Resolved.** A conflict printing is `resolved` when both hold:
+**Slot-level resolved.** A deck's slot (one instance) is `resolved` when any of
+the following hold:
 
-1. no instance is still `planned`; and
-2. no `sleeved` instance has `canSleeve === false`.
+1. its state is `sleeved` and `canSleeve === true` for its effective printing;
+2. its state is `proxy`; or
+3. its state is `planned` and **no printing option still has room**.
 
-`proxy` always satisfies (1) and never consumes real supply, so a printing can
-resolve entirely through proxies.
+"Has room" for a printing `p` means `availableSupply(p) > sleevedIntent(p)`
+after ignoring this instance's own demand — a planned instance consumes none,
+and a sleeved instance switching away would free its current printing. The
+printing options to consider are the imported printing plus every
+`alternatePrinting` the user owns. Losing the allocation race to other decks
+therefore counts as resolved, not unresolved.
 
-**Unresolved** is the negation. `Planned` counts as unresolved: it is the
-default, so the badge is a to-do list that only empties when the user has
-touched every instance. This is what makes "Go to Decks ({n} unresolved)" and
-"All imported cards are reconciled." meaningful (spec §20, §15).
+A slot is only genuinely unresolved while an action is still possible.
+
+**Printing-level resolved.** A conflict printing is `resolved` when **every**
+instance in the row is slot-level resolved. This is the row's `resolved` flag
+and the predicate that turns a row green.
+
+**Unresolved** is the negation at the printing level: a row is unresolved if
+any of its instances is unresolved. `planned` no longer always counts as
+unresolved — a planned slot whose imported printing and every alternate are out
+of room is resolved because nothing can be done for it. This makes the badge a
+"still actionable" count rather than a "touched every row" count, and it is
+what makes "Allocate Cards ({n} unresolved)" and "All imported cards are
+reconciled." meaningful (spec §20, §15).
 
 **Badges.**
 
@@ -472,9 +495,12 @@ therefore identical across tabs by construction (spec §6).
 2. Every `PATCH` returns the full view with `includeResolved=true`.
 
 The client replaces its list from each mutation response, so a row it just
-resolved stays in place, turns green, and remains editable. A full reload calls
-`GET` with the default and the resolved rows are gone. No client-side bookkeeping
-and no "recently resolved" set to keep in sync.
+resolved stays in place, turns green, and remains editable. Because the response
+contains the full batch view, a write against one deck also updates every other
+deck's rows for the same card in the same render — including decks the owner is
+not currently viewing. A full reload calls `GET` with the default and the
+resolved rows are gone. No client-side bookkeeping and no "recently resolved"
+set to keep in sync.
 
 `includeResolved=true` on `GET` exists for tests and for a future "show
 completed" affordance. The Frontend agent should not use it on initial load.
@@ -547,19 +573,21 @@ Materialised claims are deleted (their outcome now lives on `deck_cards`).
 Unmaterialised claims — `planned`, and `sleeved` instances that could not be
 satisfied — keep their row and get `settled_at` stamped. That is the durable
 record behind the cross-page conflict badge and means pressing
-"Go to Decks (12 unresolved)" does not silently erase 12 decisions.
+"Allocate Cards (12 unresolved)" does not silently erase 12 decisions.
 
 ### 7.6 `get_deck_conflict_counts`
 
-Redefined to match. A deck's badge counts distinct
-`(card_name, printing_id)` pairs where the deck has a claim, open or settled,
-whose `deck_cards.copy_id IS NULL` and whose state is `planned` or `sleeved`.
+Redefined to match the slot-level resolved predicate. A deck's badge counts
+distinct `(card_name, printing_id)` pairs where the deck has a claim, open or
+settled, whose `deck_cards.copy_id IS NULL`, and where at least one of the
+deck's instances for that printing is unresolved per §5.
 
 The old definition recomputed card-level supply maths account-wide and only
 counted `resolution = 'sleeve'`. With `planned` as the default that would report
 zero conflicts for every deck immediately after import. The new definition
-reads "import slots this deck still has not filled", which is both correct under
-the new default and easier to explain.
+reads "import slots this deck can still do something about", which is both
+correct under the new default and easier to explain. A planned slot whose every
+printing option is exhausted is resolved and drops from the badge.
 
 ---
 
@@ -645,10 +673,11 @@ did succeed.
 
 | Item | Trigger to bring it back into scope |
 |------|-------------------------------------|
-| Conflict printings ignore finish; a foil copy can satisfy a nonfoil request. | Import captures a requested finish, or the owner reports a foil/nonfoil mis-assignment. |
-| Alternate-printing options group by printing, so `condition` cannot be shown per option (spec §12 asks for it). | Owner wants condition-accurate selection ⇒ move to copy-level selection. |
+| Conflict printings ignore finish; a foil copy can satisfy a nonfoil request. | Import captures a requested finish, or the owner reports a foil/nonfoil mis-assignment. See §15 for why finish is not part of the printing identifier. |
+| Alternate-printing options group by printing, so `condition` cannot be shown per option (spec §12 asks for it). | Owner wants condition-accurate selection ⇒ move to copy-level selection. See §15 for why condition, like finish, is a copy-level attribute. |
 | Wishlist toggles are stored on import claims and are deleted with them when a deck is re-imported. | The standalone wishlist feature is built. |
 | `get_import_allocations`, `set_import_claim_resolution`, `resolve_import_conflict_*` and `/api/onboarding/conflicts*` remain as dead paths after the new UI ships. | New UI verified in use ⇒ retire (§11). |
+| Persistent "who is contesting the same cards" view. | Build a dedicated view that groups reconciliation rows by card/oracle and lists the decks competing for copies, reusing the existing `GET /api/onboarding/reconciliation?includeResolved=true` path already built for this. |
 | Import RPCs remain `SECURITY DEFINER` with app-level ownership checks rather than RLS. | TD-037 RLS remediation; multi-user. |
 
 ---
@@ -810,14 +839,14 @@ Those must run against Postgres.
 
 ---
 
-## 13. Open questions for the owner
+## 13. Owner questions — status
 
-| # | Question | Impact if unanswered |
-|---|----------|----------------------|
-| 1 | Should slots that import already sleeved (exact printing, free copy) appear on the reconciliation screen at all? This contract says no (§2.5). | Cosmetic. If yes, the Designer must spec a read-only instance treatment; the data is already in the payload. |
-| 2 | Spec §12 asks for `condition` in each alternate-printing option. Selection is per printing, so condition cannot be shown truthfully when several copies of a printing exist. Drop condition, or move to copy-level selection in a later increment? | Contract ships without condition in the option list. Logged as debt. |
-| 3 | Is "Planned counts as unresolved" correct? It makes the badge a to-do list that only empties when every instance has been touched (§5). | Changes every badge number. Confirm before the UI is built. |
-| 4 | After "Go to Decks", should `planned` instances keep appearing in the deck-list conflict badge? This contract says yes (§7.6). | Changes what the badge means across the app. |
+| # | Status | Question | Answer / reason |
+|---|--------|----------|-----------------|
+| 1 | **Closed** | Should slots that import already sleeved (exact printing, free copy) appear on the reconciliation screen at all? | **Stay hidden.** Conflict-free imports that were already sleeved during import do not appear as editable rows. They still count as supply consumers and surface as `claimedBy` deck tags (§2.5). If the owner later wants them visible, the Designer must spec a read-only treatment. |
+| 2 | **Closed** | Spec §12 asks for `condition` in each alternate-printing option. Selection is per printing, so condition cannot be shown truthfully when several copies of a printing exist. Drop condition, or move to copy-level selection in a later increment? | **Drop condition from the printing-level option list.** Scryfall treats a printing (set code + collector number + id) as finish-agnostic; `finishes: string[]` lists every finish a printing exists in, and foil/nonfoil share one id (see §15). `condition` is a copy-level attribute, exactly like `finish` under D-004. It can surface later if selection moves to copy-level granularity; until then it is logged as debt. |
+| 3 | **Closed** | Is "Planned counts as unresolved" correct? | **No — not automatically.** A `planned` slot is unresolved only while at least one printing option (imported or alternate) still has room. A `planned` slot that has lost the allocation race on every option is resolved. This makes the badge count "still actionable" printings, not "untouched" rows (§5). |
+| 4 | **Closed** | After "Allocate Cards", should `planned` instances keep appearing in the deck-list conflict badge? | **Yes, while they are still actionable.** The badge uses the same slot-level resolved predicate as the reconciliation view (§7.6). A `planned` slot whose every printing option is exhausted is resolved and drops from the badge. |
 
 ## 14. Challenges to locked decisions
 
@@ -825,3 +854,37 @@ None. The contract builds on D-001, D-003, D-004, D-005, D-018–D-024 and
 `placement-source.md` without reopening any of them. §7.2 and §7.4 extend
 T-21's D-021 enforcement from `reconcile_built_deck` into
 `finalize_import_claims`, where it was missed.
+
+---
+
+## 15. Scryfall printing / finish reference
+
+This contract treats `finish` as an independent copy-level attribute for the
+same reason D-004 does: Scryfall's data model separates *printing identity*
+from *finish*.
+
+- A **printing** is identified by `scryfall_id` (or equivalently by set code +
+  collector number). That identifier is finish-agnostic: the same id can exist
+  in `nonfoil`, `foil`, and `etched` finishes, exposed as a `finishes: string[]`
+  array. Foil and nonfoil versions of the same set/collector-number share one
+  id.
+- **Finish** is therefore not encoded in the printing id. It must be stored as
+  a separate field (e.g. `user_copies.finish`) and matched alongside the id,
+  never derived from the id. Use Scryfall search syntax `is:foil`,
+  `is:nonfoil`, `finish:etched`, and bulk-data fields (`Default Cards` /
+  `All Cards`) for offline finish lookups.
+- Assuming finish is encoded in the printing id will miss etched/foil-only
+  printings or double-count cards that exist under one id across multiple
+  finishes.
+
+**Exceptions where a finish-like distinction is its own printing** (distinct
+collector number and id): borderless, showcase, extended art, Surge Foil, and
+Secret Lair variants. Those are printing distinctions, not finish-encoding
+schemes. Star-suffixed collector numbers (★) can mark foil-only variants for
+some releases.
+
+**Consequence for this contract.** The conflict-printing key is
+`(card_name, printing_id)`; finish is deliberately excluded from the key (§3.4,
+§10). `condition` is the same class of attribute as finish — copy-level, not
+printing-identity-level — so it is also excluded from alternate-printing
+options (§13 Q2).

@@ -72,8 +72,9 @@ export async function createSleeveClaimsForDeck(
       printing_id: r.scryfall_id,
       // Scope the claim to its import run so reconciliation and finalize only
       // ever see the current batch. A reset upsert keeps the fresh intent.
+      // T-22 default state is 'planned' — the user chooses sleeve/proxy explicitly.
       batch_id: batchId ?? null,
-      resolution: 'sleeve' as const,
+      resolution: 'planned' as const,
       settled_at: null,
     }))
 
@@ -95,12 +96,12 @@ export async function createSleeveClaimsForDeck(
 }
 
 /**
- * The single materializer, run on "Go to Decks". For every card whose real-copy
- * supply covers its remaining sleeve-intent demand, applies each deck's
- * decision: 'sleeve' assigns a distinct owned copy, 'proxy' creates the
- * printing-matched proxy and sleeves it, 'release' drops the claim (slot stays
- * Planned). Cards still over-committed keep every claim — stamped settled_at as
- * the durable record for the deck-list badge — and are counted in leftOpenCount.
+ * The single materializer, run on "Allocate Cards". Applies each instance's
+ * decision independently: 'sleeved' assigns a distinct owned copy of the
+ * effective printing, 'proxy' reuses or creates a printing-matched proxy, and
+ * 'planned' keeps the claim and stamps settled_at. Unsatisfiable 'sleeved'
+ * instances are settled rather than discarded (T-22 per-instance
+ * materialisation).
  *
  * Scoped to p_batch_id when provided, so a run can never materialize another
  * run's leftover claims.
@@ -110,6 +111,8 @@ export interface FinalizeResult {
   proxiedCount: number
   releasedCount: number
   leftOpenCount: number
+  /** T-22: claims stamped settled_at during this pass. */
+  settledCount: number
 }
 
 export async function finalizeImportClaims(
@@ -130,6 +133,7 @@ export async function finalizeImportClaims(
         proxied_count?: number
         released_count?: number
         left_open_count?: number
+        settled_count?: number
       }
     | null
   const finalizedCount = payload?.finalized_count
@@ -141,6 +145,7 @@ export async function finalizeImportClaims(
     proxiedCount: payload?.proxied_count ?? 0,
     releasedCount: payload?.released_count ?? 0,
     leftOpenCount: payload?.left_open_count ?? 0,
+    settledCount: payload?.settled_count ?? 0,
   }
 }
 

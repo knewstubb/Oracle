@@ -32,7 +32,7 @@ Read `docs/oracle/roadmap.md` first. Only tasks in the **current milestone** may
 | T-19 | Research Jev (TypeSafe AI System One model) for fast card-recommendation classification | Architect (read-only research) | T-14 | TODO |
 | T-22 | Redesign import reconciliation flow: tabbed layout, state-based conflict resolution, wishlist, printing selection, and hover previews | UX/UI / Frontend | T-13 | DONE — spec, mockup, contract, and Frontend implementation merged |
 | T-23 | Define import reconciliation API contract and data model (per-instance state, alternate printing, persistence) | Architect | T-22 | CANCELLED — superseded by contract in T-22 |
-| T-24 | Implement Backend reconciliation API routes (`/api/onboarding/reconciliation/*`) per T-22 contract | Backend | T-22 | IN PROGRESS |
+| T-24 | Implement Backend reconciliation API routes (`/api/onboarding/reconciliation/*`) per T-22 contract | Backend | T-22 | DONE — routes, Frontend label, and Architect migration all aligned; migration remains DRAFT pending owner approval before deploy |
 
 ## M3–M5 — parked until their milestone is current
 | ID | Task | Milestone | Status |
@@ -48,3 +48,4 @@ Read `docs/oracle/roadmap.md` first. Only tasks in the **current milestone** may
 - O-002 Multi-user scale validation — M5
 - O-003 Mana curve slider — candidate for M2/M3 advisor feature, not specced
 - O-004 Debrief / deck health — after M3
+- T-24 migration gate: `supabase/migrations/20260926140000_import_reconciliation_redesign.sql` is updated and aligned with the contract, but still has a DRAFT header. It needs owner approval and deployment before the new reconciliation flow is live.

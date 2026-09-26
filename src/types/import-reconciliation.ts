@@ -106,6 +106,12 @@ export interface ConflictInstance {
   canSleeve: boolean
   /** true ⇒ render the amber "Already claimed" descriptor (spec §8.1). */
   alreadyClaimed: boolean
+  /**
+   * true when this slot has no remaining actionable option (contract §5).
+   * `sleeved` with supply, `proxy`, and `planned` slots that have lost the
+   * allocation race on every printing option are all resolved.
+   */
+  resolved: boolean
   /** Decks holding real copies of this instance's effective printing (spec §7). */
   claimedBy: DeckRef[]
 }
@@ -151,7 +157,7 @@ export interface ConflictPrintingRow {
   printingMismatch: boolean
   /** Any instance wants a real copy it cannot get. Amber row warning. */
   overAllocated: boolean
-  /** No instance is still `planned` and no `sleeved` instance is unsatisfiable. */
+  /** Every instance in this row is slot-level resolved (contract §5). Green row. */
   resolved: boolean
 
   instances: ConflictInstance[]

@@ -1,12 +1,12 @@
 /**
  * POST /api/onboarding/finalize
  *
- * Called when the user finishes the import (Go to Decks). Runs the single
- * materialization pass: for every card whose remaining real-copy demand fits
- * supply, applies each deck's recorded decision (sleeve → assign a distinct
- * owned copy; proxy → create the printing-matched proxy and sleeve it; release
- * → drop the claim, slot stays Planned). Cards still over-committed keep their
- * claims as the settled record behind the deck-list conflict badge.
+ * Called when the user finishes the import (Allocate Cards). Runs the single
+ * materialization pass: applies each instance's recorded decision (`sleeved` →
+ * assign a distinct owned copy of the effective printing; `proxy` → reuse or
+ * create a printing-matched proxy; `planned` → keep the claim and stamp
+ * `settled_at`). Unsatisfiable `sleeved` instances are also settled rather than
+ * discarded, per the T-22 per-instance materialisation rules.
  *
  * Scoped to the current import batch when `batchId` is provided, so this run can
  * never materialize another run's leftover claims.
@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
       proxiedCount: result.proxiedCount,
       releasedCount: result.releasedCount,
       leftOpenCount: result.leftOpenCount,
+      settledCount: result.settledCount,
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

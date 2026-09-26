@@ -4,6 +4,7 @@
 
 import { createAdminClient } from '@/lib/supabase'
 import type { NormalizedDeck, NormalizedCard } from '@/lib/deck-normalizer'
+import { MAYBEBOARD_CATEGORY } from '@/lib/deck-normalizer'
 import { isBasicLand } from '@/lib/basic-lands'
 import { resolveCardDefinitions } from '@/lib/card-definition-resolver'
 import {
@@ -95,12 +96,21 @@ function generateDeckId(deck: NormalizedDeck): number {
 
 interface BuiltImportRow extends IncomingCard {
   is_generic_land: boolean
+  is_maybeboard: boolean
 }
 
-function buildBuiltImportRows(deck: NormalizedDeck): BuiltImportRow[] {
+/**
+ * Build reconcile rows for one relation. Maybeboard rows are tagged so
+ * `reconcile_built_deck` inserts them as planned slots and never allocates a
+ * physical copy to them (D-005/D-018).
+ */
+function buildBuiltImportRows(
+  cards: NormalizedCard[],
+  isMaybeboard: boolean
+): BuiltImportRow[] {
   const grouped = new Map<string, BuiltImportRow>()
 
-  for (const card of deck.cards) {
+  for (const card of cards) {
     const key = `${card.cardName}|${card.scryfallId ?? ''}`
     const existing = grouped.get(key)
     if (existing) {
@@ -108,9 +118,11 @@ function buildBuiltImportRows(deck: NormalizedDeck): BuiltImportRow[] {
       continue
     }
 
-    const categories = card.sourceCategories.length > 0
-      ? JSON.stringify(card.sourceCategories)
-      : JSON.stringify([deriveCategory(card)])
+    const categories = isMaybeboard
+      ? JSON.stringify([MAYBEBOARD_CATEGORY])
+      : card.sourceCategories.length > 0
+        ? JSON.stringify(card.sourceCategories)
+        : JSON.stringify([deriveCategory(card)])
 
     grouped.set(key, {
       card_name: card.cardName,
@@ -118,12 +130,43 @@ function buildBuiltImportRows(deck: NormalizedDeck): BuiltImportRow[] {
       set_code: card.setCode,
       quantity: card.quantity,
       categories,
-      is_commander: card.isCommander,
-      is_generic_land: isBasicLand(card.cardName) && !card.scryfallId,
+      is_commander: isMaybeboard ? false : card.isCommander,
+      is_generic_land: !isMaybeboard && isBasicLand(card.cardName) && !card.scryfallId,
+      is_maybeboard: isMaybeboard,
     })
   }
 
   return [...grouped.values()]
+}
+
+/** Concatenate the main deck and maybeboard relations into one reconcile payload. */
+function buildBuiltImportRowsForDeck(deck: NormalizedDeck): BuiltImportRow[] {
+  return [
+    ...buildBuiltImportRows(deck.cards, false),
+    ...buildBuiltImportRows(deck.maybeboard ?? [], true),
+  ]
+}
+
+/**
+ * Map a normalized card to a planned deck_cards row for the diff-based
+ * (theorycrafted) importer. Maybeboard cards always carry the maybeboard
+ * category so the relation is preserved.
+ */
+function toIncomingCard(card: NormalizedCard, isMaybeboard: boolean): IncomingCard {
+  const categories = isMaybeboard
+    ? JSON.stringify([MAYBEBOARD_CATEGORY])
+    : card.sourceCategories.length > 0
+      ? JSON.stringify(card.sourceCategories)
+      : JSON.stringify([deriveCategory(card)])
+
+  return {
+    card_name: card.cardName,
+    scryfall_id: card.scryfallId,
+    set_code: card.setCode,
+    quantity: card.quantity,
+    categories,
+    is_commander: isMaybeboard ? false : card.isCommander,
+  }
 }
 
 function parseBuiltConflicts(value: unknown): AllocationConflict[] {
@@ -292,21 +335,12 @@ export async function importDeckTheorycrafted(
     offset += PAGE_SIZE
   }
 
-  // 3. Build incoming card list from deck.cards
-  const incomingCards: IncomingCard[] = deck.cards.map((card) => {
-    const categories = card.sourceCategories.length > 0
-      ? JSON.stringify(card.sourceCategories)
-      : JSON.stringify([deriveCategory(card)])
-
-    return {
-      card_name: card.cardName,
-      scryfall_id: card.scryfallId,
-      set_code: card.setCode,
-      quantity: card.quantity,
-      categories,
-      is_commander: card.isCommander,
-    }
-  })
+  // 3. Build incoming card list from the main deck and the maybeboard relation.
+  // Maybeboard cards are inserted as planned slots (copy_id NULL) by the diff.
+  const incomingCards: IncomingCard[] = [
+    ...deck.cards.map((card) => toIncomingCard(card, false)),
+    ...(deck.maybeboard ?? []).map((card) => toIncomingCard(card, true)),
+  ]
 
   // 4. Compute diff and apply transactionally
   const diff = diffDeckCards(existingRows, incomingCards)
@@ -380,7 +414,7 @@ export async function importDeckBuilt(
   const reconciliation = await reconcileBuiltDeck(
     deckId,
     userId,
-    buildBuiltImportRows(deck)
+    buildBuiltImportRowsForDeck(deck)
   )
 
   const sourceLabel = deck.platform ? `from ${deck.platform}` : 'from external source'
@@ -493,6 +527,25 @@ export async function importDeckNewCards(
         categories,
         is_commander: card.isCommander,
         is_proxy: card.isProxy,
+        is_maybeboard: false,
+      })
+    }
+  }
+
+  // Maybeboard cards become planned slots only — no collection copies are
+  // created for them (D-005/D-018).
+  for (const card of deck.maybeboard ?? []) {
+    for (let q = 0; q < card.quantity; q++) {
+      newCardRows.push({
+        card_id: null,
+        card_name: card.cardName,
+        printing_id: card.scryfallId,
+        scryfall_id: card.scryfallId,
+        set_code: card.setCode,
+        categories: JSON.stringify([MAYBEBOARD_CATEGORY]),
+        is_commander: false,
+        is_proxy: false,
+        is_maybeboard: true,
       })
     }
   }

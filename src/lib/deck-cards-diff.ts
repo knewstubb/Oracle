@@ -65,11 +65,26 @@ export interface DiffResult {
 // ---------------------------------------------------------------------------
 
 /**
- * Build the stable identity key for a printing slot.
- * Two cards are "the same slot" if they share (card_name, scryfall_id).
+ * Relation of a deck card: main deck vs the maybeboard relation (D-005).
+ * The stored schema encodes the relation as the primary `categories` value.
  */
-function identityKey(card_name: string, scryfall_id: string): string {
-  return `${card_name}|${scryfall_id}`
+function relationOf(categories: string | null | undefined): 'main' | 'maybeboard' {
+  return categories && categories.includes('Maybeboard') ? 'maybeboard' : 'main'
+}
+
+/**
+ * Build the stable identity key for a printing slot.
+ * Two cards are "the same slot" if they share (card_name, scryfall_id) and
+ * belong to the same relation. Keeping the relation in the key stops a card
+ * that appears both in the deck and on the maybeboard from collapsing into
+ * one slot.
+ */
+function identityKey(
+  card_name: string,
+  scryfall_id: string,
+  categories?: string | null
+): string {
+  return `${relationOf(categories)}|${card_name}|${scryfall_id}`
 }
 
 // ---------------------------------------------------------------------------
@@ -99,7 +114,7 @@ export function diffDeckCards(
   // Group existing rows by identity key
   const existingByKey = new Map<string, ExistingDeckCardRow[]>()
   for (const row of existingRows) {
-    const key = identityKey(row.card_name, row.scryfall_id)
+    const key = identityKey(row.card_name, row.scryfall_id, row.categories)
     const group = existingByKey.get(key)
     if (group) {
       group.push(row)
@@ -111,7 +126,7 @@ export function diffDeckCards(
   // Compute desired quantity per identity key from incoming cards
   const incomingByKey = new Map<string, { quantity: number; card: IncomingCard }>()
   for (const card of incoming) {
-    const key = identityKey(card.card_name, card.scryfall_id)
+    const key = identityKey(card.card_name, card.scryfall_id, card.categories)
     const existing = incomingByKey.get(key)
     if (existing) {
       existing.quantity += card.quantity

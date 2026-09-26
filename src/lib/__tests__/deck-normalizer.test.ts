@@ -305,11 +305,19 @@ describe('normalizeArchidektDeck', () => {
     expect(result.colourIdentity).toBe('BRG')
   })
 
-  it('excludes Maybeboard and Sideboard cards', () => {
+  it('puts Maybeboard and Sideboard cards in the maybeboard relation, not the main deck', () => {
     const result = normalizeArchidektDeck(archidektFixture, sourceUrl)
-    const names = result.cards.map((c) => c.cardName)
-    expect(names).not.toContain('Gilded Goose')
-    expect(names).not.toContain('Fabled Passage')
+    const mainNames = result.cards.map((c) => c.cardName)
+    expect(mainNames).not.toContain('Gilded Goose')
+    expect(mainNames).not.toContain('Fabled Passage')
+
+    const maybeboardNames = (result.maybeboard ?? []).map((c) => c.cardName)
+    expect(maybeboardNames).toEqual(['Gilded Goose', 'Fabled Passage'])
+
+    for (const card of result.maybeboard ?? []) {
+      expect(card.sourceCategories).toEqual(['Maybeboard'])
+      expect(card.isCommander).toBe(false)
+    }
   })
 
   it('includes mainboard cards', () => {

@@ -33,7 +33,15 @@ export interface NormalizedDeck {
   platformDeckId: string
   sourceUrl: string
   commander: NormalizedCard | null
+  /** Main deck + command zone (D-005 main relation). */
   cards: NormalizedCard[]
+  /**
+   * Maybeboard relation (D-005/D-018). Archidekt Maybeboard and Sideboard
+   * cards both land here; they are not part of the deck proper and are never
+   * allocated a physical copy. Optional for platforms without a maybeboard.
+   */
+  maybeboard?: NormalizedCard[]
+  /** Total main-deck cards. Excludes the maybeboard relation. */
   cardCount: number
   colourIdentity: string
 }
@@ -77,14 +85,31 @@ function toWubrgString(colors: string[]): string {
   return WUBRG_ORDER.filter((c) => normalized.includes(c)).join('')
 }
 
-/** Categories that should be excluded from the deck card list */
-const EXCLUDED_ARCHIDEKT_CATEGORIES = ['Maybeboard', 'Sideboard']
+/**
+ * Oracle's maybeboard category. Per D-005 the maybeboard is a separate
+ * `deck_cards` relation; in the stored schema that relation is encoded as this
+ * primary category.
+ */
+export const MAYBEBOARD_CATEGORY = 'Maybeboard'
+
+/** Archidekt categories that map onto Oracle's maybeboard relation (D-018). */
+const ARCHIDEKT_MAYBEBOARD_CATEGORIES = ['Maybeboard', 'Sideboard']
+
+function isArchidektMaybeboardEntry(entry: ArchidektDeckCard): boolean {
+  return entry.categories.some((cat) =>
+    ARCHIDEKT_MAYBEBOARD_CATEGORIES.includes(cat)
+  )
+}
 
 // ─── Archidekt Normalizer ────────────────────────────────────────────────────
 
-function normalizeArchidektCard(entry: ArchidektDeckCard): NormalizedCard {
+function normalizeArchidektCard(
+  entry: ArchidektDeckCard,
+  isMaybeboard: boolean
+): NormalizedCard {
   const { card, categories, label, quantity } = entry
-  const isCommander = categories.includes('Commander')
+  // Maybeboard and sideboard cards are never commanders or deck-proper cards.
+  const isCommander = !isMaybeboard && categories.includes('Commander')
   const isProxy = isProxyLabel(label)
 
   return {
@@ -98,7 +123,8 @@ function normalizeArchidektCard(entry: ArchidektDeckCard): NormalizedCard {
     isProxy,
     manaCost: card.oracleCard.manaCost ?? null,
     colorIdentity: card.oracleCard.colorIdentity,
-    sourceCategories: categories,
+    // Collapse Maybeboard and Sideboard onto Oracle's single maybeboard relation.
+    sourceCategories: isMaybeboard ? [MAYBEBOARD_CATEGORY] : categories,
   }
 }
 
@@ -106,21 +132,18 @@ export function normalizeArchidektDeck(
   deck: ArchidektDeckFull,
   sourceUrl: string
 ): NormalizedDeck {
-  // Filter out excluded categories
-  const includedCards = deck.cards.filter(
-    (entry) =>
-      !entry.categories.some((cat) =>
-        EXCLUDED_ARCHIDEKT_CATEGORIES.includes(cat)
-      )
-  )
+  const mainEntries = deck.cards.filter((entry) => !isArchidektMaybeboardEntry(entry))
+  const maybeboardEntries = deck.cards.filter(isArchidektMaybeboardEntry)
 
-  const cards = includedCards.map(normalizeArchidektCard)
+  const cards = mainEntries.map((entry) => normalizeArchidektCard(entry, false))
+  const maybeboard = maybeboardEntries.map((entry) => normalizeArchidektCard(entry, true))
 
   const commander = cards.find((c) => c.isCommander) ?? null
   const colourIdentity = commander
     ? toWubrgString(commander.colorIdentity)
     : ''
 
+  // The maybeboard relation does not count toward the deck's card count.
   const cardCount = cards.reduce((sum, c) => sum + c.quantity, 0)
 
   return {
@@ -130,6 +153,7 @@ export function normalizeArchidektDeck(
     sourceUrl,
     commander,
     cards,
+    maybeboard,
     cardCount,
     colourIdentity,
   }

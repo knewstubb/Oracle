@@ -30,8 +30,9 @@ Read `docs/oracle/roadmap.md` first. Only tasks in the **current milestone** may
 | T-17 | Implement advisor backend against T-15 | Backend | T-15 | TODO |
 | T-18 | Implement advisor frontend against T-16 | Frontend | T-16 approved, T-17 | TODO |
 | T-19 | Research Jev (TypeSafe AI System One model) for fast card-recommendation classification | Architect (read-only research) | T-14 | TODO |
-| T-22 | Redesign import reconciliation flow: tabbed layout, state-based conflict resolution, wishlist, printing selection, and hover previews | UX/UI | T-13 | DONE — spec and mockup approved |
-| T-23 | Define import reconciliation API contract and data model (per-instance state, alternate printing, persistence) | Architect | T-22 | IN PROGRESS |
+| T-22 | Redesign import reconciliation flow: tabbed layout, state-based conflict resolution, wishlist, printing selection, and hover previews | UX/UI / Frontend | T-13 | DONE — spec, mockup, contract, and Frontend implementation merged |
+| T-23 | Define import reconciliation API contract and data model (per-instance state, alternate printing, persistence) | Architect | T-22 | CANCELLED — superseded by contract in T-22 |
+| T-24 | Implement Backend reconciliation API routes (`/api/onboarding/reconciliation/*`) per T-22 contract | Backend | T-22 | TODO |
 
 ## M3–M5 — parked until their milestone is current
 | ID | Task | Milestone | Status |

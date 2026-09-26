@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Import Reconciliation — Mockup</title>
+  <style>
+    :root {
+      --bg-canvas: #131316;
+      --bg-surface: #1A1A1E;
+      --bg-surface-hover: #212126;
+      --border-default: #35353A;
+      --border-subtle: #262629;
+      --text-primary: #E8E8EA;
+      --text-secondary: #9C9CA3;
+      --text-tertiary: #6E6E76;
+      --accent-primary: #1D9E75;
+      --signal-warning: #EF9F27;
+      --signal-critical: #E24B4A;
+      --status-proxy: #489ADE;
+      --status-unowned: #F0339E;
+      --radius: 12px;
+      --fs-xs: 11px;
+      --fs-sm: 12px;
+      --fs-md: 14px;
+      --fs-lg: 16px;
+      --fs-xl: 20px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      background: var(--bg-canvas);
+      color: var(--text-primary);
+      line-height: 1.45;
+      font-size: var(--fs-md);
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 32px 16px 64px;
+    }
+
+    header h1 {
+      font-size: var(--fs-xl);
+      margin: 0 0 4px;
+      font-weight: 600;
+    }
+
+    header p {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: var(--fs-md);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin: 24px 0;
+    }
+
+    .stat-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+
+    .stat-card label {
+      display: block;
+      font-size: var(--fs-xs);
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 6px;
+    }
+
+    .stat-card .value {
+      font-size: var(--fs-xl);
+      font-weight: 600;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--border-default);
+      margin-bottom: 20px;
+    }
+
+    .tab {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      padding: 12px 16px;
+      font-size: var(--fs-md);
+      cursor: pointer;
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tab:hover { color: var(--text-primary); }
+    .tab.active { color: var(--text-primary); }
+    .tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--accent-primary);
+      border-radius: 2px 2px 0 0;
+    }
+
+    .count {
+      background: rgba(255,255,255,0.1);
+      color: var(--text-primary);
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 999px;
+      min-width: 22px;
+      text-align: center;
+    }
+
+    .tab.active .count { background: var(--accent-primary); }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .section-title {
+      font-size: var(--fs-md);
+      font-weight: 600;
+      margin: 0 0 12px;
+    }
+
+    .deck {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius);
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    .deck-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .deck-header:hover { background: var(--bg-surface-hover); }
+
+    .chevron {
+      width: 18px;
+      height: 18px;
+      transition: transform 0.15s ease;
+      color: var(--text-secondary);
+    }
+    .deck.open .chevron { transform: rotate(90deg); }
+
+    .deck-name { flex: 1; font-weight: 500; }
+
+    .badge {
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .badge-brew { background: rgba(239,159,39,0.15); color: var(--signal-warning); }
+    .badge-active { background: rgba(29,158,117,0.15); color: var(--accent-primary); }
+    .badge-conflict { background: rgba(226,75,74,0.15); color: var(--signal-critical); }
+
+    .deck-summary {
+      font-size: var(--fs-sm);
+      color: var(--text-secondary);
+    }
+
+    .deck-body {
+      display: none;
+      border-top: 1px solid var(--border-default);
+      padding: 8px 0;
+    }
+
+    .deck.open .deck-body { display: block; }
+
+    .card-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      position: relative;
+    }
+    .card-row:last-child { border-bottom: none; }
+    .card-row.resolved { background: rgba(29,158,117,0.06); }
+
+    .thumb {
+      width: 26px;
+      height: 36px;
+      border-radius: 4px;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: var(--border-subtle);
+      cursor: help;
+    }
+
+    .card-info { flex: 1; min-width: 0; }
+
+    .card-name {
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .printing {
+      font-size: var(--fs-xs);
+      color: var(--text-secondary);
+      cursor: help;
+      display: inline-block;
+      margin-top: 2px;
+    }
+
+    .printing:hover { color: var(--text-primary); text-decoration: underline; }
+
+    .deck-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 6px;
+    }
+
+    .deck-tag {
+      font-size: var(--fs-xs);
+      color: var(--text-secondary);
+      background: rgba(255,255,255,0.05);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .state-select {
+      appearance: none;
+      background: var(--bg-canvas);
+      border: 1px solid var(--border-default);
+      color: var(--text-primary);
+      font-size: var(--fs-sm);
+      padding: 6px 24px 6px 10px;
+      border-radius: 8px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239C9CA3' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      cursor: pointer;
+    }
+
+    .state-select:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .alt-printing {
+      font-size: var(--fs-xs);
+      color: var(--text-secondary);
+      background: transparent;
+      border: 1px dashed var(--border-default);
+      border-radius: 6px;
+      padding: 5px 10px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .alt-printing:hover { color: var(--text-primary); border-color: var(--text-secondary); }
+
+    .wishlist {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: var(--fs-sm);
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .wishlist input { accent-color: var(--status-unowned); }
+
+    .warning {
+      font-size: var(--fs-xs);
+      color: var(--signal-warning);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 6px;
+    }
+
+    .status-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 999px;
+      margin-left: 8px;
+    }
+
+    .status-planned { color: var(--text-secondary); background: rgba(255,255,255,0.06); }
+    .status-sleeved { color: var(--accent-primary); background: rgba(29,158,117,0.12); }
+    .status-proxy { color: var(--status-proxy); background: rgba(72,154,222,0.12); }
+    .status-used { color: var(--text-secondary); background: rgba(255,255,255,0.06); }
+
+    .dot { width: 7px; height: 7px; border-radius: 50%; }
+    .dot.planned { border: 1.5px solid currentColor; background: transparent; }
+    .dot.sleeved { background: currentColor; }
+    .dot.proxy { background: currentColor; }
+
+    .icon { width: 12px; height: 12px; }
+
+    .finish-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border-default);
+      padding: 14px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+
+    .finish-bar p {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: var(--fs-sm);
+    }
+
+    .btn {
+      border: none;
+      border-radius: 8px;
+      padding: 9px 18px;
+      font-size: var(--fs-sm);
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: var(--accent-primary);
+      color: #fff;
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .tooltip {
+      position: fixed;
+      background: #1a1a1a;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 6px;
+      box-shadow: 0 20px 40px -12px rgba(0,0,0,0.5);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 80ms ease-out;
+      z-index: 9999;
+    }
+
+    .tooltip img {
+      width: 240px;
+      border-radius: 10px;
+      display: block;
+    }
+
+    .tooltip .info {
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: var(--text-secondary);
+      border-radius: 6px;
+      background: rgba(255,255,255,0.05);
+      margin-top: 4px;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      font-size: var(--fs-xs);
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+    }
+
+    .legend span { display: inline-flex; align-items: center; gap: 5px; }
+
+    .empty {
+      text-align: center;
+      padding: 48px 16px;
+      color: var(--text-secondary);
+    }
+
+    @media (max-width: 640px) {
+      .stats { grid-template-columns: 1fr; }
+      .card-row { flex-wrap: wrap; }
+      .controls { width: 100%; justify-content: flex-end; margin-top: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Reconcile imported decks</h1>
+      <p>Choose how each card slot is filled. Nothing is final until you press <strong>Go to Decks</strong>.</p>
+    </header>
+
+    <div class="stats">
+      <div class="stat-card">
+        <label>Decks imported</label>
+        <div class="value">3</div>
+      </div>
+      <div class="stat-card">
+        <label>Needs a decision</label>
+        <div class="value" style="color: var(--signal-warning);">5</div>
+      </div>
+      <div class="stat-card">
+        <label>Resolved</label>
+        <div class="value" style="color: var(--accent-primary);">2</div>
+      </div>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button class="tab active" role="tab" aria-selected="true" data-tab="decks">
+        Decks <span class="count">2</span>
+      </button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="owned">
+        Owned <span class="count">3</span>
+      </button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="unowned">
+        Unowned <span class="count">2</span>
+      </button>
+    </div>
+
+    <!-- DECKS TAB -->
+    <div class="panel active" id="panel-decks" role="tabpanel">
+      <div class="legend">
+        <span><span class="dot planned" style="border-color: var(--text-secondary)"></span> Planned</span>
+        <span><span class="dot sleeved" style="background: var(--accent-primary)"></span> Sleeved</span>
+        <span><span class="dot proxy" style="background: var(--status-proxy)"></span> Proxy</span>
+        <span style="color: var(--signal-warning)">⚠ Conflict</span>
+      </div>
+
+      <div class="deck open">
+        <div class="deck-header" onclick="toggleDeck(this)">
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+          <span class="deck-name">mURZAnary tactics</span>
+          <span class="badge badge-active">Active</span>
+          <span class="badge badge-conflict">Conflict</span>
+          <span class="deck-summary">98/100 · 12 unresolved</span>
+        </div>
+        <div class="deck-body">
+          <div class="card-row">
+            <img class="thumb" src="https://cards.scryfall.io/small/front/9/2/92156de0-7c3f-4d0a-96b9-9685d8789507.jpg" alt="" data-name="Sol Ring" data-id="92156de0-7c3f-4d0a-96b9-9685d8789507" />
+            <div class="card-info">
+              <div class="card-name">Sol Ring <span class="status-label status-sleeved"><span class="dot sleeved"></span> Sleeved</span></div>
+              <span class="printing">2XM · 270 · nonfoil</span>
+            </div>
+            <div class="controls">
+              <select class="state-select" disabled>
+                <option>Sleeved</option>
+                <option>Planned</option>
+                <option>Proxy</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="card-row">
+            <img class="thumb" src="https://cards.scryfall.io/small/front/7/8/78f3582a-933b-4064-8e23-379c0f4c5a36.jpg" alt="" data-name="Command Tower" data-id="78f3582a-933b-4064-8e23-379c0f4c5a36" />
+            <div class="card-info">
+              <div class="card-name">Command Tower <span class="status-label status-used"><span class="dot planned"></span> Planned (used elsewhere)</span></div>
+              <span class="printing">CMR · 350 · nonfoil</span>
+              <div class="warning">⚠ All owned copies are already sleeved in other decks.</div>
+            </div>
+            <div class="controls">
+              <select class="state-select">
+                <option selected>Planned (used elsewhere)</option>
+                <option>Proxy</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="card-row resolved">
+            <img class="thumb" src="https://cards.scryfall.io/small/front/0/9/09a6d15b-81ab-4b8f-80f0-9e12731d9f41.jpg" alt="" data-name="Arcane Signet" data-id="09a6d15b-81ab-4b8f-80f0-9e12731d9f41" />
+            <div class="card-info">
+              <div class="card-name">Arcane Signet <span class="status-label status-proxy"><span class="dot proxy"></span> Proxy</span></div>
+              <span class="printing">SLD · 1234 · foil</span>
+            </div>
+            <div class="controls">
+              <select class="state-select">
+                <option>Planned</option>
+                <option>Proxy</option>
+                <option selected>Sleeved</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="deck">
+        <div class="deck-header" onclick="toggleDeck(this)">
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+          <span class="deck-name">Big Butt</span>
+          <span class="badge badge-brew">Brew</span>
+          <span class="deck-summary">100/100 · 0 unresolved</span>
+        </div>
+        <div class="deck-body">
+          <div class="card-row">
+            <img class="thumb" src="https://cards.scryfall.io/small/front/7/8/78f3582a-933b-4064-8e23-379c0f4c5a36.jpg" alt="" data-name="Command Tower" data-id="78f3582a-933b-4064-8e23-379c0f4c5a36" />
+            <div class="card-info">
+              <div class="card-name">Command Tower <span class="status-label status-planned"><span class="dot planned"></span> Planned</span></div>
+              <span class="printing">CMR · 350 · nonfoil</span>
+            </div>
+            <div class="controls">
+              <select class="state-select">
+                <option selected>Planned</option>
+                <option>Sleeved</option>
+                <option>Proxy</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OWNED TAB -->
+    <div class="panel" id="panel-owned" role="tabpanel">
+      <p class="section-title">Owned cards that appear in imported decks</p>
+
+      <div class="card-row">
+        <img class="thumb" src="https://cards.scryfall.io/small/front/9/2/92156de0-7c3f-4d0a-96b9-9685d8789507.jpg" alt="" data-name="Sol Ring" data-id="92156de0-7c3f-4d0a-96b9-9685d8789507" />
+        <div class="card-info">
+          <div class="card-name">Sol Ring <span class="status-label status-sleeved"><span class="dot sleeved"></span> Sleeved</span></div>
+          <span class="printing">2XM · 270 · nonfoil</span>
+          <div class="deck-tags">
+            <span class="deck-tag">mURZAnary tactics</span>
+          </div>
+        </div>
+        <div class="controls">
+          <select class="state-select">
+            <option>Planned</option>
+            <option selected>Sleeved</option>
+            <option>Proxy</option>
+          </select>
+          <button class="alt-printing">Use alternate printing</button>
+        </div>
+      </div>
+
+      <div class="card-row">
+        <img class="thumb" src="https://cards.scryfall.io/small/front/7/8/78f3582a-933b-4064-8e23-379c0f4c5a36.jpg" alt="" data-name="Command Tower" data-id="78f3582a-933b-4064-8e23-379c0f4c5a36" />
+        <div class="card-info">
+          <div class="card-name">Command Tower <span class="status-label status-used"><span class="dot planned"></span> Planned (used elsewhere)</span></div>
+          <span class="printing">CMR · 350 · nonfoil</span>
+          <div class="deck-tags">
+            <span class="deck-tag">mURZAnary tactics</span>
+            <span class="deck-tag">Big Butt</span>
+          </div>
+          <div class="warning">⚠ Owned copies already sleeved in another deck.</div>
+        </div>
+        <div class="controls">
+          <select class="state-select">
+            <option selected>Planned (used elsewhere)</option>
+            <option>Proxy</option>
+          </select>
+          <button class="alt-printing">Use alternate printing</button>
+        </div>
+      </div>
+
+      <div class="card-row">
+        <img class="thumb" src="https://cards.scryfall.io/small/front/a/a/aa1b2c3d-example.jpg" alt="" data-name="Force of Will" data-id="aa1b2c3d-example" />
+        <div class="card-info">
+          <div class="card-name">Force of Will <span class="status-label status-planned"><span class="dot planned"></span> Planned</span></div>
+          <span class="printing">ALL · 42 · nonfoil</span>
+          <div class="deck-tags">
+            <span class="deck-tag">mURZAnary tactics</span>
+          </div>
+        </div>
+        <div class="controls">
+          <select class="state-select">
+            <option selected>Planned</option>
+            <option>Sleeved</option>
+            <option>Proxy</option>
+          </select>
+          <button class="alt-printing">Use alternate printing</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- UNOWNED TAB -->
+    <div class="panel" id="panel-unowned" role="tabpanel">
+      <p class="section-title">Cards not in your collection</p>
+
+      <div class="card-row">
+        <img class="thumb" src="https://cards.scryfall.io/small/front/b/b/bb1b2c3d-example.jpg" alt="" data-name="Mana Crypt" data-id="bb1b2c3d-example" />
+        <div class="card-info">
+          <div class="card-name">Mana Crypt <span class="status-label status-proxy"><span class="dot proxy"></span> Proxy</span></div>
+          <span class="printing">2XM · 270 · foil</span>
+          <div class="deck-tags">
+            <span class="deck-tag">mURZAnary tactics</span>
+          </div>
+        </div>
+        <div class="controls">
+          <select class="state-select">
+            <option>Planned</option>
+            <option selected>Proxy</option>
+          </select>
+          <label class="wishlist"><input type="checkbox" checked /> Wishlist</label>
+        </div>
+      </div>
+
+      <div class="card-row">
+        <img class="thumb" src="https://cards.scryfall.io/small/front/c/c/cc1b2c3d-example.jpg" alt="" data-name="Jeweled Lotus" data-id="cc1b2c3d-example" />
+        <div class="card-info">
+          <div class="card-name">Jeweled Lotus <span class="status-label status-planned"><span class="dot planned"></span> Planned</span></div>
+          <span class="printing">CMR · 160 · nonfoil</span>
+          <div class="deck-tags">
+            <span class="deck-tag">Big Butt</span>
+          </div>
+        </div>
+        <div class="controls">
+          <select class="state-select">
+            <option selected>Planned</option>
+            <option>Proxy</option>
+          </select>
+          <label class="wishlist"><input type="checkbox" checked /> Wishlist</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="finish-bar">
+    <p>5 unresolved items across all tabs</p>
+    <button class="btn btn-primary">Go to Decks (5 unresolved)</button>
+  </div>
+
+  <div class="tooltip" id="preview">
+    <img src="" alt="" id="preview-img" />
+    <div class="info" id="preview-info">Hover a card</div>
+  </div>
+
+  <script>
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => {
+          t.classList.remove('active');
+          t.setAttribute('aria-selected', 'false');
+        });
+        tab.classList.add('active');
+        tab.setAttribute('aria-selected', 'true');
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+      });
+    });
+
+    // Deck expand/collapse
+    function toggleDeck(header) {
+      header.parentElement.classList.toggle('open');
+    }
+
+    // Card hover preview
+    const preview = document.getElementById('preview');
+    const previewImg = document.getElementById('preview-img');
+    const previewInfo = document.getElementById('preview-info');
+
+    document.querySelectorAll('.thumb, .printing').forEach(el => {
+      el.addEventListener('mouseenter', e => {
+        const id = el.dataset.id || el.parentElement.querySelector('.thumb')?.dataset.id;
+        const name = el.dataset.name || el.parentElement.querySelector('.thumb')?.dataset.name;
+        if (!id) return;
+        previewImg.src = `https://cards.scryfall.io/large/front/${id[0]}/${id[1]}/${id}.jpg`;
+        previewInfo.textContent = name || '';
+        preview.style.opacity = '1';
+        positionPreview(e.clientX, e.clientY);
+      });
+      el.addEventListener('mousemove', e => positionPreview(e.clientX, e.clientY));
+      el.addEventListener('mouseleave', () => {
+        preview.style.opacity = '0';
+      });
+    });
+
+    function positionPreview(x, y) {
+      const gap = 16;
+      const w = 252;
+      const h = 370;
+      let left = x < window.innerWidth / 2 ? x + gap : x - w - gap;
+      let top = y < window.innerHeight / 2 ? y + gap : y - h - gap;
+      left = Math.max(12, Math.min(left, window.innerWidth - w - 12));
+      top = Math.max(12, Math.min(top, window.innerHeight - h - 12));
+      preview.style.left = left + 'px';
+      preview.style.top = top + 'px';
+    }
+  </script>
+</body>
+</html>

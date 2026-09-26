@@ -36,12 +36,13 @@
       color: var(--text-primary);
       line-height: 1.45;
       font-size: var(--fs-md);
+      padding-bottom: 80px;
     }
 
     .container {
       max-width: 900px;
       margin: 0 auto;
-      padding: 32px 16px 96px;
+      padding: 32px 16px 64px;
     }
 
     header h1 {
@@ -133,13 +134,30 @@
     .panel { display: none; }
     .panel.active { display: block; }
 
-    .section-title {
-      font-size: var(--fs-md);
-      font-weight: 600;
-      margin: 0 0 12px;
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      font-size: var(--fs-xs);
+      color: var(--text-secondary);
+      margin-bottom: 16px;
     }
 
-    .deck {
+    .legend span { display: inline-flex; align-items: center; gap: 5px; }
+
+    .dot { width: 7px; height: 7px; border-radius: 50%; }
+    .dot.planned { border: 1.5px solid currentColor; background: transparent; }
+    .dot.sleeved { background: currentColor; }
+    .dot.proxy { background: currentColor; }
+
+    .section-note {
+      font-size: var(--fs-sm);
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+    }
+
+    /* Card container used in all tabs */
+    .conflict-card {
       background: var(--bg-surface);
       border: 1px solid var(--border-default);
       border-radius: var(--radius);
@@ -147,73 +165,21 @@
       overflow: hidden;
     }
 
-    .deck-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 14px 16px;
-      cursor: pointer;
-      user-select: none;
+    .conflict-card.resolved {
+      background: rgba(29,158,117,0.06);
+      border-color: rgba(29,158,117,0.25);
     }
 
-    .deck-header:hover { background: var(--bg-surface-hover); }
-    .deck.no-conflicts .deck-header { cursor: default; }
-    .deck.no-conflicts .deck-header:hover { background: transparent; }
-
-    .chevron {
-      width: 18px;
-      height: 18px;
-      transition: transform 0.15s ease;
-      color: var(--text-secondary);
-      flex-shrink: 0;
-    }
-    .deck.no-conflicts .chevron { opacity: 0.35; }
-    .deck.open .chevron { transform: rotate(90deg); }
-
-    .deck-name { flex: 1; font-weight: 500; }
-
-    .badge {
-      font-size: var(--fs-xs);
-      font-weight: 600;
-      padding: 3px 9px;
-      border-radius: 999px;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-      flex-shrink: 0;
-    }
-
-    .badge-brew { background: rgba(239,159,39,0.15); color: var(--signal-warning); }
-    .badge-active { background: rgba(29,158,117,0.15); color: var(--accent-primary); }
-    .badge-conflict { background: rgba(226,75,74,0.15); color: var(--signal-critical); }
-
-    .deck-summary {
-      font-size: var(--fs-sm);
-      color: var(--text-secondary);
-      flex-shrink: 0;
-    }
-
-    .deck-body {
-      display: none;
-      border-top: 1px solid var(--border-default);
-      padding: 8px 0;
-    }
-
-    .deck.open .deck-body { display: block; }
-
-    .card-row {
+    .card-header {
       display: flex;
       align-items: flex-start;
       gap: 12px;
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--border-subtle);
-      position: relative;
+      padding: 14px 16px 10px;
     }
-    .card-row:last-child { border-bottom: none; }
-    .card-row.resolved { background: rgba(29,158,117,0.06); }
 
     .thumb {
-      width: 26px;
-      height: 36px;
+      width: 32px;
+      height: 44px;
       border-radius: 4px;
       object-fit: cover;
       flex-shrink: 0;
@@ -221,16 +187,14 @@
       cursor: help;
     }
 
-    .card-info { flex: 1; min-width: 0; }
+    .card-title-block { flex: 1; min-width: 0; }
 
     .card-name {
       font-weight: 500;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
       display: flex;
       align-items: center;
       gap: 8px;
+      flex-wrap: wrap;
     }
 
     .printing {
@@ -243,103 +207,112 @@
 
     .printing:hover { color: var(--text-primary); text-decoration: underline; }
 
-    .deck-tags, .claim-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 6px;
+    .status-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 999px;
     }
 
-    .claim-list { flex-direction: column; align-items: flex-start; }
+    .status-planned { color: var(--text-secondary); background: rgba(255,255,255,0.06); }
+    .status-sleeved { color: var(--accent-primary); background: rgba(29,158,117,0.12); }
+    .status-proxy { color: var(--status-proxy); background: rgba(72,154,222,0.12); }
+    .status-used { color: var(--signal-warning); background: rgba(239,159,39,0.12); }
+    .status-resolved { color: var(--accent-primary); background: rgba(29,158,117,0.12); }
 
-    .claim {
+    .instance-list {
+      padding: 0 16px 12px 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .instance-row {
       display: flex;
       align-items: center;
-      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 36px;
+    }
+
+    .instance-left {
+      display: flex;
+      align-items: center;
       gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .instance-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: flex-end;
+      flex: 1;
     }
 
     .deck-tag {
       font-size: var(--fs-xs);
       color: var(--text-secondary);
       background: rgba(255,255,255,0.05);
-      padding: 2px 6px;
-      border-radius: 4px;
-      flex-shrink: 0;
+      padding: 4px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
     }
 
-    .controls {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      flex-shrink: 0;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-    }
-
-    .state-group {
+    .btn-group {
       display: inline-flex;
       border: 1px solid var(--border-default);
       border-radius: 8px;
       overflow: hidden;
     }
 
-    .state-btn {
-      appearance: none;
+    .btn-group button {
       background: transparent;
       border: none;
       border-right: 1px solid var(--border-default);
       color: var(--text-secondary);
       font-size: var(--fs-xs);
       font-weight: 600;
-      padding: 6px 10px;
+      padding: 6px 12px;
       cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
+      white-space: nowrap;
     }
 
-    .state-btn:last-child { border-right: none; }
-    .state-btn:hover:not(:disabled) { color: var(--text-primary); background: rgba(255,255,255,0.05); }
+    .btn-group button:last-child { border-right: none; }
+    .btn-group button:hover { color: var(--text-primary); background: rgba(255,255,255,0.04); }
+    .btn-group button.active { color: #fff; }
+    .btn-group button.active.planned { background: var(--text-secondary); }
+    .btn-group button.active.sleeved { background: var(--accent-primary); }
+    .btn-group button.active.proxy { background: var(--status-proxy); }
+    .btn-group button:disabled { opacity: 0.35; cursor: not-allowed; }
 
-    .state-btn:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
-
-    .state-btn.selected.planned { background: rgba(255,255,255,0.1); color: var(--text-secondary); }
-    .state-btn.selected.sleeved { background: var(--accent-primary); color: #fff; }
-    .state-btn.selected.proxy { background: var(--status-proxy); color: #fff; }
-
-    .alt-select {
+    .printing-select {
       appearance: none;
       background: var(--bg-canvas);
       border: 1px solid var(--border-default);
-      color: var(--text-secondary);
+      color: var(--text-primary);
       font-size: var(--fs-xs);
-      padding: 6px 24px 6px 10px;
+      padding: 6px 22px 6px 10px;
       border-radius: 8px;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239C9CA3' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239C9CA3' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
-      background-position: right 8px center;
+      background-position: right 7px center;
       cursor: pointer;
-      min-width: 140px;
-    }
-
-    .alt-select:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
+      white-space: nowrap;
     }
 
     .wishlist {
       display: flex;
       align-items: center;
-      gap: 6px;
-      font-size: var(--fs-sm);
+      gap: 5px;
+      font-size: var(--fs-xs);
       color: var(--text-secondary);
       white-space: nowrap;
+      cursor: pointer;
     }
-
     .wishlist input { accent-color: var(--status-unowned); }
 
     .warning {
@@ -347,33 +320,70 @@
       color: var(--signal-warning);
       display: flex;
       align-items: center;
-      gap: 4px;
-      margin-top: 6px;
+      gap: 5px;
+      margin: 4px 0 0 60px;
+      padding-bottom: 12px;
     }
 
-    .status-label {
-      display: inline-flex;
+    /* Deck-specific styles */
+    .deck-card { margin-bottom: 12px; }
+
+    .deck-header {
+      display: flex;
       align-items: center;
-      gap: 4px;
-      font-size: var(--fs-xs);
-      font-weight: 600;
-      padding: 2px 7px;
-      border-radius: 999px;
+      gap: 12px;
+      padding: 14px 16px;
+      cursor: pointer;
+      user-select: none;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius);
+    }
+
+    .deck-header:hover { background: var(--bg-surface-hover); }
+    .deck-card.open .deck-header { border-radius: var(--radius) var(--radius) 0 0; border-bottom-color: var(--border-subtle); }
+
+    .chevron {
+      width: 18px;
+      height: 18px;
+      transition: transform 0.15s ease;
+      color: var(--text-secondary);
       flex-shrink: 0;
     }
+    .deck-card.open .chevron { transform: rotate(90deg); }
 
-    .status-planned { color: var(--text-secondary); background: rgba(255,255,255,0.06); }
-    .status-sleeved { color: var(--accent-primary); background: rgba(29,158,117,0.12); }
-    .status-proxy { color: var(--status-proxy); background: rgba(72,154,222,0.12); }
-    .status-claimed { color: var(--signal-warning); background: rgba(239,159,39,0.12); }
-    .status-resolved { color: var(--accent-primary); background: rgba(29,158,117,0.12); }
+    .deck-name { flex: 1; font-weight: 500; }
 
-    .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-    .dot.planned { border: 1.5px solid currentColor; background: transparent; }
-    .dot.sleeved { background: currentColor; }
-    .dot.proxy { background: currentColor; }
+    .badge {
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+    }
 
-    .icon { width: 12px; height: 12px; flex-shrink: 0; }
+    .badge-brew { background: rgba(239,159,39,0.15); color: var(--signal-warning); }
+    .badge-active { background: rgba(29,158,117,0.15); color: var(--accent-primary); }
+    .badge-conflict { background: rgba(226,75,74,0.15); color: var(--signal-critical); }
+
+    .deck-summary {
+      font-size: var(--fs-sm);
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .deck-body {
+      display: none;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-top: none;
+      border-radius: 0 0 var(--radius) var(--radius);
+      padding: 8px 0;
+    }
+
+    .deck-card.open .deck-body { display: block; }
 
     .finish-bar {
       position: fixed;
@@ -409,11 +419,6 @@
       color: #fff;
     }
 
-    .btn-primary:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
     .tooltip {
       position: fixed;
       background: #1a1a1a;
@@ -445,17 +450,6 @@
       margin-top: 4px;
     }
 
-    .legend {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 14px;
-      font-size: var(--fs-xs);
-      color: var(--text-secondary);
-      margin-bottom: 16px;
-    }
-
-    .legend span { display: inline-flex; align-items: center; gap: 5px; }
-
     .empty {
       text-align: center;
       padding: 48px 16px;
@@ -464,9 +458,8 @@
 
     @media (max-width: 640px) {
       .stats { grid-template-columns: 1fr; }
-      .card-row { flex-wrap: wrap; }
-      .controls { width: 100%; justify-content: flex-start; margin-top: 8px; }
-      .claim { width: 100%; }
+      .instance-row { flex-wrap: wrap; }
+      .instance-right { width: 100%; justify-content: flex-start; }
     }
   </style>
 </head>
@@ -483,12 +476,12 @@
         <div class="value">3</div>
       </div>
       <div class="stat-card">
-        <label>Conflict printings to resolve</label>
+        <label>Needs a decision</label>
         <div class="value" style="color: var(--signal-warning);">3</div>
       </div>
       <div class="stat-card">
-        <label>Resolved printings</label>
-        <div class="value" style="color: var(--accent-primary);">0</div>
+        <label>Resolved</label>
+        <div class="value" style="color: var(--accent-primary);">1</div>
       </div>
     </div>
 
@@ -510,13 +503,11 @@
         <span><span class="dot planned" style="border-color: var(--text-secondary)"></span> Planned</span>
         <span><span class="dot sleeved" style="background: var(--accent-primary)"></span> Sleeved</span>
         <span><span class="dot proxy" style="background: var(--status-proxy)"></span> Proxy</span>
-        <span style="color: var(--signal-warning)">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          Already claimed / Conflict
-        </span>
+        <span style="color: var(--signal-warning)">⚠ Already claimed / Conflict</span>
       </div>
+      <p class="section-note">Decks with no conflicts are hidden from this tab.</p>
 
-      <div class="deck open">
+      <div class="deck-card open">
         <div class="deck-header" onclick="toggleDeck(this)">
           <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
           <span class="deck-name">mURZAnary tactics</span>
@@ -525,48 +516,59 @@
           <span class="deck-summary">2 conflict printings</span>
         </div>
         <div class="deck-body">
-          <div class="card-row">
-            <img class="thumb" src="https://cards.scryfall.io/small/front/9/2/92156de0-7c3f-4d0a-96b9-9685d8789507.jpg" alt="" data-name="Sol Ring" data-id="92156de0-7c3f-4d0a-96b9-9685d8789507" />
-            <div class="card-info">
-              <div class="card-name">Sol Ring <span class="status-label status-sleeved"><span class="dot sleeved"></span> Sleeved</span></div>
-              <span class="printing">2XM · 270 · nonfoil</span>
-            </div>
-            <div class="controls">
-              <div class="state-group" role="group" aria-label="Sol Ring state">
-                <button class="state-btn planned" aria-pressed="false">Planned</button>
-                <button class="state-btn sleeved selected" aria-pressed="true">Sleeved</button>
-                <button class="state-btn proxy" aria-pressed="false">Proxy</button>
+
+          <div class="conflict-card">
+            <div class="card-header">
+              <img class="thumb" src="https://cards.scryfall.io/small/front/9/2/92156de0-7c3f-4d0a-96b9-9685d8789507.jpg" alt="" data-name="Sol Ring" data-id="92156de0-7c3f-4d0a-96b9-9685d8789507" />
+              <div class="card-title-block">
+                <div class="card-name">Sol Ring <span class="status-label status-sleeved"><span class="dot sleeved"></span> Sleeved</span></div>
+                <span class="printing">2XM · 270 · nonfoil</span>
               </div>
-              <select class="alt-select" aria-label="Use alternate printing for Sol Ring">
-                <option selected>2XM · 270 · nonfoil</option>
-                <option>LEB · 260 · nonfoil</option>
-                <option>CMR · 477 · foil</option>
-              </select>
+            </div>
+            <div class="instance-list">
+              <div class="instance-row">
+                <div class="instance-left"><span class="deck-tag">mURZAnary tactics</span></div>
+                <div class="instance-right">
+                  <div class="btn-group">
+                    <button>Planned</button>
+                    <button class="active sleeved">Sleeved</button>
+                    <button>Proxy</button>
+                  </div>
+                  <select class="printing-select"><option>2XM · 270 · nonfoil</option></select>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div class="card-row">
-            <img class="thumb" src="https://cards.scryfall.io/small/front/7/8/78f3582a-933b-4064-8e23-379c0f4c5a36.jpg" alt="" data-name="Command Tower" data-id="78f3582a-933b-4064-8e23-379c0f4c5a36" />
-            <div class="card-info">
-              <div class="card-name">Command Tower <span class="status-label status-planned"><span class="dot planned"></span> Planned</span></div>
-              <span class="printing">CMR · 350 · nonfoil</span>
-            </div>
-            <div class="controls">
-              <div class="state-group" role="group" aria-label="Command Tower state">
-                <button class="state-btn planned selected" aria-pressed="true">Planned</button>
-                <button class="state-btn sleeved" aria-pressed="false">Sleeved</button>
-                <button class="state-btn proxy" aria-pressed="false">Proxy</button>
+          <div class="conflict-card">
+            <div class="card-header">
+              <img class="thumb" src="https://cards.scryfall.io/small/front/7/8/78f3582a-933b-4064-8e23-379c0f4c5a36.jpg" alt="" data-name="Command Tower" data-id="78f3582a-933b-4064-8e23-379c0f4c5a36" />
+              <div class="card-title-block">
+                <div class="card-name">Command Tower <span class="status-label status-used"><span class="dot planned"></span> Already claimed</span></div>
+                <span class="printing">CMR · 350 · nonfoil</span>
               </div>
-              <select class="alt-select" aria-label="Use alternate printing for Command Tower">
-                <option selected>CMR · 350 · nonfoil</option>
-                <option>SLD · 1234 · foil</option>
-              </select>
             </div>
+            <div class="instance-list">
+              <div class="instance-row">
+                <div class="instance-left"><span class="deck-tag">mURZAnary tactics</span></div>
+                <div class="instance-right">
+                  <div class="btn-group">
+                    <button class="active planned">Planned</button>
+                    <button disabled>Sleeved</button>
+                    <button>Proxy</button>
+                  </div>
+                  <select class="printing-select"><option>CMR · 350 · nonfoil</option></select>
+                </div>
+              </div>
+            </div>
+            <div class="warning">⚠ All owned copies are already sleeved in other decks.</div>
+            <div class="warning" style="padding-top:0; color: var(--text-secondary);">Claimed by: Big Butt</div>
           </div>
+
         </div>
       </div>
 
-      <div class="deck open">
+      <div class="deck-card open">
         <div class="deck-header" onclick="toggleDeck(this)">
           <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
           <span class="deck-name">Big Butt</span>
@@ -575,134 +577,150 @@
           <span class="deck-summary">1 conflict printing</span>
         </div>
         <div class="deck-body">
-          <div class="card-row">
-            <img class="thumb" src="https://cards.scryfall.io/small/front/9/2/92156de0-7c3f-4d0a-96b9-9685d8789507.jpg" alt="" data-name="Sol Ring" data-id="92156de0-7c3f-4d0a-96b9-9685d8789507" />
-            <div class="card-info">
-              <div class="card-name">Sol Ring <span class="status-label status-claimed">
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                Already claimed
-              </span></div>
-              <span class="printing">2XM · 270 · nonfoil</span>
-              <div class="warning">
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                All owned copies are already sleeved in other decks.
+
+          <div class="conflict-card">
+            <div class="card-header">
+              <img class="thumb" src="https://cards.scryfall.io/small/front/9/2/92156de0-7c3f-4d0a-96b9-9685d8789507.jpg" alt="" data-name="Sol Ring" data-id="92156de0-7c3f-4d0a-96b9-9685d8789507" />
+              <div class="card-title-block">
+                <div class="card-name">Sol Ring <span class="status-label status-sleeved"><span class="dot sleeved"></span> Sleeved</span></div>
+                <span class="printing">2XM · 270 · nonfoil</span>
               </div>
             </div>
-            <div class="controls">
-              <div class="state-group" role="group" aria-label="Sol Ring state">
-                <button class="state-btn planned selected" aria-pressed="true">Planned</button>
-                <button class="state-btn sleeved" aria-pressed="false" disabled>Sleeved</button>
-                <button class="state-btn proxy" aria-pressed="false">Proxy</button>
+            <div class="instance-list">
+              <div class="instance-row">
+                <div class="instance-left"><span class="deck-tag">Big Butt</span></div>
+                <div class="instance-right">
+                  <div class="btn-group">
+                    <button>Planned</button>
+                    <button class="active sleeved">Sleeved</button>
+                    <button>Proxy</button>
+                  </div>
+                  <select class="printing-select"><option>2XM · 270 · nonfoil</option></select>
+                </div>
               </div>
-              <select class="alt-select" aria-label="Use alternate printing for Sol Ring">
-                <option selected>2XM · 270 · nonfoil</option>
-                <option>LEB · 260 · nonfoil</option>
-                <option>CMR · 477 · foil</option>
-              </select>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div class="deck no-conflicts">
-        <div class="deck-header">
-          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
-          <span class="deck-name">Finished deck</span>
-          <span class="badge badge-active">Active</span>
-          <span class="deck-summary">0 conflict printings</span>
         </div>
       </div>
     </div>
 
     <!-- OWNED TAB -->
     <div class="panel" id="panel-owned" role="tabpanel">
-      <p class="section-title">Owned conflict printings that appear in imported decks</p>
+      <p class="section-title" style="font-weight:600; margin-bottom:12px;">Owned conflict printings that appear in imported decks</p>
 
-      <div class="card-row">
-        <img class="thumb" src="https://cards.scryfall.io/small/front/9/2/92156de0-7c3f-4d0a-96b9-9685d8789507.jpg" alt="" data-name="Sol Ring" data-id="92156de0-7c3f-4d0a-96b9-9685d8789507" />
-        <div class="card-info">
-          <div class="card-name">Sol Ring</div>
-          <span class="printing">2XM · 270 · nonfoil</span>
-          <div class="claim-list">
-            <div class="claim">
-              <span class="deck-tag">mURZAnary tactics</span>
-              <div class="state-group" role="group" aria-label="Sol Ring in mURZAnary tactics">
-                <button class="state-btn planned" aria-pressed="false">Planned</button>
-                <button class="state-btn sleeved selected" aria-pressed="true">Sleeved</button>
-                <button class="state-btn proxy" aria-pressed="false">Proxy</button>
-              </div>
-            </div>
-            <div class="claim">
-              <span class="deck-tag">Big Butt</span>
-              <div class="state-group" role="group" aria-label="Sol Ring in Big Butt">
-                <button class="state-btn planned selected" aria-pressed="true">Planned</button>
-                <button class="state-btn sleeved" aria-pressed="false" disabled>Sleeved</button>
-                <button class="state-btn proxy" aria-pressed="false">Proxy</button>
-              </div>
-              <span class="status-label status-claimed">
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                Already claimed
-              </span>
-            </div>
+      <div class="conflict-card">
+        <div class="card-header">
+          <img class="thumb" src="https://cards.scryfall.io/small/front/9/2/92156de0-7c3f-4d0a-96b9-9685d8789507.jpg" alt="" data-name="Sol Ring" data-id="92156de0-7c3f-4d0a-96b9-9685d8789507" />
+          <div class="card-title-block">
+            <div class="card-name">Sol Ring</div>
+            <span class="printing">2XM · 270 · nonfoil</span>
           </div>
         </div>
-        <div class="controls">
-          <select class="alt-select" aria-label="Use alternate printing for Sol Ring">
-            <option selected>2XM · 270 · nonfoil</option>
-            <option>LEB · 260 · nonfoil</option>
-            <option>CMR · 477 · foil</option>
-          </select>
+        <div class="instance-list">
+          <div class="instance-row">
+            <div class="instance-left"><span class="deck-tag">mURZAnary tactics</span></div>
+            <div class="instance-right">
+              <div class="btn-group">
+                <button>Planned</button>
+                <button class="active sleeved">Sleeved</button>
+                <button>Proxy</button>
+              </div>
+              <select class="printing-select"><option>2XM · 270 · nonfoil</option></select>
+            </div>
+          </div>
+          <div class="instance-row">
+            <div class="instance-left"><span class="deck-tag">Big Butt</span></div>
+            <div class="instance-right">
+              <div class="btn-group">
+                <button class="active planned">Planned</button>
+                <button disabled>Sleeved</button>
+                <button>Proxy</button>
+              </div>
+              <select class="printing-select"><option>2XM · 270 · nonfoil</option></select>
+              <span style="color: var(--signal-warning); font-size: var(--fs-xs); white-space: nowrap;">⚠ Already claimed</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="card-row">
-        <img class="thumb" src="https://cards.scryfall.io/small/front/7/8/78f3582a-933b-4064-8e23-379c0f4c5a36.jpg" alt="" data-name="Command Tower" data-id="78f3582a-933b-4064-8e23-379c0f4c5a36" />
-        <div class="card-info">
-          <div class="card-name">Command Tower</div>
-          <span class="printing">CMR · 350 · nonfoil</span>
-          <div class="claim-list">
-            <div class="claim">
-              <span class="deck-tag">mURZAnary tactics</span>
-              <div class="state-group" role="group" aria-label="Command Tower in mURZAnary tactics">
-                <button class="state-btn planned selected" aria-pressed="true">Planned</button>
-                <button class="state-btn sleeved" aria-pressed="false">Sleeved</button>
-                <button class="state-btn proxy" aria-pressed="false">Proxy</button>
+      <div class="conflict-card">
+        <div class="card-header">
+          <img class="thumb" src="https://cards.scryfall.io/small/front/7/8/78f3582a-933b-4064-8e23-379c0f4c5a36.jpg" alt="" data-name="Command Tower" data-id="78f3582a-933b-4064-8e23-379c0f4c5a36" />
+          <div class="card-title-block">
+            <div class="card-name">Command Tower</div>
+            <span class="printing">CMR · 350 · nonfoil</span>
+          </div>
+        </div>
+        <div class="instance-list">
+          <div class="instance-row">
+            <div class="instance-left"><span class="deck-tag">mURZAnary tactics</span></div>
+            <div class="instance-right">
+              <div class="btn-group">
+                <button class="active planned">Planned</button>
+                <button>Sleeved</button>
+                <button>Proxy</button>
               </div>
+              <select class="printing-select"><option>CMR · 350 · nonfoil</option></select>
             </div>
-            <div class="claim">
-              <span class="deck-tag">Big Butt</span>
-              <div class="state-group" role="group" aria-label="Command Tower in Big Butt">
-                <button class="state-btn planned selected" aria-pressed="true">Planned</button>
-                <button class="state-btn sleeved" aria-pressed="false">Sleeved</button>
-                <button class="state-btn proxy" aria-pressed="false">Proxy</button>
+          </div>
+          <div class="instance-row">
+            <div class="instance-left"><span class="deck-tag">Big Butt</span></div>
+            <div class="instance-right">
+              <div class="btn-group">
+                <button class="active planned">Planned</button>
+                <button>Sleeved</button>
+                <button>Proxy</button>
               </div>
+              <select class="printing-select"><option>CMR · 350 · nonfoil</option></select>
             </div>
           </div>
         </div>
-        <div class="controls">
-          <select class="alt-select" aria-label="Use alternate printing for Command Tower">
-            <option selected>CMR · 350 · nonfoil</option>
-            <option>SLD · 1234 · foil</option>
-          </select>
+      </div>
+
+      <div class="conflict-card resolved">
+        <div class="card-header">
+          <img class="thumb" src="https://cards.scryfall.io/small/front/0/9/09a6d15b-81ab-4b8f-80f0-9e12731d9f41.jpg" alt="" data-name="Arcane Signet" data-id="09a6d15b-81ab-4b8f-80f0-9e12731d9f41" />
+          <div class="card-title-block">
+            <div class="card-name">Arcane Signet <span class="status-label status-resolved">✓ Resolved</span></div>
+            <span class="printing">FRC · 20 · nonfoil</span>
+          </div>
+        </div>
+        <div class="instance-list">
+          <div class="instance-row">
+            <div class="instance-left"><span class="deck-tag">mURZAnary tactics</span></div>
+            <div class="instance-right">
+              <div class="btn-group">
+                <button>Planned</button>
+                <button class="active sleeved">Sleeved</button>
+                <button>Proxy</button>
+              </div>
+              <select class="printing-select"><option>FRC · 20 · nonfoil</option></select>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- UNOWNED TAB -->
     <div class="panel" id="panel-unowned" role="tabpanel">
-      <p class="section-title">Cards not in your collection</p>
+      <p class="section-title" style="font-weight:600; margin-bottom:12px;">Unowned conflict printings that appear in imported decks</p>
 
-      <div class="card-row">
-        <img class="thumb" src="https://cards.scryfall.io/small/front/b/b/bb1b2c3d-example.jpg" alt="" data-name="Mana Crypt" data-id="bb1b2c3d-example" />
-        <div class="card-info">
-          <div class="card-name">Mana Crypt</div>
-          <span class="printing">2XM · 270 · foil</span>
-          <div class="claim-list">
-            <div class="claim">
-              <span class="deck-tag">mURZAnary tactics</span>
-              <div class="state-group" role="group" aria-label="Mana Crypt in mURZAnary tactics">
-                <button class="state-btn planned selected" aria-pressed="true">Planned</button>
-                <button class="state-btn proxy" aria-pressed="false">Proxy</button>
+      <div class="conflict-card">
+        <div class="card-header">
+          <img class="thumb" src="https://cards.scryfall.io/small/front/b/b/bb1b2c3d-example.jpg" alt="" data-name="Mana Crypt" data-id="bb1b2c3d-example" />
+          <div class="card-title-block">
+            <div class="card-name">Mana Crypt</div>
+            <span class="printing">2XM · 270 · foil</span>
+          </div>
+        </div>
+        <div class="instance-list">
+          <div class="instance-row">
+            <div class="instance-left"><span class="deck-tag">mURZAnary tactics</span></div>
+            <div class="instance-right">
+              <div class="btn-group">
+                <button>Planned</button>
+                <button class="active proxy">Proxy</button>
               </div>
               <label class="wishlist"><input type="checkbox" checked /> Wishlist</label>
             </div>
@@ -739,24 +757,8 @@
 
     // Deck expand/collapse
     function toggleDeck(header) {
-      const deck = header.parentElement;
-      if (deck.classList.contains('no-conflicts')) return;
-      deck.classList.toggle('open');
+      header.parentElement.classList.toggle('open');
     }
-
-    // State button selection (demo only)
-    document.querySelectorAll('.state-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (btn.disabled) return;
-        const group = btn.closest('.state-group');
-        group.querySelectorAll('.state-btn').forEach(b => {
-          b.classList.remove('selected');
-          b.setAttribute('aria-pressed', 'false');
-        });
-        btn.classList.add('selected');
-        btn.setAttribute('aria-pressed', 'true');
-      });
-    });
 
     // Card hover preview
     const preview = document.getElementById('preview');
@@ -765,8 +767,9 @@
 
     document.querySelectorAll('.thumb, .printing').forEach(el => {
       el.addEventListener('mouseenter', e => {
-        const id = el.dataset.id || el.parentElement.querySelector('.thumb')?.dataset.id;
-        const name = el.dataset.name || el.parentElement.querySelector('.thumb')?.dataset.name;
+        const thumb = el.classList.contains('thumb') ? el : el.closest('.card-header')?.querySelector('.thumb');
+        const id = thumb?.dataset.id;
+        const name = thumb?.dataset.name;
         if (!id) return;
         previewImg.src = `https://cards.scryfall.io/large/front/${id[0]}/${id[1]}/${id}.jpg`;
         previewInfo.textContent = name || '';

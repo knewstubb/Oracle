@@ -1,15 +1,18 @@
 # UX Spec: Import Reconciliation Redesign
 
-## 1. Purpose
+## 1. Problem
 
-This spec defines the redesigned reconciliation screen users see after importing decks from Archidekt (and, eventually, other sources). It replaces the previous action model (`sleeve` / `release` / `proxy`) with a state model and reorganises the UI into three tabs so users can reconcile by deck, by owned card, or by unowned card.
+After importing decks from Archidekt, users are left with a list of card slots that may not match their physical collection. The previous screen forced users to think in terms of actions (`sleeve` / `release` / `proxy`) applied to whole printings. It was hard to see which deck was claiming which copy, easy to accidentally over-allocate a single owned card across multiple decks, and unclear whether a card was resolved or still needed attention.
 
-The key unit of attention is a **conflict printing** — a specific card printing (`scryfall_id` + finish) that is requested by one or more imported deck slots and does not cleanly fit the user's collection. Resolution still happens one deck-card claim at a time, but the UI groups those claims under their printing so the user can see the whole picture at once.
+## 2. Purpose
 
-## 2. Design principles
+This spec defines the redesigned reconciliation screen users see after importing decks from Archidekt (and, eventually, other sources). It replaces the previous action model with a state model and reorganises the UI into three tabs. The smallest unit of user action is a single **deck-card instance** — one card slot in one deck. The UI groups those instances by printing so the user can see the whole picture at once, but every decision — sleeve, proxy, alternate printing — applies to one instance only.
 
-- **State should be visible at a glance.** Every card row clearly shows whether it is Planned, Sleeved, Proxy, or Already Claimed.
-- **The conflict printing is the headline.** Counts and resolved status are per printing, not per deck-card instance, so a card in three decks does not feel like three separate problems.
+## 3. Design principles
+
+- **State should be visible at a glance.** Every card instance clearly shows whether it is Planned, Sleeved, Proxy, or Already Claimed.
+- **The deck-card instance is the unit of action.** Sleeve / proxy / alternate-printing choices apply to one slot, not to every deck that wants the same printing.
+- **The conflict printing is the grouping.** Counts and row headers are per printing so a card in three decks does not feel like three separate problems.
 - **Prevent impossible states.** The UI disables options that would sleeve more copies than the user owns and explains why.
 - **Quiet default, loud exception.** Planned is visually quiet; Proxy and conflicts carry more weight, per D-014.
 - **Colour + label, never colour alone.** All status indicators include both a colour cue and text/icon, per D-012.
@@ -17,7 +20,21 @@ The key unit of attention is a **conflict printing** — a specific card printin
 - **Controls sit inside the scope they act on,** per D-015.
 - **Progressive disclosure.** Decks and printings start collapsed; the user expands only what they need to act on.
 
-## 3. What a conflict printing is
+## 4. Component inventory
+
+| Component | Builds on | Props / notes |
+|-----------|-----------|---------------|
+| `ReconciliationTabs` | shadcn `Tabs` | Three tab triggers with count badges. |
+| `DeckList` | Custom layout | Expandable deck cards. Hidden entirely when a deck has zero conflicts. |
+| `DeckHeader` | Custom layout | Deck name, lifecycle badge, conflict summary, expand chevron. |
+| `ConflictCardRow` | Custom layout | Thumb, card name, printing identifier, per-instance claim list, optional status label. |
+| `StateButtonGroup` | shadcn `ToggleGroup` (or `role="group"` buttons) | One group per deck-card instance. |
+| `AlternatePrintingSelect` | shadcn `Select` | One per owned deck-card instance. Lists owned printings of the same card. |
+| `WishlistCheckbox` | shadcn `Checkbox` | One per unowned deck-card instance. |
+| `CardHoverPreview` | Existing component | Reuses `CardHoverPreview` positioning logic. |
+| `FinishBar` | Custom layout | Summary text and primary CTA. |
+
+## 5. What a conflict printing is
 
 A conflict printing maps to one row returned by the existing `get_import_allocations` RPC [Confirmed: `src/lib/import-sleeve-claims.ts`, `src/app/api/onboarding/conflicts/route.ts`].
 
@@ -29,15 +46,15 @@ Each row contains:
 - `state` — `'over'`, `'unowned'`, or `'resolved'`.
 - `decks[]` — the per-deck claims that make up this printing's demand, each with `claimId`, `deckName`, and current `resolution`.
 
-The UI treats this row as a single reconciliation item. A printing is **resolved** when its `state` is `'resolved'`; it is **unresolved** when it is `'over'` or `'unowned'`.
+The UI renders one card row per conflict printing. Inside that row, each deck-card claim is a separate instance with its own state controls and, for owned cards, its own alternate-printing selector. A printing is **resolved** when its `state` is `'resolved'`; it is **unresolved** when it is `'over'` or `'unowned'`.
 
-## 4. Tabbed layout
+## 6. Tabbed layout
 
 The reconciliation screen has three tabs at the top of the section. Each tab shows a count badge of **unresolved conflict printings**.
 
 | Tab | Contents | Count meaning |
 |-----|----------|---------------|
-| **Decks** | Expandable deck lists. Only decks with conflicts can expand, and only conflicted cards are shown inside. | Number of unresolved conflict printings across all imported decks. |
+| **Decks** | Expandable deck lists. Only decks with conflicts are shown, and only conflicted cards are shown inside. | Number of unresolved conflict printings across all imported decks. |
 | **Owned card allocations** | One row per owned conflict printing, combining every deck claim that references it. | Number of owned conflict printings that are still unresolved. |
 | **Unowned card allocations** | One row per unowned conflict printing, combining every deck claim that references it. | Number of unowned conflict printings that are still unresolved. |
 
@@ -45,12 +62,13 @@ The reconciliation screen has three tabs at the top of the section. Each tab sho
 
 **Persistence across tabs:** choices made on one tab are immediately reflected on the others. Switching tabs never loses state.
 
-## 5. Decks tab
+## 7. Decks tab
 
 - Decks are listed as collapsible rows/cards.
-- **Only decks that have at least one conflict printing can expand.** Decks with zero conflicts are shown in a collapsed, non-interactive state (no chevron, or a disabled chevron) so the user knows they are complete.
-- Clicking an expandable deck header expands it to show **only the conflicted cards** for that deck.
-- Each card row inside a deck uses the same row component as the other tabs, but because the deck context is already known, deck-name tags are omitted inside this tab.
+- **Decks with zero conflicts are hidden entirely.** They do not appear in the list, do not take up space, and do not show a disabled state.
+- Only decks that have at least one conflict printing are shown, and they are expandable.
+- Clicking a deck header expands it to show **only the conflicted cards** for that deck.
+- Each card row inside a deck uses the same row component as the other tabs. Deck-name tags are omitted inside this tab, **except** when a card is "Already claimed" — then the row shows the name(s) of the deck(s) that own the real copy so the user knows where the conflict is.
 - Deck headers show:
   - Deck name
   - Lifecycle badge (Brew / Active)
@@ -58,11 +76,11 @@ The reconciliation screen has three tabs at the top of the section. Each tab sho
   - A conflict indicator if any card in the deck is over-allocated or unowned
 - Expanded decks keep their scroll position when the user switches tabs and returns.
 
-## 6. Owned cards: state model
+## 8. Owned cards: state model
 
 The Owned tab lists one row per **owned conflict printing**. Each row combines every deck claim for that printing and shows the deck names so the user knows where the card is wanted.
 
-For each deck claim in the row, the user selects one of three states using a button group:
+For each **deck-card instance** (one claim inside the row), the user selects one of three states using a button group:
 
 | State | What it means | Visual treatment |
 |-------|---------------|------------------|
@@ -70,38 +88,39 @@ For each deck claim in the row, the user selects one of three states using a but
 | **Sleeved** | The slot is assigned to a real physical copy from the collection. | Teal filled dot/check + label "Sleeved". |
 | **Proxy** | The slot uses a proxy copy. Reuses an existing proxy if one is free; otherwise adds a new proxy copy. | Blue proxy-mask icon + label "Proxy". |
 
-### 6.1 Already claimed
+### 8.1 Already claimed
 
-When one deck sleeves a card and another deck also wants that same printing, the overflow claims cannot be Sleeved because all owned copies are gone. Those claims remain selectable, but the UI shows an automatic descriptor:
+When one deck sleeves a card and another deck also wants that same printing, the overflow instances cannot be Sleeved because all owned copies are gone. Those instances remain selectable, but the UI shows an automatic descriptor:
 
 - **Label:** `Already claimed`
 - **Colour:** amber (`--signal-warning`)
 - **Icon:** small warning triangle or link/chain icon
-- This is not a selectable state; it is a warning the system applies when a claim's intent is `sleeve` but the printing is over-allocated.
-- The claim still allows the user to switch to **Planned** or **Proxy**.
+- This is not a selectable state; it is a system descriptor applied when a claim's intent is `sleeve` but the printing is over-allocated.
+- The instance still allows the user to switch to **Planned** or **Proxy**.
 
-### 6.2 Over-allocation protection
+### 8.2 Over-allocation protection
 
-- The **Sleeved** button for a claim becomes disabled once the printing's owned copies are fully allocated to other claims.
+- The **Sleeved** button for an instance becomes disabled once the printing's owned copies are fully allocated to other instances.
 - If a user hovers a disabled Sleeved button, a tooltip explains: "All owned copies are already sleeved. Choose Proxy, Planned, or use an alternate printing."
+- There is no tie-breaker: the UI simply prevents more instances from being Sleeved than owned copies exist.
 - Disabled buttons keep visible focus styles and readable labels for accessibility.
 
-### 6.3 Row resolution
+### 8.3 Row resolution
 
-The printing row is marked **Resolved** when the backend `state` becomes `'resolved'` — meaning every claim fits within the available supply. The row gains a faint green tint and a checkmark label, but the claim controls remain editable so the user can change their mind.
+The printing row is marked **Resolved** when the backend `state` becomes `'resolved'` — meaning every instance fits within the available supply. The row gains a faint green tint and a checkmark label, but the instance controls remain editable so the user can change their mind.
 
-## 7. Unowned cards
+## 9. Unowned cards
 
 The Unowned tab lists one row per **unowned conflict printing**. Each row combines every deck claim for that printing and shows the deck names.
 
-For each deck claim, the user selects one of two states using a button group:
+For each **deck-card instance**, the user selects one of two states using a button group:
 
 | State | What it means |
 |-------|---------------|
 | **Planned** (default) | The slot stays planned. |
 | **Proxy** | Uses an existing proxy copy if available; otherwise adds a new proxy copy to the collection. |
 
-Each unowned deck claim also has a **Wishlist** checkbox, checked by default.
+Each unowned deck-card instance also has a **Wishlist** checkbox, checked by default.
 
 - Checked: the card is added to the user's wishlist.
 - Unchecked: the card is not added to the wishlist.
@@ -109,26 +128,31 @@ Each unowned deck claim also has a **Wishlist** checkbox, checked by default.
 - Deck-name tags appear under the card name in the Unowned tab so the user can see which imported decks the card is related to.
 - **Wishlist tags inside the separate wishlist list are deferred** and can be added later.
 
-## 8. Card row anatomy
+## 10. Card row anatomy
 
-Every row in all three tabs uses the same structure, with small contextual differences:
+Every row in all three tabs uses the same card-shaped container, with one inner row per deck-card instance:
 
 ```
-[thumb]  Card name  [resolved checkmark]
-         Set code · collector number · finish
-         [deck tags / per-deck claim list]
-         [Planned] [Sleeved] [Proxy]   [alternate-printing select]
-         [wishlist checkbox on unowned rows]
-         [warning messages]
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ [thumb]  Card name                                          [Resolved]      │
+│          Set code · collector number · finish                               │
+│                                                                             │
+│  [deck tag] ──────────────────────────────────  [Planned][Sleeved][Proxy] [printing ▾] [☑ Wishlist] │
+│  [deck tag] ──────────────────────────────────  [Planned][Sleeved][Proxy] [printing ▾]             │
+│                                                                             │
+│  ⚠ All owned copies are already sleeved in other decks.                     │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 - **Thumb:** small Scryfall image, 32 px tall.
 - **Printing identifier:** set code, collector number, finish, e.g. `MH3 · 123 · foil`.
-- **State selector:** a button group (segmented control) with the available states for that claim.
-- **Alternate-printing control:** an inline select, labelled **"Use alternate printing"**, appears only for owned cards when an alternate printing is available.
-- **Wishlist checkbox:** appears only for unowned claims.
+- **Per-instance row:** one row per deck claim. Each row is a flex layout with the deck tag on the left and all controls pushed to the right.
+- **State selector:** a button group (segmented control) with the available states for that instance.
+- **Alternate-printing control:** an inline select showing the current printing, appears only for owned instances when an alternate printing is available. It belongs to the instance, not to the whole printing row.
+- **Wishlist checkbox:** appears only for unowned instances.
+- **Alignment:** the deck tag sits on the left of each instance row; the state buttons, printing select, and wishlist checkbox are pushed to the right edge of the card, matching the deck view layout.
 
-## 9. Printing information and hover preview
+## 11. Printing information and hover preview
 
 Each row shows the printing identifier on a second line under the card name.
 
@@ -138,7 +162,7 @@ Hovering over the printing identifier shows the full card image, identical to th
 - Preview image: Scryfall `large` front image for the row's `scryfall_id`.
 - Positioning follows the existing 45° cursor-relative logic and viewport clamping.
 
-## 10. Alternate-printing selector
+## 12. Alternate-printing selector
 
 Only owned cards can use alternate printings. Unowned cards can only select an existing proxy.
 
@@ -146,22 +170,22 @@ Only owned cards can use alternate printings. Unowned cards can only select an e
 
 - If the user owns a different printing of the same card (same `oracle_id`, different `scryfall_id`) that is available, show a select labelled **"Use alternate printing"**.
 - It appears in both the **Owned** tab and the **Decks** tab.
+- The select belongs to a single deck-card instance.
 
 ### Interaction
 
 - Default option: the imported printing is selected.
 - The select lists available owned printings.
 - Each option shows: set name, set code, collector number, finish, condition, and a tiny thumbnail.
-- In the **Decks** tab, selecting an alternate printing applies to that **deck-card claim only**.
-- In the **Owned** tab, selecting an alternate printing switches the entire conflict printing row to that printing (because the row already combines all deck claims).
+- Selecting an alternate printing applies to that **deck-card instance only**.
 
 ### Conflict behaviour
 
-- Switching to an alternate printing removes the claim from any conflict involving the original printing.
-- If the selected alternate printing is already sleeved in another deck, the UI shows an inline warning: **"This card is already sleeved in another deck."**
-- This is a **warning only**; it does not block the user from finishing or from choosing that printing.
+- Switching to an alternate printing removes the instance from any conflict involving the original printing.
+- If the selected alternate printing is already fully allocated elsewhere, the **Sleeved** option for this instance is disabled, just like any other over-allocated printing.
+- Alternate printing is **optional and never blocking**. The user can finish with alternate-printing over-allocation, choose a different printing, or leave the instance Planned / Proxy.
 
-## 11. State colours and iconography
+## 13. State colours and iconography
 
 All states use a colour plus an icon/label, never colour alone.
 
@@ -173,44 +197,45 @@ All states use a colour plus an icon/label, never colour alone.
 | Proxy | `--status-proxy` (#489ADE) | Comedy-mask / proxy icon | Distinct from mana blue (D-013). |
 | Resolved printing | `--signal-success` at lower saturation | Checkmark | Row background gains a faint green tint; text remains readable. |
 | Unowned | `--status-unowned` (#F0339E) | Cross or empty diamond | Used for the unowned tab header and wishlist indicators, not as a state selector option. |
-| Warning / conflict | `--signal-warning` (#EF9F27) | Alert triangle | Over-allocation and alternate-printing conflicts. |
+| Warning / conflict | `--signal-warning` (#EF9F27) | Alert triangle | Over-allocation helper and alternate-printing availability indicator. |
 
-## 12. Persistence and resolved items
+## 14. Persistence and resolved items
 
 - Reconciliation state persists locally and on the server so users can leave and return.
 - A printing marked **Resolved** does not move in the list. It stays in place and changes colour/icon to indicate it is resolved.
-- Users can re-edit a resolved printing at any time. Re-editing any of its claims makes it unresolved again.
+- Users can re-edit a resolved printing at any time. Re-editing any of its instances makes it unresolved again.
 - On a full page reload, resolved printings are removed from the list because they are considered done.
 - The "Go to Decks" / finish action materialises all current states to the database.
 
-## 13. Empty and loading states
+## 15. Empty and loading states
 
 - **Loading:** reuse the existing skeleton pattern from `PicklistV2` [Confirmed: `src/components/PicklistV2.tsx`].
 - **All resolved:** show a success message: "All imported cards are reconciled."
 - **No imported decks:** show the existing empty state from the onboarding summary.
 - **Clear-all-data developer tool:** when clicked, visible decks disappear instantly and the empty state shows without requiring a page refresh.
 
-## 14. Accessibility
+## 16. Accessibility
 
 - State button groups are reachable by keyboard and behave as a single tab stop with arrow-key navigation, or as a toolbar of toggle buttons.
 - Each selected state button has `aria-pressed="true"`.
 - Disabled options expose `aria-disabled="true"` and explain why via `aria-describedby` or a tooltip.
+- Each per-instance control has an accessible name that includes the card name and deck name, e.g. "Sol Ring state for mURZAnary tactics".
 - Hover previews are decorative; the printing identifier text is always readable by screen readers.
 - Colour is never the only way to distinguish state; labels and icons are required.
 
-## 15. Responsive behaviour
+## 17. Responsive behaviour
 
 - Desktop: card rows keep controls on one line where space allows.
 - Tablet/mobile: tabs stack; card rows become multi-line; state button groups wrap; alternate-printing select becomes full-width.
 
-## 16. Out of scope
+## 18. Out of scope
 
 - Moxfield import changes (per requirements).
 - Core data model changes beyond state support.
 - AI advisor features.
 - Wishlist tags inside the separate wishlist list.
 
-## 17. Data binding
+## 19. Data binding
 
 The UI reads and writes through the existing reconciliation endpoints:
 
@@ -226,27 +251,49 @@ Each row binds to:
 |------------|-------------|
 | Card name + thumb | `ImportAllocation.cardName` + `deck_cards.scryfall_id` |
 | Printing identifier | `deck_cards.scryfall_id` + `deck_cards.finish` |
-| Deck tags / per-deck claim list | `ImportAllocation.decks[].deckName` + `claimId` |
+| Deck tags / per-instance claim list | `ImportAllocation.decks[].deckName` + `claimId` |
 | State buttons | `ImportConflictDeckRef.resolution` (read), updated via `setClaimResolution` (write) |
 | Owned copy count | `ImportAllocation.owned` |
 | Resolved status | `ImportAllocation.state === 'resolved'` |
-| Alternate-printing options | `user_copies` rows matching `oracle_id` and available `finish` |
+| Alternate-printing options | `user_copies` rows matching `oracle_id` and available `finish`, filtered to copies not already selected by another instance when determining free supply |
+| Alternate-printing selected value | Per-instance `deck_cards` printing override (assumed to be supplied by the Architect's reconciliation contract) |
 | Wishlist checkbox | Local UI state (persisted separately) |
 
-## 18. Open questions from the design brief
+## 20. Copy
 
-### Resolved in this spec
+Exact strings used in the UI:
 
-1. **"Planned-in-decks" label** → Use `Already claimed` in amber. It clearly signals that the owned copy is taken by another deck.
-2. **Tab count calculation** → Count per unresolved conflict printing. This reduces noise when one card appears in many decks.
-3. **Alternate-printing availability** → Inline select. Keeps the user in context and matches the rule that only alternate printing uses a dropdown.
-4. **State colours and iconography** → Defined in §11. Uses existing status tokens, stays outside WUBRG, and pairs colour with icons/labels.
-5. **Wishlist relationship to decks** → Deck-name tags appear in the Unowned tab. Wishlist list tags are deferred.
+| Location | String |
+|----------|--------|
+| Tab labels | "Decks", "Owned", "Unowned" |
+| Deck summary | "{n} conflict printings" / "1 conflict printing" |
+| Deck conflict badge | "Conflict" |
+| Deck lifecycle badges | "Brew", "Active" |
+| Empty state (all resolved) | "All imported cards are reconciled." |
+| Empty state (no decks) | existing onboarding empty state |
+| State buttons | "Planned", "Sleeved", "Proxy" |
+| Already claimed label | "Already claimed" |
+| Disabled Sleeved tooltip | "All owned copies are already sleeved. Choose Proxy, Planned, or use an alternate printing." |
+| Alternate printing select | Displays the currently selected printing as "{set code} · {collector number} · {finish}". Opening it lists available owned printings. |
+| Wishlist checkbox label | "Wishlist" |
+| Finish bar summary | "{n} unresolved conflict printings across all tabs" |
+| Finish bar CTA | "Go to Decks ({n} unresolved)" / "Go to Decks" when zero |
+| Resolved row label | "Resolved" |
 
-### Still needing owner input
+## 21. Open questions resolved by owner feedback
 
-- **Non-conflict decks:** Should decks with zero conflicts be visible but disabled, or hidden from the Decks tab entirely?
-- **Owned-tab alternate printing:** Should selecting an alternate printing in the Owned tab switch the whole conflict printing, or should it apply to a single deck claim chosen by the user?
-- **Already-claimed tie-breaker:** When multiple decks compete for the same owned copy and the user chooses Sleeved, what deterministic order should decide which deck gets the real copy? (Deck import order, alphabetical deck name, or something else?)
-- **Resolved rows:** Should resolved printings stay inline with a green tint (as specified), or collapse into a separate "Resolved" section?
-- **"Go to Decks" with warnings:** Should alternate-printing warnings show a confirmation dialog on finish, or remain silent non-blockers as specified?
+- **Count unit:** Counts are per conflict printing, not per deck-card instance. (Confirmed.)
+- **Resolved rows:** Resolved printings stay in place; there is no separate "Resolved" section. (Confirmed.)
+- **Wishlist deck tags:** Deck tags under wishlist cards are not clickable. (Confirmed.)
+- **Alternate-printing conflicts:** They warn only; they do not block finishing. (Confirmed.)
+- **Deck-view conflict source:** When a card is "Already claimed" in the Decks tab, the row shows the deck(s) that own the real copy. (Confirmed and added to §7.)
+- **Owned / Unowned layout:** Controls are right-aligned per instance row, and rows live inside card containers matching the Decks tab. (Confirmed and updated in §10.)
+
+## 22. Open questions resolved by owner feedback
+
+- **Already-claimed tie-breaker:** There is no tie-breaker. The UI prevents more instances from being Sleeved than owned copies allow, so a tie never occurs.
+- **Resolved-row persistence before reload:** Resolved printings remain visible in the Decks tab until the screen is refreshed or reloaded.
+
+## 23. Notes for implementation
+
+- **Alternate-printing API shape:** The write endpoint will need to accept a per-instance alternate-printing selection. The exact field name and contract are for the Architect to define in the reconciliation API contract; the UX only requires that the choice applies to one deck-card instance and is reflected immediately in the UI.

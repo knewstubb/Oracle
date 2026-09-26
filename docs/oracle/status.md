@@ -48,4 +48,3 @@ Read `docs/oracle/roadmap.md` first. Only tasks in the **current milestone** may
 - O-002 Multi-user scale validation — M5
 - O-003 Mana curve slider — candidate for M2/M3 advisor feature, not specced
 - O-004 Debrief / deck health — after M3
-- T-24 migration gate: `supabase/migrations/20260926140000_import_reconciliation_redesign.sql` is updated and aligned with the contract, but still has a DRAFT header. It needs owner approval and deployment before the new reconciliation flow is live.

@@ -30,7 +30,7 @@ Read `docs/oracle/roadmap.md` first. Only tasks in the **current milestone** may
 | T-17 | Implement advisor backend against T-15 | Backend | T-15 | TODO |
 | T-18 | Implement advisor frontend against T-16 | Frontend | T-16 approved, T-17 | TODO |
 | T-19 | Research Jev (TypeSafe AI System One model) for fast card-recommendation classification | Architect (read-only research) | T-14 | TODO |
-| T-22 | Redesign import reconciliation flow: tabbed layout, state-based conflict resolution, wishlist, printing selection, and hover previews | UX/UI | T-13 | IN PROGRESS — revising per owner feedback |
+| T-22 | Redesign import reconciliation flow: tabbed layout, state-based conflict resolution, wishlist, printing selection, and hover previews | UX/UI | T-13 | REVIEW — revised mockup ready for owner input |
 
 ## M3–M5 — parked until their milestone is current
 | ID | Task | Milestone | Status |

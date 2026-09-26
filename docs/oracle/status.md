@@ -19,7 +19,7 @@ Read `docs/oracle/roadmap.md` first. Only tasks in the **current milestone** may
 | T-05b | Update UI to consume real `physical_copy_id` values from rollup API | Frontend | T-05a | DONE |
 | T-13 | M1 exit test: import owner's real Archidekt collection and decks; reconcile counts, deck lists and copy assignments against Archidekt; report differences | Architect (read-only report) | T-04, T-05, T-11, T-12 | DONE — owner decisions locked as D-018 to D-021 |
 | T-20 | Update deck importer to import Archidekt maybeboard and sideboard cards into Oracle's maybeboard relation | Backend | T-13, D-018 | DONE |
-| T-21 | Update deck importer to assign copies only when the exact printing (`scryfall_id`) is owned; otherwise leave the slot unassigned | Backend | T-13, T-20, D-021 | IN PROGRESS |
+| T-21 | Update deck importer to assign copies only when the exact printing (`scryfall_id`) is owned; otherwise leave the slot unassigned | Backend | T-13, T-20, D-021 | DONE — migration pending Architect/owner review |
 
 ## M2 — AI advisor v0 (next)
 | ID | Task | Owner role | Depends on | Status |

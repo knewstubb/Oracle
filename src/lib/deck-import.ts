@@ -32,7 +32,7 @@ export interface AllocationConflict {
   requested: number
   assigned: number
   unresolved: number
-  reason: 'unowned' | 'claimed' | 'no_free_copy'
+  reason: 'unowned' | 'claimed' | 'no_free_copy' | 'printing_mismatch'
   claimedDecks: Array<{ deckId: number; deckName: string }>
 }
 
@@ -95,6 +95,7 @@ function generateDeckId(deck: NormalizedDeck): number {
 }
 
 interface BuiltImportRow extends IncomingCard {
+  is_basic_land: boolean
   is_generic_land: boolean
   is_maybeboard: boolean
 }
@@ -131,6 +132,7 @@ function buildBuiltImportRows(
       quantity: card.quantity,
       categories,
       is_commander: isMaybeboard ? false : card.isCommander,
+      is_basic_land: !isMaybeboard && isBasicLand(card.cardName),
       is_generic_land: !isMaybeboard && isBasicLand(card.cardName) && !card.scryfallId,
       is_maybeboard: isMaybeboard,
     })
@@ -197,7 +199,7 @@ function parseBuiltConflicts(value: unknown): AllocationConflict[] {
     })
 
     const reason = conflict.reason
-    if (reason !== 'unowned' && reason !== 'claimed' && reason !== 'no_free_copy') {
+    if (reason !== 'unowned' && reason !== 'claimed' && reason !== 'no_free_copy' && reason !== 'printing_mismatch') {
       throw new Error(`reconcile_built_deck returned invalid conflict reason at index ${index}`)
     }
 

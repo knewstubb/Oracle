@@ -1,3 +1,6 @@
+-- DRAFT migration — pending Architect review and owner approval. Do not apply
+-- to production until this header is removed.
+--
 -- Task T-21: Built-deck import must assign a physical copy only when the
 -- sleeved copy is the exact printing the deck lists (D-021).
 --
@@ -5,7 +8,7 @@
 -- in which deck, and that copy must be the exact printing (`scryfall_id`) the
 -- deck asks for. Before this migration `reconcile_built_deck` preferred a
 -- printing match but fell back to any owned copy of the same card name
--- (20260925220000_placement_source.sql lines 1399-1407, carried into
+-- (the ORDER BY fallback in 20260925220000_placement_source.sql, carried into
 -- 20260926120000_import_maybeboard_relation.sql), so slots could be assigned a
 -- copy whose printing differed from the deck list (T-13 report section 6: 124
 -- such slots).
@@ -13,15 +16,21 @@
 -- This migration replaces `reconcile_built_deck` so that it:
 --
 --   1. leaves an inserted slot Planned unless a free copy of the exact printing
---      is in default storage — there is no name-only fallback; and
+--      is in default storage — there is no name-only fallback (D-021);
 --   2. on re-import, treats an existing slot whose sleeved copy is a different
 --      printing as unresolved: the copy is released to default storage and the
---      slot is left Planned. Correctly matching assignments are still preserved.
+--      slot is left Planned. Correctly matching assignments are still preserved
+--      (D-020 / D-021);
+--   3. treats basic lands as fungible: any owned basic land of the same name
+--      can fill a basic-land slot, regardless of the listed printing (D-023);
+--      and
+--   4. reports a `printing_mismatch` conflict reason when the card is owned
+--      but not in the exact printing requested by the imported deck (D-024).
 --
 -- Maybeboard slots (D-005/D-018), generic basic-land slots and manual proxy
--- assignments are exempt: they never allocate or track a real owned copy of a
--- specific printing, so they keep their previous behaviour. The function
--- signature is unchanged, so existing callers keep working.
+-- assignments are exempt from exact-printing rules. The function SQL signature
+-- is unchanged, but the JSON payload now carries `is_basic_land` so the RPC
+-- can apply D-023.
 --
 -- Reversibility: forward-only. To restore the previous fallback, re-apply the
 -- `reconcile_built_deck` body from
@@ -56,6 +65,9 @@ DECLARE
   v_total_copies integer;
   v_free_copies integer;
   v_claimed_copies integer;
+  v_total_exact_copies integer;
+  v_free_exact_copies integer;
+  v_claimed_exact_copies integer;
   v_claimed_decks jsonb;
   v_conflicts jsonb := '[]'::jsonb;
 BEGIN
@@ -103,6 +115,7 @@ BEGIN
       categories text,
       is_commander boolean,
       quantity integer,
+      is_basic_land boolean,
       is_generic_land boolean,
       is_maybeboard boolean
     )
@@ -134,21 +147,25 @@ BEGIN
       WHERE dc.deck_id = p_deck_id
         AND dc.user_id = p_user_id
         AND dc.card_name = v_row.card_name
-        AND dc.scryfall_id IS NOT DISTINCT FROM v_row.scryfall_id
+        AND (
+          COALESCE(v_row.is_basic_land, false)
+          OR dc.scryfall_id IS NOT DISTINCT FROM v_row.scryfall_id
+        )
         AND COALESCE(dc.categories LIKE '%Maybeboard%', false)
               = COALESCE(v_row.is_maybeboard, false)
         AND NOT (dc.id = ANY(v_match_ids))
-      -- Prefer a row that is already validly assigned (exact printing, or an
-      -- exempt proxy/generic/maybeboard slot), then an unassigned row, and only
-      -- then a mismatched assignment that this pass will release. This stops a
-      -- duplicate mismatched row from consuming the match and evicting a
-      -- correct assignment.
+      -- Prefer a row that is already validly assigned (exact printing, basic
+      -- land, or an exempt proxy/generic/maybeboard slot), then an unassigned
+      -- row, and only then a mismatched assignment that this pass will release.
+      -- This stops a duplicate mismatched row from consuming the match and
+      -- evicting a correct assignment.
       ORDER BY
         CASE
           WHEN dc.copy_id IS NULL THEN 1
           WHEN COALESCE(copy.is_proxy, false)
                OR COALESCE(v_row.is_maybeboard, false)
-               OR COALESCE(v_row.is_generic_land, false) THEN 0
+               OR COALESCE(v_row.is_generic_land, false)
+               OR COALESCE(v_row.is_basic_land, false) THEN 0
           WHEN v_row.scryfall_id IS NOT NULL
                AND copy.printing_id = v_row.scryfall_id THEN 0
           ELSE 2
@@ -166,10 +183,12 @@ BEGIN
         END IF;
 
         -- Maybeboard slots are never allocated (D-005/D-018), generic lands do
-        -- not track an individual copy, and a proxy stands in for a card rather
-        -- than being an owned printing (D-019). Keep their previous behaviour.
+        -- not track an individual copy, a proxy stands in for a card rather
+        -- than being an owned printing (D-019), and basic lands are fungible
+        -- during import (D-023). Keep their previous behaviour.
         IF COALESCE(v_row.is_maybeboard, false)
            OR COALESCE(v_row.is_generic_land, false)
+           OR COALESCE(v_row.is_basic_land, false)
            OR COALESCE(v_existing.copy_is_proxy, false) THEN
           v_group_assigned := v_group_assigned + 1;
           v_assigned_count := v_assigned_count + 1;
@@ -245,14 +264,21 @@ BEGIN
 
       -- D-021: only a free copy of the exact scryfall printing is eligible.
       -- There is no fallback to another printing of the same card name.
+      -- D-023: basic lands are fungible, so any owned basic land of the same
+      -- name can fill the slot regardless of printing.
       SELECT uc.id, uc.is_proxy
       INTO v_copy_id, v_copy_is_proxy
       FROM user_copies uc
       JOIN user_cards ucard ON ucard.id = uc.card_id
       WHERE uc.user_id = p_user_id
         AND ucard.card_name = v_row.card_name
-        AND v_row.scryfall_id IS NOT NULL
-        AND uc.printing_id = v_row.scryfall_id
+        AND (
+          COALESCE(v_row.is_basic_land, false)
+          OR (
+            v_row.scryfall_id IS NOT NULL
+            AND uc.printing_id = v_row.scryfall_id
+          )
+        )
         AND COALESCE(uc.missing, false) = false
         AND uc.location_id IS NOT NULL
         AND EXISTS (
@@ -319,8 +345,37 @@ BEGIN
             FROM deck_cards held
             WHERE held.copy_id = uc.id
           )
+        )::integer,
+        count(*) FILTER (
+          WHERE uc.printing_id IS NOT DISTINCT FROM v_row.scryfall_id
+        )::integer,
+        count(*) FILTER (
+          WHERE uc.printing_id IS NOT DISTINCT FROM v_row.scryfall_id
+            AND COALESCE(uc.missing, false) = false
+            AND uc.location_id IS NOT NULL
+            AND EXISTS (
+              SELECT 1
+              FROM user_locations ul
+              WHERE ul.id = uc.location_id
+                AND ul.user_id = p_user_id
+                AND ul.type = 'storage'
+            )
+            AND NOT EXISTS (
+              SELECT 1
+              FROM deck_cards held
+              WHERE held.copy_id = uc.id
+            )
+        )::integer,
+        count(*) FILTER (
+          WHERE uc.printing_id IS NOT DISTINCT FROM v_row.scryfall_id
+            AND EXISTS (
+              SELECT 1
+              FROM deck_cards held
+              WHERE held.copy_id = uc.id
+            )
         )::integer
-      INTO v_total_copies, v_free_copies, v_claimed_copies
+      INTO v_total_copies, v_free_copies, v_claimed_copies,
+           v_total_exact_copies, v_free_exact_copies, v_claimed_exact_copies
       FROM user_copies uc
       JOIN user_cards ucard ON ucard.id = uc.card_id
       WHERE uc.user_id = p_user_id
@@ -348,6 +403,9 @@ BEGIN
           'unresolved', v_group_unresolved,
           'reason', CASE
             WHEN COALESCE(v_total_copies, 0) = 0 THEN 'unowned'
+            WHEN NOT COALESCE(v_row.is_basic_land, false)
+                 AND COALESCE(v_total_exact_copies, 0) = 0
+                 AND COALESCE(v_total_copies, 0) > 0 THEN 'printing_mismatch'
             WHEN COALESCE(v_free_copies, 0) = 0 AND COALESCE(v_claimed_copies, 0) > 0 THEN 'claimed'
             ELSE 'no_free_copy'
           END,

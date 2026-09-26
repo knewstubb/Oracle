@@ -2,7 +2,7 @@
 
 ## Headline
 
-We finished the maybeboard import fix, locked the last importer decisions, and started the final Milestone 1 fix so copy assignments match exact card printings.
+We completed Milestone 1 by deploying all pending database changes, and Oracle is now ready to move into the AI advisor phase.
 
 ## What changed in the app and why
 
@@ -11,20 +11,20 @@ We finished the maybeboard import fix, locked the last importer decisions, and s
 - **Why:** Before this fix, those cards were simply lost during import, so your maybeboards in Oracle were incomplete.
 - **Impact:** Imported decks now keep their full card list. Maybeboard cards stay on the maybeboard, are not counted as part of the main deck, and are not assigned to physical copies.
 
-### New-cards import keeps maybeboard cards planned only
-- **What:** If you import a deck using "I just acquired these cards" mode, maybeboard and sideboard cards are added as planned maybeboard slots but do not create new collection entries.
-- **Why:** Maybeboard cards are ideas, not committed deck slots, so they should not be treated as newly owned cards.
-- **Impact:** Your collection only grows with cards that are actually in the main deck or command zone.
+### Exact printing matching is now enforced
+- **What:** When the importer assigns a physical card to a deck slot, it now checks that the owned copy is the exact same printing listed in the Archidekt deck. If not, the slot stays unassigned.
+- **Why:** A core principle of Oracle is instance-level accuracy: you should know exactly which physical copy is in which deck.
+- **Impact:** Your deck assignments now match your real cards edition-for-edition. Basic lands are treated as fungible, so any Forest/Mountain/etc. of the same name works.
 
-### The app no longer asks for repeated permission to access agent workspaces
-- **What:** opencode now has a config file that allows it to read files inside Paseo worktrees without prompting you every time.
-- **Why:** Constant permission dialogs were slowing down work and adding friction.
-- **Impact:** When an agent writes a report in its workspace, you can read it smoothly without clicking allow repeatedly.
+### The app now tells you when a printing is mismatched
+- **What:** If you own a card but not in the edition the imported deck wants, the conflict reason now says `printing_mismatch` instead of a generic shortfall.
+- **Why:** This makes it clear whether you are missing a card entirely or just need to assign a different edition.
+- **Impact:** Easier to spot and fix edition mismatches when importing decks.
 
-### You can now trigger a session summary manually
-- **What:** Typing `/scribe` tells the Session Scribe to write or update the plain-language summary for the current session.
-- **Why:** You should be able to get a recap whenever you want, not just when the Orchestrator decides to close a session.
-- **Impact:** You can ask for a fresh summary at any point, like this one.
+### All database changes were deployed
+- **What:** Nine pending migrations were applied to the live database, including the fixes for maybeboard import, exact printing, placement source tracking, and removal of the old bulk-clear function.
+- **Why:** The code and the live database had drifted apart; the new features could not work until the database was updated.
+- **Impact:** Oracle's live data now matches the app's current behaviour. Milestone 1 is complete.
 
 ## Decisions made
 
@@ -33,12 +33,18 @@ We finished the maybeboard import fix, locked the last importer decisions, and s
 - **D-020:** Import does not run an automatic allocation pass; unassigned slots stay planned.
 - **D-021:** Copy assignments must match the exact printing. Instance-level accuracy is a core principle.
 - **D-022:** In new-cards import mode, maybeboard and sideboard cards are added as planned maybeboard slots only and do not create collection copies.
+- **D-023:** Basic lands are fungible during import; exact-printing matching does not apply to them.
+- **D-024:** A `printing_mismatch` conflict reason distinguishes edition mismatches from true missing cards.
 
 ## Blockers or risks
 
-- Nothing is blocked. T-21 is the last active task in Milestone 1.
+- Nothing is blocked. Milestone 1 is complete.
 
 ## What's next
 
-- **T-21:** Update the importer so it only assigns a physical copy when the exact printing is owned. If the deck wants a specific edition and you only own a different edition, the slot stays unassigned until you manually place the right copy.
-- After T-21, Milestone 1 is complete and work moves to the **AI advisor** in Milestone 2.
+- **Milestone 2 — AI advisor v0** is now the current milestone.
+- The first M2 tasks are:
+  - **T-15:** Contract for advisor tools (what data the advisor can see and how suggestions are grouped)
+  - **T-16:** UX/UI spec and mockup for the advisor chat beside the deck view
+  - **T-19:** Finish Jev research for fast card recommendations
+- Future sessions can be summarized at any time by typing `/scribe`.

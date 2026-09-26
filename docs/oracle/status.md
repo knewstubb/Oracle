@@ -5,23 +5,23 @@ Read `docs/oracle/roadmap.md` first. Only tasks in the **current milestone** may
 
 **Owner note (2026-09-25):** Until Oracle reaches MVP, live data can be easily replaced. Migrations do not need to be overly cautious; clean-slate or drop-and-rebuild approaches are acceptable with owner approval.
 
-## M1 — Trustworthy data (CURRENT)
+## M1 — Trustworthy data (COMPLETE — migrations deployed 2026-09-26)
 | ID | Task | Owner role | Depends on | Status |
 |---|---|---|---|---|
 | T-01 | Audit current schema and code against docs/oracle/decisions.md; list every mismatch | Architect | — | DONE |
 | T-02 | Validate the V2 allocation resolver against real deck data (read-only) | Architect | T-01 | DONE |
 | T-10 | Owner decision pack: for each T-01 mismatch, present "fix the code" vs "update the decision" in plain language; owner decides | Orchestrator → Owner | T-01, T-02 | DONE |
 | T-03 | Contract: allocation suggestion engine (reuse resolver compute, no writes) — D-007 | Architect | T-02, T-10 | DONE |
-| T-11 | Draft migration retiring `allocation_clear_active_decks` and any other destructive allocation RPC — D-007 | Architect | T-03 | DONE — migration approved and applied 2026-09-26 |
-| T-12 | Contract + draft migration adding a `source` parameter (`manual` / `ai` / `import`) to every placement write — D-009 | Architect | T-10 | DONE — migration approved by owner 2026-09-25 |
+| T-11 | Draft migration retiring `allocation_clear_active_decks` and any other destructive allocation RPC — D-007 | Architect | T-03 | DONE — migration deployed 2026-09-26 |
+| T-12 | Contract + draft migration adding a `source` parameter (`manual` / `ai` / `import`) to every placement write — D-009 | Architect | T-10 | DONE — migration deployed 2026-09-26 |
 | T-04 | Move the Allocation Tab off the frozen `deck_allocations` table | Backend | T-03 | DONE |
 | T-05a | Replace placeholder sequential IDs in rollup-level selection with real `physical_copy_id` values (API / data-access) | Backend | T-01 | DONE |
 | T-05b | Update UI to consume real `physical_copy_id` values from rollup API | Frontend | T-05a | DONE |
 | T-13 | M1 exit test: import owner's real Archidekt collection and decks; reconcile counts, deck lists and copy assignments against Archidekt; report differences | Architect (read-only report) | T-04, T-05, T-11, T-12 | DONE — owner decisions locked as D-018 to D-021 |
-| T-20 | Update deck importer to import Archidekt maybeboard and sideboard cards into Oracle's maybeboard relation | Backend | T-13, D-018 | DONE |
-| T-21 | Update deck importer to assign copies only when the exact printing (`scryfall_id`) is owned; otherwise leave the slot unassigned | Backend | T-13, T-20, D-021 | DONE |
+| T-20 | Update deck importer to import Archidekt maybeboard and sideboard cards into Oracle's maybeboard relation | Backend | T-13, D-018 | DONE — migration deployed 2026-09-26 |
+| T-21 | Update deck importer to assign copies only when the exact printing (`scryfall_id`) is owned; otherwise leave the slot unassigned | Backend | T-13, T-20, D-021 | DONE — migration deployed 2026-09-26 |
 
-## M2 — AI advisor v0 (next)
+## M2 — AI advisor v0 (CURRENT)
 | ID | Task | Owner role | Depends on | Status |
 |---|---|---|---|---|
 | T-14 | Audit existing AI code (`src/app/api/brew/*`, `src/app/api/ai/brew/*`, `src/app/api/decks/[id]/chat`, `src/lib/tool-registry.ts`, `src/lib/adapters/*`): what data can the AI see today, and where is D-016 violated | Architect (read-only) | T-01 | DONE |

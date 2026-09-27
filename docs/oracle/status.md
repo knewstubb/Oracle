@@ -48,3 +48,5 @@ Read `docs/oracle/roadmap.md` first. Only tasks in the **current milestone** may
 - O-002 Multi-user scale validation — M5
 - O-003 Mana curve slider — candidate for M2/M3 advisor feature, not specced
 - O-004 Debrief / deck health — after M3
+- O-005 Fix T-22/T-24 reconciliation predicate — default `planned` instances are incorrectly treated as resolved, hiding owned and unowned conflicts from the reconciliation screen. See report `docs/oracle/reports/2026-09-27-orchestrator-import-reconciliation-empty.md`.
+  **Owner-confirmed rule (2026-09-27):** a slot is resolved only when a real matching instance can be slotted in. A `planned` slot is a **conflict** (unresolved) whenever: more slots want a printing than there are available instances of it, the card is unowned, or the card is owned but not in the specified printing. This reverses the current contract §5 rule, which treats "no printing option has room" as resolved. IN PROGRESS — handed to Backend.

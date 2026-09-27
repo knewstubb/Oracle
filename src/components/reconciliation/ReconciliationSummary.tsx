@@ -84,6 +84,19 @@ function EmptyState({ onFinish }: { onFinish: () => void }) {
   )
 }
 
+function LoadErrorState({ message }: { message: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-[var(--signal-critical)]/40 px-4 py-12 text-center">
+      <p className="text-[length:var(--fs-lg)] font-medium text-foreground">
+        Unable to load reconciliation data.
+      </p>
+      <p className="max-w-xl text-[length:var(--fs-sm)] text-[var(--text-secondary)]">
+        Refresh the page and try again. Details: {message}
+      </p>
+    </div>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -95,6 +108,7 @@ export function ReconciliationSummary({
 }: ReconciliationSummaryProps) {
   const [view, setView] = useState<ReconciliationView | null>(null)
   const [viewLoading, setViewLoading] = useState(true)
+  const [viewError, setViewError] = useState<string | null>(null)
   const [mutatingClaimId, setMutatingClaimId] = useState<number | null>(null)
   const [finishing, setFinishing] = useState(false)
   const [activeTab, setActiveTab] = useState<ReconciliationTab>('decks')
@@ -106,13 +120,22 @@ export function ReconciliationSummary({
       try {
         const qs = batchId ? `?batchId=${encodeURIComponent(batchId)}` : ''
         const res = await fetch(`/api/onboarding/reconciliation${qs}`)
-        if (!res.ok) throw new Error('Failed to load reconciliation data')
+        if (!res.ok) {
+          const body = await res.json().catch(() => null) as { error?: unknown } | null
+          const detail = typeof body?.error === 'string' ? body.error : `HTTP ${res.status}`
+          throw new Error(detail)
+        }
         const data: ReconciliationView = await res.json()
-        if (!cancelled) setView(data)
-      } catch {
         if (!cancelled) {
+          setView(data)
+          setViewError(null)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          const message = err instanceof Error ? err.message : 'Unknown error'
           setView(null)
-          toast.error('Failed to load reconciliation data')
+          setViewError(message)
+          toast.error(`Failed to load reconciliation data: ${message}`)
         }
       } finally {
         if (!cancelled) setViewLoading(false)
@@ -299,6 +322,10 @@ export function ReconciliationSummary({
 
   if (viewLoading) {
     return <SummarySkeleton />
+  }
+
+  if (viewError) {
+    return <LoadErrorState message={viewError} />
   }
 
   if (!view || view.rows.length === 0) {

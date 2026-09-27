@@ -10,6 +10,7 @@ import type {
   ConflictPrintingRow,
   ConflictInstance,
   InstanceState,
+  SlotState,
 } from '@/types/import-reconciliation'
 
 // ---------------------------------------------------------------------------
@@ -33,23 +34,58 @@ interface ConflictCardProps {
 }
 
 // ---------------------------------------------------------------------------
+// Slot-state descriptor
+// ---------------------------------------------------------------------------
+
+/**
+ * Non-selectable descriptor shown on a slot per its `slotState` (contract
+ * §authoritative display state; spec §8.1, §13). `planned_claimed` (doc
+ * states 3, 9) means every usable real copy is held by another deck — no
+ * alternate is free. `planned_alt_available` (doc states 2, 8) means the
+ * requested printing is gone, but the user can still switch to a free
+ * alternate printing. These are different states with different next
+ * actions and must not be conflated into one "already claimed" label.
+ */
+const SLOT_STATE_DESCRIPTOR: Partial<Record<SlotState, { label: string; icon: typeof AlertTriangle }>> = {
+  planned_claimed: { label: 'Already claimed', icon: AlertTriangle },
+  planned_alt_available: { label: 'Alternate printing available', icon: AlertTriangle },
+}
+
+function SlotStateDescriptor({ slotState }: { slotState: SlotState }) {
+  const descriptor = SLOT_STATE_DESCRIPTOR[slotState]
+  if (!descriptor) return null
+  const Icon = descriptor.icon
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-[length:var(--fs-xs)] font-medium"
+      style={{ color: 'var(--signal-warning)' }}
+    >
+      <Icon className="size-3" aria-hidden="true" />
+      {descriptor.label}
+    </span>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Status chip
 // ---------------------------------------------------------------------------
 
 interface StatusChipProps {
   resolved: boolean
-  alreadyClaimed?: boolean
+  slotState?: SlotState
 }
 
-function StatusChip({ resolved, alreadyClaimed }: StatusChipProps) {
-  if (alreadyClaimed) {
+function StatusChip({ resolved, slotState }: StatusChipProps) {
+  const descriptor = slotState ? SLOT_STATE_DESCRIPTOR[slotState] : undefined
+  if (descriptor) {
+    const Icon = descriptor.icon
     return (
       <span
         className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[length:var(--fs-xs)] font-semibold"
         style={{ color: 'var(--signal-warning)', background: 'var(--signal-warning-bg)' }}
       >
-        <AlertTriangle className="size-3" aria-hidden="true" />
-        Already claimed
+        <Icon className="size-3" aria-hidden="true" />
+        {descriptor.label}
       </span>
     )
   }
@@ -108,15 +144,7 @@ function InstanceRow({
             {instance.deckName}
           </span>
         )}
-        {instance.alreadyClaimed && (
-          <span
-            className="inline-flex items-center gap-1 text-[length:var(--fs-xs)] font-medium"
-            style={{ color: 'var(--signal-warning)' }}
-          >
-            <AlertTriangle className="size-3" aria-hidden="true" />
-            Already claimed
-          </span>
-        )}
+        <SlotStateDescriptor slotState={instance.slotState} />
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-2">
@@ -179,7 +207,9 @@ export function ConflictCard({
 
   const thumbUrl = printing.imageUriSmall
 
-  const anyAlreadyClaimed = printing.instances.some((i) => i.alreadyClaimed)
+  const claimedDescriptorInstance = printing.instances.find(
+    (i) => SLOT_STATE_DESCRIPTOR[i.slotState]
+  )
 
   return (
     <div
@@ -209,7 +239,10 @@ export function ConflictCard({
             <span className="text-[length:var(--fs-md)] font-medium text-foreground">
               {printing.cardName}
             </span>
-            <StatusChip resolved={printing.resolved} alreadyClaimed={anyAlreadyClaimed && !showClaimantDecks} />
+            <StatusChip
+              resolved={printing.resolved}
+              slotState={showClaimantDecks ? undefined : claimedDescriptorInstance?.slotState}
+            />
           </div>
           <PrintingIdentifier
             printingId={printing.printingId}

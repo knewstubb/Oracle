@@ -4,13 +4,21 @@
 
 APPROVED — owner decisions incorporated (Q3/Q4 closed, button renamed to
 "Allocate Cards", §5 resolved semantics updated). Ready for Backend
-implementation.
+implementation. Revised 2026-09-27 (O-005): owner's final badge rule — the
+deck conflict badge disappears after "Allocate Cards" (§5, §7.6, §13 Q4).
 
 Defines the data model, API surface, persistence behaviour and correctness
 properties needed to implement the UX spec in
 `docs/oracle/specs/import-reconciliation-redesign.md`.
 
-Draft migration: `supabase/migrations/20260926140000_import_reconciliation_redesign.sql`
+Migrations: `supabase/migrations/20260926140000_import_reconciliation_redesign.sql`
+(deployed 2026-09-27), corrected by
+`supabase/migrations/20260927120000_import_reconciliation_slot_states.sql`
+(DRAFT, O-005 — awaiting owner approval).
+
+Slot states: `docs/oracle/import-reconciliation-states.md` is the owner-approved
+source of truth. §5 of this contract implements it; where they differ, the
+states doc wins.
 TypeScript types: [`import-reconciliation-redesign.types.ts`](./import-reconciliation-redesign.types.ts)
 
 ---
@@ -75,7 +83,9 @@ All counts are scoped to the authenticated user.
 | `availableSupply(p)` | `ownedTotal(p)` minus copies already referenced by a `deck_cards.copy_id`. The number of real copies this screen can hand out. |
 | `claimedBy(p)` | Decks holding a real copy of `p`. Feeds the "Already claimed" source-deck tags (spec §7). |
 | `freeProxies(p)` | Proxy copies of `p` (`is_proxy = true`) not referenced by any `deck_cards.copy_id`. Drives "reuse an existing proxy" at finalize. |
-| `sleevedIntent(p)` | In-scope instances whose effective printing is `p` and whose state is `sleeved`. |
+| `sleevedIntent(p)` | In-scope instances whose effective printing is `p` and whose state is `sleeved`. Copies reserved by a Sleeve decision. |
+| `competingDemand(p)` | In-scope instances whose effective printing is `p` and whose state is `planned` **or** `sleeved`. Every slot that wants a real copy. Proxy slots do not compete. |
+| `remaining(p)` | `availableSupply(p) − sleevedIntent(p)`. Copies still free to Sleeve right now. |
 
 Because in-scope instances are exactly the slots with `deck_cards.copy_id IS NULL`
 (§2.5), a copy that is "held" is always held *outside* this screen.
@@ -268,7 +278,7 @@ interface ConflictPrintingRow {
   ownership: 'owned' | 'unowned'
   /** D-024: card is owned, but not in this printing. Warn only. */
   printingMismatch: boolean
-  /** Any instance wants a real copy it cannot get. Amber row warning. */
+  /** Any instance in the row has overAllocated: true. Amber row warning. */
   overAllocated: boolean
   /** Every instance in this row is slot-level resolved (§5). Green row. */
   resolved: boolean
@@ -291,15 +301,18 @@ interface ConflictInstance {
   effectivePrintingId: string
   wishlisted: boolean
 
-  /** false ⇒ render the Sleeved button disabled (spec §8.2). */
+  /** Display state per the states doc (§5). Authoritative for label and buttons. */
+  slotState: SlotState
+  /** remaining(effective) > 0, or this slot already holds a fitting reservation. false ⇒ Sleeve disabled. */
   canSleeve: boolean
-  /** true ⇒ render the amber "Already claimed" descriptor (spec §8.1). */
+  /** Another owned printing has remaining > 0. Drives "Switch printing". */
+  alternateAvailable: boolean
+  /** Derived: slotState === 'planned_claimed' (states 3, 9). */
   alreadyClaimed: boolean
-  /**
-   * true when this slot has no remaining actionable option (§5).
-   * `sleeved` with supply, `proxy`, and `planned` slots that have lost the
-   * allocation race on every printing option are all resolved.
-   */
+  /** competingDemand(effective) > availableSupply(effective); false for proxy. */
+  overAllocated: boolean
+  competingDemand: number
+  /** slotState ∈ RESOLVED_SLOT_STATES (§5). */
   resolved: boolean
   /** Decks holding the real copies of this instance's effective printing (spec §7). */
   claimedBy: DeckRef[]
@@ -327,8 +340,10 @@ Row ordering: unresolved before resolved, then `overAllocated` first, then
 `cardName`, then `printingId`. Resolved rows keep their position within a client
 session because the client replaces its list from mutation responses (§6).
 
-The UI derives nothing about supply. `canSleeve` and `alreadyClaimed` are
-computed server-side from one consistent snapshot, so two tabs can never
+`SlotState` and `RESOLVED_SLOT_STATES` are defined in the types file and in §5.
+
+The UI derives nothing about supply. `slotState`, `canSleeve`,
+`alternateAvailable` and `alreadyClaimed` are computed server-side from one consistent snapshot, so two tabs can never
 disagree.
 
 ### 4.3 `PATCH /api/onboarding/reconciliation/instance`
@@ -430,33 +445,73 @@ This answers the handoff's open question directly.
 in three decks with the same printing is one count. The same card name in two
 different printings is two counts (spec §6).
 
-**Slot-level resolved.** A deck's slot (one instance) is `resolved` when any of
-the following hold:
+**Slot state.** Every instance has exactly one `slotState`, computed
+server-side in the priority order of the states doc. Let `p` be the instance's
+effective printing (§2.3).
 
-1. its state is `sleeved` and `canSleeve === true` for its effective printing;
-2. its state is `proxy`; or
-3. its state is `planned` and **no printing option still has room**.
+| Order | Condition | `slotState` | States doc # | Resolved |
+|-------|-----------|-------------|--------------|----------|
+| 1 | state `proxy` | `proxy` | 12 | yes |
+| 2 | state `sleeved` and `sleevedIntent(p) > availableSupply(p)` | `sleeved_unsatisfiable` | — | no |
+| 3 | state `sleeved`, alternate selected | `sleeved_alternate` | 11 | yes |
+| 4 | state `sleeved` | `sleeved_owned` | 7 | yes |
+| 5 | state `planned`, no alternate selected, `ownedTotal(p) > 0` and `competingDemand(p) ≤ availableSupply(p)` | `sleeved_auto` | 4 | yes |
+| 6 | state `planned`, alternate selected, `remaining(p) > 0` | `planned_alternate_selected` | 10 | no |
+| 7 | state `planned`, `remaining(p) > 0` | `planned_conflict` | 5, 6 | no |
+| 8 | state `planned`, another owned printing has `remaining > 0` | `planned_alt_available` | 2, 8 | no |
+| 9 | state `planned`, `ownedAnyPrinting > 0` | `planned_claimed` | 3, 9 | no |
+| 10 | otherwise | `planned_unowned` | 1 | no |
 
-"Has room" for a printing `p` means `availableSupply(p) > sleevedIntent(p)`
-after ignoring this instance's own demand — a planned instance consumes none,
-and a sleeved instance switching away would free its current printing. The
-printing options to consider are the imported printing plus every
-`alternatePrinting` the user owns. Losing the allocation race to other decks
-therefore counts as resolved, not unresolved.
+Notes on the mapping:
 
-A slot is only genuinely unresolved while an action is still possible.
+- **Competing demand counts planned slots.** "Overallocated" in the states doc
+  means more competing import slots than free copies. A `planned` slot
+  competes. So two decks wanting one free copy are both `planned_conflict`
+  (state 5) the moment the import lands — before anyone clicks Sleeve — and
+  neither is allocated automatically. This is the Felothar rule.
+- **Sleeve reserves against Sleeve, not against Planned.** `canSleeve` and the
+  `set_import_claim_state` re-check compare `sleevedIntent` with supply. That
+  is what lets the user pick the winner in a conflict: in the Felothar case
+  both slots can Sleeve; once one does (state 7), `remaining` hits 0 and the
+  other becomes `planned_alt_available` (8) or `planned_claimed` (9) with
+  Sleeve disabled.
+- **States 5 and 6 share one value.** They differ only in whether Switch
+  printing is offered, which is `alternateAvailable`.
+- **States 2/8 and 3/9 share values.** The doc distinguishes them by *how*
+  the slot got there (at import vs after another deck Sleeved); the displayed
+  state and options are the same. `printingMismatch` on the row tells the UI
+  whether the requested printing is owned at all.
+- **"Alternate" is relative to the effective printing.** After switching
+  (state 10), the imported printing counts as an alternate if it is owned.
+  An alternate is "available" when `remaining > 0` on it — the user could
+  switch and then Sleeve.
+- **State 4 is automatic.** It is stored as `planned` and materialised by
+  finalize (§7.7). Selecting an alternate never auto-allocates: state 10 is
+  unresolved until the user Sleeves (state 11).
+- **`sleeved_unsatisfiable` is not in the states doc.** It arises when free
+  supply drops under an existing Sleeve reservation from outside this screen
+  (another deck takes the copy through normal deck actions) or via the legacy
+  `set_import_claim_resolution` shim. It is unresolved and treated as a
+  conflict; there is no tie-breaker (spec §8.2).
+- **States 13 and 14 are events.** 13: finalize settles every unresolved
+  `planned_*` slot; it leaves the screen **and the deck conflict badge**, and
+  stays a normal Planned slot in the deck (§7.6). 14: any write recalculates
+  every affected slot from the table above.
+- **Slot state applies to unsettled claims.** Before "Allocate Cards", every
+  `planned_*` state is an outstanding conflict and shows on the badges below.
+  After it, a leftover Planned slot is no longer an import decision, so it has
+  no badge — this is not a change to the table above, only to which claims it
+  is evaluated for.
+
+**Slot-level resolved** is `slotState ∈ { sleeved_auto, sleeved_owned,
+sleeved_alternate, proxy }` (`RESOLVED_SLOT_STATES`). **Every `planned_*`
+state is unresolved**, including `planned_claimed` and `planned_unowned`:
+Proxy is still an available action for both.
 
 **Printing-level resolved.** A conflict printing is `resolved` when **every**
 instance in the row is slot-level resolved. This is the row's `resolved` flag
-and the predicate that turns a row green.
-
-**Unresolved** is the negation at the printing level: a row is unresolved if
-any of its instances is unresolved. `planned` no longer always counts as
-unresolved — a planned slot whose imported printing and every alternate are out
-of room is resolved because nothing can be done for it. This makes the badge a
-"still actionable" count rather than a "touched every row" count, and it is
-what makes "Allocate Cards ({n} unresolved)" and "All imported cards are
-reconciled." meaningful (spec §20, §15).
+and the predicate that turns a row green. A row is unresolved if any of its
+instances is unresolved.
 
 **Badges.**
 
@@ -467,6 +522,7 @@ reconciled." meaningful (spec §20, §15).
 | Decks tab | `unresolvedOwned + unresolvedUnowned` |
 | Finish bar | `unresolvedTotal` |
 | Per deck | unresolved rows having at least one instance in that deck |
+| Deck list (deck tile, §7.6) | as Per deck, over **unsettled** claims only; 0 for every deck after "Allocate Cards" |
 
 Per-deck counts deliberately do **not** sum to `unresolvedTotal`: a printing
 wanted by three decks contributes 1 to the tab badge and 1 to each of three
@@ -571,23 +627,58 @@ Every assignment now also sets:
 
 Materialised claims are deleted (their outcome now lives on `deck_cards`).
 Unmaterialised claims — `planned`, and `sleeved` instances that could not be
-satisfied — keep their row and get `settled_at` stamped. That is the durable
-record behind the cross-page conflict badge and means pressing
-"Allocate Cards (12 unresolved)" does not silently erase 12 decisions.
+satisfied — keep their row and get `settled_at` stamped. The row is the durable
+record of what the import asked for, so pressing "Allocate Cards
+(12 unresolved)" does not silently erase 12 decisions. `settled_at` is also
+what takes the claim off the deck conflict badge (§7.6): a settled claim is a
+normal Planned deck slot, not an outstanding import conflict.
 
 ### 7.6 `get_deck_conflict_counts`
 
-Redefined to match the slot-level resolved predicate. A deck's badge counts
-distinct `(card_name, printing_id)` pairs where the deck has a claim, open or
-settled, whose `deck_cards.copy_id IS NULL`, and where at least one of the
-deck's instances for that printing is unresolved per §5.
+Uses the same `slotState` computation as `get_import_reconciliation` (§5),
+including `competingDemand = planned + sleeved`. A deck's badge counts
+distinct `(card_name, imported printing)` pairs where the deck has an
+**unsettled** claim (`settled_at IS NULL`) whose `deck_cards.copy_id IS NULL`,
+and where at least one of the deck's instances for that printing is
+unresolved.
 
-The old definition recomputed card-level supply maths account-wide and only
-counted `resolution = 'sleeve'`. With `planned` as the default that would report
-zero conflicts for every deck immediately after import. The new definition
-reads "import slots this deck can still do something about", which is both
-correct under the new default and easier to explain. A planned slot whose every
-printing option is exhausted is resolved and drops from the badge.
+**Owner rule (2026-09-27, `docs/oracle/status.md` O-005; states doc row 13).**
+After "Allocate Cards", the deck conflict badge disappears. Finalize stamps
+`settled_at` on every claim it does not materialise (§7.1, §7.5), so every
+leftover Planned slot drops out of the badge's scope. The slot itself is
+untouched: it stays a normal Planned deck slot (`copy_id IS NULL`), exactly as
+any Planned slot created outside an import.
+
+Consequences:
+
+- Two imported decks wanting one free copy both show a badge immediately
+  after import, with no Sleeve clicked, until "Allocate Cards" runs.
+- While the import is open, a `planned_claimed` or `planned_unowned` slot
+  keeps its badge until it is proxied, allocated, or the import is finished;
+  "every option exhausted" does not drop it.
+- A `sleeved_auto` slot (state 4) never shows a badge.
+- A `sleeved_unsatisfiable` slot that finalize could not fill is also settled
+  and also leaves the badge.
+- An import that is never finished keeps its badges, because its claims stay
+  unsettled.
+
+Scope: account-wide across batches, over unsettled claims only. That is the
+same scope `get_import_reconciliation` uses when called without `batchId`. The
+deployed `20260926140000` version also counted settled claims; the O-005 draft
+migration removes that.
+
+### 7.7 Automatic allocation at finalize (state 4)
+
+Before materialising a card, `finalize_import_claims` computes, once and under
+the per-card advisory lock, the claims in state 4: `planned`, no alternate
+selected, and `competingDemand(p) ≤ availableSupply(p)` on the imported
+printing within the finalize scope. Those take the `sleeved` branch. Because
+the whole competing set fits the free supply, this cannot violate P1 and
+cannot take a copy a user-chosen Sleeve needs. Every other `planned` slot is
+settled and left Planned (state 13), as before.
+
+This is what makes "Sleeved (owned) — allocated automatically" true. Without
+it the screen would say Sleeved and finalize would leave the slot Planned.
 
 ---
 
@@ -609,6 +700,9 @@ Properties to hold across all valid executions. Each cites what it protects.
 | P10 | Every `deck_cards` row finalize sets `copy_id` on has `placement_source = 'import'`. | `placement-source.md` row 12. |
 | P11 | A `wishlist` write changes no count, no `resolved`, and no `deck_cards` row. | Spec §9 independence. |
 | P12 | Changing an instance's state or printing never changes another instance's `state`, except the documented demotion of the same instance. | Spec §8: the instance is the unit of action. |
+| P13 | Every instance has exactly one `slotState`; `resolved` is true iff it is in `RESOLVED_SLOT_STATES`; for every unsettled claim, `get_import_reconciliation` (no `batchId`) and `get_deck_conflict_counts` agree on it. | States doc; §5, §7.6. |
+| P15 | After `finalize_import_claims` completes for a batch, no claim of that batch contributes to `get_deck_conflict_counts`; every such slot not assigned a copy still exists with `copy_id IS NULL`. | Owner badge rule (§7.6); states doc row 13. |
+| P14 | No slot is allocated automatically unless every competing slot for that printing fits the free supply. | States doc process rule (Felothar). |
 
 P1, P5, P8 and P9 are the property-test candidates; the rest are integration
 assertions (§9).
@@ -804,6 +898,17 @@ Scenarios:
 9. Reload behaviour: resolve a row, `PATCH` response still contains it, fresh
    `GET` does not (P7).
 10. Wishlist toggle changes no count and no `deck_cards` row (P11).
+11. States doc walk-through (P13, P14), one fixture per row: 1 unowned; 2 P not
+    owned, Q free; 3 P not owned, Q held elsewhere; 4 one copy, one slot, then
+    finalize assigns it; 5 one copy, two planned slots, badges on both decks;
+    6 as 5 plus free Q (`alternateAvailable`); 7/9 Sleeve one of the two, the
+    other is `planned_claimed` with Sleeve disabled; 8 as 7 with free Q;
+    10/11 alternate selected then Sleeved; 12 proxy frees supply so the other
+    slot becomes `sleeved_auto`; 13 finalize on an open conflict assigns
+    nothing, the slot stays Planned with `copy_id IS NULL`, and
+    `get_deck_conflict_counts` no longer lists the deck (P15). The O-005 migration was checked against this list on PGlite
+    (see the O-005 Architect report); promote it to the seeded integration
+    suite.
 
 ### Read-only integrity checks after any run against real data
 
@@ -845,8 +950,8 @@ Those must run against Postgres.
 |---|--------|----------|-----------------|
 | 1 | **Closed** | Should slots that import already sleeved (exact printing, free copy) appear on the reconciliation screen at all? | **Stay hidden.** Conflict-free imports that were already sleeved during import do not appear as editable rows. They still count as supply consumers and surface as `claimedBy` deck tags (§2.5). If the owner later wants them visible, the Designer must spec a read-only treatment. |
 | 2 | **Closed** | Spec §12 asks for `condition` in each alternate-printing option. Selection is per printing, so condition cannot be shown truthfully when several copies of a printing exist. Drop condition, or move to copy-level selection in a later increment? | **Drop condition from the printing-level option list.** Scryfall treats a printing (set code + collector number + id) as finish-agnostic; `finishes: string[]` lists every finish a printing exists in, and foil/nonfoil share one id (see §15). `condition` is a copy-level attribute, exactly like `finish` under D-004. It can surface later if selection moves to copy-level granularity; until then it is logged as debt. |
-| 3 | **Closed** | Is "Planned counts as unresolved" correct? | **No — not automatically.** A `planned` slot is unresolved only while at least one printing option (imported or alternate) still has room. A `planned` slot that has lost the allocation race on every option is resolved. This makes the badge count "still actionable" printings, not "untouched" rows (§5). |
-| 4 | **Closed** | After "Allocate Cards", should `planned` instances keep appearing in the deck-list conflict badge? | **Yes, while they are still actionable.** The badge uses the same slot-level resolved predicate as the reconciliation view (§7.6). A `planned` slot whose every printing option is exhausted is resolved and drops from the badge. |
+| 3 | **Closed** (revised O-005) | Is "Planned counts as unresolved" correct? | **Yes, except state 4.** Per the owner-approved states doc, every Planned state (unowned, alt printing available, claimed by another deck, conflict, alternate selected) is unresolved. The only planned slot that is resolved is state 4 — the requested printing fits every competing slot — and finalize allocates it automatically (§5, §7.7). The earlier answer ("resolved once every printing has lost the race") is withdrawn. |
+| 4 | **Closed** (owner final decision 2026-09-27, supersedes the earlier O-005 revision) | After "Allocate Cards", should `planned` instances keep appearing in the deck-list conflict badge? | **No.** After "Allocate Cards" the deck conflict badge disappears. Leftover Planned slots remain normal Planned deck slots and are no longer outstanding import conflicts (states doc row 13). Before finalize, the badge uses the same `slotState` computation as the reconciliation view; finalize settles the claims and the badge reads unsettled claims only (§7.6, P15). The earlier "yes, until proxied or allocated" answer is withdrawn; it was marked Closed before the row-13 tension was put to the owner. |
 
 ## 14. Challenges to locked decisions
 

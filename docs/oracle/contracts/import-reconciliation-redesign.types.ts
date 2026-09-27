@@ -34,6 +34,64 @@ export const LEGACY_STATE_MAP: Readonly<Record<LegacyInstanceState, InstanceStat
   sleeve: 'sleeved',
 }
 
+/**
+ * Display state of one slot, per the owner-approved
+ * `docs/oracle/import-reconciliation-states.md`. Server-computed; the UI maps
+ * it to label and buttons and derives nothing else. Numbers are the states-doc
+ * rows.
+ *
+ * | value                        | doc # | label                               | resolved |
+ * |------------------------------|-------|-------------------------------------|----------|
+ * | `planned_unowned`            | 1     | Planned (unowned)                   | no       |
+ * | `planned_alt_available`      | 2, 8  | Planned (alt printing available)    | no       |
+ * | `planned_claimed`            | 3, 9  | Planned (claimed by another deck)   | no       |
+ * | `sleeved_auto`               | 4     | Sleeved (owned) — automatic         | yes      |
+ * | `planned_conflict`           | 5, 6  | Planned (conflict)                  | no       |
+ * | `sleeved_owned`              | 7     | Sleeved (owned)                     | yes      |
+ * | `planned_alternate_selected` | 10    | Planned (alternate selected)        | no       |
+ * | `sleeved_alternate`          | 11    | Sleeved (alternate printing)        | yes      |
+ * | `proxy`                      | 12    | Proxy                               | yes      |
+ * | `sleeved_unsatisfiable`      | —     | not in states doc; see contract §5  | no       |
+ *
+ * `sleeved_auto` is stored as `state: 'planned'`; finalize allocates it
+ * (contract §7.7). States 13 and 14 are events, not display values: 13 is a
+ * `planned_*` slot after finalize (settled: off this screen and off the deck
+ * conflict badge, but still a normal Planned deck slot — contract §7.6); 14 is
+ * any state recalculated after a write.
+ */
+export type SlotState =
+  | 'planned_unowned'
+  | 'planned_alt_available'
+  | 'planned_claimed'
+  | 'sleeved_auto'
+  | 'planned_conflict'
+  | 'sleeved_owned'
+  | 'planned_alternate_selected'
+  | 'sleeved_alternate'
+  | 'proxy'
+  | 'sleeved_unsatisfiable'
+
+export const SLOT_STATES: readonly SlotState[] = [
+  'planned_unowned',
+  'planned_alt_available',
+  'planned_claimed',
+  'sleeved_auto',
+  'planned_conflict',
+  'sleeved_owned',
+  'planned_alternate_selected',
+  'sleeved_alternate',
+  'proxy',
+  'sleeved_unsatisfiable',
+]
+
+/** The slot states that count as resolved (contract §5). */
+export const RESOLVED_SLOT_STATES: readonly SlotState[] = [
+  'sleeved_auto',
+  'sleeved_owned',
+  'sleeved_alternate',
+  'proxy',
+]
+
 /** Which tab a conflict printing belongs to. `unowned` iff ownedAnyPrinting === 0. */
 export type RowOwnership = 'owned' | 'unowned'
 
@@ -103,15 +161,34 @@ export interface ConflictInstance {
   /** Unowned-tab wishlist checkbox. Defaults to true. Affects nothing else. */
   wishlisted: boolean
 
-  /** false ⇒ render the Sleeved button disabled (spec §8.2). */
+  /** Display state per the states doc. Authoritative for label and buttons. */
+  slotState: SlotState
+
+  /**
+   * Supply fact: a free copy of the effective printing is not yet reserved by
+   * another Sleeve decision. false ⇒ render Sleeve disabled (spec §8.2).
+   */
   canSleeve: boolean
-  /** true ⇒ render the amber "Already claimed" descriptor (spec §8.1). */
+  /**
+   * An owned alternate printing (any printing other than the effective one)
+   * has a free, unreserved copy. Drives the "Switch printing" option.
+   */
+  alternateAvailable: boolean
+  /**
+   * Derived: `slotState === 'planned_claimed'` (states 3, 9) — every usable
+   * real copy is held by or reserved for another deck, and no alternate is
+   * free. Renders the amber "Claimed by another deck" descriptor. Not true for
+   * `planned_alt_available`; that is a different state with a different action.
+   */
   alreadyClaimed: boolean
   /**
-   * true when this slot has no remaining actionable option (contract §5).
-   * `sleeved` with supply, `proxy`, and `planned` slots that have lost the
-   * allocation race on every printing option are all resolved.
+   * States-doc "Overallocated?": competing slots (planned + sleeved) on the
+   * effective printing exceed its free copies. Always false for `proxy`.
    */
+  overAllocated: boolean
+  /** Planned + sleeved slots in scope competing for the effective printing. */
+  competingDemand: number
+  /** `RESOLVED_SLOT_STATES.includes(slotState)` (contract §5). */
   resolved: boolean
   /** Decks holding real copies of this instance's effective printing (spec §7). */
   claimedBy: DeckRef[]
@@ -156,7 +233,7 @@ export interface ConflictPrintingRow {
   ownership: RowOwnership
   /** D-024: card is owned, but not in this printing. Warn only, never blocks. */
   printingMismatch: boolean
-  /** Any instance wants a real copy it cannot get. Amber row warning. */
+  /** Any instance in the row has `overAllocated: true`. Amber row warning. */
   overAllocated: boolean
   /** Every instance in this row is slot-level resolved (contract §5). Green row. */
   resolved: boolean

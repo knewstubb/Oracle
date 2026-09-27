@@ -45,8 +45,12 @@ const mockView: ReconciliationView = {
           selectedPrintingId: null,
           effectivePrintingId: 'sol-ring-printing',
           wishlisted: true,
+          slotState: 'sleeved_owned',
           canSleeve: true,
+          alternateAvailable: false,
           alreadyClaimed: false,
+          overAllocated: false,
+          competingDemand: 1,
           resolved: true,
           claimedBy: [],
         },
@@ -103,5 +107,22 @@ describe('ReconciliationSummary', () => {
     const tabs = screen.getAllByRole('tab')
     expect(tabs.map((t) => t.textContent)).toEqual(['Decks2', 'Owned1', 'Unowned1'])
     expect(screen.getByText('Sol Ring')).toBeInTheDocument()
+  })
+
+  it('shows a load error instead of the all-reconciled state when the API fails', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: () => Promise.resolve({ error: 'get_import_reconciliation is unavailable' }),
+    } as Response)
+
+    render(<ReconciliationSummary batchResult={batchResult} batchId="batch-1" onFinish={vi.fn()} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Unable to load reconciliation data.')).toBeInTheDocument()
+    })
+
+    expect(screen.getByText(/get_import_reconciliation is unavailable/)).toBeInTheDocument()
+    expect(screen.queryByText('All imported cards are reconciled.')).not.toBeInTheDocument()
   })
 })

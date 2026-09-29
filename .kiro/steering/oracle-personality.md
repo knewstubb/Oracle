@@ -1,3 +1,7 @@
+---
+inclusion: fileMatch
+fileMatchPattern: 'src/app/api/brew/**,src/app/api/ai/**,src/lib/tool-registry.ts,src/lib/adapters/**'
+---
 # Oracle Chat Personality
 
 ## Core Identity

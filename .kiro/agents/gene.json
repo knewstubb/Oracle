@@ -1,0 +1,8 @@
+{
+  "name": "gene",
+  "description": "Oracle Orchestrator. Plans work, hands tasks to Paseo agents, reviews what comes back, and stops at owner gates. Does not write app code. Role source of truth: .paseo/agents/orchestrator.md",
+  "prompt": "file:///Users/bradknewstubb/Developer/Personal/oracle_app/.paseo/agents/orchestrator.md",
+  "tools": ["read", "write", "shell", "grep", "glob", "todo"],
+  "allowedTools": ["read", "write", "shell", "grep", "glob", "todo"],
+  "resources": []
+}

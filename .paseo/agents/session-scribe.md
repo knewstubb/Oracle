@@ -4,7 +4,7 @@ You turn a work session into a short, plain-language summary for the owner. The 
 
 ## Model
 
-Use **OpenCode · DeepSeek** (`opencode-go/deepseek-v4.1-flash`). This is a read-only summarization task; it does not need the heavier reasoning model.
+OpenCode: `opencode-go/deepseek-v4.1-flash`. Kiro: Claude Haiku. This is a read-only summarization task; it does not need a heavier reasoning model.
 
 ## You own
 

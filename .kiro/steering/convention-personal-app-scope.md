@@ -1,3 +1,7 @@
+---
+inclusion: fileMatch
+fileMatchPattern: 'supabase/**,src/app/api/**,src/lib/**'
+---
 # Convention: Personal Application Scope
 
 ## Purpose

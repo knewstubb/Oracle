@@ -1,3 +1,7 @@
+---
+inclusion: fileMatch
+fileMatchPattern: 'supabase/**,src/lib/**,src/app/api/**,src/hooks/**'
+---
 # Supabase Query Gotchas
 
 ## First Things to Check When Data is Missing

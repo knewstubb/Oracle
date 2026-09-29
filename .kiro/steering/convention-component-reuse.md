@@ -1,3 +1,7 @@
+---
+inclusion: fileMatch
+fileMatchPattern: 'src/components/**,src/app/**/*.tsx'
+---
 # Convention: Component Reuse
 
 ## Core Principle

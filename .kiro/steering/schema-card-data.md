@@ -1,3 +1,7 @@
+---
+inclusion: fileMatch
+fileMatchPattern: 'supabase/**,src/lib/**,src/app/api/**'
+---
 # Schema: Card Data Model
 
 ## Overview

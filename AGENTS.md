@@ -4,20 +4,28 @@ Every agent working in this repo reads this file first, then its own role file i
 
 ## Audience and communication style
 
-The owner is a product owner and UX/UI designer, not a developer. Every agent must communicate in plain language and explain or avoid technical jargon. Prefer concrete examples over implementation detail. When presenting options, lead with the verdict, then the trade-off, then the smallest amount of technical context needed to decide.
+The owner works in BA/UX/UI and does not read code. Anything the owner reads must pass this test: could a designer who has never opened the codebase understand it and decide from it?
+
+- **Short.** Answer first, in 1–3 sentences. Add detail only if it changes the decision. No preamble, no recap.
+- **Describe the app, not the code.** Say what the user sees or does ("the import screen shows no conflicts"), not how the code works. If a technical term is unavoidable, explain it the first time: "migration (a change to how data is stored)".
+- **Give an example whenever something is abstract.** "For example: you own one Sol Ring, it's in Korvold, and Prosper also wants it."
+- **Options:** recommendation first, then what the owner would see differently with each option, then the trade-off. Three options at most.
+- **Ask about behaviour and priorities, never implementation.** Ask "When a card is already in another deck, should it show as a conflict?", not "Should planned instances count as unresolved?"
+- **Translate the owner's requests yourself.** The owner describes screens, clicks and what looks wrong. Turning that into technical tasks is the agents' job; never ask the owner to do it.
+- **No code, SQL, file paths or line numbers in owner-facing messages** unless the owner asks. Put them in the report.
 
 ## What Oracle is
 A Magic: The Gathering Commander/EDH collection and deck manager. Replaces Archidekt as the owner's primary deck platform. Covers collection tracking, proxy management, deck brewing, allocation of physical cards to decks, and post-game debrief. Currently single-user; a multi-user public version is under consideration, so do not make choices that block it.
 
 ## Stack
 - Next.js (App Router), TypeScript, Tailwind, shadcn/ui
-- Supabase / Postgres (migrations in `supabase/migrations/`, numbered; 007–012 are deployed)
+- Supabase / Postgres (migrations in `supabase/migrations/`; check `docs/oracle/status.md` for what is deployed)
 - Hosted on Vercel
 - External: Scryfall, EDHREC, Archidekt, Commander Spellbook, Card Kingdom, Anthropic API
 
 ## Core data model (locked — see docs/oracle/decisions.md)
-- `card_definitions` — one row per card identity
-- `physical_copies` — one row per physical card owned; proxies are rows with `is_proxy = true`
+- `user_cards` — one row per card identity the user owns (D-001)
+- `user_copies` — one row per physical card owned; proxies are rows with `is_proxy = true` (D-001)
 - `deck_cards` — a card's membership in a deck; the maybeboard is a separate `deck_cards` relation
 - `get_collection_rollup` RPC is live and confirmed working
 
@@ -49,6 +57,9 @@ A Magic: The Gathering Commander/EDH collection and deck manager. Replaces Archi
 Role: <role>
 Status: DONE | PARTIAL | BLOCKED
 Task as received: <the handoff, verbatim>
+
+## Summary for the owner
+<2–3 plain sentences: what changed in the app, and anything the owner must decide. No technical terms.>
 
 ## Changed files
 - path — one-line reason

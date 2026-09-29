@@ -1,6 +1,6 @@
 'use client'
 
-export type OwnershipStatus = 'original' | 'proxy' | null
+export type OwnershipStatus = 'original' | 'proxy' | 'not_owned' | null
 
 export interface OwnershipBadgeProps {
   status: OwnershipStatus
@@ -9,8 +9,9 @@ export interface OwnershipBadgeProps {
 }
 
 const CONFIG = {
-  original: { glyph: '●', label: 'Original', color: 'text-teal-600', bg: 'bg-teal-50' },
-  proxy:    { glyph: '◐', label: 'Proxy',    color: 'text-amber-600', bg: 'bg-amber-50' },
+  original:  { glyph: '●', label: 'Original',  color: 'text-teal-600',  bg: 'bg-teal-50' },
+  proxy:     { glyph: '◐', label: 'Proxy',     color: 'text-amber-600', bg: 'bg-amber-50' },
+  not_owned: { glyph: '○', label: 'Not owned', color: 'text-gray-500',  bg: 'bg-gray-100' },
 } as const
 
 export function OwnershipBadge({ status, holderDeckName, className }: OwnershipBadgeProps) {

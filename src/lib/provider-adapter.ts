@@ -112,8 +112,11 @@ export interface ProviderAdapter {
   /**
    * Send a message with streaming response.
    * Yields chunks as they arrive: text deltas, tool call progress, and final message.
+   *
+   * Optional because not every provider has a streaming implementation yet.
+   * Callers must guard with `if (adapter.sendMessageStreaming)`.
    */
-  sendMessageStreaming(params: StreamingParams): AsyncIterable<StreamChunk>
+  sendMessageStreaming?(params: StreamingParams): AsyncIterable<StreamChunk>
 
   /**
    * Format tool results for the next request in the provider's expected format.

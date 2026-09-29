@@ -354,7 +354,7 @@ describe('Feature: deck-ratings, Property 5: Key Card Output Structure', () => {
   // Generator for cards that will qualify (have at least 1 scoring category)
   const qualifyingCardArb: fc.Arbitrary<CardData> = fc.record({
     cardName: fc.string({ minLength: 1, maxLength: 20 }).map(
-      (s, idx) => `Card_${s.replace(/[^a-zA-Z0-9]/g, 'x')}_${Math.random().toString(36).slice(2, 6)}`
+      (s) => `Card_${s.replace(/[^a-zA-Z0-9]/g, 'x')}_${Math.random().toString(36).slice(2, 6)}`
     ),
     oracleText: fc.constantFrom(
       'Search your library for a card and put it into your hand.',

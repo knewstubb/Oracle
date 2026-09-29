@@ -25,7 +25,7 @@ function makeCandidate(overrides: Partial<UpgradeCandidate> = {}): UpgradeCandid
     add: {
       card_name: 'Add Card',
       reason: 'Better synergy',
-      ownership_status: 'not_owned',
+      ownership_status: null,
       edhrec_percent: 40,
       price: 3.5,
     },
@@ -60,7 +60,7 @@ describe('sortCandidates', () => {
 
   it('sorts by owned (ownership tier ascending)', () => {
     const candidates = [
-      makeCandidate({ add: { ...makeCandidate().add, ownership_status: 'not_owned' } }),
+      makeCandidate({ add: { ...makeCandidate().add, ownership_status: null } }),
       makeCandidate({ add: { ...makeCandidate().add, ownership_status: 'original' } }),
       makeCandidate({ add: { ...makeCandidate().add, ownership_status: 'proxy' } }),
     ]
@@ -68,7 +68,7 @@ describe('sortCandidates', () => {
     expect(result.map((c) => c.add.ownership_status)).toEqual([
       'original',
       'proxy',
-      'not_owned',
+      null,
     ])
   })
 
@@ -118,15 +118,15 @@ describe('sortCandidates', () => {
 // ---------------------------------------------------------------------------
 
 describe('filterCandidates', () => {
-  it('owned_only keeps original and proxy, excludes not_owned', () => {
+  it('owned_only keeps original and proxy, excludes unowned', () => {
     const candidates = [
       makeCandidate({ add: { ...makeCandidate().add, ownership_status: 'original' } }),
       makeCandidate({ add: { ...makeCandidate().add, ownership_status: 'proxy' } }),
-      makeCandidate({ add: { ...makeCandidate().add, ownership_status: 'not_owned' } }),
+      makeCandidate({ add: { ...makeCandidate().add, ownership_status: null } }),
     ]
     const result = filterCandidates(candidates, new Set<FilterChip>(['owned_only']))
     expect(result).toHaveLength(2)
-    expect(result.every((c) => c.add.ownership_status !== 'not_owned')).toBe(true)
+    expect(result.every((c) => c.add.ownership_status !== null)).toBe(true)
   })
 
   it('under_5 keeps candidates with price < 5', () => {
@@ -159,7 +159,7 @@ describe('filterCandidates', () => {
         add: { ...makeCandidate().add, ownership_status: 'original', price: 10 },
       }),
       makeCandidate({
-        add: { ...makeCandidate().add, ownership_status: 'not_owned', price: 2 },
+        add: { ...makeCandidate().add, ownership_status: null, price: 2 },
       }),
     ]
     const result = filterCandidates(

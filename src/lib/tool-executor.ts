@@ -354,6 +354,10 @@ async function runStreamingIteration(params: {
 }): Promise<NormalizedMessage> {
   const { adapter, model, system, messages, tools, maxTokens, toolChoice, onTextDelta } = params
 
+  if (!adapter.sendMessageStreaming) {
+    throw new Error('This provider does not support streaming responses')
+  }
+
   for await (const chunk of adapter.sendMessageStreaming({
     model,
     system,

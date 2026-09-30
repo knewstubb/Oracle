@@ -1,11 +1,12 @@
 /**
- * Focused tests for Archidekt collection URL/username parsing.
- * Tests the parseArchidektCollectionInput and resolveArchidektUserId functions.
+ * Focused tests for Archidekt collection URL parsing and validation.
+ * Tests the parseArchidektCollectionInput and validateArchidektUserId functions.
+ * Only numeric user IDs are supported - usernames cannot be resolved reliably.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   parseArchidektCollectionInput,
-  resolveArchidektUserId,
+  validateArchidektUserId,
 } from '../archidekt-client'
 
 // Mock fetch globally
@@ -14,110 +15,101 @@ global.fetch = mockFetch
 
 describe('parseArchidektCollectionInput', () => {
   it.each([
-    // Full collection URLs
-    ['https://archidekt.com/collection/v2/username/', { type: 'username', value: 'username' }],
-    ['https://www.archidekt.com/collection/v2/username/', { type: 'username', value: 'username' }],
-    ['http://archidekt.com/collection/v2/username/', { type: 'username', value: 'username' }],
-    ['archidekt.com/collection/v2/username/', { type: 'username', value: 'username' }],
-    ['archidekt.com/collection/v2/614000/', { type: 'userId', value: '614000' }],
-    ['https://archidekt.com/collection/v2/614000/', { type: 'userId', value: '614000' }],
+    // Full collection URLs with numeric ID
+    ['https://archidekt.com/collection/v2/614000/', 614000],
+    ['https://www.archidekt.com/collection/v2/614000/', 614000],
+    ['http://archidekt.com/collection/v2/614000/', 614000],
+    ['archidekt.com/collection/v2/614000/', 614000],
 
-    // Collection page URLs
-    ['https://archidekt.com/collection/username', { type: 'username', value: 'username' }],
-    ['https://www.archidekt.com/collection/username', { type: 'username', value: 'username' }],
-    ['archidekt.com/u/username', { type: 'username', value: 'username' }],
-    ['https://archidekt.com/u/username/', { type: 'username', value: 'username' }],
+    // Alternative URL format with numeric ID
+    ['https://archidekt.com/collection/614000/', 614000],
+    ['https://www.archidekt.com/collection/614000/', 614000],
+    ['archidekt.com/collection/614000', 614000],
 
-    // Plain usernames
-    ['username', { type: 'username', value: 'username' }],
-    ['knewstubb@gmail.com', { type: 'username', value: 'knewstubb@gmail.com' }],
-    ['someuser123', { type: 'username', value: 'someuser123' }],
+    // Usernames - NOT supported (return null)
+    ['https://archidekt.com/collection/v2/username/', null],
+    ['https://www.archidekt.com/collection/v2/username/', null],
+    ['archidekt.com/collection/v2/username/', null],
+    ['archidekt.com/u/username', null],
+    ['https://archidekt.com/u/username/', null],
 
-    // Numeric user IDs
-    ['614000', { type: 'userId', value: '614000' }],
-    ['123456', { type: 'userId', value: '123456' }],
+    // Plain usernames - NOT supported
+    ['username', null],
+    ['knewstubb@gmail.com', null],
+    ['someuser123', null],
+
+    // Numeric user IDs (direct input)
+    ['614000', 614000],
+    ['123456', 123456],
+    ['999999', 999999],
 
     // Empty/invalid
     ['', null],
     ['   ', null],
-    ['not-a-valid-url', { type: 'username', value: 'not-a-valid-url' }],
+    ['not-a-valid-url', null],
   ])('parses "%s" → %s', (input, expected) => {
     const result = parseArchidektCollectionInput(input)
     expect(result).toEqual(expected)
   })
 
   it('handles URLs with query strings', () => {
-    const result = parseArchidektCollectionInput('https://archidekt.com/collection/v2/username/?foo=bar')
-    expect(result).toEqual({ type: 'username', value: 'username' })
+    const result = parseArchidektCollectionInput('https://archidekt.com/collection/v2/614000/?foo=bar')
+    expect(result).toEqual(614000)
   })
 
   it('handles URLs with extra slashes', () => {
-    const result = parseArchidektCollectionInput('https://archidekt.com/collection/v2/username/extra/path')
-    expect(result).toEqual({ type: 'username', value: 'username' })
+    const result = parseArchidektCollectionInput('https://archidekt.com/collection/v2/614000/extra/path')
+    expect(result).toEqual(614000)
   })
 
   it('trims whitespace', () => {
-    const result = parseArchidektCollectionInput('  username  ')
-    expect(result).toEqual({ type: 'username', value: 'username' })
+    const result = parseArchidektCollectionInput('  614000  ')
+    expect(result).toEqual(614000)
   })
 })
 
-describe('resolveArchidektUserId', () => {
+describe('validateArchidektUserId', () => {
   beforeEach(() => {
     mockFetch.mockReset()
   })
 
-  it('resolves a numeric user ID by validating user exists', async () => {
-    // Mock response with a deck to validate user exists
+  it('validates a numeric user ID by checking collection endpoint', async () => {
+    // Mock response from collection API
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        results: [{ owner: { id: 614000 } }],
+        count: 100,
+        results: [],
       }),
     })
 
-    const result = await resolveArchidektUserId({ type: 'userId', value: '614000' })
+    const result = await validateArchidektUserId(614000)
     expect(result).toBe(614000)
     expect(mockFetch).toHaveBeenCalledWith(
-      'https://archidekt.com/api/decks/v3/?ownerId=614000&pageSize=1'
+      'https://archidekt.com/api/collection/614000/?pageSize=1'
     )
   })
 
-  it('throws when numeric user ID is not found', async () => {
+  it('throws when user ID has no public collection (404)', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 404,
     })
 
-    // The actual implementation throws the generic error from fetchWithRetry
-    await expect(
-      resolveArchidektUserId({ type: 'userId', value: '999999' })
-    ).rejects.toThrow('Collection fetch failed: 404')
+    await expect(validateArchidektUserId(999999)).rejects.toThrow(
+      'No public Archidekt collection found for user ID 999999. Make sure the collection is set to Public.'
+    )
   })
 
-  it('resolves a username by fetching decks and extracting owner ID', async () => {
+  it('throws when user ID has no public collection (403)', async () => {
     mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        results: [{ owner: { id: 614000, username: 'testuser' } }],
-      }),
+      ok: false,
+      status: 403,
     })
 
-    const result = await resolveArchidektUserId({ type: 'username', value: 'testuser' })
-    expect(result).toBe(614000)
-  })
-
-  it('throws when username has no public decks', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        results: [],
-      }),
-    })
-
-    await expect(
-      resolveArchidektUserId({ type: 'username', value: 'nonexistent' })
-    ).rejects.toThrow('No public decks found for user "nonexistent"')
+    await expect(validateArchidektUserId(999999)).rejects.toThrow(
+      'No public Archidekt collection found for user ID 999999. Make sure the collection is set to Public.'
+    )
   })
 
   it('throws on API errors', async () => {
@@ -126,9 +118,22 @@ describe('resolveArchidektUserId', () => {
       status: 500,
     })
 
-    // The actual implementation throws the generic error from fetchWithRetry
-    await expect(
-      resolveArchidektUserId({ type: 'username', value: 'testuser' })
-    ).rejects.toThrow('Collection fetch failed: 500')
+    await expect(validateArchidektUserId(614000)).rejects.toThrow(
+      'Failed to validate user: 500'
+    )
+  })
+
+  it('succeeds for valid user with empty collection', async () => {
+    // User exists but has no cards
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        count: 0,
+        results: [],
+      }),
+    })
+
+    const result = await validateArchidektUserId(614000)
+    expect(result).toBe(614000)
   })
 })

@@ -16,7 +16,7 @@ import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 import {
   fetchCollectionWithProgress,
   parseArchidektCollectionInput,
-  resolveArchidektUserId,
+  validateArchidektUserId,
   type ArchidektCollectionEntry,
   type CollectionFetchProgress,
 } from '@/lib/archidekt-client'
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     const supabase = createAdminClient()
     const errors: string[] = []
 
-    // Parse the input to extract Archidekt user identifier
+    // Parse the input to extract Archidekt user ID
     let archidektUserId: number | undefined
     try {
       const body = await request.json().catch(() => ({}))
@@ -70,16 +70,16 @@ export async function POST(request: Request) {
         if (!parsed) {
           await sendProgress({
             phase: 'error',
-            error: 'Invalid Archidekt URL or username. Expected formats: archidekt.com/collection/v2/username, or just a username.',
+            error: 'Invalid Archidekt URL. Supported formats: archidekt.com/collection/v2/{userId} or numeric user ID (e.g., 614000).',
           })
           return
         }
-        // Resolve username to numeric user ID
-        archidektUserId = await resolveArchidektUserId(parsed)
+        // Validate user ID has a public collection
+        archidektUserId = await validateArchidektUserId(parsed)
       }
     } catch (parseErr) {
       const message = parseErr instanceof Error ? parseErr.message : String(parseErr)
-      await sendProgress({ phase: 'error', error: `Failed to parse input: ${message}` })
+      await sendProgress({ phase: 'error', error: `Failed to validate user: ${message}` })
       return
     }
 

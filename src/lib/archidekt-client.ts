@@ -6,92 +6,63 @@ const DEFAULT_USER_ID = 614000 // Legacy default for backward compatibility
 // ---------------------------------------------------------------------------
 
 /**
- * Parse an Archidekt collection URL or username into a normalized identifier.
- * Supports:
- * - archidekt.com/collection/v2/{username}/
- * - archidekt.com/collection/v2/{userId}/
- * - Plain username (e.g., "knewstubb" or "knewstubb@gmail.com")
- * - User ID (numeric)
+ * Parse an Archidekt collection URL into a numeric user ID.
+ * Only supports URL formats that contain a numeric user ID.
+ * Rejects plain usernames - they cannot be reliably resolved without
+ * an additional API endpoint that we don't have.
  *
- * Returns { type: 'username' | 'userId', value: string }
+ * Supported formats:
+ * - archidekt.com/collection/v2/{userId}/
+ * - archidekt.com/collection/{userId}/
+ * - Numeric user ID only (e.g., "614000")
+ *
+ * Returns the numeric user ID or null if not a valid format.
  */
-export function parseArchidektCollectionInput(input: string): { type: 'username' | 'userId'; value: string } | null {
+export function parseArchidektCollectionInput(input: string): number | null {
   const trimmed = input.trim()
   if (!trimmed) return null
 
-  // URL pattern: archidekt.com/collection/v2/{identifier}/
-  const urlMatch = trimmed.match(/^(?:https?:\/\/)?(?:www\.)?archidekt\.com\/collection\/v2\/([^\/\?]+)/i)
+  // URL pattern: archidekt.com/collection/v2/{userId}/
+  const urlMatch = trimmed.match(/^(?:https?:\/\/)?(?:www\.)?archidekt\.com\/collection\/v2\/(\d+)/i)
   if (urlMatch) {
-    const identifier = urlMatch[1]
-    // Check if it's a numeric user ID or a username
-    if (/^\d+$/.test(identifier)) {
-      return { type: 'userId', value: identifier }
-    }
-    return { type: 'username', value: identifier }
+    return parseInt(urlMatch[1], 10)
   }
 
-  // Collection page URL: archidekt.com/collection/{username} or /u/{username}
-  const collectionPageMatch = trimmed.match(/^(?:https?:\/\/)?(?:www\.)?archidekt\.com\/(?:collection|u)\/([^\/\?]+)/i)
-  if (collectionPageMatch) {
-    return { type: 'username', value: collectionPageMatch[1] }
+  // Alternative URL pattern: archidekt.com/collection/{userId}/
+  const altUrlMatch = trimmed.match(/^(?:https?:\/\/)?(?:www\.)?archidekt\.com\/collection\/(\d+)/i)
+  if (altUrlMatch) {
+    return parseInt(altUrlMatch[1], 10)
   }
 
-  // Plain username or email
-  if (trimmed.length > 0 && !trimmed.includes('/')) {
-    // If it's just a number, treat as userId
-    if (/^\d+$/.test(trimmed)) {
-      return { type: 'userId', value: trimmed }
-    }
-    return { type: 'username', value: trimmed }
+  // Plain numeric ID
+  if (/^\d+$/.test(trimmed)) {
+    return parseInt(trimmed, 10)
   }
 
+  // Not a supported format - could be a username or invalid input
   return null
 }
 
 /**
- * Resolve a username or user ID to a numeric user ID.
- * Uses the decks API which returns owner.id for each deck.
- * Returns the first matching user ID found.
+ * Validate that a numeric user ID has a public collection.
+ * Uses the collection API endpoint which doesn't require public decks.
+ * Throws if the user doesn't exist or their collection is not accessible.
  */
-export async function resolveArchidektUserId(identifier: { type: 'username' | 'userId'; value: string }): Promise<number> {
-  // If already a numeric userId, validate it exists by fetching one deck
-  if (identifier.type === 'userId') {
-    const numericId = parseInt(identifier.value, 10)
-    // Try fetching a deck to validate the user exists
-    const testUrl = `${BASE_URL}/decks/v3/?ownerId=${numericId}&pageSize=1`
-    const res = await fetchWithRetry(testUrl)
-    if (!res.ok) {
-      if (res.status === 404) {
-        throw new Error(`No Archidekt user found with ID ${numericId}`)
-      }
-      throw new Error(`Failed to validate user: ${res.status}`)
-    }
-    const data = await res.json()
-    if (data.results && data.results.length > 0) {
-      return data.results[0].owner.id
-    }
-    throw new Error(`No user found with ID ${numericId}`)
-  }
-
-  // For username, fetch decks and extract the owner ID
-  // The API requires numeric ownerId, so we need to search through decks
-  // by fetching a page and checking the owner
-  const searchUrl = `${BASE_URL}/decks/v3/?ownerId=${encodeURIComponent(identifier.value)}&pageSize=1`
-  const res = await fetchWithRetry(searchUrl)
+export async function validateArchidektUserId(userId: number): Promise<number> {
+  // Try fetching the collection to validate the user exists and has public data
+  // Use raw fetch to avoid retry logic and get the actual status
+  const testUrl = `${BASE_URL}/collection/${userId}/?pageSize=1`
+  const res = await fetch(testUrl.replace(/^http:\/\//, 'https://'))
   
   if (!res.ok) {
-    if (res.status === 404) {
-      throw new Error(`No Archidekt user found with username "${identifier.value}"`)
+    if (res.status === 404 || res.status === 403) {
+      throw new Error(`No public Archidekt collection found for user ID ${userId}. Make sure the collection is set to Public.`)
     }
-    throw new Error(`Failed to resolve username: ${res.status}`)
+    throw new Error(`Failed to validate user: ${res.status}`)
   }
   
-  const data = await res.json()
-  if (data.results && data.results.length > 0) {
-    return data.results[0].owner.id
-  }
-  
-  throw new Error(`No public decks found for user "${identifier.value}". Make sure their collection and decks are public.`)
+  // If we get here, the collection is accessible
+  return userId
 }
 
 export interface ArchidektDeckSummary {

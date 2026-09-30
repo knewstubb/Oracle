@@ -15,6 +15,8 @@ import { createAdminClient } from '@/lib/supabase'
 import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 import {
   fetchCollectionWithProgress,
+  parseArchidektCollectionInput,
+  resolveArchidektUserId,
   type ArchidektCollectionEntry,
   type CollectionFetchProgress,
 } from '@/lib/archidekt-client'
@@ -38,7 +40,7 @@ interface ProgressEvent {
   error?: string
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
   const userId = authResult.id
@@ -57,6 +59,30 @@ export async function POST() {
     const supabase = createAdminClient()
     const errors: string[] = []
 
+    // Parse the input to extract Archidekt user identifier
+    let archidektUserId: number | undefined
+    try {
+      const body = await request.json().catch(() => ({}))
+      const archidektInput = body.archidektUrl as string | undefined
+      
+      if (archidektInput && archidektInput.trim()) {
+        const parsed = parseArchidektCollectionInput(archidektInput)
+        if (!parsed) {
+          await sendProgress({
+            phase: 'error',
+            error: 'Invalid Archidekt URL or username. Expected formats: archidekt.com/collection/v2/username, or just a username.',
+          })
+          return
+        }
+        // Resolve username to numeric user ID
+        archidektUserId = await resolveArchidektUserId(parsed)
+      }
+    } catch (parseErr) {
+      const message = parseErr instanceof Error ? parseErr.message : String(parseErr)
+      await sendProgress({ phase: 'error', error: `Failed to parse input: ${message}` })
+      return
+    }
+
     try {
       // Step 1: Fetch collection from Archidekt with progress
       let entries: ArchidektCollectionEntry[]
@@ -73,7 +99,7 @@ export async function POST() {
             total: total,
             message,
           })
-        })
+        }, archidektUserId)
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
         if (message.includes('403')) {

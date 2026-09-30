@@ -142,6 +142,7 @@ export default function OnboardingPage() {
       const res = await fetch('/api/onboarding/collection-stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archidektUrl: collectionUrl }),
       })
       
       if (!res.ok) {
@@ -209,7 +210,8 @@ export default function OnboardingPage() {
         toast.warning(`Collection imported with ${data.errors.length} warning(s)`)
       }
       try {
-        const res = await fetch('/api/onboarding/decks')
+        const deckUrl = collectionUrl.trim() ? `?archidektUrl=${encodeURIComponent(collectionUrl)}` : ''
+        const res = await fetch(`/api/onboarding/decks${deckUrl}`)
         if (!res.ok) {
           const body = await res.json().catch(() => ({ error: 'Failed to fetch decks' }))
           toast.error(body.error || 'Failed to fetch deck list')

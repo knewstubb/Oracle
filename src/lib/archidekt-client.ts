@@ -1,5 +1,98 @@
 const BASE_URL = 'https://archidekt.com/api'
-const USER_ID = 614000
+const DEFAULT_USER_ID = 614000 // Legacy default for backward compatibility
+
+// ---------------------------------------------------------------------------
+// User/URL Parsing
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse an Archidekt collection URL or username into a normalized identifier.
+ * Supports:
+ * - archidekt.com/collection/v2/{username}/
+ * - archidekt.com/collection/v2/{userId}/
+ * - Plain username (e.g., "knewstubb" or "knewstubb@gmail.com")
+ * - User ID (numeric)
+ *
+ * Returns { type: 'username' | 'userId', value: string }
+ */
+export function parseArchidektCollectionInput(input: string): { type: 'username' | 'userId'; value: string } | null {
+  const trimmed = input.trim()
+  if (!trimmed) return null
+
+  // URL pattern: archidekt.com/collection/v2/{identifier}/
+  const urlMatch = trimmed.match(/^(?:https?:\/\/)?(?:www\.)?archidekt\.com\/collection\/v2\/([^\/\?]+)/i)
+  if (urlMatch) {
+    const identifier = urlMatch[1]
+    // Check if it's a numeric user ID or a username
+    if (/^\d+$/.test(identifier)) {
+      return { type: 'userId', value: identifier }
+    }
+    return { type: 'username', value: identifier }
+  }
+
+  // Collection page URL: archidekt.com/collection/{username} or /u/{username}
+  const collectionPageMatch = trimmed.match(/^(?:https?:\/\/)?(?:www\.)?archidekt\.com\/(?:collection|u)\/([^\/\?]+)/i)
+  if (collectionPageMatch) {
+    return { type: 'username', value: collectionPageMatch[1] }
+  }
+
+  // Plain username or email
+  if (trimmed.length > 0 && !trimmed.includes('/')) {
+    // If it's just a number, treat as userId
+    if (/^\d+$/.test(trimmed)) {
+      return { type: 'userId', value: trimmed }
+    }
+    return { type: 'username', value: trimmed }
+  }
+
+  return null
+}
+
+/**
+ * Resolve a username or user ID to a numeric user ID.
+ * Uses the decks API which returns owner.id for each deck.
+ * Returns the first matching user ID found.
+ */
+export async function resolveArchidektUserId(identifier: { type: 'username' | 'userId'; value: string }): Promise<number> {
+  // If already a numeric userId, validate it exists by fetching one deck
+  if (identifier.type === 'userId') {
+    const numericId = parseInt(identifier.value, 10)
+    // Try fetching a deck to validate the user exists
+    const testUrl = `${BASE_URL}/decks/v3/?ownerId=${numericId}&pageSize=1`
+    const res = await fetchWithRetry(testUrl)
+    if (!res.ok) {
+      if (res.status === 404) {
+        throw new Error(`No Archidekt user found with ID ${numericId}`)
+      }
+      throw new Error(`Failed to validate user: ${res.status}`)
+    }
+    const data = await res.json()
+    if (data.results && data.results.length > 0) {
+      return data.results[0].owner.id
+    }
+    throw new Error(`No user found with ID ${numericId}`)
+  }
+
+  // For username, fetch decks and extract the owner ID
+  // The API requires numeric ownerId, so we need to search through decks
+  // by fetching a page and checking the owner
+  const searchUrl = `${BASE_URL}/decks/v3/?ownerId=${encodeURIComponent(identifier.value)}&pageSize=1`
+  const res = await fetchWithRetry(searchUrl)
+  
+  if (!res.ok) {
+    if (res.status === 404) {
+      throw new Error(`No Archidekt user found with username "${identifier.value}"`)
+    }
+    throw new Error(`Failed to resolve username: ${res.status}`)
+  }
+  
+  const data = await res.json()
+  if (data.results && data.results.length > 0) {
+    return data.results[0].owner.id
+  }
+  
+  throw new Error(`No public decks found for user "${identifier.value}". Make sure their collection and decks are public.`)
+}
 
 export interface ArchidektDeckSummary {
   id: number
@@ -167,10 +260,11 @@ async function fetchWithRetry(url: string, maxRetries = 3): Promise<Response> {
   throw lastError ?? new Error('Fetch failed after retries')
 }
 
-export async function fetchCollection(): Promise<ArchidektCollectionEntry[]> {
+export async function fetchCollection(userId?: number): Promise<ArchidektCollectionEntry[]> {
   const entries: ArchidektCollectionEntry[] = []
+  const effectiveUserId = userId ?? DEFAULT_USER_ID
   // Archidekt caps collection page_size at 25 regardless of what we request
-  let url: string | null = `${BASE_URL}/collection/${USER_ID}/`
+  let url: string | null = `${BASE_URL}/collection/${effectiveUserId}/`
   let pageCount = 0
   while (url) {
     // Rate limit: wait 500ms between pages to avoid 429 from Archidekt
@@ -199,11 +293,13 @@ export interface CollectionFetchProgress {
  * Reports fetched card count vs total rather than opaque page numbers.
  */
 export async function fetchCollectionWithProgress(
-  onProgress: (progress: CollectionFetchProgress) => Promise<void>
+  onProgress: (progress: CollectionFetchProgress) => Promise<void>,
+  userId?: number
 ): Promise<ArchidektCollectionEntry[]> {
   const entries: ArchidektCollectionEntry[] = []
+  const effectiveUserId = userId ?? DEFAULT_USER_ID
   // Archidekt caps collection page_size at 25 regardless of what we request
-  let url: string | null = `${BASE_URL}/collection/${USER_ID}/`
+  let url: string | null = `${BASE_URL}/collection/${effectiveUserId}/`
   let pageCount = 0
   let totalCount: number | null = null
   while (url) {
@@ -254,10 +350,11 @@ interface ArchidektV3Deck {
  *
  * The v3 endpoint is paginated (`count` + `next`), so we walk all pages.
  */
-export async function fetchUserDecks(): Promise<ArchidektDeckSummary[]> {
+export async function fetchUserDecks(userId?: number): Promise<ArchidektDeckSummary[]> {
   const decks: ArchidektDeckSummary[] = []
+  const effectiveUserId = userId ?? DEFAULT_USER_ID
   let url: string | null =
-    `${BASE_URL}/decks/v3/?ownerId=${USER_ID}&orderBy=-updatedAt&pageSize=100`
+    `${BASE_URL}/decks/v3/?ownerId=${effectiveUserId}&orderBy=-updatedAt&pageSize=100`
 
   while (url) {
     const res = await fetchWithRetry(url)

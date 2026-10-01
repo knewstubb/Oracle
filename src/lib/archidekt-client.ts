@@ -53,14 +53,14 @@ export async function validateArchidektUserId(userId: number): Promise<number> {
   // Use raw fetch to avoid retry logic and get the actual status
   const testUrl = `${BASE_URL}/collection/${userId}/?pageSize=1`
   const res = await fetch(testUrl.replace(/^http:\/\//, 'https://'))
-  
+
   if (!res.ok) {
     if (res.status === 404 || res.status === 403) {
       throw new Error(`No public Archidekt collection found for user ID ${userId}. Make sure the collection is set to Public.`)
     }
     throw new Error(`Failed to validate user: ${res.status}`)
   }
-  
+
   // If we get here, the collection is accessible
   return userId
 }
@@ -206,10 +206,10 @@ export interface ArchidektCollectionEntry {
 async function fetchWithRetry(url: string, maxRetries = 3): Promise<Response> {
   const fetchUrl = url.replace(/^http:\/\//, 'https://')
   let lastError: Error | null = null
-  
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const res = await fetch(fetchUrl)
-    
+
     if (res.status === 429) {
       if (attempt === maxRetries) {
         throw new Error('Rate limited by Archidekt. Please wait 1-2 minutes and try again.')
@@ -220,14 +220,14 @@ async function fetchWithRetry(url: string, maxRetries = 3): Promise<Response> {
       await new Promise(resolve => setTimeout(resolve, delay))
       continue
     }
-    
+
     if (!res.ok) {
       throw new Error(`Collection fetch failed: ${res.status}`)
     }
-    
+
     return res
   }
-  
+
   throw lastError ?? new Error('Fetch failed after retries')
 }
 
@@ -242,7 +242,7 @@ export async function fetchCollection(userId?: number): Promise<ArchidektCollect
     if (pageCount > 0) {
       await new Promise(resolve => setTimeout(resolve, 500))
     }
-    
+
     const res = await fetchWithRetry(url)
     const data: { results: ArchidektCollectionEntry[]; next: string | null } = await res.json()
     entries.push(...data.results)
@@ -277,9 +277,9 @@ export async function fetchCollectionWithProgress(
     if (pageCount > 0) {
       await new Promise(resolve => setTimeout(resolve, 500))
     }
-    
+
     await onProgress({ fetched: entries.length, total: totalCount })
-    
+
     const res = await fetchWithRetry(url)
     const data: { count?: number; results: ArchidektCollectionEntry[]; next: string | null } = await res.json()
 

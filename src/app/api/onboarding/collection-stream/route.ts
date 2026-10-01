@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     try {
       const body = await request.json().catch(() => ({}))
       const archidektInput = body.archidektUrl as string | undefined
-      
+
       if (!archidektInput || !archidektInput.trim()) {
         await sendProgress({
           phase: 'error',
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
         })
         return
       }
-      
+
       const parsed = parseArchidektCollectionInput(archidektInput)
       if (!parsed) {
         await sendProgress({
@@ -305,7 +305,7 @@ export async function POST(request: Request) {
           durationMs: Date.now() - startTime,
         },
       })
-      
+
       console.log('[collection-stream] Complete:', {
         totalEntries: entries.length,
         userCardsCreated,

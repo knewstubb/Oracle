@@ -47,6 +47,10 @@ describe('parseArchidektCollectionInput', () => {
     ['', null],
     ['   ', null],
     ['not-a-valid-url', null],
+    // Numeric prefix with letters - should be rejected
+    ['123abc', null],
+    ['614000abc', null],
+    ['abc123', null],
   ])('parses "%s" → %s', (input, expected) => {
     const result = parseArchidektCollectionInput(input)
     expect(result).toEqual(expected)

@@ -34,7 +34,7 @@ export function parseArchidektCollectionInput(input: string): number | null {
     return parseInt(altUrlMatch[1], 10)
   }
 
-  // Plain numeric ID
+  // Plain numeric ID - must be ALL digits (not "123abc")
   if (/^\d+$/.test(trimmed)) {
     return parseInt(trimmed, 10)
   }

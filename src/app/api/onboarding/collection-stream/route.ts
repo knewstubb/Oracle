@@ -59,24 +59,30 @@ export async function POST(request: Request) {
     const supabase = createAdminClient()
     const errors: string[] = []
 
-    // Parse the input to extract Archidekt user ID
+    // Parse the input to extract Archidekt user ID - REQUIRED for onboarding
     let archidektUserId: number | undefined
     try {
       const body = await request.json().catch(() => ({}))
       const archidektInput = body.archidektUrl as string | undefined
       
-      if (archidektInput && archidektInput.trim()) {
-        const parsed = parseArchidektCollectionInput(archidektInput)
-        if (!parsed) {
-          await sendProgress({
-            phase: 'error',
-            error: 'Invalid Archidekt URL. Supported formats: archidekt.com/collection/v2/{userId} or numeric user ID (e.g., 614000).',
-          })
-          return
-        }
-        // Validate user ID has a public collection
-        archidektUserId = await validateArchidektUserId(parsed)
+      if (!archidektInput || !archidektInput.trim()) {
+        await sendProgress({
+          phase: 'error',
+          error: 'Archidekt collection URL is required. Enter a URL like archidekt.com/collection/v2/614000/ or a numeric user ID.',
+        })
+        return
       }
+      
+      const parsed = parseArchidektCollectionInput(archidektInput)
+      if (!parsed) {
+        await sendProgress({
+          phase: 'error',
+          error: 'Invalid Archidekt URL. Supported formats: archidekt.com/collection/v2/{userId} or numeric user ID (e.g., 614000).',
+        })
+        return
+      }
+      // Validate user ID has a public collection
+      archidektUserId = await validateArchidektUserId(parsed)
     } catch (parseErr) {
       const message = parseErr instanceof Error ? parseErr.message : String(parseErr)
       await sendProgress({ phase: 'error', error: `Failed to validate user: ${message}` })

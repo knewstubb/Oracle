@@ -1,5 +1,69 @@
 const BASE_URL = 'https://archidekt.com/api'
-const USER_ID = 614000
+const DEFAULT_USER_ID = 614000 // Legacy default for backward compatibility
+
+// ---------------------------------------------------------------------------
+// User/URL Parsing
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse an Archidekt collection URL into a numeric user ID.
+ * Only supports URL formats that contain a numeric user ID.
+ * Rejects plain usernames - they cannot be reliably resolved without
+ * an additional API endpoint that we don't have.
+ *
+ * Supported formats:
+ * - archidekt.com/collection/v2/{userId}/
+ * - archidekt.com/collection/{userId}/
+ * - Numeric user ID only (e.g., "614000")
+ *
+ * Returns the numeric user ID or null if not a valid format.
+ */
+export function parseArchidektCollectionInput(input: string): number | null {
+  const trimmed = input.trim()
+  if (!trimmed) return null
+
+  // URL pattern: archidekt.com/collection/v2/{userId}/
+  const urlMatch = trimmed.match(/^(?:https?:\/\/)?(?:www\.)?archidekt\.com\/collection\/v2\/(\d+)/i)
+  if (urlMatch) {
+    return parseInt(urlMatch[1], 10)
+  }
+
+  // Alternative URL pattern: archidekt.com/collection/{userId}/
+  const altUrlMatch = trimmed.match(/^(?:https?:\/\/)?(?:www\.)?archidekt\.com\/collection\/(\d+)/i)
+  if (altUrlMatch) {
+    return parseInt(altUrlMatch[1], 10)
+  }
+
+  // Plain numeric ID - must be ALL digits (not "123abc")
+  if (/^\d+$/.test(trimmed)) {
+    return parseInt(trimmed, 10)
+  }
+
+  // Not a supported format - could be a username or invalid input
+  return null
+}
+
+/**
+ * Validate that a numeric user ID has a public collection.
+ * Uses the collection API endpoint which doesn't require public decks.
+ * Throws if the user doesn't exist or their collection is not accessible.
+ */
+export async function validateArchidektUserId(userId: number): Promise<number> {
+  // Try fetching the collection to validate the user exists and has public data
+  // Use raw fetch to avoid retry logic and get the actual status
+  const testUrl = `${BASE_URL}/collection/${userId}/?pageSize=1`
+  const res = await fetch(testUrl.replace(/^http:\/\//, 'https://'))
+
+  if (!res.ok) {
+    if (res.status === 404 || res.status === 403) {
+      throw new Error(`No public Archidekt collection found for user ID ${userId}. Make sure the collection is set to Public.`)
+    }
+    throw new Error(`Failed to validate user: ${res.status}`)
+  }
+
+  // If we get here, the collection is accessible
+  return userId
+}
 
 export interface ArchidektDeckSummary {
   id: number
@@ -142,10 +206,10 @@ export interface ArchidektCollectionEntry {
 async function fetchWithRetry(url: string, maxRetries = 3): Promise<Response> {
   const fetchUrl = url.replace(/^http:\/\//, 'https://')
   let lastError: Error | null = null
-  
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const res = await fetch(fetchUrl)
-    
+
     if (res.status === 429) {
       if (attempt === maxRetries) {
         throw new Error('Rate limited by Archidekt. Please wait 1-2 minutes and try again.')
@@ -156,28 +220,29 @@ async function fetchWithRetry(url: string, maxRetries = 3): Promise<Response> {
       await new Promise(resolve => setTimeout(resolve, delay))
       continue
     }
-    
+
     if (!res.ok) {
       throw new Error(`Collection fetch failed: ${res.status}`)
     }
-    
+
     return res
   }
-  
+
   throw lastError ?? new Error('Fetch failed after retries')
 }
 
-export async function fetchCollection(): Promise<ArchidektCollectionEntry[]> {
+export async function fetchCollection(userId?: number): Promise<ArchidektCollectionEntry[]> {
   const entries: ArchidektCollectionEntry[] = []
+  const effectiveUserId = userId ?? DEFAULT_USER_ID
   // Archidekt caps collection page_size at 25 regardless of what we request
-  let url: string | null = `${BASE_URL}/collection/${USER_ID}/`
+  let url: string | null = `${BASE_URL}/collection/${effectiveUserId}/`
   let pageCount = 0
   while (url) {
     // Rate limit: wait 500ms between pages to avoid 429 from Archidekt
     if (pageCount > 0) {
       await new Promise(resolve => setTimeout(resolve, 500))
     }
-    
+
     const res = await fetchWithRetry(url)
     const data: { results: ArchidektCollectionEntry[]; next: string | null } = await res.json()
     entries.push(...data.results)
@@ -199,20 +264,22 @@ export interface CollectionFetchProgress {
  * Reports fetched card count vs total rather than opaque page numbers.
  */
 export async function fetchCollectionWithProgress(
-  onProgress: (progress: CollectionFetchProgress) => Promise<void>
+  onProgress: (progress: CollectionFetchProgress) => Promise<void>,
+  userId?: number
 ): Promise<ArchidektCollectionEntry[]> {
   const entries: ArchidektCollectionEntry[] = []
+  const effectiveUserId = userId ?? DEFAULT_USER_ID
   // Archidekt caps collection page_size at 25 regardless of what we request
-  let url: string | null = `${BASE_URL}/collection/${USER_ID}/`
+  let url: string | null = `${BASE_URL}/collection/${effectiveUserId}/`
   let pageCount = 0
   let totalCount: number | null = null
   while (url) {
     if (pageCount > 0) {
       await new Promise(resolve => setTimeout(resolve, 500))
     }
-    
+
     await onProgress({ fetched: entries.length, total: totalCount })
-    
+
     const res = await fetchWithRetry(url)
     const data: { count?: number; results: ArchidektCollectionEntry[]; next: string | null } = await res.json()
 
@@ -254,10 +321,11 @@ interface ArchidektV3Deck {
  *
  * The v3 endpoint is paginated (`count` + `next`), so we walk all pages.
  */
-export async function fetchUserDecks(): Promise<ArchidektDeckSummary[]> {
+export async function fetchUserDecks(userId?: number): Promise<ArchidektDeckSummary[]> {
   const decks: ArchidektDeckSummary[] = []
+  const effectiveUserId = userId ?? DEFAULT_USER_ID
   let url: string | null =
-    `${BASE_URL}/decks/v3/?ownerId=${USER_ID}&orderBy=-updatedAt&pageSize=100`
+    `${BASE_URL}/decks/v3/?ownerId=${effectiveUserId}&orderBy=-updatedAt&pageSize=100`
 
   while (url) {
     const res = await fetchWithRetry(url)

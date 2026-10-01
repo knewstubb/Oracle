@@ -253,12 +253,12 @@ export async function importArchidektCollection(
  * - 403 → "Decks are private"
  * - Other → specific error message
  */
-export async function fetchArchidektDeckList(): Promise<DeckListResult> {
+export async function fetchArchidektDeckList(userId?: number): Promise<DeckListResult> {
   const errors: string[] = []
 
   let decks: ArchidektDeckSummary[]
   try {
-    decks = await fetchUserDecks()
+    decks = await fetchUserDecks(userId)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     if (message.includes('403')) {

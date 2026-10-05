@@ -85,7 +85,7 @@ export async function POST(request: Request) {
       archidektUserId = await validateArchidektUserId(parsed)
     } catch (parseErr) {
       const message = parseErr instanceof Error ? parseErr.message : String(parseErr)
-      await sendProgress({ phase: 'error', error: `Failed to validate user: ${message}` })
+      await sendProgress({ phase: 'error', error: message })
       return
     }
 

@@ -101,7 +101,7 @@ describe('validateArchidektUserId', () => {
     })
 
     await expect(validateArchidektUserId(999999)).rejects.toThrow(
-      'No public Archidekt collection found for user ID 999999. Make sure the collection is set to Public.'
+      'No public Archidekt collection was found for account 999999. Check that this is the account ID from a collection link and that the collection is set to Public.'
     )
   })
 
@@ -112,7 +112,19 @@ describe('validateArchidektUserId', () => {
     })
 
     await expect(validateArchidektUserId(999999)).rejects.toThrow(
-      'No public Archidekt collection found for user ID 999999. Make sure the collection is set to Public.'
+      'No public Archidekt collection was found for account 999999. Check that this is the account ID from a collection link and that the collection is set to Public.'
+    )
+  })
+
+  it('explains Archidekt 400 responses that mean no public collection exists', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      text: async () => '["No public collection found."]',
+    })
+
+    await expect(validateArchidektUserId(1906809)).rejects.toThrow(
+      'No public Archidekt collection was found for account 1906809. Check that this is the account ID from a collection link and that the collection is set to Public.'
     )
   })
 
@@ -123,7 +135,7 @@ describe('validateArchidektUserId', () => {
     })
 
     await expect(validateArchidektUserId(614000)).rejects.toThrow(
-      'Failed to validate user: 500'
+      'Archidekt could not verify account 614000 (HTTP 500). Please try again.'
     )
   })
 

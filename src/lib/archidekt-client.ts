@@ -55,10 +55,19 @@ export async function validateArchidektUserId(userId: number): Promise<number> {
   const res = await fetch(testUrl.replace(/^http:\/\//, 'https://'))
 
   if (!res.ok) {
-    if (res.status === 404 || res.status === 403) {
-      throw new Error(`No public Archidekt collection found for user ID ${userId}. Make sure the collection is set to Public.`)
+    const responseBody = typeof res.text === 'function'
+      ? await res.text().catch(() => '')
+      : ''
+    if (
+      res.status === 403 ||
+      res.status === 404 ||
+      responseBody.includes('No public collection found')
+    ) {
+      throw new Error(
+        `No public Archidekt collection was found for account ${userId}. Check that this is the account ID from a collection link and that the collection is set to Public.`
+      )
     }
-    throw new Error(`Failed to validate user: ${res.status}`)
+    throw new Error(`Archidekt could not verify account ${userId} (HTTP ${res.status}). Please try again.`)
   }
 
   // If we get here, the collection is accessible

@@ -68,7 +68,7 @@ The reconciliation screen has three tabs at the top of the section. Each tab sho
 - **Decks with zero conflicts are hidden entirely.** They do not appear in the list, do not take up space, and do not show a disabled state.
 - Only decks that have at least one conflict printing are shown, and they are expandable.
 - Clicking a deck header expands it to show **only the conflicted cards** for that deck.
-- Each card row inside a deck uses the same row component as the other tabs. Deck-name tags are omitted inside this tab, **except** when a card is "Already claimed" — then the row shows the name(s) of the deck(s) that own the real copy so the user knows where the conflict is.
+- Each card row inside a deck uses the same row component as the other tabs. Every per-instance choice keeps its deck-name tag visible, so users can tell which deck each set of controls applies to and which other deck also wants the card. When a card is "Already claimed", the row also shows the name(s) of the deck(s) that own the real copy.
 - Deck headers show:
   - Deck name
   - Lifecycle badge (Brew / Active)

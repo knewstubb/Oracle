@@ -93,7 +93,7 @@ export function PrintingIdentifier({
   return (
     <span
       {...triggerProps}
-      className="inline-block cursor-help text-[length:var(--fs-xs)] text-[var(--text-secondary)] hover:text-foreground hover:underline"
+      className="inline-block cursor-default text-[length:var(--fs-xs)] text-[var(--text-secondary)] hover:text-foreground hover:underline"
     >
       {setCode?.toUpperCase() ?? '—'} · {collectorNumber ?? '—'} · {finish ?? 'nonfoil'}
     </span>

@@ -130,4 +130,31 @@ describe('ConflictCard', () => {
     expect(screen.queryByText('Already claimed')).not.toBeInTheDocument()
     expect(screen.queryByText('Alternate printing available')).not.toBeInTheDocument()
   })
+
+  it('labels other decks that also want the card when viewing one deck', () => {
+    const row = makeRow({
+      instances: [
+        makeInstance({ claimId: 5, deckId: 2, deckName: 'Blight Curse Original' }),
+        makeInstance({ claimId: 6, deckId: 1, deckName: 'Blight Curse Clone' }),
+      ],
+    })
+
+    render(<ConflictCard printing={row} focusDeckId={1} onInstanceStateChange={vi.fn()} />)
+
+    expect(screen.getByText('Also wanted by')).toBeInTheDocument()
+    expect(screen.getByText('Blight Curse Original')).toBeInTheDocument()
+    expect(screen.getByRole('radiogroup', { name: 'Sol Ring state for Blight Curse Original' })).toBeInTheDocument()
+  })
+
+  it('falls back to the Scryfall image when the card database has no image', () => {
+    const id = 'd43ef6eb-99ed-45a6-aee1-e87d3780d094'
+    const row = makeRow({ printingId: id, imageUriSmall: null, instances: [makeInstance({})] })
+
+    const { container } = render(<ConflictCard printing={row} onInstanceStateChange={vi.fn()} />)
+
+    expect(container.querySelector('img')).toHaveAttribute(
+      'src',
+      `https://cards.scryfall.io/small/front/d/4/${id}.jpg`
+    )
+  })
 })

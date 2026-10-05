@@ -141,10 +141,8 @@ export async function GET(request: NextRequest) {
     if (countErr) throw countErr
 
     if (totalCount === 0) {
-      const [lastPriceRefresh, priceStale] = await Promise.all([
-        getLastRefreshTimestamp(),
-        isPriceDataStale(),
-      ])
+      const lastPriceRefresh = await getLastRefreshTimestamp()
+      const priceStale = await isPriceDataStale(lastPriceRefresh)
       return Response.json({
         rows: [],
         totalCount: 0,
@@ -181,10 +179,8 @@ export async function GET(request: NextRequest) {
     }>
 
     if (cards.length === 0) {
-      const [lastPriceRefresh, priceStale] = await Promise.all([
-        getLastRefreshTimestamp(),
-        isPriceDataStale(),
-      ])
+      const lastPriceRefresh = await getLastRefreshTimestamp()
+      const priceStale = await isPriceDataStale(lastPriceRefresh)
       return Response.json({
         rows: [],
         totalCount,
@@ -198,8 +194,9 @@ export async function GET(request: NextRequest) {
     // ──── Step 2: Enrich only this page's cards ───────────────────────
     const pageCardIds = cards.map(c => c.id)
 
-    // Fetch collection copies + price metadata in parallel
-    const [collectionRaw, lastPriceRefresh, priceStale] = await Promise.all([
+    // Fetch collection copies + the single price metadata lookup in parallel;
+    // staleness is derived from that same timestamp, adding no extra read.
+    const [collectionRaw, lastPriceRefresh] = await Promise.all([
       supabase
         .from('user_copies')
         .select('id, card_id, printing_id, finish')
@@ -211,8 +208,8 @@ export async function GET(request: NextRequest) {
           return data || []
         }),
       getLastRefreshTimestamp(),
-      isPriceDataStale(),
     ])
+    const priceStale = await isPriceDataStale(lastPriceRefresh)
 
     // Fetch deck usage + set info in parallel (both depend on collection copies)
     const copyIds = collectionRaw.map(c => c.id)

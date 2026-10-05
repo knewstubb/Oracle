@@ -86,6 +86,61 @@ describe('CollectionToolbar', () => {
     })
   })
 
+  describe('R1: prop-sync race (newer input vs. an older acknowledgement, and genuine external resets)', () => {
+    it('preserves a newer keystroke when the parent later echoes back an older value the toolbar itself already committed', () => {
+      const onSearchChange = vi.fn()
+      const { rerender, props } = renderToolbar({ searchQuery: '', onSearchChange })
+      const input = screen.getByLabelText('Search cards by name') as HTMLInputElement
+
+      fireEvent.change(input, { target: { value: 'Sol' } })
+      act(() => { vi.advanceTimersByTime(300) })
+      expect(onSearchChange).toHaveBeenCalledWith('Sol')
+      expect(onSearchChange).toHaveBeenCalledTimes(1)
+
+      fireEvent.change(input, { target: { value: 'Sol Ring' } })
+      // The parent hasn't re-rendered with the new value yet — it echoes
+      // back the older value the toolbar itself just committed.
+      rerender(<CollectionToolbar {...props} searchQuery="Sol" />)
+      expect(input.value).toBe('Sol Ring')
+
+      act(() => { vi.advanceTimersByTime(300) })
+      expect(onSearchChange).toHaveBeenCalledWith('Sol Ring')
+      expect(onSearchChange.mock.calls.filter((c) => c[0] === 'Sol Ring')).toHaveLength(1)
+    })
+
+    it('adopts a genuine external reset and cancels its own obsolete pending commit', () => {
+      const onSearchChange = vi.fn()
+      const { rerender, props } = renderToolbar({ searchQuery: 'Sol', onSearchChange })
+      const input = screen.getByLabelText('Search cards by name') as HTMLInputElement
+
+      fireEvent.change(input, { target: { value: 'Sol Ring' } })
+      // A genuine external reset (e.g. a parent-initiated clear), not an
+      // echo of anything the toolbar itself committed.
+      rerender(<CollectionToolbar {...props} searchQuery="" />)
+      expect(input.value).toBe('')
+
+      act(() => { vi.advanceTimersByTime(300) })
+      expect(onSearchChange).not.toHaveBeenCalled()
+    })
+
+    it('commits an empty string exactly once, 300ms after a clear that follows further typing', () => {
+      const onSearchChange = vi.fn()
+      renderToolbar({ searchQuery: 'Sol', onSearchChange })
+      const input = screen.getByLabelText('Search cards by name') as HTMLInputElement
+
+      fireEvent.change(input, { target: { value: 'Sol Ring' } })
+      act(() => { vi.advanceTimersByTime(100) })
+      fireEvent.change(input, { target: { value: '' } })
+
+      act(() => { vi.advanceTimersByTime(299) })
+      expect(onSearchChange).not.toHaveBeenCalled()
+
+      act(() => { vi.advanceTimersByTime(1) })
+      expect(onSearchChange).toHaveBeenCalledTimes(1)
+      expect(onSearchChange).toHaveBeenCalledWith('')
+    })
+  })
+
   describe('Sort field selector', () => {
     it('displays all rollup sort field options by default', () => {
       renderToolbar()

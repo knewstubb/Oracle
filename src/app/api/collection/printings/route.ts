@@ -85,10 +85,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const offset = (page - 1) * pageSize
-    const [lastPriceRefresh, priceStale] = await Promise.all([
-      getLastRefreshTimestamp(),
-      isPriceDataStale(),
-    ])
+    const lastPriceRefresh = await getLastRefreshTimestamp()
+    const priceStale = await isPriceDataStale(lastPriceRefresh)
 
     // ══════════════════════════════════════════════════════════════════════════
     // OPTIMIZED PATH: cardName sort without color filter

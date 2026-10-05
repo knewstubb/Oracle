@@ -107,21 +107,47 @@ export async function getLastRefreshTimestamp(): Promise<string | null> {
     return null
   }
 
-  return data?.updated_at ?? null
+  const updatedAt = data?.updated_at ?? null
+
+  // Guard the lookup boundary: a malformed stored timestamp must not be
+  // treated as a valid recent refresh downstream.
+  if (updatedAt !== null && Number.isNaN(new Date(updatedAt).getTime())) {
+    console.error('[price-store] Encountered a malformed updated_at timestamp')
+    return null
+  }
+
+  return updatedAt
 }
 
 /**
  * Check if pricing data is stale (>48 hours since last refresh).
  * Returns true if stale or if no price data exists.
+ *
+ * Accepts an optional already-observed timestamp so callers that already
+ * hold a `getLastRefreshTimestamp()` result can derive staleness without a
+ * second database read:
+ * - Omitted/`undefined`: performs its own single lookup (existing behaviour).
+ * - Explicit timestamp or explicit `null`: calculates only, zero reads.
  */
-export async function isPriceDataStale(): Promise<boolean> {
-  const lastRefresh = await getLastRefreshTimestamp()
+export async function isPriceDataStale(lastRefresh?: string | null): Promise<boolean> {
+  const observedRefresh = lastRefresh === undefined
+    ? await getLastRefreshTimestamp()
+    : lastRefresh
 
-  if (!lastRefresh) {
+  // Explicit/looked-up absence of a timestamp is not malformed input — no
+  // diagnostic. Any non-null value (including empty/whitespace strings)
+  // must still pass through the malformed-timestamp check below.
+  if (observedRefresh === null) {
     return true
   }
 
-  const lastRefreshTime = new Date(lastRefresh).getTime()
+  const lastRefreshTime = new Date(observedRefresh).getTime()
+
+  if (Number.isNaN(lastRefreshTime)) {
+    console.error('[price-store] isPriceDataStale received a malformed timestamp')
+    return true
+  }
+
   const now = Date.now()
 
   return (now - lastRefreshTime) > STALE_THRESHOLD_MS

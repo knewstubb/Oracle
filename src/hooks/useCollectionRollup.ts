@@ -64,6 +64,8 @@ export interface CollectionRollupParams {
   sortDir?: 'asc' | 'desc'
   colors?: string[]
   colorMode?: string
+  /** Whether the main rollup query should run. Defaults to `true`, preserving existing callers. */
+  enabled?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -88,6 +90,7 @@ export function useCollectionRollup(params: CollectionRollupParams = {}) {
     sortDir = 'asc',
     colors = [],
     colorMode = 'includes',
+    enabled = true,
   } = params
 
   // Build query string
@@ -115,6 +118,7 @@ export function useCollectionRollup(params: CollectionRollupParams = {}) {
     gcTime: 60 * 60 * 1000, // 1 hour — keep in memory for fast navigation
     placeholderData: (prev) => prev, // Keep previous data visible while loading next page
     refetchOnWindowFocus: false, // Don't refetch on tab switch
+    enabled,
   })
 
   /**

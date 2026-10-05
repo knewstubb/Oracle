@@ -183,14 +183,23 @@ export class DeepSeekAdapter implements ProviderAdapter {
         for (const tcDelta of delta.tool_calls) {
           const index = tcDelta.index
 
-          // New tool call starting
+          // New tool call starting — the header delta may already carry an
+          // initial arguments fragment (native providers can send id, name
+          // and a nonempty arguments chunk together in the first delta).
           if (tcDelta.id && tcDelta.function?.name) {
+            const initialArguments = tcDelta.function.arguments || ''
             toolCallsInProgress.set(index, {
               id: tcDelta.id,
               name: tcDelta.function.name,
-              arguments: tcDelta.function.arguments || '',
+              arguments: initialArguments,
             })
             yield { type: 'tool_call_start', id: tcDelta.id, name: tcDelta.function.name }
+            if (initialArguments) {
+              yield { type: 'tool_call_delta', id: tcDelta.id, argumentsDelta: initialArguments }
+            }
+            // The initial fragment (if any) is already recorded above; skip
+            // the accumulation block below so it isn't appended a second time.
+            continue
           }
 
           // Tool call arguments accumulating

@@ -21,7 +21,7 @@ import { DEFAULT_SORT_DIRECTIONS, DEFAULT_PRINTING_SORT_DIRECTIONS } from '@/lib
 
 /* ─── Constants ─────────────────────────────────────────────────────── */
 
-const VIEW_MODE_KEY = 'oracle:collection:viewMode'
+export const VIEW_MODE_KEY = 'oracle:collection:viewMode'
 
 const SORT_FIELD_LABELS: Record<SortField, string> = {
   dateUpdated: 'Date Updated',
@@ -139,10 +139,24 @@ export function CollectionToolbar({
   // ─── Internal debounced search ─────────────────────────────────
   const [localSearch, setLocalSearch] = useState(searchQuery)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Tracks the last value *we* told the parent about (via onSearchChange),
+  // so a later prop update that merely echoes that same value back can be
+  // told apart from a genuine external reset (e.g. a parent-initiated
+  // clear). Starts at the initial prop since nothing has been committed yet.
+  const lastCommittedRef = useRef(searchQuery)
 
-  // Sync external value → local on prop change (e.g. clear from parent)
+  // Sync external value → local on prop change, but only for a genuine
+  // external reset. If the incoming prop is just the parent acknowledging
+  // a value we already committed, a newer local edit (typed since, still
+  // pending its own debounce) must not be overwritten by that stale echo.
   useEffect(() => {
+    if (searchQuery === lastCommittedRef.current) return
+    lastCommittedRef.current = searchQuery
     setLocalSearch(searchQuery)
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
+      debounceRef.current = null
+    }
   }, [searchQuery])
 
   const handleSearchInput = useCallback(
@@ -150,6 +164,7 @@ export function CollectionToolbar({
       setLocalSearch(value)
       if (debounceRef.current) clearTimeout(debounceRef.current)
       debounceRef.current = setTimeout(() => {
+        lastCommittedRef.current = value
         onSearchChange(value)
       }, 300)
     },
@@ -516,8 +531,19 @@ function StatusFilterControl({
 /**
  * Hook to read the persisted view mode from localStorage on mount.
  * Returns the initial value to use for the viewMode state.
+ *
+ * Optionally accepts an already-observed raw stored value (or `null` for an
+ * explicitly-absent key). When supplied, no additional storage read is
+ * performed — the caller has already read `VIEW_MODE_KEY` once and is only
+ * asking this helper to parse/validate that value. When omitted, the
+ * original no-argument behaviour (including its own single storage read)
+ * is preserved unchanged.
  */
-export function getPersistedViewMode(): ViewMode {
+export function getPersistedViewMode(rawStoredValue?: string | null): ViewMode {
+  if (rawStoredValue !== undefined) {
+    if (rawStoredValue === 'list' || rawStoredValue === 'grid') return rawStoredValue
+    return 'grid'
+  }
   if (typeof window === 'undefined') return 'grid'
   try {
     const stored = localStorage.getItem(VIEW_MODE_KEY)

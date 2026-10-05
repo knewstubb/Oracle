@@ -11,6 +11,7 @@ import { CollectionValueBanner } from '@/components/collection/CollectionValueBa
 import {
   CollectionToolbar,
   getPersistedViewMode,
+  VIEW_MODE_KEY,
   type ViewMode,
 } from '@/components/collection/CollectionToolbar'
 import { CollectionGridView } from '@/components/collection/CollectionGridView'
@@ -26,17 +27,6 @@ import type {
   StatusFilter,
   ColorIdentityMode,
 } from '@/lib/collection-filters'
-
-/* ─── Debounce hook ─────────────────────────────────────────────────── */
-
-function useDebouncedValue(value: string, delay: number): string {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay)
-    return () => clearTimeout(timer)
-  }, [value, delay])
-  return debounced
-}
 
 /* ─── Page Component ────────────────────────────────────────────────── */
 
@@ -61,45 +51,94 @@ export default function CollectionPage() {
   const [printingSortField, setPrintingSortField] = useState<PrintingSortField>('cardName')
   const [printingSortDirection, setPrintingSortDirection] = useState<SortDirection>('asc')
 
-  // Sync viewMode from localStorage after hydration (avoids SSR mismatch)
-  // Default to list view on mobile for better readability
+  // ─── View resolution (F1) ───────────────────────────────────────
+  // The active view (and therefore which dataset is enabled) is unknown
+  // until the persisted/mobile preference has been resolved once after
+  // hydration. Neither dataset may fetch before that resolution commits.
+  const [viewResolved, setViewResolved] = useState(false)
+
   useEffect(() => {
-    const persisted = getPersistedViewMode()
-    const isMobile = window.matchMedia('(max-width: 639px)').matches
-    
-    // On mobile, default to list unless user explicitly saved a preference
-    if (isMobile && persisted === 'grid') {
-      // Check if there's an explicit preference stored
-      const hasExplicitPreference = localStorage.getItem('oracle:collection:viewMode') !== null
-      if (!hasExplicitPreference) {
-        setViewMode('list')
-        return
+    const resolveIsMobile = () => {
+      try {
+        return window.matchMedia('(max-width: 639px)').matches
+      } catch {
+        return false
       }
     }
-    
-    if (persisted !== 'grid') setViewMode(persisted)
+
+    let resolvedView: ViewMode
+    try {
+      const raw = localStorage.getItem(VIEW_MODE_KEY)
+      resolvedView = raw === null
+        ? (resolveIsMobile() ? 'list' : 'grid')
+        : getPersistedViewMode(raw)
+    } catch {
+      // Storage access exception: log once and fall back to the viewport
+      // default rather than leaving both datasets disabled forever.
+      console.warn('Collection view preference unavailable; using viewport default.')
+      resolvedView = resolveIsMobile() ? 'list' : 'grid'
+    }
+
+    setViewMode(resolvedView)
+    setViewResolved(true)
   }, [])
 
   // ─── Pagination state ──────────────────────────────────────────
   const [currentPage, setCurrentPage] = useState(1)
   const [printingPage, setPrintingPage] = useState(1)
 
-  // Reset page when filters change
-  const debouncedSearch = useDebouncedValue(searchQuery, 300)
-  useEffect(() => { setCurrentPage(1) }, [debouncedSearch, selectedColors, colorMode, sortField, sortDirection])
-  useEffect(() => { setPrintingPage(1) }, [debouncedSearch, selectedColors, colorMode, printingSortField, printingSortDirection, includeProxies, showMissing])
+  const isPrintingView = viewMode === 'list'
+
+  // ─── F2: committed search + atomic parameter/page transitions ──
+  // `onSearchChange` already fires only after the toolbar's own single
+  // 300ms pause, so `searchQuery` here is the committed value — no
+  // second page-level debounce is applied. Each handler below commits its
+  // parameter and the associated page reset(s) together, in the same
+  // event, so no render observes a new filter with a stale page.
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      if (value === searchQuery) return
+      setSearchQuery(value)
+      setCurrentPage(1)
+      setPrintingPage(1)
+    },
+    [searchQuery]
+  )
+
+  const handleColorsChange = useCallback((colors: string[]) => {
+    setSelectedColors(colors)
+    setCurrentPage(1)
+    setPrintingPage(1)
+  }, [])
+
+  const handleColorModeChange = useCallback((mode: ColorIdentityMode) => {
+    setColorMode(mode)
+    setCurrentPage(1)
+    setPrintingPage(1)
+  }, [])
+
+  const handleIncludeProxiesChange = useCallback(() => {
+    setIncludeProxies((prev) => !prev)
+    setPrintingPage(1)
+  }, [])
+
+  const handleShowMissingChange = useCallback((value: boolean) => {
+    setShowMissing(value)
+    setPrintingPage(1)
+  }, [])
 
   // ─── Fetch rollup data via hook (server-side paginated) ────────
-  const { rows, totalCount, page, pageSize, lastPriceRefresh, isPriceStale, isLoading, isFetching, error, expand } =
+  const { data: rollupData, rows, totalCount, page, pageSize, lastPriceRefresh, isPriceStale, isLoading, isFetching, error, expand } =
     useCollectionRollup({
       tab: 'collection',
       page: currentPage,
       pageSize: 50,
-      search: debouncedSearch,
+      search: searchQuery,
       sort: sortField,
       sortDir: sortDirection,
       colors: selectedColors,
       colorMode,
+      enabled: viewResolved && !isPrintingView,
     })
 
   // ─── Fetch printing-level data via hook (only in list view) ─────
@@ -111,14 +150,14 @@ export default function CollectionPage() {
   } = useCollectionPrintings({
     page: printingPage,
     pageSize: 100,
-    search: debouncedSearch,
+    search: searchQuery,
     sort: printingSortField,
     sortDir: printingSortDirection,
     colors: selectedColors,
     colorMode,
     includeProxies,
     includeMissing: showMissing,
-    enabled: viewMode === 'list',
+    enabled: viewResolved && isPrintingView,
   })
 
   // Wrapper: CollectionGridView expects expand to return PrintingSubgroupRow[]
@@ -139,12 +178,12 @@ export default function CollectionPage() {
         setPrintingSortField(field)
         setPrintingSortDirection('asc')
       }
+      setPrintingPage(1)
     },
     [printingSortField]
   )
 
   // ─── Derived state ─────────────────────────────────────────────
-  const isPrintingView = viewMode === 'list'
   const activeIsLoading = isPrintingView ? printingLoading : isLoading
   const activeError = isPrintingView ? printingError : error
   const activeIsPriceStale = isPrintingView
@@ -157,17 +196,28 @@ export default function CollectionPage() {
   // Server-paginated rows (no client-side filtering needed)
   const printingRows = printingData?.rows ?? []
   const printingTotalCount = printingData?.totalCount ?? 0
-  
+
+  // Whether the *active* view has ever produced a real response. `data` stays
+  // `undefined` until the query's first success (`placeholderData` then keeps
+  // the previous page's data visible across subsequent refetches/errors), so
+  // this is `false` only during preference resolution, the very first active
+  // fetch, and a first-fetch failure — never a confirmed empty result.
+  const hasActiveData = viewResolved && (isPrintingView ? printingData !== undefined : rollupData !== undefined)
+
   // Counts for UI display
   // Use the appropriate total count based on which view is active
   // Grid view uses rollup totalCount; list view uses printingTotalCount
-  const ownedCount = isPrintingView
-    ? (includeProxies 
-        ? printingRows.filter((r) => !r.isProxy).length  // page approximation when showing mixed
-        : printingTotalCount)  // total when only showing owned
-    : totalCount  // grid view uses rollup count (which doesn't include proxies)
-  const proxyCount = printingRows.filter((r) => r.isProxy).length
-  const missingCount = printingRows.filter((r) => r.isMissing).length
+  // Before real data has arrived for the active view, no count is known yet
+  // — never present a disabled/pending query's default as zero-owned.
+  const ownedCount = !hasActiveData
+    ? null
+    : isPrintingView
+      ? (includeProxies
+          ? printingRows.filter((r) => !r.isProxy).length  // page approximation when showing mixed
+          : printingTotalCount)  // total when only showing owned
+      : totalCount  // grid view uses rollup count (which doesn't include proxies)
+  const proxyCount = hasActiveData ? printingRows.filter((r) => r.isProxy).length : 0
+  const missingCount = hasActiveData ? printingRows.filter((r) => r.isMissing).length : 0
 
   // Pagination derived state
   const totalPages = Math.ceil(totalCount / pageSize)
@@ -180,7 +230,7 @@ export default function CollectionPage() {
     title: 'Collection',
     subtitle: (
       <>
-        {(ownedCount ?? 0).toLocaleString()} owned
+        {ownedCount === null ? 'Loading...' : `${ownedCount.toLocaleString()} owned`}
         {includeProxies && proxyCount > 0 && ` · ${proxyCount} proxies`}
         {activeLastPriceRefresh && ' · Prices cached'}
       </>
@@ -219,7 +269,7 @@ export default function CollectionPage() {
             <div className="flex-1">
               <CollectionToolbar
                 searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
+                onSearchChange={handleSearchChange}
                 sortField={isPrintingView ? printingSortField : sortField}
                 onSortFieldChange={(field) => {
                   if (isPrintingView) {
@@ -232,16 +282,18 @@ export default function CollectionPage() {
                 onSortDirectionChange={(dir) => {
                   if (isPrintingView) {
                     setPrintingSortDirection(dir)
+                    setPrintingPage(1)
                   } else {
                     setSortDirection(dir)
+                    setCurrentPage(1)
                   }
                 }}
                 viewMode={viewMode}
                 onViewModeChange={setViewMode}
                 selectedColors={selectedColors}
-                onColorsChange={setSelectedColors}
+                onColorsChange={handleColorsChange}
                 colorMode={colorMode}
-                onColorModeChange={setColorMode}
+                onColorModeChange={handleColorModeChange}
                 activeStatuses={activeStatuses}
                 onStatusChange={setActiveStatuses}
                 sortContext={isPrintingView ? 'printing' : 'rollup'}
@@ -251,7 +303,7 @@ export default function CollectionPage() {
             {isPrintingView && proxyCount > 0 && (
               <button
                 type="button"
-                onClick={() => setIncludeProxies((prev) => !prev)}
+                onClick={handleIncludeProxiesChange}
                 className={cn(
                   'mr-4 shrink-0 rounded-full px-2.5 py-[4px] text-[11px] transition-colors',
                   includeProxies
@@ -272,7 +324,7 @@ export default function CollectionPage() {
             {isPrintingView && (
               <MissingToggle
                 showMissing={showMissing}
-                onToggle={setShowMissing}
+                onToggle={handleShowMissingChange}
                 missingCount={missingCount}
               />
             )}
@@ -282,12 +334,14 @@ export default function CollectionPage() {
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             {activeError ? (
               <ErrorState onRetry={() => window.location.reload()} />
+            ) : !viewResolved || (isPrintingView ? (printingLoading && printingRows.length === 0) : (isLoading && rows.length === 0)) ? (
+              // Before view resolution, or on first load of the active view
+              // with no usable data yet, retain the existing shell/skeleton.
+              // A disabled query's isLoading=false must not bypass this.
+              <LoadingSkeleton viewMode={viewMode} />
             ) : isPrintingView ? (
-              // Show skeleton only on first load (no data yet), not when refreshing
-              printingLoading && printingRows.length === 0 ? (
-                <LoadingSkeleton viewMode={viewMode} />
-              ) : printingRows.length === 0 ? (
-                <EmptyState hasFilters={debouncedSearch !== '' || selectedColors.length > 0 || activeStatuses.length > 0} />
+              printingRows.length === 0 ? (
+                <EmptyState hasFilters={searchQuery !== '' || selectedColors.length > 0 || activeStatuses.length > 0} />
               ) : (
                 <div className={cn("flex-1 overflow-y-auto", printingIsFetching && "opacity-70 transition-opacity")}>
                   <PrintingListView
@@ -302,11 +356,8 @@ export default function CollectionPage() {
                 </div>
               )
             ) : (
-              // Show skeleton only on first load (no data yet), not when refreshing
-              isLoading && rows.length === 0 ? (
-                <LoadingSkeleton viewMode={viewMode} />
-              ) : rows.length === 0 ? (
-                <EmptyState hasFilters={debouncedSearch !== '' || selectedColors.length > 0} />
+              rows.length === 0 ? (
+                <EmptyState hasFilters={searchQuery !== '' || selectedColors.length > 0} />
               ) : (
                 <div className={cn("flex-1 overflow-y-auto p-4", isFetching && "opacity-70 transition-opacity")}>
                   <CollectionGridView rows={rows} onExpand={expandSubgroups} />
@@ -321,7 +372,9 @@ export default function CollectionPage() {
             style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)', backgroundColor: 'var(--bg-canvas)' }}
           >
             <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.25)' }}>
-              {isPrintingView ? (
+              {!hasActiveData ? (
+                'Loading...'
+              ) : isPrintingView ? (
                 <>
                   Showing{' '}
                   <span style={{ color: 'rgba(255,255,255,0.5)' }}>

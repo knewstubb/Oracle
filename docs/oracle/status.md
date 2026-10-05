@@ -33,6 +33,7 @@ Read `docs/oracle/roadmap.md` first. Only tasks in the **current milestone** may
 | T-22 | Redesign import reconciliation flow: tabbed layout, state-based conflict resolution, wishlist, printing selection, and hover previews | UX/UI / Frontend | T-13 | DONE — spec, mockup, contract, and Frontend implementation merged |
 | T-23 | Define import reconciliation API contract and data model (per-instance state, alternate printing, persistence) | Architect | T-22 | CANCELLED — superseded by contract in T-22 |
 | T-24 | Implement Backend reconciliation API routes (`/api/onboarding/reconciliation/*`) per T-22 contract | Backend | T-22 | DONE — routes, Frontend label, and Architect migration all aligned; migration remains DRAFT pending owner approval before deploy |
+| T-35 | Make onboarding import any public Archidekt account from the entered collection URL/account identifier, including that account's collection and decks | Backend | Owner confirmation 2026-09-30; current onboarding import flow | DONE — merged as 1f15656 into feat/archidekt-any-account; 32 focused tests and build pass |
 
 ## M3–M5 — parked until their milestone is current
 | ID | Task | Milestone | Status |

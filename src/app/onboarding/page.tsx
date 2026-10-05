@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { DeckImportProgressList } from '@/components/DeckImportProgressList'
+import { PillToggle, type PillToggleOption } from '@/components/ui/pill-toggle'
 import { ReconciliationSummary } from '@/components/reconciliation/ReconciliationSummary'
 import type { CollectionImportResult, DeckListEntry } from '@/lib/warm-start-import'
 import type { BatchResolutionResult, DeckResolutionResult } from '@/lib/warm-start-resolve'
@@ -20,6 +21,11 @@ import { type DeckFormat, FORMAT_DEFINITIONS } from '@/lib/format-config'
 
 type OnboardingStep = 'source' | 'fields' | 'decks' | 'summary'
 type ImportSource = 'archidekt' | 'moxfield'
+
+const deckStatusOptions: PillToggleOption<'brewing' | 'in_rotation'>[] = [
+  { value: 'brewing', label: 'Brew', tone: 'amber' },
+  { value: 'in_rotation', label: 'Active', tone: 'teal' },
+]
 
 interface MoxfieldDeckEntry {
   id: string
@@ -142,6 +148,7 @@ export default function OnboardingPage() {
       const res = await fetch('/api/onboarding/collection-stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archidektUrl: collectionUrl }),
       })
       
       if (!res.ok) {
@@ -209,7 +216,8 @@ export default function OnboardingPage() {
         toast.warning(`Collection imported with ${data.errors.length} warning(s)`)
       }
       try {
-        const res = await fetch('/api/onboarding/decks')
+        const deckUrl = collectionUrl.trim() ? `?archidektUrl=${encodeURIComponent(collectionUrl)}` : ''
+        const res = await fetch(`/api/onboarding/decks${deckUrl}`)
         if (!res.ok) {
           const body = await res.json().catch(() => ({ error: 'Failed to fetch decks' }))
           toast.error(body.error || 'Failed to fetch deck list')
@@ -648,7 +656,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="flex-1 overflow-y-auto bg-[var(--bg-canvas)] px-4 py-12">
-      <div className="mx-auto w-full max-w-2xl">
+      <div className={`mx-auto w-full ${step === 'summary' ? 'max-w-[1220px]' : 'max-w-2xl'}`}>
         {step === 'source' && (
           <SourcePickerScreen
             source={source}
@@ -1168,39 +1176,13 @@ function DeckPickerScreen({
                 />
                 <span className="flex-1 truncate text-[length:var(--fs-md)]">{deck.name}</span>
 
-                <div
-                  className={`inline-flex items-center rounded-full p-0.5 transition-colors ${
-                    !isSelected ? 'opacity-40 pointer-events-none' : ''
-                  }`}
-                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => { if (status !== 'brewing') onToggleStatus(deck.id) }}
-                    disabled={!isSelected}
-                    className="rounded-full px-2.5 py-1 text-[length:var(--fs-xs)] font-medium transition-all"
-                    style={
-                      status === 'brewing'
-                        ? { background: 'rgba(239,159,39,0.2)', color: '#ef9f27' }
-                        : { color: 'rgba(255,255,255,0.4)' }
-                    }
-                  >
-                    Brew
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { if (status !== 'in_rotation') onToggleStatus(deck.id) }}
-                    disabled={!isSelected}
-                    className="rounded-full px-2.5 py-1 text-[length:var(--fs-xs)] font-medium transition-all"
-                    style={
-                      status === 'in_rotation'
-                        ? { background: 'rgba(20,184,166,0.2)', color: '#14b8a6' }
-                        : { color: 'rgba(255,255,255,0.4)' }
-                    }
-                  >
-                    Active
-                  </button>
-                </div>
+                <PillToggle
+                  options={deckStatusOptions}
+                  value={status}
+                  onChange={() => onToggleStatus(deck.id)}
+                  disabled={!isSelected}
+                  aria-label={`Status for ${deck.name}`}
+                />
 
                 <select
                   value={deckFormats.get(deck.id) ?? importFormat}
@@ -1365,39 +1347,13 @@ function MoxfieldDeckPickerScreen({
                     {deck.cardCount}
                   </span>
                 )}
-                <div
-                  className={`inline-flex items-center rounded-full p-0.5 transition-colors ${
-                    !isSelected ? 'opacity-40 pointer-events-none' : ''
-                  }`}
-                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => { if (status !== 'brewing') onToggleStatus(deck.id) }}
-                    disabled={!isSelected}
-                    className="rounded-full px-2.5 py-1 text-[length:var(--fs-xs)] font-medium transition-all"
-                    style={
-                      status === 'brewing'
-                        ? { background: 'rgba(239,159,39,0.2)', color: '#ef9f27' }
-                        : { color: 'rgba(255,255,255,0.4)' }
-                    }
-                  >
-                    Brew
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { if (status !== 'in_rotation') onToggleStatus(deck.id) }}
-                    disabled={!isSelected}
-                    className="rounded-full px-2.5 py-1 text-[length:var(--fs-xs)] font-medium transition-all"
-                    style={
-                      status === 'in_rotation'
-                        ? { background: 'rgba(20,184,166,0.2)', color: '#14b8a6' }
-                        : { color: 'rgba(255,255,255,0.4)' }
-                    }
-                  >
-                    Active
-                  </button>
-                </div>
+                <PillToggle
+                  options={deckStatusOptions}
+                  value={status}
+                  onChange={() => onToggleStatus(deck.id)}
+                  disabled={!isSelected}
+                  aria-label={`Status for ${deck.name}`}
+                />
               </div>
             )
           })

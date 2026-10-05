@@ -13,38 +13,34 @@ import type {
   SlotState,
 } from '@/types/import-reconciliation'
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+const SCRYFALL_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+
+/** Falls back to Scryfall's image address when the card database has no image yet (e.g. brand-new sets). */
+function thumbnailUrl(printing: ConflictPrintingRow): string | null {
+  if (printing.imageUriSmall) return printing.imageUriSmall
+  const id = printing.printingId
+  if (!SCRYFALL_ID_PATTERN.test(id)) return null
+  return `https://cards.scryfall.io/small/front/${id.charAt(0)}/${id.charAt(1)}/${id}.jpg`
+}
 
 interface ConflictCardProps {
   printing: ConflictPrintingRow
-  /** If true, hide deck tags (used inside the Decks tab where the deck is implied). */
-  hideDeckTags?: boolean
-  /** If true, show claimant deck names for already-claimed rows (Decks tab). */
+  /** When viewing one deck, its slot is listed first and other decks are marked as also wanting the card. */
+  focusDeckId?: number
+  /** If true, show which decks already hold a real copy. */
   showClaimantDecks?: boolean
-  /** Called when any instance state changes. */
   onInstanceStateChange: (instance: ConflictInstance, state: InstanceState) => void
-  /** Called when an alternate printing is selected. */
   onAlternatePrintingChange?: (instance: ConflictInstance, printingId: string | null) => void
-  /** Called when a wishlist checkbox toggles. */
   onWishlistChange?: (instance: ConflictInstance, checked: boolean) => void
-  /** Whether interactions are disabled globally (e.g. mutation pending). */
   disabled?: boolean
 }
 
-// ---------------------------------------------------------------------------
-// Slot-state descriptor
-// ---------------------------------------------------------------------------
-
 /**
- * Non-selectable descriptor shown on a slot per its `slotState` (contract
- * §authoritative display state; spec §8.1, §13). `planned_claimed` (doc
- * states 3, 9) means every usable real copy is held by another deck — no
- * alternate is free. `planned_alt_available` (doc states 2, 8) means the
- * requested printing is gone, but the user can still switch to a free
- * alternate printing. These are different states with different next
- * actions and must not be conflated into one "already claimed" label.
+ * Non-selectable descriptor shown on a slot per its `slotState`.
+ * `planned_claimed` means every usable real copy is held by another deck;
+ * `planned_alt_available` means the requested printing is gone but a free
+ * alternate printing exists. They need different next actions, so they keep
+ * separate labels.
  */
 const SLOT_STATE_DESCRIPTOR: Partial<Record<SlotState, { label: string; icon: typeof AlertTriangle }>> = {
   planned_claimed: { label: 'Already claimed', icon: AlertTriangle },
@@ -66,53 +62,22 @@ function SlotStateDescriptor({ slotState }: { slotState: SlotState }) {
   )
 }
 
-// ---------------------------------------------------------------------------
-// Status chip
-// ---------------------------------------------------------------------------
-
-interface StatusChipProps {
-  resolved: boolean
-  slotState?: SlotState
+function ResolvedChip() {
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[length:var(--fs-xs)] font-semibold"
+      style={{ color: 'var(--signal-success)', background: 'var(--signal-success-bg)' }}
+    >
+      <Check className="size-3" aria-hidden="true" />
+      Resolved
+    </span>
+  )
 }
-
-function StatusChip({ resolved, slotState }: StatusChipProps) {
-  const descriptor = slotState ? SLOT_STATE_DESCRIPTOR[slotState] : undefined
-  if (descriptor) {
-    const Icon = descriptor.icon
-    return (
-      <span
-        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[length:var(--fs-xs)] font-semibold"
-        style={{ color: 'var(--signal-warning)', background: 'var(--signal-warning-bg)' }}
-      >
-        <Icon className="size-3" aria-hidden="true" />
-        {descriptor.label}
-      </span>
-    )
-  }
-
-  if (resolved) {
-    return (
-      <span
-        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[length:var(--fs-xs)] font-semibold"
-        style={{ color: 'var(--signal-success)', background: 'var(--signal-success-bg)' }}
-      >
-        <Check className="size-3" aria-hidden="true" />
-        Resolved
-      </span>
-    )
-  }
-
-  return null
-}
-
-// ---------------------------------------------------------------------------
-// Instance row
-// ---------------------------------------------------------------------------
 
 function InstanceRow({
   printing,
   instance,
-  hideDeckTag,
+  isOtherDeck,
   showClaimantDecks,
   onStateChange,
   onAlternatePrintingChange,
@@ -121,7 +86,7 @@ function InstanceRow({
 }: {
   printing: ConflictPrintingRow
   instance: ConflictInstance
-  hideDeckTag?: boolean
+  isOtherDeck: boolean
   showClaimantDecks?: boolean
   onStateChange: (instance: ConflictInstance, state: InstanceState) => void
   onAlternatePrintingChange?: (instance: ConflictInstance, printingId: string | null) => void
@@ -132,19 +97,30 @@ function InstanceRow({
     ? (['planned', 'proxy'] as const)
     : (['planned', 'sleeved', 'proxy'] as const)
 
-  const claimantNames = showClaimantDecks
-    ? instance.claimedBy.map((d) => d.deckName)
-    : []
+  const claimantNames = showClaimantDecks ? instance.claimedBy.map((d) => d.deckName) : []
 
   return (
-    <div className="flex min-h-[36px] flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-2">
-        {!hideDeckTag && (
-          <span className="rounded-md bg-white/[0.05] px-2 py-1 text-[length:var(--fs-xs)] text-[var(--text-secondary)] whitespace-nowrap">
-            {instance.deckName}
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2.5">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+        {isOtherDeck && (
+          <span className="text-[length:var(--fs-xs)] text-[var(--text-secondary)]">Also wanted by</span>
+        )}
+        <span
+          className={cn(
+            'truncate rounded-md px-2 py-1 text-[length:var(--fs-xs)] font-medium',
+            isOtherDeck
+              ? 'border border-dashed border-[var(--border-default)] text-[var(--text-secondary)]'
+              : 'bg-white/[0.06] text-foreground'
+          )}
+        >
+          {instance.deckName}
+        </span>
+        <SlotStateDescriptor slotState={instance.slotState} />
+        {claimantNames.length > 0 && (
+          <span className="text-[length:var(--fs-xs)] text-[var(--text-secondary)]">
+            Held by {claimantNames.join(', ')}
           </span>
         )}
-        <SlotStateDescriptor slotState={instance.slotState} />
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-2">
@@ -154,7 +130,7 @@ function InstanceRow({
           onChange={(state) => onStateChange(instance, state)}
           disabled={disabled}
           isOptionDisabled={(option) => option === 'sleeved' && !instance.canSleeve}
-          disabledReason="All owned copies are already sleeved. Choose Proxy, Planned, or use an alternate printing."
+          disabledReason="All owned copies are already sleeved. Choose Proxy, Unsleeved, or use an alternate printing."
           aria-label={`${printing.cardName} state for ${instance.deckName}`}
         />
 
@@ -177,23 +153,13 @@ function InstanceRow({
           />
         )}
       </div>
-
-      {showClaimantDecks && claimantNames.length > 0 && (
-        <div className="w-full pl-0 text-[length:var(--fs-xs)] text-[var(--text-secondary)]">
-          Claimed by: {claimantNames.join(', ')}
-        </div>
-      )}
     </div>
   )
 }
 
-// ---------------------------------------------------------------------------
-// Card container
-// ---------------------------------------------------------------------------
-
 export function ConflictCard({
   printing,
-  hideDeckTags,
+  focusDeckId,
   showClaimantDecks,
   onInstanceStateChange,
   onAlternatePrintingChange,
@@ -205,45 +171,44 @@ export function ConflictCard({
     cardName: printing.cardName,
   })
 
-  const thumbUrl = printing.imageUriSmall
+  const thumbnail = thumbnailUrl(printing)
 
-  const claimedDescriptorInstance = printing.instances.find(
-    (i) => SLOT_STATE_DESCRIPTOR[i.slotState]
+  const instances = [...printing.instances].sort(
+    (a, b) =>
+      Number(focusDeckId !== undefined && b.deckId === focusDeckId) -
+        Number(focusDeckId !== undefined && a.deckId === focusDeckId) ||
+      a.claimId - b.claimId
   )
 
   return (
     <div
       className={cn(
-        'rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)]',
-        printing.resolved && 'border-[rgba(29,158,117,0.25)] bg-[rgba(29,158,117,0.06)]'
+        'flex flex-col overflow-hidden rounded-xl border bg-[var(--bg-surface)] md:flex-row',
+        printing.resolved
+          ? 'border-[rgba(29,158,117,0.3)]'
+          : 'border-[var(--border-default)]'
       )}
     >
-      {/* Header */}
-      <div className="flex items-start gap-3 px-4 py-3">
+      <div className="flex shrink-0 items-start gap-3 p-3 md:w-[260px] md:border-r md:border-[var(--border-subtle)]">
         <div className="shrink-0" {...triggerProps}>
-          {thumbUrl ? (
+          {thumbnail ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={thumbUrl}
+              src={thumbnail}
               alt=""
               loading="lazy"
-              className="h-11 w-8 cursor-help rounded object-cover"
+              className="h-[88px] w-[63px] cursor-default rounded-md object-cover"
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
             />
           ) : (
-            <div className="h-11 w-8 rounded bg-[var(--border-subtle)]" />
+            <div className="h-[88px] w-[63px] rounded-md bg-[var(--border-subtle)]" />
           )}
         </div>
 
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[length:var(--fs-md)] font-medium text-foreground">
-              {printing.cardName}
-            </span>
-            <StatusChip
-              resolved={printing.resolved}
-              slotState={showClaimantDecks ? undefined : claimedDescriptorInstance?.slotState}
-            />
-          </div>
+        <div className="min-w-0 flex-1 pt-0.5">
+          <p className="text-[length:var(--fs-md)] font-medium leading-snug text-foreground">
+            {printing.cardName}
+          </p>
           <PrintingIdentifier
             printingId={printing.printingId}
             cardName={printing.cardName}
@@ -251,17 +216,21 @@ export function ConflictCard({
             collectorNumber={printing.collectorNumber}
             finish={printing.finish}
           />
+          {printing.resolved && (
+            <div className="mt-1.5">
+              <ResolvedChip />
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Instance list */}
-      <div className="flex flex-col gap-2 px-4 pb-3 pl-[60px]">
-        {printing.instances.map((instance) => (
+      <div className="flex min-w-0 flex-1 flex-col justify-center divide-y divide-[var(--border-subtle)] border-t border-[var(--border-subtle)] md:border-t-0">
+        {instances.map((instance) => (
           <InstanceRow
             key={instance.claimId}
             printing={printing}
             instance={instance}
-            hideDeckTag={hideDeckTags}
+            isOtherDeck={focusDeckId !== undefined && instance.deckId !== focusDeckId}
             showClaimantDecks={showClaimantDecks}
             onStateChange={onInstanceStateChange}
             onAlternatePrintingChange={onAlternatePrintingChange}
@@ -270,18 +239,6 @@ export function ConflictCard({
           />
         ))}
       </div>
-
-      {/* Printing-level warning when all copies are allocated */}
-      {printing.ownership === 'owned' &&
-        printing.instances.some((i) => i.state !== 'sleeved' && !i.canSleeve) && (
-          <div
-            className="flex items-center gap-1.5 px-4 pb-3 pl-[60px] text-[length:var(--fs-xs)]"
-            style={{ color: 'var(--signal-warning)' }}
-          >
-            <AlertTriangle className="size-3" aria-hidden="true" />
-            All owned copies are already sleeved in other decks.
-          </div>
-        )}
     </div>
   )
 }

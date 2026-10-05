@@ -4,16 +4,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { DeckImportProgressList } from '@/components/DeckImportProgressList'
 import { ConflictCard } from './ConflictCard'
-import { DeckList } from './DeckList'
+import { ReconciliationNav, type ReconciliationSelection } from './ReconciliationNav'
 import { partitionRowsByOwnership } from '@/lib/import-reconciliation'
 import type {
   ReconciliationView,
   ConflictInstance,
   InstanceState,
-  ReconciliationTab,
 } from '@/types/import-reconciliation'
 import type { BatchResolutionResult } from '@/lib/warm-start-resolve'
 
@@ -77,7 +74,7 @@ function EmptyState({ onFinish }: { onFinish: () => void }) {
         All imported cards are reconciled.
       </p>
       <p className="max-w-sm text-[length:var(--fs-sm)] text-[var(--text-secondary)]">
-        Every slot fits within your collection or has been marked Proxy/Planned.
+        Every slot fits within your collection or has been marked Proxy/Unsleeved.
       </p>
       <Button onClick={onFinish}>Allocate Cards</Button>
     </div>
@@ -109,9 +106,23 @@ export function ReconciliationSummary({
   const [view, setView] = useState<ReconciliationView | null>(null)
   const [viewLoading, setViewLoading] = useState(true)
   const [viewError, setViewError] = useState<string | null>(null)
+  // Cards that have needed a decision at any point. Cards that were fine from
+  // the start never appear; cards the user resolves stay so they can change their mind.
+  const [attentionKeys, setAttentionKeys] = useState<Set<string>>(new Set())
   const [mutatingClaimId, setMutatingClaimId] = useState<number | null>(null)
   const [finishing, setFinishing] = useState(false)
-  const [activeTab, setActiveTab] = useState<ReconciliationTab>('decks')
+  const [selection, setSelection] = useState<ReconciliationSelection | null>(null)
+
+  function applyView(next: ReconciliationView) {
+    setView(next)
+    setAttentionKeys((prev) => {
+      const updated = new Set(prev)
+      for (const row of next.rows) {
+        if (!row.resolved) updated.add(`${row.cardName}|${row.printingId}`)
+      }
+      return updated
+    })
+  }
 
   // Fetch reconciliation view on mount / batchId change.
   useEffect(() => {
@@ -127,7 +138,7 @@ export function ReconciliationSummary({
         }
         const data: ReconciliationView = await res.json()
         if (!cancelled) {
-          setView(data)
+          applyView(data)
           setViewError(null)
         }
       } catch (err) {
@@ -144,21 +155,24 @@ export function ReconciliationSummary({
     return () => { cancelled = true }
   }, [batchId])
 
-  const { owned: ownedRows, unowned: unownedRows } = useMemo(() => {
-    if (!view) return { owned: [], unowned: [] }
-    return partitionRowsByOwnership(view.rows)
-  }, [view])
+  // The server lists resolved cards last, so a card would jump to the bottom
+  // the moment a choice is made. Keep a fixed order so nothing moves.
+  const stableRows = useMemo(() => {
+    if (!view) return []
+    return view.rows
+      .filter((row) => attentionKeys.has(`${row.cardName}|${row.printingId}`))
+      .sort(
+      (a, b) =>
+        a.cardName.localeCompare(b.cardName) || a.printingId.localeCompare(b.printingId)
+    )
+  }, [view, attentionKeys])
 
-  const tabCounts = useMemo(() => {
-    if (!view) return { decks: 0, owned: 0, unowned: 0 }
-    return {
-      decks: view.counts.unresolvedTotal,
-      owned: view.counts.unresolvedOwned,
-      unowned: view.counts.unresolvedUnowned,
-    }
-  }, [view])
+  const { owned: ownedRows, unowned: unownedRows } = useMemo(
+    () => partitionRowsByOwnership(stableRows),
+    [stableRows]
+  )
 
-  const unresolvedTotal = tabCounts.decks
+  const unresolvedTotal = view?.counts.unresolvedTotal ?? 0
 
   // -------------------------------------------------------------------------
   // State change handler
@@ -180,10 +194,10 @@ export function ReconciliationSummary({
         throw new Error(body.error || 'Failed to update allocation')
       }
       const data: { view: ReconciliationView } = await res.json()
-      setView(data.view)
+      applyView(data.view)
       toast.success(
         state === 'planned'
-          ? 'Marked as Planned'
+          ? 'Marked as Unsleeved'
           : state === 'proxy'
             ? 'Marked as Proxy'
             : 'Marked as Sleeved'
@@ -215,9 +229,9 @@ export function ReconciliationSummary({
         throw new Error(body.error || 'Failed to update printing')
       }
       const data: { view: ReconciliationView; demoted?: boolean } = await res.json()
-      setView(data.view)
+      applyView(data.view)
       if (data.demoted) {
-        toast.success('Alternate printing selected; state set to Planned because the copy is allocated elsewhere')
+        toast.success('Alternate printing selected; state set to Unsleeved because the copy is allocated elsewhere')
       } else {
         toast.success('Alternate printing selected')
       }
@@ -245,7 +259,7 @@ export function ReconciliationSummary({
         throw new Error(body.error || 'Failed to update wishlist')
       }
       const data: { view: ReconciliationView } = await res.json()
-      setView(data.view)
+      applyView(data.view)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update wishlist')
     } finally {
@@ -291,7 +305,7 @@ export function ReconciliationSummary({
       const proxied = data.proxiedCount ?? 0
       if (proxied > 0) parts.push(`added ${proxied.toLocaleString()} proxy copies`)
       const released = data.releasedCount ?? 0
-      if (released > 0) parts.push(`kept ${released.toLocaleString()} slot(s) planned`)
+      if (released > 0) parts.push(`kept ${released.toLocaleString()} slot(s) unsleeved`)
       if (parts.length === 0) parts.push('nothing to assign')
       toast.success(parts.join(' · '))
       onFinish()
@@ -308,17 +322,15 @@ export function ReconciliationSummary({
 
   if (!batchResult) return null
 
-  const totalDecks = batchResult.decksProcessed
-
-  const decksProgress = batchResult.results.map((result) => ({
-    id: result.deckId,
-    name: result.deckName,
-    state: 'done' as const,
-    result,
-  }))
-
-  // Conflict overlay: a deck is flagged iff it still has unresolved conflict printings.
-  const conflictedDeckIds = new Set(view?.decks.map((d) => d.deckId) ?? [])
+  const navDecks = batchResult.results.map((result) => {
+    const conflicted = view?.decks.find((d) => d.deckId === result.deckId)
+    return {
+      deckId: result.deckId,
+      deckName: result.deckName,
+      isActive: conflicted?.isActive ?? result.lifecycle === 'active',
+      unresolved: conflicted?.conflictPrintingCount ?? 0,
+    }
+  })
 
   if (viewLoading) {
     return <SummarySkeleton />
@@ -332,6 +344,43 @@ export function ReconciliationSummary({
     return <EmptyState onFinish={onFinish} />
   }
 
+  const firstConflictedDeck = navDecks.find((d) => d.unresolved > 0)
+  const activeSelection: ReconciliationSelection =
+    selection ??
+    (firstConflictedDeck
+      ? `deck:${firstConflictedDeck.deckId}`
+      : view.counts.unresolvedOwned > 0
+        ? 'owned'
+        : 'unowned')
+
+  const selectedDeckId = activeSelection.startsWith('deck:')
+    ? Number(activeSelection.slice('deck:'.length))
+    : undefined
+  const selectedDeck = navDecks.find((d) => d.deckId === selectedDeckId)
+
+  const visibleRows =
+    activeSelection === 'owned'
+      ? ownedRows
+      : activeSelection === 'unowned'
+        ? unownedRows
+        : stableRows.filter((row) => row.instances.some((i) => i.deckId === selectedDeckId))
+
+  const panelTitle =
+    activeSelection === 'owned'
+      ? 'All owned'
+      : activeSelection === 'unowned'
+        ? 'All unowned'
+        : selectedDeck?.deckName ?? 'Deck'
+
+  const panelHint =
+    activeSelection === 'owned'
+      ? 'Cards in your collection that more than one deck wants, or that are in a different printing.'
+      : activeSelection === 'unowned'
+        ? 'Cards that are not in your collection. Choose Proxy or leave them Unsleeved.'
+        : 'Cards in this deck that need a decision.'
+
+  const disabled = mutatingClaimId !== null
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -342,101 +391,51 @@ export function ReconciliationSummary({
         </p>
       </div>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-lg border border-[var(--border-default)] px-4 py-3">
-          <p className="text-[length:var(--fs-xs)] text-muted-foreground">Decks imported</p>
-          <p className="text-[length:var(--fs-xl)] font-semibold">{totalDecks}</p>
-        </div>
-        <div className="rounded-lg border border-[var(--border-default)] px-4 py-3">
-          <p className="text-[length:var(--fs-xs)] text-muted-foreground">Needs a decision</p>
-          <p
-            className="text-[length:var(--fs-xl)] font-semibold"
-            style={unresolvedTotal > 0 ? { color: 'var(--signal-warning)' } : undefined}
-          >
-            {unresolvedTotal}
-          </p>
-        </div>
-        <div className="rounded-lg border border-[var(--border-default)] px-4 py-3">
-          <p className="text-[length:var(--fs-xs)] text-muted-foreground">Resolved</p>
-          <p className="text-[length:var(--fs-xl)] font-semibold text-[var(--signal-success)]">
-            {view.counts.rowsTotal - unresolvedTotal}
-          </p>
-        </div>
-      </div>
-
-      {/* Decks imported list */}
-      <div className="flex flex-col gap-2">
-        <h2 className="text-[length:var(--fs-md)] font-medium">Decks</h2>
-        <DeckImportProgressList
-          decks={decksProgress.map((d) => ({ ...d, conflicted: conflictedDeckIds.has(d.id) }))}
-          isRunning={false}
-        />
-      </div>
-
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ReconciliationTab)}>
-        <TabsList variant="line" className="w-full justify-start gap-2">
-          <TabTrigger value="decks" label="Decks" count={tabCounts.decks} />
-          <TabTrigger value="owned" label="Owned" count={tabCounts.owned} />
-          <TabTrigger value="unowned" label="Unowned" count={tabCounts.unowned} />
-        </TabsList>
-
-        <TabsContent value="decks" className="mt-5">
-          <p className="mb-4 text-[length:var(--fs-sm)] text-[var(--text-secondary)]">
-            Decks with no conflicts are hidden from this tab.
-          </p>
-          <DeckList
-            decks={view.decks}
-            rows={view.rows}
-            onInstanceStateChange={handleInstanceStateChange}
-            onAlternatePrintingChange={handleAlternatePrintingChange}
-            onWishlistChange={handleWishlistChange}
-            disabled={mutatingClaimId !== null}
+      <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
+        <aside className="lg:sticky lg:top-4 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto">
+          <ReconciliationNav
+            selected={activeSelection}
+            onSelect={setSelection}
+            decks={navDecks}
+            ownedUnresolved={view.counts.unresolvedOwned}
+            unownedUnresolved={view.counts.unresolvedUnowned}
           />
-        </TabsContent>
+        </aside>
 
-        <TabsContent value="owned" className="mt-5">
-          <p className="mb-4 text-[length:var(--fs-sm)] text-[var(--text-secondary)]">
-            Owned conflict printings that appear in imported decks.
-          </p>
-          <div className="flex flex-col gap-3">
-            {ownedRows.map((printing) => (
-              <ConflictCard
-                key={printing.printingId}
-                printing={printing}
-                onInstanceStateChange={handleInstanceStateChange}
-                onAlternatePrintingChange={handleAlternatePrintingChange}
-                disabled={mutatingClaimId !== null}
-              />
-            ))}
-          </div>
-        </TabsContent>
+        <section aria-label={panelTitle} className="flex min-w-0 flex-col gap-4">
+          <header>
+            <h2 className="text-[length:var(--fs-lg)] font-semibold text-foreground">{panelTitle}</h2>
+            <p className="mt-0.5 text-[length:var(--fs-sm)] text-[var(--text-secondary)]">{panelHint}</p>
+          </header>
 
-        <TabsContent value="unowned" className="mt-5">
-          <p className="mb-4 text-[length:var(--fs-sm)] text-[var(--text-secondary)]">
-            Unowned conflict printings that appear in imported decks.
-          </p>
-          <div className="flex flex-col gap-3">
-            {unownedRows.map((printing) => (
-              <ConflictCard
-                key={printing.printingId}
-                printing={printing}
-                onInstanceStateChange={handleInstanceStateChange}
-                onWishlistChange={handleWishlistChange}
-                disabled={mutatingClaimId !== null}
-              />
-            ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+          {visibleRows.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-[var(--border-default)] px-4 py-12 text-center text-[length:var(--fs-sm)] text-[var(--text-secondary)]">
+              Nothing here needs a decision.
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {visibleRows.map((printing) => (
+                <ConflictCard
+                  key={printing.printingId}
+                  printing={printing}
+                  focusDeckId={selectedDeckId}
+                  showClaimantDecks={selectedDeckId !== undefined}
+                  onInstanceStateChange={handleInstanceStateChange}
+                  onAlternatePrintingChange={handleAlternatePrintingChange}
+                  onWishlistChange={handleWishlistChange}
+                  disabled={disabled}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
 
-      {/* Finish bar */}
       <div className="fixed bottom-0 left-0 right-0 z-10 border-t border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-4">
+        <div className="mx-auto flex max-w-[1220px] items-center justify-between gap-4">
           <p className="text-[length:var(--fs-sm)] text-[var(--text-secondary)]">
             {unresolvedTotal > 0
-              ? `${unresolvedTotal} unresolved conflict printing${unresolvedTotal === 1 ? '' : 's'} across all tabs`
+              ? `${unresolvedTotal} card${unresolvedTotal === 1 ? '' : 's'} still need a decision across ${navDecks.length} deck${navDecks.length === 1 ? '' : 's'}`
               : 'All imported cards are reconciled.'}
           </p>
           <Button onClick={handleFinish} disabled={finishing}>
@@ -450,26 +449,7 @@ export function ReconciliationSummary({
         </div>
       </div>
 
-      {/* Bottom padding for fixed finish bar */}
       <div className="h-16" />
     </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Tab trigger with count badge
-// ---------------------------------------------------------------------------
-
-function TabTrigger({ value, label, count }: { value: ReconciliationTab; label: string; count: number }) {
-  return (
-    <TabsTrigger value={value} className="gap-2">
-      {label}
-      <span
-        className="inline-flex min-w-[22px] items-center justify-center rounded-full px-1.5 py-0.5 text-[length:var(--fs-xs)] font-semibold"
-        style={{ background: 'rgba(255,255,255,0.1)' }}
-      >
-        {count}
-      </span>
-    </TabsTrigger>
   )
 }

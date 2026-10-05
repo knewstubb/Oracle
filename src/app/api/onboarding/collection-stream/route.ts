@@ -15,6 +15,8 @@ import { createAdminClient } from '@/lib/supabase'
 import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 import {
   fetchCollectionWithProgress,
+  parseArchidektCollectionInput,
+  validateArchidektUserId,
   type ArchidektCollectionEntry,
   type CollectionFetchProgress,
 } from '@/lib/archidekt-client'
@@ -38,7 +40,7 @@ interface ProgressEvent {
   error?: string
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
   const userId = authResult.id
@@ -57,6 +59,36 @@ export async function POST() {
     const supabase = createAdminClient()
     const errors: string[] = []
 
+    // Parse the input to extract Archidekt user ID - REQUIRED for onboarding
+    let archidektUserId: number | undefined
+    try {
+      const body = await request.json().catch(() => ({}))
+      const archidektInput = body.archidektUrl as string | undefined
+
+      if (!archidektInput || !archidektInput.trim()) {
+        await sendProgress({
+          phase: 'error',
+          error: 'Archidekt collection URL is required. Enter a URL like archidekt.com/collection/v2/614000/ or a numeric user ID.',
+        })
+        return
+      }
+
+      const parsed = parseArchidektCollectionInput(archidektInput)
+      if (!parsed) {
+        await sendProgress({
+          phase: 'error',
+          error: 'Invalid Archidekt URL. Supported formats: archidekt.com/collection/v2/{userId} or numeric user ID (e.g., 614000).',
+        })
+        return
+      }
+      // Validate user ID has a public collection
+      archidektUserId = await validateArchidektUserId(parsed)
+    } catch (parseErr) {
+      const message = parseErr instanceof Error ? parseErr.message : String(parseErr)
+      await sendProgress({ phase: 'error', error: message })
+      return
+    }
+
     try {
       // Step 1: Fetch collection from Archidekt with progress
       let entries: ArchidektCollectionEntry[]
@@ -73,7 +105,7 @@ export async function POST() {
             total: total,
             message,
           })
-        })
+        }, archidektUserId)
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
         if (message.includes('403')) {
@@ -273,7 +305,7 @@ export async function POST() {
           durationMs: Date.now() - startTime,
         },
       })
-      
+
       console.log('[collection-stream] Complete:', {
         totalEntries: entries.length,
         userCardsCreated,

@@ -41,6 +41,7 @@ const mainNavItems: NavItem[] = [
 
 const toolsMenuItems: NavItem[] = [
   { label: 'Card Management', href: '/allocation', icon: 'modeling' },
+  { label: 'Reconcile', href: '/reconcile', icon: 'compare_arrows' },
   { label: 'Binders', href: '/storage', icon: 'shelves' },
   { label: 'New Deck', href: '/decks/new', icon: 'add_box' },
 ]
@@ -50,6 +51,7 @@ const mobileNavItems: NavItem[] = [
   { label: 'Decks', href: '/', icon: 'grid_view' },
   { label: 'Collection', href: '/collection', icon: 'newsstand' },
   { label: 'Card Management', href: '/allocation', icon: 'modeling' },
+  { label: 'Reconcile', href: '/reconcile', icon: 'compare_arrows' },
   { label: 'Binders', href: '/storage', icon: 'shelves' },
   { label: 'New Deck', href: '/decks/new', icon: 'add_box' },
   { label: 'Settings', href: '/settings', icon: 'settings' },

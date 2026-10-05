@@ -26,6 +26,7 @@ function MaterialIcon({ name }: { name: string }) {
 const navItems = [
   { label: 'Decks', icon: 'grid_view', href: '/' },
   { label: 'Card Management', icon: 'modeling', href: '/allocation' },
+  { label: 'Reconcile', icon: 'compare_arrows', href: '/reconcile' },
   { label: 'Collection', icon: 'newsstand', href: '/collection' },
   { label: 'Binders', icon: 'shelves', href: '/storage' },
   { label: 'Brew Deck', icon: 'science', href: '/new-deck' },

@@ -58,6 +58,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: 'Decks', icon: DecksIcon, href: '/' },
   { label: 'Card Management', icon: CardManagementIcon, href: '/allocation' },
+  { label: 'Reconcile', icon: CardManagementIcon, href: '/reconcile' },
   { label: 'Collection', icon: CollectionIcon, href: '/collection' },
   { label: 'Binders', icon: StorageIcon, href: '/storage' },
   { label: 'Explore', icon: BrewIcon, href: '/explore' },

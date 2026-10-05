@@ -44,7 +44,7 @@ function CountPill({ count }: { count: number }) {
   )
 }
 
-interface NavItemProps {
+export interface NavItemProps {
   selected: boolean
   onClick: () => void
   icon?: React.ReactNode
@@ -53,7 +53,7 @@ interface NavItemProps {
   count: number
 }
 
-function NavItem({ selected, onClick, icon, title, subtitle, count }: NavItemProps) {
+export function NavItem({ selected, onClick, icon, title, subtitle, count }: NavItemProps) {
   return (
     <button
       type="button"

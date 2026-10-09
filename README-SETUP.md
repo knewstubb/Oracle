@@ -4,14 +4,11 @@
 Copy everything in this kit into the root of the Oracle repo, keeping the folder structure:
 
 ```
+~/agents-shared/<role>.md       base roles shared by all projects
+.agents/project/<role>.md      this project's additions for each role
 AGENTS.md                      shared context every agent reads (OpenCode reads this automatically)
 CLAUDE.md                      one line that imports AGENTS.md, so Claude Code reads the same thing
 .paseo/KICKOFF.md              the first message you paste into the Orchestrator
-.paseo/agents/orchestrator.md  role files — each agent is told to read its own on every handoff
-.paseo/agents/architect.md
-.paseo/agents/uiux.md
-.paseo/agents/backend.md
-.paseo/agents/frontend.md
 docs/oracle/decisions.md       locked decisions register (D-001 … D-017, open items O-001 … O-004)
 docs/oracle/status.md          backlog, seeded with the known outstanding work
 docs/oracle/contracts/         Architect output (empty to start)
@@ -34,7 +31,7 @@ Commit these before the first run so every worktree Paseo creates gets a copy.
 3. Review the T-01 audit it produces before letting anything else start.
 
 ## How the role files get loaded
-Paseo itself doesn't store per-role system prompts in the repo. The mechanism here is simpler and works with any agent CLI: every handoff message starts with "Read AGENTS.md and .paseo/agents/<role>.md before anything else." The role file travels with the repo, so it's versioned and you can edit it like any other file.
+Paseo itself doesn't store per-role system prompts in the repo. The mechanism here is simpler and works with any agent CLI: every handoff message starts with "Read AGENTS.md, ~/agents-shared/<role>.md and .agents/project/<role>.md before anything else." The shared base roles live in ~/agents-shared; this repo's additions live in .agents/project/ and are versioned with the repo.
 
 ## Model allocation
 | Role | Model | Why |

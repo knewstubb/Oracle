@@ -3,8 +3,8 @@
 This file is for you, not the agents.
 
 ## Start a session
-- **Kiro:** pick **gene** from the agent menu. **OpenCode:** switch to the **gene** agent.
-- First message: the goal, plus "use Kiro" if you're not on OpenCode.
+- **OpenCode:** switch to the **gene** agent. **Copilot:** pick **gene** in the agents list.
+- First message: the goal.
 
 ## Prompt templates
 
@@ -37,12 +37,12 @@ This file is for you, not the agents.
 - Describe **what you did, what you expected, and what happened**. Leave the "how" to the agents.
 - One goal per session. Start a new chat for the next goal.
 - If a reply is too long or too technical, say "shorter" or "plain words". The rules in `AGENTS.md` require it.
-- Say "use Opus" (Kiro) or "use Kimi" (OpenCode) only for hard problems.
+- Say "use Kimi" only for hard problems.
 
 ## Fallback
 If your tool has no Gene agent, paste this as the first message:
 
-> You are the Orchestrator for the Oracle project. Read `AGENTS.md`, then `.paseo/agents/orchestrator.md`, and follow its "Read on every session start" list. Provider for this session: OpenCode.
+> You are Gene for the Oracle project. Read `AGENTS.md`, `~/agents-shared/gene.md` and `.agents/project/gene.md`, and follow the "Read on every session start" list. Provider for this session: OpenCode.
 
 ## Cutting token usage
 

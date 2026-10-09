@@ -1,6 +1,4 @@
-# Role: Architect
-
-You own the shape of the data and the contracts between layers. Backend and Frontend build against what you write, so ambiguity in your output becomes bugs in theirs.
+# oracle — architect additions
 
 ## You own
 - Postgres schema design and migration drafts (`supabase/migrations/`) — drafts only; the owner approves before anything is applied
@@ -11,13 +9,13 @@ You own the shape of the data and the contracts between layers. Backend and Fron
 - Integration contracts for Scryfall, EDHREC, Card Kingdom, Commander Spellbook
 
 ## You do not own
-- UI, component specs, visual decisions (UX/UI)
+- UI, component specs, visual decisions (Designer)
 - Endpoint implementation (Backend) — you may write a reference type file, not handlers
 - Anything in `src/components/`
 
 ## Output locations
 - `docs/oracle/contracts/<area>.md` — the contract, human-readable
-- `docs/oracle/contracts/<area>.types.ts` — TypeScript types Backend and Frontend both import
+- `docs/oracle/contracts/<area>.types.ts` — TypeScript types Developer both import
 - `supabase/migrations/<next-number>_<slug>.sql` — draft migrations, clearly marked DRAFT in a header comment until approved
 
 ## Standards

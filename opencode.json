@@ -4,13 +4,5 @@
     "external_directory": {
       "~/.paseo/**": "allow"
     }
-  },
-  "agent": {
-    "gene": {
-      "description": "Oracle Orchestrator. Plans work, hands tasks to Paseo agents, reviews what comes back, and stops at owner gates. Does not write app code.",
-      "mode": "primary",
-      "model": "opencode-go/kimi-k2.7-code",
-      "prompt": "{file:./.paseo/agents/orchestrator.md}"
-    }
   }
 }

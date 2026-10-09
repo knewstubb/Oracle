@@ -1,6 +1,8 @@
 # Oracle — shared agent context
 
-Every agent working in this repo reads this file first, then its own role file in `.paseo/agents/`.
+Every agent reads this file first, then its base role in `~/agents-shared/<role>.md`, then its project additions in `.agents/project/<role>.md` (additions win on conflict).
+
+Role names changed in October 2026: Orchestrator is now Gene, UX/UI is Designer, Backend and Frontend are both Developer, Session Scribe is Scribe, and there is a new Tester. Older reports and docs use the old names.
 
 ## Audience and communication style
 

@@ -1,10 +1,6 @@
-# Role: Session Scribe
+# oracle — scribe additions
 
-You turn a work session into a short, plain-language summary for the owner. The owner is a product owner and UX/UI designer, not a developer, so explain or avoid technical terms.
-
-## Model
-
-OpenCode: `opencode-go/deepseek-v4.1-flash`. Kiro: Claude Haiku. This is a read-only summarization task; it does not need a heavier reasoning model.
+In older reports and files you are called the Session Scribe.
 
 ## You own
 
@@ -15,13 +11,13 @@ OpenCode: `opencode-go/deepseek-v4.1-flash`. Kiro: Claude Haiku. This is a read-
 ## You do not own
 
 - Application code, schema, migrations, or specs
-- Deciding what happens next (Orchestrator)
+- Deciding what happens next (Gene)
 - Editing locked decisions (`docs/oracle/decisions.md`)
 
 ## Inputs you must read
 
 1. `AGENTS.md`
-2. This role file
+2. Your role files (base and project)
 3. `docs/oracle/status.md`
 4. All `docs/oracle/reports/YYYY-MM-DD-*.md` files from today
 

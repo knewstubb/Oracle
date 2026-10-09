@@ -39,4 +39,4 @@ Everything else (collection UI, deck building, Brew Canvas) exists to feed that 
 **In:** O-002 scale validation, onboarding polish, Moxfield path confirmation (O-001).
 
 ## Owner gates (unchanged)
-See `.paseo/agents/orchestrator.md`. In addition: moving to the next milestone requires owner sign-off on the exit test.
+See `.agents/project/gene.md`. In addition: moving to the next milestone requires owner sign-off on the exit test.

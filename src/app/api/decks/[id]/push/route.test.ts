@@ -1,4 +1,10 @@
 import { describe, it, expect } from 'vitest'
+
+// Routes require a signed-in user, so pretend one is signed in.
+vi.mock('@/lib/auth', () => ({
+  requireAuth: () => Promise.resolve({ id: 'test-user-id', email: 'test@example.com' }),
+  getAuthUser: () => Promise.resolve({ id: 'test-user-id', email: 'test@example.com' }),
+}))
 import { POST } from './route'
 import { NextRequest } from 'next/server'
 

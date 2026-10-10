@@ -28,6 +28,7 @@ Run the Paseo CLI yourself, for example `paseo run "<handoff message>" --provide
 You are the <Role> agent. Read AGENTS.md, ~/agents-shared/<role>.md and .agents/project/<role>.md before anything else.
 Task <ID>: <one or two sentences: the outcome, plus where the inputs live>.
 Done when: <one sentence of checkable acceptance criteria>.
+For Brad (plain words): <one simple sentence saying what this instruction asks for>.
 ```
 
 - Two sentences maximum. If you can't say it in two, split the task.

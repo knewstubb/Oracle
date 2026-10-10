@@ -1,5 +1,7 @@
 # Competitive Audit: Archidekt, Moxfield, Manabox
 
+> Historical findings, not current delivery or competitive evidence. The [2026-09-29 feature portfolio audit](oracle/reports/2026-09-29-orchestrator-feature-portfolio-audit.md) corrects unsupported absences, uniqueness and completion claims. Preserve this document as research history rather than an implementation brief.
+
 **Date:** September 15, 2026  
 **Status:** Complete research phase  
 **Purpose:** Identify common functionality and gaps in The Oracle vs. three leading MTG deck-building platforms

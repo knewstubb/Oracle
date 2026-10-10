@@ -1,5 +1,7 @@
 # Feature Comparison Matrix: The Oracle vs. Competitors
 
+> Historical comparison; do not use these ticks, absences or completion scores as current evidence. Primary-source checks contradict several claims. See the [2026-09-29 feature portfolio audit](oracle/reports/2026-09-29-orchestrator-feature-portfolio-audit.md) for corrected comparisons, verification limits and proposed priorities.
+
 > Last updated: 2026-09-15
 > Symbols: ✓ = Fully implemented | ~ = Partial/Planned | ✗ = Not implemented | — = Out of scope (personal-app)
 
@@ -213,4 +215,3 @@
 ## Key Takeaway
 
 **The Oracle is competitive at MVP with three Phase 1 additions** (mana cost filter, P/T filter, price display). Differentiation comes from **Commander-specific features in Phase 2**, not from copying Moxfield's breadth.
-

@@ -1,5 +1,7 @@
 # The Oracle: Competitive Positioning Summary
 
+> Historical positioning; some competitive and feature-state claims are superseded. See the [2026-09-29 feature portfolio audit](oracle/reports/2026-09-29-orchestrator-feature-portfolio-audit.md). Physical-deck assembly and collection-aware advice must not be described as uniquely Oracle without stronger evidence.
+
 > Audit Date: 2026-09-15
 > Competitors: Archidekt, Moxfield, Manabox
 > Context: Personal MTG collection + deck-building application
@@ -274,4 +276,3 @@ The Oracle can defensibly differentiate on:
 The Oracle is well-positioned for MVP parity with search refinement and pricing display. The competitive moat comes from Commander-specific insights and sophisticated collection allocation, not from copying Moxfield's collaborativeness or Manabox's mobile polish.
 
 Focus on depth for one user and one format (Commander), not breadth across formats and multiple users.
-

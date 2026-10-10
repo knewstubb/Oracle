@@ -405,3 +405,59 @@ The script shows:
 - **Authored:** 2026-07-26
 - **Maintained by:** Developer
 - **Update trigger:** New edge cases discovered, category refinements needed
+
+---
+
+## Mechanic-Level Multi-Label Vocabulary (Recommendation Pipeline)
+
+**Status:** Proposed extension for recommendation retrieval; not an approved implementation or replacement of the legacy category fields above. The existing broad categories (ramp, draw, removal, etc.) remain useful role labels, but are too coarse to distinguish commander-specific mechanics on their own. A card may carry any number of mechanic and role labels. Do not force these labels into one primary/secondary category.
+
+This is a **card-level recommendation vocabulary**, not a third deck-classification axis. At the deck/build level, follow `docs/deck-taxonomy.md`: archetypes describe the game plan (verbs), themes describe the resources (nouns), and mechanics are the rules-level wiring between cards and those build identities. A commander can have multiple build variants; never infer that every deck using the same commander has the same primary archetype or theme.
+
+### Tag shape and interpretation
+
+Use stable internal `snake_case` slugs, independent of Scryfall tag slugs. A card can carry, for example, `zone.exile.access`, `action.cast_from_exile`, `resource.treasure.produce`, and `role.payoff`. Keep the following dimensions distinct:
+
+- **Action / event:** what happens (`action.sacrifice`, `event.permanent_dies`, `action.cast_from_exile`).
+- **Zone / timing / condition:** where or when it happens (`zone.exile.access`, `timing.once_per_turn`, `condition.opponent_casts`).
+- **Resource / object:** what it creates, consumes, or cares about (`resource.treasure.produce`, `object.artifact`).
+- **Role:** how it contributes to a plan (`role.enabler`, `role.payoff`, `role.outlet`, `role.producer`, `role.consumer`, `role.engine`, `role.recursion`, `role.protection`, `role.interaction`, `role.draw`, `role.ramp`).
+- **Plan / tribe / archetype:** a broader supported strategy, kept separate from literal rules mechanics (`plan.aristocrats`, `plan.treasures`, `tribe.goblin`).
+
+Tags describe rules-backed function, not a claim that the card belongs in every deck using that mechanic. Recommendation relevance is a later, commander- and deck-contextual calculation. Store each label with provenance and confidence; do not infer a tag solely from a card's type line or art.
+
+### Minimum mechanic vocabulary
+
+This starter vocabulary is intended to be versioned and extended. Names are examples of internal slugs, not Scryfall's identifiers.
+
+| Family | Initial slugs | Disambiguation / notes |
+|---|---|---|
+| Exile access | `zone.exile.access`, `action.play_from_exile`, `action.cast_from_exile`, `action.exile_top_for_access`, `condition.exile_this_turn`, `condition.exile_opponent_owned` | Keep **play** and **cast** separate. A card that merely exiles another card is not automatically exile access. Include timing, permission duration, and whose card when supported by rules text. Prosper-style access needs to distinguish playable exile cards from generic draw. |
+| Sacrifice / death | `action.sacrifice_self`, `action.sacrifice_other`, `event.permanent_dies`, `event.creature_dies`, `condition.sacrifice_trigger`, `role.sacrifice_outlet`, `role.sacrifice_payoff` | Sacrifice is an action; dying is a zone-change event and is not synonymous (tokens and replacement effects matter). Distinguish free/repeatable outlets from one-shot sacrifice costs where possible. |
+| Tokens | `resource.token.create`, `resource.token.create_treasure`, `resource.token.create_food`, `resource.token.create_blood`, `resource.token.create_clue`, `resource.token.create_other`, `action.sacrifice_token`, `condition.token_count` | Preserve token subtype. Token creation alone does not imply a sacrifice payoff or artifact payoff. |
+| Artifact / Treasure economy | `object.artifact`, `object.treasure`, `resource.treasure.produce`, `resource.treasure.sacrifice_for_mana`, `resource.artifact.consume`, `condition.artifact_count`, `condition.artifact_enters`, `condition.artifact_leaves` | A Treasure is an artifact token with an intrinsic sacrifice-for-mana action. Separate making Treasures from benefiting when artifacts enter/leave or are sacrificed. |
+| Graveyard | `zone.graveyard.self_fill`, `zone.graveyard.opponent_fill`, `action.cast_from_graveyard`, `action.play_from_graveyard`, `action.return_from_graveyard`, `action.reanimate`, `resource.graveyard_consume`, `condition.card_in_graveyard` | Self-mill, recursion, reanimation, and cast/play-from-graveyard are different labels. |
+| Cards / hand | `resource.draw`, `resource.impulse_draw`, `resource.filter`, `action.discard_self`, `action.discard_opponent`, `condition.discard_trigger`, `condition.hand_size` | Impulse draw is temporary play access, not ordinary draw; self-discard is not opponent hand disruption. |
+| Counters | `resource.counter.plus_one_plus_one`, `resource.counter.loyalty`, `resource.counter.charge`, `resource.counter.other`, `condition.counter_added`, `condition.counter_removed`, `action.proliferate` | Preserve counter type where possible; “counter” may also mean countering a spell, which belongs under interaction and must not collide with marker counters. |
+| Spells / casting | `event.spell_cast`, `event.noncreature_spell_cast`, `event.creature_spell_cast`, `event.second_spell_this_turn`, `action.copy_spell`, `action.copy_permanent_spell`, `condition.spell_type` | Trigger events and restrictions are useful independently. “Cast” is not the same as “put onto the battlefield.” |
+| Lands / mana | `event.landfall`, `action.play_extra_land`, `action.search_land_to_battlefield`, `resource.mana.produce`, `resource.mana.cost_reduction`, `condition.land_count`, `condition.basic_land_count` | Separate landfall triggers, extra land plays, ramp, and fixing. |
+| Combat / damage | `event.attack`, `event.combat_damage_to_player`, `event.creature_deals_damage`, `action.initiate_combat`, `action.extra_combat`, `condition.attacking_creature_count`, `condition.evasion` | Distinguish attack triggers from damage triggers and combat-only effects from general damage. |
+| Interaction / protection | `role.removal`, `role.board_wipe`, `role.counterspell`, `role.protection`, `role.hexproof_grant`, `role.indestructible_grant`, `role.fog`, `role.graveyard_hate`, `role.stax_tax` | Retain the broad categories in the existing taxonomy while adding mechanic-specific labels as evidenced. |
+| Tribal / type matters | `condition.creature_type`, `condition.permanent_type`, `condition.card_type`, `role.typal_payoff`, `role.typal_enabler` | Store a specific type as a value (e.g., Goblin) rather than proliferating one top-level tag per type. |
+| Build-taxonomy wiring | `event.permanent_enters`, `event.permanent_leaves`, `action.blink`, `action.reanimate`, `action.proliferate`, `action.crew_vehicle`, `action.equip`, `action.cascade`, `action.discover`, `action.extra_combat`, `action.extra_turn`, `resource.energy`, `resource.poison_counter`, `resource.loyalty`, `condition.enchantment_count`, `condition.vehicle_count`, `condition.equipment_count`, `condition.creature_type` | Supports archetypes/themes in `docs/deck-taxonomy.md` (e.g. Blink/Enchantments, Reanimator/Graveyard, Superfriends/Planeswalkers, Vehicles/Artifacts, Voltron/Equipment, Infect/Poison, Energy, Cascade/Spells). Add only when rules text or a verifiable keyword supports the label. |
+| Functional roles | `role.enabler`, `role.payoff`, `role.producer`, `role.consumer`, `role.outlet`, `role.engine`, `role.recursion`, `role.tutor`, `role.ramp`, `role.draw`, `role.interaction`, `role.protection`, `role.finisher` | Multi-label roles; one card may be both a producer and a payoff. Do not use “combo piece” as a global card label: combo membership is relational/deck-level, as described above. |
+
+### Commander distinction examples
+
+- **Prosper, Tome-Bound:** the commander's rules support casting a card exiled that turn and create a Treasure when casting from exile. Relevant candidate profiles therefore distinguish `action.cast_from_exile` / `zone.exile.access`, `condition.exile_this_turn`, `resource.treasure.produce`, Treasure/artifact consumers, and cast-from-exile payoffs. A card that only exiles an opponent's card, or only allows playing it next turn, is not automatically equivalent.
+- **Korvold, Fae-Cursed King:** the commander's rules trigger on sacrificing a permanent and reward the event with a card draw and a +1/+1 counter. Relevant tags include `action.sacrifice_other`, `event.permanent_dies` only when independently true, `role.sacrifice_outlet`, `role.sacrifice_payoff`, and permanents/tokens that can be sacrificed. Generic red-black/gold staples or Treasure production alone do not express that fit.
+
+These labels enable retrieval of candidates and package links; the full commander/card interaction still needs rule verification. Conditional details (controller, opponent, zone, timing, once-per-turn, token/non-token, cast/play) must not be dropped when they change whether the interaction works.
+
+### Scryfall Tagger mapping rule
+
+Use only Scryfall **oracle** tags (the functional `otag:` / `oracletag:` namespace), not art tags. Map Scryfall tag UUIDs and aliases to one or more internal slugs in a versioned allowlisted mapping. Preserve source UUID, slug/label snapshot, tagging weight and annotation. A source tag may map to multiple internal labels; conversely multiple source tags may map to one internal label. No substring/regex guessing of unknown tags. Keep unmapped tags in provenance for later mapping review, and do not automatically treat an unmapped tag as a vocabulary label. Scryfall tag data is community-maintained and changes; refresh its bulk file daily or after a set release, and track the source file timestamp.
+
+### Storage and lifecycle pointer
+
+The proposed Supabase representation, Scryfall mapping, Haiku fallback, coverage estimate, set-delta flow, and accuracy gate are specified in `docs/oracle/contracts/card-tagging-pipeline.md`. That contract is a design proposal: it does not imply that the legacy `card_metadata.default_category`/`deck_cards.categories` JSON schema described above is deployed, nor does it authorize a migration or classifier run.

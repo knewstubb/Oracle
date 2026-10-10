@@ -1,4 +1,7 @@
 # Competitive Audit: MTG Deck-Building Platforms
+
+> Historical research. Recheck claims against the [2026-09-29 feature portfolio audit](oracle/reports/2026-09-29-orchestrator-feature-portfolio-audit.md), which records current primary sources and explicit verification limits.
+
 ## Research Phase
 
 This document captures research findings about Archidekt, Moxfield, and Manabox.
@@ -526,4 +529,3 @@ This document captures research findings about Archidekt, Moxfield, and Manabox.
 - [ ] Cross-tool integrations (EDHREC, Archidekt, Moxfield sync)
 - [ ] Collection optimization (redundancy flagging, budget allocation)
 - [ ] Mobile-first design with desktop parity
-

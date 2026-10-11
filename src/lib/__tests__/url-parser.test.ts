@@ -141,7 +141,7 @@ describe('parseDeckUrl', () => {
       expect(isParseError(result)).toBe(true)
       if (isParseError(result)) {
         expect(result.error).toBe('URL is required')
-        expect(result.supportedFormats).toHaveLength(4)
+        expect(result.supportedFormats).toHaveLength(7)
       }
     })
 

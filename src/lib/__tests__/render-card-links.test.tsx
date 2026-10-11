@@ -34,7 +34,7 @@ describe('renderInlineContent', () => {
       render(<div data-testid="content">{result}</div>)
       
       expect(screen.getByText('Niv-Mizzet, Parun')).toBeInTheDocument()
-      expect(screen.getByText('Niv-Mizzet, Parun')).toHaveClass('text-[#2dd4a8]')
+      expect(screen.getByText('Niv-Mizzet, Parun')).toHaveStyle({ color: '#2dd4a8' })
     })
 
     it('parses multiple [[Card Name]] patterns', () => {

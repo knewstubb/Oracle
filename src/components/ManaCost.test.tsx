@@ -3,15 +3,19 @@ import { render, screen } from '@testing-library/react'
 import { ManaCost } from './ManaCost'
 
 describe('ManaCost', () => {
-  it('renders the mana cost string', () => {
-    render(<ManaCost cost="{2}{U}{B}" />)
-    expect(screen.getByText('{2}{U}{B}')).toBeInTheDocument()
+  it('renders a mana-font icon for each symbol', () => {
+    const { container } = render(<ManaCost cost="{2}{U}{B}" />)
+    const icons = container.querySelectorAll('i')
+    expect(icons).toHaveLength(3)
+    expect(icons[0]).toHaveClass('ms', 'ms-2', 'ms-cost')
+    expect(icons[1]).toHaveClass('ms', 'ms-u', 'ms-cost')
+    expect(icons[2]).toHaveClass('ms', 'ms-b', 'ms-cost')
   })
 
-  it('has monospace font class', () => {
-    render(<ManaCost cost="{1}" />)
-    const el = screen.getByText('{1}')
-    expect(el.className).toContain('font-mono')
+  it('uses the mana-font cost class', () => {
+    const { container } = render(<ManaCost cost="{1}" />)
+    const el = container.querySelector('i')
+    expect(el?.className).toContain('ms-cost')
   })
 
   it('has accessible label', () => {

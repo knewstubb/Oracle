@@ -5,7 +5,8 @@ import { useState, useRef } from 'react'
 import { cn } from '@/lib/utils'
 
 interface CardImageProps {
-  scryfallId: string
+  /** Scryfall printing id. When absent, a "No image" placeholder is rendered. */
+  scryfallId?: string | null
   alt: string
   width?: number
   height?: number

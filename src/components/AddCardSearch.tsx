@@ -1,10 +1,17 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, type ComponentType, type ComponentProps } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Loader2, Bookmark, Crown, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
+
+// lucide-react forwards an SVG `title` attribute at runtime (it is part of the
+// icon's accessibility handling) but the published prop types omit it. Widen
+// just the two icons we pass a tooltip to, so `title` is typed.
+type IconWithTitle = ComponentType<ComponentProps<typeof Crown> & { title?: string }>
+const CrownIcon = Crown as IconWithTitle
+const CheckIcon = Check as IconWithTitle
 
 interface AddCardSearchProps {
   deckId: number
@@ -267,13 +274,13 @@ export function AddCardSearch({ deckId }: AddCardSearchProps) {
               {/* Indicators */}
               <span className="flex shrink-0 items-center gap-1">
                 {suggestion.isCommander && (
-                  <Crown 
-                    className={`size-3 ${idx === highlightedIndex ? 'text-amber-200' : 'text-amber-500'}`} 
+                  <CrownIcon
+                    className={`size-3 ${idx === highlightedIndex ? 'text-amber-200' : 'text-amber-500'}`}
                     title="Commander"
                   />
                 )}
                 {suggestion.owned && (
-                  <Check 
+                  <CheckIcon
                     className={`size-3 ${idx === highlightedIndex ? 'text-emerald-200' : 'text-emerald-500'}`}
                     title="Owned"
                   />

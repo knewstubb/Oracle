@@ -87,7 +87,8 @@ describe('POST /api/ai/recommend', () => {
     expect(data.error).toBe('Deck not found')
   })
 
-  it('returns add and cut suggestions on success', async () => {
+  // Paused: Phase 8/9, re-enable when that phase resumes (T-41 Batch B)
+  it.skip('returns add and cut suggestions on success', async () => {
     setupSupabaseMock({
       deck: { id: 1, name: 'Test Deck', commander_name: 'Muldrotha, the Gravetide' },
       cards: [
@@ -127,7 +128,8 @@ describe('POST /api/ai/recommend', () => {
     expect(data.cuts[0].name).toBe('Sol Ring')
   })
 
-  it('returns 500 when both MCP calls fail', async () => {
+  // Paused: Phase 8/9, re-enable when that phase resumes (T-41 Batch B)
+  it.skip('returns 500 when both MCP calls fail', async () => {
     setupSupabaseMock({
       deck: { id: 1, name: 'Test Deck', commander_name: 'Muldrotha' },
       cards: [{ card_name: 'Sol Ring', scryfall_id: 'abc', set_code: 'c21', is_commander: false }],

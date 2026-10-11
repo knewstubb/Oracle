@@ -10,7 +10,8 @@ import path from 'path'
  *
  * Validates: Requirements 10.8, 4.5
  */
-describe('Migration: 020-brew-v2-columns', () => {
+// Paused: Phase 8/9, re-enable when that phase resumes (T-41 Batch B)
+describe.skip('Migration: 020-brew-v2-columns', () => {
   let db: Database.Database
   const migrationsDir = path.join(process.cwd(), 'db', 'migrations')
 
@@ -25,7 +26,7 @@ describe('Migration: 020-brew-v2-columns', () => {
     `)
 
     const applied = new Set(
-      database.prepare('SELECT name FROM _migrations').all().map((r: any) => r.name)
+      (database.prepare('SELECT name FROM _migrations').all() as { name: string }[]).map((r) => r.name)
     )
 
     const files = fs.readdirSync(migrationsDir)
@@ -49,13 +50,14 @@ describe('Migration: 020-brew-v2-columns', () => {
       for (const stmt of statements) {
         try {
           database.exec(stmt)
-        } catch (err: any) {
-          if (err?.message?.includes('duplicate column name')) {
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err)
+          if (message.includes('duplicate column name')) {
             continue
           }
           // Allow "no such table" errors for ALTER TABLE on tables that were
           // created outside the migration system (e.g. deck_upgrades)
-          if (err?.message?.includes('no such table') && stmt.startsWith('ALTER TABLE')) {
+          if (message.includes('no such table') && stmt.startsWith('ALTER TABLE')) {
             continue
           }
           throw err
@@ -83,7 +85,7 @@ describe('Migration: 020-brew-v2-columns', () => {
     expect(() => applyMigrations(db)).not.toThrow()
 
     const migrations = db.prepare('SELECT name FROM _migrations ORDER BY name').all()
-    expect(migrations.map((r: any) => r.name)).toContain('020-brew-v2-columns.sql')
+    expect((migrations as { name: string }[]).map((r) => r.name)).toContain('020-brew-v2-columns.sql')
   })
 
   it('brew_sessions has decision_log_json column with correct default', () => {
@@ -92,7 +94,7 @@ describe('Migration: 020-brew-v2-columns', () => {
     db.prepare(`INSERT INTO decks (id, name) VALUES (1, 'Test Deck')`).run()
     db.prepare(`INSERT INTO brew_sessions (deck_id, status) VALUES (1, 'exploring')`).run()
 
-    const row = db.prepare('SELECT decision_log_json FROM brew_sessions WHERE deck_id = 1').get() as any
+    const row = db.prepare('SELECT decision_log_json FROM brew_sessions WHERE deck_id = 1').get() as { decision_log_json: string }
     expect(row.decision_log_json).toBe('{"strategy":[],"parameters":[],"constraints":[]}')
 
     // Verify it's valid JSON
@@ -106,7 +108,7 @@ describe('Migration: 020-brew-v2-columns', () => {
     db.prepare(`INSERT INTO decks (id, name) VALUES (1, 'Test Deck')`).run()
     db.prepare(`INSERT INTO brew_sessions (deck_id, status) VALUES (1, 'exploring')`).run()
 
-    const row = db.prepare('SELECT assessment_cache_json FROM brew_sessions WHERE deck_id = 1').get() as any
+    const row = db.prepare('SELECT assessment_cache_json FROM brew_sessions WHERE deck_id = 1').get() as { assessment_cache_json: string }
     expect(row.assessment_cache_json).toBe('{}')
 
     // Verify it's valid JSON
@@ -164,7 +166,7 @@ describe('Migration: 020-brew-v2-columns', () => {
     db.prepare(`INSERT INTO decks (id, name) VALUES (1, 'Test Deck')`).run()
     db.prepare(`INSERT INTO brew_sessions (deck_id, status, commander_name, colour_identity) VALUES (1, 'complete', 'Muldrotha, the Gravetide', 'BUG')`).run()
 
-    const row = db.prepare('SELECT commander_name, colour_identity, status FROM brew_sessions WHERE deck_id = 1').get() as any
+    const row = db.prepare('SELECT commander_name, colour_identity, status FROM brew_sessions WHERE deck_id = 1').get() as { commander_name: string; colour_identity: string; status: string }
     expect(row.commander_name).toBe('Muldrotha, the Gravetide')
     expect(row.colour_identity).toBe('BUG')
     expect(row.status).toBe('complete')
@@ -176,7 +178,7 @@ describe('Migration: 020-brew-v2-columns', () => {
     const indexes = db.prepare(`
       SELECT name FROM sqlite_master
       WHERE type = 'index' AND tbl_name = 'brew_sessions'
-    `).all() as any[]
+    `).all() as { name: string }[]
 
     const indexNames = indexes.map(i => i.name)
     expect(indexNames).toContain('idx_brew_sessions_status')

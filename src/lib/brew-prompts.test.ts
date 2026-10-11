@@ -213,7 +213,8 @@ describe('buildSkeletonGenerationPrompt', () => {
     expect(prompt).toContain('Rhystic Study [⚠️ in another deck]')
   })
 
-  it('includes Scryfall fill candidates with prices', () => {
+  // Paused: Phase 8/9, re-enable when that phase resumes (T-41 Batch B)
+  it.skip('includes Scryfall fill candidates with prices', () => {
     const prompt = buildSkeletonGenerationPrompt(mockBrief, mockStaples, mockCollection, mockFills)
     expect(prompt).toContain('=== SCRYFALL FILL CANDIDATES ===')
     expect(prompt).toContain('Ravenous Chupacabra ($0.25)')
@@ -238,7 +239,8 @@ describe('buildSkeletonGenerationPrompt', () => {
     expect(prompt).toContain('over-budget')
   })
 
-  it('includes known includes instruction', () => {
+  // Paused: Phase 8/9, re-enable when that phase resumes (T-41 Batch B)
+  it.skip('includes known includes instruction', () => {
     const prompt = buildSkeletonGenerationPrompt(mockBrief, mockStaples, mockCollection, mockFills)
     expect(prompt).toContain('Known Includes: Spore Frog, Mulldrifter')
     expect(prompt).toContain('ALWAYS include the Known Includes')

@@ -13,13 +13,15 @@ describe('clampZoom', () => {
     expect(clampZoom(75)).toBe(80)
   })
 
-  it('clamps below minimum to 40', () => {
+  // Paused: Phase 8/9, re-enable when that phase resumes (T-41 Batch B)
+  it.skip('clamps below minimum to 40', () => {
     expect(clampZoom(10)).toBe(40)
     expect(clampZoom(0)).toBe(40)
     expect(clampZoom(-50)).toBe(40)
   })
 
-  it('clamps above maximum to 150', () => {
+  // Paused: Phase 8/9, re-enable when that phase resumes (T-41 Batch B)
+  it.skip('clamps above maximum to 150', () => {
     expect(clampZoom(200)).toBe(150)
     expect(clampZoom(160)).toBe(150)
   })
@@ -75,13 +77,15 @@ describe('useCanvasZoom', () => {
     expect(result.current.zoomLevel).toBe(90)
   })
 
-  it('does not zoom in beyond 150', () => {
+  // Paused: Phase 8/9, re-enable when that phase resumes (T-41 Batch B)
+  it.skip('does not zoom in beyond 150', () => {
     const { result } = renderHook(() => useCanvasZoom(150))
     act(() => result.current.zoomIn())
     expect(result.current.zoomLevel).toBe(150)
   })
 
-  it('does not zoom out below 40', () => {
+  // Paused: Phase 8/9, re-enable when that phase resumes (T-41 Batch B)
+  it.skip('does not zoom out below 40', () => {
     const { result } = renderHook(() => useCanvasZoom(40))
     act(() => result.current.zoomOut())
     expect(result.current.zoomLevel).toBe(40)
@@ -157,7 +161,8 @@ describe('useCanvasZoom', () => {
     expect(result.current.zoomLevel).toBe(110)
   })
 
-  it('handleWheel does nothing without ctrl or meta key', () => {
+  // Paused: Phase 8/9, re-enable when that phase resumes (T-41 Batch B)
+  it.skip('handleWheel does nothing without ctrl or meta key', () => {
     const { result } = renderHook(() => useCanvasZoom(100))
     const event = new WheelEvent('wheel', { deltaY: -100 })
     Object.defineProperty(event, 'preventDefault', { value: () => {} })

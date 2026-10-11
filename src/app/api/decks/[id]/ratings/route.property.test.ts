@@ -2,15 +2,12 @@ import { describe, it, expect, vi } from 'vitest'
 import * as fc from 'fast-check'
 import { NextRequest } from 'next/server'
 
-// Mock the database and init-db to isolate the validation logic
-vi.mock('@/lib/db', () => ({
-  default: {
-    prepare: () => ({
-      get: () => undefined, // deck not found — but we never reach this for invalid IDs
-    }),
-  },
+// Routes require a signed-in user; the invalid-ID cases never reach the
+// database, so only auth needs mocking here.
+vi.mock('@/lib/auth', () => ({
+  requireAuth: () => Promise.resolve({ id: 'test-user-id', email: 'test@example.com' }),
+  getAuthUser: () => Promise.resolve({ id: 'test-user-id', email: 'test@example.com' }),
 }))
-vi.mock('@/lib/init-db', () => ({ ensureDb: vi.fn() }))
 
 import { GET } from './route'
 

@@ -1,12 +1,9 @@
 /**
- * Tests for PATCH /api/collection/assign-location
+ * Tests for POST/PATCH /api/collection/assign-location
  *
- * Validates: Requirements 14.1, 14.2, 14.3, 14.5
- * - Assigns location_id to a collection copy
- * - Clears location_id when null is provided
- * - Returns 400 for missing copyId
- * - Returns 404 if copy doesn't belong to user
- * - Returns 404 if location doesn't belong to user
+ * The route now moves copies to storage through the atomic RPCs
+ * `move_copies_to_storage` (POST, bulk) and `move_copy_to_storage` (PATCH,
+ * single). A null locationId means "use the user's default storage location".
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -15,74 +12,31 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // Mock setup — must be before imports
 // ---------------------------------------------------------------------------
 
-const mockUser = { id: 'user-123', email: 'test@test.com' }
-let mockAuthResult: any = mockUser
+let mockAuthResult: { id: string; email: string } | Response = {
+  id: 'user-123',
+  email: 'test@test.com',
+}
 
 vi.mock('@/lib/auth', () => ({
   requireAuth: vi.fn(() => Promise.resolve(mockAuthResult)),
 }))
 
-// Track supabase calls
-let mockDbState: {
-  copy: any | null
-  location: any | null
-  updateError: any | null
-} = {
-  copy: null,
-  location: null,
-  updateError: null,
-}
+const mockRpc = vi.fn()
 
 vi.mock('@/lib/supabase', () => ({
-  createAdminClient: () => createMockSupabase(),
+  createAdminClient: () => ({ rpc: mockRpc }),
 }))
-
-function createMockSupabase() {
-  return {
-    from: (table: string) => {
-      if (table === 'collection') {
-        return {
-          select: () => ({
-            eq: (_col: string, _val: any) => ({
-              eq: (_col2: string, _val2: any) => ({
-                maybeSingle: () => Promise.resolve({ data: mockDbState.copy, error: null }),
-              }),
-            }),
-          }),
-          update: (_payload: any) => ({
-            eq: (_col: string, _val: any) => ({
-              eq: (_col2: string, _val2: any) =>
-                Promise.resolve({ error: mockDbState.updateError }),
-            }),
-          }),
-        }
-      }
-      if (table === 'locations') {
-        return {
-          select: () => ({
-            eq: (_col: string, _val: any) => ({
-              eq: (_col2: string, _val2: any) => ({
-                maybeSingle: () => Promise.resolve({ data: mockDbState.location, error: null }),
-              }),
-            }),
-          }),
-        }
-      }
-      return {}
-    },
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Import route AFTER mocks
 // ---------------------------------------------------------------------------
 
-import { PATCH } from './route'
+import { POST, PATCH } from './route'
 import { NextRequest } from 'next/server'
 
-function makePatchRequest(body: any): NextRequest {
+function makeRequest(method: 'POST' | 'PATCH', body: unknown): NextRequest {
   return new NextRequest('http://localhost/api/collection/assign-location', {
-    method: 'PATCH',
+    method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
@@ -92,53 +46,156 @@ function makePatchRequest(body: any): NextRequest {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('PATCH /api/collection/assign-location', () => {
+describe('POST /api/collection/assign-location', () => {
   beforeEach(() => {
-    mockAuthResult = mockUser
-    mockDbState = {
-      copy: { id: 42, user_id: 'user-123' },
-      location: { id: 1 },
-      updateError: null,
-    }
+    vi.clearAllMocks()
+    mockAuthResult = { id: 'user-123', email: 'test@test.com' }
+    mockRpc.mockResolvedValue({
+      data: { success: true, updated_count: 2, location_id: 1 },
+      error: null,
+    })
   })
 
   it('returns 401 when not authenticated', async () => {
     mockAuthResult = Response.json({ error: 'Unauthorized' }, { status: 401 })
-    // Support both old and new field names in request
-    const res = await PATCH(makePatchRequest({ copyId: 42, locationId: 1 }))
+    const res = await POST(makeRequest('POST', { collectionIds: [42] }))
+    expect(res.status).toBe(401)
+  })
+
+  it('returns 400 when collectionIds is missing', async () => {
+    const res = await POST(makeRequest('POST', { locationId: 1 }))
+    expect(res.status).toBe(400)
+    const data = await res.json()
+    expect(data.error).toMatch(/collectionIds/i)
+  })
+
+  it('returns 400 when collectionIds is empty', async () => {
+    const res = await POST(makeRequest('POST', { collectionIds: [] }))
+    expect(res.status).toBe(400)
+  })
+
+  it('moves multiple copies and returns the updated count', async () => {
+    const res = await POST(makeRequest('POST', { collectionIds: [42, 43], locationId: 1 }))
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.updated).toBe(2)
+    expect(data.locationId).toBe(1)
+    expect(mockRpc).toHaveBeenCalledWith('move_copies_to_storage', {
+      p_copy_ids: [42, 43],
+      p_location_id: 1,
+      p_user_id: 'user-123',
+    })
+  })
+
+  it('uses the default storage location when locationId is null', async () => {
+    mockRpc.mockResolvedValue({
+      data: { success: true, updated_count: 1, location_id: 7 },
+      error: null,
+    })
+    const res = await POST(makeRequest('POST', { collectionIds: [42], locationId: null }))
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.locationId).toBe(7)
+    expect(mockRpc).toHaveBeenCalledWith(
+      'move_copies_to_storage',
+      expect.objectContaining({ p_location_id: null })
+    )
+  })
+
+  it('maps copy_not_found to 404', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'copy_not_found' } })
+    const res = await POST(makeRequest('POST', { collectionIds: [999], locationId: 1 }))
+    expect(res.status).toBe(404)
+  })
+
+  it('maps storage_location_not_found to 404', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'storage_location_not_found' } })
+    const res = await POST(makeRequest('POST', { collectionIds: [42], locationId: 999 }))
+    expect(res.status).toBe(404)
+    const data = await res.json()
+    expect(data.error).toMatch(/location not found/i)
+  })
+
+  it('maps an unknown RPC error to 500', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'database exploded' } })
+    const res = await POST(makeRequest('POST', { collectionIds: [42], locationId: 1 }))
+    expect(res.status).toBe(500)
+    const data = await res.json()
+    expect(data.error).toBe('database exploded')
+  })
+
+  it('returns 400 for invalid JSON body', async () => {
+    const req = new NextRequest('http://localhost/api/collection/assign-location', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: 'not-json{',
+    })
+    const res = await POST(req)
+    expect(res.status).toBe(400)
+  })
+})
+
+describe('PATCH /api/collection/assign-location', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockAuthResult = { id: 'user-123', email: 'test@test.com' }
+    mockRpc.mockResolvedValue({
+      data: { success: true, copy_id: 42, location_id: 1 },
+      error: null,
+    })
+  })
+
+  it('returns 401 when not authenticated', async () => {
+    mockAuthResult = Response.json({ error: 'Unauthorized' }, { status: 401 })
+    const res = await PATCH(makeRequest('PATCH', { copyId: 42, locationId: 1 }))
     expect(res.status).toBe(401)
   })
 
   it('returns 400 when copyId is missing', async () => {
-    const res = await PATCH(makePatchRequest({ locationId: 1 }))
+    const res = await PATCH(makeRequest('PATCH', { locationId: 1 }))
     expect(res.status).toBe(400)
     const data = await res.json()
     expect(data.error).toMatch(/copyId|physicalCopyId/i)
   })
 
   it('returns 400 when copyId is not a number', async () => {
-    const res = await PATCH(makePatchRequest({ copyId: 'abc', locationId: 1 }))
+    const res = await PATCH(makeRequest('PATCH', { copyId: 'abc', locationId: 1 }))
     expect(res.status).toBe(400)
   })
 
-  it('returns 404 when copy not found for user', async () => {
-    mockDbState.copy = null
-    const res = await PATCH(makePatchRequest({ copyId: 999, locationId: 1 }))
+  it('accepts physicalCopyId as an alias for copyId', async () => {
+    const res = await PATCH(makeRequest('PATCH', { physicalCopyId: 42, locationId: 1 }))
+    expect(res.status).toBe(200)
+    expect(mockRpc).toHaveBeenCalledWith(
+      'move_copy_to_storage',
+      expect.objectContaining({ p_copy_id: 42 })
+    )
+  })
+
+  it('returns 404 when the RPC reports copy_not_found', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'copy_not_found' } })
+    const res = await PATCH(makeRequest('PATCH', { copyId: 999, locationId: 1 }))
     expect(res.status).toBe(404)
     const data = await res.json()
     expect(data.error).toMatch(/copy not found/i)
   })
 
-  it('returns 404 when location not found for user', async () => {
-    mockDbState.location = null
-    const res = await PATCH(makePatchRequest({ copyId: 42, locationId: 999 }))
+  it('returns 404 when the RPC reports storage_location_not_found', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'storage_location_not_found' } })
+    const res = await PATCH(makeRequest('PATCH', { copyId: 42, locationId: 999 }))
     expect(res.status).toBe(404)
     const data = await res.json()
     expect(data.error).toMatch(/location not found/i)
   })
 
+  it('maps copy_already_assigned to 409', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'copy_already_assigned' } })
+    const res = await PATCH(makeRequest('PATCH', { copyId: 42, locationId: 1 }))
+    expect(res.status).toBe(409)
+  })
+
   it('assigns a location successfully', async () => {
-    const res = await PATCH(makePatchRequest({ copyId: 42, locationId: 1 }))
+    const res = await PATCH(makeRequest('PATCH', { copyId: 42, locationId: 1 }))
     expect(res.status).toBe(200)
     const data = await res.json()
     expect(data.updated).toBe(1)
@@ -146,17 +203,24 @@ describe('PATCH /api/collection/assign-location', () => {
     expect(data.locationId).toBe(1)
   })
 
-  it('clears location when null is provided', async () => {
-    const res = await PATCH(makePatchRequest({ copyId: 42, locationId: null }))
+  it('uses the default storage location when locationId is null', async () => {
+    mockRpc.mockResolvedValue({
+      data: { success: true, copy_id: 42, location_id: 5 },
+      error: null,
+    })
+    const res = await PATCH(makeRequest('PATCH', { copyId: 42, locationId: null }))
     expect(res.status).toBe(200)
     const data = await res.json()
-    expect(data.updated).toBe(1)
-    expect(data.locationId).toBeNull()
+    expect(data.locationId).toBe(5)
+    expect(mockRpc).toHaveBeenCalledWith(
+      'move_copy_to_storage',
+      expect.objectContaining({ p_location_id: null })
+    )
   })
 
-  it('returns 500 when database update fails', async () => {
-    mockDbState.updateError = { message: 'DB connection error' }
-    const res = await PATCH(makePatchRequest({ copyId: 42, locationId: 1 }))
+  it('returns 500 when the database update fails', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'DB connection error' } })
+    const res = await PATCH(makeRequest('PATCH', { copyId: 42, locationId: 1 }))
     expect(res.status).toBe(500)
     const data = await res.json()
     expect(data.error).toBe('DB connection error')

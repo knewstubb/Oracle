@@ -10,21 +10,51 @@ vi.mock('@/lib/auth', () => ({
 // Mocks
 // ---------------------------------------------------------------------------
 
-const mockSupabaseSelect = vi.fn()
-const mockSupabaseUpdate = vi.fn()
+// Shared mock state, hoisted so the vi.mock factory below can use it.
+const mocks = vi.hoisted(() => ({
+  sessionSelect: vi.fn(),
+  sessionUpdate: vi.fn(),
+  // Names recognised by ref_commanders (the authoritative commander list).
+  commanderNames: [] as string[],
+}))
 
 vi.mock('@/lib/supabase', () => ({
   createAdminClient: () => ({
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          single: mockSupabaseSelect,
-        }),
-      }),
-      update: () => ({
-        eq: mockSupabaseUpdate,
-      }),
-    }),
+    from: (table: string) => {
+      if (table === 'brew_sessions') {
+        return {
+          select: () => ({ eq: () => ({ single: mocks.sessionSelect }) }),
+          update: () => ({ eq: mocks.sessionUpdate }),
+        }
+      }
+      if (table === 'ref_printings') {
+        // Always miss locally so the Scryfall fetch fallback is exercised.
+        const single = () =>
+          Promise.resolve({ data: null, error: { message: 'not found' } })
+        const chain: Record<string, unknown> = {}
+        chain.select = () => chain
+        chain.eq = () => chain
+        chain.ilike = () => chain
+        chain.order = () => chain
+        chain.limit = () => chain
+        chain.single = single
+        return chain
+      }
+      if (table === 'ref_commanders') {
+        return {
+          select: () => ({
+            eq: (_column: string, value: string) => ({
+              maybeSingle: () =>
+                Promise.resolve({
+                  data: mocks.commanderNames.includes(value) ? { id: 1 } : null,
+                  error: null,
+                }),
+            }),
+          }),
+        }
+      }
+      return {}
+    },
   }),
 }))
 
@@ -55,7 +85,14 @@ const VALID_SCRYFALL_RESPONSE = {
 describe('POST /api/brew/commit', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockSupabaseUpdate.mockResolvedValue({ error: null })
+    mocks.sessionUpdate.mockResolvedValue({ error: null })
+    // Commander eligibility is now read from ref_commanders, not the
+    // Scryfall legalities field. Seed the names the success paths use.
+    mocks.commanderNames = [
+      'Muldrotha, the Gravetide',
+      'Aminatou, the Fateshifter',
+      'Arlinn Kord // Arlinn, Embraced by the Moon',
+    ]
   })
 
   // --- Validation ---
@@ -96,7 +133,7 @@ describe('POST /api/brew/commit', () => {
   // --- Session checks ---
 
   it('returns 404 if session does not exist', async () => {
-    mockSupabaseSelect.mockResolvedValue({ data: null, error: { message: 'not found' } })
+    mocks.sessionSelect.mockResolvedValue({ data: null, error: { message: 'not found' } })
 
     const res = await POST(makeRequest({ sessionId: 999, commanderName: 'Muldrotha' }))
     expect(res.status).toBe(404)
@@ -105,7 +142,7 @@ describe('POST /api/brew/commit', () => {
   })
 
   it('returns 400 if session is not in exploring phase', async () => {
-    mockSupabaseSelect.mockResolvedValue({
+    mocks.sessionSelect.mockResolvedValue({
       data: {
         id: 1,
         status: 'building',
@@ -125,7 +162,7 @@ describe('POST /api/brew/commit', () => {
   // --- Scryfall validation ---
 
   it('returns 400 if Scryfall lookup fails (card not found)', async () => {
-    mockSupabaseSelect.mockResolvedValue({
+    mocks.sessionSelect.mockResolvedValue({
       data: {
         id: 1,
         status: 'exploring',
@@ -144,7 +181,7 @@ describe('POST /api/brew/commit', () => {
   })
 
   it('returns 400 if card is not legal as commander', async () => {
-    mockSupabaseSelect.mockResolvedValue({
+    mocks.sessionSelect.mockResolvedValue({
       data: {
         id: 1,
         status: 'exploring',
@@ -175,7 +212,7 @@ describe('POST /api/brew/commit', () => {
   // --- Successful commit ---
 
   it('commits commander and transitions session to building', async () => {
-    mockSupabaseSelect.mockResolvedValue({
+    mocks.sessionSelect.mockResolvedValue({
       data: {
         id: 1,
         status: 'exploring',
@@ -205,11 +242,11 @@ describe('POST /api/brew/commit', () => {
     })
 
     // Verify Supabase update was called
-    expect(mockSupabaseUpdate).toHaveBeenCalled()
+    expect(mocks.sessionUpdate).toHaveBeenCalled()
   })
 
   it('uses scryfallId for lookup when provided', async () => {
-    mockSupabaseSelect.mockResolvedValue({
+    mocks.sessionSelect.mockResolvedValue({
       data: {
         id: 2,
         status: 'exploring',
@@ -234,12 +271,12 @@ describe('POST /api/brew/commit', () => {
     // Should use /cards/{id} endpoint, not /cards/named
     expect(mockFetch).toHaveBeenCalledWith(
       'https://api.scryfall.com/cards/abc-123',
-      expect.objectContaining({ headers: { 'User-Agent': 'The-Oracle/1.0' } })
+      expect.objectContaining({ headers: { 'User-Agent': 'TheOracle/0.2.0' } })
     )
   })
 
   it('uses name lookup when no scryfallId provided', async () => {
-    mockSupabaseSelect.mockResolvedValue({
+    mocks.sessionSelect.mockResolvedValue({
       data: {
         id: 3,
         status: 'exploring',
@@ -259,12 +296,12 @@ describe('POST /api/brew/commit', () => {
 
     expect(mockFetch).toHaveBeenCalledWith(
       'https://api.scryfall.com/cards/named?exact=Muldrotha%2C%20the%20Gravetide',
-      expect.objectContaining({ headers: { 'User-Agent': 'The-Oracle/1.0' } })
+      expect.objectContaining({ headers: { 'User-Agent': 'TheOracle/0.2.0' } })
     )
   })
 
   it('handles legendary planeswalker as valid commander', async () => {
-    mockSupabaseSelect.mockResolvedValue({
+    mocks.sessionSelect.mockResolvedValue({
       data: {
         id: 4,
         status: 'exploring',
@@ -294,7 +331,7 @@ describe('POST /api/brew/commit', () => {
   })
 
   it('returns null archetype when decision log has no archetype entry', async () => {
-    mockSupabaseSelect.mockResolvedValue({
+    mocks.sessionSelect.mockResolvedValue({
       data: {
         id: 5,
         status: 'exploring',
@@ -316,7 +353,7 @@ describe('POST /api/brew/commit', () => {
   })
 
   it('handles double-faced card art extraction', async () => {
-    mockSupabaseSelect.mockResolvedValue({
+    mocks.sessionSelect.mockResolvedValue({
       data: {
         id: 6,
         status: 'exploring',

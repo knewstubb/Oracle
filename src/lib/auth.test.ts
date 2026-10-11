@@ -17,7 +17,9 @@ const mockSupabaseClient = {
 
 beforeEach(() => {
   vi.resetAllMocks()
-  vi.mocked(createAuthServerClient).mockResolvedValue(mockSupabaseClient as any)
+  vi.mocked(createAuthServerClient).mockResolvedValue(
+    mockSupabaseClient as unknown as Awaited<ReturnType<typeof createAuthServerClient>>
+  )
 })
 
 describe('getAuthUser', () => {

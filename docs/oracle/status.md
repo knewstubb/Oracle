@@ -16,7 +16,7 @@ The owner replaced milestones M1–M5 with ten phases (see roadmap.md). **Phase 
 - Phase 8: T-14–T-19, T-36.
 - Phase 9: T-06–T-09.
 
-### Phase 1 — Safety net (CURRENT)
+### Phase 1 — Safety net (DONE 2026-10-11; backups deferred by owner)
 Owner direction 2026-10-11: Oracle runs on his computer against the hosted Supabase database, with no Vercel for now. Vercel and the scheduled/E2E GitHub jobs are low priority; T-43 means checks that run locally (one command) first, with GitHub automation optional.
 | ID | Task | Owner role | Depends on | Status |
 |---|---|---|---|---|
@@ -27,6 +27,14 @@ Owner direction 2026-10-11: Oracle runs on his computer against the hosted Supab
 | T-43 | Make unit tests, type checking and lint one command that is easy to run locally (and before each merge); GitHub automation only if cheap | Developer | T-41, T-42 | DONE — `npm run check` (tests, type check, lint) merged and pushed. The four GitHub workflows (E2E, Shared Read-only Smoke, Sync Commanders, Sync EDHREC Data) were switched off on GitHub with owner approval; re-enable with `gh workflow enable` when Vercel/hosted use returns |
 | T-44 | Recovery plan: what a full backup must cover (copies, storage locations, deck assignments, history), what the hosted database already provides, and a restore test proposal | Architect (read-only) | — | DONE — owner reviewed 2026-10-11; report and recovery plan now in main. Owner: backups not a concern for now; revisit after the app works (Phase 1 exit test: approved recovery plan satisfied by this doc once accepted). |
 | T-45 | (done) Bring the online copy (origin/main, last updated 2026-09-28; local main is 24+ commits ahead) and the live app up to date with main | Gene → Owner | Owner approval to push; confirm what the live app deploys from | DONE — main pushed 3b0998d→1a39d6f on owner approval 2026-10-11; Vercel built it successfully, but Vercel is not used for now; the E2E Tests workflow failed on the new commit (covered by T-40) |
+
+## Phase 2 — Card facts (CURRENT, started 2026-10-11)
+Plan: audit first (read-only), then fix in small disjoint batches. Fix tasks are added after the audit.
+
+| ID | Task | Owner role | Depends on | Status |
+|---|---|---|---|---|
+| T-46 | Audit card facts on main: where printing, finish and price are read, stored and shown; where a screen picks the wrong printing, drops finish, shows an unknown price as zero or as a fact, or still uses Card Kingdom; spot-check a real deck against the screens. Read-only; list findings by area with a proposed fix batch each (disjoint files) | Tester (read-only) | — | TODO |
+| T-47 | Fix findings from T-46 in batches (e.g. Proxy records the requested printing; prices labelled as estimates, unknown never zero; finish kept everywhere; remove half-removed Card Kingdom feed) | Developer | T-46 + owner review | TODO |
 
 ## M1 — Trustworthy data (COMPLETE — migrations deployed 2026-09-26)
 | ID | Task | Owner role | Depends on | Status |

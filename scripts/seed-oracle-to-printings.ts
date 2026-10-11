@@ -16,7 +16,7 @@ import { config } from 'dotenv'
 import { resolve } from 'path'
 import { createWriteStream, createReadStream, unlinkSync, existsSync } from 'fs'
 import { createInterface } from 'readline'
-import { Writable } from 'stream'
+import { Readable } from 'stream'
 import { pipeline } from 'stream/promises'
 
 // Load .env.local before any other imports
@@ -75,9 +75,10 @@ async function main(): Promise<void> {
   }
 
   const fileStream = createWriteStream(TEMP_FILE)
-  // @ts-ignore — Node.js Readable.fromWeb exists in Node 18+
-  const { Readable } = await import('stream')
-  const nodeStream = Readable.fromWeb(downloadRes.body as any)
+  // Node.js Readable.fromWeb exists in Node 18+.
+  const nodeStream = Readable.fromWeb(
+    downloadRes.body as unknown as Parameters<typeof Readable.fromWeb>[0],
+  )
   await pipeline(nodeStream, fileStream)
 
   console.log('[seed] Download complete. Processing file...')

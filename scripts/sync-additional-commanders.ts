@@ -28,6 +28,18 @@ const COMMANDERS_TO_SYNC = [
   'arcades-the-strategist',
 ];
 
+interface EdhrecTagCount {
+  count: number;
+  slug: string;
+  value: string;
+}
+
+interface EdhrecCommanderResponse {
+  redirect?: string;
+  tag_counts?: Record<string, number> | EdhrecTagCount[];
+  container?: { json_dict?: { card?: { num_decks?: number } } };
+}
+
 function toEdhrecSlug(name: string): string {
   return name
     .toLowerCase()
@@ -43,7 +55,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function fetchEdhrecData(slug: string): Promise<any> {
+async function fetchEdhrecData(slug: string): Promise<EdhrecCommanderResponse | null> {
   const url = `https://json.edhrec.com/pages/commanders/${slug}.json`;
   try {
     const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });

@@ -186,7 +186,7 @@ async function classifyBatch(cards: RefCard[]): Promise<Map<string, CategoryResu
     console.error(`LLM batch failed:`, err)
     // Fall back to type-derived categories for this batch
     for (const card of cards) {
-      results.set(card.card_name, deriveFromType(card.type_line))
+      results.set(card.name, deriveFromType(card.type_line))
     }
   }
   

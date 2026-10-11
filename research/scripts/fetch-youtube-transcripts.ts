@@ -116,8 +116,9 @@ async function searchYouTube(commanderName: string): Promise<string[]> {
     // Get first 3 relevant videos
     const videoIds: string[] = []
     for (const item of results.videos.slice(0, 3)) {
-      if (item.id) {
-        videoIds.push(item.id)
+      const id = (item as { id?: string }).id
+      if (id) {
+        videoIds.push(id)
       }
     }
     
@@ -221,7 +222,7 @@ async function main() {
   const commanders = await getCommandersWithoutInsights(limitArg)
   log(`Found ${commanders.length} commanders to process`)
   
-  let stats = {
+  const stats = {
     processed: 0,
     videosFound: 0,
     transcriptsFetched: 0,

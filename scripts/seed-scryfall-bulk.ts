@@ -43,6 +43,18 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 
+// Fields read from each Scryfall "default_cards" JSONL line.
+interface ScryfallBulkCard {
+  id?: string
+  oracle_id?: string
+  name?: string
+  lang?: string
+  layout?: string
+  set?: string
+  collector_number?: string
+  set_name?: string
+}
+
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
@@ -103,7 +115,7 @@ async function main() {
   for await (const line of rl) {
     if (!line.trim()) continue
 
-    let card: any
+    let card: ScryfallBulkCard
     try {
       card = JSON.parse(line)
     } catch {
@@ -116,7 +128,7 @@ async function main() {
 
     // Skip tokens, art_series, etc.
     const skipLayouts = ['token', 'double_faced_token', 'art_series', 'emblem']
-    if (skipLayouts.includes(card.layout)) { skipped++; continue }
+    if (card.layout && skipLayouts.includes(card.layout)) { skipped++; continue }
 
     if (!card.id || !card.oracle_id || !card.name) { skipped++; continue }
 

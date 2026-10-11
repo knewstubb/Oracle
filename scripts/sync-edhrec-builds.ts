@@ -26,7 +26,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { config } from 'dotenv';
 import { resolve } from 'path';
-import { getTagMapping, normalizeTag } from './edhrec-tag-mappings';
+import { getTagMapping, normalizeTag, TAG_MAPPINGS } from './edhrec-tag-mappings';
 
 // Load env
 config({ path: resolve(__dirname, '../.env.local') });
@@ -445,7 +445,6 @@ function shouldSkipTag(edhrecSlug: string): boolean {
   // If mapping exists and is explicitly null, skip it
   // getTagMapping returns null for ignored tags, undefined for unmapped
   // We need to check the raw TAG_MAPPINGS to distinguish
-  const { TAG_MAPPINGS } = require('./edhrec-tag-mappings');
   return TAG_MAPPINGS[normalized] === null;
 }
 

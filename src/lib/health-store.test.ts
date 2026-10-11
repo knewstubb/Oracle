@@ -25,7 +25,6 @@ vi.mock('@/lib/supabase', () => ({
 // Helper to build chainable query mock
 function chainable(result: { data?: unknown; error?: unknown; count?: number }) {
   const chain: Record<string, unknown> = {}
-  const handler = () => chain
   chain.select = vi.fn().mockReturnValue(chain)
   chain.insert = vi.fn().mockReturnValue(chain)
   chain.update = vi.fn().mockReturnValue(chain)
@@ -76,7 +75,7 @@ describe('health-store', () => {
       const chain = chainable({ data: null, error: null })
       mockFrom.mockReturnValue(chain)
 
-      await upsertHealthResult(sampleResult)
+      await upsertHealthResult(sampleResult, 'user-123')
 
       expect(mockFrom).toHaveBeenCalledWith('deck_health')
       expect(chain.upsert).toHaveBeenCalledWith(
@@ -85,7 +84,7 @@ describe('health-store', () => {
           result_json: JSON.stringify(sampleResult.categories),
           overall_status: 'red',
           computed_at: '2025-01-15T10:30:00.000Z',
-          user_id: '00000000-0000-0000-0000-000000000000',
+          user_id: 'user-123',
         },
         { onConflict: 'deck_id' }
       )
@@ -95,7 +94,7 @@ describe('health-store', () => {
       const chain = chainable({ data: null, error: { message: 'insert failed' } })
       mockFrom.mockReturnValue(chain)
 
-      await expect(upsertHealthResult(sampleResult)).rejects.toThrow('Failed to upsert health result')
+      await expect(upsertHealthResult(sampleResult, 'user-123')).rejects.toThrow('Failed to upsert health result')
     })
   })
 

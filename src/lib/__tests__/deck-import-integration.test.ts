@@ -13,24 +13,24 @@
 // ---------------------------------------------------------------------------
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { NormalizedDeck } from '@/lib/deck-normalizer'
 
 // ---------------------------------------------------------------------------
 // Mocks
 // ---------------------------------------------------------------------------
 
 const mockFrom = vi.fn()
+const mockRpc = vi.fn()
+const mockCreateVersionSnapshot = vi.fn()
 
 vi.mock('@/lib/supabase', () => ({
   createAdminClient: () => ({
     from: mockFrom,
+    rpc: mockRpc,
   }),
 }))
 
-const mockRunAllocationResolver = vi.fn()
-
 vi.mock('@/lib/card-definition-resolver', () => ({
-  resolveCardDefinitions: vi.fn().mockImplementation(async (cards: any[]) => {
+  resolveCardDefinitions: vi.fn().mockImplementation(async (cards: Array<{ oracleId: string }>) => {
     const map = new Map<string, number>()
     let id = 1000
     for (const card of cards) {
@@ -40,6 +40,10 @@ vi.mock('@/lib/card-definition-resolver', () => ({
     }
     return map
   }),
+}))
+
+vi.mock('@/lib/deck-versions', () => ({
+  createVersionSnapshot: (...args: unknown[]) => mockCreateVersionSnapshot(...args),
 }))
 
 // ---------------------------------------------------------------------------
@@ -184,6 +188,11 @@ function makeMoxfieldDeckResponse(): MoxfieldDeckFull {
             mana_cost: '{G}{W}{U}{B}',
           },
           quantity: 1,
+          boardType: 'commanders',
+          finish: 'nonfoil',
+          isFoil: false,
+          isAlter: false,
+          isProxy: false,
         },
       },
     },
@@ -202,6 +211,11 @@ function makeMoxfieldDeckResponse(): MoxfieldDeckFull {
             mana_cost: '{1}',
           },
           quantity: 1,
+          boardType: 'mainboard',
+          finish: 'nonfoil',
+          isFoil: false,
+          isAlter: false,
+          isProxy: false,
         },
         'forest-key': {
           card: {
@@ -215,6 +229,11 @@ function makeMoxfieldDeckResponse(): MoxfieldDeckFull {
             mana_cost: '',
           },
           quantity: 1,
+          boardType: 'mainboard',
+          finish: 'nonfoil',
+          isFoil: false,
+          isAlter: false,
+          isProxy: false,
         },
       },
     },
@@ -231,61 +250,43 @@ function makeMoxfieldDeckResponse(): MoxfieldDeckFull {
 interface TrackedOperation {
   table: string
   operation: string
-  data: any
+  data: unknown
 }
 
+interface QueryMock {
+  select: () => QueryMock
+  upsert: (rows: unknown) => QueryMock
+  eq: () => QueryMock
+  range: () => QueryMock
+  then: (
+    resolve: (value: unknown) => unknown,
+    reject?: (reason: unknown) => unknown
+  ) => Promise<unknown>
+}
+
+/**
+ * Mock the Supabase query builder for the tables the import functions read.
+ * Records upserts so tests can assert what the import wrote.
+ */
 function createSupabaseTracker() {
   const operations: TrackedOperation[] = []
-  let physicalCopyIdCounter = 500
 
   mockFrom.mockImplementation((table: string) => {
-    const chain: any = {}
+    const response = (): { data: unknown; error: unknown } => {
+      if (table === 'decks') return { data: [{ id: 12345678, name: 'Deck' }], error: null }
+      if (table === 'deck_cards') return { data: [], error: null }
+      return { data: null, error: null }
+    }
 
-    chain.select = vi.fn().mockReturnValue(chain)
-    chain.insert = vi.fn((rows: any) => {
-      operations.push({ table, operation: 'insert', data: rows })
-      return chain
-    })
-    chain.delete = vi.fn(() => {
-      operations.push({ table, operation: 'delete', data: null })
-      return chain
-    })
-    chain.update = vi.fn((data: any) => {
-      operations.push({ table, operation: 'update', data })
-      return chain
-    })
-    chain.upsert = vi.fn((rows: any, opts?: any) => {
-      operations.push({ table, operation: 'upsert', data: rows })
-      return chain
-    })
-    chain.eq = vi.fn().mockReturnValue(chain)
-    chain.is = vi.fn().mockReturnValue(chain)
-    chain.in = vi.fn().mockReturnValue(chain)
-    chain.limit = vi.fn().mockReturnValue(chain)
-    chain.single = vi.fn().mockReturnValue(chain)
-    chain.maybeSingle = vi.fn().mockReturnValue(chain)
-
-    chain.then = (resolve: any) => {
-      if (table === 'decks') {
-        return Promise.resolve({ data: null, error: null }).then(resolve)
-      }
-      if (table === 'deck_cards') {
-        return Promise.resolve({ data: null, error: null }).then(resolve)
-      }
-      if (table === 'cards') {
-        return Promise.resolve({ data: { id: 42 }, error: null }).then(resolve)
-      }
-      if (table === 'collection') {
-        // For maybeSingle (checking existing proxy) — return null (none found)
-        // For insert — return a new id
-        const lastOp = operations.filter(o => o.table === 'collection')
-        const lastWasInsert = lastOp.length > 0 && lastOp[lastOp.length - 1].operation === 'insert'
-        if (lastWasInsert) {
-          return Promise.resolve({ data: { id: physicalCopyIdCounter++ }, error: null }).then(resolve)
-        }
-        return Promise.resolve({ data: null, error: null }).then(resolve)
-      }
-      return Promise.resolve({ data: null, error: null }).then(resolve)
+    const chain: QueryMock = {
+      select: vi.fn(() => chain),
+      upsert: vi.fn((rows: unknown) => {
+        operations.push({ table, operation: 'upsert', data: rows })
+        return chain
+      }),
+      eq: vi.fn(() => chain),
+      range: vi.fn(() => chain),
+      then: (resolve, reject) => Promise.resolve(response()).then(resolve, reject),
     }
 
     return chain
@@ -300,22 +301,52 @@ function createSupabaseTracker() {
   }
 }
 
+interface RpcArgs {
+  p_deck_id?: number
+  p_rows?: unknown[]
+  p_delete_ids?: unknown[]
+  p_insert_rows?: unknown[]
+}
+
+/** Mock the atomic RPCs the import functions call. */
+function setupRpcMock() {
+  mockRpc.mockImplementation(async (name: string, args: RpcArgs) => {
+    if (name === 'apply_deck_cards_diff') {
+      return {
+        data: {
+          success: true,
+          deleted_count: (args.p_delete_ids ?? []).length,
+          inserted_count: (args.p_insert_rows ?? []).length,
+        },
+        error: null,
+      }
+    }
+    if (name === 'replace_deck_with_new_cards') {
+      return {
+        data: {
+          success: true,
+          inserted_count: (args.p_rows ?? []).length,
+          removed_count: 0,
+        },
+        error: null,
+      }
+    }
+    throw new Error(`Unexpected RPC: ${name}`)
+  })
+}
+
 // ---------------------------------------------------------------------------
-// Test 1: Archidekt URL → preview → existing mode → deck in DB
+// Test 1: Archidekt URL → preview → theorycrafted import
 // ---------------------------------------------------------------------------
 
-describe('Integration: Archidekt URL → preview → existing mode → deck in DB', () => {
+describe('Integration: Archidekt URL → preview → theorycrafted import', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockRunAllocationResolver.mockResolvedValue({
-      assigned: 2,
-      shortfall: 1,
-      errors: [],
-      durationMs: 50,
-    })
+    setupRpcMock()
+    mockCreateVersionSnapshot.mockResolvedValue(null)
   })
 
-  it('parses Archidekt URL, normalizes deck, and imports in existing_collection mode', async () => {
+  it('parses Archidekt URL, normalizes deck, and imports on the deck diff path', async () => {
     // Step 1: Parse URL
     const parseResult = parseDeckUrl(ARCHIDEKT_URL)
     expect(isParseError(parseResult)).toBe(false)
@@ -323,9 +354,8 @@ describe('Integration: Archidekt URL → preview → existing mode → deck in D
     expect(parseResult.platform).toBe('archidekt')
     expect(parseResult.deckId).toBe('12345678')
 
-    // Step 2: Normalize the deck (simulating what preview endpoint does)
-    const rawDeck = makeArchidektDeckResponse()
-    const normalizedDeck = normalizeArchidektDeck(rawDeck, ARCHIDEKT_URL)
+    // Step 2: Normalize the deck (simulating what the preview endpoint does)
+    const normalizedDeck = normalizeArchidektDeck(makeArchidektDeckResponse(), ARCHIDEKT_URL)
 
     expect(normalizedDeck.name).toBe('Korvold Treasures')
     expect(normalizedDeck.platform).toBe('archidekt')
@@ -342,55 +372,53 @@ describe('Integration: Archidekt URL → preview → existing mode → deck in D
     const tracker = createSupabaseTracker()
     const result = await importDeckTheorycrafted(normalizedDeck, TEST_USER_ID)
 
-    // Verify deck row was upserted
+    // Deck row upserted
     const deckUpserts = tracker.getOps('decks', 'upsert')
-    expect(deckUpserts.length).toBe(1)
+    expect(deckUpserts).toHaveLength(1)
     expect(deckUpserts[0].data).toEqual(
       expect.objectContaining({
         id: 12345678,
         name: 'Korvold Treasures',
         commander_name: 'Korvold, Fae-Cursed King',
-        status: 'active',
+        is_active: false,
         source_url: ARCHIDEKT_URL,
         source_platform: 'archidekt',
         user_id: TEST_USER_ID,
       })
     )
 
-    // Verify deck_cards were inserted (3 cards × 1 quantity each = 3 rows)
-    const deckCardInserts = tracker.getOps('deck_cards', 'insert')
-    expect(deckCardInserts.length).toBeGreaterThanOrEqual(1)
+    // Theorycrafted mode replaces deck_cards through the atomic diff RPC
+    const diffCall = mockRpc.mock.calls.find(([name]) => name === 'apply_deck_cards_diff')
+    expect(diffCall).toBeDefined()
+    expect(diffCall![1].p_deck_id).toBe(12345678)
+    expect(diffCall![1].p_delete_ids).toEqual([])
+    expect(diffCall![1].p_insert_rows).toHaveLength(3)
 
-    // Count total deck_card rows inserted
-    const totalInsertedRows = deckCardInserts.reduce(
-      (sum, op) => sum + (Array.isArray(op.data) ? op.data.length : 1),
-      0
-    )
-    expect(totalInsertedRows).toBe(3)
+    // A version snapshot is taken after import
+    expect(mockCreateVersionSnapshot).toHaveBeenCalledTimes(1)
 
-    // Verify result
     expect(result.deckId).toBe(12345678)
-    expect(result.allocationSummary.assigned).toBe(2)
-    expect(result.allocationSummary.shortfall).toBe(1)
+    expect(result.allocationSummary).toEqual({
+      assigned: 0,
+      shortfall: 0,
+      errors: [],
+      conflicts: [],
+    })
   })
 })
 
 // ---------------------------------------------------------------------------
-// Test 2: Moxfield URL → preview → add new mode → deck + collection in DB
+// Test 2: Moxfield URL → preview → new_cards import
 // ---------------------------------------------------------------------------
 
-describe('Integration: Moxfield URL → preview → add new mode → deck + collection', () => {
+describe('Integration: Moxfield URL → preview → new_cards import', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockRunAllocationResolver.mockResolvedValue({
-      assigned: 3,
-      shortfall: 0,
-      errors: [],
-      durationMs: 30,
-    })
+    setupRpcMock()
+    mockCreateVersionSnapshot.mockResolvedValue(null)
   })
 
-  it('parses Moxfield URL, normalizes deck, and imports in add_new_cards mode', async () => {
+  it('parses Moxfield URL, normalizes deck, and imports on the new-cards path', async () => {
     // Step 1: Parse URL
     const parseResult = parseDeckUrl(MOXFIELD_URL)
     expect(isParseError(parseResult)).toBe(false)
@@ -399,257 +427,129 @@ describe('Integration: Moxfield URL → preview → add new mode → deck + coll
     expect(parseResult.deckId).toBe('abc123XY')
 
     // Step 2: Normalize the deck
-    const rawDeck = makeMoxfieldDeckResponse()
-    const normalizedDeck = normalizeMoxfieldDeck(rawDeck, MOXFIELD_URL)
+    const normalizedDeck = normalizeMoxfieldDeck(makeMoxfieldDeckResponse(), MOXFIELD_URL)
 
     expect(normalizedDeck.name).toBe('Atraxa Superfriends')
     expect(normalizedDeck.platform).toBe('moxfield')
     expect(normalizedDeck.commander?.cardName).toBe("Atraxa, Praetors' Voice")
     expect(normalizedDeck.cardCount).toBe(3) // 1 commander + 2 mainboard
 
-    // Step 3: Import in add_new_cards mode
+    // Step 3: Import in new_cards mode
     const tracker = createSupabaseTracker()
-    const result = await importDeckAddNewCards(normalizedDeck, TEST_USER_ID)
+    const result = await importDeckNewCards(normalizedDeck, TEST_USER_ID)
 
-    // Verify deck row was upserted
     const deckUpserts = tracker.getOps('decks', 'upsert')
-    expect(deckUpserts.length).toBe(1)
+    expect(deckUpserts).toHaveLength(1)
     expect(deckUpserts[0].data).toEqual(
       expect.objectContaining({
         name: 'Atraxa Superfriends',
-        status: 'active',
+        is_active: true,
         source_url: MOXFIELD_URL,
         source_platform: 'moxfield',
         user_id: TEST_USER_ID,
       })
     )
 
-    // Verify collection rows were created (3 cards = 3 copies)
-    const collectionInserts = tracker.getOps('collection', 'insert')
-    expect(collectionInserts.length).toBe(3)
+    // New-cards mode writes one atomic payload containing a row per copy
+    const replaceCall = mockRpc.mock.calls.find(([name]) => name === 'replace_deck_with_new_cards')
+    expect(replaceCall).toBeDefined()
+    const rows = replaceCall![1].p_rows as Array<Record<string, unknown>>
+    expect(rows).toHaveLength(3)
+    // Moxfield has no proxy system — every row is a plain copy
+    expect(rows.every((row) => row.is_proxy === false)).toBe(true)
 
-    // All collection rows should have is_proxy=false (Moxfield has no proxy system)
-    for (const op of collectionInserts) {
-      expect(op.data.is_proxy).toBe(false)
-    }
-
-    // Verify deck_cards batch insert contains all cards
-    const deckCardInserts = tracker.getOps('deck_cards', 'insert')
-    expect(deckCardInserts.length).toBeGreaterThanOrEqual(1)
-
-    // Count total rows — should be 3 (one per card)
-    const totalRows = deckCardInserts.reduce(
-      (sum, op) => sum + (Array.isArray(op.data) ? op.data.length : 1),
-      0
-    )
-    expect(totalRows).toBe(3)
-
-    // Verify the deck_cards have copy_id set (add_new mode links them)
-    const batchData = deckCardInserts.find(op => Array.isArray(op.data))
-    if (batchData) {
-      for (const row of batchData.data) {
-        expect(row.copy_id).not.toBeNull()
-        expect(row.ownership_status).toBe('original')
-      }
-    }
-
-    // Verify result
     expect(result.allocationSummary.assigned).toBe(3)
     expect(result.allocationSummary.shortfall).toBe(0)
   })
 })
 
 // ---------------------------------------------------------------------------
-// Test 3: Proxy cards create is_proxy collection rows
+// Test 3: Proxy identity preserved on the new-cards path
 // ---------------------------------------------------------------------------
 
-describe('Integration: Proxy cards create is_proxy collection rows', () => {
+describe('Integration: Proxy identity is preserved on import', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockRunAllocationResolver.mockResolvedValue({
-      assigned: 2,
-      shortfall: 0,
-      errors: [],
-      durationMs: 20,
-    })
+    setupRpcMock()
+    mockCreateVersionSnapshot.mockResolvedValue(null)
   })
 
-  it('Archidekt proxy-labelled card creates collection row with is_proxy=true in existing mode', async () => {
-    const rawDeck = makeArchidektDeckResponse()
-    const normalizedDeck = normalizeArchidektDeck(rawDeck, ARCHIDEKT_URL)
+  it('Archidekt proxy-labelled card is flagged is_proxy in the new-cards payload', async () => {
+    const normalizedDeck = normalizeArchidektDeck(makeArchidektDeckResponse(), ARCHIDEKT_URL)
 
-    // Verify the proxy card was detected during normalization
-    const proxyCards = normalizedDeck.cards.filter(c => c.isProxy)
-    expect(proxyCards.length).toBe(1)
+    // The proxy card is detected during normalization
+    const proxyCards = normalizedDeck.cards.filter((c) => c.isProxy)
+    expect(proxyCards).toHaveLength(1)
     expect(proxyCards[0].cardName).toBe('Dockside Extortionist')
 
-    // Import
-    const tracker = createSupabaseTracker()
-    await importDeckTheorycrafted(normalizedDeck, TEST_USER_ID)
+    createSupabaseTracker()
+    await importDeckNewCards(normalizedDeck, TEST_USER_ID)
 
-    // Verify that a collection insert was made with is_proxy=true
-    const collectionInserts = tracker.getOps('collection', 'insert')
-    expect(collectionInserts.length).toBeGreaterThanOrEqual(1)
+    const replaceCall = mockRpc.mock.calls.find(([name]) => name === 'replace_deck_with_new_cards')
+    if (!replaceCall) throw new Error('replace_deck_with_new_cards was not called')
+    const rows = replaceCall[1].p_rows as Array<Record<string, unknown>>
 
-    const proxyInsert = collectionInserts.find(op => op.data?.is_proxy === true)
-    expect(proxyInsert).toBeDefined()
-    expect(proxyInsert!.data.printing_id).toBe('scry-dockside-001')
-  })
+    const proxyRows = rows.filter((row) => row.is_proxy === true)
+    const nonProxyRows = rows.filter((row) => row.is_proxy === false)
 
-  it('Archidekt proxy-labelled card creates collection row with is_proxy=true in add_new mode', async () => {
-    const rawDeck = makeArchidektDeckResponse()
-    const normalizedDeck = normalizeArchidektDeck(rawDeck, ARCHIDEKT_URL)
-
-    const tracker = createSupabaseTracker()
-    await importDeckAddNewCards(normalizedDeck, TEST_USER_ID)
-
-    // In add_new mode, ALL cards get collection rows — proxy ones should have is_proxy=true
-    const collectionInserts = tracker.getOps('collection', 'insert')
-
-    const proxyInserts = collectionInserts.filter(op => op.data?.is_proxy === true)
-    const nonProxyInserts = collectionInserts.filter(op => op.data?.is_proxy === false)
-
-    expect(proxyInserts.length).toBe(1) // Dockside Extortionist
-    expect(nonProxyInserts.length).toBe(2) // Korvold + Sol Ring
+    expect(proxyRows).toHaveLength(1) // Dockside Extortionist
+    expect(proxyRows[0].printing_id).toBe('scry-dockside-001')
+    expect(nonProxyRows).toHaveLength(2) // Korvold + Sol Ring
   })
 })
 
 // ---------------------------------------------------------------------------
-// Test 4: Re-import same Archidekt URL upserts (no duplicates)
+// Test 4: Re-import same deck upserts in place
 // ---------------------------------------------------------------------------
 
-describe('Integration: Re-import same Archidekt URL upserts', () => {
+describe('Integration: Re-import same deck upserts in place', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockRunAllocationResolver.mockResolvedValue({
-      assigned: 3,
-      shortfall: 0,
-      errors: [],
-      durationMs: 25,
-    })
+    setupRpcMock()
+    mockCreateVersionSnapshot.mockResolvedValue(null)
   })
 
-  it('importing the same Archidekt deck twice upserts the deck row and replaces deck_cards', async () => {
-    const rawDeck = makeArchidektDeckResponse()
-    const normalizedDeck = normalizeArchidektDeck(rawDeck, ARCHIDEKT_URL)
+  it('importing the same Archidekt deck twice reuses the deck id and diff path', async () => {
+    const normalizedDeck = normalizeArchidektDeck(makeArchidektDeckResponse(), ARCHIDEKT_URL)
 
     // First import
-    const tracker1 = createSupabaseTracker()
     const result1 = await importDeckTheorycrafted(normalizedDeck, TEST_USER_ID)
     expect(result1.deckId).toBe(12345678)
 
     // Second import (same deck)
     vi.clearAllMocks()
+    setupRpcMock()
+    mockCreateVersionSnapshot.mockResolvedValue(null)
+
     const tracker2 = createSupabaseTracker()
     const result2 = await importDeckTheorycrafted(normalizedDeck, TEST_USER_ID)
 
     // Same deck ID both times (Archidekt uses its own numeric ID)
     expect(result2.deckId).toBe(12345678)
 
-    // Verify that the deck row was UPSERTed (not inserted as a duplicate)
+    // Deck row is UPSERTed (not inserted as a duplicate)
     const deckUpserts = tracker2.getOps('decks', 'upsert')
-    expect(deckUpserts.length).toBe(1)
-    expect(deckUpserts[0].data.id).toBe(12345678)
+    expect(deckUpserts).toHaveLength(1)
+    expect((deckUpserts[0].data as { id: number }).id).toBe(12345678)
 
-    // Verify that old deck_cards were deleted before re-inserting
-    const deletions = tracker2.getOps('deck_cards', 'delete')
-    expect(deletions.length).toBe(1)
-
-    // Verify new deck_cards were inserted
-    const inserts = tracker2.getOps('deck_cards', 'insert')
-    expect(inserts.length).toBeGreaterThanOrEqual(1)
+    // Re-import replaces deck_cards through the same atomic diff RPC
+    const diffCalls = mockRpc.mock.calls.filter(([name]) => name === 'apply_deck_cards_diff')
+    expect(diffCalls).toHaveLength(1)
+    expect(diffCalls[0][1].p_deck_id).toBe(12345678)
   })
 
-  it('generates a stable deck ID for Moxfield decks based on publicId', () => {
-    const rawDeck = makeMoxfieldDeckResponse()
-    const normalizedDeck = normalizeMoxfieldDeck(rawDeck, MOXFIELD_URL)
+  it('generates a stable deck id for Moxfield decks from the publicId', async () => {
+    const normalizedDeck = normalizeMoxfieldDeck(makeMoxfieldDeckResponse(), MOXFIELD_URL)
 
-    // The platform deck ID should be the publicId
     expect(normalizedDeck.platformDeckId).toBe('abc123XY')
 
-    // Importing twice with same publicId should produce the same deckId
-    // (this is verified via the hashCode logic in deck-import.ts)
-    const parseResult1 = parseDeckUrl(MOXFIELD_URL)
-    const parseResult2 = parseDeckUrl(MOXFIELD_URL)
-    expect(parseResult1).toEqual(parseResult2)
-  })
-})
+    const first = await importDeckTheorycrafted(normalizedDeck, TEST_USER_ID)
 
-// ---------------------------------------------------------------------------
-// Test 5: Allocation resolver runs post-import
-// ---------------------------------------------------------------------------
-
-describe('Integration: Allocation resolver runs post-import', () => {
-  beforeEach(() => {
     vi.clearAllMocks()
-  })
+    setupRpcMock()
+    mockCreateVersionSnapshot.mockResolvedValue(null)
 
-  it('runAllocationResolver is called after existing_collection import', async () => {
-    mockRunAllocationResolver.mockResolvedValue({
-      assigned: 2,
-      shortfall: 1,
-      errors: [],
-      durationMs: 40,
-    })
-
-    const rawDeck = makeArchidektDeckResponse()
-    const normalizedDeck = normalizeArchidektDeck(rawDeck, ARCHIDEKT_URL)
-
-    createSupabaseTracker()
-    const result = await importDeckTheorycrafted(normalizedDeck, TEST_USER_ID)
-
-    // Verify allocation resolver was called with the correct userId
-    expect(mockRunAllocationResolver).toHaveBeenCalledTimes(1)
-    expect(mockRunAllocationResolver).toHaveBeenCalledWith(TEST_USER_ID)
-
-    // Verify allocation summary is included in the result
-    expect(result.allocationSummary).toEqual({
-      assigned: 2,
-      shortfall: 1,
-      errors: [],
-    })
-  })
-
-  it('runAllocationResolver is called after add_new_cards import', async () => {
-    mockRunAllocationResolver.mockResolvedValue({
-      assigned: 3,
-      shortfall: 0,
-      errors: [],
-      durationMs: 35,
-    })
-
-    const rawDeck = makeMoxfieldDeckResponse()
-    const normalizedDeck = normalizeMoxfieldDeck(rawDeck, MOXFIELD_URL)
-
-    createSupabaseTracker()
-    const result = await importDeckAddNewCards(normalizedDeck, TEST_USER_ID)
-
-    // Verify allocation resolver was called
-    expect(mockRunAllocationResolver).toHaveBeenCalledTimes(1)
-    expect(mockRunAllocationResolver).toHaveBeenCalledWith(TEST_USER_ID)
-
-    // Verify summary
-    expect(result.allocationSummary).toEqual({
-      assigned: 3,
-      shortfall: 0,
-      errors: [],
-    })
-  })
-
-  it('import succeeds with error summary when allocation resolver fails', async () => {
-    mockRunAllocationResolver.mockRejectedValue(new Error('Connection timeout'))
-
-    const rawDeck = makeArchidektDeckResponse()
-    const normalizedDeck = normalizeArchidektDeck(rawDeck, ARCHIDEKT_URL)
-
-    createSupabaseTracker()
-    const result = await importDeckTheorycrafted(normalizedDeck, TEST_USER_ID)
-
-    // Import still returns a deckId (deck was created successfully)
-    expect(result.deckId).toBe(12345678)
-
-    // Allocation errors are surfaced in the summary
-    expect(result.allocationSummary.errors.length).toBe(1)
-    expect(result.allocationSummary.errors[0]).toContain('Connection timeout')
+    const second = await importDeckTheorycrafted(normalizedDeck, TEST_USER_ID)
+    expect(second.deckId).toBe(first.deckId)
   })
 })

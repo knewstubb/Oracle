@@ -2,18 +2,31 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock Supabase
 const mockSingle = vi.fn()
-const mockLimit = vi.fn(() => ({ single: mockSingle }))
-const mockOrder = vi.fn(() => ({ limit: mockLimit, single: mockSingle }))
-const mockIlike = vi.fn(() => ({ order: mockOrder, single: mockSingle, limit: mockLimit }))
-const mockIn = vi.fn(() => ({ order: mockOrder }))
-const mockEq = vi.fn(() => ({ 
-  single: mockSingle, 
-  order: mockOrder, 
-  ilike: mockIlike,
+// `.limit()` is awaited directly by getCardPrinting; make it thenable and proxy
+// the same queued result that `.single()` consumes.
+const mockLimit = vi.fn(() => ({
+  single: mockSingle,
+  then: (resolve: (value: unknown) => void, reject?: (reason: unknown) => void) =>
+    Promise.resolve(mockSingle() ?? { data: null, error: null }).then(resolve, reject),
 }))
-const mockSelect = vi.fn(() => ({ 
-  eq: mockEq, 
-  ilike: mockIlike, 
+const mockOrder = vi.fn(() => ({ limit: mockLimit, single: mockSingle }))
+const mockIlike = vi.fn(() => ({
+  eq: mockEq,
+  order: mockOrder,
+  single: mockSingle,
+  limit: mockLimit,
+}))
+const mockIn = vi.fn(() => ({ order: mockOrder, eq: mockEq }))
+const mockEq = vi.fn(() => ({
+  eq: mockEq,
+  single: mockSingle,
+  order: mockOrder,
+  ilike: mockIlike,
+  limit: mockLimit,
+}))
+const mockSelect = vi.fn(() => ({
+  eq: mockEq,
+  ilike: mockIlike,
   in: mockIn,
   single: mockSingle,
 }))
@@ -27,12 +40,9 @@ vi.mock('@/lib/supabase', () => ({
 
 import {
   getCardByName,
-  getCardByFuzzyName,
-  getCardPrinting,
   getCardArtUrl,
   validateCommander,
   getCardEnrichment,
-  getCardsByNames,
 } from '../card-data'
 
 describe('card-data utility', () => {
@@ -190,10 +200,11 @@ describe('card-data utility', () => {
     it('returns art_crop URL from printing', async () => {
       const mockPrinting = {
         name: 'Sol Ring',
+        set_code: 'c21',
         image_uri_art_crop: 'https://cards.scryfall.io/art_crop/sol-ring.jpg',
       }
       
-      mockSingle.mockResolvedValueOnce({ data: mockPrinting, error: null })
+      mockSingle.mockResolvedValueOnce({ data: [mockPrinting], error: null })
       
       const result = await getCardArtUrl('Sol Ring')
       

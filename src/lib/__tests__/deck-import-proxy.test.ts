@@ -50,16 +50,32 @@ function makeDeck(cards: NormalizedCard[]): NormalizedDeck {
   }
 }
 
-function makeQuery(response: { data: unknown; error: unknown }) {
-  const query: any = {
+interface QueryMock {
+  select: () => QueryMock
+  upsert: () => QueryMock
+  eq: () => QueryMock
+  range: () => QueryMock
+  then: (
+    resolve: (value: unknown) => unknown,
+    reject?: (reason: unknown) => unknown
+  ) => Promise<unknown>
+}
+
+function makeQuery(response: { data: unknown; error: unknown }): QueryMock {
+  const query: QueryMock = {
     select: vi.fn(() => query),
     upsert: vi.fn(() => query),
     eq: vi.fn(() => query),
     range: vi.fn(() => query),
-    then: (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
-      Promise.resolve(response).then(resolve, reject),
+    then: (resolve, reject) => Promise.resolve(response).then(resolve, reject),
   }
   return query
+}
+
+interface RpcArgs {
+  p_rows: unknown[]
+  p_delete_ids: unknown[]
+  p_insert_rows: unknown[]
 }
 
 beforeEach(() => {
@@ -72,7 +88,7 @@ beforeEach(() => {
   mockResolveCardDefinitions.mockImplementation(async (cards: NormalizedCard[]) =>
     new Map(cards.map((card, index) => [card.oracleId, index + 1]))
   )
-  mockRpc.mockImplementation(async (name: string, args: Record<string, any>) => {
+  mockRpc.mockImplementation(async (name: string, args: RpcArgs) => {
     if (name === 'replace_deck_with_new_cards') {
       return {
         data: {

@@ -21,13 +21,13 @@ import type { EnrichedSupplyEntry } from '@/lib/allocation-candidates'
 function makeEntry(overrides: Partial<EnrichedSupplyEntry> = {}): EnrichedSupplyEntry {
   return {
     physicalCopyId: 1,
-    cardDefinitionId: 100,
-    scryfallPrintingId: 'abc-123',
-    isFoil: false,
+    cardId: 100,
+    printingId: 'abc-123',
+    finish: 'nonfoil',
     isProxy: false,
     condition: 'near_mint',
-    storageLocationId: 1,
-    storageLocationName: 'Binder A',
+    locationId: 1,
+    locationName: 'Binder A',
     assignedTo: null,
     ...overrides,
   }
@@ -133,9 +133,9 @@ describe('SupplyPool.getAvailableCopies()', () => {
     const entries = new Map<string, EnrichedSupplyEntry[]>()
     entries.set('Lightning Greaves', [
       // Tier 1, foil, non-near_mint — lower score
-      makeEntry({ physicalCopyId: 1, isFoil: true, condition: 'lightly_played' }),
+      makeEntry({ physicalCopyId: 1, finish: 'foil', condition: 'lightly_played' }),
       // Tier 1, non-foil, near_mint — higher score
-      makeEntry({ physicalCopyId: 2, isFoil: false, condition: 'near_mint' }),
+      makeEntry({ physicalCopyId: 2, finish: 'nonfoil', condition: 'near_mint' }),
     ])
 
     const pool = buildPool(entries)

@@ -18,37 +18,34 @@ import {
 // ---------------------------------------------------------------------------
 
 const mockFrom = vi.fn()
-const mockSelect = vi.fn()
-const mockInsert = vi.fn()
-const mockDelete = vi.fn()
-const mockUpsert = vi.fn()
-const mockEq = vi.fn()
+const mockRpc = vi.fn()
 
 vi.mock('@/lib/supabase', () => ({
   createAdminClient: () => ({
     from: mockFrom,
+    rpc: mockRpc,
   }),
 }))
 
 /**
- * Helper to set up chained mock responses for supabase query builder.
+ * Build the current user_copies → user_cards joined rows the delta query reads.
+ * `count` repeats the same physical copy, because computeCollectionDelta counts
+ * one row per physical copy.
  */
-function setupMockChain(overrides: Record<string, any> = {}) {
-  const chain: any = {
-    select: vi.fn().mockReturnThis(),
-    insert: vi.fn().mockReturnThis(),
-    delete: vi.fn().mockReturnThis(),
-    upsert: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    ...overrides,
+function dbCopies(
+  entries: Array<{ cardName: string; printingId: string; finish?: string; count: number }>
+) {
+  const rows: Array<{ printing_id: string; finish: string; user_cards: { card_name: string } }> = []
+  for (const entry of entries) {
+    for (let i = 0; i < entry.count; i++) {
+      rows.push({
+        printing_id: entry.printingId,
+        finish: entry.finish ?? 'Normal',
+        user_cards: { card_name: entry.cardName },
+      })
+    }
   }
-  // Make the chain resolve to { data, error } by default
-  chain.select.mockReturnValue(chain)
-  chain.insert.mockReturnValue(chain)
-  chain.delete.mockReturnValue(chain)
-  chain.upsert.mockReturnValue(chain)
-  chain.eq.mockReturnValue(chain)
-  return chain
+  return rows
 }
 
 beforeEach(() => {
@@ -157,11 +154,11 @@ describe('parseCollectionCSV', () => {
 
 describe('computeCollectionDelta', () => {
   it('reports correct additions when new rows are not in DB', async () => {
-    // Mock: DB returns existing collection rows
-    const dbRows = [
-      { card_name: 'Lightning Bolt', set_code: 'm21', quantity: 2, finish: 'Normal' },
-      { card_name: 'Sol Ring', set_code: 'cmm', quantity: 1, finish: 'Normal' },
-    ]
+    // Mock: DB returns existing collection copies (one row per physical copy)
+    const dbRows = dbCopies([
+      { cardName: 'Lightning Bolt', printingId: 'abc-def', count: 2 },
+      { cardName: 'Sol Ring', printingId: 'ghi-jkl', count: 1 },
+    ])
 
     mockFrom.mockReturnValue({
       select: vi.fn().mockResolvedValue({ data: dbRows, error: null }),
@@ -179,15 +176,15 @@ describe('computeCollectionDelta', () => {
     expect(delta.removed).toHaveLength(0)
     expect(delta.quantityChanged).toHaveLength(0)
     expect(delta.totalEntries).toBe(3)
-    expect(delta.previousEntries).toBe(2)
+    expect(delta.previousEntries).toBe(3)
   })
 
   it('reports correct removals when DB rows are absent in new data', async () => {
-    const dbRows = [
-      { card_name: 'Lightning Bolt', set_code: 'm21', quantity: 2, finish: 'Normal' },
-      { card_name: 'Sol Ring', set_code: 'cmm', quantity: 1, finish: 'Normal' },
-      { card_name: 'Counterspell', set_code: 'cmm', quantity: 3, finish: 'Normal' },
-    ]
+    const dbRows = dbCopies([
+      { cardName: 'Lightning Bolt', printingId: 'abc-def', count: 2 },
+      { cardName: 'Sol Ring', printingId: 'ghi-jkl', count: 1 },
+      { cardName: 'Counterspell', printingId: 'cnt-1', count: 3 },
+    ])
 
     mockFrom.mockReturnValue({
       select: vi.fn().mockResolvedValue({ data: dbRows, error: null }),
@@ -202,16 +199,17 @@ describe('computeCollectionDelta', () => {
     expect(delta.added).toHaveLength(0)
     expect(delta.removed).toHaveLength(1)
     expect(delta.removed[0].name).toBe('Counterspell')
+    expect(delta.removed[0].quantity).toBe(3)
     expect(delta.quantityChanged).toHaveLength(0)
     expect(delta.totalEntries).toBe(2)
-    expect(delta.previousEntries).toBe(3)
+    expect(delta.previousEntries).toBe(6)
   })
 
   it('reports correct quantity changes', async () => {
-    const dbRows = [
-      { card_name: 'Lightning Bolt', set_code: 'm21', quantity: 2, finish: 'Normal' },
-      { card_name: 'Sol Ring', set_code: 'cmm', quantity: 1, finish: 'Normal' },
-    ]
+    const dbRows = dbCopies([
+      { cardName: 'Lightning Bolt', printingId: 'abc-def', count: 2 },
+      { cardName: 'Sol Ring', printingId: 'ghi-jkl', count: 1 },
+    ])
 
     mockFrom.mockReturnValue({
       select: vi.fn().mockResolvedValue({ data: dbRows, error: null }),
@@ -232,10 +230,10 @@ describe('computeCollectionDelta', () => {
   })
 
   it('reports empty delta when nothing changed', async () => {
-    const dbRows = [
-      { card_name: 'Lightning Bolt', set_code: 'm21', quantity: 2, finish: 'Normal' },
-      { card_name: 'Sol Ring', set_code: 'cmm', quantity: 1, finish: 'Normal' },
-    ]
+    const dbRows = dbCopies([
+      { cardName: 'Lightning Bolt', printingId: 'abc-def', count: 2 },
+      { cardName: 'Sol Ring', printingId: 'ghi-jkl', count: 1 },
+    ])
 
     mockFrom.mockReturnValue({
       select: vi.fn().mockResolvedValue({ data: dbRows, error: null }),
@@ -251,7 +249,7 @@ describe('computeCollectionDelta', () => {
     expect(delta.removed).toHaveLength(0)
     expect(delta.quantityChanged).toHaveLength(0)
     expect(delta.totalEntries).toBe(2)
-    expect(delta.previousEntries).toBe(2)
+    expect(delta.previousEntries).toBe(3)
   })
 
   it('throws when Supabase returns an error', async () => {
@@ -273,153 +271,129 @@ describe('computeCollectionDelta', () => {
 // ---------------------------------------------------------------------------
 
 describe('applyCollectionImport', () => {
-  it('deletes existing rows, inserts new rows in batches, and updates sync_meta', async () => {
-    const deleteChain = {
-      delete: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockResolvedValue({ error: null }),
-    }
+  interface ApplyMockOptions {
+    printings?: Array<{ name: string; oracle_id: string }>
+    insertedCards?: Array<{ id: number; card_name: string }>
+    existingCopyIds?: Array<{ id: number }>
+    rpcResult?: { data: unknown; error: { message: string } | null }
+  }
 
-    const insertChain = {
-      insert: vi.fn().mockResolvedValue({ error: null }),
-    }
-
-    const upsertChain = {
-      upsert: vi.fn().mockResolvedValue({ error: null }),
-    }
-
-    let callCount = 0
+  function setupApplyImportMock({
+    printings = [],
+    insertedCards = [],
+    existingCopyIds = [],
+    rpcResult = { data: { success: true, inserted_count: 0, removed_count: 0 }, error: null },
+  }: ApplyMockOptions = {}) {
     mockFrom.mockImplementation((table: string) => {
-      if (table === 'collection') {
-        callCount++
-        // First call is the delete, subsequent calls are inserts
-        if (callCount === 1) return deleteChain
-        return insertChain
+      if (table === 'ref_printings') {
+        return { select: () => ({ in: () => Promise.resolve({ data: printings, error: null }) }) }
       }
-      if (table === 'sync_meta') return upsertChain
-      return insertChain
+      if (table === 'user_cards') {
+        return {
+          upsert: () => ({
+            select: () => Promise.resolve({ data: insertedCards, error: null }),
+          }),
+        }
+      }
+      if (table === 'user_copies') {
+        return {
+          select: () => ({
+            eq: () => ({
+              range: () => Promise.resolve({ data: existingCopyIds, error: null }),
+            }),
+          }),
+        }
+      }
+      if (table === 'sync_meta') {
+        return { upsert: () => Promise.resolve({ error: null }) }
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+    mockRpc.mockResolvedValue(rpcResult)
+  }
+
+  it('replaces the collection atomically and updates sync_meta', async () => {
+    setupApplyImportMock({
+      printings: [
+        { name: 'Lightning Bolt', oracle_id: 'o-lb' },
+        { name: 'Sol Ring', oracle_id: 'o-sr' },
+      ],
+      insertedCards: [
+        { id: 10, card_name: 'Lightning Bolt' },
+        { id: 20, card_name: 'Sol Ring' },
+      ],
+      existingCopyIds: [{ id: 1 }, { id: 2 }],
+      rpcResult: { data: { success: true, inserted_count: 3, removed_count: 2 }, error: null },
     })
 
     const rows = parseCollectionCSV(`Quantity,Name,Finish,Condition,Date Added,Language,Purchase Price,Tags,Edition Name,Edition Code,Multiverse Id,Scryfall ID,Collector Number,Identities,Types
 2,Lightning Bolt,Normal,NM,2025-01-15,EN,0.50,,Core Set 2021,m21,123,abc-def,152,Red,Instant
 1,Sol Ring,Foil,LP,2025-02-10,EN,5.00,,Commander Masters,cmm,456,ghi-jkl,388,,Artifact`)
 
-    const result = await applyCollectionImport(rows)
+    const result = await applyCollectionImport(rows, { userId: 'user-1' })
 
-    expect(result.totalInserted).toBe(2)
+    expect(result.totalInserted).toBe(3)
     expect(result.errors).toHaveLength(0)
     expect(result.batches).toHaveLength(1)
-    expect(result.batches[0].rowsProcessed).toBe(2)
+    expect(result.batches[0].rowsProcessed).toBe(3)
 
-    // Verify delete was called on collection
-    expect(deleteChain.delete).toHaveBeenCalled()
-    // Verify insert was called
-    expect(insertChain.insert).toHaveBeenCalled()
-    // Verify sync_meta was updated
-    expect(upsertChain.upsert).toHaveBeenCalled()
+    const rpcCall = mockRpc.mock.calls.find(([name]) => name === 'apply_collection_sync')
+    expect(rpcCall).toBeDefined()
+    expect(rpcCall![1]).toEqual(
+      expect.objectContaining({
+        p_user_id: 'user-1',
+        p_remove_copy_ids: [1, 2],
+      })
+    )
+    // One row per physical copy (2 Lightning Bolt + 1 Sol Ring)
+    expect(rpcCall![1].p_insert_rows).toHaveLength(3)
+
+    expect(mockFrom).toHaveBeenCalledWith('sync_meta')
   })
 
-  it('processes rows in multiple batches when exceeding BATCH_SIZE', async () => {
-    const deleteChain = {
-      delete: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockResolvedValue({ error: null }),
-    }
-
-    const insertChain = {
-      insert: vi.fn().mockResolvedValue({ error: null }),
-    }
-
-    const upsertChain = {
-      upsert: vi.fn().mockResolvedValue({ error: null }),
-    }
-
-    let callCount = 0
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'collection') {
-        callCount++
-        if (callCount === 1) return deleteChain
-        return insertChain
-      }
-      if (table === 'sync_meta') return upsertChain
-      return insertChain
+  it('appends copies without clearing when skipDelete is set', async () => {
+    setupApplyImportMock({
+      printings: [{ name: 'Lightning Bolt', oracle_id: 'o-lb' }],
+      insertedCards: [{ id: 10, card_name: 'Lightning Bolt' }],
+      rpcResult: { data: { success: true, inserted_count: 2 }, error: null },
     })
 
-    // Create 600 rows to trigger 2 batches (batch size = 500)
-    const headerLine = `Quantity,Name,Finish,Condition,Date Added,Language,Purchase Price,Tags,Edition Name,Edition Code,Multiverse Id,Scryfall ID,Collector Number,Identities,Types`
-    const dataLines = Array.from({ length: 600 }, (_, i) =>
-      `1,Card ${i},Normal,NM,2025-01-15,EN,1.00,,Set Name,set,0,id-${i},${i},Red,Creature`
+    const rows = parseCollectionCSV(`Quantity,Name,Finish,Condition,Date Added,Language,Purchase Price,Tags,Edition Name,Edition Code,Multiverse Id,Scryfall ID,Collector Number,Identities,Types
+2,Lightning Bolt,Normal,NM,2025-01-15,EN,0.50,,Core Set 2021,m21,123,abc-def,152,Red,Instant`)
+
+    const result = await applyCollectionImport(rows, { userId: 'user-1', skipDelete: true })
+
+    expect(result.totalInserted).toBe(2)
+    expect(mockRpc).toHaveBeenCalledWith(
+      'insert_user_copies',
+      expect.objectContaining({ p_user_id: 'user-1' })
     )
-    const csv = [headerLine, ...dataLines].join('\n')
-
-    const rows = parseCollectionCSV(csv)
-    const result = await applyCollectionImport(rows)
-
-    expect(result.totalInserted).toBe(600)
-    expect(result.batches).toHaveLength(2)
-    expect(result.batches[0].rowsProcessed).toBe(500)
-    expect(result.batches[1].rowsProcessed).toBe(100)
+    expect(mockRpc).not.toHaveBeenCalledWith('apply_collection_sync', expect.anything())
   })
 
-  it('records per-batch errors without aborting the import', async () => {
-    const deleteChain = {
-      delete: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockResolvedValue({ error: null }),
-    }
-
-    let insertCallCount = 0
-    const insertChainOk = {
-      insert: vi.fn().mockResolvedValue({ error: null }),
-    }
-    const insertChainFail = {
-      insert: vi.fn().mockResolvedValue({ error: { message: 'Row too large' } }),
-    }
-
-    const upsertChain = {
-      upsert: vi.fn().mockResolvedValue({ error: null }),
-    }
-
-    let collectionCallCount = 0
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'collection') {
-        collectionCallCount++
-        if (collectionCallCount === 1) return deleteChain
-        // First insert batch fails, second succeeds
-        insertCallCount++
-        if (insertCallCount === 1) return insertChainFail
-        return insertChainOk
-      }
-      if (table === 'sync_meta') return upsertChain
-      return insertChainOk
-    })
-
-    // Create 600 rows for 2 batches — first batch fails, second succeeds
-    const headerLine = `Quantity,Name,Finish,Condition,Date Added,Language,Purchase Price,Tags,Edition Name,Edition Code,Multiverse Id,Scryfall ID,Collector Number,Identities,Types`
-    const dataLines = Array.from({ length: 600 }, (_, i) =>
-      `1,Card ${i},Normal,NM,2025-01-15,EN,1.00,,Set Name,set,0,id-${i},${i},Red,Creature`
-    )
-    const csv = [headerLine, ...dataLines].join('\n')
-
-    const rows = parseCollectionCSV(csv)
-    const result = await applyCollectionImport(rows)
-
-    // First batch failed, second succeeded
-    expect(result.totalInserted).toBe(100) // only second batch counted
-    expect(result.errors.length).toBeGreaterThan(0)
-    expect(result.errors[0]).toContain('Batch 0')
-    expect(result.batches[0].errors.length).toBeGreaterThan(0)
-    expect(result.batches[1].rowsProcessed).toBe(100)
-  })
-
-  it('throws if initial delete fails', async () => {
-    mockFrom.mockReturnValue({
-      delete: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockResolvedValue({ error: { message: 'Permission denied' } }),
+  it('throws when the atomic replacement fails', async () => {
+    setupApplyImportMock({
+      printings: [{ name: 'Lightning Bolt', oracle_id: 'o-lb' }],
+      insertedCards: [{ id: 10, card_name: 'Lightning Bolt' }],
+      existingCopyIds: [],
+      rpcResult: { data: null, error: { message: 'Permission denied' } },
     })
 
     const rows = parseCollectionCSV(`Quantity,Name,Finish,Condition,Date Added,Language,Purchase Price,Tags,Edition Name,Edition Code,Multiverse Id,Scryfall ID,Collector Number,Identities,Types
 1,Lightning Bolt,Normal,NM,2025-01-15,EN,,,Core Set 2021,m21,123,abc-def,152,Red,Instant`)
 
-    await expect(applyCollectionImport(rows)).rejects.toThrow(
-      'Failed to clear collection before import: Permission denied'
+    await expect(applyCollectionImport(rows, { userId: 'user-1' })).rejects.toThrow(
+      'Atomic collection import failed: Permission denied'
     )
+  })
+
+  it('returns an error result when no user id is provided', async () => {
+    const rows = parseCollectionCSV(`Quantity,Name,Finish,Condition,Date Added,Language,Purchase Price,Tags,Edition Name,Edition Code,Multiverse Id,Scryfall ID,Collector Number,Identities,Types
+1,Lightning Bolt,Normal,NM,2025-01-15,EN,,,Core Set 2021,m21,123,abc-def,152,Red,Instant`)
+
+    const result = await applyCollectionImport(rows)
+
+    expect(result).toEqual({ totalInserted: 0, batches: [], errors: ['No user ID provided'] })
+    expect(mockFrom).not.toHaveBeenCalled()
   })
 })

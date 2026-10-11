@@ -55,13 +55,13 @@ function makeIncoming(overrides: Partial<IncomingCard> = {}): IncomingCard {
 function makeSupplyEntry(overrides: Partial<EnrichedSupplyEntry> = {}): EnrichedSupplyEntry {
   return {
     physicalCopyId: 1,
-    cardDefinitionId: 100,
-    scryfallPrintingId: 'abc-123',
-    isFoil: false,
+    cardId: 100,
+    printingId: 'abc-123',
+    finish: 'nonfoil',
     isProxy: false,
     condition: 'near_mint',
-    storageLocationId: 1,
-    storageLocationName: 'Binder A',
+    locationId: 1,
+    locationName: 'Binder A',
     assignedTo: null,
     ...overrides,
   }

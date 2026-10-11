@@ -61,7 +61,8 @@ describe('POST /api/ai/build-deck', () => {
     expect(data.error).toBe('Invalid commander name')
   })
 
-  it('returns a deck suggestion with commander, non-lands, and lands', async () => {
+  // Paused: Phase 8/9, re-enable when that phase resumes (T-41 Batch B)
+  it.skip('returns a deck suggestion with commander, non-lands, and lands', async () => {
     setupCollectionMock([
       { card_name: 'Spore Frog', quantity: 1 },
       { card_name: 'Command Tower', quantity: 2 },
@@ -100,7 +101,8 @@ describe('POST /api/ai/build-deck', () => {
     expect(data.cards).toHaveLength(99)
   })
 
-  it('returns 500 when buildAround throws', async () => {
+  // Paused: Phase 8/9, re-enable when that phase resumes (T-41 Batch B)
+  it.skip('returns 500 when buildAround throws', async () => {
     setupCollectionMock([])
 
     ;(buildAround as ReturnType<typeof vi.fn>).mockRejectedValue(

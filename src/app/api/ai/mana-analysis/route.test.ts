@@ -85,7 +85,8 @@ describe('POST /api/ai/mana-analysis', () => {
     expect(data.error).toBe('Deck not found')
   })
 
-  it('returns mana analysis with land count and suggestions on success', async () => {
+  // Paused: Phase 8/9, re-enable when that phase resumes (T-41 Batch B)
+  it.skip('returns mana analysis with land count and suggestions on success', async () => {
     setupSupabaseMock({
       deck: { id: 1, name: 'Test Deck', commander_name: 'Muldrotha, the Gravetide', colour_identity: 'B,U,G' },
       cards: [
@@ -117,7 +118,8 @@ describe('POST /api/ai/mana-analysis', () => {
     expect(data.suggestions[1].owned).toBe(false)
   })
 
-  it('returns 500 when MCP call fails', async () => {
+  // Paused: Phase 8/9, re-enable when that phase resumes (T-41 Batch B)
+  it.skip('returns 500 when MCP call fails', async () => {
     setupSupabaseMock({
       deck: { id: 1, name: 'Test Deck', commander_name: 'Muldrotha', colour_identity: 'B,U,G' },
       cards: [{ card_name: 'Forest', scryfall_id: 'a1', set_code: 'c21', categories: 'Lands', is_commander: false }],

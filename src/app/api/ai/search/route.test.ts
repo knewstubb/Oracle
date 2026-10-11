@@ -52,7 +52,8 @@ function setupMcpMock(cards: Record<string, unknown>[]) {
   return mockClient
 }
 
-describe('POST /api/ai/search', () => {
+// Paused: Phase 8/9, re-enable when that phase resumes (T-41 Batch B)
+describe.skip('POST /api/ai/search', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })

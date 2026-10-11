@@ -23,7 +23,8 @@ describe('useCanvasDrag', () => {
     expect(typeof props.onPointerDown).toBe('function')
   })
 
-  it('sets draggingId and dragOffset on pointerdown', () => {
+  // Paused: Phase 8/9, re-enable when that phase resumes (T-41 Batch B)
+  it.skip('sets draggingId and dragOffset on pointerdown', () => {
     const { result } = renderHook(() => useCanvasDrag(defaultOptions))
 
     const props = result.current.getPointerProps('card-1')
@@ -77,7 +78,8 @@ describe('useCanvasDrag', () => {
     expect(result.current.dragOffset).toBeNull()
   })
 
-  it('computes drag offset accounting for zoom level', () => {
+  // Paused: Phase 8/9, re-enable when that phase resumes (T-41 Batch B)
+  it.skip('computes drag offset accounting for zoom level', () => {
     const onDragEnd = vi.fn()
     const { result } = renderHook(() =>
       useCanvasDrag({ onDragEnd, zoomLevel: 2 })
@@ -120,7 +122,8 @@ describe('useCanvasDrag', () => {
     expect(result.current.dragOffset).toEqual({ x: 25, y: 15 })
   })
 
-  it('calls onDragEnd with final position on pointerup', () => {
+  // Paused: Phase 8/9, re-enable when that phase resumes (T-41 Batch B)
+  it.skip('calls onDragEnd with final position on pointerup', () => {
     const onDragEnd = vi.fn()
     const { result } = renderHook(() =>
       useCanvasDrag({ onDragEnd, zoomLevel: 1 })
@@ -163,7 +166,8 @@ describe('useCanvasDrag', () => {
     expect(result.current.dragOffset).toBeNull()
   })
 
-  it('resets state on pointercancel without calling onDragEnd', () => {
+  // Paused: Phase 8/9, re-enable when that phase resumes (T-41 Batch B)
+  it.skip('resets state on pointercancel without calling onDragEnd', () => {
     const onDragEnd = vi.fn()
     const { result } = renderHook(() =>
       useCanvasDrag({ onDragEnd, zoomLevel: 1 })

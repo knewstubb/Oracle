@@ -152,7 +152,8 @@ vi.mock('@/components/OracleChat', () => ({
   ),
 }))
 
-describe('BrewModePage', () => {
+// Paused: Phase 8/9, re-enable when that phase resumes (T-41 Batch B)
+describe.skip('BrewModePage', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     mockState = {

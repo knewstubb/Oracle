@@ -205,7 +205,7 @@ export async function POST(
       // one Postgres transaction. No per-slot loop can leave a partial batch.
       const { data: cardDetails, error: detailsErr } = await supabase
         .from('deck_cards')
-        .select('id, card_name, copy_id')
+        .select('id, card_name, copy_id, scryfall_id, requested_finish')
         .eq('deck_id', deckId)
         .in('id', body.cardIds)
 
@@ -228,6 +228,11 @@ export async function POST(
         p_assignments: slotsNeedingProxy.map(slot => ({
           deck_card_id: slot.id,
           card_name: slot.card_name,
+          // D-038 / D-041: the proxy records the printing the slot asks for and
+          // its requested finish. The RPC falls back to the newest printing of
+          // the card only when the slot names no printing.
+          printing_id: slot.scryfall_id ?? null,
+          finish: slot.requested_finish ?? null,
         })),
         p_source: 'manual',
       })

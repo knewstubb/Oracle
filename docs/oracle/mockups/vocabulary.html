@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oracle — Shared vocabulary (T-25 mockup)</title>
+<style>
+  /* Colours copied from src/styles/tokens.css — no new colours */
+  :root{
+    --bg-canvas:#131316; --bg-surface:#1A1A1E; --bg-hover:#212126; --border:#35353A;
+    --text-primary:#E8E8EA; --text-secondary:#9C9CA3; --text-tertiary:#6E6E76;
+    --status-proxy:#4A93A0; --status-unowned:#F0339E; --signal-warning:#EF9F27; --signal-critical:#E24B4A;
+    --accent-primary:#1D9E75;
+    --mana-w:#F5F0C1; --mana-u:#6BA5C4; --mana-b:#9E9E9E; --mana-r:#D4836A; --mana-g:#7BC4A0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg-canvas);color:var(--text-primary);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+  body.grey{filter:grayscale(1)}
+  header.top{position:sticky;top:0;z-index:5;background:var(--bg-canvas);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  header.top h1{font-size:16px;margin:0 16px 0 0}
+  main{max-width:1100px;margin:0 auto;padding:24px}
+  section{background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:20px}
+  h2{font-size:15px;margin:0 0 4px}
+  p.note{color:var(--text-secondary);margin:0 0 16px;max-width:75ch}
+  .seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .seg button{background:none;border:0;color:var(--text-secondary);padding:6px 12px;font:inherit;cursor:pointer}
+  .seg button[aria-pressed="true"]{background:var(--bg-hover);color:var(--text-primary)}
+  .seg button:focus-visible,.badge:focus-visible,.btn:focus-visible{outline:2px solid var(--accent-primary);outline-offset:2px}
+  label.chk{color:var(--text-secondary);display:flex;gap:6px;align-items:center;cursor:pointer}
+
+  /* Badge anatomy */
+  .badge{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 8px;border-radius:999px;font-size:12px;font-weight:500;white-space:nowrap;border:1px solid transparent;background:none;color:var(--text-primary);font-family:inherit}
+  .badge svg{width:14px;height:14px;flex:none}
+  .badge.quiet{color:var(--text-secondary)}
+  .badge.outline{border-color:var(--c)}
+  .badge.filled{background:color-mix(in srgb,var(--c) 15%,transparent)}
+  .badge .ic{color:var(--c)}
+  .badge.icononly{width:24px;padding:0;justify-content:center}
+  button.badge{cursor:pointer}
+  button.badge:hover{background:color-mix(in srgb,var(--c,#9C9CA3) 25%,transparent)}
+  .reason{display:block;font-size:11px;color:var(--text-secondary);margin-top:2px}
+
+  table{border-collapse:collapse;width:100%}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{color:var(--text-secondary);font-weight:500;font-size:12px}
+  td.mean{color:var(--text-secondary)}
+  code{font-size:12px;color:var(--text-secondary)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+
+  /* Deck tiles */
+  .tile{border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--bg-canvas)}
+  .tile .art{height:90px;background:linear-gradient(135deg,#2b2b31,#1f1f24);position:relative}
+  .tile .body{padding:10px 12px}
+  .tile .name{font-weight:600}
+  .tile .meta{color:var(--text-secondary);font-size:12px;margin-top:4px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .dot{position:absolute;top:8px;right:8px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;color:#fff}
+  .dot svg{width:13px;height:13px}
+  .glow{box-shadow:0 0 0 1px var(--g),0 0 14px -2px var(--g)}
+
+  /* Rows */
+  .row{display:grid;grid-template-columns:1fr 210px 90px 80px;gap:10px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--border)}
+  .row:hover{background:var(--bg-hover)}
+  .row .price{color:var(--text-secondary);text-align:right;font-variant-numeric:tabular-nums}
+  .grouph{color:var(--text-secondary);font-size:12px;font-weight:600;padding:12px 10px 4px;text-transform:none}
+  .tag{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--text-secondary);border:1px solid var(--border);border-radius:4px;padding:0 5px;height:18px}
+  .tag svg{width:11px;height:11px}
+
+  /* States */
+  .skel{background:#2a2a30;border-radius:6px;animation:pulse 1.4s ease-in-out infinite}
+  @keyframes pulse{50%{opacity:.5}}
+  @media (prefers-reduced-motion:reduce){.skel,.spin{animation:none}}
+  .spin{animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .notice{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--bg-canvas)}
+  .notice svg{width:18px;height:18px;flex:none;margin-top:1px}
+  .btn{background:var(--bg-hover);border:1px solid var(--border);color:var(--text-primary);border-radius:6px;padding:4px 10px;font:inherit;font-size:12px;cursor:pointer}
+  .btn.primary{background:var(--accent-primary);border-color:var(--accent-primary);color:#fff}
+  .strike{text-decoration:line-through;color:var(--text-tertiary)}
+  .cols2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media (max-width:760px){.cols2{grid-template-columns:1fr}.row{grid-template-columns:1fr 150px 60px}.row .price{display:none}}
+  .label{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--text-tertiary);margin:0 0 8px}
+  .today{display:none}
+  body.show-today .today{display:block}
+  body.show-today .agreed{display:none}
+  .q{border-left:3px solid var(--border);padding:4px 12px;margin:10px 0}
+  .q b{display:block}
+  .swatch{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px;background:var(--c)}
+</style>
+</head>
+<body>
+
+<!-- Icon sprite (simplified drawings of the Material Symbols named in the spec) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-mask" viewBox="0 0 24 24"><path d="M3 5c3 1.3 6 1.3 9 0 3 1.3 6 1.3 9 0v6c0 5-4 8.5-9 8.5S3 16 3 11z" fill="currentColor"/><circle cx="8.5" cy="10.5" r="1.4" fill="#1A1A1E"/><circle cx="15.5" cy="10.5" r="1.4" fill="#1A1A1E"/><path d="M8.5 14.5c2 1.8 5 1.8 7 0" stroke="#1A1A1E" stroke-width="1.6" fill="none" stroke-linecap="round"/></symbol>
+  <symbol id="i-mask-o" viewBox="0 0 24 24"><path d="M3 5c3 1.3 6 1.3 9 0 3 1.3 6 1.3 9 0v6c0 5-4 8.5-9 8.5S3 16 3 11z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="8.5" cy="10.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="10.5" r="1.3" fill="currentColor"/><path d="M8.5 14.5c2 1.8 5 1.8 7 0" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/></symbol>
+  <symbol id="i-ring" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="2.2"/></symbol>
+  <symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 8h14m-4-4l4 4-4 4M20 16H6m4-4l-4 4 4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2" fill="currentColor"/><path d="M8 10.5V8a4 4 0 018 0v2.5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-dnd" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="currentColor"/><rect x="7" y="11" width="10" height="2.2" rx="1" fill="#1A1A1E"/></symbol>
+  <symbol id="i-land" viewBox="0 0 24 24"><path d="M2 19l6-9 4 6 3-4 7 7z" fill="currentColor"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 6h10M4 10h10M4 14h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M13 19l1-3 6-6 2 2-6 6z" fill="currentColor"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3.5A8.5 8.5 0 0120.5 12H12z" fill="currentColor"/></symbol>
+  <symbol id="i-checkc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="currentColor"/><path d="M7.5 12.3l3 3 6-6.3" fill="none" stroke="#1A1A1E" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-error" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="currentColor"/><rect x="11" y="6.5" width="2.2" height="7" rx="1" fill="#1A1A1E"/><circle cx="12.1" cy="16.8" r="1.3" fill="#1A1A1E"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M4 12a8 8 0 108-8 8 8 0 00-6.3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M4 3.5V8h4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 8v4.5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.5 9.5a2.5 2.5 0 114 2c-1 .7-1.5 1.2-1.5 2.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.2" fill="currentColor"/></symbol>
+  <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 2l2.2 6.3L20 10l-5.8 1.7L12 18l-2.2-6.3L4 10l5.8-1.7zM19 15l1 2.5 2.5 1-2.5 1L19 22l-1-2.5-2.5-1 2.5-1z" fill="currentColor"/></symbol>
+  <symbol id="i-texture" viewBox="0 0 24 24"><path d="M4 14L14 4M4 20L20 4M10 20l10-10M16 20l4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-spin" viewBox="0 0 24 24"><path d="M12 3a9 9 0 109 9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3l10 18H2z" fill="currentColor"/><rect x="11" y="9" width="2" height="6" rx="1" fill="#1A1A1E"/><circle cx="12" cy="17.6" r="1.1" fill="#1A1A1E"/></symbol>
+  <symbol id="i-flask" viewBox="0 0 24 24"><path d="M9 3h6M10 3v6l-5 10a1.5 1.5 0 001.3 2h11.4a1.5 1.5 0 001.3-2l-5-10V3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+</svg>
+
+<header class="top">
+  <h1>Oracle · Shared words, colours and badges</h1>
+  <div class="seg" role="group" aria-label="Compare">
+    <button type="button" id="b-agreed" aria-pressed="true">Agreed</button>
+    <button type="button" id="b-today" aria-pressed="false">Today (before)</button>
+  </div>
+  <label class="chk"><input type="checkbox" id="greyChk"> Greyscale check (everything must still read without colour)</label>
+</header>
+
+<main>
+
+<section>
+  <h2>How to read this page</h2>
+  <p class="note">Each card or deck fact has one word, one icon and one colour, used on every screen. Colour is only used where you may need to act (proxy, in another deck, not owned, a check that failed). Everything normal stays grey. A <b>solid</b> badge means a real copy is sleeved in the deck. An <b>outlined</b> badge means the deck still needs a card in that slot. Use <b>Today (before)</b> at the top to compare with the app today, and <b>Greyscale check</b> to confirm every state can still be told apart without colour.</p>
+</section>
+
+<!-- 1. Badge set -->
+<section>
+  <h2>1 · Card badges</h2>
+  <p class="note">The words in the badge stay grey or white so they're always readable. The colour goes on the icon and the outline.</p>
+  <div class="agreed">
+  <table>
+    <thead><tr><th style="width:230px">Badge</th><th>What it means</th><th style="width:170px">Colour</th></tr></thead>
+    <tbody>
+      <tr><td colspan="3" class="label" style="padding-top:14px">Sleeved: a copy is in the deck (solid)</td></tr>
+      <tr><td><span class="badge filled quiet" style="--c:transparent"><svg class="ic" style="color:var(--text-secondary)"><use href="#i-check"/></svg>Original</span></td><td class="mean">A real printed card is sleeved here.</td><td><span class="swatch" style="--c:var(--text-secondary)"></span>Grey (quiet)</td></tr>
+      <tr><td><span class="badge filled" style="--c:var(--status-proxy)"><svg class="ic"><use href="#i-mask"/></svg>Proxy</span></td><td class="mean">A proxy you made is sleeved here.</td><td><span class="swatch" style="--c:var(--status-proxy)"></span>Proxy teal</td></tr>
+      <tr><td><span class="badge filled quiet" style="--c:transparent"><svg class="ic" style="color:var(--text-secondary)"><use href="#i-land"/></svg>Basic</span></td><td class="mean">A plain basic land. It always counts as sleeved.</td><td><span class="swatch" style="--c:var(--text-secondary)"></span>Grey (quiet)</td></tr>
+      <tr><td colspan="3" class="label" style="padding-top:14px">Unsleeved: the deck still needs a card in this slot (outlined); only the best option is shown</td></tr>
+      <tr><td><span class="badge outline" style="--c:var(--text-secondary)"><svg class="ic" style="color:var(--text-primary)"><use href="#i-ring"/></svg>Available</span></td><td class="mean">A free copy of this exact printing is in storage.</td><td><span class="swatch" style="--c:var(--text-primary)"></span>White</td></tr>
+      <tr><td><span class="badge outline" style="--c:var(--text-secondary)"><svg class="ic" style="color:var(--text-primary)"><use href="#i-swap"/></svg>Alt available</span></td><td class="mean">A free copy of a different printing is in storage.</td><td><span class="swatch" style="--c:var(--text-primary)"></span>White</td></tr>
+      <tr><td><span class="badge outline" style="--c:var(--status-proxy)"><svg class="ic"><use href="#i-mask-o"/></svg>Proxy available</span></td><td class="mean">No free original, but a proxy you already made is free in storage.</td><td><span class="swatch" style="--c:var(--status-proxy)"></span>Proxy teal</td></tr>
+      <tr><td><span class="badge outline" style="--c:var(--signal-warning)"><svg class="ic"><use href="#i-lock"/></svg>Unavailable</span><span class="reason">In Korvold</span></td><td class="mean">You own it, but every copy is in another deck. The reason line always names the deck.</td><td><span class="swatch" style="--c:var(--signal-warning)"></span>Amber</td></tr>
+      <tr><td><span class="badge outline" style="--c:var(--status-unowned)"><svg class="ic"><use href="#i-dnd"/></svg>Unowned</span></td><td class="mean">You don't own this card at all, not even a proxy.</td><td><span class="swatch" style="--c:var(--status-unowned)"></span>Magenta</td></tr>
+      <tr><td colspan="3" class="label" style="padding-top:14px">Outside a deck (search, suggestions)</td></tr>
+      <tr><td><span class="badge quiet"><svg class="ic" style="color:var(--text-secondary)"><use href="#i-check"/></svg>Owned ×3</span></td><td class="mean">You own 3 copies (any printing).</td><td><span class="swatch" style="--c:var(--text-secondary)"></span>Grey (quiet)</td></tr>
+      <tr><td colspan="3" class="label" style="padding-top:14px">Compact (icon only, for busy grids and phones; the word appears on hover or focus)</td></tr>
+      <tr><td style="display:flex;gap:6px">
+        <span class="badge icononly filled" style="--c:var(--status-proxy)" title="Proxy" role="img" aria-label="Sleeved, proxy"><svg class="ic"><use href="#i-mask"/></svg></span>
+        <span class="badge icononly outline" style="--c:var(--text-secondary)" title="Available" role="img" aria-label="Unsleeved, available"><svg class="ic" style="color:var(--text-primary)"><use href="#i-ring"/></svg></span>
+        <span class="badge icononly outline" style="--c:var(--signal-warning)" title="Unavailable · In Korvold" role="img" aria-label="Unsleeved, unavailable, in Korvold"><svg class="ic"><use href="#i-lock"/></svg></span>
+        <span class="badge icononly outline" style="--c:var(--status-unowned)" title="Unowned" role="img" aria-label="Unsleeved, unowned"><svg class="ic"><use href="#i-dnd"/></svg></span>
+      </td><td class="mean">The same icons, outlines and colours as the full badges, so you learn them once.</td><td></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="today">
+    <p class="label">The same facts in the app today</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <span class="badge" style="background:rgba(29,158,117,.2);color:#1D9E75">✓ Original</span>
+      <span class="badge" style="background:rgba(72,154,222,.2);color:#489ADE">Proxy</span>
+      <span class="badge" style="background:rgba(225,88,255,.2);color:#e158ff">Proxy</span>
+      <span class="badge" style="background:rgba(217,119,6,.2);color:#f59e0b">Proxy</span>
+      <span class="badge" style="background:rgba(20,184,166,.2);color:#14b8a6">Proxy</span>
+      <span class="badge" style="border:1px dashed #9C9CA3;color:#9C9CA3">Planned · Available</span>
+      <span class="badge" style="border:1px dashed #9C9CA3;color:#9C9CA3">Planned · Alternate</span>
+      <span class="badge" style="background:rgba(245,136,11,.2);color:#F5880B">Planned · In decks</span>
+      <span class="badge" style="background:rgba(239,68,191,.2);color:#EF44BF">Planned · Unowned</span>
+      <span class="badge" style="color:#9C9CA3">Not owned</span>
+      <span class="badge" style="background:#16a34a;color:#fff">Owned</span>
+      <span class="badge" style="background:#e0e7ff;color:#4338ca">Generic land</span>
+    </div>
+    <p class="note" style="margin-top:12px">The same proxy appears in five different colours, two of them close to mana blue. "Original" uses the brand green, which looks like mana green. The words "Planned", "In decks", "Alternate" and "Not owned" are all retired.</p>
+  </div>
+</section>
+
+<!-- 2. Deck readiness -->
+<section>
+  <h2>2 · Deck tiles: Draft, Assembling, Playable</h2>
+  <p class="note">The app works out the deck's state from its cards; there's no manual switch. Each state has its own icon and word, and the count is always shown. Casual decks have no size rule, so they are never Draft.</p>
+  <div class="grid agreed">
+    <div class="tile"><div class="art"></div><div class="body"><div class="name">Prosper, Tome-Bound</div><div class="meta"><span class="badge quiet" style="padding:0"><svg class="ic" style="color:var(--text-secondary)"><use href="#i-edit"/></svg>Draft</span>· 82/100</div></div></div>
+    <div class="tile"><div class="art"></div><div class="body"><div class="name">Korvold, Fae-Cursed King</div><div class="meta"><span class="badge quiet" style="padding:0"><svg class="ic" style="color:var(--text-secondary)"><use href="#i-clock"/></svg>Assembling</span>· 87/100 sleeved</div></div></div>
+    <div class="tile"><div class="art"></div><div class="body"><div class="name">Teferi, Temporal Archmage</div><div class="meta"><span class="badge" style="padding:0"><svg class="ic" style="color:var(--text-primary)"><use href="#i-checkc"/></svg>Playable</span>· 6 proxies</div></div></div>
+    <div class="tile"><div class="art"></div><div class="body"><div class="name">Kitchen-table elves <span style="color:var(--text-tertiary);font-weight:400">· Casual</span></div><div class="meta"><span class="badge" style="padding:0"><svg class="ic" style="color:var(--text-primary)"><use href="#i-checkc"/></svg>Playable</span>· 40 sleeved</div></div></div>
+    <div class="tile"><div class="art"></div><div class="body"><div class="name">Atraxa, Praetors' Voice</div><div class="meta"><span class="badge" style="padding:0"><svg class="ic" style="color:var(--signal-critical)"><use href="#i-error"/></svg>Couldn't check</span>· —/100 <button class="btn" type="button">Try again</button></div></div></div>
+    <div class="tile"><div class="art"></div><div class="body"><div class="skel" style="height:14px;width:70%"></div><div class="meta" style="margin-top:8px"><span class="badge quiet" style="padding:0"><svg class="ic spin" style="color:var(--text-secondary)"><use href="#i-spin"/></svg>Checking…</span></div></div></div>
+  </div>
+  <div class="grid today">
+    <div class="tile glow" style="--g:#1D9E75"><div class="art"><span class="dot" style="background:#1D9E75"><svg><use href="#i-check"/></svg></span></div><div class="body"><div class="name">Teferi</div><div class="meta">100 cards · Active</div></div></div>
+    <div class="tile glow" style="--g:#EF9F27"><div class="art"><span class="dot" style="background:#EF9F27"><svg><use href="#i-check"/></svg></span></div><div class="body"><div class="name">Korvold</div><div class="meta">100 cards · Active</div></div></div>
+    <div class="tile glow" style="--g:#E24B4A"><div class="art"><span class="dot" style="background:#E24B4A"><svg><use href="#i-check"/></svg></span></div><div class="body"><div class="name">Prosper</div><div class="meta">82 cards · Active</div></div></div>
+    <div class="tile"><div class="art"><span class="dot" style="background:#8F51D5"><svg><use href="#i-flask"/></svg></span></div><div class="body"><div class="name">Atraxa (check failed)</div><div class="meta">Inactive</div></div></div>
+  </div>
+  <p class="note today" style="margin-top:12px">Today all three readiness dots use the same tick icon, so only the colour tells them apart (switch on greyscale to see it). When the check fails, the dot turns green ("ready").</p>
+</section>
+
+<!-- 3. Deck list rows -->
+<section>
+  <h2>3 · A deck's card list</h2>
+  <p class="note">Cards are grouped into Sleeved and Unsleeved. Badges in the Sleeved group only need to say Original or Proxy (Question 1). Only Foil and Etched get a finish tag; normal cards have none (Question 5). An unknown price shows a dash, never $0.00.</p>
+  <div class="agreed">
+    <div class="grouph">Sleeved (3)</div>
+    <div class="row"><span>Sol Ring</span><span><span class="badge filled" style="--c:var(--status-proxy)"><svg class="ic"><use href="#i-mask"/></svg>Proxy</span></span><span></span><span class="price">$1.20</span></div>
+    <div class="row"><span>Rhystic Study <span class="tag"><svg><use href="#i-sparkle"/></svg>Foil</span></span><span><span class="badge filled quiet" style="--c:transparent"><svg class="ic" style="color:var(--text-secondary)"><use href="#i-check"/></svg>Original</span></span><span></span><span class="price">$48.90</span></div>
+    <div class="row"><span>Arcane Signet <span class="tag"><svg><use href="#i-texture"/></svg>Etched</span></span><span><span class="badge filled quiet" style="--c:transparent"><svg class="ic" style="color:var(--text-secondary)"><use href="#i-check"/></svg>Original</span></span><span></span><span class="price" title="Price unknown" aria-label="Price unknown">—</span></div>
+    <div class="grouph">Unsleeved (4)</div>
+    <div class="row"><span>Cyclonic Rift</span><span><button type="button" class="badge outline" style="--c:var(--text-secondary)"><svg class="ic" style="color:var(--text-primary)"><use href="#i-ring"/></svg>Available</button></span><span></span><span class="price">$31.00</span></div>
+    <div class="row"><span>Smothering Tithe</span><span><button type="button" class="badge outline" style="--c:var(--signal-warning)" aria-label="Unavailable, in Korvold"><svg class="ic"><use href="#i-lock"/></svg>Unavailable · In Korvold</button></span><span></span><span class="price">$14.50</span></div>
+    <div class="row"><span>Mystic Remora</span><span><button type="button" class="badge outline" style="--c:var(--status-proxy)"><svg class="ic"><use href="#i-mask-o"/></svg>Proxy available</button></span><span></span><span class="price">$3.10</span></div>
+    <div class="row"><span>Jeweled Lotus</span><span><button type="button" class="badge outline" style="--c:var(--status-unowned)"><svg class="ic"><use href="#i-dnd"/></svg>Unowned</button></span><span></span><span class="price">$72.00</span></div>
+    <p class="note" style="margin:10px 0 0">Total: $171.70 · 1 card unpriced</p>
+  </div>
+  <div class="today">
+    <div class="grouph">Planned · In decks</div>
+    <div class="row"><span>Smothering Tithe</span><span><span class="badge" style="background:rgba(245,136,11,.2);color:#F5880B">Planned · In decks</span></span><span></span><span class="price">$14.50</span></div>
+    <div class="grouph">Planned · Available</div>
+    <div class="row"><span>Cyclonic Rift (status still loading)</span><span><span class="badge" style="border:1px dashed #9C9CA3;color:#9C9CA3">Planned · Available</span></span><span></span><span class="price">$31.00</span></div>
+    <div class="row"><span>Arcane Signet (etched) · Foil</span><span><span class="badge" style="background:rgba(29,158,117,.2);color:#1D9E75">✓ Original</span></span><span></span><span class="price">$0.00</span></div>
+    <p class="note" style="margin:10px 0 0">Today a card still loading is shown as "Available", an etched card is labelled "Foil", and an unknown price counts as $0 in the deck total.</p>
+  </div>
+</section>
+
+<!-- 4. Loading, empty, error -->
+<section>
+  <h2>4 · Checking, couldn't check, out of date, and empty</h2>
+  <p class="note">If the app hasn't finished checking, it says so. If a check fails, it says that and never guesses "Unowned", "Available", "Playable" or an empty list.</p>
+  <div class="cols2">
+    <div>
+      <p class="label">First load: placeholders shaped like the content</p>
+      <div class="row"><div class="skel" style="height:12px;width:60%"></div><div class="skel" style="height:22px;width:110px;border-radius:999px"></div><span></span><div class="skel" style="height:12px;width:40px;margin-left:auto"></div></div>
+      <div class="row"><div class="skel" style="height:12px;width:45%"></div><div class="skel" style="height:22px;width:90px;border-radius:999px"></div><span></span><div class="skel" style="height:12px;width:40px;margin-left:auto"></div></div>
+      <p class="label" style="margin-top:16px">Names loaded, badge still checking</p>
+      <div class="row"><span>Sol Ring</span><span><span class="badge quiet"><svg class="ic spin" style="color:var(--text-secondary)"><use href="#i-spin"/></svg>Checking…</span></span><span></span><span class="price">$1.20</span></div>
+      <p class="label" style="margin-top:16px">A button you pressed: spinner only inside that button</p>
+      <button class="btn" type="button" disabled style="opacity:.8"><svg class="spin" width="12" height="12" style="vertical-align:-1px"><use href="#i-spin"/></svg> Sleeving…</button>
+    </div>
+    <div>
+      <p class="label">One card couldn't be checked</p>
+      <div class="row" style="grid-template-columns:1fr auto"><span>Sol Ring</span><span><span class="badge outline" style="--c:var(--border)" title="We couldn't check your copies of Sol Ring. Nothing has changed."><svg class="ic" style="color:var(--signal-critical)"><use href="#i-error"/></svg>Couldn't check</span> <button class="btn" type="button">Try again</button></span></div>
+      <p class="label" style="margin-top:16px">A whole section couldn't be checked</p>
+      <div class="notice"><svg style="color:var(--signal-critical)"><use href="#i-error"/></svg><div>Couldn't check availability for this deck. Your cards and sleeves haven't changed.<div style="margin-top:8px"><button class="btn" type="button">Try again</button></div></div></div>
+      <p class="label" style="margin-top:16px">Out of date (a refresh failed; the older results stay on screen)</p>
+      <div class="notice"><svg style="color:var(--signal-warning)"><use href="#i-history"/></svg><div>Couldn't refresh — showing results from 10:42. <button class="btn" type="button">Try again</button></div></div>
+      <p class="label" style="margin-top:16px">Empty (only after a successful check)</p>
+      <div class="notice"><svg style="color:var(--text-secondary)"><use href="#i-checkc"/></svg><div>Nothing left to pull — every card in Prosper is sleeved.</div></div>
+      <p class="label" style="margin-top:16px">Unknown (no information, not trying)</p>
+      <span class="badge quiet"><svg class="ic" style="color:var(--text-secondary)"><use href="#i-help"/></svg>Unknown</span>
+    </div>
+  </div>
+</section>
+
+<!-- 5. Finish and price -->
+<section>
+  <h2>5 · Finish and price</h2>
+  <table>
+    <thead><tr><th style="width:230px">Shown as</th><th>Meaning</th><th>Where</th></tr></thead>
+    <tbody>
+      <tr><td><span style="color:var(--text-tertiary)">(nothing)</span> / Nonfoil</td><td class="mean">A normal card.</td><td class="mean">No tag in busy lists; the word "Nonfoil" in detail panels and finish columns.</td></tr>
+      <tr><td><span class="tag"><svg><use href="#i-sparkle"/></svg>Foil</span></td><td class="mean">Foil finish.</td><td class="mean">Everywhere.</td></tr>
+      <tr><td><span class="tag"><svg><use href="#i-texture"/></svg>Etched</span></td><td class="mean">Etched foil. Never labelled "Foil".</td><td class="mean">Everywhere.</td></tr>
+      <tr><td>$12.40</td><td class="mean">The Scryfall price for that printing and finish.</td><td class="mean">Rows, collection, hover preview.</td></tr>
+      <tr><td>— <span style="color:var(--text-tertiary)">/ Price unknown</span></td><td class="mean">Scryfall has no price. Never $0.00.</td><td class="mean">A dash in columns; the words in details.</td></tr>
+      <tr><td>$412.50 · 3 cards unpriced</td><td class="mean">A total that leaves out cards with no price, and says how many.</td><td class="mean">Deck header, collection value.</td></tr>
+      <tr><td>est. $12.40</td><td class="mean">An estimated price to buy a card.</td><td class="mean">Advisor only.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 6. Retired words -->
+<section>
+  <h2>6 · Words leaving the app</h2>
+  <table>
+    <thead><tr><th>Old word</th><th>Becomes</th></tr></thead>
+    <tbody>
+      <tr><td class="strike">Planned</td><td>Unsleeved (plus the best option: Available, Alt available …)</td></tr>
+      <tr><td class="strike">Claimed · Claim · Already claimed · In decks</td><td>Unavailable · In Korvold; the button reads "Move from Korvold"</td></tr>
+      <tr><td class="strike">Reassign</td><td>Move to [deck]</td></tr>
+      <tr><td class="strike">Considering</td><td>Never added. Use Unsleeved, or the Maybeboard.</td></tr>
+      <tr><td class="strike">Brewing (as a deck state)</td><td>Draft or Assembling. "Brew" stays as the name of the brewing tool.</td></tr>
+      <tr><td class="strike">Active / Inactive</td><td>Draft · Assembling · Playable (worked out by the app)</td></tr>
+      <tr><td class="strike">Green / amber / red deck dot</td><td>The deck state's icon, word and count</td></tr>
+      <tr><td class="strike">Missing</td><td>Removed</td></tr>
+      <tr><td class="strike">Graveyard (as a deck state)</td><td>Removed. The game's graveyard is unaffected.</td></tr>
+      <tr><td class="strike">Card Kingdom</td><td>Removed. Prices come from Scryfall only.</td></tr>
+      <tr><td class="strike">Not owned · Alternate · Built / Theorycrafted · Over-allocated · Add proxy</td><td>Unowned · Alt available · Sleeved / Unsleeved · Short · Proxy</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>7 · Questions for you</h2>
+  <div class="q"><b>1. Should a sleeved card's badge just say Original or Proxy?</b>Recommended: yes. The solid badge and the "Sleeved" heading already show it's in the deck (see section 3).</div>
+  <div class="q"><b>2. Until the app can work out Draft, Assembling and Playable, should deck tiles drop Active/Inactive and just show "87/100 sleeved"?</b>Recommended: yes. Later, Playable decks sort first, then Assembling, then Draft.</div>
+  <div class="q"><b>3. Should Playable stay calm (a white tick, no colour)?</b>Recommended: yes. Colour is saved for things you need to act on.</div>
+  <div class="q"><b>4. Does the teal Proxy colour ever look like a blue card?</b>Recommended: keep teal, always with the mask icon. If it blurs, make proxies grey with the mask icon instead.</div>
+  <div class="q"><b>5. Should normal cards show no finish tag in busy lists?</b>Recommended: yes. Only Foil and Etched are tagged.</div>
+  <div class="q"><b>6. Should the collection say "Short 2" (like Reconcile) instead of "Over-allocated"?</b>Recommended: yes.</div>
+</section>
+
+</main>
+<script>
+  const a=document.getElementById('b-agreed'), t=document.getElementById('b-today');
+  function set(today){document.body.classList.toggle('show-today',today);a.setAttribute('aria-pressed',!today);t.setAttribute('aria-pressed',today);}
+  a.onclick=()=>set(false); t.onclick=()=>set(true);
+  document.getElementById('greyChk').onchange=e=>document.body.classList.toggle('grey',e.target.checked);
+</script>
+</body>
+</html>

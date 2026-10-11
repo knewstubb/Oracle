@@ -33,8 +33,8 @@ Plan: vocabulary spec and mockup first (owner review), then fix batches per scre
 
 | ID | Task | Owner role | Depends on | Status |
 |---|---|---|---|---|
-| T-25 | One agreed vocabulary spec and mockup: words, colours, badges for every card/deck fact; retired words; inventory of where the app still uses old words, grouped into fix batches | Designer | — | IN PROGRESS — started 2026-10-12 (agent t25-vocabulary-spec); owner reviews before any screen changes |
-| T-26 | Shared status badges, rows, filters and loading/empty/error states, built per the approved vocabulary | Designer spec, then Developer | T-25 approved | TODO |
+| T-25 | One agreed vocabulary spec and mockup: words, colours, badges for every card/deck fact; retired words; inventory of where the app still uses old words, grouped into fix batches | Designer | — | DONE — owner approved 2026-10-12 (D-043); spec in docs/oracle/specs/vocabulary.md; fix batches V0–V12 in its §10 |
+| T-26 | Shared status badges, rows, filters and loading/empty/error states, built per the approved vocabulary (= batch V0, then V2–V12) | Developer | T-25 approved | TODO — next: V0 first |
 
 ## Phase 2 — Card facts (BUILT 2026-10-11; waiting on owner's checklist lines C-01 to C-07, started 2026-10-11)
 Plan: audit first (read-only), then fix in small disjoint batches. Fix tasks are added after the audit.

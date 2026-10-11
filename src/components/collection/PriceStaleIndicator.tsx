@@ -29,14 +29,22 @@ export function PriceStaleIndicator({
     setIsRefreshing(true)
     setRefreshResult(null)
     try {
-      const res = await fetch('/api/collection/prices/refresh', { method: 'POST' })
+      const res = await fetch('/api/collection/refresh-prices', { method: 'POST' })
+      if (!res.ok) {
+        setRefreshResult('Could not refresh prices. Please try again.')
+        return
+      }
       const data = await res.json()
-      if (data.success) {
+      if (data.total === 0) {
+        setRefreshResult('No owned cards to price yet.')
+      } else if (data.failed > 0) {
         setRefreshResult(
-          `Prices updated — ${data.entriesProcessed.toLocaleString()} entries loaded. Reload the page to see prices.`
+          `Updated ${data.updated.toLocaleString()} of ${data.total.toLocaleString()} prices — ${data.failed.toLocaleString()} could not be priced.`
         )
       } else {
-        setRefreshResult(data.error || 'Failed to refresh prices.')
+        setRefreshResult(
+          `Prices updated — ${data.updated.toLocaleString()} Scryfall estimates refreshed.`
+        )
       }
     } catch {
       setRefreshResult('Network error — could not refresh prices.')

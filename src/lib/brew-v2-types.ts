@@ -133,7 +133,6 @@ export interface DeckCard {
   type_line: string
   oracle_text: string
   edhrec_inclusion?: number
-  price_ck?: number
   /** When true, this slot is a generic land — outside the ownership system */
   is_generic_land?: boolean
   /** References card_definitions.id for generic land slots */

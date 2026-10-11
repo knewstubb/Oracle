@@ -12,7 +12,6 @@ const baseCard: DeckCard = {
   type_line: 'Creature — Frog',
   oracle_text: 'Sacrifice Spore Frog: Prevent all combat damage that would be dealt this turn.',
   edhrec_inclusion: 42,
-  price_ck: 1.49,
 }
 
 describe('CardTooltip', () => {
@@ -68,14 +67,8 @@ describe('CardTooltip', () => {
     expect(screen.queryByText(/EDHREC/)).not.toBeInTheDocument()
   })
 
-  it('renders price when available', () => {
+  it('never renders a Card Kingdom price line (D-040)', () => {
     render(<CardTooltip card={baseCard} visible={true} />)
-    expect(screen.getByText('$1.49')).toBeInTheDocument()
-  })
-
-  it('does not render price line when not available', () => {
-    const noPrice: DeckCard = { ...baseCard, price_ck: undefined }
-    render(<CardTooltip card={noPrice} visible={true} />)
     expect(screen.queryByText(/\$/)).not.toBeInTheDocument()
   })
 

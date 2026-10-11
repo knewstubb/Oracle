@@ -157,11 +157,12 @@ export function TopNav() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-48">
                   {toolsMenuItems.map((item) => (
-                    <DropdownMenuItem key={item.href} asChild>
-                      <Link href={item.href} className="flex items-center gap-2">
-                        {item.icon && <MaterialIcon name={item.icon} />}
-                        {item.label}
-                      </Link>
+                    <DropdownMenuItem
+                      key={item.href}
+                      render={<Link href={item.href} className="flex items-center gap-2" />}
+                    >
+                      {item.icon && <MaterialIcon name={item.icon} />}
+                      {item.label}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
@@ -252,11 +253,9 @@ export function TopNav() {
                 U
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem asChild>
-                  <Link href="/settings" className="flex items-center gap-2">
-                    <Settings className="w-4 h-4" />
-                    Settings
-                  </Link>
+                <DropdownMenuItem render={<Link href="/settings" className="flex items-center gap-2" />}>
+                  <Settings className="w-4 h-4" />
+                  Settings
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => logout()}

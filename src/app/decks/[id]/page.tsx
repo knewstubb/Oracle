@@ -355,6 +355,7 @@ export default function DeckViewPage() {
       {/* Health Strip — bottom of page */}
       <HealthStrip
         deckId={deck.id}
+        onPillClick={handlePillClick}
       />
       </div>{/* end content wrapper (z-10) */}
     </div>

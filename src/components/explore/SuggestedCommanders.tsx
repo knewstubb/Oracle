@@ -1,11 +1,12 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Crown, Sparkles } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { CardImage } from '@/components/CardImage'
+import { getCardInfo } from '@/components/CardHoverPreview'
 import { ColourPips } from '@/components/ColourPips'
 import { cn } from '@/lib/utils'
 
@@ -110,6 +111,17 @@ interface CommanderSuggestionCardProps {
 }
 
 function CommanderSuggestionCard({ commander, onCommit }: CommanderSuggestionCardProps) {
+  const [scryfallId, setScryfallId] = useState<string | null>(null)
+
+  // Resolve the printing id by name so CardImage can render the card art.
+  useEffect(() => {
+    let cancelled = false
+    getCardInfo(commander.name).then((info) => {
+      if (!cancelled) setScryfallId(info.scryfallId)
+    })
+    return () => { cancelled = true }
+  }, [commander.name])
+
   return (
     <div
       className={cn(
@@ -121,7 +133,8 @@ function CommanderSuggestionCard({ commander, onCommit }: CommanderSuggestionCar
       {/* Card Image */}
       <div className="shrink-0 w-[60px] h-[84px] rounded overflow-hidden bg-zinc-800">
         <CardImage
-          cardName={commander.name}
+          scryfallId={scryfallId}
+          alt={commander.name}
           className="w-full h-full object-cover"
         />
       </div>

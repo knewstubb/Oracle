@@ -315,6 +315,7 @@ export type Database = {
           placement_source: string | null
           proxy_of_deck_id: number | null
           quantity: number | null
+          requested_finish: string | null
           scryfall_id: string | null
           set_code: string | null
           tags: string | null
@@ -333,6 +334,7 @@ export type Database = {
           placement_source?: string | null
           proxy_of_deck_id?: number | null
           quantity?: number | null
+          requested_finish?: string | null
           scryfall_id?: string | null
           set_code?: string | null
           tags?: string | null
@@ -351,6 +353,7 @@ export type Database = {
           placement_source?: string | null
           proxy_of_deck_id?: number | null
           quantity?: number | null
+          requested_finish?: string | null
           scryfall_id?: string | null
           set_code?: string | null
           tags?: string | null

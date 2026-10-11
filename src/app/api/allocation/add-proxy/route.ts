@@ -11,9 +11,11 @@
  * The proxy is created with:
  * - is_proxy = true
  * - source_tag = 'manual'
- * - printing_id = defaulted from oracle_to_printings (first available)
+ * - printing_id = the printing the deck slot asks for (deck_cards.scryfall_id);
+ *   the newest printing of the card is used only when the slot names none (D-038)
+ * - finish = the finish the slot asks for (deck_cards.requested_finish), or
+ *   'nonfoil' when the slot names none (D-041)
  * - location_id = null (goes straight to the deck, not storage)
- * - finish = 'nonfoil'
  */
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'

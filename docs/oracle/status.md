@@ -5,6 +5,28 @@ Read `docs/oracle/roadmap.md` first. Only tasks in the **current milestone** may
 
 **Owner note (2026-09-25):** Until Oracle reaches MVP, live data can be easily replaced. Migrations do not need to be overly cautious; clean-slate or drop-and-rebuild approaches are acceptable with owner approval.
 
+## Roadmap change 2026-10-11 — foundation-first phases
+
+The owner replaced milestones M1–M5 with ten phases (see roadmap.md). **Phase 1 — Safety net is CURRENT.** Everything in the M2 and quality-pass sections below is paused until its phase. Mapping:
+- Phase 1: T-39, T-40–T-45.
+- Phase 3: T-25, T-26.
+- Phase 4: T-27, T-38.
+- Phase 6/7: T-28.
+- Phase 7: T-29, T-30, T-37.
+- Phase 8: T-14–T-19, T-36.
+- Phase 9: T-06–T-09.
+
+### Phase 1 — Safety net (CURRENT)
+| ID | Task | Owner role | Depends on | Status |
+|---|---|---|---|---|
+| T-39 | Fix the randomly failing deck-list completeness property test | Developer | — | REVIEW — agent aee61e96 DONE; Gene re-verified 20/20 passes and clean lint on 2026-10-11; awaiting owner merge approval |
+| T-40 | Triage every failing check: 134 failing unit tests in 34 files, 141 type errors, 270 lint errors and the failing scheduled jobs (Sync Commanders, Shared Read-only Smoke, e2e). Classify each as an out-of-date check, a real app bug (name its phase), or belonging to paused work. Confirm no test writes to real data. Propose fix batches that share no files | Tester (read-only) | — | TODO |
+| T-41 | Fix out-of-date checks batch by batch per T-40; real app bugs go to their phase, not fixed here | Developer | T-40 | TODO |
+| T-42 | Fix the type errors, then stop the build ignoring them (`ignoreBuildErrors`) | Developer | T-40 | TODO |
+| T-43 | Run unit tests, type checking and lint automatically on every push to main | Developer | T-41, T-42 | TODO |
+| T-44 | Recovery plan: what a full backup must cover (copies, storage locations, deck assignments, history), what the hosted database already provides, and a restore test proposal | Architect (read-only) | — | TODO — needs owner decision on the plan |
+| T-45 | Bring the online copy (origin/main, last updated 2026-09-28; local main is 24+ commits ahead) and the live app up to date with main | Gene → Owner | Owner approval to push; confirm what the live app deploys from | TODO — owner gate |
+
 ## M1 — Trustworthy data (COMPLETE — migrations deployed 2026-09-26)
 | ID | Task | Owner role | Depends on | Status |
 |---|---|---|---|---|
@@ -21,7 +43,7 @@ Read `docs/oracle/roadmap.md` first. Only tasks in the **current milestone** may
 | T-20 | Update deck importer to import Archidekt maybeboard and sideboard cards into Oracle's maybeboard relation | Backend | T-13, D-018 | DONE — migration deployed 2026-09-26 |
 | T-21 | Update deck importer to assign copies only when the exact printing (`scryfall_id`) is owned; otherwise leave the slot unassigned | Backend | T-13, T-20, D-021 | DONE — migration deployed 2026-09-26 |
 
-## M2 — AI advisor v0 (CURRENT)
+## M2 — AI advisor v0 (PAUSED 2026-10-11 — now Phase 8; see mapping above)
 | ID | Task | Owner role | Depends on | Status |
 |---|---|---|---|---|
 | T-14 | Audit existing AI code (`src/app/api/brew/*`, `src/app/api/ai/brew/*`, `src/app/api/decks/[id]/chat`, `src/lib/tool-registry.ts`, `src/lib/adapters/*`): what data can the AI see today, and where is D-016 violated | Architect (read-only) | T-01 | DONE |
@@ -59,7 +81,7 @@ Added by the 2026-09-29 state-of-the-nation review. The owner subsequently appro
 | T-26 | Specify reuse of status badges, pick-list/card rows, primary actions/menus, filters, scoped spinners and correctly shaped loading skeletons | UX/UI | T-25 approved | TODO — U2 and P3 direction approved |
 | T-27 | Investigate Collection, deck list/detail, pick-list assembly and reconciliation loading; design bounded improvements while preserving correct copy locations and post-transfer refresh | Architect | P1-P3 approved; verified measurement environment before runtime timings | REVIEW — Astra agent 43a8b166 returned loading-solutions architecture DONE; three bounded Collection changes and safe measurement proposal; runtime baseline remains BLOCKED; F1/F2/B1 delivered via T-32/T-33 (merged 863d4b3); baseline/solutions docs saved to main 2026-10-10 (workspace archived); pick-list location findings and safe measurement remain open |
 | T-28 | Contract approved readiness, supply, movement, Proxy, Maybeboard release, generic-land coverage and original-copy shortages including proxy-filled slots; identify the safe Missing transition | Architect | D-002, D-005, D-025–D-033 | REVIEW — Astra successor bb0c8bd5 returned bounded revisions complete, acceptance PARTIAL; revised types and 127 reference assertions reported; product, Maybeboard-representation and integration gates remain; 2026-10-10: owner answered Q1 (all decks count, no retired concept: D-029/D-037), G-M3 (D-038), G-D2/G-D3 (D-039); later the same day G-D1 (no transition needed, owner will reimport: D-028) and G-O1 (Casual counts as a complete list: D-002) |
-| T-29 | Spec original-copy shortages and actual proxy usage across decks, accounting for owned original supply and without affecting readiness or assignments | UX/UI | T-28 (for this scope, D-027/D-037 supply the rules) | IN PROGRESS — Designer agent 37d94a68 (Copilot Claude Opus 5.5), worktree task-t29-reconcile-shortage-spec; spec/mockup needs owner approval. O-009 answered; scope approved, spec not started; 2026-10-10: D-037 makes the Reconcile page this view, so the spec now covers the existing Reconcile page |
+| T-29 | Spec original-copy shortages and actual proxy usage across decks, accounting for owned original supply and without affecting readiness or assignments | UX/UI | T-28 (for this scope, D-027/D-037 supply the rules) | REVIEW — Designer agent 37d94a68 DONE (spec, mockup and a current-state card-management overview, all in worktree task-t29-reconcile-shortage-spec); owner review when Phase 7 starts. O-009 answered; scope approved, spec not started; 2026-10-10: D-037 makes the Reconcile page this view, so the spec now covers the existing Reconcile page |
 | T-30 | Spec generic basics as automatically Sleeved, with quantity controls and no outstanding pulls; retain normal assignment controls for tracked basics | UX/UI | T-28; D-032 | TODO — revised U1 behaviour approved; mockup still needs approval |
 
 ### First implementation batch — isolated work, review before merge
@@ -78,14 +100,13 @@ Added by the 2026-09-29 state-of-the-nation review. The owner subsequently appro
 
 **Final correction review (2026-09-29, after owner "Continue"):** all three scoped implementations are now coordinator-accepted and await owner merge approval. The original reproduced failures pass, and additional same-agent test-only follow-ups made Collection regression coverage permanent and corrected a false-positive pagination setup. No new type/lint diagnostics were introduced; the existing baseline remains red. No main-source merge, commit, deployment or live timing measurement occurred. See [final acceptance and merge recommendation](reports/2026-09-29-orchestrator-first-batch-acceptance.md).
 
-### Owner answers 2026-10-10: follow-up tasks (T-29, T-36, T-38, T-39 started 2026-10-10 on owner instruction "start the tasks")
+### Owner answers 2026-10-10: follow-up tasks (T-29, T-36, T-38, T-39 started 2026-10-10; all returned DONE; T-39 now listed under Phase 1)
 
 | ID | Task | Owner role | Depends on | Status |
 |---|---|---|---|---|
-| T-36 | Revise the T-15 advisor contract for D-034 (direct apply, undo for every AI change with `source = 'ai'`), D-035 (Scryfall estimate prices) and D-036 (advisor defaults), and reconcile its shared interface with the T-28 card-state contract | Architect | T-15, T-28 owner answers (D-037–D-039) | IN PROGRESS — Architect agent bed535bb (Kimi K2.7 Code), worktree task-t36-advisor-contract-revision |
+| T-36 | Revise the T-15 advisor contract for D-034 (direct apply, undo for every AI change with `source = 'ai'`), D-035 (Scryfall estimate prices) and D-036 (advisor defaults), and reconcile its shared interface with the T-28 card-state contract | Architect | T-15, T-28 owner answers (D-037–D-039) | REVIEW — agent bed535bb DONE; review paused with Phase 8 |
 | T-37 | Change the Reconcile overuse calculation to D-037: original copies are the only supply, every main-deck slot (including Sleeved-proxy slots) counts as demand, cards with no original owned appear, card-level matching, all decks count, generic basics excluded | Developer | T-29 approved (owner answers on no-original cards and matching received 2026-10-10) | TODO — waits on T-29 spec approval |
-| T-38 | Remove Missing (D-028) and legacy Graveyard/retired labels (D-029) from screens and filters; existing Missing-marked copies may behave as ordinary owned copies (owner will reimport); no migration | Developer | Owner answer 2026-10-10 (D-028) | IN PROGRESS — Developer agent e43f82dd (DeepSeek V4.1 Flash), worktree task-t38-remove-missing-graveyard |
-| T-39 | Fix the randomly failing deck-list completeness property test (set code `**` mistaken for the bold Total row; see I-01 report) | Developer | — | IN PROGRESS — Developer agent aee61e96 (DeepSeek V4.1 Flash), worktree task-t39-flaky-deck-list-test |
+| T-38 | Remove Missing (D-028) and legacy Graveyard/retired labels (D-029) from screens and filters; existing Missing-marked copies may behave as ordinary owned copies (owner will reimport); no migration | Developer | Owner answer 2026-10-10 (D-028) | REVIEW — agent e43f82dd DONE; Gene re-verified 2026-10-11: same 34 failing test files as main (no new failures), type errors 141→139, lint 588→581; Break down had no on-screen caller before this change (StatusControl unused), so nothing visible is lost; Missing-flagged copies now show as available but `assign_physical_copy` still refuses them until reimport; awaiting owner merge approval (Phase 4 work finished early) |
 
 ### Owner-requested portfolio review
 
@@ -109,6 +130,7 @@ Added by the 2026-09-29 state-of-the-nation review. The owner subsequently appro
 - O-007 Integration readiness — the 2026-09-29 review found collection status filters are not connected to the displayed results, status lookup failures can become "Unowned", and existing component expectations disagree with current wording/defaults. Type checking also fails in application code, while builds are configured to ignore type errors. Triage alongside T-25–T-27 before broad component replacement; do not weaken checks or silently change behaviour. See the state-of-the-nation report.
 - O-008 Missing retirement and basic-land transition — existing excluded-copy handling remains unapproved: do not delete records or automatically restore eligibility. Generic basics are now explicitly approved to count as Sleeved without physical assignment (D-032); stop requesting manual confirmation for them. Preserve actual owned copies when designing any conversion between tracked and generic lands. **2026-10-10:** owner re-confirmed removal of Missing for now (T-38) and said existing data does not matter because he will reimport (D-028); no data conversion is needed.
 - O-009 RESOLVED (2026-09-29) — the list identifies original-copy shortfalls and proxy usage to inform buying additional originals, not assembly coverage. One original plus one proxy for two deck requirements remains an original shortfall of one. Include Sleeved proxy slots, not just Unsleeved requests; proxies never reduce original demand. T-29 is unblocked for specification after T-28.
+- O-010 Break down has no on-screen button: the breakdown route exists but its only caller (StatusControl) is not mounted anywhere. The card-management overview §5.4 describes it as available. Phase 7.
 - O-001 Moxfield import — routes exist under `src/app/api/onboarding/moxfield/`; confirm status in M5
 - O-002 Multi-user scale validation — M5
 - O-003 Mana curve slider — candidate for M2/M3 advisor feature, not specced

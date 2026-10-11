@@ -212,6 +212,152 @@ export async function getCardPrinting(cardName: string): Promise<PrintingData | 
 }
 
 /**
+ * Get a single printing by its exact `scryfall_id` (a printing id, never an
+ * oracle id — D-003). Returns null if the printing is not in ref_printings.
+ */
+export async function getPrintingById(printingId: string): Promise<PrintingData | null> {
+  if (!printingId) return null
+
+  const supabase = createAdminClient()
+
+  const selectFields = 'scryfall_id, oracle_id, name, set_code, set_name, collector_number, rarity, mana_cost, type_line, color_identity, price_usd, image_uri_small, image_uri_normal, image_uri_large, image_uri_art_crop, released_at'
+
+  const { data, error } = await supabase
+    .from('ref_printings')
+    .select(selectFields)
+    .eq('scryfall_id', printingId)
+    .maybeSingle()
+
+  if (error || !data) return null
+
+  return data as PrintingData
+}
+
+/**
+ * Pick the printing to record on a deck slot from the printings the owner
+ * already owns. Prefers the most recently released owned printing so the
+ * choice is stable across calls; ties break on the printing id. Returns null
+ * when the owner owns none (the caller then falls back to a default by name).
+ *
+ * Pure function — no database access — so it is easy to unit test.
+ */
+export function selectPreferredOwnedPrinting(
+  ownedPrintings: Array<{ scryfall_id: string; released_at?: string | null }>
+): string | null {
+  const valid = ownedPrintings.filter(p => Boolean(p.scryfall_id))
+  if (valid.length === 0) return null
+
+  const sorted = [...valid].sort((a, b) => {
+    const aReleased = a.released_at ?? ''
+    const bReleased = b.released_at ?? ''
+    if (aReleased !== bReleased) return aReleased < bReleased ? 1 : -1
+    if (a.scryfall_id === b.scryfall_id) return 0
+    return a.scryfall_id < b.scryfall_id ? -1 : 1
+  })
+
+  return sorted[0].scryfall_id
+}
+
+/**
+ * Resolve, for each card name, the printing the owner already owns (if any).
+ *
+ * This is the "printing the owner already owns" preference for adding a card
+ * to a deck by hand or in a batch. It returns printing ids (`scryfall_id`),
+ * never oracle ids (D-003), and omits a name when the owner owns no copy with
+ * a known printing. Callers fall back to the default printing by name.
+ */
+export async function getOwnedPrintingsByNames(
+  cardNames: string[],
+  userId: string
+): Promise<Map<string, string>> {
+  const result = new Map<string, string>()
+  const uniqueNames = [...new Set(cardNames.map(name => name?.trim()).filter(Boolean) as string[])]
+  if (uniqueNames.length === 0) return result
+
+  const supabase = createAdminClient()
+
+  // Step 1: resolve card names → user_cards row ids.
+  const { data: userCards, error: cardError } = await supabase
+    .from('user_cards')
+    .select('id, card_name')
+    .eq('user_id', userId)
+    .in('card_name', uniqueNames)
+
+  if (cardError || !userCards || userCards.length === 0) return result
+
+  // A name can map to more than one user_cards row; keep them grouped.
+  const nameToCardIds = new Map<string, number[]>()
+  for (const row of userCards) {
+    const existing = nameToCardIds.get(row.card_name) ?? []
+    existing.push(row.id)
+    nameToCardIds.set(row.card_name, existing)
+  }
+
+  const cardIds = userCards.map(row => row.id)
+  if (cardIds.length === 0) return result
+
+  // Step 2: find owned original copies that name a specific printing.
+  // Proxies are excluded: a proxy's printing is a stand-in, not a printing
+  // the owner actually owns.
+  const { data: copies, error: copiesError } = await supabase
+    .from('user_copies')
+    .select('card_id, printing_id')
+    .eq('user_id', userId)
+    .eq('is_proxy', false)
+    .in('card_id', cardIds)
+    .not('printing_id', 'is', null)
+
+  if (copiesError || !copies || copies.length === 0) return result
+
+  // Step 3: enrich the owned printing ids with release dates where known.
+  const printingIds = [...new Set(
+    copies.map(copy => copy.printing_id).filter((id): id is string => Boolean(id))
+  )]
+
+  const releasedAtByPrinting = new Map<string, string | null>()
+  if (printingIds.length > 0) {
+    const { data: printings } = await supabase
+      .from('ref_printings')
+      .select('scryfall_id, released_at')
+      .in('scryfall_id', printingIds)
+
+    for (const printing of printings ?? []) {
+      releasedAtByPrinting.set(printing.scryfall_id, printing.released_at)
+    }
+  }
+
+  const printingsByCardId = new Map<number, Array<{ scryfall_id: string; released_at: string | null }>>()
+  for (const copy of copies) {
+    if (!copy.printing_id) continue
+    const existing = printingsByCardId.get(copy.card_id) ?? []
+    existing.push({
+      scryfall_id: copy.printing_id,
+      released_at: releasedAtByPrinting.get(copy.printing_id) ?? null,
+    })
+    printingsByCardId.set(copy.card_id, existing)
+  }
+
+  for (const [cardName, ids] of nameToCardIds) {
+    const owned = ids.flatMap(id => printingsByCardId.get(id) ?? [])
+    const preferred = selectPreferredOwnedPrinting(owned)
+    if (preferred) result.set(cardName, preferred)
+  }
+
+  return result
+}
+
+/**
+ * Convenience wrapper: the owned printing for a single card name, or null.
+ */
+export async function getOwnedPrintingForCard(
+  cardName: string,
+  userId: string
+): Promise<string | null> {
+  const map = await getOwnedPrintingsByNames([cardName], userId)
+  return map.get(cardName) ?? null
+}
+
+/**
  * Get card data with its most recent printing.
  * Combines ref_cards metadata with ref_printings image/price data.
  */

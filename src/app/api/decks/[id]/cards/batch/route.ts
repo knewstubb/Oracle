@@ -14,6 +14,7 @@
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
+import { getOwnedPrintingsByNames } from '@/lib/card-data'
 import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 
 interface AdditionInput {
@@ -100,33 +101,47 @@ export async function POST(
     }
   }
 
+  // Prefer a printing the owner already owns for every addition in one lookup,
+  // so an AI-added card asks for a printing the owner has rather than an
+  // arbitrary default. Returns printing ids, never oracle ids (D-003).
+  const ownedPrintings = await getOwnedPrintingsByNames(
+    additions.map((addition) => addition.name.trim()),
+    userId
+  )
+
   // Resolve presentation metadata concurrently. The actual insert remains in
   // the single RPC so metadata lookup failure cannot leave a partial delta.
   const resolvedAdditions = await Promise.all(
     additions.map(async (addition) => {
       const name = addition.name.trim()
       const explicitCategory = addition.category?.trim()
+      const ownedPrintingId = ownedPrintings.get(name) ?? null
 
-      const [cardMetaResult, printingResult] = await Promise.all([
-        supabase
-          .from('ref_cards')
-          .select('default_category, type_line')
-          .eq('name', name)
-          .maybeSingle(),
-        supabase
+      const cardMetaResult = await supabase
+        .from('ref_cards')
+        .select('default_category, type_line')
+        .eq('name', name)
+        .maybeSingle()
+
+      if (cardMetaResult.error) {
+        throw new Error(`Failed to resolve ${name}: ${cardMetaResult.error.message}`)
+      }
+
+      // Only resolve the default printing by name when the owner owns none.
+      let defaultPrintingId: string | null = null
+      if (!ownedPrintingId) {
+        const printingResult = await supabase
           .from('ref_printings')
           .select('scryfall_id, type_line')
           .eq('name', name)
           .order('released_at', { ascending: false })
           .limit(1)
-          .maybeSingle(),
-      ])
+          .maybeSingle()
 
-      if (cardMetaResult.error) {
-        throw new Error(`Failed to resolve ${name}: ${cardMetaResult.error.message}`)
-      }
-      if (printingResult.error) {
-        throw new Error(`Failed to resolve printing for ${name}: ${printingResult.error.message}`)
+        if (printingResult.error) {
+          throw new Error(`Failed to resolve printing for ${name}: ${printingResult.error.message}`)
+        }
+        defaultPrintingId = printingResult.data?.scryfall_id ?? null
       }
 
       let categories: string | null = explicitCategory
@@ -144,7 +159,7 @@ export async function POST(
 
       return {
         card_name: name,
-        scryfall_id: printingResult.data?.scryfall_id ?? null,
+        scryfall_id: ownedPrintingId ?? defaultPrintingId,
         set_code: null,
         categories,
         quantity,

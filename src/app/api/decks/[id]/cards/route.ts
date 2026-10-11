@@ -13,6 +13,7 @@
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
+import { getOwnedPrintingsByNames } from '@/lib/card-data'
 import { deriveDefaultCategory } from '@/lib/card-definition-resolver'
 import {
   createVersionSnapshot,
@@ -61,21 +62,29 @@ export async function POST(
     return Response.json({ error: 'Deck not found' }, { status: 404 })
   }
 
-  // Look up card info from Scryfall (for image display and type line)
-  let scryfallId: string | null = null
+  // Prefer a printing the owner already owns (D-003, D-038): a card added by
+  // hand should ask for the printing the owner actually owns, not an arbitrary
+  // default. `getOwnedPrintingsByNames` returns printing ids, never oracle ids.
+  const ownedPrintings = await getOwnedPrintingsByNames([cardName], userId)
+  let scryfallId: string | null = ownedPrintings.get(cardName) ?? null
   let typeLine: string | null = null
-  try {
-    const scryfallRes = await fetch(
-      `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}`,
-      { headers: { 'User-Agent': 'TheOracle/0.1.0' } }
-    )
-    if (scryfallRes.ok) {
-      const scryfallData = await scryfallRes.json()
-      scryfallId = scryfallData.id ?? null
-      typeLine = scryfallData.type_line ?? null
+
+  if (!scryfallId) {
+    // The owner owns no copy with a known printing: fall back to the default
+    // printing by name (Scryfall's exact-name lookup).
+    try {
+      const scryfallRes = await fetch(
+        `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}`,
+        { headers: { 'User-Agent': 'TheOracle/0.1.0' } }
+      )
+      if (scryfallRes.ok) {
+        const scryfallData = await scryfallRes.json()
+        scryfallId = scryfallData.id ?? null
+        typeLine = scryfallData.type_line ?? null
+      }
+    } catch {
+      // Non-critical — card still gets added, just without an image or category
     }
-  } catch {
-    // Non-critical — card still gets added, just without an image or category
   }
 
   // Try to get default_category from ref_cards (global reference table)
@@ -84,7 +93,7 @@ export async function POST(
   if (cardName) {
     const { data: cardMeta } = await supabase
       .from('ref_cards')
-      .select('default_category')
+      .select('default_category, type_line')
       .eq('name', cardName)
       .maybeSingle()
     
@@ -94,6 +103,12 @@ export async function POST(
       if (categoryData?.primary) {
         categories = JSON.stringify([categoryData.primary])
       }
+    }
+
+    // When the owned-printing path skipped the Scryfall lookup, use the
+    // reference type line so category derivation still works.
+    if (!typeLine && cardMeta?.type_line) {
+      typeLine = cardMeta.type_line
     }
   }
   

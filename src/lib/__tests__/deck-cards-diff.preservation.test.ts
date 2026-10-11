@@ -56,8 +56,6 @@ interface IncomingCard {
 // Generators
 // ---------------------------------------------------------------------------
 
-const ARCHIDEKT_DEFAULT_CATEGORIES = '["Creature"]'
-
 /** Generate a non-empty card name */
 const arbCardName = fc.stringMatching(/^[a-z ]{3,20}$/).filter((s) => s.trim().length > 0)
 
@@ -150,7 +148,7 @@ describe('Property 2: Preservation — First-Time Import and Card Removal Behavi
 
           // Verify every incoming card identity appears in toInsert
           const insertedIdentities = new Set(
-            diff.toInsert.map((r: any) => `${r.card_name}|${r.scryfall_id}`)
+            diff.toInsert.map((r) => `${r.card_name}|${r.scryfall_id}`)
           )
           for (const incoming of incomingCards) {
             const key = `${incoming.card_name}|${incoming.scryfall_id}`
@@ -307,7 +305,7 @@ describe('Property 2: Preservation — First-Time Import and Card Removal Behavi
       })
 
     fc.assert(
-      fc.property(arbMultiPrintingScenario, ({ existingRows, incoming, scenario }) => {
+      fc.property(arbMultiPrintingScenario, ({ existingRows, incoming }) => {
         const diff = diffDeckCards(existingRows, incoming)
 
         // Printing A (scryfall_id_a) should be KEPT — it's still in the incoming set

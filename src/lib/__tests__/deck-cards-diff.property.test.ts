@@ -65,7 +65,7 @@ const arbScryfallId = fc.uuid()
 const arbSetCode = fc.stringMatching(/^[a-z0-9]{3,5}$/)
 
 /** Generate a non-default categories value (simulating Oracle edits) */
-const arbEnrichedCategories = fc.constantFrom(
+const arbEnrichedCategories: fc.Arbitrary<string> = fc.constantFrom(
   '["Ramp","Draw"]',
   '["Removal"]',
   '["Finisher","Combo"]',

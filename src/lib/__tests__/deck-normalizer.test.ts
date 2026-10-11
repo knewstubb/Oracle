@@ -190,6 +190,11 @@ const moxfieldFixture: MoxfieldDeckFull = {
           mana_cost: '{G}{W}{U}{B}',
         },
         quantity: 1,
+        boardType: 'mainboard',
+        finish: 'nonfoil',
+        isFoil: false,
+        isAlter: false,
+        isProxy: false,
       },
     },
   },
@@ -208,6 +213,11 @@ const moxfieldFixture: MoxfieldDeckFull = {
           mana_cost: '{W}',
         },
         quantity: 1,
+        boardType: 'mainboard',
+        finish: 'nonfoil',
+        isFoil: false,
+        isAlter: false,
+        isProxy: false,
       },
       'sol-ring-key': {
         card: {
@@ -221,6 +231,11 @@ const moxfieldFixture: MoxfieldDeckFull = {
           mana_cost: '{1}',
         },
         quantity: 1,
+        boardType: 'mainboard',
+        finish: 'nonfoil',
+        isFoil: false,
+        isAlter: false,
+        isProxy: false,
       },
       'command-tower-key': {
         card: {
@@ -234,6 +249,11 @@ const moxfieldFixture: MoxfieldDeckFull = {
           mana_cost: '',
         },
         quantity: 1,
+        boardType: 'mainboard',
+        finish: 'nonfoil',
+        isFoil: false,
+        isAlter: false,
+        isProxy: false,
       },
     },
   },
@@ -252,6 +272,11 @@ const moxfieldFixture: MoxfieldDeckFull = {
           mana_cost: '{W}',
         },
         quantity: 1,
+        boardType: 'mainboard',
+        finish: 'nonfoil',
+        isFoil: false,
+        isAlter: false,
+        isProxy: false,
       },
     },
   },
@@ -270,6 +295,11 @@ const moxfieldFixture: MoxfieldDeckFull = {
           mana_cost: '{2}{U}',
         },
         quantity: 1,
+        boardType: 'mainboard',
+        finish: 'nonfoil',
+        isFoil: false,
+        isAlter: false,
+        isProxy: false,
       },
     },
   },
@@ -465,6 +495,11 @@ describe('Moxfield oracle_id resolution', () => {
               mana_cost: '{1}',
             },
             quantity: 1,
+            boardType: 'mainboard',
+            finish: 'nonfoil',
+            isFoil: false,
+            isAlter: false,
+            isProxy: false,
           },
         },
       },
@@ -501,6 +536,11 @@ describe('Moxfield oracle_id resolution', () => {
               mana_cost: '{2}{G}',
             } as MoxfieldDeckFull['mainboard']['cards'][string]['card'],
             quantity: 1,
+            boardType: 'mainboard',
+            finish: 'nonfoil',
+            isFoil: false,
+            isAlter: false,
+            isProxy: false,
           },
         },
       },
@@ -547,6 +587,11 @@ describe('Moxfield oracle_id resolution', () => {
               mana_cost: '{W}',
             },
             quantity: 1,
+            boardType: 'mainboard',
+            finish: 'nonfoil',
+            isFoil: false,
+            isAlter: false,
+            isProxy: false,
           },
         },
       },
@@ -589,6 +634,11 @@ describe('Moxfield oracle_id resolution', () => {
               mana_cost: '{1}{G}',
             },
             quantity: 1,
+            boardType: 'mainboard',
+            finish: 'nonfoil',
+            isFoil: false,
+            isAlter: false,
+            isProxy: false,
           },
           'broken-key': {
             card: {
@@ -601,6 +651,11 @@ describe('Moxfield oracle_id resolution', () => {
               mana_cost: '{3}{R}',
             } as MoxfieldDeckFull['mainboard']['cards'][string]['card'],
             quantity: 1,
+            boardType: 'mainboard',
+            finish: 'nonfoil',
+            isFoil: false,
+            isAlter: false,
+            isProxy: false,
           },
         },
       },
@@ -685,6 +740,7 @@ describe('groupCardsByType', () => {
       isProxy: false,
       manaCost: '{2}{R}',
       colorIdentity: ['R'],
+      sourceCategories: [],
     }
     const grouped = groupCardsByType([dfcCard])
     expect(grouped.groups.Creature).toHaveLength(1)
@@ -703,6 +759,7 @@ describe('groupCardsByType', () => {
       isProxy: false,
       manaCost: null,
       colorIdentity: [],
+      sourceCategories: [],
     }
     const grouped = groupCardsByType([unknownCard])
     expect(grouped.groups.Other).toHaveLength(1)
@@ -729,6 +786,7 @@ describe('groupCardsByType', () => {
         isProxy: false,
         manaCost: null,
         colorIdentity: [],
+        sourceCategories: [],
       },
       {
         cardName: 'Sol Ring',
@@ -741,6 +799,7 @@ describe('groupCardsByType', () => {
         isProxy: false,
         manaCost: '{1}',
         colorIdentity: [],
+        sourceCategories: [],
       },
     ]
     const grouped = groupCardsByType(cards)
@@ -759,6 +818,7 @@ describe('groupCardsByType', () => {
       isProxy: false,
       manaCost: '{1}{G}{G}',
       colorIdentity: ['G'],
+      sourceCategories: [],
     }
     const grouped = groupCardsByType([card])
     expect(grouped.groups.Creature).toHaveLength(1)
@@ -779,6 +839,7 @@ describe('groupCardsByType', () => {
       isProxy: false,
       manaCost: null,
       colorIdentity: [],
+      sourceCategories: [],
     }
     const grouped = groupCardsByType([card])
     expect(grouped.groups.Artifact).toHaveLength(1)

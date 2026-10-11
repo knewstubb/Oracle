@@ -27,6 +27,7 @@ function makeCard(overrides: Partial<NormalizedCard> = {}): NormalizedCard {
     isProxy: false,
     manaCost: '{1}',
     colorIdentity: [],
+    sourceCategories: [],
     ...overrides,
   }
 }
@@ -62,7 +63,7 @@ describe('resolveCardDefinitions', () => {
     expect(result.size).toBe(2)
 
     // Verify upsert was called with correct rows
-    expect(mockFrom).toHaveBeenCalledWith('cards')
+    expect(mockFrom).toHaveBeenCalledWith('user_cards')
     expect(mockUpsert).toHaveBeenCalledWith(
       [
         { oracle_id: 'oracle-1', card_name: 'Sol Ring', color_identity: '', type_line: 'Artifact', user_id: 'user-123' },

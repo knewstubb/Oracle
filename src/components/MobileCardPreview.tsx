@@ -66,7 +66,7 @@ export function MobileCardPreview({
       >
         <CardImage
           scryfallId={scryfallId ?? undefined}
-          cardName={cardName}
+          alt={cardName}
           width={336}
           height={469}
           className="rounded-xl shadow-2xl"

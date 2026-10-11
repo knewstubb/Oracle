@@ -61,3 +61,9 @@ File overlap check: none between T-38 and T-39. Both branched from 4d7ca96. Main
   - `npx tsc --noEmit`: 139 errors.
   - `npx eslint .`: 581 problems.
 - `gh run list` and `git log origin/main..main` were run as quoted above.
+
+## Update 2026-10-11 (after owner "Yes")
+- Merged T-39 (1b8d9ae) and T-38 (1a39d6f) into main. Focused tests: 5 files / 71 tests pass. Type errors by file are identical to the pre-merge baseline except two fewer in source (StatusFilter.test.tsx, collection/page.tsx); two extra entries are stale generated `.next` files that point at the deleted Missing route.
+- Pushed main to origin (3b0998d → 1a39d6f, 29 commits) after a scan of the pushed changes found no secrets. Vercel reported success. The E2E Tests workflow failed on the new commit, like its last two runs.
+- Started T-40 (Tester, agent ac55dd41) and T-44 (Architect, agent e09a16af). Neither had pending permissions. T-41–T-43 stay TODO until T-40 returns.
+- Cleaned up: temporary comparison folder /tmp/pre-t38 removed. The T-38 and T-39 worktrees and branches are still in place; they are safe to archive now that they are merged.

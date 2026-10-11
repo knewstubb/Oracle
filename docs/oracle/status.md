@@ -19,13 +19,13 @@ The owner replaced milestones M1–M5 with ten phases (see roadmap.md). **Phase 
 ### Phase 1 — Safety net (CURRENT)
 | ID | Task | Owner role | Depends on | Status |
 |---|---|---|---|---|
-| T-39 | Fix the randomly failing deck-list completeness property test | Developer | — | REVIEW — agent aee61e96 DONE; Gene re-verified 20/20 passes and clean lint on 2026-10-11; awaiting owner merge approval |
-| T-40 | Triage every failing check: 134 failing unit tests in 34 files, 141 type errors, 270 lint errors and the failing scheduled jobs (Sync Commanders, Shared Read-only Smoke, e2e). Classify each as an out-of-date check, a real app bug (name its phase), or belonging to paused work. Confirm no test writes to real data. Propose fix batches that share no files | Tester (read-only) | — | TODO |
+| T-39 | Fix the randomly failing deck-list completeness property test | Developer | — | DONE — merged to main 1b8d9ae (2026-10-11) on owner approval; 20/20 passes re-verified |
+| T-40 | Triage every failing check: 134 failing unit tests in 34 files, 141 type errors, 270 lint errors and the failing scheduled jobs (Sync Commanders, Shared Read-only Smoke, e2e). Classify each as an out-of-date check, a real app bug (name its phase), or belonging to paused work. Confirm no test writes to real data. Propose fix batches that share no files | Tester (read-only) | — | IN PROGRESS — Tester agent ac55dd41 (DeepSeek V4.1 Flash), worktree task-t40-check-triage |
 | T-41 | Fix out-of-date checks batch by batch per T-40; real app bugs go to their phase, not fixed here | Developer | T-40 | TODO |
 | T-42 | Fix the type errors, then stop the build ignoring them (`ignoreBuildErrors`) | Developer | T-40 | TODO |
 | T-43 | Run unit tests, type checking and lint automatically on every push to main | Developer | T-41, T-42 | TODO |
-| T-44 | Recovery plan: what a full backup must cover (copies, storage locations, deck assignments, history), what the hosted database already provides, and a restore test proposal | Architect (read-only) | — | TODO — needs owner decision on the plan |
-| T-45 | Bring the online copy (origin/main, last updated 2026-09-28; local main is 24+ commits ahead) and the live app up to date with main | Gene → Owner | Owner approval to push; confirm what the live app deploys from | TODO — owner gate |
+| T-44 | Recovery plan: what a full backup must cover (copies, storage locations, deck assignments, history), what the hosted database already provides, and a restore test proposal | Architect (read-only) | — | IN PROGRESS — Architect agent e09a16af (Kimi K2.7 Code), worktree task-t44-recovery-plan; owner decision needed on the plan |
+| T-45 | Bring the online copy (origin/main, last updated 2026-09-28; local main is 24+ commits ahead) and the live app up to date with main | Gene → Owner | Owner approval to push; confirm what the live app deploys from | DONE — main pushed 3b0998d→1a39d6f on owner approval 2026-10-11; Vercel deployment succeeded; the E2E Tests workflow failed on the new commit (covered by T-40) |
 
 ## M1 — Trustworthy data (COMPLETE — migrations deployed 2026-09-26)
 | ID | Task | Owner role | Depends on | Status |
@@ -106,7 +106,7 @@ Added by the 2026-09-29 state-of-the-nation review. The owner subsequently appro
 |---|---|---|---|---|
 | T-36 | Revise the T-15 advisor contract for D-034 (direct apply, undo for every AI change with `source = 'ai'`), D-035 (Scryfall estimate prices) and D-036 (advisor defaults), and reconcile its shared interface with the T-28 card-state contract | Architect | T-15, T-28 owner answers (D-037–D-039) | REVIEW — agent bed535bb DONE; review paused with Phase 8 |
 | T-37 | Change the Reconcile overuse calculation to D-037: original copies are the only supply, every main-deck slot (including Sleeved-proxy slots) counts as demand, cards with no original owned appear, card-level matching, all decks count, generic basics excluded | Developer | T-29 approved (owner answers on no-original cards and matching received 2026-10-10) | TODO — waits on T-29 spec approval |
-| T-38 | Remove Missing (D-028) and legacy Graveyard/retired labels (D-029) from screens and filters; existing Missing-marked copies may behave as ordinary owned copies (owner will reimport); no migration | Developer | Owner answer 2026-10-10 (D-028) | REVIEW — agent e43f82dd DONE; Gene re-verified 2026-10-11: same 34 failing test files as main (no new failures), type errors 141→139, lint 588→581; Break down had no on-screen caller before this change (StatusControl unused), so nothing visible is lost; Missing-flagged copies now show as available but `assign_physical_copy` still refuses them until reimport; awaiting owner merge approval (Phase 4 work finished early) |
+| T-38 | Remove Missing (D-028) and legacy Graveyard/retired labels (D-029) from screens and filters; existing Missing-marked copies may behave as ordinary owned copies (owner will reimport); no migration | Developer | Owner answer 2026-10-10 (D-028) | DONE — merged to main 1a39d6f (2026-10-11) on owner approval; focused tests 71/71 pass, no new type errors, same failing test files as before; Missing-flagged copies still cannot be sleeved until reimport (assign_physical_copy guard, no migration) |
 
 ### Owner-requested portfolio review
 

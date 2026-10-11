@@ -315,8 +315,17 @@ if (typeof window !== 'undefined' && !sessionStorage.getItem(cacheVersionKey)) {
  * Fetch scryfall ID for a card name (with caching).
  * Used by useCardHoverPreviewByName hook.
  * Prefers standard printings over Secret Lair/promo variants.
+ *
+ * When a known printing id is supplied (a deck slot or an owned copy already
+ * names the printing), return it directly instead of resolving the newest
+ * printing by name (D-003: this is a printing id, never an oracle id).
  */
-export async function getScryfallId(cardName: string): Promise<string | null> {
+export async function getScryfallId(
+  cardName: string,
+  knownPrintingId?: string | null
+): Promise<string | null> {
+  if (knownPrintingId) return knownPrintingId
+
   // Check cache first
   if (scryfallIdCache.has(cardName)) {
     const cached = scryfallIdCache.get(cardName) ?? null
@@ -590,6 +599,12 @@ export function useCardHoverPreview({
 export interface UseCardHoverPreviewByNameOptions {
   /** Card name to look up */
   cardName: string
+  /**
+   * Printing id already known for this card (a deck slot or an owned copy).
+   * When present it is used for the preview instead of resolving the newest
+   * printing by name.
+   */
+  knownPrintingId?: string | null
 }
 
 /**
@@ -600,22 +615,28 @@ export interface UseCardHoverPreviewByNameOptions {
  */
 export function useCardHoverPreviewByName({
   cardName,
+  knownPrintingId,
 }: UseCardHoverPreviewByNameOptions): {
   triggerProps: CardHoverPreviewTriggerProps
   scryfallId: string | null
 } {
-  const [scryfallId, setScryfallId] = useState<string | null>(() => {
-    // Check cache synchronously for instant display
+  const [resolvedScryfallId, setResolvedScryfallId] = useState<string | null>(() => {
+    // Check the cache synchronously for instant display.
     return scryfallIdCache.get(cardName) ?? null
   })
-  
-  // Prefetch scryfall ID on mount
+
+  // Prefetch scryfall ID on mount. When the printing is already known there is
+  // nothing to resolve by name, so the effect does not run.
   useEffect(() => {
+    if (knownPrintingId) return
     getScryfallId(cardName).then(id => {
-      if (id) setScryfallId(id)
+      if (id) setResolvedScryfallId(id)
     })
-  }, [cardName])
-  
+  }, [cardName, knownPrintingId])
+
+  // A known printing always wins over the name-resolved default.
+  const scryfallId = knownPrintingId ?? resolvedScryfallId
+
   const { triggerProps } = useCardHoverPreview({ scryfallId, cardName })
   
   return { triggerProps, scryfallId }

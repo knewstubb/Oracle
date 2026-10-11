@@ -21,6 +21,12 @@ export type OwnershipStatus = 'owned' | 'proxy' | 'unowned' | 'unknown'
 /** Ownership lookup function signature */
 export type OwnershipLookupFn = (cardName: string) => OwnershipStatus
 
+/**
+ * Printing lookup function signature. Returns the printing id known for a card
+ * (a deck slot or an owned copy), or null/undefined when none is known.
+ */
+export type CardPrintingLookupFn = (cardName: string) => string | null | undefined
+
 // Ownership status colors (matching CardSlotBadge)
 const OWNERSHIP_COLORS: Record<OwnershipStatus, { text: string; hover: string }> = {
   owned: { text: '#1D9E75', hover: 'rgba(29, 158, 117, 0.2)' },    // Green - signal-success
@@ -76,6 +82,12 @@ async function validateAndGetCardInfo(cardName: string): Promise<CardInfo | null
 
 export interface CardHoverLinkProps {
   cardName: string
+  /**
+   * Printing id already known for this card (a deck slot or an owned copy).
+   * When present the hover preview shows this exact printing instead of
+   * resolving the newest printing by name.
+   */
+  scryfallId?: string | null
   /** Mode for the action button */
   mode?: CardLinkMode
   /** Called when the action button is clicked (crown or plus) */
@@ -95,6 +107,7 @@ export interface CardHoverLinkProps {
 
 export function CardHoverLink({ 
   cardName, 
+  scryfallId: knownScryfallId,
   mode,
   onAction,
   onCardNameClick,
@@ -132,7 +145,9 @@ export function CardHoverLink({
   
   // Derived state
   const isValidCard = cardInfo !== null
-  const scryfallId = cardInfo?.scryfallId ?? null
+  // A known printing (deck slot or owned copy) wins over the name-resolved
+  // default so the hover preview shows the exact printing.
+  const scryfallId = knownScryfallId ?? cardInfo?.scryfallId ?? null
   const canBeCommander = cardInfo?.canBeCommander ?? false
   
   // Always call the hook unconditionally (React rules of hooks)
@@ -450,7 +465,8 @@ export function renderInlineContent(
   mode: CardLinkMode = 'none',
   onAction?: (name: string) => void,
   onCardNameClick?: (name: string) => void,
-  ownershipLookup?: OwnershipLookupFn
+  ownershipLookup?: OwnershipLookupFn,
+  printingLookup?: CardPrintingLookupFn
 ): React.ReactNode {
   // First, detect partner pairs: [[Name1]] & [[Name2]] or [[Name1]] and [[Name2]]
   // Replace them with a placeholder to prevent the regular split from breaking them up
@@ -493,6 +509,7 @@ export function renderInlineContent(
         <CardHoverLink 
           key={i} 
           cardName={cardName} 
+          scryfallId={printingLookup?.(cardName)}
           mode={mode}
           onAction={onAction}
           onCardNameClick={onCardNameClick}
@@ -507,7 +524,7 @@ export function renderInlineContent(
       if (inner.includes('[[')) {
         return (
           <strong key={i} className="font-medium text-[#d4d4d0]">
-            {renderInlineContent(inner, mode, onAction, onCardNameClick, ownershipLookup)}
+            {renderInlineContent(inner, mode, onAction, onCardNameClick, ownershipLookup, printingLookup)}
           </strong>
         )
       }
@@ -547,7 +564,8 @@ export function renderMessageContent(
   mode: CardLinkMode = 'none',
   onAction?: (name: string) => void,
   onCardNameClick?: (name: string) => void,
-  ownershipLookup?: OwnershipLookupFn
+  ownershipLookup?: OwnershipLookupFn,
+  printingLookup?: CardPrintingLookupFn
 ): React.ReactNode {
   const lines = content.split('\n')
   const elements: React.ReactNode[] = []
@@ -561,7 +579,7 @@ export function renderMessageContent(
       elements.push(
         <div key={i} className="flex gap-1.5 pl-0.5">
           <span className="text-[rgba(255,255,255,0.3)] shrink-0">•</span>
-          <span>{renderInlineContent(bulletText, mode, onAction, onCardNameClick, ownershipLookup)}</span>
+          <span>{renderInlineContent(bulletText, mode, onAction, onCardNameClick, ownershipLookup, printingLookup)}</span>
         </div>
       )
     }
@@ -571,7 +589,7 @@ export function renderMessageContent(
     }
     // Regular text line
     else {
-      elements.push(<div key={i}>{renderInlineContent(line, mode, onAction, onCardNameClick, ownershipLookup)}</div>)
+      elements.push(<div key={i}>{renderInlineContent(line, mode, onAction, onCardNameClick, ownershipLookup, printingLookup)}</div>)
     }
   }
 

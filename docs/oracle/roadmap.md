@@ -32,11 +32,11 @@ Old milestones map as follows: M1 (complete) fed Phases 2, 4 and 5; M2 is now Ph
 **Out:** new features and screen redesigns.
 **Closed 2026-10-11:** checks run with one command (`npm run check`) and pass; build type-checks except 5 deferred files; GitHub jobs deliberately switched off. Known gap, owner-accepted for now: no automatic backup (recovery plan in docs/oracle/contracts/recovery-plan.md is written but not approved).
 
-### Phase 2 — Card facts  ← CURRENT
+### Phase 2 — Card facts  ← BUILT, awaiting owner's checklist lines C-01 to C-07
 **Outcome:** every card shown is the right card, printing and finish, with honestly labelled prices (D-003, D-004, D-035, D-038).
 **Exit test:** spot-check of real decks shows correct printing/finish everywhere; unknown prices never show as zero; Proxy records the requested printing.
 
-### Phase 3 — Shared words and building blocks
+### Phase 3 — Shared words and building blocks  ← CURRENT (started 2026-10-12 while Phase 2 awaits owner testing)
 **Outcome:** one word, colour and badge per fact, and shared loading/empty/error states (D-012–D-015, D-025, D-030).
 **Exit test:** the agreed vocabulary appears on every screen; failed lookups never show as an answer. (T-25, T-26.)
 

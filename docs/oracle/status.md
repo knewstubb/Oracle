@@ -28,7 +28,15 @@ Owner direction 2026-10-11: Oracle runs on his computer against the hosted Supab
 | T-44 | Recovery plan: what a full backup must cover (copies, storage locations, deck assignments, history), what the hosted database already provides, and a restore test proposal | Architect (read-only) | — | DONE — owner reviewed 2026-10-11; report and recovery plan now in main. Owner: backups not a concern for now; revisit after the app works (Phase 1 exit test: approved recovery plan satisfied by this doc once accepted). |
 | T-45 | (done) Bring the online copy (origin/main, last updated 2026-09-28; local main is 24+ commits ahead) and the live app up to date with main | Gene → Owner | Owner approval to push; confirm what the live app deploys from | DONE — main pushed 3b0998d→1a39d6f on owner approval 2026-10-11; Vercel built it successfully, but Vercel is not used for now; the E2E Tests workflow failed on the new commit (covered by T-40) |
 
-## Phase 2 — Card facts (CURRENT, started 2026-10-11)
+## Phase 3 — Shared words and building blocks (CURRENT, started 2026-10-12)
+Plan: vocabulary spec and mockup first (owner review), then fix batches per screen group, then shared loading/empty/error states (T-26). Phase 2 stays open until the owner's checklist lines C-01 to C-07 pass.
+
+| ID | Task | Owner role | Depends on | Status |
+|---|---|---|---|---|
+| T-25 | One agreed vocabulary spec and mockup: words, colours, badges for every card/deck fact; retired words; inventory of where the app still uses old words, grouped into fix batches | Designer | — | IN PROGRESS — started 2026-10-12 (agent t25-vocabulary-spec); owner reviews before any screen changes |
+| T-26 | Shared status badges, rows, filters and loading/empty/error states, built per the approved vocabulary | Designer spec, then Developer | T-25 approved | TODO |
+
+## Phase 2 — Card facts (BUILT 2026-10-11; waiting on owner's checklist lines C-01 to C-07, started 2026-10-11)
 Plan: audit first (read-only), then fix in small disjoint batches. Fix tasks are added after the audit.
 
 | ID | Task | Owner role | Depends on | Status |

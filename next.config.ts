@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
+  // Type checking is enabled during `next build`. The five files deferred by T-42
+  // carry a `// @ts-nocheck` header until their phases resume; see
+  // docs/oracle/reports/2026-10-11-developer-t42-t43-checks-gate.md.
   env: {
     NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version ?? '0.1.0',
   },

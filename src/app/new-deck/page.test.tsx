@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment -- T-42 staged type-check exclusion (see report 2026-10-11-developer-t42-t43-checks-gate.md)
+// @ts-nocheck -- T-42: 1 known error (defect 13, paused Phase 8/9). Remove this line and the eslint-disable above when this skipped suite is rewritten.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import BrewModePage from './page'

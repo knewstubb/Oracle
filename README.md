@@ -26,16 +26,23 @@ The app runs at <http://localhost:3000>.
 
 Copy `.env.local.example` to `.env.local` and provide the required Supabase/auth/integration values. Never commit service-role keys or authenticated Playwright state.
 
-## Validation
+## How to run the checks
+
+Run the whole check suite before every merge:
 
 ```bash
-npm test
-npx tsc --noEmit
-npm run lint
-npm run build
+npm run check
 ```
 
-The 2026-09-03 audit found that tests, typecheck, and lint do not currently pass. Build success is not a sufficient quality signal because `next.config.ts` temporarily ignores TypeScript build errors.
+It runs the unit tests first, then the type check, then lint, and stops at the first failure. Each part can also be run on its own:
+
+```bash
+npm test          # unit tests (Vitest)
+npm run typecheck # TypeScript; no errors allowed
+npm run lint      # ESLint; 0 errors (warnings are allowed)
+```
+
+`npx next build` also type-checks the app now. Five paused files are temporarily kept out of the type check with a `@ts-nocheck` header (the old new-deck screen and its test, DeckChatTab, PicklistV2 and StatusChipPopover); remove the header when each file is fixed in its phase. See [docs/oracle/reports/2026-10-11-developer-t42-t43-checks-gate.md](docs/oracle/reports/2026-10-11-developer-t42-t43-checks-gate.md).
 
 ## Repository Map
 

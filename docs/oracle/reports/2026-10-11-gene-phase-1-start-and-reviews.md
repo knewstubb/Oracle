@@ -67,3 +67,8 @@ File overlap check: none between T-38 and T-39. Both branched from 4d7ca96. Main
 - Pushed main to origin (3b0998d → 1a39d6f, 29 commits) after a scan of the pushed changes found no secrets. Vercel reported success. The E2E Tests workflow failed on the new commit, like its last two runs.
 - Started T-40 (Tester, agent ac55dd41) and T-44 (Architect, agent e09a16af). Neither had pending permissions. T-41–T-43 stay TODO until T-40 returns.
 - Cleaned up: temporary comparison folder /tmp/pre-t38 removed. The T-38 and T-39 worktrees and branches are still in place; they are safe to archive now that they are merged.
+
+## Update 2026-10-11 (local-only direction)
+- Owner: "assume that i will be running everything locally until we get all this foundational work done." Recorded in roadmap.md scope rules and status.md Phase 1. T-43 now means one easy local command first; the hosted checks are low priority.
+- T-40 (ac55dd41) and T-44 (e09a16af) were sent this direction. T-44 must check where the local app's data really lives.
+- Archived the T-38 and T-39 workspaces and deleted their merged branches.

@@ -9,6 +9,7 @@ Everything else (collection UI, deck building, Brew Canvas) exists to feed that 
 
 ## Scope rules
 
+- **Local-only until the foundation is done (owner, 2026-10-11):** assume Brad runs Oracle only on his own computer through Phase 7 at least. The live hosted app, its scheduled GitHub jobs and the E2E workflow are low priority; do not spend foundation effort on them or on deployment polish. Keep `user_id` + RLS as already required. Revisit when Phase 8 starts.
 The four dated owner-directed authorisations below (2026-09-29) are historical; their work is complete, in review, or now sits in the phase noted in status.md. They do not authorise new work in the current phase.
 
 - **Owner-directed first implementation batch (2026-09-29):** "Delegate work to implement" authorises the ready, bounded T-32/T-33 Collection loading slices and T-34's native AI streaming argument bug fix. These preserve existing screen designs, API payloads and data meanings; the reviewed F1/F2/B1 sections are accepted only for these scoped handoffs. This exception does not adopt the full T-15/T-28 proposals, advance milestones, approve new UI, change stored data, provision/run a benchmark, or authorise merging/deployment. See the first-implementation dispatch report for exact ownership and tests.

@@ -72,7 +72,7 @@ export async function PATCH(
   // Under Section 3, a deck can't reach Boxed until its picklist already shows
   // 100/100 — resolution has already happened incrementally by the time a
   // status transition fires. See spec Section 6f.
-  let allocationRerun = false
+  const allocationRerun = false
 
   const response: StatusUpdateResponse = {
     deck: {

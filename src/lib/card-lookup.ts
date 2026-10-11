@@ -47,6 +47,42 @@ export interface CardLookupResult {
   source: 'local' | 'api' | 'not_found'
 }
 
+interface ScryfallImageUris {
+  small?: string
+  normal?: string
+  large?: string
+  art_crop?: string
+}
+
+interface ScryfallApiCard {
+  id: string
+  oracle_id: string
+  name: string
+  set: string
+  set_name: string
+  collector_number: string
+  rarity: string
+  prices?: {
+    usd?: string | null
+    usd_foil?: string | null
+    eur?: string | null
+    eur_foil?: string | null
+  }
+  image_uris?: ScryfallImageUris
+  card_faces?: Array<{
+    image_uris?: ScryfallImageUris
+    mana_cost?: string
+  }>
+  type_line?: string
+  mana_cost?: string
+  cmc?: number
+  colors?: string[]
+  color_identity?: string[]
+  legalities?: { commander?: string }
+  layout?: string
+  released_at?: string
+}
+
 // ---------------------------------------------------------------------------
 // Lookup by Scryfall ID
 // ---------------------------------------------------------------------------
@@ -335,8 +371,9 @@ export function getCardImageUrl(
 // Transform Scryfall API response to CardPrinting
 // ---------------------------------------------------------------------------
 
-function scryfallApiToCardPrinting(apiCard: any): CardPrinting {
-  const images = apiCard.image_uris || apiCard.card_faces?.[0]?.image_uris || {}
+function scryfallApiToCardPrinting(apiCard: ScryfallApiCard): CardPrinting {
+  const images: ScryfallImageUris =
+    apiCard.image_uris || apiCard.card_faces?.[0]?.image_uris || {}
   
   return {
     scryfall_id: apiCard.id,

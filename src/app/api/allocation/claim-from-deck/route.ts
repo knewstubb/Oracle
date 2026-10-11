@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
   try {
     console.log('[claim-from-deck] Request:', { deckCardsId, physicalCopyId, userId })
 
-    const { data, error: rpcErr } = await (supabase.rpc as any)('force_claim_copy', {
+    const { data, error: rpcErr } = await supabase.rpc('force_claim_copy', {
       p_target_deck_card_id: deckCardsId,
       p_copy_id: physicalCopyId,
       p_user_id: userId,

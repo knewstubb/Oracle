@@ -9,9 +9,11 @@
 
 import {
   GoogleGenerativeAI,
+  FunctionCallingMode,
   type Content,
   type FunctionDeclaration,
   type Part,
+  type ToolConfig,
 } from '@google/generative-ai'
 
 import type {
@@ -64,12 +66,12 @@ export class GeminiAdapter implements ProviderAdapter {
     
     // Gemini tool config for tool_choice
     // Note: Gemini uses 'toolConfig' with mode: AUTO, ANY, or NONE
-    let toolConfig: { functionCallingConfig?: { mode: 'AUTO' | 'ANY' | 'NONE' } } | undefined
+    let toolConfig: ToolConfig | undefined
     if (toolChoice && geminiTools) {
       if (toolChoice === 'auto') {
-        toolConfig = { functionCallingConfig: { mode: 'AUTO' } }
+        toolConfig = { functionCallingConfig: { mode: FunctionCallingMode.AUTO } }
       } else if (toolChoice === 'required') {
-        toolConfig = { functionCallingConfig: { mode: 'ANY' } }
+        toolConfig = { functionCallingConfig: { mode: FunctionCallingMode.ANY } }
       }
       // Note: Gemini doesn't support forcing a specific tool by name in the same way
     }

@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
   const supabase = createAdminClient()
 
   try {
-    const { data, error: rpcErr } = await (supabase.rpc as any)('add_proxy_to_slot', {
+    const { data, error: rpcErr } = await supabase.rpc('add_proxy_to_slot', {
       p_target_deck_card_id: deckCardsId,
       p_card_id: cardId,
       p_user_id: userId,

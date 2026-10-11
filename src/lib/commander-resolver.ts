@@ -94,7 +94,7 @@ export function slugify(name: string): string {
  */
 export function parseCommanderString(raw: string): string[] {
   // Normalize separators
-  let normalized = raw.trim();
+  const normalized = raw.trim();
   
   // Handle "//" separator (most reliable for partners)
   if (normalized.includes('//')) {

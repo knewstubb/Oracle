@@ -16,6 +16,23 @@ import { frontFaceName } from '@/lib/basic-lands'
 const SCRYFALL_BATCH_SIZE = 75
 const RATE_LIMIT_MS = 100
 
+interface ScryfallCardFace {
+  mana_cost?: string
+}
+
+interface ScryfallCard {
+  name: string
+  mana_cost?: string
+  card_faces?: ScryfallCardFace[]
+  cmc?: number
+  type_line?: string
+}
+
+interface ScryfallCollectionResponse {
+  data?: ScryfallCard[]
+  not_found?: unknown[]
+}
+
 export async function GET(request: NextRequest) {
   // Verify Vercel Cron secret — fail-closed (reject if not configured)
   const authHeader = request.headers.get('authorization')
@@ -65,8 +82,8 @@ export async function GET(request: NextRequest) {
 
       if (!res.ok) { errors++; continue }
 
-      const json = await res.json()
-      const rows = (json.data ?? []).map((card: any) => ({
+      const json = (await res.json()) as ScryfallCollectionResponse
+      const rows = (json.data ?? []).map((card) => ({
         name: card.name,
         mana_cost: card.mana_cost ?? card.card_faces?.[0]?.mana_cost ?? '',
         mana_value: card.cmc ?? 0,
@@ -82,8 +99,8 @@ export async function GET(request: NextRequest) {
 
       // DFC front-face names
       const dfcRows = rows
-        .filter((r: any) => r.name.includes(' // '))
-        .map((r: any) => ({ ...r, name: frontFaceName(r.name) }))
+        .filter((r) => r.name.includes(' // '))
+        .map((r) => ({ ...r, name: frontFaceName(r.name) }))
       if (dfcRows.length > 0) {
         await supabase.from('ref_cards').upsert(dfcRows, { onConflict: 'name' })
       }

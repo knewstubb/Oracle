@@ -10,6 +10,7 @@ import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
 import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 import { createVersionSnapshot, type CardSnapshot } from '@/lib/deck-versions'
+import type { Json } from '@/types/supabase'
 
 interface RouteParams {
   params: Promise<{ id: string; versionId: string }>
@@ -80,7 +81,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     )
   }
 
-  const snapshot = version.cards_snapshot as CardSnapshot[]
+  // cards_snapshot is stored as JSON; at runtime it is the array written by
+  // create_deck_version, so this boundary assertion is safe.
+  const snapshot = version.cards_snapshot as unknown as CardSnapshot[]
   const additions = (snapshot ?? []).map((card) => ({
     card_name: card.card_name,
     scryfall_id: card.scryfall_id,
@@ -90,10 +93,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     is_commander: card.is_commander,
   }))
 
-  const { data: restoreResult, error: restoreErr } = await (supabase.rpc as any)('apply_ai_deck_delta', {
+  const { data: restoreResult, error: restoreErr } = await supabase.rpc('apply_ai_deck_delta', {
     p_deck_id: deckId,
     p_user_id: userId,
-    p_additions: additions,
+    p_additions: additions as unknown as Json,
     p_remove_deck_card_ids: (currentCards ?? []).map((card) => card.id),
   })
 

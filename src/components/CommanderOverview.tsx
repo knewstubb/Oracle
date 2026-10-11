@@ -14,7 +14,7 @@ interface CommanderBuild {
   id: string
   archetype: string | null
   theme: string | null
-  edhrecThemeSlug: string
+  edhrecThemeSlug: string | null
   deckCount: number
   deckPercentage: number
 }
@@ -80,7 +80,7 @@ const COLOR_IDENTITY_LABELS: Record<string, { name: string; colors: string[] }> 
   C: { name: 'Colorless', colors: ['#B5A99B'] },
 }
 
-const INSIGHT_TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+const INSIGHT_TYPE_ICONS: Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
   strategy: Lightbulb,
   synergy: Zap,
   card_recommendation: Sparkles,
@@ -309,14 +309,22 @@ export function CommanderOverview({
   const colorInfo = getColorIdentityInfo(colorIdentity)
   const [summary, setSummary] = useState<string | null>(null)
   const [summaryLoading, setSummaryLoading] = useState(false)
-  
+
+  // Clear the summary when the commander goes away. Adjust during render
+  // (React's recommended alternative to a state-setting effect).
+  const [prevCommanderId, setPrevCommanderId] = useState(commanderId)
+  if (commanderId !== prevCommanderId) {
+    setPrevCommanderId(commanderId)
+    if (!commanderId) setSummary(null)
+  }
+
   // Load summary from JSON file
   useEffect(() => {
-    if (!commanderId) {
-      setSummary(null)
-      return
-    }
-    
+    if (!commanderId) return
+
+    // Capture the narrowed value for use inside the async closure below.
+    const resolvedCommanderId = commanderId
+
     async function loadSummary() {
       setSummaryLoading(true)
       try {
@@ -328,8 +336,8 @@ export function CommanderOverview({
           }
         }
         
-        if (summariesCache?.summaries[commanderId]) {
-          setSummary(summariesCache.summaries[commanderId].summary)
+        if (summariesCache?.summaries[resolvedCommanderId]) {
+          setSummary(summariesCache.summaries[resolvedCommanderId].summary)
         } else {
           setSummary(null)
         }

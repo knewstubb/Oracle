@@ -1,4 +1,3 @@
-// @ts-nocheck
 // ---------------------------------------------------------------------------
 // Brew AI Tools — Tool Registry
 // ---------------------------------------------------------------------------
@@ -93,16 +92,17 @@ function registerMcpTool(
       try {
         const client = await getMcpClient()
         const result = await client.callTool({ name: mcpToolName, arguments: input })
+        const content = result.content as { type: string; text?: string }[]
         if (result.isError) {
-          const msg = (result.content as any[])
-            ?.filter((c: any) => c.type === 'text')
-            .map((c: any) => c.text)
+          const msg = content
+            ?.filter((c) => c.type === 'text' && typeof c.text === 'string')
+            .map((c) => c.text)
             .join('\n') || 'MCP tool error'
           return { content: msg, is_error: true }
         }
-        const text = (result.content as any[])
-          ?.filter((c: any) => c.type === 'text')
-          .map((c: any) => c.text)
+        const text = content
+          ?.filter((c) => c.type === 'text' && typeof c.text === 'string')
+          .map((c) => c.text)
           .join('\n') || ''
         return { content: text, is_error: false }
       } catch (err) {
@@ -1472,6 +1472,35 @@ async function fetchInsights(
 // Local Tool: card_fuzzy_lookup
 // ---------------------------------------------------------------------------
 
+interface MtgCardRow {
+  name: string
+  type_line: string | null
+  color_identity: string | null
+  mana_cost: string | null
+  mana_value: number | null
+  oracle_text: string | null
+  edhrec_rank: number | null
+  is_legendary: boolean | null
+  is_creature: boolean | null
+  commander_legal: boolean | null
+}
+
+interface UntypedQuery<T> extends PromiseLike<{ data: T[] | null }> {
+  select(columns: string): UntypedQuery<T>
+  ilike(column: string, pattern: string): UntypedQuery<T>
+  eq(column: string, value: unknown): UntypedQuery<T>
+  order(column: string, options?: { ascending?: boolean; nullsFirst?: boolean }): UntypedQuery<T>
+  limit(count: number): UntypedQuery<T>
+  maybeSingle(): PromiseLike<{ data: T | null }>
+}
+
+function fromUntyped<T>(
+  supabase: ReturnType<typeof createAdminClient>,
+  table: string
+): UntypedQuery<T> {
+  return supabase.from(table as never) as unknown as UntypedQuery<T>
+}
+
 registry.set('card_fuzzy_lookup', {
   definition: {
     name: 'card_fuzzy_lookup',
@@ -1494,8 +1523,7 @@ registry.set('card_fuzzy_lookup', {
 
       // --- Step 1: Try exact ilike match from our Supabase mtg_cards table ---
       const supabase = createAdminClient()
-      const { data: exactMatch } = await supabase
-        .from('mtg_cards' as any)
+      const { data: exactMatch } = await fromUntyped<MtgCardRow>(supabase, 'mtg_cards')
         .select('name, type_line, color_identity, mana_cost, mana_value, oracle_text, edhrec_rank, is_legendary, is_creature, commander_legal')
         .ilike('name', fuzzyName)
         .limit(1)
@@ -1506,8 +1534,7 @@ registry.set('card_fuzzy_lookup', {
       }
 
       // --- Step 2: Try partial match (name contains the search term) ---
-      const { data: partialMatches } = await supabase
-        .from('mtg_cards' as any)
+      const { data: partialMatches } = await fromUntyped<MtgCardRow>(supabase, 'mtg_cards')
         .select('name, type_line, color_identity, mana_cost, mana_value, oracle_text, edhrec_rank, is_legendary, is_creature, commander_legal')
         .ilike('name', `%${fuzzyName}%`)
         .eq('commander_legal', true)

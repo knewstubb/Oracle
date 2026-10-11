@@ -7,7 +7,6 @@ import {
   type RawPhysicalCopy,
   type PrintingRowResponse,
 } from '@/lib/collection-printing-utils'
-import { frontFaceName } from '@/lib/basic-lands'
 import { NextRequest } from 'next/server'
 
 /**
@@ -45,6 +44,40 @@ interface CollectionPrintingsResponse {
   pageSize: number
   lastPriceRefresh: string | null
   isPriceStale: boolean
+}
+
+/** A user_copies row joined to its owning user_cards row (card_name). */
+interface UserCopyWithCardName {
+  id: number
+  card_id: number
+  printing_id: string | null
+  finish: string | null
+  is_proxy: boolean
+  created_at: string | null
+  user_cards: { card_name: string } | null
+}
+
+/** Subset of ref_printings used to enrich copies. */
+interface ScryfallPrintingRow {
+  scryfall_id: string
+  set_code: string
+  set_name: string
+  rarity: string
+  collector_number: string
+  type_line: string | null
+  color_identity: string[] | null
+  mana_cost: string | null
+  price_usd: number | null
+  price_usd_foil: number | null
+}
+
+/** A deck_cards row joined to its deck. */
+interface DeckUsageRow {
+  copy_id: number | null
+  deck_id: number
+  card_name: string
+  ownership_status: string | null
+  decks: { name: string; is_active: boolean } | null
 }
 
 // ---------------------------------------------------------------------------
@@ -149,7 +182,7 @@ export async function GET(request: NextRequest) {
       const batchResults = await Promise.all(batchPromises)
       
       // Combine all copies
-      let allCopiesRaw: any[] = []
+      let allCopiesRaw: UserCopyWithCardName[] = []
       for (const { data } of batchResults) {
         if (data) allCopiesRaw.push(...data)
       }
@@ -158,14 +191,14 @@ export async function GET(request: NextRequest) {
       if (search) {
         const searchLower = search.toLowerCase()
         allCopiesRaw = allCopiesRaw.filter(row => {
-          const cardName = (row.user_cards as any)?.card_name || ''
+          const cardName = row.user_cards?.card_name || ''
           return cardName.toLowerCase().includes(searchLower)
         })
       }
 
       // Normalize and sort ALL copies by card_name
-      let allCopies = allCopiesRaw.map((row: any) => {
-        const card = row.user_cards as { card_name: string } | null
+      const allCopies = allCopiesRaw.map((row) => {
+        const card = row.user_cards
         return {
           id: row.id,
           card_id: row.card_id,
@@ -284,10 +317,9 @@ export async function GET(request: NextRequest) {
     
     // Fetch ALL matching copies in batches to avoid Supabase 1000-row limit
     const BATCH_SIZE = 1000
-    let allCopiesRaw: any[] = []
+    const allCopiesRaw: UserCopyWithCardName[] = []
     let batchOffset = 0
     let hasMore = true
-    let dbTotalCountAll: number | null = null
     
     while (hasMore) {
       const batchQuery = supabase
@@ -315,13 +347,9 @@ export async function GET(request: NextRequest) {
         filteredQuery = filteredQuery.eq('is_proxy', false)
       }
       
-      const { data: batchData, error: batchErr, count } = await filteredQuery
+      const { data: batchData, error: batchErr } = await filteredQuery
       
       if (batchErr) throw batchErr
-      
-      if (batchOffset === 0 && count !== null) {
-        dbTotalCountAll = count
-      }
       
       if (batchData && batchData.length > 0) {
         allCopiesRaw.push(...batchData)
@@ -333,8 +361,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Normalize results
-    let allCopies = allCopiesRaw.map((row: any) => {
-      const card = row.user_cards as { card_name: string } | null
+    const allCopies = allCopiesRaw.map((row) => {
+      const card = row.user_cards
       return {
         id: row.id,
         card_id: row.card_id,
@@ -351,7 +379,7 @@ export async function GET(request: NextRequest) {
 
     const scryfallRows = printingIds.length > 0
       ? await (async () => {
-          const results: any[] = []
+          const results: ScryfallPrintingRow[] = []
           for (let i = 0; i < printingIds.length; i += 200) {
             const batch = printingIds.slice(i, i + 200)
             const { data } = await supabase
@@ -535,7 +563,7 @@ export async function GET(request: NextRequest) {
 // Helper functions
 // ---------------------------------------------------------------------------
 
-function buildScryfallMap(scryfallRows: any[]) {
+function buildScryfallMap(scryfallRows: ScryfallPrintingRow[]) {
   const map = new Map<string, {
     setCode: string
     setName: string
@@ -565,7 +593,7 @@ function buildScryfallMap(scryfallRows: any[]) {
   return map
 }
 
-function buildDeckUsageMap(deckUsageRaw: any[]) {
+function buildDeckUsageMap(deckUsageRaw: DeckUsageRow[]) {
   const map = new Map<number, Map<number, { deckName: string; role: 'original' | 'proxy' | 'unmet' }>>()
   for (const row of deckUsageRaw) {
     if (!row.copy_id) continue
@@ -577,7 +605,7 @@ function buildDeckUsageMap(deckUsageRaw: any[]) {
     }
     const deckName = row.decks?.name || ''
     if (!decksForCopy.has(row.deck_id)) {
-      const role = row.ownership_status || 'unmet'
+      const role = (row.ownership_status || 'unmet') as 'original' | 'proxy' | 'unmet'
       decksForCopy.set(row.deck_id, { deckName, role })
     }
   }

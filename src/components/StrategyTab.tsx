@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   AlertCircle,
@@ -71,7 +71,7 @@ interface CommanderBuild {
   id: string
   archetype: string | null
   theme: string | null
-  edhrecThemeSlug: string
+  edhrecThemeSlug: string | null
   deckCount: number
   deckPercentage: number
   avgLands: number | null
@@ -223,9 +223,12 @@ export function StrategyTab({ deckId, deckType, commanderName, commanderId, buil
   const [selectedBuildId, setSelectedBuildId] = useState<string | null>(buildId)
 
   // Sync selectedBuildId when buildId prop changes (e.g., on navigation)
-  useEffect(() => {
+  // Adjust state during render rather than in an effect.
+  const [prevBuildId, setPrevBuildId] = useState(buildId)
+  if (buildId !== prevBuildId) {
+    setPrevBuildId(buildId)
     setSelectedBuildId(buildId)
-  }, [buildId])
+  }
 
   // Deck intent form state
   const [winCondition, setWinCondition] = useState('')
@@ -261,10 +264,11 @@ export function StrategyTab({ deckId, deckType, commanderName, commanderId, buil
   })
 
   // Get the selected build object
+  const builds = buildsData?.builds
   const selectedBuild = useMemo(() => {
-    if (!buildsData?.builds || !selectedBuildId) return null
-    return buildsData.builds.find(b => b.id === selectedBuildId) ?? null
-  }, [buildsData?.builds, selectedBuildId])
+    if (!builds || !selectedBuildId) return null
+    return builds.find(b => b.id === selectedBuildId) ?? null
+  }, [builds, selectedBuildId])
 
   // Fetch GENERAL commander insights (for overview section)
   const { data: generalInsightsData, isLoading: isGeneralInsightsLoading } = useQuery<InsightsResponse>({

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Loader2, Sparkles, PenLine, Crown, Search } from 'lucide-react'
@@ -460,8 +460,12 @@ function CommanderAutocomplete({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Sync external value changes
-  useEffect(() => { setQuery(value) }, [value])
+  // Sync external value changes (adjust state during render rather than in an effect)
+  const [prevValue, setPrevValue] = useState(value)
+  if (value !== prevValue) {
+    setPrevValue(value)
+    setQuery(value)
+  }
 
   function handleInputChange(input: string) {
     setQuery(input)

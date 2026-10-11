@@ -13,7 +13,7 @@ export async function GET() {
 
   const supabase = createAdminClient()
 
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('user_locations')
     .select('id, name, description, color, sort_order, created_at')
     .eq('user_id', authResult.id)
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
   const supabase = createAdminClient()
 
   // Get max sort_order to append at end (only among storage locations)
-  const { data: existing } = await (supabase as any)
+  const { data: existing } = await supabase
     .from('user_locations')
     .select('sort_order')
     .eq('user_id', authResult.id)
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 
   const nextSort = (existing?.[0]?.sort_order ?? -1) + 1
 
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('user_locations')
     .insert({
       name,

@@ -4,6 +4,7 @@ import { assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 import { frontFaceName } from '@/lib/basic-lands'
 import { getCommanderBuildCardRepository } from '@/lib/commander-context'
 import { NextRequest } from 'next/server'
+import type { Database } from '@/types/supabase'
 
 export const runtime = 'nodejs'
 
@@ -250,7 +251,7 @@ export async function DELETE(
     return Response.json({ error: 'Deck not found' }, { status: 404 })
   }
 
-  const { data, error: deleteErr } = await (supabase.rpc as any)('delete_deck_with_release', {
+  const { data, error: deleteErr } = await supabase.rpc('delete_deck_with_release', {
     p_deck_id: deckId,
     p_user_id: authResult.id,
   })
@@ -308,13 +309,13 @@ export async function PATCH(
   }
 
   // Build update payload with allowed fields
-  const updatePayload: Record<string, unknown> = {}
+  const updatePayload: Database['public']['Tables']['decks']['Update'] = {}
 
   if ('build_id' in body) {
     // Validate build_id is a valid UUID or null
     if (body.build_id !== null) {
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-      if (!uuidRegex.test(body.build_id)) {
+      if (typeof body.build_id !== 'string' || !uuidRegex.test(body.build_id)) {
         return Response.json({ error: 'Invalid build_id format' }, { status: 400 })
       }
     }

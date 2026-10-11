@@ -61,7 +61,7 @@ export async function GET(
   }
 
   return Response.json({
-    versions: versions as DeckVersion[],
+    versions: versions as unknown as DeckVersion[],
     count: versions?.length ?? 0,
   })
 }
@@ -99,8 +99,8 @@ export async function POST(
     p_deck_id: deckId,
     p_user_id: userId,
     p_trigger_type: body.trigger_type,
-    p_trigger_details: body.trigger_details ?? null,
-    p_version_name: body.version_name ?? null,
+    p_trigger_details: body.trigger_details ?? undefined,
+    p_version_name: body.version_name ?? undefined,
   })
 
   if (error) {
@@ -110,5 +110,5 @@ export async function POST(
     return Response.json({ error: error.message }, { status: 500 })
   }
 
-  return Response.json(data as CreateVersionResult, { status: 201 })
+  return Response.json(data as unknown as CreateVersionResult, { status: 201 })
 }

@@ -10,7 +10,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Search, X, Loader2, MapPin, ExternalLink } from 'lucide-react'
+import { X, Loader2, MapPin, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
@@ -82,6 +82,14 @@ export function CardLocator() {
     }
   }, [open])
 
+  const handleClose = useCallback(() => {
+    setOpen(false)
+    setQuery('')
+    setDebouncedQuery('')
+    setResult(null)
+    setError(null)
+  }, [])
+
   // Escape key closes overlay
   useEffect(() => {
     if (!open) return
@@ -93,7 +101,7 @@ export function CardLocator() {
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [open])
+  }, [open, handleClose])
 
   // Debounce query by 300ms
   useEffect(() => {
@@ -104,45 +112,40 @@ export function CardLocator() {
   // Fetch locations when debounced query changes
   useEffect(() => {
     if (!debouncedQuery.trim() || debouncedQuery.length < 2) {
-      setResult(null)
-      setError(null)
       return
     }
 
     let cancelled = false
-    setIsLoading(true)
-    setError(null)
 
-    fetch(`/api/cards/locate?q=${encodeURIComponent(debouncedQuery)}`)
-      .then((res) => {
-        if (!res.ok) return res.json().then((d) => Promise.reject(new Error(d.error || 'Search failed')))
-        return res.json()
-      })
-      .then((data: LocateResponse) => {
+    async function loadLocations() {
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        const res = await fetch(`/api/cards/locate?q=${encodeURIComponent(debouncedQuery)}`)
+        if (!res.ok) {
+          const body = await res.json()
+          throw new Error(body.error || 'Search failed')
+        }
+        const data: LocateResponse = await res.json()
         if (!cancelled) {
           setResult(data)
           setIsLoading(false)
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         if (!cancelled) {
-          setError(err.message || 'Search failed')
+          setError(err instanceof Error ? err.message : 'Search failed')
           setIsLoading(false)
         }
-      })
+      }
+    }
+
+    void loadLocations()
 
     return () => {
       cancelled = true
     }
   }, [debouncedQuery])
-
-  const handleClose = useCallback(() => {
-    setOpen(false)
-    setQuery('')
-    setDebouncedQuery('')
-    setResult(null)
-    setError(null)
-  }, [])
 
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent) => {
@@ -200,7 +203,7 @@ export function CardLocator() {
           )}
 
           {/* Error state */}
-          {error && (
+          {hasQuery && error && (
             <div className="flex flex-col items-center gap-3 py-8" role="alert">
               <p className="text-[length:var(--fs-md)] text-destructive">{error}</p>
             </div>

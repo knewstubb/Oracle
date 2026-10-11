@@ -222,7 +222,7 @@ export async function computeCollectionDelta(
       id,
       printing_id,
       finish,
-      user_cards!inner(card_name)
+      user_cards!user_copies_card_id_fkey!inner(card_name)
     `)
 
   if (userId) {
@@ -238,7 +238,7 @@ export async function computeCollectionDelta(
   // Build a map of current DB state keyed by name|printing_id|finish → count
   const currentMap = new Map<string, number>()
   for (const row of currentCopies ?? []) {
-    const cardName = (row.user_cards as any)?.card_name || ''
+    const cardName = row.user_cards?.card_name || ''
     const key = `${cardName}|${row.printing_id || ''}|${row.finish || 'Normal'}`
     currentMap.set(key, (currentMap.get(key) ?? 0) + 1)
   }
@@ -267,7 +267,7 @@ export async function computeCollectionDelta(
   // Find removals — entries in current DB but not in new rows
   const seenKeys = new Set<string>()
   for (const row of currentCopies ?? []) {
-    const cardName = (row.user_cards as any)?.card_name || ''
+    const cardName = row.user_cards?.card_name || ''
     const key = `${cardName}|${row.printing_id || ''}|${row.finish || 'Normal'}`
     if (seenKeys.has(key)) continue
     seenKeys.add(key)

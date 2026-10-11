@@ -22,7 +22,7 @@ export async function GET() {
   const supabase = createAdminClient()
 
   // Fetch folders with deck counts
-  const { data: folders, error } = await (supabase as any)
+  const { data: folders, error } = await supabase
     .from('deck_folders')
     .select('id, name, color, position')
     .eq('user_id', userId)
@@ -33,7 +33,7 @@ export async function GET() {
   }
 
   // Get deck counts per folder
-  const { data: deckCounts } = await (supabase as any)
+  const { data: deckCounts } = await supabase
     .from('decks')
     .select('folder_id')
     .eq('user_id', userId)
@@ -41,10 +41,11 @@ export async function GET() {
 
   const countMap = new Map<number, number>()
   for (const deck of deckCounts ?? []) {
+    if (deck.folder_id == null) continue
     countMap.set(deck.folder_id, (countMap.get(deck.folder_id) ?? 0) + 1)
   }
 
-  const result: Folder[] = (folders ?? []).map((f: any) => ({
+  const result: Folder[] = (folders ?? []).map((f) => ({
     id: f.id,
     name: f.name,
     color: f.color,
@@ -76,7 +77,7 @@ export async function POST(request: NextRequest) {
   const supabase = createAdminClient()
 
   // Get the next position
-  const { data: lastFolder } = await (supabase as any)
+  const { data: lastFolder } = await supabase
     .from('deck_folders')
     .select('position')
     .eq('user_id', userId)
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
 
   const nextPosition = (lastFolder?.position ?? -1) + 1
 
-  const { data: folder, error } = await (supabase as any)
+  const { data: folder, error } = await supabase
     .from('deck_folders')
     .insert({
       user_id: userId,

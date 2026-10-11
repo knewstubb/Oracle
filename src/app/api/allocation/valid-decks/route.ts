@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       : []
 
     // Fetch all decks (all decks claim cards equally now)
-    const { data: allDecks } = await (supabase as any)
+    const { data: allDecks } = await supabase
       .from('decks')
       .select('id, name, is_active, colour_identity, format')
       .eq('user_id', userId)
@@ -44,15 +44,15 @@ export async function GET(request: NextRequest) {
     // Filter to decks whose commander CI is a superset of the card's CI
     // Only applies to Commander format — other formats have no CI restriction
     const validDecks = (allDecks ?? [])
-      .filter((deck: any) => {
+      .filter((deck) => {
         if (deck.format && deck.format !== 'commander') return true
         if (cardCI.length === 0) return true // Colorless cards go anywhere
         const deckCI = deck.colour_identity
-          ? deck.colour_identity.split(',').map((c: string) => c.trim()).filter(Boolean)
+          ? deck.colour_identity.split(',').map((c) => c.trim()).filter(Boolean)
           : []
-        return cardCI.every((color: string) => deckCI.includes(color))
+        return cardCI.every((color) => deckCI.includes(color))
       })
-      .map((deck: any) => ({
+      .map((deck) => ({
         deckId: deck.id,
         deckName: deck.name,
         isActive: deck.is_active ?? true,

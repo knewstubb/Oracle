@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   const order = searchParams.get('order') === 'desc'
 
   // Fetch copies with card info via join
-  let query = supabase
+  const query = supabase
     .from('user_copies')
     .select(`
       id,
@@ -32,9 +32,14 @@ export async function GET(request: NextRequest) {
   }
 
   // Get unique card names for search filtering
-  let result = (copies || []).map((r: any) => ({
+  let result: Array<{
+    copyId: number
+    card_name: string
+    scryfall_id: string
+    foil: boolean
+  }> = (copies || []).map((r) => ({
     copyId: r.id,
-    card_name: r.user_cards?.card_name || '',
+    card_name: (r.user_cards as unknown as { card_name: string } | null)?.card_name || '',
     scryfall_id: r.printing_id || '',
     foil: r.finish === 'foil' || r.finish === 'etched',
   }))
@@ -42,12 +47,12 @@ export async function GET(request: NextRequest) {
   // Apply search filter
   if (search) {
     const searchLower = search.toLowerCase()
-    result = result.filter((r: any) => r.card_name.toLowerCase().includes(searchLower))
+    result = result.filter((r) => r.card_name.toLowerCase().includes(searchLower))
   }
 
   // Apply sorting
   if (sort === 'name') {
-    result.sort((a: any, b: any) => {
+    result.sort((a, b) => {
       const cmp = a.card_name.localeCompare(b.card_name)
       return order ? -cmp : cmp
     })

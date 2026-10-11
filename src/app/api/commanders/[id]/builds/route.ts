@@ -15,7 +15,7 @@ interface CommanderBuild {
   id: string
   archetype: string | null
   theme: string | null
-  edhrecThemeSlug: string
+  edhrecThemeSlug: string | null
   deckCount: number
   deckPercentage: number
   // Category averages for deck composition

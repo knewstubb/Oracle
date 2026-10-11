@@ -62,8 +62,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Atomic RPC: clear source + fill target in one transaction
-    // Note: Types may be outdated — cast to any until supabase types are regenerated
-    const { data, error: rpcErr } = await (supabase.rpc as any)('reassign_to_deck', {
+    const { data, error: rpcErr } = await supabase.rpc('reassign_to_deck', {
       p_copy_id: copyId,
       p_target_deck_id: targetDeckId,
       p_card_name: cardName,

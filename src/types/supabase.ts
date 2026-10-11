@@ -2399,11 +2399,11 @@ export type Database = {
         Returns: Json
       }
       move_copies_to_storage: {
-        Args: { p_copy_ids: number[]; p_location_id: number; p_user_id: string }
+        Args: { p_copy_ids: number[]; p_location_id: number | null; p_user_id: string }
         Returns: Json
       }
       move_copy_to_storage: {
-        Args: { p_copy_id: number; p_location_id: number; p_user_id: string }
+        Args: { p_copy_id: number; p_location_id: number | null; p_user_id: string }
         Returns: Json
       }
       reassign_to_deck: {

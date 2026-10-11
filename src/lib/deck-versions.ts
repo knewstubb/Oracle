@@ -145,8 +145,8 @@ export async function createVersionSnapshot(
       p_deck_id: deckId,
       p_user_id: userId,
       p_trigger_type: triggerType,
-      p_trigger_details: triggerDetails ?? null,
-      p_version_name: versionName ?? null,
+      p_trigger_details: triggerDetails ?? undefined,
+      p_version_name: versionName ?? undefined,
     })
 
     if (error) {
@@ -154,7 +154,7 @@ export async function createVersionSnapshot(
       return null
     }
 
-    return data as CreateVersionResult
+    return data as unknown as CreateVersionResult
   } catch (err) {
     console.error(
       `[deck-versions] Unexpected error creating version for deck ${deckId}:`,

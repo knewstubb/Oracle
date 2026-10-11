@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
             
             if (deckCards) {
               for (const dc of deckCards) {
-                const deckName = (dc.decks as any)?.name
+                const deckName = dc.decks?.name
                 if (deckName && !inDecks.includes(deckName)) {
                   inDecks.push(deckName)
                 }

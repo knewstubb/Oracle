@@ -70,7 +70,7 @@ export async function GET() {
       .order('name'),
     
     // 2. Fetch folders
-    (supabase as any)
+    supabase
       .from('deck_folders')
       .select('id, name, color')
       .eq('user_id', userId),

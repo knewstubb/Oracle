@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
           }
         })
 
-        const { data: deltaResult, error: deltaErr } = await (supabase.rpc as any)('apply_ai_deck_delta', {
+        const { data: deltaResult, error: deltaErr } = await supabase.rpc('apply_ai_deck_delta', {
           p_deck_id: deckId,
           p_user_id: userId,
           p_additions: cardsToInsert,

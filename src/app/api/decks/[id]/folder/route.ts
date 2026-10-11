@@ -40,7 +40,7 @@ export async function PATCH(
 
   // If setting a folder, verify it belongs to the user
   if (folderId !== null) {
-    const { data: folder } = await (supabase as any)
+    const { data: folder } = await supabase
       .from('deck_folders')
       .select('id')
       .eq('id', folderId)
@@ -53,7 +53,7 @@ export async function PATCH(
   }
 
   // Update the deck's folder
-  const { data: deck, error } = await (supabase as any)
+  const { data: deck, error } = await supabase
     .from('decks')
     .update({ folder_id: folderId })
     .eq('id', deckId)

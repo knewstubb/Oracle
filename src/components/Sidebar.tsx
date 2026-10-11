@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useCallback, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { PanelLeftClose, PanelLeft, LogOut } from 'lucide-react'
@@ -47,6 +47,24 @@ import {
 import { logout } from '@/app/actions/auth'
 
 const COLLAPSE_KEY = 'sidebar-collapsed'
+const COLLAPSE_CHANGE_EVENT = 'sidebar-collapsed-change'
+
+function subscribeCollapsed(callback: () => void) {
+  window.addEventListener(COLLAPSE_CHANGE_EVENT, callback)
+  window.addEventListener('storage', callback)
+  return () => {
+    window.removeEventListener(COLLAPSE_CHANGE_EVENT, callback)
+    window.removeEventListener('storage', callback)
+  }
+}
+
+function getCollapsedSnapshot(): boolean {
+  return localStorage.getItem(COLLAPSE_KEY) === 'true'
+}
+
+function getCollapsedServerSnapshot(): boolean {
+  return false
+}
 
 interface NavItem {
   label: string
@@ -67,23 +85,16 @@ const navItems: NavItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname()
-  const [collapsed, setCollapsed] = useState(false)
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    const stored = localStorage.getItem(COLLAPSE_KEY)
-    if (stored !== null) {
-      setCollapsed(stored === 'true')
-    }
-    setMounted(true)
-  }, [])
+  const collapsed = useSyncExternalStore(
+    subscribeCollapsed,
+    getCollapsedSnapshot,
+    getCollapsedServerSnapshot
+  )
 
   const toggleCollapsed = useCallback(() => {
-    setCollapsed((prev) => {
-      const next = !prev
-      localStorage.setItem(COLLAPSE_KEY, String(next))
-      return next
-    })
+    const next = localStorage.getItem(COLLAPSE_KEY) !== 'true'
+    localStorage.setItem(COLLAPSE_KEY, String(next))
+    window.dispatchEvent(new Event(COLLAPSE_CHANGE_EVENT))
   }, [])
 
   // Cmd+K / Ctrl+K keyboard shortcut for search

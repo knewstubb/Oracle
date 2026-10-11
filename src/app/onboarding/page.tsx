@@ -297,7 +297,6 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     if (!archidektCollectionMutation.isPending && !moxfieldCollectionMutation.isPending) {
-      setCollectionStatusIdx(0)
       return
     }
     const interval = setInterval(() => {
@@ -671,7 +670,10 @@ export default function OnboardingPage() {
             setUrl={setCollectionUrl}
             isPending={archidektCollectionMutation.isPending}
             error={archidektCollectionMutation.isError ? archidektCollectionMutation.error.message : null}
-            onSubmit={() => archidektCollectionMutation.mutate()}
+            onSubmit={() => {
+              setCollectionStatusIdx(0)
+              archidektCollectionMutation.mutate()
+            }}
             onBack={() => setStep('source')}
             statusMessage={collectionProgress?.message ?? COLLECTION_STATUS_MESSAGES[collectionStatusIdx]}
           />
@@ -685,7 +687,10 @@ export default function OnboardingPage() {
             setCsvFile={setMoxfieldCsvFile}
             isPending={moxfieldCollectionMutation.isPending}
             error={moxfieldCollectionMutation.isError ? moxfieldCollectionMutation.error.message : null}
-            onSubmit={() => moxfieldCollectionMutation.mutate()}
+            onSubmit={() => {
+              setCollectionStatusIdx(0)
+              moxfieldCollectionMutation.mutate()
+            }}
             onBack={() => setStep('source')}
             statusMessage={COLLECTION_STATUS_MESSAGES[collectionStatusIdx]}
           />

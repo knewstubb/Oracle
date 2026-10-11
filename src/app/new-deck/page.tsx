@@ -116,7 +116,6 @@ export default function BrewModePage() {
     if (session.committedCommander) {
       setContext({
         type: 'workbench',
-        sessionId: session.sessionId,
         commanderName: session.committedCommander.name,
       })
     } else {
@@ -408,7 +407,7 @@ export default function BrewModePage() {
         }
 
         const card1 = result.card
-        let card2: any = null
+        let card2: { color_identity?: string; name: string; type_line?: string } | null = null
         let partnerColourIdentity: string[] = []
 
         // If partner pair, validate the second commander too
@@ -422,8 +421,9 @@ export default function BrewModePage() {
               return
             }
             
-            card2 = partnerResult.card
-            partnerColourIdentity = card2.color_identity?.split('').filter((c: string) => 'WUBRG'.includes(c)) ?? []
+            const partnerCard = partnerResult.card as { color_identity?: string; name: string; type_line?: string }
+            card2 = partnerCard
+            partnerColourIdentity = partnerCard.color_identity?.split('').filter((c: string) => 'WUBRG'.includes(c)) ?? []
           } catch (err) {
             console.warn('[commit] Partner validation failed:', err)
             return
@@ -605,14 +605,17 @@ export default function BrewModePage() {
   // -------------------------------------------------------------------------
   useEffect(() => {
     if (!pendingCommanderKey || isHydrating) return
-    
+
+    // Capture the narrowed value for use inside the async closure below.
+    const commanderKey = pendingCommanderKey
+
     let cancelled = false
     
     async function autoCommitCommander() {
       try {
         // Look up commander by canonical key or fuzzy name match
         const cardRes = await fetch(
-          `/api/cards?name=${encodeURIComponent(pendingCommanderKey)}&action=full&fuzzy=true`
+          `/api/cards?name=${encodeURIComponent(commanderKey)}&action=full&fuzzy=true`
         )
         
         if (!cardRes.ok) {

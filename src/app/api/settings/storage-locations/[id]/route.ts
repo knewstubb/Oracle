@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
+import type { Database } from '@/types/supabase'
 
 /**
  * PUT /api/settings/storage-locations/[id]
@@ -30,7 +31,7 @@ export async function PUT(
   const supabase = createAdminClient()
 
   // Build update object with only provided fields
-  const updates: Record<string, unknown> = {}
+  const updates: Database['public']['Tables']['user_locations']['Update'] = {}
   if (body.name !== undefined) updates.name = body.name.trim()
   if (body.description !== undefined) updates.description = body.description
   if (body.color !== undefined) updates.color = body.color
@@ -40,7 +41,7 @@ export async function PUT(
     return Response.json({ error: 'No fields to update' }, { status: 400 })
   }
 
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('user_locations')
     .update(updates)
     .eq('id', locationId)

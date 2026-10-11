@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Search, X, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -45,12 +45,10 @@ export function SmartSearch({ currentDeckCards = [] }: SmartSearchProps) {
 
   const overlayRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const currentDeckSet = useRef(new Set(currentDeckCards.map((c) => c.toLowerCase())))
-
-  // Update deck set when prop changes
-  useEffect(() => {
-    currentDeckSet.current = new Set(currentDeckCards.map((c) => c.toLowerCase()))
-  }, [currentDeckCards])
+  const currentDeckSet = useMemo(
+    () => new Set(currentDeckCards.map((c) => c.toLowerCase())),
+    [currentDeckCards]
+  )
 
   // Listen for open-search custom event (from Sidebar Cmd+K)
   useEffect(() => {
@@ -71,6 +69,14 @@ export function SmartSearch({ currentDeckCards = [] }: SmartSearchProps) {
     }
   }, [open])
 
+  const handleClose = useCallback(() => {
+    setOpen(false)
+    setQuery('')
+    setDebouncedQuery('')
+    setResults([])
+    setError(null)
+  }, [])
+
   // Escape key closes overlay
   useEffect(() => {
     if (!open) return
@@ -82,7 +88,7 @@ export function SmartSearch({ currentDeckCards = [] }: SmartSearchProps) {
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [open])
+  }, [open, handleClose])
 
   // Focus trap
   useEffect(() => {
@@ -122,14 +128,14 @@ export function SmartSearch({ currentDeckCards = [] }: SmartSearchProps) {
   // Fetch results when debounced query or filters change
   useEffect(() => {
     if (!debouncedQuery.trim()) {
-      setResults([])
-      setError(null)
       return
     }
 
     let cancelled = false
-    setIsLoading(true)
-    setError(null)
+    queueMicrotask(() => {
+      setIsLoading(true)
+      setError(null)
+    })
 
     fetch('/api/ai/search', {
       method: 'POST',
@@ -163,14 +169,6 @@ export function SmartSearch({ currentDeckCards = [] }: SmartSearchProps) {
     }
   }, [debouncedQuery, collectionOnly, colorIdentity, maxPrice])
 
-  const handleClose = useCallback(() => {
-    setOpen(false)
-    setQuery('')
-    setDebouncedQuery('')
-    setResults([])
-    setError(null)
-  }, [])
-
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent) => {
       if (e.target === e.currentTarget) {
@@ -189,7 +187,9 @@ export function SmartSearch({ currentDeckCards = [] }: SmartSearchProps) {
   if (!open) return null
 
   const hasQuery = debouncedQuery.trim().length > 0
-  const showNoResults = hasQuery && !isLoading && !error && results.length === 0
+  const visibleResults = hasQuery ? results : []
+  const visibleError = hasQuery ? error : null
+  const showNoResults = hasQuery && !isLoading && !visibleError && visibleResults.length === 0
 
   return (
     <div
@@ -289,9 +289,9 @@ export function SmartSearch({ currentDeckCards = [] }: SmartSearchProps) {
           )}
 
           {/* Error state */}
-          {error && (
+          {visibleError && (
             <div className="flex flex-col items-center gap-3 py-8" role="alert">
-              <p className="text-[length:var(--fs-md)] text-destructive">Search failed. {error}</p>
+              <p className="text-[length:var(--fs-md)] text-destructive">Search failed. {visibleError}</p>
               <Button variant="outline" size="sm" onClick={handleRetry}>
                 Retry
               </Button>
@@ -306,10 +306,10 @@ export function SmartSearch({ currentDeckCards = [] }: SmartSearchProps) {
           )}
 
           {/* Results grid */}
-          {!isLoading && !error && results.length > 0 && (
+          {!isLoading && !visibleError && visibleResults.length > 0 && (
             <div role="list" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {results.map((card) => {
-                const inDeck = currentDeckSet.current.has(card.name.toLowerCase())
+              {visibleResults.map((card) => {
+                const inDeck = currentDeckSet.has(card.name.toLowerCase())
                 return (
                   <div key={card.name} role="listitem" className="group relative">
                     <div className="overflow-hidden rounded-lg bg-muted">

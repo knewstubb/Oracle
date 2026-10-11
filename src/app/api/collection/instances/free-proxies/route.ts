@@ -81,7 +81,7 @@ export async function GET(request: Request) {
       .map((pc) => pc.printing_id)
       .filter((id): id is string => id !== null)
 
-    let printingMap: Map<string, string> = new Map()
+    const printingMap: Map<string, string> = new Map()
     if (printingIds.length > 0) {
       const { data: printings } = await supabase
         .from('ref_printings')

@@ -155,7 +155,7 @@ export async function runToolLoop(options: ToolLoopOptions): Promise<ToolLoopRes
   const loopStart = Date.now()
   let currentMessages = [...messages]
   let iterations = 0
-  let totalUsage = { inputTokens: 0, outputTokens: 0 }
+  const totalUsage = { inputTokens: 0, outputTokens: 0 }
   
   // Tool choice is only applied on the first iteration
   let currentToolChoice: ToolChoice | undefined = toolChoice
@@ -268,9 +268,9 @@ export async function runToolLoop(options: ToolLoopOptions): Promise<ToolLoopRes
         if (cards && Array.isArray(cards)) {
           console.log('[tool-executor] add_cards_to_deck called with', cards.length, 'cards:', cards.map(c => c.name))
           onToolEvent({
-            type: 'add_cards' as any,
+            type: 'add_cards',
             cards,
-          } as any)
+          })
         }
       }
 
@@ -280,9 +280,9 @@ export async function runToolLoop(options: ToolLoopOptions): Promise<ToolLoopRes
         if (cards && Array.isArray(cards)) {
           console.log('[tool-executor] remove_cards_from_deck called with', cards.length, 'cards:', cards.map(c => c.name))
           onToolEvent({
-            type: 'remove_cards' as any,
+            type: 'remove_cards',
             cards,
-          } as any)
+          } as unknown as ToolStreamEvent)
         }
       }
 

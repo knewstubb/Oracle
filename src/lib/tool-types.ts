@@ -7,7 +7,7 @@
 // ---------------------------------------------------------------------------
 
 /** SSE event types for tool execution status */
-export type ToolStreamEventType = 'tool_status' | 'text_delta' | 'done' | 'error' | 'candidates' | 'add_cards' | 'commander_summary'
+export type ToolStreamEventType = 'tool_status' | 'text_delta' | 'done' | 'error' | 'candidates' | 'add_cards' | 'remove_cards' | 'commander_summary'
 
 /** Structured commander summary for display in brew chat */
 export interface CommanderSummary {

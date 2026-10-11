@@ -104,7 +104,7 @@ export async function POST(
   // Execute the operation
   switch (body.operation) {
     case 'delete': {
-      const { data: deleteResult, error: deleteErr } = await (supabase.rpc as any)(
+      const { data: deleteResult, error: deleteErr } = await supabase.rpc(
         'apply_ai_deck_delta',
         {
           p_deck_id: deckId,

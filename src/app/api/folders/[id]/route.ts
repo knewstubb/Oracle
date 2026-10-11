@@ -28,7 +28,7 @@ export async function PATCH(
     return Response.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const updates: Record<string, any> = {}
+  const updates: { name?: string; color?: string | null; position?: number } = {}
   if (body.name !== undefined) {
     if (typeof body.name !== 'string' || body.name.trim().length === 0) {
       return Response.json({ error: 'Folder name cannot be empty' }, { status: 400 })
@@ -48,7 +48,7 @@ export async function PATCH(
 
   const supabase = createAdminClient()
 
-  const { data: folder, error } = await (supabase as any)
+  const { data: folder, error } = await supabase
     .from('deck_folders')
     .update(updates)
     .eq('id', folderId)
@@ -88,7 +88,7 @@ export async function DELETE(
   const supabase = createAdminClient()
 
   // Delete folder (decks will have folder_id set to NULL due to ON DELETE SET NULL)
-  const { error } = await (supabase as any)
+  const { error } = await supabase
     .from('deck_folders')
     .delete()
     .eq('id', folderId)

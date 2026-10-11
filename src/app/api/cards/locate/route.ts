@@ -25,6 +25,13 @@ import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { getCardByFuzzyName } from '@/lib/card-data'
 
+interface LocatedDeck {
+  id: number
+  name: string
+  commander_name: string | null
+  is_active: boolean
+}
+
 export async function GET(request: NextRequest) {
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
@@ -112,7 +119,7 @@ export async function GET(request: NextRequest) {
   const deckMap = new Map<number, {
     deckId: number
     deckName: string
-    commanderName: string
+    commanderName: string | null
     isActive: boolean
     quantity: number
     statuses: string[]
@@ -120,7 +127,7 @@ export async function GET(request: NextRequest) {
   }>()
 
   for (const dc of deckCards ?? []) {
-    const deck = dc.decks as any
+    const deck = dc.decks as unknown as LocatedDeck | null
     if (!deck) continue
 
     const existing = deckMap.get(deck.id)

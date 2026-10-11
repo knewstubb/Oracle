@@ -34,6 +34,26 @@ export interface DeckContextCard {
   is_commander?: boolean
 }
 
+/** Card shape as persisted in a brew session skeleton_json (supports camelCase). */
+interface PersistedSkeletonCard {
+  card_name?: string
+  cardName?: string
+  primary_category?: string
+  primaryCategory?: string
+  additional_categories?: string[]
+  additionalCategories?: string[]
+  ownership_status?: 'original' | 'proxy' | null
+  ownershipStatus?: 'original' | 'proxy' | null
+  is_commander?: boolean
+  isCommander?: boolean
+}
+
+/** Suggestion shape as persisted in a brew session skeleton_json. */
+interface PersistedSkeletonSuggestion {
+  card_name?: string
+  cardName?: string
+}
+
 /** Full deck context returned for a brew session */
 export interface DeckContextResult {
   total_cards: number
@@ -115,7 +135,7 @@ class SupabaseCardRepository implements CardRepository {
     const foundNames = new Set((userCards ?? []).map(uc => uc.card_name.toLowerCase()))
     const missingNames = cardNames.filter(n => !foundNames.has(n.toLowerCase()))
     
-    let allUserCards = userCards ?? []
+    const allUserCards = userCards ?? []
     
     if (missingNames.length > 0) {
       for (const name of missingNames) {
@@ -252,7 +272,7 @@ class SupabaseCardRepository implements CardRepository {
     const supabase = createAdminClient()
 
     // Step 1: Get ALL user's cards with their oracle IDs (paginate to avoid 1000 row limit)
-    const allUserCards: { id: string; card_name: string; oracle_id: string }[] = []
+    const allUserCards: { id: number; card_name: string; oracle_id: string }[] = []
     const PAGE_SIZE = 1000
     let offset = 0
     let hasMore = true
@@ -321,7 +341,7 @@ class SupabaseCardRepository implements CardRepository {
       ? new Set(colourIdentity.map(c => c.toUpperCase()))
       : null
     
-    const matchingCards: { card_name: string; user_card_id: string }[] = []
+    const matchingCards: { card_name: string; user_card_id: number }[] = []
     
     for (const uc of allUserCards) {
       const ref = refMap.get(uc.card_name.toLowerCase())
@@ -451,11 +471,14 @@ class SupabaseCardRepository implements CardRepository {
     
     if (session.skeleton_json) {
       try {
-        const skeleton = JSON.parse(session.skeleton_json)
+        const skeleton = JSON.parse(session.skeleton_json) as {
+          cards?: PersistedSkeletonCard[]
+          suggestions?: Array<PersistedSkeletonSuggestion | string>
+        }
         
         // Parse cards from skeleton (matches PersistedSkeleton.cards structure)
         if (Array.isArray(skeleton.cards)) {
-          canvasCards = skeleton.cards.map((c: any) => ({
+          canvasCards = skeleton.cards.map((c) => ({
             card_name: c.card_name || c.cardName || '',
             primary_category: c.primary_category || c.primaryCategory || 'Uncategorized',
             additional_categories: c.additional_categories || c.additionalCategories || [],
@@ -466,7 +489,7 @@ class SupabaseCardRepository implements CardRepository {
         
         // Parse suggestions if available
         if (Array.isArray(skeleton.suggestions)) {
-          canvasSuggestions = skeleton.suggestions.map((s: any) => 
+          canvasSuggestions = skeleton.suggestions.map((s) => 
             typeof s === 'string' ? s : (s.card_name || s.cardName || '')
           ).filter(Boolean)
         }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useSyncExternalStore } from 'react'
 
 /**
  * Hook to detect mobile viewport.
@@ -8,16 +8,15 @@ import { useState, useEffect } from 'react'
  * @returns true if viewport width is at or below breakpoint
  */
 export function useIsMobile(breakpoint: number = 640): boolean {
-  const [isMobile, setIsMobile] = useState(false)
+  const query = `(max-width: ${breakpoint - 1}px)`
 
-  useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${breakpoint - 1}px)`)
-    setIsMobile(mql.matches)
+  const subscribe = useCallback((onStoreChange: () => void) => {
+    const mql = window.matchMedia(query)
+    mql.addEventListener('change', onStoreChange)
+    return () => mql.removeEventListener('change', onStoreChange)
+  }, [query])
 
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
-    mql.addEventListener('change', handler)
-    return () => mql.removeEventListener('change', handler)
-  }, [breakpoint])
+  const getSnapshot = useCallback(() => window.matchMedia(query).matches, [query])
 
-  return isMobile
+  return useSyncExternalStore(subscribe, getSnapshot, () => false)
 }

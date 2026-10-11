@@ -968,6 +968,7 @@ function CardRowKebab({
 
       {/* Category Suggestions Dialog */}
       <CategorySuggestionsDialog
+        key={`${cardName}-${suggestionsOpen ? 'open' : 'closed'}`}
         open={suggestionsOpen}
         cardName={cardName}
         deckCardsId={deckCardsId}
@@ -1346,26 +1347,23 @@ function CategorySuggestionsDialog({
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   })
 
-  // Reset selections when dialog opens
-  useMemo(() => {
-    if (open && data?.suggestions) {
-      // Pre-select the highest confidence primary suggestion
-      const primary = data.suggestions.find(s => s.confidence === 'high')?.category || data.suggestions[0]?.category || null
-      setSelectedPrimary(primary)
-      setSelectedSecondary([])
-    }
-  }, [open, data])
+  // Default primary category from the highest-confidence suggestion. Held as a
+  // derived value rather than state so no setState is needed when data arrives.
+  const defaultPrimary = open && data?.suggestions
+    ? (data.suggestions.find(s => s.confidence === 'high')?.category ?? data.suggestions[0]?.category ?? null)
+    : null
+  const activePrimary = selectedPrimary ?? defaultPrimary
 
   const handleApply = () => {
-    if (!selectedPrimary) return
+    if (!activePrimary) return
     onApply({
-      primary_category: selectedPrimary,
+      primary_category: activePrimary,
       additional_categories: selectedSecondary.slice(0, 2), // Max 2 secondary
     })
   }
 
   const toggleSecondary = (category: string) => {
-    if (category === selectedPrimary) return // Can't add primary as secondary
+    if (category === activePrimary) return // Can't add primary as secondary
     setSelectedSecondary(prev => {
       if (prev.includes(category)) {
         return prev.filter(c => c !== category)
@@ -1443,13 +1441,13 @@ function CategorySuggestionsDialog({
                       className={`
                         inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[length:var(--fs-xs)] font-medium
                         transition-all border
-                        ${selectedPrimary === suggestion.category
+                        ${activePrimary === suggestion.category
                           ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
                           : 'border-[var(--border-default)] hover:border-[var(--border-subtle)] hover:bg-white/5'
                         }
                       `}
                     >
-                      {selectedPrimary === suggestion.category && <Check className="size-3" />}
+                      {activePrimary === suggestion.category && <Check className="size-3" />}
                       {suggestion.category}
                       <span className={`ml-1 rounded px-1 py-0.5 text-[10px] ${confidenceColors[suggestion.confidence]}`}>
                         {suggestion.confidence}
@@ -1467,7 +1465,7 @@ function CategorySuggestionsDialog({
                   </label>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {data.suggestions
-                      .filter(s => s.category !== selectedPrimary)
+                      .filter(s => s.category !== activePrimary)
                       .slice(0, 8)
                       .map((suggestion) => (
                         <button
@@ -1510,7 +1508,7 @@ function CategorySuggestionsDialog({
           </DialogClose>
           <Button
             onClick={handleApply}
-            disabled={!selectedPrimary || isLoading}
+            disabled={!activePrimary || isLoading}
           >
             Apply
           </Button>

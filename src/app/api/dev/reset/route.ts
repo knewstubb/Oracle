@@ -29,12 +29,12 @@ export async function POST() {
     'user_copies',
     'user_cards',
     'brew_sessions',
-  ]
+  ] as const
 
   for (const table of tables) {
-    const { error } = await (supabase
-      .from(table as any)
-      .delete() as any)
+    const { error } = await supabase
+      .from(table)
+      .delete()
       .eq('user_id', userId)
 
     if (error) {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { Search, ArrowLeft, Crown, Loader2, X, Users } from 'lucide-react'
@@ -73,7 +73,7 @@ export default function NewDeckPage() {
   const [debouncedQuery, setDebouncedQuery] = useState('')
   
   // Selection state
-  const [selectedCommander, setSelectedCommander] = useState<CommanderData | null>(null)
+  const [selectedCommander] = useState<CommanderData | null>(null)
   
   // Partner selection state
   const [partnerMode, setPartnerMode] = useState(false)
@@ -250,21 +250,21 @@ export default function NewDeckPage() {
   // Handle pre-selected commander from URL
   useEffect(() => {
     if (!preselectedCommander) return
-    
-    // First, check if it's in featured data
-    if (featuredData?.commanders) {
-      const found = featuredData.commanders.find(
-        c => c.canonical_key === preselectedCommander || 
-             c.display_name.toLowerCase() === preselectedCommander.toLowerCase()
-      )
-      if (found) {
-        handleSelectCommander(found)
-        return
+
+    const selectPreselectedCommander = async () => {
+      // First, check if it's in featured data
+      if (featuredData?.commanders) {
+        const found = featuredData.commanders.find(
+          c => c.canonical_key === preselectedCommander || 
+               c.display_name.toLowerCase() === preselectedCommander.toLowerCase()
+        )
+        if (found) {
+          handleSelectCommander(found)
+          return
+        }
       }
-    }
-    
-    // Not in featured - search via API
-    const searchForCommander = async () => {
+      
+      // Not in featured - search via API
       try {
         const res = await fetch(`/api/commanders/search?q=${encodeURIComponent(preselectedCommander)}`)
         if (res.ok) {
@@ -284,8 +284,8 @@ export default function NewDeckPage() {
         console.error('Failed to search for pre-selected commander:', err)
       }
     }
-    
-    searchForCommander()
+
+    void selectPreselectedCommander()
   }, [preselectedCommander, featuredData, handleSelectCommander])
   
   // Determine which commanders to show

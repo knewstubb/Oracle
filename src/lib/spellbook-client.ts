@@ -21,6 +21,23 @@ export interface SpellbookCombo {
   cardCount: number
 }
 
+interface SpellbookVariantUse {
+  name: string
+}
+
+interface SpellbookVariantProduce {
+  feature?: { name?: string }
+  name?: string
+}
+
+interface SpellbookVariant {
+  id: string
+  uses?: SpellbookVariantUse[]
+  produces?: SpellbookVariantProduce[]
+  description?: string
+  identity?: string
+}
+
 // ---------------------------------------------------------------------------
 // API Client
 // ---------------------------------------------------------------------------
@@ -56,10 +73,10 @@ export async function findCombosForCard(
   const data = await response.json()
   const results = data.results || []
 
-  return results.map((r: any) => ({
+  return results.map((r: SpellbookVariant) => ({
     id: r.id,
-    cards: (r.uses || []).map((u: any) => u.name),
-    produces: (r.produces || []).map((p: any) => p.feature?.name || p.name || ''),
+    cards: (r.uses || []).map((u) => u.name),
+    produces: (r.produces || []).map((p) => p.feature?.name || p.name || ''),
     description: r.description || '',
     identity: r.identity || '',
     cardCount: (r.uses || []).length,

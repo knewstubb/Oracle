@@ -17,6 +17,14 @@ import { frontFaceName } from '@/lib/basic-lands'
 const SCRYFALL_BATCH_SIZE = 75 // Scryfall collection endpoint max
 const RATE_LIMIT_MS = 100
 
+interface ScryfallCollectionCard {
+  name: string
+  mana_cost?: string
+  cmc?: number
+  type_line?: string
+  card_faces?: Array<{ mana_cost?: string }>
+}
+
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
@@ -68,8 +76,8 @@ export async function POST(request: NextRequest) {
         continue
       }
 
-      const json = await res.json()
-      const rows = (json.data ?? []).map((card: any) => ({
+      const json = (await res.json()) as { data?: ScryfallCollectionCard[] }
+      const rows = (json.data ?? []).map((card) => ({
         name: card.name,
         mana_cost: card.mana_cost ?? card.card_faces?.[0]?.mana_cost ?? '',
         mana_value: card.cmc ?? 0,
@@ -86,8 +94,8 @@ export async function POST(request: NextRequest) {
 
       // Also store under front-face name for DFCs
       const dfcRows = rows
-        .filter((r: any) => r.name.includes(' // '))
-        .map((r: any) => ({ ...r, name: frontFaceName(r.name) }))
+        .filter((r) => r.name.includes(' // '))
+        .map((r) => ({ ...r, name: frontFaceName(r.name) }))
 
       if (dfcRows.length > 0) {
         await supabase.from('ref_cards').upsert(dfcRows, { onConflict: 'name' })

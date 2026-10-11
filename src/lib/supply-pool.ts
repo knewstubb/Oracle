@@ -9,7 +9,7 @@
  * enabling contention detection without re-querying the database.
  */
 
-import type { EnrichedSupplyEntry, CopyAssignment, CandidateTier } from '@/lib/allocation-candidates'
+import type { EnrichedSupplyEntry, CopyAssignment } from '@/lib/allocation-candidates'
 import { classifyTier, scoreCandidate } from '@/lib/allocation-candidates'
 import { createAdminClient } from '@/lib/supabase'
 import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
@@ -43,6 +43,23 @@ export interface ContentionEntry {
   /** The deck that lost the card (could not resolve because supply was exhausted) */
   lostByDeckId: number
   lostByDeckName: string
+}
+
+/** Shape of a collection copy row joined with location and deck assignments */
+interface SupplyCopyRow {
+  id: number
+  card_id: number
+  printing_id: string | null
+  finish: string | null
+  is_proxy: boolean
+  condition: string | null
+  location_id: number | null
+  user_locations: { name: string } | null
+  deck_cards: Array<{
+    id: number
+    deck_id: number
+    decks: { name: string; is_active: boolean } | null
+  }> | null
 }
 
 // ---------------------------------------------------------------------------
@@ -214,7 +231,7 @@ const PAGE_SIZE = 1000
  * hard max_rows=1000 limit. Loops until fewer than PAGE_SIZE rows are returned.
  */
 async function fetchAllRows<T>(
-  queryFn: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: any }>
+  queryFn: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>
 ): Promise<T[]> {
   const allRows: T[] = []
   let offset = 0
@@ -268,7 +285,7 @@ export async function loadSupplyPool(userId: string): Promise<SupplyPool> {
   }
 
   // Step 2: Fetch ALL collection copies for the user (paginated) with nested joins
-  const copies = await fetchAllRows<any>(
+  const copies = await fetchAllRows<SupplyCopyRow>(
     (from, to) =>
       supabase
         .from('user_copies')
@@ -362,8 +379,7 @@ export async function batchAssignDeck(
   const supabase = createAdminClient()
 
   // Attempt transactional RPC
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase.rpc as any)('batch_assign_deck', {
+  const { data, error } = await supabase.rpc('batch_assign_deck', {
     p_deck_id: deckId,
     p_user_id: userId,
     p_assignments: assignments.map((a) => ({

@@ -60,12 +60,14 @@ export function CommanderDetailModal({
   // Fetch card data when cardName changes
   useEffect(() => {
     if (!cardName) {
-      setCardData(null)
+      queueMicrotask(() => setCardData(null))
       return
     }
 
-    setLoading(true)
-    setError(null)
+    queueMicrotask(() => {
+      setLoading(true)
+      setError(null)
+    })
 
     // Fetch from local API which enriches with collection data
     fetch(`/api/cards?name=${encodeURIComponent(cardName)}&action=detail`)

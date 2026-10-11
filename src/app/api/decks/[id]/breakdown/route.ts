@@ -41,7 +41,7 @@ export async function POST(
     return Response.json({ error: 'Deck not found' }, { status: 404 })
   }
 
-  const { data, error: releaseErr } = await (supabase.rpc as any)('release_deck_copies', {
+  const { data, error: releaseErr } = await supabase.rpc('release_deck_copies', {
     p_deck_id: deckId,
     p_user_id: userId,
   })

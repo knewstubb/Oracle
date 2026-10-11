@@ -6,6 +6,16 @@
  */
 
 import { createAdminClient } from '@/lib/supabase'
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+/**
+ * `user_preferences` is not yet in the generated Supabase types (migration not
+ * pushed), so we access it through a schema-less client and narrow the results
+ * with the `UserPreferences` interface below.
+ */
+function createPreferencesClient(): SupabaseClient {
+  return createAdminClient() as SupabaseClient
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -49,11 +59,10 @@ export interface UserPreferences {
  * Get user preferences, creating defaults if none exist.
  */
 export async function getUserPreferences(userId: string): Promise<UserPreferences> {
-  const supabase = createAdminClient()
+  const supabase = createPreferencesClient()
   
-  // Table not in generated types (migration not pushed yet) — cast to any
   // Try to fetch existing preferences
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('user_preferences')
     .select('*')
     .eq('user_id', userId)
@@ -70,7 +79,7 @@ export async function getUserPreferences(userId: string): Promise<UserPreference
   
   // Create default preferences if none exist
   const defaults = getDefaultPreferences(userId)
-  const { data: inserted, error: insertErr } = await (supabase as any)
+  const { data: inserted, error: insertErr } = await supabase
     .from('user_preferences')
     .insert(defaults)
     .select()
@@ -212,10 +221,9 @@ export async function updateUserPreferences(
   userId: string,
   updates: Partial<Omit<UserPreferences, 'user_id'>>
 ): Promise<UserPreferences | null> {
-  const supabase = createAdminClient()
+  const supabase = createPreferencesClient()
   
-  // Table not in generated types (migration not pushed yet) — cast to any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('user_preferences')
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('user_id', userId)

@@ -11,7 +11,7 @@
  * - On select: calls onSelect with the chosen printing's scryfall_id + set info
  */
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { X, Search, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -67,10 +67,12 @@ export function PrintingPicker({
 }: PrintingPickerProps) {
   const [search, setSearch] = useState('')
 
-  // Reset search when opening
-  useEffect(() => {
+  // Reset search when opening (adjust state during render instead of in an effect)
+  const [prevOpen, setPrevOpen] = useState(open)
+  if (open !== prevOpen) {
+    setPrevOpen(open)
     if (open) setSearch('')
-  }, [open])
+  }
 
   // Fetch all printings from Scryfall
   const { data: printings, isLoading } = useQuery<ScryfallPrinting[]>({

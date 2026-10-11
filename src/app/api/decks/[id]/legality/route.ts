@@ -160,7 +160,7 @@ export async function GET(
                          'Snow-Covered Plains', 'Snow-Covered Island', 'Snow-Covered Swamp',
                          'Snow-Covered Mountain', 'Snow-Covered Forest', 'Wastes'].includes(deckCard.card_name)
     
-    if (!isBasicLand && deckCard.quantity > 1) {
+    if (!isBasicLand && (deckCard.quantity ?? 0) > 1) {
       issues.push({
         cardName: deckCard.card_name,
         reason: 'over_limit',

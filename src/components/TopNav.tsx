@@ -62,10 +62,13 @@ export function TopNav() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { isOpen: oracleOpen, toggle: toggleOracle } = useOracle()
 
-  // Close mobile menu on navigation
-  useEffect(() => {
+  // Close mobile menu on navigation. Adjust during render (React's recommended
+  // alternative to a state-setting effect) so it happens in the same commit.
+  const [prevPathname, setPrevPathname] = useState(pathname)
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname)
     setMobileMenuOpen(false)
-  }, [pathname])
+  }
 
   // Close on escape
   useEffect(() => {

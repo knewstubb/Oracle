@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const { error: rpcErr } = await (supabase.rpc as any)('unassign_copy_to_storage', {
+  const { error: rpcErr } = await supabase.rpc('unassign_copy_to_storage', {
     p_copy_id: copyId,
     p_user_id: userId,
   })

@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     already_assigned: boolean
   }
   try {
-    const { data, error: rpcErr } = await (supabase.rpc as any)('assign_physical_copy', {
+    const { data, error: rpcErr } = await supabase.rpc('assign_physical_copy', {
       p_target_deck_card_id: deckCardsId,
       p_copy_id: physicalCopyId,
       p_user_id: userId,
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
       previousAssignment = {
         deckCardsId: sourceRow.id,
         deckId: sourceRow.deck_id,
-        deckName: (sourceRow as any).decks?.name ?? `Deck ${sourceRow.deck_id}`,
+        deckName: sourceRow.decks?.name ?? `Deck ${sourceRow.deck_id}`,
         physicalCopyId,
       }
     }

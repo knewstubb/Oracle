@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import type {
   CommanderOption,
   CommittedCommander,
@@ -84,6 +84,7 @@ export function BrewCanvas({
   // ---- Phase transition state ----
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [showRecommitWarning, setShowRecommitWarning] = useState(false)
+  const [pendingCommitName, setPendingCommitName] = useState<string | null>(null)
   const pendingCommitRef = useRef<CommanderOption | null>(null)
   const transitionCountRef = useRef(0)
   const transitionFallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -91,7 +92,10 @@ export function BrewCanvas({
   // ---- Phase 1: Pan/zoom state ----
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 })
   const panOffsetRef = useRef(panOffset)
-  panOffsetRef.current = panOffset
+
+  useEffect(() => {
+    panOffsetRef.current = panOffset
+  }, [panOffset])
 
   const { zoomLevel, zoomIn, zoomOut, handleWheel, effectiveView, isAutoSwitched, setManualView, clearOverride } = 
     useCanvasZoom(100, panOffsetRef, setPanOffset)
@@ -132,6 +136,7 @@ export function BrewCanvas({
     onCommit(cmd)
     setIsTransitioning(false)
     pendingCommitRef.current = null
+    setPendingCommitName(null)
     transitionCountRef.current = 0
   }, [candidateCards, decisionCards, onCommit, onArchivePhase1])
 
@@ -141,6 +146,7 @@ export function BrewCanvas({
     (cmd: CommanderOption) => {
       if (deckState && deckState.cards.length > 0) {
         pendingCommitRef.current = cmd
+        setPendingCommitName(cmd.name)
         setShowRecommitWarning(true)
         return
       }
@@ -195,6 +201,7 @@ export function BrewCanvas({
   const handleRecommitCancel = useCallback(() => {
     setShowRecommitWarning(false)
     pendingCommitRef.current = null
+    setPendingCommitName(null)
   }, [])
 
 
@@ -205,7 +212,7 @@ export function BrewCanvas({
         <DialogHeader>
           <DialogTitle>Replace current skeleton?</DialogTitle>
           <DialogDescription>
-            Switching to <span className="font-medium text-foreground">{pendingCommitRef.current?.name}</span> will 
+            Switching to <span className="font-medium text-foreground">{pendingCommitName}</span> will 
             replace your current <span className="font-medium text-foreground">{deckState?.cards.length ?? 0}</span>-card 
             skeleton. This action cannot be undone.
           </DialogDescription>

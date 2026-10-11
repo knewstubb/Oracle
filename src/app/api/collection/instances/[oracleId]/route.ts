@@ -66,7 +66,7 @@ export async function GET(
 
   try {
     // 1. Get the card for this oracle_id
-    const { data: cardDef, error: cdErr } = await (supabase as any)
+    const { data: cardDef, error: cdErr } = await supabase
       .from('user_cards')
       .select('id, card_name, oracle_id')
       .eq('oracle_id', oracleId)
@@ -86,7 +86,7 @@ export async function GET(
     }
 
     // 2. Get all collection copies for this card belonging to the user
-    const { data: copies, error: pcErr } = await (supabase as any)
+    const { data: copies, error: pcErr } = await supabase
       .from('user_copies')
       .select('id, printing_id, finish, condition, is_proxy, location_id, user_id')
       .eq('card_id', cardDef.id)
@@ -99,13 +99,13 @@ export async function GET(
     // 3. Get location names for all referenced locations
     const locationIds = [...new Set(
       collectionCopies
-        .map((pc: any) => pc.location_id)
-        .filter((id: any) => id !== null)
+        .map((pc) => pc.location_id)
+        .filter((id) => id !== null)
     )]
 
-    let locationMap: Map<number, string> = new Map()
+    const locationMap: Map<number, string> = new Map()
     if (locationIds.length > 0) {
-      const { data: locations } = await (supabase as any)
+      const { data: locations } = await supabase
         .from('user_locations')
         .select('id, name')
         .in('id', locationIds)
@@ -118,11 +118,11 @@ export async function GET(
     }
 
     // 4. Get deck assignments for these collection copies (including deck_id and is_active)
-    const copyIds = collectionCopies.map((pc: any) => pc.id)
-    let deckAssignmentMap: Map<number, { deckName: string; deckId: number; isActive: boolean }> = new Map()
+    const copyIds = collectionCopies.map((pc) => pc.id)
+    const deckAssignmentMap: Map<number, { deckName: string; deckId: number; isActive: boolean }> = new Map()
 
     if (copyIds.length > 0) {
-      const { data: deckCards } = await (supabase as any)
+      const { data: deckCards } = await supabase
         .from('deck_cards')
         .select('copy_id, deck_id, decks!deck_cards_deck_id_fkey!inner(name, is_active)')
         .in('copy_id', copyIds)
@@ -144,11 +144,11 @@ export async function GET(
     // 5. Get printing/set info via printing_id from ref_printings table
     const printingIds = [...new Set(
       collectionCopies
-        .map((pc: any) => pc.printing_id)
-        .filter((id: any) => id !== null)
+        .map((pc) => pc.printing_id)
+        .filter((id) => id !== null)
     )]
 
-    let printingMap: Map<string, { setName: string; collectorNumber: string; releasedAt: string }> = new Map()
+    const printingMap: Map<string, { setName: string; collectorNumber: string; releasedAt: string }> = new Map()
 
     if (printingIds.length > 0) {
       const { data: printings } = await supabase
@@ -168,8 +168,8 @@ export async function GET(
     }
 
     // 6. Build instance rows
-    const instances: InstanceRow[] = collectionCopies.map((pc: any) => {
-      const printing = printingMap.get(pc.printing_id)
+    const instances: InstanceRow[] = collectionCopies.map((pc) => {
+      const printing = pc.printing_id ? printingMap.get(pc.printing_id) : undefined
       const assignment = deckAssignmentMap.get(pc.id)
       const finish = pc.finish ?? 'nonfoil'
 
@@ -199,12 +199,10 @@ export async function GET(
 
     // 7. Sort: set release date DESC, then collector number ASC
     instances.sort((a, b) => {
-      const aPrinting = printingMap.get(
-        collectionCopies.find((pc: any) => pc.id === a.copyId)?.printing_id
-      )
-      const bPrinting = printingMap.get(
-        collectionCopies.find((pc: any) => pc.id === b.copyId)?.printing_id
-      )
+      const aCopy = collectionCopies.find((pc) => pc.id === a.copyId)
+      const bCopy = collectionCopies.find((pc) => pc.id === b.copyId)
+      const aPrinting = aCopy?.printing_id ? printingMap.get(aCopy.printing_id) : undefined
+      const bPrinting = bCopy?.printing_id ? printingMap.get(bCopy.printing_id) : undefined
 
       const aDate = aPrinting?.releasedAt ?? '1993-01-01'
       const bDate = bPrinting?.releasedAt ?? '1993-01-01'
@@ -219,10 +217,10 @@ export async function GET(
     })
 
     // 8. Compute shortfall (demand from all decks minus owned non-proxy copies)
-    const ownedCount = collectionCopies.filter((pc: any) => !pc.is_proxy).length
+    const ownedCount = collectionCopies.filter((pc) => !pc.is_proxy).length
 
     // Get demand: count of deck_cards rows for this card across all user's decks
-    const { count: demandCount } = await (supabase as any)
+    const { count: demandCount } = await supabase
       .from('deck_cards')
       .select('id', { count: 'exact', head: true })
       .eq('card_name', cardDef.card_name)
@@ -233,7 +231,7 @@ export async function GET(
     // 9. Find decks that need this card but don't have it resolved (Short decks)
     const shortDecks: ShortDeckEntry[] = []
     if (shortfall > 0) {
-      const { data: unresolvedDeckCards } = await (supabase as any)
+      const { data: unresolvedDeckCards } = await supabase
         .from('deck_cards')
         .select('id, deck_id, decks!deck_cards_deck_id_fkey(name, is_active)')
         .eq('card_name', cardDef.card_name)

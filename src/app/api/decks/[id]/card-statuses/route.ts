@@ -9,6 +9,15 @@ import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { computeDeckCardStatuses } from '@/lib/card-status'
 
+interface DeckCardStatusRow {
+  id: number
+  card_name: string
+  scryfall_id: string | null
+  copy_id: number | null
+  categories: string | null
+  user_copies: { is_proxy: boolean | null } | null
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -55,7 +64,7 @@ export async function GET(
   }
 
   // Map to the shape computeDeckCardStatuses expects
-  const cards = (deckCards ?? []).map((row: any) => ({
+  const cards = ((deckCards ?? []) as DeckCardStatusRow[]).map((row) => ({
     id: row.id,
     card_name: row.card_name,
     scryfall_id: row.scryfall_id ?? null,

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { DeckImportButton } from './DeckImportButton'
+import type { NormalizedDeck, CardsByType } from '@/lib/deck-normalizer'
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -15,13 +16,13 @@ function createWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
-  return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  )
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  }
 }
 
 describe('DeckImportButton', () => {
-  let onPreviewSuccess: ReturnType<typeof vi.fn>
+  let onPreviewSuccess: (deck: NormalizedDeck, cardsByType: CardsByType) => void
 
   beforeEach(() => {
     onPreviewSuccess = vi.fn()

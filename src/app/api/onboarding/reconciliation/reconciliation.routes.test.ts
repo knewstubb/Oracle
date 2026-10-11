@@ -30,12 +30,13 @@ import { PATCH as patchPrinting } from './instance/printing/route'
 import { PATCH as patchWishlist } from './instance/wishlist/route'
 import { requireAuth } from '@/lib/auth'
 import * as reconciliationLib from '@/lib/import-reconciliation'
+import type { ReconciliationView } from '@/types/import-reconciliation'
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-const mockView = {
+const mockView: ReconciliationView = {
   batchId: null,
   counts: {
     unresolvedTotal: 1,
@@ -62,7 +63,7 @@ function makeRequest(method: string, path: string, body?: unknown): NextRequest 
 describe('/api/onboarding/reconciliation', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(reconciliationLib.getImportReconciliation).mockResolvedValue(mockView as any)
+    vi.mocked(reconciliationLib.getImportReconciliation).mockResolvedValue(mockView)
     vi.mocked(reconciliationLib.setClaimState).mockResolvedValue(undefined)
     vi.mocked(reconciliationLib.setClaimPrinting).mockResolvedValue({ demoted: false })
     vi.mocked(reconciliationLib.setClaimWishlist).mockResolvedValue(undefined)

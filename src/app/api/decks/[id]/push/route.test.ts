@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 
 // Routes require a signed-in user, so pretend one is signed in.
 vi.mock('@/lib/auth', () => ({

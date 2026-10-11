@@ -8,18 +8,20 @@ vi.mock('@/lib/supabase', () => ({
 
 import { createAdminClient } from '@/lib/supabase'
 
+type AdminClient = ReturnType<typeof createAdminClient>
+
 // Helper to build a mock Supabase query chain
-function mockSupabaseChain(data: any[] | null, error: any = null) {
-  const chain: any = {
+function mockSupabaseChain(data: unknown[] | null, error: unknown = null) {
+  const chain: Record<string, unknown> = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
     in: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
     maybeSingle: vi.fn().mockResolvedValue({ data: data?.[0] ?? null, error }),
+    // Final resolution — make the chain thenable for await
+    then: (resolve: (value: { data: unknown[] | null; error: unknown }) => unknown) =>
+      resolve({ data, error }),
   }
-  // Final resolution
-  chain.then = (resolve: any) => resolve({ data, error })
-  // Make it thenable for await
   Object.defineProperty(chain, Symbol.toStringTag, { value: 'Promise' })
   return chain
 }
@@ -39,12 +41,12 @@ describe('classifySlotStatus', () => {
 })
 
 describe('computeUnresolvedStatuses', () => {
-  let mockFrom: any
+  let mockFrom: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
     vi.clearAllMocks()
     mockFrom = vi.fn()
-    ;(createAdminClient as any).mockReturnValue({ from: mockFrom })
+    vi.mocked(createAdminClient).mockReturnValue({ from: mockFrom } as unknown as AdminClient)
   })
 
   it('returns empty map for empty input', async () => {
@@ -297,7 +299,7 @@ describe('computeDeckCardStatuses', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     const mockFrom = vi.fn()
-    ;(createAdminClient as any).mockReturnValue({ from: mockFrom })
+    vi.mocked(createAdminClient).mockReturnValue({ from: mockFrom } as unknown as AdminClient)
 
     // Default: no user_copies found (all unresolved → unowned)
     mockFrom.mockImplementation(() => ({

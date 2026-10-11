@@ -12,10 +12,11 @@ vi.mock('@/lib/auth', () => ({
 
 const mockSessionSelect = vi.fn()
 const mockSessionUpdate = vi.fn()
-const mockDeckInsert = vi.fn()
 const mockDeckUpdate = vi.fn()
-const mockDeckCardsInsert = vi.fn()
-const mockDeckCardsDelete = vi.fn()
+const mockRpc = vi.fn()
+
+// deck_cards rows the route reads before replacing the deck composition.
+let mockCurrentDeckCards: Array<{ id: number }> = []
 
 vi.mock('@/lib/supabase', () => ({
   createAdminClient: () => ({
@@ -34,11 +35,6 @@ vi.mock('@/lib/supabase', () => ({
       }
       if (table === 'decks') {
         return {
-          insert: () => ({
-            select: () => ({
-              single: mockDeckInsert,
-            }),
-          }),
           update: () => ({
             eq: mockDeckUpdate,
           }),
@@ -46,19 +42,17 @@ vi.mock('@/lib/supabase', () => ({
       }
       if (table === 'deck_cards') {
         return {
-          insert: mockDeckCardsInsert,
-          delete: () => ({
-            eq: mockDeckCardsDelete,
+          select: () => ({
+            eq: () => ({
+              eq: () =>
+                Promise.resolve({ data: mockCurrentDeckCards, error: null }),
+            }),
           }),
         }
       }
-      return {
-        select: () => ({ eq: () => ({ single: vi.fn().mockResolvedValue({ data: null, error: null }) }) }),
-        insert: vi.fn().mockResolvedValue({ error: null }),
-        update: () => ({ eq: vi.fn().mockResolvedValue({ error: null }) }),
-        delete: () => ({ eq: vi.fn().mockResolvedValue({ error: null }) }),
-      }
+      return {}
     },
+    rpc: mockRpc,
   }),
 }))
 
@@ -78,8 +72,20 @@ describe('POST /api/brew/save', () => {
     vi.clearAllMocks()
     mockSessionUpdate.mockResolvedValue({ error: null })
     mockDeckUpdate.mockResolvedValue({ error: null })
-    mockDeckCardsInsert.mockResolvedValue({ error: null })
-    mockDeckCardsDelete.mockResolvedValue({ error: null })
+    mockCurrentDeckCards = []
+    // The route replaces the deck composition through apply_ai_deck_delta;
+    // report the counts it expects back so the atomic assertions pass.
+    mockRpc.mockImplementation(
+      (_fn: string, args: { p_additions: unknown[]; p_remove_deck_card_ids: unknown[] }) =>
+        Promise.resolve({
+          data: {
+            success: true,
+            added_count: args.p_additions.length,
+            removed_count: args.p_remove_deck_card_ids.length,
+          },
+          error: null,
+        })
+    )
   })
 
   // --- Validation ---
@@ -198,12 +204,11 @@ describe('POST /api/brew/save', () => {
 
   // --- Draft save ---
 
-  it('saves draft with new deck creation', async () => {
+  it("saves draft against the session's existing deck", async () => {
     mockSessionSelect.mockResolvedValue({
-      data: { id: 1, deck_id: null, status: 'building', commander_name: 'Muldrotha, the Gravetide', colour_identity: 'BGU', decision_log_json: '{}' },
+      data: { id: 1, deck_id: 42, status: 'building', commander_name: 'Muldrotha, the Gravetide', colour_identity: 'BGU', decision_log_json: '{}' },
       error: null,
     })
-    mockDeckInsert.mockResolvedValue({ data: { id: 42 }, error: null })
 
     const deckCards = [
       { card_name: 'Muldrotha, the Gravetide', primary_category: 'Commander', additional_categories: [], ownership_status: 'original', cmc: 6, type_line: 'Legendary Creature', oracle_text: '' },
@@ -223,15 +228,18 @@ describe('POST /api/brew/save', () => {
     expect(data.success).toBe(true)
     expect(data.deckId).toBe(42)
 
-    // Verify deck cards were inserted
-    expect(mockDeckCardsInsert).toHaveBeenCalled()
+    // Deck metadata was updated and the composition replaced atomically.
+    expect(mockDeckUpdate).toHaveBeenCalled()
+    expect(mockRpc).toHaveBeenCalledWith('apply_ai_deck_delta', expect.any(Object))
   })
 
-  it('saves draft with existing deck update', async () => {
+  it('replaces the existing deck composition', async () => {
     mockSessionSelect.mockResolvedValue({
       data: { id: 1, deck_id: 10, status: 'building', commander_name: 'Muldrotha, the Gravetide', colour_identity: 'BGU', decision_log_json: '{}' },
       error: null,
     })
+    // The deck already has two cards that should be removed.
+    mockCurrentDeckCards = [{ id: 7 }, { id: 8 }]
 
     const deckCards = [
       { card_name: 'Sol Ring', primary_category: 'Ramp', additional_categories: [], ownership_status: 'original', cmc: 1, type_line: 'Artifact', oracle_text: '' },
@@ -249,19 +257,21 @@ describe('POST /api/brew/save', () => {
     expect(data.success).toBe(true)
     expect(data.deckId).toBe(10)
 
-    // Verify old cards were deleted and new ones inserted
-    expect(mockDeckCardsDelete).toHaveBeenCalled()
-    expect(mockDeckCardsInsert).toHaveBeenCalled()
+    expect(mockDeckUpdate).toHaveBeenCalled()
+    expect(mockRpc).toHaveBeenCalledWith(
+      'apply_ai_deck_delta',
+      expect.objectContaining({ p_remove_deck_card_ids: [7, 8] })
+    )
   })
 
   // --- Active save ---
 
   it('saves active deck and marks session complete', async () => {
     mockSessionSelect.mockResolvedValue({
-      data: { id: 1, deck_id: null, status: 'building', commander_name: 'Muldrotha, the Gravetide', colour_identity: 'BGU', decision_log_json: '{}' },
+      data: { id: 1, deck_id: 55, status: 'building', commander_name: 'Muldrotha, the Gravetide', colour_identity: 'BGU', decision_log_json: '{}' },
       error: null,
     })
-    mockDeckInsert.mockResolvedValue({ data: { id: 55 }, error: null })
+    mockCurrentDeckCards = [{ id: 3 }]
 
     const deckCards = [
       { card_name: 'Muldrotha, the Gravetide', primary_category: 'Commander', additional_categories: [], ownership_status: 'original', cmc: 6, type_line: 'Legendary Creature', oracle_text: '' },
@@ -279,6 +289,10 @@ describe('POST /api/brew/save', () => {
     const data = await response.json()
     expect(data.success).toBe(true)
     expect(data.deckId).toBe(55)
+
+    // Active save replaces the composition and updates the session.
+    expect(mockRpc).toHaveBeenCalled()
+    expect(mockSessionUpdate).toHaveBeenCalled()
 
     // Verify session update was called (to mark complete)
     expect(mockSessionUpdate).toHaveBeenCalled()

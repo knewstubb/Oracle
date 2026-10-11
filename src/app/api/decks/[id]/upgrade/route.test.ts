@@ -79,9 +79,9 @@ function createQueryMock(table: string) {
     },
     maybeSingle() {
       let filtered = applyFilters(rows(), chain._filters)
-      // For deck_allocations queries with select that includes 'decks(name)',
+      // For deck_cards queries with select that includes 'decks(name)',
       // enrich with the joined deck name
-      if (table === 'deck_allocations' && chain._selectFields.includes('decks(name)')) {
+      if (table === 'deck_cards' && chain._selectFields.includes('decks(name)')) {
         filtered = filtered.map((row) => {
           const r = row as Record<string, unknown>
           const deck = (mockTables['decks'] || []).find(
@@ -223,8 +223,9 @@ describe('GET /api/decks/[id]/upgrade', () => {
 
   it('returns enriched candidates with source field defaulting to analysis', async () => {
     mockTables['decks'] = [{ id: 1, name: 'Test Deck' }]
-    mockTables['collection'] = [{ card_name: 'Spore Frog', quantity: 1 }]
-    mockTables['deck_allocations'] = []
+    // Ownership is now resolved through user_cards -> user_copies -> deck_cards.
+    mockTables['user_cards'] = [{ id: 1, card_name: 'Spore Frog' }]
+    mockTables['user_copies'] = [{ card_id: 1, is_proxy: false }]
     mockTables['deck_cards'] = []
 
     const candidates = [
@@ -247,7 +248,8 @@ describe('GET /api/decks/[id]/upgrade', () => {
     expect(body.candidates[0].priority).toBe(1)
     expect(body.candidates[0].impact).toBe(85)
     expect(body.candidates[0].cut.card_name).toBe('Manalith')
-    expect(body.candidates[0].cut.ownership_status).toBe('not_owned')
+    // Not owned: the route reports null rather than the retired 'not_owned'.
+    expect(body.candidates[0].cut.ownership_status).toBeNull()
     expect(body.candidates[0].add.card_name).toBe('Spore Frog')
     expect(body.candidates[0].add.ownership_status).toBe('original')
     expect(body.candidates[0].add.edhrec_percent).toBe(72)
@@ -256,8 +258,8 @@ describe('GET /api/decks/[id]/upgrade', () => {
 
   it('preserves source field when already set to debrief', async () => {
     mockTables['decks'] = [{ id: 1, name: 'Test Deck' }]
-    mockTables['collection'] = []
-    mockTables['deck_allocations'] = []
+    mockTables['user_cards'] = []
+    mockTables['user_copies'] = []
     mockTables['deck_cards'] = []
 
     const candidates = [
@@ -284,11 +286,11 @@ describe('GET /api/decks/[id]/upgrade', () => {
       { id: 1, name: 'Test Deck' },
       { id: 2, name: 'Other Deck' },
     ]
-    mockTables['collection'] = [{ card_name: 'Sol Ring', quantity: 1 }]
-    mockTables['deck_allocations'] = [
-      { card_name: 'Sol Ring', deck_id: 2, role: 'original' },
+    mockTables['user_cards'] = [{ id: 1, card_name: 'Sol Ring' }]
+    mockTables['user_copies'] = [{ card_id: 1, is_proxy: false }]
+    mockTables['deck_cards'] = [
+      { deck_id: 2, card_name: 'Sol Ring', ownership_status: 'original' },
     ]
-    mockTables['deck_cards'] = []
 
     const candidates = [
       {
@@ -314,12 +316,10 @@ describe('GET /api/decks/[id]/upgrade', () => {
       { id: 1, name: 'Test Deck' },
       { id: 2, name: 'Holder Deck' },
     ]
-    mockTables['collection'] = [{ card_name: 'Cyclonic Rift', quantity: 1 }]
-    mockTables['deck_allocations'] = [
-      { card_name: 'Cyclonic Rift', deck_id: 2, role: 'original' },
-    ]
+    mockTables['user_cards'] = [{ id: 1, card_name: 'Cyclonic Rift' }]
+    mockTables['user_copies'] = [{ card_id: 1, is_proxy: false }]
     mockTables['deck_cards'] = [
-      { deck_id: 2, card_name: 'Cyclonic Rift', quantity: 1 },
+      { deck_id: 2, card_name: 'Cyclonic Rift', ownership_status: 'original' },
     ]
 
     const candidates = [

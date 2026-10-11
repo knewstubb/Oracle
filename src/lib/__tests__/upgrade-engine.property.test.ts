@@ -5,40 +5,53 @@ import { formatStrategyPromptBlock, StrategyData } from '@/lib/format-strategy-p
 import { classifyDeadWeight, FormatRules, exceedsRarityRestriction, RARITY_ORDER, Rarity } from '@/lib/dead-weight-classifier'
 import { applyBudgetFilter, applyFormatConstraints, applyFormatConstraintsWithRarity, sortUpgrades, pairUpgradesWithCuts, PairedUpgrade } from '@/lib/upgrade-pairing'
 
-let testDb: InstanceType<typeof Database>
+// The strategy route moved from SQLite to Supabase + cookie auth. Keep an
+// in-memory store so the round-trip property still runs against the real
+// handler, and mock the signed-in user.
+const strategyStore = vi.hoisted(() => ({
+  decks: new Map<number, { id: number }>(),
+  strategies: new Map<number, Record<string, unknown>>(),
+}))
 
-vi.mock('@/lib/db', () => ({
-  default: new Proxy({} as unknown as InstanceType<typeof Database>, {
-    get(_, prop) { return (testDb as unknown as Record<string, unknown>)[prop as string] },
+vi.mock('@/lib/auth', () => ({
+  requireAuth: () => Promise.resolve({ id: 'test-user-id', email: 'test@example.com' }),
+  getAuthUser: () => Promise.resolve({ id: 'test-user-id', email: 'test@example.com' }),
+}))
+
+vi.mock('@/lib/supabase', () => ({
+  createAdminClient: () => ({
+    from: (table: string) => {
+      const filters: Array<{ column: string; value: unknown }> = []
+      const rowFor = () => {
+        if (table === 'decks') {
+          const id = filters.find((f) => f.column === 'id')?.value as number
+          return strategyStore.decks.get(id) ?? null
+        }
+        if (table === 'deck_strategy') {
+          const deckId = filters.find((f) => f.column === 'deck_id')?.value as number
+          return strategyStore.strategies.get(deckId) ?? null
+        }
+        return null
+      }
+      const chain: Record<string, unknown> = {}
+      chain.select = () => chain
+      chain.eq = (column: string, value: unknown) => {
+        filters.push({ column, value })
+        return chain
+      }
+      chain.maybeSingle = () => Promise.resolve({ data: rowFor(), error: null })
+      chain.single = () => Promise.resolve({ data: rowFor(), error: null })
+      chain.upsert = (payload: Record<string, unknown>) => {
+        strategyStore.strategies.set(payload.deck_id as number, { ...payload })
+        return Promise.resolve({ error: null })
+      }
+      return chain
+    },
   }),
 }))
-vi.mock('@/lib/init-db', () => ({ ensureDb: vi.fn() }))
 
 import { GET, PUT } from '@/app/api/decks/[id]/strategy/route'
 import { NextRequest } from 'next/server'
-
-function setupSchema(db: InstanceType<typeof Database>) {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS decks (
-      id INTEGER PRIMARY KEY,
-      name TEXT NOT NULL,
-      commander_name TEXT,
-      colour_identity TEXT
-    );
-    CREATE TABLE IF NOT EXISTS deck_strategy (
-      deck_id INTEGER PRIMARY KEY REFERENCES decks(id) ON DELETE CASCADE,
-      win_condition TEXT,
-      table_context TEXT,
-      bracket INTEGER CHECK(bracket >= 1 AND bracket <= 4),
-      budget_mode TEXT CHECK(budget_mode IN ('collection', 'budget', 'unrestricted')),
-      budget_ceiling REAL,
-      frustration TEXT,
-      strategy_notes TEXT,
-      format_rules TEXT,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `)
-}
 
 function callGET(id: string) {
   const request = new NextRequest(`http://localhost/api/decks/${id}/strategy`)
@@ -143,14 +156,10 @@ describe('Feature: oracle-upgrade-engine, Property 2: Strategy API Round-Trip', 
    */
 
   beforeEach(() => {
-    testDb = new Database(':memory:')
-    setupSchema(testDb)
+    strategyStore.decks.clear()
+    strategyStore.strategies.clear()
     // Insert a test deck that all generated payloads will target
-    testDb.prepare('INSERT INTO decks (id, name) VALUES (?, ?)').run(1, 'Test Deck')
-  })
-
-  afterEach(() => {
-    testDb.close()
+    strategyStore.decks.set(1, { id: 1 })
   })
 
   it('PUT then GET returns equivalent field values with configured: true', () => {
@@ -208,14 +217,10 @@ describe('Feature: oracle-upgrade-engine, Property 3: Strategy API Input Validat
    */
 
   beforeEach(() => {
-    testDb = new Database(':memory:')
-    setupSchema(testDb)
+    strategyStore.decks.clear()
+    strategyStore.strategies.clear()
     // Insert a deck so bracket/budget tests don't hit 404 before validation
-    testDb.prepare('INSERT INTO decks (id, name) VALUES (?, ?)').run(1, 'Test Deck')
-  })
-
-  afterEach(() => {
-    testDb.close()
+    strategyStore.decks.set(1, { id: 1 })
   })
 
   it('returns 400 for invalid bracket values (outside 1-4)', async () => {
@@ -728,7 +733,6 @@ describe('Feature: oracle-upgrade-engine, Property 8: Dead Weight — Dismissed 
 
   // Generators
   const cardNameArb = fc.string({ minLength: 1, maxLength: 50 }).filter(s => s.trim().length > 0)
-  const synergyArb = fc.integer({ min: 0, max: 100 })
   const bracketArb = fc.oneof(fc.constant(null), fc.integer({ min: 1, max: 4 }))
   const categoryNameArb = fc.constantFrom('Ramp', 'Draw', 'Removal', 'Counterspell', 'Board Wipe', 'Recursion', 'Tutor')
   const rarityArb = fc.oneof(fc.constant(null), fc.constantFrom('common', 'uncommon', 'rare', 'mythic'))
@@ -1202,12 +1206,14 @@ describe('Feature: oracle-upgrade-engine, Property 9: Upgrade Ownership Cross-Re
     // Mix of candidates: some in collection with qty >= 1, some with qty 0, some not in collection
     fc.assert(
       fc.property(
-        fc.array(
+        // Card names must be unique: a duplicate name would carry two conflicting
+        // scenarios but only one entry can exist in the collection map.
+        fc.uniqueArray(
           fc.tuple(
             cardNameArb,
             fc.constantFrom('owned', 'zero-quantity', 'absent') // ownership scenario
           ),
-          { minLength: 1, maxLength: 20 }
+          { minLength: 1, maxLength: 20, selector: ([name]) => name }
         ),
         (candidateScenarios) => {
           const collection = new Map<string, number>()

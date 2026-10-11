@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import DashboardPage from './page'
 import { OracleProvider } from '@/contexts/OracleContext'
-import { PageHeaderProvider } from '@/contexts/PageHeaderContext'
+import { PageHeaderProvider, usePageHeaderContext } from '@/contexts/PageHeaderContext'
 
 // Mock next/image
 vi.mock('next/image', () => ({
@@ -42,6 +42,14 @@ const localStorageMock = (() => {
 })()
 Object.defineProperty(window, 'localStorage', { value: localStorageMock })
 
+// The page title is rendered by the layout-level PageHeader, which reads the
+// config the page sets through usePageHeader. This probe exposes that config so
+// the page's title can be asserted without rendering the whole layout.
+function HeaderTitleProbe() {
+  const { config } = usePageHeaderContext()
+  return <span data-testid="page-header-title">{config?.title ?? ''}</span>
+}
+
 function createWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -53,7 +61,10 @@ function createWrapper() {
     return (
       <QueryClientProvider client={queryClient}>
         <OracleProvider>
-          <PageHeaderProvider>{children}</PageHeaderProvider>
+          <PageHeaderProvider>
+            {children}
+            <HeaderTitleProbe />
+          </PageHeaderProvider>
         </OracleProvider>
       </QueryClientProvider>
     )
@@ -91,12 +102,12 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-function mockDecks(decks: unknown[]) {
+function mockDecks(decks: unknown[], hasCollection = false) {
   mockFetch.mockImplementation((url: string) => {
     if (url.includes('/api/decks')) {
       return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({ decks, draftSessions: [] }),
+        json: () => Promise.resolve({ decks, folders: [], hasCollection }),
       })
     }
     return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
@@ -141,27 +152,42 @@ describe('DashboardPage', () => {
     // Never resolve so we stay in loading state
     mockFetch.mockImplementation(() => new Promise(() => {}))
 
-    render(<DashboardPage />, { wrapper: createWrapper() })
+    const { container } = render(<DashboardPage />, { wrapper: createWrapper() })
 
-    const loadingGrid = screen.getByRole('list', { name: 'Loading decks' })
-    expect(loadingGrid).toBeInTheDocument()
-
-    const skeletonItems = screen.getAllByRole('listitem')
-    expect(skeletonItems.length).toBeGreaterThan(0)
+    // Loading skeletons render while the decks query is pending, and no deck
+    // links are shown until it resolves.
+    expect(container.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(0)
+    expect(container.querySelectorAll('a[href^="/decks/"]')).toHaveLength(0)
   })
 
-  it('shows empty state with import prompt', async () => {
+  it('shows the new-user empty state with a collection import prompt', async () => {
     mockDecks([])
 
     render(<DashboardPage />, { wrapper: createWrapper() })
 
     await waitFor(() => {
       expect(
-        screen.getByText('No decks found. Import a deck to get started.')
+        screen.getByRole('heading', { name: 'Welcome to The Oracle' })
       ).toBeInTheDocument()
     })
 
-    expect(screen.getByRole('link', { name: /Import a Deck/ })).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: /Bring your collection over/ })
+    ).toHaveAttribute('href', '/onboarding')
+  })
+
+  it('shows the no-decks empty state when a collection exists', async () => {
+    mockDecks([], true)
+
+    render(<DashboardPage />, { wrapper: createWrapper() })
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', { name: 'No decks yet' })
+      ).toBeInTheDocument()
+    })
+
+    expect(screen.getByRole('button', { name: /New Deck/ })).toBeInTheDocument()
   })
 
   it('shows error banner with retry button', async () => {
@@ -186,21 +212,14 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('button', { name: /Retry/ })).toBeInTheDocument()
   })
 
-  it('renders page title "Decks"', async () => {
+  it('sets the page header title to "Decks"', async () => {
     mockDecks(makeDecks(1))
 
     render(<DashboardPage />, { wrapper: createWrapper() })
 
-    expect(screen.getByRole('heading', { name: 'Decks' })).toBeInTheDocument()
-  })
-
-  it('renders "Brew Deck" link', async () => {
-    mockDecks(makeDecks(1))
-
-    render(<DashboardPage />, { wrapper: createWrapper() })
-
-    const brewDeckLink = screen.getByRole('link', { name: /Brew Deck/ })
-    expect(brewDeckLink).toHaveAttribute('href', '/new-deck')
+    await waitFor(() => {
+      expect(screen.getByTestId('page-header-title')).toHaveTextContent('Decks')
+    })
   })
 
   it('splits colour_identity string into array for ColourPips', async () => {

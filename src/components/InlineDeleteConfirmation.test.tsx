@@ -20,7 +20,7 @@ describe('InlineDeleteConfirmation', () => {
   it('renders the permanent removal subtext', () => {
     render(<InlineDeleteConfirmation {...defaultProps} />)
     expect(
-      screen.getByText('This will permanently remove the draft.')
+      screen.getByText('This will permanently remove this deck.')
     ).toBeInTheDocument()
   })
 
@@ -63,8 +63,7 @@ describe('InlineDeleteConfirmation', () => {
   it('styles the Delete button with destructive colouring', () => {
     render(<InlineDeleteConfirmation {...defaultProps} />)
     const deleteBtn = screen.getByRole('button', { name: 'Delete' })
-    expect(deleteBtn.className).toContain('bg-[rgba(226,75,74,0.15)]')
-    expect(deleteBtn.className).toContain('border-[rgba(226,75,74,0.3)]')
-    expect(deleteBtn.className).toContain('text-[#E24B4A]')
+    expect(deleteBtn.className).toContain('bg-destructive/10')
+    expect(deleteBtn.className).toContain('text-destructive')
   })
 })

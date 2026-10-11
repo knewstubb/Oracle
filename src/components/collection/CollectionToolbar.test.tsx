@@ -294,9 +294,9 @@ describe('getPersistedViewMode', () => {
     vi.clearAllMocks()
   })
 
-  it('returns "list" when nothing stored', () => {
+  it('returns "grid" when nothing stored', () => {
     localStorageMock.getItem.mockReturnValue(null)
-    expect(getPersistedViewMode()).toBe('list')
+    expect(getPersistedViewMode()).toBe('grid')
   })
 
   it('returns stored value when valid', () => {
@@ -304,8 +304,8 @@ describe('getPersistedViewMode', () => {
     expect(getPersistedViewMode()).toBe('grid')
   })
 
-  it('returns "list" when stored value is invalid', () => {
+  it('returns "grid" when stored value is invalid', () => {
     localStorageMock.getItem.mockReturnValue('cards')
-    expect(getPersistedViewMode()).toBe('list')
+    expect(getPersistedViewMode()).toBe('grid')
   })
 })

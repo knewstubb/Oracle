@@ -55,11 +55,11 @@ describe('DraftDeckTile', () => {
     expect(tile.style.border).toBe('0.5px dashed rgba(55, 138, 221, 0.3)')
   })
 
-  it('renders deck name as bold heading', () => {
+  it('renders deck name as a medium-weight heading', () => {
     render(<DraftDeckTile {...defaultProps} />)
     const heading = screen.getByText('Nekusar Wheels')
     expect(heading.tagName).toBe('H3')
-    expect(heading.className).toContain('font-bold')
+    expect(heading.className).toContain('font-medium')
   })
 
   it('renders commander name as subtitle', () => {
@@ -67,9 +67,9 @@ describe('DraftDeckTile', () => {
     expect(screen.getByText('Nekusar, the Mindrazer')).toBeInTheDocument()
   })
 
-  it('renders blue "Draft" badge', () => {
+  it('renders blue "Brewing" badge', () => {
     render(<DraftDeckTile {...defaultProps} />)
-    const badge = screen.getByText('Draft')
+    const badge = screen.getByText('Brewing')
     expect(badge).toBeInTheDocument()
     expect(badge.className).toContain('text-[#378ADD]')
     expect(badge.className).toContain('bg-[rgba(55,138,221,0.15)]')
@@ -99,7 +99,7 @@ describe('DraftDeckTile', () => {
 
   it('has accessible aria-label on tile container', () => {
     render(<DraftDeckTile {...defaultProps} />)
-    expect(screen.getByLabelText('Draft deck: Nekusar Wheels — Nekusar, the Mindrazer')).toBeInTheDocument()
+    expect(screen.getByLabelText('Brewing: Nekusar Wheels — Nekusar, the Mindrazer')).toBeInTheDocument()
   })
 
   // State machine tests
@@ -107,29 +107,29 @@ describe('DraftDeckTile', () => {
   it('starts in idle state (no hover buttons visible)', () => {
     render(<DraftDeckTile {...defaultProps} />)
     expect(screen.queryByText('Continue brewing')).not.toBeInTheDocument()
-    expect(screen.queryByText('Delete draft')).not.toBeInTheDocument()
+    expect(screen.queryByText('Delete')).not.toBeInTheDocument()
   })
 
   it('shows hover actions on mouseenter', () => {
     render(<DraftDeckTile {...defaultProps} />)
-    const tile = screen.getByLabelText('Draft deck: Nekusar Wheels — Nekusar, the Mindrazer')
+    const tile = screen.getByLabelText('Brewing: Nekusar Wheels — Nekusar, the Mindrazer')
     fireEvent.mouseEnter(tile)
     expect(screen.getByText('Continue brewing')).toBeInTheDocument()
-    expect(screen.getByText('Delete draft')).toBeInTheDocument()
+    expect(screen.getByText('Delete')).toBeInTheDocument()
   })
 
   it('hides hover actions on mouseleave', () => {
     render(<DraftDeckTile {...defaultProps} />)
-    const tile = screen.getByLabelText('Draft deck: Nekusar Wheels — Nekusar, the Mindrazer')
+    const tile = screen.getByLabelText('Brewing: Nekusar Wheels — Nekusar, the Mindrazer')
     fireEvent.mouseEnter(tile)
     fireEvent.mouseLeave(tile)
     expect(screen.queryByText('Continue brewing')).not.toBeInTheDocument()
-    expect(screen.queryByText('Delete draft')).not.toBeInTheDocument()
+    expect(screen.queryByText('Delete')).not.toBeInTheDocument()
   })
 
   it('navigates to brew session on "Continue brewing" click', () => {
     render(<DraftDeckTile {...defaultProps} />)
-    const tile = screen.getByLabelText('Draft deck: Nekusar Wheels — Nekusar, the Mindrazer')
+    const tile = screen.getByLabelText('Brewing: Nekusar Wheels — Nekusar, the Mindrazer')
     fireEvent.mouseEnter(tile)
     fireEvent.click(screen.getByText('Continue brewing'))
     expect(mockPush).toHaveBeenCalledWith('/new-deck?resume=3')
@@ -137,54 +137,54 @@ describe('DraftDeckTile', () => {
 
   it('navigates to deck page when no brewSessionId', () => {
     render(<DraftDeckTile {...defaultProps} brewSessionId={null} />)
-    const tile = screen.getByLabelText('Draft deck: Nekusar Wheels — Nekusar, the Mindrazer')
+    const tile = screen.getByLabelText('Brewing: Nekusar Wheels — Nekusar, the Mindrazer')
     fireEvent.mouseEnter(tile)
     fireEvent.click(screen.getByText('Continue brewing'))
     expect(mockPush).toHaveBeenCalledWith('/decks/7')
   })
 
-  it('transitions to confirming state on "Delete draft" click', () => {
+  it('transitions to confirming state on "Delete" click', () => {
     render(<DraftDeckTile {...defaultProps} />)
-    const tile = screen.getByLabelText('Draft deck: Nekusar Wheels — Nekusar, the Mindrazer')
+    const tile = screen.getByLabelText('Brewing: Nekusar Wheels — Nekusar, the Mindrazer')
     fireEvent.mouseEnter(tile)
-    fireEvent.click(screen.getByText('Delete draft'))
+    fireEvent.click(screen.getByText('Delete'))
     // Confirmation UI should appear — text is split across elements, use a function matcher
     expect(screen.getByText((_content, node) => {
       return node?.textContent === 'Delete \u201cNekusar Wheels\u201d?' && node.tagName === 'P'
     })).toBeInTheDocument()
-    expect(screen.getByText('This will permanently remove the draft.')).toBeInTheDocument()
-    expect(screen.getByText('Cancel')).toBeInTheDocument()
-    expect(screen.getByText('Delete')).toBeInTheDocument()
+    expect(screen.getByText('This will permanently remove this deck.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
   })
 
   it('restores hover state on "Cancel" click', () => {
     render(<DraftDeckTile {...defaultProps} />)
-    const tile = screen.getByLabelText('Draft deck: Nekusar Wheels — Nekusar, the Mindrazer')
+    const tile = screen.getByLabelText('Brewing: Nekusar Wheels — Nekusar, the Mindrazer')
     fireEvent.mouseEnter(tile)
-    fireEvent.click(screen.getByText('Delete draft'))
-    fireEvent.click(screen.getByText('Cancel'))
+    fireEvent.click(screen.getByText('Delete'))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     // Should be back to hover state
     expect(screen.getByText('Continue brewing')).toBeInTheDocument()
-    expect(screen.getByText('Delete draft')).toBeInTheDocument()
+    expect(screen.getByText('Delete')).toBeInTheDocument()
   })
 
   it('calls delete mutation on "Delete" confirm', () => {
     render(<DraftDeckTile {...defaultProps} />)
-    const tile = screen.getByLabelText('Draft deck: Nekusar Wheels — Nekusar, the Mindrazer')
+    const tile = screen.getByLabelText('Brewing: Nekusar Wheels — Nekusar, the Mindrazer')
     fireEvent.mouseEnter(tile)
-    fireEvent.click(screen.getByText('Delete draft'))
     fireEvent.click(screen.getByText('Delete'))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
     expect(mockMutate).toHaveBeenCalled()
   })
 
   it('confirmation Delete button has destructive styling', () => {
     render(<DraftDeckTile {...defaultProps} />)
-    const tile = screen.getByLabelText('Draft deck: Nekusar Wheels — Nekusar, the Mindrazer')
+    const tile = screen.getByLabelText('Brewing: Nekusar Wheels — Nekusar, the Mindrazer')
     fireEvent.mouseEnter(tile)
-    fireEvent.click(screen.getByText('Delete draft'))
-    const deleteBtn = screen.getByText('Delete')
-    expect(deleteBtn.className).toContain('text-[#E24B4A]')
-    expect(deleteBtn.className).toContain('bg-[rgba(226,75,74,0.15)]')
+    fireEvent.click(screen.getByText('Delete'))
+    const deleteBtn = screen.getByRole('button', { name: 'Delete' })
+    expect(deleteBtn.className).toContain('text-destructive')
+    expect(deleteBtn.className).toContain('bg-destructive/10')
   })
 
   it('handles empty colour identity', () => {

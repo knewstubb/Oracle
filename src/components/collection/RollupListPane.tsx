@@ -3,7 +3,6 @@
 import { Search, ChevronUp, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { RollupV2Row } from '@/app/api/collection/rollup-v2/route'
-import { MissingToggle } from './MissingToggle'
 import { RollupRow } from './RollupRow'
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
@@ -25,8 +24,6 @@ export interface RollupListPaneProps {
   onBasicLandFilterChange: (v: boolean) => void
   allocatedFilter: boolean
   onAllocatedFilterChange: (v: boolean) => void
-  showMissing: boolean
-  onShowMissingChange: (v: boolean) => void
   selectedOracleId: string | null
   onRowClick: (oracleId: string) => void
   onCheckboxToggle: (oracleId: string) => void
@@ -82,8 +79,6 @@ export function RollupListPane({
   onBasicLandFilterChange,
   allocatedFilter,
   onAllocatedFilterChange,
-  showMissing,
-  onShowMissingChange,
   selectedOracleId,
   onRowClick,
   onCheckboxToggle,
@@ -192,13 +187,6 @@ export function RollupListPane({
         >
           Allocated
         </button>
-
-        {/* Missing toggle — always visible, count from rollup data (placeholder until wired) */}
-        <MissingToggle
-          showMissing={showMissing}
-          onToggle={onShowMissingChange}
-          missingCount={1}
-        />
       </div>
 
       {/* ─── Column Headers ──────────────────────────────────────── */}

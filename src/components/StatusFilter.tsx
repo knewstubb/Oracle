@@ -17,12 +17,6 @@ const CHIP_CONFIG: Record<DeckStatus, { label: string; color: string; bg: string
     bg: 'var(--accent-primary-bg)',
     borderColor: 'rgba(29, 158, 117, 0.4)',
   },
-  graveyard: {
-    label: 'Graveyard',
-    color: 'var(--text-secondary)',
-    bg: 'var(--bg-card)',
-    borderColor: 'var(--border-default)',
-  },
 }
 
 /**

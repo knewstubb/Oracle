@@ -6,7 +6,7 @@
 // Deck Status
 // ---------------------------------------------------------------------------
 
-export type DeckStatus = 'brewing' | 'in_rotation' | 'graveyard'
+export type DeckStatus = 'brewing' | 'in_rotation'
 
 // ---------------------------------------------------------------------------
 // Collection Mode — controls how card suggestions respect owned cards

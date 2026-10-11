@@ -26,18 +26,17 @@ describe('StatusControl', () => {
     vi.clearAllMocks()
   })
 
-  it('renders three status buttons', () => {
+  it('renders two status buttons', () => {
     render(<StatusControl deckId={1} currentStatus="in_rotation" />, { wrapper: createWrapper() })
     expect(screen.getByRole('radio', { name: 'Set status to Brewing' })).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: 'Set status to Active' })).toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: 'Set status to Graveyard' })).toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: 'Set status to Graveyard' })).not.toBeInTheDocument()
   })
 
   it('marks the current status as checked', () => {
     render(<StatusControl deckId={1} currentStatus="brewing" />, { wrapper: createWrapper() })
     expect(screen.getByRole('radio', { name: 'Set status to Brewing' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByRole('radio', { name: 'Set status to Active' })).toHaveAttribute('aria-checked', 'false')
-    expect(screen.getByRole('radio', { name: 'Set status to Graveyard' })).toHaveAttribute('aria-checked', 'false')
   })
 
   it('calls PATCH API on status change', async () => {
@@ -58,33 +57,7 @@ describe('StatusControl', () => {
     })
   })
 
-  it('shows confirmation dialog when transitioning Active to Graveyard', async () => {
-    render(<StatusControl deckId={1} currentStatus="in_rotation" />, { wrapper: createWrapper() })
-    fireEvent.click(screen.getByRole('radio', { name: 'Set status to Graveyard' }))
-
-    // Dialog should open
-    await waitFor(() => {
-      expect(screen.getByRole('dialog')).toBeInTheDocument()
-      expect(screen.getByText('Move to Graveyard?')).toBeInTheDocument()
-    })
-  })
-
-  it('does not call API if graveyard confirmation is cancelled', async () => {
-    render(<StatusControl deckId={1} currentStatus="in_rotation" />, { wrapper: createWrapper() })
-    fireEvent.click(screen.getByRole('radio', { name: 'Set status to Graveyard' }))
-
-    // Wait for dialog to open
-    await waitFor(() => {
-      expect(screen.getByRole('dialog')).toBeInTheDocument()
-    })
-
-    // Click cancel
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-
-    expect(mockFetch).not.toHaveBeenCalled()
-  })
-
-  it('does not show confirmation dialog for non-graveyard transitions', () => {
+  it('does not show a confirmation dialog for status transitions', () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ deck: { id: 1, name: 'Test', status: 'brewing' }, allocationRerun: true }),
@@ -122,18 +95,5 @@ describe('StatusControl', () => {
   it('has accessible radiogroup role', () => {
     render(<StatusControl deckId={1} currentStatus="in_rotation" />, { wrapper: createWrapper() })
     expect(screen.getByRole('radiogroup', { name: 'Deck status' })).toBeInTheDocument()
-  })
-
-  it('does not show confirmation when transitioning Brewing to Graveyard', () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ deck: { id: 1, name: 'Test', status: 'graveyard' }, allocationRerun: false }),
-    })
-
-    render(<StatusControl deckId={1} currentStatus="brewing" />, { wrapper: createWrapper() })
-    fireEvent.click(screen.getByRole('radio', { name: 'Set status to Graveyard' }))
-
-    // No dialog should appear for Brewing → Graveyard (no claimed cards in Brewing)
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })

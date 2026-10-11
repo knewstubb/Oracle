@@ -18,7 +18,7 @@ export interface DeckRow {
   card_count: number | null
   last_synced_at: string | null
   deck_type: string | null
-  status: 'brewing' | 'in_rotation' | 'graveyard' // Legacy, being phased out
+  status: 'brewing' | 'in_rotation' // Legacy, being phased out
   is_active: boolean
   folder_id: number | null
   folder: DeckFolder | null

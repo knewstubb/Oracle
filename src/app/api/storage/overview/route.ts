@@ -31,7 +31,6 @@ export async function GET() {
     .from('user_copies')
     .select('location_id')
     .eq('user_id', userId)
-    .eq('missing', false)
     .not('location_id', 'is', null)
 
   if (countErr) {
@@ -52,7 +51,6 @@ export async function GET() {
     .from('user_copies')
     .select('id, location_id, deck_cards!deck_cards_copy_id_fkey(id)')
     .eq('user_id', userId)
-    .eq('missing', false)
     .is('location_id', null)
 
   if (allErr) {

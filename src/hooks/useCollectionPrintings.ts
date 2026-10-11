@@ -30,7 +30,6 @@ export interface CollectionPrintingsParams {
   colors?: string[]
   colorMode?: ColorIdentityMode
   includeProxies?: boolean
-  includeMissing?: boolean
   enabled?: boolean
 }
 
@@ -54,7 +53,6 @@ export function useCollectionPrintings(params: CollectionPrintingsParams = {}): 
     colors = [],
     colorMode = 'includes',
     includeProxies = false,
-    includeMissing = false,
     enabled = true,
   } = params
 
@@ -65,13 +63,12 @@ export function useCollectionPrintings(params: CollectionPrintingsParams = {}): 
     sort,
     sortDir,
     includeProxies: String(includeProxies),
-    includeMissing: String(includeMissing),
     ...(search ? { search } : {}),
     ...(colors.length > 0 ? { colors: colors.join(','), colorMode } : {}),
   }).toString()
 
   return useQuery<CollectionPrintingsResponse>({
-    queryKey: ['collection', 'printings', page, pageSize, search, sort, sortDir, colors.join(','), colorMode, includeProxies, includeMissing],
+    queryKey: ['collection', 'printings', page, pageSize, search, sort, sortDir, colors.join(','), colorMode, includeProxies],
     queryFn: async () => {
       const res = await fetch(`/api/collection/printings?${queryString}`)
       if (!res.ok) {

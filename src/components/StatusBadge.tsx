@@ -32,12 +32,6 @@ const CONFIG: Record<DeckStatus, { label: string; icon: string; colorClass: stri
     colorClass: 'text-[var(--accent-primary)]',
     bgClass: 'bg-[var(--accent-primary-bg)]',
   },
-  graveyard: {
-    label: 'Graveyard',
-    icon: 'skull',
-    colorClass: 'text-[var(--text-secondary)]',
-    bgClass: 'bg-[rgba(255,255,255,0.08)]',
-  },
 }
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {

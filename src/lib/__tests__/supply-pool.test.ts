@@ -118,7 +118,7 @@ describe('SupplyPool.getAvailableCopies()', () => {
           deckCardsId: 31,
           deckId: 8,
           deckName: 'Enchantress',
-          deckStatus: 'graveyard',
+          deckStatus: 'brewing',
         },
       }),
     ])

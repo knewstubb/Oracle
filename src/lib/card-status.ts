@@ -77,7 +77,7 @@ export function classifySlotStatus(
  *
  * Uses 2–3 bulk queries regardless of card count:
  * 1. Resolve all card_names → card_definition_ids in one query
- * 2. Fetch physical_copies (non-missing) with deck_cards join to determine
+ * 2. Fetch physical copies with deck_cards join to determine
  *    which copies are free vs held
  * 3. Classify: free copy exists → available, all held → claimed, none exist → unowned
  *
@@ -135,7 +135,7 @@ export async function computeUnresolvedStatuses(
   const cardIdsToCheck = allCards.map(d => d.id)
   if (cardIdsToCheck.length === 0) return result
 
-  // Step 2: Fetch collection copies (non-missing) with deck_cards assignment info
+  // Step 2: Fetch collection copies with deck_cards assignment info
   // The deck_cards join tells us whether each copy is free or held
   const allCopies: Array<{
     card_id: number
@@ -149,7 +149,6 @@ export async function computeUnresolvedStatuses(
       .from('user_copies')
       .select('card_id, printing_id, deck_cards!deck_cards_copy_id_fkey(id)')
       .eq('user_id', userId)
-      .eq('missing', false)
       .in('card_id', batch)
 
     if (pcError) {

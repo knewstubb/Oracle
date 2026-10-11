@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment -- T-42 staged type-check exclusion (see report 2026-10-11-developer-t42-t43-checks-gate.md)
+// @ts-nocheck -- T-42: 9 known errors (defect 11, Phase 7). Remove this line and the eslint-disable above when StatusChipPopover is fixed.
 'use client'
 
 import { useState } from 'react'

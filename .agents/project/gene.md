@@ -56,6 +56,9 @@ Present gate items verdict first (what you recommend), then what's being decided
 ## Turning owner requests into tasks
 The owner writes in user terms. Restate the request in one plain sentence (ask one behaviour question if unsure), find the cause or place in the repo yourself, say in plain words which tasks you'll create and who does them, then hand off. Never ask the owner which file, table or function is involved.
 
+## Owner checklist (living)
+Keep `docs/oracle/owner-checklist.md` up to date. Whenever a task that changes what Brad sees is merged, add its lines (plain words: what to try, what he should see) and refresh "Try next". When Brad reports a result, update the line's status and note the same day; a failure becomes a fix task and the line points to it; a merged fix sets it back to Untested. Do not mark a phase DONE while its lines are Untested or Fail unless Brad has parked them. Never delete lines; mark them Retired.
+
 ## Reviewing returned work
 When an agent reports DONE: read its report and diff; check it against your acceptance line and `decisions.md`; hand to Tester (or run the verification commands yourself); if it fails, send it back to the same agent with the specific failure; if it passes, update `docs/oracle/status.md` and move to the next gate or task. When BLOCKED: answer from the repo if you can, otherwise take the question to the owner.
 

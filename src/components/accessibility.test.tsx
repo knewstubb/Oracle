@@ -65,20 +65,21 @@ import { CommanderSearch } from '@/components/CommanderSearch'
 describe('ColourPips accessibility', () => {
   it('has aria-label listing colour names', () => {
     render(<ColourPips colours={['W', 'U', 'G']} />)
-    const pips = screen.getByRole('img')
+    const pips = screen.getByRole('img', { name: 'White, Blue, Green' })
     expect(pips).toHaveAttribute('aria-label', 'White, Blue, Green')
   })
 
   it('shows "Colourless" when no colours', () => {
     render(<ColourPips colours={[]} />)
-    const pips = screen.getByRole('img')
+    const pips = screen.getByRole('img', { name: 'Colourless' })
     expect(pips).toHaveAttribute('aria-label', 'Colourless')
   })
 
-  it('hides individual pip spans from screen readers', () => {
-    const { container } = render(<ColourPips colours={['R', 'B']} />)
-    const dots = container.querySelectorAll('[aria-hidden="true"]')
-    expect(dots.length).toBe(2)
+  it('renders each pip as a mana icon inside a single labelled wrapper', () => {
+    render(<ColourPips colours={['R', 'B']} />)
+    const wrapper = screen.getByRole('img', { name: 'Black, Red' })
+    const icons = wrapper.querySelectorAll('img')
+    expect(icons).toHaveLength(2)
   })
 })
 

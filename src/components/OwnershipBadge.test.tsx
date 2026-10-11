@@ -32,7 +32,7 @@ describe('OwnershipBadge', () => {
 
     it('uses amber background and text colour', () => {
       render(<OwnershipBadge status="proxy" holderDeckName="Yedora" />)
-      const badge = screen.getByLabelText('Proxy — Original held by Yedora')
+      const badge = screen.getByLabelText('Proxy — Original claimed by Yedora')
       expect(badge.className).toContain('text-amber-600')
       expect(badge.className).toContain('bg-amber-50')
     })
@@ -40,7 +40,7 @@ describe('OwnershipBadge', () => {
     it('has aria-label including holder deck name when provided', () => {
       render(<OwnershipBadge status="proxy" holderDeckName="Ice Queen" />)
       expect(
-        screen.getByLabelText('Proxy — Original held by Ice Queen')
+        screen.getByLabelText('Proxy — Original claimed by Ice Queen')
       ).toBeInTheDocument()
     })
 
@@ -71,7 +71,7 @@ describe('OwnershipBadge', () => {
   })
 
   describe('Layout classes', () => {
-    it('applies inline-flex, items-center, gap-1, rounded-full, px-2, py-0.5, text-xs, font-medium', () => {
+    it('applies inline-flex, items-center, gap-1, rounded-full, px-2, py-0.5, small text token, font-medium', () => {
       render(<OwnershipBadge status="original" />)
       const badge = screen.getByLabelText('Original')
       expect(badge.className).toContain('inline-flex')
@@ -80,7 +80,7 @@ describe('OwnershipBadge', () => {
       expect(badge.className).toContain('rounded-full')
       expect(badge.className).toContain('px-2')
       expect(badge.className).toContain('py-0.5')
-      expect(badge.className).toContain('text-xs')
+      expect(badge.className).toContain('text-[length:var(--fs-sm)]')
       expect(badge.className).toContain('font-medium')
     })
   })

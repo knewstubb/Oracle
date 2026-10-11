@@ -17,7 +17,7 @@ The owner replaced milestones M1–M5 with ten phases (see roadmap.md). **Phase 
 - Phase 9: T-06–T-09.
 
 ### Phase 1 — Safety net (CURRENT)
-Owner direction 2026-10-11: Oracle is run only locally until the foundation is done. Hosted-app and scheduled-job failures are low priority; T-43 means checks that run on the owner's computer (or a simple local script) first, with GitHub automation optional.
+Owner direction 2026-10-11: Oracle runs on his computer against the hosted Supabase database, with no Vercel for now. Vercel and the scheduled/E2E GitHub jobs are low priority; T-43 means checks that run locally (one command) first, with GitHub automation optional.
 | ID | Task | Owner role | Depends on | Status |
 |---|---|---|---|---|
 | T-39 | Fix the randomly failing deck-list completeness property test | Developer | — | DONE — merged to main 1b8d9ae (2026-10-11) on owner approval; 20/20 passes re-verified |
@@ -26,7 +26,7 @@ Owner direction 2026-10-11: Oracle is run only locally until the foundation is d
 | T-42 | Fix the type errors, then stop the build ignoring them (`ignoreBuildErrors`) | Developer | T-40 | TODO |
 | T-43 | Make unit tests, type checking and lint one command that is easy to run locally (and before each merge); GitHub automation only if cheap | Developer | T-41, T-42 | TODO |
 | T-44 | Recovery plan: what a full backup must cover (copies, storage locations, deck assignments, history), what the hosted database already provides, and a restore test proposal | Architect (read-only) | — | IN PROGRESS — Architect agent e09a16af (Kimi K2.7 Code), worktree task-t44-recovery-plan; owner decision needed on the plan |
-| T-45 | (done) Bring the online copy (origin/main, last updated 2026-09-28; local main is 24+ commits ahead) and the live app up to date with main | Gene → Owner | Owner approval to push; confirm what the live app deploys from | DONE — main pushed 3b0998d→1a39d6f on owner approval 2026-10-11; Vercel deployment succeeded; the E2E Tests workflow failed on the new commit (covered by T-40) |
+| T-45 | (done) Bring the online copy (origin/main, last updated 2026-09-28; local main is 24+ commits ahead) and the live app up to date with main | Gene → Owner | Owner approval to push; confirm what the live app deploys from | DONE — main pushed 3b0998d→1a39d6f on owner approval 2026-10-11; Vercel built it successfully, but Vercel is not used for now; the E2E Tests workflow failed on the new commit (covered by T-40) |
 
 ## M1 — Trustworthy data (COMPLETE — migrations deployed 2026-09-26)
 | ID | Task | Owner role | Depends on | Status |

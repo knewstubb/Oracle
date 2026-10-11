@@ -72,3 +72,6 @@ File overlap check: none between T-38 and T-39. Both branched from 4d7ca96. Main
 - Owner: "assume that i will be running everything locally until we get all this foundational work done." Recorded in roadmap.md scope rules and status.md Phase 1. T-43 now means one easy local command first; the hosted checks are low priority.
 - T-40 (ac55dd41) and T-44 (e09a16af) were sent this direction. T-44 must check where the local app's data really lives.
 - Archived the T-38 and T-39 workspaces and deleted their merged branches.
+
+## Correction 2026-10-11 (owner clarification)
+The earlier "local-only" note meant: the app runs locally against the hosted Supabase database; the owner only meant no Vercel for now. Roadmap and status wording corrected, and T-40 and T-44 were sent the correction. The hosted database is the single copy of the data, which makes T-44 more important.

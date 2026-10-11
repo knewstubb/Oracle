@@ -124,53 +124,28 @@ export async function GET(request: NextRequest) {
       let commanderIds: string[] = []
       
       if (archetype) {
-        const { data: archetypeMatches } = await supabase
-          .from('ref_commander_taxonomy')
-          .select('commander_id')
-          .eq('tag_type', 'archetype')
-          .ilike('tag_value', `%${archetype}%`)
-          .order('deck_count', { ascending: false })
-        
-        if (archetypeMatches && archetypeMatches.length > 0) {
-          commanderIds = archetypeMatches.map(m => m.commander_id)
-        }
+        commanderIds = await findCommanderIdsByTaxonomy(supabase, archetype, 'archetype')
       }
       
       if (theme) {
-        const { data: themeMatches } = await supabase
-          .from('ref_commander_taxonomy')
-          .select('commander_id')
-          .eq('tag_type', 'theme')
-          .ilike('tag_value', `%${theme}%`)
-          .order('deck_count', { ascending: false })
-        
-        if (themeMatches && themeMatches.length > 0) {
-          const themeIds = themeMatches.map(m => m.commander_id)
+        // ref_taxonomy has no 'theme' category (it uses archetype/mechanic/tribe/
+        // keyword/color), so themes are matched across every category by name.
+        const themeIds = await findCommanderIdsByTaxonomy(supabase, theme)
+        if (themeIds.length > 0) {
           // Intersect with existing if archetype was also specified
-          if (commanderIds.length > 0) {
-            commanderIds = commanderIds.filter(id => themeIds.includes(id))
-          } else {
-            commanderIds = themeIds
-          }
+          commanderIds = commanderIds.length > 0
+            ? commanderIds.filter(id => themeIds.includes(id))
+            : themeIds
         }
       }
       
       if (tribe) {
-        const { data: tribeMatches } = await supabase
-          .from('ref_commander_taxonomy')
-          .select('commander_id')
-          .eq('tag_type', 'tribe')
-          .ilike('tag_value', `%${tribe}%`)
-          .order('deck_count', { ascending: false })
-        
-        if (tribeMatches && tribeMatches.length > 0) {
-          const tribeIds = tribeMatches.map(m => m.commander_id)
+        const tribeIds = await findCommanderIdsByTaxonomy(supabase, tribe, 'tribe')
+        if (tribeIds.length > 0) {
           // Intersect with existing if other filters were specified
-          if (commanderIds.length > 0) {
-            commanderIds = commanderIds.filter(id => tribeIds.includes(id))
-          } else {
-            commanderIds = tribeIds
-          }
+          commanderIds = commanderIds.length > 0
+            ? commanderIds.filter(id => tribeIds.includes(id))
+            : tribeIds
         }
       }
       
@@ -318,6 +293,52 @@ export async function GET(request: NextRequest) {
     console.error('[api/commanders/search] Error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
+}
+
+/**
+ * Find the commander ids tagged with a taxonomy term.
+ *
+ * `ref_commander_taxonomy` links a commander to a `ref_taxonomy` entry through
+ * `taxonomy_slug`; the human-readable term lives on `ref_taxonomy.display_name`.
+ * `category` optionally narrows the taxonomy entry (for example 'archetype' or
+ * 'tribe'). It is omitted for themes because `ref_taxonomy.category` has no
+ * 'theme' value (see migration 20260803100000_create_ref_taxonomy.sql).
+ */
+async function findCommanderIdsByTaxonomy(
+  supabase: ReturnType<typeof createAdminClient>,
+  term: string,
+  category?: 'archetype' | 'mechanic' | 'tribe' | 'keyword' | 'color'
+): Promise<string[]> {
+  let taxonomyQuery = supabase
+    .from('ref_taxonomy')
+    .select('slug')
+    .ilike('display_name', `%${term}%`)
+
+  if (category) {
+    taxonomyQuery = taxonomyQuery.eq('category', category)
+  }
+
+  const { data: taxonomyMatches, error: taxonomyError } = await taxonomyQuery
+
+  if (taxonomyError) {
+    console.error('[api/commanders/search] Taxonomy query error:', taxonomyError)
+    return []
+  }
+
+  const slugs = (taxonomyMatches || []).map(t => t.slug)
+  if (slugs.length === 0) return []
+
+  const { data: commanderMatches, error: commanderError } = await supabase
+    .from('ref_commander_taxonomy')
+    .select('commander_id')
+    .in('taxonomy_slug', slugs)
+
+  if (commanderError) {
+    console.error('[api/commanders/search] Taxonomy join error:', commanderError)
+    return []
+  }
+
+  return (commanderMatches || []).map(m => m.commander_id)
 }
 
 /**

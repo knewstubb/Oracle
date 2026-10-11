@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, isValidElement } from 'react'
 import { Loader2 } from 'lucide-react'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
@@ -60,22 +60,26 @@ export function DeckPickerPopover({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        {children ?? (
-          <Button
-            variant={variant}
-            size="sm"
-            disabled={disabled}
-            className="shrink-0"
-            style={{
-              color: 'var(--accent-primary)',
-              borderColor: 'var(--accent-primary)',
-            }}
-          >
-            {label}
-          </Button>
-        )}
-      </PopoverTrigger>
+      <PopoverTrigger
+        render={
+          isValidElement(children) ? (
+            children
+          ) : (
+            <Button
+              variant={variant}
+              size="sm"
+              disabled={disabled}
+              className="shrink-0"
+              style={{
+                color: 'var(--accent-primary)',
+                borderColor: 'var(--accent-primary)',
+              }}
+            >
+              {label}
+            </Button>
+          )
+        }
+      />
       <PopoverContent
         align="end"
         sideOffset={4}

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Plus, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getCardInfo } from '@/components/CardHoverPreview'
+import { getScryfallImageUrl } from '@/lib/scryfall-image'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -42,10 +43,10 @@ export function CommanderSuggestionCard({
     let cancelled = false
     
     getCardInfo(commanderName).then(info => {
-      if (!cancelled && info.imageUrl) {
-        setImageUrl(info.imageUrl)
+      if (!cancelled) {
+        setImageUrl(getScryfallImageUrl(info.scryfallId))
+        setIsLoading(false)
       }
-      if (!cancelled) setIsLoading(false)
     })
     
     return () => { cancelled = true }

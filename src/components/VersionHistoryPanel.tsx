@@ -264,7 +264,7 @@ export function VersionHistoryPanel({ deckId, deckName }: VersionHistoryPanelPro
       {/* Restore confirmation modal */}
       <ConfirmationModal
         open={!!restoreTarget}
-        onOpenChange={(open) => !open && setRestoreTarget(null)}
+        onCancel={() => setRestoreTarget(null)}
         title="Restore Version?"
         description={
           restoreTarget
@@ -272,7 +272,6 @@ export function VersionHistoryPanel({ deckId, deckName }: VersionHistoryPanelPro
             : ''
         }
         confirmLabel="Restore"
-        variant="warning"
         onConfirm={handleRestoreVersion}
         isLoading={restoreMutation.isPending}
       />

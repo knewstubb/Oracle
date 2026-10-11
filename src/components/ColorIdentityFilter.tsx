@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, type CSSProperties } from 'react'
 import Image from 'next/image'
 import { cn } from '@/lib/utils'
 
@@ -99,9 +99,11 @@ export function ColorIdentityFilter({
                 ? 'ring-2 ring-offset-1 ring-offset-zinc-900'
                 : 'opacity-40 hover:opacity-70',
             )}
-            style={{
-              ringColor: isSelected ? color.ring : undefined,
-            }}
+            style={
+              isSelected
+                ? ({ '--tw-ring-color': color.ring } as CSSProperties)
+                : undefined
+            }
           >
             <Image
               src={color.svg}

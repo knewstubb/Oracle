@@ -117,15 +117,16 @@ export async function POST(
   const prompt = NAME_GENERATION_PROMPT.replace('{RESPONSE}', truncatedContent)
 
   try {
-    const response = await adapter.generateText({
+    const response = await adapter.sendMessage({
       model: modelConfig.modelId,
       system: 'You generate concise session names. Output only the name, nothing else.',
       messages: [{ role: 'user', content: prompt }],
+      tools: [],
       maxTokens: 50,
     })
 
     // Clean up the generated name
-    let generatedName = response.text.trim()
+    let generatedName = response.textContent.trim()
     
     // Remove quotes if present
     generatedName = generatedName.replace(/^["']|["']$/g, '')

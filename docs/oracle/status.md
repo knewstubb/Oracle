@@ -33,7 +33,7 @@ Plan: audit first (read-only), then fix in small disjoint batches. Fix tasks are
 
 | ID | Task | Owner role | Depends on | Status |
 |---|---|---|---|---|
-| T-46 | Audit card facts on main: where printing, finish and price are read, stored and shown; where a screen picks the wrong printing, drops finish, shows an unknown price as zero or as a fact, or still uses Card Kingdom; spot-check a real deck against the screens. Read-only; list findings by area with a proposed fix batch each (disjoint files) | Tester (read-only) | — | IN PROGRESS — Tester agent running (started 2026-10-11, worktree t46-card-facts-audit) |
+| T-46 | Audit card facts on main: where printing, finish and price are read, stored and shown; where a screen picks the wrong printing, drops finish, shows an unknown price as zero or as a fact, or still uses Card Kingdom; spot-check a real deck against the screens. Read-only; list findings by area with a proposed fix batch each (disjoint files) | Tester (read-only) | — | DONE — audit report in main (2026-10-11-tester-t46-card-facts-audit.md): 12 proposed fix batches. Phase 2 owns batches 1, 4, 5, 11 (and part of 10); the rest belong to Phases 3–9. Owner decisions pending: Card Kingdom removal, unknown-price display, Refresh Prices button, deck-slot finish |
 | T-47 | Fix findings from T-46 in batches (e.g. Proxy records the requested printing; prices labelled as estimates, unknown never zero; finish kept everywhere; remove half-removed Card Kingdom feed) | Developer | T-46 + owner review | TODO |
 
 ## M1 — Trustworthy data (COMPLETE — migrations deployed 2026-09-26)

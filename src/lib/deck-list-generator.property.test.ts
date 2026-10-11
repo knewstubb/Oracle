@@ -34,19 +34,23 @@ const arbDeck: fc.Arbitrary<DeckListInput> = fc
 
 /**
  * Count card data rows in the markdown output.
- * Card rows are tab-indented table rows that are NOT the header, separator, or total row.
+ *
+ * Card rows are tab-indented table rows whose first cell is a numeric
+ * quantity. The header, separator, and summary total rows never have a plain
+ * numeric first cell, so this identifies card rows structurally rather than by
+ * matching text that could also appear inside a card's own fields (e.g. a set
+ * code or category of `**`, which previously looked like the bold total row).
  */
 function countCardRows(markdown: string): number {
   const lines = markdown.split('\n')
   let count = 0
   for (const line of lines) {
-    // Card rows start with \t| and are not separator rows (---), header rows, or total rows
-    if (
-      line.startsWith('\t|') &&
-      !line.includes('|---') &&
-      !line.includes('| Qty |') &&
-      !line.includes('| **')
-    ) {
+    if (!line.startsWith('\t|')) continue
+    const firstCell = line
+      .split('|')
+      .map((cell) => cell.trim())
+      .find((cell) => cell.length > 0)
+    if (firstCell !== undefined && /^\d+$/.test(firstCell)) {
       count++
     }
   }
@@ -80,6 +84,39 @@ describe('Property 1: Card Completeness', () => {
       }),
       { numRuns: 100 }
     )
+  })
+
+  it('counts rows correctly when a set code or category looks like bold text (**)', () => {
+    // Regression for the intermittent failure where countCardRows mistook a
+    // card row containing `| **` for the bold summary total row.
+    const input: DeckListInput = {
+      cards: [
+        {
+          cardName: 'Sol Ring',
+          category: 'Ramp',
+          setCode: '**',
+          collectorNumber: '263',
+          status: 'Original',
+          isCommander: false,
+          quantity: 1,
+        },
+        {
+          cardName: 'Korvold, Fae-Cursed King',
+          category: '**',
+          setCode: 'ELD',
+          collectorNumber: '197',
+          status: 'Proxy',
+          isCommander: true,
+          quantity: 2,
+        },
+      ],
+    }
+
+    const result = generateDeckListMarkdown(input)
+
+    expect(result.totalCards).toBe(3)
+    expect(countCardRows(result.markdown)).toBe(input.cards.length)
+    expect(result.markdown).toContain('3 cards')
   })
 })
 

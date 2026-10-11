@@ -39,7 +39,7 @@ interface Deck {
   deck_type: string | null
   precon_url: string | null
   bracket: string | null
-  status: 'brewing' | 'in_rotation' | 'graveyard' // Legacy, being phased out
+  status: 'brewing' | 'in_rotation' // Legacy, being phased out
   is_active: boolean
   last_synced_at: string | null
   raw_json: string | null

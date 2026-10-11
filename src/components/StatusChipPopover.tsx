@@ -368,28 +368,6 @@ function PopoverBody({
             Replace with original
           </Button>
         )}
-        <div className="flex gap-2">
-          <button
-            type="button"
-            className="text-[length:var(--fs-xs)] text-muted-foreground hover:text-foreground disabled:opacity-40"
-            disabled={isPending}
-            onClick={async () => {
-              if (!physicalCopyId) return
-              try {
-                const res = await fetch(`/api/physical-copies/${physicalCopyId}/missing`, { method: 'POST' })
-                if (!res.ok) throw new Error('Failed to mark as missing')
-                queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'card-statuses'] })
-                queryClient.invalidateQueries({ queryKey: ['picklist', deckId] })
-                toast.success(`Marked ${cardName} as missing`)
-                onClose()
-              } catch {
-                toast.error('Failed to mark as missing')
-              }
-            }}
-          >
-            Mark as missing
-          </button>
-        </div>
       </div>
     )
   }

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { StatusFilter, parseStatusFilter } from './StatusFilter'
 
@@ -14,12 +14,12 @@ describe('StatusFilter', () => {
     vi.clearAllMocks()
   })
 
-  it('renders chip buttons for all three statuses', () => {
+  it('renders chip buttons for both statuses', () => {
     render(<StatusFilter />)
 
     expect(screen.getByRole('button', { name: 'Brewing' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Active' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Graveyard' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Graveyard' })).not.toBeInTheDocument()
   })
 
   it('has accessible group role with label', () => {
@@ -53,13 +53,6 @@ describe('StatusFilter', () => {
     expect(mockReplace).toHaveBeenCalledWith('?status=brewing', { scroll: false })
   })
 
-  it('clicking Graveyard chip updates URL with graveyard status', () => {
-    render(<StatusFilter />)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Graveyard' }))
-
-    expect(mockReplace).toHaveBeenCalledWith('?status=graveyard', { scroll: false })
-  })
 })
 
 describe('parseStatusFilter', () => {
@@ -76,11 +69,6 @@ describe('parseStatusFilter', () => {
   it('parses brewing status', () => {
     const params = new URLSearchParams('status=brewing')
     expect(parseStatusFilter(params)).toEqual(['brewing'])
-  })
-
-  it('parses graveyard status', () => {
-    const params = new URLSearchParams('status=graveyard')
-    expect(parseStatusFilter(params)).toEqual(['graveyard'])
   })
 
   it('parses comma-separated statuses', () => {
@@ -103,8 +91,8 @@ describe('parseStatusFilter', () => {
     expect(parseStatusFilter(params)).toEqual(['in_rotation', 'brewing'])
   })
 
-  it('filters out old status values (active, draft, inactive)', () => {
-    const params = new URLSearchParams('status=active,draft,inactive')
+  it('filters out removed and old status values (graveyard, active, draft, inactive)', () => {
+    const params = new URLSearchParams('status=graveyard,active,draft,inactive')
     expect(parseStatusFilter(params)).toEqual([])
   })
 })

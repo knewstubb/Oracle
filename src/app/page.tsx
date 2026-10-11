@@ -22,7 +22,7 @@ interface Deck {
   colour_identity: string
   card_count: number
   deck_type: string | null
-  status: 'brewing' | 'in_rotation' | 'graveyard' // Legacy, being phased out
+  status: 'brewing' | 'in_rotation' // Legacy, being phased out
   is_active: boolean
   completeness?: { resolved: number; total: number; availableCount?: number; claimedCount?: number; unownedCount?: number } | null
   conflictCount?: number

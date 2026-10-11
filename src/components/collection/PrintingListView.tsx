@@ -22,8 +22,6 @@ export interface PrintingListViewProps {
   sortField: PrintingSortField
   sortDirection: SortDirection
   onSort: (field: PrintingSortField) => void
-  /** When true, missing rows are included and rendered with dimmed treatment */
-  showMissing?: boolean
 }
 
 /* ─── Column Widths ─────────────────────────────────────────────────── */
@@ -228,7 +226,6 @@ export function PrintingListView({
   sortField,
   sortDirection,
   onSort,
-  showMissing = false,
 }: PrintingListViewProps) {
   const isMobile = useIsMobile()
   
@@ -347,14 +344,13 @@ export function PrintingListView({
                     key={`${row.id}-${row.isFoil}-${row.isProxy}`}
                     className={cn(
                       'absolute left-0 flex w-full items-center gap-3 px-4 active:bg-[rgba(255,255,255,0.04)]',
-                      row.isProxy && 'opacity-60',
-                      row.isMissing && 'opacity-40'
+                      row.isProxy && 'opacity-60'
                     )}
                     style={{
                       height: `${virtualRow.size}px`,
                       top: `${virtualRow.start}px`,
                       borderBottom: '0.5px solid rgba(255,255,255,0.04)',
-                      borderLeft: row.isMissing ? '2px solid rgba(228,75,74,0.4)' : row.isProxy ? '2px dashed rgba(255,255,255,0.15)' : '2px solid transparent',
+                      borderLeft: row.isProxy ? '2px dashed rgba(255,255,255,0.15)' : '2px solid transparent',
                     }}
                     onClick={() => handleTap(row)}
                     role="button"
@@ -367,17 +363,12 @@ export function PrintingListView({
                     </span>
 
                     {/* Name (full width, truncated) */}
-                    <span
-                      className={cn('flex-1 min-w-0 truncate text-[length:var(--fs-base)]', row.isMissing && 'line-through')}
-                    >
-                      <span style={{ color: row.isMissing ? 'rgba(255,255,255,0.4)' : 'var(--color-primary-text)', fontWeight: 500 }}>
+                    <span className="flex-1 min-w-0 truncate text-[length:var(--fs-base)]">
+                      <span style={{ color: 'var(--color-primary-text)', fontWeight: 500 }}>
                         {row.cardName}
                       </span>
                       {row.isProxy && (
                         <span className="ml-1.5 text-[9px] uppercase" style={{ color: 'rgba(255,255,255,0.3)' }}>proxy</span>
-                      )}
-                      {row.isMissing && (
-                        <span className="ml-1.5 text-[9px] font-medium uppercase" style={{ color: 'rgba(228,75,74,0.8)' }}>missing</span>
                       )}
                     </span>
 
@@ -398,14 +389,13 @@ export function PrintingListView({
                   key={`${row.id}-${row.isFoil}-${row.isProxy}`}
                   className={cn(
                     'group absolute left-0 flex w-full items-center gap-10 px-4 transition-colors hover:bg-[rgba(255,255,255,0.02)]',
-                    row.isProxy && 'opacity-60',
-                    row.isMissing && 'opacity-40'
+                    row.isProxy && 'opacity-60'
                   )}
                   style={{
                     height: `${virtualRow.size}px`,
                     top: `${virtualRow.start}px`,
                     borderBottom: '0.5px solid rgba(255,255,255,0.04)',
-                    borderLeft: row.isMissing ? '2px solid rgba(228,75,74,0.4)' : row.isProxy ? '2px dashed rgba(255,255,255,0.15)' : '2px solid transparent',
+                    borderLeft: row.isProxy ? '2px dashed rgba(255,255,255,0.15)' : '2px solid transparent',
                   }}
                 >
                   {/* Group 1: Checkbox + Qty + Name (FLEX) */}
@@ -419,13 +409,13 @@ export function PrintingListView({
                     </span>
 
                     <span
-                      className={cn('flex-1 min-w-0 truncate text-[length:var(--fs-base)] cursor-default', row.isMissing && 'line-through')}
+                      className="flex-1 min-w-0 truncate text-[length:var(--fs-base)] cursor-default"
                       title={row.cardName.length > 40 ? row.cardName : undefined}
                       onMouseEnter={(e) => handleMouseEnter(e, row)}
                       onMouseMove={handleMouseMove}
                       onMouseLeave={handleMouseLeave}
                     >
-                      <span style={{ color: row.isMissing ? 'rgba(255,255,255,0.4)' : 'var(--color-primary-text)', fontWeight: 500 }}>
+                      <span style={{ color: 'var(--color-primary-text)', fontWeight: 500 }}>
                         {truncateName(row.cardName)}
                       </span>
                       {row.collectorNumber && (
@@ -433,9 +423,6 @@ export function PrintingListView({
                       )}
                       {row.isProxy && (
                         <span className="ml-1.5 text-[9px] uppercase" style={{ color: 'rgba(255,255,255,0.3)' }}>proxy</span>
-                      )}
-                      {row.isMissing && (
-                        <span className="ml-1.5 text-[9px] font-medium uppercase" style={{ color: 'rgba(228,75,74,0.8)' }}>missing</span>
                       )}
                     </span>
                   </div>

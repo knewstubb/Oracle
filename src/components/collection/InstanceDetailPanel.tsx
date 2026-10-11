@@ -2,14 +2,13 @@
 
 import { useState, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { X, Plus, Unlink, Shuffle, Trash2, Loader2, ArrowRightLeft, MoreVertical, AlertTriangle } from 'lucide-react'
+import { X, Plus, Unlink, Shuffle, Trash2, Loader2, ArrowRightLeft, MoreVertical } from 'lucide-react'
 import { toast } from 'sonner'
 import { CardHoverPreview, showCardPreview, updateCardPreviewPosition, hideCardPreview } from '@/components/CardHoverPreview'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { LocationPickerModal } from '@/components/LocationPickerModal'
 import { DeckPickerPopover, type ValidDeck } from '@/components/DeckPickerPopover'
 import { StorageLocationSelect } from '@/components/collection/StorageLocationSelect'
-import { MissingCopyRow } from '@/components/collection/MissingCopyRow'
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
 
@@ -20,8 +19,6 @@ interface InstanceDetailPanelProps {
   // Selection model integration
   isInstanceSelected: (physicalCopyId: number) => boolean
   onToggleInstance: (physicalCopyId: number) => void
-  /** When true, missing copies are shown with dimmed treatment. Default: hidden. */
-  showMissing?: boolean
 }
 
 interface InstanceRow {
@@ -32,7 +29,6 @@ interface InstanceRow {
   isFoil: boolean
   condition: string | null
   isProxy: boolean
-  isMissing: boolean
   assignedDeckName: string | null
   assignedDeckId: number | null
   assignedDeckStatus: string | null
@@ -81,7 +77,6 @@ export function InstanceDetailPanel({
   onClose,
   isInstanceSelected,
   onToggleInstance,
-  showMissing = false,
 }: InstanceDetailPanelProps) {
   const queryClient = useQueryClient()
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<number | null>(null)
@@ -230,11 +225,8 @@ export function InstanceDetailPanel({
           <div className="flex flex-col">
             {/* Section: In decks (assigned copies + Short entries) */}
             {(() => {
-              // Separate missing copies from normal ones
-              const nonMissing = data.instances.filter(i => !i.isMissing)
-              const missingInstances = data.instances.filter(i => i.isMissing)
-              const inDeckInstances = nonMissing.filter(i => i.assignedDeckName !== null)
-              const inStorageInstances = nonMissing.filter(i => i.assignedDeckName === null)
+              const inDeckInstances = data.instances.filter(i => i.assignedDeckName !== null)
+              const inStorageInstances = data.instances.filter(i => i.assignedDeckName === null)
               return (
                 <>
                   {(inDeckInstances.length > 0 || (data.shortDecks && data.shortDecks.length > 0)) && (
@@ -319,25 +311,6 @@ export function InstanceDetailPanel({
                           isUnassigning={unassignMutation.isPending && unassignMutation.variables === instance.physicalCopyId}
                           isDeleting={deleteMutation.isPending && deleteMutation.variables === instance.physicalCopyId}
                           validDecks={validDecks}
-                        />
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Section: Missing copies (only shown when toggle is on) */}
-                  {showMissing && missingInstances.length > 0 && (
-                    <div className="border-t border-[var(--border-subtle)]">
-                      <h3 className="px-4 py-2 text-[length:var(--fs-xs)] font-semibold tracking-wide text-muted-foreground">
-                        Missing ({missingInstances.length})
-                      </h3>
-                      {missingInstances.map((instance) => (
-                        <MissingCopyRow
-                          key={instance.physicalCopyId}
-                          physicalCopyId={instance.physicalCopyId}
-                          cardName={data.cardName}
-                          setName={instance.setName}
-                          condition={instance.condition}
-                          isFoil={instance.isFoil}
                         />
                       ))}
                     </div>
@@ -846,15 +819,9 @@ function InstanceRowItem({
               </button>
             )}
 
-            {/* Kebab menu — Unassign, Mark as missing, Add proxy, Delete */}
+            {/* Kebab menu — Unassign, Add proxy, Delete */}
             <KebabMenu
               onUnassign={instance.assignedDeckName ? onUnassign : undefined}
-              onMarkMissing={() => {
-                // Call the missing endpoint directly
-                fetch(`/api/physical-copies/${instance.physicalCopyId}/missing`, { method: 'POST' })
-                  .then(res => { if (res.ok) { queryClient.invalidateQueries({ queryKey: ['instances', oracleId] }); queryClient.invalidateQueries({ queryKey: ['collection'] }); toast.success('Marked as missing') } else { toast.error('Failed to mark as missing') } })
-                  .catch(() => toast.error('Failed to mark as missing'))
-              }}
               onAddProxy={() => {
                 // Card-level add proxy — creates a new proxy copy for this card, lands in storage
                 fetch(`/api/collection/instances/add-proxy`, {
@@ -914,9 +881,8 @@ function InstanceRowItem({
 
 /* ─── KebabMenu (In Deck row) ───────────────────────────────────────── */
 
-function KebabMenu({ onUnassign, onMarkMissing, onAddProxy, onDelete, isUnassigning }: {
+function KebabMenu({ onUnassign, onAddProxy, onDelete, isUnassigning }: {
   onUnassign?: () => void
-  onMarkMissing: () => void
   onAddProxy?: () => void
   onDelete: () => void
   isUnassigning: boolean
@@ -950,14 +916,6 @@ function KebabMenu({ onUnassign, onMarkMissing, onAddProxy, onDelete, isUnassign
               Unassign
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => { onMarkMissing(); setOpen(false) }}
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-[length:var(--fs-xs)] text-[var(--text-secondary)] transition-colors hover:bg-[rgba(255,255,255,0.05)]"
-          >
-            <AlertTriangle className="size-3" />
-            Mark as missing
-          </button>
           {onAddProxy && (
             <button
               type="button"
@@ -1034,7 +992,6 @@ function getStatusColor(status: string): string {
   switch (status) {
     case 'brewing': return '#60A5FA' // blue
     case 'in_rotation': return '#34D399' // green
-    case 'graveyard': return '#9CA3AF' // gray
     default: return '#9CA3AF'
   }
 }

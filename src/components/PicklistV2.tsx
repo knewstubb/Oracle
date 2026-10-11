@@ -247,7 +247,7 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
         setTier4Pending({ card, candidate })
         return
       }
-      // Tier 3 (brewing/graveyard): instant
+      // Tier 3 (brewing): instant
       claimMutation.mutate({ deckCardsId: card.deckCardsId, physicalCopyId: candidate.entry.physicalCopyId })
       toast.success(`Sleeved ${card.cardName}`)
     } else {
@@ -591,8 +591,7 @@ function formatDeckStatus(status: string): string {
   switch (status) {
     case 'brewing': return 'Brewing'
     case 'in_rotation': return 'Active'
-    case 'graveyard': return 'Graveyard'
-    default: return status
+    default: return 'Active'
   }
 }
 

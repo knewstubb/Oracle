@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CollectionRollupTab } from './CollectionRollupTab'
 
@@ -121,18 +121,17 @@ describe('CollectionRollupTab rollup-level selection', () => {
       expect(screen.getByText(`${REAL_COPY_IDS.length} selected`)).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: /Mark as missing/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    // Confirm the destructive bulk action so it actually runs.
+    const dialog = await screen.findByRole('alertdialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
 
     await waitFor(() => {
-      const missingCalls = fetchCalls.filter((c) =>
-        c.url.includes('/api/physical-copies/') && c.url.includes('/missing')
-      )
-      expect(missingCalls.map((c) => c.url)).toEqual(
-        expect.arrayContaining([
-          expect.stringContaining(`/api/physical-copies/${REAL_COPY_IDS[0]}/missing`),
-          expect.stringContaining(`/api/physical-copies/${REAL_COPY_IDS[1]}/missing`),
-        ])
-      )
+      const deleteCalls = fetchCalls.filter((c) => c.url.includes('/api/collection/instances/delete'))
+      expect(deleteCalls).toHaveLength(REAL_COPY_IDS.length)
+      const deletedIds = deleteCalls.map((c) => JSON.parse(String(c.init?.body)).physicalCopyId)
+      expect(deletedIds).toEqual(expect.arrayContaining(REAL_COPY_IDS))
     })
   })
 

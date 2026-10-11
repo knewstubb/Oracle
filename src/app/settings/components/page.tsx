@@ -138,7 +138,7 @@ function TokensSection() {
           <strong className="text-[var(--text-secondary)]">success:</strong> positive state (card resolved).{' '}
           <strong className="text-[var(--text-secondary)]">warning:</strong> attention needed (open slot).{' '}
           <strong className="text-[var(--text-secondary)]">destructive:</strong> delete/danger action buttons.{' '}
-          <strong className="text-[var(--text-secondary)]">critical:</strong> bad state indicator (unowned, missing) — not an action, just a status.
+          <strong className="text-[var(--text-secondary)]">critical:</strong> bad state indicator (unowned) — not an action, just a status.
         </p>
 
         <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-3">Status (app-specific)</h3>
@@ -319,7 +319,6 @@ function BadgesSection() {
         <div className="flex flex-wrap gap-3">
           <FilterChipExample label="Hide Basics" active />
           <FilterChipExample label="Allocated" active={false} />
-          <FilterChipExample label="Missing (3)" active variant="critical" />
           <FilterChipExample label="Proxies (12)" active variant="blue" />
         </div>
       </div>
@@ -459,16 +458,6 @@ function StatusSection() {
         </div>
       </div>
 
-      <div>
-        <h2 className="text-[length:var(--fs-lg)] font-medium text-[var(--text-primary)] mb-4">Missing state</h2>
-        <div className="flex items-center gap-3 opacity-50">
-          <span className="line-through text-[length:var(--fs-base)] text-[var(--text-tertiary)]">Demonic Tutor</span>
-          <span className="text-[9px] font-medium uppercase" style={{ color: 'rgba(228,75,74,0.8)' }}>missing</span>
-        </div>
-        <p className="mt-2 text-[length:var(--fs-xs)] text-[var(--text-tertiary)]">
-          Dimmed row + strikethrough + red left border (in list view) + &quot;MISSING&quot; badge
-        </p>
-      </div>
     </>
   )
 }
@@ -615,7 +604,6 @@ function CardsSection() {
     { id: 'amber-overcount', label: 'Overcount (Amber)' },
     { id: 'red', label: 'Unowned (Red)' },
     { id: 'brewing', label: 'Brewing' },
-    { id: 'graveyard', label: 'Graveyard' },
   ]
 
   const showVariant = (variant: string) => selectedVariant === 'all' || selectedVariant === variant
@@ -828,41 +816,6 @@ function CardsSection() {
         </div>
       )}
 
-      {/* ─── Graveyard ────────────────────────────────────────── */}
-      {showVariant('graveyard') && (
-        <div>
-          <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-2">Graveyard</h3>
-          <p className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)] mb-4">
-            Retired/archived deck. Grayscale + reduced opacity, skull icon.
-            Cards have been deallocated and returned to storage.
-          </p>
-          <div className="flex flex-wrap gap-4">
-            <DeckTile
-              id={11}
-              name="Urza Artifacts (Retired)"
-              commanderName="Urza, Lord High Artificer"
-              commanderScryfallId={SAMPLE_COMMANDERS.urza}
-              colourIdentity={['U']}
-              cardCount={100}
-              isActive={false}
-              format="commander"
-              pipDistribution={{ U: 80 }}
-            />
-            <DeckTile
-              id={12}
-              name="Atraxa Superfriends"
-              commanderName="Atraxa, Praetors' Voice"
-              commanderScryfallId={SAMPLE_COMMANDERS.atraxa}
-              colourIdentity={['W', 'U', 'B', 'G']}
-              cardCount={100}
-              isActive={false}
-              format="commander"
-              pipDistribution={{ W: 15, U: 20, B: 25, G: 20 }}
-            />
-          </div>
-        </div>
-      )}
-
       <Separator />
 
       {/* ─── Spec Reference ───────────────────────────────────── */}
@@ -895,7 +848,6 @@ function CardsSection() {
               <li><span style={{ color: 'var(--signal-warning)' }}>Amber:</span> Needs sleeve / Overcount + glow</li>
               <li><span style={{ color: 'var(--signal-critical)' }}>Red:</span> Unowned slots + glow</li>
               <li><span style={{ color: '#8F51D5' }}>Purple:</span> Brewing (solid)</li>
-              <li><span className="opacity-50">Grayscale:</span> Graveyard</li>
             </ul>
           </div>
           <div>
@@ -906,7 +858,6 @@ function CardsSection() {
               <li>Overcount: Hash (#)</li>
               <li>Unowned: Ban (⊘)</li>
               <li>Brewing: FlaskConical</li>
-              <li>Graveyard: Skull</li>
             </ul>
           </div>
         </div>

@@ -187,7 +187,7 @@ function ImportConfirmation({
             Replace your entire collection?
           </p>
           <p className="mt-1 text-[length:var(--fs-xs)] leading-relaxed text-white/60">
-            {fileName} will replace the current collection. Deck allocations will be cleared and need Built-deck reconciliation afterward. Storage locations, notes, purchase prices, and missing flags will not carry over.
+            {fileName} will replace the current collection. Deck allocations will be cleared and need Built-deck reconciliation afterward. Storage locations, notes, and purchase prices will not carry over.
           </p>
         </div>
       </div>

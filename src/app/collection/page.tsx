@@ -16,7 +16,6 @@ import {
 } from '@/components/collection/CollectionToolbar'
 import { CollectionGridView } from '@/components/collection/CollectionGridView'
 import { PrintingListView } from '@/components/collection/PrintingListView'
-import { MissingToggle } from '@/components/collection/MissingToggle'
 import { PriceStaleIndicator } from '@/components/collection/PriceStaleIndicator'
 import { useOracleContext } from '@/contexts/OracleContext'
 import { usePageHeader } from '@/contexts/PageHeaderContext'
@@ -36,7 +35,6 @@ export default function CollectionPage() {
 
   // ─── Proxy toggle ──────────────────────────────────────────────
   const [includeProxies, setIncludeProxies] = useState(false)
-  const [showMissing, setShowMissing] = useState(false)
 
   // ─── Toolbar state ─────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('')
@@ -122,11 +120,6 @@ export default function CollectionPage() {
     setPrintingPage(1)
   }, [])
 
-  const handleShowMissingChange = useCallback((value: boolean) => {
-    setShowMissing(value)
-    setPrintingPage(1)
-  }, [])
-
   // ─── Fetch rollup data via hook (server-side paginated) ────────
   const { data: rollupData, rows, totalCount, page, pageSize, lastPriceRefresh, isPriceStale, isLoading, isFetching, error, expand } =
     useCollectionRollup({
@@ -156,7 +149,6 @@ export default function CollectionPage() {
     colors: selectedColors,
     colorMode,
     includeProxies,
-    includeMissing: showMissing,
     enabled: viewResolved && isPrintingView,
   })
 
@@ -217,7 +209,6 @@ export default function CollectionPage() {
           : printingTotalCount)  // total when only showing owned
       : totalCount  // grid view uses rollup count (which doesn't include proxies)
   const proxyCount = hasActiveData ? printingRows.filter((r) => r.isProxy).length : 0
-  const missingCount = hasActiveData ? printingRows.filter((r) => r.isMissing).length : 0
 
   // Pagination derived state
   const totalPages = Math.ceil(totalCount / pageSize)
@@ -320,14 +311,6 @@ export default function CollectionPage() {
                 Proxies ({proxyCount})
               </button>
             )}
-            {/* Missing toggle chip */}
-            {isPrintingView && (
-              <MissingToggle
-                showMissing={showMissing}
-                onToggle={handleShowMissingChange}
-                missingCount={missingCount}
-              />
-            )}
           </div>
 
           {/* ─── Main Content: Loading / Error / Empty / Data ──── */}
@@ -349,9 +332,6 @@ export default function CollectionPage() {
                     sortField={printingSortField}
                     sortDirection={printingSortDirection}
                     onSort={handlePrintingSort}
-                    isPriceStale={activeIsPriceStale}
-                    lastPriceRefresh={activeLastPriceRefresh}
-                    showMissing={showMissing}
                   />
                 </div>
               )

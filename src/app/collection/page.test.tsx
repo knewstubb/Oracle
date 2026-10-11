@@ -109,7 +109,6 @@ function printingRow(cardName: string, id: number, overrides: Record<string, unk
     totalSupply: 1,
     activeDemand: 0,
     allocationState: 'unallocated' as const,
-    isMissing: false,
     manaCost: null,
     rarity: 'common',
     collectorNumber: '1',

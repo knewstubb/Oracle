@@ -40,7 +40,6 @@ export interface CollectionCopy {
   finish: string           // 'nonfoil', 'foil', 'etched'
   language: string         // 'en', 'ja', etc.
   isProxy: boolean
-  missing: boolean
   proxyForCardId: number | null
   condition: PhysicalCondition | null
   purchasePrice: number | null
@@ -159,7 +158,6 @@ function mapRowToCollectionCopy(row: any): CollectionCopy {
     finish: row.finish ?? 'nonfoil',
     language: row.language ?? 'en',
     isProxy: Boolean(row.is_proxy),
-    missing: Boolean(row.missing),
     proxyForCardId: row.proxy_for_card_id ?? null,
     condition: row.condition ?? null,
     purchasePrice: row.purchase_price ?? null,

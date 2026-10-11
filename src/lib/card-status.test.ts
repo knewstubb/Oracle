@@ -71,7 +71,7 @@ describe('computeUnresolvedStatuses', () => {
     expect(result.get('Nonexistent Card')).toBe('unowned')
   })
 
-  it('returns "available" when a free non-missing copy exists', async () => {
+  it('returns "available" when a free copy exists', async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === 'user_cards') {
         return {
@@ -89,13 +89,11 @@ describe('computeUnresolvedStatuses', () => {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                in: vi.fn().mockResolvedValue({
-                  data: [
-                    { card_id: 1, printing_id: 'abc', deck_cards: [] }, // free copy (no deck link)
-                  ],
-                  error: null,
-                }),
+              in: vi.fn().mockResolvedValue({
+                data: [
+                  { card_id: 1, printing_id: 'abc', deck_cards: [] }, // free copy (no deck link)
+                ],
+                error: null,
               }),
             }),
           }),
@@ -126,14 +124,12 @@ describe('computeUnresolvedStatuses', () => {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                in: vi.fn().mockResolvedValue({
-                  data: [
-                    { card_id: 1, printing_id: 'abc', deck_cards: [{ id: 99 }] }, // held by another deck
-                    { card_id: 1, printing_id: 'def', deck_cards: [{ id: 100 }] }, // also held
-                  ],
-                  error: null,
-                }),
+              in: vi.fn().mockResolvedValue({
+                data: [
+                  { card_id: 1, printing_id: 'abc', deck_cards: [{ id: 99 }] }, // held by another deck
+                  { card_id: 1, printing_id: 'def', deck_cards: [{ id: 100 }] }, // also held
+                ],
+                error: null,
               }),
             }),
           }),
@@ -164,15 +160,13 @@ describe('computeUnresolvedStatuses', () => {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                in: vi.fn().mockResolvedValue({
-                  data: [
-                    { card_id: 1, printing_id: 'abc', deck_cards: [{ id: 99 }] }, // held
-                    { card_id: 1, printing_id: 'def', deck_cards: [{ id: 100 }] }, // held
-                    { card_id: 1, printing_id: 'ghi', deck_cards: [] }, // FREE — this one makes it unallocated
-                  ],
-                  error: null,
-                }),
+              in: vi.fn().mockResolvedValue({
+                data: [
+                  { card_id: 1, printing_id: 'abc', deck_cards: [{ id: 99 }] }, // held
+                  { card_id: 1, printing_id: 'def', deck_cards: [{ id: 100 }] }, // held
+                  { card_id: 1, printing_id: 'ghi', deck_cards: [] }, // FREE — this one makes it unallocated
+                ],
+                error: null,
               }),
             }),
           }),
@@ -185,8 +179,7 @@ describe('computeUnresolvedStatuses', () => {
     expect(result.get('Sol Ring')).toBe('available')
   })
 
-  it('returns "unowned" when only missing copies exist (excluded by query)', async () => {
-    // The query filters missing=false, so missing copies don't appear in results
+  it('returns "unowned" when the card has no copies', async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === 'user_cards') {
         return {
@@ -204,11 +197,9 @@ describe('computeUnresolvedStatuses', () => {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                in: vi.fn().mockResolvedValue({
-                  data: [], // empty — all copies are missing=true, filtered out
-                  error: null,
-                }),
+              in: vi.fn().mockResolvedValue({
+                data: [],
+                error: null,
               }),
             }),
           }),
@@ -221,8 +212,7 @@ describe('computeUnresolvedStatuses', () => {
     expect(result.get('Lost Card')).toBe('unowned')
   })
 
-  it('returns "claimed" when 1 copy held and 1 copy is missing', async () => {
-    // Missing copy excluded by query, held copy returned
+  it('returns "claimed" when the only copy is held by another deck', async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === 'user_cards') {
         return {
@@ -240,14 +230,11 @@ describe('computeUnresolvedStatuses', () => {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                in: vi.fn().mockResolvedValue({
-                  data: [
-                    // Only the held copy appears (missing copy filtered out by query)
-                    { card_id: 1, printing_id: 'abc', deck_cards: [{ id: 50 }] },
-                  ],
-                  error: null,
-                }),
+              in: vi.fn().mockResolvedValue({
+                data: [
+                  { card_id: 1, printing_id: 'abc', deck_cards: [{ id: 50 }] },
+                ],
+                error: null,
               }),
             }),
           }),
@@ -270,7 +257,7 @@ describe('computeUnresolvedStatuses', () => {
                 data: [
                   { id: 1, card_name: 'Free Card' },
                   { id: 2, card_name: 'Claimed Card' },
-                  // 'Missing Card' has no card record → unowned
+                  // 'Absent Card' has no card record → unowned
                 ],
                 error: null,
               }),
@@ -282,14 +269,12 @@ describe('computeUnresolvedStatuses', () => {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                in: vi.fn().mockResolvedValue({
-                  data: [
-                    { card_id: 1, printing_id: 'abc', deck_cards: [] }, // free
-                    { card_id: 2, printing_id: 'def', deck_cards: [{ id: 77 }] }, // held
-                  ],
-                  error: null,
-                }),
+              in: vi.fn().mockResolvedValue({
+                data: [
+                  { card_id: 1, printing_id: 'abc', deck_cards: [] }, // free
+                  { card_id: 2, printing_id: 'def', deck_cards: [{ id: 77 }] }, // held
+                ],
+                error: null,
               }),
             }),
           }),
@@ -299,12 +284,12 @@ describe('computeUnresolvedStatuses', () => {
     })
 
     const result = await computeUnresolvedStatuses(
-      ['Free Card', 'Claimed Card', 'Missing Card'],
+      ['Free Card', 'Claimed Card', 'Absent Card'],
       'user-1'
     )
     expect(result.get('Free Card')).toBe('available')
     expect(result.get('Claimed Card')).toBe('claimed')
-    expect(result.get('Missing Card')).toBe('unowned')
+    expect(result.get('Absent Card')).toBe('unowned')
   })
 })
 
@@ -318,9 +303,6 @@ describe('computeDeckCardStatuses', () => {
     mockFrom.mockImplementation(() => ({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            in: vi.fn().mockResolvedValue({ data: [], error: null }),
-          }),
           in: vi.fn().mockResolvedValue({ data: [], error: null }),
         }),
       }),

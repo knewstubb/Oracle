@@ -23,7 +23,6 @@ interface InstanceRow {
   isFoil: boolean
   condition: string | null
   isProxy: boolean
-  isMissing: boolean
   assignedDeckName: string | null
   assignedDeckId: number | null
   assignedDeckIsActive: boolean | null
@@ -184,7 +183,6 @@ export async function GET(
         isFoil: finish === 'foil' || finish === 'etched', // deprecated alias
         condition: pc.condition ?? null,
         isProxy: Boolean(pc.is_proxy),
-        isMissing: false, // missing column removed
         assignedDeckName: assignment?.deckName ?? null,
         assignedDeckId: assignment?.deckId ?? null,
         assignedDeckIsActive: assignment?.isActive ?? null,

@@ -38,8 +38,6 @@ export interface PrintingRowResponse {
   activeDemand: number
   /** Allocation state: 'clean' | 'proxied' | 'overallocated' | 'unallocated' */
   allocationState: 'clean' | 'proxied' | 'overallocated' | 'unallocated'
-  /** Whether this copy is marked as missing */
-  isMissing: boolean
   /** Mana cost string from Scryfall notation e.g. "{2}{W}{U}" */
   manaCost: string | null
   /** Rarity: common, uncommon, rare, mythic, special, bonus */
@@ -67,8 +65,6 @@ export interface RawPhysicalCopy {
   price: number | null
   /** Whether this physical copy is a proxy */
   isProxy: boolean
-  /** Whether this physical copy is marked as missing */
-  isMissing: boolean
   /** Mana cost from card_metadata */
   manaCost: string | null
   /** Rarity from scryfall_printings */
@@ -175,7 +171,6 @@ export function groupPhysicalCopiesToPrintingRows(
         usedByDecks: copy.usedByDecks,
         price: copy.price,
         isProxy: copy.isProxy,
-        isMissing: copy.isMissing,
         manaCost: copy.manaCost,
         rarity: copy.rarity,
         collectorNumber: copy.collectorNumber,

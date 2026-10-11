@@ -284,7 +284,7 @@ export async function loadSupplyPool(userId: string): Promise<SupplyPool> {
           deck_cards!deck_cards_copy_id_fkey(
             id,
             deck_id,
-            decks!deck_cards_deck_id_fkey(name, status)
+            decks!deck_cards_deck_id_fkey(name, is_active)
           )
         `)
         .eq('user_id', userId)
@@ -309,7 +309,7 @@ export async function loadSupplyPool(userId: string): Promise<SupplyPool> {
         deckCardsId: dc.id,
         deckId: dc.deck_id,
         deckName: deck?.name ?? `Deck ${dc.deck_id}`,
-        deckStatus: deck?.status ?? 'unknown',
+        deckStatus: deck?.is_active ? 'in_rotation' : 'brewing',
       }
     }
 

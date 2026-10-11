@@ -24,7 +24,6 @@ import { NextRequest } from 'next/server'
  *   - colors: comma-separated color identity filter (e.g. 'B,G')
  *   - colorMode: 'exact' | 'includes' (default: 'includes')
  *   - includeProxies: 'true' | 'false' (default: 'false')
- *   - includeMissing: 'true' | 'false' (default: 'false')
  *
  * Response: { rows, totalCount, page, pageSize, lastPriceRefresh, isPriceStale }
  *
@@ -81,7 +80,6 @@ export async function GET(request: NextRequest) {
   const colors = searchParams.get('colors')?.split(',').filter(Boolean) || []
   const colorMode = searchParams.get('colorMode') || 'includes'
   const includeProxies = searchParams.get('includeProxies') === 'true'
-  const includeMissing = searchParams.get('includeMissing') === 'true'
 
   try {
     const offset = (page - 1) * pageSize
@@ -105,9 +103,6 @@ export async function GET(request: NextRequest) {
       
       if (!includeProxies) {
         countQuery = countQuery.eq('is_proxy', false)
-      }
-      if (!includeMissing) {
-        countQuery = countQuery.or('missing.is.null,missing.eq.false')
       }
 
       const { count: totalCopies } = await countQuery
@@ -136,7 +131,6 @@ export async function GET(request: NextRequest) {
             printing_id,
             finish,
             is_proxy,
-            missing,
             created_at,
             user_cards!user_copies_card_id_fkey (
               card_name
@@ -147,9 +141,6 @@ export async function GET(request: NextRequest) {
         
         if (!includeProxies) {
           batchQuery = batchQuery.eq('is_proxy', false)
-        }
-        if (!includeMissing) {
-          batchQuery = batchQuery.or('missing.is.null,missing.eq.false')
         }
 
         return batchQuery
@@ -181,7 +172,6 @@ export async function GET(request: NextRequest) {
           printing_id: row.printing_id,
           finish: row.finish as 'nonfoil' | 'foil' | 'etched',
           is_proxy: row.is_proxy,
-          missing: row.missing,
           created_at: row.created_at,
           card_name: card?.card_name || '',
         }
@@ -308,7 +298,6 @@ export async function GET(request: NextRequest) {
           printing_id,
           finish,
           is_proxy,
-          missing,
           created_at,
           user_cards!user_copies_card_id_fkey (
             card_name
@@ -324,9 +313,6 @@ export async function GET(request: NextRequest) {
       }
       if (!includeProxies) {
         filteredQuery = filteredQuery.eq('is_proxy', false)
-      }
-      if (!includeMissing) {
-        filteredQuery = filteredQuery.or('missing.is.null,missing.eq.false')
       }
       
       const { data: batchData, error: batchErr, count } = await filteredQuery
@@ -355,7 +341,6 @@ export async function GET(request: NextRequest) {
         printing_id: row.printing_id,
         finish: row.finish as 'nonfoil' | 'foil' | 'etched',
         is_proxy: row.is_proxy,
-        missing: row.missing,
         created_at: row.created_at,
         card_name: card?.card_name || '',
       }
@@ -497,7 +482,6 @@ export async function GET(request: NextRequest) {
         usedByDecks,
         price: c.price,
         isProxy: Boolean(c.is_proxy),
-        isMissing: Boolean(c.missing),
         manaCost: c.manaCost || null,
         rarity: c.rarity,
         collectorNumber: c.collectorNumber,
@@ -607,7 +591,6 @@ function buildRawCopies(
     printing_id: string | null
     finish: 'nonfoil' | 'foil' | 'etched'
     is_proxy: boolean
-    missing: boolean | null
     created_at: string | null
     card_name: string
   }>,
@@ -635,7 +618,6 @@ function buildRawCopies(
       usedByDecks,
       price: isFoilFinish ? (info?.priceUsdFoil ?? info?.priceUsd ?? null) : (info?.priceUsd ?? null),
       isProxy: Boolean(c.is_proxy),
-      isMissing: Boolean(c.missing),
       manaCost: info?.manaCost || null,
       rarity: info?.rarity || null,
       collectorNumber: info?.collectorNumber || null,

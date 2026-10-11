@@ -3,6 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import { createAdminClient } from '@/lib/supabase'
+import type { Json } from '@/types/supabase'
 import type { NormalizedDeck, NormalizedCard } from '@/lib/deck-normalizer'
 import { MAYBEBOARD_CATEGORY } from '@/lib/deck-normalizer'
 import { isBasicLand } from '@/lib/basic-lands'
@@ -239,7 +240,8 @@ async function reconcileBuiltDeck(
   const { data, error } = await supabase.rpc('reconcile_built_deck', {
     p_deck_id: deckId,
     p_user_id: userId,
-    p_rows: rows,
+    // p_rows is a JSON payload; rows is a plain array of serializable objects.
+    p_rows: rows as unknown as Json,
   })
 
   if (error) {
@@ -288,7 +290,7 @@ export async function importDeckTheorycrafted(
 
   // 1. Upsert deck row
   console.log(`[deck-import] Upserting deck ${deckId} "${deck.name}" for user ${userId}`)
-  const { data: deckData, error: deckErr } = await (supabase as any)
+  const { data: deckData, error: deckErr } = await supabase
     .from('decks')
     .upsert(
       {
@@ -324,7 +326,7 @@ export async function importDeckTheorycrafted(
   let offset = 0
 
   while (true) {
-    const { data, error: fetchErr } = await (supabase as any)
+    const { data, error: fetchErr } = await supabase
       .from('deck_cards')
       .select('id, deck_id, card_name, scryfall_id, set_code, quantity, categories, is_commander, user_id, copy_id, ownership_status, proxy_of_deck_id, dead_weight_flag, dead_weight_reason')
       .eq('deck_id', deckId)
@@ -390,7 +392,7 @@ export async function importDeckBuilt(
   const isActive = options?.isActive ?? true
   const deckFormat = options?.format || 'commander'
 
-  const { error: deckErr } = await (supabase as any)
+  const { error: deckErr } = await supabase
     .from('decks')
     .upsert(
       {
@@ -475,7 +477,7 @@ export async function importDeckNewCards(
   const deckFormat = options?.format || 'commander'
 
   // 1. Upsert deck row
-  const { error: deckErr } = await (supabase as any)
+  const { error: deckErr } = await supabase
     .from('decks')
     .upsert(
       {
@@ -552,12 +554,13 @@ export async function importDeckNewCards(
     }
   }
 
-  const { data: replaceResult, error: replaceErr } = await (supabase.rpc as any)(
+  const { data: replaceResult, error: replaceErr } = await supabase.rpc(
     'replace_deck_with_new_cards',
     {
       p_deck_id: deckId,
       p_user_id: userId,
-      p_rows: newCardRows,
+      // p_rows is a JSON payload; newCardRows is a plain array of serializable objects.
+      p_rows: newCardRows as unknown as Json,
     }
   )
 

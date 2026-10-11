@@ -1,4 +1,3 @@
-// @ts-nocheck
 // ---------------------------------------------------------------------------
 // POST /api/brew/skeleton
 // Sonnet skeleton generation — SSE streaming response
@@ -35,6 +34,19 @@ interface SessionRow {
 interface SkeletonResponse {
   cards: DeckCard[]
   suggestions: DeckCard[]
+}
+
+interface MtgCardEnrichmentRow {
+  name: string
+  mana_value: number | null
+  type_line: string | null
+  oracle_text: string | null
+}
+
+interface MtgCardsQuery {
+  select: (columns: string) => {
+    in: (column: string, values: string[]) => Promise<{ data: MtgCardEnrichmentRow[] | null }>
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -147,7 +159,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
 
     // --- Fetch user preferences for player context ---
-    const userPrefs = await getUserPreferences(authResult.user.id)
+    const legacyUser = authResult as unknown as { user: { id: string } }
+    const userPrefs = await getUserPreferences(legacyUser.user.id)
     const playerContext = formatPlayerContextPrompt(userPrefs)
 
     // --- Build context from decision log ---
@@ -256,8 +269,8 @@ export async function POST(request: NextRequest): Promise<Response> {
               ...skeleton.cards.map(c => c.card_name),
               ...skeleton.suggestions.map(c => c.card_name),
             ]
-            const { data: cardData } = await supabase
-              .from('mtg_cards' as any)
+            const mtgCards = supabase.from as unknown as (table: string) => MtgCardsQuery
+            const { data: cardData } = await mtgCards('mtg_cards')
               .select('name, mana_value, type_line, oracle_text')
               .in('name', allCardNames)
 

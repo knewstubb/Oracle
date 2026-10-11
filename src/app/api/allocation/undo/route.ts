@@ -16,6 +16,19 @@ import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 import type { UndoBody } from '@/types/placement-source'
+import type { Database } from '@/types/supabase'
+
+type UndoCopyMoveArgs = Omit<
+  Database['public']['Functions']['undo_copy_move']['Args'],
+  'p_restore_deck_card_id'
+> & {
+  p_restore_deck_card_id: number | null
+}
+
+type UndoCopyMoveRpc = (
+  fn: 'undo_copy_move',
+  args: UndoCopyMoveArgs
+) => Promise<{ data: unknown; error: { message: string } | null }>
 
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth()
@@ -39,7 +52,7 @@ export async function POST(request: NextRequest) {
 
   const supabase = createAdminClient()
 
-  const { data, error: rpcErr } = await (supabase.rpc as any)('undo_copy_move', {
+  const { data, error: rpcErr } = await (supabase.rpc as unknown as UndoCopyMoveRpc)('undo_copy_move', {
     p_current_deck_card_id: deckCardsId,
     p_copy_id: physicalCopyId,
     p_restore_deck_card_id: restoreTo?.deckCardsId ?? null,

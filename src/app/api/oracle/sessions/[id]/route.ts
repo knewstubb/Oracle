@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
+import type { Database } from '@/types/supabase'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -101,7 +102,7 @@ export async function PATCH(
   const supabase = createAdminClient()
 
   // Build update object
-  const updates: Record<string, unknown> = {}
+  const updates: Database['public']['Tables']['oracle_sessions']['Update'] = {}
 
   if (body.sessionName !== undefined) {
     // Validate session name length

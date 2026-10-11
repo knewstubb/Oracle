@@ -214,7 +214,7 @@ export interface ArchidektCollectionEntry {
  */
 async function fetchWithRetry(url: string, maxRetries = 3): Promise<Response> {
   const fetchUrl = url.replace(/^http:\/\//, 'https://')
-  let lastError: Error | null = null
+  const lastError: Error | null = null
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const res = await fetch(fetchUrl)

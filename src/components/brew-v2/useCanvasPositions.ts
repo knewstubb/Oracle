@@ -2,7 +2,7 @@
 // useCanvasPositions — manages canvas card positions with debounced persistence
 // ---------------------------------------------------------------------------
 
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import type { CanvasCardPosition, DeckCard } from '@/lib/brew-v2-types'
 import type { DeckAction } from '@/lib/brew-v2-deck-state'
 import { getNextOpenPosition, CARD_DIMENSIONS, CANVAS_GAP } from './canvas-utils'
@@ -30,7 +30,9 @@ export function useCanvasPositions({
 }: UseCanvasPositionsOptions): UseCanvasPositionsReturn {
   // Keep a ref to the latest positions for local state management
   const positionsRef = useRef(canvasPositions)
-  positionsRef.current = canvasPositions
+  useEffect(() => {
+    positionsRef.current = canvasPositions
+  }, [canvasPositions])
 
   // --- Debounced persistence to server ---
   // NOTE: Position persistence is now handled by useBrewAutosave via skeleton_json.
@@ -54,7 +56,7 @@ export function useCanvasPositions({
   const assignPositionsToNewCards = useCallback(
     (cards: DeckCard[]) => {
       const existing = Object.values(positionsRef.current)
-      let currentPositions = [...existing]
+      const currentPositions = [...existing]
 
       for (const card of cards) {
         if (positionsRef.current[card.card_name]) continue // Already has a position

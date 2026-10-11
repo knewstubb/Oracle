@@ -47,6 +47,7 @@ const PRINTING_SORT_FIELD_LABELS: Record<PrintingSortField, string> = {
   setCode: 'Set',
   price: 'Price',
   usedByCount: 'Allocation',
+  rarity: 'Rarity',
 }
 
 const PRINTING_SORT_FIELDS: PrintingSortField[] = [

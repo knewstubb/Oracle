@@ -81,7 +81,7 @@ export async function POST(
     return Response.json({ error: cutErr.message }, { status: 500 })
   }
 
-  const { data: deltaResult, error: deltaErr } = await (supabase.rpc as any)('apply_ai_deck_delta', {
+  const { data: deltaResult, error: deltaErr } = await supabase.rpc('apply_ai_deck_delta', {
     p_deck_id: deckId,
     p_user_id: userId,
     p_additions: [{

@@ -64,6 +64,14 @@ export function useCanvasDrag({
   const activeIdRef = useRef<string | null>(null)
   const capturedElementRef = useRef<HTMLElement | null>(null)
 
+  // Latest pointer handlers, used to detach listeners without creating a
+  // circular reference between the handlers themselves.
+  const pointerHandlersRef = useRef<{
+    move: (e: PointerEvent) => void
+    up: (e: PointerEvent) => void
+    cancel: (e: PointerEvent) => void
+  } | null>(null)
+
   // Keep a ref to the latest zoom level so pointermove uses the current value
   const zoomRef = useRef(zoomLevel)
   useEffect(() => {
@@ -98,14 +106,21 @@ export function useCanvasDrag({
     setDragOffset({ x: dx, y: dy })
   }, [])
 
+  // ---- Detach all active pointer listeners ----
+  const removePointerListeners = useCallback((element: HTMLElement) => {
+    const handlers = pointerHandlersRef.current
+    if (!handlers) return
+    element.removeEventListener('pointermove', handlers.move)
+    element.removeEventListener('pointerup', handlers.up)
+    element.removeEventListener('pointercancel', handlers.cancel)
+  }, [])
+
   // ---- Pointer Up Handler ----
   const handlePointerUp = useCallback((e: PointerEvent) => {
     const element = capturedElementRef.current
     if (element) {
       element.releasePointerCapture(e.pointerId)
-      element.removeEventListener('pointermove', handlePointerMove)
-      element.removeEventListener('pointerup', handlePointerUp)
-      element.removeEventListener('pointercancel', handlePointerCancel)
+      removePointerListeners(element)
     }
 
     // Compute final position delta
@@ -131,16 +146,14 @@ export function useCanvasDrag({
     startPointerRef.current = null
     activeIdRef.current = null
     capturedElementRef.current = null
-  }, [handlePointerMove])
+  }, [removePointerListeners])
 
   // ---- Pointer Cancel Handler (drag cancellation) ----
   const handlePointerCancel = useCallback((e: PointerEvent) => {
     const element = capturedElementRef.current
     if (element) {
       element.releasePointerCapture(e.pointerId)
-      element.removeEventListener('pointermove', handlePointerMove)
-      element.removeEventListener('pointerup', handlePointerUp)
-      element.removeEventListener('pointercancel', handlePointerCancel)
+      removePointerListeners(element)
     }
 
     // Cancel: reset without calling onDragEnd
@@ -149,7 +162,16 @@ export function useCanvasDrag({
     startPointerRef.current = null
     activeIdRef.current = null
     capturedElementRef.current = null
-  }, [handlePointerMove, handlePointerUp])
+  }, [removePointerListeners])
+
+  // Keep the detached-listener ref in sync with the latest handlers
+  useEffect(() => {
+    pointerHandlersRef.current = {
+      move: handlePointerMove,
+      up: handlePointerUp,
+      cancel: handlePointerCancel,
+    }
+  }, [handlePointerMove, handlePointerUp, handlePointerCancel])
 
   // ---- Pointer Down Factory ----
   const getPointerProps = useCallback(

@@ -16,7 +16,7 @@
 
 import { createAdminClient } from '@/lib/supabase'
 import { assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
-import type { Json } from '@/types/supabase'
+import type { Database, Json } from '@/types/supabase'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -150,7 +150,9 @@ export interface CardIdentityError {
 // Collection Copy — Helpers
 // ---------------------------------------------------------------------------
 
-function mapRowToCollectionCopy(row: any): CollectionCopy {
+function mapRowToCollectionCopy(
+  row: Database['public']['Tables']['user_copies']['Row']
+): CollectionCopy {
   return {
     id: row.id,
     cardId: row.card_id,
@@ -159,16 +161,13 @@ function mapRowToCollectionCopy(row: any): CollectionCopy {
     language: row.language ?? 'en',
     isProxy: Boolean(row.is_proxy),
     proxyForCardId: row.proxy_for_card_id ?? null,
-    condition: row.condition ?? null,
+    condition: (row.condition ?? null) as PhysicalCondition | null,
     purchasePrice: row.purchase_price ?? null,
     locationId: row.location_id ?? null,
     acquiredAt: row.acquired_at ?? null,
-    createdAt: row.created_at,
+    createdAt: row.created_at as string,
   }
 }
-
-/** @deprecated Use mapRowToCollectionCopy instead */
-const mapRowToPhysicalCopy = mapRowToCollectionCopy
 
 interface AtomicCopyInsertRow {
   card_id: number
@@ -447,7 +446,7 @@ export async function deleteCollectionCopy(id: number): Promise<void> {
   if (lookupError) throw new Error(`Failed to find collection copy ${id}: ${lookupError.message}`)
   if (!copy) throw new Error(`Collection copy ${id} not found`)
 
-  const { data, error } = await (supabase.rpc as any)('delete_user_copy', {
+  const { data, error } = await supabase.rpc('delete_user_copy', {
     p_copy_id: id,
     p_user_id: copy.user_id,
   })
@@ -618,7 +617,7 @@ export async function linkCollectionCopyToDeckCard(
   if (copyError) throw new Error(`Failed to resolve collection copy owner: ${copyError.message}`)
   if (!copy) throw new Error(`Collection copy ${collectionCopyId} not found`)
 
-  const { data, error } = await (supabase.rpc as any)('assign_physical_copy', {
+  const { data, error } = await supabase.rpc('assign_physical_copy', {
     p_target_deck_card_id: deckCardId,
     p_copy_id: collectionCopyId,
     p_user_id: copy.user_id,
@@ -651,7 +650,7 @@ export async function unlinkCollectionCopyFromDeckCard(deckCardId: number): Prom
   if (!deckCard) throw new Error(`Deck card ${deckCardId} not found`)
   if (deckCard.copy_id === null) return
 
-  const { data, error } = await (supabase.rpc as any)('unassign_copy_to_storage', {
+  const { data, error } = await supabase.rpc('unassign_copy_to_storage', {
     p_copy_id: deckCard.copy_id,
     p_user_id: deckCard.user_id,
   })

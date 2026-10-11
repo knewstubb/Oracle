@@ -1,4 +1,3 @@
-// @ts-nocheck
 // ---------------------------------------------------------------------------
 // POST /api/brew/chat
 // Exploration conversation — SSE streaming response with tool-use loop
@@ -31,6 +30,14 @@ interface ChatBody {
   modelId?: string
   /** Collection mode for card suggestions (default: 'any') */
   collectionMode?: 'any' | 'prioritise_owned' | 'owned_only'
+}
+
+interface ExtractedEntry {
+  type: string
+  key: string
+  value: string
+  source_quote: string
+  confidence: number
 }
 
 // ---------------------------------------------------------------------------
@@ -450,7 +457,7 @@ export async function POST(request: NextRequest): Promise<Response> {
           const finalResponse = await runToolLoop(toolLoopOptions)
 
           // Stream text as text_delta events
-          let fullText = finalResponse.text
+          const fullText = finalResponse.text
           for (let i = 0; i < fullText.length; i += TEXT_CHUNK_SIZE) {
             const chunk = fullText.slice(i, i + TEXT_CHUNK_SIZE)
             const event: ToolStreamEvent = { type: 'text_delta', text: chunk }
@@ -515,12 +522,12 @@ export async function POST(request: NextRequest): Promise<Response> {
                 .replace(/\n?```\s*$/i, '')
                 .trim()
 
-              let entries: Array<{ type: string; key: string; value: string; source_quote: string; confidence: number }> = []
+              let entries: ExtractedEntry[] = []
               try {
                 const parsed = JSON.parse(cleanedText)
                 if (Array.isArray(parsed)) {
                   entries = parsed.filter(
-                    (e: any) => e.confidence >= 0.7 && e.key && e.value && e.source_quote
+                    (e: ExtractedEntry) => e.confidence >= 0.7 && e.key && e.value && e.source_quote
                   )
                 }
               } catch {

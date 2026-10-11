@@ -219,6 +219,7 @@ export function BrewChatView({ messages, onSend, isStreaming, activeTools, deckN
         name: cardName,
         colourIdentity: [], // Will be resolved from DB
         artUrl: '',
+        description: '',
         scryfallId: cardName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
         owned: false, // Will be resolved from collection
       })
@@ -236,6 +237,7 @@ export function BrewChatView({ messages, onSend, isStreaming, activeTools, deckN
       name: cardName,
       colourIdentity: [], // Will be resolved from DB
       artUrl: '',
+      description: '',
       scryfallId: cardName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
       owned: false, // Will be resolved from collection
     })

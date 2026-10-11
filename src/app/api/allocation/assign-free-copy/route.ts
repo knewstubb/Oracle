@@ -62,8 +62,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Atomic RPC: guard + fill in one transaction
-    // Note: Types may be outdated — cast to any until supabase types are regenerated
-    const { data, error: rpcErr } = await (supabase.rpc as any)('assign_free_copy', {
+    const { data, error: rpcErr } = await supabase.rpc('assign_free_copy', {
       p_copy_id: copyId,
       p_target_deck_id: targetDeckId,
       p_card_name: cardName,

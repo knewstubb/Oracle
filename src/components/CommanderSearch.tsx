@@ -61,14 +61,14 @@ export function CommanderSearch({ onSelect, onNext }: CommanderSearchProps) {
   // Fetch results when debounced query or collectionOnly changes
   useEffect(() => {
     if (!debouncedQuery.trim()) {
-      setResults([])
-      setError(null)
       return
     }
 
     let cancelled = false
-    setIsLoading(true)
-    setError(null)
+    queueMicrotask(() => {
+      setIsLoading(true)
+      setError(null)
+    })
 
     fetch('/api/ai/search', {
       method: 'POST',
@@ -124,7 +124,9 @@ export function CommanderSearch({ onSelect, onNext }: CommanderSearchProps) {
   }, [query])
 
   const hasQuery = debouncedQuery.trim().length > 0
-  const showNoResults = hasQuery && !isLoading && !error && results.length === 0
+  const visibleResults = hasQuery ? results : []
+  const visibleError = hasQuery ? error : null
+  const showNoResults = hasQuery && !isLoading && !visibleError && visibleResults.length === 0
 
   return (
     <div className="flex flex-col gap-4" data-testid="commander-search">
@@ -176,9 +178,9 @@ export function CommanderSearch({ onSelect, onNext }: CommanderSearchProps) {
         )}
 
         {/* Error state */}
-        {error && (
+        {visibleError && (
           <div className="flex flex-col items-center gap-3 py-8" role="alert">
-            <p className="text-[length:var(--fs-md)] text-destructive">Search failed. {error}</p>
+            <p className="text-[length:var(--fs-md)] text-destructive">Search failed. {visibleError}</p>
             <Button variant="outline" size="sm" onClick={handleRetry}>
               Retry
             </Button>
@@ -193,7 +195,7 @@ export function CommanderSearch({ onSelect, onNext }: CommanderSearchProps) {
         )}
 
         {/* Results grid */}
-        {!isLoading && !error && results.length > 0 && (
+        {!isLoading && !visibleError && visibleResults.length > 0 && (
           <div
             ref={listboxRef}
             role="listbox"
@@ -222,7 +224,7 @@ export function CommanderSearch({ onSelect, onNext }: CommanderSearchProps) {
               }
             }}
           >
-            {results.map((commander) => {
+            {visibleResults.map((commander) => {
               const isSelected = selected?.name === commander.name
               return (
                 <div

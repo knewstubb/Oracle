@@ -93,13 +93,16 @@ export default function DeckViewPage() {
     }
   }, [])
 
-  // Open pull list tab if ?tab=picklist query param present
-  useEffect(() => {
-    const tabParam = searchParams.get('tab')
+  // Open pull list tab if ?tab=picklist query param present. Adjust during
+  // render (React's recommended alternative to a state-setting effect).
+  const tabParam = searchParams.get('tab')
+  const [prevTabParam, setPrevTabParam] = useState(tabParam)
+  if (tabParam !== prevTabParam) {
+    setPrevTabParam(tabParam)
     if (tabParam === 'picklist') {
       setActiveTab('picklist')
     }
-  }, [searchParams])
+  }
 
   const queryClient = useQueryClient()
 

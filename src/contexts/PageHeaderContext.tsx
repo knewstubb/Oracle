@@ -69,9 +69,13 @@ export function usePageHeaderContext(): PageHeaderContextValue {
 export function usePageHeader(config: PageHeaderConfig): void {
   const { setConfig } = usePageHeaderContext()
   const configRef = useRef(config)
-  
-  // Always keep ref in sync
-  configRef.current = config
+
+  // Keep ref in sync with the latest config. Runs after every render so the
+  // ref never lags behind what the effect below needs (React forbids ref
+  // writes during render).
+  useEffect(() => {
+    configRef.current = config
+  })
 
   // Set header on mount and when title/subtitleKey changes
   // Note: We use subtitleKey instead of subtitle directly because subtitle

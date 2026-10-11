@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   const PAGE_SIZE = 1000
   let offset = 0
   let totalMarketValue = 0
-  let totalPurchaseValue = 0
+  const totalPurchaseValue = 0
   let cardCount = 0
   const cardValueMap = new Map<string, { count: number; price: number; scryfallId: string | null }>()
 
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
       // Note: acquired_price was renamed to purchase_price in schema
       // But for now use acquired_at as timestamp
 
-      const cardName = (copy.user_cards as any)?.card_name
+      const cardName = (copy as { user_cards?: { card_name?: string } | null }).user_cards?.card_name
       if (!cardName) continue
 
       // Get price from ref_printings via printing_id

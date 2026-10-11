@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, Sparkles, Check } from 'lucide-react'
 import {
@@ -68,7 +68,7 @@ function capitalize(str: string): string {
 
 export function BuildSelector({ deckId, onBuildChange }: BuildSelectorProps) {
   const queryClient = useQueryClient()
-  const [hasShownSuggestion, setHasShownSuggestion] = useState(false)
+  const hasShownSuggestionRef = useRef(false)
 
   const { data, isLoading, error } = useQuery<BuildResponse>({
     queryKey: ['deck-build', deckId],
@@ -112,12 +112,12 @@ export function BuildSelector({ deckId, onBuildChange }: BuildSelectorProps) {
   // Show suggestion toast when detected build differs from current
   useEffect(() => {
     if (
-      !hasShownSuggestion &&
+      !hasShownSuggestionRef.current &&
       data?.detectedBuild &&
       !data.currentBuildId &&
       data.detectedBuild.score >= 50
     ) {
-      setHasShownSuggestion(true)
+      hasShownSuggestionRef.current = true
       const buildName = formatBuildName(data.detectedBuild.archetype, data.detectedBuild.theme)
       toast(
         <div className="flex items-center gap-2">
@@ -133,7 +133,7 @@ export function BuildSelector({ deckId, onBuildChange }: BuildSelectorProps) {
         }
       )
     }
-  }, [data, hasShownSuggestion, setBuildMutation])
+  }, [data, setBuildMutation])
 
   if (isLoading) {
     return <Skeleton className="h-8 w-32" />

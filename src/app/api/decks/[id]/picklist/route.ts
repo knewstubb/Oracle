@@ -24,6 +24,15 @@ import { getBatchRankedCandidates, type RankedCandidate } from '@/lib/allocation
 import { computeDeckCardStatuses } from '@/lib/card-status'
 import { isBasicLand } from '@/lib/basic-lands'
 
+interface PicklistCard {
+  id: number
+  card_name: string
+  scryfall_id: string | null
+  copy_id: number | null
+  ownership_status: string | null
+  user_copies: { is_proxy: boolean } | null
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -72,7 +81,7 @@ export async function GET(
     return Response.json({ error: cardsErr.message }, { status: 500 })
   }
 
-  const cards = deckCards ?? []
+  const cards = (deckCards ?? []) as unknown as PicklistCard[]
   const statuses = await computeDeckCardStatuses(
     cards.map((card) => ({
       id: card.id,
@@ -86,7 +95,7 @@ export async function GET(
   const statusByDeckCardId = new Map(statuses.map((status) => [status.deckCardsId, status]))
 
   // Generic lands = basic land name + no specific printing (scryfall_id is null)
-  const isGenericLand = (c: any) => isBasicLand(c.card_name) && !c.scryfall_id
+  const isGenericLand = (c: PicklistCard) => isBasicLand(c.card_name) && !c.scryfall_id
   const genericLandCount = cards.filter(isGenericLand).length
   const nonGenericResolved = cards.filter(c => c.copy_id !== null && !isGenericLand(c)).length
   const resolved = nonGenericResolved + genericLandCount

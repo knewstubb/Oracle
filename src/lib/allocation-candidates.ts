@@ -45,6 +45,23 @@ export type EnrichedSupplyEntryLegacy = EnrichedSupplyEntry
 /** Priority tier for candidate ranking */
 export type CandidateTier = 1 | 2 | 3 | 4 | 5
 
+/** Shape of a collection copy row joined with location and deck assignments */
+interface SupplyCopyRow {
+  id: number
+  card_id: number
+  printing_id: string | null
+  finish: string | null
+  is_proxy: boolean
+  condition: string | null
+  location_id: number | null
+  user_locations: { name: string } | null
+  deck_cards: Array<{
+    id: number
+    deck_id: number
+    decks: { name: string; is_active: boolean } | null
+  }> | null
+}
+
 /** A ranked candidate ready for picklist display */
 export interface RankedCandidate {
   /** The physical copy details */
@@ -82,13 +99,15 @@ export async function fetchEnrichedSupply(
   const supabase = createAdminClient()
 
   // Step 1: Resolve card_name → card_id(s)
-  let { data: cards, error: cardErr } = await supabase
+  const { data: cardsData, error: cardErr } = await supabase
     .from('user_cards')
     .select('id')
     .eq('card_name', cardName)
     .eq('user_id', userId)
 
   if (cardErr) throw new Error(`Failed to resolve card for "${cardName}": ${cardErr.message}`)
+
+  let cards = cardsData
 
   // DFC fallback: if not found and name contains ' // ', try front-face only
   if ((!cards || cards.length === 0) && cardName.includes(' // ')) {
@@ -133,7 +152,7 @@ export async function fetchEnrichedSupply(
   if (!copies) return []
 
   // Step 3: Map to EnrichedSupplyEntry
-  return copies.map((copy: any) => {
+  return (copies as unknown as SupplyCopyRow[]).map((copy) => {
     // deck_cards is an array (left join) — empty if unassigned
     const deckCardsArr = copy.deck_cards || []
     let assignedTo: CopyAssignment | null = null
@@ -230,7 +249,7 @@ export async function fetchBatchEnrichedSupply(
   const cardIds = allCards.map(d => d.id)
 
   // Step 2: Batch fetch collection copies for all card_ids
-  const allCopies: any[] = []
+  const allCopies: SupplyCopyRow[] = []
 
   for (let offset = 0; offset < cardIds.length; offset += PAGE_SIZE) {
     const batch = cardIds.slice(offset, offset + PAGE_SIZE)
@@ -255,7 +274,7 @@ export async function fetchBatchEnrichedSupply(
       .in('card_id', batch)
 
     if (error) throw new Error(`Batch collection fetch failed: ${error.message}`)
-    if (copies) allCopies.push(...copies)
+    if (copies) allCopies.push(...(copies as unknown as SupplyCopyRow[]))
   }
 
   // Step 3: Map copies to EnrichedSupplyEntry and group by card_name

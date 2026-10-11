@@ -189,7 +189,7 @@ async function resolveOwnershipStatus(
     .maybeSingle()
 
   if (allocationRow) {
-    const deckName = (allocationRow as any).decks?.name
+    const deckName = (allocationRow.decks as unknown as { name: string } | null)?.name
     return {
       ownership_status: 'proxy',
       holder_deck_name: deckName ?? undefined,
@@ -244,7 +244,7 @@ async function detectProxyConflict(
 
   // If owned copies <= total deck demand, there's a conflict
   if (totalQty <= (deckCount ?? 0)) {
-    const deckName = (conflictRow as any).decks?.name
+    const deckName = (conflictRow.decks as unknown as { name: string } | null)?.name
     return { deck_name: deckName ?? 'Unknown' }
   }
 

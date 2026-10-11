@@ -198,7 +198,7 @@ export async function GET(request: NextRequest) {
   scoredResults.sort((a, b) => b.score - a.score)
 
   // Take top 15
-  let results = scoredResults.slice(0, 15)
+  const results = scoredResults.slice(0, 15)
 
   // If we have few results, supplement with Scryfall
   // This handles brand new cards not yet in our database

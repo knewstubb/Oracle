@@ -149,7 +149,7 @@ export class DeepSeekAdapter implements ProviderAdapter {
         
         // Not in DSML block — yield text normally
         // But still check for stray DSML-like patterns
-        let textToYield = delta.content
+        const textToYield = delta.content
         
         // Quick check for any DSML-like content
         if (textToYield.includes('<') || textToYield.includes('DSML') || textToYield.includes('invoke')) {

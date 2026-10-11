@@ -12,7 +12,7 @@
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
-import type { BrewSessionRow, DeckSkeleton, StrategyBrief } from '@/types/brew'
+import type { DeckSkeleton, StrategyBrief } from '@/types/brew'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       // INSERT into decks — use a generated ID since brew decks are Oracle-native
       // Generate a unique ID for Oracle-native decks (Archidekt uses their own IDs)
       const generatedId = Date.now()
-      const { data: deckData, error: deckErr } = await (supabase as any)
+      const { data: deckData, error: deckErr } = await supabase
         .from('decks')
         .insert({
           id: generatedId,

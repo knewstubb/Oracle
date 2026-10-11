@@ -24,7 +24,7 @@ export interface CommanderBuild {
   commanderId: string
   archetype: string | null
   theme: string | null
-  edhrecThemeSlug: string
+  edhrecThemeSlug: string | null
   deckCount: number
   deckPercentage: number
   avgLands: number | null

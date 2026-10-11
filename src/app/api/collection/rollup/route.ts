@@ -56,6 +56,23 @@ interface PrintingSubgroupRow {
   physicalCopyId?: number
 }
 
+interface PostgrestFilter {
+  ilike(column: string, pattern: string): PostgrestFilter
+}
+
+interface DeckUsageRow {
+  copy_id: number | null
+  deck_id: number
+  quantity: number | null
+  decks: { name: string } | null
+}
+
+interface SetInfoRow {
+  printing_id: string
+  set_code: string | null
+  edition_name: string | null
+}
+
 export interface CollectionRollupRowWithPrice {
   cardId: number
   cardName: string
@@ -112,16 +129,17 @@ export async function GET(request: NextRequest) {
     // 2. Get the page data via cards with search/sort/pagination
 
     // Build base filters for cards
-    function applyFilters(query: any) {
+    function applyFilters<T extends PostgrestFilter>(query: T): T {
+      let q: PostgrestFilter = query
       if (search) {
-        query = query.ilike('card_name', `%${search}%`)
+        q = q.ilike('card_name', `%${search}%`)
       }
       if (colors.length > 0 && (colorMode === 'includes' || colorMode === 'exact')) {
         for (const color of colors) {
-          query = query.ilike('color_identity', `%${color}%`)
+          q = q.ilike('color_identity', `%${color}%`)
         }
       }
-      return query
+      return q as T
     }
 
     // Step 1a: Get total count
@@ -245,18 +263,19 @@ export async function GET(request: NextRequest) {
 
     // ──── Step 3: Assemble rollup rows ────────────────────────────────
     const deckUsageMap = new Map<number, DeckUsageEntry[]>()
-    for (const row of deckUsageResult as any[]) {
+    for (const row of deckUsageResult as unknown as DeckUsageRow[]) {
+      if (row.copy_id === null) continue
       const entries = deckUsageMap.get(row.copy_id) || []
       entries.push({
         deckId: row.deck_id,
-        deckName: (row.decks as any)?.name || '',
+        deckName: row.decks?.name || '',
         quantity: row.quantity ?? 1,
       })
       deckUsageMap.set(row.copy_id, entries)
     }
 
     const setInfoMap = new Map<string, { setCode: string; setName: string }>()
-    for (const row of setInfoResult as any[]) {
+    for (const row of setInfoResult as unknown as SetInfoRow[]) {
       if (row.printing_id) {
         setInfoMap.set(row.printing_id, {
           setCode: row.set_code || '',

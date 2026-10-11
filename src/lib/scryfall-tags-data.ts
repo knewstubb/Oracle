@@ -145,7 +145,7 @@ export async function getCardsByTag(
   // Resolve oracle_ids to card names via database
   const supabase = createAdminClient()
   
-  let query = supabase
+  const query = supabase
     .from('ref_printings')
     .select('oracle_id, name, color_identity')
     .in('oracle_id', matchingIds.slice(0, 500)) // Supabase IN limit

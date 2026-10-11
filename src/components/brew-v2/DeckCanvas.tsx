@@ -95,10 +95,13 @@ export function DeckCanvas({
   // ---- Pan state (space+drag) ----
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 })
   const panOffsetRef = useRef(panOffset)
-  panOffsetRef.current = panOffset
   const [isPanning, setIsPanning] = useState(false)
   const [spaceHeld, setSpaceHeld] = useState(false)
   const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
+
+  useEffect(() => {
+    panOffsetRef.current = panOffset
+  }, [panOffset])
 
   // Track spacebar for pan mode
   useEffect(() => {

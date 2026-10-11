@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
   // Generate a unique deck ID (decks table uses explicit IDs, not auto-increment)
   const deckId = Math.floor(Math.random() * 2147483647)
 
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('decks')
     .insert({
       id: deckId,

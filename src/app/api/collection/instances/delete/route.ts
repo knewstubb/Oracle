@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const { error: rpcErr } = await (supabase.rpc as any)('delete_user_copy', {
+  const { error: rpcErr } = await supabase.rpc('delete_user_copy', {
     p_copy_id: copyId,
     p_user_id: userId,
   })

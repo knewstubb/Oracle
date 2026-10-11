@@ -133,7 +133,7 @@ export function parseManaCost(manaCost: string | null | undefined): PipCount {
 
       if (/^\d+$/.test(parts[0])) {
         // Two-brid: {2/W} - count as 1 colored pip (player likely pays color)
-        const color = parts[1] as Color
+        const color = parts[1] as Color | 'C'
         if (color in result && color !== 'C') {
           result[color] += 1
         }
@@ -142,7 +142,7 @@ export function parseManaCost(manaCost: string | null | undefined): PipCount {
         // Color hybrid: {W/U} - count as 0.5 for each color
         // For land recommendations, we count each half
         for (const part of parts) {
-          const color = part as Color
+          const color = part as Color | 'C'
           if (color in result && color !== 'C') {
             result[color] += 0.5
           }
@@ -153,7 +153,7 @@ export function parseManaCost(manaCost: string | null | undefined): PipCount {
     }
 
     // Single color pip
-    const color = inner as Color
+    const color = inner as keyof PipCount
     if (color in result && color !== 'generic' && color !== 'total') {
       result[color] += 1
       result.total += 1
@@ -409,7 +409,7 @@ export function countLandSources(
   }
 
   // Dual land color pairs (fetchable duals, shocks, etc.)
-  const DUAL_PATTERNS: Array<[RegExp, Color[]]> = [
+  const DUAL_PATTERNS: Array<[RegExp, Color[] | 'ALL']> = [
     // Shocklands
     [/hallowed fountain/i, ['W', 'U']],
     [/watery grave/i, ['U', 'B']],

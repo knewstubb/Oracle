@@ -85,7 +85,7 @@ export async function resolveCardDefinitions(
       user_id: userId,
     }))
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('user_cards')
       .upsert(rows, { onConflict: 'oracle_id' })
       .select('id, oracle_id')

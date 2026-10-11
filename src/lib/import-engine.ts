@@ -446,7 +446,7 @@ async function softDeleteAbsentCopies(touchedIds: Set<number>, userId: string): 
   const deleteChunks = chunk(toDelete, BATCH_SIZE)
 
   for (const batch of deleteChunks) {
-    const { data: deleteResult, error: deleteError } = await (supabase.rpc as any)('delete_user_copies', {
+    const { data: deleteResult, error: deleteError } = await supabase.rpc('delete_user_copies', {
       p_copy_ids: batch,
       p_user_id: userId,
     })

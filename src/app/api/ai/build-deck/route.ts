@@ -37,7 +37,13 @@ export async function POST(request: NextRequest) {
       .eq('user_id', authResult.id)
 
     const ownedSet = new Set(
-      (collection ?? []).map((c: any) => (c.user_cards?.card_name || '').toLowerCase()),
+      (collection ?? []).map((c) => {
+        // The generated types cannot resolve the embed (two FKs link
+        // user_cards ↔ user_copies), so narrow through unknown. Runtime shape
+        // is the joined user_cards row, or null.
+        const joined = c.user_cards as unknown as { card_name?: string } | null
+        return (joined?.card_name || '').toLowerCase()
+      }),
     )
 
     // Step 1: Get non-land card suggestions via buildAround

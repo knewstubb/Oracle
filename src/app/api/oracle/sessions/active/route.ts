@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
   const { data, error } = await supabase.rpc('get_active_oracle_session', {
     p_user_id: userId,
     p_session_type: sessionType,
-    p_context_deck_id: deckId,
+    p_context_deck_id: deckId ?? undefined,
     p_window_hours: 4,
   })
 

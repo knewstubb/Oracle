@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import type { DeckCard as GridDeckCard } from '@/components/CardGrid'
 import type { 
@@ -69,7 +69,6 @@ export function WorkbenchTab({
   deckId, 
   cards: gridCards, 
   commanderName,
-  commanderScryfallId,
 }: WorkbenchTabProps) {
   const queryClient = useQueryClient()
   
@@ -127,8 +126,13 @@ export function WorkbenchTab({
   const positionCardIds = useMemo(() => new Set(Object.keys(canvasPositions)), [canvasPositions])
   
   // If cards changed, recompute positions for missing cards
-  if (deckCards.length > 0 && (currentCardIds.size !== positionCardIds.size || 
-      [...currentCardIds].some(id => !positionCardIds.has(id)))) {
+  useEffect(() => {
+    if (deckCards.length === 0) return
+    const cardsChanged =
+      currentCardIds.size !== positionCardIds.size ||
+      [...currentCardIds].some(id => !positionCardIds.has(id))
+    if (!cardsChanged) return
+
     // Merge: keep existing positions, add new ones for new cards
     const newPositions = { ...canvasPositions }
     const { width: cardWidth, height: cardHeight } = CARD_DIMENSIONS.deckCard
@@ -168,9 +172,8 @@ export function WorkbenchTab({
       }
     }
     
-    // Schedule state update (can't call setState during render)
     setTimeout(() => setCanvasPositions(newPositions), 0)
-  }
+  }, [deckCards, canvasPositions, currentCardIds, positionCardIds])
 
   // Handle position updates from dragging
   const handlePositionUpdate = useCallback((

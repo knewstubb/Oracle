@@ -15,13 +15,23 @@
  *   - printing_id references scryfall_printings (replaces scryfall_printing_id)
  */
 
-import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 
 const PAGE_SIZE = 1000
 
-export async function GET(request: NextRequest) {
+interface ExportCopy {
+  id: number
+  printing_id: string | null
+  finish: string | null
+  is_proxy: boolean
+  condition: string | null
+  purchase_price: number | null
+  created_at: string | null
+  user_cards: { card_name: string; oracle_id: string } | null
+}
+
+export async function GET() {
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
   const userId = authResult.id
@@ -29,7 +39,7 @@ export async function GET(request: NextRequest) {
   const supabase = createAdminClient()
 
   // Fetch all collection copies with their card info
-  const allCopies: any[] = []
+  const allCopies: ExportCopy[] = []
   let offset = 0
 
   while (true) {
@@ -53,13 +63,15 @@ export async function GET(request: NextRequest) {
       return Response.json({ error: error.message }, { status: 500 })
     }
     if (!data || data.length === 0) break
-    allCopies.push(...data)
+    allCopies.push(...(data as unknown as ExportCopy[]))
     if (data.length < PAGE_SIZE) break
     offset += PAGE_SIZE
   }
 
   // Resolve set codes and collector numbers from Scryfall printing IDs
-  const printingIds = [...new Set(allCopies.map(c => c.printing_id).filter(Boolean))]
+  const printingIds = [...new Set(
+    allCopies.map(c => c.printing_id).filter((id): id is string => Boolean(id))
+  )]
   const printingInfoMap = new Map<string, { setCode: string; editionName: string; collectorNumber: string }>()
 
   // Batch fetch from ref_printings table
@@ -98,10 +110,10 @@ export async function GET(request: NextRequest) {
   const rows: string[] = [headers.join(',')]
 
   for (const copy of allCopies) {
-    const card = copy.user_cards as any
+    const card = copy.user_cards
     const cardName = card?.card_name ?? ''
     const oracleId = card?.oracle_id ?? ''
-    const printingInfo = printingInfoMap.get(copy.printing_id) ?? { setCode: '', editionName: '', collectorNumber: '' }
+    const printingInfo = (copy.printing_id ? printingInfoMap.get(copy.printing_id) : undefined) ?? { setCode: '', editionName: '', collectorNumber: '' }
 
     // Map finish string to export format
     const finishLabel = copy.finish === 'foil' ? 'Foil' : copy.finish === 'etched' ? 'Etched' : 'Normal'

@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     
     // First, find user_cards matching the requested names (case-insensitive)
     // This is much faster than fetching all copies
-    const { data: userCards, error: ucError } = await supabase
+    const { data: userCards } = await supabase
       .from('user_cards')
       .select('id, card_name')
       .eq('user_id', userId)
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     const foundNames = new Set((userCards ?? []).map(uc => uc.card_name.toLowerCase()))
     const missingNames = cardNames.filter(n => !foundNames.has(n.toLowerCase()))
     
-    let allUserCards = userCards ?? []
+    const allUserCards = userCards ?? []
     
     if (missingNames.length > 0) {
       // Try case-insensitive match for missing names
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
     // Now fetch copies only for the cards we found
     const cardIds = allUserCards.map(uc => uc.id)
     
-    let ownershipMap = new Map<string, { 
+    const ownershipMap = new Map<string, { 
       hasOriginal: boolean
       hasProxy: boolean
       originalCopyIds: number[]
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
     }
     
     // For detailed mode, fetch prices from ref_printings for ALL cards
-    let priceMap = new Map<string, number | null>()
+    const priceMap = new Map<string, number | null>()
     if (includeDetails && cardNames.length > 0) {
       // Try exact match first
       const { data: printings } = await supabase

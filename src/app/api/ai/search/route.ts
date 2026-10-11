@@ -70,7 +70,10 @@ export async function POST(request: NextRequest) {
     // Build ownership map: card_name -> { owned: count, proxies: count }
     const ownershipMap = new Map<string, { owned: number; proxies: number }>()
     for (const card of ownedCards ?? []) {
-      const copies = (card as any).user_copies as Array<{ id: number; is_proxy: boolean }>
+      const copies = (card as unknown as {
+        card_name: string
+        user_copies: Array<{ id: number; is_proxy: boolean }>
+      }).user_copies
       const owned = copies.filter(c => !c.is_proxy).length
       const proxies = copies.filter(c => c.is_proxy).length
       ownershipMap.set(card.card_name, { owned, proxies })

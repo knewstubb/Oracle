@@ -1,6 +1,6 @@
 'use client'
 
-import { ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import { ReactNode, useCallback, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Image from 'next/image'
 
@@ -43,11 +43,7 @@ export function CardArtPreview({ scryfallId, cardName, children }: CardArtPrevie
   const [visible, setVisible] = useState(false)
   const [position, setPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
   const triggerRef = useRef<HTMLSpanElement>(null)
-  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null)
-
-  useEffect(() => {
-    setPortalRoot(document.body)
-  }, [])
+  const portalRoot = typeof document !== 'undefined' ? document.body : null
 
   const computePosition = useCallback((clientX: number, clientY: number) => {
     // Position to the right of cursor, clamped to viewport

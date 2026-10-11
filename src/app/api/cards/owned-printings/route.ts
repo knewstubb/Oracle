@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
 
     // Determine location from unified locations table
     let location = 'Sorting Pile'
-    const loc = (copy as any).locations
+    const loc = (copy as unknown as { locations?: { name: string; type: string } | null }).locations
     if (loc) {
       if (loc.type === 'deck') {
         location = `In deck: ${loc.name}`

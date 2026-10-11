@@ -155,6 +155,16 @@ export async function GET(
   }
 
   // Get commander ID from ref_commanders
+  // A deck with no commander name cannot resolve a build — return the same
+  // empty result the missing-commander branch below produces.
+  if (!deck.commander_name) {
+    return Response.json({
+      currentBuildId: deck.build_id,
+      detectedBuild: null,
+      availableBuilds: [],
+    })
+  }
+
   const { data: commander } = await supabase
     .from('ref_commanders')
     .select('id')

@@ -38,7 +38,7 @@ interface StrategyGuideProps {
 /** Display order and metadata for insight types */
 const INSIGHT_TYPE_CONFIG: Record<string, {
   label: string
-  icon: React.ComponentType<{ className?: string }>
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
   description: string
   priority: number
 }> = {
@@ -342,7 +342,7 @@ export function StrategyGuide({
           No strategy insights available for {commanderName || 'this commander'} yet.
         </p>
         <p className="text-[length:var(--fs-sm)] text-muted-foreground mt-1">
-          Check back later — we're adding more commander guides.
+          Check back later — we&apos;re adding more commander guides.
         </p>
       </div>
     )

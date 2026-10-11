@@ -137,14 +137,14 @@ export async function GET(
       .select('id, color_identity')
       .eq('card_name', cardName)
       .eq('user_id', userId)
-      .maybeSingle() as { data: { id: number; color_identity: string | null } | null, error: any }
+      .maybeSingle()
 
     const cardCI = cardDef?.color_identity
       ? cardDef.color_identity.split(',').map((c: string) => c.trim()).filter(Boolean)
       : []
 
     // Fetch all decks for valid-deck list (all decks claim equally now)
-    const { data: allDecks } = await (supabase as any)
+    const { data: allDecks } = await supabase
       .from('decks')
       .select('id, name, is_active, colour_identity')
       .eq('user_id', userId)
@@ -152,7 +152,7 @@ export async function GET(
 
     // Filter to decks whose commander CI is a superset of the card's CI
     const validDecks: CardActionContext['validDecks'] = (allDecks ?? [])
-      .filter((deck: any) => {
+      .filter((deck) => {
         if (cardCI.length === 0) return true // Colorless cards go anywhere
         const deckCI = deck.colour_identity
           ? deck.colour_identity.split(',').map((c: string) => c.trim()).filter(Boolean)
@@ -160,7 +160,7 @@ export async function GET(
         // Deck CI must contain every color in card CI
         return cardCI.every((color: string) => deckCI.includes(color))
       })
-      .map((deck: any) => ({
+      .map((deck) => ({
         deckId: deck.id,
         deckName: deck.name,
         isActive: deck.is_active ?? true,

@@ -15,7 +15,7 @@ export async function GET() {
   const supabase = createAdminClient()
 
   // Fetch all storage locations (type='storage' only, not deck locations)
-  const { data: locations, error: locErr } = await (supabase as any)
+  const { data: locations, error: locErr } = await supabase
     .from('user_locations')
     .select('id, name, color')
     .eq('user_id', userId)
@@ -27,7 +27,7 @@ export async function GET() {
   }
 
   // Count copies per storage location
-  const { data: counts, error: countErr } = await (supabase as any)
+  const { data: counts, error: countErr } = await supabase
     .from('user_copies')
     .select('location_id')
     .eq('user_id', userId)
@@ -38,7 +38,7 @@ export async function GET() {
   }
 
   // Build count map (only count storage locations, not deck locations)
-  const storageLocationIds = new Set((locations ?? []).map((loc: any) => loc.id))
+  const storageLocationIds = new Set((locations ?? []).map((loc) => loc.id))
   const countMap = new Map<number, number>()
   for (const row of counts ?? []) {
     if (row.location_id && storageLocationIds.has(row.location_id)) {
@@ -47,7 +47,7 @@ export async function GET() {
   }
 
   // Count unsorted: null location_id AND not assigned to any deck
-  const { data: allCopies, error: allErr } = await (supabase as any)
+  const { data: allCopies, error: allErr } = await supabase
     .from('user_copies')
     .select('id, location_id, deck_cards!deck_cards_copy_id_fkey(id)')
     .eq('user_id', userId)
@@ -59,11 +59,11 @@ export async function GET() {
 
   // Unsorted = null location AND no deck assignment
   const unsortedCount = (allCopies ?? []).filter(
-    (copy: any) => !copy.deck_cards || copy.deck_cards.length === 0
+    (copy) => !copy.deck_cards || copy.deck_cards.length === 0
   ).length
 
   const result = {
-    locations: (locations ?? []).map((loc: any) => ({
+    locations: (locations ?? []).map((loc) => ({
       id: loc.id,
       name: loc.name,
       color: loc.color,

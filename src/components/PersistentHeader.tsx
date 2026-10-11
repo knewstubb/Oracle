@@ -15,7 +15,7 @@ interface PersistentHeaderProps {
     deck_type: string | null
     is_precon_mod?: boolean
     bracket: string | null
-    format?: string
+    format?: string | null
     salt_score?: number | null
   }
   totalCards: number

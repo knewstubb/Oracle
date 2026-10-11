@@ -291,7 +291,7 @@ function DecksSection({ decks, folders }: { decks: Deck[]; folders: DeckFolder[]
           completeness={deck.completeness}
           conflictCount={deck.conflictCount}
           format={deck.format}
-          pipDistribution={deck.pipDistribution}
+          pipDistribution={deck.pipDistribution ?? undefined}
           hasBrew={deck.hasBrew}
           folderId={deck.folder_id}
           folders={folders}

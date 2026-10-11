@@ -77,8 +77,10 @@ export default function CollectionPage() {
       resolvedView = resolveIsMobile() ? 'list' : 'grid'
     }
 
-    setViewMode(resolvedView)
-    setViewResolved(true)
+    queueMicrotask(() => {
+      setViewMode(resolvedView)
+      setViewResolved(true)
+    })
   }, [])
 
   // ─── Pagination state ──────────────────────────────────────────

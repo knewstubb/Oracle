@@ -2,7 +2,6 @@
 
 import Image from 'next/image'
 import type { DeckCard } from '@/lib/brew-v2-types'
-import { formatPrice } from '@/lib/collection-printing-utils'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -114,14 +113,7 @@ export function CardTooltip({ card, artUrl, visible, anchorRect }: CardTooltipPr
         </div>
       )}
 
-      {/* 7. Price */}
-      {card.price_ck != null && (
-        <div className="mt-0.5 text-[length:var(--fs-sm)] text-muted-foreground">
-          {formatPrice(card.price_ck)}
-        </div>
-      )}
-
-      {/* 8. Hint text */}
+      {/* 7. Hint text */}
       <div className="mt-2 text-[length:var(--fs-xs)] italic text-muted-foreground">
         Click to see pros, cons &amp; deck fit
       </div>

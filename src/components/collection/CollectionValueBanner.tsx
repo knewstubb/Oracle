@@ -11,11 +11,13 @@ interface CollectionValue {
   totalPurchaseValue: number
   gainLoss: number
   cardCount: number
+  /** Number of owned (non-proxy) cards that have no Scryfall price yet */
+  unpricedCardCount?: number
   topCards: Array<{
     cardName: string
     copies: number
-    pricePerCopy: number
-    totalValue: number
+    pricePerCopy: number | null
+    totalValue: number | null
   }>
 }
 
@@ -34,14 +36,24 @@ export function CollectionValueBanner() {
     try {
       const res = await fetch('/api/collection/refresh-prices', { method: 'POST' })
       if (!res.ok) {
-        toast.error('Failed to refresh prices')
+        toast.error('Could not refresh prices')
         return
       }
       const result = await res.json()
-      toast.success(`Updated prices for ${result.updated} cards`)
+      if (result.total === 0) {
+        toast.message('No owned cards to price yet')
+        return
+      }
+      if (result.failed > 0) {
+        toast.error(
+          `Updated ${result.updated} of ${result.total} prices — ${result.failed} failed`
+        )
+      } else {
+        toast.success(`Updated ${result.updated} Scryfall price estimates`)
+      }
       queryClient.invalidateQueries({ queryKey: ['collection-value'] })
     } catch {
-      toast.error('Failed to refresh prices')
+      toast.error('Could not refresh prices')
     } finally {
       setIsRefreshing(false)
     }
@@ -54,6 +66,7 @@ export function CollectionValueBanner() {
   const totalPurchaseValue = data.totalPurchaseValue ?? 0
   const gainLoss = data.gainLoss ?? 0
   const cardCount = data.cardCount ?? 0
+  const unpricedCardCount = data.unpricedCardCount ?? 0
   const topCards = data.topCards ?? []
 
   // Don't show banner if no data
@@ -67,10 +80,17 @@ export function CollectionValueBanner() {
     <div className="mx-5 mb-3 flex flex-wrap items-center gap-4 rounded-lg border px-4 py-2.5" style={{ borderColor: 'var(--border-default)', backgroundColor: 'rgba(26,26,30,0.5)' }}>
       {/* Total value */}
       <div>
-        <span className="block text-[length:var(--fs-xs)] text-muted-foreground">Collection Value</span>
+        <span className="block text-[length:var(--fs-xs)] text-muted-foreground">
+          Collection Value · Scryfall estimate
+        </span>
         <span className="text-[length:var(--fs-lg)] font-semibold text-foreground">
           ${totalMarketValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </span>
+        {unpricedCardCount > 0 && (
+          <span className="ml-1.5 text-[length:var(--fs-xs)] font-normal text-muted-foreground">
+            ({unpricedCardCount.toLocaleString()} {unpricedCardCount === 1 ? 'card has' : 'cards have'} no price yet)
+          </span>
+        )}
       </div>
 
       {/* Gain/Loss */}

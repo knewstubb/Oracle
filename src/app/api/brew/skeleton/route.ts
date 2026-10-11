@@ -488,6 +488,5 @@ function normalizeDeckCard(card: Record<string, unknown>): DeckCard {
     type_line: typeof card.type_line === 'string' ? card.type_line : '',
     oracle_text: typeof card.oracle_text === 'string' ? card.oracle_text : '',
     edhrec_inclusion: typeof card.edhrec_inclusion === 'number' ? card.edhrec_inclusion : undefined,
-    price_ck: typeof card.price_ck === 'number' ? card.price_ck : undefined,
   }
 }

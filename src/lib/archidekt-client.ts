@@ -111,8 +111,6 @@ export interface ArchidektOracleCard {
 }
 
 export interface ArchidektPrices {
-  ck: number        // CardKingdom normal
-  ckfoil: number    // CardKingdom foil
   tcg: number       // TCGplayer
   tcgfoil: number   // TCGplayer foil
   scg: number       // StarCityGames
@@ -138,8 +136,6 @@ export interface ArchidektCard {
   oracleCard: ArchidektOracleCard
   scryfallImageHash: string
   prices?: ArchidektPrices
-  ckNormalId?: number
-  ckFoilId?: number
   tcgProductId?: number
 }
 
@@ -364,35 +360,4 @@ export async function fetchDeck(deckId: number): Promise<ArchidektDeckFull> {
   const res = await fetch(`${BASE_URL}/decks/${deckId}/`)
   if (!res.ok) throw new Error(`Archidekt API error: ${res.status} ${res.statusText}`)
   return res.json()
-}
-
-/**
- * Look up CardKingdom prices for a list of card names by searching across all user decks.
- * Returns a map of card_name → CK price (USD).
- * Falls back to the Archidekt card search API for cards not found in decks.
- */
-export async function fetchCardKingdomPrices(cardNames: string[]): Promise<Map<string, number>> {
-  const prices = new Map<string, number>()
-  const remaining = new Set(cardNames)
-
-  // Search Archidekt's card API for each card to get CK prices
-  for (const cardName of remaining) {
-    try {
-      const encoded = encodeURIComponent(cardName)
-      const res = await fetch(`${BASE_URL}/cards/?name_exact=${encoded}&ordering=-released_at&page_size=1`)
-      if (res.ok) {
-        const data = await res.json()
-        if (data.results && data.results.length > 0) {
-          const card = data.results[0]
-          if (card.prices?.ck && card.prices.ck > 0) {
-            prices.set(cardName, card.prices.ck)
-          }
-        }
-      }
-    } catch {
-      // Skip failures — caller can fall back to Scryfall
-    }
-  }
-
-  return prices
 }

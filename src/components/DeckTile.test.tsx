@@ -61,9 +61,9 @@ describe('DeckTile', () => {
     expect(screen.getByText('Muldrotha, the Gravetide')).toBeInTheDocument()
   })
 
-  it('renders card count', () => {
+  it('renders card count as slots for an inactive deck', () => {
     renderWithProviders(<DeckTile {...defaultProps} />)
-    expect(screen.getByText('100/100 cards')).toBeInTheDocument()
+    expect(screen.getByText('100/100 slots')).toBeInTheDocument()
   })
 
   it('renders colour identity bars with correct aria-label', () => {
@@ -110,11 +110,15 @@ describe('DeckTile', () => {
     expect(link.className).toContain('opacity-80')
   })
 
-  it('applies green border when active and ready', () => {
-    const { container } = renderWithProviders(
+  it('shows the "Ready to play" status badge when active and ready', () => {
+    renderWithProviders(
       <DeckTile {...defaultProps} isActive={true} completeness={{ resolved: 100, total: 100 }} />
     )
-    const link = container.querySelector('a')!
-    expect(link.style.border).toContain('var(--accent-primary)')
+    expect(screen.getByLabelText('Ready to play')).toBeInTheDocument()
+  })
+
+  it('shows the "Deck in progress" badge when inactive', () => {
+    renderWithProviders(<DeckTile {...defaultProps} isActive={false} />)
+    expect(screen.getByLabelText('Deck in progress')).toBeInTheDocument()
   })
 })

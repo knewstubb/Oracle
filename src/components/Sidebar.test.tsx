@@ -45,12 +45,14 @@ describe('Sidebar', () => {
     mockPathname.mockReturnValue('/')
   })
 
-  it('renders all 5 nav items', () => {
+  it('renders all 7 nav items', () => {
     renderSidebar()
     expect(screen.getByText('Decks')).toBeInTheDocument()
-    expect(screen.getByText('Cards')).toBeInTheDocument()
+    expect(screen.getByText('Card Management')).toBeInTheDocument()
+    expect(screen.getByText('Reconcile')).toBeInTheDocument()
     expect(screen.getByText('Collection')).toBeInTheDocument()
-    expect(screen.getByText('Brew Deck')).toBeInTheDocument()
+    expect(screen.getByText('Binders')).toBeInTheDocument()
+    expect(screen.getByText('Explore')).toBeInTheDocument()
     expect(screen.getByText('Settings')).toBeInTheDocument()
   })
 
@@ -67,10 +69,10 @@ describe('Sidebar', () => {
     expect(decksLink).toHaveAttribute('aria-current', 'page')
   })
 
-  it('highlights Cards when on /allocation', () => {
+  it('highlights Card Management when on /allocation', () => {
     mockPathname.mockReturnValue('/allocation')
     renderSidebar()
-    const cardsLink = screen.getByText('Cards').closest('a')
+    const cardsLink = screen.getByText('Card Management').closest('a')
     expect(cardsLink).toHaveAttribute('aria-current', 'page')
 
     const decksLink = screen.getByText('Decks').closest('a')

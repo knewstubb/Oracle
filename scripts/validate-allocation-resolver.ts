@@ -68,6 +68,12 @@ interface ValidationReport {
   runtimeErrors: string[]
 }
 
+// Minimal shape read from deck_cards for generic-land detection.
+interface DeckCardRow {
+  card_name: string
+  scryfall_id: string | null
+}
+
 function validateCandidateSort(candidates: RankedCandidate[]): string[] {
   const issues: string[] = []
   for (let i = 1; i < candidates.length; i++) {
@@ -166,7 +172,7 @@ async function main() {
       const cards = deckCards ?? []
       // Match picklist semantics: generic basic lands (basic land name + no specific printing)
       // are considered satisfied and do not need candidate resolution.
-      const isGenericLand = (c: any) => isBasicLand(c.card_name) && !c.scryfall_id
+      const isGenericLand = (c: DeckCardRow) => isBasicLand(c.card_name) && !c.scryfall_id
       deckResult.totalCards = cards.length
       deckResult.resolvedCards = cards.filter(c => c.copy_id !== null || isGenericLand(c)).length
       const unresolved = cards.filter(c => c.copy_id === null && !isGenericLand(c))
@@ -243,8 +249,9 @@ async function main() {
         .limit(1)
         .single()
 
-      if (anyCopy && (anyCopy.user_cards as any)?.card_name) {
-        const cardName = (anyCopy.user_cards as any).card_name
+      const userCard = anyCopy?.user_cards as unknown as { card_name?: string } | null
+      if (anyCopy && userCard?.card_name) {
+        const cardName = userCard.card_name
         const singleCandidates = await getRankedCandidates(cardName, userId, null)
         const singleIssues = validateCandidateSort(singleCandidates)
         if (singleIssues.length > 0) {

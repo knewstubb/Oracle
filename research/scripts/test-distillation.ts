@@ -5,6 +5,7 @@
  */
 
 import { config } from 'dotenv'
+import { writeFileSync } from 'fs'
 import { resolve } from 'path'
 
 // Load .env.local
@@ -216,7 +217,7 @@ async function main() {
   
   // Save raw JSON for inspection
   const outputPath = resolve(__dirname, '../data/test-distillation-results.json')
-  require('fs').writeFileSync(outputPath, JSON.stringify(results, null, 2))
+  writeFileSync(outputPath, JSON.stringify(results, null, 2))
   console.log(`\n\nFull JSON saved to: ${outputPath}`)
   
   db.close()

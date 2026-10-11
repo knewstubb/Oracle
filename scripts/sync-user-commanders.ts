@@ -107,6 +107,35 @@ interface EdhrecCommanderData {
   strategy?: string;
 }
 
+interface CommanderInsightRow {
+  commander_id: string;
+  insight_type: string;
+  build_variant: string;
+  content: string;
+  source_type: string;
+  source_url: string;
+  confidence: number;
+  source_trust: number;
+  taxonomy_tags: string[];
+}
+
+interface CommanderTaxonomyRow {
+  commander_id: string;
+  taxonomy_slug: string;
+  source: string;
+  confidence: number;
+  relevance: string;
+}
+
+interface CommanderCardRow {
+  commander_id: string;
+  card_name: string;
+  card_type: string;
+  synergy_score: number;
+  inclusion_rate: number;
+  position: number;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Helpers
 // ═══════════════════════════════════════════════════════════════════════════
@@ -200,32 +229,12 @@ function extractInsights(
   data: EdhrecCommanderData,
   commanderId: string,
   commanderName: string
-): Array<{
-  commander_id: string;
-  insight_type: string;
-  build_variant: string;
-  content: string;
-  source_type: string;
-  source_url: string;
-  confidence: number;
-  source_trust: number;
-  taxonomy_tags: string[];
-}> {
+): CommanderInsightRow[] {
   const tagCounts = data.tag_counts || {};
   const totalDecks = data.container?.json_dict?.card?.num_decks || 1;
   const sourceTrust = getBaseTrust('edhrec'); // 0.85 for EDHREC stats
   
-  const insights: Array<{
-    commander_id: string;
-    insight_type: string;
-    build_variant: string;
-    content: string;
-    source_type: string;
-    source_url: string;
-    confidence: number;
-    source_trust: number;
-    taxonomy_tags: string[];
-  }> = [];
+  const insights: CommanderInsightRow[] = [];
   
   for (const [tag, count] of Object.entries(tagCounts)) {
     if (count < MIN_TAG_DECKS_FOR_INSIGHT) continue;
@@ -258,22 +267,10 @@ function extractInsights(
 function extractTaxonomy(
   data: EdhrecCommanderData,
   commanderId: string
-): Array<{
-  commander_id: string;
-  taxonomy_slug: string;
-  source: string;
-  confidence: number;
-  relevance: string;
-}> {
+): CommanderTaxonomyRow[] {
   const tagCounts = data.tag_counts || {};
   const totalDecks = data.container?.json_dict?.card?.num_decks || 1;
-  const entries: Array<{
-    commander_id: string;
-    taxonomy_slug: string;
-    source: string;
-    confidence: number;
-    relevance: string;
-  }> = [];
+  const entries: CommanderTaxonomyRow[] = [];
   
   const seenSlugs = new Set<string>();
   
@@ -303,23 +300,9 @@ function extractTaxonomy(
 function extractTopCards(
   data: EdhrecCommanderData,
   commanderId: string
-): Array<{
-  commander_id: string;
-  card_name: string;
-  card_type: string;
-  synergy_score: number;
-  inclusion_rate: number;
-  position: number;
-}> {
+): CommanderCardRow[] {
   const cardlists = data.container?.json_dict?.cardlists || [];
-  const cards: Array<{
-    commander_id: string;
-    card_name: string;
-    card_type: string;
-    synergy_score: number;
-    inclusion_rate: number;
-    position: number;
-  }> = [];
+  const cards: CommanderCardRow[] = [];
   
   for (const list of cardlists) {
     const cardType = list.header?.toLowerCase() || 'unknown';
@@ -346,7 +329,7 @@ function extractTopCards(
 // Database Operations
 // ═══════════════════════════════════════════════════════════════════════════
 
-async function upsertInsights(commanderId: string, insights: Array<any>): Promise<number> {
+async function upsertInsights(commanderId: string, insights: CommanderInsightRow[]): Promise<number> {
   if (DRY_RUN || insights.length === 0) return 0;
   
   // Delete existing EDHREC insights
@@ -368,7 +351,7 @@ async function upsertInsights(commanderId: string, insights: Array<any>): Promis
   return insights.length;
 }
 
-async function upsertTaxonomy(commanderId: string, entries: Array<any>): Promise<number> {
+async function upsertTaxonomy(commanderId: string, entries: CommanderTaxonomyRow[]): Promise<number> {
   if (DRY_RUN || entries.length === 0) return 0;
   
   // Delete existing EDHREC taxonomy
@@ -390,7 +373,7 @@ async function upsertTaxonomy(commanderId: string, entries: Array<any>): Promise
   return entries.length;
 }
 
-async function upsertCards(commanderId: string, cards: Array<any>): Promise<number> {
+async function upsertCards(commanderId: string, cards: CommanderCardRow[]): Promise<number> {
   if (DRY_RUN || cards.length === 0) return 0;
   
   // Delete existing cards

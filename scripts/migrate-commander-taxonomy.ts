@@ -104,7 +104,7 @@ async function main() {
   }> = []
   
   let mappedCount = 0
-  let unmappedVariants = new Set<string>()
+  const unmappedVariants = new Set<string>()
   
   for (const [commanderId, variants] of commanderVariants) {
     // Sort variants by count (most frequent first)

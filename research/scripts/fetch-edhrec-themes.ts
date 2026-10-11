@@ -406,8 +406,8 @@ async function main() {
     for (const row of contentRows.slice(0, 5)) {
       console.log(`  ${row.card_name}: "${row.title}"`)
       console.log(`    URL: ${row.source_url}`)
-      if (row.raw_content) {
-        console.log(`    Excerpt: ${row.raw_content.substring(0, 80)}...`)
+      if (row.excerpt) {
+        console.log(`    Excerpt: ${row.excerpt.substring(0, 80)}...`)
       }
     }
   }

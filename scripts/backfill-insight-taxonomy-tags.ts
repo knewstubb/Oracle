@@ -57,7 +57,7 @@ async function main() {
   
   // 3. Map and update
   let updated = 0
-  let unmapped = new Set<string>()
+  const unmapped = new Set<string>()
   
   for (const insight of insights || []) {
     const slug = aliasToSlug.get(insight.build_variant.toLowerCase())

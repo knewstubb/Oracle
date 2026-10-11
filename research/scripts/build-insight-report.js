@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- CommonJS Node script run directly with node */
 const fs = require('fs');
 
 // Load data

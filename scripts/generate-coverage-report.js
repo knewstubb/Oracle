@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- CommonJS Node script run directly with node */
 /**
  * Generate insight coverage report with traffic light status
  * 

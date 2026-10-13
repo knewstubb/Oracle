@@ -10,6 +10,8 @@
 
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
+import { buildDeckPreview, detectManaBoxFile } from '@/lib/manabox-import'
+import { createSupabaseManaBoxResolver } from '@/lib/manabox-resolver'
 import { parseDeckUrl, isParseError } from '@/lib/url-parser'
 import { fetchDeck } from '@/lib/archidekt-client'
 import { fetchMoxfieldDeck } from '@/lib/moxfield-client'
@@ -28,7 +30,37 @@ export async function POST(request: NextRequest) {
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
 
-  let body: { url?: string }
+  // -------------------------------------------------------------------------
+  // ManaBox deck file preview — CSV or text (contract §13.1)
+  // -------------------------------------------------------------------------
+  const contentType = request.headers.get('content-type') || ''
+  if (contentType.includes('multipart/form-data')) {
+    const formData = await request.formData()
+    const file = formData.get('file')
+    if (!(file instanceof Blob)) {
+      return Response.json({ error: 'No file provided' }, { status: 400 })
+    }
+    const content = await file.text()
+    const fileName = file instanceof File ? file.name : 'deck'
+    const kind = detectManaBoxFile(content)
+    if (!kind) {
+      return Response.json({ error: 'Not a ManaBox .csv or .txt file' }, { status: 400 })
+    }
+    try {
+      const preview = await buildDeckPreview(
+        kind === 'csv'
+          ? { fileName, csvContent: content }
+          : { fileName, textContent: content },
+        createSupabaseManaBoxResolver()
+      )
+      return Response.json(preview)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      return Response.json({ error: `Could not check this file: ${message}` }, { status: 400 })
+    }
+  }
+
+  let body: { url?: string; csvContent?: string; textContent?: string; fileName?: string }
   try {
     body = await request.json()
   } catch {
@@ -36,6 +68,20 @@ export async function POST(request: NextRequest) {
       { error: 'Invalid request body' },
       { status: 400 }
     )
+  }
+
+  if (body.csvContent !== undefined || body.textContent !== undefined) {
+    const fileName = body.fileName ?? 'deck'
+    try {
+      const preview = await buildDeckPreview(
+        { fileName, csvContent: body.csvContent, textContent: body.textContent },
+        createSupabaseManaBoxResolver()
+      )
+      return Response.json(preview)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      return Response.json({ error: `Could not check this file: ${message}` }, { status: 400 })
+    }
   }
 
   const { url } = body

@@ -1,0 +1,98 @@
+2 Abrade (BLC) 191
+1 Abzan Devotee (TDM) 68
+1 Aegis Turtle (FDN) 150
+1 Ambush Wolf (FDN) 98
+1 Arcane Epiphany (FDN) 29
+1 Armored Kincaller (LCI) 174
+1 Axgard Cavalry (FDN) 189
+1 Banishing Light (FDN) 138
+1 Bite Down (FDN) 212
+1 Bloodthorn Flail (LCI) 93
+1 Broodrage Mycoid (LCI) 95
+2 Buried Treasure (LCI) 246
+1 Canonized in Blood (LCI) 96
+1 Cathar Commando (INR) 15
+1 Confounding Riddle (LCI) 50
+1 Crackling Cyclops (FDN) 83
+1 Curator of Sun's Creation (LCI) 141
+1 Daring Discovery (LCI) 142
+1 Deconstruction Hammer (LCI) 9
+1 Dismal Backwater (TDM) 254
+1 Disturbed Slumber (LCI) 182
+1 Drake (TFDN) 8
+1 Dusk Rose Reliquary (LCI) 10
+1 Duty Beyond Death (TDM) 10
+2 Echo of Dusk (LCI) 104
+1 Elementalist Adept (FDN) 36
+1 Enterprising Scallywag (LCI) 148
+1 Erudite Wizard (FDN) 37
+1 Fake Your Own Death (FDN) 174
+1 Family Reunion (LCI) 13
+1 Fanatical Firebrand (FDN) 195
+1 Felothar, Dawn of the Abzan (TDM) 184
+1 Fiendish Panda (FDN) 120
+1 Focus the Mind (TDM) 45
+1 Good-Fortune Unicorn (FDN) 240
+1 Grasping Shadows (LCI) 108
+1 Growing Rites of Itlimoc (LCI) 188
+1 Guardian of the Great Door (LCI) 16
+1 Gutless Plunderer (FDN) 60
+1 Hidden Courtyard (LCI) 274
+1 Hidden Nursery (M3C) 349
+1 Hundred-Battle Veteran (TDM) 82
+1 Hunter's Blowgun (LCI) 255
+1 Idol of the Deep King (LCI) 155
+2 In the Presence of Ages (LCI) 192
+1 Inspiring Call (FDN) 226
+1 Ixalli's Lorekeeper (LCI) 194
+1 Jade Seedstones (LCI) 195
+1 Kinjalli's Dawnrunner (LCI) 19
+1 Kykar, Zephyr Awakener (FDN) 348
+1 Lightfoot Technique (TDM) 14
+1 Lotuslight Dancers (TDM) 204
+1 Malicious Eclipse (LCI) 111
+1 Map (TLCI) 17
+1 Marauding Blight-Priest (FDN) 178
+1 Mardu Devotee (TDM) 16
+1 Merfolk Cave-Diver (LCI) 65
+1 Meticulous Artisan (TDM) 112
+1 Orazca Puzzle-Door (LCI) 68
+1 Petrify (LCI) 30
+1 Plains (LCI) 287
+1 Preposterous Proportions (FDN) 109
+1 Prideful Parent (FDN) 21
+1 Primordial Gnawer (LCI) 114
+1 Queen's Bay Paladin (LCI) 115
+1 Quicksand Whirlpool (LCI) 31
+1 Restless Prairie (LCI) 281
+1 Revenge of the Rats (FDN) 67
+1 River Herald Guide (LCI) 209
+1 Runescale Stormbrood (TDM) 221
+2 Screaming Phantom (LCI) 118
+1 Scytheclaw Raptor (LCI) 165
+1 Seeker of Sunlight (LCI) 210
+1 Skullcap Snail (LCI) 119
+1 Soaring Sandwing (LCI) 35
+1 Song of Stupefaction (LCI) 77
+1 Stab (FDN) 71
+1 Staggering Size (LCI) 214
+1 Subterranean Schooner (LCI) 80
+1 Sunshot Militia (LCI) 168
+1 Swamp (LCI) 289
+1 Swiftfoot Boots (TDC) 328
+1 Swiftwater Cliffs (FDN) 268
+1 Tatyova, Benthic Druid (FDN) 247
+1 Temur Monument (TDM) 248
+1 Temur Tawnyback (TDM) 229
+1 The Ancient One (LCI) 222
+1 Thousand Moons Crackshot (LCI) 37
+1 Trade Route Envoy (TDM) 163
+1 Treetop Snarespinner (FDN) 114
+2 Unlucky Drop (LCI) 82
+1 Visage of Dread (LCI) 129
+1 Volatile Wanderglyph (LCI) 172
+2 Walk with the Ancestors (LCI) 218
+1 Wardens of the Cycle (FDN) 125
+1 Waterwind Scout (LCI) 84
+1 Wind-Scarred Crag (FDN) 271
+1 Zombify (FDN) 187

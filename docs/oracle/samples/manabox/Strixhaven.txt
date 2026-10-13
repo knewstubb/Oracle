@@ -1,0 +1,88 @@
+1 Abrade (SOA) 37
+2 Adventurous Eater // Have a Bite (SOS) 72
+1 Ajani's Response (SOS) 6
+1 Ancestral Anger (SOS) 106
+1 Archmage Emeritus (SPG) 150
+1 Artistic Process (SOS) 108
+1 Ascendant Dustspeaker (SOS) 8
+1 Banishing Betrayal (SOS) 38
+2 Biblioplex Tomekeeper (SOS) 247
+1 Blazing Firesinger // Seething Song (SOS) 109
+1 Bogwater Lumaret (SOS) 177
+1 Burrog Barrage (SOS) 141
+1 Burst Lightning (SOA) 41
+1 Chase Inspiration (SOS) 41
+2 Cheerful Osteomancer // Raise Dead (SOS) 76
+1 Cuboid Colony (SOS) 183
+1 Deduce (SOA) 16
+1 Dissection Practice (SOS) 79
+1 Eager Glyphmage (SOS) 11
+1 Elemental Mascot (SOS) 185
+1 Elite Interceptor // Rejoinder (SOS) 12
+1 Embrace the Paradox (SOS) 186
+1 Emeritus of Ideation // Ancestral Recall (SOS) 315
+2 Encouraging Aviator // Jump (SOS) 46
+1 End of the Hunt (SOS) 81
+1 Essence Scatter (SOS) 47
+1 Eternal Student (SOS) 82
+1 Feed the Swarm (SOA) 94
+1 Fix What's Broken (SOS) 188
+1 Flow State (SOS) 49
+1 Follow the Lumarets (SOS) 148
+1 Foolish Fate (SOS) 83
+1 Forest (STX) 374
+1 Forum of Amity (SOS) 256
+1 Fractal Mascot (SOS) 189
+1 Garrison Excavator (SOS) 116
+1 Glimpse of Nature (SOA) 53
+2 Glorious Decay (SOS) 150
+1 Goblin Glasswright // Craft with Pride (SOS) 117
+1 Great Hall of the Biblioplex (SOS) 257
+1 Hop to It (SOA) 6
+2 Imperious Inkmage (SOS) 195
+1 Inkling (TSOS) 7
+1 Interjection (SOS) 22
+1 Jadzi, Steward of Fate // Oracle's Gift (SOS) 55
+1 Killian's Confidence (SOS) 197
+1 Landscape Painter // Vibrant Idea (SOS) 56
+1 Last Gasp (SOS) 86
+1 Lorehold Charm (SOS) 200
+1 Masterful Flourish (SOS) 89
+1 Matterbending Mage (SOS) 59
+1 Melancholic Poet (SOS) 90
+1 Mind Roots (SOS) 203
+1 Molten-Core Maestro (SOS) 125
+2 Noxious Newt (SOS) 155
+1 Old-Growth Educator (SOS) 207
+1 Paradox Gardens (SOS) 258
+1 Pest Mascot (SOS) 209
+1 Plains (SOS) 267
+2 Planar Engineering (SOS) 158
+1 Potioner's Trove (SOS) 251
+1 Prismari, the Inspiration (SOS) 212
+1 Pursue the Past (SOS) 216
+1 Rearing Embermare (SOS) 127
+1 Repel Calamity (SOA) 8
+1 Restoration Seminar (SOS) 30
+1 Root Manipulation (SOS) 222
+1 Rubble Rouser (SOS) 128
+1 Scolding Administrator (SOS) 224
+1 Shamanic Revelation (SOA) 122
+1 Shopkeeper's Bane (SOS) 159
+1 Snarl Song (SOS) 161
+2 Soaring Stoneglider (SOS) 32
+2 Spiritcall Enthusiast // Scrollboost (SOS) 33
+1 Stadium Tidalmage (SOS) 232
+1 Stensian Sanguinist // Exsanguinate (SOC) 29
+1 Stone Docent (SOS) 36
+1 Strixhaven Skycoach (SOS) 252
+1 Studious First-Year // Rampant Growth (SOS) 162
+1 Tackle Artist (SOS) 133
+1 Tenured Concocter (SOS) 163
+1 Thunderdrum Soloist (SOS) 134
+3 Titan's Grave (SOS) 266
+1 Vicious Rivalry (SOS) 241
+1 Visionary's Dance (SOS) 242
+1 Wild Hypothesis (SOS) 167
+1 Witherbloom Charm (SOS) 244
+1 Zaffai and the Tempests (SOS) 246

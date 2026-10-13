@@ -36,6 +36,15 @@ Plan: vocabulary spec and mockup first (owner review), then fix batches per scre
 | T-25 | One agreed vocabulary spec and mockup: words, colours, badges for every card/deck fact; retired words; inventory of where the app still uses old words, grouped into fix batches | Designer | — | DONE — owner approved 2026-10-12 (D-043); spec in docs/oracle/specs/vocabulary.md; fix batches V0–V12 in its §10 |
 | T-26 | Shared status badges, rows, filters and loading/empty/error states, built per the approved vocabulary (= batch V0, then V2–V12) | Developer | T-25 approved | TODO — next: V0 first |
 
+## Phase 5 — Getting cards in (STARTED 2026-10-13 alongside Phase 3, on owner instruction)
+Owner request 2026-10-13: ManaBox CSV import for collection and decks (D-044–D-049). Owner 2026-10-13: start the importer now, before Phase 3 finishes; basics-to-generic on by default.
+
+| ID | Task | Owner role | Depends on | Status |
+|---|---|---|---|---|
+| T-53 | Contract for ManaBox import (collection via CSV; one deck per file via CSV or text export, D-049): column mapping, text-line lookup by set + collector number, token skipping, unmatched-line reporting, using the file's Scryfall ID and Foil column, per-card Original/Proxy ignoring the file's Proxy column, deck format, add-to-collection or list-only choice, and the basics-to-generic switch. Reuse or replace the existing CSV/import code and say which | Architect | D-044–D-049 | TODO |
+| T-54 | Spec and mockup of the collection and deck import screens (deck accepts CSV or text file, with unmatched lines shown): format picker, per-card Original/Proxy (default Original), add-to-collection choice (default on), basics-to-generic switch (on by default), and how the owner picks the commander after import | Designer | D-044–D-049 | TODO |
+| T-55 | Build the ManaBox import per T-53 and T-54, tested with the owner's sample files in `docs/oracle/samples/manabox/` | Developer | T-53, T-54 approved | TODO |
+
 ## Phase 2 — Card facts (BUILT 2026-10-11; waiting on owner's checklist lines C-01 to C-07, started 2026-10-11)
 Plan: audit first (read-only), then fix in small disjoint batches. Fix tasks are added after the audit.
 

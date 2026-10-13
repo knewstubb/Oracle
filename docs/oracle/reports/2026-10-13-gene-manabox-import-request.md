@@ -33,3 +33,7 @@ Verification: all 186 lines from the two text files were looked up on Scryfall b
 
 ## Follow-up 2026-10-13 16:07
 Owner: start the importer now, before Phase 3 finishes; basics-to-generic on by default (D-048 updated). T-53 (Architect) and T-54 (Designer) launched in parallel; T-55 waits for both approvals.
+
+## Follow-up 2026-10-13 18:47 — owner answers to T-54 questions
+Owner: "1. Yes. Deck and collection imports are different things 2. For a deck import there should be three options: Original, Proxy, Unsleeved. This should cover all options 3. Yes for language, not for condition 4. Yes 5. Straight away 6. After import. We can have a foil checkbox". Recorded: D-047 revised (per-card Original/Proxy/Unsleeved replaces the deck-level switch), D-050 to D-052 added. Gene's reading of answer 6: a Foil checkbox on text-file rows during import review; to be confirmed when the owner sees the revised mockup. Owner also asked about the row checkboxes (bulk selection); explained that generic basics are not physical cards, so there is nothing to mark.
+Gene answered T-54 G4 (keep existing non-ManaBox collection CSV layouts) and G5 (spinner is enough) from the repo.

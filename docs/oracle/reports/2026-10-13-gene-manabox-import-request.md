@@ -40,3 +40,6 @@ Gene answered T-54 G4 (keep existing non-ManaBox collection CSV layouts) and G5 
 
 ## Follow-up 2026-10-13 19:19 — colours
 Owner asked for a teal Original button; Gene flagged the clash with Proxy teal (D-043). Owner: "Isn't proxy blue? Proxy blue and original a mint". Recorded D-053; sent to T-54 Designer. Owner could not find the Foil checkbox: it shows only in the text-file example; asked Designer to make that example easy to find.
+
+## Follow-up 2026-10-13 19:31 — owner approved T-54
+Owner: "Approve". T-53 and T-54 merged to main (no shared files). D-053 amended to the app green per the owner's direct note to the Designer (spec G6). Spec Q1 (one Foil tick box per text line) taken as approved with the spec. Build split: T-55 server side, then T-56 screens (sequential, so the screens are wired to real routes).

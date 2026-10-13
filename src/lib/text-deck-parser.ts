@@ -90,12 +90,16 @@ export function parseTextDecklist(
     const quantity = parseInt(match[1], 10)
     let cardText = match[2].trim()
 
-    // Extract optional set info: "Sol Ring (CMR) 472" → name="Sol Ring", setCode="CMR"
+    // Extract optional set info: "Sol Ring (CMR) 472" → name="Sol Ring",
+    // setCode="CMR", collectorNumber="472". The collector number is kept so
+    // set + collector identity resolution works (contract §6.2).
     let setCode = ''
-    const setMatch = cardText.match(/^(.+?)\s+\(([A-Za-z0-9]+)\)\s*(\d+)?$/)
+    let collectorNumber = ''
+    const setMatch = cardText.match(/^(.+?)\s+\(([A-Za-z0-9]+)\)\s*(\S+)?$/)
     if (setMatch) {
       cardText = setMatch[1].trim()
       setCode = setMatch[2]
+      collectorNumber = setMatch[3] ?? ''
     }
 
     const card: NormalizedCard = {
@@ -104,6 +108,7 @@ export function parseTextDecklist(
       scryfallId: '',
       oracleId: '',
       setCode,
+      collectorNumber,
       typeLine: '',
       isProxy: false,
       isCommander: commanderSection,

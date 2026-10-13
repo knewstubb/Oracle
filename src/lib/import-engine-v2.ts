@@ -296,10 +296,10 @@ function extractManaboxRow(
   const quantity = parseInt(rawQuantity, 10)
   if (isNaN(quantity) || quantity < 1) return null
 
-  // ManaBox proxy signal: check for "Misprint" or proxy-related columns
-  // ManaBox uses a column that indicates proxy status
-  const misprintField = fields[colIdx['Misprint']] || ''
-  const isProxy = misprintField.toLowerCase() === 'true'
+  // D-045: the file's own Proxy/Misprint flag is ignored. The owner's per-row
+  // Original/Proxy choice is authoritative, so this extractor never marks a
+  // ManaBox row as a proxy.
+  const isProxy = false
 
   const editionCode = fields[colIdx['Set code']] || ''
   const collectorNumber = fields[colIdx['Collector number']] || ''

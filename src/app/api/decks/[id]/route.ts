@@ -2,9 +2,11 @@ import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
 import { assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 import { frontFaceName } from '@/lib/basic-lands'
+import { getFormatConfig } from '@/lib/format-config'
 import { getCommanderBuildCardRepository } from '@/lib/commander-context'
 import { NextRequest } from 'next/server'
 import type { Database } from '@/types/supabase'
+import type { PatchDeckCommanderBody } from '../../../../../docs/oracle/contracts/manabox-import.types'
 
 export const runtime = 'nodejs'
 
@@ -267,9 +269,15 @@ export async function DELETE(
   return Response.json({ success: true, ...result })
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 /**
  * PATCH /api/decks/[id]
- * Updates deck metadata fields (currently: build_id)
+ *
+ * Updates deck metadata fields: `build_id` and the commander fields
+ * (`commander_id`, `commander_name`, `commander_scryfall_id`). Setting a
+ * commander is a single `UPDATE decks` scoped to the authenticated user, used
+ * by the post-import commander picker (D-052) and later changes (contract §15.3).
  */
 export async function PATCH(
   request: NextRequest,
@@ -284,7 +292,7 @@ export async function PATCH(
     return Response.json({ error: 'Invalid deck ID' }, { status: 400 })
   }
 
-  let body: { build_id?: string | null }
+  let body: PatchDeckCommanderBody
   try {
     body = await request.json()
   } catch {
@@ -293,10 +301,10 @@ export async function PATCH(
 
   const supabase = createAdminClient()
 
-  // Verify deck ownership
+  // Verify deck ownership and read the format (needed for commander legality).
   const { data: deck, error: deckErr } = await supabase
     .from('decks')
-    .select('id')
+    .select('id, format')
     .eq('id', deckId)
     .eq('user_id', authResult.id)
     .maybeSingle()
@@ -308,18 +316,71 @@ export async function PATCH(
     return Response.json({ error: 'Deck not found' }, { status: 404 })
   }
 
-  // Build update payload with allowed fields
   const updatePayload: Database['public']['Tables']['decks']['Update'] = {}
 
   if ('build_id' in body) {
-    // Validate build_id is a valid UUID or null
     if (body.build_id !== null) {
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-      if (typeof body.build_id !== 'string' || !uuidRegex.test(body.build_id)) {
+      if (typeof body.build_id !== 'string' || !UUID_REGEX.test(body.build_id)) {
         return Response.json({ error: 'Invalid build_id format' }, { status: 400 })
       }
     }
     updatePayload.build_id = body.build_id
+  }
+
+  const hasCommanderField =
+    'commander_id' in body || 'commander_name' in body || 'commander_scryfall_id' in body
+
+  if (hasCommanderField) {
+    if (!getFormatConfig(deck.format).hasCommander) {
+      return Response.json(
+        { error: 'This format does not have a commander' },
+        { status: 400 }
+      )
+    }
+
+    // commander_id is authoritative when provided.
+    if ('commander_id' in body) {
+      const commanderId = body.commander_id
+      if (commanderId === null) {
+        // Clearing the commander clears every commander field.
+        updatePayload.commander_id = null
+        updatePayload.commander_name = null
+        updatePayload.commander_scryfall_id = null
+      } else {
+        if (typeof commanderId !== 'string' || !UUID_REGEX.test(commanderId)) {
+          return Response.json({ error: 'Invalid commander_id format' }, { status: 400 })
+        }
+        updatePayload.commander_id = commanderId
+        updatePayload.commander_name = null
+        updatePayload.commander_scryfall_id = null
+      }
+    } else if (body.commander_name !== undefined && body.commander_name !== null) {
+      // Verify the named card can legally be a commander.
+      const { data: refCard, error: refErr } = await supabase
+        .from('ref_cards')
+        .select('name, can_be_commander')
+        .eq('name', body.commander_name)
+        .limit(1)
+        .maybeSingle()
+
+      if (refErr) {
+        return Response.json({ error: refErr.message }, { status: 500 })
+      }
+      if (!refCard || refCard.can_be_commander !== true) {
+        return Response.json(
+          { error: 'That card cannot be a commander' },
+          { status: 400 }
+        )
+      }
+      updatePayload.commander_name = body.commander_name
+      updatePayload.commander_id = null
+      updatePayload.commander_scryfall_id = body.commander_scryfall_id ?? null
+    } else if (body.commander_scryfall_id !== undefined) {
+      updatePayload.commander_scryfall_id = body.commander_scryfall_id
+    } else {
+      // commander_name explicitly null clears the name.
+      updatePayload.commander_name = null
+    }
   }
 
   if (Object.keys(updatePayload).length === 0) {
@@ -330,6 +391,7 @@ export async function PATCH(
     .from('decks')
     .update(updatePayload)
     .eq('id', deckId)
+    .eq('user_id', authResult.id)
 
   if (updateErr) {
     return Response.json({ error: updateErr.message }, { status: 500 })

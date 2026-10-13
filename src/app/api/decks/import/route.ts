@@ -17,16 +17,39 @@ import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { importDeckTheorycrafted, importDeckBuilt, importDeckNewCards } from '@/lib/deck-import'
 import type { ImportMode } from '@/lib/deck-import'
+import { importManaBoxDeck, type ManaBoxDeckCard } from '@/lib/manabox-deck-import'
 import type { NormalizedDeck } from '@/lib/deck-normalizer'
+import type {
+  ManaBoxRowSplits,
+  ManaBoxUnmatchedLine,
+} from '../../../../../docs/oracle/contracts/manabox-import.types'
 
 const VALID_MODES: ImportMode[] = ['new_cards', 'built', 'theorycrafted']
+
+interface DeckImportBody {
+  deck?: NormalizedDeck
+  mode?: ImportMode
+  format?: string
+  name?: string
+  convertBasicLandsToGeneric?: boolean
+  rowSplits?: ManaBoxRowSplits
+  unmatched?: ManaBoxUnmatchedLine[]
+}
+
+/** A ManaBox deck import is identified by per-card finish or the row splits. */
+function isManaBoxDeckBody(body: DeckImportBody): boolean {
+  if (body.rowSplits !== undefined && body.deck !== undefined) return true
+  const cards = body.deck?.cards as ManaBoxDeckCard[] | undefined
+  if (!cards) return false
+  return cards.some((card) => 'finish' in card || 'rowSplit' in card)
+}
 
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
   const userId = authResult.id
 
-  let body: { deck?: NormalizedDeck; mode?: ImportMode; format?: string }
+  let body: DeckImportBody
   try {
     body = await request.json()
   } catch {
@@ -51,6 +74,28 @@ export async function POST(request: NextRequest) {
       { error: 'Deck must contain at least one card' },
       { status: 400 }
     )
+  }
+
+  // -------------------------------------------------------------------------
+  // ManaBox deck import — one deck, per-row Original/Proxy/Unsleeved (D-047).
+  // -------------------------------------------------------------------------
+  if (isManaBoxDeckBody(body)) {
+    try {
+      const result = await importManaBoxDeck({
+        deck,
+        name: body.name || deck.name,
+        format: deckFormat,
+        convertBasicLandsToGeneric: body.convertBasicLandsToGeneric,
+        rowSplits: body.rowSplits,
+        userId,
+        unmatched: body.unmatched,
+      })
+      return Response.json(result)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      console.error(`[decks/import] ManaBox import failed: ${message}`)
+      return Response.json({ error: 'Deck import failed' }, { status: 500 })
+    }
   }
 
   // Validate mode

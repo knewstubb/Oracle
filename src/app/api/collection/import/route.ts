@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { executeInstanceLevelImport, type ImportProgress } from '@/lib/import-engine-v2'
+import { executeManaBoxCollectionImport } from '@/lib/manabox-collection-import'
 import { requireAuth } from '@/lib/auth'
+import type { ManaBoxProxyCounts } from '../../../../../docs/oracle/contracts/manabox-import.types'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -86,6 +88,60 @@ export async function POST(request: NextRequest) {
 
   const searchParams = request.nextUrl.searchParams
   const mode = searchParams.get('mode') || 'upsert'
+
+  // ---------------------------------------------------------------------------
+  // ManaBox collection import — add-only (D-050, contract §15.1).
+  // Triggered by ?mode=manabox, or a JSON body carrying `csvContent`.
+  // ---------------------------------------------------------------------------
+  const manaboxContentType = request.headers.get('content-type') || ''
+  if (
+    mode === 'manabox' ||
+    (mode !== 'replace' && manaboxContentType.includes('application/json'))
+  ) {
+    let csvContent = ''
+    let fileName = 'collection.csv'
+    let proxyCounts: ManaBoxProxyCounts | undefined
+
+    if (manaboxContentType.includes('multipart/form-data')) {
+      const formData = await request.formData()
+      const file = formData.get('file')
+      if (!(file instanceof Blob)) {
+        return NextResponse.json({ error: 'No CSV file provided' }, { status: 400 })
+      }
+      csvContent = await file.text()
+      if (file instanceof File) fileName = file.name
+    } else {
+      try {
+        const body = (await request.json()) as {
+          csvContent?: string
+          fileName?: string
+          proxyCounts?: ManaBoxProxyCounts
+        }
+        csvContent = body.csvContent ?? ''
+        if (body.fileName) fileName = body.fileName
+        proxyCounts = body.proxyCounts
+      } catch {
+        return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+      }
+    }
+
+    if (!csvContent.trim()) {
+      return NextResponse.json({ error: 'No CSV content provided' }, { status: 400 })
+    }
+
+    try {
+      const summary = await executeManaBoxCollectionImport({
+        csvContent,
+        fileName,
+        userId,
+        proxyCounts,
+      })
+      return NextResponse.json(summary)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      return NextResponse.json({ error: `Import failed: ${message}` }, { status: 500 })
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // Mode: replace — parse and reconcile the complete collection atomically.

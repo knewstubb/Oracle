@@ -17,6 +17,8 @@ export interface NormalizedCard {
   scryfallId: string
   oracleId: string
   setCode: string
+  /** Set-specific collector number when the source provides one (contract §6.2). */
+  collectorNumber?: string
   quantity: number
   typeLine: string
   isCommander: boolean

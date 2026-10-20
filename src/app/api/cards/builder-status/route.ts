@@ -13,7 +13,7 @@ import { fetchEnrichedSupply } from '@/lib/allocation-candidates'
 
 export interface BuilderStatusResult {
   cardName: string
-  status: 'original' | 'proxy' | 'available' | 'alternate' | 'claimed' | 'unowned'
+  status: 'original' | 'proxy' | 'available' | 'alternate' | 'claimed' | 'unowned' | 'failed'
   /** For claimed: which deck currently holds the card */
   heldBy: {
     deckId: number
@@ -50,9 +50,13 @@ export async function GET(request: NextRequest) {
     const results: BuilderStatusResult[] = []
 
     for (const cardName of cardNames) {
-      const status = statusMap.get(cardName) ?? 'unowned'
+      // A missing entry means the batch lookup did not classify this card;
+      // report failure instead of guessing "unowned".
+      const status = statusMap.get(cardName) ?? 'failed'
 
-      if (status === 'claimed') {
+      if (status === 'failed') {
+        results.push({ cardName, status: 'failed', heldBy: null })
+      } else if (status === 'claimed') {
         // Get heldBy detail from enriched supply
         let heldBy: BuilderStatusResult['heldBy'] = null
         try {

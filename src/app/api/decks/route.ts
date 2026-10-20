@@ -133,7 +133,8 @@ export async function GET() {
     total: number; 
     availableCount: number; 
     claimedCount: number; 
-    unownedCount: number 
+    unownedCount: number;
+    failed: boolean
   }> = {}
   const computedCardCounts: Record<number, number> = {}
   const unresolvedByDeck = new Map<number, string[]>()
@@ -148,7 +149,7 @@ export async function GET() {
 
     // Initialize completeness tracking
     if (!completenessMap[card.deck_id]) {
-      completenessMap[card.deck_id] = { resolved: 0, total: 0, availableCount: 0, claimedCount: 0, unownedCount: 0 }
+      completenessMap[card.deck_id] = { resolved: 0, total: 0, availableCount: 0, claimedCount: 0, unownedCount: 0, failed: false }
     }
     completenessMap[card.deck_id].total += 1
     computedCardCounts[card.deck_id] = (computedCardCounts[card.deck_id] ?? 0) + 1
@@ -176,7 +177,7 @@ export async function GET() {
     // Unresolved status calculation (available/claimed/unowned)
     allUnresolvedNames.length > 0
       ? computeUnresolvedStatuses(allUnresolvedNames, userId)
-      : Promise.resolve(new Map<string, 'available' | 'alternate' | 'claimed' | 'unowned'>()),
+      : Promise.resolve(new Map<string, 'available' | 'alternate' | 'claimed' | 'unowned' | 'failed'>()),
     
     // Mana costs for pip distribution
     allCardNames.length > 0
@@ -184,13 +185,18 @@ export async function GET() {
       : Promise.resolve(new Map<string, string>()),
   ])
 
-  // Distribute unresolved statuses back to completeness
+  // Distribute unresolved statuses back to completeness.
+  // If the lookup failed for any card, mark the whole deck's completeness as
+  // failed so the UI can show "Couldn't check" instead of a guessed count.
   for (const [deckId, cardNames] of unresolvedByDeck) {
     const comp = completenessMap[deckId]
     if (!comp) continue
     for (const name of cardNames) {
-      const status = statusMap.get(name) ?? 'unowned'
-      if (status === 'available' || status === 'alternate') {
+      // A missing entry means the batch lookup did not classify this card.
+      const status = statusMap.get(name) ?? 'failed'
+      if (status === 'failed') {
+        comp.failed = true
+      } else if (status === 'available' || status === 'alternate') {
         comp.availableCount += 1
       } else if (status === 'claimed') {
         comp.claimedCount += 1

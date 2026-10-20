@@ -68,6 +68,13 @@ const STATUS_CONFIG: Record<
     icon: 'do_not_disturb_on',
     filled: false,
   },
+  failed: {
+    label: "Couldn't check",
+    color: 'var(--signal-critical)',
+    bg: 'rgba(226, 75, 74, 0.12)',
+    icon: 'error',
+    filled: false,
+  },
 }
 
 // ---------------------------------------------------------------------------
@@ -310,6 +317,8 @@ export function getSlotTileBorderStyle(status: CardSlotStatus): React.CSSPropert
     case 'claimed':
       return { border: `2.5px solid ${config.color}` }
     case 'unowned':
+      return { border: `2.5px solid ${config.color}` }
+    case 'failed':
       return { border: `2.5px solid ${config.color}` }
     default:
       return { border: '1px solid var(--border-default)' }

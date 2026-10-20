@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { Minus, Plus } from 'lucide-react'
+import { Minus, Plus, VenetianMask } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface CopyCountStepperProps {
@@ -83,7 +83,7 @@ export function CopyCountStepper({ qty, type, value, cardName, onChange, onClose
   }
 
   const stepBtn =
-    'inline-flex h-full w-[22px] items-center justify-center text-muted-foreground hover:bg-[var(--bg-hover)] disabled:opacity-40 disabled:hover:bg-transparent'
+    'inline-flex h-full w-4 items-center justify-center text-muted-foreground hover:bg-[var(--bg-hover)] disabled:opacity-40 disabled:hover:bg-transparent'
 
   return (
     <span
@@ -92,7 +92,10 @@ export function CopyCountStepper({ qty, type, value, cardName, onChange, onClose
       aria-label={`How many ${cardName} are ${plural}`}
       className="inline-flex h-full items-center"
     >
-      <span className="pl-2 pr-1 text-foreground">{label}</span>
+      <span className="inline-flex items-center gap-1 pl-2 pr-1 text-foreground">
+        {type === 'proxy' && <VenetianMask className="size-3" aria-hidden="true" />}
+        {label}
+      </span>
       <button
         type="button"
         tabIndex={-1}
@@ -113,7 +116,7 @@ export function CopyCountStepper({ qty, type, value, cardName, onChange, onClose
         aria-valuenow={value}
         aria-valuetext={`${value} of ${qty}`}
         onKeyDown={onKeyDown}
-        className="min-w-4 text-center font-medium tabular-nums text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="min-w-3 text-center tabular-nums text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {value}
       </span>
@@ -123,7 +126,7 @@ export function CopyCountStepper({ qty, type, value, cardName, onChange, onClose
         aria-label={`More ${plural}`}
         disabled={value >= qty}
         onClick={() => set(value + 1)}
-        className={cn(stepBtn, 'pr-1')}
+        className={cn(stepBtn, 'mr-1')}
       >
         <Plus className="size-3" aria-hidden="true" />
       </button>

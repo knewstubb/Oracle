@@ -96,9 +96,12 @@ export function CopyCountStepper({ qty, type, value, cardName, onChange, onClose
       <span
         aria-live="polite"
         aria-atomic="true"
-        className="inline-flex items-center gap-1 text-[var(--accent-primary)]"
+        className={cn(
+          'inline-flex items-center gap-1',
+          remainder > 0 ? 'text-[var(--accent-primary)]' : 'text-muted-foreground'
+        )}
       >
-        <Check className="size-3" aria-hidden="true" />
+        {remainder > 0 && <Check className="size-3" aria-hidden="true" />}
         Original {remainder}
       </span>
       <span

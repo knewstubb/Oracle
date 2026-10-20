@@ -532,6 +532,7 @@ function MobileStatusDot({ status }: { status: CardSlotStatus }) {
     claimed: { color: 'var(--signal-warning)', label: 'Planned · Claimed', filled: 'half' },
     unowned: { color: 'var(--signal-error)', label: 'Planned · Unowned', filled: 'empty' },
     generic_land: { color: 'var(--signal-success)', label: 'Land', filled: 'full' },
+    failed: { color: 'var(--signal-critical)', label: "Couldn't check", filled: 'empty' },
   }
 
   const { color, label, filled } = config[status] ?? config.available

@@ -29,7 +29,7 @@ import { isBasicLand } from '@/lib/basic-lands'
 // Types
 // ---------------------------------------------------------------------------
 
-export type CardSlotStatus = 'original' | 'proxy' | 'available' | 'alternate' | 'claimed' | 'unowned' | 'generic_land'
+export type CardSlotStatus = 'original' | 'proxy' | 'available' | 'alternate' | 'claimed' | 'unowned' | 'generic_land' | 'failed'
 export type DeckCardLifecycle = 'planned' | 'sleeved'
 export type AllocationStatus = CardSlotStatus
 
@@ -81,22 +81,32 @@ export function classifySlotStatus(
  *    which copies are free vs held
  * 3. Classify: free copy exists → available, all held → claimed, none exist → unowned
  *
- * Returns a Map<cardName, 'available' | 'claimed' | 'unowned'>
+ * If either bulk query fails, every requested card is reported as "failed"
+ * so callers never show a guessed status.
+ *
+ * Returns a Map<cardName, 'available' | 'alternate' | 'claimed' | 'unowned' | 'failed'>
  */
 export async function computeUnresolvedStatuses(
   cardNames: string[],
   userId: string,
   /** Map of cardName → preferred scryfall_id (from deck_cards.scryfall_id) */
   preferredPrintings?: Map<string, string | null>
-): Promise<Map<string, 'available' | 'alternate' | 'claimed' | 'unowned'>> {
+): Promise<Map<string, 'available' | 'alternate' | 'claimed' | 'unowned' | 'failed'>> {
   if (cardNames.length === 0) return new Map()
 
   const supabase = createAdminClient()
-  const result = new Map<string, 'available' | 'alternate' | 'claimed' | 'unowned'>()
+  const result = new Map<string, 'available' | 'alternate' | 'claimed' | 'unowned' | 'failed'>()
 
   // Default everything to 'unowned' — we'll upgrade based on physical copies
   for (const name of cardNames) {
     result.set(name, 'unowned')
+  }
+
+  // Helper: mark every requested card as failed on lookup error
+  const markAllFailed = () => {
+    for (const name of cardNames) {
+      result.set(name, 'failed')
+    }
   }
 
   // Step 1: Resolve card_names → card_ids (batch)
@@ -116,7 +126,8 @@ export async function computeUnresolvedStatuses(
 
     if (error) {
       console.error('[card-status] Failed to fetch cards:', error.message)
-      return result // Return all as unowned on error
+      markAllFailed()
+      return result
     }
     if (cards) {
       allCards.push(...cards)
@@ -153,6 +164,7 @@ export async function computeUnresolvedStatuses(
 
     if (pcError) {
       console.error('[card-status] Failed to fetch collection copies:', pcError.message)
+      markAllFailed()
       return result
     }
     if (copies) allCopies.push(...(copies as typeof allCopies))
@@ -289,7 +301,9 @@ export async function computeDeckCardStatuses(
   const statusMap = await computeUnresolvedStatuses(unresolvedNames, userId, preferredPrintings)
 
   const unresolvedWithStatus: CardSlotWithStatus[] = unresolvedCards.map(card => {
-    const allocationStatus = statusMap.get(card.card_name) ?? 'unowned'
+    // A missing entry here means the batch lookup did not run for this card;
+    // treat that as a failure rather than guessing "unowned".
+    const allocationStatus = statusMap.get(card.card_name) ?? 'failed'
     return {
       deckCardsId: card.id,
       cardName: card.card_name,

@@ -293,6 +293,61 @@ describe('computeUnresolvedStatuses', () => {
     expect(result.get('Claimed Card')).toBe('claimed')
     expect(result.get('Absent Card')).toBe('unowned')
   })
+
+  it('returns "failed" when the user_cards lookup errors', async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'user_cards') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              in: vi.fn().mockResolvedValue({
+                data: null,
+                error: { message: 'database offline' },
+              }),
+            }),
+          }),
+        }
+      }
+      return mockSupabaseChain([])
+    })
+
+    const result = await computeUnresolvedStatuses(['Sol Ring', 'Rhystic Study'], 'user-1')
+    expect(result.get('Sol Ring')).toBe('failed')
+    expect(result.get('Rhystic Study')).toBe('failed')
+  })
+
+  it('returns "failed" when the user_copies lookup errors', async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'user_cards') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              in: vi.fn().mockResolvedValue({
+                data: [{ id: 1, card_name: 'Sol Ring' }],
+                error: null,
+              }),
+            }),
+          }),
+        }
+      }
+      if (table === 'user_copies') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              in: vi.fn().mockResolvedValue({
+                data: null,
+                error: { message: 'database offline' },
+              }),
+            }),
+          }),
+        }
+      }
+      return mockSupabaseChain([])
+    })
+
+    const result = await computeUnresolvedStatuses(['Sol Ring'], 'user-1')
+    expect(result.get('Sol Ring')).toBe('failed')
+  })
 })
 
 describe('computeDeckCardStatuses', () => {
@@ -360,5 +415,30 @@ describe('computeDeckCardStatuses', () => {
 
     const result = await computeDeckCardStatuses(cards, 'user-1')
     expect(result[0].status).toBe('original')
+  })
+
+  it('returns "failed" for unresolved cards when the batch lookup errors', async () => {
+    const mockFrom = vi.fn()
+    vi.mocked(createAdminClient).mockReturnValue({ from: mockFrom } as unknown as AdminClient)
+
+    // user_cards query fails
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'user_cards') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              in: vi.fn().mockResolvedValue({ data: null, error: { message: 'timeout' } }),
+            }),
+          }),
+        }
+      }
+      return mockSupabaseChain([])
+    })
+
+    const cards = [{ id: 1, card_name: 'Sol Ring', copy_id: null, is_proxy: null }]
+    const result = await computeDeckCardStatuses(cards, 'user-1')
+    expect(result[0].status).toBe('failed')
+    expect(result[0].allocationStatus).toBe('failed')
+    expect(result[0].lifecycle).toBe('planned')
   })
 })

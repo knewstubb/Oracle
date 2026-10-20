@@ -21,7 +21,9 @@ import { parseTextDecklist, isTextParseError } from '@/lib/text-deck-parser'
 import { FORMAT_OPTIONS } from '@/lib/format-config'
 import type { NormalizedDeck, CardsByType } from '@/lib/deck-normalizer'
 import type { ImportMode, AllocationConflict } from '@/lib/deck-import'
-import { ManaBoxDeckImportFlow } from '@/components/manabox-import/ManaBoxDeckImportFlow'
+import { ManaBoxDeckImportFlow, type DeckFlowState } from '@/components/manabox-import/ManaBoxDeckImportFlow'
+import { IMPORT_MODAL_CLASS } from '@/components/manabox-import/import-labels'
+import { decideDeckDialogClose } from '@/components/manabox-import/import-close-guard'
 
 type InputTab = 'url' | 'paste' | 'file' | 'precon'
 
@@ -309,11 +311,27 @@ export function DeckImportButton({
     })
   }
 
-  function handleOpenChange(nextOpen: boolean) {
+  const [flowState, setFlowState] = useState<DeckFlowState>({ checking: false, saving: false, hasEdits: false })
+  const onFlowState = useCallback((state: DeckFlowState) => setFlowState(state), [])
+  const fileTab = activeTab === 'file' && !previewData
+  const DISCARD_MESSAGE = 'Close the import? Your changes to this import will be lost.'
+
+  /** Ask before throwing away edits. True means go ahead. */
+  function okToDiscard(): boolean {
+    return !fileTab || !flowState.hasEdits || window.confirm(DISCARD_MESSAGE)
+  }
+
+  function handleOpenChange(nextOpen: boolean, details?: { reason?: string; cancel?: () => void }) {
+    if (!nextOpen && fileTab) {
+      const decision = decideDeckDialogClose(details?.reason, flowState)
+      if (decision === 'block') return details?.cancel?.()
+      if (decision === 'confirm' && !window.confirm(DISCARD_MESSAGE)) return details?.cancel?.()
+    }
     setOpen(nextOpen)
     if (!nextOpen) {
       resetState()
       setActiveTab('url')
+      setFlowState({ checking: false, saving: false, hasEdits: false })
       previewMutation.reset()
       importMutation.reset()
     }
@@ -335,7 +353,7 @@ export function DeckImportButton({
         Import Deck
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className={fileTab ? IMPORT_MODAL_CLASS : 'sm:max-w-2xl'}>
         {/* ─── Confirmation Step (mode picker) ─── */}
         {previewData ? (
           <>
@@ -452,7 +470,11 @@ export function DeckImportButton({
                     ? { background: 'var(--accent-primary)', color: 'white' }
                     : { color: 'var(--text-tertiary)' }
                   }
-                  onClick={() => setActiveTab(tab)}
+                  disabled={flowState.saving || flowState.checking}
+                  onClick={() => {
+                    if (tab !== activeTab && !okToDiscard()) return
+                    setActiveTab(tab)
+                  }}
                 >
                   {tab === 'url' ? 'URL' : tab === 'paste' ? 'Paste List' : tab === 'file' ? 'File' : 'Precon'}
                 </button>
@@ -460,7 +482,7 @@ export function DeckImportButton({
             </div>
 
             {/* Tab content */}
-            <div className="min-h-[340px]">
+            <div className={fileTab ? 'flex min-h-0 flex-1 flex-col' : 'min-h-[340px]'}>
               {/* URL tab */}
               {activeTab === 'url' && (
                 <div className="flex flex-col gap-3">
@@ -524,9 +546,12 @@ export function DeckImportButton({
             {/* File tab */}
             {activeTab === 'file' && (
               <ManaBoxDeckImportFlow
+                fill
+                onStateChange={onFlowState}
                 onComplete={(deckId, _format, _deckName, summary) => {
                   setOpen(false)
                   resetState()
+                  setFlowState({ checking: false, saving: false, hasEdits: false })
                   try {
                     sessionStorage.setItem('manabox-import-summary', JSON.stringify(summary))
                   } catch {
@@ -534,7 +559,9 @@ export function DeckImportButton({
                   }
                   router.push(`/decks/${deckId}?freshImport=true`)
                 }}
-                onCancel={() => setActiveTab('url')}
+                onCancel={() => {
+                  if (okToDiscard()) setActiveTab('url')
+                }}
               />
             )}
 
@@ -661,6 +688,7 @@ export function DeckImportButton({
             )}
             </div>
 
+            {!fileTab && (
             <DialogFooter>
               {activeTab === 'url' && (
                 <Button onClick={handleUrlSubmit} disabled={previewMutation.isPending || !url.trim()}>
@@ -680,6 +708,7 @@ export function DeckImportButton({
                 </Button>
               )}
             </DialogFooter>
+            )}
           </>
         )}
       </DialogContent>

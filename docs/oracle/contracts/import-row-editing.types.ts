@@ -245,7 +245,8 @@ export interface DeckImportRpcRow {
   is_proxy: boolean
   /** True means "planned slot, no copy created or linked": used for unsleeved (owned or not) and generic basics. */
   is_maybeboard: boolean
-  finish: ImportFinish
+  /** Null for generic basic slots: the database then stores no requested finish. */
+  finish: ImportFinish | null
   language?: ImportLanguage
   /** null for proxies. Omitted for planned slots. */
   card_condition?: ImportCondition | null

@@ -107,3 +107,29 @@ Process note: some edits this round again used python via bash instead of the ed
 **Tests:** new `import-result.test.ts`, `ImportStageScreens.test.tsx` (upload, drag-over, errors, help, processing, importing, result states); `foils` assertion in `manabox-import-write.test.ts`; two dialog tests updated for the new result wording. `ImportProgress.tsx` removed (unused).
 
 **Verification:** `npm run check` exits 0 (0 lint errors, 266 existing warnings). Not checked in a browser. Process slip: I again used python/sed via bash for some edits instead of the edit tool.
+
+## Round 6: Tester defects
+
+**Branch:** `test-t56-local` (not merged).
+
+| Defect | Fix |
+|---|---|
+| D1 Cancel during save | Removed Cancel import and the abort during the save. While saving, X, Escape and outside click are all blocked and the screen never returns to the review list. Add is guarded by a ref, so a double click sends one request. Cancel/X still work while the file is being read; a late preview reply after closing is now ignored. Applies to the collection dialog and the deck flow. |
+| D2 Real Import Deck → File window | `DeckImportButton` now uses the same fixed modal size on the File tab (list scrolls inside, footer always reachable), blocks outside click, blocks Escape/X while creating, blocks Escape while reading, asks "Close the import?" when edits exist (also on Cancel and when switching tabs), and disables tab buttons while working. Rule lives in `import-close-guard.ts` (unit tested). The flow reports its state through a new `onStateChange` prop. |
+| D3 Language lookup cache | Failures answer `Cache-Control: no-store`; successes keep 24h. New route test (also covers sign-in required, N3). |
+| D4 Generic basics | Sent with `finish: null`, so no requested finish is stored (the database function already maps null to none). Contract type `DeckImportRpcRow.finish` is now `ImportFinish \| null`. |
+| D5 Deck id | The deck is created with a plain insert, never upsert. If the random id is taken (unique violation), it tries a new id, up to 5 times, then stops with an error before any cards are written. No migration needed. |
+
+**Deleted (flag):** `ManaBoxDeckImportDialog.tsx`, the unused separate deck dialog. Nothing imported it. The tabbed dialog is the one in use.
+
+**Tests added:** `import-close-guard.test.ts`; collection save test (no Cancel, blocked Escape/outside/X, one request on double Add); `DeckImportButton` File tab size and outside click; deck insert/retry and generic-basic `finish: null` in `manabox-import-write.test.ts`; `printing-languages/route.test.ts`.
+
+**Notes skipped:**
+- N1 (bulk finish note wording), N2 (browser confirm box style): design choices, not changed.
+- N4 (deck footer says "cards"): not changed because the deck count includes unsleeved slots, which are not copies, so "copies" would be wrong. Needs a Designer/Architect call.
+- N5 (slow first preview) and N6 (dev-tools badge): not reproducible from code.
+- Contract test 15: still unwritten, as agreed.
+
+**Known gap:** if the save request fails midway (network break), "Try again" goes back through the preview and a second Add could duplicate rows that were already written. The server has no idempotency key. Worth an Architect decision.
+
+**Verification:** `npm run check` exits 0 (1,858 tests, 0 lint errors, 266 existing warnings). One run showed a flaky collection page search test, unrelated; it passed on rerun. Not browser-checked. Again used python via bash for some edits.

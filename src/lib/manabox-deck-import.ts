@@ -74,6 +74,8 @@ export interface ManaBoxDeckImportOptions {
 }
 
 /** One deck per file — a fresh numeric id for each import. */
+const MAX_DECK_ID_ATTEMPTS = 5
+
 function generateDeckId(): number {
   return (Date.now() % 2_000_000_000) + Math.floor(Math.random() * 1_000_000)
 }
@@ -187,30 +189,36 @@ export async function importManaBoxDeck(
   )
   if (finishCheck.problems.length > 0) throw new ImportValidationError(finishCheck.problems)
 
-  const deckId = generateDeckId()
-
-  // 2. Upsert the deck row (commander chosen after import, D-046/D-052).
-  const { error: deckErr } = await supabase.from('decks').upsert(
-    {
-      id: deckId,
-      name: options.name || options.deck.name,
-      commander_name: null,
-      commander_scryfall_id: null,
-      commander_id: null,
-      colour_identity: options.deck.colourIdentity,
-      card_count: options.deck.cardCount,
-      is_active: false,
-      format: deckFormat,
-      source_url: '',
-      source_platform: 'manabox',
-      user_id: options.userId,
-    },
-    { onConflict: 'id' }
-  )
-
-  if (deckErr) {
-    throw new Error(`Failed to create deck ${deckId}: ${deckErr.message}`)
+  // 2. Create the deck row (commander chosen after import, D-046/D-052).
+  // A plain insert, never an upsert: if the random id is already taken the
+  // insert fails (23505) and we try a new id, so an existing deck is never
+  // overwritten. No migration needed.
+  const deckRow = {
+    name: options.name || options.deck.name,
+    commander_name: null,
+    commander_scryfall_id: null,
+    commander_id: null,
+    colour_identity: options.deck.colourIdentity,
+    card_count: options.deck.cardCount,
+    is_active: false,
+    format: deckFormat,
+    source_url: '',
+    source_platform: 'manabox',
+    user_id: options.userId,
   }
+  let deckId = 0
+  for (let attempt = 0; attempt < MAX_DECK_ID_ATTEMPTS; attempt++) {
+    const candidate = generateDeckId()
+    const { error: deckErr } = await supabase.from('decks').insert({ id: candidate, ...deckRow })
+    if (!deckErr) {
+      deckId = candidate
+      break
+    }
+    if (deckErr.code !== '23505') {
+      throw new Error(`Failed to create deck ${candidate}: ${deckErr.message}`)
+    }
+  }
+  if (!deckId) throw new Error('Failed to create deck: could not find a free deck id')
 
   // 3. Upsert user_cards for every tracked (non-generic-basic) row.
   const uniqueCards = new Map<string, string>()
@@ -264,7 +272,8 @@ export async function importManaBoxDeck(
           is_commander: false,
           is_proxy: false,
           is_maybeboard: true,
-          finish: 'nonfoil',
+          // Generic basics carry no attributes (contract section 6): no finish, so no requested finish is stored.
+          finish: null,
         })
       }
       continue

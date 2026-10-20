@@ -49,7 +49,10 @@ export function ManaBoxCollectionImportDialog({
     abortRef.current = null
   }, [])
 
-  const busy = step.status === 'checking' || step.status === 'importing'
+  const busy = step.status === 'checking'
+  // Once the save starts it cannot be stopped, so nothing may close the window.
+  const saving = step.status === 'importing'
+  const savingRef = useRef(false)
   const hasEdits =
     step.status === 'review' &&
     (Object.keys(step.copyEdits).length > 0 ||
@@ -58,6 +61,7 @@ export function ManaBoxCollectionImportDialog({
   const handleClose = useCallback(
     (nextOpen: boolean, details?: { reason?: string; cancel?: () => void }) => {
       if (!nextOpen) {
+        if (saving) return details?.cancel?.()
         // Clicking outside never closes the import; Escape is ignored while working.
         if (details?.reason === 'outside-press') return details.cancel?.()
         if (details?.reason === 'escape-key' && busy) return details.cancel?.()
@@ -71,18 +75,21 @@ export function ManaBoxCollectionImportDialog({
       }
       onOpenChange(nextOpen)
     },
-    [onOpenChange, reset, busy, hasEdits]
+    [onOpenChange, reset, busy, saving, hasEdits]
   )
 
   const handleFile = useCallback(async (file: File) => {
     setError(null)
     setStep({ status: 'checking', file })
+    const controller = new AbortController()
+    abortRef.current = controller
 
     try {
       const text = await file.text()
       setStep({ status: 'checking', file, cards: estimateFileCards(text) })
       const res = await fetch('/api/collection/import/preview', {
         method: 'POST',
+        signal: controller.signal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ csvContent: text, fileName: file.name }),
       })
@@ -90,6 +97,7 @@ export function ManaBoxCollectionImportDialog({
       if (!res.ok) throw new Error('Preview failed')
 
       const preview: ManaBoxPreviewResponse = await res.json()
+      if (controller.signal.aborted) return
       if (preview.totalLines === 0) {
         setError(EMPTY_FILE_MESSAGE)
         setStep({ status: 'idle' })
@@ -114,25 +122,25 @@ export function ManaBoxCollectionImportDialog({
         selectedIds: new Set(),
       })
     } catch {
+      if (controller.signal.aborted) return
       setError(UNREADABLE_FILE_MESSAGE)
       setStep({ status: 'idle' })
     }
   }, [])
 
   const handleImport = useCallback(async () => {
-    if (step.status !== 'review') return
+    if (step.status !== 'review' || savingRef.current) return
+    savingRef.current = true
     const rows = step.preview.rows
     if (rows.length === 0) return
 
-    abortRef.current = new AbortController()
     const totalCopies = rows.reduce((sum, r) => sum + r.qty, 0)
-    setStep({ ...step, status: 'importing', cancellable: true, processed: 0, total: totalCopies, phase: 'resolving' })
+    setStep({ ...step, status: 'importing', cancellable: false, processed: 0, total: totalCopies, phase: 'resolving' })
 
     try {
       const res = await fetch('/api/collection/import?mode=manabox&stream=1', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        signal: abortRef.current.signal,
         body: JSON.stringify({
           csvContent: await step.file.text(),
           fileName: step.file.name,
@@ -187,18 +195,12 @@ export function ManaBoxCollectionImportDialog({
       queryClient.invalidateQueries({ queryKey: ['collection'] })
       queryClient.invalidateQueries({ queryKey: ['collection-rollup'] })
     } catch (err) {
-      if ((err as Error).name === 'AbortError') {
-        setStep({ ...step, status: 'review' })
-        return
-      }
       const message = err instanceof Error ? err.message : String(err)
       setStep({ status: 'failed', error: message, file: step.file, previousStatus: 'importing' })
+    } finally {
+      savingRef.current = false
     }
   }, [step, queryClient])
-
-  const handleCancel = useCallback(() => {
-    abortRef.current?.abort()
-  }, [])
 
   const setDefaults = useCallback((defaults: ImportDefaults) => {
     setStep((prev) => (prev.status === 'review' ? { ...prev, defaults } : prev))
@@ -310,7 +312,6 @@ export function ManaBoxCollectionImportDialog({
               processed={step.processed}
               total={step.total}
               unit="copies"
-              onCancel={step.cancellable ? handleCancel : undefined}
             />
           </div>
         )}

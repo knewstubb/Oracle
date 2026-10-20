@@ -164,4 +164,19 @@ describe('DeckImportButton', () => {
       expect(screen.getByRole('alert')).toHaveTextContent(/Deck not found on Archidekt/i)
     })
   })
+
+  it('File tab uses the fixed modal size and ignores outside clicks', async () => {
+    render(<DeckImportButton onPreviewSuccess={onPreviewSuccess} />, { wrapper: createWrapper() })
+    fireEvent.click(screen.getByRole('button', { name: /import deck/i }))
+    await waitFor(() => expect(screen.getByText(/Import a deck from a URL/i)).toBeInTheDocument())
+    const content = () => document.querySelector('[data-slot="dialog-content"]')!
+    expect(content().className).not.toContain('h-[min(46rem')
+    fireEvent.click(screen.getByRole('button', { name: 'File' }))
+    await waitFor(() => expect(screen.getByLabelText('Choose file')).toBeInTheDocument())
+    expect(content().className).toContain('h-[min(46rem,calc(100dvh-4rem))]')
+    fireEvent.pointerDown(document.body)
+    fireEvent.mouseDown(document.body)
+    fireEvent.click(document.body)
+    expect(screen.getByLabelText('Choose file')).toBeInTheDocument()
+  })
 })

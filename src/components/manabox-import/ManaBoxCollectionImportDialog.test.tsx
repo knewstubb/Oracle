@@ -213,4 +213,33 @@ describe('ManaBoxCollectionImportDialog', () => {
     await waitFor(() => expect(screen.getByText('Sol Ring')).toBeInTheDocument())
     expect(size()).toBe(idle)
   })
+
+  it('cannot be cancelled or closed while the save runs, and Add only sends once', async () => {
+    const user = userEvent.setup()
+    const onOpenChange = vi.fn()
+    const spy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(PREVIEW_RESPONSE), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      )
+      .mockImplementation(() => new Promise<Response>(() => {}))
+    render(<ManaBoxCollectionImportDialog open onOpenChange={onOpenChange} />, { wrapper: createWrapper() })
+    await user.upload(screen.getByLabelText('Choose file'), new File(['name,header\nx'], 'scan.csv', { type: 'text/csv' }))
+    await waitFor(() => expect(screen.getByText('Sol Ring')).toBeInTheDocument())
+    const add = screen.getByRole('button', { name: 'Add 4 copies' })
+    fireEvent.click(add)
+    fireEvent.click(add)
+    await waitFor(() => expect(screen.getByText('Adding to your collection…')).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'Cancel import' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()
+
+    await user.keyboard('{Escape}')
+    await user.click(document.body)
+    const x = screen.queryByRole('button', { name: /close/i })
+    if (x) await user.click(x)
+    expect(onOpenChange).not.toHaveBeenCalledWith(false)
+    expect(screen.getByText('Adding to your collection…')).toBeInTheDocument()
+    expect(screen.queryByText('Sol Ring')).not.toBeInTheDocument()
+    expect(spy.mock.calls.filter(([url]) => String(url).includes('/api/collection/import?mode=manabox'))).toHaveLength(1)
+  })
 })

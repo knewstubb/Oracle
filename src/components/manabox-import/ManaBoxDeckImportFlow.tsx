@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -36,14 +36,36 @@ export interface ManaBoxDeckImportFlowProps {
   titleSlot?: React.ReactNode
   /** Fill a fixed-size modal: every stage uses the same space (used by the import dialog). */
   fill?: boolean
+  /** Tells the window around the flow what it is doing, so it can guard closing. */
+  onStateChange?: (state: DeckFlowState) => void
 }
 
-export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot, fill }: ManaBoxDeckImportFlowProps) {
+export interface DeckFlowState {
+  /** Reading the file (nothing is written yet). */
+  checking: boolean
+  /** Creating the deck. Cannot be stopped. */
+  saving: boolean
+  /** The owner has changed something on the review list. */
+  hasEdits: boolean
+}
+
+export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot, fill, onStateChange }: ManaBoxDeckImportFlowProps) {
   const [step, setStep] = useState<ImportStep>({ status: 'idle' })
   const [error, setError] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const router = useRouter()
   const abortRef = useRef<AbortController | null>(null)
+  const savingRef = useRef(false)
+
+  const checking = step.status === 'checking'
+  const saving = step.status === 'importing'
+  const hasEdits =
+    step.status === 'review' &&
+    (Object.keys(step.copyEdits).length > 0 ||
+      JSON.stringify(step.defaults) !== JSON.stringify(INITIAL_DEFAULTS))
+  useEffect(() => {
+    onStateChange?.({ checking, saving, hasEdits })
+  }, [checking, saving, hasEdits, onStateChange])
 
   const reset = useCallback(() => {
     setStep({ status: 'idle' })
@@ -59,6 +81,8 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot, fill }:
   const handleFile = useCallback(async (file: File) => {
     setError(null)
     setStep({ status: 'checking', file })
+    const controller = new AbortController()
+    abortRef.current = controller
 
     try {
       const text = await file.text()
@@ -72,12 +96,14 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot, fill }:
       const res = await fetch('/api/decks/import/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify(body),
       })
 
       if (!res.ok) throw new Error('Preview failed')
 
       const preview: ManaBoxPreviewResponse = await res.json()
+      if (controller.signal.aborted) return
       if (preview.totalLines === 0) {
         setError(EMPTY_FILE_MESSAGE)
         setStep({ status: 'idle' })
@@ -102,6 +128,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot, fill }:
         selectedIds: new Set(),
       })
     } catch {
+      if (controller.signal.aborted) return
       setError(UNREADABLE_FILE_MESSAGE)
       setStep({ status: 'idle' })
     }
@@ -115,11 +142,11 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot, fill }:
       : 0
 
   const handleImport = useCallback(async () => {
-    if (step.status !== 'review') return
+    if (step.status !== 'review' || savingRef.current) return
     const rows = step.preview.rows
     if (rows.length === 0 || !step.deckName.trim()) return
 
-    abortRef.current = new AbortController()
+    savingRef.current = true
     setStep({ ...step, status: 'importing', cancellable: false, processed: 0, total: rows.length })
 
     try {
@@ -129,7 +156,6 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot, fill }:
       const res = await fetch('/api/decks/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        signal: abortRef.current.signal,
         body: JSON.stringify({
           deck,
           name: step.deckName,
@@ -190,6 +216,8 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot, fill }:
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       setStep({ status: 'failed', error: message, file: step.file, previousStatus: 'importing' })
+    } finally {
+      savingRef.current = false
     }
   }, [step, queryClient, onComplete])
 

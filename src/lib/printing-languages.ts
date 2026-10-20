@@ -75,3 +75,8 @@ export function languageChoices(
 function unique(codes: string[]): string[] {
   return [...new Set(codes)]
 }
+
+/** Successful lookups are cached for a day; failures are never cached, so a brief Scryfall outage is retried. */
+export function lookupCacheControl(languages: string[] | null): string {
+  return languages ? 'private, max-age=86400' : 'no-store'
+}

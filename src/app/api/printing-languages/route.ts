@@ -7,7 +7,7 @@
  */
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
-import { fetchPrintingLanguages } from '@/lib/printing-languages'
+import { fetchPrintingLanguages, lookupCacheControl } from '@/lib/printing-languages'
 
 export const runtime = 'nodejs'
 
@@ -22,5 +22,5 @@ export async function GET(request: NextRequest) {
   }
 
   const languages = await fetchPrintingLanguages(set, cn)
-  return Response.json({ languages }, { headers: { 'Cache-Control': 'private, max-age=86400' } })
+  return Response.json({ languages }, { headers: { 'Cache-Control': lookupCacheControl(languages) } })
 }

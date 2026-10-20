@@ -36,14 +36,22 @@ function resolverOf(map: Record<string, ManaBoxCardFacts>): ManaBoxResolver {
 interface Calls {
   rpc: Array<{ name: string; args: { p_user_id: string; p_rows: Array<Record<string, unknown>> } }>
   upserts: string[]
+  decksInserted: Array<Record<string, unknown>>
 }
 
 /** A fake client that records writes; `printings` answers the ref_printings read. */
-function fakeClient(printings: Array<Record<string, unknown>> = []) {
-  const calls: Calls = { rpc: [], upserts: [] }
+function fakeClient(printings: Array<Record<string, unknown>> = [], takenDeckInserts = 0) {
+  const calls: Calls = { rpc: [], upserts: [], decksInserted: [] }
+  let insertAttempts = 0
   const client = {
     from(table: string) {
       return {
+        async insert(row: Record<string, unknown>) {
+          calls.decksInserted.push({ table, ...row })
+          insertAttempts++
+          if (insertAttempts <= takenDeckInserts) return { error: { code: '23505', message: 'duplicate key' } }
+          return { error: null }
+        },
         upsert(rows: unknown) {
           calls.upserts.push(table)
           const list = (Array.isArray(rows) ? rows : [rows]) as Array<Record<string, unknown>>
@@ -226,7 +234,31 @@ describe('deck write (tests 9, 12b, 16)', () => {
     })
     const rows = calls.rpc[0].args.p_rows
     expect(rows).toHaveLength(2)
-    expect(rows.every((r) => r.card_id === null && r.is_maybeboard === true && r.finish === 'nonfoil')).toBe(true)
+    expect(rows.every((r) => r.card_id === null && r.is_maybeboard === true && r.finish === null)).toBe(true)
+  })
+
+  it('creates the deck with insert (never upsert) and retries with a new id when the id is taken', async () => {
+    const { client, calls } = fakeClient(printings, 2)
+    const result = await importManaBoxDeck({
+      deck: deckOf([solCard([{}])]) as never,
+      name: 'D',
+      defaults: DEFAULTS,
+      userId: 'user-a',
+      supabase: client,
+    })
+    const decks = calls.decksInserted.filter((c) => c.table === 'decks')
+    expect(decks).toHaveLength(3)
+    expect(calls.upserts).not.toContain('decks')
+    expect(result.deckId).toBe(decks[2].id)
+    expect(calls.rpc[0].args).toMatchObject({ p_deck_id: decks[2].id })
+  })
+
+  it('stops with an error, writing no cards, when every id attempt is taken', async () => {
+    const { client, calls } = fakeClient(printings, 99)
+    await expect(
+      importManaBoxDeck({ deck: deckOf([solCard([{}])]) as never, name: 'D', defaults: DEFAULTS, userId: 'u', supabase: client })
+    ).rejects.toThrow(/free deck id/)
+    expect(calls.rpc).toHaveLength(0)
   })
 
   it('rejects an owner foil Scryfall does not list, writing nothing', async () => {

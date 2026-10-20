@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       id,
       printing_id,
       finish,
-      user_cards!inner(card_name)
+      user_cards!user_copies_card_id_fkey!inner(card_name)
     `)
     .eq('user_id', userId)
 

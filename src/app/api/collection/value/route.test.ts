@@ -9,6 +9,7 @@ const db = vi.hoisted(() => ({
     user_cards: { card_name: string }
   }>,
   printings: [] as Array<{ scryfall_id: string; price_usd: number | null }>,
+  lastCopiesSelect: '' as string,
 }))
 
 vi.mock('@/lib/auth', () => ({
@@ -20,7 +21,10 @@ vi.mock('@/lib/supabase', () => ({
     from: (table: string) => {
       if (table === 'user_copies') {
         const chain = {
-          select: () => chain,
+          select: (selectString: string) => {
+            db.lastCopiesSelect = selectString
+            return chain
+          },
           eq: () => chain,
           range: () => Promise.resolve({ data: db.copies, error: null }),
         }
@@ -48,6 +52,7 @@ function callGET() {
 beforeEach(() => {
   db.copies = []
   db.printings = []
+  db.lastCopiesSelect = ''
 })
 
 describe('GET /api/collection/value', () => {
@@ -128,5 +133,16 @@ describe('GET /api/collection/value', () => {
     expect(body.totalMarketValue).toBe(0.5)
     expect(body.unpricedCardCount).toBe(0)
     expect(body.topCards[0]).toMatchObject({ pricePerCopy: 0.5, totalValue: 0.5 })
+  })
+
+  it('uses the unambiguous user_cards foreign key to avoid PGRST201', async () => {
+    db.copies = [
+      { id: 1, printing_id: 'pa', is_proxy: false, user_cards: { card_name: 'Sol Ring' } },
+    ]
+    db.printings = [{ scryfall_id: 'pa', price_usd: 5 }]
+
+    await callGET()
+
+    expect(db.lastCopiesSelect).toContain('user_cards!user_copies_card_id_fkey!inner')
   })
 })

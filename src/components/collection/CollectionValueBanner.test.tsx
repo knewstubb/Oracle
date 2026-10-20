@@ -24,6 +24,16 @@ function renderBanner(value: ValueResponse) {
   )
 }
 
+function renderBannerWithError() {
+  global.fetch = vi.fn(() => Promise.reject(new Error('Network error')))
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <CollectionValueBanner />
+    </QueryClientProvider>
+  )
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
 })
@@ -81,5 +91,12 @@ describe('CollectionValueBanner', () => {
     // Let the query resolve, then confirm the banner stays absent.
     await waitFor(() => expect(global.fetch).toHaveBeenCalled())
     expect(container.firstChild).toBeNull()
+  })
+
+  it('shows a plain error message and keeps the Refresh Prices button when the request fails', async () => {
+    renderBannerWithError()
+
+    expect(await screen.findByText('Could not load collection value.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Refresh Prices/i })).toBeInTheDocument()
   })
 })

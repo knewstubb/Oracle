@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     const supabase = createAdminClient()
     const { data: collection } = await supabase
       .from('user_copies')
-      .select('user_cards!inner(card_name)')
+      .select('user_cards!user_copies_card_id_fkey!inner(card_name)')
       .eq('user_id', authResult.id)
 
     const ownedSet = new Set(

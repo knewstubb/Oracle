@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ManaBoxDeckImportFlow } from './ManaBoxDeckImportFlow'
@@ -144,12 +144,9 @@ describe('ManaBoxDeckImportFlow', () => {
 
     await waitFor(() => expect(screen.getByText('Pull from the Grave')).toBeInTheDocument())
 
-    // Open the in-place stepper for Pull from the Grave and lower proxies to 1
-    const proxyButton = screen.getByRole('button', { name: /Proxy, 0 of 2/i })
-    fireEvent.click(proxyButton)
-    expect(screen.queryByRole('dialog')).toBeNull()
-    fireEvent.click(await screen.findByRole('button', { name: 'Fewer proxies' }))
-    fireEvent.keyDown(screen.getByRole('spinbutton'), { key: 'Escape' })
+    // The stepper is always visible on 2+ copy rows: make 1 of the 2 copies a proxy
+    const proxyStepper = within(screen.getByRole('group', { name: /Pull from the Grave are proxies/ }))
+    fireEvent.click(proxyStepper.getByRole('button', { name: 'More proxies' }))
 
     fireEvent.click(screen.getByRole('button', { name: /Import/i }))
 

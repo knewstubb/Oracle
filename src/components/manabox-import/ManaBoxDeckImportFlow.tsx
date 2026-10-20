@@ -90,7 +90,6 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot }: ManaB
         filter: 'all',
         query: '',
         selectedIds: new Set(),
-        openPickerId: null,
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -228,10 +227,6 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot }: ManaB
     setStep((prev) => (prev.status === 'review' ? { ...prev, selectedIds } : prev))
   }, [])
 
-  const setOpenPickerId = useCallback((id: string | null) => {
-    setStep((prev) => (prev.status === 'review' ? { ...prev, openPickerId: id } : prev))
-  }, [])
-
   return (
     <div className="flex flex-col gap-3">
       {titleSlot}
@@ -282,8 +277,6 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot }: ManaB
             selectedIds={step.selectedIds}
             onSelectedIdsChange={setSelectedIds}
             onRowChange={updateRow}
-            openPickerId={step.openPickerId}
-            onOpenPicker={setOpenPickerId}
           />
         </>
       )}

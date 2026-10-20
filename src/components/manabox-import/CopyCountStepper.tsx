@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
 import { Minus, Plus, VenetianMask } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -10,35 +9,12 @@ export interface CopyCountStepperProps {
   value: number
   cardName: string
   onChange: (value: number) => void
-  /** Collapse keeping the current number. `refocus` is true for keyboard collapse. */
-  onClose: (refocus: boolean) => void
 }
 
-/** Count stepper that replaces the label inside the row's own segment while editing. Never floats. */
-export function CopyCountStepper({ qty, type, value, cardName, onChange, onClose }: CopyCountStepperProps) {
-  const rootRef = useRef<HTMLSpanElement>(null)
-  const numberRef = useRef<HTMLSpanElement>(null)
-  const closeRef = useRef(onClose)
-  useEffect(() => {
-    closeRef.current = onClose
-  })
-
+/** Always-visible count stepper shown inside a row's own segment when the row has 2+ copies. */
+export function CopyCountStepper({ qty, type, value, cardName, onChange }: CopyCountStepperProps) {
   const label = type === 'proxy' ? 'Proxy' : 'Unsleeved'
   const plural = type === 'proxy' ? 'proxies' : 'unsleeved'
-
-  useEffect(() => {
-    numberRef.current?.focus()
-  }, [])
-
-  useEffect(() => {
-    const handler = (e: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        closeRef.current(false)
-      }
-    }
-    document.addEventListener('pointerdown', handler)
-    return () => document.removeEventListener('pointerdown', handler)
-  }, [])
 
   const set = (n: number) => {
     const next = Math.max(0, Math.min(qty, n))
@@ -69,16 +45,6 @@ export function CopyCountStepper({ qty, type, value, cardName, onChange, onClose
         e.preventDefault()
         set(qty)
         break
-      case 'Enter':
-      case ' ':
-      case 'Escape':
-        e.preventDefault()
-        e.stopPropagation()
-        onClose(true)
-        break
-      case 'Tab':
-        onClose(false)
-        break
     }
   }
 
@@ -87,7 +53,6 @@ export function CopyCountStepper({ qty, type, value, cardName, onChange, onClose
 
   return (
     <span
-      ref={rootRef}
       role="group"
       aria-label={`How many ${cardName} are ${plural}`}
       className="inline-flex h-full items-center"
@@ -107,7 +72,6 @@ export function CopyCountStepper({ qty, type, value, cardName, onChange, onClose
         <Minus className="size-3" aria-hidden="true" />
       </button>
       <span
-        ref={numberRef}
         role="spinbutton"
         tabIndex={0}
         aria-label={type === 'proxy' ? 'Proxies' : 'Unsleeved'}

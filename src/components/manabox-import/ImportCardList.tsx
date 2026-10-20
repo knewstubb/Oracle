@@ -44,8 +44,6 @@ export interface ImportCardListProps {
   selectedIds: Set<string>
   onSelectedIdsChange: (ids: Set<string>) => void
   onRowChange: (id: string, patch: Partial<UiPreviewRow['choices']>) => void
-  openPickerId: string | null
-  onOpenPicker: (id: string | null) => void
 }
 
 export function ImportCardList({
@@ -59,11 +57,8 @@ export function ImportCardList({
   selectedIds,
   onSelectedIdsChange,
   onRowChange,
-  openPickerId,
-  onOpenPicker,
 }: ImportCardListProps) {
   const parentRef = useRef<HTMLDivElement>(null)
-  const [openType, setOpenType] = useState<CopyType | null>(null)
 
   const visibleRows = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -284,11 +279,6 @@ export function ImportCardList({
                           qty={row.qty}
                           split={row.choices.split}
                           onChange={(split) => onRowChange(row.id, { split })}
-                          editingType={openPickerId === row.id ? openType : null}
-                          onEditingTypeChange={(type) => {
-                            setOpenType(type)
-                            onOpenPicker(type ? row.id : null)
-                          }}
                           options={options}
                           cardName={row.cardName}
                         />

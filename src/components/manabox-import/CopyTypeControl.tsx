@@ -1,11 +1,10 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
 import { Check, VenetianMask } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ManaBoxRowSplit } from '../../../docs/oracle/contracts/manabox-import.types'
 import type { CopyType } from './types'
-import { isSplit, setSplitCount, splitCount } from './types'
+import { setSplitCount, splitCount } from './types'
 import { CopyCountStepper } from './CopyCountStepper'
 
 const TYPE_META: Record<
@@ -38,143 +37,77 @@ export interface CopyTypeControlProps {
   qty: number
   split: ManaBoxRowSplit
   onChange: (split: ManaBoxRowSplit) => void
-  /** Which type this row's stepper is editing (null = collapsed). Only meaningful on 2+ copy rows. */
-  editingType: CopyType | null
-  onEditingTypeChange: (type: CopyType | null) => void
   options: CopyType[]
   cardName: string
-}
-
-function summary(split: ManaBoxRowSplit, cardName: string): string {
-  const parts = [
-    split.originalCount > 0 && `${split.originalCount} original`,
-    split.proxyCount > 0 && `${split.proxyCount} proxy`,
-    split.unsleevedCount > 0 && `${split.unsleevedCount} unsleeved`,
-  ].filter(Boolean)
-  return `${cardName}: ${parts.join(', ')}`
 }
 
 export function CopyTypeControl({
   qty,
   split,
   onChange,
-  editingType,
-  onEditingTypeChange,
   options,
   cardName,
 }: CopyTypeControlProps) {
   const multi = qty > 1
-  const buttonRefs = useRef<Partial<Record<CopyType, HTMLButtonElement | null>>>({})
-  const refocusType = useRef<CopyType | null>(null)
-  const [announcement, setAnnouncement] = useState('')
-  const editing = multi && editingType && editingType !== 'original' ? editingType : null
 
-  useEffect(() => {
-    if (!editing && refocusType.current) {
-      buttonRefs.current[refocusType.current]?.focus()
-      refocusType.current = null
-    }
-  }, [editing])
+  const setAll = (type: CopyType) =>
+    onChange({
+      originalCount: type === 'original' ? qty : 0,
+      proxyCount: type === 'proxy' ? qty : 0,
+      unsleevedCount: type === 'unsleeved' ? qty : 0,
+    })
 
-  const handleClick = (type: CopyType) => {
-    if (type === 'original' || !multi) {
-      onChange({
-        originalCount: type === 'original' ? qty : 0,
-        proxyCount: type === 'proxy' ? qty : 0,
-        unsleevedCount: type === 'unsleeved' ? qty : 0,
-      })
-      return
-    }
-    // Not yet in use: all copies become this type; then edit the number in place.
-    if (splitCount(split, type) === 0) {
-      onChange({
-        originalCount: 0,
-        proxyCount: type === 'proxy' ? qty : 0,
-        unsleevedCount: type === 'unsleeved' ? qty : 0,
-      })
-    }
-    onEditingTypeChange(type)
-  }
+  const segmentClass = (selected: boolean, meta: (typeof TYPE_META)[CopyType]) =>
+    cn(
+      'inline-flex h-full items-center gap-1 text-[length:var(--fs-xs)] text-muted-foreground',
+      selected && meta.selectedClass,
+      selected && meta.colorClass,
+      'border-l border-[var(--border-default)] first:rounded-l-[calc(var(--radius-lg)-1px)] first:border-l-0 last:rounded-r-[calc(var(--radius-lg)-1px)]'
+    )
 
   return (
-    <>
-      <span
-        role={multi ? 'group' : 'radiogroup'}
-        aria-label={`${cardName}${multi ? `, ${qty} copies` : ''}`}
-        className="inline-flex h-6 overflow-hidden rounded-lg border border-[var(--border-default)]"
-      >
-        {options.map((type, idx) => {
-          const count = splitCount(split, type)
-          const selected = count > 0
-          const meta = TYPE_META[type]
-          const tabIndex = idx === 0 || selected ? 0 : -1
-          if (editing) {
-            const isEditingSeg = type === editing
-            return (
-              <span
-                key={type}
-                className={cn(
-                  'inline-flex h-full items-center gap-1 text-[length:var(--fs-xs)] text-muted-foreground',
-                  !isEditingSeg && 'px-2',
-                  selected && meta.selectedClass,
-                  selected && meta.colorClass,
-                  'border-l border-[var(--border-default)] first:rounded-l-[calc(var(--radius-lg)-1px)] first:border-l-0 last:rounded-r-[calc(var(--radius-lg)-1px)]'
-                )}
-              >
-                {isEditingSeg ? (
-                  <CopyCountStepper
-                    qty={qty}
-                    type={editing}
-                    value={count}
-                    cardName={cardName}
-                    onChange={(n) => onChange(setSplitCount(split, editing, n, qty))}
-                    onClose={(refocus) => {
-                      if (refocus) refocusType.current = editing
-                      setAnnouncement(summary(split, cardName))
-                      onEditingTypeChange(null)
-                    }}
-                  />
-                ) : (
-                  <>
-                    {selected && meta.icon}
-                    <span aria-live="polite" aria-atomic="true">
-                      {meta.label} {count}
-                    </span>
-                  </>
-                )}
-              </span>
-            )
-          }
+    <span
+      role={multi ? 'group' : 'radiogroup'}
+      aria-label={`${cardName}${multi ? `, ${qty} copies` : ''}`}
+      className="inline-flex h-6 overflow-hidden rounded-lg border border-[var(--border-default)]"
+    >
+      {options.map((type, idx) => {
+        const count = splitCount(split, type)
+        const selected = count > 0
+        const meta = TYPE_META[type]
+
+        // 2+ copies: Original shows what is left; every other type is a stepper.
+        if (multi && type !== 'original') {
           return (
-            <button
-              key={type}
-              ref={(el) => {
-                buttonRefs.current[type] = el
-              }}
-              type="button"
-              role={multi ? undefined : 'radio'}
-              aria-checked={!multi ? selected : undefined}
-              aria-pressed={multi ? selected : undefined}
-              aria-label={multi ? `${meta.label}, ${count} of ${qty}` : undefined}
-              tabIndex={tabIndex}
-              onClick={() => handleClick(type)}
-              className={cn(
-                'inline-flex h-full items-center gap-1 px-2 text-[length:var(--fs-xs)] text-muted-foreground transition-colors hover:bg-[var(--bg-hover)]',
-                selected && meta.selectedClass,
-                selected && meta.colorClass,
-                'border-l border-[var(--border-default)] first:rounded-l-[calc(var(--radius-lg)-1px)] first:border-l-0 last:rounded-r-[calc(var(--radius-lg)-1px)]'
-              )}
-            >
-              {selected && meta.icon}
-              {meta.label}
-              {isSplit(split) && selected && <span>{count}</span>}
-            </button>
+            <span key={type} className={segmentClass(selected, meta)}>
+              <CopyCountStepper
+                qty={qty}
+                type={type}
+                value={count}
+                cardName={cardName}
+                onChange={(n) => onChange(setSplitCount(split, type, n, qty))}
+              />
+            </span>
           )
-        })}
-      </span>
-      <span className="sr-only" aria-live="polite" role="status">
-        {announcement}
-      </span>
-    </>
+        }
+
+        return (
+          <button
+            key={type}
+            type="button"
+            role={multi ? undefined : 'radio'}
+            aria-checked={!multi ? selected : undefined}
+            aria-label={multi ? `Original, ${count} of ${qty}. Make all original` : undefined}
+            tabIndex={!multi && (idx === 0 || selected) ? 0 : multi ? 0 : -1}
+            onClick={() => setAll(type)}
+            className={cn(segmentClass(selected, meta), 'px-2 transition-colors hover:bg-[var(--bg-hover)]')}
+          >
+            {selected && meta.icon}
+            {meta.label}
+            {multi && <span aria-live="polite" aria-atomic="true">{count}</span>}
+          </button>
+        )
+      })}
+    </span>
   )
 }

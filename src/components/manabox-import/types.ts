@@ -41,7 +41,6 @@ export type ImportStep =
       filter: RowFilter
       query: string
       selectedIds: Set<string>
-      openPickerId: string | null
     }
   | { status: 'importing'; file: File; cancellable: boolean; processed: number; total: number }
   | { status: 'failed'; error: string; file: File; previousStatus: ImportStep['status'] }

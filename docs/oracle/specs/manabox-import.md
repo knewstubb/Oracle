@@ -23,6 +23,8 @@ Pairs with: T-53 (Architect contract, in parallel). Every field this spec needs 
 - After a Commander-format deck import, the deck opens with the commander picker already open, with no "Later" step (D-052).
 - Deck import shows a spinner only (G5). The collection importer keeps accepting today's other CSV layouts (G4).
 
+**Revision 3 (owner, 2026-10-20):** on rows with 2+ copies the stepper is always visible, with no click to open it. The pill reads "✓ Original N | Proxy − n +" (deck imports add an Unsleeved stepper). Original shows the copies left over; clicking it makes every copy Original. Proxy/Unsleeved go from 0 to the number of copies. Same pill, height and text size as a 1-copy row. This replaces the click-to-open behaviour described below.
+
 **Revision 2:** text was cut down and rows were made denser (30 px). The "Some" option was replaced by the count picker (a stepper since rev 6).
 
 ---

@@ -87,7 +87,6 @@ export function ManaBoxCollectionImportDialog({
         filter: 'all',
         query: '',
         selectedIds: new Set(),
-        openPickerId: null,
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -187,10 +186,6 @@ export function ManaBoxCollectionImportDialog({
     setStep((prev) => (prev.status === 'review' ? { ...prev, selectedIds } : prev))
   }, [])
 
-  const setOpenPickerId = useCallback((id: string | null) => {
-    setStep((prev) => (prev.status === 'review' ? { ...prev, openPickerId: id } : prev))
-  }, [])
-
   const title = step.status === 'checking' ? 'Importing…' : 'Import collection'
 
   return (
@@ -241,8 +236,6 @@ export function ManaBoxCollectionImportDialog({
               selectedIds={step.selectedIds}
               onSelectedIdsChange={setSelectedIds}
               onRowChange={updateRow}
-              openPickerId={step.openPickerId}
-              onOpenPicker={setOpenPickerId}
             />
           </div>
         )}

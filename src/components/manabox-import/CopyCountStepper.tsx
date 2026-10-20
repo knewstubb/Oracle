@@ -92,7 +92,7 @@ export function CopyCountStepper({ qty, type, value, cardName, onChange, onClose
       aria-label={`How many ${cardName} are ${plural}`}
       className="inline-flex h-full items-center"
     >
-      <span className="inline-flex items-center gap-1 pl-2 pr-1 text-foreground">
+      <span className="inline-flex items-center gap-1 pl-2 pr-1">
         {type === 'proxy' && <VenetianMask className="size-3" aria-hidden="true" />}
         {label}
       </span>
@@ -116,7 +116,7 @@ export function CopyCountStepper({ qty, type, value, cardName, onChange, onClose
         aria-valuenow={value}
         aria-valuetext={`${value} of ${qty}`}
         onKeyDown={onKeyDown}
-        className="min-w-3 text-center tabular-nums text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="min-w-3 text-center tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {value}
       </span>

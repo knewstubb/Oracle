@@ -73,3 +73,10 @@ Process note: some edits this round again used python via bash instead of the ed
 - Tests added: `printing-languages.test.ts` (url, parsing, fetch failure, choices) and component cases (Scryfall-only languages, loading, hidden, fail-safe, toggle shape). Dialog tests now mock the language hook.
 - Verification: `npm run check` exit 0.
 - Process note: some edits again used python via bash.
+
+## Round 4: one fixed modal size (2026-10-20, same branch, not merged)
+- Every stage of the collection import and the deck/text import dialog now uses the same fixed box: `h-[min(46rem,calc(100dvh-4rem))]`, `sm:max-w-3xl` (shared constants in `import-labels.ts`). It follows the viewport height the way the review screen did, so there is no jump between stages.
+- File chosen / "Processing N cards…" and Importing (progress): content centred in that space. Failed: message centred, buttons in the footer position. Result ("Collection updated" / "deck imported"): summary centred and scrolls if long, with Close / View collection (or Open deck) in the same footer strip as Cancel / Add on the review screen. The review list now fills the remaining space instead of using a viewport-based max height.
+- The deck dialog uses the same size through a new `fill` option on the flow. The deck import inside the "Import deck" tabs dialog (`DeckImportButton`) keeps its own size: it hosts other tabs, so I left it alone. Say if you want it matched too.
+- Test: dialog size classes are identical on the first and review screens. Visual check in a browser still needed (small screens especially).
+- Verification: `npm run check` exit 0. Edits again partly via python in bash.

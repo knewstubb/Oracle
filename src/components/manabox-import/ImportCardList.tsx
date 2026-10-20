@@ -180,7 +180,7 @@ export function ImportCardList({
     rows.filter((r) => !isGeneric(r) && (resolvedByKey.get(r.rowKey) ?? []).some((c) => c.type === type)).length
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex min-h-0 flex-1 flex-col gap-1.5">
       <div className="flex items-center gap-1.5">
         {FILTER_OPTIONS.map((f) => (
           <FilterChip
@@ -210,7 +210,7 @@ export function ImportCardList({
       </div>
 
       <div
-        className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)]"
+        className="flex min-h-[140px] flex-1 flex-col overflow-hidden rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)]"
         role="group"
         aria-label="Cards"
       >
@@ -237,7 +237,7 @@ export function ImportCardList({
           </div>
         )}
 
-        <div ref={parentRef} className="max-h-[calc(100vh-380px)] min-h-[180px] overflow-auto">
+        <div ref={parentRef} className="min-h-0 flex-1 overflow-auto">
           {visibleRows.length === 0 ? (
             <div className="flex items-center justify-center py-6 text-[length:var(--fs-sm)] text-muted-foreground">
               {emptyMessage}

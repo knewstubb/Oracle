@@ -200,4 +200,17 @@ describe('ManaBoxCollectionImportDialog', () => {
     expect(screen.getByText(/4 copies added/)).toBeInTheDocument()
     expect(toastSuccess).toHaveBeenCalledWith('Added 4 copies to your collection')
   })
+  it('keeps the same fixed modal size in every stage', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(PREVIEW_RESPONSE), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    )
+    render(<ManaBoxCollectionImportDialog open onOpenChange={() => {}} />, { wrapper: createWrapper() })
+    const size = () => document.querySelector('[data-slot="dialog-content"]')!.className
+    const idle = size()
+    expect(idle).toContain('h-[min(46rem,calc(100dvh-4rem))]')
+    await user.upload(screen.getByLabelText('Choose file'), new File(['name,header\nx'], 'scan.csv', { type: 'text/csv' }))
+    await waitFor(() => expect(screen.getByText('Sol Ring')).toBeInTheDocument())
+    expect(size()).toBe(idle)
+  })
 })

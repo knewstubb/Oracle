@@ -16,6 +16,7 @@ import { ImportCardList } from './ImportCardList'
 import { ImportSummary } from './ImportSummary'
 import { DeckImportSpinner } from './ImportProgress'
 import { ImportResult } from './ImportResult'
+import { IMPORT_STAGE_CLASS } from './import-labels'
 import type { ImportStep, RowFilter, ImportSource } from './types'
 import { INITIAL_DEFAULTS, computeTotals, buildCommitDeck } from './types'
 import type { ManaBoxPreviewResponse } from '../../../docs/oracle/contracts/manabox-import.types'
@@ -32,9 +33,11 @@ export interface ManaBoxDeckImportFlowProps {
   }) => void
   onCancel?: () => void
   titleSlot?: React.ReactNode
+  /** Fill a fixed-size modal: every stage uses the same space (used by the import dialog). */
+  fill?: boolean
 }
 
-export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot }: ManaBoxDeckImportFlowProps) {
+export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot, fill }: ManaBoxDeckImportFlowProps) {
   const [step, setStep] = useState<ImportStep>({ status: 'idle' })
   const [error, setError] = useState<string | null>(null)
   const queryClient = useQueryClient()
@@ -229,11 +232,14 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot }: ManaB
     setStep((prev) => (prev.status === 'review' ? { ...prev, selectedIds } : prev))
   }, [])
 
+  const stage = fill ? IMPORT_STAGE_CLASS : ''
+  const grow = fill ? 'min-h-0 flex-1' : ''
   return (
-    <div className="flex flex-col gap-3">
+    <div className={`flex flex-col gap-3 ${fill ? 'min-h-0 flex-1' : ''}`}>
       {titleSlot}
 
       {step.status === 'idle' && (
+        <div className={stage}>
         <ManaBoxFilePicker
           accept=".csv,.txt,text/csv,text/plain"
           extensions={['csv', 'txt']}
@@ -242,9 +248,11 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot }: ManaB
           onError={setError}
           error={error}
         />
+        </div>
       )}
 
       {step.status === 'checking' && (
+        <div className={stage}>
         <DeckImportSpinner
           label={
             step.cards
@@ -252,10 +260,11 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot }: ManaB
               : 'Processing…'
           }
         />
+        </div>
       )}
 
       {step.status === 'review' && (
-        <>
+        <div className={`flex flex-col gap-3 ${grow}`}>
           <ImportFileChip
             fileName={step.preview.fileName}
             cardCount={step.preview.rows.length}
@@ -302,18 +311,20 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot }: ManaB
             selectedIds={step.selectedIds}
             onSelectedIdsChange={setSelectedIds}
           />
-        </>
+        </div>
       )}
 
       {step.status === 'importing' && (
-        <div className="flex flex-col items-center gap-3 py-6">
+        <div className={fill ? stage : 'flex flex-col items-center gap-3 py-6'}>
           <DeckImportSpinner label="Importing…" />
         </div>
       )}
 
       {step.status === 'failed' && (
-        <div className="flex flex-col gap-3">
-          <p className="text-[length:var(--fs-sm)] text-destructive">{step.error}</p>
+        <div className={`flex flex-col gap-3 ${grow}`}>
+          <div className={fill ? 'flex flex-1 items-center justify-center text-center' : ''}>
+            <p className="text-[length:var(--fs-sm)] text-destructive">{step.error}</p>
+          </div>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={onCancel ?? reset}>
               {onCancel ? 'Back' : 'Back'}

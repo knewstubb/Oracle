@@ -18,8 +18,8 @@ export function ImportProgress({ processed, total, cancellable, onCancel, phaseL
   const percent = total > 0 ? Math.round((processed / total) * 100) : 0
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-2 text-[length:var(--fs-xs)] text-muted-foreground">
+    <div className="flex w-full max-w-sm flex-col gap-1.5">
+      <div className="flex items-center justify-center gap-2 text-[length:var(--fs-xs)] text-muted-foreground">
         <LoaderCircle className="size-4 animate-spin text-[var(--accent-primary)]" aria-hidden="true" />
         <span>
           {phaseLabel ? `${phaseLabel} · ` : ''}

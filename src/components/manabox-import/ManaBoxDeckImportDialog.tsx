@@ -7,6 +7,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog'
+import { IMPORT_MODAL_CLASS } from './import-labels'
 import { ManaBoxDeckImportFlow } from './ManaBoxDeckImportFlow'
 
 export interface ManaBoxDeckImportDialogProps {
@@ -24,8 +25,9 @@ export function ManaBoxDeckImportDialog({ open, onOpenChange }: ManaBoxDeckImpor
         onOpenChange(next)
       }}
     >
-      <DialogContent className="sm:max-w-3xl">
+      <DialogContent className={IMPORT_MODAL_CLASS}>
         <ManaBoxDeckImportFlow
+          fill
           onComplete={() => onOpenChange(false)}
           onCancel={() => onOpenChange(false)}
           titleSlot={

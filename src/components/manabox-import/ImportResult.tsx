@@ -69,11 +69,13 @@ export function ImportResult({
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <h3 className="text-[length:var(--fs-lg)] font-medium">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div className="flex min-h-0 flex-1 overflow-auto">
+      <div className="m-auto flex w-full max-w-xl flex-col gap-3">
+      <h3 className="text-center text-[length:var(--fs-lg)] font-medium">
         {kind === 'deck' ? `${name} imported` : 'Collection updated'}
       </h3>
-      <ul className="flex flex-col gap-1 text-[length:var(--fs-sm)]">
+      <ul className="mx-auto flex w-full flex-col gap-1 text-[length:var(--fs-sm)]">
         {lines.map((line, idx) => (
           <li key={idx} className="flex items-center gap-2">
             {line.icon}
@@ -104,7 +106,9 @@ export function ImportResult({
           </li>
         ))}
       </ul>
-      <div className="flex justify-end gap-2">
+      </div>
+      </div>
+      <div className="flex justify-end gap-2 border-t border-[var(--border-subtle)] pt-3">
         <Button type="button" variant="outline" onClick={onDismiss}>
           Close
         </Button>

@@ -20,6 +20,7 @@ import { ImportCardList } from './ImportCardList'
 import { ImportSummary } from './ImportSummary'
 import { ImportProgress, DeckImportSpinner } from './ImportProgress'
 import { ImportResult } from './ImportResult'
+import { IMPORT_MODAL_CLASS, IMPORT_STAGE_CLASS } from './import-labels'
 import { toast } from 'sonner'
 import { readImportResponse, estimateFileCards, copiesWord } from './import-stream'
 import type { ImportStep, RowFilter } from './types'
@@ -216,7 +217,7 @@ export function ManaBoxCollectionImportDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-3xl">
+      <DialogContent className={IMPORT_MODAL_CLASS}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {step.status === 'idle' && (
@@ -233,6 +234,7 @@ export function ManaBoxCollectionImportDialog({
         </DialogHeader>
 
         {step.status === 'idle' && (
+          <div className={IMPORT_STAGE_CLASS}>
           <ManaBoxFilePicker
             accept=".csv,text/csv"
             extensions={['csv']}
@@ -241,9 +243,11 @@ export function ManaBoxCollectionImportDialog({
             onError={setError}
             error={error}
           />
+          </div>
         )}
 
         {step.status === 'checking' && (
+          <div className={IMPORT_STAGE_CLASS}>
           <DeckImportSpinner
             label={
               step.cards
@@ -251,10 +255,11 @@ export function ManaBoxCollectionImportDialog({
                 : 'Processing…'
             }
           />
+          </div>
         )}
 
         {step.status === 'review' && (
-          <div className="flex min-w-0 flex-col gap-3">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
             <ImportNotices
               unmatched={step.preview.unmatched}
               tokens={step.preview.skippedTokens}
@@ -289,6 +294,7 @@ export function ManaBoxCollectionImportDialog({
         )}
 
         {step.status === 'importing' && (
+          <div className={IMPORT_STAGE_CLASS}>
           <ImportProgress
             processed={step.processed}
             total={step.total}
@@ -297,12 +303,15 @@ export function ManaBoxCollectionImportDialog({
             cancellable={step.cancellable}
             onCancel={handleCancel}
           />
+          </div>
         )}
 
         {step.status === 'failed' && (
-          <div className="flex flex-col gap-3">
-            <p className="text-[length:var(--fs-sm)] text-destructive">{step.error}</p>
-            <div className="flex justify-end gap-2">
+          <div className="flex min-h-0 flex-1 flex-col gap-3">
+            <div className="flex flex-1 items-center justify-center text-center">
+              <p className="text-[length:var(--fs-sm)] text-destructive">{step.error}</p>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-[var(--border-subtle)] pt-3">
               <Button type="button" variant="outline" onClick={reset}>
                 Back
               </Button>

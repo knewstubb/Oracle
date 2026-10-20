@@ -214,6 +214,54 @@ export async function resolveOracleIdFromPrinting(
 }
 
 /**
+ * Look up an oracle_id for a given card name from the ref_printings table.
+ *
+ * Tries the exact name first, then (for double-faced cards) the front face
+ * when the name contains ' // '. Returns the oracle_id string, or null if no
+ * mapping exists.
+ */
+export async function resolveOracleIdFromCardName(
+  cardName: string
+): Promise<string | null> {
+  const supabase = createAdminClient()
+
+  const { data, error } = await supabase
+    .from('ref_printings')
+    .select('oracle_id')
+    .eq('name', cardName)
+    .maybeSingle()
+
+  if (error) {
+    throw new Error(
+      `Failed to resolve oracle_id for card name ${cardName}: ${error.message}`
+    )
+  }
+
+  if (data?.oracle_id) return data.oracle_id
+
+  // DFC fallback: if the full name is not found and contains ' // ', try the
+  // front face only.
+  if (cardName.includes(' // ')) {
+    const front = cardName.substring(0, cardName.indexOf(' // '))
+    const { data: frontData, error: frontErr } = await supabase
+      .from('ref_printings')
+      .select('oracle_id')
+      .eq('name', front)
+      .maybeSingle()
+
+    if (frontErr) {
+      throw new Error(
+        `Failed to resolve oracle_id for card name ${front}: ${frontErr.message}`
+      )
+    }
+
+    return frontData?.oracle_id ?? null
+  }
+
+  return null
+}
+
+/**
  * Look up all scryfall printing IDs for a given oracle_id from the
  * ref_printings table in Supabase.
  *

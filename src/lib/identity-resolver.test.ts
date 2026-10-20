@@ -4,22 +4,40 @@ import {
   mapCondition,
   mapFinishToFoil,
   resolveIdentities,
+  resolveOracleIdFromCardName,
   type ParsedCSVRow,
 } from './identity-resolver'
 
 // Mock the Supabase client module
 vi.mock('@/lib/supabase', () => ({
-  createAdminClient: () => ({
+  createAdminClient: vi.fn(),
+}))
+
+import { createAdminClient } from '@/lib/supabase'
+
+type AdminClient = ReturnType<typeof createAdminClient>
+
+function buildMockFrom(
+  singleData: unknown = null
+) {
+  return () => ({
     from: () => ({
       select: () => ({
         eq: () => ({
-          maybeSingle: async () => ({ data: null, error: null }),
+          maybeSingle: async () => ({ data: singleData, error: null }),
+          limit: () => ({
+            maybeSingle: async () => ({ data: singleData, error: null }),
+          }),
         }),
         in: () => Promise.resolve({ data: [], error: null }),
       }),
     }),
-  }),
-}))
+  })
+}
+
+beforeEach(() => {
+  vi.mocked(createAdminClient).mockReturnValue(buildMockFrom(null)() as unknown as AdminClient)
+})
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -374,5 +392,56 @@ describe('resolveIdentities', () => {
       expect(result.resolved).toHaveLength(0)
       expect(result.unmatched).toHaveLength(0)
     })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// resolveOracleIdFromCardName
+// ---------------------------------------------------------------------------
+
+describe('resolveOracleIdFromCardName', () => {
+  function mockPrintingsByName(nameToOracleId: Map<string, string | null>) {
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: () => ({
+        select: () => ({
+          eq: (column: string, value: string) => ({
+            maybeSingle: async () => {
+              if (column !== 'name') return { data: null, error: null }
+              const oracleId = nameToOracleId.get(value)
+              return { data: oracleId ? { oracle_id: oracleId } : null, error: null }
+            },
+          }),
+        }),
+      }),
+    } as unknown as AdminClient)
+  }
+
+  it('resolves an exact card name to its oracle_id', async () => {
+    mockPrintingsByName(new Map([['Sol Ring', 'oracle-sol-ring']]))
+
+    const result = await resolveOracleIdFromCardName('Sol Ring')
+
+    expect(result).toBe('oracle-sol-ring')
+  })
+
+  it('returns null when the card name is not known', async () => {
+    mockPrintingsByName(new Map())
+
+    const result = await resolveOracleIdFromCardName('Mystery Card')
+
+    expect(result).toBeNull()
+  })
+
+  it('falls back to the front face for double-faced cards', async () => {
+    mockPrintingsByName(
+      new Map([
+        ['Delver of Secrets', 'oracle-delver'],
+        ['Delver of Secrets // Insectile Aberration', null],
+      ])
+    )
+
+    const result = await resolveOracleIdFromCardName('Delver of Secrets // Insectile Aberration')
+
+    expect(result).toBe('oracle-delver')
   })
 })

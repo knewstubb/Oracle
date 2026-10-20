@@ -90,6 +90,7 @@ describe('collection write (tests 14, 16, 17)', () => {
       supabase: client,
     })
     expect(summary.inserted).toBe(3)
+    expect(summary.foils).toBe(1)
     expect(calls.rpc).toHaveLength(1)
     const rows = calls.rpc[0].args.p_rows
     expect(rows.map((r) => r.finish)).toEqual(['nonfoil', 'foil', 'nonfoil'])

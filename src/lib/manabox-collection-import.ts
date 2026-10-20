@@ -14,6 +14,7 @@
  * Contract: docs/oracle/contracts/import-row-editing.md §3, §5, §7, §10.
  */
 
+import { countStoredFoils } from '@/lib/import-result'
 import { createAdminClient } from '@/lib/supabase'
 import type { Json } from '@/types/supabase'
 import { assertAtomicRpcSuccess, assertAtomicRpcCount } from '@/lib/atomic-rpc'
@@ -197,5 +198,6 @@ export async function executeManaBoxCollectionImport(
     unmatched: resolution.unmatched,
     durationMs: Date.now() - startTime,
     unlistedFinish: finishCheck.unlistedFinish,
+    foils: countStoredFoils(copyRows as unknown as Array<{ finish: string; is_proxy?: boolean }>),
   }
 }

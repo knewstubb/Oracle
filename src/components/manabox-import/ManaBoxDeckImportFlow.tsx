@@ -14,7 +14,8 @@ import { countFinishNotices } from '@/lib/import-copies'
 import type { ImportCopyEdits, ImportDefaults } from '../../../docs/oracle/contracts/import-row-editing.types'
 import { ImportCardList } from './ImportCardList'
 import { ImportSummary } from './ImportSummary'
-import { DeckImportSpinner } from './ImportProgress'
+import { ImportWorking } from './ImportWorking'
+import { EMPTY_FILE_MESSAGE, UNREADABLE_FILE_MESSAGE, processingDetail } from './import-copy'
 import { ImportResult } from './ImportResult'
 import { IMPORT_STAGE_CLASS } from './import-labels'
 import type { ImportStep, RowFilter, ImportSource } from './types'
@@ -74,12 +75,14 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot, fill }:
         body: JSON.stringify(body),
       })
 
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({ error: 'Preview failed' }))
-        throw new Error(body.error ?? 'Preview failed')
-      }
+      if (!res.ok) throw new Error('Preview failed')
 
       const preview: ManaBoxPreviewResponse = await res.json()
+      if (preview.totalLines === 0) {
+        setError(EMPTY_FILE_MESSAGE)
+        setStep({ status: 'idle' })
+        return
+      }
       setStep({
         status: 'review',
         file,
@@ -98,9 +101,9 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot, fill }:
         query: '',
         selectedIds: new Set(),
       })
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      setStep({ status: 'failed', error: message, file, previousStatus: 'checking' })
+    } catch {
+      setError(UNREADABLE_FILE_MESSAGE)
+      setStep({ status: 'idle' })
     }
   }, [])
 
@@ -160,6 +163,12 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot, fill }:
         basics: totals.basics,
         proxies: totals.proxies,
         unsleeved: totals.unsleeved,
+        foils: totals.foil,
+        unrecognisedValues:
+          (step.preview.notices?.unrecognisedCondition ?? 0) +
+          (step.preview.notices?.unrecognisedLanguage ?? 0) +
+          (step.preview.notices?.unrecognisedFinish ?? 0),
+        unlistedFinish: countFinishNotices(rows, step.defaults, step.copyEdits).unlistedFinish,
         unmatched: step.preview.unmatched,
         deckId: summary.deckId,
       }
@@ -239,27 +248,25 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot, fill }:
       {titleSlot}
 
       {step.status === 'idle' && (
-        <div className={stage}>
         <ManaBoxFilePicker
           accept=".csv,.txt,text/csv,text/plain"
           extensions={['csv', 'txt']}
           label="ManaBox .csv or .txt"
+          kind="deck"
+          showHelp={fill}
           onFile={handleFile}
           onError={setError}
           error={error}
         />
-        </div>
       )}
 
       {step.status === 'checking' && (
-        <div className={stage}>
-        <DeckImportSpinner
-          label={
-            step.cards
-              ? `Processing ${step.cards} ${step.cards === 1 ? 'card' : 'cards'}…`
-              : 'Processing…'
-          }
-        />
+        <div className={stage || 'flex flex-col items-center py-6'}>
+          <ImportWorking
+            title="Reading your file…"
+            detail={processingDetail(step.cards)}
+            fileName={step.file.name}
+          />
         </div>
       )}
 
@@ -315,8 +322,11 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot, fill }:
       )}
 
       {step.status === 'importing' && (
-        <div className={fill ? stage : 'flex flex-col items-center gap-3 py-6'}>
-          <DeckImportSpinner label="Importing…" />
+        <div className={stage || 'flex flex-col items-center py-6'}>
+          <ImportWorking
+            title="Creating your deck…"
+            detail="Keep this window open until it finishes."
+          />
         </div>
       )}
 
@@ -345,6 +355,9 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot, fill }:
           basics={step.summary.basics}
           proxies={step.summary.proxies}
           unsleeved={step.summary.unsleeved}
+          foils={step.summary.foils}
+          unrecognisedValues={step.summary.unrecognisedValues}
+          unlistedFinish={step.summary.unlistedFinish}
           unmatched={step.summary.unmatched}
           deckId={step.summary.deckId}
           onOpenDeck={handleDone}

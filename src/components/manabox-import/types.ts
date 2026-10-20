@@ -62,6 +62,9 @@ export type ImportStep =
         basics: number
         proxies: number
         unsleeved: number
+        foils?: number
+        unrecognisedValues?: number
+        unlistedFinish?: number
         unmatched: ManaBoxUnmatchedLine[]
         deckId?: number
       }

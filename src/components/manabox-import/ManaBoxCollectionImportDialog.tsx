@@ -18,7 +18,8 @@ import { countFinishNotices } from '@/lib/import-copies'
 import type { ImportCopyEdits, ImportDefaults } from '../../../docs/oracle/contracts/import-row-editing.types'
 import { ImportCardList } from './ImportCardList'
 import { ImportSummary } from './ImportSummary'
-import { ImportProgress, DeckImportSpinner } from './ImportProgress'
+import { ImportWorking } from './ImportWorking'
+import { EMPTY_FILE_MESSAGE, UNREADABLE_FILE_MESSAGE, processingDetail } from './import-copy'
 import { ImportResult } from './ImportResult'
 import { IMPORT_MODAL_CLASS, IMPORT_STAGE_CLASS } from './import-labels'
 import { toast } from 'sonner'
@@ -86,12 +87,14 @@ export function ManaBoxCollectionImportDialog({
         body: JSON.stringify({ csvContent: text, fileName: file.name }),
       })
 
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({ error: 'Preview failed' }))
-        throw new Error(body.error ?? 'Preview failed')
-      }
+      if (!res.ok) throw new Error('Preview failed')
 
       const preview: ManaBoxPreviewResponse = await res.json()
+      if (preview.totalLines === 0) {
+        setError(EMPTY_FILE_MESSAGE)
+        setStep({ status: 'idle' })
+        return
+      }
       setStep({
         status: 'review',
         file,
@@ -110,9 +113,9 @@ export function ManaBoxCollectionImportDialog({
         query: '',
         selectedIds: new Set(),
       })
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      setStep({ status: 'failed', error: message, file, previousStatus: 'checking' })
+    } catch {
+      setError(UNREADABLE_FILE_MESSAGE)
+      setStep({ status: 'idle' })
     }
   }, [])
 
@@ -146,6 +149,8 @@ export function ManaBoxCollectionImportDialog({
         errors: string[]
         unmatched: ManaBoxPreviewResponse['unmatched']
         durationMs: number
+        unlistedFinish?: number
+        foils?: number
       }>(res, (event) => {
         setStep((prev) =>
           prev.status === 'importing'
@@ -166,6 +171,12 @@ export function ManaBoxCollectionImportDialog({
           basics: 0,
           proxies: computeTotals(rows, 'collection', false, step.defaults, step.copyEdits).proxies,
           unsleeved: 0,
+          foils: summary.foils ?? computeTotals(rows, 'collection', false, step.defaults, step.copyEdits).foil,
+          unrecognisedValues:
+            (step.preview.notices?.unrecognisedCondition ?? 0) +
+            (step.preview.notices?.unrecognisedLanguage ?? 0) +
+            (step.preview.notices?.unrecognisedFinish ?? 0),
+          unlistedFinish: summary.unlistedFinish ?? 0,
           unmatched: summary.unmatched,
         },
         deckName: step.deckName,
@@ -234,27 +245,25 @@ export function ManaBoxCollectionImportDialog({
         </DialogHeader>
 
         {step.status === 'idle' && (
-          <div className={IMPORT_STAGE_CLASS}>
           <ManaBoxFilePicker
             accept=".csv,text/csv"
             extensions={['csv']}
             label="ManaBox .csv"
+            kind="collection"
+            showHelp
             onFile={handleFile}
             onError={setError}
             error={error}
           />
-          </div>
         )}
 
         {step.status === 'checking' && (
           <div className={IMPORT_STAGE_CLASS}>
-          <DeckImportSpinner
-            label={
-              step.cards
-                ? `Processing ${step.cards} ${step.cards === 1 ? 'card' : 'cards'}…`
-                : 'Processing…'
-            }
-          />
+            <ImportWorking
+              title="Reading your file…"
+              detail={processingDetail(step.cards)}
+              fileName={step.file.name}
+            />
           </div>
         )}
 
@@ -295,14 +304,14 @@ export function ManaBoxCollectionImportDialog({
 
         {step.status === 'importing' && (
           <div className={IMPORT_STAGE_CLASS}>
-          <ImportProgress
-            processed={step.processed}
-            total={step.total}
-            unit="copies"
-            phaseLabel={step.phase === 'writing' ? 'Saving to your collection' : 'Looking up cards'}
-            cancellable={step.cancellable}
-            onCancel={handleCancel}
-          />
+            <ImportWorking
+              title="Adding to your collection…"
+              detail="Keep this window open until it finishes."
+              processed={step.processed}
+              total={step.total}
+              unit="copies"
+              onCancel={step.cancellable ? handleCancel : undefined}
+            />
           </div>
         )}
 
@@ -331,6 +340,9 @@ export function ManaBoxCollectionImportDialog({
             basics={step.summary.basics}
             proxies={step.summary.proxies}
             unsleeved={step.summary.unsleeved}
+            foils={step.summary.foils}
+            unrecognisedValues={step.summary.unrecognisedValues}
+            unlistedFinish={step.summary.unlistedFinish}
             unmatched={step.summary.unmatched}
             onViewCollection={() => handleClose(false)}
             onDismiss={() => handleClose(false)}

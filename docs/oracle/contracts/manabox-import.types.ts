@@ -225,6 +225,8 @@ export interface ManaBoxCollectionImportSummary {
   durationMs: number
   /** Copies whose file finish Scryfall does not list for the printing (kept, flagged). */
   unlistedFinish?: number
+  /** Copies stored with a foil or etched finish (proxies excluded). */
+  foils?: number
 }
 
 /**

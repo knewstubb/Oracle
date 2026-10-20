@@ -80,3 +80,30 @@ Process note: some edits this round again used python via bash instead of the ed
 - The deck dialog uses the same size through a new `fill` option on the flow. The deck import inside the "Import deck" tabs dialog (`DeckImportButton`) keeps its own size: it hosts other tabs, so I left it alone. Say if you want it matched too.
 - Test: dialog size classes are identical on the first and review screens. Visual check in a browser still needed (small screens especially).
 - Verification: `npm run check` exit 0. Edits again partly via python in bash.
+
+## Round 5: stage screens
+
+**Branch:** `test-t56-local` (not merged to main).
+
+**Built (collection and Import deck dialog; fixed Round 4 size kept):**
+- Upload: large drop zone with drag-over ("Drop to import"), wrong-type and empty-file errors, unreadable-file/empty-preview errors shown on this screen, and the two help cards (shown only in the fixed-size dialogs).
+- Processing: "Reading your file…" with the card count and file name.
+- Importing: "Adding to your collection…" / "Creating your deck…" with a real bar in copies ("87 of 148 copies"), "Keep this window open", and a visible Cancel import (collection only; deck import can't be cancelled).
+- Result: success headline with the copy total, breakdown (Originals, Proxies, Foil, Tokens skipped; Unsleeved/Basics for decks), "All originals." when clean, and "Needs a look" only when relevant (one notice per kind; unmatched shows 3 lines then "Show all N"; "Copy unmatched lines"). Primary button is focused. Existing toast kept.
+
+**New result data:**
+- `foils`: returned by the collection import server (`summary.foils`, proxies excluded); contract type updated (`foils?`). Deck foils are counted in the browser.
+- Unrecognised-values count carried from the review step.
+- Finishes-not-listed count passed to the result.
+- Unmatched cards listed.
+- Pure helpers in `src/lib/import-result.ts`.
+
+**Deck flags for the Architect:**
+- Originals for decks is not shown. Whether deck Originals = added − proxies − unsleeved needs an Architect decision.
+- The deck result says "N cards added" (the old "and sleeved" wording was wrong when unsleeved lines exist).
+
+**Still open:** ManaBox export wording is generic (unverified); the 3-line unmatched cutoff and the indeterminate processing indicator are Designer questions; Escape/confirm guard on the deck dialog while importing is not done; contract test 15 (DB read-back) is still unwritten.
+
+**Tests:** new `import-result.test.ts`, `ImportStageScreens.test.tsx` (upload, drag-over, errors, help, processing, importing, result states); `foils` assertion in `manabox-import-write.test.ts`; two dialog tests updated for the new result wording. `ImportProgress.tsx` removed (unused).
+
+**Verification:** `npm run check` exits 0 (0 lint errors, 266 existing warnings). Not checked in a browser. Process slip: I again used python/sed via bash for some edits instead of the edit tool.

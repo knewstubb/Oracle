@@ -149,7 +149,7 @@ describe('ManaBoxCollectionImportDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: /Add 4/i }))
 
     await waitFor(() => {
-      expect(screen.getByText(/Collection updated/i)).toBeInTheDocument()
+      expect(screen.getByText(/copies added/)).toBeInTheDocument()
     })
 
     const importCall = vi.mocked(fetch).mock.calls.find(([url]) => String(url).includes('/api/collection/import?mode=manabox'))
@@ -196,7 +196,7 @@ describe('ManaBoxCollectionImportDialog', () => {
     await user.upload(screen.getByLabelText('Choose file'), new File(['name,header\nx'], 'scan.csv', { type: 'text/csv' }))
     await waitFor(() => expect(screen.getByText('Sol Ring')).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'Add 4 copies' }))
-    await waitFor(() => expect(screen.getByText(/Collection updated/i)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText(/copies added/)).toBeInTheDocument())
     expect(screen.getByText(/4 copies added/)).toBeInTheDocument()
     expect(toastSuccess).toHaveBeenCalledWith('Added 4 copies to your collection')
   })

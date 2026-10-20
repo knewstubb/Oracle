@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oracle — Import row editing (mockup, rev 1)</title>
+<style>
+  /* Colours copied from src/styles/tokens.css — no new colours */
+  :root{
+    --bg-canvas:#131316; --bg-surface:#1A1A1E; --bg-hover:#212126; --border:#35353A; --border-subtle:#262629;
+    --text-primary:#E8E8EA; --text-secondary:#9C9CA3; --text-tertiary:#6E6E76;
+    --status-proxy:#4A93A0; --signal-warning:#EF9F27; --accent-primary:#1D9E75;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg-canvas);color:var(--text-primary);font:13px/1.4 "Helvetica Neue",Helvetica,Arial,sans-serif}
+  button,select{font:inherit;color:inherit}
+  :focus-visible{outline:2px solid var(--accent-primary);outline-offset:2px}
+  .page{max-width:880px;margin:0 auto;padding:20px}
+  h1{font-size:18px;margin:0 0 4px}
+  h2{font-size:12px;font-weight:500;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;margin:28px 0 4px}
+  .ann{color:var(--text-secondary);font-size:12px;margin:0 0 8px;max-width:720px}
+  .ann b{color:var(--text-primary);font-weight:500}
+  .panel{background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px}
+
+  .btn{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 11px;border-radius:7px;border:1px solid var(--border);background:var(--bg-hover);cursor:pointer;white-space:nowrap}
+  .btn:hover{background:#2a2a30}
+  .btn.ghost{background:none;border-color:transparent;color:var(--text-secondary)}
+  .btn.ghost:hover{background:var(--bg-hover);color:var(--text-primary)}
+  .btn.sm{height:24px;padding:0 9px;font-size:12px}
+  .btn.ico{width:26px;padding:0;justify-content:center}
+  .btn[disabled]{opacity:.45;cursor:not-allowed}
+  .link{background:none;border:0;padding:0;color:var(--text-primary);text-decoration:underline;text-underline-offset:2px;cursor:pointer;font-size:12px}
+
+  /* Defaults bar */
+  .defs{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .defs .lbl{color:var(--text-secondary)}
+  .defs .val{color:var(--text-primary)}
+  .defs .dot{color:var(--text-tertiary)}
+  .defs .src{color:var(--text-secondary);font-size:12px;margin-left:auto}
+  .defedit{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:10px;padding-top:10px;border-top:1px solid var(--border-subtle)}
+  .fld label{display:block;font-size:11px;color:var(--text-secondary);margin-bottom:3px}
+  select{height:28px;padding:0 6px;border-radius:7px;border:1px solid var(--border);background:var(--bg-canvas);min-width:110px}
+  select.sm{height:24px;font-size:12px;min-width:0}
+
+  /* Segmented control */
+  .segc{display:inline-flex;border:1px solid var(--border);border-radius:7px;overflow:hidden;height:24px}
+  .segc button{background:none;border:0;padding:0 8px;font-size:12px;cursor:pointer;color:var(--text-secondary);display:inline-flex;gap:4px;align-items:center}
+  .segc button+button{border-left:1px solid var(--border)}
+  .segc button.o[aria-pressed=true]{background:rgba(29,158,117,.18);box-shadow:inset 0 0 0 1px var(--accent-primary);color:var(--text-primary)}
+  .segc button.px[aria-pressed=true]{background:rgba(74,147,160,.18);box-shadow:inset 0 0 0 1px var(--status-proxy);color:var(--text-primary)}
+  .segc button.o[aria-pressed=true] .g{color:var(--accent-primary)}
+  .segc button.px[aria-pressed=true] .g{color:var(--status-proxy)}
+
+  /* List */
+  .list{border:1px solid var(--border);border-radius:9px;background:var(--bg-surface)}
+  .lhead,.row{display:grid;grid-template-columns:24px 28px 1fr auto;align-items:center;gap:8px;padding:0 10px;min-height:34px}
+  .lhead{background:var(--bg-canvas);color:var(--text-secondary);font-size:12px;border-bottom:1px solid var(--border);border-radius:9px 9px 0 0}
+  .lhead.sel{background:var(--bg-hover);color:var(--text-primary)}
+  .lhead .acts{display:flex;gap:6px;justify-content:flex-end;align-items:center;grid-column:3 / span 2;position:relative}
+  .row{border-bottom:1px solid var(--border-subtle)}
+  .row:last-child{border-bottom:0}
+  .row:hover{background:var(--bg-hover)}
+  .row .q{color:var(--text-secondary);font-variant-numeric:tabular-nums;font-size:12px}
+  .row .nm{min-width:0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 0}
+  .row .nm .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .row .pr{color:var(--text-tertiary);font-size:11px}
+  .cb{width:15px;height:15px;accent-color:var(--accent-primary);cursor:pointer;margin:0}
+
+  /* Tags: only values that differ from defaults. Proxy = colour + icon + word (D-012) */
+  .tag{display:inline-flex;align-items:center;gap:3px;height:18px;padding:0 6px;border-radius:999px;font-size:11px;border:1px solid var(--border);color:var(--text-secondary);white-space:nowrap}
+  .tag.px{border-color:var(--status-proxy);color:var(--status-proxy)}
+  .g{display:inline-block;width:11px;text-align:center;font-size:10px;line-height:1}
+
+  /* Expanded row */
+  .exp{border-bottom:1px solid var(--border-subtle);background:var(--bg-hover);box-shadow:inset 2px 0 0 var(--text-secondary)}
+  .exp .row{border:0;background:none;padding-bottom:0}
+  .exp .row:hover{background:none}
+  .copies{padding:0 10px 10px 70px}
+  .cline{display:grid;grid-template-columns:18px auto 108px 92px 76px auto;gap:8px;align-items:center;padding:4px 0;border-top:1px solid var(--border-subtle)}
+  .cline:first-child{border-top:0}
+  .cline .ix{color:var(--text-tertiary);font-size:12px;font-variant-numeric:tabular-nums}
+  .cline .na{color:var(--text-tertiary);font-size:12px;padding-left:6px}
+  .cline .acts{display:flex;gap:2px;justify-content:flex-end}
+  .mixed{font-size:12px;color:var(--text-secondary);padding:0 4px}
+  .fv{position:relative;display:block}
+  .fv select{width:100%}
+  .fd{position:absolute;top:-2px;right:-2px;width:6px;height:6px;border-radius:50%;background:var(--text-primary);box-shadow:0 0 0 2px var(--bg-hover);pointer-events:auto}
+
+  /* Bulk popover */
+  .pop{position:absolute;right:0;top:32px;z-index:5;width:300px;background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:12px;box-shadow:0 12px 36px rgba(0,0,0,.5);color:var(--text-primary);text-align:left}
+  .pop .fld{margin-bottom:8px}
+  .pop select{width:100%}
+  .pop .foot{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:10px}
+  .pop .note{font-size:12px;color:var(--text-secondary)}
+  .status{position:absolute;left:-9999px}
+  .space{height:210px}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Import screen — row editing</h1>
+  <p class="ann">Mockup rev 1. Everything below is live: tick boxes, press <b>Edit</b>, change values, press <b>Change</b> on the defaults bar. Data is sample only. Card list pieces only; the rest of the import dialog is unchanged.</p>
+
+  <h2>1 · Defaults bar (sits above the list)</h2>
+  <p class="ann">One line. Values the file supplies (ManaBox condition, language, foil) win per card, so they never need re-entering.</p>
+  <div id="defs" class="panel"></div>
+
+  <h2>2 · Collapsed rows — default, with tags, mixed</h2>
+  <p class="ann">Rows 1–2 are plain. Row 3 has one tag. Row 4 is foil from the file. Row 5 is mixed (3 copies, each different): tags count the exceptions. Row 6 is a Japanese-language card. The Original/Proxy counters are gone; <b>Edit</b> is the only control on the right.</p>
+  <div id="list1"></div>
+
+  <h2>3 · One expanded row (Rehearsed Debater ×3, the owner's example)</h2>
+  <p class="ann">Edit splits the row into one line per physical copy. Copy 2 is a Proxy, so only Language is shown. A small dot marks a value that came from your file (hover for “From your file”); changing that value clears the dot. The number of copies is fixed by the file; you only edit each copy's attributes. Try switching a copy to Proxy, and the small ⇊ icon on copy 1, which copies its settings to all copies.</p>
+  <div id="list2"></div>
+
+  <h2>4 · Bulk action bar (rows ticked)</h2>
+  <p class="ann">Ticking rows swaps the list header for the bulk bar; here Rehearsed Debater is ticked, so the type shows “Mixed”. “Set finish / condition / language” opens a small panel; each field defaults to “Leave as is”. Open it to preview.</p>
+  <div id="list3"></div>
+  <div class="space"></div>
+</div>
+<div class="status" role="status" aria-live="polite" id="live"></div>
+
+<script>
+const FIN = {nonfoil:'Non-foil', foil:'Foil', etched:'Etched'};
+const CON = {nm:'Near Mint', lp:'Lightly Played', mp:'Moderately Played', hp:'Heavily Played', dmg:'Damaged'};
+const CONS = {nm:'NM', lp:'LP', mp:'MP', hp:'HP', dmg:'DMG'};
+const LANG = {en:'English', ja:'Japanese', de:'German', fr:'French', es:'Spanish', it:'Italian', pt:'Portuguese'};
+const DEF = {finish:'nonfoil', cond:'nm', lang:'en'};
+let defaults = {...DEF};
+const live = m => { document.getElementById('live').textContent = m; };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// A copy: {proxy:bool, finish|null, cond|null, lang|null}. null = follows the defaults bar. Values from the file are stored explicitly.
+const C = (o={}) => ({proxy:false, finish:null, cond:null, lang:null, file:{}, ...o});
+const cp = c => ({...c, file:{...c.file}}); // file = which values came from the import file; editing a value clears its marker
+const sel_ = (c, ri, ci, k, label, map) => { const f = c.file[k]; const sel = `<select class="sm" data-a="${k}" data-r="${ri}" data-c="${ci}" aria-label="Copy ${ci+1} ${label}${f?' (from your file)':''}">${opts(map,eff(c,k))}</select>`; return f ? `<span class="fv" title="From your file">${sel}<span class="fd" aria-hidden="true"></span></span>` : sel; };
+const eff = (c,k) => c[k] ?? defaults[k];
+const opts = (map, sel, extra='') => extra + Object.entries(map).map(([k,v]) => `<option value="${k}"${k===sel?' selected':''}>${v}</option>`).join('');
+
+/* ---------- Defaults bar ---------- */
+let defsOpen = false;
+function renderDefs(){
+  const el = document.getElementById('defs');
+  el.innerHTML = `<div class="defs">
+    <span class="lbl">Importing as:</span>
+    <span class="val">${FIN[defaults.finish]}</span><span class="dot" aria-hidden="true">·</span>
+    <span class="val">${CON[defaults.cond]}</span><span class="dot" aria-hidden="true">·</span>
+    <span class="val">${LANG[defaults.lang]}</span>
+    <button class="link" id="defbtn" aria-expanded="${defsOpen}" aria-controls="defedit">${defsOpen?'Done':'Change'}</button>
+    <span class="src">Values in your file are used automatically where present.</span>
+  </div>
+  ${defsOpen ? `<div class="defedit" id="defedit">
+    <div class="fld"><label for="df">Finish</label><select id="df">${opts(FIN,defaults.finish)}</select></div>
+    <div class="fld"><label for="dc">Condition</label><select id="dc">${opts(CON,defaults.cond)}</select></div>
+    <div class="fld"><label for="dl">Language</label><select id="dl">${opts(LANG,defaults.lang)}</select></div>
+    <span class="ann" style="margin:0 0 5px">Applies to copies you haven't set yourself. Proxies keep only language.</span>
+  </div>` : ''}`;
+  el.querySelector('#defbtn').onclick = () => { defsOpen = !defsOpen; renderDefs(); const b=el.querySelector('#defbtn'); b&&b.focus(); };
+  if (defsOpen) {
+    [['df','finish'],['dc','cond'],['dl','lang']].forEach(([id,k]) => el.querySelector('#'+id).onchange = e => { defaults[k] = e.target.value; renderDefs(); renderAll(); });
+  }
+}
+
+/* ---------- Tags ---------- */
+function tagsFor(copies){
+  const n = copies.length, out = [];
+  const px = copies.filter(c => c.proxy).length;
+  const realN = n-px;
+  const label = (cnt, text) => cnt===n ? text : `${cnt} ${text}`;
+  if (px) out.push(`<span class="tag px"><span class="g" aria-hidden="true">◆</span>${px===n?'Proxy':px+' Proxy'}</span>`);
+  const fin = {}; copies.filter(c=>!c.proxy).forEach(c => { const f = eff(c,'finish'); if (f!==defaults.finish) fin[f]=(fin[f]||0)+1; });
+  Object.entries(fin).forEach(([f,cnt]) => out.push(`<span class="tag"><span class="g" aria-hidden="true">${f==='foil'?'★':'✦'}</span>${cnt===realN&&px===0?FIN[f]:cnt+' '+FIN[f]}</span>`));
+  const con = {}; copies.filter(c=>!c.proxy).forEach(c => { const v = eff(c,'cond'); if (v!==defaults.cond) con[v]=(con[v]||0)+1; });
+  Object.entries(con).forEach(([v,cnt]) => out.push(`<span class="tag">${cnt===realN&&px===0?CONS[v]:cnt+' '+CONS[v]}</span>`));
+  const lg = {}; copies.forEach(c => { const v = eff(c,'lang'); if (v!==defaults.lang) lg[v]=(lg[v]||0)+1; });
+  Object.entries(lg).forEach(([v,cnt]) => out.push(`<span class="tag">${cnt===n?v.toUpperCase():cnt+' '+v.toUpperCase()}</span>`));
+  // Cap at 3 visible tags to keep rows calm; the rest is summarised.
+  if (out.length>3) return out.slice(0,3).join('') + `<span class="tag" title="Press Edit to see all">+${out.length-3} more</span>`;
+  return out.join('');
+}
+function tagText(copies){ // screen-reader text mirrors the tags
+  const d = tagsFor(copies).replace(/<[^>]+>/g,' ').replace(/[◆★✦]/g,'').replace(/\s+/g,' ').trim();
+  return d ? 'Differs from defaults: '+d : 'Uses defaults';
+}
+
+/* ---------- List ---------- */
+function mount(host, rows, o={}){
+  const S = {rows, sel:new Set(o.sel||[]), open:new Set(o.open||[]), pop:!!o.pop, bulk:{finish:'',cond:'',lang:''}};
+  host.dataset.id = Math.random().toString(36).slice(2);
+  function copyLine(r, ri, c, ci){
+    const real = !c.proxy;
+    return `<div class="cline" role="group" aria-label="Copy ${ci+1} of ${r.copies.length}">
+      <span class="ix">${ci+1}</span>
+      <div class="segc" role="group" aria-label="Copy ${ci+1} type">
+        <button class="o" data-a="type" data-v="o" data-r="${ri}" data-c="${ci}" aria-pressed="${real}"><span class="g" aria-hidden="true">●</span>Original</button>
+        <button class="px" data-a="type" data-v="p" data-r="${ri}" data-c="${ci}" aria-pressed="${!real}"><span class="g" aria-hidden="true">◆</span>Proxy</button>
+      </div>
+      ${sel_(c,ri,ci,'lang','language',LANG)}
+      ${real ? `${sel_(c,ri,ci,'finish','finish',FIN)}
+      ${sel_(c,ri,ci,'cond','condition',CONS)}` : `<span aria-hidden="true"></span><span aria-hidden="true"></span>`}
+      <div class="acts">
+        ${ci===0&&r.copies.length>1?`<button class="btn ghost ico" data-a="all" data-r="${ri}" aria-label="Make all copies like copy 1" title="Make all copies like copy 1">⇊</button>`:''}
+      </div></div>`;
+  }
+  function rowHtml(r, ri){
+    const open = S.open.has(ri), n = r.copies.length;
+    const head = `<div class="row">
+      <input type="checkbox" class="cb" data-a="sel" data-r="${ri}" ${S.sel.has(ri)?'checked':''} aria-label="Select ${esc(r.name)}">
+      <span class="q">${n}×</span>
+      <span class="nm"><span class="n">${esc(r.name)}</span><span class="pr">${esc(r.set)} ${esc(r.num)}</span>${open?'':tagsFor(r.copies)}<span class="status">${tagText(r.copies)}</span></span>
+      <button class="btn sm" data-a="edit" data-r="${ri}" aria-expanded="${open}" aria-label="${open?'Done editing':'Edit'} ${esc(r.name)}">${open?'Done':'Edit'}</button>
+    </div>`;
+    if (!open) return head;
+    return `<div class="exp">${head}<div class="copies">${r.copies.map((c,ci)=>copyLine(r,ri,c,ci)).join('')}</div></div>`;
+  }
+  function render(){
+    const ns = S.sel.size;
+    const copiesSel = [...S.sel].reduce((a,i)=>a+S.rows[i].copies.length,0);
+    const selCopies = [...S.sel].flatMap(i=>S.rows[i].copies), pxN = selCopies.filter(c=>c.proxy).length;
+    const allP = ns>0 && pxN===selCopies.length, allO = ns>0 && pxN===0, mixedT = ns>0 && !allP && !allO;
+    const head = ns ? `<div class="lhead sel"><input type="checkbox" class="cb" data-a="all-sel" checked aria-label="Clear selection"><span></span>
+      <span>${ns} selected</span>
+      <span class="acts">
+        <div class="segc" role="group" aria-label="Set type for selected"><button class="o" data-a="bt" data-v="o" aria-pressed="${allO}"><span class="g" aria-hidden="true">●</span>Original</button><button class="px" data-a="bt" data-v="p" aria-pressed="${allP}"><span class="g" aria-hidden="true">◆</span>Proxy</button></div>${mixedT?'<span class="mixed">Mixed</span>':''}
+        <button class="btn sm" data-a="pop" aria-expanded="${S.pop}" aria-haspopup="dialog">Set finish / condition / language ▾</button>
+        <button class="btn sm ghost" data-a="clear">Clear</button>
+        ${S.pop?`<div class="pop" role="dialog" aria-label="Set finish, condition, language">
+          <div class="fld"><label for="bf">Finish</label><select id="bf" data-a="bf">${opts(FIN,S.bulk.finish,'<option value="">Leave as is</option>')}</select></div>
+          <div class="fld"><label for="bc">Condition</label><select id="bc" data-a="bc">${opts(CON,S.bulk.cond,'<option value="">Leave as is</option>')}</select></div>
+          <div class="fld"><label for="bl">Language</label><select id="bl" data-a="bl">${opts(LANG,S.bulk.lang,'<option value="">Leave as is</option>')}</select></div>
+          <div class="note">Applies to ${copiesSel} ${copiesSel===1?'copy':'copies'} in ${ns} ${ns===1?'row':'rows'}. Proxies keep only language.</div>
+          <div class="foot"><button class="btn sm ghost" data-a="pop">Cancel</button><button class="btn sm" data-a="apply">Apply</button></div></div>`:''}
+      </span></div>`
+      : `<div class="lhead"><input type="checkbox" class="cb" data-a="all-sel" aria-label="Select all"><span></span><span>Card</span><span></span></div>`;
+    host.innerHTML = `<div class="list">${head}${S.rows.map(rowHtml).join('')}</div>`;
+  }
+  host.onclick = e => {
+    const t = e.target.closest('[data-a]'); if (!t) return;
+    const a = t.dataset.a, r = +t.dataset.r, c = +t.dataset.c;
+    if (a==='edit'){ S.open.has(r)?S.open.delete(r):S.open.add(r); render(); host.querySelector(`[data-a=edit][data-r="${r}"]`).focus(); }
+    else if (a==='type'){ S.rows[r].copies[c].proxy = t.dataset.v==='p'; render(); host.querySelector(`[data-a=type][data-v="${t.dataset.v}"][data-r="${r}"][data-c="${c}"]`).focus(); }
+    else if (a==='all'){ const f=S.rows[r].copies[0]; S.rows[r].copies = S.rows[r].copies.map(()=>cp(f)); render(); live('All copies now match copy 1.'); }
+    else if (a==='sel'){ t.checked?S.sel.add(r):S.sel.delete(r); render(); host.querySelector(`[data-a=sel][data-r="${r}"]`).focus(); }
+    else if (a==='all-sel'){ S.sel = t.checked ? new Set(S.rows.map((_,i)=>i)) : new Set(); S.pop=false; render(); }
+    else if (a==='clear'){ S.sel.clear(); S.pop=false; render(); }
+    else if (a==='bt'){ S.sel.forEach(i=>S.rows[i].copies.forEach(c=>c.proxy=t.dataset.v==='p')); render(); live('Type set for selected rows.'); }
+    else if (a==='pop'){ S.pop=!S.pop; render(); (host.querySelector('#bf')||host.querySelector('[data-a=pop]')).focus(); }
+    else if (a==='apply'){ S.sel.forEach(i=>S.rows[i].copies.forEach(c=>{ if(S.bulk.finish&&!c.proxy){c.finish=S.bulk.finish;delete c.file.finish;} if(S.bulk.cond&&!c.proxy){c.cond=S.bulk.cond;delete c.file.cond;} if(S.bulk.lang){c.lang=S.bulk.lang;delete c.file.lang;} })); S.bulk={finish:'',cond:'',lang:''}; S.pop=false; render(); live('Applied to selected rows.'); }
+  };
+  host.onchange = e => {
+    const t = e.target, a = t.dataset.a; if (!a) return;
+    if (['bf','bc','bl'].includes(a)){ S.bulk[{bf:'finish',bc:'cond',bl:'lang'}[a]] = t.value; return; }
+    if (['finish','cond','lang'].includes(a)){ const r=+t.dataset.r,c=+t.dataset.c; S.rows[r].copies[c][a]=t.value; delete S.rows[r].copies[c].file[a]; const id=t.getAttribute('aria-label'); render(); const f=[...host.querySelectorAll('select')].find(s=>s.getAttribute('aria-label')===id); f&&f.focus(); }
+  };
+  host.onkeydown = e => { if (e.key==='Escape' && S.pop){ S.pop=false; render(); host.querySelector('[data-a=pop]').focus(); } };
+  render();
+  return render;
+}
+
+const rd = () => ({name:'Rehearsed Debater', set:'MH3', num:'46', copies:[C(), C({proxy:true}), C({finish:'foil', cond:'lp', file:{finish:1,cond:1}})]});
+const base = () => [
+  {name:'Sol Ring', set:'C21', num:'263', copies:[C()]},
+  {name:'Command Tower', set:'C19', num:'261', copies:[C(),C()]},
+  {name:'Swords to Plowshares', set:'2XM', num:'35', copies:[C({cond:'lp',file:{cond:1}})]},
+  {name:'Arcane Signet', set:'CMM', num:'297', copies:[C({finish:'foil',file:{finish:1}})]},
+  rd(),
+  {name:'Lightning Bolt', set:'STA', num:'42', copies:[C({lang:'ja',file:{lang:1}})]},
+];
+const renders = [];
+function renderAll(){ renders.forEach(r=>r()); }
+renders.push(mount(document.getElementById('list1'), base()));
+renders.push(mount(document.getElementById('list2'), [{name:'Sol Ring', set:'C21', num:'263', copies:[C()]}, rd()], {open:[1]}));
+renders.push(mount(document.getElementById('list3'), base().slice(0,5), {sel:[1,3,4], pop:true}));
+renderDefs();
+</script>
+</body>
+</html>

@@ -1,29 +1,7 @@
-/**
- * Tests for CollectionImportButton component.
- *
- * Validates the chunked CSV import UI:
- * - Renders the import button in idle state
- * - Shows progress during import
- * - Shows success/error states
- * - Handles file selection and triggers chunkedImport
- */
-
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CollectionImportButton } from './CollectionImportButton'
-
-// Mock the chunked-import-client module
-vi.mock('@/lib/chunked-import-client', () => ({
-  chunkedImport: vi.fn(),
-}))
-
-import { chunkedImport } from '@/lib/chunked-import-client'
-const mockChunkedImport = vi.mocked(chunkedImport)
-
-// ---------------------------------------------------------------------------
-// Test Helpers
-// ---------------------------------------------------------------------------
 
 function renderWithProviders() {
   const queryClient = new QueryClient({
@@ -40,167 +18,80 @@ function createFile(content: string, name = 'collection.csv') {
   return new File([content], name, { type: 'text/csv' })
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
+const PREVIEW_RESPONSE = {
+  fileName: 'collection.csv',
+  totalLines: 1,
+  rows: [
+    {
+      sourceIndex: 2,
+      sourceLines: [2],
+      cardName: 'Sol Ring',
+      setCode: 'c21',
+      collectorNumber: '263',
+      scryfallId: 'abc',
+      oracleId: 'def',
+      qty: 1,
+      finish: 'nonfoil',
+      isBasicLand: false,
+    },
+  ],
+  skippedTokens: [],
+  unmatched: [],
+}
+
+vi.mock('@tanstack/react-virtual', () => ({
+  useVirtualizer: ({ count, estimateSize }: { count: number; estimateSize: () => number }) => ({
+    getVirtualItems: () =>
+      Array.from({ length: count }, (_, i) => ({
+        index: i,
+        key: i,
+        start: i * estimateSize(),
+        end: (i + 1) * estimateSize(),
+        size: estimateSize(),
+      })),
+    getTotalSize: () => count * estimateSize(),
+    measure: () => {},
+  }),
+}))
 
 describe('CollectionImportButton', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('renders the Import CSV button in idle state', () => {
+  it('renders the Import CSV button', () => {
     renderWithProviders()
-
     expect(screen.getByText('Import CSV')).toBeInTheDocument()
   })
 
-  it('has a hidden file input that accepts CSV files', () => {
+  it('opens the ManaBox import dialog when clicked', async () => {
     renderWithProviders()
-
-    const fileInput = screen.getByLabelText('Select CSV file for import')
-    expect(fileInput).toHaveAttribute('accept', '.csv,text/csv')
-    expect(fileInput).toHaveClass('hidden')
-  })
-
-  it('triggers chunkedImport when a file is selected', async () => {
-    mockChunkedImport.mockResolvedValue({
-      totalRows: 10,
-      totalImported: 10,
-      totalErrored: 0,
-      chunksTotal: 1,
-      chunksSucceeded: 1,
-      chunksFailed: 0,
-      chunkResults: [],
-      durationMs: 100,
-    })
-
-    renderWithProviders()
-
-    const csvContent = 'Quantity,Name,Finish\n1,Sol Ring,Normal'
-    const file = createFile(csvContent)
-
-    const fileInput = screen.getByLabelText('Select CSV file for import')
-    await act(async () => {
-      fireEvent.change(fileInput, { target: { files: [file] } })
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Replace collection' }))
-
+    fireEvent.click(screen.getByText('Import CSV'))
     await waitFor(() => {
-      expect(mockChunkedImport).toHaveBeenCalledTimes(1)
-    })
-
-    // Check the call was made with CSV content
-    const callArgs = mockChunkedImport.mock.calls[0][0]
-    expect(callArgs.csvContent).toBe(csvContent)
-    expect(callArgs.onProgress).toBeDefined()
-    expect(callArgs.signal).toBeDefined()
-  })
-
-  it('shows success state after import completes', async () => {
-    mockChunkedImport.mockResolvedValue({
-      totalRows: 500,
-      totalImported: 500,
-      totalErrored: 0,
-      chunksTotal: 1,
-      chunksSucceeded: 1,
-      chunksFailed: 0,
-      chunkResults: [],
-      durationMs: 200,
-    })
-
-    renderWithProviders()
-
-    const file = createFile('Quantity,Name,Finish\n1,Sol Ring,Normal')
-    const fileInput = screen.getByLabelText('Select CSV file for import')
-
-    await act(async () => {
-      fireEvent.change(fileInput, { target: { files: [file] } })
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Replace collection' }))
-
-    await waitFor(() => {
-      expect(screen.getByText('500 rows imported')).toBeInTheDocument()
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+      expect(screen.getByText(/Import collection/i)).toBeInTheDocument()
     })
   })
 
-  it('shows error state when import fails', async () => {
-    mockChunkedImport.mockRejectedValue(new Error('CSV is empty — no header row found'))
+  it('moves to review after a file is selected', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(PREVIEW_RESPONSE), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    )
 
     renderWithProviders()
+    fireEvent.click(screen.getByText('Import CSV'))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
 
-    const file = createFile('')
-    const fileInput = screen.getByLabelText('Select CSV file for import')
-
+    const file = createFile('Name,Set code,Collector number,Foil,Quantity,Scryfall ID\nSol Ring,c21,263,normal,1,abc')
     await act(async () => {
-      fireEvent.change(fileInput, { target: { files: [file] } })
+      fireEvent.change(screen.getByLabelText('Choose file'), { target: { files: [file] } })
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Replace collection' }))
 
     await waitFor(() => {
-      expect(screen.getByText('CSV is empty — no header row found')).toBeInTheDocument()
-    })
-  })
-
-  it('shows partial success when some chunks fail', async () => {
-    mockChunkedImport.mockResolvedValue({
-      totalRows: 1000,
-      totalImported: 500,
-      totalErrored: 500,
-      chunksTotal: 2,
-      chunksSucceeded: 1,
-      chunksFailed: 1,
-      chunkResults: [],
-      durationMs: 300,
-    })
-
-    renderWithProviders()
-
-    const file = createFile('Quantity,Name,Finish\n1,Sol Ring,Normal')
-    const fileInput = screen.getByLabelText('Select CSV file for import')
-
-    await act(async () => {
-      fireEvent.change(fileInput, { target: { files: [file] } })
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Replace collection' }))
-
-    await waitFor(() => {
-      expect(screen.getByText(/500 rows imported/)).toBeInTheDocument()
-      expect(screen.getByText(/1 chunk failed/)).toBeInTheDocument()
-    })
-  })
-
-  it('returns to idle state when dismiss button is clicked after success', async () => {
-    mockChunkedImport.mockResolvedValue({
-      totalRows: 10,
-      totalImported: 10,
-      totalErrored: 0,
-      chunksTotal: 1,
-      chunksSucceeded: 1,
-      chunksFailed: 0,
-      chunkResults: [],
-      durationMs: 50,
-    })
-
-    renderWithProviders()
-
-    const file = createFile('Quantity,Name,Finish\n1,Sol Ring,Normal')
-    const fileInput = screen.getByLabelText('Select CSV file for import')
-
-    await act(async () => {
-      fireEvent.change(fileInput, { target: { files: [file] } })
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Replace collection' }))
-
-    await waitFor(() => {
-      expect(screen.getByText('10 rows imported')).toBeInTheDocument()
-    })
-
-    // Click dismiss
-    fireEvent.click(screen.getByLabelText('Dismiss'))
-
-    await waitFor(() => {
-      expect(screen.getByText('Import CSV')).toBeInTheDocument()
+      expect(screen.getByText('Sol Ring')).toBeInTheDocument()
     })
   })
 })

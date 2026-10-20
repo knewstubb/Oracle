@@ -5,6 +5,8 @@ import { FileText } from 'lucide-react'
 export interface ImportFileChipProps {
   fileName: string
   cardCount: number
+  /** Total copies; shown in brackets when it differs from the card count. */
+  copyCount?: number
   checking?: boolean
   onChange: () => void
 }
@@ -12,6 +14,7 @@ export interface ImportFileChipProps {
 export function ImportFileChip({
   fileName,
   cardCount,
+  copyCount,
   checking,
   onChange,
 }: ImportFileChipProps) {
@@ -25,6 +28,9 @@ export function ImportFileChip({
       ) : (
         <span>
           {cardCount} {cardCount === 1 ? 'card' : 'cards'}
+          {copyCount !== undefined && copyCount !== cardCount
+            ? ` (${copyCount} ${copyCount === 1 ? 'copy' : 'copies'})`
+            : ''}
         </span>
       )}
       <span aria-hidden="true">·</span>

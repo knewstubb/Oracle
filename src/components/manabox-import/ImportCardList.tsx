@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useMemo, useState } from 'react'
+import { useRef, useMemo, useState, useEffect } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
@@ -91,6 +91,7 @@ export function ImportCardList({
 
   const hasBasics = rows.some(isGeneric)
 
+  const pendingScrollKey = useRef<string | null>(null)
   const virtualizer = useVirtualizer({
     count: visibleRows.length,
     getScrollElement: () => parentRef.current,
@@ -120,9 +121,29 @@ export function ImportCardList({
   const toggleOpen = (key: string) => {
     const next = new Set(openRowKeys)
     if (next.has(key)) next.delete(key)
-    else next.add(key)
+    else {
+      next.add(key)
+      pendingScrollKey.current = key
+    }
     onOpenRowKeysChange(next)
   }
+
+  // After a row opens, scroll it fully into view once its copies have been measured.
+  useEffect(() => {
+    const key = pendingScrollKey.current
+    if (!key) return
+    pendingScrollKey.current = null
+    const scrollRow = () => {
+      const el = Array.from(parentRef.current?.querySelectorAll('[data-row-key]') ?? []).find(
+        (node) => node.getAttribute('data-row-key') === key
+      )
+      el?.scrollIntoView?.({ block: 'nearest' })
+    }
+    requestAnimationFrame(() => {
+      scrollRow()
+      setTimeout(scrollRow, 60)
+    })
+  }, [openRowKeys])
 
   const changeCopy = (row: UiPreviewRow, index: number, patch: ImportCopyOwnerEdits) => {
     let next = copyEdits

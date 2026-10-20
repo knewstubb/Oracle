@@ -22,7 +22,7 @@ export function ImportSummary({ rows, kind, genericBasics, defaults, copyEdits }
   return (
     <span className="text-[length:var(--fs-xs)] text-muted-foreground" aria-live="polite">
       <strong className="text-foreground">
-        {plural(totals.tracked, 'card')}
+        {kind === 'collection' ? plural(totals.tracked, 'copy', 'copies') : plural(totals.tracked, 'card')}
       </strong>
       {totals.proxies > 0 && <span aria-hidden="true"> · </span>}
       {totals.proxies > 0 && plural(totals.proxies, 'proxy', 'proxies')}

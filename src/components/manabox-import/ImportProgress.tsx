@@ -8,9 +8,13 @@ export interface ImportProgressProps {
   total: number
   cancellable?: boolean
   onCancel?: () => void
+  /** What is happening now, e.g. "Looking up cards". */
+  phaseLabel?: string
+  /** Unit shown after the numbers, e.g. "copies". */
+  unit?: string
 }
 
-export function ImportProgress({ processed, total, cancellable, onCancel }: ImportProgressProps) {
+export function ImportProgress({ processed, total, cancellable, onCancel, phaseLabel, unit }: ImportProgressProps) {
   const percent = total > 0 ? Math.round((processed / total) * 100) : 0
 
   return (
@@ -18,7 +22,9 @@ export function ImportProgress({ processed, total, cancellable, onCancel }: Impo
       <div className="flex items-center gap-2 text-[length:var(--fs-xs)] text-muted-foreground">
         <LoaderCircle className="size-4 animate-spin text-[var(--accent-primary)]" aria-hidden="true" />
         <span>
+          {phaseLabel ? `${phaseLabel} · ` : ''}
           {processed}/{total}
+          {unit ? ` ${unit}` : ''}
         </span>
         {cancellable && (
           <Button

@@ -55,7 +55,7 @@ export function ImportResult({
 
   const lines: Array<{ icon: React.ReactNode; text: React.ReactNode }> = []
 
-  const first = `${plural(inserted, 'card')} added${kind === 'deck' ? ' · sleeved' : ''}${proxies > 0 ? ` · ${plural(proxies, 'proxy', 'proxies')}` : ''}`
+  const first = `${kind === 'collection' ? plural(inserted, 'copy', 'copies') : plural(inserted, 'card')} added${kind === 'deck' ? ' · sleeved' : ''}${proxies > 0 ? ` · ${plural(proxies, 'proxy', 'proxies')}` : ''}`
   lines.push({ icon: <Check className="size-4 text-muted-foreground" aria-hidden="true" />, text: first })
 
   if (unsleeved > 0) {

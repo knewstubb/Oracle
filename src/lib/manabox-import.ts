@@ -654,16 +654,23 @@ async function resolveTextLine(
 /** Parse and resolve a ManaBox collection CSV without writing anything. */
 export async function resolveCollectionRows(
   input: ManaBoxCollectionPreviewInput,
-  resolver: ManaBoxResolver
+  resolver: ManaBoxResolver,
+  onProgress?: (resolvedCopies: number, totalCopies: number) => void
 ): Promise<ManaBoxResolution> {
   const { records, badRows } = parseManaBoxCsv(input.csvContent)
   const unmatched: ManaBoxUnmatchedLine[] = [...badRows]
   const skippedTokens: ManaBoxSkippedToken[] = []
 
   const candidates: ResolvedManaBoxCandidate[] = []
+  const totalCopies = records.reduce((sum, record) => sum + (record.row.quantity || 0), 0)
+  let resolvedCopies = 0
   for (const record of records) {
     const candidate = await resolveCsvRecord(record, resolver, unmatched, skippedTokens)
-    if (candidate) candidates.push(candidate)
+    if (candidate) {
+      candidates.push(candidate)
+      resolvedCopies += candidate.qty
+      onProgress?.(resolvedCopies, totalCopies)
+    }
   }
 
   return {

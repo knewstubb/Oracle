@@ -20,6 +20,8 @@ import { ImportCardList } from './ImportCardList'
 import { ImportSummary } from './ImportSummary'
 import { ImportProgress, DeckImportSpinner } from './ImportProgress'
 import { ImportResult } from './ImportResult'
+import { toast } from 'sonner'
+import { readImportResponse, estimateFileCards, copiesWord } from './import-stream'
 import type { ImportStep, RowFilter } from './types'
 import { INITIAL_DEFAULTS, computeTotals } from './types'
 import type { ManaBoxPreviewResponse } from '../../../docs/oracle/contracts/manabox-import.types'
@@ -45,12 +47,29 @@ export function ManaBoxCollectionImportDialog({
     abortRef.current = null
   }, [])
 
+  const busy = step.status === 'checking' || step.status === 'importing'
+  const hasEdits =
+    step.status === 'review' &&
+    (Object.keys(step.copyEdits).length > 0 ||
+      JSON.stringify(step.defaults) !== JSON.stringify(INITIAL_DEFAULTS))
+
   const handleClose = useCallback(
-    (nextOpen: boolean) => {
-      if (!nextOpen) reset()
+    (nextOpen: boolean, details?: { reason?: string; cancel?: () => void }) => {
+      if (!nextOpen) {
+        // Clicking outside never closes the import; Escape is ignored while working.
+        if (details?.reason === 'outside-press') return details.cancel?.()
+        if (details?.reason === 'escape-key' && busy) return details.cancel?.()
+        if (
+          hasEdits &&
+          !window.confirm('Close the import? Your changes to this import will be lost.')
+        ) {
+          return details?.cancel?.()
+        }
+        reset()
+      }
       onOpenChange(nextOpen)
     },
-    [onOpenChange, reset]
+    [onOpenChange, reset, busy, hasEdits]
   )
 
   const handleFile = useCallback(async (file: File) => {
@@ -59,6 +78,7 @@ export function ManaBoxCollectionImportDialog({
 
     try {
       const text = await file.text()
+      setStep({ status: 'checking', file, cards: estimateFileCards(text) })
       const res = await fetch('/api/collection/import/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -101,10 +121,11 @@ export function ManaBoxCollectionImportDialog({
     if (rows.length === 0) return
 
     abortRef.current = new AbortController()
-    setStep({ ...step, status: 'importing', cancellable: true, processed: 0, total: rows.length })
+    const totalCopies = rows.reduce((sum, r) => sum + r.qty, 0)
+    setStep({ ...step, status: 'importing', cancellable: true, processed: 0, total: totalCopies, phase: 'resolving' })
 
     try {
-      const res = await fetch('/api/collection/import?mode=manabox', {
+      const res = await fetch('/api/collection/import?mode=manabox&stream=1', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: abortRef.current.signal,
@@ -116,12 +137,7 @@ export function ManaBoxCollectionImportDialog({
         }),
       })
 
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({ error: 'Import failed' }))
-        throw new Error(body.error ?? 'Import failed')
-      }
-
-      const summary: {
+      const summary = await readImportResponse<{
         inserted: number
         skipped: number
         removed: number
@@ -129,7 +145,17 @@ export function ManaBoxCollectionImportDialog({
         errors: string[]
         unmatched: ManaBoxPreviewResponse['unmatched']
         durationMs: number
-      } = await res.json()
+      }>(res, (event) => {
+        setStep((prev) =>
+          prev.status === 'importing'
+            ? {
+                ...prev,
+                phase: event.phase,
+                processed: event.phase === 'writing' ? prev.total : Math.min(event.done, prev.total),
+              }
+            : prev
+        )
+      })
 
       setStep({
         status: 'done',
@@ -145,6 +171,7 @@ export function ManaBoxCollectionImportDialog({
         format: step.format,
       })
 
+      toast.success(`Added ${copiesWord(summary.inserted)} to your collection`)
       queryClient.invalidateQueries({ queryKey: ['collection'] })
       queryClient.invalidateQueries({ queryKey: ['collection-rollup'] })
     } catch (err) {
@@ -185,7 +212,7 @@ export function ManaBoxCollectionImportDialog({
     setStep((prev) => (prev.status === 'review' ? { ...prev, selectedIds } : prev))
   }, [])
 
-  const title = step.status === 'checking' ? 'Importing…' : 'Import collection'
+  const title = 'Import collection'
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -198,7 +225,8 @@ export function ManaBoxCollectionImportDialog({
           {step.status === 'review' && (
             <ImportFileChip
               fileName={step.preview.fileName}
-              cardCount={step.preview.totalLines}
+              cardCount={step.preview.rows.length}
+              copyCount={step.preview.rows.reduce((sum, r) => sum + r.qty, 0)}
               onChange={reset}
             />
           )}
@@ -215,7 +243,15 @@ export function ManaBoxCollectionImportDialog({
           />
         )}
 
-        {step.status === 'checking' && <DeckImportSpinner label="Checking…" />}
+        {step.status === 'checking' && (
+          <DeckImportSpinner
+            label={
+              step.cards
+                ? `Processing ${step.cards} ${step.cards === 1 ? 'card' : 'cards'}…`
+                : 'Processing…'
+            }
+          />
+        )}
 
         {step.status === 'review' && (
           <div className="flex min-w-0 flex-col gap-3">
@@ -256,6 +292,8 @@ export function ManaBoxCollectionImportDialog({
           <ImportProgress
             processed={step.processed}
             total={step.total}
+            unit="copies"
+            phaseLabel={step.phase === 'writing' ? 'Saving to your collection' : 'Looking up cards'}
             cancellable={step.cancellable}
             onCancel={handleCancel}
           />
@@ -302,7 +340,7 @@ export function ManaBoxCollectionImportDialog({
                 onClick={handleImport}
                 disabled={step.preview.rows.length === 0}
               >
-                Add {step.preview.rows.reduce((sum, r) => sum + r.qty, 0)}
+                Add {copiesWord(step.preview.rows.reduce((sum, r) => sum + r.qty, 0))}
               </Button>
             </div>
           </div>

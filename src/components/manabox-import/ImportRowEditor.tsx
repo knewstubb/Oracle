@@ -55,7 +55,7 @@ export function TypeToggle({
     <span
       role="group"
       aria-label={label}
-      className="inline-flex h-6 overflow-hidden rounded-lg border border-[var(--border-default)]"
+      className="inline-flex h-6 shrink-0 overflow-hidden rounded-lg border border-[var(--border-default)]"
     >
       {options.map((type) => {
         const pressed = value === type
@@ -66,7 +66,7 @@ export function TypeToggle({
             aria-pressed={pressed}
             onClick={() => onChange(type)}
             className={cn(
-              'inline-flex items-center gap-1 border-l border-[var(--border-default)] px-2 text-[length:var(--fs-xs)] text-muted-foreground first:border-l-0 hover:bg-[var(--bg-hover)]',
+              'inline-flex shrink-0 items-center gap-1 whitespace-nowrap border-l border-[var(--border-default)] px-2 text-[length:var(--fs-xs)] text-muted-foreground first:border-l-0 hover:bg-[var(--bg-hover)]',
               pressed && TYPE_STYLE[type].selected
             )}
           >
@@ -84,7 +84,7 @@ export function TypeToggle({
 function FieldWithDot({ fromFile, children }: { fromFile: boolean; children: React.ReactNode }) {
   if (!fromFile) return <>{children}</>
   return (
-    <span className="relative inline-block" title="From your file" data-from-file="true">
+    <span className="relative inline-block shrink-0" title="From your file" data-from-file="true">
       {children}
       <span
         aria-hidden="true"
@@ -254,7 +254,7 @@ function CopyLine({
       aria-label={`Copy ${n} of ${total}`}
       className="flex flex-wrap items-center gap-2 border-t border-[var(--border-subtle)] py-1 first:border-t-0"
     >
-      <span className="w-4 text-[length:var(--fs-xs)] tabular-nums text-[var(--text-tertiary)]">{n}</span>
+      <span className="w-4 shrink-0 text-[length:var(--fs-xs)] tabular-nums text-[var(--text-tertiary)]">{n}</span>
       <TypeToggle
         value={copy.type}
         options={typeOptions}

@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { ManaBoxFilePicker } from './ManaBoxFilePicker'
+import { estimateFileCards } from './import-stream'
 import { ImportFileChip } from './ImportFileChip'
 import { DeckImportOptions } from './DeckImportOptions'
 import { ImportNotices, ImportValueNoticeLines } from './ImportNoticeLine'
@@ -58,6 +59,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot }: ManaB
     try {
       const text = await file.text()
       const source = detectSource(file)
+      setStep({ status: 'checking', file, cards: estimateFileCards(text) })
       const body =
         source === 'csv'
           ? { csvContent: text, fileName: file.name }
@@ -242,13 +244,22 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot }: ManaB
         />
       )}
 
-      {step.status === 'checking' && <DeckImportSpinner label="Checking…" />}
+      {step.status === 'checking' && (
+        <DeckImportSpinner
+          label={
+            step.cards
+              ? `Processing ${step.cards} ${step.cards === 1 ? 'card' : 'cards'}…`
+              : 'Processing…'
+          }
+        />
+      )}
 
       {step.status === 'review' && (
         <>
           <ImportFileChip
             fileName={step.preview.fileName}
-            cardCount={step.preview.totalLines}
+            cardCount={step.preview.rows.length}
+            copyCount={step.preview.rows.reduce((sum, r) => sum + r.qty, 0)}
             onChange={reset}
           />
           <DeckImportOptions

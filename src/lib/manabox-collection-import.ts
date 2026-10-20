@@ -44,6 +44,8 @@ export interface ManaBoxCollectionImportOptions {
   defaults: ImportDefaults
   /** Owner edits: rowKey -> copy index -> fields. Holds no database ids. */
   copyEdits?: ImportCopyEdits
+  /** Progress in copies: `resolving` while looking cards up, `writing` while saving. */
+  onProgress?: (progress: { phase: 'resolving' | 'writing'; done: number; total: number }) => void
   /** Injectable resolver for tests. */
   resolver?: ManaBoxResolver
   /** Injectable database client for tests. */
@@ -64,7 +66,8 @@ export async function executeManaBoxCollectionImport(
 
   const resolution = await resolveCollectionRows(
     { fileName: options.fileName, csvContent: options.csvContent },
-    resolver
+    resolver,
+    (done, total) => options.onProgress?.({ phase: 'resolving', done, total })
   )
 
   const rows = combineResolvedRows(resolution.candidates, 'collection')
@@ -166,6 +169,7 @@ export async function executeManaBoxCollectionImport(
 
   // 3. Insert atomically through the existing collection RPC.
   let inserted = 0
+  options.onProgress?.({ phase: 'writing', done: 0, total: copyRows.length })
   if (copyRows.length > 0) {
     const { data, error } = await supabase.rpc('insert_user_copies', {
       p_user_id: options.userId,

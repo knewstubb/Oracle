@@ -4,6 +4,9 @@ import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ManaBoxCollectionImportDialog } from './ManaBoxCollectionImportDialog'
 
+const toastSuccess = vi.hoisted(() => vi.fn())
+vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: vi.fn() } }))
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }))
@@ -150,5 +153,46 @@ describe('ManaBoxCollectionImportDialog', () => {
     expect(body.proxyCounts).toBeUndefined()
     expect(body.defaults).toEqual({ finish: 'nonfoil', condition: 'near_mint', language: 'en' })
     expect(body.copyEdits['abc|nonfoil|en']).toEqual({ 0: { type: 'proxy' } })
+  })
+  it('shows "N cards (M copies)" in the header and copies in the footer', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(PREVIEW_RESPONSE), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    )
+    render(<ManaBoxCollectionImportDialog open onOpenChange={() => {}} />, { wrapper: createWrapper() })
+    await user.upload(screen.getByLabelText('Choose file'), new File(['name,header\nx'], 'scan.csv', { type: 'text/csv' }))
+    await waitFor(() => expect(screen.getByText('Sol Ring')).toBeInTheDocument())
+    expect(screen.getByText(/2 cards \(4 copies\)/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add 4 copies' })).toBeInTheDocument()
+  })
+
+  it('does not close when the user clicks outside the dialog', async () => {
+    const user = userEvent.setup()
+    const onOpenChange = vi.fn()
+    render(<ManaBoxCollectionImportDialog open onOpenChange={onOpenChange} />, { wrapper: createWrapper() })
+    await user.click(document.body)
+    expect(onOpenChange).not.toHaveBeenCalledWith(false)
+    expect(screen.getByText('Import collection')).toBeInTheDocument()
+  })
+
+  it('reads streamed progress and shows a result plus a toast', async () => {
+    const user = userEvent.setup()
+    const lines = [
+      { type: 'progress', phase: 'resolving', done: 2, total: 4 },
+      { type: 'progress', phase: 'writing', done: 0, total: 4 },
+      { type: 'complete', summary: { inserted: 4, skipped: 0, removed: 0, sourceTag: 'manabox', errors: [], unmatched: [], durationMs: 5 } },
+    ].map((e) => JSON.stringify(e) + '\n').join('')
+    vi.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(PREVIEW_RESPONSE), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      )
+      .mockResolvedValueOnce(new Response(lines, { status: 200, headers: { 'Content-Type': 'application/x-ndjson' } }))
+    render(<ManaBoxCollectionImportDialog open onOpenChange={() => {}} />, { wrapper: createWrapper() })
+    await user.upload(screen.getByLabelText('Choose file'), new File(['name,header\nx'], 'scan.csv', { type: 'text/csv' }))
+    await waitFor(() => expect(screen.getByText('Sol Ring')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Add 4 copies' }))
+    await waitFor(() => expect(screen.getByText(/Collection updated/i)).toBeInTheDocument())
+    expect(screen.getByText(/4 copies added/)).toBeInTheDocument()
+    expect(toastSuccess).toHaveBeenCalledWith('Added 4 copies to your collection')
   })
 })

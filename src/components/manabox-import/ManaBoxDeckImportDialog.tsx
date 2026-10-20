@@ -16,7 +16,14 @@ export interface ManaBoxDeckImportDialogProps {
 
 export function ManaBoxDeckImportDialog({ open, onOpenChange }: ManaBoxDeckImportDialogProps) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next, details) => {
+        // Clicking outside never closes the import.
+        if (!next && details?.reason === 'outside-press') return details.cancel?.()
+        onOpenChange(next)
+      }}
+    >
       <DialogContent className="sm:max-w-3xl">
         <ManaBoxDeckImportFlow
           onComplete={() => onOpenChange(false)}

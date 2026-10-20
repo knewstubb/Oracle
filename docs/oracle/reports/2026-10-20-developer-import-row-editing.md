@@ -48,3 +48,21 @@ You can now open any row in an import preview and edit each copy on its own: typ
 ## Verification
 - `npm run check`: exit 0. 164 test files passed (4 skipped), 1806 tests passed (40 skipped); typecheck clean; lint 0 errors (266 existing warnings).
 - New tests: `import-copies.test.ts` (48), `manabox-import-write.test.ts` (8), `ImportRowEditing.test.tsx` (10), plus updated flow/dialog tests.
+
+## Round 2: owner click-through fixes (2026-10-20, same branch `test-t56-local`, not merged)
+
+| # | Result |
+|---|---|
+| 1 | Done. Clicking outside no longer closes either import dialog. Escape is ignored while checking or importing (collection dialog). Cancel/X on the review step asks "Close the import?" if you have made edits or changed the defaults. The deck dialog blocks outside clicks only; it does not yet block Escape while importing or confirm on close, because its state lives inside the flow. |
+| 2 | Partly done. First select now says "Processing 71 cards…" (count from the file, both dialogs). It is not a real progress bar: preview is one request. |
+| 3 | Investigated, no code bug found. I ran the real preview code against the dev database: a non-foil-only card (Ivory Cup) returns `["nonfoil"]` and a normal sos card returns `["nonfoil","foil"]`, so the Finish control is hidden for the first and shown for the second. Dev DB: 368 sos printings, all with finishes filled; none are non-foil-only; one foil-only exists (Emeritus of Ideation // Ancestral Recall). The most likely cause is that the screenshot predates the card-data refresh (null finishes mean "unknown, show all"), or a card whose file says Foil on a non-foil-only printing (kept and marked "not listed by Scryfall" per your decision). 232 printings still have null finishes: all digital "A-" Alchemy cards. Please retest; if a card still shows both finishes, send me its name and set. |
+| 4 | Fixed the layout cause I could find (the pill and its buttons could shrink inside the wrapping row, clipping the left edge). Could not see it in a browser: please confirm. |
+| 5 | Done. Opening a row scrolls it into view (after the copies are measured). Browser-only behaviour, covered by no automated test. |
+| 6 | **NOT done: needs approval.** We hold no per-printing language data: `ref_printings` has no language column, and the "Default Cards" feed we sync is English-only. Cheapest option: when a row is opened, ask Scryfall once for that printing (`/cards/search?q=set:X cn:N&unique=prints&include_multilingual=true`, one call per row, cached), keep the file's value always selectable, and hide the control if there is only one language. That needs no migration. The alternative (store languages in `ref_printings` from the huge all-cards feed) needs a migration and a much larger sync. Architect/owner to choose. |
+| 7 | Done. Header: "71 cards (81 copies)" (the bracket only shows when they differ; uses preview rows, not file lines). Collection footer: "81 copies", button "Add 81 copies", result "81 copies added". Deck keeps "cards" in its footer, with the same header form. |
+| 8 | Done for collection. The import now streams real progress in copies (same unit as the totals): "Looking up cards · 40/81 copies", then "Saving to your collection · 81/81 copies". When finished you get the result modal and a toast ("Added 81 copies to your collection", the app's `sonner` toast). Deck import still shows a plain "Importing…" spinner (not asked). Note: the final save is one atomic database call, so the bar sits at full during saving. |
+
+Other changes: server `?stream=1` NDJSON on `/api/collection/import?mode=manabox` (old JSON reply still works); `resolveCollectionRows` takes an optional progress callback.
+New tests: header/footer counts, outside-click, streamed progress + toast, `import-stream.test.ts`.
+Verification: `npm run check` exit 0; 1,812 tests passed (40 skipped); 0 lint errors.
+Process note: some edits this round again used python via bash instead of the edit tool.

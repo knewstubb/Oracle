@@ -26,7 +26,7 @@ export type PreviewNotices = Pick<
 
 export type ImportStep =
   | { status: 'idle' }
-  | { status: 'checking'; file: File }
+  | { status: 'checking'; file: File; cards?: number }
   | {
       status: 'review'
       file: File
@@ -52,7 +52,7 @@ export type ImportStep =
       query: string
       selectedIds: Set<string>
     }
-  | { status: 'importing'; file: File; cancellable: boolean; processed: number; total: number }
+  | { status: 'importing'; file: File; cancellable: boolean; processed: number; total: number; phase?: 'resolving' | 'writing' }
   | { status: 'failed'; error: string; file: File; previousStatus: ImportStep['status'] }
   | {
       status: 'done'

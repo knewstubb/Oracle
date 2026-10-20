@@ -72,6 +72,63 @@ function streamReplaceImport(csvContent: string, userId: string): Response {
   })
 }
 
+/** Streams `progress` events (in copies), then `complete` or `error`, as NDJSON. */
+function streamManaBoxImport(args: {
+  csvContent: string
+  fileName: string
+  userId: string
+  defaults: ImportDefaults | undefined
+  copyEdits: ImportCopyEdits | undefined
+}): Response {
+  let closed = false
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const send = (event: unknown) => {
+        if (closed) return
+        try {
+          controller.enqueue(ndjsonLine(event))
+        } catch {
+          closed = true
+        }
+      }
+      void executeManaBoxCollectionImport({
+        ...args,
+        defaults: args.defaults as ImportDefaults,
+        onProgress: (progress) => send({ type: 'progress', ...progress }),
+      })
+        .then((summary) => send({ type: 'complete', summary }))
+        .catch((err: unknown) => {
+          if (err instanceof ImportValidationError) {
+            send({ type: 'error', message: 'Invalid import request', problems: err.problems })
+          } else {
+            const message = err instanceof Error ? err.message : String(err)
+            send({ type: 'error', message: `Import failed: ${message}` })
+          }
+        })
+        .finally(() => {
+          if (!closed) {
+            closed = true
+            try {
+              controller.close()
+            } catch {
+              // client cancelled
+            }
+          }
+        })
+    },
+    cancel() {
+      closed = true
+    },
+  })
+  return new Response(stream, {
+    headers: {
+      'Cache-Control': 'no-cache, no-transform',
+      'Content-Type': 'application/x-ndjson; charset=utf-8',
+      'X-Accel-Buffering': 'no',
+    },
+  })
+}
+
 /**
  * Determines if an error is a CSV parse error (invalid format, missing columns, etc.).
  */
@@ -143,6 +200,10 @@ export async function POST(request: NextRequest) {
 
     if (!csvContent.trim()) {
       return NextResponse.json({ error: 'No CSV content provided' }, { status: 400 })
+    }
+
+    if (searchParams.get('stream') === '1') {
+      return streamManaBoxImport({ csvContent, fileName, userId, defaults, copyEdits })
     }
 
     try {

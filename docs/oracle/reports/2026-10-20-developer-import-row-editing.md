@@ -171,3 +171,21 @@ Process note: some edits this round again used python via bash instead of the ed
 **Tests:** commander search helper; flow tests for pick-then-close and skip-then-close. `npm run check` passes.
 
 **Not done / open:** no test for the URL/Paste commander step in `DeckImportButton`; nothing browser-verified; the picker lists the deck's own cards only (no "search all cards"); Deck 1, 2, 3 still wait on Designer/Architect; contract test 15 unwritten; Escape differs between deck (confirm) and collection (blocked) windows. I again edited some files via python/bash rather than the edit tool.
+
+## Round 8 — hover Edit, blurred discard dialog, no X while saving, earlier tab hide
+
+**Branch:** test-t56-local (not merged).
+
+**Built (1–4)**
+1. The always-visible Edit button is gone. "Edit"/"Done" now appears when you hover the row (or keyboard-focus it). Row click still expands/collapses; checkbox unaffected. Both flows share the row component.
+2. "Discard edits?" now dims and heavily blurs everything behind it (new `overlayClassName` option on `DialogContent`).
+3. The X is removed (not just disabled) while the collection import is saving and while a deck is being created. It returns on the result screen.
+4. Deck tabs vanish as soon as a file is chosen (during the check) and as soon as a URL/Precon fetch starts. Paste List goes straight to the preview step.
+
+**Tests:** new test that tabs vanish when a URL fetch starts. `npm run check` passes.
+
+**Needs Designer (5 and 6, not built):**
+- 5 Sort: where the control sits (list header next to the filter?), wording ("Name A–Z" / "Import order"), and default.
+- 6 Dismiss errors: X on each box versus a "Hide" link; styling; whether dismissed items stay countable (e.g. "2 hidden").
+
+**Flags:** hover-only Edit has no hover on touch screens (row tap still works). Not browser-verified. I used python via bash for edits again.

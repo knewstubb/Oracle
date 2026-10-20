@@ -238,4 +238,13 @@ describe('DeckImportButton', () => {
     expect(await screen.findByText('Discard edits?')).toBeInTheDocument()
     expect(confirmSpy).not.toHaveBeenCalled()
   })
+
+  it('hides the tabs as soon as a URL fetch starts', async () => {
+    vi.spyOn(global, 'fetch').mockImplementationOnce(() => new Promise(() => {}))
+    render(<DeckImportButton onPreviewSuccess={onPreviewSuccess} />, { wrapper: createWrapper() })
+    fireEvent.click(screen.getByRole('button', { name: /import deck/i }))
+    fireEvent.change(await screen.findByPlaceholderText(/archidekt|moxfield|url/i), { target: { value: 'https://archidekt.com/decks/123' } })
+    fireEvent.click(screen.getByRole('button', { name: /fetch deck/i }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Paste List' })).not.toBeInTheDocument())
+  })
 })

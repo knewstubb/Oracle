@@ -238,7 +238,7 @@ export function ManaBoxCollectionImportDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className={IMPORT_MODAL_CLASS}>
+      <DialogContent className={IMPORT_MODAL_CLASS} showCloseButton={!saving}>
         <DialogHeader>
           <DialogTitle>
             <ImportTitleIcon kind="collection" />

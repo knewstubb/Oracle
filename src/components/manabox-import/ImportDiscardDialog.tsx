@@ -28,7 +28,12 @@ export function ImportDiscardDialog({ open, onKeepEditing, onDiscard }: ImportDi
         }
       }}
     >
-      <DialogContent role="alertdialog" showCloseButton={false} className="sm:max-w-sm">
+      <DialogContent
+        role="alertdialog"
+        showCloseButton={false}
+        overlayClassName="bg-black/40 supports-backdrop-filter:backdrop-blur-md"
+        className="sm:max-w-sm"
+      >
         <DialogHeader>
           <DialogTitle>Discard edits?</DialogTitle>
           <DialogDescription>Your changes to this import will be lost.</DialogDescription>

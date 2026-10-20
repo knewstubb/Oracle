@@ -389,7 +389,10 @@ export function DeckImportButton({
         Import Deck
       </DialogTrigger>
 
-      <DialogContent className={fileTab ? IMPORT_MODAL_CLASS : 'sm:max-w-2xl'}>
+      <DialogContent
+        className={fileTab ? IMPORT_MODAL_CLASS : 'sm:max-w-2xl'}
+        showCloseButton={!(flowState.saving || importMutation.isPending)}
+      >
         {urlResult ? (
           <>
             <DialogHeader>
@@ -514,7 +517,10 @@ export function DeckImportButton({
             </DialogHeader>
 
             {/* Input mode tabs: not useful once cards are being reviewed or saved */}
-            {!(fileTab && (flowState.reviewing || flowState.saving || flowState.done)) && (
+            {!(
+              (fileTab && (flowState.checking || flowState.reviewing || flowState.saving || flowState.done)) ||
+              previewMutation.isPending
+            ) && (
             <div className="flex gap-1 rounded-md p-0.5" style={{ background: 'rgba(255,255,255,0.05)', border: '0.5px solid rgba(255,255,255,0.1)' }}>
               {(['url', 'paste', 'file', 'precon'] as const).map((tab) => (
                 <button

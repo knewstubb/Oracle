@@ -155,7 +155,7 @@ export function ImportRowEditor({
               }
         }
         className={cn(
-          'grid min-h-[34px] grid-cols-[24px_28px_1fr_auto] items-center gap-2 px-2.5 hover:bg-[var(--bg-hover)]',
+          'group grid min-h-[34px] grid-cols-[24px_28px_1fr_auto] items-center gap-2 px-2.5 hover:bg-[var(--bg-hover)]',
           !generic && 'cursor-pointer'
         )}
       >
@@ -217,7 +217,7 @@ export function ImportRowEditor({
             aria-expanded={open}
             aria-label={`${open ? 'Done editing' : 'Edit'} ${row.cardName}`}
             onClick={onToggleOpen}
-            className="h-6 rounded-md border border-[var(--border-default)] px-2.5 text-[length:var(--fs-xs)] hover:bg-[var(--bg-hover)]"
+            className="h-6 rounded-md px-2.5 text-[length:var(--fs-xs)] text-muted-foreground opacity-0 transition-opacity hover:bg-[var(--bg-hover)] hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
           >
             {open ? 'Done' : 'Edit'}
           </button>

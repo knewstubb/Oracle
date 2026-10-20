@@ -69,6 +69,35 @@
   --border-radius-md: 8px;
   --border-radius-lg: 12px;
 
+  /* ─── Vocabulary state aliases (D-043) ─────────────────────────────
+   * One token per shared-vocabulary fact. No new colours — every value
+   * maps to an existing token or is a 15% opacity tint of one.
+   * ═══════════════════════════════════════════════════════════════════ */
+  --state-original: var(--text-secondary);
+  --state-proxy: var(--status-proxy);
+  --state-available: var(--text-primary);
+  --state-alt-available: var(--text-primary);
+  --state-proxy-available: var(--status-proxy);
+  --state-unavailable: var(--signal-warning);
+  --state-unowned: var(--status-unowned);
+  --state-basic: var(--text-secondary);
+  --state-owned: var(--text-secondary);
+
+  --state-draft: var(--text-secondary);
+  --state-assembling: var(--text-secondary);
+  --state-playable: var(--text-primary);
+  --state-checking: var(--text-secondary);
+  --state-failed: var(--signal-critical);
+  --state-stale: var(--signal-warning);
+  --state-unknown: var(--text-secondary);
+
+  /* 15% tint fills for loud / outline badge states */
+  --state-proxy-bg: rgba(74, 147, 160, 0.15);
+  --state-proxy-available-bg: rgba(74, 147, 160, 0.15);
+  --state-unavailable-bg: rgba(239, 159, 39, 0.15);
+  --state-unowned-bg: rgba(240, 51, 158, 0.15);
+  --state-failed-bg: rgba(226, 75, 74, 0.15);
+
   /* ═══════════════════════════════════════════════════════════════════
    * Legacy aliases → shadcn equivalents (backward compat)
    * New code should use the shadcn variable directly.

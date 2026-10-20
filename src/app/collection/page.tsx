@@ -547,7 +547,7 @@ function EmptyState({ hasFilters }: { hasFilters: boolean }) {
           Import a CSV from Archidekt, Moxfield, or ManaBox to get started. Your collection powers the Picklist and allocation system.
         </p>
       )}
-      {!hasFilters && <CollectionImportButton />}
+      {!hasFilters && <CollectionImportButton withDialog={false} />}
     </div>
   )
 }

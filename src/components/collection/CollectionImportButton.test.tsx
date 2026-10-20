@@ -96,4 +96,19 @@ describe('CollectionImportButton', () => {
       expect(screen.getByText('Sol Ring')).toBeInTheDocument()
     })
   })
+
+  it('keeps the dialog open when the empty-state button disappears', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const tree = (showEmpty: boolean) => (
+      <QueryClientProvider client={queryClient}>
+        <CollectionImportButton />
+        {showEmpty && <CollectionImportButton withDialog={false} />}
+      </QueryClientProvider>
+    )
+    const view = render(tree(true))
+    fireEvent.click(screen.getAllByText('Import CSV')[1])
+    await waitFor(() => expect(screen.getAllByRole('dialog')).toHaveLength(1))
+    view.rerender(tree(false))
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+  })
 })

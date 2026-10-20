@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { DeckImportButton } from './DeckImportButton'
 import type { NormalizedDeck, CardsByType } from '@/lib/deck-normalizer'
@@ -10,6 +10,21 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), warning: vi.fn(), info: vi.fn() },
+}))
+
+vi.mock('@tanstack/react-virtual', () => ({
+  useVirtualizer: ({ count, estimateSize }: { count: number; estimateSize: () => number }) => ({
+    getVirtualItems: () =>
+      Array.from({ length: count }, (_, i) => ({
+        index: i,
+        key: i,
+        start: i * estimateSize(),
+        end: (i + 1) * estimateSize(),
+        size: estimateSize(),
+      })),
+    getTotalSize: () => count * estimateSize(),
+    measure: () => {},
+  }),
 }))
 
 function createWrapper() {
@@ -178,5 +193,49 @@ describe('DeckImportButton', () => {
     fireEvent.mouseDown(document.body)
     fireEvent.click(document.body)
     expect(screen.getByLabelText('Choose file')).toBeInTheDocument()
+  })
+
+  it('shows the deck icon, hides the tabs on the review list, and asks in-app before discarding', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm')
+    const preview = {
+      fileName: 'deck.txt',
+      totalLines: 1,
+      rows: [
+        {
+          sourceIndex: 1,
+          sourceLines: [1],
+          cardName: 'Sol Ring',
+          setCode: 'c21',
+          collectorNumber: '263',
+          scryfallId: 'abc',
+          oracleId: 'def',
+          qty: 1,
+          rowKey: 'abc|text',
+          availableFinishes: ['nonfoil', 'foil'],
+          copies: [{ index: 0, sourceLine: 1, file: {}, owner: {} }],
+          isBasicLand: false,
+        },
+      ],
+      skippedTokens: [],
+      unmatched: [],
+    }
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(preview), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    )
+    render(<DeckImportButton onPreviewSuccess={onPreviewSuccess} />, { wrapper: createWrapper() })
+    fireEvent.click(screen.getByRole('button', { name: /import deck/i }))
+    await waitFor(() => expect(document.querySelector('[data-import-icon="deck"]')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'File' }))
+    const input = await screen.findByLabelText('Choose file')
+    fireEvent.change(input, { target: { files: [new File(['1 Sol Ring'], 'deck.txt', { type: 'text/plain' })] } })
+    await waitFor(() => expect(screen.getByText('Sol Ring')).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'URL' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Paste List' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Sol Ring' }))
+    fireEvent.click(within(screen.getByRole('group', { name: 'Copy 1 type' })).getByRole('button', { name: 'Proxy' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(await screen.findByText('Discard edits?')).toBeInTheDocument()
+    expect(confirmSpy).not.toHaveBeenCalled()
   })
 })

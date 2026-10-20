@@ -133,3 +133,24 @@ Process note: some edits this round again used python via bash instead of the ed
 **Known gap:** if the save request fails midway (network break), "Try again" goes back through the preview and a second Add could duplicate rows that were already written. The server has no idempotency key. Worth an Architect decision.
 
 **Verification:** `npm run check` exits 0 (1,858 tests, 0 lint errors, 266 existing warnings). One run showed a flaky collection page search test, unrelated; it passed on rerun. Not browser-checked. Again used python via bash for some edits.
+
+## Round 7: owner click-through feedback
+
+**Branch:** `test-t56-local` (not merged).
+
+**Done**
+- **Collection 1 (Escape):** Escape is blocked on upload, reading, review and saving. It closes only the result/failed screen. Rule is `decideCollectionClose` in `import-close-guard.ts`.
+- **Collection 2 (X):** X and Cancel with edits open the app's own "Discard edits?" dialog (Keep editing / Discard edits) via new `ImportDiscardDialog`. No browser `confirm` is used any more in the collection dialog or the deck window.
+- **Collection 3 (auto-close):** Likely cause, not reproduced in a browser: the collection page renders an import button in the header and another in the empty state, each with its own dialog. When the import added cards, the empty state disappeared and took its open dialog with it. The open state is now shared and only the header button renders the dialog (`withDialog={false}` on the empty-state button). A test covers it. If it still closes, tell me what the collection looked like before the import.
+- **Collection 4 / Deck 4 (row click):** the whole row header toggles open/closed; the Edit/Done button and checkbox still work on their own. Applies to both flows (shared row component).
+- **Deck 5:** the tabs are hidden while reviewing and while creating the deck. Cancel, X and Escape on the review list use the custom discard dialog.
+- **Deck 7 / modal icon:** small icon beside the title: library icon for collection, layers icon for deck. Icon choice is mine, not Designer-reviewed.
+
+**Not built: need a decision first**
+- **Deck 1 (dismiss errors) and Deck 2 (sort controls):** Designer input needed (UI for the X, where the sort control sits, label wording).
+- **Deck 3 (basic lands editable, "reference collection" vs "generic"):** Designer input needed for the toggle wording/icon, and an Architect decision: when the toggle is ON basics would create real copies in the collection, which changes the deck write (today generic basics are planned slots with no copy) and the result counts. Needs a contract change.
+- **Deck 6 (commander before import):** product choice between (a) require commander before Import is enabled, or (b) pick it on the result screen. Tell me which; (a) means moving the commander picker into the review screen.
+
+**Inconsistency to note:** the deck window's Escape on the review list still asks "Discard edits?" (Round 6 behaviour), while the collection window now ignores Escape there. Say if you want them identical.
+
+**Tests:** guard rules, Escape ignored (upload and review), in-app discard dialog (Keep editing / Discard, no browser confirm), result stays open, icon, row click toggle, shared dialog state, deck tabs hidden plus discard dialog. `npm run check` exits 0 (1,868 tests, 0 lint errors, 266 existing warnings). Not browser-checked. Again used python via bash for some edits.

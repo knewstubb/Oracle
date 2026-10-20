@@ -22,6 +22,8 @@ import { FORMAT_OPTIONS } from '@/lib/format-config'
 import type { NormalizedDeck, CardsByType } from '@/lib/deck-normalizer'
 import type { ImportMode, AllocationConflict } from '@/lib/deck-import'
 import { ManaBoxDeckImportFlow, type DeckFlowState } from '@/components/manabox-import/ManaBoxDeckImportFlow'
+import { ImportTitleIcon } from '@/components/manabox-import/ImportTitleIcon'
+import { ImportDiscardDialog } from '@/components/manabox-import/ImportDiscardDialog'
 import { IMPORT_MODAL_CLASS } from '@/components/manabox-import/import-labels'
 import { decideDeckDialogClose } from '@/components/manabox-import/import-close-guard'
 
@@ -80,6 +82,8 @@ function getDisplayError(status: number, serverMessage: string): string {
       return serverMessage || 'Something went wrong. Please try again.'
   }
 }
+
+const NO_FLOW_STATE: DeckFlowState = { checking: false, saving: false, hasEdits: false, reviewing: false }
 
 export function DeckImportButton({
   className,
@@ -311,30 +315,38 @@ export function DeckImportButton({
     })
   }
 
-  const [flowState, setFlowState] = useState<DeckFlowState>({ checking: false, saving: false, hasEdits: false })
+  const [flowState, setFlowState] = useState<DeckFlowState>(NO_FLOW_STATE)
   const onFlowState = useCallback((state: DeckFlowState) => setFlowState(state), [])
   const fileTab = activeTab === 'file' && !previewData
-  const DISCARD_MESSAGE = 'Close the import? Your changes to this import will be lost.'
+  // The app's own "Discard edits?" dialog; holds what to do if the owner confirms.
+  const [discardAction, setDiscardAction] = useState<(() => void) | null>(null)
 
-  /** Ask before throwing away edits. True means go ahead. */
-  function okToDiscard(): boolean {
-    return !fileTab || !flowState.hasEdits || window.confirm(DISCARD_MESSAGE)
+  /** Run `action`, but ask first if the review list has edits. */
+  function askBeforeDiscard(action: () => void) {
+    if (fileTab && flowState.hasEdits) setDiscardAction(() => action)
+    else action()
+  }
+
+  function closeDialog() {
+    setOpen(false)
+    resetState()
+    setActiveTab('url')
+    setFlowState(NO_FLOW_STATE)
+    previewMutation.reset()
+    importMutation.reset()
   }
 
   function handleOpenChange(nextOpen: boolean, details?: { reason?: string; cancel?: () => void }) {
-    if (!nextOpen && fileTab) {
+    if (nextOpen) return setOpen(true)
+    if (fileTab) {
       const decision = decideDeckDialogClose(details?.reason, flowState)
       if (decision === 'block') return details?.cancel?.()
-      if (decision === 'confirm' && !window.confirm(DISCARD_MESSAGE)) return details?.cancel?.()
+      if (decision === 'confirm') {
+        setDiscardAction(() => closeDialog)
+        return details?.cancel?.()
+      }
     }
-    setOpen(nextOpen)
-    if (!nextOpen) {
-      resetState()
-      setActiveTab('url')
-      setFlowState({ checking: false, saving: false, hasEdits: false })
-      previewMutation.reset()
-      importMutation.reset()
-    }
+    closeDialog()
   }
 
   const urlDisplayError = validationError ?? (previewMutation.isError ? previewMutation.error.message : null)
@@ -453,13 +465,17 @@ export function DeckImportButton({
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>Import Deck</DialogTitle>
+              <DialogTitle>
+                <ImportTitleIcon kind="deck" />
+                Import Deck
+              </DialogTitle>
               <DialogDescription>
                 Import a deck from a URL, paste a decklist, or upload a CSV file.
               </DialogDescription>
             </DialogHeader>
 
-            {/* Input mode tabs */}
+            {/* Input mode tabs: not useful once cards are being reviewed or saved */}
+            {!(fileTab && (flowState.reviewing || flowState.saving)) && (
             <div className="flex gap-1 rounded-md p-0.5" style={{ background: 'rgba(255,255,255,0.05)', border: '0.5px solid rgba(255,255,255,0.1)' }}>
               {(['url', 'paste', 'file', 'precon'] as const).map((tab) => (
                 <button
@@ -472,14 +488,14 @@ export function DeckImportButton({
                   }
                   disabled={flowState.saving || flowState.checking}
                   onClick={() => {
-                    if (tab !== activeTab && !okToDiscard()) return
-                    setActiveTab(tab)
+                    if (tab !== activeTab) askBeforeDiscard(() => setActiveTab(tab))
                   }}
                 >
                   {tab === 'url' ? 'URL' : tab === 'paste' ? 'Paste List' : tab === 'file' ? 'File' : 'Precon'}
                 </button>
               ))}
             </div>
+            )}
 
             {/* Tab content */}
             <div className={fileTab ? 'flex min-h-0 flex-1 flex-col' : 'min-h-[340px]'}>
@@ -551,7 +567,7 @@ export function DeckImportButton({
                 onComplete={(deckId, _format, _deckName, summary) => {
                   setOpen(false)
                   resetState()
-                  setFlowState({ checking: false, saving: false, hasEdits: false })
+                  setFlowState(NO_FLOW_STATE)
                   try {
                     sessionStorage.setItem('manabox-import-summary', JSON.stringify(summary))
                   } catch {
@@ -560,7 +576,7 @@ export function DeckImportButton({
                   router.push(`/decks/${deckId}?freshImport=true`)
                 }}
                 onCancel={() => {
-                  if (okToDiscard()) setActiveTab('url')
+                  askBeforeDiscard(() => setActiveTab('url'))
                 }}
               />
             )}
@@ -712,6 +728,15 @@ export function DeckImportButton({
           </>
         )}
       </DialogContent>
+      <ImportDiscardDialog
+        open={discardAction !== null}
+        onKeepEditing={() => setDiscardAction(null)}
+        onDiscard={() => {
+          const action = discardAction
+          setDiscardAction(null)
+          action?.()
+        }}
+      />
     </Dialog>
   )
 }

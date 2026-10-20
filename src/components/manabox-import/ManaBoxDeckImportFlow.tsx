@@ -47,6 +47,8 @@ export interface DeckFlowState {
   saving: boolean
   /** The owner has changed something on the review list. */
   hasEdits: boolean
+  /** The card review list is showing. */
+  reviewing: boolean
 }
 
 export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot, fill, onStateChange }: ManaBoxDeckImportFlowProps) {
@@ -59,13 +61,14 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot, fill, o
 
   const checking = step.status === 'checking'
   const saving = step.status === 'importing'
+  const reviewing = step.status === 'review'
   const hasEdits =
     step.status === 'review' &&
     (Object.keys(step.copyEdits).length > 0 ||
       JSON.stringify(step.defaults) !== JSON.stringify(INITIAL_DEFAULTS))
   useEffect(() => {
-    onStateChange?.({ checking, saving, hasEdits })
-  }, [checking, saving, hasEdits, onStateChange])
+    onStateChange?.({ checking, saving, hasEdits, reviewing })
+  }, [checking, saving, hasEdits, reviewing, onStateChange])
 
   const reset = useCallback(() => {
     setStep({ status: 'idle' })

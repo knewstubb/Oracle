@@ -143,7 +143,22 @@ export function ImportRowEditor({
         open && 'bg-[var(--bg-hover)] shadow-[inset_2px_0_0_var(--text-secondary)]'
       )}
     >
-      <div className="grid min-h-[34px] grid-cols-[24px_28px_1fr_auto] items-center gap-2 px-2.5 hover:bg-[var(--bg-hover)]">
+      <div
+        data-row-header
+        onClick={
+          generic
+            ? undefined
+            : (e) => {
+                // Clicks on the checkbox or Edit button do their own job.
+                if ((e.target as HTMLElement).closest('button,input,label,[role="checkbox"]')) return
+                onToggleOpen()
+              }
+        }
+        className={cn(
+          'grid min-h-[34px] grid-cols-[24px_28px_1fr_auto] items-center gap-2 px-2.5 hover:bg-[var(--bg-hover)]',
+          !generic && 'cursor-pointer'
+        )}
+      >
         {generic ? (
           <span />
         ) : (

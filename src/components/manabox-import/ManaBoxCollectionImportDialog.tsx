@@ -18,7 +18,10 @@ import { countFinishNotices } from '@/lib/import-copies'
 import type { ImportCopyEdits, ImportDefaults } from '../../../docs/oracle/contracts/import-row-editing.types'
 import { ImportCardList } from './ImportCardList'
 import { ImportSummary } from './ImportSummary'
+import { ImportTitleIcon } from './ImportTitleIcon'
 import { ImportWorking } from './ImportWorking'
+import { ImportDiscardDialog } from './ImportDiscardDialog'
+import { decideCollectionClose } from './import-close-guard'
 import { EMPTY_FILE_MESSAGE, UNREADABLE_FILE_MESSAGE, processingDetail } from './import-copy'
 import { ImportResult } from './ImportResult'
 import { IMPORT_MODAL_CLASS, IMPORT_STAGE_CLASS } from './import-labels'
@@ -58,25 +61,30 @@ export function ManaBoxCollectionImportDialog({
     (Object.keys(step.copyEdits).length > 0 ||
       JSON.stringify(step.defaults) !== JSON.stringify(INITIAL_DEFAULTS))
 
+  const [discardOpen, setDiscardOpen] = useState(false)
+  const finished = step.status === 'done' || step.status === 'failed'
+
   const handleClose = useCallback(
     (nextOpen: boolean, details?: { reason?: string; cancel?: () => void }) => {
       if (!nextOpen) {
-        if (saving) return details?.cancel?.()
-        // Clicking outside never closes the import; Escape is ignored while working.
-        if (details?.reason === 'outside-press') return details.cancel?.()
-        if (details?.reason === 'escape-key' && busy) return details.cancel?.()
-        if (
-          hasEdits &&
-          !window.confirm('Close the import? Your changes to this import will be lost.')
-        ) {
+        const decision = decideCollectionClose(details?.reason, { checking: busy, saving, hasEdits, finished })
+        if (decision === 'block') return details?.cancel?.()
+        if (decision === 'confirm') {
+          setDiscardOpen(true)
           return details?.cancel?.()
         }
         reset()
       }
       onOpenChange(nextOpen)
     },
-    [onOpenChange, reset, busy, saving, hasEdits]
+    [onOpenChange, reset, busy, saving, hasEdits, finished]
   )
+
+  const confirmDiscard = useCallback(() => {
+    setDiscardOpen(false)
+    reset()
+    onOpenChange(false)
+  }, [reset, onOpenChange])
 
   const handleFile = useCallback(async (file: File) => {
     setError(null)
@@ -232,7 +240,10 @@ export function ManaBoxCollectionImportDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className={IMPORT_MODAL_CLASS}>
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle>
+            <ImportTitleIcon kind="collection" />
+            {title}
+          </DialogTitle>
           {step.status === 'idle' && (
             <DialogDescription>Import a ManaBox collection CSV.</DialogDescription>
           )}
@@ -368,6 +379,7 @@ export function ManaBoxCollectionImportDialog({
           </div>
         )}
       </DialogContent>
+      <ImportDiscardDialog open={discardOpen} onKeepEditing={() => setDiscardOpen(false)} onDiscard={confirmDiscard} />
     </Dialog>
   )
 }

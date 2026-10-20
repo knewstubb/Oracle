@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { decideDeckDialogClose } from './import-close-guard'
+import { decideCollectionClose, decideDeckDialogClose } from './import-close-guard'
 
 const idle = { checking: false, saving: false, hasEdits: false }
 
@@ -20,5 +20,22 @@ describe('decideDeckDialogClose', () => {
   })
   it('allows closing otherwise', () => {
     expect(decideDeckDialogClose('escape-key', idle)).toBe('allow')
+  })
+})
+
+describe('decideCollectionClose', () => {
+  const st = { checking: false, saving: false, hasEdits: false, finished: false }
+  it('blocks outside click and Escape before the result', () => {
+    expect(decideCollectionClose('outside-press', st)).toBe('block')
+    expect(decideCollectionClose('escape-key', st)).toBe('block')
+    expect(decideCollectionClose('escape-key', { ...st, hasEdits: true })).toBe('block')
+  })
+  it('lets Escape close the result screen', () => {
+    expect(decideCollectionClose('escape-key', { ...st, finished: true })).toBe('allow')
+  })
+  it('asks before X discards edits and blocks X while saving', () => {
+    expect(decideCollectionClose('close-press', { ...st, hasEdits: true })).toBe('confirm')
+    expect(decideCollectionClose('close-press', { ...st, saving: true })).toBe('block')
+    expect(decideCollectionClose('close-press', st)).toBe('allow')
   })
 })

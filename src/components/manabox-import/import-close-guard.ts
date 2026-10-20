@@ -21,3 +21,21 @@ export function decideDeckDialogClose(reason: string | undefined, state: CloseGu
   if (state.hasEdits) return 'confirm'
   return 'allow'
 }
+
+export interface CollectionCloseState extends CloseGuardState {
+  /** The result (or failed) screen is showing: Escape may close it. */
+  finished: boolean
+}
+
+/**
+ * Collection import window. Outside click never closes it. Escape only closes
+ * the result screen (not upload, reading, review or saving). X and Cancel close
+ * unless a save is running; with edits they ask first.
+ */
+export function decideCollectionClose(reason: string | undefined, state: CollectionCloseState): CloseDecision {
+  if (reason === 'outside-press') return 'block'
+  if (state.saving) return 'block'
+  if (reason === 'escape-key' && !state.finished) return 'block'
+  if (state.hasEdits) return 'confirm'
+  return 'allow'
+}

@@ -242,4 +242,79 @@ describe('ManaBoxCollectionImportDialog', () => {
     expect(screen.queryByText('Sol Ring')).not.toBeInTheDocument()
     expect(spy.mock.calls.filter(([url]) => String(url).includes('/api/collection/import?mode=manabox'))).toHaveLength(1)
   })
+
+  const previewThenReview = async () => {
+    const user = userEvent.setup()
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(PREVIEW_RESPONSE), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    )
+    const onOpenChange = vi.fn()
+    render(<ManaBoxCollectionImportDialog open onOpenChange={onOpenChange} />, { wrapper: createWrapper() })
+    await user.upload(screen.getByLabelText('Choose file'), new File(['name,header\nx'], 'scan.csv', { type: 'text/csv' }))
+    await waitFor(() => expect(screen.getByText('Sol Ring')).toBeInTheDocument())
+    return { user, onOpenChange }
+  }
+
+  it('ignores Escape on the upload screen and on the review list', async () => {
+    const user = userEvent.setup()
+    const onOpenChange = vi.fn()
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(PREVIEW_RESPONSE), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    )
+    render(<ManaBoxCollectionImportDialog open onOpenChange={onOpenChange} />, { wrapper: createWrapper() })
+    await user.keyboard('{Escape}')
+    expect(onOpenChange).not.toHaveBeenCalledWith(false)
+    await user.upload(screen.getByLabelText('Choose file'), new File(['name,header\nx'], 'scan.csv', { type: 'text/csv' }))
+    await waitFor(() => expect(screen.getByText('Sol Ring')).toBeInTheDocument())
+    await user.keyboard('{Escape}')
+    expect(onOpenChange).not.toHaveBeenCalledWith(false)
+    expect(screen.getByText('Sol Ring')).toBeInTheDocument()
+  })
+
+  it('asks "Discard edits?" in the app, not a browser box, when X is pressed after an edit', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm')
+    const { user, onOpenChange } = await previewThenReview()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Sol Ring' }))
+    fireEvent.click(within(screen.getByRole('group', { name: 'Copy 1 type' })).getByRole('button', { name: 'Proxy' }))
+    await user.click(screen.getByRole('button', { name: /close/i }))
+    expect(confirmSpy).not.toHaveBeenCalled()
+    expect(await screen.findByText('Discard edits?')).toBeInTheDocument()
+    expect(onOpenChange).not.toHaveBeenCalledWith(false)
+
+    await user.click(screen.getByRole('button', { name: 'Keep editing' }))
+    await waitFor(() => expect(screen.queryByText('Discard edits?')).not.toBeInTheDocument())
+    expect(screen.getByText('Sol Ring')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /close/i }))
+    await user.click(await screen.findByRole('button', { name: 'Discard edits' }))
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it('keeps the result open until the owner closes it', async () => {
+    const lines = [
+      { type: 'complete', summary: { inserted: 4, skipped: 0, removed: 0, sourceTag: 'manabox', errors: [], unmatched: [], durationMs: 5 } },
+    ].map((e) => JSON.stringify(e) + '\n').join('')
+    const { onOpenChange } = await previewThenReview()
+    vi.mocked(global.fetch).mockResolvedValueOnce(new Response(lines, { status: 200, headers: { 'Content-Type': 'application/x-ndjson' } }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add 4 copies' }))
+    await waitFor(() => expect(screen.getByText(/copies added/)).toBeInTheDocument())
+    await new Promise((r) => setTimeout(r, 100))
+    expect(screen.getByText(/copies added/)).toBeInTheDocument()
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+
+  it('shows the collection icon beside the title', () => {
+    render(<ManaBoxCollectionImportDialog open onOpenChange={() => {}} />, { wrapper: createWrapper() })
+    expect(document.querySelector('[data-import-icon="collection"]')).toBeInTheDocument()
+  })
+
+  it('opens and closes a row by clicking the row itself', async () => {
+    await previewThenReview()
+    const row = () => document.querySelector('[data-row-key]')!
+    fireEvent.click(screen.getByText('Sol Ring'))
+    expect(screen.getByRole('button', { name: 'Done editing Sol Ring' })).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Sol Ring'))
+    expect(screen.getByRole('button', { name: 'Edit Sol Ring' })).toBeInTheDocument()
+    expect(row()).toBeTruthy()
+  })
 })

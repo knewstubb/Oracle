@@ -34,7 +34,7 @@ export function ImportNoticeLine({ tone, unmatched, tokens, source }: ImportNoti
       <div
         role="group"
         aria-label="Not matched"
-        className="flex items-center gap-2 rounded-lg border border-[var(--signal-warning)] bg-[var(--signal-warning-bg)] px-2.5 py-1.5 text-[length:var(--fs-sm)]"
+        className="flex min-w-0 items-center gap-2 overflow-hidden rounded-lg border border-[var(--signal-warning)] bg-[var(--signal-warning-bg)] px-2.5 py-1.5 text-[length:var(--fs-sm)]"
       >
         <TriangleAlert className="size-4 shrink-0 text-[var(--signal-warning)]" aria-hidden="true" />
         <span className="min-w-0 flex-1 truncate">
@@ -103,7 +103,7 @@ export interface ImportNoticesProps {
 
 export function ImportNotices({ unmatched, tokens, source }: ImportNoticesProps) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex min-w-0 flex-col gap-1">
       {unmatched.map((line) => (
         <ImportNoticeLine key={line.sourceIndex} tone="warning" unmatched={line} source={source} />
       ))}

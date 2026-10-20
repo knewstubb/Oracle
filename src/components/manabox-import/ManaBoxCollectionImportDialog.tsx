@@ -195,7 +195,7 @@ export function ManaBoxCollectionImportDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {step.status === 'idle' && (
@@ -224,7 +224,7 @@ export function ManaBoxCollectionImportDialog({
         {step.status === 'checking' && <DeckImportSpinner label="Checking…" />}
 
         {step.status === 'review' && (
-          <div className="flex flex-col gap-3">
+          <div className="flex min-w-0 flex-col gap-3">
             <ImportNotices
               unmatched={step.preview.unmatched}
               tokens={step.preview.skippedTokens}

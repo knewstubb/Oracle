@@ -156,7 +156,6 @@ describe('CopyCountStepper', () => {
     render(
       <CopyCountStepper qty={3} type="proxy" value={1} cardName="Goblin" onChange={onChange} onClose={onClose} />
     )
-    expect(screen.getByText('Original 2')).toHaveAttribute('aria-live', 'polite')
     fireEvent.keyDown(number(), { key: 'ArrowUp' })
     expect(onChange).toHaveBeenCalledWith(2)
     fireEvent.keyDown(number(), { key: 'Enter' })

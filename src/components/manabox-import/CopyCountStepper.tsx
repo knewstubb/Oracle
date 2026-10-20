@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { Check, Minus, Plus } from 'lucide-react'
+import { Minus, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface CopyCountStepperProps {
@@ -14,7 +14,7 @@ export interface CopyCountStepperProps {
   onClose: (refocus: boolean) => void
 }
 
-/** In-place count stepper that replaces a row's segments while editing. Never floats. */
+/** Count stepper that replaces the label inside the row's own segment while editing. Never floats. */
 export function CopyCountStepper({ qty, type, value, cardName, onChange, onClose }: CopyCountStepperProps) {
   const rootRef = useRef<HTMLSpanElement>(null)
   const numberRef = useRef<HTMLSpanElement>(null)
@@ -25,7 +25,6 @@ export function CopyCountStepper({ qty, type, value, cardName, onChange, onClose
 
   const label = type === 'proxy' ? 'Proxy' : 'Unsleeved'
   const plural = type === 'proxy' ? 'proxies' : 'unsleeved'
-  const remainder = qty - value
 
   useEffect(() => {
     numberRef.current?.focus()
@@ -84,70 +83,50 @@ export function CopyCountStepper({ qty, type, value, cardName, onChange, onClose
   }
 
   const stepBtn =
-    'inline-flex h-full w-[26px] items-center justify-center text-muted-foreground hover:bg-[var(--bg-hover)] disabled:opacity-40 disabled:hover:bg-transparent'
+    'inline-flex h-full w-[22px] items-center justify-center text-muted-foreground hover:bg-[var(--bg-hover)] disabled:opacity-40 disabled:hover:bg-transparent'
 
   return (
     <span
       ref={rootRef}
       role="group"
       aria-label={`How many ${cardName} are ${plural}`}
-      className="inline-flex h-6 items-center gap-2 text-[length:var(--fs-xs)]"
+      className="inline-flex h-full items-center"
     >
-      <span
-        aria-live="polite"
-        aria-atomic="true"
-        className={cn(
-          'inline-flex items-center gap-1',
-          remainder > 0 ? 'text-[var(--accent-primary)]' : 'text-muted-foreground'
-        )}
+      <span className="pl-2 pr-1 text-foreground">{label}</span>
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-label={`Fewer ${plural}`}
+        disabled={value <= 0}
+        onClick={() => set(value - 1)}
+        className={stepBtn}
       >
-        {remainder > 0 && <Check className="size-3" aria-hidden="true" />}
-        Original {remainder}
-      </span>
+        <Minus className="size-3" aria-hidden="true" />
+      </button>
       <span
-        className={cn(
-          'inline-flex h-6 items-center overflow-hidden rounded-lg border',
-          type === 'proxy'
-            ? 'border-[var(--status-proxy)] bg-[rgba(74,147,160,0.18)]'
-            : 'border-[var(--text-secondary)]'
-        )}
+        ref={numberRef}
+        role="spinbutton"
+        tabIndex={0}
+        aria-label={type === 'proxy' ? 'Proxies' : 'Unsleeved'}
+        aria-valuemin={0}
+        aria-valuemax={qty}
+        aria-valuenow={value}
+        aria-valuetext={`${value} of ${qty}`}
+        onKeyDown={onKeyDown}
+        className="min-w-4 text-center font-medium tabular-nums text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <span className="px-2 text-foreground">{label}</span>
-        <button
-          type="button"
-          tabIndex={-1}
-          aria-label={`Fewer ${plural}`}
-          disabled={value <= 0}
-          onClick={() => set(value - 1)}
-          className={stepBtn}
-        >
-          <Minus className="size-3" aria-hidden="true" />
-        </button>
-        <span
-          ref={numberRef}
-          role="spinbutton"
-          tabIndex={0}
-          aria-label={type === 'proxy' ? 'Proxies' : 'Unsleeved'}
-          aria-valuemin={0}
-          aria-valuemax={qty}
-          aria-valuenow={value}
-          aria-valuetext={`${value} of ${qty}`}
-          onKeyDown={onKeyDown}
-          className="min-w-4 text-center font-medium tabular-nums text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          {value}
-        </span>
-        <button
-          type="button"
-          tabIndex={-1}
-          aria-label={`More ${plural}`}
-          disabled={value >= qty}
-          onClick={() => set(value + 1)}
-          className={stepBtn}
-        >
-          <Plus className="size-3" aria-hidden="true" />
-        </button>
+        {value}
       </span>
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-label={`More ${plural}`}
+        disabled={value >= qty}
+        onClick={() => set(value + 1)}
+        className={cn(stepBtn, 'pr-1')}
+      >
+        <Plus className="size-3" aria-hidden="true" />
+      </button>
     </span>
   )
 }

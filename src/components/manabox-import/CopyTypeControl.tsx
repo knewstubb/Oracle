@@ -96,23 +96,6 @@ export function CopyTypeControl({
     onEditingTypeChange(type)
   }
 
-  if (editing && (editing === 'proxy' || editing === 'unsleeved')) {
-    return (
-      <CopyCountStepper
-        qty={qty}
-        type={editing}
-        value={splitCount(split, editing)}
-        cardName={cardName}
-        onChange={(n) => onChange(setSplitCount(split, editing, n, qty))}
-        onClose={(refocus) => {
-          if (refocus) refocusType.current = editing
-          setAnnouncement(summary(split, cardName))
-          onEditingTypeChange(null)
-        }}
-      />
-    )
-  }
-
   return (
     <>
       <span
@@ -125,6 +108,43 @@ export function CopyTypeControl({
           const selected = count > 0
           const meta = TYPE_META[type]
           const tabIndex = idx === 0 || selected ? 0 : -1
+          if (editing) {
+            const isEditingSeg = type === editing
+            return (
+              <span
+                key={type}
+                className={cn(
+                  'inline-flex h-full items-center gap-1 text-[length:var(--fs-xs)] text-muted-foreground',
+                  !isEditingSeg && 'px-2',
+                  selected && meta.selectedClass,
+                  selected && meta.colorClass,
+                  'border-l border-[var(--border-default)] first:rounded-l-[calc(var(--radius-lg)-1px)] first:border-l-0 last:rounded-r-[calc(var(--radius-lg)-1px)]'
+                )}
+              >
+                {isEditingSeg ? (
+                  <CopyCountStepper
+                    qty={qty}
+                    type={editing}
+                    value={count}
+                    cardName={cardName}
+                    onChange={(n) => onChange(setSplitCount(split, editing, n, qty))}
+                    onClose={(refocus) => {
+                      if (refocus) refocusType.current = editing
+                      setAnnouncement(summary(split, cardName))
+                      onEditingTypeChange(null)
+                    }}
+                  />
+                ) : (
+                  <>
+                    {selected && meta.icon}
+                    <span aria-live="polite" aria-atomic="true">
+                      {meta.label} {count}
+                    </span>
+                  </>
+                )}
+              </span>
+            )
+          }
           return (
             <button
               key={type}

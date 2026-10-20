@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { Download, Loader2, RefreshCw, Upload, Search } from 'lucide-react'
+import { Download, Loader2, RefreshCw, Search } from 'lucide-react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -17,13 +17,13 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { parseDeckUrl, isParseError } from '@/lib/url-parser'
-import { parseDeckCSV, isCSVParseError } from '@/lib/csv-deck-parser'
 import { parseTextDecklist, isTextParseError } from '@/lib/text-deck-parser'
 import { FORMAT_OPTIONS } from '@/lib/format-config'
 import type { NormalizedDeck, CardsByType } from '@/lib/deck-normalizer'
 import type { ImportMode, AllocationConflict } from '@/lib/deck-import'
+import { ManaBoxDeckImportFlow } from '@/components/manabox-import/ManaBoxDeckImportFlow'
 
-type InputTab = 'url' | 'paste' | 'csv' | 'precon'
+type InputTab = 'url' | 'paste' | 'file' | 'precon'
 
 interface Precon {
   id: string
@@ -93,12 +93,6 @@ export function DeckImportButton({
   const [lastErrorStatus, setLastErrorStatus] = useState<number | null>(null)
   const lastSubmittedUrl = useRef<string>('')
 
-  // CSV tab state
-  const [deckName, setDeckName] = useState('')
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [csvError, setCsvError] = useState<string | null>(null)
-  const csvInputRef = useRef<HTMLInputElement>(null)
-
   // Paste tab state
   const [pasteText, setPasteText] = useState('')
   const [pasteDeckName, setPasteDeckName] = useState('')
@@ -122,9 +116,6 @@ export function DeckImportButton({
     setUrl('')
     setValidationError(null)
     setLastErrorStatus(null)
-    setDeckName('')
-    setSelectedFile(null)
-    setCsvError(null)
     setPasteText('')
     setPasteDeckName('')
     setPasteError(null)
@@ -282,35 +273,6 @@ export function DeckImportButton({
     setPreviewData({ deck: result.deck, cardsByType: {} as CardsByType })
   }
 
-  async function handleCSVImport() {
-    setCsvError(null)
-
-    if (!selectedFile) {
-      setCsvError('Please select a CSV file')
-      return
-    }
-
-    try {
-      const csvText = await selectedFile.text()
-      const result = parseDeckCSV(csvText, deckName || selectedFile.name.replace(/\.csv$/i, ''))
-
-      if (isCSVParseError(result)) {
-        setCsvError(result.error)
-        return
-      }
-
-      if (result.warnings.length > 0) {
-        toast.info(`Parsed with ${result.warnings.length} warning(s)`, {
-          description: result.warnings.slice(0, 3).join('; '),
-        })
-      }
-
-      setPreviewData({ deck: result.deck, cardsByType: {} as CardsByType })
-    } catch {
-      setCsvError('Failed to read CSV file')
-    }
-  }
-
   async function handlePreconSubmit() {
     setPreconError(null)
 
@@ -333,20 +295,8 @@ export function DeckImportButton({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       if (activeTab === 'url') handleUrlSubmit()
-      else if (activeTab === 'csv') handleCSVImport()
       else if (activeTab === 'paste') handlePasteSubmit()
       else if (activeTab === 'precon' && selectedPrecon) handlePreconSubmit()
-    }
-  }
-
-  function handleCSVFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (file) {
-      setSelectedFile(file)
-      setCsvError(null)
-      if (!deckName) {
-        setDeckName(file.name.replace(/\.csv$/i, '').replace(/[-_]/g, ' '))
-      }
     }
   }
 
@@ -370,7 +320,6 @@ export function DeckImportButton({
   }
 
   const urlDisplayError = validationError ?? (previewMutation.isError ? previewMutation.error.message : null)
-  const csvDisplayError = csvError ?? (importMutation.isError && activeTab === 'csv' ? importMutation.error.message : null)
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -494,7 +443,7 @@ export function DeckImportButton({
 
             {/* Input mode tabs */}
             <div className="flex gap-1 rounded-md p-0.5" style={{ background: 'rgba(255,255,255,0.05)', border: '0.5px solid rgba(255,255,255,0.1)' }}>
-              {(['url', 'paste', 'csv', 'precon'] as const).map((tab) => (
+              {(['url', 'paste', 'file', 'precon'] as const).map((tab) => (
                 <button
                   key={tab}
                   type="button"
@@ -505,13 +454,13 @@ export function DeckImportButton({
                   }
                   onClick={() => setActiveTab(tab)}
                 >
-                  {tab === 'url' ? 'URL' : tab === 'paste' ? 'Paste List' : tab === 'csv' ? 'CSV' : 'Precon'}
+                  {tab === 'url' ? 'URL' : tab === 'paste' ? 'Paste List' : tab === 'file' ? 'File' : 'Precon'}
                 </button>
               ))}
             </div>
 
-            {/* Tab content - fixed height to prevent jumping */}
-            <div className="h-[340px]">
+            {/* Tab content */}
+            <div className="min-h-[340px]">
               {/* URL tab */}
               {activeTab === 'url' && (
                 <div className="flex flex-col gap-3">
@@ -572,34 +521,21 @@ export function DeckImportButton({
               </div>
             )}
 
-            {/* CSV tab */}
-            {activeTab === 'csv' && (
-              <div className="flex flex-col gap-3">
-                <Input
-                  type="text"
-                  value={deckName}
-                  onChange={(e) => setDeckName(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Deck name (e.g. 'World Breaker')"
-                  disabled={importMutation.isPending}
-                />
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => csvInputRef.current?.click()} disabled={importMutation.isPending}>
-                    <Upload className="size-3.5" aria-hidden="true" data-icon="inline-start" />
-                    Choose CSV File
-                  </Button>
-                  <span className="text-[length:var(--fs-sm)] text-muted-foreground truncate">
-                    {selectedFile?.name || 'No file selected'}
-                  </span>
-                </div>
-                <input ref={csvInputRef} type="file" accept=".csv" className="hidden" onChange={handleCSVFile} />
-
-                {csvDisplayError && (
-                  <div className="rounded-md bg-destructive/10 px-3 py-2" role="alert">
-                    <p className="text-[length:var(--fs-md)] text-destructive">{csvDisplayError}</p>
-                  </div>
-                )}
-              </div>
+            {/* File tab */}
+            {activeTab === 'file' && (
+              <ManaBoxDeckImportFlow
+                onComplete={(deckId, _format, _deckName, summary) => {
+                  setOpen(false)
+                  resetState()
+                  try {
+                    sessionStorage.setItem('manabox-import-summary', JSON.stringify(summary))
+                  } catch {
+                    // ignore storage errors
+                  }
+                  router.push(`/decks/${deckId}?freshImport=true`)
+                }}
+                onCancel={() => setActiveTab('url')}
+              />
             )}
 
             {/* Precon tab */}
@@ -734,12 +670,6 @@ export function DeckImportButton({
               )}
               {activeTab === 'paste' && (
                 <Button onClick={handlePasteSubmit} disabled={!pasteText.trim()}>
-                  Continue
-                </Button>
-              )}
-              {activeTab === 'csv' && (
-                <Button onClick={handleCSVImport} disabled={importMutation.isPending || !selectedFile}>
-                  {importMutation.isPending && <Loader2 className="size-4 animate-spin" aria-hidden="true" data-icon="inline-start" />}
                   Continue
                 </Button>
               )}

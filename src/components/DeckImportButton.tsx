@@ -22,6 +22,7 @@ import { FORMAT_OPTIONS } from '@/lib/format-config'
 import type { NormalizedDeck, CardsByType } from '@/lib/deck-normalizer'
 import type { ImportMode, AllocationConflict } from '@/lib/deck-import'
 import { ManaBoxDeckImportFlow, type DeckFlowState } from '@/components/manabox-import/ManaBoxDeckImportFlow'
+import { DeckCommanderStep, type CommanderChoice } from '@/components/manabox-import/DeckCommanderStep'
 import { ImportTitleIcon } from '@/components/manabox-import/ImportTitleIcon'
 import { ImportDiscardDialog } from '@/components/manabox-import/ImportDiscardDialog'
 import { IMPORT_MODAL_CLASS } from '@/components/manabox-import/import-labels'
@@ -83,7 +84,7 @@ function getDisplayError(status: number, serverMessage: string): string {
   }
 }
 
-const NO_FLOW_STATE: DeckFlowState = { checking: false, saving: false, hasEdits: false, reviewing: false }
+const NO_FLOW_STATE: DeckFlowState = { checking: false, saving: false, hasEdits: false, reviewing: false, done: false }
 
 export function DeckImportButton({
   className,
@@ -91,6 +92,9 @@ export function DeckImportButton({
   variant = 'default',
 }: DeckImportButtonProps) {
   const [open, setOpen] = useState(false)
+  // URL / Paste / Precon imports: shown after the deck is created, so a commander can be chosen.
+  const [urlResult, setUrlResult] = useState<{ deckId: number; name: string } | null>(null)
+  const [urlCommander, setUrlCommander] = useState<CommanderChoice | null>(null)
   const [activeTab, setActiveTab] = useState<InputTab>('url')
 
   // URL tab state
@@ -204,7 +208,7 @@ export function DeckImportButton({
 
       return res.json()
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['decks'] })
 
       if (data.allocationSummary.errors.length > 0) {
@@ -213,6 +217,13 @@ export function DeckImportButton({
         })
       } else {
         toast.success('Deck imported successfully')
+      }
+
+      // Commander decks without a commander from the source: pick one here before closing.
+      if (variables.format === 'commander' && !variables.deck.commander) {
+        setUrlResult({ deckId: data.deckId, name: variables.deck.name })
+        setUrlCommander(null)
+        return
       }
 
       setOpen(false)
@@ -327,7 +338,16 @@ export function DeckImportButton({
     else action()
   }
 
+  /** Done on the URL/Paste result: go to the new deck. */
+  function finishUrlImport() {
+    const deckId = urlResult?.deckId
+    closeDialog()
+    if (deckId) router.push(`/decks/${deckId}?freshImport=true`)
+  }
+
   function closeDialog() {
+    setUrlResult(null)
+    setUrlCommander(null)
     setOpen(false)
     resetState()
     setActiveTab('url')
@@ -338,6 +358,10 @@ export function DeckImportButton({
 
   function handleOpenChange(nextOpen: boolean, details?: { reason?: string; cancel?: () => void }) {
     if (nextOpen) return setOpen(true)
+    if (urlResult) {
+      if (details?.reason === 'outside-press') return details.cancel?.()
+      return finishUrlImport()
+    }
     if (fileTab) {
       const decision = decideDeckDialogClose(details?.reason, flowState)
       if (decision === 'block') return details?.cancel?.()
@@ -366,8 +390,23 @@ export function DeckImportButton({
       </DialogTrigger>
 
       <DialogContent className={fileTab ? IMPORT_MODAL_CLASS : 'sm:max-w-2xl'}>
-        {/* ─── Confirmation Step (mode picker) ─── */}
-        {previewData ? (
+        {urlResult ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>
+                <ImportTitleIcon kind="deck" />
+                Deck imported
+              </DialogTitle>
+              <DialogDescription>&ldquo;{urlResult.name}&rdquo; is ready. Choose its commander, or skip.</DialogDescription>
+            </DialogHeader>
+            <DeckCommanderStep deckId={urlResult.deckId} resolved={urlCommander} onResolved={setUrlCommander} />
+            <DialogFooter>
+              <Button onClick={finishUrlImport} disabled={!urlCommander}>
+                Open deck
+              </Button>
+            </DialogFooter>
+          </>
+        ) : previewData ? (
           <>
             <DialogHeader>
               <DialogTitle>Import &ldquo;{previewData.deck.name}&rdquo;</DialogTitle>
@@ -475,7 +514,7 @@ export function DeckImportButton({
             </DialogHeader>
 
             {/* Input mode tabs: not useful once cards are being reviewed or saved */}
-            {!(fileTab && (flowState.reviewing || flowState.saving)) && (
+            {!(fileTab && (flowState.reviewing || flowState.saving || flowState.done)) && (
             <div className="flex gap-1 rounded-md p-0.5" style={{ background: 'rgba(255,255,255,0.05)', border: '0.5px solid rgba(255,255,255,0.1)' }}>
               {(['url', 'paste', 'file', 'precon'] as const).map((tab) => (
                 <button
@@ -564,15 +603,15 @@ export function DeckImportButton({
               <ManaBoxDeckImportFlow
                 fill
                 onStateChange={onFlowState}
-                onComplete={(deckId, _format, _deckName, summary) => {
-                  setOpen(false)
-                  resetState()
-                  setFlowState(NO_FLOW_STATE)
+                onComplete={(_deckId, _format, _deckName, summary) => {
                   try {
                     sessionStorage.setItem('manabox-import-summary', JSON.stringify(summary))
                   } catch {
                     // ignore storage errors
                   }
+                }}
+                onFinish={(deckId) => {
+                  closeDialog()
                   router.push(`/decks/${deckId}?freshImport=true`)
                 }}
                 onCancel={() => {

@@ -154,3 +154,20 @@ Process note: some edits this round again used python via bash instead of the ed
 **Inconsistency to note:** the deck window's Escape on the review list still asks "Discard edits?" (Round 6 behaviour), while the collection window now ignores Escape there. Say if you want them identical.
 
 **Tests:** guard rules, Escape ignored (upload and review), in-app discard dialog (Keep editing / Discard, no browser confirm), result stays open, icon, row click toggle, shared dialog state, deck tabs hidden plus discard dialog. `npm run check` exits 0 (1,868 tests, 0 lint errors, 266 existing warnings). Not browser-checked. Again used python via bash for some edits.
+
+## Round 7b — commander picker on the deck result (Deck 6, option b)
+
+**Branch:** test-t56-local (not merged).
+
+**Built**
+- After a deck import, the result screen shows "Choose a commander" (search list of the deck's cards, or "Skip for now"). Close and Open deck stay disabled until a commander is picked or skipped. Picking saves it to the deck. A skipped deck shows "No commander yet. You can choose one on the deck page."
+- Applies to File, URL and Paste List imports.
+- New: `DeckCommanderStep.tsx` (with the unit-tested `commanderCandidates`), `commanderSlot`/`commanderPending` on `ImportResult`, `onFinish` on `ManaBoxDeckImportFlow`.
+
+**Found and fixed:** in the real Import Deck window, the File tab closed the window and jumped to the deck the instant the import finished, so the result screen was never actually seen. It now stays open; Close/Open deck does the closing and navigating. Tabs stay hidden on the result screen.
+
+**URL / Paste rule (my judgement, please confirm):** the commander step shows only for Commander-format decks whose source did not already name a commander. Otherwise it behaves as before (toast, close, open deck). Closing with X/Escape on that step counts as finishing.
+
+**Tests:** commander search helper; flow tests for pick-then-close and skip-then-close. `npm run check` passes.
+
+**Not done / open:** no test for the URL/Paste commander step in `DeckImportButton`; nothing browser-verified; the picker lists the deck's own cards only (no "search all cards"); Deck 1, 2, 3 still wait on Designer/Architect; contract test 15 unwritten; Escape differs between deck (confirm) and collection (blocked) windows. I again edited some files via python/bash rather than the edit tool.

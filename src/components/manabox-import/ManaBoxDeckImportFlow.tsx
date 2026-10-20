@@ -17,6 +17,7 @@ import { ImportSummary } from './ImportSummary'
 import { ImportWorking } from './ImportWorking'
 import { EMPTY_FILE_MESSAGE, UNREADABLE_FILE_MESSAGE, processingDetail } from './import-copy'
 import { ImportResult } from './ImportResult'
+import { DeckCommanderStep, type CommanderChoice } from './DeckCommanderStep'
 import { IMPORT_STAGE_CLASS } from './import-labels'
 import type { ImportStep, RowFilter, ImportSource } from './types'
 import { INITIAL_DEFAULTS, computeTotals, buildCommitDeck } from './types'
@@ -33,6 +34,8 @@ export interface ManaBoxDeckImportFlowProps {
     deckId: number
   }) => void
   onCancel?: () => void
+  /** The owner pressed Close or Open deck on the result screen (after the commander step). */
+  onFinish?: (deckId: number) => void
   titleSlot?: React.ReactNode
   /** Fill a fixed-size modal: every stage uses the same space (used by the import dialog). */
   fill?: boolean
@@ -49,30 +52,35 @@ export interface DeckFlowState {
   hasEdits: boolean
   /** The card review list is showing. */
   reviewing: boolean
+  /** The result screen is showing. */
+  done: boolean
 }
 
-export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot, fill, onStateChange }: ManaBoxDeckImportFlowProps) {
+export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlot, fill, onStateChange }: ManaBoxDeckImportFlowProps) {
   const [step, setStep] = useState<ImportStep>({ status: 'idle' })
   const [error, setError] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const router = useRouter()
   const abortRef = useRef<AbortController | null>(null)
   const savingRef = useRef(false)
+  const [commander, setCommander] = useState<CommanderChoice | null>(null)
 
   const checking = step.status === 'checking'
   const saving = step.status === 'importing'
   const reviewing = step.status === 'review'
+  const done = step.status === 'done'
   const hasEdits =
     step.status === 'review' &&
     (Object.keys(step.copyEdits).length > 0 ||
       JSON.stringify(step.defaults) !== JSON.stringify(INITIAL_DEFAULTS))
   useEffect(() => {
-    onStateChange?.({ checking, saving, hasEdits, reviewing })
-  }, [checking, saving, hasEdits, reviewing, onStateChange])
+    onStateChange?.({ checking, saving, hasEdits, reviewing, done })
+  }, [checking, saving, hasEdits, reviewing, done, onStateChange])
 
   const reset = useCallback(() => {
     setStep({ status: 'idle' })
     setError(null)
+    setCommander(null)
     abortRef.current?.abort()
     abortRef.current = null
   }, [])
@@ -224,17 +232,14 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot, fill, o
     }
   }, [step, queryClient, onComplete])
 
+  /** Close / Open deck on the result screen. */
   const handleDone = useCallback(() => {
     if (step.status !== 'done') return
     const deckId = step.summary.deckId
-    if (deckId) {
-      if (step.format === 'commander') {
-        router.push(`/decks/${deckId}?freshImport=true&pickCommander=true`)
-      } else {
-        router.push(`/decks/${deckId}?freshImport=true`)
-      }
-    }
-  }, [step, router])
+    if (!deckId) return
+    if (onFinish) onFinish(deckId)
+    else router.push(`/decks/${deckId}?freshImport=true`)
+  }, [step, router, onFinish])
 
   const setDefaults = useCallback((defaults: ImportDefaults) => {
     setStep((prev) => (prev.status === 'review' ? { ...prev, defaults } : prev))
@@ -392,11 +397,13 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot, fill, o
           unmatched={step.summary.unmatched}
           deckId={step.summary.deckId}
           onOpenDeck={handleDone}
-          onDismiss={() => {
-            if (step.status === 'done' && step.summary.deckId) {
-              router.push(`/decks/${step.summary.deckId}?freshImport=true${step.format === 'commander' ? '&pickCommander=true' : ''}`)
-            }
-          }}
+          onDismiss={handleDone}
+          commanderSlot={
+            step.format === 'commander' && step.summary.deckId ? (
+              <DeckCommanderStep deckId={step.summary.deckId} resolved={commander} onResolved={setCommander} />
+            ) : undefined
+          }
+          commanderPending={step.format === 'commander' && !!step.summary.deckId && !commander}
         />
       )}
 

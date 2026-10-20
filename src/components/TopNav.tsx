@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { logout } from '@/app/actions/auth'
 import { useOracle } from '@/contexts/OracleContext'
+import { CardDataLastUpdate } from '@/components/CardDataLastUpdate'
 
 // Material icon wrapper
 function MaterialIcon({ name, className }: { name: string; className?: string }) {
@@ -215,6 +216,8 @@ export function TopNav() {
             >
               <Menu className="w-5 h-5" />
             </button>
+
+            <CardDataLastUpdate className="hidden md:block mr-1" />
 
             {/* Desktop: Oracle + Settings + Avatar */}
             <button

@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import Link from 'next/link'
 import { usePageHeader } from '@/contexts/PageHeaderContext'
 import { Button } from '@/components/ui/button'
+import { CardDataSection } from '@/components/CardDataSection'
 import {
   Dialog,
   DialogContent,
@@ -45,6 +46,8 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto max-w-[var(--content-max-width)] px-8 py-8 bg-[var(--bg-canvas)] min-h-full">
       <div className="space-y-8">
+        <CardDataSection />
+
         {/* Dev Tools */}
         <section className="rounded-lg border border-destructive/30 p-6">
           <h2 className="text-[length:var(--fs-lg)] font-medium text-destructive">

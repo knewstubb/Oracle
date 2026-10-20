@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import type { ManaBoxPreviewRow } from '../../../docs/oracle/contracts/manabox-import.types'
 import type { ImportKind, ImportSource, RowFilter, UiPreviewRow, CopyType } from './types'
-import { CopyTypeControl, CopyCountPicker } from './CopyTypeControl'
+import { CopyTypeControl } from './CopyTypeControl'
 import { FoilCheckbox } from './FoilCheckbox'
 import { Check, VenetianMask } from 'lucide-react'
 
@@ -123,30 +123,6 @@ export function ImportCardList({
     onSelectedIdsChange(new Set())
   }
 
-  const openPicker = (id: string, type: CopyType) => {
-    setOpenType(type)
-    onOpenPicker(id)
-  }
-
-  const handlePick = (id: string, type: CopyType, value: number) => {
-    const row = rows.find((r) => r.id === id)
-    if (!row) return
-    const next = { ...row.choices.split }
-    const remaining = row.qty - value
-    if (type === 'proxy') {
-      next.proxyCount = value
-      next.originalCount = Math.min(row.qty - next.proxyCount, row.qty)
-      next.unsleevedCount = row.qty - next.proxyCount - next.originalCount
-    } else {
-      next.unsleevedCount = value
-      next.originalCount = Math.min(row.qty - next.unsleevedCount, row.qty)
-      next.proxyCount = row.qty - next.unsleevedCount - next.originalCount
-    }
-    onRowChange(id, { split: next })
-    onOpenPicker(null)
-    setOpenType(null)
-  }
-
   const options: CopyType[] = kind === 'deck' ? ['original', 'proxy', 'unsleeved'] : ['original', 'proxy']
 
   const emptyMessage = query
@@ -253,7 +229,6 @@ export function ImportCardList({
               {virtualizer.getVirtualItems().map((virtualItem) => {
                 const row = visibleRows[virtualItem.index]
                 const isGeneric = row.isBasicLand && kind === 'deck'
-                const pickerOpen = openPickerId === row.id
                 return (
                   <div
                     key={row.id}
@@ -299,7 +274,7 @@ export function ImportCardList({
                       </span>
                     )}
                     {isTextFile && isGeneric && <span />}
-                    <span className="relative justify-self-end py-0.5">
+                    <span className="justify-self-end py-0.5">
                       {isGeneric ? (
                         <span className="inline-flex h-5 items-center gap-1 rounded-full border border-[var(--border-default)] bg-[var(--bg-hover)] px-2 text-[length:var(--fs-xs)] text-muted-foreground">
                           Basic
@@ -309,25 +284,14 @@ export function ImportCardList({
                           qty={row.qty}
                           split={row.choices.split}
                           onChange={(split) => onRowChange(row.id, { split })}
-                          onOpenPicker={(type) => openPicker(row.id, type)}
+                          editingType={openPickerId === row.id ? openType : null}
+                          onEditingTypeChange={(type) => {
+                            setOpenType(type)
+                            onOpenPicker(type ? row.id : null)
+                          }}
                           options={options}
                           cardName={row.cardName}
                         />
-                      )}
-                      {pickerOpen && openType && (
-                        <div className="absolute right-0 top-full z-20 mt-0.5">
-                          <CopyCountPicker
-                            qty={row.qty}
-                            type={openType}
-                            value={row.choices.split[openType === 'proxy' ? 'proxyCount' : 'unsleevedCount']}
-                            onPick={(value) => handlePick(row.id, openType, value)}
-                            onClose={() => {
-                              onOpenPicker(null)
-                              setOpenType(null)
-                            }}
-                            cardName={row.cardName}
-                          />
-                        </div>
                       )}
                     </span>
                   </div>

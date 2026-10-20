@@ -1,10 +1,12 @@
 'use client'
 
+import { useEffect, useRef, useState } from 'react'
 import { Check, VenetianMask } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ManaBoxRowSplit } from '../../../docs/oracle/contracts/manabox-import.types'
 import type { CopyType } from './types'
-import { isSplit, splitCount, splitTotal } from './types'
+import { isSplit, setSplitCount, splitCount } from './types'
+import { CopyCountStepper } from './CopyCountStepper'
 
 const TYPE_META: Record<
   CopyType,
@@ -36,23 +38,46 @@ export interface CopyTypeControlProps {
   qty: number
   split: ManaBoxRowSplit
   onChange: (split: ManaBoxRowSplit) => void
-  onOpenPicker: (type: CopyType) => void
+  /** Which type this row's stepper is editing (null = collapsed). Only meaningful on 2+ copy rows. */
+  editingType: CopyType | null
+  onEditingTypeChange: (type: CopyType | null) => void
   options: CopyType[]
   cardName: string
+}
+
+function summary(split: ManaBoxRowSplit, cardName: string): string {
+  const parts = [
+    split.originalCount > 0 && `${split.originalCount} original`,
+    split.proxyCount > 0 && `${split.proxyCount} proxy`,
+    split.unsleevedCount > 0 && `${split.unsleevedCount} unsleeved`,
+  ].filter(Boolean)
+  return `${cardName}: ${parts.join(', ')}`
 }
 
 export function CopyTypeControl({
   qty,
   split,
   onChange,
-  onOpenPicker,
+  editingType,
+  onEditingTypeChange,
   options,
   cardName,
 }: CopyTypeControlProps) {
   const multi = qty > 1
+  const buttonRefs = useRef<Partial<Record<CopyType, HTMLButtonElement | null>>>({})
+  const refocusType = useRef<CopyType | null>(null)
+  const [announcement, setAnnouncement] = useState('')
+  const editing = multi && editingType && editingType !== 'original' ? editingType : null
+
+  useEffect(() => {
+    if (!editing && refocusType.current) {
+      buttonRefs.current[refocusType.current]?.focus()
+      refocusType.current = null
+    }
+  }, [editing])
 
   const handleClick = (type: CopyType) => {
-    if (type === 'original' || qty === 1) {
+    if (type === 'original' || !multi) {
       onChange({
         originalCount: type === 'original' ? qty : 0,
         proxyCount: type === 'proxy' ? qty : 0,
@@ -60,94 +85,76 @@ export function CopyTypeControl({
       })
       return
     }
-    onOpenPicker(type)
+    // Not yet in use: all copies become this type; then edit the number in place.
+    if (splitCount(split, type) === 0) {
+      onChange({
+        originalCount: 0,
+        proxyCount: type === 'proxy' ? qty : 0,
+        unsleevedCount: type === 'unsleeved' ? qty : 0,
+      })
+    }
+    onEditingTypeChange(type)
+  }
+
+  if (editing && (editing === 'proxy' || editing === 'unsleeved')) {
+    return (
+      <CopyCountStepper
+        qty={qty}
+        type={editing}
+        value={Math.max(1, splitCount(split, editing))}
+        cardName={cardName}
+        onChange={(n) => onChange(setSplitCount(split, editing, n, qty))}
+        onClose={(refocus) => {
+          if (refocus) refocusType.current = editing
+          setAnnouncement(summary(split, cardName))
+          onEditingTypeChange(null)
+        }}
+      />
+    )
   }
 
   return (
-    <span
-      role={multi ? 'group' : 'radiogroup'}
-      aria-label={`${cardName}${multi ? `, ${qty} copies` : ''}`}
-      className="inline-flex h-6 overflow-hidden rounded-lg border border-[var(--border-default)]"
-    >
-      {options.map((type, idx) => {
-        const count = splitCount(split, type)
-        const selected = count > 0
-        const meta = TYPE_META[type]
-        const tabIndex = idx === 0 || selected ? 0 : -1
-        return (
-          <button
-            key={type}
-            type="button"
-            role={multi ? undefined : 'radio'}
-            aria-checked={!multi ? selected : undefined}
-            aria-pressed={multi ? selected : undefined}
-            aria-label={multi ? `${meta.label}, ${count} of ${qty}` : undefined}
-            tabIndex={tabIndex}
-            onClick={() => handleClick(type)}
-            className={cn(
-              'inline-flex h-full items-center gap-1 px-2 text-[length:var(--fs-xs)] text-muted-foreground transition-colors hover:bg-[var(--bg-hover)]',
-              selected && meta.selectedClass,
-              selected && meta.colorClass,
-              'border-l border-[var(--border-default)] first:border-l-0'
-            )}
-          >
-            {selected && meta.icon}
-            {meta.label}
-            {isSplit(split) && selected && <span>{count}</span>}
-          </button>
-        )
-      })}
-    </span>
-  )
-}
-
-export interface CopyCountPickerProps {
-  qty: number
-  type: CopyType
-  value: number
-  onPick: (value: number) => void
-  onClose: () => void
-  cardName: string
-}
-
-export function CopyCountPicker({ qty, type, value, onPick, onClose, cardName }: CopyCountPickerProps) {
-  const label = type === 'proxy' ? 'Proxies' : 'Unsleeved'
-  const originalCount = qty - value
-
-  return (
-    <div
-      role="dialog"
-      aria-label={`How many ${cardName} are ${type === 'proxy' ? 'proxies' : 'unsleeved'}`}
-      className="flex items-center gap-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] p-1.5 shadow-lg"
-    >
-      <span className="text-[length:var(--fs-xs)] text-muted-foreground">{label}</span>
-      <span role="radiogroup" aria-label={`Number of ${type === 'proxy' ? 'proxies' : 'unsleeved'}`} className="flex gap-1">
-        {Array.from({ length: Math.min(qty, 8) }, (_, i) => i + 1).map((n) => (
-          <button
-            key={n}
-            type="button"
-            role="radio"
-            aria-checked={n === value}
-            tabIndex={n === value ? 0 : -1}
-            onClick={() => onPick(n)}
-            className={cn(
-              'h-6 min-w-6 rounded border border-[var(--border-default)] text-[length:var(--fs-xs)] font-medium tabular-nums',
-              n === value
-                ? type === 'proxy'
-                  ? 'bg-[rgba(74,147,160,0.18)] border-[var(--status-proxy)] text-foreground'
-                  : 'bg-[var(--bg-hover)] border-[var(--text-secondary)] text-foreground'
-                : 'bg-transparent text-muted-foreground hover:bg-[var(--bg-hover)]'
-            )}
-          >
-            {n}
-          </button>
-        ))}
+    <>
+      <span
+        role={multi ? 'group' : 'radiogroup'}
+        aria-label={`${cardName}${multi ? `, ${qty} copies` : ''}`}
+        className="inline-flex h-6 overflow-hidden rounded-lg border border-[var(--border-default)]"
+      >
+        {options.map((type, idx) => {
+          const count = splitCount(split, type)
+          const selected = count > 0
+          const meta = TYPE_META[type]
+          const tabIndex = idx === 0 || selected ? 0 : -1
+          return (
+            <button
+              key={type}
+              ref={(el) => {
+                buttonRefs.current[type] = el
+              }}
+              type="button"
+              role={multi ? undefined : 'radio'}
+              aria-checked={!multi ? selected : undefined}
+              aria-pressed={multi ? selected : undefined}
+              aria-label={multi ? `${meta.label}, ${count} of ${qty}` : undefined}
+              tabIndex={tabIndex}
+              onClick={() => handleClick(type)}
+              className={cn(
+                'inline-flex h-full items-center gap-1 px-2 text-[length:var(--fs-xs)] text-muted-foreground transition-colors hover:bg-[var(--bg-hover)]',
+                selected && meta.selectedClass,
+                selected && meta.colorClass,
+                'border-l border-[var(--border-default)] first:border-l-0'
+              )}
+            >
+              {selected && meta.icon}
+              {meta.label}
+              {isSplit(split) && selected && <span>{count}</span>}
+            </button>
+          )
+        })}
       </span>
-      <span className="text-[length:var(--fs-xs)] text-muted-foreground">of {qty}</span>
-      <span className="ml-1 inline-flex items-center gap-1 border-l border-[var(--border-subtle)] pl-2 text-[length:var(--fs-xs)] text-[var(--accent-primary)]">
-        <Check className="size-3" aria-hidden="true" />
-        Original {originalCount}
+      <span className="sr-only" aria-live="polite" role="status">
+        {announcement}
       </span>
-    </div>
+    </>
   )
 }

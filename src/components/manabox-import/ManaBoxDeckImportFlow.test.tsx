@@ -144,11 +144,12 @@ describe('ManaBoxDeckImportFlow', () => {
 
     await waitFor(() => expect(screen.getByText('Pull from the Grave')).toBeInTheDocument())
 
-    // Open the proxy picker for Pull from the Grave and choose 1
+    // Open the in-place stepper for Pull from the Grave and lower proxies to 1
     const proxyButton = screen.getByRole('button', { name: /Proxy, 0 of 2/i })
     fireEvent.click(proxyButton)
-    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
-    fireEvent.click(screen.getByRole('radio', { name: '1' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    fireEvent.click(await screen.findByRole('button', { name: 'Fewer proxies' }))
+    fireEvent.keyDown(screen.getByRole('spinbutton'), { key: 'Escape' })
 
     fireEvent.click(screen.getByRole('button', { name: /Import/i }))
 

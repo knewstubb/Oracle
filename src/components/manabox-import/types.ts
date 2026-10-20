@@ -115,36 +115,30 @@ export function splitCount(split: ManaBoxRowSplit, type: CopyType): number {
   }
 }
 
-/** Set a type's count, taking copies from Original first, then the other type. */
+/**
+ * Set a type's count. Raising takes copies from Original first, then from the
+ * other type; lowering returns copies to Original.
+ */
 export function setSplitCount(
-  _split: ManaBoxRowSplit,
+  split: ManaBoxRowSplit,
   type: CopyType,
   value: number,
   qty: number
 ): ManaBoxRowSplit {
   const clamped = Math.max(0, Math.min(qty, value))
-  const remaining = qty - clamped
-
-  switch (type) {
-    case 'original':
-      return {
-        originalCount: clamped,
-        proxyCount: Math.min(remaining, qty),
-        unsleevedCount: Math.max(0, remaining - Math.min(remaining, qty)),
-      }
-    case 'proxy':
-      return {
-        originalCount: Math.min(remaining, qty),
-        proxyCount: clamped,
-        unsleevedCount: Math.max(0, remaining - Math.min(remaining, qty)),
-      }
-    case 'unsleeved':
-      return {
-        originalCount: Math.min(remaining, qty),
-        proxyCount: Math.max(0, remaining - Math.min(remaining, qty)),
-        unsleevedCount: clamped,
-      }
+  if (type === 'original') {
+    return { originalCount: qty, proxyCount: 0, unsleevedCount: 0 }
   }
+  const otherKey = type === 'proxy' ? 'unsleevedCount' : 'proxyCount'
+  const other = Math.min(split[otherKey], qty - clamped)
+  const result: ManaBoxRowSplit = {
+    originalCount: qty - clamped - other,
+    proxyCount: 0,
+    unsleevedCount: 0,
+  }
+  result[type === 'proxy' ? 'proxyCount' : 'unsleevedCount'] = clamped
+  result[otherKey] = other
+  return result
 }
 
 /** Human-readable reason text for an unmatched line. */

@@ -13,13 +13,16 @@ import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { fetchEnrichedSupply } from '@/lib/allocation-candidates'
+import { resolveOracleIdFromCardName } from '@/lib/identity-resolver'
 import type { CardSlotStatus } from '@/lib/card-status'
 
 export interface CardActionContext {
   status: CardSlotStatus
   cardName: string
-  /** The card_definitions.id for this card (used by Add Proxy) */
+  /** The user_cards.id for this card (used by Add Proxy when it already exists) */
   cardDefinitionId: number | null
+  /** Canonical oracle_id for the card, available even when the user does not own it yet */
+  oracleId: string | null
   /** For Open: available (free) copies */
   availableCopies: Array<{
     physicalCopyId: number
@@ -131,17 +134,34 @@ export async function GET(
       }
     }
 
-    // Get the card's color identity for valid-deck filtering
+    // Get the card's identity and color identity for valid-deck filtering.
+    // If the user already owns the card, use user_cards; otherwise fall back
+    // to ref_printings so unowned cards can still show a working "Add proxy".
     const { data: cardDef } = await supabase
       .from('user_cards')
-      .select('id, color_identity')
+      .select('id, oracle_id, color_identity')
       .eq('card_name', cardName)
       .eq('user_id', userId)
       .maybeSingle()
 
-    const cardCI = cardDef?.color_identity
-      ? cardDef.color_identity.split(',').map((c: string) => c.trim()).filter(Boolean)
-      : []
+    let oracleId = cardDef?.oracle_id ?? null
+
+    let cardCI: string[] = []
+    if (cardDef?.color_identity) {
+      cardCI = cardDef.color_identity.split(',').map((c: string) => c.trim()).filter(Boolean)
+    } else if (!cardDef && oracleId === null) {
+      // Unowned card: look up canonical identity from Scryfall reference data.
+      oracleId = await resolveOracleIdFromCardName(cardName)
+      if (oracleId) {
+        const { data: printingRow } = await supabase
+          .from('ref_printings')
+          .select('color_identity')
+          .eq('oracle_id', oracleId)
+          .limit(1)
+          .maybeSingle()
+        cardCI = (printingRow?.color_identity ?? []).map((c: string) => c.trim()).filter(Boolean)
+      }
+    }
 
     // Fetch all decks for valid-deck list (all decks claim equally now)
     const { data: allDecks } = await supabase
@@ -180,6 +200,7 @@ export async function GET(
       status,
       cardName,
       cardDefinitionId: cardDef?.id ?? null,
+      oracleId,
       availableCopies,
       holders,
       validDecks,

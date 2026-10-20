@@ -251,11 +251,19 @@ function PopoverBody({
 
   // Add proxy mutation (atomic: create + assign)
   const addProxyMutation = useMutation({
-    mutationFn: async (cardDefinitionId: number) => {
+    mutationFn: async ({
+      deckCardsId,
+      cardDefinitionId,
+    }: {
+      deckCardsId: number
+      cardDefinitionId?: number
+    }) => {
+      const body: Record<string, unknown> = { deckCardsId }
+      if (cardDefinitionId) body.cardDefinitionId = cardDefinitionId
       const res = await fetch('/api/allocation/add-proxy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deckCardsId, cardDefinitionId }),
+        body: JSON.stringify(body),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
@@ -400,9 +408,12 @@ function PopoverBody({
         ))}
         <button
           type="button"
-          disabled={isPending || !data?.cardDefinitionId}
+          disabled={isPending || !(data?.cardDefinitionId || data?.oracleId)}
           onClick={() => {
-            if (data?.cardDefinitionId) addProxyMutation.mutate(data.cardDefinitionId)
+            addProxyMutation.mutate({
+              deckCardsId,
+              cardDefinitionId: data?.cardDefinitionId ?? undefined,
+            })
           }}
           className="mt-1 text-[length:var(--fs-xs)] text-muted-foreground hover:text-foreground self-start disabled:opacity-40"
         >
@@ -444,9 +455,12 @@ function PopoverBody({
         ))}
         <button
           type="button"
-          disabled={isPending || !data?.cardDefinitionId}
+          disabled={isPending || !(data?.cardDefinitionId || data?.oracleId)}
           onClick={() => {
-            if (data?.cardDefinitionId) addProxyMutation.mutate(data.cardDefinitionId)
+            addProxyMutation.mutate({
+              deckCardsId,
+              cardDefinitionId: data?.cardDefinitionId ?? undefined,
+            })
           }}
           className="mt-1 text-[length:var(--fs-xs)] text-muted-foreground hover:text-foreground self-start disabled:opacity-40"
         >
@@ -466,9 +480,12 @@ function PopoverBody({
         <Button
           size="sm"
           className="w-full"
-          disabled={isPending || !data?.cardDefinitionId}
+          disabled={isPending || !(data?.cardDefinitionId || data?.oracleId)}
           onClick={() => {
-            if (data?.cardDefinitionId) addProxyMutation.mutate(data.cardDefinitionId)
+            addProxyMutation.mutate({
+              deckCardsId,
+              cardDefinitionId: data?.cardDefinitionId ?? undefined,
+            })
           }}
         >
           {addProxyMutation.isPending ? <Loader2 className="size-3 animate-spin" /> : 'Add proxy'}

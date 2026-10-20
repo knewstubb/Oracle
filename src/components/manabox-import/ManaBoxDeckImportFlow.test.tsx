@@ -39,6 +39,7 @@ const PREVIEW_RESPONSE = {
   totalLines: 65,
   rows: [
     {
+      rowKey: 'emil-sf|nonfoil',
       sourceIndex: 2,
       sourceLines: [2],
       cardName: 'Emil, Vastlands Roamer',
@@ -47,10 +48,12 @@ const PREVIEW_RESPONSE = {
       scryfallId: 'emil-sf',
       oracleId: 'emil-oracle',
       qty: 1,
-      finish: 'nonfoil',
+      availableFinishes: ['nonfoil', 'foil'],
+      copies: Array.from({ length: 1 }, (_, index) => ({ index, sourceLine: 2, file: { finish: 'nonfoil' }, owner: {} })),
       isBasicLand: false,
     },
     {
+      rowKey: 'pull-sf|nonfoil',
       sourceIndex: 3,
       sourceLines: [3],
       cardName: 'Pull from the Grave',
@@ -59,10 +62,12 @@ const PREVIEW_RESPONSE = {
       scryfallId: 'pull-sf',
       oracleId: 'pull-oracle',
       qty: 2,
-      finish: 'nonfoil',
+      availableFinishes: ['nonfoil', 'foil'],
+      copies: Array.from({ length: 2 }, (_, index) => ({ index, sourceLine: 3, file: { finish: 'nonfoil' }, owner: {} })),
       isBasicLand: false,
     },
     {
+      rowKey: 'swamp-sf|nonfoil',
       sourceIndex: 4,
       sourceLines: [4],
       cardName: 'Swamp',
@@ -71,12 +76,14 @@ const PREVIEW_RESPONSE = {
       scryfallId: 'swamp-sf',
       oracleId: 'swamp-oracle',
       qty: 2,
-      finish: 'nonfoil',
+      availableFinishes: ['nonfoil', 'foil'],
+      copies: Array.from({ length: 2 }, (_, index) => ({ index, sourceLine: 4, file: { finish: 'nonfoil' }, owner: {} })),
       isBasicLand: true,
     },
   ],
   skippedTokens: [{ sourceIndex: 5, rawLine: 'Drake (TFDN) 8', cardName: 'Drake' }],
   unmatched: [],
+  notices: { unrecognisedCondition: 0, unrecognisedLanguage: 0, unrecognisedFinish: 0 },
 }
 
 describe('ManaBoxDeckImportFlow', () => {
@@ -118,7 +125,7 @@ describe('ManaBoxDeckImportFlow', () => {
     expect(screen.getByRole('button', { name: /Import/i })).toBeInTheDocument()
   })
 
-  it('sends row splits and generic-basics flag on import', async () => {
+  it('sends per-copy file values, edits, defaults and the generic-basics flag', async () => {
     const user = userEvent.setup()
     const onComplete = vi.fn()
     vi.spyOn(global, 'fetch')
@@ -144,9 +151,10 @@ describe('ManaBoxDeckImportFlow', () => {
 
     await waitFor(() => expect(screen.getByText('Pull from the Grave')).toBeInTheDocument())
 
-    // The stepper is always visible on 2+ copy rows: make 1 of the 2 copies a proxy
-    const proxyStepper = within(screen.getByRole('group', { name: /Pull from the Grave are proxies/ }))
-    fireEvent.click(proxyStepper.getByRole('button', { name: 'More proxies' }))
+    // Open the two-copy row and make copy 2 a proxy.
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Pull from the Grave' }))
+    const copy2 = within(screen.getByRole('group', { name: 'Copy 2 of 2' }))
+    fireEvent.click(copy2.getByRole('button', { name: 'Proxy' }))
 
     fireEvent.click(screen.getByRole('button', { name: /Import/i }))
 
@@ -159,7 +167,11 @@ describe('ManaBoxDeckImportFlow', () => {
     const body = JSON.parse(importCall![1]!.body as string)
     expect(body.convertBasicLandsToGeneric).toBe(true)
     const pull = body.deck.cards.find((c: { cardName: string }) => c.cardName === 'Pull from the Grave')
-    expect(pull.rowSplit.proxyCount).toBe(1)
-    expect(pull.rowSplit.originalCount).toBe(1)
+    expect(pull.rowKey).toBe('pull-sf|nonfoil')
+    expect(pull.copies).toHaveLength(2)
+    expect(pull.copies[0].file).toEqual({ finish: 'nonfoil' })
+    expect(pull.rowSplit).toBeUndefined()
+    expect(body.defaults).toEqual({ finish: 'nonfoil', condition: 'near_mint', language: 'en' })
+    expect(body.copyEdits['pull-sf|nonfoil']).toEqual({ 1: { type: 'proxy' } })
   })
 })

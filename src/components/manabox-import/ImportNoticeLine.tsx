@@ -111,3 +111,51 @@ export function ImportNotices({ unmatched, tokens, source }: ImportNoticesProps)
     </div>
   )
 }
+
+export interface ImportValueNoticeLinesProps {
+  unrecognised: number
+  unlistedFinish: number
+  defaultFinishFellBack: number
+}
+
+function plural(n: number, one: string, many: string): string {
+  return n === 1 ? one : many
+}
+
+/** One counted line per kind of value that needed attention. Nothing shows when all counts are 0. */
+export function ImportValueNoticeLines({
+  unrecognised,
+  unlistedFinish,
+  defaultFinishFellBack,
+}: ImportValueNoticeLinesProps) {
+  const lines: string[] = []
+  if (unrecognised > 0) {
+    lines.push(
+      `${unrecognised} ${plural(unrecognised, 'value', 'values')} in your file ${plural(unrecognised, 'was', 'were')} not recognised, so your defaults ${plural(unrecognised, 'was', 'were')} used.`
+    )
+  }
+  if (unlistedFinish > 0) {
+    lines.push(
+      `${unlistedFinish} ${plural(unlistedFinish, 'copy has', 'copies have')} a finish Scryfall doesn't list for that printing. ${plural(unlistedFinish, 'It was', 'They were')} kept as in your file.`
+    )
+  }
+  if (defaultFinishFellBack > 0) {
+    lines.push(
+      `${defaultFinishFellBack} ${plural(defaultFinishFellBack, 'card doesn\'t', 'cards don\'t')} come in your default finish, so ${plural(defaultFinishFellBack, 'its', 'their')} own finish will be used.`
+    )
+  }
+  if (lines.length === 0) return null
+  return (
+    <div className="flex min-w-0 flex-col gap-1" role="group" aria-label="Notes about your file">
+      {lines.map((text) => (
+        <div
+          key={text}
+          className="flex min-w-0 items-center gap-2 rounded-lg border border-[var(--border-default)] px-2.5 py-1.5 text-[length:var(--fs-sm)] text-muted-foreground"
+        >
+          <Info className="size-4 shrink-0" aria-hidden="true" />
+          <span className="min-w-0 flex-1">{text}</span>
+        </div>
+      ))}
+    </div>
+  )
+}

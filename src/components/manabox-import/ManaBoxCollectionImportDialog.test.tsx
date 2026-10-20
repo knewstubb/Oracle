@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ManaBoxCollectionImportDialog } from './ManaBoxCollectionImportDialog'
@@ -37,6 +37,7 @@ const PREVIEW_RESPONSE = {
   totalLines: 2,
   rows: [
     {
+      rowKey: 'abc|nonfoil|en',
       sourceIndex: 2,
       sourceLines: [2],
       cardName: 'Sol Ring',
@@ -45,10 +46,12 @@ const PREVIEW_RESPONSE = {
       scryfallId: 'abc',
       oracleId: 'def',
       qty: 1,
-      finish: 'nonfoil',
+      availableFinishes: ['nonfoil', 'foil'],
+      copies: [{ index: 0, sourceLine: 2, file: { finish: 'nonfoil', condition: 'near_mint', language: 'en' }, owner: {} }],
       isBasicLand: false,
     },
     {
+      rowKey: 'xyz|nonfoil|en',
       sourceIndex: 3,
       sourceLines: [3],
       cardName: 'Island',
@@ -57,12 +60,14 @@ const PREVIEW_RESPONSE = {
       scryfallId: 'xyz',
       oracleId: 'uvw',
       qty: 3,
-      finish: 'nonfoil',
+      availableFinishes: ['nonfoil', 'foil'],
+      copies: [0, 1, 2].map((index) => ({ index, sourceLine: 3, file: { finish: 'nonfoil', condition: 'near_mint', language: 'en' }, owner: {} })),
       isBasicLand: true,
     },
   ],
   skippedTokens: [],
   unmatched: [],
+  notices: { unrecognisedCondition: 0, unrecognisedLanguage: 0, unrecognisedFinish: 0 },
 }
 
 describe('ManaBoxCollectionImportDialog', () => {
@@ -103,7 +108,7 @@ describe('ManaBoxCollectionImportDialog', () => {
     expect(screen.getByRole('button', { name: /Add 4/i })).toBeInTheDocument()
   })
 
-  it('imports with per-row proxy counts', async () => {
+  it('sends the defaults and the owner edits (no proxy counts) on import', async () => {
     const user = userEvent.setup()
     vi.spyOn(global, 'fetch')
       .mockResolvedValueOnce(
@@ -128,9 +133,10 @@ describe('ManaBoxCollectionImportDialog', () => {
 
     await waitFor(() => expect(screen.getByText('Sol Ring')).toBeInTheDocument())
 
-    // Mark Sol Ring as proxy
-    const proxyButton = screen.getByRole('radio', { name: /Proxy/i })
-    fireEvent.click(proxyButton)
+    // Open Sol Ring and make its one copy a proxy.
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Sol Ring' }))
+    const type = screen.getByRole('group', { name: 'Copy 1 type' })
+    fireEvent.click(within(type).getByRole('button', { name: 'Proxy' }))
 
     fireEvent.click(screen.getByRole('button', { name: /Add 4/i }))
 
@@ -141,6 +147,8 @@ describe('ManaBoxCollectionImportDialog', () => {
     const importCall = vi.mocked(fetch).mock.calls.find(([url]) => String(url).includes('/api/collection/import?mode=manabox'))
     expect(importCall).toBeDefined()
     const body = JSON.parse(importCall![1]!.body as string)
-    expect(body.proxyCounts[2]).toBe(1)
+    expect(body.proxyCounts).toBeUndefined()
+    expect(body.defaults).toEqual({ finish: 'nonfoil', condition: 'near_mint', language: 'en' })
+    expect(body.copyEdits['abc|nonfoil|en']).toEqual({ 0: { type: 'proxy' } })
   })
 })

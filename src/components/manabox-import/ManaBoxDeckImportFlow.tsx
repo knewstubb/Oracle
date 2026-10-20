@@ -7,13 +7,16 @@ import { Button } from '@/components/ui/button'
 import { ManaBoxFilePicker } from './ManaBoxFilePicker'
 import { ImportFileChip } from './ImportFileChip'
 import { DeckImportOptions } from './DeckImportOptions'
-import { ImportNotices } from './ImportNoticeLine'
+import { ImportNotices, ImportValueNoticeLines } from './ImportNoticeLine'
+import { ImportDefaultsBar } from './ImportDefaultsBar'
+import { countFinishNotices } from '@/lib/import-copies'
+import type { ImportCopyEdits, ImportDefaults } from '../../../docs/oracle/contracts/import-row-editing.types'
 import { ImportCardList } from './ImportCardList'
 import { ImportSummary } from './ImportSummary'
 import { DeckImportSpinner } from './ImportProgress'
 import { ImportResult } from './ImportResult'
-import type { UiPreviewRow, ImportStep, RowFilter, ImportSource } from './types'
-import { rowId, defaultSplit, computeTotals, buildCommitDeck } from './types'
+import type { ImportStep, RowFilter, ImportSource } from './types'
+import { INITIAL_DEFAULTS, computeTotals, buildCommitDeck } from './types'
 import type { ManaBoxPreviewResponse } from '../../../docs/oracle/contracts/manabox-import.types'
 
 export interface ManaBoxDeckImportFlowProps {
@@ -78,15 +81,14 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot }: ManaB
         source,
         preview: {
           ...preview,
-          rows: preview.rows.map((row) => ({
-            ...row,
-            id: rowId(row),
-            choices: { split: defaultSplit(row.qty), foil: false },
-          })),
+          rows: preview.rows,
         },
         deckName: file.name.replace(/\.(csv|txt)$/i, ''),
         format: 'commander',
         genericBasics: true,
+        defaults: INITIAL_DEFAULTS,
+        copyEdits: {},
+        openRowKeys: new Set(),
         filter: 'all',
         query: '',
         selectedIds: new Set(),
@@ -113,7 +115,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot }: ManaB
     setStep({ ...step, status: 'importing', cancellable: false, processed: 0, total: rows.length })
 
     try {
-      const deck = buildCommitDeck(rows, 'deck', step.genericBasics)
+      const deck = buildCommitDeck(rows)
       deck.name = step.deckName
 
       const res = await fetch('/api/decks/import', {
@@ -125,7 +127,8 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot }: ManaB
           name: step.deckName,
           format: step.format,
           convertBasicLandsToGeneric: step.genericBasics,
-          rowSplits: undefined,
+          defaults: step.defaults,
+          copyEdits: step.copyEdits,
           unmatched: step.preview.unmatched,
         }),
       })
@@ -145,7 +148,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot }: ManaB
         }
       } = await res.json()
 
-      const totals = computeTotals(rows, 'deck', step.genericBasics)
+      const totals = computeTotals(rows, 'deck', step.genericBasics, step.defaults, step.copyEdits)
       const doneSummary = {
         inserted: totals.tracked,
         skipped: step.preview.skippedTokens.length,
@@ -188,19 +191,16 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot }: ManaB
     }
   }, [step, router])
 
-  const updateRow = useCallback((id: string, patch: Partial<UiPreviewRow['choices']>) => {
-    setStep((prev) => {
-      if (prev.status !== 'review') return prev
-      return {
-        ...prev,
-        preview: {
-          ...prev.preview,
-          rows: prev.preview.rows.map((row) =>
-            row.id === id ? { ...row, choices: { ...row.choices, ...patch } } : row
-          ),
-        },
-      }
-    })
+  const setDefaults = useCallback((defaults: ImportDefaults) => {
+    setStep((prev) => (prev.status === 'review' ? { ...prev, defaults } : prev))
+  }, [])
+
+  const setCopyEdits = useCallback((copyEdits: ImportCopyEdits) => {
+    setStep((prev) => (prev.status === 'review' ? { ...prev, copyEdits } : prev))
+  }, [])
+
+  const setOpenRowKeys = useCallback((openRowKeys: Set<string>) => {
+    setStep((prev) => (prev.status === 'review' ? { ...prev, openRowKeys } : prev))
   }, [])
 
   const setDeckName = useCallback((deckName: string) => {
@@ -266,17 +266,30 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot }: ManaB
             tokens={step.preview.skippedTokens}
             source={step.source}
           />
+          <ImportDefaultsBar defaults={step.defaults} onChange={setDefaults} />
+          <ImportValueNoticeLines
+            unrecognised={
+              (step.preview.notices?.unrecognisedCondition ?? 0) +
+              (step.preview.notices?.unrecognisedLanguage ?? 0) +
+              (step.preview.notices?.unrecognisedFinish ?? 0)
+            }
+            {...countFinishNotices(step.preview.rows, step.defaults, step.copyEdits)}
+          />
           <ImportCardList
             rows={step.preview.rows}
             kind="deck"
             source={step.source}
+            defaults={step.defaults}
+            copyEdits={step.copyEdits}
+            onCopyEditsChange={setCopyEdits}
+            openRowKeys={step.openRowKeys}
+            onOpenRowKeysChange={setOpenRowKeys}
             filter={step.filter}
             onFilterChange={setFilter}
             query={step.query}
             onQueryChange={setQuery}
             selectedIds={step.selectedIds}
             onSelectedIdsChange={setSelectedIds}
-            onRowChange={updateRow}
           />
         </>
       )}
@@ -323,7 +336,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, titleSlot }: ManaB
 
       {step.status === 'review' && (
         <div className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-3">
-          <ImportSummary rows={step.preview.rows} kind="deck" genericBasics={step.genericBasics} />
+          <ImportSummary rows={step.preview.rows} kind="deck" genericBasics={step.genericBasics} defaults={step.defaults} copyEdits={step.copyEdits} />
           <div className="flex items-center gap-2">
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancel

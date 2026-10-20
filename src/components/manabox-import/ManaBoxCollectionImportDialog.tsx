@@ -12,14 +12,16 @@ import {
 import { Button } from '@/components/ui/button'
 import { ManaBoxFilePicker } from './ManaBoxFilePicker'
 import { ImportFileChip } from './ImportFileChip'
-import { ImportNotices } from './ImportNoticeLine'
+import { ImportNotices, ImportValueNoticeLines } from './ImportNoticeLine'
+import { ImportDefaultsBar } from './ImportDefaultsBar'
+import { countFinishNotices } from '@/lib/import-copies'
+import type { ImportCopyEdits, ImportDefaults } from '../../../docs/oracle/contracts/import-row-editing.types'
 import { ImportCardList } from './ImportCardList'
 import { ImportSummary } from './ImportSummary'
 import { ImportProgress, DeckImportSpinner } from './ImportProgress'
 import { ImportResult } from './ImportResult'
-import type { UiPreviewRow, ImportStep, RowFilter } from './types'
-import { rowId, defaultSplit } from './types'
-import { buildProxyCounts } from './types'
+import type { ImportStep, RowFilter } from './types'
+import { INITIAL_DEFAULTS, computeTotals } from './types'
 import type { ManaBoxPreviewResponse } from '../../../docs/oracle/contracts/manabox-import.types'
 
 export interface ManaBoxCollectionImportDialogProps {
@@ -75,15 +77,14 @@ export function ManaBoxCollectionImportDialog({
         source: 'csv',
         preview: {
           ...preview,
-          rows: preview.rows.map((row) => ({
-            ...row,
-            id: rowId(row),
-            choices: { split: defaultSplit(row.qty), foil: false },
-          })),
+          rows: preview.rows,
         },
         deckName: file.name.replace(/\.csv$/i, ''),
         format: 'commander',
         genericBasics: true,
+        defaults: INITIAL_DEFAULTS,
+        copyEdits: {},
+        openRowKeys: new Set(),
         filter: 'all',
         query: '',
         selectedIds: new Set(),
@@ -110,7 +111,8 @@ export function ManaBoxCollectionImportDialog({
         body: JSON.stringify({
           csvContent: await step.file.text(),
           fileName: step.file.name,
-          proxyCounts: buildProxyCounts(rows),
+          defaults: step.defaults,
+          copyEdits: step.copyEdits,
         }),
       })
 
@@ -135,7 +137,7 @@ export function ManaBoxCollectionImportDialog({
           inserted: summary.inserted,
           skipped: summary.skipped,
           basics: 0,
-          proxies: rows.reduce((sum, r) => sum + r.choices.split.proxyCount, 0),
+          proxies: computeTotals(rows, 'collection', false, step.defaults, step.copyEdits).proxies,
           unsleeved: 0,
           unmatched: summary.unmatched,
         },
@@ -159,19 +161,16 @@ export function ManaBoxCollectionImportDialog({
     abortRef.current?.abort()
   }, [])
 
-  const updateRow = useCallback((id: string, patch: Partial<UiPreviewRow['choices']>) => {
-    setStep((prev) => {
-      if (prev.status !== 'review') return prev
-      return {
-        ...prev,
-        preview: {
-          ...prev.preview,
-          rows: prev.preview.rows.map((row) =>
-            row.id === id ? { ...row, choices: { ...row.choices, ...patch } } : row
-          ),
-        },
-      }
-    })
+  const setDefaults = useCallback((defaults: ImportDefaults) => {
+    setStep((prev) => (prev.status === 'review' ? { ...prev, defaults } : prev))
+  }, [])
+
+  const setCopyEdits = useCallback((copyEdits: ImportCopyEdits) => {
+    setStep((prev) => (prev.status === 'review' ? { ...prev, copyEdits } : prev))
+  }, [])
+
+  const setOpenRowKeys = useCallback((openRowKeys: Set<string>) => {
+    setStep((prev) => (prev.status === 'review' ? { ...prev, openRowKeys } : prev))
   }, [])
 
   const setFilter = useCallback((filter: RowFilter) => {
@@ -225,17 +224,30 @@ export function ManaBoxCollectionImportDialog({
               tokens={step.preview.skippedTokens}
               source={step.source}
             />
+            <ImportDefaultsBar defaults={step.defaults} onChange={setDefaults} />
+            <ImportValueNoticeLines
+              unrecognised={
+                (step.preview.notices?.unrecognisedCondition ?? 0) +
+                (step.preview.notices?.unrecognisedLanguage ?? 0) +
+                (step.preview.notices?.unrecognisedFinish ?? 0)
+              }
+              {...countFinishNotices(step.preview.rows, step.defaults, step.copyEdits)}
+            />
             <ImportCardList
               rows={step.preview.rows}
               kind="collection"
               source={step.source}
+              defaults={step.defaults}
+              copyEdits={step.copyEdits}
+              onCopyEditsChange={setCopyEdits}
+              openRowKeys={step.openRowKeys}
+              onOpenRowKeysChange={setOpenRowKeys}
               filter={step.filter}
               onFilterChange={setFilter}
               query={step.query}
               onQueryChange={setQuery}
               selectedIds={step.selectedIds}
               onSelectedIdsChange={setSelectedIds}
-              onRowChange={updateRow}
             />
           </div>
         )}
@@ -280,7 +292,7 @@ export function ManaBoxCollectionImportDialog({
 
         {step.status === 'review' && (
           <div className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-3">
-            <ImportSummary rows={step.preview.rows} kind="collection" genericBasics={step.genericBasics} />
+            <ImportSummary rows={step.preview.rows} kind="collection" genericBasics={step.genericBasics} defaults={step.defaults} copyEdits={step.copyEdits} />
             <div className="flex items-center gap-2">
               <Button type="button" variant="outline" onClick={() => handleClose(false)}>
                 Cancel

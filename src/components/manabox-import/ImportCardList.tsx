@@ -1,15 +1,31 @@
 'use client'
 
-import { useRef, useMemo, useCallback, useState, useEffect } from 'react'
+import { useRef, useMemo, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import type { ManaBoxPreviewRow } from '../../../docs/oracle/contracts/manabox-import.types'
-import type { ImportKind, ImportSource, RowFilter, UiPreviewRow, CopyType } from './types'
-import { CopyTypeControl } from './CopyTypeControl'
-import { FoilCheckbox } from './FoilCheckbox'
-import { Check, VenetianMask } from 'lucide-react'
+import {
+  CONDITION_LABELS,
+  FINISH_LABELS,
+  applyBulk,
+  applyCopyOneToAll,
+  bulkTypeState,
+  resolveRowCopies,
+  setCopyField,
+  type BulkPatch,
+} from '@/lib/import-copies'
+import type {
+  ImportCondition,
+  ImportCopyEdits,
+  ImportCopyOwnerEdits,
+  ImportCopyType,
+  ImportDefaults,
+  ImportFinish,
+} from '../../../docs/oracle/contracts/import-row-editing.types'
+import type { ImportKind, ImportSource, RowFilter, UiPreviewRow } from './types'
+import { ImportRowEditor, TypeToggle } from './ImportRowEditor'
+import { LANGUAGE_LABELS, SELECT_CLASS } from './import-labels'
 
 const FILTER_OPTIONS: { value: RowFilter; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -17,108 +33,117 @@ const FILTER_OPTIONS: { value: RowFilter; label: string }[] = [
   { value: 'unsleeved', label: 'Unsleeved' },
 ]
 
-function FinishTag({ finish }: { finish: ManaBoxPreviewRow['finish'] }) {
-  if (finish === 'nonfoil') return null
-  return (
-    <span className="inline-flex items-center gap-1 text-[length:var(--fs-xs)] text-muted-foreground">
-      {finish === 'foil' ? 'Foil' : 'Etched'}
-    </span>
-  )
-}
-
-function LanguageTag({ language }: { language?: string }) {
-  if (!language || language === 'en') return null
-  return (
-    <span className="text-[length:var(--fs-xs)] uppercase text-muted-foreground">{language}</span>
-  )
-}
-
 export interface ImportCardListProps {
   rows: UiPreviewRow[]
   kind: ImportKind
   source: ImportSource
+  defaults: ImportDefaults
+  copyEdits: ImportCopyEdits
+  onCopyEditsChange: (edits: ImportCopyEdits) => void
+  openRowKeys: Set<string>
+  onOpenRowKeysChange: (keys: Set<string>) => void
   filter: RowFilter
   onFilterChange: (filter: RowFilter) => void
   query: string
   onQueryChange: (query: string) => void
   selectedIds: Set<string>
   onSelectedIdsChange: (ids: Set<string>) => void
-  onRowChange: (id: string, patch: Partial<UiPreviewRow['choices']>) => void
 }
 
 export function ImportCardList({
   rows,
   kind,
-  source,
+  defaults,
+  copyEdits,
+  onCopyEditsChange,
+  openRowKeys,
+  onOpenRowKeysChange,
   filter,
   onFilterChange,
   query,
   onQueryChange,
   selectedIds,
   onSelectedIdsChange,
-  onRowChange,
 }: ImportCardListProps) {
   const parentRef = useRef<HTMLDivElement>(null)
+  const [announcement, setAnnouncement] = useState('')
+
+  const isGeneric = (row: UiPreviewRow) => row.isBasicLand && kind === 'deck'
+
+  const resolvedByKey = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof resolveRowCopies>>()
+    for (const row of rows) map.set(row.rowKey, resolveRowCopies(row, defaults, copyEdits, row.rowKey))
+    return map
+  }, [rows, defaults, copyEdits])
 
   const visibleRows = useMemo(() => {
     const q = query.trim().toLowerCase()
     return rows.filter((row) => {
-      const isGeneric = row.isBasicLand && kind === 'deck'
+      const resolved = resolvedByKey.get(row.rowKey) ?? []
       const matchesFilter =
         filter === 'all' ||
-        (filter === 'proxy' && row.choices.split.proxyCount > 0) ||
-        (filter === 'unsleeved' && row.choices.split.unsleevedCount > 0) ||
-        (filter === 'basic' && isGeneric)
-      const matchesQuery = !q || row.cardName.toLowerCase().includes(q)
-      return matchesFilter && matchesQuery
+        (filter === 'proxy' && resolved.some((c) => c.type === 'proxy')) ||
+        (filter === 'unsleeved' && resolved.some((c) => c.type === 'unsleeved')) ||
+        (filter === 'basic' && row.isBasicLand && kind === 'deck')
+      return matchesFilter && (!q || row.cardName.toLowerCase().includes(q))
     })
-  }, [rows, kind, filter, query])
+  }, [rows, kind, filter, query, resolvedByKey])
 
-  const hasBasics = useMemo(() => rows.some((r) => r.isBasicLand && kind === 'deck'), [rows, kind])
+  const hasBasics = rows.some(isGeneric)
 
   const virtualizer = useVirtualizer({
     count: visibleRows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 30,
+    estimateSize: () => 34,
     overscan: 10,
   })
 
-  const allSelected =
-    visibleRows.length > 0 && visibleRows.every((r) => selectedIds.has(r.id) || (r.isBasicLand && kind === 'deck'))
+  const selectable = visibleRows.filter((r) => !isGeneric(r))
+  const allSelected = selectable.length > 0 && selectable.every((r) => selectedIds.has(r.rowKey))
 
   const handleSelectAll = () => {
-    if (allSelected) {
-      const next = new Set(selectedIds)
-      visibleRows.forEach((r) => {
-        if (!(r.isBasicLand && kind === 'deck')) next.delete(r.id)
-      })
-      onSelectedIdsChange(next)
-    } else {
-      const next = new Set(selectedIds)
-      visibleRows.forEach((r) => {
-        if (!(r.isBasicLand && kind === 'deck')) next.add(r.id)
-      })
-      onSelectedIdsChange(next)
-    }
-  }
-
-  const handleRowSelect = (id: string, checked: boolean) => {
     const next = new Set(selectedIds)
-    if (checked) next.add(id)
-    else next.delete(id)
+    for (const r of selectable) {
+      if (allSelected) next.delete(r.rowKey)
+      else next.add(r.rowKey)
+    }
     onSelectedIdsChange(next)
   }
 
-  const handleBulk = (type: CopyType) => {
-    for (const id of selectedIds) {
-      const row = rows.find((r) => r.id === id)
-      if (!row) continue
-      onRowChange(id, { split: { originalCount: type === 'original' ? row.qty : 0, proxyCount: type === 'proxy' ? row.qty : 0, unsleevedCount: type === 'unsleeved' ? row.qty : 0 } })
-    }
-    onSelectedIdsChange(new Set())
+  const handleRowSelect = (key: string, checked: boolean) => {
+    const next = new Set(selectedIds)
+    if (checked) next.add(key)
+    else next.delete(key)
+    onSelectedIdsChange(next)
   }
 
-  const options: CopyType[] = kind === 'deck' ? ['original', 'proxy', 'unsleeved'] : ['original', 'proxy']
+  const toggleOpen = (key: string) => {
+    const next = new Set(openRowKeys)
+    if (next.has(key)) next.delete(key)
+    else next.add(key)
+    onOpenRowKeysChange(next)
+  }
+
+  const changeCopy = (row: UiPreviewRow, index: number, patch: ImportCopyOwnerEdits) => {
+    let next = copyEdits
+    // Each field is its own owner edit. An edit never splits or moves the row.
+    for (const field of Object.keys(patch) as Array<keyof ImportCopyOwnerEdits>) {
+      const value = patch[field]
+      if (value !== undefined) next = setCopyField(next, row.rowKey, index, field, value as never)
+    }
+    onCopyEditsChange(next)
+  }
+
+  const applyAll = (row: UiPreviewRow) => {
+    onCopyEditsChange(applyCopyOneToAll(copyEdits, row, defaults))
+    setAnnouncement('All copies now match copy 1.')
+  }
+
+  const selectedRows = rows.filter((r) => selectedIds.has(r.rowKey) && !isGeneric(r))
+  const showBulk = selectedRows.length > 0
+  const selectedResolved = selectedRows.flatMap((r) => resolvedByKey.get(r.rowKey) ?? [])
+
+  const options: ImportCopyType[] = kind === 'deck' ? ['original', 'proxy', 'unsleeved'] : ['original', 'proxy']
 
   const emptyMessage = query
     ? `No match for "${query}"`
@@ -130,29 +155,17 @@ export function ImportCardList({
           ? 'No basics'
           : 'No cards'
 
-  const nProxyRows = rows.filter((r) => r.choices.split.proxyCount > 0 && !(r.isBasicLand && kind === 'deck')).length
-  const nUnsleevedRows = rows.filter((r) => r.choices.split.unsleevedCount > 0 && !(r.isBasicLand && kind === 'deck')).length
-  const nBasicRows = rows.filter((r) => r.isBasicLand && kind === 'deck').length
-
-  const isTextFile = source === 'text'
-  const selectedCount = Array.from(selectedIds).filter((id) => rows.some((r) => r.id === id)).length
-  const showBulk = selectedCount > 0
+  const countRowsWith = (type: ImportCopyType) =>
+    rows.filter((r) => !isGeneric(r) && (resolvedByKey.get(r.rowKey) ?? []).some((c) => c.type === type)).length
 
   return (
     <div className="flex flex-col gap-1.5">
-      {/* Filters + search */}
       <div className="flex items-center gap-1.5">
         {FILTER_OPTIONS.map((f) => (
           <FilterChip
             key={f.value}
             label={f.label}
-            count={
-              f.value === 'all'
-                ? rows.length
-                : f.value === 'proxy'
-                  ? nProxyRows
-                  : nUnsleevedRows
-            }
+            count={f.value === 'all' ? rows.length : countRowsWith(f.value === 'proxy' ? 'proxy' : 'unsleeved')}
             selected={filter === f.value}
             onClick={() => onFilterChange(f.value)}
           />
@@ -160,7 +173,7 @@ export function ImportCardList({
         {hasBasics && (
           <FilterChip
             label="Basics"
-            count={nBasicRows}
+            count={rows.filter(isGeneric).length}
             selected={filter === 'basic'}
             onClick={() => onFilterChange('basic')}
           />
@@ -175,44 +188,33 @@ export function ImportCardList({
         />
       </div>
 
-      {/* List */}
       <div
-        className="overflow-hidden rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)]"
+        className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)]"
         role="group"
         aria-label="Cards"
       >
-        <div
-          className={cn(
-            'grid items-center gap-2 px-2.5 text-[length:var(--fs-xs)] text-muted-foreground',
-            isTextFile ? 'grid-cols-[24px_28px_1fr_30px_240px]' : 'grid-cols-[24px_28px_1fr_240px]'
-          )}
-          style={{ minHeight: 30, background: 'var(--bg-canvas)' }}
-        >
-          <Checkbox
-            checked={allSelected}
-            onCheckedChange={handleSelectAll}
-            aria-label="Select all shown"
+        {showBulk ? (
+          <BulkBar
+            options={options}
+            rows={rows}
+            selectedRows={selectedRows}
+            selectedResolved={selectedResolved}
+            defaults={defaults}
+            copyEdits={copyEdits}
+            onCopyEditsChange={onCopyEditsChange}
+            onClear={() => onSelectedIdsChange(new Set())}
+            onAnnounce={setAnnouncement}
           />
-          <span>Qty</span>
-          <span>{showBulk ? `${selectedCount} selected` : 'Card'}</span>
-          {isTextFile && !showBulk && <span className="justify-self-end">Foil</span>}
-          <span className={cn('justify-self-end', showBulk && isTextFile && 'col-span-2')}>
-            {showBulk ? (
-              <span className="flex items-center gap-1">
-                <BulkButton type="original" onClick={() => handleBulk('original')} />
-                {options.includes('proxy') && <BulkButton type="proxy" onClick={() => handleBulk('proxy')} />}
-                {options.includes('unsleeved') && <BulkButton type="unsleeved" onClick={() => handleBulk('unsleeved')} />}
-                <button
-                  type="button"
-                  onClick={() => onSelectedIdsChange(new Set())}
-                  className="ml-1 text-[length:var(--fs-xs)] hover:text-foreground"
-                >
-                  Clear
-                </button>
-              </span>
-            ) : null}
-          </span>
-        </div>
+        ) : (
+          <div
+            className="grid min-h-[30px] grid-cols-[24px_28px_1fr] items-center gap-2 rounded-t-lg px-2.5 text-[length:var(--fs-xs)] text-muted-foreground"
+            style={{ background: 'var(--bg-canvas)' }}
+          >
+            <Checkbox checked={allSelected} onCheckedChange={handleSelectAll} aria-label="Select all shown" />
+            <span>Qty</span>
+            <span>Card</span>
+          </div>
+        )}
 
         <div ref={parentRef} className="max-h-[calc(100vh-380px)] min-h-[180px] overflow-auto">
           {visibleRows.length === 0 ? (
@@ -223,10 +225,13 @@ export function ImportCardList({
             <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
               {virtualizer.getVirtualItems().map((virtualItem) => {
                 const row = visibleRows[virtualItem.index]
-                const isGeneric = row.isBasicLand && kind === 'deck'
                 return (
                   <div
-                    key={row.id}
+                    key={row.rowKey}
+                    data-index={virtualItem.index}
+                    ref={(el) => {
+                      if (el) virtualizer.measureElement?.(el)
+                    }}
                     style={{
                       position: 'absolute',
                       top: 0,
@@ -234,56 +239,20 @@ export function ImportCardList({
                       width: '100%',
                       transform: `translateY(${virtualItem.start}px)`,
                     }}
-                    className={cn(
-                      'grid min-h-[30px] items-center gap-2 border-b border-[var(--border-subtle)] px-2.5 hover:bg-[var(--bg-hover)]',
-                      isTextFile ? 'grid-cols-[24px_28px_1fr_30px_240px]' : 'grid-cols-[24px_28px_1fr_240px]'
-                    )}
                   >
-                    {isGeneric ? (
-                      <span />
-                    ) : (
-                      <Checkbox
-                        checked={selectedIds.has(row.id)}
-                        onCheckedChange={(v) => handleRowSelect(row.id, v === true)}
-                        aria-label={`Select ${row.cardName}`}
-                      />
-                    )}
-                    <span className="text-[length:var(--fs-xs)] tabular-nums text-muted-foreground">
-                      {row.qty}
-                    </span>
-                    <span className="min-w-0 truncate text-[length:var(--fs-xs)]">
-                      <span className="text-foreground">{row.cardName}</span>
-                      <span className="ml-1.5 text-[length:var(--fs-xs)] text-muted-foreground">
-                        {row.setCode} {row.collectorNumber}
-                      </span>
-                      <LanguageTag language={row.language} />
-                      {!isTextFile && <FinishTag finish={row.finish} />}
-                    </span>
-                    {isTextFile && !isGeneric && (
-                      <span className="justify-self-end">
-                        <FoilCheckbox
-                          checked={row.choices.foil}
-                          onChange={(checked) => onRowChange(row.id, { foil: checked })}
-                          cardName={row.cardName}
-                        />
-                      </span>
-                    )}
-                    {isTextFile && isGeneric && <span />}
-                    <span className="justify-self-end py-0.5">
-                      {isGeneric ? (
-                        <span className="inline-flex h-5 items-center gap-1 rounded-full border border-[var(--border-default)] bg-[var(--bg-hover)] px-2 text-[length:var(--fs-xs)] text-muted-foreground">
-                          Basic
-                        </span>
-                      ) : (
-                        <CopyTypeControl
-                          qty={row.qty}
-                          split={row.choices.split}
-                          onChange={(split) => onRowChange(row.id, { split })}
-                          options={options}
-                          cardName={row.cardName}
-                        />
-                      )}
-                    </span>
+                    <ImportRowEditor
+                      row={row}
+                      resolved={resolvedByKey.get(row.rowKey) ?? []}
+                      kind={kind}
+                      defaults={defaults}
+                      open={openRowKeys.has(row.rowKey)}
+                      selected={selectedIds.has(row.rowKey)}
+                      generic={isGeneric(row)}
+                      onToggleOpen={() => toggleOpen(row.rowKey)}
+                      onToggleSelect={(checked) => handleRowSelect(row.rowKey, checked)}
+                      onChangeCopy={(index, patch) => changeCopy(row, index, patch)}
+                      onApplyAll={() => applyAll(row)}
+                    />
                   </div>
                 )
               })}
@@ -291,7 +260,176 @@ export function ImportCardList({
           )}
         </div>
       </div>
+      <div role="status" aria-live="polite" className="sr-only">
+        {announcement}
+      </div>
     </div>
+  )
+}
+
+function BulkBar({
+  options,
+  rows,
+  selectedRows,
+  selectedResolved,
+  defaults,
+  copyEdits,
+  onCopyEditsChange,
+  onClear,
+  onAnnounce,
+}: {
+  options: ImportCopyType[]
+  rows: UiPreviewRow[]
+  selectedRows: UiPreviewRow[]
+  selectedResolved: ReturnType<typeof resolveRowCopies>
+  defaults: ImportDefaults
+  copyEdits: ImportCopyEdits
+  onCopyEditsChange: (edits: ImportCopyEdits) => void
+  onClear: () => void
+  onAnnounce: (text: string) => void
+}) {
+  const [popOpen, setPopOpen] = useState(false)
+  const [patch, setPatch] = useState({ finish: '', condition: '', language: '' })
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const keys = useMemo(() => new Set(selectedRows.map((r) => r.rowKey)), [selectedRows])
+
+  const typeState = bulkTypeState(selectedResolved)
+  const totalCopies = selectedResolved.length
+
+  const toPatch = (): BulkPatch => {
+    const p: BulkPatch = {}
+    if (patch.finish) p.finish = patch.finish as ImportFinish
+    if (patch.condition) p.condition = patch.condition as ImportCondition
+    if (patch.language) p.language = patch.language
+    return p
+  }
+  const hasPatch = Object.keys(toPatch()).length > 0
+  const preview = hasPatch ? applyBulk(copyEdits, rows, keys, toPatch(), defaults) : null
+
+  const closePop = () => {
+    setPopOpen(false)
+    triggerRef.current?.focus()
+  }
+
+  const setType = (type: ImportCopyType) => {
+    onCopyEditsChange(applyBulk(copyEdits, rows, keys, { type }, defaults).edits)
+    onAnnounce('Type set for selected rows.')
+  }
+
+  const apply = () => {
+    const result = applyBulk(copyEdits, rows, keys, toPatch(), defaults)
+    onCopyEditsChange(result.edits)
+    onAnnounce(`Applied to selected rows. ${result.applied} changed, ${result.skipped} left as they were.`)
+    setPatch({ finish: '', condition: '', language: '' })
+    closePop()
+  }
+
+  const rowsWord = selectedRows.length === 1 ? 'row' : 'rows'
+
+  return (
+    <div
+      className="relative flex min-h-[30px] items-center gap-2 rounded-t-lg bg-[var(--bg-hover)] px-2.5 py-1 text-[length:var(--fs-xs)]"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && popOpen) {
+          e.stopPropagation()
+          closePop()
+        }
+      }}
+    >
+      <span className="text-foreground">{selectedRows.length} selected</span>
+      <span className="ml-auto flex items-center gap-2">
+        <TypeToggle value={typeState} options={options} label="Set type for selected" onChange={setType} />
+        {typeState === 'mixed' && <span className="text-muted-foreground">Mixed</span>}
+        <button
+          ref={triggerRef}
+          type="button"
+          aria-expanded={popOpen}
+          aria-haspopup="dialog"
+          onClick={() => setPopOpen((v) => !v)}
+          className="h-6 rounded-md border border-[var(--border-default)] px-2 hover:bg-[var(--bg-hover)]"
+        >
+          Set finish / condition / language ▾
+        </button>
+        <button type="button" onClick={onClear} className="text-muted-foreground hover:text-foreground">
+          Clear
+        </button>
+      </span>
+      {popOpen && (
+        <div
+          role="dialog"
+          aria-label="Set finish, condition, language"
+          className="absolute right-2 top-9 z-10 flex w-[300px] flex-col gap-2 rounded-[10px] border border-[var(--border-default)] bg-[var(--bg-surface)] p-3 text-foreground shadow-lg"
+        >
+          <BulkSelect
+            label="Finish"
+            value={patch.finish}
+            onChange={(finish) => setPatch({ ...patch, finish })}
+            options={Object.entries(FINISH_LABELS)}
+          />
+          <BulkSelect
+            label="Condition"
+            value={patch.condition}
+            onChange={(condition) => setPatch({ ...patch, condition })}
+            options={Object.entries(CONDITION_LABELS)}
+          />
+          <BulkSelect
+            label="Language"
+            value={patch.language}
+            onChange={(language) => setPatch({ ...patch, language })}
+            options={Object.entries(LANGUAGE_LABELS)}
+          />
+          <p className="text-muted-foreground" aria-live="polite">
+            {preview
+              ? `Applies to ${preview.applied} of ${totalCopies} copies in ${selectedRows.length} ${rowsWord}.`
+              : `Applies to ${totalCopies} ${totalCopies === 1 ? 'copy' : 'copies'} in ${selectedRows.length} ${rowsWord}.`}{' '}
+            Proxies keep only language.
+          </p>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={closePop}
+              className="h-6 rounded-md px-2 text-muted-foreground hover:text-foreground"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={apply}
+              disabled={!hasPatch}
+              className="h-6 rounded-md border border-[var(--border-default)] px-2.5 hover:bg-[var(--bg-hover)] disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              Apply
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function BulkSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: Array<[string, string]>
+}) {
+  return (
+    <label className="flex flex-col gap-0.5 text-[length:var(--fs-xs)] text-muted-foreground">
+      {label}
+      <select className={cn(SELECT_CLASS, 'w-full')} value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">Leave as is</option>
+        {options.map(([v, text]) => (
+          <option key={v} value={v}>
+            {text}
+          </option>
+        ))}
+      </select>
+    </label>
   )
 }
 
@@ -319,25 +457,6 @@ function FilterChip({
       )}
     >
       {label} {count}
-    </button>
-  )
-}
-
-function BulkButton({ type, onClick }: { type: CopyType; onClick: () => void }) {
-  const meta =
-    type === 'original'
-      ? { label: 'Original', icon: <Check className="size-3 text-[var(--accent-primary)]" /> }
-      : type === 'proxy'
-        ? { label: 'Proxy', icon: <VenetianMask className="size-3 text-[var(--status-proxy)]" /> }
-        : { label: 'Unsleeved', icon: null }
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="inline-flex h-6 items-center gap-1 rounded-md border border-[var(--border-default)] px-2 text-[length:var(--fs-xs)] hover:bg-[var(--bg-hover)]"
-    >
-      {meta.icon}
-      {meta.label}
     </button>
   )
 }

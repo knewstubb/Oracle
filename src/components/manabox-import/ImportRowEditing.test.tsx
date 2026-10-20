@@ -7,6 +7,16 @@ import { INITIAL_DEFAULTS } from './types'
 import type { UiPreviewRow, RowFilter } from './types'
 import type { ImportCopyEdits, ImportDefaults } from '../../../docs/oracle/contracts/import-row-editing.types'
 
+const lookupState = vi.hoisted(() => ({
+  value: { status: 'done', languages: ['en', 'ja', 'de'] } as
+    | { status: 'loading' }
+    | { status: 'done'; languages: string[] | null },
+}))
+vi.mock('./use-printing-languages', () => ({
+  usePrintingLanguages: () => lookupState.value,
+  clearPrintingLanguageCache: () => {},
+}))
+
 vi.mock('@tanstack/react-virtual', () => ({
   useVirtualizer: ({ count, estimateSize }: { count: number; estimateSize: () => number }) => ({
     getVirtualItems: () =>
@@ -208,5 +218,54 @@ describe('bulk bar', () => {
     fireEvent.click(screen.getByRole('button', { name: /Set finish \/ condition \/ language/ }))
     fireEvent.change(screen.getByLabelText('Condition'), { target: { value: 'heavily_played' } })
     expect(screen.getByText(/Applies to 2 of 3 copies in 1 row/)).toBeInTheDocument()
+  })
+})
+
+describe('language choices from Scryfall (round 2)', () => {
+  const options = (label: RegExp) =>
+    Array.from(screen.getAllByLabelText(label)[0].querySelectorAll('option')).map((o) => o.value)
+
+  it('lists only the languages Scryfall has, plus the file value', () => {
+    lookupState.value = { status: 'done', languages: ['en', 'de'] }
+    render(<Harness />)
+    openRow('Sol Ring')
+    expect(options(/Copy 1 language/)).toEqual(['en', 'de'])
+  })
+
+  it('shows a disabled Loading state while the lookup runs', () => {
+    lookupState.value = { status: 'loading' }
+    render(<Harness />)
+    openRow('Sol Ring')
+    const select = screen.getAllByLabelText(/Copy 1 language/)[0] as HTMLSelectElement
+    expect(select).toBeDisabled()
+    expect(select).toHaveTextContent('Loading…')
+  })
+
+  it('hides the control when the printing has one language', () => {
+    lookupState.value = { status: 'done', languages: ['en'] }
+    render(<Harness />)
+    openRow('Sol Ring')
+    expect(screen.queryByLabelText(/Copy 1 language/)).toBeNull()
+  })
+
+  it('falls back to the languages in the file when the lookup failed', () => {
+    lookupState.value = { status: 'done', languages: null }
+    render(<Harness rows={[row('multi', 'Multi', [{ language: 'en' }, { language: 'ja' }])]} />)
+    openRow('Multi')
+    expect(options(/Copy 1 language/)).toEqual(['en', 'ja'])
+  })
+})
+
+describe('type toggle shape (round 2)', () => {
+  it('is a fully rounded pill whose segments are fully rounded too', () => {
+    lookupState.value = { status: 'done', languages: ['en', 'ja'] }
+    render(<Harness />)
+    openRow('Sol Ring')
+    const toggle = screen.getByRole('group', { name: 'Copy 1 type' })
+    expect(toggle.className).toContain('rounded-full')
+    expect(toggle.className).not.toContain('overflow-hidden')
+    for (const button of within(toggle).getAllByRole('button')) {
+      expect(button.className).toContain('rounded-full')
+    }
   })
 })

@@ -21,7 +21,9 @@ import type {
   ImportRow,
   ImportCopyType,
 } from '../../../docs/oracle/contracts/import-row-editing.types'
-import { LANGUAGE_LABELS, languageOptions, SELECT_CLASS } from './import-labels'
+import { languageLabel, SELECT_CLASS } from './import-labels'
+import { languageChoices, type LanguageLookup } from '@/lib/printing-languages'
+import { usePrintingLanguages } from './use-printing-languages'
 
 const TYPE_STYLE: Record<ImportCopyType, { label: string; selected: string }> = {
   original: {
@@ -55,7 +57,7 @@ export function TypeToggle({
     <span
       role="group"
       aria-label={label}
-      className="inline-flex h-6 shrink-0 overflow-hidden rounded-lg border border-[var(--border-default)]"
+      className="inline-flex h-6 shrink-0 items-center gap-0.5 rounded-full border border-[var(--border-default)] p-0.5"
     >
       {options.map((type) => {
         const pressed = value === type
@@ -66,7 +68,7 @@ export function TypeToggle({
             aria-pressed={pressed}
             onClick={() => onChange(type)}
             className={cn(
-              'inline-flex shrink-0 items-center gap-1 whitespace-nowrap border-l border-[var(--border-default)] px-2 text-[length:var(--fs-xs)] text-muted-foreground first:border-l-0 hover:bg-[var(--bg-hover)]',
+              'inline-flex h-full shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 text-[length:var(--fs-xs)] text-muted-foreground hover:bg-[var(--bg-hover)]',
               pressed && TYPE_STYLE[type].selected
             )}
           >
@@ -129,6 +131,9 @@ export function ImportRowEditor({
     ...(summary.overflow > 0 ? [`${summary.overflow} more`] : []),
   ]
   const typeOptions: ImportCopyType[] = kind === 'deck' ? ['original', 'proxy', 'unsleeved'] : ['original', 'proxy']
+  // Languages are looked up once, the first time the row is opened.
+  const languageLookup = usePrintingLanguages(row.setCode, row.collectorNumber, open && !generic)
+  const fileLanguages = row.copies.map((c) => c.file.language).filter((l): l is string => !!l)
 
   return (
     <div
@@ -214,6 +219,8 @@ export function ImportRowEditor({
               position={position}
               total={resolved.length}
               typeOptions={typeOptions}
+              languageLookup={languageLookup}
+              fileLanguages={fileLanguages}
               onChange={(patch) => onChangeCopy(copy.index, patch)}
               onApplyAll={position === 0 && resolved.length > 1 ? onApplyAll : undefined}
             />
@@ -230,6 +237,8 @@ function CopyLine({
   position,
   total,
   typeOptions,
+  languageLookup,
+  fileLanguages,
   onChange,
   onApplyAll,
 }: {
@@ -238,6 +247,8 @@ function CopyLine({
   position: number
   total: number
   typeOptions: ImportCopyType[]
+  languageLookup: LanguageLookup
+  fileLanguages: string[]
   onChange: (patch: ImportCopyOwnerEdits) => void
   onApplyAll?: () => void
 }) {
@@ -245,6 +256,7 @@ function CopyLine({
   const visible = visibleFields(copy.type)
   const finishState = finishControlState(row.availableFinishes, copy.finish, copy.sources.finish)
   const showFinish = visible.finish && finishState.mode === 'select'
+  const languages = languageChoices(languageLookup, fileLanguages, copy.language)
   const fromFile = (source: string) => source === 'file'
   const suffix = (source: string) => (fromFile(source) ? ' (from your file)' : '')
 
@@ -261,19 +273,23 @@ function CopyLine({
         label={`Copy ${n} type`}
         onChange={(type) => onChange({ type })}
       />
-      {visible.language && (
+      {visible.language && languages.mode !== 'hidden' && (
         <FieldWithDot fromFile={fromFile(copy.sources.language)}>
           <select
             className={SELECT_CLASS}
             aria-label={`Copy ${n} language${suffix(copy.sources.language)}`}
             value={copy.language}
+            disabled={languages.mode === 'loading'}
+            aria-busy={languages.mode === 'loading'}
             onChange={(e) => onChange({ language: e.target.value })}
           >
-            {languageOptions(copy.language).map((code) => (
-              <option key={code} value={code}>
-                {LANGUAGE_LABELS[code] ?? code.toUpperCase()}
-              </option>
-            ))}
+            {languages.mode === 'loading' && <option value={copy.language}>Loading…</option>}
+            {languages.mode !== 'loading' &&
+              languages.codes.map((code) => (
+                <option key={code} value={code}>
+                  {languageLabel(code)}
+                </option>
+              ))}
           </select>
         </FieldWithDot>
       )}

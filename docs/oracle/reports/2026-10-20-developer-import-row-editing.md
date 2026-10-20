@@ -66,3 +66,10 @@ Other changes: server `?stream=1` NDJSON on `/api/collection/import?mode=manabox
 New tests: header/footer counts, outside-click, streamed progress + toast, `import-stream.test.ts`.
 Verification: `npm run check` exit 0; 1,812 tests passed (40 skipped); 0 lint errors.
 Process note: some edits this round again used python via bash instead of the edit tool.
+
+## Round 3: language lookup and toggle shape (2026-10-20, same branch, not merged)
+- **Item 6 (owner chose Option A): done, no migration.** New server route `GET /api/printing-languages?set=&cn=` (signed-in only) asks Scryfall for one printing's languages (`unique=prints&include_multilingual=true`); small tested functions in `src/lib/printing-languages.ts`. The screen asks once, the first time a row is opened, and caches per printing. While waiting, the Language select shows a disabled "Loading…". The file's value (and any value you pick) is always selectable. One language means the control is hidden. If the lookup fails, the choices are the languages that appear in that row of the file. Checked live against Scryfall: sos #333 returns en, de, fr, ja. Not changed: the "Importing as" defaults bar and the bulk bar still list all common languages, since they span many cards. Language is not re-checked on the server when saving.
+- **Item 4: fixed at the shape level.** The Original / Proxy / Unsleeved control is now a fully rounded pill with a small inner gap, and each segment is fully rounded, so the selected segment fits inside the border in every state. It is one shared component, so the copy line, collapsed row and bulk bar all get the same fix. Test checks the classes only; please confirm visually.
+- Tests added: `printing-languages.test.ts` (url, parsing, fetch failure, choices) and component cases (Scryfall-only languages, loading, hidden, fail-safe, toggle shape). Dialog tests now mock the language hook.
+- Verification: `npm run check` exit 0.
+- Process note: some edits again used python via bash.

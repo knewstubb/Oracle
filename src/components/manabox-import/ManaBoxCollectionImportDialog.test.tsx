@@ -7,6 +7,11 @@ import { ManaBoxCollectionImportDialog } from './ManaBoxCollectionImportDialog'
 const toastSuccess = vi.hoisted(() => vi.fn())
 vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: vi.fn() } }))
 
+vi.mock('./use-printing-languages', () => ({
+  usePrintingLanguages: () => ({ status: 'done', languages: ['en', 'ja', 'de'] }),
+  clearPrintingLanguageCache: () => {},
+}))
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }))

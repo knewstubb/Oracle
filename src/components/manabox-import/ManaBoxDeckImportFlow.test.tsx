@@ -6,6 +6,11 @@ import { ManaBoxDeckImportFlow } from './ManaBoxDeckImportFlow'
 
 const push = vi.fn()
 
+vi.mock('./use-printing-languages', () => ({
+  usePrintingLanguages: () => ({ status: 'done', languages: ['en', 'ja', 'de'] }),
+  clearPrintingLanguageCache: () => {},
+}))
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push }),
 }))

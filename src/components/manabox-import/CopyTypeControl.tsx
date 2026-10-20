@@ -142,7 +142,7 @@ export function CopyTypeControl({
                 'inline-flex h-full items-center gap-1 px-2 text-[length:var(--fs-xs)] text-muted-foreground transition-colors hover:bg-[var(--bg-hover)]',
                 selected && meta.selectedClass,
                 selected && meta.colorClass,
-                'border-l border-[var(--border-default)] first:rounded-l-[7px] first:border-l-0 last:rounded-r-[7px]'
+                'border-l border-[var(--border-default)] first:rounded-l-[calc(var(--radius-lg)-1px)] first:border-l-0 last:rounded-r-[calc(var(--radius-lg)-1px)]'
               )}
             >
               {selected && meta.icon}

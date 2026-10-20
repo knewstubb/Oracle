@@ -1,19 +1,19 @@
 /**
  * ManaBox deck import — one deck per file (D-044, D-046).
  *
- * Every combined row carries an Original / Proxy / Unsleeved split (D-047
- * revised). Original and Proxy create brand-new copies sleeved into the deck;
- * Unsleeved creates a Planned slot with no copy. Basic lands can be converted
- * to generic, untracked slots (D-048). Existing owned copies are never pulled
- * in (D-047 revised).
+ * Every row is a list of copies (CSV and text alike). Each copy has a resolved
+ * type: Original and Proxy create a brand-new `user_copies` row sleeved into the
+ * deck, with that copy's own finish, language and condition; Unsleeved creates a
+ * planned slot only (the card is "not in the deck", owned or not), remembering
+ * the finish as `requested_finish` (D-041) and creating or linking no copy
+ * (D-047). Basic lands can be converted to generic, untracked slots (D-048).
+ * Existing owned copies are never pulled in.
  *
- * Contract: docs/oracle/contracts/manabox-import.md §7, §8, §10, §12.2, §15.2.
+ * Contract: docs/oracle/contracts/import-row-editing.md §5-§7, §10.
  *
- * NOTE: the write uses the existing `replace_deck_with_new_cards` RPC, which is
- * the only atomic deck+copy write available and which the contract says needs
- * no migration. That RPC records `user_copies.finish = 'nonfoil'` for the
- * copies it creates, so a foil CSV row's finish is not yet preserved on the
- * created copy. See the T-55 report (challenges to locked decisions).
+ * Deploy order: the per-copy keys are read by the migration
+ * 20261020120000_deck_import_per_copy_attributes.sql. An older database function
+ * would silently ignore them, which is why a read-back test exists.
  */
 
 import { createAdminClient } from '@/lib/supabase'
@@ -23,22 +23,40 @@ import { isBasicLand, getBasicLandDefaultScryfallId } from '@/lib/basic-lands'
 import { deriveDefaultCategory } from '@/lib/card-definition-resolver'
 import { createVersionSnapshot } from '@/lib/deck-versions'
 import type { NormalizedCard, NormalizedDeck } from '@/lib/deck-normalizer'
+import {
+  ImportValidationError,
+  applyEditsToRow,
+  mapScryfallFinishes,
+  resolveCopy,
+  toDeckRpcRow,
+  validateCopyFileValues,
+  validateImportInput,
+  validateRowFinishes,
+  type ImportCopy,
+  type ImportCopyEdits,
+  type ImportDefaults,
+  type ImportFinish,
+  type ImportRow,
+} from '@/lib/import-copies'
+import type { DeckImportRpcRow } from '../../docs/oracle/contracts/import-row-editing.types'
 import type {
   ManaBoxDeckImportSummary,
-  ManaBoxRowSplit,
-  ManaBoxRowSplits,
   ManaBoxUnmatchedLine,
 } from '../../docs/oracle/contracts/manabox-import.types'
 
 export interface ManaBoxDeckCard extends NormalizedCard {
-  finish?: 'nonfoil' | 'foil' | 'etched'
+  /** Immutable row key from the preview (printing|finish, or printing|text). */
+  rowKey?: string
+  /** One entry per copy; length must equal `quantity`. Holds the file's values. */
+  copies?: ImportCopy[]
   /** True when the slot should become a generic basic land (D-048). */
   isGenericBasicLand?: boolean
-  /** 1-based source index of the combined row (for rowSplits lookup). */
+  /** 1-based source index of the combined row. */
   sourceIndex?: number
-  /** Inline split; takes precedence over `rowSplits`. */
-  rowSplit?: ManaBoxRowSplit
 }
+
+/** The slice of the Supabase client this module uses (lets tests inject a fake). */
+export type DeckImportClient = Pick<ReturnType<typeof createAdminClient>, 'from' | 'rpc'>
 
 export interface ManaBoxDeckImportOptions {
   deck: NormalizedDeck
@@ -46,22 +64,13 @@ export interface ManaBoxDeckImportOptions {
   format?: string
   /** Convert basic lands to generic, untracked slots. Default true (D-048). */
   convertBasicLandsToGeneric?: boolean
-  /** Per-row split keyed by the combined row's 1-based source index. */
-  rowSplits?: ManaBoxRowSplits
+  defaults: ImportDefaults
+  /** Owner edits: rowKey -> copy index -> fields. Holds no database ids. */
+  copyEdits?: ImportCopyEdits
+  /** Always the signed-in user's id. */
   userId: string
   unmatched?: ManaBoxUnmatchedLine[]
-}
-
-interface DeckCardInsertRow {
-  card_id: number | null
-  card_name: string
-  printing_id: string | null
-  scryfall_id: string | null
-  set_code: string
-  categories: string
-  is_commander: boolean
-  is_proxy: boolean
-  is_maybeboard: boolean
+  supabase?: DeckImportClient
 }
 
 /** One deck per file — a fresh numeric id for each import. */
@@ -69,44 +78,118 @@ function generateDeckId(): number {
   return (Date.now() % 2_000_000_000) + Math.floor(Math.random() * 1_000_000)
 }
 
-function resolveSplit(
-  card: ManaBoxDeckCard,
-  rowSplits?: ManaBoxRowSplits
-): ManaBoxRowSplit {
-  const requested = card.rowSplit ??
-    (card.sourceIndex !== undefined ? rowSplits?.[card.sourceIndex] : undefined)
-
-  if (
-    requested &&
-    Number.isInteger(requested.originalCount) &&
-    Number.isInteger(requested.proxyCount) &&
-    Number.isInteger(requested.unsleevedCount) &&
-    requested.originalCount >= 0 &&
-    requested.proxyCount >= 0 &&
-    requested.unsleevedCount >= 0 &&
-    requested.originalCount + requested.proxyCount + requested.unsleevedCount === card.quantity
-  ) {
-    return requested
-  }
-
-  return { originalCount: card.quantity, proxyCount: 0, unsleevedCount: 0 }
+interface PrintingFacts {
+  oracleId: string
+  typeLine: string | null
+  finishes: ImportFinish[] | null
 }
 
 /**
  * Execute a ManaBox deck import. Creates exactly one deck and writes every
- * slot through a single atomic RPC.
+ * slot through a single atomic RPC. Throws `ImportValidationError` (nothing
+ * written) when the request is not acceptable.
  */
 export async function importManaBoxDeck(
   options: ManaBoxDeckImportOptions
 ): Promise<ManaBoxDeckImportSummary> {
-  const supabase = createAdminClient()
-  const deckId = generateDeckId()
+  const supabase = options.supabase ?? createAdminClient()
   const deckFormat = options.format || 'commander'
   const convertBasics = options.convertBasicLandsToGeneric ?? true
 
   const cards = options.deck.cards as ManaBoxDeckCard[]
 
-  // 1. Upsert the deck row (commander chosen after import, D-046/D-052).
+  // 0. Validate the request shape before anything is written.
+  const problems: string[] = []
+  const rowsForValidation = cards.map((card, position) => {
+    const rowKey = card.rowKey ?? ''
+    if (!card.rowKey || !card.copies) problems.push(`card ${position + 1}: rowKey and copies are required`)
+    else problems.push(...validateCopyFileValues(rowKey, card.copies))
+    return { rowKey, qty: card.quantity, copies: card.copies }
+  })
+  const seenKeys = new Set<string>()
+  for (const row of rowsForValidation) {
+    if (seenKeys.has(row.rowKey)) problems.push(`duplicate row ${row.rowKey}`)
+    seenKeys.add(row.rowKey)
+  }
+  problems.push(
+    ...validateImportInput(rowsForValidation, options.defaults, options.copyEdits, {
+      allowUnsleeved: true,
+      requireCopies: true,
+    })
+  )
+  if (problems.length > 0) throw new ImportValidationError(problems)
+
+  // 1. Read each printing once: type line (categories), oracle id (pair check) and
+  //    Scryfall's finish list. The list is recomputed here, never trusted from the client.
+  const scryfallIds = [...new Set(cards.map((c) => c.scryfallId).filter(Boolean))]
+  const printingById = new Map<string, PrintingFacts>()
+  for (let i = 0; i < scryfallIds.length; i += 200) {
+    const batch = scryfallIds.slice(i, i + 200)
+    const { data, error } = await supabase
+      .from('ref_printings')
+      .select('scryfall_id, oracle_id, type_line, finishes')
+      .in('scryfall_id', batch)
+    if (error) throw new Error(`Failed to read printings: ${error.message}`)
+    for (const row of data ?? []) {
+      printingById.set(row.scryfall_id, {
+        oracleId: row.oracle_id,
+        typeLine: row.type_line,
+        finishes: mapScryfallFinishes(row.finishes),
+      })
+    }
+  }
+
+  const isGenericBasic = (card: ManaBoxDeckCard) => convertBasics && isBasicLand(card.cardName)
+
+  // Every tracked card's printing/oracle pair must exist in ref_printings (contract §10).
+  const pairProblems: string[] = []
+  for (const card of cards) {
+    if (isGenericBasic(card)) continue
+    const facts = printingById.get(card.scryfallId)
+    if (!facts || facts.oracleId !== card.oracleId) {
+      pairProblems.push(`"${card.cardName}": printing and card identity do not match a known printing`)
+    }
+  }
+  if (pairProblems.length > 0) throw new ImportValidationError(pairProblems)
+
+  // Resolve every copy (owner edit, then file, then defaults) and check finishes.
+  const resolvedByCard = cards.map((card) => {
+    const row: ImportRow = {
+      rowKey: card.rowKey as string,
+      sourceIndex: card.sourceIndex ?? 0,
+      sourceLines: [],
+      cardName: card.cardName,
+      setCode: card.setCode,
+      collectorNumber: card.collectorNumber ?? '',
+      scryfallId: card.scryfallId,
+      oracleId: card.oracleId,
+      qty: card.quantity,
+      availableFinishes: printingById.get(card.scryfallId)?.finishes ?? null,
+      // The client sends file values only; owner edits arrive separately (never trusted here).
+      copies: (card.copies as ImportCopy[]).map((copy) => ({ ...copy, owner: {} })),
+      isBasicLand: isBasicLand(card.cardName),
+    }
+    const edited = applyEditsToRow(row, options.copyEdits)
+    return {
+      card,
+      row,
+      resolved: edited.copies.map((copy) => resolveCopy(copy, options.defaults, row.availableFinishes)),
+    }
+  })
+  const finishCheck = validateRowFinishes(
+    resolvedByCard
+      .filter(({ card }) => !isGenericBasic(card))
+      .map(({ row, resolved }) => ({
+        rowKey: row.rowKey,
+        availableFinishes: row.availableFinishes,
+        resolved,
+      }))
+  )
+  if (finishCheck.problems.length > 0) throw new ImportValidationError(finishCheck.problems)
+
+  const deckId = generateDeckId()
+
+  // 2. Upsert the deck row (commander chosen after import, D-046/D-052).
   const { error: deckErr } = await supabase.from('decks').upsert(
     {
       id: deckId,
@@ -129,26 +212,10 @@ export async function importManaBoxDeck(
     throw new Error(`Failed to create deck ${deckId}: ${deckErr.message}`)
   }
 
-  // 2. Resolve type lines for category derivation (contract §7.3).
-  const scryfallIds = [...new Set(cards.map((c) => c.scryfallId).filter(Boolean))]
-  const typeLineByPrinting = new Map<string, string>()
-  for (let i = 0; i < scryfallIds.length; i += 200) {
-    const batch = scryfallIds.slice(i, i + 200)
-    const { data } = await supabase
-      .from('ref_printings')
-      .select('scryfall_id, type_line')
-      .in('scryfall_id', batch)
-    for (const row of data ?? []) {
-      if (row.type_line) typeLineByPrinting.set(row.scryfall_id, row.type_line)
-    }
-  }
-
   // 3. Upsert user_cards for every tracked (non-generic-basic) row.
-  const trackedCards = cards.filter(
-    (card) => !(convertBasics && isBasicLand(card.cardName))
-  )
   const uniqueCards = new Map<string, string>()
-  for (const card of trackedCards) {
+  for (const card of cards) {
+    if (isGenericBasic(card)) continue
     if (card.oracleId && !uniqueCards.has(card.oracleId)) {
       uniqueCards.set(card.oracleId, card.cardName)
     }
@@ -174,23 +241,18 @@ export async function importManaBoxDeck(
   }
 
   // 4. Build the atomic insert payload.
-  const insertRows: DeckCardInsertRow[] = []
+  const insertRows: DeckImportRpcRow[] = []
   let assigned = 0
   let shortfall = 0
 
-  for (const card of cards) {
-    const typeLine = typeLineByPrinting.get(card.scryfallId) ?? card.typeLine ?? ''
-    const category = deriveDefaultCategory(typeLine)
-    const categories = JSON.stringify([category])
-    const cardId = cardIdByOracle.get(card.oracleId) ?? null
+  for (const { card, resolved } of resolvedByCard) {
+    const typeLine = printingById.get(card.scryfallId)?.typeLine ?? card.typeLine ?? ''
+    const categories = JSON.stringify([deriveDefaultCategory(typeLine)])
+    const printingId = card.scryfallId || getBasicLandDefaultScryfallId(card.cardName) || null
 
-    const isGenericBasic = convertBasics && isBasicLand(card.cardName)
-    const printingId =
-      card.scryfallId || getBasicLandDefaultScryfallId(card.cardName) || null
-
-    if (isGenericBasic) {
-      // Generic basics create no copies: planned slots only (D-048, §10.2).
-      // `is_maybeboard` is the RPC's "planned, no copy" flag.
+    if (isGenericBasic(card)) {
+      // Generic basics create no copies and ignore edits: planned slots only
+      // (D-048). `is_maybeboard` is the RPC's "planned, no copy" flag.
       for (let i = 0; i < card.quantity; i++) {
         insertRows.push({
           card_id: null,
@@ -202,41 +264,29 @@ export async function importManaBoxDeck(
           is_commander: false,
           is_proxy: false,
           is_maybeboard: true,
+          finish: 'nonfoil',
         })
       }
       continue
     }
 
+    const cardId = cardIdByOracle.get(card.oracleId) ?? null
     if (!cardId) {
       throw new Error(`Missing card identity for "${card.cardName}"`)
     }
 
-    const split = resolveSplit(card, options.rowSplits)
-    const originalCount = split.originalCount
-    const proxyCount = split.proxyCount
-    const unsleevedCount = split.unsleevedCount
-
-    for (let i = 0; i < originalCount; i++) {
-      insertRows.push(ownedRow(card, cardId, categories, false))
-      assigned++
-    }
-    for (let i = 0; i < proxyCount; i++) {
-      insertRows.push(ownedRow(card, cardId, categories, true))
-      assigned++
-    }
-    for (let i = 0; i < unsleevedCount; i++) {
-      insertRows.push({
-        card_id: null,
-        card_name: card.cardName,
-        printing_id: printingId,
-        scryfall_id: printingId,
-        set_code: card.setCode,
-        categories,
-        is_commander: false,
-        is_proxy: false,
-        is_maybeboard: true,
-      })
-      shortfall++
+    for (const copy of resolved) {
+      insertRows.push(
+        toDeckRpcRow(copy, {
+          cardId,
+          cardName: card.cardName,
+          scryfallId: card.scryfallId,
+          setCode: card.setCode,
+          categories,
+        })
+      )
+      if (copy.type === 'unsleeved') shortfall++
+      else assigned++
     }
   }
 
@@ -276,24 +326,6 @@ export async function importManaBoxDeck(
       errors: [],
       unmatched: options.unmatched ?? [],
     },
-  }
-}
-
-function ownedRow(
-  card: ManaBoxDeckCard,
-  cardId: number,
-  categories: string,
-  isProxy: boolean
-): DeckCardInsertRow {
-  return {
-    card_id: cardId,
-    card_name: card.cardName,
-    printing_id: card.scryfallId,
-    scryfall_id: card.scryfallId,
-    set_code: card.setCode,
-    categories,
-    is_commander: false,
-    is_proxy: isProxy,
-    is_maybeboard: false,
+    unlistedFinish: finishCheck.unlistedFinish,
   }
 }

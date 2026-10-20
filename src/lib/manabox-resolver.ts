@@ -8,6 +8,7 @@
 
 import { createAdminClient } from '@/lib/supabase'
 import type { ManaBoxCardFacts, ManaBoxResolver } from '@/lib/manabox-import'
+import { mapScryfallFinishes } from '@/lib/import-copies'
 
 interface PrintingRow {
   oracle_id: string
@@ -16,9 +17,10 @@ interface PrintingRow {
   set_code: string
   layout: string | null
   type_line: string | null
+  finishes?: string[] | null
 }
 
-const PRINTING_COLUMNS = 'oracle_id, scryfall_id, name, set_code, layout, type_line'
+const PRINTING_COLUMNS = 'oracle_id, scryfall_id, name, set_code, layout, type_line, finishes'
 
 /** Lower-case and trim a ManaBox set code before a database lookup. */
 export function normalizeSetCode(setCode: string): string {
@@ -33,6 +35,7 @@ function toFacts(row: PrintingRow): ManaBoxCardFacts {
     setCode: row.set_code,
     layout: row.layout,
     typeLine: row.type_line,
+    availableFinishes: mapScryfallFinishes(row.finishes),
   }
 }
 

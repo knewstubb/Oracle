@@ -15,17 +15,29 @@ import {
   isBasicLand,
   frontFaceName,
 } from '@/lib/basic-lands'
+import {
+  buildRowCopies,
+  buildRowKey,
+  isUnrecognisedCondition,
+  isUnrecognisedFinish,
+  isUnrecognisedLanguage,
+  parseFileCondition,
+  parseFileFinish,
+  parseFileLanguage,
+} from '@/lib/import-copies'
+import type {
+  ImportCopyFileValues,
+  ImportFinish,
+  ImportRow,
+  ImportValueNotices,
+} from '../../docs/oracle/contracts/import-row-editing.types'
 import type {
   ManaBoxCsvFinish,
   ManaBoxCsvRow,
   ManaBoxTextLine,
   ManaBoxUnmatchedLine,
   ManaBoxSkippedToken,
-  ManaBoxPreviewRow,
   ManaBoxPreviewResponse,
-  ManaBoxProxyCounts,
-  ManaBoxRowSplit,
-  ManaBoxRowSplits,
 } from '../../docs/oracle/contracts/manabox-import.types'
 
 // ---------------------------------------------------------------------------
@@ -38,6 +50,8 @@ export interface ManaBoxCsvRecord {
   rowIndex: number
   raw: string
   row: ManaBoxCsvRow
+  /** The raw `Foil` cell, kept so "blank" and "unrecognised" can be told apart. */
+  rawFoil?: string
 }
 
 export interface ManaBoxCsvParseResult {
@@ -64,6 +78,11 @@ export interface ManaBoxCardFacts {
   setCode: string
   layout: string | null
   typeLine: string | null
+  /**
+   * Finishes Scryfall lists for this printing (nonfoil/foil/etched), or null when
+   * not known yet (contract §5A). Optional so older callers and tests may omit it.
+   */
+  availableFinishes?: ImportFinish[] | null
 }
 
 /**
@@ -312,7 +331,12 @@ export function parseManaBoxCsv(content: string): ManaBoxCsvParseResult {
       continue
     }
 
-    records.push({ rowIndex: lineNumber, raw: rawLine, row })
+    records.push({
+      rowIndex: lineNumber,
+      raw: rawLine,
+      row,
+      rawFoil: colIdx['Foil'] === undefined ? undefined : fields[colIdx['Foil']],
+    })
   }
 
   return { headers, records, badRows }
@@ -372,7 +396,6 @@ export function parseManaBoxText(content: string): ManaBoxTextParseResult {
       cardName,
       setCode,
       collectorNumber,
-      isFoil: false,
       rawLine,
       lineNumber,
     })
@@ -397,84 +420,10 @@ export function isTokenCard(facts: Pick<ManaBoxCardFacts, 'layout' | 'typeLine'>
 }
 
 // ---------------------------------------------------------------------------
-// Per-row overrides (contract §8, §9, §15)
-// ---------------------------------------------------------------------------
-
-/** A row that a split/proxy override can target. */
-export interface ManaBoxSplittableRow {
-  /** 1-based source index of the combined row. */
-  sourceIndex: number
-  qty: number
-}
-
-/**
- * Resolve a deck row's Original / Proxy / Unsleeved split, defaulting to all
- * Original. Invalid splits (wrong sum, negative counts) fall back to the
- * default rather than inventing copies.
- */
-export function normalizeDeckRowSplits(
-  rows: ManaBoxSplittableRow[],
-  splits?: ManaBoxRowSplits
-): Map<number, ManaBoxRowSplit> {
-  const result = new Map<number, ManaBoxRowSplit>()
-
-  for (const row of rows) {
-    const requested = splits?.[row.sourceIndex]
-    if (
-      requested &&
-      Number.isInteger(requested.originalCount) &&
-      Number.isInteger(requested.proxyCount) &&
-      Number.isInteger(requested.unsleevedCount) &&
-      requested.originalCount >= 0 &&
-      requested.proxyCount >= 0 &&
-      requested.unsleevedCount >= 0 &&
-      requested.originalCount + requested.proxyCount + requested.unsleevedCount === row.qty
-    ) {
-      result.set(row.sourceIndex, { ...requested })
-    } else {
-      result.set(row.sourceIndex, {
-        originalCount: row.qty,
-        proxyCount: 0,
-        unsleevedCount: 0,
-      })
-    }
-  }
-
-  return result
-}
-
-/**
- * Resolve a collection row's proxy count, defaulting to 0 proxies. A count
- * outside 0…qty falls back to 0.
- */
-export function normalizeProxyCounts(
-  rows: ManaBoxSplittableRow[],
-  proxyCounts?: ManaBoxProxyCounts
-): Map<number, number> {
-  const result = new Map<number, number>()
-
-  for (const row of rows) {
-    const requested = proxyCounts?.[row.sourceIndex]
-    if (
-      requested !== undefined &&
-      Number.isInteger(requested) &&
-      requested >= 0 &&
-      requested <= row.qty
-    ) {
-      result.set(row.sourceIndex, requested)
-    } else {
-      result.set(row.sourceIndex, 0)
-    }
-  }
-
-  return result
-}
-
-// ---------------------------------------------------------------------------
 // Preview
 // ---------------------------------------------------------------------------
 
-/** A resolved, not-yet-combined candidate row. */
+/** A resolved, not-yet-combined candidate row (one source line). */
 export interface ResolvedManaBoxCandidate {
   sourceIndex: number
   cardName: string
@@ -482,10 +431,15 @@ export interface ResolvedManaBoxCandidate {
   collectorNumber: string
   scryfallId: string
   oracleId: string
-  finish: 'nonfoil' | 'foil' | 'etched'
   qty: number
-  condition?: string
-  language?: string
+  /** `text` lines carry no finish, condition or language (contract §2A). */
+  source: 'csv' | 'text'
+  /** What the file supplied for this line. Never defaulted here (contract §3). */
+  file: ImportCopyFileValues
+  /** Which cells held a value the app could not use (counted in notices). */
+  unrecognised?: { finish: boolean; condition: boolean; language: boolean }
+  /** Finishes Scryfall lists for the printing; null when unknown. */
+  availableFinishes?: ImportFinish[] | null
   /** Collection only: purchase price in USD, or null. */
   purchasePrice?: number | null
   /** Collection only: ISO `Added` timestamp, or undefined. */
@@ -501,49 +455,74 @@ export interface ManaBoxResolution {
   unmatched: ManaBoxUnmatchedLine[]
 }
 
-/** Combine resolved candidates into preview rows (contract §13.3). */
+/** Which kind of file a set of candidates came from, for row-key purposes. */
+export type ManaBoxRowKind = 'collection' | 'deck'
+
+/**
+ * Combine resolved candidates into preview rows (contract §4, §13.3). Rows are
+ * grouped by the FILE's values only (D-051): same printing and finish in
+ * different languages are separate rows; different conditions share one row.
+ * The row key is built once here and never recomputed.
+ */
 export function combineResolvedRows(
   candidates: ResolvedManaBoxCandidate[],
-  kind: 'collection' | 'deck'
-): ManaBoxPreviewRow[] {
-  const grouped = new Map<string, ManaBoxPreviewRow>()
+  kind: ManaBoxRowKind
+): ImportRow[] {
+  const grouped = new Map<string, { row: ImportRow; lines: ResolvedManaBoxCandidate[] }>()
 
   for (const candidate of candidates) {
-    const key =
-      kind === 'collection'
-        ? `${candidate.scryfallId}|${candidate.finish}|${candidate.language ?? 'en'}`
-        : `${candidate.scryfallId}|${candidate.finish}`
+    const rowKind = candidate.source === 'text' ? 'text' : kind
+    const key = buildRowKey(candidate, rowKind)
 
     const existing = grouped.get(key)
     if (existing) {
-      existing.qty += candidate.qty
-      existing.sourceLines.push(candidate.sourceIndex)
-      existing.sourceIndex = Math.min(existing.sourceIndex, candidate.sourceIndex)
+      existing.lines.push(candidate)
+      existing.row.sourceLines.push(candidate.sourceIndex)
+      existing.row.sourceIndex = Math.min(existing.row.sourceIndex, candidate.sourceIndex)
       continue
     }
 
     grouped.set(key, {
-      sourceIndex: candidate.sourceIndex,
-      sourceLines: [candidate.sourceIndex],
-      cardName: candidate.cardName,
-      setCode: candidate.setCode,
-      collectorNumber: candidate.collectorNumber,
-      scryfallId: candidate.scryfallId,
-      oracleId: candidate.oracleId,
-      qty: candidate.qty,
-      finish: candidate.finish,
-      condition: candidate.condition,
-      language: candidate.language,
-      isBasicLand: isBasicLand(candidate.cardName),
+      lines: [candidate],
+      row: {
+        rowKey: key,
+        sourceIndex: candidate.sourceIndex,
+        sourceLines: [candidate.sourceIndex],
+        cardName: candidate.cardName,
+        setCode: candidate.setCode,
+        collectorNumber: candidate.collectorNumber,
+        scryfallId: candidate.scryfallId,
+        oracleId: candidate.oracleId,
+        qty: 0,
+        availableFinishes: candidate.availableFinishes ?? null,
+        copies: [],
+        isBasicLand: isBasicLand(candidate.cardName),
+      },
     })
   }
 
-  const rows = [...grouped.values()]
-  for (const row of rows) {
+  const rows: ImportRow[] = []
+  for (const { row, lines } of grouped.values()) {
     row.sourceLines.sort((a, b) => a - b)
+    row.copies = buildRowCopies(lines)
+    row.qty = row.copies.length
+    rows.push(row)
   }
   rows.sort((a, b) => a.sourceIndex - b.sourceIndex)
   return rows
+}
+
+/** Count the file cells the app could not use (one count per source line). */
+export function countUnrecognisedValues(
+  candidates: ResolvedManaBoxCandidate[]
+): Pick<ImportValueNotices, 'unrecognisedCondition' | 'unrecognisedLanguage' | 'unrecognisedFinish'> {
+  const counts = { unrecognisedCondition: 0, unrecognisedLanguage: 0, unrecognisedFinish: 0 }
+  for (const candidate of candidates) {
+    if (candidate.unrecognised?.condition) counts.unrecognisedCondition++
+    if (candidate.unrecognised?.language) counts.unrecognisedLanguage++
+    if (candidate.unrecognised?.finish) counts.unrecognisedFinish++
+  }
+  return counts
 }
 
 /**
@@ -597,7 +576,15 @@ async function resolveCsvRecord(
     return null
   }
 
-  const language = (row.language ?? '').trim().toLowerCase() || 'en'
+  // File values are kept raw-but-parsed; a blank or unusable cell is "not supplied"
+  // and is never defaulted here (contract §3).
+  const file: ImportCopyFileValues = {}
+  const finish = parseFileFinish(record.rawFoil)
+  const condition = parseFileCondition(row.condition)
+  const language = parseFileLanguage(row.language)
+  if (finish) file.finish = finish
+  if (condition) file.condition = condition
+  if (language) file.language = language
 
   return {
     sourceIndex: record.rowIndex,
@@ -606,10 +593,15 @@ async function resolveCsvRecord(
     collectorNumber: row.collectorNumber,
     scryfallId: facts.scryfallId,
     oracleId: facts.oracleId,
-    finish: mapManaBoxFinish(row.finish),
     qty: Math.min(row.quantity, 100),
-    condition: (row.condition ?? '').trim().toLowerCase() || undefined,
-    language,
+    source: 'csv',
+    file,
+    unrecognised: {
+      finish: isUnrecognisedFinish(record.rawFoil),
+      condition: isUnrecognisedCondition(row.condition),
+      language: isUnrecognisedLanguage(row.language),
+    },
+    availableFinishes: facts.availableFinishes ?? null,
     purchasePrice: row.purchasePrice ?? null,
     acquiredAt: (row.added ?? '').trim() || undefined,
   }
@@ -651,8 +643,11 @@ async function resolveTextLine(
     collectorNumber: line.collectorNumber,
     scryfallId: facts.scryfallId,
     oracleId: facts.oracleId,
-    finish: line.isFoil ? 'foil' : 'nonfoil',
     qty: Math.min(line.quantity, 100),
+    source: 'text',
+    // A text line carries no finish, condition or language (contract §2A).
+    file: {},
+    availableFinishes: facts.availableFinishes ?? null,
   }
 }
 
@@ -732,6 +727,7 @@ export async function buildCollectionPreview(
     rows: combineResolvedRows(resolution.candidates, 'collection'),
     skippedTokens: resolution.skippedTokens,
     unmatched: resolution.unmatched,
+    notices: countUnrecognisedValues(resolution.candidates),
   }
 }
 
@@ -747,5 +743,6 @@ export async function buildDeckPreview(
     rows: combineResolvedRows(resolution.candidates, 'deck'),
     skippedTokens: resolution.skippedTokens,
     unmatched: resolution.unmatched,
+    notices: countUnrecognisedValues(resolution.candidates),
   }
 }

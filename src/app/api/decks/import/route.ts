@@ -19,10 +19,12 @@ import { importDeckTheorycrafted, importDeckBuilt, importDeckNewCards } from '@/
 import type { ImportMode } from '@/lib/deck-import'
 import { importManaBoxDeck, type ManaBoxDeckCard } from '@/lib/manabox-deck-import'
 import type { NormalizedDeck } from '@/lib/deck-normalizer'
+import { ImportValidationError } from '@/lib/import-copies'
 import type {
-  ManaBoxRowSplits,
-  ManaBoxUnmatchedLine,
-} from '../../../../../docs/oracle/contracts/manabox-import.types'
+  ImportCopyEdits,
+  ImportDefaults,
+} from '../../../../../docs/oracle/contracts/import-row-editing.types'
+import type { ManaBoxUnmatchedLine } from '../../../../../docs/oracle/contracts/manabox-import.types'
 
 const VALID_MODES: ImportMode[] = ['new_cards', 'built', 'theorycrafted']
 
@@ -32,16 +34,17 @@ interface DeckImportBody {
   format?: string
   name?: string
   convertBasicLandsToGeneric?: boolean
-  rowSplits?: ManaBoxRowSplits
+  defaults?: ImportDefaults
+  copyEdits?: ImportCopyEdits
   unmatched?: ManaBoxUnmatchedLine[]
 }
 
-/** A ManaBox deck import is identified by per-card finish or the row splits. */
+/** A ManaBox deck import carries per-row copies and the import defaults. */
 function isManaBoxDeckBody(body: DeckImportBody): boolean {
-  if (body.rowSplits !== undefined && body.deck !== undefined) return true
+  if (body.defaults !== undefined) return true
   const cards = body.deck?.cards as ManaBoxDeckCard[] | undefined
   if (!cards) return false
-  return cards.some((card) => 'finish' in card || 'rowSplit' in card)
+  return cards.some((card) => 'copies' in card || 'rowKey' in card)
 }
 
 export async function POST(request: NextRequest) {
@@ -86,12 +89,19 @@ export async function POST(request: NextRequest) {
         name: body.name || deck.name,
         format: deckFormat,
         convertBasicLandsToGeneric: body.convertBasicLandsToGeneric,
-        rowSplits: body.rowSplits,
+        defaults: body.defaults as ImportDefaults,
+        copyEdits: body.copyEdits,
         userId,
         unmatched: body.unmatched,
       })
       return Response.json(result)
     } catch (err) {
+      if (err instanceof ImportValidationError) {
+        return Response.json(
+          { error: 'Invalid import request', problems: err.problems },
+          { status: 400 }
+        )
+      }
       const message = err instanceof Error ? err.message : String(err)
       console.error(`[decks/import] ManaBox import failed: ${message}`)
       return Response.json({ error: 'Deck import failed' }, { status: 500 })

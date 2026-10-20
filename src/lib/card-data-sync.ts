@@ -14,6 +14,7 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import * as readline from 'readline'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { mapScryfallFinishes, type ImportFinish } from '@/lib/import-copies'
 
 export const SYNC_META_KEY = 'printings_last_sync'
 export const BATCH_SIZE = 500
@@ -59,6 +60,8 @@ export interface ScryfallCard {
   released_at?: string
   reprint?: boolean
   digital?: boolean
+  /** Scryfall per-printing finishes: nonfoil, foil, etched, glossy. */
+  finishes?: string[]
 }
 
 export interface PrintingRow {
@@ -87,6 +90,8 @@ export interface PrintingRow {
   released_at: string | null
   reprint: boolean
   digital: boolean
+  /** Subset of nonfoil/foil/etched, or null when Scryfall gave none. */
+  finishes: ImportFinish[] | null
   updated_at: string
 }
 
@@ -176,6 +181,7 @@ export function cardToRow(card: ScryfallCard, now: string): PrintingRow {
     released_at: card.released_at || null,
     reprint: card.reprint ?? false,
     digital: card.digital ?? false,
+    finishes: mapScryfallFinishes(card.finishes),
     updated_at: now,
   }
 }

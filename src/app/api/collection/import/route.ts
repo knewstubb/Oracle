@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { executeInstanceLevelImport, type ImportProgress } from '@/lib/import-engine-v2'
 import { executeManaBoxCollectionImport } from '@/lib/manabox-collection-import'
 import { requireAuth } from '@/lib/auth'
-import type { ManaBoxProxyCounts } from '../../../../../docs/oracle/contracts/manabox-import.types'
+import { ImportValidationError } from '@/lib/import-copies'
+import type {
+  ImportCopyEdits,
+  ImportDefaults,
+} from '../../../../../docs/oracle/contracts/import-row-editing.types'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -100,7 +104,8 @@ export async function POST(request: NextRequest) {
   ) {
     let csvContent = ''
     let fileName = 'collection.csv'
-    let proxyCounts: ManaBoxProxyCounts | undefined
+    let defaults: ImportDefaults | undefined
+    let copyEdits: ImportCopyEdits | undefined
 
     if (manaboxContentType.includes('multipart/form-data')) {
       const formData = await request.formData()
@@ -110,16 +115,27 @@ export async function POST(request: NextRequest) {
       }
       csvContent = await file.text()
       if (file instanceof File) fileName = file.name
+      try {
+        const rawDefaults = formData.get('defaults')
+        const rawEdits = formData.get('copyEdits')
+        if (typeof rawDefaults === 'string') defaults = JSON.parse(rawDefaults)
+        if (typeof rawEdits === 'string') copyEdits = JSON.parse(rawEdits)
+      } catch {
+        return NextResponse.json({ error: 'Invalid defaults or edits' }, { status: 400 })
+      }
     } else {
       try {
         const body = (await request.json()) as {
           csvContent?: string
           fileName?: string
-          proxyCounts?: ManaBoxProxyCounts
+          defaults?: ImportDefaults
+          copyEdits?: ImportCopyEdits
         }
         csvContent = body.csvContent ?? ''
         if (body.fileName) fileName = body.fileName
-        proxyCounts = body.proxyCounts
+        // `userId` in the body, if any, is ignored: the session decides who owns the copies.
+        defaults = body.defaults
+        copyEdits = body.copyEdits
       } catch {
         return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
       }
@@ -134,10 +150,17 @@ export async function POST(request: NextRequest) {
         csvContent,
         fileName,
         userId,
-        proxyCounts,
+        defaults: defaults as ImportDefaults,
+        copyEdits,
       })
       return NextResponse.json(summary)
     } catch (err) {
+      if (err instanceof ImportValidationError) {
+        return NextResponse.json(
+          { error: 'Invalid import request', problems: err.problems },
+          { status: 400 }
+        )
+      }
       const message = err instanceof Error ? err.message : String(err)
       return NextResponse.json({ error: `Import failed: ${message}` }, { status: 500 })
     }

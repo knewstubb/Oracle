@@ -8,8 +8,6 @@ import {
   parseManaBoxText,
   mapManaBoxFinish,
   isTokenCard,
-  normalizeDeckRowSplits,
-  normalizeProxyCounts,
   buildCollectionPreview,
   buildDeckPreview,
   type ManaBoxCardFacts,
@@ -209,7 +207,7 @@ describe('parseManaBoxText', () => {
     expect(drake.quantity).toBe(1)
     expect(drake.setCode).toBe('TFDN')
     expect(drake.collectorNumber).toBe('8')
-    expect(drake.isFoil).toBe(false)
+    expect('isFoil' in drake).toBe(false)
   })
 
   it('parses Strixhaven.txt and preserves double-faced names', () => {
@@ -259,23 +257,6 @@ describe('finish, tokens and overrides', () => {
     expect(isTokenCard({ layout: 'normal', typeLine: 'Token Creature — Drake' })).toBe(true)
     expect(isTokenCard({ layout: 'transform', typeLine: 'Creature' })).toBe(false)
     expect(isTokenCard({ layout: null, typeLine: null })).toBe(false)
-  })
-
-  it('defaults deck splits to all Original and rejects invalid sums', () => {
-    const rows = [{ sourceIndex: 2, qty: 2 }, { sourceIndex: 5, qty: 3 }]
-    const splits = normalizeDeckRowSplits(rows, {
-      2: { originalCount: 1, proxyCount: 1, unsleevedCount: 0 },
-      5: { originalCount: 1, proxyCount: 1, unsleevedCount: 0 }, // sums to 2, not 3
-    })
-    expect(splits.get(2)).toEqual({ originalCount: 1, proxyCount: 1, unsleevedCount: 0 })
-    expect(splits.get(5)).toEqual({ originalCount: 3, proxyCount: 0, unsleevedCount: 0 })
-  })
-
-  it('defaults collection proxy counts to 0 and clamps out-of-range values', () => {
-    const rows = [{ sourceIndex: 2, qty: 2 }, { sourceIndex: 3, qty: 1 }]
-    const counts = normalizeProxyCounts(rows, { 2: 5, 3: 1 })
-    expect(counts.get(2)).toBe(0)
-    expect(counts.get(3)).toBe(1)
   })
 })
 
@@ -338,10 +319,10 @@ describe('buildCollectionPreview', () => {
     )
     // nonfoil/en (2 copies, conditions combined), foil/en, nonfoil/ja → 3 rows.
     expect(preview.rows).toHaveLength(3)
-    const enNonfoil = preview.rows.find((r) => r.finish === 'nonfoil' && r.language === 'en')!
+    const enNonfoil = preview.rows.find((r) => r.copies[0].file.finish === 'nonfoil' && r.copies[0].file.language === 'en')!
     expect(enNonfoil.qty).toBe(2)
     expect(enNonfoil.sourceLines).toEqual([2, 3])
-    expect(preview.rows.some((r) => r.language === 'ja')).toBe(true)
+    expect(preview.rows.some((r) => r.copies[0].file.language === 'ja')).toBe(true)
   })
 
   it('reports an unknown Scryfall ID and a no-card set+collector lookup', async () => {

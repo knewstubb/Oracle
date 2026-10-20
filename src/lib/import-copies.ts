@@ -720,6 +720,32 @@ export function validateRowFinishes(
   return { problems, unlistedFinish }
 }
 
+/**
+ * The deck body is built by the client, so the file values travel with each card.
+ * Check each is a value the app stores (never trust a client string). Returns problems.
+ */
+export function validateCopyFileValues(rowKey: string, copies: ImportCopy[]): string[] {
+  const problems: string[] = []
+  copies.forEach((copy, position) => {
+    const file = copy?.file as ImportCopyFileValues | undefined
+    if (!file || typeof file !== 'object') {
+      problems.push(`row ${rowKey} copy ${position}: file values are required`)
+      return
+    }
+    if (copy.index !== position) problems.push(`row ${rowKey} copy ${position}: index must be ${position}`)
+    if (file.finish !== undefined && !isImportFinish(file.finish)) {
+      problems.push(`row ${rowKey} copy ${position}: unknown file finish`)
+    }
+    if (file.condition !== undefined && !isImportCondition(file.condition)) {
+      problems.push(`row ${rowKey} copy ${position}: unknown file condition`)
+    }
+    if (file.language !== undefined && !isImportLanguage(file.language)) {
+      problems.push(`row ${rowKey} copy ${position}: unknown file language`)
+    }
+  })
+  return problems
+}
+
 // ---------------------------------------------------------------------------
 // Mapping into RPC rows (contract §7)
 // ---------------------------------------------------------------------------
@@ -785,5 +811,15 @@ export function toDeckRpcRow(copy: ResolvedImportCopy, context: DeckCopyContext)
     language: copy.language,
     card_condition: copy.type === 'proxy' ? null : copy.heldCondition,
     source_tag: 'deck-import',
+  }
+}
+
+/** Thrown by the write paths when the request is not acceptable. Routes answer 400; nothing was written. */
+export class ImportValidationError extends Error {
+  readonly problems: string[]
+  constructor(problems: string[]) {
+    super(`Invalid import request: ${problems.slice(0, 5).join('; ')}`)
+    this.name = 'ImportValidationError'
+    this.problems = problems
   }
 }

@@ -1716,6 +1716,7 @@ export type Database = {
           color_identity: string[] | null
           colors: string[] | null
           digital: boolean | null
+          finishes: string[] | null
           image_uri_art_crop: string | null
           image_uri_large: string | null
           image_uri_normal: string | null
@@ -1744,6 +1745,7 @@ export type Database = {
           color_identity?: string[] | null
           colors?: string[] | null
           digital?: boolean | null
+          finishes?: string[] | null
           image_uri_art_crop?: string | null
           image_uri_large?: string | null
           image_uri_normal?: string | null
@@ -1772,6 +1774,7 @@ export type Database = {
           color_identity?: string[] | null
           colors?: string[] | null
           digital?: boolean | null
+          finishes?: string[] | null
           image_uri_art_crop?: string | null
           image_uri_large?: string | null
           image_uri_normal?: string | null

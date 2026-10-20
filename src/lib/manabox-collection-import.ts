@@ -5,49 +5,61 @@
  * skips tokens (D-051) and appends physical copies to the collection. Existing
  * copies and deck sleeves are never touched.
  *
- * Contract: docs/oracle/contracts/manabox-import.md §9, §12.1, §15.1.
+ * Every physical copy is one `user_copies` row (D-001). Its type, finish,
+ * condition and language come from `resolveCopy` (owner edit, then the file,
+ * then the defaults) so what the owner saw on the review screen is what is
+ * written. The server re-reads the file itself; the client sends only the
+ * defaults and the owner's per-copy edits.
+ *
+ * Contract: docs/oracle/contracts/import-row-editing.md §3, §5, §7, §10.
  */
 
 import { createAdminClient } from '@/lib/supabase'
 import type { Json } from '@/types/supabase'
 import { assertAtomicRpcSuccess, assertAtomicRpcCount } from '@/lib/atomic-rpc'
-import { mapCondition } from '@/lib/identity-resolver'
 import { createSupabaseManaBoxResolver } from '@/lib/manabox-resolver'
+import { resolveCollectionRows, combineResolvedRows, type ManaBoxResolver } from '@/lib/manabox-import'
 import {
-  resolveCollectionRows,
-  combineResolvedRows,
-  normalizeProxyCounts,
-  type ManaBoxResolver,
-} from '@/lib/manabox-import'
+  ImportValidationError,
+  applyEditsToRow,
+  resolveCopy,
+  toCollectionRpcRow,
+  validateImportInput,
+  validateRowFinishes,
+} from '@/lib/import-copies'
 import type {
-  ManaBoxCollectionImportSummary,
-  ManaBoxProxyCounts,
-} from '../../docs/oracle/contracts/manabox-import.types'
+  ImportCopyEdits,
+  ImportDefaults,
+} from '../../docs/oracle/contracts/import-row-editing.types'
+import type { ManaBoxCollectionImportSummary } from '../../docs/oracle/contracts/manabox-import.types'
+
+/** The slice of the Supabase client this module uses (lets tests inject a fake). */
+export type CollectionImportClient = Pick<ReturnType<typeof createAdminClient>, 'from' | 'rpc'>
 
 export interface ManaBoxCollectionImportOptions {
   csvContent: string
   fileName: string
+  /** Always the signed-in user's id, taken from the session, never from the request body. */
   userId: string
-  /** Per combined-row proxy count keyed by the row's 1-based source index. */
-  proxyCounts?: ManaBoxProxyCounts
+  defaults: ImportDefaults
+  /** Owner edits: rowKey -> copy index -> fields. Holds no database ids. */
+  copyEdits?: ImportCopyEdits
   /** Injectable resolver for tests. */
   resolver?: ManaBoxResolver
-}
-
-/** Combined-row key used for collection combining (printing + finish + language). */
-function combinedKey(scryfallId: string, finish: string, language?: string): string {
-  return `${scryfallId}|${finish}|${language ?? 'en'}`
+  /** Injectable database client for tests. */
+  supabase?: CollectionImportClient
 }
 
 /**
  * Execute an add-only ManaBox collection import. Returns the insert summary;
- * the collection is never cleared or replaced.
+ * the collection is never cleared or replaced. Throws `ImportValidationError`
+ * (nothing written) when the defaults or edits are not acceptable.
  */
 export async function executeManaBoxCollectionImport(
   options: ManaBoxCollectionImportOptions
 ): Promise<ManaBoxCollectionImportSummary> {
   const startTime = Date.now()
-  const supabase = createAdminClient()
+  const supabase = options.supabase ?? createAdminClient()
   const resolver = options.resolver ?? createSupabaseManaBoxResolver()
 
   const resolution = await resolveCollectionRows(
@@ -57,23 +69,35 @@ export async function executeManaBoxCollectionImport(
 
   const rows = combineResolvedRows(resolution.candidates, 'collection')
 
-  const proxyBySource = normalizeProxyCounts(
-    rows.map((row) => ({ sourceIndex: row.sourceIndex, qty: row.qty })),
-    options.proxyCounts
+  // 0. Validate everything before anything is written.
+  const problems = validateImportInput(
+    rows.map((row) => ({ rowKey: row.rowKey, qty: row.qty })),
+    options.defaults,
+    options.copyEdits,
+    { allowUnsleeved: false }
   )
+  if (problems.length > 0) throw new ImportValidationError(problems)
 
-  // Remaining proxies to place per combined row, consumed in file order.
-  const remainingProxies = new Map<number, number>()
-  for (const row of rows) {
-    remainingProxies.set(row.sourceIndex, proxyBySource.get(row.sourceIndex) ?? 0)
-  }
+  const resolvedByRow = rows.map((row) => {
+    const edited = applyEditsToRow(row, options.copyEdits)
+    return {
+      row,
+      resolved: edited.copies.map((copy) =>
+        resolveCopy(copy, options.defaults, row.availableFinishes)
+      ),
+    }
+  })
 
-  // Map each combined key to the source index that owns its proxy budget.
-  const sourceIndexByKey = new Map<string, number>()
-  for (const row of rows) {
-    sourceIndexByKey.set(combinedKey(row.scryfallId, row.finish, row.language), row.sourceIndex)
-  }
+  const finishCheck = validateRowFinishes(
+    resolvedByRow.map(({ row, resolved }) => ({
+      rowKey: row.rowKey,
+      availableFinishes: row.availableFinishes,
+      resolved,
+    }))
+  )
+  if (finishCheck.problems.length > 0) throw new ImportValidationError(finishCheck.problems)
 
+  const lineBySource = new Map(resolution.candidates.map((c) => [c.sourceIndex, c]))
   const errors: string[] = []
 
   // 1. Upsert user_cards for every unique oracle_id.
@@ -105,43 +129,25 @@ export async function executeManaBoxCollectionImport(
     }
   }
 
-  // 2. Build one copy row per physical copy.
+  // 2. One copy row per physical copy, each carrying its own source line's price and date.
   const copyRows: Array<{ [key: string]: Json | undefined }> = []
-
-  for (const candidate of resolution.candidates) {
-    const cardId = cardIdByOracle.get(candidate.oracleId)
+  for (const { row, resolved } of resolvedByRow) {
+    const cardId = cardIdByOracle.get(row.oracleId)
     if (!cardId) {
-      errors.push(`Unable to create or resolve user card for "${candidate.cardName}"`)
+      errors.push(`Unable to create or resolve user card for "${row.cardName}"`)
       continue
     }
-
-    const key = combinedKey(candidate.scryfallId, candidate.finish, candidate.language)
-    const { condition } = mapCondition(candidate.condition ?? '')
-
-    const orderedSource = sourceIndexByKey.get(key) ?? candidate.sourceIndex
-
-    for (let i = 0; i < candidate.qty; i++) {
-      const remaining = remainingProxies.get(orderedSource) ?? 0
-      const isProxy = remaining > 0
-      if (isProxy) remainingProxies.set(orderedSource, remaining - 1)
-
-      const copyRow: { [key: string]: Json | undefined } = {
-        card_id: cardId,
-        printing_id: candidate.scryfallId,
-        finish: candidate.finish,
-        language: candidate.language ?? 'en',
-        is_proxy: isProxy,
-        card_condition: condition,
-        source_tag: 'manabox',
-        location_id: null,
-      }
-      if (candidate.purchasePrice != null) {
-        copyRow.purchase_price = candidate.purchasePrice
-      }
-      if (candidate.acquiredAt) {
-        copyRow.acquired_at = candidate.acquiredAt
-      }
-      copyRows.push(copyRow)
+    const copies = applyEditsToRow(row, options.copyEdits).copies
+    for (const copy of resolved) {
+      const line = lineBySource.get(copies[copy.index].sourceLine)
+      copyRows.push(
+        toCollectionRpcRow(copy, {
+          cardId,
+          scryfallId: row.scryfallId,
+          purchasePrice: line?.purchasePrice,
+          acquiredAt: line?.acquiredAt,
+        }) as unknown as { [key: string]: Json | undefined }
+      )
     }
   }
 
@@ -154,6 +160,7 @@ export async function executeManaBoxCollectionImport(
       errors,
       unmatched: resolution.unmatched,
       durationMs: Date.now() - startTime,
+      unlistedFinish: finishCheck.unlistedFinish,
     }
   }
 
@@ -185,5 +192,6 @@ export async function executeManaBoxCollectionImport(
     errors,
     unmatched: resolution.unmatched,
     durationMs: Date.now() - startTime,
+    unlistedFinish: finishCheck.unlistedFinish,
   }
 }

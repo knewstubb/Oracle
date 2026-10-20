@@ -42,7 +42,7 @@ export function CopyCountStepper({ qty, type, value, cardName, onChange, onClose
   }, [])
 
   const set = (n: number) => {
-    const next = Math.max(1, Math.min(qty, n))
+    const next = Math.max(0, Math.min(qty, n))
     if (next !== value) onChange(next)
   }
 
@@ -64,7 +64,7 @@ export function CopyCountStepper({ qty, type, value, cardName, onChange, onClose
         break
       case 'Home':
         e.preventDefault()
-        set(1)
+        set(0)
         break
       case 'End':
         e.preventDefault()
@@ -106,7 +106,7 @@ export function CopyCountStepper({ qty, type, value, cardName, onChange, onClose
           type="button"
           tabIndex={-1}
           aria-label={`Fewer ${plural}`}
-          disabled={value <= 1}
+          disabled={value <= 0}
           onClick={() => set(value - 1)}
           className={stepBtn}
         >
@@ -117,7 +117,7 @@ export function CopyCountStepper({ qty, type, value, cardName, onChange, onClose
           role="spinbutton"
           tabIndex={0}
           aria-label={type === 'proxy' ? 'Proxies' : 'Unsleeved'}
-          aria-valuemin={1}
+          aria-valuemin={0}
           aria-valuemax={qty}
           aria-valuenow={value}
           aria-valuetext={`${value} of ${qty}`}

@@ -71,7 +71,7 @@ describe('CopyTypeControl — 2+ copy rows', () => {
     expect(screen.getByRole('group', { name: /unsleeved/i })).toBeInTheDocument()
   })
 
-  it('decrements and increments within 1..qty with disabled ends', () => {
+  it('decrements and increments within 0..qty with disabled ends; 0 resets to all Original', () => {
     render(<Harness qty={3} />)
     fireEvent.click(screen.getByRole('button', { name: /Proxy/i }))
     const fewer = screen.getByRole('button', { name: 'Fewer proxies' })
@@ -80,13 +80,16 @@ describe('CopyTypeControl — 2+ copy rows', () => {
     fireEvent.click(fewer)
     fireEvent.click(fewer)
     expect(number()).toHaveAttribute('aria-valuenow', '1')
-    expect(fewer).toBeDisabled()
     expect(screen.getByText('Original 2')).toBeInTheDocument()
     fireEvent.click(fewer)
-    expect(number()).toHaveAttribute('aria-valuenow', '1')
+    expect(number()).toHaveAttribute('aria-valuenow', '0')
+    expect(fewer).toBeDisabled()
+    expect(screen.getByText('Original 3')).toBeInTheDocument()
+    fireEvent.click(fewer)
+    expect(number()).toHaveAttribute('aria-valuenow', '0')
     fireEvent.click(more)
-    expect(number()).toHaveAttribute('aria-valuenow', '2')
-    expect(screen.getByText('Original 1')).toBeInTheDocument()
+    expect(number()).toHaveAttribute('aria-valuenow', '1')
+    expect(screen.getByText('Original 2')).toBeInTheDocument()
   })
 
   it('supports keyboard: arrows, Home/End, no wrap', () => {
@@ -96,9 +99,9 @@ describe('CopyTypeControl — 2+ copy rows', () => {
     fireEvent.keyDown(number(), { key: 'ArrowUp' })
     expect(number()).toHaveAttribute('aria-valuenow', '4')
     fireEvent.keyDown(number(), { key: 'Home' })
-    expect(number()).toHaveAttribute('aria-valuenow', '1')
+    expect(number()).toHaveAttribute('aria-valuenow', '0')
     fireEvent.keyDown(number(), { key: 'ArrowDown' })
-    expect(number()).toHaveAttribute('aria-valuenow', '1')
+    expect(number()).toHaveAttribute('aria-valuenow', '0')
     fireEvent.keyDown(number(), { key: 'End' })
     expect(number()).toHaveAttribute('aria-valuenow', '4')
   })

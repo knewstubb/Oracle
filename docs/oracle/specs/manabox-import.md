@@ -73,7 +73,7 @@ Primitives come from `src/components/ui/` [Confirmed: dialog, tabs, radio-group,
 | `ImportNoticeLine` | `tone: 'warning'\|'info'`, `icon`, `text`, `action?`, `details?` | — | One line each. Not matched (warning, **Copy**); Tokens skipped (info, **Show/Hide**). Several unmatched lines: "3 not matched" + **Show** + **Copy**. |
 | `ImportCardList` | `rows`, `kind: 'deck'\|'collection'`, `source: 'csv'\|'txt'`, `selection`, `filter`, `query` | `Checkbox`, `Input` | 30 px rows. The header becomes the bulk bar when ≥1 row is selected. Filters: All · Proxies · Unsleeved (deck) · Basics (deck, when there are basics). Text files add a **Foil** column. Virtualise above ~200 rows. |
 | `CopyTypeControl` | `qty`, `counts: {original, proxy, unsleeved}`, `onChange`, `cardName`, `options` | `RadioGroup` (1 copy) / `ToggleGroup` (2+ copies) | Deck: **Original · Proxy · Unsleeved**. Collection: **Original · Proxy**. When a row is split, each chosen segment shows its count, e.g. "Original 1 · Proxy 1". A generic basic shows the **Basic** badge instead. |
-| `CopyCountStepper` | `qty`, `type: 'proxy'\|'unsleeved'`, `value`, `base`, `onChange(n)`, `onClose` | Native buttons + `role="spinbutton"` (no Popover) | Replaces the row's segments while editing: "Proxy [−] 1 [+] · ✓ Original 1" / "Unsleeved [−] 1 [+] · ✓ Original 1". Range 1…qty; − disabled at 1, + disabled at qty. The Original remainder (green check) updates live. Same row height (24 px), rendered in the row, never floating. Works at any qty. |
+| `CopyCountStepper` | `qty`, `type: 'proxy'\|'unsleeved'`, `value`, `base`, `onChange(n)`, `onClose` | Native buttons + `role="spinbutton"` (no Popover) | Replaces the row's segments while editing: "Proxy [−] 1 [+] · ✓ Original 1" / "Unsleeved [−] 1 [+] · ✓ Original 1". Range 0…qty (owner, 2026-10-20: 0 resets the row to all Original); − disabled at 0, + disabled at qty. The Original remainder (green check) updates live. Same row height (24 px), rendered in the row, never floating. Works at any qty. |
 | `FoilCheckbox` | `checked`, `cardName` | `Checkbox` | Text-file rows only (D-051). Applies to every copy on the row. |
 | `ImportSummary` | `totals`, `kind` | — | Footer counts, `aria-live="polite"`. |
 | `ImportProgress` | `processed`, `total`, `cancellable` | progress bar, `Button` | Collection only. Reuse the existing collection progress [Confirmed: CollectionImportButton.tsx]. |
@@ -172,7 +172,7 @@ The samples have no unmatched lines (D-049: 186/186 matched), and the collection
 
 ### 6.2 Count stepper (rows with 2+ copies)
 - **Clicking Proxy or Unsleeved** on a row where that type isn't in use sets **all** copies to it and turns the row's control into the stepper, showing that number. Clicking a type already in use opens the stepper at its current number.
-- **− / +** change the number by 1 within 1…qty. Reaching qty makes the whole row that type (Original 0).
+- **− / +** change the number by 1 within 0…qty; 0 resets the row to all Original. Reaching qty makes the whole row that type (Original 0).
 - **Where the other copies go:** raising the number takes copies from Original first, then from the other type. Lowering it returns copies to Original.
   - "2 Pull from the Grave" → **Proxy** → "Proxy − 2 + · Original 0" → **−** → "Proxy − 1 + · Original 1".
   - Collapsed: "Original 1 · Proxy 1". Then **Unsleeved** → stepper → 1 → "Proxy 1 · Unsleeved 1".

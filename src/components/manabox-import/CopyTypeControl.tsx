@@ -101,7 +101,7 @@ export function CopyTypeControl({
       <CopyCountStepper
         qty={qty}
         type={editing}
-        value={Math.max(1, splitCount(split, editing))}
+        value={splitCount(split, editing)}
         cardName={cardName}
         onChange={(n) => onChange(setSplitCount(split, editing, n, qty))}
         onClose={(refocus) => {
@@ -142,7 +142,7 @@ export function CopyTypeControl({
                 'inline-flex h-full items-center gap-1 px-2 text-[length:var(--fs-xs)] text-muted-foreground transition-colors hover:bg-[var(--bg-hover)]',
                 selected && meta.selectedClass,
                 selected && meta.colorClass,
-                'border-l border-[var(--border-default)] first:border-l-0'
+                'border-l border-[var(--border-default)] first:rounded-l-[7px] first:border-l-0 last:rounded-r-[7px]'
               )}
             >
               {selected && meta.icon}

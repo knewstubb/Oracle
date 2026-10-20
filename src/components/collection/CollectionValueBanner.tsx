@@ -25,7 +25,7 @@ export function CollectionValueBanner() {
   const queryClient = useQueryClient()
   const [isRefreshing, setIsRefreshing] = useState(false)
 
-  const { data, isLoading } = useQuery<CollectionValue>({
+  const { data, isLoading, error } = useQuery<CollectionValue>({
     queryKey: ['collection-value'],
     queryFn: () => fetch('/api/collection/value').then(r => r.json()),
     staleTime: 5 * 60 * 1000,
@@ -59,7 +59,30 @@ export function CollectionValueBanner() {
     }
   }
 
-  if (isLoading || !data) return null
+  if (isLoading) return null
+
+  // Show a minimal banner on error so the failure is visible and the Refresh
+  // Prices button remains reachable.
+  if (error || !data) {
+    return (
+      <div className="mx-5 mb-3 flex flex-wrap items-center gap-4 rounded-lg border px-4 py-2.5" style={{ borderColor: 'var(--border-default)', backgroundColor: 'rgba(26,26,30,0.5)' }}>
+        <span className="text-[length:var(--fs-sm)] text-muted-foreground">
+          Could not load collection value.
+        </span>
+        <div className="ml-auto">
+          <button
+            onClick={handleRefreshPrices}
+            disabled={isRefreshing}
+            className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[length:var(--fs-xs)] font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Refresh market prices from Scryfall"
+          >
+            <RefreshCw className={`size-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">{isRefreshing ? 'Refreshing...' : 'Refresh Prices'}</span>
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   // Ensure all required fields exist with defaults
   const totalMarketValue = data.totalMarketValue ?? 0

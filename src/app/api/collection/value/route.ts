@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
         printing_id,
         acquired_at,
         is_proxy,
-        user_cards!inner(card_name)
+        user_cards!user_copies_card_id_fkey!inner(card_name)
       `)
       .eq('user_id', userId)
       .range(offset, offset + PAGE_SIZE - 1)

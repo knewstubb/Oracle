@@ -94,6 +94,14 @@ export function CopyCountStepper({ qty, type, value, cardName, onChange, onClose
       className="inline-flex h-6 items-center gap-2 text-[length:var(--fs-xs)]"
     >
       <span
+        aria-live="polite"
+        aria-atomic="true"
+        className="inline-flex items-center gap-1 text-[var(--accent-primary)]"
+      >
+        <Check className="size-3" aria-hidden="true" />
+        Original {remainder}
+      </span>
+      <span
         className={cn(
           'inline-flex h-6 items-center overflow-hidden rounded-lg border',
           type === 'proxy'
@@ -136,14 +144,6 @@ export function CopyCountStepper({ qty, type, value, cardName, onChange, onClose
         >
           <Plus className="size-3" aria-hidden="true" />
         </button>
-      </span>
-      <span
-        aria-live="polite"
-        aria-atomic="true"
-        className="inline-flex items-center gap-1 text-[var(--accent-primary)]"
-      >
-        <Check className="size-3" aria-hidden="true" />
-        Original {remainder}
       </span>
     </span>
   )

@@ -1,6 +1,5 @@
 'use client'
 
-import { Check, VenetianMask } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ManaBoxRowSplit } from '../../../docs/oracle/contracts/manabox-import.types'
 import type { CopyType } from './types'
@@ -9,25 +8,22 @@ import { CopyCountStepper } from './CopyCountStepper'
 
 const TYPE_META: Record<
   CopyType,
-  { label: string; icon: React.ReactNode | null; colorClass: string; selectedClass: string }
+  { label: string; colorClass: string; selectedClass: string }
 > = {
   original: {
     label: 'Original',
-    icon: <Check className="size-3" aria-hidden="true" />,
     colorClass: 'text-[var(--accent-primary)]',
     selectedClass:
       'bg-[rgba(29,158,117,0.18)] shadow-[inset_0_0_0_1px_var(--accent-primary)] text-foreground',
   },
   proxy: {
     label: 'Proxy',
-    icon: <VenetianMask className="size-3" aria-hidden="true" />,
     colorClass: 'text-[var(--status-proxy)]',
     selectedClass:
       'bg-[rgba(74,147,160,0.18)] shadow-[inset_0_0_0_1px_var(--status-proxy)] text-foreground',
   },
   unsleeved: {
     label: 'Unsleeved',
-    icon: null,
     colorClass: 'text-muted-foreground',
     selectedClass: 'shadow-[inset_0_0_0_1px_var(--text-secondary)] text-foreground',
   },
@@ -102,7 +98,6 @@ export function CopyTypeControl({
             onClick={() => setAll(type)}
             className={cn(segmentClass(selected, meta), 'px-2 transition-colors hover:bg-[var(--bg-hover)]')}
           >
-            {selected && meta.icon}
             {meta.label}
             {multi && <span aria-live="polite" aria-atomic="true">{count}</span>}
           </button>

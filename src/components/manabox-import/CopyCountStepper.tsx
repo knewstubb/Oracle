@@ -1,6 +1,6 @@
 'use client'
 
-import { Minus, Plus, VenetianMask } from 'lucide-react'
+import { Minus, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface CopyCountStepperProps {
@@ -57,10 +57,7 @@ export function CopyCountStepper({ qty, type, value, cardName, onChange }: CopyC
       aria-label={`How many ${cardName} are ${plural}`}
       className="inline-flex h-full items-center"
     >
-      <span className="inline-flex items-center gap-1 pl-2 pr-1">
-        {type === 'proxy' && <VenetianMask className="size-3" aria-hidden="true" />}
-        {label}
-      </span>
+      <span className="pl-2 pr-1">{label}</span>
       <button
         type="button"
         tabIndex={-1}

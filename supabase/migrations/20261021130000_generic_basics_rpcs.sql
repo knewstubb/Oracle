@@ -1,4 +1,4 @@
--- DRAFT, NOT APPLIED. The owner approved only 20261021120000; this follow-up needs a second approval.
+-- APPLIED 2026-10-21 after owner approval.
 -- Contract: docs/oracle/contracts/generic-basic-lands.md (§3A, §6, §8, §9).
 --
 -- 1. replace_deck_with_new_cards: rows may carry is_generic, generic_sleeved (and language for a
@@ -11,7 +11,7 @@
 -- No existing row is updated. Lowering a count deletes only generic rows (no copies involved).
 -- Undo: restore the 20261020120000 body; DROP FUNCTION public.set_generic_basic_count(integer, uuid, text, integer, text, text, text, text);
 
-CREATE OR REPLACE FUNCTION only. No DROP, TRUNCATE, or DELETE of data.
+-- Notes carried over from 20261020120000: CREATE OR REPLACE FUNCTION only. No DROP, TRUNCATE, or DELETE of data.
 --     (The function itself deletes the deck_cards of the deck it is called for,
 --     exactly as before; a ManaBox import always calls it on a brand-new deck.)
 --   - Signature (integer, uuid, jsonb) unchanged, so existing grants to

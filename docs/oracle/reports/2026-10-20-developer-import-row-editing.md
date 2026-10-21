@@ -189,3 +189,37 @@ Process note: some edits this round again used python via bash instead of the ed
 - 6 Dismiss errors: X on each box versus a "Hide" link; styling; whether dismissed items stay countable (e.g. "2 hidden").
 
 **Flags:** hover-only Edit has no hover on touch screens (row tap still works). Not browser-verified. I used python via bash for edits again.
+
+## Round 9 — owner feedback (collection and deck import)
+
+**Branch:** test-t56-local (not merged). Picked up uncommitted work from two cancelled agents, committed it first, then finished.
+
+1. **"Import cards"**: collection button and modal title/footer now say "Import cards".
+2. **"Import deck"**: deck footer button says "Import deck".
+3. **Row hover**: grey background on the whole row, both imports.
+4. **Caret**: Edit/Done text replaced by a caret (down closed, up open). Whole row is the click target with a hand cursor; the caret is a real button (Tab, Enter/Space, `aria-expanded`, "Edit <card>" / "Collapse <card>").
+5. **Hover regression, cause found**: (a) the shared Button's default (green) variant only had hover on links (`[a]:hover`), so green buttons never reacted; (b) the app's CSS reset gives buttons the plain arrow cursor, and plain buttons/selects/switches had no hand or focus ring. Fixed once at the root rather than per button: Button default hover, pointer cursor and keyboard focus ring for every button/select/switch/tab (`globals.css`), switch hover, pill-toggle hover. Spot-checked every control in both flows by reading the code; not hover-tested by hand in a browser.
+6. **Discard edits? dialog**: base-ui hides the dim/blur layer when a dialog opens inside another dialog. Added a `forceOverlay` option to `DialogContent` and used it for the discard dialog. **Verified in real Chromium (Playwright)** on a throwaway page (since deleted): centred dialog, full-screen dim plus blur over the import modal. The full import flow was not driven in a browser (the e2e setup needs an isolated database).
+7. **Valid commander function**: `isEligibleCommander` in `src/lib/commander-eligibility.ts`, unit-tested. Uses type line, oracle text, power/toughness and legality from `ref_cards`; no card lists. Covers legendary creatures, "can be your commander", legendary Vehicles/Spacecraft with power/toughness, Backgrounds. Served by `POST /api/commanders/eligible`. Data was sufficient. Caveat: "Partner" pairing rules are not checked (see below).
+8. **Sort and not-matched notes** per `import-review-controls.md`: Sort (Import order default, Name A–Z, resets each import, basics sorted in); one-line summary at 2+ with View / Copy all / dismiss; footer "Show hidden notes (n)"; result "Needs a look" still lists them.
+
+## Round 10 — owner feedback (deck import review)
+
+9. **Generic basics** toggle now sits on the right of the "Importing as" bar (with the basics count). It no longer takes space in the Name/Format row.
+10. **Wording**: "N rows not matched" (and "1 row not matched") in the note, its list label and the footer.
+11. **Subtitle** "Import a deck from a URL, paste a decklist, or upload a CSV file." is hidden once a source is chosen (file read, review, saving, result, or a URL fetch running). It still shows on the first source-choice screen, where it explains the tabs.
+12. **"131/100 · commander picked next"** line removed (the whole count line).
+13. **Default-finish banner removed** (collection import too, same component). Each affected row now carries a small tag with an info icon and the finish used, e.g. "Foil". Hover/focus tooltip: "Default finish not available; using Foil". The same tag shows on the copy line when the row is open.
+
+**Commander picker (per the owner's clarification: on the import review screen).**
+- New `ReviewCommanderSelect` sits in the Name / Format row. Starts on "No commander". Lists only cards from the file that can be a commander (basics excluded), searchable, with an explicit "No commander" choice. Shown for commander formats only.
+- The choice is held by the import and saved to the new deck right after the import (existing deck-update call). If saving fails, the deck is still created and the result screen shows the grey hint.
+- Result screen: the "Choose a commander" step stays removed; the small hint "No commander yet. Choose one on the deck page." shows only when no commander was set.
+- Reused: the eligibility check and API from the earlier commander logic. The deck page selector from the earlier agent is kept so a commander can still be changed later.
+- **Not built: Partner / Background second slot.** Storage for a pair exists in the database (`ref_commanders`, `decks.commander_id`) but nothing saves or reads a second commander, and the eligibility check does not return pairing rules. **For the Architect:** confirm how a second commander is stored and what pairing eligibility should return.
+- **Not built: commanders named inside the source file.** The preview does not report one, so nothing is pre-selected (no source detection existed after the old step was deleted). Architect/Developer follow-up if wanted.
+- **For Gene:** D-052 (commander picker right after import) is superseded by this review-screen picker.
+
+**Tests:** new `ImportRound10.test.tsx` (finish marker, no banner, basics toggle in bar, no count line, commander select states) and updated note-wording tests. `npm run check` passes (1,894 tests, 0 lint errors).
+
+**Process note:** a few small edits were made via python/sed in bash before I switched to the edit tool.

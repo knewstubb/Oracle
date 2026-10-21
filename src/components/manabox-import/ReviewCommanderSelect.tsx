@@ -33,11 +33,10 @@ export function ReviewCommanderSelect({ cards, value, onChange, disabled }: Revi
   useEffect(() => {
     if (!open || eligible) return
     let cancelled = false
-    setFailed(false)
     fetchEligibleNames(namesKey ? namesKey.split('\n') : []).then((set) => {
       if (cancelled) return
-      if (set === null) setFailed(true)
-      else setEligible(set)
+      setFailed(set === null)
+      if (set !== null) setEligible(set)
     })
     return () => {
       cancelled = true
@@ -46,7 +45,6 @@ export function ReviewCommanderSelect({ cards, value, onChange, disabled }: Revi
 
   useEffect(() => {
     if (open) queueMicrotask(() => inputRef.current?.focus())
-    else setQuery('')
   }, [open])
 
   const options = useMemo(() => {
@@ -62,6 +60,7 @@ export function ReviewCommanderSelect({ cards, value, onChange, disabled }: Revi
   const choose = (commander: CommanderCandidate | null) => {
     onChange(commander)
     setOpen(false)
+    setQuery('')
   }
 
   const optionClass =
@@ -72,7 +71,13 @@ export function ReviewCommanderSelect({ cards, value, onChange, disabled }: Revi
       <span id="import-commander-label" className="text-[length:var(--fs-xs)] text-muted-foreground">
         Commander
       </span>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next)
+          if (!next) setQuery('')
+        }}
+      >
         <PopoverTrigger
           render={
             <Button

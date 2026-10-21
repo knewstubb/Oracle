@@ -391,6 +391,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
             source={step.source}
             defaults={step.defaults}
             copyEdits={step.copyEdits}
+            genericBasics={step.genericBasics}
             onCopyEditsChange={setCopyEdits}
             openRowKeys={step.openRowKeys}
             onOpenRowKeysChange={setOpenRowKeys}

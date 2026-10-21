@@ -41,6 +41,8 @@ export interface ImportCardListProps {
   defaults: ImportDefaults
   copyEdits: ImportCopyEdits
   onCopyEditsChange: (edits: ImportCopyEdits) => void
+  /** Deck imports: is "Generic basics" on? */
+  genericBasics?: boolean
   openRowKeys: Set<string>
   onOpenRowKeysChange: (keys: Set<string>) => void
   filter: RowFilter
@@ -56,6 +58,7 @@ export function ImportCardList({
   kind,
   defaults,
   copyEdits,
+  genericBasics = false,
   onCopyEditsChange,
   openRowKeys,
   onOpenRowKeysChange,
@@ -69,13 +72,24 @@ export function ImportCardList({
   const parentRef = useRef<HTMLDivElement>(null)
   const [announcement, setAnnouncement] = useState('')
 
-  const isGeneric = (row: UiPreviewRow) => row.isBasicLand && kind === 'deck'
+  // Basic lands are ordinary editable rows. `isBasic` only drives the Basics filter and tag;
+  // `isGeneric` is a basic while "Generic basics" is on (no collection copy, so always Original-like).
+  const isBasic = (row: UiPreviewRow) => row.isBasicLand && kind === 'deck'
+  const isGeneric = (row: UiPreviewRow) => isBasic(row) && genericBasics
 
   const resolvedByKey = useMemo(() => {
     const map = new Map<string, ReturnType<typeof resolveRowCopies>>()
-    for (const row of rows) map.set(row.rowKey, resolveRowCopies(row, defaults, copyEdits, row.rowKey))
+    for (const row of rows) {
+      const resolved = resolveRowCopies(row, defaults, copyEdits, row.rowKey)
+      map.set(
+        row.rowKey,
+        row.isBasicLand && kind === 'deck' && genericBasics
+          ? resolved.map((c) => ({ ...c, type: 'original' as const }))
+          : resolved
+      )
+    }
     return map
-  }, [rows, defaults, copyEdits])
+  }, [rows, defaults, copyEdits, kind, genericBasics])
 
   // Import order is the default; the choice lasts only while this list is on screen.
   const [sort, setSort] = useState<ImportSort>('file')
@@ -89,12 +103,12 @@ export function ImportCardList({
         filter === 'all' ||
         (filter === 'proxy' && resolved.some((c) => c.type === 'proxy')) ||
         (filter === 'unsleeved' && resolved.some((c) => c.type === 'unsleeved')) ||
-        (filter === 'basic' && row.isBasicLand && kind === 'deck')
+        (filter === 'basic' && isBasic(row))
       return matchesFilter && (!q || row.cardName.toLowerCase().includes(q))
     })
   }, [sortedRows, kind, filter, query, resolvedByKey])
 
-  const hasBasics = rows.some(isGeneric)
+  const hasBasics = rows.some(isBasic)
 
   const pendingScrollKey = useRef<string | null>(null)
   const virtualizer = useVirtualizer({
@@ -104,7 +118,7 @@ export function ImportCardList({
     overscan: 10,
   })
 
-  const selectable = visibleRows.filter((r) => !isGeneric(r))
+  const selectable = visibleRows
   const allSelected = selectable.length > 0 && selectable.every((r) => selectedIds.has(r.rowKey))
 
   const handleSelectAll = () => {
@@ -165,7 +179,7 @@ export function ImportCardList({
     setAnnouncement('All copies now match copy 1.')
   }
 
-  const selectedRows = rows.filter((r) => selectedIds.has(r.rowKey) && !isGeneric(r))
+  const selectedRows = rows.filter((r) => selectedIds.has(r.rowKey))
   const showBulk = selectedRows.length > 0
   const selectedResolved = selectedRows.flatMap((r) => resolvedByKey.get(r.rowKey) ?? [])
 
@@ -182,7 +196,7 @@ export function ImportCardList({
           : 'No cards'
 
   const countRowsWith = (type: ImportCopyType) =>
-    rows.filter((r) => !isGeneric(r) && (resolvedByKey.get(r.rowKey) ?? []).some((c) => c.type === type)).length
+    rows.filter((r) => (resolvedByKey.get(r.rowKey) ?? []).some((c) => c.type === type)).length
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-1.5">
@@ -199,7 +213,7 @@ export function ImportCardList({
         {hasBasics && (
           <FilterChip
             label="Basics"
-            count={rows.filter(isGeneric).length}
+            count={rows.filter(isBasic).length}
             selected={filter === 'basic'}
             onClick={() => onFilterChange('basic')}
           />

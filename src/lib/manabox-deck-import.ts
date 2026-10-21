@@ -179,13 +179,11 @@ export async function importManaBoxDeck(
     }
   })
   const finishCheck = validateRowFinishes(
-    resolvedByCard
-      .filter(({ card }) => !isGenericBasic(card))
-      .map(({ row, resolved }) => ({
-        rowKey: row.rowKey,
-        availableFinishes: row.availableFinishes,
-        resolved,
-      }))
+    resolvedByCard.map(({ row, resolved }) => ({
+      rowKey: row.rowKey,
+      availableFinishes: row.availableFinishes,
+      resolved,
+    }))
   )
   if (finishCheck.problems.length > 0) throw new ImportValidationError(finishCheck.problems)
 
@@ -259,9 +257,11 @@ export async function importManaBoxDeck(
     const printingId = card.scryfallId || getBasicLandDefaultScryfallId(card.cardName) || null
 
     if (isGenericBasic(card)) {
-      // Generic basics create no copies and ignore edits: planned slots only
-      // (D-048). `is_maybeboard` is the RPC's "planned, no copy" flag.
-      for (let i = 0; i < card.quantity; i++) {
+      // Generic basics create no copies (D-048): planned slots only. `is_maybeboard` is the
+      // RPC's "planned, no copy" flag. A finish the owner or the file named is remembered on the
+      // slot as requested_finish (D-041); an unspecified finish stores nothing. Language and
+      // condition have no column on a slot, so they are not recorded.
+      for (const copy of resolved) {
         insertRows.push({
           card_id: null,
           card_name: card.cardName,
@@ -272,8 +272,7 @@ export async function importManaBoxDeck(
           is_commander: false,
           is_proxy: false,
           is_maybeboard: true,
-          // Generic basics carry no attributes (contract section 6): no finish, so no requested finish is stored.
-          finish: null,
+          finish: copy.sources.finish === 'default' ? null : copy.finish,
         })
       }
       continue

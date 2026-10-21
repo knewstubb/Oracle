@@ -121,7 +121,11 @@ export interface ImportRowEditorProps {
   defaults: ImportDefaults
   open: boolean
   selected: boolean
-  /** Generic basic land on a deck import: shown as "Basic", not editable (D-048). */
+  /**
+   * A basic land while "Generic basics" is on: it still opens and edits (finish), but takes no
+   * collection copy, so there is no Original/Proxy/Unsleeved choice, and language and condition
+   * can't be saved on a planned slot.
+   */
   generic: boolean
   onToggleOpen: () => void
   onToggleSelect: (checked: boolean) => void
@@ -154,6 +158,7 @@ export function ImportRowEditor({
   const typeOptions: ImportCopyType[] = kind === 'deck' ? ['original', 'proxy', 'unsleeved'] : ['original', 'proxy']
   // Languages are looked up once, the first time the row is opened.
   const languageLookup = usePrintingLanguages(row.setCode, row.collectorNumber, open && !generic)
+  const basicTag = row.isBasicLand && kind === 'deck'
   const fileLanguages = row.copies.map((c) => c.file.language).filter((l): l is string => !!l)
 
   return (
@@ -166,36 +171,33 @@ export function ImportRowEditor({
     >
       <div
         data-row-header
-        onClick={
-          generic
-            ? undefined
-            : (e) => {
-                // Clicks on the checkbox or Edit button do their own job.
-                if ((e.target as HTMLElement).closest('button,input,label,[role="checkbox"]')) return
-                onToggleOpen()
-              }
-        }
-        className={cn(
-          'group grid min-h-[34px] grid-cols-[24px_28px_1fr_auto] items-center gap-2 px-2.5 hover:bg-[var(--bg-surface-hover)]',
-          !generic && 'cursor-pointer'
-        )}
+        onClick={(e) => {
+          // Clicks on the checkbox or caret button do their own job.
+          if ((e.target as HTMLElement).closest('button,input,label,[role="checkbox"]')) return
+          onToggleOpen()
+        }}
+        className="group grid min-h-[34px] cursor-pointer grid-cols-[24px_28px_1fr_auto] items-center gap-2 px-2.5 hover:bg-[var(--bg-surface-hover)]"
       >
-        {generic ? (
-          <span />
-        ) : (
-          <Checkbox
-            checked={selected}
-            onCheckedChange={(v) => onToggleSelect(v === true)}
-            aria-label={`Select ${row.cardName}`}
-          />
-        )}
+        <Checkbox
+          checked={selected}
+          onCheckedChange={(v) => onToggleSelect(v === true)}
+          aria-label={`Select ${row.cardName}`}
+        />
         <span className="text-[length:var(--fs-xs)] tabular-nums text-muted-foreground">{row.qty}</span>
         <span className="flex min-w-0 flex-wrap items-center gap-1.5 py-1 text-[length:var(--fs-xs)]">
           <span className="truncate text-foreground">{row.cardName}</span>
           <span className="text-muted-foreground">
             {row.setCode} {row.collectorNumber}
           </span>
-          {!generic && !open && (
+          {basicTag && (
+            <span
+              data-tag="basic"
+              className="inline-flex h-[18px] items-center rounded-full border border-[var(--border-default)] px-1.5 text-[length:var(--fs-xs)] text-muted-foreground"
+            >
+              Basic
+            </span>
+          )}
+          {!open && (
             <>
               {summary.tags.map((tag) => (
                 <span
@@ -231,11 +233,7 @@ export function ImportRowEditor({
             </>
           )}
         </span>
-        {generic ? (
-          <span className="inline-flex h-5 items-center rounded-full border border-[var(--border-default)] bg-[var(--bg-surface-hover)] px-2 text-[length:var(--fs-xs)] text-muted-foreground">
-            Basic
-          </span>
-        ) : (
+        {(
           <button
             type="button"
             aria-expanded={open}
@@ -252,7 +250,7 @@ export function ImportRowEditor({
         )}
       </div>
 
-      {open && !generic && (
+      {open && (
         <div className="flex flex-col pb-2 pl-[62px] pr-2.5">
           {resolved.map((copy, position) => (
             <CopyLine
@@ -262,6 +260,7 @@ export function ImportRowEditor({
               position={position}
               total={resolved.length}
               typeOptions={typeOptions}
+              generic={generic}
               languageLookup={languageLookup}
               fileLanguages={fileLanguages}
               onChange={(patch) => onChangeCopy(copy.index, patch)}
@@ -280,11 +279,13 @@ function CopyLine({
   position,
   total,
   typeOptions,
+  generic,
   languageLookup,
   fileLanguages,
   onChange,
   onApplyAll,
 }: {
+  generic: boolean
   row: ImportRow
   copy: ResolvedImportCopy
   position: number
@@ -296,7 +297,7 @@ function CopyLine({
   onApplyAll?: () => void
 }) {
   const n = position + 1
-  const visible = visibleFields(copy.type)
+  const visible = generic ? { language: false, finish: true, condition: false } : visibleFields(copy.type)
   const finishState = finishControlState(row.availableFinishes, copy.finish, copy.sources.finish)
   const showFinish = visible.finish && finishState.mode === 'select'
   const languages = languageChoices(languageLookup, fileLanguages, copy.language)
@@ -310,12 +311,18 @@ function CopyLine({
       className="flex flex-wrap items-center gap-2 border-t border-[var(--border-subtle)] py-1 first:border-t-0"
     >
       <span className="w-4 shrink-0 text-[length:var(--fs-xs)] tabular-nums text-[var(--text-tertiary)]">{n}</span>
-      <TypeToggle
-        value={copy.type}
-        options={typeOptions}
-        label={`Copy ${n} type`}
-        onChange={(type) => onChange({ type })}
-      />
+      {generic ? (
+        <span className="text-[length:var(--fs-xs)] text-muted-foreground" title="Generic basics don't use your collection">
+          Generic basic
+        </span>
+      ) : (
+        <TypeToggle
+          value={copy.type}
+          options={typeOptions}
+          label={`Copy ${n} type`}
+          onChange={(type) => onChange({ type })}
+        />
+      )}
       {visible.language && languages.mode !== 'hidden' && (
         <FieldWithDot fromFile={fromFile(copy.sources.language)}>
           <select

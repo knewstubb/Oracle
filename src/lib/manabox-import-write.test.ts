@@ -221,20 +221,58 @@ describe('deck write (tests 9, 12b, 16)', () => {
     expect(rows[2]).not.toHaveProperty('card_condition')
   })
 
-  it('generic basics create no copies and ignore edits', async () => {
+  it('generic basics create no copies; a chosen finish is kept on the planned slot, language and condition are not', async () => {
     const { client, calls } = fakeClient(printings)
     const island = { ...solCard([{}, {}]), cardName: 'Island', rowKey: 'isl|text' }
     await importManaBoxDeck({
       deck: deckOf([island]) as never,
       name: 'D',
       defaults: DEFAULTS,
-      copyEdits: { 'isl|text': { 0: { finish: 'foil' } } },
+      copyEdits: { 'isl|text': { 0: { finish: 'foil', language: 'ja', condition: 'moderately_played' } } },
       userId: 'user-a',
       supabase: client,
     })
     const rows = calls.rpc[0].args.p_rows
     expect(rows).toHaveLength(2)
-    expect(rows.every((r) => r.card_id === null && r.is_maybeboard === true && r.finish === null)).toBe(true)
+    expect(rows.every((r) => r.card_id === null && r.is_maybeboard === true)).toBe(true)
+    expect(rows[0]).toMatchObject({ finish: 'foil' })
+    expect(rows[1]).toMatchObject({ finish: null })
+    expect(rows[0]).not.toHaveProperty('language')
+    expect(rows[0]).not.toHaveProperty('card_condition')
+  })
+
+  it('generic basics reject a finish Scryfall does not list for that printing', async () => {
+    const { client, calls } = fakeClient(printings)
+    const island = { ...solCard([{}]), cardName: 'Island', rowKey: 'isl|text' }
+    await expect(
+      importManaBoxDeck({
+        deck: deckOf([island]) as never,
+        name: 'D',
+        defaults: DEFAULTS,
+        copyEdits: { 'isl|text': { 0: { finish: 'etched' } } },
+        userId: 'user-a',
+        supabase: client,
+      })
+    ).rejects.toBeInstanceOf(ImportValidationError)
+    expect(calls.rpc).toHaveLength(0)
+  })
+
+  it('with Generic basics off, basics are real copies with the owner edits', async () => {
+    const { client, calls } = fakeClient(printings)
+    const island = { ...solCard([{}, {}]), cardName: 'Island', rowKey: 'isl|text' }
+    await importManaBoxDeck({
+      deck: deckOf([island]) as never,
+      name: 'D',
+      defaults: DEFAULTS,
+      convertBasicLandsToGeneric: false,
+      copyEdits: { 'isl|text': { 0: { finish: 'foil', language: 'ja', condition: 'moderately_played' }, 1: { type: 'proxy' } } },
+      userId: 'user-a',
+      supabase: client,
+    })
+    const rows = calls.rpc[0].args.p_rows
+    expect(rows[0]).toMatchObject({ is_maybeboard: false, finish: 'foil', language: 'ja', card_condition: 'moderately_played' })
+    expect(rows[1]).toMatchObject({ is_proxy: true })
+    expect(rows[0].card_id).not.toBeNull()
   })
 
   it('creates the deck with insert (never upsert) and retries with a new id when the id is taken', async () => {

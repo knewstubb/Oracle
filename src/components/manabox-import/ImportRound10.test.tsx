@@ -10,7 +10,7 @@ import { INITIAL_DEFAULTS } from './types'
 import type { UiPreviewRow } from './types'
 
 vi.mock('./use-printing-languages', () => ({
-  usePrintingLanguages: () => ({ status: 'done', languages: ['en'] }),
+  usePrintingLanguages: () => ({ status: 'done', languages: ['en', 'ja'] }),
   clearPrintingLanguageCache: () => {},
 }))
 
@@ -28,6 +28,62 @@ const FOIL_ONLY_ROW = {
   copies: [{ index: 0, sourceLine: 2, file: {}, owner: {} }],
   isBasicLand: false,
 } as unknown as UiPreviewRow
+
+describe('basic lands are editable (Round 11)', () => {
+  const basic = {
+    rowKey: 'b',
+    sourceIndex: 3,
+    sourceLines: [3],
+    cardName: 'Swamp',
+    setCode: 'abc',
+    collectorNumber: '9',
+    scryfallId: 'b',
+    oracleId: 'o-b',
+    qty: 2,
+    availableFinishes: ['nonfoil', 'foil'],
+    copies: [
+      { index: 0, sourceLine: 3, file: {}, owner: {} },
+      { index: 1, sourceLine: 3, file: {}, owner: {} },
+    ],
+    isBasicLand: true,
+  } as unknown as UiPreviewRow
+
+  function renderBasic(generic: boolean, onChangeCopy = vi.fn()) {
+    const resolved = resolveRowCopies(basic, INITIAL_DEFAULTS, {}, 'b')
+    render(
+      <ImportRowEditor
+        row={basic}
+        resolved={resolved}
+        kind="deck"
+        defaults={INITIAL_DEFAULTS}
+        open
+        selected={false}
+        generic={generic}
+        onToggleOpen={() => {}}
+        onToggleSelect={() => {}}
+        onChangeCopy={onChangeCopy}
+        onApplyAll={() => {}}
+      />
+    )
+    return onChangeCopy
+  }
+
+  it('Generic basics on: opens, lets each copy pick a finish, hides the type toggle', () => {
+    const onChange = renderBasic(true)
+    expect(screen.getByRole('button', { name: /Collapse Swamp/ })).toBeInTheDocument()
+    expect(screen.queryByRole('radiogroup', { name: 'Copy 1 type' })).toBeNull()
+    fireEvent.change(screen.getByLabelText('Copy 2 finish'), { target: { value: 'foil' } })
+    expect(onChange).toHaveBeenCalledWith(1, { finish: 'foil' })
+  })
+
+  it('Generic basics off: full edits, same as any card', () => {
+    renderBasic(false)
+    expect(screen.getByLabelText('Copy 1 language')).toBeInTheDocument()
+    expect(screen.getByLabelText('Copy 1 finish')).toBeInTheDocument()
+    expect(screen.getByLabelText('Copy 1 condition')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Copy 1 type' })).toBeInTheDocument()
+  })
+})
 
 describe('finish fallback marker (replaces the banner)', () => {
   it('marks the row with the resulting finish and explains it', () => {

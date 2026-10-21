@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
         kind === 'csv'
           ? { fileName, csvContent: content }
           : { fileName, textContent: content },
-        createSupabaseManaBoxResolver()
+        createSupabaseManaBoxResolver({ userId: authResult.id })
       )
       return Response.json(preview)
     } catch (err) {
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     try {
       const preview = await buildDeckPreview(
         { fileName, csvContent: body.csvContent, textContent: body.textContent },
-        createSupabaseManaBoxResolver()
+        createSupabaseManaBoxResolver({ userId: authResult.id })
       )
       return Response.json(preview)
     } catch (err) {

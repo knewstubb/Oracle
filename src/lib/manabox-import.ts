@@ -76,6 +76,8 @@ export interface ManaBoxCardFacts {
   scryfallId: string
   cardName: string
   setCode: string
+  /** Collector number of the printing, when the resolver knows it. */
+  collectorNumber?: string
   layout: string | null
   typeLine: string | null
   /**
@@ -95,6 +97,14 @@ export interface ManaBoxResolver {
     setCode: string,
     collectorNumber: string
   ): Promise<ManaBoxCardFacts | null>
+  /**
+   * Plain decklists name no printing. Find the card by NAME (its canonical identity,
+   * `oracle_id`) and return the printing to use by default: one the owner already owns,
+   * otherwise the newest regular paper printing. `setCode` narrows the choice when the
+   * line gave a set but no collector number. Optional: resolvers that cannot do this
+   * leave such lines unmatched.
+   */
+  resolveByName?(name: string, options?: { setCode?: string }): Promise<ManaBoxCardFacts | null>
 }
 
 export interface ManaBoxCollectionPreviewInput {
@@ -349,8 +359,15 @@ export function parseManaBoxCsv(content: string): ManaBoxCsvParseResult {
 /**
  * `<quantity> <card name> (<set code>) <collector number>`
  * Set code is 2–4 alphanumerics; the collector number is kept verbatim.
+ * The printing part is optional: a plain decklist line (`10 Island`, `1x Sol Ring`)
+ * has no set code, and the card is then found by name. A set code without a
+ * collector number (`1 Sol Ring (CMR)`) is also accepted. Missing parts are
+ * returned as empty strings.
  */
-const TEXT_LINE_RE = /^(\d+)\s+(.+?)\s+\(([A-Za-z0-9]{2,4})\)\s+(\S+)\s*$/
+const TEXT_LINE_RE = /^(\d+)x?\s+(.+?)(?:\s+\(([A-Za-z0-9]{2,4})\)(?:\s+(\S+))?)?\s*$/
+
+/** Section headings that plain decklists put above the main list; they carry no card. */
+const TEXT_HEADING_RE = /^(deck|mainboard|main)\s*:?$/i
 
 /**
  * Parse a ManaBox text export. The collector number is preserved (the old
@@ -366,6 +383,7 @@ export function parseManaBoxText(content: string): ManaBoxTextParseResult {
     const line = rawLine.trim()
     if (line === '') continue
     if (line.startsWith('//') || line.startsWith('#')) continue
+    if (TEXT_HEADING_RE.test(line)) continue
 
     const lineNumber = i + 1
     const match = line.match(TEXT_LINE_RE)
@@ -376,8 +394,8 @@ export function parseManaBoxText(content: string): ManaBoxTextParseResult {
 
     const quantity = Number.parseInt(match[1], 10)
     const cardName = match[2].trim()
-    const setCode = match[3]
-    const collectorNumber = match[4]
+    const setCode = match[3] ?? ''
+    const collectorNumber = match[4] ?? ''
 
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100) {
       badLines.push({
@@ -613,7 +631,14 @@ async function resolveTextLine(
   unmatched: ManaBoxUnmatchedLine[],
   skippedTokens: ManaBoxSkippedToken[]
 ): Promise<ResolvedManaBoxCandidate | null> {
-  const facts = await resolver.resolveBySetCollector(line.setCode, line.collectorNumber)
+  // A line with a full printing (set + collector number) resolves exactly; a plain line
+  // (no printing) resolves by card name to a default printing.
+  const facts =
+    line.setCode && line.collectorNumber
+      ? await resolver.resolveBySetCollector(line.setCode, line.collectorNumber)
+      : resolver.resolveByName
+        ? await resolver.resolveByName(line.cardName, { setCode: line.setCode || undefined })
+        : null
   if (!facts) {
     unmatched.push({
       sourceIndex: line.lineNumber,
@@ -635,12 +660,14 @@ async function resolveTextLine(
     return null
   }
 
+  const namedPrinting = Boolean(line.setCode && line.collectorNumber)
   return {
     sourceIndex: line.lineNumber,
-    // Text exports store the front-face name only (contract §5.3).
-    cardName: frontFaceName(line.cardName),
+    // Text exports store the front-face name only (contract §5.3). A line that gave no
+    // printing takes the card's proper spelling from the database (so "ghen, arcanum weaver" is fixed).
+    cardName: frontFaceName(namedPrinting ? line.cardName : facts.cardName),
     setCode: facts.setCode || line.setCode.toLowerCase(),
-    collectorNumber: line.collectorNumber,
+    collectorNumber: namedPrinting ? line.collectorNumber : (facts.collectorNumber ?? ''),
     scryfallId: facts.scryfallId,
     oracleId: facts.oracleId,
     qty: Math.min(line.quantity, 100),

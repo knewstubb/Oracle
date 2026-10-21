@@ -43,6 +43,8 @@ export interface ManaBoxDeckImportFlowProps {
   fill?: boolean
   /** Tells the window around the flow what it is doing, so it can guard closing. */
   onStateChange?: (state: DeckFlowState) => void
+  /** A file to check straight away (used for pasted decklists), as if the owner had chosen it. */
+  initialFile?: File | null
 }
 
 export interface DeckFlowState {
@@ -58,7 +60,7 @@ export interface DeckFlowState {
   done: boolean
 }
 
-export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlot, fill, onStateChange }: ManaBoxDeckImportFlowProps) {
+export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlot, fill, onStateChange, initialFile }: ManaBoxDeckImportFlowProps) {
   const [step, setStep] = useState<ImportStep>({ status: 'idle' })
   const [error, setError] = useState<string | null>(null)
   const notes = useHiddenNotes()
@@ -152,6 +154,14 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
       setStep({ status: 'idle' })
     }
   }, [])
+
+  // A pasted decklist arrives as a small text file and goes through the same check and review.
+  const handledInitialFile = useRef<File | null>(null)
+  useEffect(() => {
+    if (!initialFile || handledInitialFile.current === initialFile) return
+    handledInitialFile.current = initialFile
+    void handleFile(initialFile)
+  }, [initialFile, handleFile])
 
   const basicsQty =
     step.status === 'review'

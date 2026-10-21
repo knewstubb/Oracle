@@ -17,7 +17,6 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { parseDeckUrl, isParseError } from '@/lib/url-parser'
-import { parseTextDecklist, isTextParseError } from '@/lib/text-deck-parser'
 import { FORMAT_OPTIONS } from '@/lib/format-config'
 import type { NormalizedDeck, CardsByType } from '@/lib/deck-normalizer'
 import type { ImportMode, AllocationConflict } from '@/lib/deck-import'
@@ -103,6 +102,8 @@ export function DeckImportButton({
   const [pasteText, setPasteText] = useState('')
   const [pasteDeckName, setPasteDeckName] = useState('')
   const [pasteError, setPasteError] = useState<string | null>(null)
+  // The pasted list, handed to the same check-and-review screen a file gets.
+  const [pastedFile, setPastedFile] = useState<File | null>(null)
 
   // Precon tab state
   const [preconSearch, setPreconSearch] = useState('')
@@ -125,6 +126,7 @@ export function DeckImportButton({
     setPasteText('')
     setPasteDeckName('')
     setPasteError(null)
+    setPastedFile(null)
     setPreviewData(null)
     setPreconSearch('')
     setDebouncedPreconSearch('')
@@ -264,21 +266,11 @@ export function DeckImportButton({
       return
     }
 
+    // A pasted list takes the same path as an uploaded text file: names are looked up,
+    // the owner reviews the cards, then the deck is created.
     const name = pasteDeckName.trim() || 'Imported Deck'
-    const result = parseTextDecklist(trimmed, name)
-
-    if (isTextParseError(result)) {
-      setPasteError(result.error)
-      return
-    }
-
-    if (result.warnings.length > 0) {
-      toast.info(`Parsed with ${result.warnings.length} warning(s)`, {
-        description: result.warnings.slice(0, 3).join('; '),
-      })
-    }
-
-    setPreviewData({ deck: result.deck, cardsByType: {} as CardsByType })
+    setPastedFile(new File([trimmed], `${name}.txt`, { type: 'text/plain' }))
+    setActiveTab('file')
   }
 
   async function handlePreconSubmit() {
@@ -499,7 +491,7 @@ export function DeckImportButton({
                   }
                   disabled={flowState.saving || flowState.checking}
                   onClick={() => {
-                    if (tab !== activeTab) askBeforeDiscard(() => setActiveTab(tab))
+                    if (tab !== activeTab) askBeforeDiscard(() => { setPastedFile(null); setActiveTab(tab) })
                   }}
                 >
                   {tab === 'url' ? 'URL' : tab === 'paste' ? 'Paste List' : tab === 'file' ? 'File' : 'Precon'}
@@ -574,6 +566,7 @@ export function DeckImportButton({
             {activeTab === 'file' && (
               <ManaBoxDeckImportFlow
                 fill
+                initialFile={pastedFile}
                 onStateChange={onFlowState}
                 onComplete={(_deckId, _format, _deckName, summary) => {
                   try {
@@ -587,7 +580,10 @@ export function DeckImportButton({
                   router.push(`/decks/${deckId}?freshImport=true&pickCommander=true`)
                 }}
                 onCancel={() => {
-                  askBeforeDiscard(() => setActiveTab('url'))
+                  askBeforeDiscard(() => {
+                    setActiveTab(pastedFile ? 'paste' : 'url')
+                    setPastedFile(null)
+                  })
                 }}
               />
             )}

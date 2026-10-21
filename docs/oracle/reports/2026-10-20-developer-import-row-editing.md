@@ -242,3 +242,39 @@ Process note: some edits this round again used python via bash instead of the ed
 3. **Developer:** build after the above.
 
 **Process note:** I used sed in bash once more by mistake (it failed harmlessly, no file changed); all edits were made with the edit tool.
+
+## Round 12 — basic lands verified; plain text decklists without set codes
+
+**Branch:** test-t56-local (not merged). No writes to any database: unit tests with fake clients, plus one read-only preview run (SELECTs only) against the live reference data to check the sample.
+
+### Part 1 — basic lands (verification, pinned by `src/lib/basic-lands-import.test.ts`)
+
+1. **Collection import (ManaBox CSV): correct, no change needed.** Basics (Plains/Island/Swamp/Mountain/Forest/Wastes, snow-covered) are ordinary rows and real copies. Different printings, finishes and languages of one land stay separate rows; every copy is written with its exact printing, finish (incl. etched), language, condition. No generic collapse, no name de-dupe. [Confirmed: `manabox-collection-import.ts` has no basic-land branch; `insert_user_copies` has no de-dupe.]
+2. **Deck import, Generic basics OFF: correct.** `3 Swamp (ZNR) 267` becomes 3 real copies of that exact printing (separate from `Swamp (M21) 266`).
+3. **Deck import, Generic basics ON: current behaviour.** Every basic is turned into a planned slot with no copy, **even when the line names a printing**. The named printing is only remembered on the slot (art/set), not kept as a real copy. [Confirmed: `manabox-deck-import.ts` `isGenericBasic = convertBasics && isBasicLand(name)`; test pins it.] **Proposal (not built):** with the toggle on, a basic whose line names a printing (set+number or scryfall id) stays a real copy of that printing; only basics with no printing become generic. Needs: the "has a printing" fact per row (from the source line, not from the default printing that Part 2 now fills in for plain lines) and the review screen's basics count/tag to split into specific vs generic.
+- **Finding (not changed):** a single CSV line with quantity over 100 is silently cut to 100 copies (`MAX_COPIES_PER_LINE`). Only matters if 100+ of one land printing/finish/language is scanned on one line; ManaBox usually lists such stacks as one line, so worth a decision (raise the cap or warn).
+
+### Part 2 — plain text, no set codes
+
+**Real bugs found.**
+1. The text parser required `(SET) number` on every line, so the sample produced 12 "couldn't read" lines and an empty review. Fixed: printing is optional (`10 Island`, `1x Sol Ring`, `1 Sol Ring (CMR)` all read; "Deck"/"Mainboard" headings skipped).
+2. No lookup by name existed. Added `resolveByName` to the resolver (identity = card name → `oracle_id`; never a printing id). Exact name first (fast, indexed), then case-insensitive, then `Front // …` by front face; curly apostrophes straightened. Slow fallbacks that time out count as "no match" rather than failing the preview. (The first live try of the case-insensitive search timed out on a cold database; that is why exact comes first.)
+3. The **Paste List tab** used an older path that left every card's identity empty (the old new-cards mode skips such cards) and never reached the review screen. It now hands the pasted text to the same check-and-review screen as a file (as a small .txt named after the deck). Back goes to the Paste tab.
+
+**Sample result (read-only live preview): all 12 lines resolve, none unmatched.** "Eiganjo Dynastorian // Replenish" is a real card (Edge of Eternities Commander, SOC); it is stored under its front name "Eiganjo Dynastorian" like other two-faced cards. Origin of Thor exists (MSC). "10 Island" is one row of 10, tagged Basic.
+Default printings chosen: Ghen CMR 275; Eiganjo SOC 13; Bitter Reunion FDC 139; Spirited Companion J25 256; Treacherous Blessing THB 117; Origin of Thor MSC 701; The Misty Mountains Cold HOB 104; Sphere of Safety DSC 104; Starfield Mystic SOC 177; Doomwake Giant SOC 212; Gravebreaker Lamia THB 98; Island FRA 283. Test fixture: `docs/oracle/samples/plain-text/no-set-codes.txt`.
+
+**Default printing rule (what the code does, `src/lib/default-printing.ts`):** (1) a printing the owner owns (real, non-proxy copies; most copies wins, then newest); (2) else the newest regular paper printing: not digital-only, not unreleased (the data has spoiled 2026–27 sets, which are skipped), not a promo/Secret Lair/judge/stamped/starred variant; (3) else newest promo, then anything. Same-day ties take the lowest collector number. `ref_printings` has no promo flag, so promos are recognised from set name and collector-number marks (a heuristic; it only affects the default, which the owner can change later).
+
+**Review screen would show:** 11 rows for the sample (10 singles + Island ×10), each with its default printing shown as set/number, copies Original, defaults near mint / English / non-foil; Island carries the "Basic" tag; with Generic basics on (the default) Island becomes 10 planned slots, with it off 10 real copies. No commander is pre-selected (none in the text); the commander picker in the Name/Format row applies as usual.
+
+**Not built / flags.**
+- The review screen does not say that a printing was *chosen for* the owner (vs read from the file). Designer decision if it should (e.g. a "default printing" hint); the printing picker (Round 11 report) would let them change it.
+- Front-face lookups are lenient: `Fire // Wrong` still finds Fire // Ice.
+- A card name containing `(abcd)` at the end could be read as a set code.
+- Sideboard/Maybeboard headings still show as "not matched" lines.
+- Not browser-tested (Paste → review hand-off covered by reading the code and type check only).
+
+**Tests added:** `basic-lands-import.test.ts` (4), `plain-text-import.test.ts` (20), `manabox-resolver.test.ts` (6, fake database client incl. owned-printing and timeout cases). `npm run check` passes (0 errors).
+
+**Process notes:** I removed a stray untracked throwaway `src/lib/tmp-dryrun.test.ts` from an earlier agent (it hit the live database and failed `npm test`). Two one-line edits (a call-site argument in the preview route, an unused import) were made with sed in bash by mistake; everything else used the edit tool.

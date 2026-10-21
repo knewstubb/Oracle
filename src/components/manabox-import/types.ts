@@ -42,6 +42,8 @@ export type ImportStep =
       deckName: string
       format: string
       genericBasics: boolean
+      /** Commander chosen on the review screen; saved on the new deck after the import. */
+      commander: { name: string; scryfallId: string | null } | null
       /** The "Importing as" bar. Held here only; never saved. */
       defaults: ImportDefaults
       /** Owner edits by row key then copy index. */
@@ -70,6 +72,8 @@ export type ImportStep =
       }
       deckName: string
       format: string
+      /** Deck import only: the commander that was saved on the new deck, if any. */
+      commanderName?: string
     }
 
 export interface CollectionImportState {

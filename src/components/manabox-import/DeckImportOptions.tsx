@@ -1,24 +1,15 @@
 'use client'
 
 import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
-import { FORMAT_OPTIONS, getFormatConfig } from '@/lib/format-config'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { FORMAT_OPTIONS } from '@/lib/format-config'
 
 export interface DeckImportOptionsProps {
   name: string
   onNameChange: (name: string) => void
   format: string
   onFormatChange: (format: string) => void
-  genericBasics: boolean
-  onGenericBasicsChange: (value: boolean) => void
-  basicsQty: number
-  cardCount: number
+  /** The commander picker; sits next to the name and format. */
+  commanderSlot?: React.ReactNode
   disabled?: boolean
 }
 
@@ -27,20 +18,11 @@ export function DeckImportOptions({
   onNameChange,
   format,
   onFormatChange,
-  genericBasics,
-  onGenericBasicsChange,
-  basicsQty,
-  cardCount,
+  commanderSlot,
   disabled,
 }: DeckImportOptionsProps) {
-  const fmt = getFormatConfig(format)
-  const countLine =
-    fmt.deckSize === null
-      ? `${cardCount}`
-      : `${cardCount}/${fmt.deckSize}${format === 'commander' ? ' · commander picked next' : ''}`
-
   return (
-    <div className="grid grid-cols-[1fr_150px_auto] items-end gap-2.5">
+    <div className={`grid items-end gap-2.5 ${commanderSlot ? 'grid-cols-[1fr_150px_minmax(0,220px)]' : 'grid-cols-[1fr_150px]'}`}>
       <div className="flex flex-col gap-1">
         <label htmlFor="import-deck-name" className="text-[length:var(--fs-xs)] text-muted-foreground">
           Name
@@ -74,40 +56,7 @@ export function DeckImportOptions({
         </select>
       </div>
 
-      {basicsQty > 0 && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <div className="flex items-center gap-2">
-                  <span
-                    id="generic-basics-label"
-                    className="text-[length:var(--fs-xs)] text-muted-foreground"
-                  >
-                    Generic basics
-                  </span>
-                  <Switch
-                    checked={genericBasics}
-                    onCheckedChange={onGenericBasicsChange}
-                    disabled={disabled}
-                    aria-labelledby="generic-basics-label"
-                  />
-                  <span className="text-[length:var(--fs-xs)] text-muted-foreground">
-                    {basicsQty}
-                  </span>
-                </div>
-              }
-            />
-            <TooltipContent>
-              <p>Basic lands count as sleeved and add no copies</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
-
-      <div className="col-span-full text-[length:var(--fs-xs)] text-muted-foreground">
-        {countLine}
-      </div>
+      {commanderSlot}
     </div>
   )
 }

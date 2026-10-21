@@ -11,6 +11,8 @@ import { ImportFileChip } from './ImportFileChip'
 import { DeckImportOptions } from './DeckImportOptions'
 import { ImportNotices, ImportValueNoticeLines, useHiddenNotes, countHiddenNotes } from './ImportNoticeLine'
 import { ImportDefaultsBar } from './ImportDefaultsBar'
+import { ReviewCommanderSelect } from './ReviewCommanderSelect'
+import { getFormatConfig } from '@/lib/format-config'
 import { countFinishNotices } from '@/lib/import-copies'
 import type { ImportCopyEdits, ImportDefaults } from '../../../docs/oracle/contracts/import-row-editing.types'
 import { ImportCardList } from './ImportCardList'
@@ -136,6 +138,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
         deckName: file.name.replace(/\.(csv|txt)$/i, ''),
         format: 'commander',
         genericBasics: true,
+        commander: null,
         defaults: INITIAL_DEFAULTS,
         copyEdits: {},
         openRowKeys: new Set(),
@@ -215,11 +218,31 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
         deckId: summary.deckId,
       }
 
+      // Save the commander chosen on the review screen. The deck already exists, so a failure here
+      // does not undo the import; the result screen then says the commander is still unset.
+      let commanderSaved = false
+      if (step.commander && getFormatConfig(step.format).hasCommander) {
+        try {
+          const patch = await fetch(`/api/decks/${summary.deckId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              commander_name: step.commander.name,
+              commander_scryfall_id: step.commander.scryfallId,
+            }),
+          })
+          commanderSaved = patch.ok
+        } catch {
+          commanderSaved = false
+        }
+      }
+
       setStep({
         status: 'done',
         summary: doneSummary,
         deckName: step.deckName,
         format: step.format,
+        commanderName: commanderSaved ? step.commander?.name : undefined,
       })
 
       queryClient.invalidateQueries({ queryKey: ['decks'] })
@@ -243,7 +266,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
     const deckId = step.summary.deckId
     if (!deckId) return
     if (onFinish) onFinish(deckId)
-    else router.push(`/decks/${deckId}?freshImport=true${step.format === 'commander' ? '&pickCommander=true' : ''}`)
+    else router.push(`/decks/${deckId}?freshImport=true${step.format === 'commander' && !step.commanderName ? '&pickCommander=true' : ''}`)
   }, [step, router, onFinish])
 
   const setDefaults = useCallback((defaults: ImportDefaults) => {
@@ -268,6 +291,10 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
 
   const setGenericBasics = useCallback((genericBasics: boolean) => {
     setStep((prev) => (prev.status === 'review' ? { ...prev, genericBasics } : prev))
+  }, [])
+
+  const setCommander = useCallback((commander: { name: string; scryfallId: string | null } | null) => {
+    setStep((prev) => (prev.status === 'review' ? { ...prev, commander } : prev))
   }, [])
 
   const setFilter = useCallback((filter: RowFilter) => {
@@ -324,10 +351,17 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
             onNameChange={setDeckName}
             format={step.format}
             onFormatChange={setFormat}
-            genericBasics={step.genericBasics}
-            onGenericBasicsChange={setGenericBasics}
-            basicsQty={basicsQty}
-            cardCount={step.preview.rows.reduce((sum, r) => sum + r.qty, 0)}
+            commanderSlot={
+              getFormatConfig(step.format).hasCommander ? (
+                <ReviewCommanderSelect
+                  cards={step.preview.rows
+                    .filter((r) => !r.isBasicLand)
+                    .map((r) => ({ name: r.cardName, scryfallId: r.scryfallId }))}
+                  value={step.commander}
+                  onChange={setCommander}
+                />
+              ) : undefined
+            }
           />
           <ImportNotices
             unmatched={step.preview.unmatched}
@@ -336,7 +370,11 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
             hidden={notes.hidden}
             onDismiss={notes.hide}
           />
-          <ImportDefaultsBar defaults={step.defaults} onChange={setDefaults} />
+          <ImportDefaultsBar
+            defaults={step.defaults}
+            onChange={setDefaults}
+            basics={basicsQty > 0 ? { qty: basicsQty, generic: step.genericBasics, onChange: setGenericBasics } : undefined}
+          />
           <ImportValueNoticeLines
             unrecognised={
               (step.preview.notices?.unrecognisedCondition ?? 0) +
@@ -408,7 +446,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
           onOpenDeck={handleDone}
           onDismiss={handleDone}
           commanderSlot={
-            step.format === 'commander' ? (
+            step.format === 'commander' && !step.commanderName ? (
               <p className="flex items-center justify-center gap-2 text-[length:var(--fs-sm)] text-muted-foreground">
                 <Info className="size-4 shrink-0" aria-hidden="true" />
                 No commander yet. Choose one on the deck page.

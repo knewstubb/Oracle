@@ -351,6 +351,10 @@ export function DeckImportButton({
     closeDialog()
   }
 
+  const sourceChosen =
+    (fileTab && (flowState.checking || flowState.reviewing || flowState.saving || flowState.done)) ||
+    previewMutation.isPending
+
   const urlDisplayError = validationError ?? (previewMutation.isError ? previewMutation.error.message : null)
 
   return (
@@ -473,16 +477,16 @@ export function DeckImportButton({
                 <ImportTitleIcon kind="deck" />
                 Import deck
               </DialogTitle>
-              <DialogDescription>
-                Import a deck from a URL, paste a decklist, or upload a CSV file.
-              </DialogDescription>
+              {/* The "how" subtitle only helps on the source-choice screen. */}
+              {!sourceChosen && (
+                <DialogDescription>
+                  Import a deck from a URL, paste a decklist, or upload a CSV file.
+                </DialogDescription>
+              )}
             </DialogHeader>
 
             {/* Input mode tabs: not useful once cards are being reviewed or saved */}
-            {!(
-              (fileTab && (flowState.checking || flowState.reviewing || flowState.saving || flowState.done)) ||
-              previewMutation.isPending
-            ) && (
+            {!sourceChosen && (
             <div className="flex gap-1 rounded-md p-0.5" style={{ background: 'rgba(255,255,255,0.05)', border: '0.5px solid rgba(255,255,255,0.1)' }}>
               {(['url', 'paste', 'file', 'precon'] as const).map((tab) => (
                 <button

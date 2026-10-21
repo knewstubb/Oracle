@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, VenetianMask, ChevronsDown, ChevronDown } from 'lucide-react'
+import { Check, VenetianMask, ChevronsDown, ChevronDown, Info } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import {
@@ -82,6 +82,23 @@ export function TypeToggle({
   )
 }
 
+/** Small marker: the default finish isn't available for this printing, so another finish is used. */
+function FinishFallbackMark({ finishes }: { finishes: string[] }) {
+  const text = `Default finish not available; using ${finishes.join(' / ')}`
+  return (
+    <span
+      data-finish-fallback="true"
+      title={text}
+      aria-label={text}
+      tabIndex={0}
+      className="inline-flex h-[18px] cursor-help items-center gap-0.5 rounded-full border border-[var(--signal-warning)] px-1.5 text-[length:var(--fs-xs)] text-muted-foreground hover:bg-[var(--bg-surface-hover)] focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)]"
+    >
+      <Info className="size-3 text-[var(--signal-warning)]" aria-hidden="true" />
+      {finishes.join(' / ')}
+    </span>
+  )
+}
+
 /** Wraps a field; a small dot marks a value that came from the file. */
 function FieldWithDot({ fromFile, children }: { fromFile: boolean; children: React.ReactNode }) {
   if (!fromFile) return <>{children}</>
@@ -126,6 +143,10 @@ export function ImportRowEditor({
   onApplyAll,
 }: ImportRowEditorProps) {
   const summary = summariseRowTags(resolved, defaults)
+  // Copies whose default finish isn't made for this printing, so their own finish is used.
+  const fallbackFinishes = [
+    ...new Set(resolved.filter((c) => c.finishNote === 'fallback').map((c) => FINISH_LABELS[c.finish])),
+  ]
   const tagText = [
     ...summary.tags.map(tagDisplayText),
     ...(summary.overflow > 0 ? [`${summary.overflow} more`] : []),
@@ -200,6 +221,9 @@ export function ImportRowEditor({
                 >
                   +{summary.overflow} more
                 </span>
+              )}
+              {fallbackFinishes.length > 0 && (
+                <FinishFallbackMark finishes={fallbackFinishes} />
               )}
               <span className="sr-only">
                 {tagText.length > 0 ? `Differs from defaults: ${tagText.join(', ')}` : 'Uses defaults'}
@@ -332,6 +356,7 @@ function CopyLine({
       {visible.finish && copy.finishNote === 'unlisted' && (
         <span className="text-[length:var(--fs-xs)] text-[var(--signal-warning)]">not listed by Scryfall</span>
       )}
+      {visible.finish && copy.finishNote === 'fallback' && <FinishFallbackMark finishes={[FINISH_LABELS[copy.finish]]} />}
       {visible.condition && (
         <FieldWithDot fromFile={fromFile(copy.sources.condition)}>
           <select

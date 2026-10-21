@@ -62,7 +62,7 @@ export function ImportNoticeLine({ tone, unmatched, tokens, source, onDismiss }:
       >
         <TriangleAlert className="size-4 shrink-0 text-[var(--signal-warning)]" aria-hidden="true" />
         <span className="min-w-0 flex-1 truncate">
-          <strong>1 line not matched</strong>
+          <strong>1 row not matched</strong>
           <span aria-hidden="true"> · </span>
           {sourceLabel(source, unmatched.sourceIndex)}{' '}
           <code className="rounded bg-black/20 px-1 font-mono text-[length:var(--fs-xs)]">
@@ -159,7 +159,7 @@ function UnmatchedSummary({
       >
         <TriangleAlert className="size-4 shrink-0 text-[var(--signal-warning)]" aria-hidden="true" />
         <span className="min-w-0 flex-1 truncate">
-          <strong>{unmatched.length} lines not matched</strong>
+          <strong>{unmatched.length} rows not matched</strong>
           <span aria-hidden="true"> · </span>
           they won&apos;t be imported
         </span>
@@ -177,7 +177,7 @@ function UnmatchedSummary({
         <DismissButton label="Dismiss not matched note" onClick={onDismiss} />
       </div>
       {open && (
-        <ul aria-label="Lines not matched" className="max-h-28 overflow-auto rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+        <ul aria-label="Rows not matched" className="max-h-28 overflow-auto rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
           {unmatched.map((line) => (
             <li
               key={line.sourceIndex}
@@ -218,7 +218,7 @@ export function ImportNotices({ unmatched, tokens, source, hidden, onDismiss }: 
       )}
       <div role="status" aria-live="polite" className="sr-only">
         {hidden?.has('unmatched') && unmatched.length > 0
-          ? `Note hidden. ${unmatched.length} ${unmatched.length === 1 ? 'line' : 'lines'} still not matched.`
+          ? `Note hidden. ${unmatched.length} ${unmatched.length === 1 ? 'row' : 'rows'} still not matched.`
           : ''}
       </div>
     </div>
@@ -228,7 +228,6 @@ export function ImportNotices({ unmatched, tokens, source, hidden, onDismiss }: 
 export interface ImportValueNoticeLinesProps {
   unrecognised: number
   unlistedFinish: number
-  defaultFinishFellBack: number
   hidden?: Set<string>
   onDismiss?: (id: string) => void
 }
@@ -241,7 +240,6 @@ function plural(n: number, one: string, many: string): string {
 export function ImportValueNoticeLines({
   unrecognised,
   unlistedFinish,
-  defaultFinishFellBack,
   hidden,
   onDismiss,
 }: ImportValueNoticeLinesProps) {
@@ -256,12 +254,6 @@ export function ImportValueNoticeLines({
     lines.push({
       id: 'value:unlisted',
       text: `${unlistedFinish} ${plural(unlistedFinish, 'copy has', 'copies have')} a finish Scryfall doesn't list for that printing. ${plural(unlistedFinish, 'It was', 'They were')} kept as in your file.`,
-    })
-  }
-  if (defaultFinishFellBack > 0) {
-    lines.push({
-      id: 'value:fellback',
-      text: `${defaultFinishFellBack} ${plural(defaultFinishFellBack, 'card doesn\'t', 'cards don\'t')} come in your default finish, so ${plural(defaultFinishFellBack, 'its', 'their')} own finish will be used.`,
     })
   }
   const shown = lines.filter((l) => !hidden?.has(l.id))
@@ -283,11 +275,10 @@ export function ImportValueNoticeLines({
 }
 
 /** How many value notes exist (so the footer can count hidden ones correctly). */
-export function valueNoteIds(n: { unrecognised: number; unlistedFinish: number; defaultFinishFellBack: number }): string[] {
+export function valueNoteIds(n: { unrecognised: number; unlistedFinish: number }): string[] {
   const ids: string[] = []
   if (n.unrecognised > 0) ids.push('value:unrecognised')
   if (n.unlistedFinish > 0) ids.push('value:unlisted')
-  if (n.defaultFinishFellBack > 0) ids.push('value:fellback')
   return ids
 }
 
@@ -295,7 +286,7 @@ export function valueNoteIds(n: { unrecognised: number; unlistedFinish: number; 
 export function countHiddenNotes(
   hidden: Set<string>,
   preview: { unmatched: unknown[]; skippedTokens: unknown[]; notices?: { unrecognisedCondition?: number; unrecognisedLanguage?: number; unrecognisedFinish?: number } },
-  finish: { unlistedFinish: number; defaultFinishFellBack: number }
+  finish: { unlistedFinish: number }
 ): number {
   const ids = [
     ...(preview.unmatched.length > 0 ? ['unmatched'] : []),

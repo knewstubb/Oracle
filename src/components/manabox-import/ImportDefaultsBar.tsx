@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Switch } from '@/components/ui/switch'
 import {
   CONDITION_LABELS,
   FINISH_LABELS,
@@ -17,10 +18,12 @@ import { LANGUAGE_LABELS, languageLabel, languageOptions, SELECT_CLASS } from '.
 export interface ImportDefaultsBarProps {
   defaults: ImportDefaults
   onChange: (defaults: ImportDefaults) => void
+  /** Deck import only: basic lands count as sleeved and add no copies. */
+  basics?: { qty: number; generic: boolean; onChange: (value: boolean) => void }
 }
 
 /** "Importing as: Non-foil · Near Mint · English  Change". Values never carry the file dot. */
-export function ImportDefaultsBar({ defaults, onChange }: ImportDefaultsBarProps) {
+export function ImportDefaultsBar({ defaults, onChange, basics }: ImportDefaultsBarProps) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -45,8 +48,25 @@ export function ImportDefaultsBar({ defaults, onChange }: ImportDefaultsBarProps
         >
           {open ? 'Done' : 'Change'}
         </button>
-        <span className="ml-auto text-[length:var(--fs-xs)] text-muted-foreground">
-          Values in your file are used automatically where present.
+        <span className="ml-auto flex items-center gap-2">
+          {basics && basics.qty > 0 ? (
+            <label
+              className="flex cursor-pointer items-center gap-2 text-[length:var(--fs-xs)] text-muted-foreground hover:text-foreground"
+              title="Basic lands count as sleeved and add no copies"
+            >
+              <span id="generic-basics-label">Generic basics</span>
+              <Switch
+                checked={basics.generic}
+                onCheckedChange={basics.onChange}
+                aria-labelledby="generic-basics-label"
+              />
+              <span>{basics.qty}</span>
+            </label>
+          ) : (
+            <span className="text-[length:var(--fs-xs)] text-muted-foreground">
+              Values in your file are used automatically where present.
+            </span>
+          )}
         </span>
       </div>
       {open && (
@@ -103,7 +123,7 @@ export function ImportDefaultsBar({ defaults, onChange }: ImportDefaultsBarProps
             </select>
           </label>
           <span className="pb-1 text-[length:var(--fs-xs)] text-muted-foreground">
-            Applies to copies you haven&apos;t set yourself. Proxies keep only language.
+            Applies to copies you haven&apos;t set yourself. Proxies keep only language. Values in your file are used automatically where present.
           </span>
         </div>
       )}

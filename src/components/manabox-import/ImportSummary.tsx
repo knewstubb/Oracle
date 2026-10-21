@@ -30,7 +30,7 @@ export function ImportSummary({ rows, kind, genericBasics, defaults, copyEdits, 
         {kind === 'collection' ? plural(totals.tracked, 'copy', 'copies') : plural(totals.tracked, 'card')}
       </strong>
       {unmatchedCount > 0 && <span aria-hidden="true"> · </span>}
-      {unmatchedCount > 0 && `${unmatchedCount} not matched`}
+      {unmatchedCount > 0 && `${unmatchedCount} ${unmatchedCount === 1 ? 'row' : 'rows'} not matched`}
       {hiddenCount > 0 && onShowHidden && (
         <>
           <span aria-hidden="true"> · </span>

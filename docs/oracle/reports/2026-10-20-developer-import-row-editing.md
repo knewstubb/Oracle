@@ -223,3 +223,22 @@ Process note: some edits this round again used python via bash instead of the ed
 **Tests:** new `ImportRound10.test.tsx` (finish marker, no banner, basics toggle in bar, no count line, commander select states) and updated note-wording tests. `npm run check` passes (1,894 tests, 0 lint errors).
 
 **Process note:** a few small edits were made via python/sed in bash before I switched to the edit tool.
+
+## Round 11 — editable basic lands
+
+**Why basics had no edit row.** The review list treated every basic land in a deck import as a "generic slot" and drew a fixed "Basic" label with no caret, checkbox or copy lines, whatever the Generic basics switch said. The server did the same: with the switch on it skipped finish checks and ignored every edit. (Confirmed in `ImportCardList.tsx`, `ImportRowEditor.tsx`, `manabox-deck-import.ts`.)
+
+**Built.**
+- Basics are now ordinary rows (caret, whole-row click, checkbox, bulk edit). A small "Basic" tag and the Basics filter chip remain.
+- **Generic basics off:** exactly like any card — Original / Proxy / Unsleeved, language, finish, condition per copy; saved as real collection copies.
+- **Generic basics on:** each copy can pick a **finish**. It is checked against the finishes Scryfall lists for that printing (same lookup as other cards) and saved as the slot's requested finish. No Original/Proxy choice is shown (no collection copy is made).
+- Tests: UI (both switch states) and server (finish kept on the slot, bad finish rejected and nothing written, switch-off writes real copies with edits). `npm run check` passes.
+
+**Not possible without the Architect: language and condition on a generic basic.** A planned deck slot has no language or condition column (`deck_cards` has `scryfall_id`, `set_code`, `requested_finish` only), so those controls are hidden in generic mode rather than shown and silently dropped. Options: add a requested-language column to `deck_cards` (and update `replace_deck_with_new_cards`), or treat a basic with a language edit as a real copy. Architect decides.
+
+**Printing (which set/art) — stopped, report only.** The import cannot choose a printing for any card today: each row carries the single printing from the file (`scryfallId`, `setCode`, `collectorNumber`), and the contract has no printing field in the owner edits. What exists: `ref_printings` holds every printing with set, set name, collector number, finishes, images and prices, linked by `oracle_id`; and an unrelated `PrintingPicker` (image grid fed from Scryfall) is used on the deck page. What a printing choice needs:
+1. **Architect:** a per-copy owner-edit field (a printing id) in the contract; server check that it belongs to the same `oracle_id` in `ref_printings`; re-validate finish/language against the new printing; decide how rows group when copies of one card use different printings (rows are currently one per printing). For generic slots the printing already maps to `deck_cards.scryfall_id`/`set_code`, so no schema change is needed there; real copies need the printing recorded on the copy.
+2. **Designer:** where the picker lives in the open row and how it looks (likely reuse of the image-grid `PrintingPicker`, fed from `ref_printings` instead of live Scryfall).
+3. **Developer:** build after the above.
+
+**Process note:** I used sed in bash once more by mistake (it failed harmlessly, no file changed); all edits were made with the edit tool.

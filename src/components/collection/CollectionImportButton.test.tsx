@@ -61,17 +61,17 @@ describe('CollectionImportButton', () => {
     vi.clearAllMocks()
   })
 
-  it('renders the Import CSV button', () => {
+  it('renders the Import cards button', () => {
     renderWithProviders()
-    expect(screen.getByText('Import CSV')).toBeInTheDocument()
+    expect(screen.getByText('Import cards')).toBeInTheDocument()
   })
 
   it('opens the ManaBox import dialog when clicked', async () => {
     renderWithProviders()
-    fireEvent.click(screen.getByText('Import CSV'))
+    fireEvent.click(screen.getByText('Import cards'))
     await waitFor(() => {
       expect(screen.getByRole('dialog')).toBeInTheDocument()
-      expect(screen.getByText(/Import collection/i)).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: /Import cards/i })).toBeInTheDocument()
     })
   })
 
@@ -84,7 +84,7 @@ describe('CollectionImportButton', () => {
     )
 
     renderWithProviders()
-    fireEvent.click(screen.getByText('Import CSV'))
+    fireEvent.click(screen.getAllByText('Import cards')[0])
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
 
     const file = createFile('Name,Set code,Collector number,Foil,Quantity,Scryfall ID\nSol Ring,c21,263,normal,1,abc')
@@ -106,7 +106,7 @@ describe('CollectionImportButton', () => {
       </QueryClientProvider>
     )
     const view = render(tree(true))
-    fireEvent.click(screen.getAllByText('Import CSV')[1])
+    fireEvent.click(screen.getAllByText('Import cards')[1])
     await waitFor(() => expect(screen.getAllByRole('dialog')).toHaveLength(1))
     view.rerender(tree(false))
     expect(screen.getAllByRole('dialog')).toHaveLength(1)

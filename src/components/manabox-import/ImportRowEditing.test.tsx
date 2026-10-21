@@ -142,14 +142,14 @@ describe('collapsed tags, Edit/Done and apply-to-all (test 19)', () => {
     expect(rd.querySelector('[data-tag="condition"]')).toHaveTextContent('1 LP')
   })
 
-  it('toggles Edit and Done with aria-expanded', () => {
+  it('toggles Edit and Collapse (a caret) with aria-expanded', () => {
     render(<Harness />)
     const edit = screen.getByRole('button', { name: 'Edit Sol Ring' })
     expect(edit).toHaveAttribute('aria-expanded', 'false')
+    expect(edit).not.toHaveTextContent(/Edit|Done/)
     fireEvent.click(edit)
-    const done = screen.getByRole('button', { name: 'Done editing Sol Ring' })
+    const done = screen.getByRole('button', { name: 'Collapse Sol Ring' })
     expect(done).toHaveAttribute('aria-expanded', 'true')
-    expect(done).toHaveTextContent('Done')
   })
 
   it('offers apply-to-all only on copy 1 with 2+ copies, and has no Duplicate or Remove', () => {
@@ -203,7 +203,7 @@ describe('language edit keeps the row in place (test 20)', () => {
 
     expect(keys()).toEqual(before)
     expect(screen.getByRole('checkbox', { name: 'Select Rehearsed Debater' })).toBeChecked()
-    expect(screen.getByRole('button', { name: 'Done editing Rehearsed Debater' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Collapse Rehearsed Debater' })).toBeInTheDocument()
   })
 })
 

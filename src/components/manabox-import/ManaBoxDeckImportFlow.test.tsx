@@ -180,43 +180,23 @@ describe('ManaBoxDeckImportFlow', () => {
     expect(body.copyEdits['pull-sf|nonfoil']).toEqual({ 1: { type: 'proxy' } })
   })
 
-  async function importToResult(onFinish: (id: number) => void) {
+  it('has no commander picker on the result screen, only a hint, and Close sends the owner to the deck page prompt', async () => {
+    const onFinish = vi.fn()
     const user = userEvent.setup()
     const json = (b: unknown) => new Response(JSON.stringify(b), { status: 200, headers: { 'Content-Type': 'application/json' } })
-    vi.spyOn(global, 'fetch').mockImplementation(async (input, init) => {
+    vi.spyOn(global, 'fetch').mockImplementation(async (input) => {
       const url = String(input)
       if (url.includes('/preview')) return json(PREVIEW_RESPONSE)
       if (url === '/api/decks/import') return json({ deckId: 77, allocationSummary: { assigned: 3, shortfall: 0, errors: [], unmatched: [] } })
-      if (url === '/api/decks/77' && init?.method === 'PATCH') return json({ ok: true })
-      if (url === '/api/decks/77') return json({ cards: [{ card_name: 'Emil, Vastlands Roamer', scryfall_id: 'e' }, { card_name: 'Pull from the Grave', scryfall_id: 'p' }] })
       return json({})
     })
     render(<ManaBoxDeckImportFlow onFinish={onFinish} onCancel={() => {}} />, { wrapper: createWrapper() })
     await user.upload(screen.getByLabelText('Choose file'), new File(['name,header'], 'd.csv', { type: 'text/csv' }))
     await waitFor(() => expect(screen.getByText('Pull from the Grave')).toBeInTheDocument())
-    fireEvent.click(screen.getByRole('button', { name: /Import/i }))
-    await waitFor(() => expect(screen.getByText('Choose a commander')).toBeInTheDocument())
-    return user
-  }
-
-  it('asks for a commander on the result screen before Close / Open deck work', async () => {
-    const onFinish = vi.fn()
-    const user = await importToResult(onFinish)
-    expect(screen.getByRole('button', { name: 'Open deck' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Close' })).toBeDisabled()
-    await user.click(await screen.findByRole('option', { name: 'Emil, Vastlands Roamer' }))
-    await waitFor(() => expect(screen.getByText('Emil, Vastlands Roamer', { selector: 'strong' })).toBeInTheDocument())
-    const patch = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === 'PATCH')
-    expect(JSON.parse(patch![1]!.body as string)).toEqual({ commander_name: 'Emil, Vastlands Roamer', commander_scryfall_id: 'e' })
-    await user.click(screen.getByRole('button', { name: 'Open deck' }))
-    expect(onFinish).toHaveBeenCalledWith(77)
-  })
-
-  it('lets the owner skip the commander and then close', async () => {
-    const onFinish = vi.fn()
-    const user = await importToResult(onFinish)
-    await user.click(screen.getByRole('button', { name: 'Skip for now' }))
+    fireEvent.click(screen.getByRole('button', { name: /Import deck/i }))
     expect(await screen.findByText(/No commander yet/)).toBeInTheDocument()
+    expect(screen.queryByText('Choose a commander')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Close' })).toBeEnabled()
     await user.click(screen.getByRole('button', { name: 'Close' }))
     expect(onFinish).toHaveBeenCalledWith(77)
   })

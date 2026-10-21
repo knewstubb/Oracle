@@ -87,7 +87,7 @@ describe('ManaBoxCollectionImportDialog', () => {
     render(<ManaBoxCollectionImportDialog open onOpenChange={() => {}} />, {
       wrapper: createWrapper(),
     })
-    expect(screen.getByText(/Import collection/i)).toBeInTheDocument()
+    expect(screen.getByText(/Import cards/i)).toBeInTheDocument()
     expect(screen.getByText(/ManaBox \.csv/i)).toBeInTheDocument()
   })
 
@@ -113,7 +113,7 @@ describe('ManaBoxCollectionImportDialog', () => {
       expect(screen.getByText('Island')).toBeInTheDocument()
     })
 
-    expect(screen.getByRole('button', { name: /Add 4/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Import cards/i })).toBeInTheDocument()
   })
 
   it('sends the defaults and the owner edits (no proxy counts) on import', async () => {
@@ -146,7 +146,7 @@ describe('ManaBoxCollectionImportDialog', () => {
     const type = screen.getByRole('group', { name: 'Copy 1 type' })
     fireEvent.click(within(type).getByRole('button', { name: 'Proxy' }))
 
-    fireEvent.click(screen.getByRole('button', { name: /Add 4/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Import cards' }))
 
     await waitFor(() => {
       expect(screen.getByText(/copies added/)).toBeInTheDocument()
@@ -168,7 +168,7 @@ describe('ManaBoxCollectionImportDialog', () => {
     await user.upload(screen.getByLabelText('Choose file'), new File(['name,header\nx'], 'scan.csv', { type: 'text/csv' }))
     await waitFor(() => expect(screen.getByText('Sol Ring')).toBeInTheDocument())
     expect(screen.getByText(/2 cards \(4 copies\)/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Add 4 copies' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Import cards' })).toBeInTheDocument()
   })
 
   it('does not close when the user clicks outside the dialog', async () => {
@@ -177,7 +177,7 @@ describe('ManaBoxCollectionImportDialog', () => {
     render(<ManaBoxCollectionImportDialog open onOpenChange={onOpenChange} />, { wrapper: createWrapper() })
     await user.click(document.body)
     expect(onOpenChange).not.toHaveBeenCalledWith(false)
-    expect(screen.getByText('Import collection')).toBeInTheDocument()
+    expect(screen.getByText('Import cards')).toBeInTheDocument()
   })
 
   it('reads streamed progress and shows a result plus a toast', async () => {
@@ -195,7 +195,7 @@ describe('ManaBoxCollectionImportDialog', () => {
     render(<ManaBoxCollectionImportDialog open onOpenChange={() => {}} />, { wrapper: createWrapper() })
     await user.upload(screen.getByLabelText('Choose file'), new File(['name,header\nx'], 'scan.csv', { type: 'text/csv' }))
     await waitFor(() => expect(screen.getByText('Sol Ring')).toBeInTheDocument())
-    fireEvent.click(screen.getByRole('button', { name: 'Add 4 copies' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Import cards' }))
     await waitFor(() => expect(screen.getByText(/copies added/)).toBeInTheDocument())
     expect(screen.getByText(/4 copies added/)).toBeInTheDocument()
     expect(toastSuccess).toHaveBeenCalledWith('Added 4 copies to your collection')
@@ -226,7 +226,7 @@ describe('ManaBoxCollectionImportDialog', () => {
     render(<ManaBoxCollectionImportDialog open onOpenChange={onOpenChange} />, { wrapper: createWrapper() })
     await user.upload(screen.getByLabelText('Choose file'), new File(['name,header\nx'], 'scan.csv', { type: 'text/csv' }))
     await waitFor(() => expect(screen.getByText('Sol Ring')).toBeInTheDocument())
-    const add = screen.getByRole('button', { name: 'Add 4 copies' })
+    const add = screen.getByRole('button', { name: 'Import cards' })
     fireEvent.click(add)
     fireEvent.click(add)
     await waitFor(() => expect(screen.getByText('Adding to your collection…')).toBeInTheDocument())
@@ -296,7 +296,7 @@ describe('ManaBoxCollectionImportDialog', () => {
     ].map((e) => JSON.stringify(e) + '\n').join('')
     const { onOpenChange } = await previewThenReview()
     vi.mocked(global.fetch).mockResolvedValueOnce(new Response(lines, { status: 200, headers: { 'Content-Type': 'application/x-ndjson' } }))
-    fireEvent.click(screen.getByRole('button', { name: 'Add 4 copies' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Import cards' }))
     await waitFor(() => expect(screen.getByText(/copies added/)).toBeInTheDocument())
     await new Promise((r) => setTimeout(r, 100))
     expect(screen.getByText(/copies added/)).toBeInTheDocument()
@@ -312,7 +312,7 @@ describe('ManaBoxCollectionImportDialog', () => {
     await previewThenReview()
     const row = () => document.querySelector('[data-row-key]')!
     fireEvent.click(screen.getByText('Sol Ring'))
-    expect(screen.getByRole('button', { name: 'Done editing Sol Ring' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Collapse Sol Ring' })).toBeInTheDocument()
     fireEvent.click(screen.getByText('Sol Ring'))
     expect(screen.getByRole('button', { name: 'Edit Sol Ring' })).toBeInTheDocument()
     expect(row()).toBeTruthy()

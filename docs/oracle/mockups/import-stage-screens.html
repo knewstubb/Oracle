@@ -222,10 +222,11 @@ function result({total, proxies=0, foils=0, tokens=0, notices=[], unmatched=[]})
         <ul class="ul">${unmatched.map(u=>`<li><code>${u[0]}</code><span class="tx">${u[1]}</span></li>`).join('')}</ul></div></div>`:''}
     </div>`;
   }
+  const hint = deck ? `<div class="nt info">${I.info}<div class="body">No commander yet. Choose one on the deck page.</div></div>` : '';
   const hero = `<div class="hero"><div class="tick" aria-hidden="true">${I.check}</div><h3 class="hl" style="margin:0">${head}</h3><div class="sub">${sub}</div></div>`;
   const foot = `<div class="df"><button class="btn" type="button">Close</button><button class="btn primary" type="button">${deck?'Open deck':'View collection'}</button></div>`;
   // when stats row replaces the "All originals" line, hero is followed directly by it
-  return frame(T(), `<div class="res" role="status">${hero}${rows.length?stats:`<div class="hero" style="margin-top:-14px"><div class="sub">All originals.</div></div>`}${notes}</div>`, foot);
+  return frame(T(), `<div class="res" role="status">${hero}${rows.length?stats:`<div class="hero" style="margin-top:-14px"><div class="sub">All originals.</div></div>`}${notes}${hint}</div>`, foot);
 }
 function renderRes(){
   document.getElementById('s-res').innerHTML =

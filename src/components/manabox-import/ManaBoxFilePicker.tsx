@@ -97,7 +97,7 @@ export function ManaBoxFilePicker({
         <span
           className={cn(
             'grid size-14 place-items-center rounded-full',
-            dragOver ? 'bg-[var(--accent-primary-bg)] text-[var(--accent-primary)]' : 'bg-[var(--bg-hover)] text-muted-foreground'
+            dragOver ? 'bg-[var(--accent-primary-bg)] text-[var(--accent-primary)]' : 'bg-[var(--bg-surface-hover)] text-muted-foreground'
           )}
         >
           {dragOver ? <ArrowDown className="size-6" aria-hidden="true" /> : <Upload className="size-6" aria-hidden="true" />}

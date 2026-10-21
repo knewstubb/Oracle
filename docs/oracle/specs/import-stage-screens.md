@@ -47,6 +47,9 @@ Centred column, max 460 px, scrolls inside the body if tall. Footer: **Close** (
 - States to review: 4a success clean · 4b success with breakdown · 4c success with notices and unmatched.
 - Error on the import itself: unchanged from the current app (not redesigned here).
 
+### 4.5 Deck result (rev 2)
+No commander block. A quiet grey line under the breakdown and notes: "No commander yet. Choose one on the deck page." (see `import-review-controls.md` §7). Review-screen button is "Import deck" / "Import cards".
+
 ## 5. Interactions
 Pointer: drag a file over the zone (drag-over state); drop to start; click Choose file; Cancel import; Close; View collection / Open deck; Copy unmatched lines; Show all.
 Keyboard: Tab order on upload is Choose file → (error banner is not focusable) → close ×; Enter/Space on Choose file opens the file dialog. The whole zone is not a tab stop (the button is the keyboard equivalent of dropping). Result: Close → primary button; initial focus on the primary button. Escape closes at upload and result; while importing, Escape does nothing (Cancel import is the only way out).

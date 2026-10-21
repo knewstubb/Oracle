@@ -43,7 +43,7 @@ export function CollectionImportButton({ withDialog = true }: { withDialog?: boo
         className="gap-1.5 text-[length:var(--fs-sm)]"
       >
         <Upload className="size-3.5" />
-        Import CSV
+        Import cards
       </Button>
       {withDialog && <ManaBoxCollectionImportDialog open={open} onOpenChange={setOpen} />}
     </>

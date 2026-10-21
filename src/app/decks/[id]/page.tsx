@@ -261,6 +261,16 @@ export default function DeckViewPage() {
         totalCards={totalCards}
         proxyCount={proxyCount}
         totalValue={totalValue}
+        nameSlot={
+          getFormatConfig(deck.format).hasCommander ? (
+            <ChooseCommanderButton
+              deckId={deck.id}
+              cards={cards}
+              openOnMount={shouldOpenCommanderPicker && !deck.commander_name}
+              commanderName={deck.commander_name}
+            />
+          ) : undefined
+        }
         actions={
           <>
             <Button
@@ -282,13 +292,6 @@ export default function DeckViewPage() {
             <VersionHistoryPanel deckId={deck.id} deckName={deck.name} />
             <ActiveToggle deckId={deck.id} isActive={deck.is_active} />
             <DeleteDeckButton deckId={deck.id} deckName={deck.name} />
-            {getFormatConfig(deck.format).hasCommander && !deck.commander_name && (
-              <ChooseCommanderButton
-                deckId={deck.id}
-                cards={cards}
-                openOnMount={shouldOpenCommanderPicker}
-              />
-            )}
           </>
         }
       />

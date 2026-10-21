@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, VenetianMask, ChevronsDown } from 'lucide-react'
+import { Check, VenetianMask, ChevronsDown, ChevronDown } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import {
@@ -68,7 +68,7 @@ export function TypeToggle({
             aria-pressed={pressed}
             onClick={() => onChange(type)}
             className={cn(
-              'inline-flex h-full shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 text-[length:var(--fs-xs)] text-muted-foreground hover:bg-[var(--bg-hover)]',
+              'inline-flex h-full shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 text-[length:var(--fs-xs)] text-muted-foreground hover:bg-[var(--bg-surface-hover)]',
               pressed && TYPE_STYLE[type].selected
             )}
           >
@@ -91,7 +91,7 @@ function FieldWithDot({ fromFile, children }: { fromFile: boolean; children: Rea
       <span
         aria-hidden="true"
         data-testid="file-dot"
-        className="pointer-events-none absolute -right-0.5 -top-0.5 size-1.5 rounded-full bg-foreground shadow-[0_0_0_2px_var(--bg-hover)]"
+        className="pointer-events-none absolute -right-0.5 -top-0.5 size-1.5 rounded-full bg-foreground shadow-[0_0_0_2px_var(--bg-surface-hover)]"
       />
     </span>
   )
@@ -140,7 +140,7 @@ export function ImportRowEditor({
       data-row-key={row.rowKey}
       className={cn(
         'border-b border-[var(--border-subtle)]',
-        open && 'bg-[var(--bg-hover)] shadow-[inset_2px_0_0_var(--text-secondary)]'
+        open && 'bg-[var(--bg-surface-hover)] shadow-[inset_2px_0_0_var(--text-secondary)]'
       )}
     >
       <div
@@ -155,7 +155,7 @@ export function ImportRowEditor({
               }
         }
         className={cn(
-          'group grid min-h-[34px] grid-cols-[24px_28px_1fr_auto] items-center gap-2 px-2.5 hover:bg-[var(--bg-hover)]',
+          'group grid min-h-[34px] grid-cols-[24px_28px_1fr_auto] items-center gap-2 px-2.5 hover:bg-[var(--bg-surface-hover)]',
           !generic && 'cursor-pointer'
         )}
       >
@@ -208,18 +208,22 @@ export function ImportRowEditor({
           )}
         </span>
         {generic ? (
-          <span className="inline-flex h-5 items-center rounded-full border border-[var(--border-default)] bg-[var(--bg-hover)] px-2 text-[length:var(--fs-xs)] text-muted-foreground">
+          <span className="inline-flex h-5 items-center rounded-full border border-[var(--border-default)] bg-[var(--bg-surface-hover)] px-2 text-[length:var(--fs-xs)] text-muted-foreground">
             Basic
           </span>
         ) : (
           <button
             type="button"
             aria-expanded={open}
-            aria-label={`${open ? 'Done editing' : 'Edit'} ${row.cardName}`}
+            aria-label={`${open ? 'Collapse' : 'Edit'} ${row.cardName}`}
             onClick={onToggleOpen}
-            className="h-6 rounded-md px-2.5 text-[length:var(--fs-xs)] text-muted-foreground opacity-0 transition-opacity hover:bg-[var(--bg-hover)] hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
+            title={open ? 'Collapse' : 'Edit copies'}
+            className="inline-flex size-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)] group-hover:text-foreground"
           >
-            {open ? 'Done' : 'Edit'}
+            <ChevronDown
+              aria-hidden="true"
+              className={cn('size-4 transition-transform', open && 'rotate-180')}
+            />
           </button>
         )}
       </div>
@@ -350,7 +354,7 @@ function CopyLine({
           onClick={onApplyAll}
           aria-label="Make all copies like copy 1"
           title="Make all copies like copy 1"
-          className="ml-auto inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-[var(--bg-hover)] hover:text-foreground"
+          className="ml-auto inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-[var(--bg-surface-hover)] hover:text-foreground"
         >
           <ChevronsDown className="size-3.5" aria-hidden="true" />
         </button>

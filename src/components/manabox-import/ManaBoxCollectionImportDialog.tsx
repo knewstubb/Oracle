@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   Dialog,
@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { ManaBoxFilePicker } from './ManaBoxFilePicker'
 import { ImportFileChip } from './ImportFileChip'
-import { ImportNotices, ImportValueNoticeLines } from './ImportNoticeLine'
+import { ImportNotices, ImportValueNoticeLines, useHiddenNotes, countHiddenNotes } from './ImportNoticeLine'
 import { ImportDefaultsBar } from './ImportDefaultsBar'
 import { countFinishNotices } from '@/lib/import-copies'
 import type { ImportCopyEdits, ImportDefaults } from '../../../docs/oracle/contracts/import-row-editing.types'
@@ -42,6 +42,13 @@ export function ManaBoxCollectionImportDialog({
 }: ManaBoxCollectionImportDialogProps) {
   const [step, setStep] = useState<ImportStep>({ status: 'idle' })
   const [error, setError] = useState<string | null>(null)
+  const notes = useHiddenNotes()
+  const { restoreAll: restoreNotes } = notes
+  const inReview = step.status === 'review'
+  useEffect(() => {
+    // Hidden notes are for one review only.
+    if (!inReview) restoreNotes()
+  }, [inReview, restoreNotes])
   const queryClient = useQueryClient()
   const abortRef = useRef<AbortController | null>(null)
 
@@ -234,7 +241,7 @@ export function ManaBoxCollectionImportDialog({
     setStep((prev) => (prev.status === 'review' ? { ...prev, selectedIds } : prev))
   }, [])
 
-  const title = 'Import collection'
+  const title = 'Import cards'
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -286,6 +293,8 @@ export function ManaBoxCollectionImportDialog({
               unmatched={step.preview.unmatched}
               tokens={step.preview.skippedTokens}
               source={step.source}
+              hidden={notes.hidden}
+              onDismiss={notes.hide}
             />
             <ImportDefaultsBar defaults={step.defaults} onChange={setDefaults} />
             <ImportValueNoticeLines
@@ -295,6 +304,8 @@ export function ManaBoxCollectionImportDialog({
                 (step.preview.notices?.unrecognisedFinish ?? 0)
               }
               {...countFinishNotices(step.preview.rows, step.defaults, step.copyEdits)}
+              hidden={notes.hidden}
+              onDismiss={notes.hide}
             />
             <ImportCardList
               rows={step.preview.rows}
@@ -363,7 +374,16 @@ export function ManaBoxCollectionImportDialog({
 
         {step.status === 'review' && (
           <div className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-3">
-            <ImportSummary rows={step.preview.rows} kind="collection" genericBasics={step.genericBasics} defaults={step.defaults} copyEdits={step.copyEdits} />
+            <ImportSummary
+              rows={step.preview.rows}
+              kind="collection"
+              genericBasics={step.genericBasics}
+              defaults={step.defaults}
+              copyEdits={step.copyEdits}
+              unmatchedCount={step.preview.unmatched.length}
+              hiddenCount={countHiddenNotes(notes.hidden, step.preview, countFinishNotices(step.preview.rows, step.defaults, step.copyEdits))}
+              onShowHidden={notes.restoreAll}
+            />
             <div className="flex items-center gap-2">
               <Button type="button" variant="outline" onClick={() => handleClose(false)}>
                 Cancel
@@ -373,7 +393,7 @@ export function ManaBoxCollectionImportDialog({
                 onClick={handleImport}
                 disabled={step.preview.rows.length === 0}
               >
-                Add {copiesWord(step.preview.rows.reduce((sum, r) => sum + r.qty, 0))}
+                Import cards
               </Button>
             </div>
           </div>

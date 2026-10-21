@@ -10,6 +10,23 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { DeckCard } from '@/components/CardGrid'
 
+/** Asks the server which of these names can be a commander (null when the check fails). */
+export async function fetchEligibleNames(names: string[]): Promise<Set<string> | null> {
+  if (names.length === 0) return new Set()
+  try {
+    const res = await fetch('/api/commanders/eligible', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ names }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return new Set<string>(data.eligible ?? [])
+  } catch {
+    return null
+  }
+}
+
 export interface CommanderCandidate {
   name: string
   scryfallId: string | null
@@ -21,14 +38,18 @@ export interface CommanderPickerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSet?: () => void
+  /** Current commander, shown on the button so it can also be changed. */
+  commanderName?: string | null
 }
 
-export function CommanderPicker({ deckId, cards, open, onOpenChange, onSet }: CommanderPickerProps) {
+export function CommanderPicker({ deckId, cards, open, onOpenChange, onSet, commanderName }: CommanderPickerProps) {
   const [query, setQuery] = useState('')
   const [mode, setMode] = useState<'deck' | 'all'>('deck')
   const [allResults, setAllResults] = useState<CommanderCandidate[]>([])
   const [allLoading, setAllLoading] = useState(false)
   const [pending, setPending] = useState<string | null>(null)
+  const [eligible, setEligible] = useState<Set<string> | null>(null)
+  const [checkFailed, setCheckFailed] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const queryClient = useQueryClient()
 
@@ -102,7 +123,9 @@ export function CommanderPicker({ deckId, cards, open, onOpenChange, onSet }: Co
           scryfallId: card.scryfallId ?? null,
         }))
         .slice(0, 20)
-      setAllResults(mapped)
+      const ok = await fetchEligibleNames(mapped.map((m) => m.name))
+      setAllResults(ok ? mapped.filter((m) => ok.has(m.name)) : [])
+      if (!ok) setCheckFailed(true)
     } catch {
       setAllResults([])
     } finally {
@@ -116,7 +139,22 @@ export function CommanderPicker({ deckId, cards, open, onOpenChange, onSet }: Co
     return () => clearTimeout(timer)
   }, [mode, query, searchAll])
 
+  const deckNamesKey = [...new Set(cards.map((c) => c.card_name))].sort().join('\n')
+  useEffect(() => {
+    if (!open || mode !== 'deck') return
+    let cancelled = false
+    fetchEligibleNames(deckNamesKey ? deckNamesKey.split('\n') : []).then((set) => {
+      if (cancelled) return
+      setEligible(set)
+      setCheckFailed(set === null)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [open, mode, deckNamesKey])
+
   const deckCandidates = cards
+    .filter((c) => eligible?.has(c.card_name))
     .filter((c) => {
       const q = query.trim().toLowerCase()
       return !q || c.card_name.toLowerCase().includes(q)
@@ -130,9 +168,19 @@ export function CommanderPicker({ deckId, cards, open, onOpenChange, onSet }: Co
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger
         render={
-          <Button type="button" variant="outline" size="sm" aria-haspopup="dialog" aria-expanded={open}>
-            <Crown className="size-4" aria-hidden="true" />
-            Choose commander
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            aria-label={commanderName ? `Commander: ${commanderName}. Change.` : 'No commander. Choose commander.'}
+            className="max-w-64"
+          >
+            <Crown className="size-4 shrink-0" aria-hidden="true" />
+            <span className="truncate">
+              {commanderName ? `Commander · ${commanderName}` : 'No commander · Choose'}
+            </span>
           </Button>
         }
       />
@@ -153,12 +201,23 @@ export function CommanderPicker({ deckId, cards, open, onOpenChange, onSet }: Co
             aria-label="Commander candidates"
             className="max-h-64 overflow-auto"
           >
-            {mode === 'deck' && deckCandidates.length === 0 && !query && (
-              <div className="py-4 text-center text-[length:var(--fs-sm)] text-muted-foreground">
-                No eligible card in this deck
+            {checkFailed && (
+              <div role="alert" className="py-4 text-center text-[length:var(--fs-sm)] text-destructive">
+                Could not check which cards can be a commander. Try again.
               </div>
             )}
-            {mode === 'deck' && deckCandidates.length === 0 && query && (
+            {mode === 'deck' && !checkFailed && eligible === null && (
+              <div className="flex items-center justify-center gap-2 py-4 text-[length:var(--fs-sm)] text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                Checking cards…
+              </div>
+            )}
+            {mode === 'deck' && eligible !== null && deckCandidates.length === 0 && !query && (
+              <div className="py-4 text-center text-[length:var(--fs-sm)] text-muted-foreground">
+                No card in this deck can be a commander
+              </div>
+            )}
+            {mode === 'deck' && eligible !== null && deckCandidates.length === 0 && query && (
               <div className="py-4 text-center text-[length:var(--fs-sm)] text-muted-foreground">
                 No match in this deck
               </div>
@@ -177,12 +236,11 @@ export function CommanderPicker({ deckId, cards, open, onOpenChange, onSet }: Co
                 onClick={() => setCommander(candidate)}
                 disabled={pending === candidate.name}
                 className={cn(
-                  'flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[length:var(--fs-sm)] hover:bg-[var(--bg-hover)]',
+                  'flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[length:var(--fs-sm)] hover:bg-[var(--bg-surface-hover)]',
                   pending === candidate.name && 'opacity-50'
                 )}
               >
                 <span className="truncate">{candidate.name}</span>
-                <span className="text-[length:var(--fs-xs)] text-muted-foreground">Legendary</span>
                 {pending === candidate.name ? (
                   <Loader2 className="size-3 animate-spin" aria-hidden="true" />
                 ) : (
@@ -228,6 +286,7 @@ export interface ChooseCommanderButtonProps {
   cards: DeckCard[]
   openOnMount?: boolean
   onSet?: () => void
+  commanderName?: string | null
 }
 
 export function ChooseCommanderButton({
@@ -235,6 +294,7 @@ export function ChooseCommanderButton({
   cards,
   openOnMount,
   onSet,
+  commanderName,
 }: ChooseCommanderButtonProps) {
   const [open, setOpen] = useState(openOnMount ?? false)
 
@@ -245,6 +305,7 @@ export function ChooseCommanderButton({
       open={open}
       onOpenChange={setOpen}
       onSet={onSet}
+      commanderName={commanderName}
     />
   )
 }

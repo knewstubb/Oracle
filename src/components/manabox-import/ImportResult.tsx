@@ -34,10 +34,8 @@ export interface ImportResultProps {
   onOpenDeck?: () => void
   onViewCollection?: () => void
   onDismiss?: () => void
-  /** Deck imports: the commander step shown above the footer. */
+  /** Deck imports: a short note about the commander, shown after the breakdown. */
   commanderSlot?: React.ReactNode
-  /** True while the commander has been neither chosen nor skipped: Close/Open deck wait. */
-  commanderPending?: boolean
 }
 
 export function ImportResult({
@@ -57,7 +55,6 @@ export function ImportResult({
   onViewCollection,
   onDismiss,
   commanderSlot,
-  commanderPending = false,
 }: ImportResultProps) {
   const [copied, setCopied] = useState(false)
   const [expanded, setExpanded] = useState(false)
@@ -65,7 +62,7 @@ export function ImportResult({
 
   useEffect(() => {
     primaryRef.current?.focus()
-  }, [commanderPending])
+  }, [])
 
   const handleCopy = useCallback(async () => {
     try {
@@ -167,11 +164,11 @@ export function ImportResult({
       </div>
 
       <div className="flex justify-end gap-2 border-t border-[var(--border-subtle)] pt-3">
-        <Button type="button" variant="outline" onClick={onDismiss} disabled={commanderPending}>
+        <Button type="button" variant="outline" onClick={onDismiss}>
           Close
         </Button>
         {primary && (
-          <Button ref={primaryRef} type="button" onClick={primary.onClick} disabled={commanderPending}>
+          <Button ref={primaryRef} type="button" onClick={primary.onClick}>
             {primary.label}
           </Button>
         )}

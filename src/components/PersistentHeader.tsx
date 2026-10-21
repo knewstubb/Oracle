@@ -22,9 +22,11 @@ interface PersistentHeaderProps {
   proxyCount: number
   totalValue?: number
   actions?: React.ReactNode
+  /** Sits beside the deck name (e.g. the commander selector). */
+  nameSlot?: React.ReactNode
 }
 
-export function PersistentHeader({ deck, totalCards, proxyCount, totalValue, actions }: PersistentHeaderProps) {
+export function PersistentHeader({ deck, totalCards, proxyCount, totalValue, actions, nameSlot }: PersistentHeaderProps) {
   return (
     <div
       className="sticky top-0 z-30 px-6 py-4"
@@ -67,9 +69,8 @@ export function PersistentHeader({ deck, totalCards, proxyCount, totalValue, act
                   Precon mod
                 </span>
               )}
+              {nameSlot}
             </div>
-
-            {/* Stats line */}
             <p className="mt-0.5 flex items-center gap-2 text-[length:var(--fs-sm)] text-muted-foreground">
               <span>{totalCards} cards · {proxyCount} proxies</span>
               {deck.bracket && <span>· Bracket {deck.bracket}</span>}

@@ -26,6 +26,7 @@ import type {
 import type { ImportKind, ImportSource, RowFilter, UiPreviewRow } from './types'
 import { ImportRowEditor, TypeToggle } from './ImportRowEditor'
 import { LANGUAGE_LABELS, SELECT_CLASS } from './import-labels'
+import { sortImportRows, type ImportSort } from '@/lib/import-sort'
 
 const FILTER_OPTIONS: { value: RowFilter; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -76,9 +77,13 @@ export function ImportCardList({
     return map
   }, [rows, defaults, copyEdits])
 
+  // Import order is the default; the choice lasts only while this list is on screen.
+  const [sort, setSort] = useState<ImportSort>('file')
+  const sortedRows = useMemo(() => sortImportRows(rows, sort), [rows, sort])
+
   const visibleRows = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return rows.filter((row) => {
+    return sortedRows.filter((row) => {
       const resolved = resolvedByKey.get(row.rowKey) ?? []
       const matchesFilter =
         filter === 'all' ||
@@ -87,7 +92,7 @@ export function ImportCardList({
         (filter === 'basic' && row.isBasicLand && kind === 'deck')
       return matchesFilter && (!q || row.cardName.toLowerCase().includes(q))
     })
-  }, [rows, kind, filter, query, resolvedByKey])
+  }, [sortedRows, kind, filter, query, resolvedByKey])
 
   const hasBasics = rows.some(isGeneric)
 
@@ -199,12 +204,27 @@ export function ImportCardList({
             onClick={() => onFilterChange('basic')}
           />
         )}
+        <label className="ml-auto flex items-center gap-1.5 text-[length:var(--fs-xs)] text-muted-foreground">
+          Sort
+          <select
+            value={sort}
+            onChange={(e) => {
+              const next = e.target.value as ImportSort
+              setSort(next)
+              setAnnouncement(next === 'name' ? 'Sorted by name A to Z.' : 'Sorted by import order.')
+            }}
+            className={SELECT_CLASS}
+          >
+            <option value="file">Import order</option>
+            <option value="name">Name A–Z</option>
+          </select>
+        </label>
         <Input
           type="search"
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
           placeholder="Find card"
-          className="ml-auto h-6 w-44 rounded-md px-2 text-[length:var(--fs-xs)]"
+          className="h-6 w-44 rounded-md px-2 text-[length:var(--fs-xs)]"
           aria-label="Find a card in this file"
         />
       </div>
@@ -349,7 +369,7 @@ function BulkBar({
 
   return (
     <div
-      className="relative flex min-h-[30px] items-center gap-2 rounded-t-lg bg-[var(--bg-hover)] px-2.5 py-1 text-[length:var(--fs-xs)]"
+      className="relative flex min-h-[30px] items-center gap-2 rounded-t-lg bg-[var(--bg-surface-hover)] px-2.5 py-1 text-[length:var(--fs-xs)]"
       onKeyDown={(e) => {
         if (e.key === 'Escape' && popOpen) {
           e.stopPropagation()
@@ -367,7 +387,7 @@ function BulkBar({
           aria-expanded={popOpen}
           aria-haspopup="dialog"
           onClick={() => setPopOpen((v) => !v)}
-          className="h-6 rounded-md border border-[var(--border-default)] px-2 hover:bg-[var(--bg-hover)]"
+          className="h-6 rounded-md border border-[var(--border-default)] px-2 hover:bg-[var(--bg-surface-hover)]"
         >
           Set finish / condition / language ▾
         </button>
@@ -417,7 +437,7 @@ function BulkBar({
               type="button"
               onClick={apply}
               disabled={!hasPatch}
-              className="h-6 rounded-md border border-[var(--border-default)] px-2.5 hover:bg-[var(--bg-hover)] disabled:cursor-not-allowed disabled:opacity-45"
+              className="h-6 rounded-md border border-[var(--border-default)] px-2.5 hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-45"
             >
               Apply
             </button>
@@ -473,8 +493,8 @@ function FilterChip({
       className={cn(
         'h-6 rounded-full border px-2.5 text-[length:var(--fs-xs)] transition-colors',
         selected
-          ? 'border-[var(--text-secondary)] bg-[var(--bg-hover)] text-foreground'
-          : 'border-[var(--border-default)] text-muted-foreground hover:bg-[var(--bg-hover)]'
+          ? 'border-[var(--text-secondary)] bg-[var(--bg-surface-hover)] text-foreground'
+          : 'border-[var(--border-default)] text-muted-foreground hover:bg-[var(--bg-surface-hover)]'
       )}
     >
       {label} {count}

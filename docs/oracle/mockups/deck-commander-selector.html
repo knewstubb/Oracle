@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oracle — Deck page commander selector (mockup, rev 1)</title>
+<style>
+  /* Colours copied from src/styles/tokens.css — no new colours */
+  :root{
+    --bg-canvas:#131316; --bg-surface:#1A1A1E; --bg-hover:#212126; --border:#35353A; --border-subtle:#262629;
+    --text-primary:#E8E8EA; --text-secondary:#9C9CA3; --text-tertiary:#6E6E76;
+    --status-proxy:#4A93A0; --signal-warning:#EF9F27; --accent-primary:#1D9E75;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg-canvas);color:var(--text-primary);font:13px/1.4 "Helvetica Neue",Helvetica,Arial,sans-serif}
+  button,input{font:inherit;color:inherit}
+  :focus-visible{outline:2px solid var(--accent-primary);outline-offset:2px}
+  .page{max-width:980px;margin:0 auto;padding:20px}
+  h1.t{font-size:18px;margin:0 0 4px}
+  h2{font-size:12px;font-weight:500;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;margin:28px 0 4px}
+  .ann{color:var(--text-secondary);font-size:12px;margin:0 0 10px;max-width:760px}
+  .ann b{color:var(--text-primary);font-weight:500}
+  .ic{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  .btn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:7px;border:1px solid var(--border);background:var(--bg-hover);cursor:pointer;white-space:nowrap}
+  .btn:hover{background:#2a2a30}
+  .btn.sm{height:26px;padding:0 9px;font-size:12px}
+
+  /* Deck page header (existing layout: avatar, name, badges + stats, actions on the right) */
+  .deck{background:var(--bg-canvas);border:1px solid var(--border);border-radius:12px;overflow:visible;position:relative;margin-bottom:6px}
+  .hdr{display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid var(--border-subtle);min-height:76px}
+  .av{width:44px;height:44px;border-radius:50%;background:var(--bg-hover);border:1px solid var(--border);display:grid;place-items:center;color:var(--text-tertiary);flex:none;font-size:11px;overflow:hidden}
+  .av.on{background:linear-gradient(135deg,#2a4a44,#1b2a3a);color:var(--text-primary)}
+  .meta{flex:1;min-width:0}
+  .meta h2.name{font-size:20px;font-weight:500;margin:0;text-transform:none;letter-spacing:0;color:var(--text-primary)}
+  .line2{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px;position:relative}
+  .badge{display:inline-flex;align-items:center;height:22px;padding:0 8px;border:1px solid var(--border);border-radius:999px;font-size:12px;color:var(--text-secondary)}
+  .stats{color:var(--text-secondary);font-size:12px}
+  .acts{display:flex;gap:6px}
+  .tabs{display:flex;gap:18px;padding:0 18px;color:var(--text-secondary);border-bottom:1px solid var(--border-subtle)}
+  .tabs span{padding:8px 0}
+  .tabs .on{color:var(--text-primary);box-shadow:inset 0 -2px 0 var(--text-primary)}
+
+  /* Commander selector */
+  .slot{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 8px 0 6px;border-radius:7px;border:1px solid var(--border);background:var(--bg-surface);cursor:pointer;font-size:12px;max-width:260px}
+  .slot:hover{background:var(--bg-hover)}
+  .slot .lab{color:var(--text-secondary)}
+  .slot .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-primary)}
+  .slot.none .nm{color:var(--text-secondary)}
+  .slot.none{border-color:var(--text-tertiary)}
+  .slot .x{margin-left:2px;color:var(--text-secondary);display:grid;place-items:center;border-radius:4px;width:16px;height:16px}
+  .slot .x:hover{background:var(--border);color:var(--text-primary)}
+  .slot-wrap{display:inline-flex;align-items:center;gap:4px}
+  .pop{position:absolute;z-index:20;top:32px;left:0;width:340px;background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 14px 40px rgba(0,0,0,.55);padding:8px}
+  .pop .hd{font-size:12px;color:var(--text-secondary);padding:2px 4px 6px}
+  .pop input{width:100%;height:28px;border-radius:7px;border:1px solid var(--border);background:var(--bg-canvas);padding:0 8px;margin-bottom:6px}
+  .opts{max-height:210px;overflow:auto;display:flex;flex-direction:column}
+  .opt{display:flex;gap:8px;align-items:center;text-align:left;width:100%;padding:6px 8px;border:0;background:none;border-radius:6px;cursor:pointer}
+  .opt:hover,.opt:focus-visible{background:var(--bg-hover)}
+  .opt .t{flex:1;min-width:0}
+  .opt .t b{display:block;font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .opt .t small{color:var(--text-secondary);font-size:11px}
+  .opt .ck{color:var(--accent-primary);width:15px}
+  .tag{display:inline-flex;align-items:center;height:18px;padding:0 6px;border-radius:999px;font-size:11px;border:1px solid var(--border);color:var(--text-secondary);white-space:nowrap}
+  .sep{height:1px;background:var(--border-subtle);margin:6px 0}
+  .none-opt{color:var(--text-secondary)}
+  .msg{padding:10px 8px;color:var(--text-secondary);font-size:12px}
+  .foot{display:flex;justify-content:space-between;align-items:center;padding:4px 4px 0;font-size:12px;color:var(--text-secondary)}
+  .link{background:none;border:0;padding:0;color:var(--text-primary);text-decoration:underline;text-underline-offset:2px;cursor:pointer;font-size:12px}
+  .stub{padding:12px 18px;color:var(--text-tertiary);font-size:12px}
+  .note{margin:6px 0 0;color:var(--text-secondary);font-size:12px}
+  .sr{position:absolute;left:-9999px}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1 class="t">Deck page — commander selector</h1>
+  <p class="ann">Rev 1. The selector sits in the deck header <b>under the deck name, beside the format badge</b>, instead of a “Choose commander” button in the far-right action group. Live: click it, search, pick, add a partner (try Thrasios, then Tymna), clear with “No commander”. The frames below show each state at rest. Sample data only.</p>
+
+  <h2>Live</h2>
+  <div id="live"></div>
+
+  <h2>States at rest</h2>
+  <p class="ann">A · No commander (quiet outline, readable, not an error) · B · Commander set · C · Partner slot offered · D · Two commanders · E · Background slot offered.</p>
+  <div id="rest"></div>
+  <p class="ann" style="margin-top:16px">Popover states (list, search with no results, no valid commander in this deck, checking, check failed) are shown next.</p>
+  <div id="pops"></div>
+</div>
+<div class="sr" role="status" aria-live="polite" id="liveMsg"></div>
+
+<script>
+const I = {
+  crown:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l4 4 5-7 5 7 4-4-2 10H5z"/></svg>',
+  down:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>',
+  x:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" style="width:11px;height:11px"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  plus:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+  check:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'
+};
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// The deck's own cards that can lead. kind: single | partner | partnerWith | bgPicker | background
+const DECK = [
+  {n:'Atraxa, Praetors’ Voice', t:'Legendary Creature — Phyrexian Angel Horror', k:'single'},
+  {n:'Thrasios, Triton Hero', t:'Legendary Creature — Merfolk Wizard', k:'partner', kw:'Partner'},
+  {n:'Tymna the Weaver', t:'Legendary Creature — Human Cleric', k:'partner', kw:'Partner'},
+  {n:'Wilson, Refined Grizzly', t:'Legendary Creature — Bear Warrior', k:'bgPicker', kw:'Choose a Background'},
+  {n:'Agent of the Iron Throne', t:'Legendary Enchantment — Background', k:'background', kw:'Background'},
+];
+// Valid as FIRST commander: everything except Backgrounds on their own
+const firstOk = c => c.k!=='background';
+const partnerOk = (first,c) => c.n!==first.n && ((first.k==='partner'&&c.k==='partner') || (first.k==='bgPicker'&&c.k==='background'));
+const needs = first => first && (first.k==='partner' ? 'partner' : first.k==='bgPicker' ? 'background' : null);
+const S = {c1:null, c2:null, open:null, q:'', msg:''};
+const say = m => document.getElementById('liveMsg').textContent = m;
+
+function slot(which, c, kindWord){
+  // which: 1 | 2. Shows name or "No commander".
+  if (!c) {
+    const label = which===2 ? (kindWord==='background'?'Add background':'Add partner') : 'No commander';
+    return `<button class="slot none" data-a="open" data-w="${which}" aria-haspopup="listbox" aria-expanded="${S.open==which}">${which===2?I.plus:I.crown}<span class="nm">${label}</span>${which===1?`<span class="lab">· Choose</span>`:''}${I.down}</button>`;
+  }
+  return `<span class="slot-wrap"><button class="slot" data-a="open" data-w="${which}" aria-haspopup="listbox" aria-expanded="${S.open==which}" aria-label="${which===2?(kindWord==='background'?'Background':'Partner'):'Commander'}: ${esc(c.n)}. Change">${which===1?I.crown:''}<span class="lab">${which===2?(kindWord==='background'?'Background':'Partner'):'Commander'}</span><span class="nm">${esc(c.n)}</span>${I.down}</button>${which===2?`<button class="slot" style="padding:0 5px" data-a="rm2" aria-label="Remove ${esc(c.n)}" title="Remove">${I.x}</button>`:''}</span>`;
+}
+function optList(mode){
+  // mode: 1 (first commander) or 2 (partner/background)
+  const q = S.q.toLowerCase();
+  const cur = mode===1 ? S.c1 : S.c2;
+  let list = DECK.filter(c => mode===1 ? firstOk(c) : partnerOk(S.c1,c));
+  const total = list.length;
+  list = list.filter(c => c.n.toLowerCase().includes(q));
+  const opts = list.map(c=>`<button class="opt" role="option" aria-selected="${cur&&cur.n===c.n}" data-a="pick" data-w="${mode}" data-n="${esc(c.n)}"><span class="t"><b>${esc(c.n)}</b><small>${esc(c.t)}</small></span>${c.kw?`<span class="tag">${c.kw}</span>`:''}<span class="ck">${cur&&cur.n===c.n?I.check:''}</span></button>`).join('');
+  let body;
+  if (!total) body = `<div class="msg">${mode===1?'No card in this deck can be a commander.':'No card in this deck can be a '+(needs(S.c1)==='background'?'background':'partner')+' for '+esc(S.c1.n)+'.'}</div>`;
+  else if (!list.length) body = `<div class="msg">No match in this deck. Try “Search all cards”.</div>`;
+  else body = `<div class="opts" role="listbox" aria-label="Valid ${mode===1?'commanders':'choices'} in this deck">${opts}</div>`;
+  const clear = mode===1 ? `<div class="sep"></div><button class="opt none-opt" data-a="clear"><span class="t"><b>No commander</b></span><span class="ck">${!S.c1?I.check:''}</span></button>` : '';
+  const title = mode===1 ? (S.c1?'Change commander':'Choose commander') : (needs(S.c1)==='background'?'Choose a background':'Choose a partner');
+  return `<div class="pop" role="dialog" aria-label="${title}"><div class="hd">${title}</div>
+    <input type="search" placeholder="Search this deck" aria-label="Search this deck" value="${esc(S.q)}" data-a="q">${body}${clear}
+    <div class="sep"></div><div class="foot"><span>Only cards that can be ${mode===1?'a commander':'this pairing'} are listed.</span><button class="link" data-a="all">Search all cards</button></div></div>`;
+}
+function header(withPop){
+  const nd = needs(S.c1);
+  return `<div class="deck"><div class="hdr"><div class="av${S.c1?' on':''}" aria-hidden="true">${S.c1?'art':'—'}</div>
+    <div class="meta"><h2 class="name">Strix draft</h2>
+      <div class="line2"><span class="badge">Commander</span>
+        ${slot(1,S.c1)}${S.c1&&nd?slot(2,S.c2,nd):''}
+        <span class="stats">· 99 cards · 5 proxies</span>
+        ${withPop&&S.open?optList(+S.open).replace('class="pop"',`class="pop" style="left:${S.open==2?'150px':'62px'}"`):''}
+      </div></div>
+    <div class="acts"><button class="btn sm">Export</button><button class="btn sm">History</button></div></div>
+    <div class="tabs"><span class="on">Cards</span><span>Maybeboard</span><span>Stats</span></div><div class="stub">Card list: this is where cards are marked Original or Proxy.</div></div>`;
+}
+const live = document.getElementById('live');
+function render(){ live.innerHTML = header(true); const q=live.querySelector('input'); if(q&&S.focusQ){q.focus();const p=q.value.length;q.setSelectionRange(p,p);S.focusQ=false;} }
+live.addEventListener('click', e=>{
+  const t=e.target.closest('[data-a]'); if(!t) return; const a=t.dataset.a;
+  if (a==='open'){ S.open = S.open==t.dataset.w ? null : t.dataset.w; S.q=''; S.focusQ=!!S.open; }
+  else if (a==='pick'){ const c=DECK.find(x=>x.n===t.dataset.n); if(t.dataset.w==='1'){ S.c1=c; if(!partnerOk(c,S.c2||{})) S.c2=null; S.open = needs(c)?'2':null; say(c.n+' is commander.'); } else { S.c2=c; S.open=null; say(c.n+' added.'); } S.q=''; S.focusQ=!!S.open; }
+  else if (a==='clear'){ S.c1=null; S.c2=null; S.open=null; say('Commander cleared.'); }
+  else if (a==='rm2'){ S.c2=null; say('Removed.'); }
+  else if (a==='all'){ say('Searches every card, not only this deck.'); return; }
+  render(); const f = S.open ? null : live.querySelector('.slot'); });
+live.addEventListener('input', e=>{ if(e.target.dataset.a==='q'){ S.q=e.target.value; S.focusQ=true; render(); }});
+live.addEventListener('keydown', e=>{
+  if (e.key==='Escape' && S.open){ const w=S.open; S.open=null; render(); live.querySelector(`.slot[data-w="${w}"]`)?.focus(); }
+  if ((e.key==='ArrowDown'||e.key==='ArrowUp') && S.open){ const items=[...live.querySelectorAll('.pop input, .pop .opt')]; const i=items.indexOf(document.activeElement); const n=e.key==='ArrowDown'?Math.min(items.length-1,i+1):Math.max(0,i-1); items[n].focus(); e.preventDefault(); }
+});
+render();
+
+/* ---- static states ---- */
+function frozen(c1,c2,label){
+  const keep={...S}; S.c1=c1; S.c2=c2; S.open=null;
+  const h = header(false); Object.assign(S,keep);
+  return `<div style="margin-bottom:12px"><span class="ann" style="margin:0 0 4px;display:block"><b>${label}</b></span>${h}</div>`;
+}
+const [atx,thr,tym,wil,agent] = DECK;
+document.getElementById('rest').innerHTML =
+  frozen(null,null,'A · No commander') + frozen(atx,null,'B · Commander set') + frozen(thr,null,'C · Partner slot offered (Thrasios has Partner)') +
+  frozen(thr,tym,'D · Two commanders') + frozen(wil,null,'E · Background slot offered (Wilson chooses a Background)');
+
+function popFrame(label, inner){ return `<div style="margin-bottom:14px"><span class="ann" style="margin:0 0 4px;display:block"><b>${label}</b></span><div style="position:relative;height:300px;border:1px solid var(--border-subtle);border-radius:10px;padding:10px"><div style="position:relative;width:340px">${inner}</div></div></div>`; }
+const P = (title, body, clear=true) => `<div class="pop" style="position:static;top:0"><div class="hd">${title}</div><input type="search" placeholder="Search this deck" aria-label="Search this deck">${body}${clear?`<div class="sep"></div><button class="opt none-opt"><span class="t"><b>No commander</b></span></button>`:''}<div class="sep"></div><div class="foot"><span>Only cards that can be a commander are listed.</span><button class="link">Search all cards</button></div></div>`;
+const row = c => `<button class="opt"><span class="t"><b>${esc(c.n)}</b><small>${esc(c.t)}</small></span>${c.kw?`<span class="tag">${c.kw}</span>`:''}<span class="ck"></span></button>`;
+document.getElementById('pops').innerHTML =
+  popFrame('Popover · list', P('Choose commander','<div class="opts">'+DECK.filter(firstOk).map(row).join('')+'</div>')) +
+  popFrame('Popover · search with no match', P('Choose commander','<div class="msg">No match in this deck. Try “Search all cards”.</div>')) +
+  popFrame('Popover · no valid commander in this deck', P('Choose commander','<div class="msg">No card in this deck can be a commander.</div>')) +
+  popFrame('Popover · checking', P('Choose commander','<div class="msg">Checking which cards can be commander…</div>')) +
+  popFrame('Popover · check failed', P('Choose commander','<div class="msg">Couldn’t check commanders. <button class="link">Try again</button></div>'));
+</script>
+</body>
+</html>

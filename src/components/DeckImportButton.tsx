@@ -22,10 +22,9 @@ import { FORMAT_OPTIONS } from '@/lib/format-config'
 import type { NormalizedDeck, CardsByType } from '@/lib/deck-normalizer'
 import type { ImportMode, AllocationConflict } from '@/lib/deck-import'
 import { ManaBoxDeckImportFlow, type DeckFlowState } from '@/components/manabox-import/ManaBoxDeckImportFlow'
-import { DeckCommanderStep, type CommanderChoice } from '@/components/manabox-import/DeckCommanderStep'
 import { ImportTitleIcon } from '@/components/manabox-import/ImportTitleIcon'
 import { ImportDiscardDialog } from '@/components/manabox-import/ImportDiscardDialog'
-import { IMPORT_MODAL_CLASS } from '@/components/manabox-import/import-labels'
+import { IMPORT_MODAL_CLASS, IMPORT_INTERACTIVE_CLASS } from '@/components/manabox-import/import-labels'
 import { decideDeckDialogClose } from '@/components/manabox-import/import-close-guard'
 
 type InputTab = 'url' | 'paste' | 'file' | 'precon'
@@ -92,9 +91,6 @@ export function DeckImportButton({
   variant = 'default',
 }: DeckImportButtonProps) {
   const [open, setOpen] = useState(false)
-  // URL / Paste / Precon imports: shown after the deck is created, so a commander can be chosen.
-  const [urlResult, setUrlResult] = useState<{ deckId: number; name: string } | null>(null)
-  const [urlCommander, setUrlCommander] = useState<CommanderChoice | null>(null)
   const [activeTab, setActiveTab] = useState<InputTab>('url')
 
   // URL tab state
@@ -219,16 +215,11 @@ export function DeckImportButton({
         toast.success('Deck imported successfully')
       }
 
-      // Commander decks without a commander from the source: pick one here before closing.
-      if (variables.format === 'commander' && !variables.deck.commander) {
-        setUrlResult({ deckId: data.deckId, name: variables.deck.name })
-        setUrlCommander(null)
-        return
-      }
-
+      // A commander deck with no commander from the source: the deck page prompts for one.
+      const needsCommander = variables.format === 'commander' && !variables.deck.commander
       setOpen(false)
       resetState()
-      router.push(`/decks/${data.deckId}?freshImport=true`)
+      router.push(`/decks/${data.deckId}?freshImport=true${needsCommander ? '&pickCommander=true' : ''}`)
     },
   })
 
@@ -338,16 +329,7 @@ export function DeckImportButton({
     else action()
   }
 
-  /** Done on the URL/Paste result: go to the new deck. */
-  function finishUrlImport() {
-    const deckId = urlResult?.deckId
-    closeDialog()
-    if (deckId) router.push(`/decks/${deckId}?freshImport=true`)
-  }
-
   function closeDialog() {
-    setUrlResult(null)
-    setUrlCommander(null)
     setOpen(false)
     resetState()
     setActiveTab('url')
@@ -358,10 +340,6 @@ export function DeckImportButton({
 
   function handleOpenChange(nextOpen: boolean, details?: { reason?: string; cancel?: () => void }) {
     if (nextOpen) return setOpen(true)
-    if (urlResult) {
-      if (details?.reason === 'outside-press') return details.cancel?.()
-      return finishUrlImport()
-    }
     if (fileTab) {
       const decision = decideDeckDialogClose(details?.reason, flowState)
       if (decision === 'block') return details?.cancel?.()
@@ -386,30 +364,14 @@ export function DeckImportButton({
         }
       >
         <Download className="size-4" aria-hidden="true" />
-        Import Deck
+        Import deck
       </DialogTrigger>
 
       <DialogContent
-        className={fileTab ? IMPORT_MODAL_CLASS : 'sm:max-w-2xl'}
+        className={fileTab ? IMPORT_MODAL_CLASS : `${IMPORT_INTERACTIVE_CLASS} sm:max-w-2xl`}
         showCloseButton={!(flowState.saving || importMutation.isPending)}
       >
-        {urlResult ? (
-          <>
-            <DialogHeader>
-              <DialogTitle>
-                <ImportTitleIcon kind="deck" />
-                Deck imported
-              </DialogTitle>
-              <DialogDescription>&ldquo;{urlResult.name}&rdquo; is ready. Choose its commander, or skip.</DialogDescription>
-            </DialogHeader>
-            <DeckCommanderStep deckId={urlResult.deckId} resolved={urlCommander} onResolved={setUrlCommander} />
-            <DialogFooter>
-              <Button onClick={finishUrlImport} disabled={!urlCommander}>
-                Open deck
-              </Button>
-            </DialogFooter>
-          </>
-        ) : previewData ? (
+        {previewData ? (
           <>
             <DialogHeader>
               <DialogTitle>Import &ldquo;{previewData.deck.name}&rdquo;</DialogTitle>
@@ -426,7 +388,7 @@ export function DeckImportButton({
               <div className="flex flex-col gap-2">
                 <button
                   type="button"
-                  className="rounded-lg border px-4 py-3 text-left transition-colors"
+                  className="rounded-lg border px-4 py-3 text-left transition-colors hover:bg-[var(--bg-surface-hover)] hover:border-[var(--text-secondary)]"
                   style={importMode === 'new_cards'
                     ? { borderColor: 'var(--accent-primary)', background: 'var(--accent-primary-bg)' }
                     : { borderColor: 'var(--border-default)' }
@@ -440,7 +402,7 @@ export function DeckImportButton({
                 </button>
                 <button
                   type="button"
-                  className="rounded-lg border px-4 py-3 text-left transition-colors"
+                  className="rounded-lg border px-4 py-3 text-left transition-colors hover:bg-[var(--bg-surface-hover)] hover:border-[var(--text-secondary)]"
                   style={importMode === 'built'
                     ? { borderColor: 'var(--accent-primary)', background: 'var(--accent-primary-bg)' }
                     : { borderColor: 'var(--border-default)' }
@@ -454,7 +416,7 @@ export function DeckImportButton({
                 </button>
                 <button
                   type="button"
-                  className="rounded-lg border px-4 py-3 text-left transition-colors"
+                  className="rounded-lg border px-4 py-3 text-left transition-colors hover:bg-[var(--bg-surface-hover)] hover:border-[var(--text-secondary)]"
                   style={importMode === 'theorycrafted'
                     ? { borderColor: 'var(--accent-primary)', background: 'var(--accent-primary-bg)' }
                     : { borderColor: 'var(--border-default)' }
@@ -500,7 +462,7 @@ export function DeckImportButton({
                 {importMutation.isPending && (
                   <Loader2 className="size-4 animate-spin" aria-hidden="true" data-icon="inline-start" />
                 )}
-                {importMutation.isPending ? 'Importing...' : 'Import Deck'}
+                {importMutation.isPending ? 'Importing...' : 'Import deck'}
               </Button>
             </DialogFooter>
           </>
@@ -509,7 +471,7 @@ export function DeckImportButton({
             <DialogHeader>
               <DialogTitle>
                 <ImportTitleIcon kind="deck" />
-                Import Deck
+                Import deck
               </DialogTitle>
               <DialogDescription>
                 Import a deck from a URL, paste a decklist, or upload a CSV file.
@@ -526,7 +488,7 @@ export function DeckImportButton({
                 <button
                   key={tab}
                   type="button"
-                  className="flex-1 rounded px-3 py-1.5 text-[length:var(--fs-sm)] font-medium transition-colors"
+                  className="flex-1 rounded px-3 py-1.5 text-[length:var(--fs-sm)] font-medium transition-colors hover:bg-white/10 hover:text-foreground disabled:hover:bg-transparent"
                   style={activeTab === tab
                     ? { background: 'var(--accent-primary)', color: 'white' }
                     : { color: 'var(--text-tertiary)' }
@@ -618,7 +580,7 @@ export function DeckImportButton({
                 }}
                 onFinish={(deckId) => {
                   closeDialog()
-                  router.push(`/decks/${deckId}?freshImport=true`)
+                  router.push(`/decks/${deckId}?freshImport=true&pickCommander=true`)
                 }}
                 onCancel={() => {
                   askBeforeDiscard(() => setActiveTab('url'))

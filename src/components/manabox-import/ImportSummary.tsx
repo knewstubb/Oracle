@@ -10,13 +10,18 @@ export interface ImportSummaryProps {
   genericBasics: boolean
   defaults: ImportDefaults
   copyEdits: ImportCopyEdits
+  /** Lines that could not be matched; always counted, even when their note is hidden. */
+  unmatchedCount?: number
+  /** Notes the owner hid; a link brings them back. */
+  hiddenCount?: number
+  onShowHidden?: () => void
 }
 
 function plural(n: number, singular: string, plural?: string): string {
   return `${n} ${n === 1 ? singular : plural ?? singular + 's'}`
 }
 
-export function ImportSummary({ rows, kind, genericBasics, defaults, copyEdits }: ImportSummaryProps) {
+export function ImportSummary({ rows, kind, genericBasics, defaults, copyEdits, unmatchedCount = 0, hiddenCount = 0, onShowHidden }: ImportSummaryProps) {
   const totals = computeTotals(rows, kind, genericBasics, defaults, copyEdits)
 
   return (
@@ -24,6 +29,21 @@ export function ImportSummary({ rows, kind, genericBasics, defaults, copyEdits }
       <strong className="text-foreground">
         {kind === 'collection' ? plural(totals.tracked, 'copy', 'copies') : plural(totals.tracked, 'card')}
       </strong>
+      {unmatchedCount > 0 && <span aria-hidden="true"> · </span>}
+      {unmatchedCount > 0 && `${unmatchedCount} not matched`}
+      {hiddenCount > 0 && onShowHidden && (
+        <>
+          <span aria-hidden="true"> · </span>
+          <button
+            type="button"
+            id="import-show-hidden-notes"
+            onClick={onShowHidden}
+            className="cursor-pointer rounded-sm text-[var(--accent-primary)] underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)]"
+          >
+            Show hidden notes ({hiddenCount})
+          </button>
+        </>
+      )}
       {totals.proxies > 0 && <span aria-hidden="true"> · </span>}
       {totals.proxies > 0 && plural(totals.proxies, 'proxy', 'proxies')}
       {totals.unsleeved > 0 && <span aria-hidden="true"> · </span>}

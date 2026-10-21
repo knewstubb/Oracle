@@ -64,7 +64,7 @@ export function DeckImportOptions({
           value={format}
           onChange={(e) => onFormatChange(e.target.value)}
           disabled={disabled}
-          className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-[length:var(--fs-sm)] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
+          className="h-8 w-full cursor-pointer rounded-lg border border-input bg-transparent px-2.5 text-[length:var(--fs-sm)] outline-none hover:border-[var(--text-secondary)] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {FORMAT_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>

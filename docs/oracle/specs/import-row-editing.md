@@ -1,4 +1,6 @@
-# Import row editing — spec (rev 4)
+# Import row editing — spec (rev 5)
+
+Rev 5: the Edit/Done text button is replaced by a caret and the whole row is clickable with a grey hover; see `import-review-controls.md` §5. Wherever this spec says "Edit" or "Done", read "caret (down) / caret (up)".
 
 Rev 2 (2026-10-20, owner revisions): field order is Type · Language · Finish · Condition; proxies keep only Language; the expanded footer row is gone (apply-to-all is a small icon on copy 1); bulk shows "Mixed"; owner edits override file values; (superseded in rev 4: no duplicate/remove, the list is not editable).
 

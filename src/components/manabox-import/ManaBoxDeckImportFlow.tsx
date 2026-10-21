@@ -4,11 +4,12 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { Info } from 'lucide-react'
 import { ManaBoxFilePicker } from './ManaBoxFilePicker'
 import { estimateFileCards } from './import-stream'
 import { ImportFileChip } from './ImportFileChip'
 import { DeckImportOptions } from './DeckImportOptions'
-import { ImportNotices, ImportValueNoticeLines } from './ImportNoticeLine'
+import { ImportNotices, ImportValueNoticeLines, useHiddenNotes, countHiddenNotes } from './ImportNoticeLine'
 import { ImportDefaultsBar } from './ImportDefaultsBar'
 import { countFinishNotices } from '@/lib/import-copies'
 import type { ImportCopyEdits, ImportDefaults } from '../../../docs/oracle/contracts/import-row-editing.types'
@@ -17,7 +18,6 @@ import { ImportSummary } from './ImportSummary'
 import { ImportWorking } from './ImportWorking'
 import { EMPTY_FILE_MESSAGE, UNREADABLE_FILE_MESSAGE, processingDetail } from './import-copy'
 import { ImportResult } from './ImportResult'
-import { DeckCommanderStep, type CommanderChoice } from './DeckCommanderStep'
 import { IMPORT_STAGE_CLASS } from './import-labels'
 import type { ImportStep, RowFilter, ImportSource } from './types'
 import { INITIAL_DEFAULTS, computeTotals, buildCommitDeck } from './types'
@@ -34,7 +34,7 @@ export interface ManaBoxDeckImportFlowProps {
     deckId: number
   }) => void
   onCancel?: () => void
-  /** The owner pressed Close or Open deck on the result screen (after the commander step). */
+  /** The owner pressed Close or Open deck on the result screen . */
   onFinish?: (deckId: number) => void
   titleSlot?: React.ReactNode
   /** Fill a fixed-size modal: every stage uses the same space (used by the import dialog). */
@@ -59,11 +59,17 @@ export interface DeckFlowState {
 export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlot, fill, onStateChange }: ManaBoxDeckImportFlowProps) {
   const [step, setStep] = useState<ImportStep>({ status: 'idle' })
   const [error, setError] = useState<string | null>(null)
+  const notes = useHiddenNotes()
+  const { restoreAll: restoreNotes } = notes
+  const inReview = step.status === 'review'
+  useEffect(() => {
+    // Hidden notes are for one review only.
+    if (!inReview) restoreNotes()
+  }, [inReview, restoreNotes])
   const queryClient = useQueryClient()
   const router = useRouter()
   const abortRef = useRef<AbortController | null>(null)
   const savingRef = useRef(false)
-  const [commander, setCommander] = useState<CommanderChoice | null>(null)
 
   const checking = step.status === 'checking'
   const saving = step.status === 'importing'
@@ -80,7 +86,6 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
   const reset = useCallback(() => {
     setStep({ status: 'idle' })
     setError(null)
-    setCommander(null)
     abortRef.current?.abort()
     abortRef.current = null
   }, [])
@@ -238,7 +243,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
     const deckId = step.summary.deckId
     if (!deckId) return
     if (onFinish) onFinish(deckId)
-    else router.push(`/decks/${deckId}?freshImport=true`)
+    else router.push(`/decks/${deckId}?freshImport=true${step.format === 'commander' ? '&pickCommander=true' : ''}`)
   }, [step, router, onFinish])
 
   const setDefaults = useCallback((defaults: ImportDefaults) => {
@@ -328,6 +333,8 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
             unmatched={step.preview.unmatched}
             tokens={step.preview.skippedTokens}
             source={step.source}
+            hidden={notes.hidden}
+            onDismiss={notes.hide}
           />
           <ImportDefaultsBar defaults={step.defaults} onChange={setDefaults} />
           <ImportValueNoticeLines
@@ -337,6 +344,8 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
               (step.preview.notices?.unrecognisedFinish ?? 0)
             }
             {...countFinishNotices(step.preview.rows, step.defaults, step.copyEdits)}
+            hidden={notes.hidden}
+            onDismiss={notes.hide}
           />
           <ImportCardList
             rows={step.preview.rows}
@@ -399,17 +408,28 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
           onOpenDeck={handleDone}
           onDismiss={handleDone}
           commanderSlot={
-            step.format === 'commander' && step.summary.deckId ? (
-              <DeckCommanderStep deckId={step.summary.deckId} resolved={commander} onResolved={setCommander} />
+            step.format === 'commander' ? (
+              <p className="flex items-center justify-center gap-2 text-[length:var(--fs-sm)] text-muted-foreground">
+                <Info className="size-4 shrink-0" aria-hidden="true" />
+                No commander yet. Choose one on the deck page.
+              </p>
             ) : undefined
           }
-          commanderPending={step.format === 'commander' && !!step.summary.deckId && !commander}
         />
       )}
 
       {step.status === 'review' && (
         <div className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-3">
-          <ImportSummary rows={step.preview.rows} kind="deck" genericBasics={step.genericBasics} defaults={step.defaults} copyEdits={step.copyEdits} />
+          <ImportSummary
+            rows={step.preview.rows}
+            kind="deck"
+            genericBasics={step.genericBasics}
+            defaults={step.defaults}
+            copyEdits={step.copyEdits}
+            unmatchedCount={step.preview.unmatched.length}
+            hiddenCount={countHiddenNotes(notes.hidden, step.preview, countFinishNotices(step.preview.rows, step.defaults, step.copyEdits))}
+            onShowHidden={notes.restoreAll}
+          />
           <div className="flex items-center gap-2">
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancel
@@ -419,7 +439,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
               onClick={handleImport}
               disabled={step.preview.rows.length === 0 || !step.deckName.trim()}
             >
-              Import
+              Import deck
             </Button>
           </div>
         </div>

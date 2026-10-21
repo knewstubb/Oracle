@@ -249,8 +249,12 @@ export interface DeckImportRpcRow {
   is_commander: boolean
   /** false for original and unsleeved, true for proxy. */
   is_proxy: boolean
-  /** True means "planned slot, no copy created or linked": used for unsleeved (owned or not) and generic basics. */
+  /** True means "planned slot, no copy created or linked": used for unsleeved (owned or not) and maybeboard. */
   is_maybeboard: boolean
+  /** Generic basic (generic-basic-lands contract §3): explicit flag; the slot holds no copy. */
+  is_generic?: boolean
+  /** Generic only: Sleeved (true) or Unsleeved (false) for the whole basic type. */
+  generic_sleeved?: boolean
   /** Null for generic basic slots: the database then stores no requested finish. */
   finish: ImportFinish | null
   language?: ImportLanguage

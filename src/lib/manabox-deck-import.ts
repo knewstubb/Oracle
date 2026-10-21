@@ -21,7 +21,7 @@
 import { createAdminClient } from '@/lib/supabase'
 import type { Json } from '@/types/supabase'
 import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
-import { isBasicLand, isGenericBasic, getBasicLandDefaultScryfallId } from '@/lib/basic-lands'
+import { isBasicLand, isGenericBasic, getBasicLandDefaultScryfallId, pickGenericArt, resolveGenericSleeved } from '@/lib/basic-lands'
 import { deriveDefaultCategory } from '@/lib/card-definition-resolver'
 import { createVersionSnapshot } from '@/lib/deck-versions'
 import type { NormalizedCard, NormalizedDeck } from '@/lib/deck-normalizer'
@@ -69,6 +69,10 @@ export interface ManaBoxDeckImportOptions {
   copyEdits?: ImportCopyEdits
   /** Always the signed-in user's id. */
   userId: string
+  /** Owner-chosen art for generic rows: rowKey -> printing (image only; any printing of that basic). */
+  genericArt?: Record<string, { scryfallId: string }>
+  /** Injected random source for the default art (tests). */
+  random?: () => number
   unmatched?: ManaBoxUnmatchedLine[]
   supabase?: DeckImportClient
 }
@@ -251,28 +255,46 @@ export async function importManaBoxDeck(
   let assigned = 0
   let shortfall = 0
 
+  // Generic lines: one stored art and one all-or-nothing sleeved state per basic type.
+  // Unsleeved wins when one import mixes states for a type (contract §3A).
+  const genericLines = await planGenericLines({
+    supabase,
+    userId: options.userId,
+    cards,
+    resolvedByCard,
+    isGeneric,
+    genericArt: options.genericArt,
+    random: options.random,
+  })
+  const mixedGenericTypes = [...genericLines.entries()]
+    .filter(([, line]) => line.mixed)
+    .map(([name]) => name)
+
   for (const { card, resolved } of resolvedByCard) {
     const typeLine = printingById.get(card.scryfallId)?.typeLine ?? card.typeLine ?? ''
     const categories = JSON.stringify([deriveDefaultCategory(typeLine)])
     const printingId = card.scryfallId || getBasicLandDefaultScryfallId(card.cardName) || null
 
     if (isGeneric(card)) {
-      // Generic basics create no copies (D-048): planned slots only. `is_maybeboard` is the
-      // RPC's "planned, no copy" flag. A finish the owner or the file named is remembered on the
-      // slot as requested_finish (D-041); an unspecified finish stores nothing. Language and
-      // condition have no column on a slot, so they are not recorded.
+      // Generic basics create no copies (contract generic-basic-lands §3). A planned slot with
+      // the explicit is_generic flag. Sleeved/Unsleeved is all-or-nothing per basic type
+      // (Unsleeved wins), finish and language are kept, the art is the stored, image-only pick.
+      const art = genericLines.get(card.cardName)
       for (const copy of resolved) {
         insertRows.push({
           card_id: null,
           card_name: card.cardName,
-          printing_id: printingId,
-          scryfall_id: printingId,
-          set_code: card.setCode,
+          printing_id: art?.scryfallId ?? printingId,
+          scryfall_id: art?.scryfallId ?? printingId,
+          set_code: art?.setCode ?? card.setCode,
           categories,
           is_commander: false,
           is_proxy: false,
-          is_maybeboard: true,
+          is_maybeboard: false,
+          is_generic: true,
+          generic_sleeved: art?.sleeved ?? true,
           finish: copy.sources.finish === 'default' ? null : copy.finish,
+          ...(copy.sources.language === 'default' ? {} : { language: copy.language }),
         })
       }
       continue
@@ -335,5 +357,102 @@ export async function importManaBoxDeck(
       unmatched: options.unmatched ?? [],
     },
     unlistedFinish: finishCheck.unlistedFinish,
+    genericNotes: mixedGenericTypes.map(
+      (name) => `Some ${name} lines were Unsleeved, so all ${name} generics in this deck are Unsleeved.`
+    ),
   }
+}
+
+interface GenericLine {
+  scryfallId: string | null
+  setCode: string
+  sleeved: boolean
+  /** True when the import mixed Sleeved and Unsleeved lines for this type. */
+  mixed: boolean
+}
+
+/** Decide art and sleeved state for each generic basic type in the import. */
+async function planGenericLines(args: {
+  supabase: DeckImportClient
+  userId: string
+  cards: ManaBoxDeckCard[]
+  resolvedByCard: Array<{ card: ManaBoxDeckCard; resolved: Array<{ type: string }> }>
+  isGeneric: (card: ManaBoxDeckCard) => boolean
+  genericArt?: Record<string, { scryfallId: string }>
+  random?: () => number
+}): Promise<Map<string, GenericLine>> {
+  const { supabase, userId, resolvedByCard, isGeneric } = args
+  const lines = new Map<string, GenericLine>()
+  const states = new Map<string, boolean[]>()
+  const overrides = new Map<string, string>()
+
+  for (const { card, resolved } of resolvedByCard) {
+    if (!isGeneric(card)) continue
+    const list = states.get(card.cardName) ?? []
+    for (const copy of resolved) list.push(copy.type !== 'unsleeved')
+    states.set(card.cardName, list)
+    const picked = card.rowKey ? args.genericArt?.[card.rowKey]?.scryfallId : undefined
+    if (picked && !overrides.has(card.cardName)) overrides.set(card.cardName, picked)
+  }
+  if (states.size === 0) return lines
+
+  // Owned printings per basic (best effort: any failure falls back to the default art).
+  const owned = new Map<string, string[]>()
+  try {
+    const { data } = await supabase
+      .from('user_copies')
+      .select('printing_id, user_cards!inner(card_name)')
+      .eq('user_id', userId)
+      .in('user_cards.card_name', [...states.keys()])
+    for (const row of (data ?? []) as unknown as Array<{ printing_id: string | null; user_cards: { card_name: string } }>) {
+      if (!row.printing_id) continue
+      const list = owned.get(row.user_cards.card_name) ?? []
+      list.push(row.printing_id)
+      owned.set(row.user_cards.card_name, list)
+    }
+  } catch {
+    owned.clear()
+  }
+
+  const artFor = new Map<string, string | undefined>()
+  for (const name of states.keys()) {
+    const card = args.cards.find((c) => c.cardName === name && isGeneric(c))
+    artFor.set(
+      name,
+      overrides.get(name) ??
+        pickGenericArt(name, owned.get(name) ?? [], args.random) ??
+        (card?.scryfallId || undefined)
+    )
+  }
+
+  // Set code and name check for every chosen printing.
+  const ids = [...new Set([...artFor.values()].filter((v): v is string => Boolean(v)))]
+  const refById = new Map<string, { name?: string; set_code?: string }>()
+  if (ids.length > 0) {
+    const { data, error } = await supabase
+      .from('ref_printings')
+      .select('scryfall_id, name, set_code')
+      .in('scryfall_id', ids)
+    if (error) throw new Error(`Failed to read art printings: ${error.message}`)
+    for (const row of (data ?? []) as Array<{ scryfall_id: string; name?: string; set_code?: string }>) {
+      refById.set(row.scryfall_id, row)
+    }
+  }
+
+  const problems: string[] = []
+  for (const [name, list] of states) {
+    const scryfallId = artFor.get(name) ?? null
+    const ref = scryfallId ? refById.get(scryfallId) : undefined
+    if (overrides.has(name) && (!ref || ref.name !== name)) {
+      problems.push(`"${name}": the chosen art is not a printing of that basic`)
+    }
+    lines.set(name, {
+      scryfallId,
+      setCode: ref?.set_code ?? '',
+      sleeved: resolveGenericSleeved(list),
+      mixed: list.some((s) => s) && list.some((s) => !s),
+    })
+  }
+  if (problems.length > 0) throw new ImportValidationError(problems)
+  return lines
 }

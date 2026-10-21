@@ -35,6 +35,7 @@ interface DeckImportBody {
   name?: string
   defaults?: ImportDefaults
   copyEdits?: ImportCopyEdits
+  genericArt?: Record<string, { scryfallId: string }>
   unmatched?: ManaBoxUnmatchedLine[]
 }
 
@@ -89,6 +90,7 @@ export async function POST(request: NextRequest) {
         format: deckFormat,
         defaults: body.defaults as ImportDefaults,
         copyEdits: body.copyEdits,
+        genericArt: body.genericArt,
         userId,
         unmatched: body.unmatched,
       })

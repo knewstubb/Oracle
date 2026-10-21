@@ -242,6 +242,8 @@ export interface ManaBoxDeckImportSummary {
   }
   /** Copies whose file finish Scryfall does not list (kept as in the file). */
   unlistedFinish?: number
+  /** Plain-language notes for the result screen (e.g. "Unsleeved wins" for a generic type). */
+  genericNotes?: string[]
 }
 
 // ---------------------------------------------------------------------------

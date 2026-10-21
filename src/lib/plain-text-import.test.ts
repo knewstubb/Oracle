@@ -317,7 +317,7 @@ describe('saving the plain-text deck', () => {
     expect(rows).toHaveLength(20) // 10 single cards + 10 Islands
     const islands = rows.filter((r) => r.card_name === 'Island')
     expect(islands).toHaveLength(10)
-    expect(islands.every((r) => r.card_id === null && r.is_maybeboard === true)).toBe(true)
+    expect(islands.every((r) => r.card_id === null && r.is_generic === true)).toBe(true)
     expect(rows.filter((r) => r.card_name !== 'Island').every((r) => r.card_id !== null && r.is_maybeboard === false)).toBe(true)
   })
 })

@@ -252,7 +252,7 @@ describe('(3) deck import: both kinds in one list', () => {
     expect(rows).toHaveLength(12)
     const plains = rows.filter((r) => r.card_name === 'Plains')
     expect(plains).toHaveLength(11)
-    expect(plains.every((r) => r.card_id === null && r.is_maybeboard === true)).toBe(true)
+    expect(plains.every((r) => r.card_id === null && r.is_generic === true && r.generic_sleeved === true)).toBe(true)
     const swamp = rows.filter((r) => r.card_name === 'Swamp')
     expect(swamp).toHaveLength(1)
     expect(swamp[0]).toMatchObject({ card_id: expect.anything(), is_maybeboard: false, scryfall_id: 'swamp-znr' })

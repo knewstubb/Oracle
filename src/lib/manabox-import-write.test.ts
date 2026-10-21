@@ -221,7 +221,7 @@ describe('deck write (tests 9, 12b, 16)', () => {
     expect(rows[2]).not.toHaveProperty('card_condition')
   })
 
-  it('generic basics create no copies; a chosen finish is kept on the planned slot, language and condition are not', async () => {
+  it('generic basics create no copies; they carry the generic flags, finish and language, but no condition', async () => {
     const { client, calls } = fakeClient(printings)
     const island = { ...solCard([{}, {}]), cardName: 'Island', rowKey: 'isl|text', printingGiven: false }
     await importManaBoxDeck({
@@ -234,11 +234,111 @@ describe('deck write (tests 9, 12b, 16)', () => {
     })
     const rows = calls.rpc[0].args.p_rows
     expect(rows).toHaveLength(2)
-    expect(rows.every((r) => r.card_id === null && r.is_maybeboard === true)).toBe(true)
-    expect(rows[0]).toMatchObject({ finish: 'foil' })
+    expect(rows.every((r) => r.card_id === null && r.is_generic === true && r.is_maybeboard === false)).toBe(true)
+    expect(rows.every((r) => r.generic_sleeved === true)).toBe(true)
+    expect(rows[0]).toMatchObject({ finish: 'foil', language: 'ja' })
     expect(rows[1]).toMatchObject({ finish: null })
-    expect(rows[0]).not.toHaveProperty('language')
+    expect(rows[1]).not.toHaveProperty('language')
     expect(rows[0]).not.toHaveProperty('card_condition')
+  })
+
+  it('mixed Sleeved and Unsleeved lines of one basic: all Unsleeved, and the result says so', async () => {
+    const { client, calls } = fakeClient(printings)
+    const six = { ...solCard([{}, {}, {}]), cardName: 'Plains', rowKey: 'pl6|text', printingGiven: false }
+    const five = { ...solCard([{}, {}]), cardName: 'Plains', rowKey: 'pl5|text', printingGiven: false }
+    const summary = await importManaBoxDeck({
+      deck: deckOf([six, five]) as never,
+      name: 'D',
+      defaults: DEFAULTS,
+      copyEdits: { 'pl5|text': { 0: { type: 'unsleeved' }, 1: { type: 'unsleeved' } } },
+      userId: 'user-a',
+      supabase: client,
+    })
+    const rows = calls.rpc[0].args.p_rows
+    expect(rows).toHaveLength(5)
+    expect(rows.every((r) => r.generic_sleeved === false)).toBe(true)
+    expect(summary.genericNotes?.[0]).toContain('Plains')
+  })
+
+  it('a plain generic line, and a deck-level Unsleeved default, stay Sleeved', async () => {
+    const { client, calls } = fakeClient(printings)
+    const plains = { ...solCard([{}, {}]), cardName: 'Plains', rowKey: 'pl|text', printingGiven: false }
+    const summary = await importManaBoxDeck({
+      deck: deckOf([plains]) as never,
+      name: 'D',
+      defaults: { ...DEFAULTS, type: 'unsleeved' } as never,
+      userId: 'user-a',
+      supabase: client,
+    })
+    expect(calls.rpc[0].args.p_rows.every((r) => r.generic_sleeved === true)).toBe(true)
+    expect(summary.genericNotes).toEqual([])
+  })
+
+  it('stored art: an owned printing is chosen once and shared by the whole type; an unowned override is accepted', async () => {
+    const refRows = [
+      { scryfall_id: 'sol', oracle_id: 'oracle-sol', type_line: 'Artifact', finishes: ['nonfoil'] },
+      { scryfall_id: 'isl-a', name: 'Island', set_code: 'znr' },
+      { scryfall_id: 'isl-b', name: 'Island', set_code: 'm21' },
+      { scryfall_id: 'isl-x', name: 'Island', set_code: 'lea' },
+    ]
+    const { client, calls } = fakeClient(refRows)
+    const owned = {
+      select: () => ({
+        eq: () => ({
+          in: async () => ({
+            data: [
+              { printing_id: 'isl-a', user_cards: { card_name: 'Island' } },
+              { printing_id: 'isl-b', user_cards: { card_name: 'Island' } },
+            ],
+            error: null,
+          }),
+        }),
+      }),
+    }
+    const realFrom = client.from.bind(client)
+    client.from = (t: string) => (t === 'user_copies' ? owned : realFrom(t))
+    const a = { ...solCard([{}, {}]), cardName: 'Island', rowKey: 'a|text', printingGiven: false }
+    const b = { ...solCard([{}]), cardName: 'Island', rowKey: 'b|text', printingGiven: false }
+    await importManaBoxDeck({
+      deck: deckOf([a, b]) as never,
+      name: 'D',
+      defaults: DEFAULTS,
+      userId: 'user-a',
+      random: () => 0.9,
+      supabase: client,
+    })
+    const rows = calls.rpc[0].args.p_rows
+    expect(new Set(rows.map((r) => r.scryfall_id))).toEqual(new Set(['isl-b']))
+    expect(rows[0]).toMatchObject({ set_code: 'm21' })
+
+    // Owner picks art they do not own: accepted and stored.
+    const second = fakeClient(refRows)
+    second.client.from = (t: string) => (t === 'user_copies' ? owned : realFrom(t))
+    await importManaBoxDeck({
+      deck: deckOf([a]) as never,
+      name: 'D',
+      defaults: DEFAULTS,
+      genericArt: { 'a|text': { scryfallId: 'isl-x' } },
+      userId: 'user-a',
+      supabase: second.client,
+    })
+    expect(second.calls.rpc[0].args.p_rows.every((r) => r.scryfall_id === 'isl-x')).toBe(true)
+  })
+
+  it('art that is not a printing of that basic is rejected, writing nothing', async () => {
+    const { client, calls } = fakeClient([{ scryfall_id: 'sol', name: 'Sol Ring', set_code: 'c21' }])
+    const a = { ...solCard([{}]), cardName: 'Island', rowKey: 'a|text', printingGiven: false }
+    await expect(
+      importManaBoxDeck({
+        deck: deckOf([a]) as never,
+        name: 'D',
+        defaults: DEFAULTS,
+        genericArt: { 'a|text': { scryfallId: 'sol' } },
+        userId: 'user-a',
+        supabase: client,
+      })
+    ).rejects.toBeInstanceOf(ImportValidationError)
+    expect(calls.rpc).toHaveLength(0)
   })
 
   it('generic basics reject a finish Scryfall does not list for that printing', async () => {

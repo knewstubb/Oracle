@@ -7,6 +7,7 @@ import type {
 } from '../../../docs/oracle/contracts/import-row-editing.types'
 import { INITIAL_IMPORT_DEFAULTS } from '../../../docs/oracle/contracts/import-row-editing.types'
 import { resolveRowCopies } from '@/lib/import-copies'
+import { isGenericBasic } from '@/lib/basic-lands'
 import type { ManaBoxSkippedToken, ManaBoxUnmatchedLine } from '../../../docs/oracle/contracts/manabox-import.types'
 
 export type ImportKind = 'collection' | 'deck'
@@ -107,33 +108,45 @@ export function sourceLabel(source: ImportSource, index: number): string {
   return source === 'csv' ? `Row ${index}` : `Line ${index}`
 }
 
-/** Compute footer totals from review rows (generic basics create no copies). */
+/**
+ * Deck imports: is this row a GENERIC basic (a deck slot with no collection copy)? Only a basic
+ * land whose line named no printing. Independent of the "Generic basics" display toggle.
+ */
+export function isGenericRow(row: UiPreviewRow, kind: ImportKind): boolean {
+  return kind === 'deck' && isGenericBasic(row.cardName, row.printingGiven ?? true)
+}
+
+/** Compute footer totals from review rows (generic basics create no copies; specific basics count as normal cards). */
 export function computeTotals(
   rows: UiPreviewRow[],
   kind: ImportKind,
-  genericBasics: boolean,
   defaults: ImportDefaults,
   edits: ImportCopyEdits
 ): {
   cards: number
   tracked: number
+  /** Generic basics only (no collection copy). */
   basics: number
+  /** Basic lands that name a printing: real copies, already inside `tracked`. */
+  specificBasics: number
   proxies: number
   unsleeved: number
   foil: number
 } {
   let cards = 0
   let basics = 0
+  let specificBasics = 0
   let proxies = 0
   let unsleeved = 0
   let foil = 0
 
   for (const row of rows) {
     cards += row.qty
-    if (row.isBasicLand && kind === 'deck' && genericBasics) {
+    if (isGenericRow(row, kind)) {
       basics += row.qty
       continue
     }
+    if (kind === 'deck' && row.isBasicLand) specificBasics += row.qty
     for (const copy of resolveRowCopies(row, defaults, edits, row.rowKey)) {
       if (copy.type === 'proxy') proxies++
       else if (copy.type === 'unsleeved') unsleeved++
@@ -141,7 +154,7 @@ export function computeTotals(
     }
   }
 
-  return { cards, tracked: cards - basics, basics, proxies, unsleeved, foil }
+  return { cards, tracked: cards - basics, basics, specificBasics, proxies, unsleeved, foil }
 }
 
 /** Convert UI rows into the normalized deck shape the commit route expects. */
@@ -161,6 +174,7 @@ export function buildCommitDeck(rows: UiPreviewRow[]) {
     sourceCategories: [] as string[],
     rowKey: row.rowKey,
     sourceIndex: row.sourceIndex,
+    printingGiven: row.printingGiven,
     // File values only; the owner's edits travel separately and are applied on the server.
     copies: row.copies.map((copy) => ({ index: copy.index, sourceLine: copy.sourceLine, file: copy.file })),
   }))

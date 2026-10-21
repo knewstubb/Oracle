@@ -193,9 +193,9 @@ export function ManaBoxCollectionImportDialog({
           inserted: summary.inserted,
           skipped: summary.skipped,
           basics: 0,
-          proxies: computeTotals(rows, 'collection', false, step.defaults, step.copyEdits).proxies,
+          proxies: computeTotals(rows, 'collection', step.defaults, step.copyEdits).proxies,
           unsleeved: 0,
-          foils: summary.foils ?? computeTotals(rows, 'collection', false, step.defaults, step.copyEdits).foil,
+          foils: summary.foils ?? computeTotals(rows, 'collection', step.defaults, step.copyEdits).foil,
           unrecognisedValues:
             (step.preview.notices?.unrecognisedCondition ?? 0) +
             (step.preview.notices?.unrecognisedLanguage ?? 0) +
@@ -378,7 +378,6 @@ export function ManaBoxCollectionImportDialog({
             <ImportSummary
               rows={step.preview.rows}
               kind="collection"
-              genericBasics={step.genericBasics}
               defaults={step.defaults}
               copyEdits={step.copyEdits}
               unmatchedCount={step.preview.unmatched.length}

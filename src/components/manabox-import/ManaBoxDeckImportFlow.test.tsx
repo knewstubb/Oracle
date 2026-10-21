@@ -170,7 +170,7 @@ describe('ManaBoxDeckImportFlow', () => {
     const importCall = vi.mocked(fetch).mock.calls.find(([url]) => String(url) === '/api/decks/import')
     expect(importCall).toBeDefined()
     const body = JSON.parse(importCall![1]!.body as string)
-    expect(body.convertBasicLandsToGeneric).toBe(true)
+    expect(body.convertBasicLandsToGeneric).toBeUndefined()
     const pull = body.deck.cards.find((c: { cardName: string }) => c.cardName === 'Pull from the Grave')
     expect(pull.rowKey).toBe('pull-sf|nonfoil')
     expect(pull.copies).toHaveLength(2)

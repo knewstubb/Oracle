@@ -111,7 +111,6 @@ function Notes({ count }: { count: number }) {
       <ImportSummary
         rows={ROWS}
         kind="deck"
-        genericBasics={false}
         defaults={INITIAL_DEFAULTS}
         copyEdits={{}}
         unmatchedCount={count}

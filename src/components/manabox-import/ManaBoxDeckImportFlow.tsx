@@ -22,7 +22,7 @@ import { EMPTY_FILE_MESSAGE, UNREADABLE_FILE_MESSAGE, processingDetail } from '.
 import { ImportResult } from './ImportResult'
 import { IMPORT_STAGE_CLASS } from './import-labels'
 import type { ImportStep, RowFilter, ImportSource } from './types'
-import { INITIAL_DEFAULTS, computeTotals, buildCommitDeck } from './types'
+import { INITIAL_DEFAULTS, computeTotals, buildCommitDeck, isGenericRow } from './types'
 import type { ManaBoxPreviewResponse } from '../../../docs/oracle/contracts/manabox-import.types'
 
 export interface ManaBoxDeckImportFlowProps {
@@ -166,7 +166,13 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
   const basicsQty =
     step.status === 'review'
       ? step.preview.rows
-          .filter((r) => r.isBasicLand)
+          .filter((r) => isGenericRow(r, 'deck'))
+          .reduce((sum, r) => sum + r.qty, 0)
+      : 0
+  const specificBasicsQty =
+    step.status === 'review'
+      ? step.preview.rows
+          .filter((r) => r.isBasicLand && !isGenericRow(r, 'deck'))
           .reduce((sum, r) => sum + r.qty, 0)
       : 0
 
@@ -189,7 +195,6 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
           deck,
           name: step.deckName,
           format: step.format,
-          convertBasicLandsToGeneric: step.genericBasics,
           defaults: step.defaults,
           copyEdits: step.copyEdits,
           unmatched: step.preview.unmatched,
@@ -211,7 +216,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
         }
       } = await res.json()
 
-      const totals = computeTotals(rows, 'deck', step.genericBasics, step.defaults, step.copyEdits)
+      const totals = computeTotals(rows, 'deck', step.defaults, step.copyEdits)
       const doneSummary = {
         inserted: totals.tracked,
         skipped: step.preview.skippedTokens.length,
@@ -383,7 +388,11 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
           <ImportDefaultsBar
             defaults={step.defaults}
             onChange={setDefaults}
-            basics={basicsQty > 0 ? { qty: basicsQty, generic: step.genericBasics, onChange: setGenericBasics } : undefined}
+            basics={
+              basicsQty + specificBasicsQty > 0
+                ? { generic: basicsQty, specific: specificBasicsQty, display: step.genericBasics, onChange: setGenericBasics }
+                : undefined
+            }
           />
           <ImportValueNoticeLines
             unrecognised={
@@ -401,7 +410,6 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
             source={step.source}
             defaults={step.defaults}
             copyEdits={step.copyEdits}
-            genericBasics={step.genericBasics}
             onCopyEditsChange={setCopyEdits}
             openRowKeys={step.openRowKeys}
             onOpenRowKeysChange={setOpenRowKeys}
@@ -472,7 +480,6 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
           <ImportSummary
             rows={step.preview.rows}
             kind="deck"
-            genericBasics={step.genericBasics}
             defaults={step.defaults}
             copyEdits={step.copyEdits}
             unmatchedCount={step.preview.unmatched.length}

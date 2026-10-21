@@ -24,6 +24,7 @@ import type {
   ImportFinish,
 } from '../../../docs/oracle/contracts/import-row-editing.types'
 import type { ImportKind, ImportSource, RowFilter, UiPreviewRow } from './types'
+import { isGenericRow } from './types'
 import { ImportRowEditor, TypeToggle } from './ImportRowEditor'
 import { LANGUAGE_LABELS, SELECT_CLASS } from './import-labels'
 import { sortImportRows, type ImportSort } from '@/lib/import-sort'
@@ -41,8 +42,6 @@ export interface ImportCardListProps {
   defaults: ImportDefaults
   copyEdits: ImportCopyEdits
   onCopyEditsChange: (edits: ImportCopyEdits) => void
-  /** Deck imports: is "Generic basics" on? */
-  genericBasics?: boolean
   openRowKeys: Set<string>
   onOpenRowKeysChange: (keys: Set<string>) => void
   filter: RowFilter
@@ -58,7 +57,6 @@ export function ImportCardList({
   kind,
   defaults,
   copyEdits,
-  genericBasics = false,
   onCopyEditsChange,
   openRowKeys,
   onOpenRowKeysChange,
@@ -72,10 +70,11 @@ export function ImportCardList({
   const parentRef = useRef<HTMLDivElement>(null)
   const [announcement, setAnnouncement] = useState('')
 
-  // Basic lands are ordinary editable rows. `isBasic` only drives the Basics filter and tag;
-  // `isGeneric` is a basic while "Generic basics" is on (no collection copy, so always Original-like).
-  const isBasic = (row: UiPreviewRow) => row.isBasicLand && kind === 'deck'
-  const isGeneric = (row: UiPreviewRow) => isBasic(row) && genericBasics
+  // A generic basic (a basic whose line named no printing) takes no collection copy, so it is
+  // always Original-like; a basic naming a printing is an ordinary editable row. This does not
+  // depend on the "Generic basics" display toggle.
+  const isGeneric = (row: UiPreviewRow) => isGenericRow(row, kind)
+  const isBasic = isGeneric
 
   const resolvedByKey = useMemo(() => {
     const map = new Map<string, ReturnType<typeof resolveRowCopies>>()
@@ -83,13 +82,11 @@ export function ImportCardList({
       const resolved = resolveRowCopies(row, defaults, copyEdits, row.rowKey)
       map.set(
         row.rowKey,
-        row.isBasicLand && kind === 'deck' && genericBasics
-          ? resolved.map((c) => ({ ...c, type: 'original' as const }))
-          : resolved
+        isGenericRow(row, kind) ? resolved.map((c) => ({ ...c, type: 'original' as const })) : resolved
       )
     }
     return map
-  }, [rows, defaults, copyEdits, kind, genericBasics])
+  }, [rows, defaults, copyEdits, kind])
 
   // Import order is the default; the choice lasts only while this list is on screen.
   const [sort, setSort] = useState<ImportSort>('file')
@@ -212,7 +209,7 @@ export function ImportCardList({
         ))}
         {hasBasics && (
           <FilterChip
-            label="Basics"
+            label="Basics (generic)"
             count={rows.filter(isBasic).length}
             selected={filter === 'basic'}
             onClick={() => onFilterChange('basic')}

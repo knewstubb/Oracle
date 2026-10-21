@@ -202,7 +202,7 @@ export function ImportResultLine({
   const parts: string[] = [`${inserted} cards added`]
   if (proxies > 0) parts.push(`${proxies} proxy${proxies === 1 ? '' : 'ies'}`)
   if (unsleeved > 0) parts.push(`${unsleeved} unsleeved`)
-  if (basics > 0) parts.push(`${basics} basic${basics === 1 ? '' : 's'}`)
+  if (basics > 0) parts.push(`${basics} basic${basics === 1 ? '' : 's'} (generic)`)
   if (skipped > 0) parts.push(`${skipped} token${skipped === 1 ? '' : 's'} skipped`)
 
   const handleCopy = useCallback(async () => {

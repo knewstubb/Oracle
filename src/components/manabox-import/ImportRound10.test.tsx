@@ -68,7 +68,7 @@ describe('basic lands are editable (Round 11)', () => {
     return onChangeCopy
   }
 
-  it('Generic basics on: opens, lets each copy pick a finish, hides the type toggle', () => {
+  it('Generic basic row: opens, lets each copy pick a finish, hides the type toggle', () => {
     const onChange = renderBasic(true)
     expect(screen.getByRole('button', { name: /Collapse Swamp/ })).toBeInTheDocument()
     expect(screen.queryByRole('radiogroup', { name: 'Copy 1 type' })).toBeNull()
@@ -76,8 +76,9 @@ describe('basic lands are editable (Round 11)', () => {
     expect(onChange).toHaveBeenCalledWith(1, { finish: 'foil' })
   })
 
-  it('Generic basics off: full edits, same as any card', () => {
+  it('Specific basic row (names a printing): full edits, same as any card, no Basic tag', () => {
     renderBasic(false)
+    expect(screen.queryByText('Basic')).toBeNull()
     expect(screen.getByLabelText('Copy 1 language')).toBeInTheDocument()
     expect(screen.getByLabelText('Copy 1 finish')).toBeInTheDocument()
     expect(screen.getByLabelText('Copy 1 condition')).toBeInTheDocument()
@@ -120,12 +121,12 @@ describe('Generic basics lives in the Importing as bar', () => {
       <ImportDefaultsBar
         defaults={INITIAL_DEFAULTS}
         onChange={() => {}}
-        basics={{ qty: 36, generic: true, onChange }}
+        basics={{ generic: 36, specific: 4, display: true, onChange }}
       />
     )
     const toggle = screen.getByRole('switch', { name: 'Generic basics' })
     expect(toggle).toBeChecked()
-    expect(screen.getByText('36')).toBeInTheDocument()
+    expect(screen.getByText('36 basics (generic) · 4 with a printing')).toBeInTheDocument()
     fireEvent.click(toggle)
     expect(onChange.mock.calls[0][0]).toBe(false)
   })

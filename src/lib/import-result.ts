@@ -64,7 +64,7 @@ export function buildResultBreakdown(input: ResultInput): ResultBreakdown {
   if (input.proxies > 0) extras.push({ key: 'proxies', label: 'Proxies', value: input.proxies })
   if (input.foils > 0) extras.push({ key: 'foil', label: 'Foil', value: input.foils, note: 'included in the counts above' })
   if (input.kind === 'deck' && input.unsleeved > 0) extras.push({ key: 'unsleeved', label: 'Unsleeved', value: input.unsleeved })
-  if (input.kind === 'deck' && input.basics > 0) extras.push({ key: 'basics', label: 'Basics', value: input.basics })
+  if (input.kind === 'deck' && input.basics > 0) extras.push({ key: 'basics', label: 'Basics (generic)', value: input.basics })
   if (input.tokensSkipped > 0) extras.push({ key: 'tokens', label: 'Tokens skipped', value: input.tokensSkipped })
 
   const rows: BreakdownRow[] =

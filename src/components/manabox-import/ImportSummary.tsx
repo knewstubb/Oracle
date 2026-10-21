@@ -7,7 +7,6 @@ import { computeTotals } from './types'
 export interface ImportSummaryProps {
   rows: UiPreviewRow[]
   kind: ImportKind
-  genericBasics: boolean
   defaults: ImportDefaults
   copyEdits: ImportCopyEdits
   /** Lines that could not be matched; always counted, even when their note is hidden. */
@@ -21,8 +20,8 @@ function plural(n: number, singular: string, plural?: string): string {
   return `${n} ${n === 1 ? singular : plural ?? singular + 's'}`
 }
 
-export function ImportSummary({ rows, kind, genericBasics, defaults, copyEdits, unmatchedCount = 0, hiddenCount = 0, onShowHidden }: ImportSummaryProps) {
-  const totals = computeTotals(rows, kind, genericBasics, defaults, copyEdits)
+export function ImportSummary({ rows, kind, defaults, copyEdits, unmatchedCount = 0, hiddenCount = 0, onShowHidden }: ImportSummaryProps) {
+  const totals = computeTotals(rows, kind, defaults, copyEdits)
 
   return (
     <span className="text-[length:var(--fs-xs)] text-muted-foreground" aria-live="polite">
@@ -51,7 +50,7 @@ export function ImportSummary({ rows, kind, genericBasics, defaults, copyEdits, 
       {totals.foil > 0 && <span aria-hidden="true"> · </span>}
       {totals.foil > 0 && `${totals.foil} foil`}
       {kind === 'deck' && totals.basics > 0 && <span aria-hidden="true"> · </span>}
-      {kind === 'deck' && totals.basics > 0 && plural(totals.basics, 'basic')}
+      {kind === 'deck' && totals.basics > 0 && `${totals.basics} ${totals.basics === 1 ? 'basic' : 'basics'} (generic)`}
     </span>
   )
 }

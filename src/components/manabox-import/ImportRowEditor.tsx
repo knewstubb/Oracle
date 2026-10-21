@@ -122,9 +122,9 @@ export interface ImportRowEditorProps {
   open: boolean
   selected: boolean
   /**
-   * A basic land while "Generic basics" is on: it still opens and edits (finish), but takes no
-   * collection copy, so there is no Original/Proxy/Unsleeved choice, and language and condition
-   * can't be saved on a planned slot.
+   * A GENERIC basic (a basic land whose line named no printing): it still opens and edits (finish),
+   * but takes no collection copy, so there is no Original/Proxy/Unsleeved choice, and language and
+   * condition can't be saved on a planned slot. A basic naming a printing is not generic.
    */
   generic: boolean
   onToggleOpen: () => void
@@ -158,7 +158,7 @@ export function ImportRowEditor({
   const typeOptions: ImportCopyType[] = kind === 'deck' ? ['original', 'proxy', 'unsleeved'] : ['original', 'proxy']
   // Languages are looked up once, the first time the row is opened.
   const languageLookup = usePrintingLanguages(row.setCode, row.collectorNumber, open && !generic)
-  const basicTag = row.isBasicLand && kind === 'deck'
+  const basicTag = generic
   const fileLanguages = row.copies.map((c) => c.file.language).filter((l): l is string => !!l)
 
   return (

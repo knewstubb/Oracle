@@ -608,6 +608,18 @@ interface ProgressCounts {
   claimed: number
   unowned: number
   total: number
+  /** Generic basics that are Sleeved (they count toward the deck and toward sleeved). */
+  genericSleeved?: number
+  /** Generic basics that are Unsleeved (they count toward the deck size only). */
+  genericUnsleeved?: number
+  /** Basic names whose generics are Unsleeved, for "Short: Island generics unsleeved". */
+  unsleevedGenericNames?: string[]
+}
+
+/** The deck-status line for unsleeved generics; null when every generic is sleeved. */
+export function shortGenericsText(names: readonly string[] | undefined): string | null {
+  if (!names || names.length === 0) return null
+  return `Short: ${names.join(', ')} generics unsleeved`
 }
 
 export function PicklistProgress({ cards, progress, counts: propCounts, action }: { 
@@ -660,11 +672,18 @@ export function PicklistProgress({ cards, progress, counts: propCounts, action }
   }, [cards, progress, propCounts])
 
   const physicalCopies = counts.original + counts.proxy
+  const genericSleeved = counts.genericSleeved ?? 0
+  const genericUnsleeved = counts.genericUnsleeved ?? 0
   const deckSize = 100 // Commander deck size
-  const emptySlots = deckSize - counts.total // Slots with no card added yet
+  // Generics count toward the deck size whatever their state (D-002).
+  const filledSlots = counts.total + genericSleeved + genericUnsleeved
+  const emptySlots = Math.max(0, deckSize - filledSlots) // Slots with no card added yet
+  const shortText = shortGenericsText(counts.unsleevedGenericNames)
   
   // Calculate percentages based on deck size (100), not current total
   const pctOriginal = (counts.original / deckSize) * 100
+  const pctGeneric = (genericSleeved / deckSize) * 100
+  const pctGenericUnsleeved = (genericUnsleeved / deckSize) * 100
   const pctProxy = (counts.proxy / deckSize) * 100
   const pctAvailable = (counts.available / deckSize) * 100
   const pctClaimed = (counts.claimed / deckSize) * 100
@@ -676,9 +695,20 @@ export function PicklistProgress({ cards, progress, counts: propCounts, action }
       {/* Count label + legend */}
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <span className="text-[length:var(--fs-sm)] font-medium text-foreground">
-          {counts.total}/100 slots · {physicalCopies} copies added
+          {counts.total + genericSleeved + genericUnsleeved}/100 slots · {physicalCopies + genericSleeved} sleeved
         </span>
         <div className="flex flex-wrap items-center gap-2 md:gap-3 text-[length:var(--fs-xs)] text-muted-foreground">
+          {shortText && (
+            <span className="inline-flex items-center gap-1 font-medium" style={{ color: 'var(--state-assembling)' }}>
+              ◇ {shortText}
+            </span>
+          )}
+          {genericSleeved + genericUnsleeved > 0 && (
+            <span className="inline-flex items-center gap-1">
+              <span className="size-2 rounded-full" style={{ backgroundColor: '#7A8B99' }} />
+              {genericSleeved + genericUnsleeved} Generic
+            </span>
+          )}
           <span className="inline-flex items-center gap-1">
             <span className="size-2 rounded-full" style={{ backgroundColor: 'var(--signal-success)' }} />
             {counts.original} Original
@@ -707,6 +737,12 @@ export function PicklistProgress({ cards, progress, counts: propCounts, action }
         <div className="flex h-2 flex-1 items-center gap-px rounded-full bg-[rgba(255,255,255,0.06)] overflow-hidden">
           {pctOriginal > 0 && (
             <div style={{ width: `${pctOriginal}%`, backgroundColor: 'var(--signal-success)' }} className="h-full transition-all" />
+          )}
+          {pctGeneric > 0 && (
+            <div style={{ width: `${pctGeneric}%`, backgroundColor: '#7A8B99' }} className="h-full transition-all" />
+          )}
+          {pctGenericUnsleeved > 0 && (
+            <div style={{ width: `${pctGenericUnsleeved}%`, backgroundColor: 'rgba(122,139,153,0.45)' }} className="h-full transition-all" />
           )}
           {pctProxy > 0 && (
             <div style={{ width: `${pctProxy}%`, backgroundColor: '#489ADE' }} className="h-full transition-all" />

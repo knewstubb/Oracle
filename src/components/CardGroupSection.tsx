@@ -26,6 +26,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button'
 import { CardHoverPreview, useCardHoverPreview, showCardPreview, updateCardPreviewPosition, hideCardPreview } from '@/components/CardHoverPreview'
 import { PrintingPicker } from '@/components/PrintingPicker'
+import { GenericArtPicker } from '@/components/GenericArtPicker'
 import { StatusChipPopover } from '@/components/StatusChipPopover'
 import { CardSlotBadge } from '@/components/CardSlotBadge'
 import { CategoryTagEditor } from '@/components/CategoryTagEditor'
@@ -36,7 +37,7 @@ import { useIsMobile } from '@/hooks/useIsMobile'
 import type { StructuredCategories } from '@/lib/categoryUtils'
 import type { DeckCard } from '@/components/CardGrid'
 import type { CardSlotStatus, DeckCardLifecycle } from '@/lib/card-status'
-import { isBasicLand } from '@/lib/basic-lands'
+import { isBasicLand, isGenericSlot, isGenericSleeved } from '@/lib/basic-lands'
 import { ManaCost } from '@/components/ManaCost'
 import { formatPrice } from '@/lib/collection-printing-utils'
 
@@ -110,9 +111,8 @@ export function CardGroupSection({
   const specificLandGroups = new Map<string, { count: number; cards: DeckCard[]; card: DeckCard }>()
 
   for (const card of groupCards) {
-    const cardStatus = statusMap.get(card.id)
-    if (isBasicLand(card.card_name) && cardStatus === 'generic_land') {
-      // Generic land — group by name
+    if (isGenericSlot(card)) {
+      // Generic land (explicit is_generic flag) — one line per basic type, never merged with a printing line
       const existing = genericLandCounts.get(card.card_name) ?? { count: 0, cards: [] }
       existing.count += card.quantity || 1
       existing.cards.push(card)
@@ -130,8 +130,6 @@ export function CardGroupSection({
     }
   }
 
-  // Determine if this is a land group with specific-printing lands (for bulk generic button)
-  const hasSpecificLands = specificLandGroups.size > 0
   const isLandGroup = groupName.toLowerCase() === 'land' || groupName.toLowerCase() === 'lands'
 
   return (
@@ -166,9 +164,12 @@ export function CardGroupSection({
           )}
         </button>
 
-        {/* Bulk "Make all generic" — only in land groups with specific-printing lands */}
-        {isLandGroup && hasSpecificLands && !collapsed && (
-          <MakeAllGenericButton deckId={deckId} specificLandGroups={specificLandGroups} />
+        {/* Add a generic basic — generics are permanent and unlimited; no swap */}
+        {isLandGroup && !collapsed && (
+          <AddGenericBasicButton
+            deckId={deckId}
+            genericCounts={new Map(Array.from(genericLandCounts.entries()).map(([n, g]) => [n, g.count]))}
+          />
         )}
       </div>
 
@@ -188,6 +189,7 @@ export function CardGroupSection({
               count={count}
               deckId={deckId}
               cardIds={landCards.map(c => c.id)}
+              cards={landCards}
               selectedIds={selectedIds}
               onSelectionChange={onSelectionChange}
             />
@@ -569,18 +571,24 @@ function MobileStatusDot({ status }: { status: CardSlotStatus }) {
 // GenericLandRow — simple row for generic (untracked) basic lands
 // ---------------------------------------------------------------------------
 
-function GenericLandRow({ landName, count, deckId, cardIds, selectedIds, onSelectionChange }: { 
+function GenericLandRow({ landName, count, deckId, cardIds, cards, selectedIds, onSelectionChange }: { 
   landName: string
   count: number
   deckId: number
   cardIds: number[]
+  cards: DeckCard[]
   selectedIds?: Set<number>
   onSelectionChange?: (cardId: number, selected: boolean) => void
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [optimisticCount, setOptimisticCount] = useState(count)
+  const [artOpen, setArtOpen] = useState(false)
+  const [pending, setPending] = useState(false)
   const queryClient = useQueryClient()
   const { invalidateDeck } = createDeckInvalidators(queryClient)
+
+  const sleeved = cards.every((c) => isGenericSleeved(c))
+  const artId = cards[0]?.scryfall_id || null
+  const finish = cards[0]?.requested_finish ?? null
 
   // Check if all cards in this group are selected
   const allSelected = cardIds.length > 0 && cardIds.every(id => selectedIds?.has(id))
@@ -590,40 +598,33 @@ function GenericLandRow({ landName, count, deckId, cardIds, selectedIds, onSelec
     cardIds.forEach(id => onSelectionChange?.(id, checked))
   }
 
-  const handleAdd = () => {
-    setOptimisticCount(c => c + 1)
-    fetch(`/api/decks/${deckId}/cards`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cardName: landName }),
-    }).then(res => {
-      if (!res.ok) { setOptimisticCount(c => c - 1); toast.error('Failed to add') }
-      invalidateDeck(deckId)
-    }).catch(() => setOptimisticCount(c => c - 1))
-  }
-
-  const handleRemove = () => {
-    if (optimisticCount <= 0) return
-    setOptimisticCount(c => c - 1)
-    const idToRemove = cardIds[cardIds.length - 1]
-    if (!idToRemove) return
-    fetch(`/api/decks/${deckId}/cards/${idToRemove}`, { method: 'DELETE' })
-      .then(res => {
-        if (!res.ok) { setOptimisticCount(c => c + 1); toast.error('Failed to remove') }
-        invalidateDeck(deckId)
-      }).catch(() => setOptimisticCount(c => c + 1))
-  }
-
-  const handleRemoveAll = () => {
-    const prev = optimisticCount
-    setOptimisticCount(0)
-    Promise.all(cardIds.map(id => fetch(`/api/decks/${deckId}/cards/${id}`, { method: 'DELETE' })))
-      .then(() => {
-        toast.success(`Removed all ${landName}`)
-        invalidateDeck(deckId)
+  const send = async (method: 'POST' | 'PATCH', body: Record<string, unknown>, failMsg: string) => {
+    setPending(true)
+    try {
+      const res = await fetch(`/api/decks/${deckId}/generic-basics`, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cardName: landName, ...body }),
       })
-      .catch(() => setOptimisticCount(prev))
+      if (!res.ok) throw new Error(failMsg)
+      invalidateDeck(deckId)
+    } catch {
+      toast.error(failMsg)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  const handleAdd = () => send('POST', { count: count + 1 }, `Couldn't add a generic ${landName}`)
+  const handleRemove = () => send('POST', { count: Math.max(0, count - 1) }, `Couldn't remove a generic ${landName}`)
+  const handleRemoveAll = () => {
     setMenuOpen(false)
+    return send('POST', { count: 0 }, `Couldn't remove generic ${landName}`)
+  }
+  const handleSleeved = (next: boolean) => send('PATCH', { sleeved: next }, `Couldn't change sleeving for ${landName}`)
+  const handleArt = (p: { scryfallId: string } | null) => {
+    setArtOpen(false)
+    if (p) return send('PATCH', { scryfallId: p.scryfallId }, `Couldn't change the art for ${landName}`)
   }
 
   return (
@@ -644,26 +645,28 @@ function GenericLandRow({ landName, count, deckId, cardIds, selectedIds, onSelec
 
         {/* Quantity */}
         <span className="w-4 shrink-0 text-right text-[length:var(--fs-xs)] text-muted-foreground">
-          {optimisticCount}
+          {count}
         </span>
 
         {/* Land name */}
         <span className="min-w-0 flex-1 truncate text-[length:var(--fs-sm)]">
-          {landName}
+          {landName} <span className="text-muted-foreground">(generic)</span>
         </span>
 
-        {/* Original badge */}
-        <span
-          className="inline-flex items-center gap-1 shrink-0 rounded-full px-2 py-0.5 text-[length:var(--fs-xs)] font-medium"
-          style={{ color: 'var(--signal-success)', backgroundColor: 'rgba(29, 158, 117, 0.12)' }}
+        {/* Sleeved / Unsleeved state for the whole line */}
+        <button
+          type="button"
+          onClick={() => handleSleeved(!sleeved)}
+          disabled={pending}
+          aria-pressed={!sleeved}
+          aria-label={`${landName} generics are ${sleeved ? 'sleeved' : 'unsleeved'}. Click to mark ${sleeved ? 'unsleeved' : 'sleeved'}`}
+          className="inline-flex items-center gap-1 shrink-0 rounded-full px-2 py-0.5 text-[length:var(--fs-xs)] font-medium disabled:opacity-40"
+          style={sleeved
+            ? { color: 'var(--signal-success)', backgroundColor: 'rgba(29, 158, 117, 0.12)' }
+            : { color: 'var(--signal-warning, #EF9F27)', backgroundColor: 'rgba(239, 159, 39, 0.14)' }}
         >
-          <span
-            className="material-symbols-outlined inline-flex items-center justify-center"
-            style={{ fontSize: '12px', fontVariationSettings: "'FILL' 1, 'wght' 400, 'opsz' 20", color: 'var(--signal-success)' }}
-            aria-hidden="true"
-          >circle</span>
-          Original
-        </span>
+          {sleeved ? 'Sleeved' : '◇ Unsleeved'}
+        </button>
 
         {/* Kebab menu with quantity picker */}
         <div className="relative shrink-0">
@@ -685,16 +688,16 @@ function GenericLandRow({ landName, count, deckId, cardIds, selectedIds, onSelec
                 <button
                   type="button"
                   onClick={handleRemove}
-                  disabled={optimisticCount <= 0}
+                  disabled={count <= 0 || pending}
                   className="flex size-6 items-center justify-center rounded border border-[var(--border-default)] text-[length:var(--fs-sm)] text-foreground hover:bg-white/[0.05] disabled:opacity-40"
                 >
                   −
                 </button>
-                <span className="w-6 text-center text-[length:var(--fs-sm)] text-foreground tabular-nums">{optimisticCount}</span>
+                <span className="w-6 text-center text-[length:var(--fs-sm)] text-foreground tabular-nums">{count}</span>
                 <button
                   type="button"
                   onClick={handleAdd}
-                  disabled={false}
+                  disabled={pending}
                   className="flex size-6 items-center justify-center rounded border border-[var(--border-default)] text-[length:var(--fs-sm)] text-foreground hover:bg-white/[0.05] disabled:opacity-40"
                 >
                   +
@@ -702,8 +705,15 @@ function GenericLandRow({ landName, count, deckId, cardIds, selectedIds, onSelec
               </div>
               <button
                 type="button"
+                onClick={() => { setMenuOpen(false); setArtOpen(true) }}
+                className="flex w-full items-center gap-2 rounded px-1 py-1 text-[length:var(--fs-xs)] text-muted-foreground transition-colors hover:bg-white/[0.05] hover:text-foreground"
+              >
+                Change art…
+              </button>
+              <button
+                type="button"
                 onClick={handleRemoveAll}
-                disabled={false}
+                disabled={pending}
                 className="flex w-full items-center gap-2 rounded px-1 py-1 text-[length:var(--fs-xs)] transition-colors hover:bg-[rgba(226,75,74,0.1)] disabled:opacity-40"
                 style={{ color: 'rgba(226,75,74,0.8)' }}
               >
@@ -714,6 +724,14 @@ function GenericLandRow({ landName, count, deckId, cardIds, selectedIds, onSelec
           )}
         </div>
       </div>
+      <GenericArtPicker
+        open={artOpen}
+        cardName={landName}
+        currentScryfallId={artId}
+        finish={finish}
+        onSelect={handleArt}
+        onClose={() => setArtOpen(false)}
+      />
     </div>
   )
 }
@@ -1065,61 +1083,68 @@ function PrintingPickerWithOwned({
 }
 
 // ---------------------------------------------------------------------------
-// MakeAllGenericButton — bulk convert specific-printing lands to generic
+// AddGenericBasicButton — add one generic basic of a chosen type (no swap, no copy used)
 // ---------------------------------------------------------------------------
 
-function MakeAllGenericButton({
+const ADDABLE_BASICS = ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes'] as const
+
+function AddGenericBasicButton({
   deckId,
-  specificLandGroups,
+  genericCounts,
 }: {
   deckId: number
-  specificLandGroups: Map<string, { count: number; cards: DeckCard[]; card: DeckCard }>
+  genericCounts: Map<string, number>
 }) {
+  const [open, setOpen] = useState(false)
   const [isPending, setIsPending] = useState(false)
   const queryClient = useQueryClient()
+  const { invalidateDeck } = createDeckInvalidators(queryClient)
 
-  const handleClick = async (e: React.MouseEvent) => {
-    e.stopPropagation() // Prevent collapsing the section
+  const add = async (name: string) => {
     setIsPending(true)
-    toast.loading('Converting all lands to generic...', { id: 'bulk-generic' })
-
     try {
-      const allCardIds = Array.from(specificLandGroups.values()).flatMap(g => g.cards.map(c => c.id))
-      await Promise.all(
-        allCardIds.map(id =>
-          fetch(`/api/decks/${deckId}/cards/${id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ scryfall_id: null, set_code: null }),
-          })
-        )
-      )
-      toast.dismiss('bulk-generic')
-      toast.success(`Converted ${allCardIds.length} lands to generic`)
-      queryClient.invalidateQueries({ queryKey: ['decks', String(deckId)] })
-      queryClient.invalidateQueries({ queryKey: ['decks', deckId] })
-      queryClient.invalidateQueries({ queryKey: ['decks', String(deckId), 'card-statuses'] })
-      queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'card-statuses'] })
-      queryClient.invalidateQueries({ queryKey: ['picklist', deckId] })
-      queryClient.invalidateQueries({ queryKey: ['picklist', String(deckId)] })
+      const res = await fetch(`/api/decks/${deckId}/generic-basics`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cardName: name, count: (genericCounts.get(name) ?? 0) + 1 }),
+      })
+      if (!res.ok) throw new Error('Failed to add')
+      invalidateDeck(deckId)
+      setOpen(false)
     } catch {
-      toast.dismiss('bulk-generic')
-      toast.error('Failed to convert some lands')
+      toast.error(`Couldn't add a generic ${name}`)
     } finally {
       setIsPending(false)
     }
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={isPending}
-      className="shrink-0 rounded px-2 py-0.5 text-[length:var(--fs-xs)] font-medium text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground disabled:opacity-40"
-      aria-label="Convert all specific-printing lands to generic"
-    >
-      {isPending ? 'Converting...' : 'Make all generic'}
-    </button>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        className="shrink-0 rounded px-2 py-0.5 text-[length:var(--fs-xs)] font-medium text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground disabled:opacity-40"
+        aria-label="Add generic basic"
+        disabled={isPending}
+      >
+        + Add generic basic
+      </PopoverTrigger>
+      <PopoverContent className="w-44 p-1" align="end">
+        <ul role="menu" aria-label="Add generic basic">
+          {ADDABLE_BASICS.map((name) => (
+            <li key={name} role="none">
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => add(name)}
+                disabled={isPending}
+                className="w-full rounded px-2 py-1.5 text-left text-[length:var(--fs-sm)] hover:bg-white/[0.06] disabled:opacity-40"
+              >
+                {name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -1187,34 +1212,6 @@ function SpecificLandRow({
     onError: (err: Error) => toast.error(err.message),
   })
 
-  const makeGenericMutation = useMutation({
-    mutationFn: async () => {
-      toast.loading('Converting to generic...', { id: 'make-generic' })
-      for (const id of cardIds) {
-        const res = await fetch(`/api/decks/${deckId}/cards/${id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scryfall_id: null, set_code: null }),
-        })
-        if (!res.ok) throw new Error('Failed to update')
-      }
-    },
-    onSuccess: () => {
-      toast.dismiss('make-generic')
-      queryClient.invalidateQueries({ queryKey: ['decks', String(deckId)] })
-      queryClient.invalidateQueries({ queryKey: ['decks', deckId] })
-      queryClient.invalidateQueries({ queryKey: ['decks', String(deckId), 'card-statuses'] })
-      queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'card-statuses'] })
-      queryClient.invalidateQueries({ queryKey: ['decks', String(deckId), 'health'] })
-      queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'health'] })
-      queryClient.invalidateQueries({ queryKey: ['picklist', deckId] })
-      queryClient.invalidateQueries({ queryKey: ['picklist', String(deckId)] })
-      toast.success('Converted to generic')
-      setMenuOpen(false)
-    },
-    onError: (err: Error) => { toast.dismiss('make-generic'); toast.error(err.message) },
-  })
-
   return (
     <div role="listitem" className="border-b border-[rgba(255,255,255,0.04)] last:border-b-0">
       <div className="group flex items-center gap-2 px-3 py-2 transition-colors hover:bg-white/[0.03]">
@@ -1269,15 +1266,6 @@ function SpecificLandRow({
                   +
                 </button>
               </div>
-              <button
-                type="button"
-                onClick={() => makeGenericMutation.mutate()}
-                disabled={makeGenericMutation.isPending}
-                className="flex w-full items-center gap-2 rounded px-1 py-1 text-[length:var(--fs-xs)] text-muted-foreground transition-colors hover:bg-white/[0.05] hover:text-foreground disabled:opacity-40"
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '12px' }} aria-hidden="true">circle</span>
-                Make generic
-              </button>
               <button
                 type="button"
                 onClick={() => updateQtyMutation.mutate(0)}

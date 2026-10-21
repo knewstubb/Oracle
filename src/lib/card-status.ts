@@ -295,7 +295,7 @@ export async function computeDeckCardStatuses(
   // Pass preferred printings so we can distinguish 'available' (exact) from 'alternate'
   const preferredPrintings = new Map<string, string | null>()
   for (const card of deckCards) {
-    if (card.copy_id === null && card.scryfall_id) {
+    if (card.copy_id === null && card.scryfall_id && !isGenericSlot(card)) {
       preferredPrintings.set(card.card_name, card.scryfall_id)
     }
   }

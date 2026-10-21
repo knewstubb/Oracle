@@ -69,6 +69,10 @@ interface CardStatusResponse {
     unowned: number
     planned?: number
     sleeved?: number
+    generic_land?: number
+    generic_unsleeved?: number
+    size?: number
+    unsleevedGenericNames?: string[]
   }
 }
 
@@ -764,6 +768,9 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
                 claimed: statusData.counts.claimed,
                 unowned: statusData.counts.unowned,
                 total: statusData.counts.total,
+                genericSleeved: (statusData.counts.generic_land ?? 0) - (statusData.counts.generic_unsleeved ?? 0),
+                genericUnsleeved: statusData.counts.generic_unsleeved ?? 0,
+                unsleevedGenericNames: statusData.counts.unsleevedGenericNames,
               }}
               action={
                 onViewPicklist && (

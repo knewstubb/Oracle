@@ -28,6 +28,11 @@ export interface DeckCard {
   categories: string
   tags: string
   is_commander: boolean | number
+  /** Generic basic (no collection copy). See generic-basic-lands contract. */
+  is_generic?: boolean
+  generic_sleeved?: boolean
+  requested_finish?: string | null
+  requested_language?: string | null
   allocation_role?: string
   dead_weight_flag?: string | null
   dead_weight_reason?: string | null

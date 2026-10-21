@@ -22,7 +22,7 @@ import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { getBatchRankedCandidates, type RankedCandidate } from '@/lib/allocation-candidates'
 import { computeDeckCardStatuses } from '@/lib/card-status'
-import { isGenericSlot } from '@/lib/basic-lands'
+import { isGenericSlot, isGenericSleeved } from '@/lib/basic-lands'
 
 interface PicklistCard {
   id: number
@@ -102,7 +102,8 @@ export async function GET(
 
   // Generic lands = explicit is_generic flag (contract generic-basic-lands §3)
   const isGenericLand = (c: PicklistCard) => isGenericSlot(c)
-  const genericLandCount = cards.filter(isGenericLand).length
+  // Only Sleeved generics count as resolved (sleeved N/100); an Unsleeved generic does not.
+  const genericLandCount = cards.filter(c => isGenericLand(c) && isGenericSleeved(c)).length
   const nonGenericResolved = cards.filter(c => c.copy_id !== null && !isGenericLand(c)).length
   const resolved = nonGenericResolved + genericLandCount
   const total = cards.length // Include all cards (lands count toward deck total)

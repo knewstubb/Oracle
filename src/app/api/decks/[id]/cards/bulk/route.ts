@@ -14,6 +14,7 @@
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
+import { isGenericSlot } from '@/lib/basic-lands'
 import { serializeCategories } from '@/lib/categoryUtils'
 import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 import { createVersionSnapshot, BULK_CHANGE_THRESHOLD } from '@/lib/deck-versions'
@@ -205,7 +206,7 @@ export async function POST(
       // one Postgres transaction. No per-slot loop can leave a partial batch.
       const { data: cardDetails, error: detailsErr } = await supabase
         .from('deck_cards')
-        .select('id, card_name, copy_id, scryfall_id, requested_finish')
+        .select('id, card_name, copy_id, scryfall_id, requested_finish, is_generic')
         .eq('deck_id', deckId)
         .in('id', body.cardIds)
 
@@ -213,7 +214,7 @@ export async function POST(
         return Response.json({ error: detailsErr.message }, { status: 500 })
       }
 
-      const slotsNeedingProxy = cardDetails?.filter(c => c.copy_id === null) ?? []
+      const slotsNeedingProxy = cardDetails?.filter(c => c.copy_id === null && !isGenericSlot(c)) ?? [] // generics never take a copy or proxy
       if (slotsNeedingProxy.length === 0) {
         return Response.json({
           success: true,

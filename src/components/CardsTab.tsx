@@ -17,7 +17,7 @@ import { useDeckCategories } from '@/hooks/useDeckCategories'
 import { deckKeys } from '@/hooks/useDeckQueryKeys'
 import type { DeckCard } from '@/components/CardGrid'
 import type { CardSlotStatus, DeckCardLifecycle } from '@/lib/card-status'
-import { isBasicLand, getBasicLandDefaultScryfallId } from '@/lib/basic-lands'
+import { isBasicLand, isGenericSlot, isGenericSleeved, getBasicLandDefaultScryfallId } from '@/lib/basic-lands'
 import { AddCardSearch } from '@/components/AddCardSearch'
 import { DeckImportButton } from '@/components/DeckImportButton'
 import { CardGroupSection } from '@/components/CardGroupSection'
@@ -524,16 +524,18 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
   // ── Roll up basic lands — collapse duplicate basic land entries into one with summed quantity ──
 
   const rolledUpCards = useMemo(() => {
-    const landCounts = new Map<string, { card: DeckCard; count: number }>()
+    const landCounts = new Map<string, { card: DeckCard; count: number; sleeved: boolean }>()
     const nonLands: DeckCard[] = []
 
     for (const card of activeCards) {
-      if (isBasicLand(card.card_name) && statusMap.get(card.id) === 'generic_land') {
+      if (isGenericSlot(card) || (isBasicLand(card.card_name) && statusMap.get(card.id) === 'generic_land')) {
         const existing = landCounts.get(card.card_name)
+        const sleeved = isGenericSleeved(card)
         if (existing) {
           existing.count += (card.quantity || 1)
+          existing.sleeved = existing.sleeved && sleeved // Unsleeved wins
         } else {
-          landCounts.set(card.card_name, { card, count: card.quantity || 1 })
+          landCounts.set(card.card_name, { card, count: card.quantity || 1, sleeved })
         }
       } else {
         nonLands.push(card)
@@ -541,9 +543,10 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
     }
 
     // Create rolled-up entries for basic lands
-    const rolledLands: DeckCard[] = Array.from(landCounts.values()).map(({ card, count }) => ({
+    const rolledLands: DeckCard[] = Array.from(landCounts.values()).map(({ card, count, sleeved }) => ({
       ...card,
       quantity: count,
+      generic_sleeved: sleeved,
     }))
 
     return [...nonLands, ...rolledLands]

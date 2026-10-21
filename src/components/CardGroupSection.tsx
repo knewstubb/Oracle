@@ -17,8 +17,9 @@
  * - Health bar indicators (from List view)
  */
 
-import { useState, useCallback, useMemo } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState, useCallback, useMemo, useRef } from 'react'
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { applyStatusPatch, type StatusPatch } from '@/lib/generic-status-patch'
 import { ChevronDown, ChevronRight, Tags, MoreVertical, Trash2, GripVertical, Sparkles, Check, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
@@ -37,7 +38,7 @@ import { useIsMobile } from '@/hooks/useIsMobile'
 import type { StructuredCategories } from '@/lib/categoryUtils'
 import type { DeckCard } from '@/components/CardGrid'
 import type { CardSlotStatus, DeckCardLifecycle } from '@/lib/card-status'
-import { isBasicLand, isGenericSlot, isGenericSleeved } from '@/lib/basic-lands'
+import { isBasicLand, isGenericSlot, isGenericSleeved, getBasicLandDefaultScryfallId } from '@/lib/basic-lands'
 import { ManaCost } from '@/components/ManaCost'
 import { formatPrice } from '@/lib/collection-printing-utils'
 
@@ -571,6 +572,12 @@ function MobileStatusDot({ status }: { status: CardSlotStatus }) {
 // GenericLandRow — simple row for generic (untracked) basic lands
 // ---------------------------------------------------------------------------
 
+function patchStatusCounts(queryClient: QueryClient, deckId: number, patch: StatusPatch) {
+  queryClient.setQueryData(deckKeys.cardStatuses(deckId), (old: { counts?: Record<string, unknown> } | undefined) =>
+    applyStatusPatch(old, patch)
+  )
+}
+
 function GenericLandRow({ landName, count, deckId, cardIds, cards, selectedIds, onSelectionChange }: { 
   landName: string
   count: number
@@ -582,24 +589,37 @@ function GenericLandRow({ landName, count, deckId, cardIds, cards, selectedIds, 
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [artOpen, setArtOpen] = useState(false)
-  const [pending, setPending] = useState(false)
   const queryClient = useQueryClient()
-  const { invalidateDeck } = createDeckInvalidators(queryClient)
 
-  const sleeved = cards.every((c) => isGenericSleeved(c))
+  // Optimistic values shown instantly; cleared once the server's answer has been refetched.
+  const [countOverride, setCountOverride] = useState<number | null>(null)
+  const [sleevedOverride, setSleevedOverride] = useState<boolean | null>(null)
+  const countRef = useRef<number | null>(null)
+  const versionRef = useRef(0)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const serverCountRef = useRef(count)
+  serverCountRef.current = count
+
+  // Unsleeved wins: the line is Sleeved only if every row is.
+  const serverSleeved = cards.every((c) => isGenericSleeved(c))
+  const sleeved = sleevedOverride ?? serverSleeved
+  const shownCount = countOverride ?? count
   const artId = cards[0]?.scryfall_id || null
   const finish = cards[0]?.requested_finish ?? null
+  const pending = false
 
-  // Check if all cards in this group are selected
-  const allSelected = cardIds.length > 0 && cardIds.every(id => selectedIds?.has(id))
-  const someSelected = cardIds.some(id => selectedIds?.has(id))
+  const hoverArtId = artId || getBasicLandDefaultScryfallId(landName)
+  const { triggerProps: nameHover } = useCardHoverPreview({ scryfallId: hoverArtId, cardName: landName })
 
-  const handleSelectAll = (checked: boolean) => {
-    cardIds.forEach(id => onSelectionChange?.(id, checked))
+  const refreshDeck = async (): Promise<void> => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: deckKeys.detail(deckId), exact: true }),
+      queryClient.invalidateQueries({ queryKey: deckKeys.cardStatuses(deckId), exact: true }),
+      queryClient.invalidateQueries({ queryKey: deckKeys.picklist(deckId), exact: true }),
+    ])
   }
 
-  const send = async (method: 'POST' | 'PATCH', body: Record<string, unknown>, failMsg: string) => {
-    setPending(true)
+  const send = async (method: 'POST' | 'PATCH', body: Record<string, unknown>, failMsg: string): Promise<boolean> => {
     try {
       const res = await fetch(`/api/decks/${deckId}/generic-basics`, {
         method,
@@ -607,24 +627,62 @@ function GenericLandRow({ landName, count, deckId, cardIds, cards, selectedIds, 
         body: JSON.stringify({ cardName: landName, ...body }),
       })
       if (!res.ok) throw new Error(failMsg)
-      invalidateDeck(deckId)
+      return true
     } catch {
       toast.error(failMsg)
-    } finally {
-      setPending(false)
+      return false
     }
   }
 
-  const handleAdd = () => send('POST', { count: count + 1 }, `Couldn't add a generic ${landName}`)
-  const handleRemove = () => send('POST', { count: Math.max(0, count - 1) }, `Couldn't remove a generic ${landName}`)
+  /** Instant +/- : update the number and the deck totals now, send one request when clicks pause. */
+  const changeCount = (delta: number) => {
+    const from = countRef.current ?? serverCountRef.current
+    const next = Math.max(0, from + delta)
+    if (next === from) return
+    countRef.current = next
+    setCountOverride(next)
+    patchStatusCounts(queryClient, deckId, { size: next - from, generic: next - from, sleeved })
+    const version = ++versionRef.current
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(async () => {
+      const target = countRef.current as number
+      const ok = await send('POST', { count: target }, `Couldn't change the generic ${landName} count`)
+      if (ok) await refreshDeck()
+      else await queryClient.invalidateQueries({ queryKey: deckKeys.cardStatuses(deckId), exact: true })
+      if (versionRef.current === version) {
+        countRef.current = null
+        setCountOverride(null)
+      }
+    }, 350)
+  }
+
+  const handleAdd = () => changeCount(1)
+  const handleRemove = () => changeCount(-1)
   const handleRemoveAll = () => {
     setMenuOpen(false)
-    return send('POST', { count: 0 }, `Couldn't remove generic ${landName}`)
+    changeCount(-(countRef.current ?? count))
   }
-  const handleSleeved = (next: boolean) => send('PATCH', { sleeved: next }, `Couldn't change sleeving for ${landName}`)
-  const handleArt = (p: { scryfallId: string } | null) => {
+  const handleSleeved = async (next: boolean) => {
+    setSleevedOverride(next)
+    patchStatusCounts(queryClient, deckId, { unsleeveFlip: next ? 'sleeve' : 'unsleeve', amount: shownCount, name: landName })
+    const ok = await send('PATCH', { sleeved: next }, `Couldn't change sleeving for ${landName}`)
+    await (ok ? refreshDeck() : queryClient.invalidateQueries({ queryKey: deckKeys.cardStatuses(deckId), exact: true }))
+    setSleevedOverride(null)
+  }
+  const handleArt = async (p: { scryfallId: string } | null) => {
     setArtOpen(false)
-    if (p) return send('PATCH', { scryfallId: p.scryfallId }, `Couldn't change the art for ${landName}`)
+    if (p) {
+      const ok = await send('PATCH', { scryfallId: p.scryfallId }, `Couldn't change the art for ${landName}`)
+      if (ok) await refreshDeck()
+    }
+  }
+
+  // Check if all cards in this group are selected
+  const allSelected = cardIds.length > 0 && cardIds.every(id => selectedIds?.has(id))
+  const someSelected = cardIds.some(id => selectedIds?.has(id))
+
+  const handleSelectAll = (checked: boolean) => {
+    cardIds.forEach(id => onSelectionChange?.(id, checked))
   }
 
   return (
@@ -643,21 +701,68 @@ function GenericLandRow({ landName, count, deckId, cardIds, cards, selectedIds, 
           aria-label={`Select ${landName}`}
         />
 
-        {/* Quantity */}
-        <span className="w-4 shrink-0 text-right text-[length:var(--fs-xs)] text-muted-foreground">
-          {count}
-        </span>
+        {/* Quantity stepper: always visible, updates instantly */}
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={handleRemove}
+            disabled={shownCount <= 0}
+            aria-label={`Remove one generic ${landName}`}
+            className="flex size-5 items-center justify-center rounded border border-[var(--border-default)] text-[length:var(--fs-xs)] text-foreground hover:bg-white/[0.05] disabled:opacity-40"
+          >
+            −
+          </button>
+          <span className="w-6 text-center text-[length:var(--fs-xs)] tabular-nums text-foreground" data-testid="generic-count">
+            {shownCount}
+          </span>
+          <button
+            type="button"
+            onClick={handleAdd}
+            aria-label={`Add one generic ${landName}`}
+            className="flex size-5 items-center justify-center rounded border border-[var(--border-default)] text-[length:var(--fs-xs)] text-foreground hover:bg-white/[0.05]"
+          >
+            +
+          </button>
+        </div>
+
+        {/* Art thumbnail: click to change art */}
+        <button
+          type="button"
+          onClick={() => setArtOpen(true)}
+          aria-label={`Change art for ${landName}`}
+          title="Change art"
+          className="shrink-0 overflow-hidden rounded border border-[var(--border-default)] hover:border-[var(--accent-primary)]"
+        >
+          {hoverArtId ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={`https://cards.scryfall.io/art_crop/front/${hoverArtId.charAt(0)}/${hoverArtId.charAt(1)}/${hoverArtId}.jpg`}
+              alt=""
+              className="h-6 w-9 object-cover"
+            />
+          ) : (
+            <span className="block h-6 w-9 bg-muted" />
+          )}
+        </button>
 
         {/* Land name */}
-        <span className="min-w-0 flex-1 truncate text-[length:var(--fs-sm)]">
+        <span className="min-w-0 flex-1 truncate text-[length:var(--fs-sm)]" {...nameHover}>
           {landName} <span className="text-muted-foreground">(generic)</span>
         </span>
+
+        {/* Visible Change art button */}
+        <button
+          type="button"
+          onClick={() => setArtOpen(true)}
+          className="shrink-0 rounded px-2 py-0.5 text-[length:var(--fs-xs)] text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
+        >
+          Change art…
+        </button>
 
         {/* Sleeved / Unsleeved state for the whole line */}
         <button
           type="button"
           onClick={() => handleSleeved(!sleeved)}
-          disabled={pending}
           aria-pressed={!sleeved}
           aria-label={`${landName} generics are ${sleeved ? 'sleeved' : 'unsleeved'}. Click to mark ${sleeved ? 'unsleeved' : 'sleeved'}`}
           className="inline-flex items-center gap-1 shrink-0 rounded-full px-2 py-0.5 text-[length:var(--fs-xs)] font-medium disabled:opacity-40"
@@ -683,26 +788,6 @@ function GenericLandRow({ landName, count, deckId, cardIds, cards, selectedIds, 
               className="absolute right-0 top-7 z-20 min-w-[140px] rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-2 px-3 shadow-lg"
               onMouseLeave={() => setMenuOpen(false)}
             >
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-[length:var(--fs-xs)] text-muted-foreground">Qty:</span>
-                <button
-                  type="button"
-                  onClick={handleRemove}
-                  disabled={count <= 0 || pending}
-                  className="flex size-6 items-center justify-center rounded border border-[var(--border-default)] text-[length:var(--fs-sm)] text-foreground hover:bg-white/[0.05] disabled:opacity-40"
-                >
-                  −
-                </button>
-                <span className="w-6 text-center text-[length:var(--fs-sm)] text-foreground tabular-nums">{count}</span>
-                <button
-                  type="button"
-                  onClick={handleAdd}
-                  disabled={pending}
-                  className="flex size-6 items-center justify-center rounded border border-[var(--border-default)] text-[length:var(--fs-sm)] text-foreground hover:bg-white/[0.05] disabled:opacity-40"
-                >
-                  +
-                </button>
-              </div>
               <button
                 type="button"
                 onClick={() => { setMenuOpen(false); setArtOpen(true) }}
@@ -1098,10 +1183,11 @@ function AddGenericBasicButton({
   const [open, setOpen] = useState(false)
   const [isPending, setIsPending] = useState(false)
   const queryClient = useQueryClient()
-  const { invalidateDeck } = createDeckInvalidators(queryClient)
 
   const add = async (name: string) => {
+    setOpen(false)
     setIsPending(true)
+    patchStatusCounts(queryClient, deckId, { size: 1, generic: 1, sleeved: true })
     try {
       const res = await fetch(`/api/decks/${deckId}/generic-basics`, {
         method: 'POST',
@@ -1109,10 +1195,14 @@ function AddGenericBasicButton({
         body: JSON.stringify({ cardName: name, count: (genericCounts.get(name) ?? 0) + 1 }),
       })
       if (!res.ok) throw new Error('Failed to add')
-      invalidateDeck(deckId)
-      setOpen(false)
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: deckKeys.detail(deckId), exact: true }),
+        queryClient.invalidateQueries({ queryKey: deckKeys.cardStatuses(deckId), exact: true }),
+        queryClient.invalidateQueries({ queryKey: deckKeys.picklist(deckId), exact: true }),
+      ])
     } catch {
       toast.error(`Couldn't add a generic ${name}`)
+      queryClient.invalidateQueries({ queryKey: deckKeys.cardStatuses(deckId), exact: true })
     } finally {
       setIsPending(false)
     }
@@ -1175,6 +1265,7 @@ function SpecificLandRow({
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const queryClient = useQueryClient()
+  const { triggerProps: specificHover } = useCardHoverPreview({ scryfallId, cardName: displayName })
 
   // Check if all cards in this group are selected
   const allSelected = cardIds.length > 0 && cardIds.every(id => selectedIds?.has(id))
@@ -1226,7 +1317,7 @@ function SpecificLandRow({
         />
 
         <span className="w-4 shrink-0 text-right text-[length:var(--fs-xs)] text-muted-foreground">{count}</span>
-        <span className="min-w-0 flex-1 truncate text-[length:var(--fs-sm)]">{displayName}</span>
+        <span className="min-w-0 flex-1 truncate text-[length:var(--fs-sm)]" {...specificHover}>{displayName}</span>
 
         {/* Status chip */}
         <CardSlotBadge status={status} lifecycle={lifecycle} variant="icon" />

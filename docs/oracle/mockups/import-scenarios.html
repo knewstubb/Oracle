@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oracle — Import scenarios: start with intent (low-fidelity proposal)</title>
+<style>
+  /* Colours copied from src/styles/tokens.css — no new colours. Low fidelity: layout and wording only. */
+  :root{
+    --bg-canvas:#131316; --bg-surface:#1A1A1E; --bg-hover:#212126; --border:#35353A; --border-subtle:#262629;
+    --text-primary:#E8E8EA; --text-secondary:#9C9CA3; --text-tertiary:#6E6E76;
+    --status-proxy:#4A93A0; --status-unowned:#F0339E; --signal-warning:#EF9F27; --signal-critical:#E24B4A; --accent-primary:#1D9E75;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg-canvas);color:var(--text-primary);font:13px/1.45 "Helvetica Neue",Helvetica,Arial,sans-serif}
+  button,select,input{font:inherit;color:inherit}
+  :focus-visible{outline:2px solid var(--accent-primary);outline-offset:2px}
+  .page{max-width:860px;margin:0 auto;padding:20px}
+  h1{font-size:18px;margin:0 0 4px} h2{font-size:14px;margin:28px 0 6px}
+  .ann{color:var(--text-secondary);font-size:12px;margin:0 0 10px;max-width:760px}
+  .ann b{color:var(--text-primary);font-weight:500}
+  .frame{width:768px;max-width:100%;background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:8px}
+  .dh{padding:12px 16px;border-bottom:1px solid var(--border-subtle);font-weight:500}
+  .db{padding:16px}
+  .df{padding:10px 16px;border-top:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center;color:var(--text-secondary)}
+  .btn{background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;cursor:pointer}
+  .btn.primary{background:var(--accent-primary);border-color:var(--accent-primary);color:#fff}
+  .btn.danger{border-color:var(--signal-critical)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .q{color:var(--text-secondary);margin:0 0 10px}
+  .choices{display:grid;gap:8px}
+  .choice{display:flex;gap:12px;align-items:flex-start;text-align:left;width:100%;background:none;border:1px solid var(--border);border-radius:10px;padding:12px;cursor:pointer}
+  .choice:hover{background:var(--bg-hover);border-color:var(--text-secondary)}
+  .choice[aria-pressed=true]{border-color:var(--accent-primary);background:rgba(29,158,117,.10)}
+  .choice .t{font-weight:500;display:block}
+  .choice .d{color:var(--text-secondary);display:block;font-size:12px}
+  .choice .ic{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);display:grid;place-items:center;flex:none;color:var(--text-secondary)}
+  .sub{margin:6px 0 0 40px;display:none;gap:6px}
+  .sub.show{display:grid}
+  .sub .choice{padding:8px 10px}
+  .tag{display:inline-flex;gap:4px;align-items:center;border:1px solid var(--border);border-radius:999px;padding:0 7px;font-size:11px;color:var(--text-secondary);white-space:nowrap}
+  .tag.proxy{border-color:var(--status-proxy)}
+  .tag.unowned{border-color:var(--status-unowned)}
+  .tag.warn{border-color:var(--signal-warning)}
+  .bar{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--border-subtle);border-radius:8px;padding:6px 10px;margin-bottom:10px;color:var(--text-secondary);font-size:12px}
+  table{width:100%;border-collapse:collapse}
+  td,th{padding:7px 6px;border-bottom:1px solid var(--border-subtle);text-align:left;vertical-align:middle}
+  th{font-weight:400;color:var(--text-tertiary);font-size:11px}
+  .muted{color:var(--text-secondary)} .tiny{font-size:11px;color:var(--text-tertiary)}
+  .seg{display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden}
+  .seg button{background:none;border:0;border-right:1px solid var(--border);padding:3px 8px;cursor:pointer;color:var(--text-secondary);font-size:12px}
+  .seg button:last-child{border-right:0}
+  .seg button[aria-pressed=true]{color:var(--text-primary);background:var(--bg-hover);box-shadow:inset 0 0 0 1px var(--text-secondary)}
+  .seg button[data-k=new][aria-pressed=true]{box-shadow:inset 0 0 0 1px var(--accent-primary);background:rgba(29,158,117,.18)}
+  .seg button[data-k=proxy][aria-pressed=true]{box-shadow:inset 0 0 0 1px var(--status-proxy);background:rgba(74,147,160,.18)}
+  .seg button:disabled{opacity:.4;cursor:not-allowed}
+  .warnbox{border:1px solid var(--signal-critical);border-radius:8px;padding:10px 12px;margin:10px 0}
+  .list{margin:6px 0 0;padding-left:18px;color:var(--text-secondary)}
+  input[type=text]{background:var(--bg-canvas);border:1px solid var(--border);border-radius:6px;padding:5px 8px;width:220px}
+  .note{border-left:2px solid var(--text-tertiary);padding-left:10px;color:var(--text-secondary);font-size:12px;margin:8px 0}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Import scenarios — start with intent (proposal, low fidelity)</h1>
+  <p class="ann">Companion to <b>docs/oracle/reports/2026-10-22-designer-import-scenarios.md</b>. Shows Option A: one question up front sets sensible defaults, the review screen shows what you already own, and replacing everything is a separate, guarded path. Layout and wording only; nothing here is final styling.</p>
+
+  <!-- 1. Intent -->
+  <h2>1 · The first question</h2>
+  <p class="ann">Shown before the file picker. The answer only sets defaults and wording; every card can still be changed on the review screen.</p>
+  <div class="frame">
+    <div class="dh">Import</div>
+    <div class="db">
+      <p class="q">What are you doing?</p>
+      <div class="choices" id="intent">
+        <button class="choice" aria-pressed="false" data-v="cards"><span class="ic">+</span><span><span class="t">Adding cards to my collection</span><span class="d">New cards you own: originals, proxies or both. Nothing goes into a deck.</span></span></button>
+        <button class="choice" aria-pressed="true" data-v="deck"><span class="ic">▤</span><span><span class="t">Adding a deck</span><span class="d">One deck per file. You choose what happens to each card.</span></span></button>
+        <div class="sub show" id="deckSub">
+          <p class="q" style="margin:4px 0">Where are the cards?</p>
+          <button class="choice" aria-pressed="true"><span><span class="t">All new to my collection</span><span class="d">For example a precon you just opened. Every card is added to your collection and sleeved in the deck.</span></span></button>
+          <button class="choice" aria-pressed="false"><span><span class="t">Some new, some I already own</span><span class="d">Cards you already own are sleeved from your collection where a copy is free. You mark the new ones. The rest stay on the list, unsleeved.</span></span></button>
+          <button class="choice" aria-pressed="false"><span><span class="t">Just the list — nothing is sleeved</span><span class="d">A theorycrafted deck. Nothing is added to your collection; the deck shows which cards you already own.</span></span></button>
+        </div>
+        <button class="choice" aria-pressed="false" data-v="fresh"><span class="ic" style="border-color:var(--signal-critical)">↺</span><span><span class="t">Start fresh — replace my collection and decks</span><span class="d">Bring in your whole collection and all your decks, then replace what is in Oracle now. Nothing is removed until you check and confirm.</span></span></button>
+      </div>
+    </div>
+    <div class="df"><span class="tiny">Next: choose your ManaBox file</span><button class="btn primary">Continue</button></div>
+  </div>
+
+  <!-- 2. Deck review -->
+  <h2>2 · Deck review that knows what you own</h2>
+  <p class="ann">Path "Some new, some I already own". A quiet <b>In collection</b> fact per card. Each copy has four choices: <b>New original</b> and <b>New proxy</b> add a copy (today's Original/Proxy), <b>From collection</b> sleeves a free copy you already own, <b>Unsleeved</b> keeps it on the list only. The line under the choice says what the deck will show, using the existing words (Available, Unavailable, Unowned).</p>
+  <div class="frame">
+    <div class="dh">Import deck · Strix draft</div>
+    <div class="db">
+      <div class="bar"><span>Adding a deck · Some new, some I already own · <a href="#" style="color:inherit">Change</a></span><span>Non-foil · Near Mint · English</span></div>
+      <table>
+        <thead><tr><th>Card</th><th>In collection</th><th>What happens</th></tr></thead>
+        <tbody>
+          <tr><td>1 Sol Ring <span class="tiny">C21 263</span></td><td class="muted">2 · 1 free</td>
+            <td><span class="seg"><button data-k="new">New original</button><button data-k="proxy">New proxy</button><button aria-pressed="true">From collection</button><button>Unsleeved</button></span><div class="tiny">Sleeves your free original (C21 263, in storage).</div></td></tr>
+          <tr><td>1 Arcane Signet <span class="tiny">CMM 384</span></td><td class="muted">1 · none free</td>
+            <td><span class="seg"><button data-k="new">New original</button><button data-k="proxy">New proxy</button><button disabled title="Your only copy is in Korvold">From collection</button><button aria-pressed="true">Unsleeved</button></span><div class="tiny"><span class="tag warn">🔒 Unavailable</span> In Korvold. Move it later from the deck.</div></td></tr>
+          <tr><td>1 Rhystic Study <span class="tiny">JMP 43</span></td><td class="muted">—</td>
+            <td><span class="seg"><button data-k="new">New original</button><button data-k="proxy">New proxy</button><button disabled>From collection</button><button aria-pressed="true">Unsleeved</button></span><div class="tiny"><span class="tag unowned">⊖ Unowned</span> on the deck until you add or proxy it.</div></td></tr>
+          <tr><td>1 Strixhaven Stadium <span class="tiny">STX 259</span></td><td class="muted">—</td>
+            <td><span class="seg"><button data-k="new" aria-pressed="true">New original</button><button data-k="proxy">New proxy</button><button disabled>From collection</button><button>Unsleeved</button></span><div class="tiny">Adds 1 original to your collection and sleeves it.</div></td></tr>
+          <tr><td>1 Command Tower <span class="tiny">ZNC 120</span></td><td class="muted">3 · 2 free <span class="tiny">(other printing)</span></td>
+            <td><span class="seg"><button data-k="new">New original</button><button data-k="proxy">New proxy</button><button aria-pressed="true">From collection</button><button>Unsleeved</button></span><div class="tiny">Sleeves your free CMR 350 (a different printing). <a href="#" style="color:inherit">Change</a></div></td></tr>
+        </tbody>
+      </table>
+      <p class="note">Bulk: tick rows, then "Set to: New original · New proxy · From collection · Unsleeved". The header can say "Set every card I own to From collection".</p>
+    </div>
+    <div class="df"><span>66 cards · 41 from collection · 8 new · 17 unsleeved (12 Unowned)</span><button class="btn primary">Import deck</button></div>
+  </div>
+
+  <!-- 3. Start fresh -->
+  <h2>3 · Start fresh: the guarded replace</h2>
+  <p class="ann">After the collection file and every deck file have been read and reviewed. Nothing is removed before this screen. If anything fails, what was there stays.</p>
+  <div class="frame">
+    <div class="dh">Replace everything in Oracle?</div>
+    <div class="db">
+      <div class="warnbox">
+        <b>This removes what is in Oracle now and cannot be undone.</b>
+        <ul class="list">
+          <li>Removed: 1,412 copies in your collection, 9 decks (Korvold, Prosper, … +7)</li>
+          <li>Added: 1,388 copies from collection.csv and 11 decks from 11 deck files</li>
+          <li>Kept: your settings <span class="tiny">(owner to confirm what else is kept — see report)</span></li>
+        </ul>
+      </div>
+      <p class="muted">Type <b>REPLACE</b> to confirm.</p>
+      <input type="text" aria-label="Type REPLACE to confirm" placeholder="REPLACE">
+    </div>
+    <div class="df"><button class="btn">Go back</button><button class="btn danger" disabled>Replace everything</button></div>
+  </div>
+</div>
+<script>
+  document.querySelectorAll('.choices > .choice').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('.choices > .choice').forEach(x=>x.setAttribute('aria-pressed','false'));
+    b.setAttribute('aria-pressed','true');
+    document.getElementById('deckSub').classList.toggle('show',b.dataset.v==='deck');
+  }));
+  document.querySelectorAll('#deckSub .choice').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('#deckSub .choice').forEach(x=>x.setAttribute('aria-pressed','false'));
+    b.setAttribute('aria-pressed','true');
+  }));
+  document.querySelectorAll('.seg').forEach(s=>s.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+    if(b.disabled) return; s.querySelectorAll('button').forEach(x=>x.removeAttribute('aria-pressed')); b.setAttribute('aria-pressed','true');
+  })));
+  const inp=document.querySelector('input[type=text]'), del=document.querySelector('.btn.danger');
+  inp.addEventListener('input',()=>{del.disabled=inp.value.trim()!=='REPLACE'});
+</script>
+</body>
+</html>

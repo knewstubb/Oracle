@@ -81,6 +81,27 @@ export async function ownedBasicPrintings(
   }
 }
 
+async function lineExists(
+  supabase: GenericClient,
+  deckId: number,
+  userId: string,
+  cardName: string
+): Promise<boolean> {
+  try {
+    const { data } = await supabase
+      .from('deck_cards')
+      .select('id')
+      .eq('deck_id', deckId)
+      .eq('user_id', userId)
+      .eq('is_generic', true)
+      .eq('card_name', cardName)
+      .limit(1)
+    return Array.isArray(data) && data.length > 0
+  } catch {
+    return false
+  }
+}
+
 export interface SetCountInput {
   deckId: number
   userId: string
@@ -109,6 +130,8 @@ export async function setGenericBasicCount(supabase: GenericClient, input: SetCo
   if (typeof input.scryfallId === 'string' && input.scryfallId) {
     scryfallId = input.scryfallId
     setCode = (await checkArt(supabase, cardName, scryfallId)).setCode
+  } else if (input.count > 0 && (await lineExists(supabase, input.deckId, input.userId, cardName))) {
+    // The line already exists: new generics inherit its art, so skip the (slow) default-art lookups.
   } else {
     // Default art: a random owned printing, else the Round 12 default. Stored, never recomputed.
     const owned = await ownedBasicPrintings(supabase, input.userId, cardName)

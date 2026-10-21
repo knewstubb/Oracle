@@ -48,7 +48,7 @@ describe('basic lands are editable (Round 11)', () => {
     isBasicLand: true,
   } as unknown as UiPreviewRow
 
-  function renderBasic(generic: boolean, onChangeCopy = vi.fn()) {
+  function renderBasic(generic: boolean, onChangeCopy = vi.fn(), onChangeAllCopies = vi.fn()) {
     const resolved = resolveRowCopies(basic, INITIAL_DEFAULTS, {}, 'b')
     render(
       <ImportRowEditor
@@ -62,18 +62,22 @@ describe('basic lands are editable (Round 11)', () => {
         onToggleOpen={() => {}}
         onToggleSelect={() => {}}
         onChangeCopy={onChangeCopy}
+        onChangeAllCopies={onChangeAllCopies}
         onApplyAll={() => {}}
       />
     )
-    return onChangeCopy
+    return { onChangeCopy, onChangeAllCopies }
   }
 
-  it('Generic basic row: opens, lets each copy pick a finish, hides the type toggle', () => {
-    const onChange = renderBasic(true)
+  it('Generic basic row: one line edits all copies (finish, Unsleeved) and shows Choose art', () => {
+    const { onChangeAllCopies } = renderBasic(true)
     expect(screen.getByRole('button', { name: /Collapse Swamp/ })).toBeInTheDocument()
-    expect(screen.queryByRole('radiogroup', { name: 'Copy 1 type' })).toBeNull()
-    fireEvent.change(screen.getByLabelText('Copy 2 finish'), { target: { value: 'foil' } })
-    expect(onChange).toHaveBeenCalledWith(1, { finish: 'foil' })
+    expect(screen.queryByLabelText('Copy 2 finish')).toBeNull()
+    fireEvent.change(screen.getByLabelText('Copy 1 finish'), { target: { value: 'foil' } })
+    expect(onChangeAllCopies).toHaveBeenCalledWith([0, 1], { finish: 'foil' })
+    fireEvent.click(screen.getByRole('button', { name: 'Unsleeved' }))
+    expect(onChangeAllCopies).toHaveBeenCalledWith([0, 1], { type: 'unsleeved' })
+    expect(screen.getByRole('button', { name: /art/i })).toBeInTheDocument()
   })
 
   it('Specific basic row (names a printing): full edits, same as any card, no Basic tag', () => {

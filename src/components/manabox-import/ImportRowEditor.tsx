@@ -3,6 +3,8 @@
 import { Check, VenetianMask, ChevronsDown, ChevronDown, Info } from 'lucide-react'
 import { useState } from 'react'
 import { GenericArtPicker } from '@/components/GenericArtPicker'
+import { useCardHoverPreview } from '@/components/CardHoverPreview'
+import { getBasicLandDefaultScryfallId } from '@/lib/basic-lands'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import {
@@ -138,6 +140,8 @@ export interface ImportRowEditorProps {
   onToggleOpen: () => void
   onToggleSelect: (checked: boolean) => void
   onChangeCopy: (index: number, patch: ImportCopyOwnerEdits) => void
+  /** Generic rows: one line edits every copy of the row at once. */
+  onChangeAllCopies?: (indexes: number[], patch: ImportCopyOwnerEdits) => void
   onApplyAll: () => void
 }
 
@@ -154,9 +158,12 @@ export function ImportRowEditor({
   onToggleOpen,
   onToggleSelect,
   onChangeCopy,
+  onChangeAllCopies,
   onApplyAll,
 }: ImportRowEditorProps) {
   const summary = summariseRowTags(resolved, defaults)
+  const heroArtId = generic ? art?.scryfallId ?? getBasicLandDefaultScryfallId(row.cardName) : row.scryfallId ?? null
+  const { triggerProps: nameHover } = useCardHoverPreview({ scryfallId: heroArtId, cardName: row.cardName })
   // Copies whose default finish isn't made for this printing, so their own finish is used.
   const fallbackFinishes = [
     ...new Set(resolved.filter((c) => c.finishNote === 'fallback').map((c) => FINISH_LABELS[c.finish])),
@@ -195,7 +202,7 @@ export function ImportRowEditor({
         />
         <span className="text-[length:var(--fs-xs)] tabular-nums text-muted-foreground">{row.qty}</span>
         <span className="flex min-w-0 flex-wrap items-center gap-1.5 py-1 text-[length:var(--fs-xs)]">
-          <span className="truncate text-foreground">{row.cardName}</span>
+          <span className="truncate text-foreground" {...nameHover}>{row.cardName}</span>
           {!generic && (
             <span className="text-muted-foreground">
               {row.setCode} {row.collectorNumber}
@@ -272,20 +279,24 @@ export function ImportRowEditor({
 
       {open && (
         <div className="flex flex-col pb-2 pl-[62px] pr-2.5">
-          {resolved.map((copy, position) => (
+          {(generic ? resolved.slice(0, 1) : resolved).map((copy, position) => (
             <CopyLine
               key={copy.index}
               row={row}
-              copy={copy}
+              copy={generic ? { ...copy, type: resolved.some((c) => c.type === 'unsleeved') ? 'unsleeved' : 'original' } : copy}
               position={position}
-              total={resolved.length}
+              total={generic ? 1 : resolved.length}
               typeOptions={typeOptions}
               generic={generic}
               art={art}
               onChangeArt={onChangeArt}
               languageLookup={languageLookup}
               fileLanguages={fileLanguages}
-              onChange={(patch) => onChangeCopy(copy.index, patch)}
+              onChange={(patch) =>
+                generic && onChangeAllCopies
+                  ? onChangeAllCopies(resolved.map((c) => c.index), patch)
+                  : onChangeCopy(copy.index, patch)
+              }
               onApplyAll={position === 0 && resolved.length > 1 ? onApplyAll : undefined}
             />
           ))}
@@ -339,7 +350,7 @@ function CopyLine({
       aria-label={`Copy ${n} of ${total}`}
       className="flex flex-wrap items-center gap-2 border-t border-[var(--border-subtle)] py-1 first:border-t-0"
     >
-      <span className="w-4 shrink-0 text-[length:var(--fs-xs)] tabular-nums text-[var(--text-tertiary)]">{n}</span>
+      {!generic && <span className="w-4 shrink-0 text-[length:var(--fs-xs)] tabular-nums text-[var(--text-tertiary)]">{n}</span>}
       {generic ? (
         <>
           <TypeToggle

@@ -597,8 +597,6 @@ function GenericLandRow({ landName, count, deckId, cardIds, cards, selectedIds, 
   const countRef = useRef<number | null>(null)
   const versionRef = useRef(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const serverCountRef = useRef(count)
-  serverCountRef.current = count
 
   // Unsleeved wins: the line is Sleeved only if every row is.
   const serverSleeved = cards.every((c) => isGenericSleeved(c))
@@ -636,7 +634,7 @@ function GenericLandRow({ landName, count, deckId, cardIds, cards, selectedIds, 
 
   /** Instant +/- : update the number and the deck totals now, send one request when clicks pause. */
   const changeCount = (delta: number) => {
-    const from = countRef.current ?? serverCountRef.current
+    const from = countRef.current ?? count
     const next = Math.max(0, from + delta)
     if (next === from) return
     countRef.current = next

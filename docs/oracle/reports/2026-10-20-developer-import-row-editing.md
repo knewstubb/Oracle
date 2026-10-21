@@ -324,3 +324,15 @@ Default printings chosen: Ghen CMR 275; Eiganjo SOC 13; Bitter Reunion FDC 139; 
 - Not browser-tested. Tests: new `generic-basics.test.ts` (helpers, readiness, status text, count and line validation, art check, 404 and user scoping with a fake client); import write tests updated; the old toggle tests replaced. Specs under docs/oracle/specs already describe the new model; no change needed.
 
 **Process notes:** one generated SQL draft used a python helper by mistake; all code edits used the edit tool.
+
+## Round 15: owner click-through fixes
+
+**In plain language:** hovering a card name now shows the card picture (generic basics show their chosen art). The + and − on a generic line are now always visible and change the number and the deck totals the moment you click; rapid clicks are sent as one request, and if it fails the number goes back and a message appears. "Change art…" is now a visible button on every generic line, and the small art picture next to the name opens the same picker. Sleeved / Unsleeved on a generic line now acts on the whole line, in the review screen as well as the deck page.
+
+**Root causes**
+1. Hover: the deck-page generic and printing-specific basic rows and the review row name never used the existing hover preview. They do now.
+2. Unsleeved: the review editor listed one line per copy (11 Islands = 11 toggles), and each toggle changed only that one copy, so it did not behave all-or-nothing. It is now a single line that changes every copy. On the deck page the lines were merged into one only after the status data loaded, and the merged line took its Sleeved state from the first row only. It now merges by the generic flag and Unsleeved wins. The saving itself and the status text worked (a live deck already holds an unsleeved line). Not browser-tested.
+3. Lag: every click waited for the server and then re-fetched five large queries (deck, statuses, health, picklist, allocation; the deck query key also matched the others by prefix, so some were fetched twice). The server also looked up owned printings and printing details on every click even when the line already existed. Now: the number and totals update instantly, clicks are coalesced (about 0.35 s) into one request, only deck, statuses and picklist are refreshed, and the server skips the art lookup when the line already exists.
+4. Change art: it existed only inside a three-dot menu that appeared on row hover (and Qty was hidden there too). Now a visible button and a clickable art thumbnail on each line. Component test checks it renders and opens the picker.
+
+**Tests:** count queue (coalescing, failure, per-basic), instant status patch, deck generic line (Change art opens picker, instant count, Unsleeved shown), review editor (one line, applies to all copies). `npm run check` passes. No writes to real data.

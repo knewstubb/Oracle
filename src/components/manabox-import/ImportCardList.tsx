@@ -166,11 +166,17 @@ export function ImportCardList({
   }, [openRowKeys])
 
   const changeCopy = (row: UiPreviewRow, index: number, patch: ImportCopyOwnerEdits) => {
+    changeCopies(row, [index], patch)
+  }
+
+  const changeCopies = (row: UiPreviewRow, indexes: number[], patch: ImportCopyOwnerEdits) => {
     let next = copyEdits
     // Each field is its own owner edit. An edit never splits or moves the row.
-    for (const field of Object.keys(patch) as Array<keyof ImportCopyOwnerEdits>) {
-      const value = patch[field]
-      if (value !== undefined) next = setCopyField(next, row.rowKey, index, field, value as never)
+    for (const index of indexes) {
+      for (const field of Object.keys(patch) as Array<keyof ImportCopyOwnerEdits>) {
+        const value = patch[field]
+        if (value !== undefined) next = setCopyField(next, row.rowKey, index, field, value as never)
+      }
     }
     onCopyEditsChange(next)
   }
@@ -309,6 +315,7 @@ export function ImportCardList({
                       onToggleOpen={() => toggleOpen(row.rowKey)}
                       onToggleSelect={(checked) => handleRowSelect(row.rowKey, checked)}
                       onChangeCopy={(index, patch) => changeCopy(row, index, patch)}
+                      onChangeAllCopies={(indexes, patch) => changeCopies(row, indexes, patch)}
                       onApplyAll={() => applyAll(row)}
                     />
                   </div>

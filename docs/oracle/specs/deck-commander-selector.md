@@ -1,9 +1,9 @@
-# Deck page commander selector — spec (rev 1)
+# Commander selector — spec (rev 2: import review screen)
 
-Mockup: `docs/oracle/mockups/deck-commander-selector.html`. Replaces the commander step that used to sit inside the deck import (see `import-review-controls.md`).
+Mockup: `docs/oracle/mockups/deck-commander-selector.html`. **Owner correction (rev 2):** the selector lives on the **import review screen** (where cards are marked Original/Proxy, before importing), next to the deck name. The same control can be reused on the deck page later. Replaces the commander step that used to sit inside the deck import (see `import-review-controls.md`).
 
 ## 1. The problem
-A deck imported from ManaBox has no commander, so it stays Draft (D-002) until one is set. Today the only way is a "Choose commander" button in the far-right action group of the deck header. It disappears once a commander is set, so the commander can't be changed or cleared from the same place. Partner and Background pairs can't be expressed.
+A deck imported from ManaBox has no commander, so it stays Draft (D-002) until one is set. The import no longer asks, and the only existing control is a "Choose commander" button on the deck page that disappears once a commander is set. Partner and Background pairs can't be expressed.
 
 ## 2. Principle
 - Controls sit beside what they act on (D-015): the commander control goes beside the deck name, not among page actions.
@@ -11,8 +11,8 @@ A deck imported from ManaBox has no commander, so it stays Draft (D-002) until o
 - Visible status: "No commander" is a plain readable state, not an error (D-014).
 - Progressive disclosure: the second slot appears only for Partner / Choose a Background commanders.
 
-## 3. Placement (flag)
-Second line under the deck name, right after the format badge, before the stats. The old action-group button is removed. Shown only for commander formats. **Flag:** this changes the name block of the deck header, not the actions slot used today; Developer to confirm wrapping on narrow screens. Also: the deck should open with the selector visible but not auto-opened after an import (needs owner confirmation; supersedes D-052).
+## 3. Placement
+Import review header, **beside the deck name** (name · selector). Commander formats only. Because it is chosen before importing, the commander is saved with the import and the result screen no longer shows "No commander yet" when one was chosen; if none is chosen it still shows the hint (and the deck stays Draft, D-002). **Later reuse:** the same component can sit under the name on the deck page, replacing its "Choose commander" button; not designed here. Supersedes D-052 and the "Choose on the deck page" wording. **Flag:** the cards come from the file, so the list is drawn from the import's matched cards, not saved deck cards; Developer to confirm the eligibility check can run before the deck exists.
 
 ## 4. Component inventory
 | Component | Props | Built on |
@@ -56,7 +56,7 @@ No commander · Choose · Commander · Partner · Background · Choose commander
 Icon + text for the no-commander state (D-012); contrast as earlier specs (secondary ≈ 6.5:1); slot and ✕ targets 26 px high; focus trapped in popover, Escape closes.
 
 ## 10. Open questions
-1. Open the selector automatically from the import's "Open deck", or leave closed (proposed)?
+1. Should the import be blocked until a commander is chosen? Proposed: no, optional.
 2. Should the deck show a reason it's Draft ("Needs a commander") elsewhere? Not designed.
 3. Partner/Background storage (Architect, blocks build).
 4. Should "Search all cards" add a non-deck card to the deck, as today's picker does?

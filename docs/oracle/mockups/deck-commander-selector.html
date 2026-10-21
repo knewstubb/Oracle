@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Oracle — Deck page commander selector (mockup, rev 1)</title>
+<title>Oracle — Import review commander selector (mockup, rev 2)</title>
 <style>
   /* Colours copied from src/styles/tokens.css — no new colours */
   :root{
@@ -73,8 +73,8 @@
 </head>
 <body>
 <div class="page">
-  <h1 class="t">Deck page — commander selector</h1>
-  <p class="ann">Rev 1. The selector sits in the deck header <b>under the deck name, beside the format badge</b>, instead of a “Choose commander” button in the far-right action group. Live: click it, search, pick, add a partner (try Thrasios, then Tymna), clear with “No commander”. The frames below show each state at rest. Sample data only.</p>
+  <h1 class="t">Import review — commander selector</h1>
+  <p class="ann">Rev 2 (owner correction). The selector lives on the <b>import review screen</b>, the screen where cards are marked Original or Proxy, <b>next to the deck name</b>. The same control can be reused later on the deck page. Live: click it, search, pick, add a partner (try Thrasios, then Tymna), clear with “No commander”. The frames below show each state at rest. Sample data only.</p>
 
   <h2>Live</h2>
   <div id="live"></div>
@@ -140,14 +140,13 @@ function optList(mode){
 function header(withPop){
   const nd = needs(S.c1);
   return `<div class="deck"><div class="hdr"><div class="av${S.c1?' on':''}" aria-hidden="true">${S.c1?'art':'—'}</div>
-    <div class="meta"><h2 class="name">Strix draft</h2>
-      <div class="line2"><span class="badge">Commander</span>
+    <div class="meta">
+      <div class="line2" style="margin-top:0;gap:12px"><h2 class="name">Strix draft</h2>
         ${slot(1,S.c1)}${S.c1&&nd?slot(2,S.c2,nd):''}
-        <span class="stats">· 99 cards · 5 proxies</span>
-        ${withPop&&S.open?optList(+S.open).replace('class="pop"',`class="pop" style="left:${S.open==2?'150px':'62px'}"`):''}
+        ${withPop&&S.open?optList(+S.open).replace('class="pop"',`class="pop" style="left:${S.open==2?'230px':'140px'}"`):''}
       </div></div>
-    <div class="acts"><button class="btn sm">Export</button><button class="btn sm">History</button></div></div>
-    <div class="tabs"><span class="on">Cards</span><span>Maybeboard</span><span>Stats</span></div><div class="stub">Card list: this is where cards are marked Original or Proxy.</div></div>`;
+    </div>
+    <div class="stub">Importing as: Non-foil · Near Mint · English · Generic basics, then the card list where cards are marked Original or Proxy.</div></div>`;
 }
 const live = document.getElementById('live');
 function render(){ live.innerHTML = header(true); const q=live.querySelector('input'); if(q&&S.focusQ){q.focus();const p=q.value.length;q.setSelectionRange(p,p);S.focusQ=false;} }

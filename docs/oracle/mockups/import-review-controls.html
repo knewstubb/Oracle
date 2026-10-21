@@ -87,6 +87,7 @@
   .caret .ic{transition:transform .15s}
   .item.open .caret .ic{transform:rotate(180deg)}
   .tag{display:inline-flex;align-items:center;gap:3px;height:18px;padding:0 6px;border-radius:999px;font-size:11px;border:1px solid var(--border);color:var(--text-secondary);white-space:nowrap}
+  .tag.fin{border-style:dashed}
   .tag.px{border-color:var(--status-proxy);color:var(--status-proxy)}
   .copies{padding:0 10px 10px 70px}
   .cline{display:flex;gap:8px;align-items:center;padding:4px 0;border-top:1px solid var(--border-subtle);font-size:12px}
@@ -101,12 +102,12 @@
 <div class="mc">
   <span><b>Mockup controls</b></span>
   <span>Import type <span class="seg" id="kseg"><button data-k="deck" aria-pressed="true">Deck</button><button data-k="collection" aria-pressed="false">Collection</button></span></span>
-  <span>Lines not matched <span class="seg" id="useg"><button data-u="0" aria-pressed="false">0</button><button data-u="1" aria-pressed="false">1</button><button data-u="3" aria-pressed="true">3</button></span></span>
+  <span>Rows not matched <span class="seg" id="useg"><button data-u="0" aria-pressed="false">0</button><button data-u="1" aria-pressed="false">1</button><button data-u="3" aria-pressed="true">3</button></span></span>
   <button class="plain" id="reset">Reset dismissed notes</button>
 </div>
 <div class="page">
   <h1>Import review — sort, notes, row caret</h1>
-  <p class="ann">Rev 1. Everything is live. <b>Sort</b> sits right of the filter chips. <b>Not matched</b> notes collapse to one line (3 or more lines) or show as a single box with ✕ (one line); try View, Copy all, Dismiss, then “Show hidden notes” in the footer. <b>Rows</b>: hover for the grey background; click anywhere on a row (or press its caret) to expand. Footer button reads “Import deck” or “Import cards”. Sample data only.</p>
+  <p class="ann">Rev 2. Everything is live. <b>Sort</b> sits right of the filter chips. <b>Not matched</b> notes collapse to one line (2 or more rows) or show as a single box with ✕ (one line); try View, Copy all, Dismiss, then “Show hidden notes” in the footer. <b>Rows</b>: hover for the grey background; click anywhere on a row (or press its caret) to expand. The <b>deck header</b> shows the commander selector beside the deck name; <b>Generic basics</b> now sits in the “Importing as” bar. Cards whose finish differs from the default carry a dashed tag with ↻ (hover or focus for the reason); no banner. Footer button reads “Import deck” or “Import cards”. Sample data only.</p>
   <div id="root"></div>
 </div>
 <script>
@@ -123,11 +124,11 @@ const CARDS = [
   {n:'Strix Serenade',set:'BLB',num:'69',q:2},
   {n:'Opt',set:'DMU',num:'59',q:1,tags:['<span class="tag px">◆ Proxy</span>'],px:1},
   {n:'Rehearsed Debater',set:'MH3',num:'46',q:3,tags:['<span class="tag px">◆ 1 Proxy</span>','<span class="tag">★ 1 Foil</span>','<span class="tag">1 LP</span>'],px:1,demo:1},
-  {n:'Arcane Signet',set:'CMM',num:'297',q:1,tags:['<span class="tag">★ Foil</span>']},
-  {n:'Mystic Remora',set:'MH2',num:'69',q:1},
+  {n:'Arcane Signet',set:'CMM',num:'297',q:1,tags:['<span class="tag fin" tabindex="0" title="Not available in Non-foil, so it will import as Foil.">★ Foil ↻</span>']},
+  {n:'Mystic Remora',set:'MH2',num:'69',q:1,tags:['<span class="tag fin" tabindex="0" title="Not available in Non-foil, so it will import as Foil.">★ Foil ↻</span>']},
   {n:'Brainstorm',set:'STA',num:'13',q:1,uns:1},
   {n:'Island',set:'BLB',num:'270',q:12,basic:1},
-  {n:'Counterspell',set:'MH2',num:'267',q:1},
+  {n:'Counterspell',set:'MH2',num:'267',q:1,tags:['<span class="tag fin" tabindex="0" title="Not available in Non-foil, so it will import as Etched.">✦ Etched ↻</span>']},
   {n:'Sol Ring',set:'C21',num:'263',q:1,tags:['<span class="tag">JA</span>']},
   {n:'Aether Gale',set:'MH3',num:'12',q:1},
 ].map((c,i)=>({...c,i,tags:c.tags||[]}));
@@ -148,16 +149,16 @@ function copiesHtml(){
   const sel=(v,list)=>`<select aria-label="">${list.map(x=>`<option${x===v?' selected':''}>${x}</option>`).join('')}</select>`;
   return `<div class="copies"><div class="cline"><span class="ix">1</span><span class="p">● Original</span>${sel('English',['English','Japanese'])}${sel('Non-foil',['Non-foil','Foil'])}${sel('NM',['NM','LP'])}</div>
   <div class="cline"><span class="ix">2</span><span class="p" style="color:var(--status-proxy)">◆ Proxy</span>${sel('English',['English','Japanese'])}</div>
-  <div class="cline"><span class="ix">3</span><span class="p">● Original</span>${sel('English',['English','Japanese'])}${sel('Foil',['Non-foil','Foil'])}${sel('LP',['NM','LP'])}</div></div>`;
+  <div class="cline"><span class="ix">3</span><span class="p">● Original</span>${sel('English',['English','Japanese'])}${sel('Foil',['Non-foil','Foil'])}<span class="tag fin" tabindex="0" title="Not available in Non-foil, so it will import as Foil.">↻</span>${sel('LP',['NM','LP'])}</div></div>`;
 }
 function notes(){
   let h='';
   const u = S.unm, tokens = S.kind==='deck' ? 2 : 1;
   if (u && !S.hid.unm){
     if (u===1){
-      h += `<div class="nt" role="group" aria-label="Not matched"><span class="ic-w">${I.warn}</span><span class="grow"><b style="font-weight:500">1 line not matched</b> · ${UNM[0][0]} · <code>${UNM[0][1]}</code> · ${UNM[0][2]}</span><button class="btn sm ghost" data-a="copy" data-i="0">${S.copied===0?'Copied':'Copy'}</button><button class="btn ghost ico" data-a="dis-unm" aria-label="Dismiss not matched note" title="Dismiss">${I.x}</button></div>`;
+      h += `<div class="nt" role="group" aria-label="Not matched"><span class="ic-w">${I.warn}</span><span class="grow"><b style="font-weight:500">1 row not matched</b> · ${UNM[0][0]} · <code>${UNM[0][1]}</code> · ${UNM[0][2]}</span><button class="btn sm ghost" data-a="copy" data-i="0">${S.copied===0?'Copied':'Copy'}</button><button class="btn ghost ico" data-a="dis-unm" aria-label="Dismiss not matched note" title="Dismiss">${I.x}</button></div>`;
     } else {
-      h += `<div class="nt" role="group" aria-label="Not matched">${I.warn}<span class="grow"><b style="font-weight:500">${u} lines not matched</b> · they won't be imported</span>
+      h += `<div class="nt" role="group" aria-label="Not matched">${I.warn}<span class="grow"><b style="font-weight:500">${u} rows not matched</b> · they won't be imported</span>
         <button class="btn sm ghost" data-a="view" aria-expanded="${S.unmOpen}">${S.unmOpen?'Hide':'View'}</button>
         <button class="btn sm ghost" data-a="copy-all">${S.copied==='all'?'Copied':'Copy all'}</button>
         <button class="btn ghost ico" data-a="dis-unm" aria-label="Dismiss not matched note" title="Dismiss">${I.x}</button></div>`;
@@ -184,10 +185,10 @@ function render(){
       <button class="caret" data-a="caret" data-i="${c.i}" aria-expanded="${open}" aria-label="${open?'Collapse':'Edit'} ${esc(c.n)}" title="${open?'Collapse':'Edit'}">${I.down}</button></div>${open&&c.demo?copiesHtml():''}${open&&!c.demo?`<div class="copies"><div class="cline"><span class="ix">1</span><span class="p">● Original</span><span style="color:var(--text-secondary)">(copy lines as in the row-editing mockup)</span></div></div>`:''}</div>`;
   }).join('');
   document.getElementById('root').innerHTML = `<div class="frame">
-    <div class="dh"><h3>${deck?'Import deck':'Import collection'}</h3></div>
+    <div class="dh"><h3>${deck?'Import deck':'Import collection'}</h3>${deck?'<span class="tag" style="height:24px;font-size:12px" title="Commander selector: see deck-commander-selector.html">♛ Strix draft · No commander · Choose ▾</span>':''}</div>
     <div class="db">
       ${notes()}
-      <div class="defs"><span class="lbl">Importing as:</span><span>Non-foil</span><span class="dot">·</span><span>Near Mint</span><span class="dot">·</span><span>English</span><button class="link" type="button">Change</button></div>
+      <div class="defs"><span class="lbl">Importing as:</span><span>Non-foil</span><span class="dot">·</span><span>Near Mint</span><span class="dot">·</span><span>English</span><button class="link" type="button">Change</button>${deck?'<label style="margin-left:auto;display:inline-flex;gap:6px;align-items:center;color:var(--text-secondary)"><input type="checkbox" checked> Generic basics</label>':''}</div>
       <div class="bar" role="toolbar" aria-label="Filter and sort">${chips}
         <span class="sortw"><label for="sort">Sort</label><select class="sort" id="sort" data-a="sort"><option value="file"${S.sort==='file'?' selected':''}>Import order</option><option value="name"${S.sort==='name'?' selected':''}>Name A–Z</option></select></span>
         <input class="search" placeholder="Find card" aria-label="Find card" value="${esc(S.query)}" data-a="find"></div>

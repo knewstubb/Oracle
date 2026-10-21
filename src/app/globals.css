@@ -157,6 +157,23 @@
   html {
     @apply font-sans;
   }
+  /* Tailwind v4's reset makes buttons use the default arrow cursor; restore the hand on anything clickable. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="switch"]:not([aria-disabled="true"]),
+  [role="checkbox"]:not([aria-disabled="true"]),
+  [role="tab"],
+  select:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+  /* Keyboard focus ring for plain controls; shadcn components set their own (outline-none wins over this). */
+  button:focus-visible,
+  select:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 1px;
+  }
 }
 
 /* Phase transition animation — cards scale/translate/fade toward archive position */

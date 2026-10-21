@@ -39,3 +39,10 @@ The review list now sorts by Import order by default, with Name A–Z as the alt
 - Review mockup now starts on Import order.
 - Not viewed in a real browser.
 E
+
+## Rev 2 (owner correction and additions)
+Task: selector belongs on the import review screen next to the deck name (reusable on the deck page later); on deck review: move Generic basics into the "Importing as" bar, "N rows not matched", remove the subtitle and the "131/100 · commander picked next" line, replace the finish banner with inline markers.
+- Updated: `specs/deck-commander-selector.md` (§3 placement), `mockups/deck-commander-selector.html` (now shows the review header), `specs/import-review-controls.md` (§14, wording), `mockups/import-review-controls.html` (basics toggle, commander chip beside name, dashed ↻ finish markers, "rows not matched").
+- Supersedes my earlier deck-page placement and the "commander on the deck page" hint; D-052 still to be superseded.
+- Open: what 131/100 warned about; touch devices have no tooltip; Developer to confirm eligibility can run before the deck exists; result-screen hint now only when no commander chosen.
+- Verified in jsdom only (no script errors; basics toggle, 4 finish markers, "rows not matched" present). Not seen in a real browser.

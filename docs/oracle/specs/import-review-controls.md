@@ -35,12 +35,12 @@ The deck review list can be 60+ cards in file order, so finding a card means scr
 - Keyboard: standard select. Screen reader: label "Sort"; announces "Sorted by name A to Z".
 
 ## 5. Not-matched and other notes
-- **1 line:** one box: icon · "1 line not matched · Line 1 · `Commander` · unreadable line" · **Copy** · ✕.
-- **2 or more lines:** one line: icon · "3 lines not matched · they won't be imported" · **View** · **Copy all** · ✕.
+- **1 line:** one box: icon · "1 row not matched · Line 1 · `Commander` · unreadable line" · **Copy** · ✕.
+- **2 or more lines:** one line: icon · "3 rows not matched · they won't be imported" · **View** · **Copy all** · ✕.
   - **View** opens an inline list directly under the line (about 4 rows visible, scrolls beyond): line number · text · reason · **Copy**. The button becomes **Hide**.
   - **Copy all** copies every raw line, one per line.
 - **Tokens skipped** and value notices (not recognised; finish not listed): quiet grey one-liners, each with ✕.
-- **Dismiss (✕)** hides that note for this review only. Numbers don't change and the cards stay not imported. The footer keeps the count ("24 cards · 3 not matched") and adds **Show hidden notes (n)** while anything is hidden; clicking it restores all hidden notes. After dismissing, focus moves to that footer link.
+- **Dismiss (✕)** hides that note for this review only. Numbers don't change and the cards stay not imported. The footer keeps the count ("24 cards · 3 rows not matched") and adds **Show hidden notes (n)** while anything is hidden; clicking it restores all hidden notes. After dismissing, focus moves to that footer link.
 - Dismissal is not remembered once the review closes.
 - **Result screen:** unmatched lines and notes always appear under "Needs a look", dismissed or not (`import-stage-screens.md` §4.4). `unmatched[]` already reaches the result.
 
@@ -52,7 +52,7 @@ The deck review list can be 60+ cards in file order, so finding a card means scr
 - Tags stay in the collapsed row.
 
 ## 7. Button wording
-Footer button: **Import cards** (collection), **Import deck** (deck). Footer left text: "24 cards · 3 not matched" (collection: "148 copies"). Result buttons unchanged.
+Footer button: **Import cards** (collection), **Import deck** (deck). Footer left text: "24 cards · 3 rows not matched" (collection: "148 copies"). Result buttons unchanged.
 
 ## 8. Commander moves out of the import
 The deck result no longer asks for a commander. It shows a quiet grey line: **"No commander yet. Choose one on the deck page."** (info icon, not amber, since nothing went wrong). Choosing happens on the deck page, where only valid commanders are selectable: see `deck-commander-selector.md`.
@@ -70,7 +70,7 @@ The deck result no longer asks for a commander. It shows a quiet grey line: **"N
 | Deck vs collection | deck: All, Proxies, Unsleeved, Basics chips; collection: All, Proxies |
 
 ## 10. Copy
-"Sort" · "Name A–Z" · "Import order" · "Find card" · "3 lines not matched · they won't be imported" · "1 line not matched" · "View" / "Hide" · "Copy" / "Copied" · "Copy all" · "Dismiss not matched note" · "Show hidden notes (2)" · "No cards match. Clear the filter or search." · "Import cards" · "Import deck" · "No commander yet. Choose one on the deck page."
+"Sort" · "Name A–Z" · "Import order" · "Find card" · "3 rows not matched · they won't be imported" · "1 row not matched" · "View" / "Hide" · "Copy" / "Copied" · "Copy all" · "Dismiss not matched note" · "Show hidden notes (2)" · "No cards match. Clear the filter or search." · "Import cards" · "Import deck" · "No commander yet. Choose one on the deck page."
 
 ## 11. Data binding
 No new data. `unmatched[]` (`sourceIndex`, `rawLine`, `reason`) and `skippedTokens` exist [Confirmed: `src/components/manabox-import/ImportNoticeLine.tsx`]. Import order needs each row's file position [Approximate: Developer to confirm the field].
@@ -87,3 +87,12 @@ Answered by owner: default Import order (deck and collection); not remembered; b
 2. Is the footer "Show hidden notes" link an acceptable recall?
 1. Collapse threshold is 2 unmatched lines; owner to explain preference (pending).
 2. Commander on the deck page: see `deck-commander-selector.md`.
+
+## 14. Deck review screen tidy-up (owner, 2026-10-21, rev 2)
+Deck review only. Mockup: `import-review-controls.html`.
+- **Generic basics toggle** moves into the "Importing as" bar, right-aligned (Non-foil · Near Mint · English · Change … ☑ Generic basics). It is a default for this import, so it belongs with the other defaults (D-015).
+- **Wording:** "N rows not matched" everywhere (notes, footer, live region). Applies to deck and collection.
+- **Subtitle removed:** "Import a deck from a URL, paste a decklist, or upload a CSV file." shows on the input step only, not on review.
+- **"131/100 · commander picked next" removed.** The commander is chosen with the selector beside the deck name on this screen (`deck-commander-selector.md`); the footer keeps only the card count and not-matched count. Over-limit counts are not flagged here (open question 1).
+- **Finish banner removed.** "3 cards don't come in your default finish…" is replaced by an inline marker on each affected card: a dashed tag with the new finish and ↻ (e.g. "★ Foil ↻"), and on an expanded copy line a ↻ beside the changed Finish. Tooltip (hover and keyboard focus): "Not available in Non-foil, so it will import as Foil." Editing the finish clears the marker. Colour is not used alone: dashed border plus glyph plus text (D-012). Collapsed rows show it in place of the normal Foil tag, so no row grows.
+- **Open questions:** (1) What did 131/100 warn about (a deck over 100 cards)? If it is a real limit, where should it show? (2) Tooltips don't work on touch; is a tap-to-reveal needed? (3) Should the marker name the default ("Not available in Non-foil")? Assumed yes.

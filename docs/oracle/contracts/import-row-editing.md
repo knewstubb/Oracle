@@ -347,6 +347,11 @@ or Unsleeved copy, `validateCopyFinish(finish, source, availableFinishes)`:
   copies and no slots with attributes: it stays a planned generic slot. The row
   shows no Edit button and no tags, with the existing "generic" note. When the
   switch is off, basics are ordinary rows.
+  > **NOTE FOR ARCHITECT (Round 13, Developer; not a rewrite):** this bullet is superseded by
+  > the owner's final rule. The "Generic basics" switch no longer affects import. A basic is
+  > generic only when its line names no printing (no set/number, no CSV Scryfall id); a basic
+  > naming a printing is an ordinary row at all times. The new optional `ImportRow.printingGiven`
+  > carries that fact. Please confirm and update §6/§12.
 - **Collection import** has no Unsleeved (no deck). Type is `original | proxy`.
 
 ---

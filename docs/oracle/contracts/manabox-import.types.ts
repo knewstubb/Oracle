@@ -174,7 +174,7 @@ export interface ManaBoxDeckImportBody {
   deck: NormalizedDeck
   name: string
   format?: string
-  /** Convert basic lands to generic, untracked slots. Default true (D-048). */
+  /** Ignored since Round 13 (the "Generic basics" toggle is display only). Kept so old clients still parse. */
   convertBasicLandsToGeneric?: boolean
   defaults: ImportDefaults
   copyEdits?: ImportCopyEdits

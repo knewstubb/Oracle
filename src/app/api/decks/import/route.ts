@@ -33,7 +33,6 @@ interface DeckImportBody {
   mode?: ImportMode
   format?: string
   name?: string
-  convertBasicLandsToGeneric?: boolean
   defaults?: ImportDefaults
   copyEdits?: ImportCopyEdits
   unmatched?: ManaBoxUnmatchedLine[]
@@ -88,7 +87,6 @@ export async function POST(request: NextRequest) {
         deck,
         name: body.name || deck.name,
         format: deckFormat,
-        convertBasicLandsToGeneric: body.convertBasicLandsToGeneric,
         defaults: body.defaults as ImportDefaults,
         copyEdits: body.copyEdits,
         userId,

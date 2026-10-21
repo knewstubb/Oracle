@@ -6,7 +6,9 @@
  * deck, with that copy's own finish, language and condition; Unsleeved creates a
  * planned slot only (the card is "not in the deck", owned or not), remembering
  * the finish as `requested_finish` (D-041) and creating or linking no copy
- * (D-047). Basic lands can be converted to generic, untracked slots (D-048).
+ * (D-047). Basic lands with no printing named ("11 Plains") become generic, untracked slots
+ * (D-048, Round 13); a basic naming a printing is an ordinary card. The "Generic basics"
+ * toggle is display only and has no effect here.
  * Existing owned copies are never pulled in.
  *
  * Contract: docs/oracle/contracts/import-row-editing.md §5-§7, §10.
@@ -19,7 +21,7 @@
 import { createAdminClient } from '@/lib/supabase'
 import type { Json } from '@/types/supabase'
 import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
-import { isBasicLand, getBasicLandDefaultScryfallId } from '@/lib/basic-lands'
+import { isBasicLand, isGenericBasic, getBasicLandDefaultScryfallId } from '@/lib/basic-lands'
 import { deriveDefaultCategory } from '@/lib/card-definition-resolver'
 import { createVersionSnapshot } from '@/lib/deck-versions'
 import type { NormalizedCard, NormalizedDeck } from '@/lib/deck-normalizer'
@@ -49,8 +51,8 @@ export interface ManaBoxDeckCard extends NormalizedCard {
   rowKey?: string
   /** One entry per copy; length must equal `quantity`. Holds the file's values. */
   copies?: ImportCopy[]
-  /** True when the slot should become a generic basic land (D-048). */
-  isGenericBasicLand?: boolean
+  /** False when the source line named no printing ("11 Plains"); a basic then becomes a generic slot (D-048, Round 13). */
+  printingGiven?: boolean
   /** 1-based source index of the combined row. */
   sourceIndex?: number
 }
@@ -62,8 +64,6 @@ export interface ManaBoxDeckImportOptions {
   deck: NormalizedDeck
   name: string
   format?: string
-  /** Convert basic lands to generic, untracked slots. Default true (D-048). */
-  convertBasicLandsToGeneric?: boolean
   defaults: ImportDefaults
   /** Owner edits: rowKey -> copy index -> fields. Holds no database ids. */
   copyEdits?: ImportCopyEdits
@@ -96,9 +96,10 @@ export async function importManaBoxDeck(
 ): Promise<ManaBoxDeckImportSummary> {
   const supabase = options.supabase ?? createAdminClient()
   const deckFormat = options.format || 'commander'
-  const convertBasics = options.convertBasicLandsToGeneric ?? true
-
   const cards = options.deck.cards as ManaBoxDeckCard[]
+  // Round 13: a basic is generic only when its line named no printing. The "Generic basics"
+  // display toggle has no effect on imports.
+  const isGeneric = (card: ManaBoxDeckCard) => isGenericBasic(card.cardName, card.printingGiven ?? true)
 
   // 0. Validate the request shape before anything is written.
   const problems: string[] = []
@@ -141,12 +142,10 @@ export async function importManaBoxDeck(
     }
   }
 
-  const isGenericBasic = (card: ManaBoxDeckCard) => convertBasics && isBasicLand(card.cardName)
-
-  // Every tracked card's printing/oracle pair must exist in ref_printings (contract §10).
+  // Every real card's printing/oracle pair must exist in ref_printings (contract §10).
   const pairProblems: string[] = []
   for (const card of cards) {
-    if (isGenericBasic(card)) continue
+    if (isGeneric(card)) continue
     const facts = printingById.get(card.scryfallId)
     if (!facts || facts.oracleId !== card.oracleId) {
       pairProblems.push(`"${card.cardName}": printing and card identity do not match a known printing`)
@@ -170,6 +169,7 @@ export async function importManaBoxDeck(
       // The client sends file values only; owner edits arrive separately (never trusted here).
       copies: (card.copies as ImportCopy[]).map((copy) => ({ ...copy, owner: {} })),
       isBasicLand: isBasicLand(card.cardName),
+      printingGiven: card.printingGiven,
     }
     const edited = applyEditsToRow(row, options.copyEdits)
     return {
@@ -221,7 +221,7 @@ export async function importManaBoxDeck(
   // 3. Upsert user_cards for every tracked (non-generic-basic) row.
   const uniqueCards = new Map<string, string>()
   for (const card of cards) {
-    if (isGenericBasic(card)) continue
+    if (isGeneric(card)) continue
     if (card.oracleId && !uniqueCards.has(card.oracleId)) {
       uniqueCards.set(card.oracleId, card.cardName)
     }
@@ -256,7 +256,7 @@ export async function importManaBoxDeck(
     const categories = JSON.stringify([deriveDefaultCategory(typeLine)])
     const printingId = card.scryfallId || getBasicLandDefaultScryfallId(card.cardName) || null
 
-    if (isGenericBasic(card)) {
+    if (isGeneric(card)) {
       // Generic basics create no copies (D-048): planned slots only. `is_maybeboard` is the
       // RPC's "planned, no copy" flag. A finish the owner or the file named is remembered on the
       // slot as requested_finish (D-041); an unspecified finish stores nothing. Language and

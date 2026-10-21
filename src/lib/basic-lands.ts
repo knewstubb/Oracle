@@ -57,6 +57,27 @@ export function isBasicLand(cardName: string): boolean {
 }
 
 /**
+ * Did an import line name a specific printing? True for a set code and/or collector number
+ * (text) or a Scryfall id (CSV). A plain name ("11 Plains") names none.
+ */
+export function hasPrintingGiven(line: {
+  setCode?: string | null
+  collectorNumber?: string | null
+  scryfallId?: string | null
+}): boolean {
+  return Boolean(line.setCode?.trim() || line.collectorNumber?.trim() || line.scryfallId?.trim())
+}
+
+/**
+ * Deck import: does this line become a GENERIC basic (a deck slot with no collection copy)?
+ * Only a basic land name with no printing given. Independent of the "Generic basics" display
+ * toggle, which never affects imports.
+ */
+export function isGenericBasic(cardName: string, printingGiven: boolean): boolean {
+  return isBasicLand(cardName) && !printingGiven
+}
+
+/**
  * Check if a basic land slot is "tracked" (has a copy_id assigned).
  * A tracked basic land behaves like a normal card — real status, real resolution.
  */

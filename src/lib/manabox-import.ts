@@ -13,6 +13,8 @@
 
 import {
   isBasicLand,
+  isGenericBasic,
+  hasPrintingGiven,
   frontFaceName,
 } from '@/lib/basic-lands'
 import {
@@ -458,6 +460,8 @@ export interface ResolvedManaBoxCandidate {
   unrecognised?: { finish: boolean; condition: boolean; language: boolean }
   /** Finishes Scryfall lists for the printing; null when unknown. */
   availableFinishes?: ImportFinish[] | null
+  /** Did the source line name a printing (set/number or Scryfall id)? False for "11 Plains". */
+  printingGiven?: boolean
   /** Collection only: purchase price in USD, or null. */
   purchasePrice?: number | null
   /** Collection only: ISO `Added` timestamp, or undefined. */
@@ -490,7 +494,11 @@ export function combineResolvedRows(
 
   for (const candidate of candidates) {
     const rowKind = candidate.source === 'text' ? 'text' : kind
-    const key = buildRowKey(candidate, rowKind)
+    const printingGiven = candidate.printingGiven ?? true
+    // A plain "11 Plains" must never merge with "Plains (ZNR) 250" even if the default printing
+    // is that same card: one becomes a generic slot, the other a real copy.
+    const key =
+      buildRowKey(candidate, rowKind) + (isGenericBasic(candidate.cardName, printingGiven) ? '|generic' : '')
 
     const existing = grouped.get(key)
     if (existing) {
@@ -515,6 +523,7 @@ export function combineResolvedRows(
         availableFinishes: candidate.availableFinishes ?? null,
         copies: [],
         isBasicLand: isBasicLand(candidate.cardName),
+        printingGiven,
       },
     })
   }
@@ -613,6 +622,7 @@ async function resolveCsvRecord(
     oracleId: facts.oracleId,
     qty: Math.min(row.quantity, 100),
     source: 'csv',
+    printingGiven: true, // a CSV row always carries a Scryfall id or set + number
     file,
     unrecognised: {
       finish: isUnrecognisedFinish(record.rawFoil),
@@ -672,6 +682,7 @@ async function resolveTextLine(
     oracleId: facts.oracleId,
     qty: Math.min(line.quantity, 100),
     source: 'text',
+    printingGiven: hasPrintingGiven(line),
     // A text line carries no finish, condition or language (contract §2A).
     file: {},
     availableFinishes: facts.availableFinishes ?? null,

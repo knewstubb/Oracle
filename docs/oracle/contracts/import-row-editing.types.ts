@@ -193,6 +193,12 @@ export interface ImportRow {
   copies: ImportCopy[]
   /** Deck imports: basic land eligible for the generic switch. No copies are written when it applies (D-048). */
   isBasicLand: boolean
+  /**
+   * ROUND 13 ADDITION (Developer; Architect to confirm): did the source line name a printing
+   * (set and/or collector number, or a CSV Scryfall id)? A deck-import basic land becomes a
+   * generic slot only when this is false. Absent is treated as true (a real card).
+   */
+  printingGiven?: boolean
 }
 
 // ---------------------------------------------------------------------------

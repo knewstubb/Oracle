@@ -302,3 +302,23 @@ Default printings chosen: Ghen CMR 275; Eiganjo SOC 13; Bitter Reunion FDC 139; 
 - Not browser-tested.
 
 **Process note:** all edits used the edit tool.
+
+## Round 14 — generic basic lands (contract generic-basic-lands rev 3)
+
+**Branch:** test-t56-local (not merged). **Status: PARTIAL** — one more migration needs the owner's approval (see below). No test wrote to the live database.
+
+**In plain language.** Every deck can now hold any number of "generic" basic lands of each type, alongside real basics from your collection. Generics never use a collection copy. Each type has one generic line with a Sleeved or Unsleeved state, a finish, a language and the art. The art is a random printing you own, picked once when the line is created and then stored, so it never changes on reload. If you own none, the old default art is used. The "Generic basics" switch on the import review screen is gone. In the review list a generic basic shows a "Generic" tag, no set or number, and can be set Sleeved or Unsleeved, given a finish and language, and given art through a printing picker (search by set, finishes shown, ones a printing doesn't come in are struck through). If one import has both sleeved and unsleeved lines of the same basic, Unsleeved wins and the result screen says so. On the deck page each basic type shows its generic line separately ("Island (generic)") from specific printings, with a Sleeved/Unsleeved chip, a count stepper, "Change art…", "Remove all" and a "+ Add generic basic" menu. The old "Make generic" buttons are gone. A complete deck with unsleeved generics is Assembling, not Playable, and the status says which basics ("Short: Island generics unsleeved"). Sleeved generics count toward "N/100 sleeved"; unsleeved ones count toward the deck size only.
+
+**Done (in order).** Migration 20261021120000 applied with `supabase db push` (adds `is_generic`, `generic_sleeved`, `requested_language` and a rule that a generic has no copy). Types: I added just those three columns by hand, because a full regeneration pulled in unrelated drift that broke the type check. The four "empty id means generic" checks are now one `isGenericSlot` helper (also in the status engine). Sleeved totals, deck route, card-status route and picklist use the flag. Stored default art (`pickGenericArt`). Import writes the new fields and ignores the old toggle. New `/api/decks/[id]/generic-basics` (POST set count, PATCH sleeve/finish/language/art for the whole line) replaces the retired make-generic PATCH. New read-only `/api/printings/search`. Deck-page controls, row editor and picker as described above.
+
+**PARTIAL — needs the owner.** Draft `supabase/migrations/20261021130000_generic_basics_rpcs.sql` is NOT applied: it rewrites the import write function to accept the generic fields and adds `set_generic_basic_count`. It was not in the approved list. Until it is approved and pushed, importing a deck with generic basics and the count stepper/Add button fail with an error (they do not store wrong data). Apply the migration before deploying this code. The draft is untested against a database; a read-back test needs writes to the live database, so I did not run one. Suggested steps: review the file, `supabase db push`, then try Add generic basic on a throwaway deck.
+
+**Flags / assumptions.**
+- Per-copy printing for non-basic cards is not in the contract, so the picker is built for generic art only.
+- Art is one choice per basic type per import (the first row's choice wins), since a type has one generic line. The contract wording "per import line" is looser.
+- Archidekt/built-deck import is unchanged: its lines carry real printings, so they never were generic.
+- The database rule forbids a copy on a generic, so sleeving or assigning one through the normal copy routes would fail; the UI never offers it, but those routes are not separately guarded.
+- The card-statuses and picklist routes read through the admin client without a user filter (existed before; should be reviewed for multi-user).
+- Not browser-tested. Tests: new `generic-basics.test.ts` (helpers, readiness, status text, count and line validation, art check, 404 and user scoping with a fake client); import write tests updated; the old toggle tests replaced. Specs under docs/oracle/specs already describe the new model; no change needed.
+
+**Process notes:** one generated SQL draft used a python helper by mistake; all code edits used the edit tool.

@@ -223,7 +223,7 @@ describe('deck write (tests 9, 12b, 16)', () => {
 
   it('generic basics create no copies; a chosen finish is kept on the planned slot, language and condition are not', async () => {
     const { client, calls } = fakeClient(printings)
-    const island = { ...solCard([{}, {}]), cardName: 'Island', rowKey: 'isl|text' }
+    const island = { ...solCard([{}, {}]), cardName: 'Island', rowKey: 'isl|text', printingGiven: false }
     await importManaBoxDeck({
       deck: deckOf([island]) as never,
       name: 'D',
@@ -243,7 +243,7 @@ describe('deck write (tests 9, 12b, 16)', () => {
 
   it('generic basics reject a finish Scryfall does not list for that printing', async () => {
     const { client, calls } = fakeClient(printings)
-    const island = { ...solCard([{}]), cardName: 'Island', rowKey: 'isl|text' }
+    const island = { ...solCard([{}]), cardName: 'Island', rowKey: 'isl|text', printingGiven: false }
     await expect(
       importManaBoxDeck({
         deck: deckOf([island]) as never,
@@ -257,14 +257,13 @@ describe('deck write (tests 9, 12b, 16)', () => {
     expect(calls.rpc).toHaveLength(0)
   })
 
-  it('with Generic basics off, basics are real copies with the owner edits', async () => {
+  it('a basic that names a printing is a real copy with the owner edits', async () => {
     const { client, calls } = fakeClient(printings)
-    const island = { ...solCard([{}, {}]), cardName: 'Island', rowKey: 'isl|text' }
+    const island = { ...solCard([{}, {}]), cardName: 'Island', rowKey: 'isl|text', printingGiven: true }
     await importManaBoxDeck({
       deck: deckOf([island]) as never,
       name: 'D',
       defaults: DEFAULTS,
-      convertBasicLandsToGeneric: false,
       copyEdits: { 'isl|text': { 0: { finish: 'foil', language: 'ja', condition: 'moderately_played' }, 1: { type: 'proxy' } } },
       userId: 'user-a',
       supabase: client,

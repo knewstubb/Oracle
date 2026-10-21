@@ -297,6 +297,7 @@ describe('saving the plain-text deck', () => {
       sourceCategories: [],
       rowKey: row.rowKey,
       sourceIndex: row.sourceIndex,
+      printingGiven: row.printingGiven,
       copies: row.copies,
     }))
     const printings = CARDS.flatMap((c) =>
@@ -308,24 +309,15 @@ describe('saving the plain-text deck', () => {
     }
   }
 
-  it('Generic basics ON: 10 planned Island slots, no copies; other cards are real copies', async () => {
+  it('plain "10 Island": 10 planned Island slots, no copies; other cards are real copies', async () => {
     const { deck: d, printings } = await deck()
     const { client, rpc } = fakeClient(printings)
-    await importManaBoxDeck({ deck: d as never, name: 'D', defaults: DEFAULTS, convertBasicLandsToGeneric: true, userId: 'u', supabase: client })
+    await importManaBoxDeck({ deck: d as never, name: 'D', defaults: DEFAULTS, userId: 'u', supabase: client })
     const rows = rpc[0]
     expect(rows).toHaveLength(20) // 10 single cards + 10 Islands
     const islands = rows.filter((r) => r.card_name === 'Island')
     expect(islands).toHaveLength(10)
     expect(islands.every((r) => r.card_id === null && r.is_maybeboard === true)).toBe(true)
     expect(rows.filter((r) => r.card_name !== 'Island').every((r) => r.card_id !== null && r.is_maybeboard === false)).toBe(true)
-  })
-
-  it('Generic basics OFF: 10 real Island copies on the default printing', async () => {
-    const { deck: d, printings } = await deck()
-    const { client, rpc } = fakeClient(printings)
-    await importManaBoxDeck({ deck: d as never, name: 'D', defaults: DEFAULTS, convertBasicLandsToGeneric: false, userId: 'u', supabase: client })
-    const islands = rpc[0].filter((r) => r.card_name === 'Island')
-    expect(islands).toHaveLength(10)
-    expect(islands.every((r) => r.card_id !== null && r.scryfall_id === 'island-new')).toBe(true)
   })
 })

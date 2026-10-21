@@ -278,3 +278,27 @@ Default printings chosen: Ghen CMR 275; Eiganjo SOC 13; Bitter Reunion FDC 139; 
 **Tests added:** `basic-lands-import.test.ts` (4), `plain-text-import.test.ts` (20), `manabox-resolver.test.ts` (6, fake database client incl. owned-printing and timeout cases). `npm run check` passes (0 errors).
 
 **Process notes:** I removed a stray untracked throwaway `src/lib/tmp-dryrun.test.ts` from an earlier agent (it hit the live database and failed `npm test`). Two one-line edits (a call-site argument in the preview route, an unused import) were made with sed in bash by mistake; everything else used the edit tool.
+
+## Round 13 — basic lands in deck import: the toggle no longer affects import
+
+**Branch:** test-t56-local (not merged). No database writes; unit tests with fake clients only.
+
+**Starting point.** A cancelled earlier Developer left uncommitted edits that removed generic basics entirely (every basic a real card). That contradicts the final rule (plain "11 Plains" is still generic), so I discarded those edits and rebuilt against the final rules. Nothing from them was kept as-is; the one idea that stayed is removing the toggle from the request.
+
+**Rules as built.**
+1. **Toggle is display only.** Removed from the request, the route and the server option (`convertBasicLandsToGeneric` is ignored; the contract type comment says so). The import result is identical with it on or off (tested).
+2. **Generic vs real.** New pure, unit-tested `isGenericBasic(name, printingGiven)` and `hasPrintingGiven(line)` in `basic-lands.ts`. A text line with a set and/or collector number, or any CSV row (always has an id or set+number), counts as naming a printing. Only a basic with no printing is a generic slot. Rows carry a new optional `printingGiven` flag from the preview to the commit.
+3. **Review screen.** Specific basics are normal rows (type, language, finish, condition) with no tag. Generic basics keep the "Basic" tag and finish only. Footer shows "N basics (generic)" and the real copies count as normal cards; the chip reads "Basics (generic)"; the bar next to the toggle reads "11 basics (generic) · 1 with a printing"; the result screen and line say "Basics (generic)".
+4. **Non-basic plain names** unchanged (Round 12 default printing).
+5. **Tests.** Replaced the "toggle on = all generic" tests. New: both kinds in one list (`11 Plains` + `1 Swamp (ZNR) 267`), toggle value irrelevant, footer split, plain and specific lines of the same card never merge (a `|generic` suffix on the row key), per-copy edits on a specific basic, `isGenericBasic`/`hasPrintingGiven`. `npm run check`: 0 errors.
+
+**Where the toggle's display setting lives today: nowhere.** No column or setting for "show basics generically" exists on decks. The deck page decides by the slot itself: a basic with no linked copy and no `scryfall_id` shows as a generic land ([Confirmed: `src/lib/card-status.ts` ~273, `CardGroupSection.tsx`, `CardsTab.tsx`]). So the toggle on the review screen is currently an inert control (kept, with a tooltip saying it only changes display); I did not add a migration. Architect/Designer: add a per-deck display setting, or remove the control from import.
+
+**Flags for Architect / Gene.**
+- **Likely existing bug:** generic slots are written with `scryfall_id` = a default printing, but the deck page only treats a basic as generic when `scryfall_id` is empty. These slots probably show as ordinary planned basics, not generic. Needs a look (not changed).
+- Contract: added optional `ImportRow.printingGiven`; D-048 wording in `import-row-editing.md` §6 now has a marked note (not rewritten); `manabox-import.md` still describes the old switch.
+- A set-only line ("Plains (ZNR)") is treated as naming a printing, so it becomes a real card. Owner to confirm.
+- Language/condition/printing for generic basics remain hidden, pending Architect/Designer.
+- Not browser-tested.
+
+**Process note:** all edits used the edit tool.

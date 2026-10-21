@@ -12,6 +12,8 @@ vi.mock('@/lib/deck-versions', () => ({ createVersionSnapshot: vi.fn(async () =>
 
 import { executeManaBoxCollectionImport } from '@/lib/manabox-collection-import'
 import { importManaBoxDeck } from '@/lib/manabox-deck-import'
+import { isGenericBasic, hasPrintingGiven } from '@/lib/basic-lands'
+import { computeTotals } from '@/components/manabox-import/types'
 import { buildCollectionPreview, buildDeckPreview, type ManaBoxCardFacts, type ManaBoxResolver } from '@/lib/manabox-import'
 import type { ImportDefaults } from '../../docs/oracle/contracts/import-row-editing.types'
 
@@ -37,6 +39,7 @@ const PRINTINGS: Printing[] = [
   { id: 'wastes-a', name: 'Wastes', set: 'ogw', num: '183', finishes: ['nonfoil', 'foil'] },
   { id: 'snow-forest', name: 'Snow-Covered Forest', set: 'khm', num: '285', finishes: ['nonfoil', 'foil', 'etched'] },
   { id: 'snow-swamp', name: 'Snow-Covered Swamp', set: 'khm', num: '283', finishes: ['nonfoil', 'foil'] },
+  { id: 'sol-a', name: 'Sol Ring', set: 'c21', num: '263', finishes: ['nonfoil', 'foil'] },
 ]
 
 function factsOf(p: Printing): ManaBoxCardFacts {
@@ -58,6 +61,11 @@ const resolver: ManaBoxResolver = {
   },
   async resolveBySetCollector(set, num) {
     const p = PRINTINGS.find((x) => x.set === set.trim().toLowerCase() && x.num === num.trim())
+    return p ? factsOf(p) : null
+  },
+  // Plain names resolve to the first listed printing (the default).
+  async resolveByName(name) {
+    const p = PRINTINGS.find((x) => x.name.toLowerCase() === name.trim().toLowerCase())
     return p ? factsOf(p) : null
   },
 }
@@ -177,6 +185,7 @@ async function deckFromText(text: string) {
     sourceCategories: [],
     rowKey: row.rowKey,
     sourceIndex: row.sourceIndex,
+    printingGiven: row.printingGiven,
     copies: row.copies,
   }))
   return {
@@ -194,43 +203,121 @@ async function deckFromText(text: string) {
   }
 }
 
-describe('(2) deck import, Generic basics OFF', () => {
+const importOnce = async (text: string, copyEdits?: Record<string, Record<number, Record<string, unknown>>>) => {
+  const { deck } = await deckFromText(text)
+  const { client, rpc } = fakeClient()
+  await importManaBoxDeck({
+    deck: deck as never,
+    name: 'D',
+    defaults: DEFAULTS,
+    copyEdits: copyEdits as never,
+    userId: 'user-a',
+    supabase: client,
+  })
+  return rpc[0].rows
+}
+
+describe('(2) deck import: a basic naming a printing is a real card', () => {
   it('"Swamp (ZNR) 267" becomes real copies of exactly that printing', async () => {
-    const { deck } = await deckFromText('3 Swamp (ZNR) 267\n2 Swamp (M21) 266')
-    const { client, rpc } = fakeClient()
-    await importManaBoxDeck({
-      deck: deck as never,
-      name: 'D',
-      defaults: DEFAULTS,
-      convertBasicLandsToGeneric: false,
-      userId: 'user-a',
-      supabase: client,
-    })
-    const rows = rpc[0].rows
+    const rows = await importOnce('3 Swamp (ZNR) 267\n2 Swamp (M21) 266')
     expect(rows).toHaveLength(5)
     expect(rows.every((r) => r.is_maybeboard === false && r.card_id !== null)).toBe(true)
     expect(rows.filter((r) => r.scryfall_id === 'swamp-znr')).toHaveLength(3)
     expect(rows.filter((r) => r.scryfall_id === 'swamp-m21')).toHaveLength(2)
     expect(rows[0]).toMatchObject({ set_code: 'znr', scryfall_id: 'swamp-znr' })
   })
+
+  it('follows the ordinary Original/Proxy/Unsleeved rules, with per-copy edits', async () => {
+    const { deck } = await deckFromText('3 Swamp (ZNR) 267')
+    const key = (deck.cards[0] as { rowKey: string }).rowKey
+    const rows = await importOnce('3 Swamp (ZNR) 267', {
+      [key]: { 0: { finish: 'foil', language: 'ja' }, 1: { type: 'proxy' }, 2: { type: 'unsleeved' } },
+    })
+    expect(rows[0]).toMatchObject({ is_maybeboard: false, finish: 'foil', language: 'ja' })
+    expect(rows[1]).toMatchObject({ is_proxy: true })
+    expect(rows[2]).toMatchObject({ is_maybeboard: true, card_id: null })
+  })
 })
 
-describe('(3) deck import, Generic basics ON (current behaviour, pinned)', () => {
-  it('a basic line that names a printing still becomes a generic slot: no copy; the printing is only remembered on the slot', async () => {
-    const { deck } = await deckFromText('3 Swamp (ZNR) 267')
+describe('(3) deck import: both kinds in one list', () => {
+  const LIST = '11 Plains\n1 Swamp (ZNR) 267'
+
+  it('"11 Plains" is 11 generic slots; "Swamp (ZNR) 267" is one real copy', async () => {
+    const { preview } = await deckFromText(LIST)
+    expect(preview.rows.map((r) => [r.cardName, r.printingGiven])).toEqual([
+      ['Plains', false],
+      ['Swamp', true],
+    ])
+    const rows = await importOnce(LIST)
+    expect(rows).toHaveLength(12)
+    const plains = rows.filter((r) => r.card_name === 'Plains')
+    expect(plains).toHaveLength(11)
+    expect(plains.every((r) => r.card_id === null && r.is_maybeboard === true)).toBe(true)
+    const swamp = rows.filter((r) => r.card_name === 'Swamp')
+    expect(swamp).toHaveLength(1)
+    expect(swamp[0]).toMatchObject({ card_id: expect.anything(), is_maybeboard: false, scryfall_id: 'swamp-znr' })
+  })
+
+  it('a plain line never merges with a specific line even when the default printing is the same card', async () => {
+    const { preview } = await deckFromText('2 Plains\n1 Plains (M21) 262')
+    expect(preview.rows).toHaveLength(2)
+    expect(new Set(preview.rows.map((r) => r.rowKey)).size).toBe(2)
+  })
+
+  it('the review footer counts generic basics apart from real copies', async () => {
+    const { preview } = await deckFromText(LIST)
+    const totals = computeTotals(preview.rows, 'deck', DEFAULTS, {})
+    expect(totals).toMatchObject({ cards: 12, basics: 11, specificBasics: 1, tracked: 1 })
+  })
+
+  it('the "Generic basics" display toggle is not part of the import: the request has no such field', async () => {
+    // The old option is gone from the options type; the result is the same whatever a stale client sends.
+    const a = await importOnce(LIST)
+    const { deck } = await deckFromText(LIST)
     const { client, rpc } = fakeClient()
     await importManaBoxDeck({
       deck: deck as never,
       name: 'D',
       defaults: DEFAULTS,
-      convertBasicLandsToGeneric: true,
       userId: 'user-a',
       supabase: client,
+      ...({ convertBasicLandsToGeneric: true } as object),
     })
-    const rows = rpc[0].rows
-    expect(rows).toHaveLength(3)
-    // Planned slots, no copy created or linked, even though the source named ZNR #267.
-    expect(rows.every((r) => r.card_id === null && r.is_maybeboard === true)).toBe(true)
-    expect(rows[0]).toMatchObject({ scryfall_id: 'swamp-znr', set_code: 'znr' })
+    const b = rpc[0].rows
+    expect(b).toEqual(a)
+    const { client: c2, rpc: rpc2 } = fakeClient()
+    await importManaBoxDeck({
+      deck: deck as never,
+      name: 'D',
+      defaults: DEFAULTS,
+      userId: 'user-a',
+      supabase: c2,
+      ...({ convertBasicLandsToGeneric: false } as object),
+    })
+    expect(rpc2[0].rows).toEqual(a)
+  })
+})
+
+describe('isGenericBasic', () => {
+  it('is true only for a basic land name with no printing given', () => {
+    expect(isGenericBasic('Plains', false)).toBe(true)
+    expect(isGenericBasic('Snow-Covered Forest', false)).toBe(true)
+    expect(isGenericBasic('Plains', true)).toBe(false)
+    expect(isGenericBasic('Sol Ring', false)).toBe(false)
+  })
+  it('hasPrintingGiven reads set, collector number or Scryfall id', () => {
+    expect(hasPrintingGiven({ setCode: '', collectorNumber: '' })).toBe(false)
+    expect(hasPrintingGiven({ setCode: 'znr', collectorNumber: '267' })).toBe(true)
+    expect(hasPrintingGiven({ scryfallId: 'abc' })).toBe(true)
+    expect(hasPrintingGiven({ setCode: ' ', collectorNumber: ' ' })).toBe(false)
+  })
+})
+
+describe('(4) a non-basic plain name still resolves to a real card', () => {
+  it('"1 Sol Ring" is a real copy on the default printing', async () => {
+    const rows = await importOnce('1 Sol Ring')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ is_maybeboard: false, scryfall_id: 'sol-a' })
+    expect(rows[0].card_id).not.toBeNull()
   })
 })

@@ -129,29 +129,29 @@ describe('Not matched notes', () => {
 
   it('shows one box for a single line, with Copy and a dismiss button', () => {
     render(<Notes count={1} />)
-    expect(screen.getByText('1 line not matched')).toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: 'Not matched' })).getByText('1 row not matched')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Copy' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'View' })).toBeNull()
   })
 
   it('collapses 2 or more into one line; View lists them, Copy all copies every line', () => {
     render(<Notes count={3} />)
-    expect(screen.getByText('3 lines not matched')).toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: 'Not matched' })).getByText('3 rows not matched')).toBeInTheDocument()
     expect(screen.queryByText('bad 2')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Copy all' }))
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('bad 1\nbad 2\nbad 3')
     fireEvent.click(screen.getByRole('button', { name: 'View' }))
-    expect(within(screen.getByRole('list', { name: 'Lines not matched' })).getAllByRole('listitem')).toHaveLength(3)
+    expect(within(screen.getByRole('list', { name: 'Rows not matched' })).getAllByRole('listitem')).toHaveLength(3)
     expect(screen.getByRole('button', { name: 'Hide' })).toBeInTheDocument()
   })
 
   it('dismiss hides the note, the footer keeps the count and brings it back', () => {
     render(<Notes count={3} />)
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss not matched note' }))
-    expect(screen.queryByText('3 lines not matched')).toBeNull()
-    expect(screen.getByText(/3 not matched/)).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Not matched' })).toBeNull()
+    expect(screen.getByText(/3 rows not matched/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Show hidden notes (1)' }))
-    expect(screen.getByText('3 lines not matched')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Not matched' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Show hidden notes/ })).toBeNull()
   })
 })

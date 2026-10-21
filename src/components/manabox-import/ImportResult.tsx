@@ -29,6 +29,8 @@ export interface ImportResultProps {
   unrecognisedValues?: number
   /** Copies whose file finish Scryfall doesn't list. */
   unlistedFinish?: number
+  /** Plain-language notes about generic basics (e.g. "Unsleeved wins"). */
+  genericNotes?: string[]
   unmatched: ManaBoxUnmatchedLine[]
   deckId?: number
   onOpenDeck?: () => void
@@ -49,6 +51,7 @@ export function ImportResult({
   foils = 0,
   unrecognisedValues = 0,
   unlistedFinish = 0,
+  genericNotes = [],
   unmatched,
   deckId,
   onOpenDeck,
@@ -92,6 +95,14 @@ export function ImportResult({
             <h3 className="text-[length:var(--fs-xl,20px)] font-medium">{headline}</h3>
             <p className="text-muted-foreground">{sub}</p>
           </div>
+
+          {genericNotes.length > 0 && (
+            <ul aria-label="Generic basics notes" className="flex flex-col gap-1 text-[length:var(--fs-sm)] text-muted-foreground">
+              {genericNotes.map((note) => (
+                <li key={note}>◇ {note}</li>
+              ))}
+            </ul>
+          )}
 
           {breakdown.rows.length > 0 && (
             <ul aria-label="Breakdown" className="rounded-[10px] border border-[var(--border-subtle)]">

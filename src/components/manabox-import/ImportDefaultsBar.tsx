@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { Switch } from '@/components/ui/switch'
 import {
   CONDITION_LABELS,
   FINISH_LABELS,
@@ -19,11 +18,10 @@ export interface ImportDefaultsBarProps {
   defaults: ImportDefaults
   onChange: (defaults: ImportDefaults) => void
   /**
-   * Deck import only. The switch is DISPLAY ONLY (how basics show in the deck's list once
-   * imported); it never changes what is imported. `generic` = basics with no printing named
-   * (become generic slots); `specific` = basics naming a printing (real copies).
+   * Deck import only. A read-only count: `generic` = basics with no printing named (become
+   * generic basics, no collection copy); `specific` = basics naming a printing (real copies).
    */
-  basics?: { generic: number; specific: number; display: boolean; onChange: (value: boolean) => void }
+  basics?: { generic: number; specific: number }
 }
 
 /** "Importing as: Non-foil · Near Mint · English  Change". Values never carry the file dot. */
@@ -54,22 +52,11 @@ export function ImportDefaultsBar({ defaults, onChange, basics }: ImportDefaults
         </button>
         <span className="ml-auto flex items-center gap-2">
           {basics && basics.generic + basics.specific > 0 ? (
-            <label
-              className="flex cursor-pointer items-center gap-2 text-[length:var(--fs-xs)] text-muted-foreground hover:text-foreground"
-              title="Only changes how basic lands show in the deck's list. It does not change what is imported."
-            >
-              <span id="generic-basics-label">Generic basics</span>
-              <Switch
-                checked={basics.display}
-                onCheckedChange={basics.onChange}
-                aria-labelledby="generic-basics-label"
-              />
-              <span>
-                {basics.generic > 0 && `${basics.generic} ${basics.generic === 1 ? 'basic' : 'basics'} (generic)`}
-                {basics.generic > 0 && basics.specific > 0 && ' · '}
-                {basics.specific > 0 && `${basics.specific} with a printing`}
-              </span>
-            </label>
+            <span className="text-[length:var(--fs-xs)] text-muted-foreground">
+              {basics.generic > 0 && `${basics.generic} ${basics.generic === 1 ? 'basic' : 'basics'} (generic)`}
+              {basics.generic > 0 && basics.specific > 0 && ' · '}
+              {basics.specific > 0 && `${basics.specific} with a printing`}
+            </span>
           ) : (
             <span className="text-[length:var(--fs-xs)] text-muted-foreground">
               Values in your file are used automatically where present.

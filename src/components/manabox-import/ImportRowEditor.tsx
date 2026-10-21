@@ -1,6 +1,8 @@
 'use client'
 
 import { Check, VenetianMask, ChevronsDown, ChevronDown, Info } from 'lucide-react'
+import { useState } from 'react'
+import { GenericArtPicker } from '@/components/GenericArtPicker'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import {
@@ -21,7 +23,7 @@ import type {
   ImportRow,
   ImportCopyType,
 } from '../../../docs/oracle/contracts/import-row-editing.types'
-import { languageLabel, SELECT_CLASS } from './import-labels'
+import { languageLabel, LANGUAGE_LABELS, SELECT_CLASS } from './import-labels'
 import { languageChoices, type LanguageLookup } from '@/lib/printing-languages'
 import { usePrintingLanguages } from './use-printing-languages'
 
@@ -46,12 +48,15 @@ export function TypeToggle({
   options,
   onChange,
   label,
+  labels,
 }: {
   /** `mixed` presses nothing. */
   value: ImportCopyType | 'mixed'
   options: ImportCopyType[]
   onChange: (type: ImportCopyType) => void
   label: string
+  /** Replace a button's text (generic basics call "original" Sleeved). */
+  labels?: Partial<Record<ImportCopyType, string>>
 }) {
   return (
     <span
@@ -74,7 +79,7 @@ export function TypeToggle({
           >
             {type === 'original' && <Check className="size-3 text-[var(--accent-primary)]" aria-hidden="true" />}
             {type === 'proxy' && <VenetianMask className="size-3 text-[var(--status-proxy)]" aria-hidden="true" />}
-            {TYPE_STYLE[type].label}
+            {labels?.[type] ?? TYPE_STYLE[type].label}
           </button>
         )
       })}
@@ -127,6 +132,9 @@ export interface ImportRowEditorProps {
    * condition can't be saved on a planned slot. A basic naming a printing is not generic.
    */
   generic: boolean
+  /** Generic basics only: art chosen for this basic (image only); null = default art. */
+  art?: { scryfallId: string } | null
+  onChangeArt?: (art: { scryfallId: string } | null) => void
   onToggleOpen: () => void
   onToggleSelect: (checked: boolean) => void
   onChangeCopy: (index: number, patch: ImportCopyOwnerEdits) => void
@@ -141,6 +149,8 @@ export function ImportRowEditor({
   open,
   selected,
   generic,
+  art,
+  onChangeArt,
   onToggleOpen,
   onToggleSelect,
   onChangeCopy,
@@ -186,15 +196,25 @@ export function ImportRowEditor({
         <span className="text-[length:var(--fs-xs)] tabular-nums text-muted-foreground">{row.qty}</span>
         <span className="flex min-w-0 flex-wrap items-center gap-1.5 py-1 text-[length:var(--fs-xs)]">
           <span className="truncate text-foreground">{row.cardName}</span>
-          <span className="text-muted-foreground">
-            {row.setCode} {row.collectorNumber}
-          </span>
+          {!generic && (
+            <span className="text-muted-foreground">
+              {row.setCode} {row.collectorNumber}
+            </span>
+          )}
           {basicTag && (
             <span
               data-tag="basic"
               className="inline-flex h-[18px] items-center rounded-full border border-[var(--border-default)] px-1.5 text-[length:var(--fs-xs)] text-muted-foreground"
             >
-              Basic
+              Generic
+            </span>
+          )}
+          {generic && resolved.some((c) => c.type === 'unsleeved') && (
+            <span
+              data-tag="unsleeved"
+              className="inline-flex h-[18px] items-center rounded-full border border-[var(--signal-warning)] px-1.5 text-[length:var(--fs-xs)] text-[var(--signal-warning)]"
+            >
+              ◇ Unsleeved
             </span>
           )}
           {!open && (
@@ -261,6 +281,8 @@ export function ImportRowEditor({
               total={resolved.length}
               typeOptions={typeOptions}
               generic={generic}
+              art={art}
+              onChangeArt={onChangeArt}
               languageLookup={languageLookup}
               fileLanguages={fileLanguages}
               onChange={(patch) => onChangeCopy(copy.index, patch)}
@@ -280,12 +302,16 @@ function CopyLine({
   total,
   typeOptions,
   generic,
+  art,
+  onChangeArt,
   languageLookup,
   fileLanguages,
   onChange,
   onApplyAll,
 }: {
   generic: boolean
+  art?: { scryfallId: string } | null
+  onChangeArt?: (art: { scryfallId: string } | null) => void
   row: ImportRow
   copy: ResolvedImportCopy
   position: number
@@ -297,10 +323,13 @@ function CopyLine({
   onApplyAll?: () => void
 }) {
   const n = position + 1
-  const visible = generic ? { language: false, finish: true, condition: false } : visibleFields(copy.type)
+  const [artOpen, setArtOpen] = useState(false)
+  const visible = generic ? { language: true, finish: true, condition: false } : visibleFields(copy.type)
   const finishState = finishControlState(row.availableFinishes, copy.finish, copy.sources.finish)
   const showFinish = visible.finish && finishState.mode === 'select'
-  const languages = languageChoices(languageLookup, fileLanguages, copy.language)
+  const languages = generic
+    ? { mode: 'ready' as const, codes: Object.keys(LANGUAGE_LABELS) }
+    : languageChoices(languageLookup, fileLanguages, copy.language)
   const fromFile = (source: string) => source === 'file'
   const suffix = (source: string) => (fromFile(source) ? ' (from your file)' : '')
 
@@ -312,9 +341,33 @@ function CopyLine({
     >
       <span className="w-4 shrink-0 text-[length:var(--fs-xs)] tabular-nums text-[var(--text-tertiary)]">{n}</span>
       {generic ? (
-        <span className="text-[length:var(--fs-xs)] text-muted-foreground" title="Generic basics don't use your collection">
-          Generic basic
-        </span>
+        <>
+          <TypeToggle
+            value={copy.type === 'unsleeved' ? 'unsleeved' : 'original'}
+            options={['original', 'unsleeved']}
+            labels={{ original: 'Sleeved' }}
+            label={`Generic ${row.cardName} sleeving`}
+            onChange={(type) => onChange({ type })}
+          />
+          <button
+            type="button"
+            onClick={() => setArtOpen(true)}
+            className="rounded-md border border-[var(--border-default)] px-2 py-0.5 text-[length:var(--fs-xs)] text-muted-foreground hover:text-foreground"
+          >
+            {art ? 'Change art…' : 'Choose art…'}
+          </button>
+          <GenericArtPicker
+            open={artOpen}
+            cardName={row.cardName}
+            currentScryfallId={art?.scryfallId ?? null}
+            finish={copy.finish}
+            onSelect={(p) => {
+              setArtOpen(false)
+              onChangeArt?.(p ? { scryfallId: p.scryfallId } : null)
+            }}
+            onClose={() => setArtOpen(false)}
+          />
+        </>
       ) : (
         <TypeToggle
           value={copy.type}

@@ -139,7 +139,6 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
         },
         deckName: file.name.replace(/\.(csv|txt)$/i, ''),
         format: 'commander',
-        genericBasics: true,
         commander: null,
         defaults: INITIAL_DEFAULTS,
         copyEdits: {},
@@ -197,6 +196,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
           format: step.format,
           defaults: step.defaults,
           copyEdits: step.copyEdits,
+          genericArt: step.genericArt ?? {},
           unmatched: step.preview.unmatched,
         }),
       })
@@ -208,6 +208,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
 
       const summary: {
         deckId: number
+        genericNotes?: string[]
         allocationSummary: {
           assigned: number
           shortfall: number
@@ -229,6 +230,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
           (step.preview.notices?.unrecognisedLanguage ?? 0) +
           (step.preview.notices?.unrecognisedFinish ?? 0),
         unlistedFinish: countFinishNotices(rows, step.defaults, step.copyEdits).unlistedFinish,
+        genericNotes: summary.genericNotes ?? [],
         unmatched: step.preview.unmatched,
         deckId: summary.deckId,
       }
@@ -304,8 +306,14 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
     setStep((prev) => (prev.status === 'review' ? { ...prev, format } : prev))
   }, [])
 
-  const setGenericBasics = useCallback((genericBasics: boolean) => {
-    setStep((prev) => (prev.status === 'review' ? { ...prev, genericBasics } : prev))
+  const setGenericArt = useCallback((rowKey: string, art: { scryfallId: string } | null) => {
+    setStep((prev) => {
+      if (prev.status !== 'review') return prev
+      const next = { ...(prev.genericArt ?? {}) }
+      if (art) next[rowKey] = art
+      else delete next[rowKey]
+      return { ...prev, genericArt: next }
+    })
   }, [])
 
   const setCommander = useCallback((commander: { name: string; scryfallId: string | null } | null) => {
@@ -390,7 +398,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
             onChange={setDefaults}
             basics={
               basicsQty + specificBasicsQty > 0
-                ? { generic: basicsQty, specific: specificBasicsQty, display: step.genericBasics, onChange: setGenericBasics }
+                ? { generic: basicsQty, specific: specificBasicsQty }
                 : undefined
             }
           />
@@ -410,6 +418,8 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
             source={step.source}
             defaults={step.defaults}
             copyEdits={step.copyEdits}
+            genericArt={step.genericArt ?? {}}
+            onGenericArtChange={setGenericArt}
             onCopyEditsChange={setCopyEdits}
             openRowKeys={step.openRowKeys}
             onOpenRowKeysChange={setOpenRowKeys}
@@ -460,6 +470,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
           foils={step.summary.foils}
           unrecognisedValues={step.summary.unrecognisedValues}
           unlistedFinish={step.summary.unlistedFinish}
+          genericNotes={step.summary.genericNotes}
           unmatched={step.summary.unmatched}
           deckId={step.summary.deckId}
           onOpenDeck={handleDone}

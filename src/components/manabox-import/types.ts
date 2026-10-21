@@ -42,7 +42,8 @@ export type ImportStep =
       }
       deckName: string
       format: string
-      genericBasics: boolean
+      /** Art chosen for generic basics on the review screen, by row key (image only). */
+      genericArt?: Record<string, { scryfallId: string }>
       /** Commander chosen on the review screen; saved on the new deck after the import. */
       commander: { name: string; scryfallId: string | null } | null
       /** The "Importing as" bar. Held here only; never saved. */
@@ -68,6 +69,7 @@ export type ImportStep =
         foils?: number
         unrecognisedValues?: number
         unlistedFinish?: number
+        genericNotes?: string[]
         unmatched: ManaBoxUnmatchedLine[]
         deckId?: number
       }

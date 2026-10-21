@@ -27,14 +27,12 @@ const FINISH_LABELS: Array<[string, string]> = [
   ['etched', 'Etched'],
 ]
 
-export function GenericArtPicker({
-  open,
-  cardName,
-  currentScryfallId,
-  finish,
-  onSelect,
-  onClose,
-}: {
+export function GenericArtPicker(props: GenericArtPickerProps) {
+  // Mounted only while open, so nothing is fetched (and no query client is needed) until then.
+  return props.open ? <GenericArtPickerBody {...props} /> : null
+}
+
+interface GenericArtPickerProps {
   open: boolean
   cardName: string
   currentScryfallId?: string | null
@@ -43,7 +41,16 @@ export function GenericArtPicker({
   /** null means "use default art" */
   onSelect: (printing: ArtPrinting | null) => void
   onClose: () => void
-}) {
+}
+
+function GenericArtPickerBody({
+  open,
+  cardName,
+  currentScryfallId,
+  finish,
+  onSelect,
+  onClose,
+}: GenericArtPickerProps) {
   const [search, setSearch] = useState('')
   const { data, isLoading, isError, refetch } = useQuery<ArtPrinting[]>({
     queryKey: ['generic-art-printings', cardName, search],

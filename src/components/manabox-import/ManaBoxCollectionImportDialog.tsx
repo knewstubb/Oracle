@@ -128,7 +128,6 @@ export function ManaBoxCollectionImportDialog({
         },
         deckName: file.name.replace(/\.csv$/i, ''),
         format: 'commander',
-        genericBasics: true,
         commander: null,
         defaults: INITIAL_DEFAULTS,
         copyEdits: {},

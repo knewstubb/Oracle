@@ -41,6 +41,8 @@ export interface ImportCardListProps {
   source: ImportSource
   defaults: ImportDefaults
   copyEdits: ImportCopyEdits
+  genericArt?: Record<string, { scryfallId: string }>
+  onGenericArtChange?: (rowKey: string, art: { scryfallId: string } | null) => void
   onCopyEditsChange: (edits: ImportCopyEdits) => void
   openRowKeys: Set<string>
   onOpenRowKeysChange: (keys: Set<string>) => void
@@ -57,6 +59,8 @@ export function ImportCardList({
   kind,
   defaults,
   copyEdits,
+  genericArt,
+  onGenericArtChange,
   onCopyEditsChange,
   openRowKeys,
   onOpenRowKeysChange,
@@ -300,6 +304,8 @@ export function ImportCardList({
                       open={openRowKeys.has(row.rowKey)}
                       selected={selectedIds.has(row.rowKey)}
                       generic={isGeneric(row)}
+                      art={genericArt?.[row.rowKey] ?? null}
+                      onChangeArt={(art) => onGenericArtChange?.(row.rowKey, art)}
                       onToggleOpen={() => toggleOpen(row.rowKey)}
                       onToggleSelect={(checked) => handleRowSelect(row.rowKey, checked)}
                       onChangeCopy={(index, patch) => changeCopy(row, index, patch)}

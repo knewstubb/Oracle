@@ -114,21 +114,17 @@ describe('finish fallback marker (replaces the banner)', () => {
   })
 })
 
-describe('Generic basics lives in the Importing as bar', () => {
-  it('shows the switch with the basics count and reports changes', () => {
-    const onChange = vi.fn()
+describe('Generic basics toggle is gone from the Importing as bar', () => {
+  it('shows only the basics count, with no switch', () => {
     render(
       <ImportDefaultsBar
         defaults={INITIAL_DEFAULTS}
         onChange={() => {}}
-        basics={{ generic: 36, specific: 4, display: true, onChange }}
+        basics={{ generic: 36, specific: 4 }}
       />
     )
-    const toggle = screen.getByRole('switch', { name: 'Generic basics' })
-    expect(toggle).toBeChecked()
+    expect(screen.queryByRole('switch')).toBeNull()
     expect(screen.getByText('36 basics (generic) · 4 with a printing')).toBeInTheDocument()
-    fireEvent.click(toggle)
-    expect(onChange.mock.calls[0][0]).toBe(false)
   })
 
   it('the Name/Format row has no count line and no "commander picked next"', () => {

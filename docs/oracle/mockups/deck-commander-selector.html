@@ -146,7 +146,7 @@ function header(withPop){
         ${withPop&&S.open?optList(+S.open).replace('class="pop"',`class="pop" style="left:${S.open==2?'230px':'140px'}"`):''}
       </div></div>
     </div>
-    <div class="stub">Importing as: Non-foil · Near Mint · English · Generic basics, then the card list where cards are marked Original or Proxy.</div></div>`;
+    <div class="stub">Importing as: Non-foil · Near Mint · English, then the card list where cards are marked Original or Proxy.</div></div>`;
 }
 const live = document.getElementById('live');
 function render(){ live.innerHTML = header(true); const q=live.querySelector('input'); if(q&&S.focusQ){q.focus();const p=q.value.length;q.setSelectionRange(p,p);S.focusQ=false;} }

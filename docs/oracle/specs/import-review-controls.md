@@ -90,7 +90,7 @@ Answered by owner: default Import order (deck and collection); not remembered; b
 
 ## 14. Deck review screen tidy-up (owner, 2026-10-21, rev 2)
 Deck review only. Mockup: `import-review-controls.html`.
-- **Generic basics toggle** moves into the "Importing as" bar, right-aligned (Non-foil · Near Mint · English · Change … ☑ Generic basics). It is a default for this import, so it belongs with the other defaults (D-015).
+- ~~**Generic basics toggle** moves into the "Importing as" bar, right-aligned (Non-foil · Near Mint · English · Change … ☑ Generic basics). It is a default for this import, so it belongs with the other defaults (D-015).~~ **Removed in rev 3:** no toggle on the review screen; see `deck-basics-and-printings.md`.
 - **Wording:** "N rows not matched" everywhere (notes, footer, live region). Applies to deck and collection.
 - **Subtitle removed:** "Import a deck from a URL, paste a decklist, or upload a CSV file." shows on the input step only, not on review.
 - **"131/100 · commander picked next" removed.** The commander is chosen with the selector beside the deck name on this screen (`deck-commander-selector.md`); the footer keeps only the card count and not-matched count. Over-limit counts are not flagged here (open question 1).

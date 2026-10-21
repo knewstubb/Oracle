@@ -87,6 +87,7 @@
   .caret .ic{transition:transform .15s}
   .item.open .caret .ic{transform:rotate(180deg)}
   .tag{display:inline-flex;align-items:center;gap:3px;height:18px;padding:0 6px;border-radius:999px;font-size:11px;border:1px solid var(--border);color:var(--text-secondary);white-space:nowrap}
+  .tag.gen{border-color:var(--text-secondary);color:var(--text-primary)}
   .tag.fin{border-style:dashed}
   .tag.px{border-color:var(--status-proxy);color:var(--status-proxy)}
   .copies{padding:0 10px 10px 70px}
@@ -107,7 +108,7 @@
 </div>
 <div class="page">
   <h1>Import review — sort, notes, row caret</h1>
-  <p class="ann">Rev 2. Everything is live. <b>Sort</b> sits right of the filter chips. <b>Not matched</b> notes collapse to one line (2 or more rows) or show as a single box with ✕ (one line); try View, Copy all, Dismiss, then “Show hidden notes” in the footer. <b>Rows</b>: hover for the grey background; click anywhere on a row (or press its caret) to expand. The <b>deck header</b> shows the commander selector beside the deck name; <b>Generic basics</b> now sits in the “Importing as” bar. Cards whose finish differs from the default carry a dashed tag with ↻ (hover or focus for the reason); no banner. Footer button reads “Import deck” or “Import cards”. Sample data only.</p>
+  <p class="ann">Rev 3. Everything is live. <b>Sort</b> sits right of the filter chips. <b>Not matched</b> notes collapse to one line (2 or more rows) or show as a single box with ✕ (one line); try View, Copy all, Dismiss, then “Show hidden notes” in the footer. <b>Rows</b>: hover for the grey background; click anywhere on a row (or press its caret) to expand. The <b>deck header</b> shows the commander selector beside the deck name; basic lands are listed per printing, with generic ones marked “Generic” (rev 3). Cards whose finish differs from the default carry a dashed tag with ↻ (hover or focus for the reason); no banner. Footer button reads “Import deck” or “Import cards”. Sample data only.</p>
   <div id="root"></div>
 </div>
 <script>
@@ -127,7 +128,8 @@ const CARDS = [
   {n:'Arcane Signet',set:'CMM',num:'297',q:1,tags:['<span class="tag fin" tabindex="0" title="Not available in Non-foil, so it will import as Foil.">★ Foil ↻</span>']},
   {n:'Mystic Remora',set:'MH2',num:'69',q:1,tags:['<span class="tag fin" tabindex="0" title="Not available in Non-foil, so it will import as Foil.">★ Foil ↻</span>']},
   {n:'Brainstorm',set:'STA',num:'13',q:1,uns:1},
-  {n:'Island',set:'BLB',num:'270',q:12,basic:1},
+  {n:'Island',set:'',num:'',q:6,basic:1,tags:['<span class="tag gen" title="Generic basic: no printing, default art">Generic</span>']},
+  {n:'Island',set:'ZNR',num:'267',q:2,basic:1},
   {n:'Counterspell',set:'MH2',num:'267',q:1,tags:['<span class="tag fin" tabindex="0" title="Not available in Non-foil, so it will import as Etched.">✦ Etched ↻</span>']},
   {n:'Sol Ring',set:'C21',num:'263',q:1,tags:['<span class="tag">JA</span>']},
   {n:'Aether Gale',set:'MH3',num:'12',q:1},
@@ -188,7 +190,7 @@ function render(){
     <div class="dh"><h3>${deck?'Import deck':'Import collection'}</h3>${deck?'<span class="tag" style="height:24px;font-size:12px" title="Commander selector: see deck-commander-selector.html">♛ Strix draft · No commander · Choose ▾</span>':''}</div>
     <div class="db">
       ${notes()}
-      <div class="defs"><span class="lbl">Importing as:</span><span>Non-foil</span><span class="dot">·</span><span>Near Mint</span><span class="dot">·</span><span>English</span><button class="link" type="button">Change</button>${deck?'<label style="margin-left:auto;display:inline-flex;gap:6px;align-items:center;color:var(--text-secondary)"><input type="checkbox" checked> Generic basics</label>':''}</div>
+      <div class="defs"><span class="lbl">Importing as:</span><span>Non-foil</span><span class="dot">·</span><span>Near Mint</span><span class="dot">·</span><span>English</span><button class="link" type="button">Change</button></div>
       <div class="bar" role="toolbar" aria-label="Filter and sort">${chips}
         <span class="sortw"><label for="sort">Sort</label><select class="sort" id="sort" data-a="sort"><option value="file"${S.sort==='file'?' selected':''}>Import order</option><option value="name"${S.sort==='name'?' selected':''}>Name A–Z</option></select></span>
         <input class="search" placeholder="Find card" aria-label="Find card" value="${esc(S.query)}" data-a="find"></div>

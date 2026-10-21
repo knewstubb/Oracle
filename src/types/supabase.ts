@@ -316,6 +316,9 @@ export type Database = {
           proxy_of_deck_id: number | null
           quantity: number | null
           requested_finish: string | null
+          requested_language: string | null
+          generic_sleeved: boolean
+          is_generic: boolean
           scryfall_id: string | null
           set_code: string | null
           tags: string | null
@@ -335,6 +338,9 @@ export type Database = {
           proxy_of_deck_id?: number | null
           quantity?: number | null
           requested_finish?: string | null
+          requested_language?: string | null
+          generic_sleeved?: boolean
+          is_generic?: boolean
           scryfall_id?: string | null
           set_code?: string | null
           tags?: string | null
@@ -354,6 +360,9 @@ export type Database = {
           proxy_of_deck_id?: number | null
           quantity?: number | null
           requested_finish?: string | null
+          requested_language?: string | null
+          generic_sleeved?: boolean
+          is_generic?: boolean
           scryfall_id?: string | null
           set_code?: string | null
           tags?: string | null

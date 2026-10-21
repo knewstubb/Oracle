@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oracle — Basic lands, printing picker, generic sleeving (mockup, rev 3)</title>
+<style>
+  /* Colours copied from src/styles/tokens.css — no new colours */
+  :root{--bg-canvas:#131316;--bg-surface:#1A1A1E;--bg-hover:#212126;--border:#35353A;--border-subtle:#262629;--text-primary:#E8E8EA;--text-secondary:#9C9CA3;--text-tertiary:#6E6E76;--status-proxy:#4A93A0;--signal-warning:#EF9F27;--accent-primary:#1D9E75}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg-canvas);color:var(--text-primary);font:13px/1.4 "Helvetica Neue",Helvetica,Arial,sans-serif}
+  button,select,input{font:inherit;color:inherit}
+  :focus-visible{outline:2px solid var(--accent-primary);outline-offset:2px}
+  .page{max-width:900px;margin:0 auto;padding:20px}
+  h1{font-size:18px;margin:0 0 4px} h2{font-size:14px;font-weight:500;margin:26px 0 4px;text-transform:none;letter-spacing:0}
+  .ann{color:var(--text-secondary);font-size:12px;margin:0 0 10px;max-width:760px} .ann b{color:var(--text-primary);font-weight:500}
+  .grid{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
+  .box{background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;width:560px;max-width:100%}
+  .cap{color:var(--text-tertiary);font-size:11px;margin:0 0 4px}
+  .item{border-bottom:1px solid var(--border-subtle)} .item:last-child{border-bottom:0}
+  .item.open{background:var(--bg-hover);box-shadow:inset 2px 0 0 var(--text-secondary)}
+  .row{display:grid;grid-template-columns:24px 28px 1fr 28px;gap:8px;align-items:center;padding:0 10px;min-height:38px}
+  .row:hover{background:var(--bg-hover);cursor:pointer}
+  .q{color:var(--text-secondary);font-size:12px} .pr{color:var(--text-tertiary);font-size:11px}
+  .nm{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:5px 0}
+  .art{width:22px;height:16px;border-radius:3px;background:linear-gradient(135deg,#2a4a5a,#1b2a3a);border:1px solid var(--border);flex:none}
+  .art.sp{background:linear-gradient(135deg,#3a5a3a,#1b2a3a)}
+  .cb{width:15px;height:15px;accent-color:var(--accent-primary);margin:0}
+  .ic{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none;color:var(--text-secondary)}
+  .tag{display:inline-flex;align-items:center;height:18px;padding:0 6px;border-radius:999px;font-size:11px;border:1px solid var(--border);color:var(--text-secondary);white-space:nowrap}
+  .tag.gen{border-color:var(--text-secondary);color:var(--text-primary)}
+  .tag.fin{border-style:dashed}
+  .copies{padding:2px 10px 10px 70px}
+  .cl{display:flex;gap:8px;align-items:center;padding:4px 0;font-size:12px;flex-wrap:wrap}
+  .cl label{color:var(--text-secondary);width:58px}
+  .sel,.btn{height:24px;font-size:12px;border-radius:7px;border:1px solid var(--border);background:var(--bg-canvas);padding:0 8px;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+  .btn:hover{background:var(--bg-hover)}
+  .link{background:none;border:0;padding:0;text-decoration:underline;text-underline-offset:2px;cursor:pointer;font-size:12px}
+  .note{color:var(--text-secondary);font-size:11px}
+  .pend{border-style:dashed;color:var(--text-secondary)}
+  /* Printing picker */
+  .pop{width:420px;max-width:100%;background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.5);padding:8px}
+  .pop .hd{font-size:13px;font-weight:500;padding:2px 4px 6px}
+  .pop input{width:100%;height:28px;border-radius:7px;border:1px solid var(--border);background:var(--bg-canvas);padding:0 8px;font-size:12px;margin-bottom:6px}
+  .opt{display:grid;grid-template-columns:30px 1fr auto;gap:8px;align-items:center;padding:5px 6px;border-radius:7px;cursor:pointer}
+  .opt:hover,.opt.on{background:var(--bg-hover)}
+  .opt b{font-weight:500} .opt .sub{color:var(--text-secondary);font-size:11px}
+  .fins{display:flex;gap:4px}
+  .fins span{font-size:10px;padding:1px 5px;border-radius:999px;border:1px solid var(--border);color:var(--text-secondary)}
+  .fins span.no{color:var(--text-tertiary);text-decoration:line-through;border-color:var(--border-subtle)}
+  .sep{height:1px;background:var(--border-subtle);margin:5px 0}
+  .msg{padding:14px 8px;color:var(--text-secondary);font-size:12px;text-align:center}
+  .menu{width:250px;background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:4px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+  .menu div{padding:6px 8px;border-radius:6px;font-size:12px} .menu div:hover{background:var(--bg-hover)}
+  .seg{display:inline-flex;border:1px solid var(--border);border-radius:7px;overflow:hidden}
+  .seg span{padding:0 9px;height:22px;display:inline-flex;align-items:center;font-size:12px;color:var(--text-secondary);cursor:pointer}
+  .seg span.on{background:var(--bg-hover);color:var(--text-primary)}
+  .tag.uns{border-color:var(--signal-warning);color:var(--signal-warning)}
+  .primary{background:var(--accent-primary);border-color:var(--accent-primary);color:#fff;font-weight:500}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Basic lands, printing picker, generic sleeving</h1>
+  <p class="ann">Rev 3. Static frames. Owner decisions: <b>no basics toggle</b>; generic basics are a permanent, unlimited version of each basic and are <b>their own line</b> (image-only art, “Generic” marker, sleeved or unsleeved); each printing is its own line and printings never merge. Sample data only. Hover and the open rows are shown at rest.</p>
+
+  <h2>1 · Review list: three Island lines, never merged</h2>
+  <p class="ann">A deck can mix generic and specific. Generic carries a <b>Generic</b> tag and art, plus an amber “Unsleeved” tag only when the whole line is unsleeved (a plain “11 Plains” starts Sleeved, so it shows no tag); specific lines show set and number like any card.</p>
+  <div class="box" role="list">
+    <div class="item"><div class="row"><input type="checkbox" class="cb" aria-label="Select"><span class="q">6×</span><span class="nm"><span class="art"></span>Island<span class="tag gen">Generic</span><span class="tag uns">◇ Unsleeved</span></span><svg class="ic" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div></div>
+    <div class="item"><div class="row"><input type="checkbox" class="cb" aria-label="Select"><span class="q">2×</span><span class="nm"><span class="art sp"></span>Island<span class="pr">ZNR 267</span></span><svg class="ic" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div></div>
+    <div class="item"><div class="row"><input type="checkbox" class="cb" aria-label="Select"><span class="q">1×</span><span class="nm"><span class="art sp"></span>Island<span class="pr">M21 262</span><span class="tag">★ Foil</span></span><svg class="ic" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div></div>
+  </div>
+
+  <h2>2 · Open rows</h2>
+  <div class="grid">
+    <div><p class="cap">2a · Generic basic, open</p>
+      <div class="box"><div class="item open"><div class="row"><span></span><span class="q">6×</span><span class="nm"><span class="art"></span>Island<span class="tag gen">Generic</span></span><svg class="ic" style="transform:rotate(180deg)" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+        <div class="copies">
+          <div class="cl"><label>Art</label><span>Default · from your collection</span><button class="btn">Choose art ▾</button></div>
+          <div class="cl"><label>Finish</label><span class="sel">Non-foil ▾</span></div>
+          <div class="cl"><label>Language</label><span class="sel">English ▾</span></div>
+          <div class="cl"><label>Sleeves</label><span class="seg" role="group" aria-label="Sleeving for all 6"><span class="on">Sleeved</span><span>Unsleeved</span></span><span class="note">whole line</span></div>
+          <div class="cl note">Applies to all 6 unless changed above. Generics have no condition and are not Original or Proxy. Sleeving uses any basic land you have, not a collection copy.</div>
+        </div></div></div></div>
+    <div><p class="cap">2b · Specific basic, open (a normal row)</p>
+      <div class="box"><div class="item open"><div class="row"><span></span><span class="q">2×</span><span class="nm"><span class="art sp"></span>Island<span class="pr">ZNR 267</span></span><svg class="ic" style="transform:rotate(180deg)" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+        <div class="copies">
+          <div class="cl"><label>Printing</label><span>ZNR 267</span><button class="btn">Change printing ▾</button></div>
+          <div class="cl"><span class="note">1</span>● Original <span class="sel">English ▾</span><span class="sel">Non-foil ▾</span><span class="sel">NM ▾</span></div>
+          <div class="cl"><span class="note">2</span>◆ Proxy <span class="sel">English ▾</span></div>
+        </div></div></div></div>
+  </div>
+
+  <h2>3 · Printing picker (reusable for any card on the review screen)</h2>
+  <p class="ann">Opens from “Choose art” (generic), “Choose printing” or “Change printing”. Newest first; each row shows set, number, year and which finishes exist. A finish the printing lacks is struck through; picking it keeps the row’s finish if available, otherwise switches and shows the ↻ marker. Image only: <b>you don’t need to own the printing</b>. “Default art” is a printing from your collection, picked once and kept.</p>
+  <div class="grid">
+    <div><p class="cap">3a · Browse</p><div class="pop" role="dialog" aria-label="Choose printing"><div class="hd">Choose art · Island</div>
+      <input type="search" placeholder="Search set or number" aria-label="Search printings">
+      <div class="opt on"><span class="art"></span><span><b>Default art</b><br><span class="sub">Kept from your collection</span></span><span>✓</span></div><div class="sep"></div>
+      <div class="opt"><span class="art sp"></span><span><b>Zendikar Rising · 267</b><br><span class="sub">2020 · Island</span></span><span class="fins"><span>Non-foil</span><span>Foil</span><span class="no">Etched</span></span></div>
+      <div class="opt"><span class="art sp"></span><span><b>Core Set 2021 · 262</b><br><span class="sub">2020</span></span><span class="fins"><span>Non-foil</span><span>Foil</span><span class="no">Etched</span></span></div>
+      <div class="opt"><span class="art sp"></span><span><b>Strixhaven · 372</b><br><span class="sub">2021</span></span><span class="fins"><span>Non-foil</span><span class="no">Foil</span><span class="no">Etched</span></span></div>
+      <div class="sep"></div><div class="msg" style="padding:4px;text-align:left">Showing 3 of 41 printings. Scroll or search for more.</div></div></div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div><p class="cap">3b · No match</p><div class="pop"><div class="hd">Choose printing · Island</div><input value="zzz" aria-label="Search printings"><div class="msg">No printing matches “zzz”.</div></div></div>
+      <div><p class="cap">3c · Loading / failed</p><div class="pop"><div class="msg">Loading printings…</div><div class="sep"></div><div class="msg">Couldn’t load printings. <button class="link">Try again</button></div></div></div>
+    </div>
+  </div>
+
+  <h2>4 · Deck page: generic line (sketch)</h2>
+  <p class="ann">No swap feature. To trade a generic for a specific land, remove the specific line and raise the generic count, or the reverse. A generic line has: count − / +, a Sleeved / Unsleeved control for the whole line, Remove, and “Add generic basic”. Sleeving is all or nothing.</p>
+  <div class="grid">
+    <div><p class="cap">4a · Generic line, sleeved</p><div class="box"><div class="item"><div class="row" style="grid-template-columns:28px 1fr auto auto"><span class="q">6×</span><span class="nm"><span class="art"></span>Island<span class="tag gen">Generic</span></span><span class="seg"><span class="on">Sleeved</span><span>Unsleeved</span></span><span class="fins"><span>−</span><span>+</span><span>Remove</span></span></div></div></div></div>
+    <div><p class="cap">4b · Generic line, unsleeved</p><div class="box"><div class="item"><div class="row" style="grid-template-columns:28px 1fr auto auto"><span class="q">6×</span><span class="nm"><span class="art"></span>Island<span class="tag gen">Generic</span><span class="tag uns">◇ Unsleeved</span></span><span class="seg"><span>Sleeved</span><span class="on">Unsleeved</span></span><span class="fins"><span>−</span><span>+</span><span>Remove</span></span></div></div></div>
+      <p class="note" style="max-width:520px">Deck status: “Short: Island generics unsleeved”. Setting Sleeved makes it playable.</p></div>
+    <div><p class="cap">4c · Add generic basic</p><div class="menu"><div>Plains</div><div>Island</div><div>Swamp</div><div>Mountain</div><div>Forest</div><div>Wastes</div></div></div>
+  </div>
+</div>
+</body>
+</html>

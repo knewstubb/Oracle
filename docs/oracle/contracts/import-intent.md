@@ -147,7 +147,9 @@ P1 (Precon tab) can ship after S2 and does not depend on S3–S8.
 | **Rule 5 (AGENTS)** | A move re-points a copy. | It deletes nothing and each move is owner-confirmed; stated so no one reads D-020's rewording as permission for silent moves. |
 
 ## 12. Open for the owner (only what is truly needed)
-**Q1. Skip when the card is in several other decks:** which decks show the alert?
+**Q1. ANSWERED by the owner (2026-10-23): option a). When a copy is skipped from several decks, ALL of those decks get the alert (each dismissible on its own).** Matches §4 and §5 as written. Options kept below for history.
+
+**Q1 (was open). Skip when the card is in several other decks:** which decks show the alert?
 - **(Recommended) a)** All of them (each holds a copy that could have been the one); each alert can be dismissed on its own.
 - b) None unless you pick a deck (then Skip is not offered without a deck).
 - c) Only the deck the review lists first.

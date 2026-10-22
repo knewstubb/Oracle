@@ -154,7 +154,7 @@ export interface ImportPlanSummary {
   unsleeved: number
   unowned: number
   needChoice: number
-  /** Copies skipped on a move: one new copy added, alert(s) raised. */
+  /** Copies skipped on a move: contract text said "copies"; with the owner's all-decks answer it counts ALERTS (one per holder deck). */
   alertsOnOtherDecks: number
   genericBasics: number
 }

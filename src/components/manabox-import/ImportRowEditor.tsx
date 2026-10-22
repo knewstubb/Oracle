@@ -28,6 +28,7 @@ import type {
 import { languageLabel, LANGUAGE_LABELS, SELECT_CLASS } from './import-labels'
 import { languageChoices, type LanguageLookup } from '@/lib/printing-languages'
 import { usePrintingLanguages } from './use-printing-languages'
+import type { IntentTag } from '@/lib/import-intent'
 
 const TYPE_STYLE: Record<ImportCopyType, { label: string; selected: string }> = {
   original: {
@@ -143,6 +144,8 @@ export interface ImportRowEditorProps {
   /** Generic rows: one line edits every copy of the row at once. */
   onChangeAllCopies?: (indexes: number[], patch: ImportCopyOwnerEdits) => void
   onApplyAll: () => void
+  /** Deck imports with an intent: ownership tags (Owned copy, Unowned, ...). Display only. */
+  intentTags?: IntentTag[]
 }
 
 export function ImportRowEditor({
@@ -160,6 +163,7 @@ export function ImportRowEditor({
   onChangeCopy,
   onChangeAllCopies,
   onApplyAll,
+  intentTags,
 }: ImportRowEditorProps) {
   const summary = summariseRowTags(resolved, defaults)
   const heroArtId = generic ? art?.scryfallId ?? getBasicLandDefaultScryfallId(row.cardName) : row.scryfallId ?? null
@@ -251,6 +255,26 @@ export function ImportRowEditor({
                   +{summary.overflow} more
                 </span>
               )}
+              {intentTags?.map((tag) => (
+                <span
+                  key={`intent-${tag.label}`}
+                  data-tag="ownership"
+                  className={cn(
+                    'inline-flex h-[18px] items-center gap-0.5 rounded-full border px-1.5 text-[length:var(--fs-xs)] text-foreground',
+                    tag.tone === 'warn' && 'border-[var(--signal-warning)]',
+                    tag.tone === 'unowned' && 'border-[var(--status-unowned)]',
+                    tag.tone === 'neutral' && 'border-[var(--border-default)] text-muted-foreground'
+                  )}
+                >
+                  {tag.tone === 'unowned' && (
+                    <span aria-hidden="true" className="text-[var(--status-unowned)]">⊖</span>
+                  )}
+                  {tag.tone === 'warn' && (
+                    <span aria-hidden="true" className="text-[var(--signal-warning)]">⚠</span>
+                  )}
+                  {tag.all ? tag.label : `${tag.count} ${tag.label}`}
+                </span>
+              ))}
               {fallbackFinishes.length > 0 && (
                 <FinishFallbackMark finishes={fallbackFinishes} />
               )}

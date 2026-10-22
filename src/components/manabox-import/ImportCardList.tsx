@@ -52,6 +52,8 @@ export interface ImportCardListProps {
   onQueryChange: (query: string) => void
   selectedIds: Set<string>
   onSelectedIdsChange: (ids: Set<string>) => void
+  /** Deck imports with an intent: ownership tags by row key (display only). */
+  intentTagsByRow?: Record<string, import('@/lib/import-intent').IntentTag[]>
 }
 
 export function ImportCardList({
@@ -70,6 +72,7 @@ export function ImportCardList({
   onQueryChange,
   selectedIds,
   onSelectedIdsChange,
+  intentTagsByRow,
 }: ImportCardListProps) {
   const parentRef = useRef<HTMLDivElement>(null)
   const [announcement, setAnnouncement] = useState('')
@@ -317,6 +320,7 @@ export function ImportCardList({
                       onChangeCopy={(index, patch) => changeCopy(row, index, patch)}
                       onChangeAllCopies={(indexes, patch) => changeCopies(row, indexes, patch)}
                       onApplyAll={() => applyAll(row)}
+                      intentTags={intentTagsByRow?.[row.rowKey]}
                     />
                   </div>
                 )

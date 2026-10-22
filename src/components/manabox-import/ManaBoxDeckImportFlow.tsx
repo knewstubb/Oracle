@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -18,7 +18,17 @@ import type { ImportCopyEdits, ImportDefaults } from '../../../docs/oracle/contr
 import { ImportCardList } from './ImportCardList'
 import { ImportSummary } from './ImportSummary'
 import { ImportWorking } from './ImportWorking'
-import { EMPTY_FILE_MESSAGE, UNREADABLE_FILE_MESSAGE, processingDetail } from './import-copy'
+import {
+  EMPTY_FILE_MESSAGE,
+  UNREADABLE_FILE_MESSAGE,
+  processingDetail,
+  INTENT_FILE_HELD,
+  INTENT_SAVE_PENDING,
+  OWNERSHIP_FAILED,
+  OWNERSHIP_LOADING,
+} from './import-copy'
+import type { ImportIntent, OwnershipResponse, OwnershipRowFacts } from '../../../docs/oracle/contracts/import-intent.types'
+import { isGenericImportRow, planImport, rowIntentTags, summariseImportPlan, summaryText, needsChoice, type IntentTag } from '@/lib/import-intent'
 import { ImportResult } from './ImportResult'
 import { IMPORT_STAGE_CLASS } from './import-labels'
 import type { ImportStep, RowFilter, ImportSource } from './types'
@@ -45,6 +55,11 @@ export interface ManaBoxDeckImportFlowProps {
   onStateChange?: (state: DeckFlowState) => void
   /** A file to check straight away (used for pasted decklists), as if the owner had chosen it. */
   initialFile?: File | null
+  /**
+   * What the deck is (I bought it / I built it / I'm planning it), chosen on the first screen.
+   * `null` = not chosen yet: a file is held until it is. `undefined` = no intent screen (plain purchase).
+   */
+  intent?: ImportIntent | null
 }
 
 export interface DeckFlowState {
@@ -60,7 +75,7 @@ export interface DeckFlowState {
   done: boolean
 }
 
-export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlot, fill, onStateChange, initialFile }: ManaBoxDeckImportFlowProps) {
+export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlot, fill, onStateChange, initialFile, intent }: ManaBoxDeckImportFlowProps) {
   const [step, setStep] = useState<ImportStep>({ status: 'idle' })
   const [error, setError] = useState<string | null>(null)
   const notes = useHiddenNotes()
@@ -74,6 +89,12 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
   const router = useRouter()
   const abortRef = useRef<AbortController | null>(null)
   const savingRef = useRef(false)
+  // A file chosen before an intent: held, then read once the owner chooses.
+  const [heldFile, setHeldFile] = useState<File | null>(null)
+  const effectiveIntent: ImportIntent = intent ?? 'purchased'
+  type OwnershipResult = { token: string; facts: OwnershipRowFacts[] | null }
+  const [ownershipResult, setOwnershipResult] = useState<OwnershipResult | null>(null)
+  const [ownershipTry, setOwnershipTry] = useState(0)
 
   const checking = step.status === 'checking'
   const saving = step.status === 'importing'
@@ -90,6 +111,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
   const reset = useCallback(() => {
     setStep({ status: 'idle' })
     setError(null)
+    setHeldFile(null)
     abortRef.current?.abort()
     abortRef.current = null
   }, [])
@@ -100,6 +122,11 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
 
   const handleFile = useCallback(async (file: File) => {
     setError(null)
+    if (intent === null) {
+      setHeldFile(file)
+      return
+    }
+    setHeldFile(null)
     setStep({ status: 'checking', file })
     const controller = new AbortController()
     abortRef.current = controller
@@ -152,7 +179,15 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
       setError(UNREADABLE_FILE_MESSAGE)
       setStep({ status: 'idle' })
     }
-  }, [])
+  }, [intent])
+
+  // A file held for an intent is read as soon as one is chosen.
+  useEffect(() => {
+    if (intent == null || !heldFile) return
+    // handleFile clears heldFile and starts the read; this is the one-shot release of a held file.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void handleFile(heldFile)
+  }, [intent, heldFile, handleFile])
 
   // A pasted decklist arrives as a small text file and goes through the same check and review.
   const handledInitialFile = useRef<File | null>(null)
@@ -174,6 +209,71 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
           .filter((r) => r.isBasicLand && !isGenericRow(r, 'deck'))
           .reduce((sum, r) => sum + r.qty, 0)
       : 0
+
+  const needsOwnership = intent === 'built' || intent === 'planned'
+  const reviewRows = step.status === 'review' ? step.preview.rows : null
+  const ownershipCards = useMemo(
+    () =>
+      reviewRows
+        ? reviewRows
+            .filter((r) => !isGenericImportRow(r) && r.oracleId)
+            .map((r) => ({ rowKey: r.rowKey, oracleId: r.oracleId as string, printingId: r.scryfallId, qty: r.qty }))
+        : [],
+    [reviewRows]
+  )
+  const ownershipKey = needsOwnership && reviewRows ? ownershipCards.map((c) => c.rowKey).join('|') : ''
+
+  const ownershipToken = ownershipKey ? `${ownershipKey}#${ownershipTry}` : ''
+
+  // Read-only: asks which of these cards the owner already has. Never writes.
+  useEffect(() => {
+    if (!ownershipToken) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetch('/api/decks/import/ownership', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cards: ownershipCards }),
+        })
+        if (!res.ok) throw new Error(String(res.status))
+        const data: OwnershipResponse = await res.json()
+        if (!cancelled) setOwnershipResult({ token: ownershipToken, facts: data.rows })
+      } catch {
+        if (!cancelled) setOwnershipResult({ token: ownershipToken, facts: null })
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+    // ownershipCards is derived from ownershipKey's rows.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ownershipToken])
+
+  const ownership: { status: 'idle' | 'loading' | 'failed' } | { status: 'ready'; facts: OwnershipRowFacts[] } =
+    !ownershipToken
+      ? { status: 'idle' }
+      : ownershipResult?.token !== ownershipToken
+        ? { status: 'loading' }
+        : ownershipResult.facts
+          ? { status: 'ready', facts: ownershipResult.facts }
+          : { status: 'failed' }
+
+  const intentPlan = useMemo(() => {
+    if (!needsOwnership || !reviewRows || step.status !== 'review' || ownership.status !== 'ready') return null
+    const plans = planImport({
+      rows: reviewRows,
+      facts: ownership.facts,
+      edits: step.copyEdits,
+      intent: effectiveIntent,
+      defaults: step.defaults,
+    })
+    const byRow: Record<string, ReturnType<typeof planImport>> = {}
+    for (const p of plans) (byRow[p.rowKey] ??= []).push(p)
+    const tags: Record<string, IntentTag[]> = {}
+    for (const [k, v] of Object.entries(byRow)) tags[k] = rowIntentTags(v)
+    return { plans, tags, summary: summaryText(summariseImportPlan(plans)), choices: needsChoice(plans).length }
+  }, [needsOwnership, reviewRows, step, ownership, effectiveIntent])
 
   const handleImport = useCallback(async () => {
     if (step.status !== 'review' || savingRef.current) return
@@ -338,6 +438,12 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
     <div className={`flex flex-col gap-3 ${fill ? 'min-h-0 flex-1' : ''}`}>
       {titleSlot}
 
+      {step.status === 'idle' && intent === null && heldFile && (
+        <p className="text-[length:var(--fs-sm)] text-muted-foreground" role="status">
+          {heldFile.name} · {INTENT_FILE_HELD}
+        </p>
+      )}
+
       {step.status === 'idle' && (
         <ManaBoxFilePicker
           accept=".csv,.txt,text/csv,text/plain"
@@ -429,7 +535,26 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
             onQueryChange={setQuery}
             selectedIds={step.selectedIds}
             onSelectedIdsChange={setSelectedIds}
+            intentTagsByRow={intentPlan?.tags}
           />
+          {needsOwnership && ownership.status === 'loading' && (
+            <p role="status" className="text-[length:var(--fs-sm)] text-muted-foreground">
+              {OWNERSHIP_LOADING}
+            </p>
+          )}
+          {needsOwnership && ownership.status === 'failed' && (
+            <p role="alert" className="text-[length:var(--fs-sm)] text-[var(--signal-warning)]">
+              {OWNERSHIP_FAILED}{' '}
+              <button type="button" className="underline" onClick={() => setOwnershipTry((n) => n + 1)}>
+                Try again
+              </button>
+            </p>
+          )}
+          {intentPlan && (
+            <p role="status" className="text-[length:var(--fs-sm)] text-muted-foreground">
+              {intentPlan.summary}
+            </p>
+          )}
         </div>
       )}
 
@@ -498,13 +623,21 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
             onShowHidden={notes.restoreAll}
           />
           <div className="flex items-center gap-2">
+            {needsOwnership && intentPlan && intentPlan.choices > 0 && (
+              <span className="text-[length:var(--fs-sm)] text-[var(--signal-warning)]">
+                {intentPlan.choices} {intentPlan.choices === 1 ? 'card needs' : 'cards need'} a choice
+              </span>
+            )}
+            {needsOwnership && (
+              <span className="text-[length:var(--fs-sm)] text-muted-foreground">{INTENT_SAVE_PENDING}</span>
+            )}
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancel
             </Button>
             <Button
               type="button"
               onClick={handleImport}
-              disabled={step.preview.rows.length === 0 || !step.deckName.trim()}
+              disabled={needsOwnership || step.preview.rows.length === 0 || !step.deckName.trim()}
             >
               Import deck
             </Button>

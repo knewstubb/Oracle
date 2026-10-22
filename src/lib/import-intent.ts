@@ -498,6 +498,43 @@ export function summaryText(s: ImportPlanSummary): string {
 }
 
 // ---------------------------------------------------------------------------
+// Row tags for the collapsed review row (spec §4 tags)
+// ---------------------------------------------------------------------------
+
+export interface IntentTag {
+  label: string
+  /** Copies it applies to; shown only when `all` is false. */
+  count: number
+  all: boolean
+  tone: 'neutral' | 'warn' | 'unowned'
+}
+
+const TAG_FOR_KIND: Partial<Record<CopyPlan['kind'], { label: string; tone: IntentTag['tone'] }>> = {
+  sleeve_owned: { label: 'Owned copy', tone: 'neutral' },
+  owned_unsleeved: { label: 'Owned', tone: 'neutral' },
+  move: { label: 'Moves here', tone: 'warn' },
+  needs_choice_move: { label: 'Moves here', tone: 'warn' },
+  needs_choice_printing: { label: 'Choose printing', tone: 'warn' },
+  unowned: { label: 'Unowned', tone: 'unowned' },
+}
+const TAG_ORDER = ['Owned copy', 'Owned', 'Moves here', 'Choose printing', 'Unowned']
+
+/** Ownership tags for one row's copies. Count is shown only when the tag applies to some, not all. */
+export function rowIntentTags(plans: CopyPlan[]): IntentTag[] {
+  const counts = new Map<string, { n: number; tone: IntentTag['tone'] }>()
+  for (const p of plans) {
+    const t = TAG_FOR_KIND[p.kind]
+    if (!t) continue
+    const cur = counts.get(t.label)
+    counts.set(t.label, { n: (cur?.n ?? 0) + 1, tone: t.tone })
+  }
+  return TAG_ORDER.filter((l) => counts.has(l)).map((label) => {
+    const c = counts.get(label)!
+    return { label, count: c.n, all: c.n === plans.length, tone: c.tone }
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Links (contract §2): a normalised Archidekt/Moxfield deck as review rows
 // ---------------------------------------------------------------------------
 

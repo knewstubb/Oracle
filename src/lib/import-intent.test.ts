@@ -16,6 +16,7 @@ import {
   needsChoice,
   normalizedDeckToPreview,
   planImport,
+  rowIntentTags,
   summariseImportPlan,
   summaryText,
 } from './import-intent'
@@ -297,6 +298,22 @@ describe('summary', () => {
     const plans = plan([r], [facts(r, [], [held(7), held(8)])], 'built')
     expect(needsChoice(plans)).toHaveLength(1)
     expect(summariseImportPlan(plans).needChoice).toBe(1)
+  })
+})
+
+describe('rowIntentTags', () => {
+  it('shows counts only when partial, in a fixed order', () => {
+    const r = row({ qty: 3, cardName: 'Mountain', oracleId: 'o-m' })
+    const plans = plan([r], [facts(r, [free({ count: 2 })])], 'built')
+    expect(rowIntentTags(plans)).toEqual([
+      { label: 'Owned copy', count: 2, all: false, tone: 'neutral' },
+      { label: 'Unowned', count: 1, all: false, tone: 'unowned' },
+    ])
+  })
+  it('all copies the same: no count; printing choice is amber', () => {
+    const r = row()
+    const t = rowIntentTags(plan([r], [facts(r, [free({ printingId: 'p-x' })])], 'built'))
+    expect(t).toEqual([{ label: 'Choose printing', count: 1, all: true, tone: 'warn' }])
   })
 })
 

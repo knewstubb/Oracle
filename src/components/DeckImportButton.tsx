@@ -25,6 +25,15 @@ import { ImportTitleIcon } from '@/components/manabox-import/ImportTitleIcon'
 import { ImportDiscardDialog } from '@/components/manabox-import/ImportDiscardDialog'
 import { IMPORT_MODAL_CLASS, IMPORT_INTERACTIVE_CLASS } from '@/components/manabox-import/import-labels'
 import { decideDeckDialogClose } from '@/components/manabox-import/import-close-guard'
+import { ImportIntentChoice } from '@/components/manabox-import/ImportIntentChoice'
+import { intentHeading } from '@/components/manabox-import/import-copy'
+import type { ImportIntent } from '../../docs/oracle/contracts/import-intent.types'
+
+const INTENT_URL_MODE: Record<ImportIntent, ImportMode> = {
+  purchased: 'new_cards',
+  built: 'built',
+  planned: 'theorycrafted',
+}
 
 type InputTab = 'url' | 'paste' | 'file' | 'precon'
 
@@ -115,6 +124,9 @@ export function DeckImportButton({
   const [previewData, setPreviewData] = useState<PreviewResponse | null>(null)
   const [importMode, setImportMode] = useState<ImportMode>('new_cards')
   const [importFormat, setImportFormat] = useState<string>('commander')
+  // First screen: what the deck is. Nothing is pre-selected.
+  const [intent, setIntent] = useState<ImportIntent | null>(null)
+  const [intentError, setIntentError] = useState(false)
 
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -247,7 +259,16 @@ export function DeckImportButton({
       return
     }
 
+    if (!requireIntent() || !intent) return
+    setImportMode(INTENT_URL_MODE[intent])
     previewMutation.mutate(trimmed)
+  }
+
+  /** URL and Paste need an intent before they continue. */
+  function requireIntent(): boolean {
+    if (intent) return true
+    setIntentError(true)
+    return false
   }
 
   function handleRetry() {
@@ -269,6 +290,7 @@ export function DeckImportButton({
     // A pasted list takes the same path as an uploaded text file: names are looked up,
     // the owner reviews the cards, then the deck is created.
     const name = pasteDeckName.trim() || 'Imported Deck'
+    if (!requireIntent()) return
     setPastedFile(new File([trimmed], `${name}.txt`, { type: 'text/plain' }))
     setActiveTab('file')
   }
@@ -325,6 +347,8 @@ export function DeckImportButton({
     setOpen(false)
     resetState()
     setActiveTab('url')
+    setIntent(null)
+    setIntentError(false)
     setFlowState(NO_FLOW_STATE)
     previewMutation.reset()
     importMutation.reset()
@@ -467,7 +491,7 @@ export function DeckImportButton({
             <DialogHeader>
               <DialogTitle>
                 <ImportTitleIcon kind="deck" />
-                Import deck
+                {intentHeading(activeTab === 'precon' ? 'purchased' : intent)}
               </DialogTitle>
               {/* The "how" subtitle only helps on the source-choice screen. */}
               {!sourceChosen && (
@@ -476,6 +500,14 @@ export function DeckImportButton({
                 </DialogDescription>
               )}
             </DialogHeader>
+
+            {!sourceChosen && activeTab !== 'precon' && (
+              <ImportIntentChoice
+                value={intent}
+                onChange={(v) => { setIntent(v); setIntentError(false) }}
+                showError={intentError}
+              />
+            )}
 
             {/* Input mode tabs: not useful once cards are being reviewed or saved */}
             {!sourceChosen && (
@@ -567,6 +599,7 @@ export function DeckImportButton({
               <ManaBoxDeckImportFlow
                 fill
                 initialFile={pastedFile}
+                intent={intent}
                 onStateChange={onFlowState}
                 onComplete={(_deckId, _format, _deckName, summary) => {
                   try {

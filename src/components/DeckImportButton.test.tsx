@@ -146,6 +146,7 @@ describe('DeckImportButton', () => {
 
     const input = screen.getByPlaceholderText(/archidekt\.com\/decks/i)
     fireEvent.change(input, { target: { value: 'https://archidekt.com/decks/12345' } })
+    fireEvent.click(screen.getAllByRole('radio')[0])
     fireEvent.click(screen.getByRole('button', { name: /fetch deck/i }))
 
     await waitFor(() => {
@@ -173,6 +174,7 @@ describe('DeckImportButton', () => {
 
     const input = screen.getByPlaceholderText(/archidekt\.com\/decks/i)
     fireEvent.change(input, { target: { value: 'https://archidekt.com/decks/99999' } })
+    fireEvent.click(screen.getAllByRole('radio')[0])
     fireEvent.click(screen.getByRole('button', { name: /fetch deck/i }))
 
     await waitFor(() => {
@@ -225,6 +227,7 @@ describe('DeckImportButton', () => {
     render(<DeckImportButton onPreviewSuccess={onPreviewSuccess} />, { wrapper: createWrapper() })
     fireEvent.click(screen.getByRole('button', { name: /import deck/i }))
     await waitFor(() => expect(document.querySelector('[data-import-icon="deck"]')).toBeInTheDocument())
+    fireEvent.click(screen.getAllByRole('radio')[0])
     fireEvent.click(screen.getByRole('button', { name: 'File' }))
     const input = await screen.findByLabelText('Choose file')
     fireEvent.change(input, { target: { files: [new File(['1 Sol Ring'], 'deck.txt', { type: 'text/plain' })] } })
@@ -239,11 +242,23 @@ describe('DeckImportButton', () => {
     expect(confirmSpy).not.toHaveBeenCalled()
   })
 
+  it('asks to choose what the deck is before fetching, and fetches nothing', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch')
+    render(<DeckImportButton onPreviewSuccess={onPreviewSuccess} />, { wrapper: createWrapper() })
+    fireEvent.click(screen.getByRole('button', { name: /import deck/i }))
+    fireEvent.change(await screen.findByPlaceholderText(/archidekt|moxfield|url/i), { target: { value: 'https://archidekt.com/decks/123' } })
+    expect(screen.getAllByRole('radio').some((r) => (r as HTMLInputElement).checked)).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: /fetch deck/i }))
+    expect(await screen.findByText('Choose one to continue.')).toBeInTheDocument()
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
   it('hides the tabs as soon as a URL fetch starts', async () => {
     vi.spyOn(global, 'fetch').mockImplementationOnce(() => new Promise(() => {}))
     render(<DeckImportButton onPreviewSuccess={onPreviewSuccess} />, { wrapper: createWrapper() })
     fireEvent.click(screen.getByRole('button', { name: /import deck/i }))
     fireEvent.change(await screen.findByPlaceholderText(/archidekt|moxfield|url/i), { target: { value: 'https://archidekt.com/decks/123' } })
+    fireEvent.click(screen.getAllByRole('radio')[0])
     fireEvent.click(screen.getByRole('button', { name: /fetch deck/i }))
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Paste List' })).not.toBeInTheDocument())
   })

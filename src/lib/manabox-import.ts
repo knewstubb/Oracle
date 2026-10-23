@@ -126,13 +126,12 @@ export type ManaBoxFileKind = 'csv' | 'text'
 // Header detection (contract §2.1)
 // ---------------------------------------------------------------------------
 
-/** The four case-sensitive markers that identify a ManaBox CSV. */
-export const MANABOX_CSV_MARKERS = [
-  'ManaBox ID',
-  'Scryfall ID',
-  'Set code',
-  'Collector number',
-] as const
+/**
+ * The case-sensitive markers that identify a ManaBox CSV. `ManaBox ID` and
+ * `Scryfall ID` are optional: a file without them is matched by set code +
+ * collector number (contract §5.1 rule 2).
+ */
+export const MANABOX_CSV_MARKERS = ['Set code', 'Collector number'] as const
 
 /** Required columns a ManaBox CSV must carry to be importable. */
 const REQUIRED_CSV_COLUMNS = [
@@ -141,7 +140,6 @@ const REQUIRED_CSV_COLUMNS = [
   'Collector number',
   'Foil',
   'Quantity',
-  'Scryfall ID',
 ] as const
 
 /**

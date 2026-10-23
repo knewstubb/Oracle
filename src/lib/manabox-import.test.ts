@@ -418,3 +418,64 @@ describe('buildDeckPreview', () => {
     expect(preview.rows.some((r) => r.cardName.includes(' // '))).toBe(false)
   })
 })
+
+// ---------------------------------------------------------------------------
+// CSV without a Scryfall ID column (contract §5.1 rule 2)
+// ---------------------------------------------------------------------------
+
+describe('CSV with no Scryfall ID column', () => {
+  const FIXTURE = readFileSync(
+    resolve(process.cwd(), 'tests/fixtures/manabox-no-scryfall-id.csv'),
+    'utf8'
+  )
+  const known = new Map<string, ManaBoxCardFacts>()
+  for (const [setCode, num, name] of [
+    ['cmm', '410', 'Sol Ring'],
+    ['clb', '351', 'Command Tower'],
+    ['c21', '234', 'Arcane Signet'],
+    ['cmm', '398', 'Lightning Greaves'],
+    ['fra', '283', 'Island'],
+    ['cmm', '295', 'Heroic Intervention'],
+    ['cmm', '300', "Kodama's Reach"],
+  ]) {
+    known.set(`${setCode}|${num}`, {
+      oracleId: `oracle-${setCode}-${num}`,
+      scryfallId: `sf-${setCode}-${num}`,
+      cardName: name,
+      setCode,
+      layout: null,
+      typeLine: 'Artifact',
+    })
+  }
+  const resolver = makeResolver(new Map(), known)
+
+  it('is detected as a ManaBox CSV and parses all rows', () => {
+    expect(detectManaBoxFile(FIXTURE)).toBe('csv')
+    const { records, badRows } = parseManaBoxCsv(FIXTURE)
+    expect(records).toHaveLength(8)
+    expect(badRows).toHaveLength(0)
+    expect(records[6].row.proxy).toBe(true)
+  })
+
+  it('collection preview matches 7 rows (10 copies) by set + number, 1 unmatched', async () => {
+    const preview = await buildCollectionPreview(
+      { fileName: '01-collection.csv', csvContent: FIXTURE },
+      resolver
+    )
+    expect(preview.rows).toHaveLength(7)
+    expect(preview.rows.reduce((sum, r) => sum + r.qty, 0)).toBe(10)
+    expect(preview.rows.some((r) => r.cardName === "Kodama's Reach")).toBe(true)
+    expect(preview.unmatched).toHaveLength(1)
+    expect(preview.unmatched[0].cardName).toBe('Not A Real Card')
+    expect(preview.unmatched[0].reason).toBe('no_card')
+  })
+
+  it('deck preview accepts the same file', async () => {
+    const preview = await buildDeckPreview(
+      { fileName: 'deck.csv', csvContent: FIXTURE },
+      resolver
+    )
+    expect(preview.rows).toHaveLength(7)
+    expect(preview.unmatched).toHaveLength(1)
+  })
+})

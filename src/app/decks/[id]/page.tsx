@@ -27,6 +27,8 @@ import { toast } from 'sonner'
 import { CardGrid, type DeckCard } from '@/components/CardGrid'
 import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
 import { ChooseCommanderButton } from '@/components/manabox-import/CommanderPicker'
+import { CommandZoneSlots } from '@/components/CommandZoneSlots'
+import { isCompanion } from '@/lib/command-zone'
 import { ImportResultLine } from '@/components/manabox-import/ImportResult'
 
 interface Deck {
@@ -259,16 +261,20 @@ export default function DeckViewPage() {
       <PersistentHeader
         deck={deck}
         totalCards={totalCards}
+        hasCompanion={cards.some((c) => isCompanion(c))}
         proxyCount={proxyCount}
         totalValue={totalValue}
         nameSlot={
           getFormatConfig(deck.format).hasCommander ? (
-            <ChooseCommanderButton
-              deckId={deck.id}
-              cards={cards}
-              openOnMount={shouldOpenCommanderPicker && !deck.commander_name}
-              commanderName={deck.commander_name}
-            />
+            <>
+              <ChooseCommanderButton
+                deckId={deck.id}
+                cards={cards}
+                openOnMount={shouldOpenCommanderPicker && !deck.commander_name}
+                commanderName={deck.commander_name}
+              />
+              <CommandZoneSlots deckId={deck.id} cards={cards} commanderName={deck.commander_name} />
+            </>
           ) : undefined
         }
         actions={

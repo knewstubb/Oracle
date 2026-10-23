@@ -58,16 +58,13 @@ export function ReviewCommanderSelect({ cards, value, onChange, disabled, slot =
   const text = SLOT_TEXT[slot]
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const [eligible, setEligible] = useState<Set<string> | null>(null)
+  const [eligibleState, setEligibleState] = useState<{ withName: string | undefined; set: Set<string> } | null>(null)
+  // A different commander means a different answer for the second slot, so an old answer is not used.
+  const eligible = eligibleState && eligibleState.withName === withName ? eligibleState.set : null
   const [failed, setFailed] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const namesKey = useMemo(() => [...new Set(cards.map((c) => c.name))].sort().join('\n'), [cards])
-
-  // A different commander means a different answer for the second slot.
-  useEffect(() => {
-    setEligible(null)
-  }, [withName])
 
   useEffect(() => {
     if (!open || eligible) return
@@ -76,7 +73,7 @@ export function ReviewCommanderSelect({ cards, value, onChange, disabled, slot =
     fetchEligibleNames(namesKey ? namesKey.split('\n') : [], opts).then((set) => {
       if (cancelled) return
       setFailed(set === null)
-      if (set !== null) setEligible(set)
+      if (set !== null) setEligibleState({ withName, set })
     })
     return () => {
       cancelled = true

@@ -99,13 +99,12 @@ Idempotence: unchanged (D-050): importing a purchased list twice adds twice. Bui
 - `add_unsleeved` copies and moves change counts only through their slots: moved-in = sleeved here, planned in the donor deck. The donor's sleeved count drops by one; the alert is the visible signal when the owner chooses Skip.
 - Over-allocation cannot arise from import: no copy is linked to two slots (§5 step 2 verifies under lock).
 
-## 7. Migrations (DRAFT; nothing applied)
+## 7. Migrations (status updated Round 18)
 | # | File | What | Owner approval |
 |---|---|---|---|
-| M1 | `contracts/drafts/DRAFT_20261023140000_deck_card_alerts.sql` (written) | New table `deck_card_alerts` + 2 indexes + owner-read policy. Additive, reversible (drop the table; it holds only alerts). | **Yes, before it is moved to `supabase/migrations/` and applied** |
-| M2 | `import_deck_with_intent` (Developer drafts to §5, as `DRAFT_…_import_deck_with_intent.sql`; Architect reviews) | New function; moves copies between decks (relinks `deck_cards.copy_id`, nothing deleted). `CREATE OR REPLACE` only, service-role grant, `SECURITY DEFINER`, `search_path=public`, same checks as `replace_deck_with_new_cards` (deck and every copy belong to `p_user_id`). | **Yes: it re-points existing copies** |
-| (P1) | `ref_precons` card-list column (brief §6a) | Separate, already pending approval. | Yes |
-No change to `user_copies`, `deck_cards`, `user_cards` columns. **Apply order:** M1 then M2, both before slice S4. Deploy order matters: unknown JSON keys are ignored by the old function, so a code release that sends `action: move` before M2 would quietly save planned slots; add the read-back test (§9) so a missing migration fails loudly.
+| M1 | `supabase/migrations/20261023140000_deck_card_alerts.sql` | **APPLIED to the live database 2026-10-23 (owner approved).** New table `deck_card_alerts` (0 rows). | Done |
+| M2 | `contracts/drafts/DRAFT_20261023160000_import_deck_with_intent.sql` (**drafted, NOT applied; Architect review required**) | New function; moves copies between decks (relinks `deck_cards.copy_id`, nothing deleted). Deviation for the Architect to rule on: the function picks the concrete copy under lock from a descriptor (printing, proxy, finish) instead of receiving `link_copy_id`, because ownership facts never expose copy ids. | **Owner approved the idea; applying waits for the Architect's review** |
+| P1 | `supabase/migrations/20261023150000_ref_precons_cards.sql` | **APPLIED 2026-10-23.** `ref_precons.cards`; sync run, 200 precons, each 100 cards. | Done |No change to `user_copies`, `deck_cards`, `user_cards` columns. **Apply order:** M1 then M2, both before slice S4. Deploy order matters: unknown JSON keys are ignored by the old function, so a code release that sends `action: move` before M2 would quietly save planned slots; add the read-back test (§9) so a missing migration fails loudly.
 
 ## 8. Functions (new `src/lib/import-intent.ts`; pure, no database)
 `defaultsForIntent(intent)` · `allocateOwnedCopies(rows, facts, edits)` · `resolveCopyPlan(...)` · `coerceIntentEdit(copy, change)` (the §4 consistency rules; client) · `summariseImportPlan(plans)` · `needsChoice(plans)` · `normalizedDeckToPreview(deck)` (links). Server and browser import the same module so preview = save.

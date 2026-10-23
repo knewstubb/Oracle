@@ -23,12 +23,14 @@ import {
   UNREADABLE_FILE_MESSAGE,
   processingDetail,
   INTENT_FILE_HELD,
+  INTENT_SAVE_ENABLED,
+  intentNotes,
   INTENT_SAVE_PENDING,
   INTENT_SAVE_PENDING_UNTICKED,
   OWNERSHIP_FAILED,
   OWNERSHIP_LOADING,
 } from './import-copy'
-import type { ImportIntent, IntentCopyEdits, OwnershipResponse, OwnershipRowFacts } from '../../../docs/oracle/contracts/import-intent.types'
+import type { DeckImportIntentSummary, ImportIntent, IntentCopyEdits, OwnershipResponse, OwnershipRowFacts } from '../../../docs/oracle/contracts/import-intent.types'
 import {
   applyIntentChange,
   hasUntickedAdd,
@@ -235,7 +237,9 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
 
   // Built and planned decks can't be saved yet (S4). Every deck with an intent checks ownership
   // (read-only) so the Add tick and the choices know what the owner has.
-  const saveBlockedByIntent = intent === 'built' || intent === 'planned'
+  // Switched on (NEXT_PUBLIC_IMPORT_INTENT_SAVE=true) only after migration M2 is applied and reviewed.
+  const intentSaveOn = INTENT_SAVE_ENABLED && !!intent
+  const saveBlockedByIntent = !INTENT_SAVE_ENABLED && (intent === 'built' || intent === 'planned')
   const needsOwnership = !!intent
   const reviewRows = step.status === 'review' ? step.preview.rows : null
   const ownershipCards = useMemo(
@@ -359,7 +363,8 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
           name: step.deckName,
           format: step.format,
           defaults: step.defaults,
-          copyEdits: stripIntentFields(step.copyEdits as IntentCopyEdits),
+          copyEdits: intentSaveOn ? step.copyEdits : stripIntentFields(step.copyEdits as IntentCopyEdits),
+          ...(intentSaveOn ? { intent } : {}),
           genericArt: step.genericArt ?? {},
           unmatched: step.preview.unmatched,
         }),
@@ -373,6 +378,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
       const summary: {
         deckId: number
         genericNotes?: string[]
+        intentSummary?: DeckImportIntentSummary
         allocationSummary: {
           assigned: number
           shortfall: number
@@ -394,7 +400,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
           (step.preview.notices?.unrecognisedLanguage ?? 0) +
           (step.preview.notices?.unrecognisedFinish ?? 0),
         unlistedFinish: countFinishNotices(rows, step.defaults, step.copyEdits).unlistedFinish,
-        genericNotes: summary.genericNotes ?? [],
+        genericNotes: [...(summary.genericNotes ?? []), ...intentNotes(summary.intentSummary)],
         unmatched: step.preview.unmatched,
         deckId: summary.deckId,
       }
@@ -711,7 +717,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
             {saveBlockedByIntent && (
               <span className="text-[length:var(--fs-sm)] text-muted-foreground">{INTENT_SAVE_PENDING}</span>
             )}
-            {!saveBlockedByIntent && intentView?.untickedAdd && (
+            {!intentSaveOn && !saveBlockedByIntent && intentView?.untickedAdd && (
               <span className="text-[length:var(--fs-sm)] text-muted-foreground">{INTENT_SAVE_PENDING_UNTICKED}</span>
             )}
             <Button type="button" variant="outline" onClick={onCancel}>
@@ -722,7 +728,8 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
               onClick={handleImport}
               disabled={
                 saveBlockedByIntent ||
-                !!intentView?.untickedAdd ||
+                (!intentSaveOn && !!intentView?.untickedAdd) ||
+                (intentSaveOn && (intentView?.choices ?? 0) > 0) ||
                 step.preview.rows.length === 0 ||
                 !step.deckName.trim()
               }

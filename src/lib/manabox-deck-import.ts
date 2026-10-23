@@ -40,6 +40,25 @@ import {
   type ImportFinish,
   type ImportRow,
 } from '@/lib/import-copies'
+import { effectiveCopyState, planImport, stripIntentFields, summariseImportPlan } from '@/lib/import-intent'
+import { loadOwnershipFacts } from '@/lib/import-ownership'
+import {
+  NeedsChoiceError,
+  buildIntentSummary,
+  isIntentRpcMissing,
+  needsChoiceRowKeys,
+  planToIntentRpcRow,
+  validateIntentEdits,
+  type IntentRowOrigin,
+} from '@/lib/import-intent-save'
+import type {
+  CopyPlan,
+  DeckImportIntentSummary,
+  ImportIntent,
+  IntentCopyEdits,
+  OwnershipRequest,
+  OwnershipResponse,
+} from '../../docs/oracle/contracts/import-intent.types'
 import type { DeckImportRpcRow } from '../../docs/oracle/contracts/import-row-editing.types'
 import type {
   ManaBoxDeckImportSummary,
@@ -75,6 +94,13 @@ export interface ManaBoxDeckImportOptions {
   random?: () => number
   unmatched?: ManaBoxUnmatchedLine[]
   supabase?: DeckImportClient
+  /**
+   * Intent-aware save (contract import-intent §5). When set, `copyEdits` may also carry add/move/printing,
+   * ownership is recomputed here, and the write goes through `import_deck_with_intent` (draft M2, not applied yet).
+   */
+  intent?: ImportIntent
+  /** Reads ownership facts for the plan (tests inject a fake). Defaults to the real, read-only loader. */
+  loadOwnership?: (request: OwnershipRequest) => Promise<OwnershipResponse>
 }
 
 /** One deck per file — a fresh numeric id for each import. */
@@ -99,6 +125,10 @@ export async function importManaBoxDeck(
   options: ManaBoxDeckImportOptions
 ): Promise<ManaBoxDeckImportSummary> {
   const supabase = options.supabase ?? createAdminClient()
+  const intent = options.intent
+  // Intent edits carry add/move/printing; the older validation and resolution only understand the rest.
+  const intentEdits = (options.copyEdits ?? {}) as IntentCopyEdits
+  const copyEdits = intent ? stripIntentFields(intentEdits) : options.copyEdits
   const deckFormat = options.format || 'commander'
   const cards = options.deck.cards as ManaBoxDeckCard[]
   // Round 13: a basic is generic only when its line named no printing. The "Generic basics"
@@ -119,11 +149,12 @@ export async function importManaBoxDeck(
     seenKeys.add(row.rowKey)
   }
   problems.push(
-    ...validateImportInput(rowsForValidation, options.defaults, options.copyEdits, {
+    ...validateImportInput(rowsForValidation, options.defaults, copyEdits, {
       allowUnsleeved: true,
       requireCopies: true,
     })
   )
+  if (intent) problems.push(...validateIntentEdits(intent, intentEdits, rowsForValidation))
   if (problems.length > 0) throw new ImportValidationError(problems)
 
   // 1. Read each printing once: type line (categories), oracle id (pair check) and
@@ -175,7 +206,7 @@ export async function importManaBoxDeck(
       isBasicLand: isBasicLand(card.cardName),
       printingGiven: card.printingGiven,
     }
-    const edited = applyEditsToRow(row, options.copyEdits)
+    const edited = applyEditsToRow(row, copyEdits)
     return {
       card,
       row,
@@ -190,6 +221,46 @@ export async function importManaBoxDeck(
     }))
   )
   if (finishCheck.problems.length > 0) throw new ImportValidationError(finishCheck.problems)
+
+  // 1b. Intent save: recompute ownership here (the client's plan is advisory) and plan every copy.
+  //     A plan that still needs an owner choice is refused before anything is written.
+  let plans: CopyPlan[] = []
+  const ownershipFailedCopies = new Set<string>()
+  if (intent) {
+    const rows = resolvedByCard.map(({ row }) => row)
+    const request: OwnershipRequest = {
+      cards: rows
+        .filter((r) => !isGenericBasic(r.cardName, r.printingGiven ?? true))
+        .map((r) => ({ rowKey: r.rowKey, oracleId: r.oracleId, printingId: r.scryfallId, qty: r.qty })),
+    }
+    let facts: OwnershipResponse['rows'] = []
+    const needsFacts = intent !== 'purchased' || Object.values(intentEdits).some((c) => Object.values(c).some((e) => e.add === false))
+    if (needsFacts && request.cards.length > 0) {
+      try {
+        const load = options.loadOwnership ?? ((r: OwnershipRequest) => loadOwnershipFacts(createAdminClient(), options.userId, r))
+        const answer = await load(request)
+        if (!answer || !Array.isArray(answer.rows)) throw new Error('malformed ownership answer')
+        facts = answer.rows
+      } catch (err) {
+        // Contract §5: not an error. Everything that would have used an owned copy is saved Unowned and listed.
+        console.error(`[decks/import] ownership unavailable: ${err instanceof Error ? err.message : String(err)}`)
+        facts = []
+        ownershipFailedCopies.add('*')
+      }
+    }
+    plans = planImport({ rows, facts, edits: intentEdits, intent, defaults: options.defaults })
+    const blocked = needsChoiceRowKeys(plans)
+    if (blocked.length > 0) throw new NeedsChoiceError(blocked)
+    // Generic basics follow the plan (the intent's default is Unsleeved for planned decks).
+    for (const entry of resolvedByCard) {
+      if (!isGeneric(entry.card)) continue
+      entry.resolved.forEach((copy, i) => {
+        const gp = plans.find((p) => p.rowKey === entry.card.rowKey && p.copyIndex === i)
+        if (gp) (copy as { type: string }).type = gp.type === 'unsleeved' ? 'unsleeved' : 'original'
+      })
+    }
+  }
+  const planByCopy = new Map(plans.map((p) => [`${p.rowKey}\u0000${p.copyIndex}`, p]))
 
   // 2. Create the deck row (commander chosen after import, D-046/D-052).
   // A plain insert, never an upsert: if the random id is already taken the
@@ -251,7 +322,9 @@ export async function importManaBoxDeck(
   }
 
   // 4. Build the atomic insert payload.
-  const insertRows: DeckImportRpcRow[] = []
+  const insertRows: Array<DeckImportRpcRow & { action?: string; row_index?: number }> = []
+  const origins: IntentRowOrigin[] = []
+  const unavailable: IntentRowOrigin[] = []
   let assigned = 0
   let shortfall = 0
 
@@ -280,8 +353,10 @@ export async function importManaBoxDeck(
       // the explicit is_generic flag. Sleeved/Unsleeved is all-or-nothing per basic type
       // (Unsleeved wins), finish and language are kept, the art is the stored, image-only pick.
       const art = genericLines.get(card.cardName)
-      for (const copy of resolved) {
+      for (const [copyIdx, copy] of resolved.entries()) {
+        origins.push({ rowKey: card.rowKey as string, copyIndex: copyIdx, cardName: card.cardName })
         insertRows.push({
+          ...(intent ? { action: 'generic', row_index: insertRows.length } : {}),
           card_id: null,
           card_name: card.cardName,
           printing_id: art?.scryfallId ?? printingId,
@@ -305,22 +380,81 @@ export async function importManaBoxDeck(
       throw new Error(`Missing card identity for "${card.cardName}"`)
     }
 
-    for (const copy of resolved) {
-      insertRows.push(
-        toDeckRpcRow(copy, {
-          cardId,
-          cardName: card.cardName,
-          scryfallId: card.scryfallId,
-          setCode: card.setCode,
-          categories,
-        })
-      )
+    for (const [copyIdx, copy] of resolved.entries()) {
+      const context = {
+        cardId,
+        cardName: card.cardName,
+        scryfallId: card.scryfallId,
+        setCode: card.setCode,
+        categories,
+      }
+      const origin = { rowKey: card.rowKey as string, copyIndex: copyIdx, cardName: card.cardName }
+      origins.push(origin)
+      const plan = intent ? planByCopy.get(`${origin.rowKey}\u0000${copyIdx}`) : undefined
+      if (intent) {
+        if (!plan) throw new Error(`No plan for ${card.cardName} copy ${copyIdx}`)
+        insertRows.push(planToIntentRpcRow(plan, copy, context, insertRows.length))
+        if (plan.kind === 'owned_unsleeved' || plan.kind === 'unowned') shortfall++
+        else assigned++
+        if (ownershipFailedCopies.has('*') && plan.kind === 'unowned') {
+          const st = effectiveCopyState(
+            (card.copies as ImportCopy[])[copyIdx],
+            { rowKey: origin.rowKey, availableFinishes: printingById.get(card.scryfallId)?.finishes ?? null },
+            intent,
+            intentEdits,
+            options.defaults
+          )
+          if (!st.add && st.type !== 'unsleeved') unavailable.push(origin)
+        }
+        continue
+      }
+      insertRows.push(toDeckRpcRow(copy, context))
       if (copy.type === 'unsleeved') shortfall++
       else assigned++
     }
   }
 
   // 5. One atomic write: new copies + linked slots + planned slots.
+  if (intent) {
+    // Draft M2 (not applied until the Architect has reviewed it). If it is missing, nothing is saved and the
+    // empty deck we just created is removed again (we made it a moment ago; the id and owner both must match).
+    // The generated database types do not list the new function yet, hence the narrow cast.
+    const rpc = await (
+      supabase as unknown as {
+        rpc: (name: string, args: unknown) => Promise<{ data: unknown; error: { code?: string; message: string } | null }>
+      }
+    ).rpc('import_deck_with_intent', {
+      p_deck_id: deckId,
+      p_user_id: options.userId,
+      p_rows: insertRows as unknown as Json,
+    })
+    if (rpc.error) {
+      await supabase.from('decks').delete().eq('id', deckId).eq('user_id', options.userId)
+      if (isIntentRpcMissing(rpc.error)) {
+        throw new Error('The intent import function is not installed in the database yet (migration M2 is awaiting review).')
+      }
+      throw new Error(`Failed to write deck cards atomically: ${rpc.error.message}`)
+    }
+    const intentResult = assertAtomicRpcSuccess(rpc.data, 'import_deck_with_intent')
+    assertAtomicRpcCount(intentResult, 'inserted_count', 'import_deck_with_intent', insertRows.length)
+
+    await createVersionSnapshot(deckId, options.userId, 'import', 'Imported from ManaBox', options.name || options.deck.name)
+
+    const intentSummary = buildIntentSummary(deckId, summariseImportPlan(plans), intentResult, origins)
+    for (const origin of unavailable) {
+      intentSummary.needsALook.push({ ...origin, reason: 'ownership_unavailable' })
+    }
+    return {
+      deckId,
+      allocationSummary: { assigned, shortfall, errors: [], unmatched: options.unmatched ?? [] },
+      unlistedFinish: finishCheck.unlistedFinish,
+      genericNotes: mixedGenericTypes.map(
+        (name) => `Some ${name} lines were Unsleeved, so all ${name} generics in this deck are Unsleeved.`
+      ),
+      intentSummary,
+    }
+  }
+
   const { data, error } = await supabase.rpc('replace_deck_with_new_cards', {
     p_deck_id: deckId,
     p_user_id: options.userId,

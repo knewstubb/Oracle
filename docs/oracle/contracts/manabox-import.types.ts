@@ -244,6 +244,8 @@ export interface ManaBoxDeckImportSummary {
   unlistedFinish?: number
   /** Plain-language notes for the result screen (e.g. "Unsleeved wins" for a generic type). */
   genericNotes?: string[]
+  /** Intent save only (contract import-intent §5, S4-S8): counts for the result screen and the "needs a look" list. */
+  intentSummary?: import('./import-intent.types').DeckImportIntentSummary
 }
 
 // ---------------------------------------------------------------------------

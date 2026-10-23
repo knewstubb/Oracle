@@ -20,6 +20,8 @@ import type { ImportMode } from '@/lib/deck-import'
 import { importManaBoxDeck, type ManaBoxDeckCard } from '@/lib/manabox-deck-import'
 import type { NormalizedDeck } from '@/lib/deck-normalizer'
 import { ImportValidationError } from '@/lib/import-copies'
+import { NeedsChoiceError } from '@/lib/import-intent-save'
+import type { ImportIntent } from '../../../../../docs/oracle/contracts/import-intent.types'
 import type {
   ImportCopyEdits,
   ImportDefaults,
@@ -35,6 +37,9 @@ interface DeckImportBody {
   name?: string
   defaults?: ImportDefaults
   copyEdits?: ImportCopyEdits
+  /** Intent save (S4+): present only when the review used the intent choice. */
+  intent?: unknown
+  source?: unknown
   genericArt?: Record<string, { scryfallId: string }>
   unmatched?: ManaBoxUnmatchedLine[]
 }
@@ -90,12 +95,16 @@ export async function POST(request: NextRequest) {
         format: deckFormat,
         defaults: body.defaults as ImportDefaults,
         copyEdits: body.copyEdits,
+        intent: body.intent as ImportIntent | undefined,
         genericArt: body.genericArt,
         userId,
         unmatched: body.unmatched,
       })
       return Response.json(result)
     } catch (err) {
+      if (err instanceof NeedsChoiceError) {
+        return Response.json({ error: 'needs_choice', rowKeys: err.rowKeys }, { status: 400 })
+      }
       if (err instanceof ImportValidationError) {
         return Response.json(
           { error: 'Invalid import request', problems: err.problems },

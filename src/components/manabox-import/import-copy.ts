@@ -53,6 +53,31 @@ export function intentHeading(intent: ImportIntent | null): string {
 export const OWNERSHIP_LOADING = 'Checking your collection…'
 export const OWNERSHIP_FAILED = "Couldn't check your collection."
 /** Built and planned imports can be reviewed but not saved yet (saving arrives in a later slice). */
+/**
+ * Off until migration M2 (import_deck_with_intent) is applied after the Architect's review.
+ * Turn on with NEXT_PUBLIC_IMPORT_INTENT_SAVE=true (then restart the dev server).
+ */
+export const INTENT_SAVE_ENABLED = process.env.NEXT_PUBLIC_IMPORT_INTENT_SAVE === 'true'
+
+/** Plain result-screen lines for an intent save (S8): what was moved, alerts, and copies that need a look. */
+export function intentNotes(s?: {
+  moved: number
+  alertsCreated: number
+  needsALook: { cardName: string }[]
+}): string[] {
+  if (!s) return []
+  const notes: string[] = []
+  if (s.moved > 0) notes.push(`${s.moved} ${s.moved === 1 ? 'copy was' : 'copies were'} moved from other decks.`)
+  if (s.alertsCreated > 0) {
+    notes.push(`${s.alertsCreated} ${s.alertsCreated === 1 ? 'alert was' : 'alerts were'} added to your other decks.`)
+  }
+  if (s.needsALook.length > 0) {
+    const names = [...new Set(s.needsALook.map((n) => n.cardName))]
+    notes.push(`Needs a look (saved Unsleeved): ${names.join(', ')}.`)
+  }
+  return notes
+}
+
 export const INTENT_SAVE_PENDING = 'Saving built and planned decks is coming soon. You can review the list now.'
 
 /** Precon tab. */

@@ -255,6 +255,18 @@ function parseOptionalBoolean(raw: string | undefined): boolean | undefined {
   return undefined
 }
 
+/**
+ * The file's Proxy cell (N-5): true/1/yes/x/y = proxy; blank/false/0/no = not a proxy;
+ * anything else is treated as "the file did not say" (undefined).
+ */
+export function parseProxyFlag(raw: string | undefined): boolean | undefined {
+  if (raw === undefined) return undefined
+  const value = raw.trim().toLowerCase()
+  if (['true', '1', 'yes', 'y', 'x'].includes(value)) return true
+  if (['', 'false', '0', 'no', 'n'].includes(value)) return false
+  return undefined
+}
+
 function extractCsvRow(fields: string[], colIdx: Record<string, number>): ManaBoxCsvRow {
   const get = (name: string): string | undefined => {
     const idx = colIdx[name]
@@ -277,7 +289,7 @@ function extractCsvRow(fields: string[], colIdx: Record<string, number>): ManaBo
     signed: parseOptionalBoolean(get('Signed')),
     condition: get('Condition'),
     language: get('Language'),
-    proxy: parseOptionalBoolean(get('Proxy')),
+    proxy: parseProxyFlag(get('Proxy')),
     purchasePriceCurrency: get('Purchase price currency'),
     added: get('Added'),
   }
@@ -610,6 +622,8 @@ async function resolveCsvRecord(
   if (finish) file.finish = finish
   if (condition) file.condition = condition
   if (language) file.language = language
+  // The file's Proxy column sets the review row's default to Proxy (D-055); the owner can change it.
+  if (row.proxy === true) file.proxy = true
 
   return {
     sourceIndex: record.rowIndex,

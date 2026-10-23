@@ -261,7 +261,8 @@ export function resolveCopy(
   const owner = copy.owner
   const file = copy.file
 
-  const type: ImportCopyType = owner.type ?? 'original'
+  // Owner edit, then the file's Proxy marker (D-055), then Original.
+  const type: ImportCopyType = owner.type ?? (file.proxy === true ? 'proxy' : 'original')
 
   let finish: ImportFinish
   let finishSource: ImportValueSource
@@ -741,6 +742,9 @@ export function validateCopyFileValues(rowKey: string, copies: ImportCopy[]): st
     }
     if (file.language !== undefined && !isImportLanguage(file.language)) {
       problems.push(`row ${rowKey} copy ${position}: unknown file language`)
+    }
+    if (file.proxy !== undefined && typeof file.proxy !== 'boolean') {
+      problems.push(`row ${rowKey} copy ${position}: unknown file proxy value`)
     }
   })
   return problems

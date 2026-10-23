@@ -12,7 +12,9 @@ import {
   buildDeckPreview,
   type ManaBoxCardFacts,
   type ManaBoxResolver,
+  parseProxyFlag,
 } from '@/lib/manabox-import'
+import { resolveRowCopies, setCopyField, toCollectionRpcRow } from '@/lib/import-copies'
 
 const SAMPLES = resolve(process.cwd(), 'docs/oracle/samples/manabox')
 
@@ -465,6 +467,13 @@ describe('CSV with no Scryfall ID column', () => {
     expect(preview.rows).toHaveLength(7)
     expect(preview.rows.reduce((sum, r) => sum + r.qty, 0)).toBe(10)
     expect(preview.rows.some((r) => r.cardName === "Kodama's Reach")).toBe(true)
+    // S-1 (D-055): the file's Proxy column sets the row's default to Proxy; every other row is Original.
+    const defaults = { finish: 'nonfoil', condition: 'near_mint', language: 'en' } as const
+    for (const row of preview.rows) {
+      const types = resolveRowCopies(row, defaults).map((c) => c.type)
+      const expected = row.cardName === "Kodama's Reach" ? 'proxy' : 'original'
+      expect(types.every((t) => t === expected), row.cardName).toBe(true)
+    }
     expect(preview.unmatched).toHaveLength(1)
     expect(preview.unmatched[0].cardName).toBe('Not A Real Card')
     expect(preview.unmatched[0].reason).toBe('no_card')
@@ -477,5 +486,47 @@ describe('CSV with no Scryfall ID column', () => {
     )
     expect(preview.rows).toHaveLength(7)
     expect(preview.unmatched).toHaveLength(1)
+    const reach = preview.rows.find((r) => r.cardName === "Kodama's Reach")!
+    expect(reach.copies[0].file.proxy).toBe(true)
+    expect(preview.rows.find((r) => r.cardName === 'Sol Ring')!.copies[0].file.proxy).toBeUndefined()
+  })
+
+  it("the owner's change on a Proxy row wins over the file", async () => {
+    const preview = await buildCollectionPreview({ fileName: 'c.csv', csvContent: FIXTURE }, resolver)
+    const reach = preview.rows.find((r) => r.cardName === "Kodama's Reach")!
+    const defaults = { finish: 'nonfoil', condition: 'near_mint', language: 'en' } as const
+    const edits = setCopyField({}, reach.rowKey, 0, 'type', 'original')
+    expect(resolveRowCopies(reach, defaults, edits, reach.rowKey)[0].type).toBe('original')
+    // ...and the saved row follows the owner's choice.
+    const saved = resolveRowCopies(reach, defaults, edits, reach.rowKey)[0]
+    expect(toCollectionRpcRow(saved, { cardId: 1, scryfallId: reach.scryfallId }).is_proxy).toBe(false)
+    const asProxy = resolveRowCopies(reach, defaults)[0]
+    expect(toCollectionRpcRow(asProxy, { cardId: 1, scryfallId: reach.scryfallId }).is_proxy).toBe(true)
+  })
+})
+
+describe('parseProxyFlag (N-5)', () => {
+  it.each([
+    ['true', true],
+    ['TRUE', true],
+    ['1', true],
+    ['yes', true],
+    ['x', true],
+    ['false', false],
+    ['0', false],
+    ['', false],
+    ['maybe', undefined],
+  ])('%j -> %j', (raw, expected) => {
+    expect(parseProxyFlag(raw)).toBe(expected)
+  })
+  it('a missing column is undefined', () => {
+    expect(parseProxyFlag(undefined)).toBeUndefined()
+  })
+})
+
+describe('Proxy default does not change existing ManaBox samples', () => {
+  it('the Strix draft deck CSV has no proxy rows', () => {
+    const { records } = parseManaBoxCsv(sample(DECK_CSV))
+    expect(records.some((r) => r.row.proxy === true)).toBe(false)
   })
 })

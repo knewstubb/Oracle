@@ -77,7 +77,7 @@ export const INITIAL_IMPORT_DEFAULTS: ImportDefaults = {
 /**
  * Values read from the file for one copy. A field is `undefined` when the file
  * did not supply a usable value (blank cell, text export, unrecognised
- * condition, malformed language). The file's Proxy column is never read (D-045).
+ * condition, malformed language). The file's Proxy column sets only the default type (D-055).
  * Immutable after parsing.
  */
 export interface ImportCopyFileValues {
@@ -85,6 +85,12 @@ export interface ImportCopyFileValues {
   finish?: ImportFinish
   condition?: ImportCondition
   language?: ImportLanguage
+  /**
+   * T-60 S-1 (D-055, import-formats N-5; Developer addition, Architect to confirm):
+   * the file's Proxy column / `^Proxy^` label said proxy. Sets the copy's DEFAULT type to
+   * Proxy; an owner edit still wins. Absent = the file did not say.
+   */
+  proxy?: boolean
 }
 
 /**
@@ -199,6 +205,12 @@ export interface ImportRow {
    * generic slot only when this is false. Absent is treated as true (a real card).
    */
   printingGiven?: boolean
+  /**
+   * T-60 S-5 (import-formats §4; Developer addition, Architect to confirm): which board the
+   * source line was under. Absent = `main`. `maybeboard` rows are saved as planned slots with
+   * no copies (D-018, D-022).
+   */
+  board?: 'main' | 'maybeboard'
 }
 
 // ---------------------------------------------------------------------------

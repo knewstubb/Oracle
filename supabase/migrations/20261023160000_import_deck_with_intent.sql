@@ -1,5 +1,7 @@
--- DRAFT (M2). NOT APPLIED. NOT IN supabase/migrations/. THE ARCHITECT MUST REVIEW THIS SQL BEFORE IT IS MOVED THERE.
--- Owner has approved the idea (Round 18); applying waits for the Architect's review.
+-- ARCHITECT REVIEW 2026-10-23: APPROVE WITH CHANGES. Small SQL changes already made in this file (alert variables, REVOKE from anon).
+-- See docs/oracle/reports/2026-10-23-architect-m2-review.md. Apply this file as-is; the remaining changes are in route code.
+-- M2. Architect approved with changes (included); owner approved applying 2026-10-23. Moved here from contracts/drafts.
+-- Owner approved the idea in Round 18.
 -- Contract: docs/oracle/contracts/import-intent.md §5 (save semantics) and §7 (row M2).
 -- Needs M1 (deck_card_alerts) first. M1 is applied (20261023140000).
 --
@@ -63,7 +65,8 @@ DECLARE
   v_row_language text;
   v_row_condition text;
   v_alert_deck text;
-  v_alert_slot record;
+  v_alert_slot_id integer;
+  v_alert_copy_id integer;
   v_alert_rows integer;
   v_inserted_count integer := 0;
   v_moved_count integer := 0;
@@ -235,7 +238,9 @@ BEGIN
              OR v_alert_deck::integer = p_deck_id THEN
             CONTINUE;
           END IF;
-          SELECT dc.id AS slot_id, dc.copy_id AS copy_id INTO v_alert_slot
+          -- (Architect review: two plain integers instead of a record variable; SELECT INTO sets both to NULL
+          -- when no slot matches, so there is no "record not assigned" edge case.)
+          SELECT dc.id, dc.copy_id INTO v_alert_slot_id, v_alert_copy_id
           FROM deck_cards dc
           JOIN user_copies uc ON uc.id = dc.copy_id
           WHERE dc.deck_id = v_alert_deck::integer
@@ -247,15 +252,14 @@ BEGIN
             )
           ORDER BY dc.id
           LIMIT 1;
-          IF v_alert_slot.slot_id IS NOT NULL THEN
+          IF v_alert_slot_id IS NOT NULL THEN
             INSERT INTO deck_card_alerts (user_id, deck_id, deck_card_id, copy_id, card_name, caused_by_deck_id)
-            VALUES (p_user_id, v_alert_deck::integer, v_alert_slot.slot_id, v_alert_slot.copy_id,
+            VALUES (p_user_id, v_alert_deck::integer, v_alert_slot_id, v_alert_copy_id,
                     v_row.card_name, p_deck_id)
             ON CONFLICT DO NOTHING;
             GET DIAGNOSTICS v_alert_rows = ROW_COUNT;
             v_alerts_created := v_alerts_created + v_alert_rows;
           END IF;
-          v_alert_slot := NULL;
         END LOOP;
       END IF;
       CONTINUE;
@@ -396,5 +400,5 @@ BEGIN
 END;
 $function$;
 
-REVOKE ALL ON FUNCTION public.import_deck_with_intent(integer, uuid, jsonb) FROM PUBLIC, authenticated;
+REVOKE ALL ON FUNCTION public.import_deck_with_intent(integer, uuid, jsonb) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.import_deck_with_intent(integer, uuid, jsonb) TO service_role;

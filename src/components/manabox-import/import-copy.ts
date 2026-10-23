@@ -37,7 +37,7 @@ export function processingDetail(cards?: number): string {
 
 export const INTENT_QUESTION = "What's this deck?"
 export const INTENT_CHOOSE_ERROR = 'Choose one to continue.'
-export const INTENT_FILE_HELD = 'Choose one above.'
+export const INTENT_FILE_HELD = 'Choose one below.'
 
 export const INTENT_OPTIONS: { value: ImportIntent; label: string; description: string; heading: string }[] = [
   { value: 'purchased', label: 'I bought it', description: 'Adds every card to your collection and sleeves it.', heading: 'Import purchased deck' },

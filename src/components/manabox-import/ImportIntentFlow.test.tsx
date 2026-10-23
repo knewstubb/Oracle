@@ -102,7 +102,7 @@ describe('ManaBoxDeckImportFlow with an intent', () => {
     )
     render(<Harness initial={null} />, { wrapper: wrapper() })
     await user.upload(screen.getByLabelText('Choose file'), new File(['x'], 'deck.csv', { type: 'text/csv' }))
-    expect(screen.getByText(/Choose one above/)).toBeInTheDocument()
+    expect(screen.getByText(/Choose one below/)).toBeInTheDocument()
     expect(fetchSpy).not.toHaveBeenCalled()
     await user.click(screen.getByText('pick built'))
     await waitFor(() => expect(screen.getByText('Emil, Vastlands Roamer')).toBeInTheDocument())

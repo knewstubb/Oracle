@@ -407,3 +407,45 @@ Default printings chosen: Ghen CMR 275; Eiganjo SOC 13; Bitter Reunion FDC 139; 
 4. Check in the Precon tab: pick a precon, see about 100 cards with exact printings, commander preselected, all Original.
 
 **Process notes:** a couple of macOS `sed` attempts failed or were used only to swap an assertion line in my own new test file; no other scripted file writes. One mid-edit slip (a lost function header in `ImportRowEditor.tsx`) was caught by typecheck and fixed.
+
+---
+
+## Round 18
+
+**In plain words**
+- The six screen changes are done. "Paste text" fills the whole box; the Precon tab shows "I bought it" selected (the other two greyed) with the note removed; the URL tab is centred and lists the sites that really work; the File tab no longer says ManaBox; "Unowned" is used for cards you don't own; the per-copy "Add to collection" tick only shows when a card has several copies.
+- The precon and alerts database changes are live. Saving for built/planned decks is written but **switched off** until the Architect reviews the new database function.
+
+**Database (live, owner approved)**
+- Applied with `supabase db push`: `20261023140000_deck_card_alerts.sql` (new empty table) and `20261023150000_ref_precons_cards.sql` (new `cards` column). Both re-read first: additive only.
+- `sync-precons.ts --dry-run`: 3131 decks fetched, 200 commander precons, "Would upsert 200 precons". The script only reads `ref_cards`/`ref_printings` and upserts into `ref_precons` (no deletes, no other tables), so the real run went ahead: 200 upserted.
+- Read-only check afterwards: 200 rows, all with card lists, every list exactly 100 cards. `deck_card_alerts` exists with 0 rows.
+
+**Screen items (what changed)**
+1. "Paste text" tab; textarea fills the body height.
+2. Precon: "I bought it" selected and normal-looking; others disabled; sentence removed.
+3. URL tab: centred, with examples for Archidekt, Moxfield, MTGGoldfish, TappedOut, Deckbox (the ones the code fetches).
+4. File tab and shared messages are source-agnostic (".csv or .txt"; "Export your list"). Real format support unchanged.
+5. Wording: "Unowned" for a card you don't own, "Unsleeved" only for an owned card left out. Inside the code the value is still `unsleeved` (no database or contract change). Spec section 4 and contract section 4 updated: Proxy = a proxy copy is added and sleeved; Unowned = a not-owned slot.
+6. Add tick only for rows with more than one copy. For single-copy rows, Original/Proxy implies Add and Unowned/Unsleeved implies not added (the control corrects itself instead of blocking). Summary counts and the existing rules are covered by updated tests.
+
+**Where the mockup/spec and your asks differ**
+- Intent choice below the tabs (spec section 7 updated in Round 17; mockup HTML not edited).
+- "Proxy ticks Add": now true for single-copy rows; for several copies the tick is shown and Original/Proxy wait for it, as in the spec.
+- Precon tab: intent is locked to "I bought it" (mockup shows it as a plain choice).
+
+**Saving (S4–S8): what exists**
+- **M2 drafted, NOT applied, ready for Architect review:** `docs/oracle/contracts/drafts/DRAFT_20261023160000_import_deck_with_intent.sql`. It never deletes, only fills an empty new deck, never waits on locks. **One deliberate deviation from the contract for the Architect to rule on:** the function picks the actual copy under lock from a description (printing, proxy, finish) rather than being handed a copy id, because ownership results never expose copy ids. A copy that can't be used at that moment is saved Unsleeved and returned as "needs a look".
+- App side: `src/lib/import-intent-save.ts`, the intent branch in `manabox-deck-import.ts` (recomputes ownership on the server, plans with the same functions as the screen, refuses open choices with 400 `needs_choice`, calls the function once), the route, result-screen lines (moved, alerts, needs a look), and S6 alert routes `GET /api/decks/[id]/import-alerts` and `POST .../[alertId]` with `src/lib/import-alerts.ts`.
+- **Switch:** `NEXT_PUBLIC_IMPORT_INTENT_SAVE=true` (restart dev server) enables the new save. Off by default: Import stays disabled for built/planned/unticked as before; the old save path is untouched. If the function is missing the save fails clearly and removes the empty deck it had just created (the only delete in this work: it only ever targets that one new deck).
+- Not built: the decklist "Accounting error" alert display (S6 UI), links (S7), a richer result screen (S8, only text lines).
+
+**Untested (plainly)**
+- The M2 SQL has never run anywhere. The app side is tested only against a fake database (11 + 4 tests). Real moves, alerts and locks are unverified; a test database/account is needed.
+- Nothing clicked through in a browser this round (including the Precon tab with real data and the URL/Paste layouts).
+- The "Unowned"/tick changes are covered by component tests only.
+
+**Owner/Architect steps**
+1. Architect reviews the M2 file. 2. Then it is moved into `supabase/migrations` and applied. 3. Then set the flag and try a built deck with one card.
+
+**Process notes (honest):** I used `sed -i ''` on two test files earlier to swap assertion lines, and one small python replace on `ManaBoxDeckImportFlow.tsx` this round (against the edit-tool-only rule). One edit mangled a comment in `import-intent.ts`; typecheck caught it and it was fixed. `npm run check` passes.

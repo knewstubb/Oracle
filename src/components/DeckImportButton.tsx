@@ -27,6 +27,7 @@ import { IMPORT_MODAL_CLASS, IMPORT_INTERACTIVE_CLASS } from '@/components/manab
 import { decideDeckDialogClose } from '@/components/manabox-import/import-close-guard'
 import { ImportIntentChoice } from '@/components/manabox-import/ImportIntentChoice'
 import { intentHeading, PRECONS_NOT_SET_UP, PRECONS_NOT_SET_UP_HINT, PRECON_OPEN_FAILED, URL_HELP_TITLE, URL_HELP_EXAMPLES, URL_HELP_NOTE } from '@/components/manabox-import/import-copy'
+import { deckToCsv, deckCsvFileName } from '@/lib/deck-to-csv'
 import { preconCardsToCsv, preconCommanderName, preconFileName, type PreconDetail, type PreconListItem } from '@/lib/precons'
 import type { ImportIntent } from '../../docs/oracle/contracts/import-intent.types'
 
@@ -112,8 +113,8 @@ export function DeckImportButton({
   const [preconPick, setPreconPick] = useState<{ name: string; commander: string | null } | null>(null)
   const [preconOpeningId, setPreconOpeningId] = useState<string | null>(null)
   const [preconsNotSetUp, setPreconsNotSetUp] = useState(false)
-
-  // Confirmation step state
+  // A deck fetched from a link, reviewed like a file.
+  const [linkPick, setLinkPick] = useState<{ commander: string | null } | null>(null)
   const [previewData, setPreviewData] = useState<PreviewResponse | null>(null)
   const [importMode, setImportMode] = useState<ImportMode>('new_cards')
   const [importFormat, setImportFormat] = useState<string>('commander')
@@ -139,6 +140,7 @@ export function DeckImportButton({
     setPreconPick(null)
     setPreconOpeningId(null)
     setPreconsNotSetUp(false)
+    setLinkPick(null)
     setImportMode('new_cards')
     setImportFormat('commander')
   }, [])
@@ -192,7 +194,10 @@ export function DeckImportButton({
         resetState()
         onPreviewSuccess(data.deck, data.cardsByType)
       } else {
-        setPreviewData(data)
+        // A link goes to the same review as a file, using the intent chosen on the first screen.
+        setLinkPick({ commander: data.deck.commander?.cardName ?? null })
+        setPastedFile(new File([deckToCsv(data.deck)], deckCsvFileName(data.deck.name), { type: 'text/csv' }))
+        setActiveTab('file')
       }
     },
   })
@@ -624,7 +629,7 @@ export function DeckImportButton({
                 fill
                 initialFile={pastedFile}
                 intent={preconPick ? 'purchased' : intent}
-                initialCommanderName={preconPick?.commander ?? null}
+                initialCommanderName={preconPick?.commander ?? linkPick?.commander ?? null}
                 onStateChange={onFlowState}
                 onComplete={(_deckId, _format, _deckName, summary) => {
                   try {
@@ -640,9 +645,10 @@ export function DeckImportButton({
                 }}
                 onCancel={() => {
                   askBeforeDiscard(() => {
-                    setActiveTab(preconPick ? 'precon' : pastedFile ? 'paste' : 'url')
+                    setActiveTab(preconPick ? 'precon' : linkPick ? 'url' : pastedFile ? 'paste' : 'url')
                     setPastedFile(null)
                     setPreconPick(null)
+                    setLinkPick(null)
                   })
                 }}
               />

@@ -11,6 +11,7 @@
 
 import type {
   ImportCopy,
+  ImportCopyEdits,
   ImportCopyType,
   ImportDefaults,
   ImportFinish,
@@ -121,6 +122,8 @@ export interface CopyAllocation {
   canProxy: boolean
   /** The owner has this card in some form (free or held). Used for Owned vs Unowned. */
   anyOwned: boolean
+  /** The owner has this card only in a different printing (no exact copy left). Drives the printing choice. */
+  otherPrinting?: OwnedPrintingInfo
 }
 
 /** rowKey -> copy index -> allocation. Generic basics have no entry. */
@@ -190,6 +193,7 @@ export function allocateOwnedCopies(input: AllocateInput): OwnedAllocation {
         anyOwned: freeLeft.length > 0 || heldLeft.length > 0,
         canOriginal: st.add || freeLeft.length > 0 || heldLeft.length > 0,
         canProxy: st.add || freeLeft.some((g) => g.isProxy),
+        otherPrinting: otherPrintingOf(row, freeLeft, heldLeft),
       }
       const needsSource = !st.add && st.type !== 'unsleeved'
       if (!needsSource) {
@@ -201,6 +205,17 @@ export function allocateOwnedCopies(input: AllocateInput): OwnedAllocation {
     }
   }
   return out
+}
+
+/** Owned only in another printing (no copy left of the exact one): that other printing. */
+function otherPrintingOf(
+  row: ImportRow,
+  free: OwnedCopyGroup[],
+  held: HeldCopyGroup[]
+): OwnedPrintingInfo | undefined {
+  if ([...free, ...held].some((g) => g.printingId === row.scryfallId)) return undefined
+  const other = free[0] ?? held[0]
+  return other ? info(other) : undefined
 }
 
 function pickSource(
@@ -346,6 +361,11 @@ export function resolveCopyPlan(
 
 /** Plans for every copy of every row, in row order. The one call the screen and the server make. */
 export function planImport(input: AllocateInput): CopyPlan[] {
+  return planImportDetailed(input).plans
+}
+
+/** Same as planImport, plus the owned-copy allocation the plans came from (the screen needs the candidates). */
+export function planImportDetailed(input: AllocateInput): { plans: CopyPlan[]; allocation: OwnedAllocation } {
   const allocation = allocateOwnedCopies(input)
   const plans: CopyPlan[] = []
   for (const row of input.rows) {
@@ -353,7 +373,143 @@ export function planImport(input: AllocateInput): CopyPlan[] {
       plans.push(resolveCopyPlan(copy, row, input.intent, input.edits, allocation, input.defaults))
     }
   }
-  return plans
+  return { plans, allocation }
+}
+
+// ---------------------------------------------------------------------------
+// What the review screen shows for each copy (spec §4-§6), and what a click does
+// ---------------------------------------------------------------------------
+
+export interface IntentCopyView {
+  index: number
+  generic: boolean
+  /** "Add to collection" tick as it stands. */
+  add: boolean
+  /** Original / Proxy / Unsleeved as it stands (what saving would do). */
+  type: ImportCopyType
+  canOriginal: boolean
+  canProxy: boolean
+  anyOwned: boolean
+  /** Copy held in other deck(s): the move choice. `chosen` is a deck id, 'skip', or undefined. */
+  move?: { candidates: HeldCandidate[]; chosen: number | 'skip' | undefined }
+  /** Owned only in another printing: the printing choice. */
+  printing?: {
+    owned: OwnedPrintingInfo
+    listed: { setCode: string; collectorNumber: string }
+    chosen: 'use_mine' | 'add_this' | undefined
+  }
+}
+
+export function intentCopyViews(
+  rows: ImportRow[],
+  plans: CopyPlan[],
+  allocation: OwnedAllocation,
+  edits: IntentCopyEdits | undefined,
+  intent: ImportIntent,
+  defaults: ImportDefaults
+): Record<string, IntentCopyView[]> {
+  const planOf = new Map(plans.map((p) => [`${p.rowKey}#${p.copyIndex}`, p]))
+  const out: Record<string, IntentCopyView[]> = {}
+  for (const row of rows) {
+    const generic = isGenericImportRow(row)
+    out[row.rowKey] = row.copies.map((copy) => {
+      const plan = planOf.get(`${row.rowKey}#${copy.index}`)
+      const alloc = allocation[row.rowKey]?.[copy.index]
+      const e = edits?.[row.rowKey]?.[copy.index]
+      const st = effectiveCopyState(copy, row, intent, edits, defaults)
+      const view: IntentCopyView = {
+        index: copy.index,
+        generic,
+        add: generic ? false : st.add,
+        type: plan?.type ?? st.type,
+        canOriginal: plan?.canOriginal ?? true,
+        canProxy: plan?.canProxy ?? false,
+        anyOwned: alloc?.anyOwned ?? false,
+      }
+      if (alloc?.source.kind === 'held') {
+        view.move = { candidates: alloc.source.candidates, chosen: alloc.source.chosen }
+      }
+      if (alloc?.otherPrinting && (alloc.source.kind === 'other_printing' || e?.printing)) {
+        view.printing = {
+          owned: alloc.otherPrinting,
+          listed: { setCode: row.setCode, collectorNumber: row.collectorNumber },
+          chosen: e?.printing,
+        }
+      }
+      return view
+    })
+  }
+  return out
+}
+
+/** Does any non-generic copy have Add unticked? Such a deck can't be saved by the old path. */
+export function hasUntickedAdd(views: Record<string, IntentCopyView[]>): boolean {
+  return Object.values(views).some((copies) => copies.some((c) => !c.generic && !c.add))
+}
+
+/** Replace one copy's edits (empty = remove). Unlike setCopyField this can also clear a field. */
+export function setIntentEdit(
+  edits: IntentCopyEdits,
+  rowKey: string,
+  index: number,
+  edit: IntentCopyOwnerEdits
+): IntentCopyEdits {
+  const clean = Object.fromEntries(Object.entries(edit).filter(([, v]) => v !== undefined)) as IntentCopyOwnerEdits
+  const row = { ...(edits[rowKey] ?? {}) }
+  if (Object.keys(clean).length === 0) delete row[index]
+  else row[index] = clean
+  const next = { ...edits }
+  if (Object.keys(row).length === 0) delete next[rowKey]
+  else next[rowKey] = row
+  return next
+}
+
+export type IntentChange = Partial<IntentCopyOwnerEdits>
+
+/**
+ * One click on a copy's controls: applies the change, fixes up the controls that depend on it,
+ * and returns the new edits plus a quiet message to announce. Pure.
+ */
+export function applyIntentChange(
+  edits: IntentCopyEdits,
+  rowKey: string,
+  cardName: string,
+  view: IntentCopyView,
+  change: IntentChange
+): { edits: IntentCopyEdits; message?: string } {
+  const current = edits[rowKey]?.[view.index] ?? {}
+  const result = coerceIntentEdit(current, change, {
+    cardName,
+    effectiveType: view.type,
+    effectiveAdd: view.add,
+    anyOwned: view.anyOwned,
+    canOriginal: view.canOriginal,
+    canProxy: view.canProxy,
+    isGeneric: view.generic,
+  })
+  let edit = result.edit
+  // "Add this printing" ticks Add; unticking Add takes that choice back.
+  if (change.add === false && edit.printing === 'add_this') edit = { ...edit, printing: undefined }
+  return { edits: setIntentEdit(edits, rowKey, view.index, edit), message: result.message }
+}
+
+/**
+ * The save path in use today knows only the row-editing fields. Drops Add / move / printing so the
+ * server never sees fields it does not read (their saving arrives with the later slices).
+ */
+export function stripIntentFields(edits: IntentCopyEdits): ImportCopyEdits {
+  const out: ImportCopyEdits = {}
+  for (const [rowKey, copies] of Object.entries(edits)) {
+    for (const [i, e] of Object.entries(copies)) {
+      const { add: _a, move: _m, printing: _p, ...rest } = e
+      void _a
+      void _m
+      void _p
+      if (Object.keys(rest).length === 0) continue
+      out[rowKey] = { ...(out[rowKey] ?? {}), [Number(i)]: rest }
+    }
+  }
+  return out
 }
 
 // ---------------------------------------------------------------------------

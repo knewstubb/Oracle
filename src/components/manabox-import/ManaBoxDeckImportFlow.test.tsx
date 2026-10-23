@@ -180,8 +180,9 @@ describe('ManaBoxDeckImportFlow', () => {
     expect(body.copyEdits['pull-sf|nonfoil']).toEqual({ 1: { type: 'proxy' } })
   })
 
-  it('has no commander picker on the result screen, only a hint, and Close sends the owner to the deck page prompt', async () => {
+  it('has no commander picker on the result screen; Close only closes, Open deck is the one way to the deck', async () => {
     const onFinish = vi.fn()
+    const onClose = vi.fn()
     const user = userEvent.setup()
     const json = (b: unknown) => new Response(JSON.stringify(b), { status: 200, headers: { 'Content-Type': 'application/json' } })
     vi.spyOn(global, 'fetch').mockImplementation(async (input) => {
@@ -190,7 +191,7 @@ describe('ManaBoxDeckImportFlow', () => {
       if (url === '/api/decks/import') return json({ deckId: 77, allocationSummary: { assigned: 3, shortfall: 0, errors: [], unmatched: [] } })
       return json({})
     })
-    render(<ManaBoxDeckImportFlow onFinish={onFinish} onCancel={() => {}} />, { wrapper: createWrapper() })
+    render(<ManaBoxDeckImportFlow onFinish={onFinish} onClose={onClose} onCancel={() => {}} />, { wrapper: createWrapper() })
     await user.upload(screen.getByLabelText('Choose file'), new File(['name,header'], 'd.csv', { type: 'text/csv' }))
     await waitFor(() => expect(screen.getByText('Pull from the Grave')).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: /Import deck/i }))
@@ -198,6 +199,9 @@ describe('ManaBoxDeckImportFlow', () => {
     expect(screen.queryByText('Choose a commander')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Close' })).toBeEnabled()
     await user.click(screen.getByRole('button', { name: 'Close' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(onFinish).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: /Open deck/i }))
     expect(onFinish).toHaveBeenCalledWith(77)
   })
 })

@@ -26,7 +26,8 @@ import { ImportDiscardDialog } from '@/components/manabox-import/ImportDiscardDi
 import { IMPORT_MODAL_CLASS, IMPORT_INTERACTIVE_CLASS } from '@/components/manabox-import/import-labels'
 import { decideDeckDialogClose } from '@/components/manabox-import/import-close-guard'
 import { ImportIntentChoice } from '@/components/manabox-import/ImportIntentChoice'
-import { intentHeading } from '@/components/manabox-import/import-copy'
+import { intentHeading, PRECON_INTENT_NOTE, PRECONS_NOT_SET_UP, PRECONS_NOT_SET_UP_HINT, PRECON_OPEN_FAILED } from '@/components/manabox-import/import-copy'
+import { preconCardsToCsv, preconCommanderName, preconFileName, type PreconDetail, type PreconListItem } from '@/lib/precons'
 import type { ImportIntent } from '../../docs/oracle/contracts/import-intent.types'
 
 const INTENT_URL_MODE: Record<ImportIntent, ImportMode> = {
@@ -37,18 +38,7 @@ const INTENT_URL_MODE: Record<ImportIntent, ImportMode> = {
 
 type InputTab = 'url' | 'paste' | 'file' | 'precon'
 
-interface Precon {
-  id: string
-  name: string
-  set_code: string
-  set_name: string
-  commander_name: string | null
-  color_identity: string | null
-  release_date: string | null
-  card_count: number
-  archidekt_url: string | null
-  commander_image: string | null
-}
+type Precon = PreconListItem
 
 interface DeckImportButtonProps {
   className?: string
@@ -117,8 +107,11 @@ export function DeckImportButton({
   // Precon tab state
   const [preconSearch, setPreconSearch] = useState('')
   const [debouncedPreconSearch, setDebouncedPreconSearch] = useState('')
-  const [selectedPrecon, setSelectedPrecon] = useState<Precon | null>(null)
   const [preconError, setPreconError] = useState<string | null>(null)
+  // A precon the owner picked: its card list goes to the same review as a file (all purchased).
+  const [preconPick, setPreconPick] = useState<{ name: string; commander: string | null } | null>(null)
+  const [preconOpeningId, setPreconOpeningId] = useState<string | null>(null)
+  const [preconsNotSetUp, setPreconsNotSetUp] = useState(false)
 
   // Confirmation step state
   const [previewData, setPreviewData] = useState<PreviewResponse | null>(null)
@@ -142,8 +135,10 @@ export function DeckImportButton({
     setPreviewData(null)
     setPreconSearch('')
     setDebouncedPreconSearch('')
-    setSelectedPrecon(null)
     setPreconError(null)
+    setPreconPick(null)
+    setPreconOpeningId(null)
+    setPreconsNotSetUp(false)
     setImportMode('new_cards')
     setImportFormat('commander')
   }, [])
@@ -164,8 +159,8 @@ export function DeckImportButton({
       if (debouncedPreconSearch) params.set('q', debouncedPreconSearch)
       const res = await fetch(`/api/precons?${params}`)
       if (!res.ok) throw new Error('Failed to fetch precons')
-      const data = await res.json()
-      return data.precons as Precon[]
+      const data = (await res.json()) as { precons: Precon[]; setup?: boolean }
+      return { precons: data.precons ?? [], setup: data.setup !== false }
     },
     enabled: activeTab === 'precon',
     staleTime: 60_000,
@@ -295,21 +290,31 @@ export function DeckImportButton({
     setActiveTab('file')
   }
 
-  async function handlePreconSubmit() {
+  /** Open a precon in the same review as a file: all purchased, exact printings. */
+  async function handlePreconPick(precon: Precon) {
+    if (preconOpeningId) return
     setPreconError(null)
-
-    if (!selectedPrecon) {
-      setPreconError('Please select a precon')
-      return
-    }
-
-    // Use the archidekt URL to fetch the deck
-    if (selectedPrecon.archidekt_url) {
-      // Extract the search URL and use it to find the official precon deck
-      // For now, we'll use the URL preview flow
-      previewMutation.mutate(selectedPrecon.archidekt_url)
-    } else {
-      setPreconError('No deck URL available for this precon. Try importing via URL tab.')
+    setPreconOpeningId(precon.id)
+    try {
+      const res = await fetch(`/api/precons/${precon.id}`)
+      if (res.status === 503) {
+        setPreconsNotSetUp(true)
+        return
+      }
+      if (!res.ok) throw new Error('open failed')
+      const { precon: detail } = (await res.json()) as { precon: PreconDetail }
+      if (!detail.cards?.length) {
+        setPreconsNotSetUp(true)
+        return
+      }
+      const csv = preconCardsToCsv(detail.cards)
+      setPreconPick({ name: detail.name, commander: preconCommanderName(detail.cards, detail.commander_name) })
+      setPastedFile(new File([csv], preconFileName(detail.name), { type: 'text/csv' }))
+      setActiveTab('file')
+    } catch {
+      setPreconError(PRECON_OPEN_FAILED)
+    } finally {
+      setPreconOpeningId(null)
     }
   }
 
@@ -318,7 +323,6 @@ export function DeckImportButton({
       e.preventDefault()
       if (activeTab === 'url') handleUrlSubmit()
       else if (activeTab === 'paste') handlePasteSubmit()
-      else if (activeTab === 'precon' && selectedPrecon) handlePreconSubmit()
     }
   }
 
@@ -372,6 +376,9 @@ export function DeckImportButton({
     previewMutation.isPending
 
   const urlDisplayError = validationError ?? (previewMutation.isError ? previewMutation.error.message : null)
+  // A precon is always something the owner bought: the choice shows it, selected and locked.
+  const preconLocked = activeTab === 'precon' || preconPick !== null
+  const shownIntent: ImportIntent | null = preconLocked ? 'purchased' : intent
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -388,7 +395,7 @@ export function DeckImportButton({
       </DialogTrigger>
 
       <DialogContent
-        className={fileTab ? IMPORT_MODAL_CLASS : `${IMPORT_INTERACTIVE_CLASS} sm:max-w-2xl`}
+        className={previewData ? `${IMPORT_INTERACTIVE_CLASS} sm:max-w-2xl` : IMPORT_MODAL_CLASS}
         showCloseButton={!(flowState.saving || importMutation.isPending)}
       >
         {previewData ? (
@@ -491,7 +498,7 @@ export function DeckImportButton({
             <DialogHeader>
               <DialogTitle>
                 <ImportTitleIcon kind="deck" />
-                {intentHeading(activeTab === 'precon' ? 'purchased' : intent)}
+                {intentHeading(shownIntent)}
               </DialogTitle>
               {/* The "how" subtitle only helps on the source-choice screen. */}
               {!sourceChosen && (
@@ -500,14 +507,6 @@ export function DeckImportButton({
                 </DialogDescription>
               )}
             </DialogHeader>
-
-            {!sourceChosen && activeTab !== 'precon' && (
-              <ImportIntentChoice
-                value={intent}
-                onChange={(v) => { setIntent(v); setIntentError(false) }}
-                showError={intentError}
-              />
-            )}
 
             {/* Input mode tabs: not useful once cards are being reviewed or saved */}
             {!sourceChosen && (
@@ -523,7 +522,7 @@ export function DeckImportButton({
                   }
                   disabled={flowState.saving || flowState.checking}
                   onClick={() => {
-                    if (tab !== activeTab) askBeforeDiscard(() => { setPastedFile(null); setActiveTab(tab) })
+                    if (tab !== activeTab) askBeforeDiscard(() => { setPastedFile(null); setPreconPick(null); setActiveTab(tab) })
                   }}
                 >
                   {tab === 'url' ? 'URL' : tab === 'paste' ? 'Paste List' : tab === 'file' ? 'File' : 'Precon'}
@@ -532,8 +531,23 @@ export function DeckImportButton({
             </div>
             )}
 
-            {/* Tab content */}
-            <div className={fileTab ? 'flex min-h-0 flex-1 flex-col' : 'min-h-[340px]'}>
+            {/* What's this deck? sits below the source tabs. On Precon it is preset and locked. */}
+            {!sourceChosen && (
+              <div>
+                <ImportIntentChoice
+                  value={shownIntent}
+                  onChange={(v) => { setIntent(v); setIntentError(false) }}
+                  showError={intentError}
+                  disabled={preconLocked}
+                />
+                {preconLocked && (
+                  <p className="mt-1.5 text-[length:var(--fs-xs)] text-muted-foreground">{PRECON_INTENT_NOTE}</p>
+                )}
+              </div>
+            )}
+
+            {/* Tab content: same height on every tab, so the window never changes size */}
+            <div className={fileTab ? 'flex min-h-0 flex-1 flex-col' : 'min-h-0 flex-1 overflow-y-auto'}>
               {/* URL tab */}
               {activeTab === 'url' && (
                 <div className="flex flex-col gap-3">
@@ -599,7 +613,8 @@ export function DeckImportButton({
               <ManaBoxDeckImportFlow
                 fill
                 initialFile={pastedFile}
-                intent={intent}
+                intent={preconPick ? 'purchased' : intent}
+                initialCommanderName={preconPick?.commander ?? null}
                 onStateChange={onFlowState}
                 onComplete={(_deckId, _format, _deckName, summary) => {
                   try {
@@ -608,14 +623,16 @@ export function DeckImportButton({
                     // ignore storage errors
                   }
                 }}
+                onClose={closeDialog}
                 onFinish={(deckId) => {
                   closeDialog()
                   router.push(`/decks/${deckId}?freshImport=true&pickCommander=true`)
                 }}
                 onCancel={() => {
                   askBeforeDiscard(() => {
-                    setActiveTab(pastedFile ? 'paste' : 'url')
+                    setActiveTab(preconPick ? 'precon' : pastedFile ? 'paste' : 'url')
                     setPastedFile(null)
+                    setPreconPick(null)
                   })
                 }}
               />
@@ -623,7 +640,7 @@ export function DeckImportButton({
 
             {/* Precon tab */}
             {activeTab === 'precon' && (
-              <div className="flex flex-col gap-3">
+              <div className="flex h-full min-h-0 flex-col gap-3">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -633,33 +650,36 @@ export function DeckImportButton({
                     onKeyDown={handleKeyDown}
                     placeholder="Search precons..."
                     className="pl-9"
-                    disabled={previewMutation.isPending}
+                    disabled={!!preconOpeningId}
                     autoFocus
                   />
                 </div>
 
                 {/* Precon list */}
-                <div className="h-[220px] overflow-y-auto rounded-lg border border-[var(--border-default)]">
+                <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-[var(--border-default)]">
                   {preconsLoading ? (
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="size-5 animate-spin text-muted-foreground" />
                     </div>
-                  ) : !preconsData?.length ? (
+                  ) : preconsNotSetUp || (preconsData && !preconsData.setup) ? (
+                    <div className="px-4 py-8 text-center" role="status">
+                      <p className="text-[length:var(--fs-md)] font-medium">{PRECONS_NOT_SET_UP}</p>
+                      <p className="mt-1 text-[length:var(--fs-sm)] text-muted-foreground">{PRECONS_NOT_SET_UP_HINT}</p>
+                    </div>
+                  ) : !preconsData?.precons.length ? (
                     <div className="py-8 text-center text-[length:var(--fs-sm)] text-muted-foreground">
                       {debouncedPreconSearch ? 'No precons found' : 'Loading precons...'}
                     </div>
                   ) : (
                     <div className="divide-y divide-[var(--border-default)]">
-                      {preconsData.map((precon) => (
+                      {preconsData.precons.map((precon) => (
                         <button
                           key={precon.id}
                           type="button"
-                          className="w-full px-3 py-3 text-left transition-colors hover:bg-[var(--bg-surface-hover)]"
-                          style={selectedPrecon?.id === precon.id
-                            ? { background: 'var(--accent-primary-bg)' }
-                            : {}
-                          }
-                          onClick={() => setSelectedPrecon(precon)}
+                          className="w-full px-3 py-3 text-left transition-colors hover:bg-[var(--bg-surface-hover)] disabled:opacity-60"
+                          disabled={!!preconOpeningId}
+                          aria-busy={preconOpeningId === precon.id}
+                          onClick={() => void handlePreconPick(precon)}
                         >
                           <div className="flex items-center gap-3">
                             {/* Commander art crop */}
@@ -711,28 +731,10 @@ export function DeckImportButton({
                   )}
                 </div>
 
-                {/* Selected precon preview */}
-                {selectedPrecon && (
-                  <div className="flex gap-3 rounded-lg border border-[var(--accent-primary)] bg-[var(--accent-primary-bg)] p-3">
-                    {selectedPrecon.commander_image && (
-                      <img
-                        src={selectedPrecon.commander_image}
-                        alt={selectedPrecon.commander_name || 'Commander'}
-                        className="h-16 w-20 shrink-0 rounded object-cover"
-                      />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[length:var(--fs-md)] font-medium">
-                        {selectedPrecon.name}
-                      </p>
-                      <p className="text-[length:var(--fs-sm)] text-muted-foreground">
-                        {selectedPrecon.commander_name}
-                      </p>
-                      <p className="text-[length:var(--fs-xs)] text-muted-foreground">
-                        {selectedPrecon.card_count} cards · {selectedPrecon.set_name}
-                      </p>
-                    </div>
-                  </div>
+                {preconOpeningId && (
+                  <p className="flex items-center gap-2 text-[length:var(--fs-sm)] text-muted-foreground" role="status">
+                    <Loader2 className="size-4 animate-spin" aria-hidden="true" /> Opening the precon…
+                  </p>
                 )}
 
                 {preconError && (
@@ -744,7 +746,7 @@ export function DeckImportButton({
             )}
             </div>
 
-            {!fileTab && (
+            {!fileTab && activeTab !== 'precon' && (
             <DialogFooter>
               {activeTab === 'url' && (
                 <Button onClick={handleUrlSubmit} disabled={previewMutation.isPending || !url.trim()}>
@@ -755,12 +757,6 @@ export function DeckImportButton({
               {activeTab === 'paste' && (
                 <Button onClick={handlePasteSubmit} disabled={!pasteText.trim()}>
                   Continue
-                </Button>
-              )}
-              {activeTab === 'precon' && (
-                <Button onClick={handlePreconSubmit} disabled={previewMutation.isPending || !selectedPrecon}>
-                  {previewMutation.isPending && <Loader2 className="size-4 animate-spin" aria-hidden="true" data-icon="inline-start" />}
-                  {previewMutation.isPending ? 'Fetching...' : 'Import Precon'}
                 </Button>
               )}
             </DialogFooter>

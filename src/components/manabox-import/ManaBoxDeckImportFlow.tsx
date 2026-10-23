@@ -48,6 +48,8 @@ export interface ManaBoxDeckImportFlowProps {
   onCancel?: () => void
   /** The owner pressed Close or Open deck on the result screen . */
   onFinish?: (deckId: number) => void
+  /** Close on the result screen. Must not open the deck. */
+  onClose?: () => void
   titleSlot?: React.ReactNode
   /** Fill a fixed-size modal: every stage uses the same space (used by the import dialog). */
   fill?: boolean
@@ -60,6 +62,8 @@ export interface ManaBoxDeckImportFlowProps {
    * `null` = not chosen yet: a file is held until it is. `undefined` = no intent screen (plain purchase).
    */
   intent?: ImportIntent | null
+  /** Commander to preselect on the review screen (a precon knows its commander). */
+  initialCommanderName?: string | null
 }
 
 export interface DeckFlowState {
@@ -75,7 +79,7 @@ export interface DeckFlowState {
   done: boolean
 }
 
-export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlot, fill, onStateChange, initialFile, intent }: ManaBoxDeckImportFlowProps) {
+export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose, titleSlot, fill, onStateChange, initialFile, intent, initialCommanderName }: ManaBoxDeckImportFlowProps) {
   const [step, setStep] = useState<ImportStep>({ status: 'idle' })
   const [error, setError] = useState<string | null>(null)
   const notes = useHiddenNotes()
@@ -166,7 +170,11 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
         },
         deckName: file.name.replace(/\.(csv|txt)$/i, ''),
         format: 'commander',
-        commander: null,
+        commander: (() => {
+          if (!initialCommanderName) return null
+          const hit = preview.rows.find((r) => !r.isBasicLand && r.cardName === initialCommanderName)
+          return hit ? { name: hit.cardName, scryfallId: hit.scryfallId } : null
+        })(),
         defaults: INITIAL_DEFAULTS,
         copyEdits: {},
         openRowKeys: new Set(),
@@ -179,7 +187,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
       setError(UNREADABLE_FILE_MESSAGE)
       setStep({ status: 'idle' })
     }
-  }, [intent])
+  }, [intent, initialCommanderName])
 
   // A file held for an intent is read as soon as one is chosen.
   useEffect(() => {
@@ -377,7 +385,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
     }
   }, [step, queryClient, onComplete])
 
-  /** Close / Open deck on the result screen. */
+  /** "Open deck" on the result screen: the only thing that navigates. */
   const handleDone = useCallback(() => {
     if (step.status !== 'done') return
     const deckId = step.summary.deckId
@@ -385,6 +393,12 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
     if (onFinish) onFinish(deckId)
     else router.push(`/decks/${deckId}?freshImport=true${step.format === 'commander' && !step.commanderName ? '&pickCommander=true' : ''}`)
   }, [step, router, onFinish])
+
+  /** "Close" on the result screen: closes only; the deck is not opened. */
+  const handleClose = useCallback(() => {
+    if (onClose) onClose()
+    else reset()
+  }, [onClose, reset])
 
   const setDefaults = useCallback((defaults: ImportDefaults) => {
     setStep((prev) => (prev.status === 'review' ? { ...prev, defaults } : prev))
@@ -599,7 +613,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, titleSlo
           unmatched={step.summary.unmatched}
           deckId={step.summary.deckId}
           onOpenDeck={handleDone}
-          onDismiss={handleDone}
+          onDismiss={handleClose}
           commanderSlot={
             step.format === 'commander' && !step.commanderName ? (
               <p className="flex items-center justify-center gap-2 text-[length:var(--fs-sm)] text-muted-foreground">

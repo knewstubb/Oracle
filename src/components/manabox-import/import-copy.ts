@@ -54,3 +54,9 @@ export const OWNERSHIP_LOADING = 'Checking your collection…'
 export const OWNERSHIP_FAILED = "Couldn't check your collection."
 /** Built and planned imports can be reviewed but not saved yet (saving arrives in a later slice). */
 export const INTENT_SAVE_PENDING = 'Saving built and planned decks is coming soon. You can review the list now.'
+
+/** Precon tab. */
+export const PRECON_INTENT_NOTE = 'Precons are always something you bought, so this is set for you.'
+export const PRECONS_NOT_SET_UP = 'Precons not set up yet'
+export const PRECONS_NOT_SET_UP_HINT = 'The precon list has not been loaded into your library yet. You can still import by URL, pasted list or file.'
+export const PRECON_OPEN_FAILED = "Couldn't open that precon. Try again."

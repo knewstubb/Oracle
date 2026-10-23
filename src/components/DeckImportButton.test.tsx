@@ -187,7 +187,12 @@ describe('DeckImportButton', () => {
     fireEvent.click(screen.getByRole('button', { name: /import deck/i }))
     await waitFor(() => expect(screen.getByText(/Import a deck from a URL/i)).toBeInTheDocument())
     const content = () => document.querySelector('[data-slot="dialog-content"]')!
-    expect(content().className).not.toContain('h-[min(46rem')
+    expect(content().className).toContain('h-[min(46rem,calc(100dvh-4rem))]')
+    for (const tab of ['Paste List', 'Precon', 'URL']) {
+      fireEvent.click(screen.getByRole('button', { name: tab }))
+      expect(content().className).toContain('h-[min(46rem,calc(100dvh-4rem))]')
+      expect(content().className).toContain('sm:max-w-3xl')
+    }
     fireEvent.click(screen.getByRole('button', { name: 'File' }))
     await waitFor(() => expect(screen.getByLabelText('Choose file')).toBeInTheDocument())
     expect(content().className).toContain('h-[min(46rem,calc(100dvh-4rem))]')

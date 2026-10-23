@@ -82,6 +82,8 @@ export interface ManaBoxDeckImportFlowProps {
   intent?: ImportIntent | null
   /** Commander to preselect on the review screen (a precon knows its commander). */
   initialCommanderName?: string | null
+  /** A precon: every card is added, so the review hides the Add ticks. */
+  precon?: boolean
 }
 
 export interface DeckFlowState {
@@ -97,7 +99,7 @@ export interface DeckFlowState {
   done: boolean
 }
 
-export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose, titleSlot, fill, onStateChange, initialFile, intent, initialCommanderName }: ManaBoxDeckImportFlowProps) {
+export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose, titleSlot, fill, onStateChange, initialFile, intent, initialCommanderName, precon }: ManaBoxDeckImportFlowProps) {
   const [step, setStep] = useState<ImportStep>({ status: 'idle' })
   const [error, setError] = useState<string | null>(null)
   const notes = useHiddenNotes()
@@ -708,6 +710,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
                     busy: intentView.busy,
                     onChange: changeIntentCopy,
                     onChangeAdd: changeIntentAdd,
+                    hideAdd: precon,
                   }
                 : undefined
             }

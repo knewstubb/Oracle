@@ -40,6 +40,8 @@ export interface IntentRowControls {
   onChange: (index: number, change: IntentChange) => void
   /** The collapsed row's tick: every copy at once. */
   onChangeAdd: (add: boolean) => void
+  /** Precon: every card is added, so no Add ticks are shown. */
+  hideAdd?: boolean
 }
 
 /** Columns of the review list; the list header uses the same. */
@@ -328,7 +330,7 @@ export function ImportRowEditor({
           <span className="flex justify-center">
             {generic ? (
               <span className="text-[length:var(--fs-xs)] text-muted-foreground" title="Generic basics are never added">–</span>
-            ) : intent.views.some((v) => v.multi) ? (
+            ) : !intent.hideAdd && intent.views.some((v) => v.multi) ? (
               <AddTick
                 cardName={row.cardName}
                 views={intent.views}
@@ -371,6 +373,7 @@ export function ImportRowEditor({
               typeOptions={typeOptions}
               intentView={generic ? undefined : intent?.views.find((v) => v.index === copy.index)}
               intentBusy={intent?.busy}
+              hideAdd={intent?.hideAdd}
               onIntentChange={intent ? (change) => intent.onChange(copy.index, change) : undefined}
               generic={generic}
               art={art}
@@ -436,9 +439,11 @@ function CopyLine({
   onApplyAll,
   intentView,
   intentBusy,
+  hideAdd,
   onIntentChange,
 }: {
   generic: boolean
+  hideAdd?: boolean
   intentView?: IntentCopyView
   intentBusy?: boolean
   onIntentChange?: (change: IntentChange) => void
@@ -502,7 +507,7 @@ function CopyLine({
         </>
       ) : (
         <>
-          {intentView && intentView.multi && onIntentChange && (
+          {intentView && intentView.multi && onIntentChange && !hideAdd && (
             <label className="inline-flex items-center gap-1 text-[length:var(--fs-xs)] text-muted-foreground">
               <Checkbox
                 checked={intentView.add}
@@ -519,7 +524,7 @@ function CopyLine({
             options={typeOptions}
             label={`Copy ${n} type`}
             labels={intentView ? { unsleeved: intentView.anyOwned ? 'Unsleeved' : 'Unowned' } : undefined}
-            disabledReasons={intentBusy ? undefined : typeReasons(intentView)}
+            disabledReasons={intentBusy || hideAdd ? undefined : typeReasons(intentView)}
             onChange={(type) => (onIntentChange ? onIntentChange({ type }) : onChange({ type }))}
           />
         </>

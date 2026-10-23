@@ -157,7 +157,7 @@ export function DeckImportButton({
   const { data: preconsData, isLoading: preconsLoading } = useQuery({
     queryKey: ['precons', debouncedPreconSearch],
     queryFn: async () => {
-      const params = new URLSearchParams({ limit: '30' })
+      const params = new URLSearchParams({ limit: '300' })
       if (debouncedPreconSearch) params.set('q', debouncedPreconSearch)
       const res = await fetch(`/api/precons?${params}`)
       if (!res.ok) throw new Error('Failed to fetch precons')
@@ -630,6 +630,7 @@ export function DeckImportButton({
                 initialFile={pastedFile}
                 intent={preconPick ? 'purchased' : intent}
                 initialCommanderName={preconPick?.commander ?? linkPick?.commander ?? null}
+                precon={preconPick !== null}
                 onStateChange={onFlowState}
                 onComplete={(_deckId, _format, _deckName, summary) => {
                   try {
@@ -724,11 +725,14 @@ export function DeckImportButton({
                                 {precon.set_name} · {precon.release_date ? new Date(precon.release_date).getFullYear() : ''}
                               </p>
                             </div>
-                            {/* Color identity - MTG mana pips */}
-                            {precon.color_identity && (
+                            {/* Color identity - MTG mana pips; colourless decks show the colourless symbol */}
+                            {(
                               <span className="flex shrink-0 items-center gap-0.5">
+                                {['W', 'U', 'B', 'R', 'G'].every(c => !(precon.color_identity ?? '').includes(c)) && (
+                                  <i className="ms ms-c ms-cost ms-shadow" style={{ fontSize: '16px' }} aria-label="Colorless" />
+                                )}
                                 {['W', 'U', 'B', 'R', 'G']
-                                  .filter(c => precon.color_identity!.includes(c))
+                                  .filter(c => (precon.color_identity ?? '').includes(c))
                                   .map(c => (
                                     <i
                                       key={c}

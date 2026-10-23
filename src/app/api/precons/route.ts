@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
   const params = request.nextUrl.searchParams
   const q = sanitizePreconSearch(params.get('q') ?? '')
-  const limit = Math.min(Math.max(Number.parseInt(params.get('limit') ?? '30', 10) || 30, 1), 100)
+  const limit = Math.min(Math.max(Number.parseInt(params.get('limit') ?? '30', 10) || 30, 1), 300)
 
   try {
     let query = createAdminClient()

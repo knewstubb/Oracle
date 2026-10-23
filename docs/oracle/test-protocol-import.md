@@ -30,10 +30,9 @@ Tick each box as you go. If something fails, leave it unticked and add `FAIL:` a
   - [ ] The count reads 7 cards (10 copies).
 - [ ] **A2. Per-copy editing.** Expand Arcane Signet (qty 2).
   - [ ] There is one line per copy.
-  - [ ] The "Add to collection" tick is shown (more than one copy).
+  - [ ] There is no "Add to collection" tick (everything in Import cards is added; the tick only exists in deck imports).
   - [ ] Finish only offers Non-foil (C21 has no foil).
   - [ ] Set copy 2 to Proxy: finish and condition hide for that copy.
-  - [ ] Single-copy rows (Sol Ring) show no tick.
 - [ ] **A3. Escape guard.** After editing, press Escape or click outside.
   - [ ] A "Discard edits?" dialog appears.
   - [ ] Cancel keeps your edits.
@@ -41,14 +40,14 @@ Tick each box as you go. If something fails, leave it unticked and add `FAIL:` a
   - [ ] 7 cards (10 copies) are added: 8 originals and 2 proxies (Arcane Signet copy 2 and Kodama's Reach).
   - [ ] Close only closes the modal; no deck or other page opens.
 - [ ] **A5. Collection page.**
-  - [ ] 7 cards in total.
+  - [ ] 6 cards in total (proxies are not part of the collection).
   - [ ] Sol Ring 1.
   - [ ] Command Tower 1.
-  - [ ] Arcane Signet 2 (1 original, 1 proxy).
+  - [ ] Arcane Signet 1 (the proxy copy is not counted).
   - [ ] Lightning Greaves 1 (foil).
   - [ ] Island 3.
   - [ ] Heroic Intervention 1.
-  - [ ] Kodama's Reach 1 (proxy).
+  - [ ] Kodama's Reach is not listed (proxy only; not counted).
   - [ ] Hovering a card name shows an image popover.
 
 ## B. Import deck, screens only (flag OFF)
@@ -59,12 +58,14 @@ Tick each box as you go. If something fails, leave it unticked and add `FAIL:` a
   - [ ] Switching tabs never changes the modal size.
   - [ ] On File, Paste and URL nothing is pre-selected and Continue says "Choose one to continue."
 - [ ] **B2. Precon tab.**
-  - [ ] The list loads (about 200 decks).
+  - [ ] The list shows all ~200 decks (scrolls), and search narrows it.
   - [ ] Pick **Eldrazi Unbound**: "I bought it" is selected and looks normal; the other two are greyed out.
   - [ ] The review shows 100 cards.
   - [ ] The commander (Zhulodok, Void Gorger) is preselected.
   - [ ] All cards are Original, with exact printings.
-  - [ ] Pick one more precon of your choice: the list isn't stuck on the first.
+  - [ ] Once a precon is picked you can't pick a different one; you cancel the import to start again.
+  - [ ] A colourless deck (Eldrazi Unbound) shows a colourless mana icon.
+  - [ ] The review says "100 cards" (87 printings), the filter chips use the same card counts, and there are no "Add to collection" ticks (precons add everything).
 - [ ] **B3. URL tab.**
   - [ ] The field is centred.
   - [ ] Supported sites are listed (Archidekt, Moxfield, MTGGoldfish, TappedOut, Deckbox).

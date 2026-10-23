@@ -28,6 +28,12 @@ export function ImportSummary({ rows, kind, defaults, copyEdits, unmatchedCount 
       <strong className="text-foreground">
         {kind === 'collection' ? plural(totals.tracked, 'copy', 'copies') : plural(totals.tracked, 'card')}
       </strong>
+      {kind === 'deck' && rows.length > 0 && rows.length !== totals.cards && (
+        <>
+          <span aria-hidden="true"> · </span>
+          {plural(rows.length, 'printing')}
+        </>
+      )}
       {unmatchedCount > 0 && <span aria-hidden="true"> · </span>}
       {unmatchedCount > 0 && `${unmatchedCount} ${unmatchedCount === 1 ? 'row' : 'rows'} not matched`}
       {hiddenCount > 0 && onShowHidden && (

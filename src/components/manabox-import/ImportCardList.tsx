@@ -29,6 +29,7 @@ import { ImportRowEditor, TypeToggle } from './ImportRowEditor'
 import { LANGUAGE_LABELS, SELECT_CLASS } from './import-labels'
 import { sortImportRows, type ImportSort } from '@/lib/import-sort'
 import { ADD_COLUMN } from './import-copy'
+import { filterChipCounts } from './filter-counts'
 
 const FILTER_OPTIONS: { value: RowFilter; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -61,6 +62,8 @@ export interface ImportCardListProps {
     busy: boolean
     onChange: (row: UiPreviewRow, index: number, change: import('@/lib/import-intent').IntentChange) => string | undefined
     onChangeAdd: (row: UiPreviewRow, add: boolean) => void
+    /** Precon: everything is added, so the Add ticks and column are hidden. */
+    hideAdd?: boolean
   }
 }
 
@@ -220,8 +223,7 @@ export function ImportCardList({
           ? 'No basics'
           : 'No cards'
 
-  const countRowsWith = (type: ImportCopyType) =>
-    rows.filter((r) => (resolvedByKey.get(r.rowKey) ?? []).some((c) => c.type === type)).length
+  const chipCounts = filterChipCounts(rows, resolvedByKey, isBasic)
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-1.5">
@@ -230,7 +232,7 @@ export function ImportCardList({
           <FilterChip
             key={f.value}
             label={f.label}
-            count={f.value === 'all' ? rows.length : countRowsWith(f.value === 'proxy' ? 'proxy' : 'unsleeved')}
+            count={f.value === 'all' ? chipCounts.all : f.value === 'proxy' ? chipCounts.proxy : chipCounts.unsleeved}
             selected={filter === f.value}
             onClick={() => onFilterChange(f.value)}
           />
@@ -238,7 +240,7 @@ export function ImportCardList({
         {hasBasics && (
           <FilterChip
             label="Basics (generic)"
-            count={rows.filter(isBasic).length}
+            count={chipCounts.basic}
             selected={filter === 'basic'}
             onClick={() => onFilterChange('basic')}
           />
@@ -298,7 +300,7 @@ export function ImportCardList({
             <span>Card</span>
             {intent && (
               <span className="text-center">
-                {Object.values(intent.viewsByRow).some((vs) => vs.some((v) => v.multi)) ? ADD_COLUMN : ''}
+                {!intent.hideAdd && Object.values(intent.viewsByRow).some((vs) => vs.some((v) => v.multi)) ? ADD_COLUMN : ''}
               </span>
             )}
             {intent && <span />}
@@ -355,6 +357,7 @@ export function ImportCardList({
                                 if (note) setAnnouncement(note)
                               },
                               onChangeAdd: (add) => intent.onChangeAdd(row, add),
+                              hideAdd: intent.hideAdd,
                             }
                           : undefined
                       }

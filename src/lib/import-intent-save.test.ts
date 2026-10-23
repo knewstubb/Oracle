@@ -56,7 +56,12 @@ interface Fake {
   deleted: Array<Record<string, unknown>>
 }
 
-function fake(opts: { rpcAnswer?: unknown; rpcError?: { code?: string; message: string }; printings: string[] }): Fake {
+function fake(opts: {
+  rpcAnswer?: unknown
+  rpcError?: { code?: string; message: string }
+  printings: string[]
+  slotsInDeck?: boolean
+}): Fake {
   const rpcCalls: Fake['rpcCalls'] = []
   const deleted: Fake['deleted'] = []
   const client = {
@@ -70,7 +75,12 @@ function fake(opts: { rpcAnswer?: unknown; rpcError?: { code?: string; message: 
           return { select: async () => ({ data: list.map((r, i) => ({ id: i + 1, oracle_id: r.oracle_id })), error: null }) }
         },
         select() {
+          const slotChain: Record<string, unknown> = {
+            eq: () => slotChain,
+            limit: async () => ({ data: opts.slotsInDeck ? [{ id: 1 }] : [], error: null }),
+          }
           return {
+            ...slotChain,
             in: async () => ({
               data: opts.printings.map((p) => ({
                 scryfall_id: p,
@@ -224,11 +234,31 @@ describe('intent save: what is sent to import_deck_with_intent', () => {
     ])
   })
 
-  it('function not installed yet: fails clearly and removes the empty deck it just made', async () => {
-    const f = fake({ printings: ['Sol Ring-p1'], rpcError: { code: 'PGRST202', message: 'Could not find the function public.import_deck_with_intent' } })
-    await expect(run('purchased', [card('Sol Ring', 1)], f)).rejects.toThrow(/awaiting review/)
+  it('a clear rejection by the function removes the still-empty deck it just made', async () => {
+    const f = fake({ printings: ['Sol Ring-p1'], rpcError: { code: 'P0001', message: 'card_not_found' } })
+    await expect(run('purchased', [card('Sol Ring', 1)], f)).rejects.toThrow(/card_not_found/)
     expect(f.deleted).toHaveLength(2) // id, then user_id (both must match)
     expect(f.deleted[1]).toMatchObject({ table: 'decks', user_id: 'user-a' })
+  })
+
+  it('an ambiguous error (timeout / dropped connection) never deletes anything', async () => {
+    for (const rpcError of [{ message: 'fetch failed' }, { code: '57014', message: 'statement timeout' }, { code: '08006', message: 'connection failure' }]) {
+      const f = fake({ printings: ['Sol Ring-p1'], rpcError })
+      await expect(run('purchased', [card('Sol Ring', 1)], f)).rejects.toThrow()
+      expect(f.deleted).toHaveLength(0)
+    }
+  })
+
+  it('a deck that already has slots is never deleted, even after a clear rejection', async () => {
+    const f = fake({ printings: ['Sol Ring-p1'], rpcError: { code: 'P0001', message: 'deck_not_empty' }, slotsInDeck: true })
+    await expect(run('purchased', [card('Sol Ring', 1)], f)).rejects.toThrow()
+    expect(f.deleted).toHaveLength(0)
+  })
+
+  it('function missing: clear message and the empty deck is removed', async () => {
+    const f = fake({ printings: ['Sol Ring-p1'], rpcError: { code: 'PGRST202', message: 'Could not find the function public.import_deck_with_intent' } })
+    await expect(run('purchased', [card('Sol Ring', 1)], f)).rejects.toThrow(/not installed/)
+    expect(f.deleted).toHaveLength(2)
   })
 })
 

@@ -45,6 +45,7 @@ import { loadOwnershipFacts } from '@/lib/import-ownership'
 import {
   NeedsChoiceError,
   buildIntentSummary,
+  cleanupEmptyDeckAfterRejection,
   isIntentRpcMissing,
   needsChoiceRowKeys,
   planToIntentRpcRow,
@@ -429,9 +430,10 @@ export async function importManaBoxDeck(
       p_rows: insertRows as unknown as Json,
     })
     if (rpc.error) {
-      await supabase.from('decks').delete().eq('id', deckId).eq('user_id', options.userId)
+      // Only a clear rejection of a still-empty deck is cleaned up; an ambiguous error never deletes (R1).
+      await cleanupEmptyDeckAfterRejection(supabase as never, deckId, options.userId, rpc.error)
       if (isIntentRpcMissing(rpc.error)) {
-        throw new Error('The intent import function is not installed in the database yet (migration M2 is awaiting review).')
+        throw new Error('The intent import function is not installed in the database yet.')
       }
       throw new Error(`Failed to write deck cards atomically: ${rpc.error.message}`)
     }

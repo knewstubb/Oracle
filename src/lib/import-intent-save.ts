@@ -166,3 +166,37 @@ export function isIntentRpcMissing(error: { code?: string; message?: string } | 
   if (!error) return false
   return error.code === 'PGRST202' || /Could not find the function|does not exist/i.test(error.message ?? '')
 }
+
+/** A clear refusal from the function (it raised on purpose, P0001) or the function being absent. Never a timeout or dropped connection. */
+export function isClearRejection(error: { code?: string; message?: string } | null | undefined): boolean {
+  if (!error) return false
+  return error.code === 'P0001' || isIntentRpcMissing(error)
+}
+
+/** Loose client for the clean-up (tests inject a fake). */
+export interface CleanupClient {
+  from: (table: string) => any // eslint-disable-line @typescript-eslint/no-explicit-any
+}
+
+/**
+ * After a failed intent save, remove the deck this import just created, but only when it is safe:
+ * the failure was a clear rejection (see isClearRejection) AND the deck has no slots at all.
+ * An ambiguous failure (timeout, dropped connection: the save may have gone through) never deletes.
+ * Returns true when the deck was deleted. Never throws.
+ */
+export async function cleanupEmptyDeckAfterRejection(
+  client: CleanupClient,
+  deckId: number,
+  userId: string,
+  error: { code?: string; message?: string } | null | undefined
+): Promise<boolean> {
+  if (!isClearRejection(error)) return false
+  try {
+    const slots = await client.from('deck_cards').select('id').eq('deck_id', deckId).eq('user_id', userId).limit(1)
+    if (slots.error || !Array.isArray(slots.data) || slots.data.length > 0) return false
+    const del = await client.from('decks').delete().eq('id', deckId).eq('user_id', userId)
+    return !del.error
+  } catch {
+    return false
+  }
+}

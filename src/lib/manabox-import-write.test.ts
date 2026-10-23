@@ -221,6 +221,47 @@ describe('deck write (tests 9, 12b, 16)', () => {
     expect(rows[2]).not.toHaveProperty('card_condition')
   })
 
+  it('maybeboard rows are planned slots in the Maybeboard category: no copy, no user_cards row, not counted', async () => {
+    const { client, calls } = fakeClient(printings)
+    const maybe = { ...solCard([{}, {}]), rowKey: 'sol|text|maybeboard', board: 'maybeboard' as const }
+    const main = { ...solCard([{}]), sourceIndex: 2 }
+    const summary = await importManaBoxDeck({
+      deck: deckOf([main, maybe]) as never,
+      name: 'D',
+      defaults: DEFAULTS,
+      userId: 'user-a',
+      supabase: client,
+    })
+    const rows = calls.rpc[0].args.p_rows
+    expect(rows).toHaveLength(3)
+    // The same card in main and maybeboard stays two separate slots (E-1).
+    expect(rows[0]).toMatchObject({ is_maybeboard: false, card_id: 1 })
+    for (const row of rows.slice(1)) {
+      expect(row).toMatchObject({ card_id: null, is_maybeboard: true, categories: '["Maybeboard"]', is_proxy: false })
+      expect(row).not.toHaveProperty('card_condition')
+      expect(row).not.toHaveProperty('source_tag')
+    }
+    expect(summary.allocationSummary.assigned).toBe(1)
+    expect(summary.allocationSummary.shortfall).toBe(0)
+    expect(calls.decksInserted[0].card_count).toBe(1)
+  })
+
+  it('a maybeboard-only card makes no user_cards row and a maybeboard basic is not made generic (E-13)', async () => {
+    const { client, calls } = fakeClient(printings)
+    const island = { ...solCard([{}]), cardName: 'Island', rowKey: 'isl|text|maybeboard', printingGiven: false, board: 'maybeboard' as const }
+    await importManaBoxDeck({
+      deck: deckOf([island]) as never,
+      name: 'D',
+      defaults: DEFAULTS,
+      userId: 'user-a',
+      supabase: client,
+    })
+    expect(calls.upserts).toHaveLength(0)
+    const [row] = calls.rpc[0].args.p_rows
+    expect(row).toMatchObject({ is_maybeboard: true, card_id: null })
+    expect(row).not.toHaveProperty('is_generic')
+  })
+
   it('generic basics create no copies; they carry the generic flags, finish and language, but no condition', async () => {
     const { client, calls } = fakeClient(printings)
     const island = { ...solCard([{}, {}]), cardName: 'Island', rowKey: 'isl|text', printingGiven: false }

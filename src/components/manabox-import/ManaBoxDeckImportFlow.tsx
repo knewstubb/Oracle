@@ -14,6 +14,7 @@ import { ImportDefaultsBar } from './ImportDefaultsBar'
 import { ReviewCommanderSelect } from './ReviewCommanderSelect'
 import { getFormatConfig } from '@/lib/format-config'
 import { countFinishNotices } from '@/lib/import-copies'
+import { isManaBoxCsv } from '@/lib/manabox-import'
 import type { ImportCopyEdits, ImportDefaults } from '../../../docs/oracle/contracts/import-row-editing.types'
 import { ImportCardList } from './ImportCardList'
 import { ImportSummary } from './ImportSummary'
@@ -137,8 +138,9 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
     abortRef.current = null
   }, [])
 
-  const detectSource = (file: File): ImportSource => {
-    return file.name.toLowerCase().endsWith('.txt') ? 'text' : 'csv'
+  // The file's content decides CSV or text, not its extension (import-formats E-12).
+  const detectSource = (text: string): ImportSource => {
+    return isManaBoxCsv(text) ? 'csv' : 'text'
   }
 
   const handleFile = useCallback(async (file: File) => {
@@ -154,7 +156,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
 
     try {
       const text = await file.text()
-      const source = detectSource(file)
+      const source = detectSource(text)
       setStep({ status: 'checking', file, cards: estimateFileCards(text) })
       const body =
         source === 'csv'
@@ -168,7 +170,20 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
         body: JSON.stringify(body),
       })
 
-      if (!res.ok) throw new Error('Preview failed')
+      if (!res.ok) {
+        // The server says why in plain words (unsupported type, too big, no cards).
+        let message = UNREADABLE_FILE_MESSAGE
+        try {
+          const payload = (await res.json()) as { error?: string }
+          if (res.status === 400 && payload.error) message = payload.error
+        } catch {
+          // keep the generic message
+        }
+        if (controller.signal.aborted) return
+        setError(message)
+        setStep({ status: 'idle' })
+        return
+      }
 
       const preview: ManaBoxPreviewResponse = await res.json()
       if (controller.signal.aborted) return
@@ -241,7 +256,12 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
   const intentSaveOn = INTENT_SAVE_ENABLED && !!intent
   const saveBlockedByIntent = !INTENT_SAVE_ENABLED && (intent === 'built' || intent === 'planned')
   const needsOwnership = !!intent
-  const reviewRows = step.status === 'review' ? step.preview.rows : null
+  const previewRows = step.status === 'review' ? step.preview.rows : null
+  // Maybeboard rows are saved as maybes with no copies, so ownership and the plan ignore them (D-022).
+  const reviewRows = useMemo(
+    () => (previewRows ? previewRows.filter((r) => r.board !== 'maybeboard') : null),
+    [previewRows]
+  )
   const ownershipCards = useMemo(
     () =>
       reviewRows
@@ -575,6 +595,19 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
             hidden={notes.hidden}
             onDismiss={notes.hide}
           />
+          {step.preview.notes && step.preview.notes.length > 0 && (
+            <ul
+              className="flex flex-col gap-1 text-[length:var(--fs-sm)] text-muted-foreground"
+              aria-label="Notes about this file"
+            >
+              {step.preview.notes.map((note) => (
+                <li key={note} className="flex items-start gap-2">
+                  <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                  <span>{note}</span>
+                </li>
+              ))}
+            </ul>
+          )}
           <ImportDefaultsBar
             defaults={step.defaults}
             onChange={setDefaults}

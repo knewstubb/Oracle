@@ -75,6 +75,11 @@ export interface ManaBoxDeckCard extends NormalizedCard {
   printingGiven?: boolean
   /** 1-based source index of the combined row. */
   sourceIndex?: number
+  /**
+   * T-60 S-5 (import-formats §4): `maybeboard` rows are saved as planned slots in the Maybeboard
+   * category and create no copies (D-018, D-022). Absent = `main`.
+   */
+  board?: 'main' | 'maybeboard'
 }
 
 /** The slice of the Supabase client this module uses (lets tests inject a fake). */
@@ -134,7 +139,9 @@ export async function importManaBoxDeck(
   const cards = options.deck.cards as ManaBoxDeckCard[]
   // Round 13: a basic is generic only when its line named no printing. The "Generic basics"
   // display toggle has no effect on imports.
-  const isGeneric = (card: ManaBoxDeckCard) => isGenericBasic(card.cardName, card.printingGiven ?? true)
+  const isMaybe = (card: ManaBoxDeckCard) => card.board === 'maybeboard'
+  const isGeneric = (card: ManaBoxDeckCard) =>
+    !isMaybe(card) && isGenericBasic(card.cardName, card.printingGiven ?? true)
 
   // 0. Validate the request shape before anything is written.
   const problems: string[] = []
@@ -155,7 +162,15 @@ export async function importManaBoxDeck(
       requireCopies: true,
     })
   )
-  if (intent) problems.push(...validateIntentEdits(intent, intentEdits, rowsForValidation))
+  if (intent) {
+    problems.push(
+      ...validateIntentEdits(
+        intent,
+        intentEdits,
+        rowsForValidation.filter((_, i) => !isMaybe(cards[i]))
+      )
+    )
+  }
   if (problems.length > 0) throw new ImportValidationError(problems)
 
   // 1. Read each printing once: type line (categories), oracle id (pair check) and
@@ -228,7 +243,7 @@ export async function importManaBoxDeck(
   let plans: CopyPlan[] = []
   const ownershipFailedCopies = new Set<string>()
   if (intent) {
-    const rows = resolvedByCard.map(({ row }) => row)
+    const rows = resolvedByCard.filter(({ card }) => !isMaybe(card)).map(({ row }) => row)
     const request: OwnershipRequest = {
       cards: rows
         .filter((r) => !isGenericBasic(r.cardName, r.printingGiven ?? true))
@@ -273,7 +288,7 @@ export async function importManaBoxDeck(
     commander_scryfall_id: null,
     commander_id: null,
     colour_identity: options.deck.colourIdentity,
-    card_count: options.deck.cardCount,
+    card_count: cards.filter((c) => !isMaybe(c)).reduce((sum, c) => sum + c.quantity, 0),
     is_active: false,
     format: deckFormat,
     source_url: '',
@@ -297,7 +312,7 @@ export async function importManaBoxDeck(
   // 3. Upsert user_cards for every tracked (non-generic-basic) row.
   const uniqueCards = new Map<string, string>()
   for (const card of cards) {
-    if (isGeneric(card)) continue
+    if (isGeneric(card) || isMaybe(card)) continue
     if (card.oracleId && !uniqueCards.has(card.oracleId)) {
       uniqueCards.set(card.oracleId, card.cardName)
     }
@@ -349,6 +364,27 @@ export async function importManaBoxDeck(
     const categories = JSON.stringify([deriveDefaultCategory(typeLine)])
     const printingId = card.scryfallId || getBasicLandDefaultScryfallId(card.cardName) || null
 
+    if (isMaybe(card)) {
+      // A maybeboard card is a planned slot in the Maybeboard category: no copy is created or
+      // linked (D-018, D-022), it never counts toward readiness and is never sleeved or moved.
+      for (const [copyIdx, copy] of resolved.entries()) {
+        origins.push({ rowKey: card.rowKey as string, copyIndex: copyIdx, cardName: card.cardName })
+        insertRows.push({
+          ...(intent ? { action: 'planned', row_index: insertRows.length } : {}),
+          card_id: null,
+          card_name: card.cardName,
+          printing_id: card.scryfallId,
+          scryfall_id: card.scryfallId,
+          set_code: card.setCode,
+          categories: JSON.stringify(['Maybeboard']),
+          is_commander: false,
+          is_proxy: false,
+          is_maybeboard: true,
+          finish: copy.finish,
+        })
+      }
+      continue
+    }
     if (isGeneric(card)) {
       // Generic basics create no copies (contract generic-basic-lands §3). A planned slot with
       // the explicit is_generic flag. Sleeved/Unsleeved is all-or-nothing per basic type

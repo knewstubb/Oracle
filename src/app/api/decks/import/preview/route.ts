@@ -10,7 +10,8 @@
 
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
-import { buildDeckPreview, detectManaBoxFile } from '@/lib/manabox-import'
+import { buildDeckPreview } from '@/lib/manabox-import'
+import { checkImportFile } from '@/lib/import-file-guard'
 import { createSupabaseManaBoxResolver } from '@/lib/manabox-resolver'
 import { parseDeckUrl, isParseError } from '@/lib/url-parser'
 import { fetchDeck } from '@/lib/archidekt-client'
@@ -42,10 +43,11 @@ export async function POST(request: NextRequest) {
     }
     const content = await file.text()
     const fileName = file instanceof File ? file.name : 'deck'
-    const kind = detectManaBoxFile(content)
-    if (!kind) {
-      return Response.json({ error: 'Not a ManaBox .csv or .txt file' }, { status: 400 })
+    const check = checkImportFile(content, fileName)
+    if (!check.ok) {
+      return Response.json({ error: check.error }, { status: 400 })
     }
+    const kind = check.kind
     try {
       const preview = await buildDeckPreview(
         kind === 'csv'
@@ -72,9 +74,15 @@ export async function POST(request: NextRequest) {
 
   if (body.csvContent !== undefined || body.textContent !== undefined) {
     const fileName = body.fileName ?? 'deck'
+    const content = body.csvContent ?? body.textContent ?? ''
+    const check = checkImportFile(content, fileName)
+    if (!check.ok) {
+      return Response.json({ error: check.error }, { status: 400 })
+    }
     try {
+      // The file's content decides CSV or text, not its extension (E-12).
       const preview = await buildDeckPreview(
-        { fileName, csvContent: body.csvContent, textContent: body.textContent },
+        check.kind === 'csv' ? { fileName, csvContent: content } : { fileName, textContent: content },
         createSupabaseManaBoxResolver({ userId: authResult.id })
       )
       return Response.json(preview)

@@ -39,6 +39,10 @@ export type ImportStep =
         skippedTokens: ManaBoxSkippedToken[]
         unmatched: ManaBoxUnmatchedLine[]
         notices?: PreviewNotices
+        /** Plain-words notes about the file (import-formats S-5). */
+        notes?: string[]
+        /** Commanders the file marks, for pre-ticking the picker (import-formats S-6). */
+        commanders?: Array<{ name: string; scryfallId: string | null }>
       }
       deckName: string
       format: string
@@ -115,7 +119,7 @@ export function sourceLabel(source: ImportSource, index: number): string {
  * land whose line named no printing. Independent of the "Generic basics" display toggle.
  */
 export function isGenericRow(row: UiPreviewRow, kind: ImportKind): boolean {
-  return kind === 'deck' && isGenericBasic(row.cardName, row.printingGiven ?? true)
+  return kind === 'deck' && row.board !== 'maybeboard' && isGenericBasic(row.cardName, row.printingGiven ?? true)
 }
 
 /** Compute footer totals from review rows (generic basics create no copies; specific basics count as normal cards). */
@@ -144,6 +148,8 @@ export function computeTotals(
 
   for (const row of rows) {
     cards += row.qty
+    // Maybeboard cards add no copies, so they never count as proxies, unsleeved or foil (D-022).
+    if (row.board === 'maybeboard') continue
     if (isGenericRow(row, kind)) {
       basics += row.qty
       continue
@@ -177,6 +183,7 @@ export function buildCommitDeck(rows: UiPreviewRow[]) {
     rowKey: row.rowKey,
     sourceIndex: row.sourceIndex,
     printingGiven: row.printingGiven,
+    ...(row.board === 'maybeboard' ? { board: 'maybeboard' as const } : {}),
     // File values only; the owner's edits travel separately and are applied on the server.
     copies: row.copies.map((copy) => ({ index: copy.index, sourceLine: copy.sourceLine, file: copy.file })),
   }))
@@ -188,7 +195,7 @@ export function buildCommitDeck(rows: UiPreviewRow[]) {
     sourceUrl: '',
     commander: null,
     cards,
-    cardCount: cards.reduce((sum, c) => sum + c.quantity, 0),
+    cardCount: cards.filter((c) => !('board' in c)).reduce((sum, c) => sum + c.quantity, 0),
     colourIdentity: '',
   }
 }

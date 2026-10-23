@@ -431,9 +431,9 @@ export interface ManaBoxResolution {
   candidates: ResolvedManaBoxCandidate[]
   skippedTokens: ManaBoxSkippedToken[]
   unmatched: ManaBoxUnmatchedLine[]
+  /** Plain-words notes from reading the file (ignored headings, kept-in-main cards, etc.). */
+  notes?: string[]
 }
-
-/** Which kind of file a set of candidates came from, for row-key purposes. */
 export type ManaBoxRowKind = 'collection' | 'deck'
 
 /**
@@ -453,8 +453,12 @@ export function combineResolvedRows(
     const printingGiven = candidate.printingGiven ?? true
     // A plain "11 Plains" must never merge with "Plains (ZNR) 250" even if the default printing
     // is that same card: one becomes a generic slot, the other a real copy.
-    const key =
-      buildRowKey(candidate, rowKind) + (isGenericBasic(candidate.cardName, printingGiven) ? '|generic' : '')
+    // A maybeboard line is its own row, never merged with the same card in the main list (E-1),
+    // and basics there are never turned into generic slots (E-13).
+    const onMaybeboard = candidate.board === 'maybeboard'
+    const key = onMaybeboard
+      ? `${buildRowKey(candidate, rowKind)}|maybeboard`
+      : buildRowKey(candidate, rowKind) + (isGenericBasic(candidate.cardName, printingGiven) ? '|generic' : '')
 
     const existing = grouped.get(key)
     if (existing) {
@@ -480,6 +484,7 @@ export function combineResolvedRows(
         copies: [],
         isBasicLand: isBasicLand(candidate.cardName),
         printingGiven,
+        ...(onMaybeboard ? { board: 'maybeboard' as const } : {}),
       },
     })
   }
@@ -718,9 +723,11 @@ export async function resolveDeckRows(
   const skippedTokens: ManaBoxSkippedToken[] = []
   const candidates: ResolvedManaBoxCandidate[] = []
   let totalLines = 0
+  const notes: string[] = []
 
   if (input.csvContent !== undefined && isManaBoxCsv(input.csvContent)) {
-    const { records, badRows } = parseManaBoxCsv(input.csvContent)
+    const { records, badRows, warnings } = parseManaBoxCsv(input.csvContent)
+    notes.push(...warnings)
     totalLines = records.length + badRows.length
     unmatched.push(...badRows)
     for (const record of records) {
@@ -728,8 +735,11 @@ export async function resolveDeckRows(
       if (candidate) candidates.push(candidate)
     }
   } else if (input.textContent !== undefined) {
-    const { lines, badLines } = parseManaBoxText(input.textContent)
-    totalLines = lines.length + badLines.length
+    const parsed = parseManaBoxText(input.textContent)
+    const { lines, badLines } = parsed
+    notes.push(...parsed.warnings, ...parsed.notes)
+    skippedTokens.push(...parsed.skippedTokens)
+    totalLines = lines.length + badLines.length + parsed.skippedTokens.length
     unmatched.push(...badLines)
     for (const line of lines) {
       const candidate = await resolveTextLine(line, resolver, unmatched, skippedTokens)
@@ -746,6 +756,7 @@ export async function resolveDeckRows(
     candidates,
     skippedTokens,
     unmatched,
+    notes,
   }
 }
 
@@ -765,12 +776,51 @@ export async function buildCollectionPreview(
   }
 }
 
+/** Plain-words notes the deck preview adds for boards and unmatched lines (import-formats §4, E-16). */
+function deckPreviewNotes(resolution: ManaBoxResolution): string[] {
+  const notes = [...(resolution.notes ?? [])]
+  const companions = resolution.candidates.filter((c) => c.board === 'companion')
+  if (companions.length > 0) {
+    notes.push(
+      `${companions.map((c) => c.cardName).join(', ')} is marked as a companion. For now it is kept in the main list; set it up as the companion after the import.`
+    )
+  }
+  const maybe = resolution.candidates
+    .filter((c) => c.board === 'maybeboard')
+    .reduce((sum, c) => sum + c.qty, 0)
+  if (maybe > 0) {
+    notes.push(`${maybe} ${maybe === 1 ? 'card is' : 'cards are'} on the maybeboard. They are saved as maybes, with no copies added.`)
+  }
+  if (resolution.unmatched.some((u) => u.setCode && u.reason === 'no_card')) {
+    notes.push(
+      "Some lines name a set or number we couldn't find. Other sites sometimes use set codes that differ from ours, so those lines are listed instead of guessed."
+    )
+  }
+  return notes
+}
+
+/** The cards the file marks as commanders, one per card, for pre-ticking the picker (N-1). */
+function deckPreviewCommanders(
+  candidates: ResolvedManaBoxCandidate[]
+): Array<{ name: string; scryfallId: string | null }> {
+  const seen = new Set<string>()
+  const out: Array<{ name: string; scryfallId: string | null }> = []
+  for (const c of candidates) {
+    if (c.board !== 'commander' || seen.has(c.oracleId)) continue
+    seen.add(c.oracleId)
+    out.push({ name: c.cardName, scryfallId: c.scryfallId || null })
+  }
+  return out
+}
+
 /** Build the non-writing preview for a ManaBox deck CSV or text export. */
 export async function buildDeckPreview(
   input: ManaBoxDeckPreviewInput,
   resolver: ManaBoxResolver
 ): Promise<ManaBoxPreviewResponse> {
   const resolution = await resolveDeckRows(input, resolver)
+  const notes = deckPreviewNotes(resolution)
+  const commanders = deckPreviewCommanders(resolution.candidates)
   return {
     fileName: resolution.fileName,
     totalLines: resolution.totalLines,
@@ -778,5 +828,7 @@ export async function buildDeckPreview(
     skippedTokens: resolution.skippedTokens,
     unmatched: resolution.unmatched,
     notices: countUnrecognisedValues(resolution.candidates),
+    ...(notes.length > 0 ? { notes } : {}),
+    ...(commanders.length > 0 ? { commanders } : {}),
   }
 }

@@ -367,3 +367,43 @@ Default printings chosen: Ghen CMR 275; Eiganjo SOC 13; Bitter Reunion FDC 139; 
 - The alerts migration draft stays in `contracts/drafts`; nothing applied or created.
 
 **Process notes:** one scripted edit (python) was used on `ManaBoxDeckImportFlow.tsx` by mistake instead of the edit tool; everything else used the edit/create tools.
+
+---
+
+## Round 17: owner click-through fixes
+
+**In plain language**
+1. The import window is now one fixed size on every tab (File / Paste / URL / Precon).
+2. The "What's this deck?" choice now sits under the tabs. On Precon it stays visible, set to "I bought it", and can't be changed.
+3. Precon: the code is ready, but the tab shows "Precons not set up yet" until you approve and run the steps below. Picking a precon opens it in the normal review (all cards new Originals, exact printings, commander preselected).
+4. Close now only closes. "Open deck" is a separate button on the result screen.
+5. Every card in the review has an "Add to collection" tick (ticked for "I bought it", unticked for built/planned), Original / Proxy / Unsleeved choices, an inline "move from deck" row (single deck pre-picked, Skip) and an inline "Use my CMM 410 / Add this printing" row.
+
+**Built**
+- Draft migration `docs/oracle/contracts/drafts/DRAFT_20261023150000_ref_precons_cards.sql` (NOT applied), `scripts/sync-precons.ts` stores card lists (NOT run), `GET /api/precons` and `GET /api/precons/[id]` (read-only, degrade to "not set up"), `src/lib/precons.ts`.
+- Review UI: `IntentDecisionRows.tsx`, Add tick in `ImportRowEditor`/`ImportCardList`, pure helpers in `src/lib/import-intent.ts`. The save request strips the Add/move/printing fields.
+- The ownership check now runs for all three intents (read-only) so the tick knows what you own; the tick waits ("Checking your collection…") until it's back. A malformed response counts as a failed check.
+- Tests: precon lib and routes, precon tab, modal size, Close vs Open deck, per-copy views (17), review UI (10). `npm run check` passes (0 errors).
+
+**Where the design and your ask differ**
+- Mockup/spec put the intent choice ABOVE the tabs; I followed you (below) and updated spec section 7. Mockup HTML itself not edited.
+- You said "Proxy ticks Add". The spec/contract instead disable Original/Proxy for a card you don't own until you tick Add (hover says "Not owned: tick Add"); ticking Add on an Unsleeved copy makes it Original. I followed the spec.
+
+**Still not built / disabled**
+- Saving for built and planned decks, and for "I bought it" with any card unticked (S4). Import stays disabled with a note. Also S6–S8 and the decklist alert.
+- The bulk-bar Add tick (the per-row and per-copy ticks exist).
+- Sideboard cards of precons are not stored.
+
+**Untested**
+- Nothing was clicked through in a browser.
+- The precon flow end to end (migration unapplied, so no card lists exist); the commander preselect and CSV through the real preview are only covered by fake-data tests.
+- The ownership endpoint has never run against the live DB.
+- Move / printing rows only tested with fake ownership data.
+
+**Owner steps for precons, in order**
+1. Approve the draft migration, then it gets moved into `supabase/migrations`.
+2. Apply it (test DB first).
+3. Run `npx tsx scripts/sync-precons.ts --dry-run`, then the real run (writes to `ref_precons`, needs the service-role env vars).
+4. Check in the Precon tab: pick a precon, see about 100 cards with exact printings, commander preselected, all Original.
+
+**Process notes:** a couple of macOS `sed` attempts failed or were used only to swap an assertion line in my own new test file; no other scripted file writes. One mid-edit slip (a lost function header in `ImportRowEditor.tsx`) was caught by typecheck and fixed.

@@ -1674,6 +1674,8 @@ export type Database = {
         Row: {
           archidekt_url: string | null
           card_count: number | null
+          /** Added by the DRAFT migration ref_precons_cards (not applied yet). */
+          cards: Json | null
           color_identity: string | null
           commander_name: string | null
           commander_scryfall_id: string | null
@@ -1689,6 +1691,7 @@ export type Database = {
         Insert: {
           archidekt_url?: string | null
           card_count?: number | null
+          cards?: Json | null
           color_identity?: string | null
           commander_name?: string | null
           commander_scryfall_id?: string | null
@@ -1704,6 +1707,7 @@ export type Database = {
         Update: {
           archidekt_url?: string | null
           card_count?: number | null
+          cards?: Json | null
           color_identity?: string | null
           commander_name?: string | null
           commander_scryfall_id?: string | null

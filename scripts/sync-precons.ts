@@ -8,7 +8,8 @@
  * 1. taw/magic-preconstructed-decks-data (GitHub) - comprehensive precon data
  * 2. Scryfall sets API - for supplementing metadata
  * 
- * Usage:
+ * Usage (DO NOT RUN until the owner has approved and applied the ref_precons_cards migration, see
+ * docs/oracle/contracts/drafts/DRAFT_20261023150000_ref_precons_cards.sql; it writes to the database):
  *   npx tsx scripts/sync-precons.ts              # Normal run
  *   npx tsx scripts/sync-precons.ts --dry-run    # Preview without writing
  *   npx tsx scripts/sync-precons.ts --verbose    # Detailed logging
@@ -17,6 +18,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { config } from 'dotenv';
 import { resolve } from 'path';
+import { buildStoredCards, preconCardCount, type PreconCard } from '../src/lib/precons';
 
 // Load env
 config({ path: resolve(__dirname, '../.env.local') });
@@ -46,9 +48,9 @@ interface PreconDeckRaw {
   set_code: string;
   set_name: string;
   release_date: string;
-  cards: Array<{ name: string; count: number }>;
+  cards: Array<{ name: string; count: number; set_code?: string; number?: string; foil?: boolean }>;
   sideboard?: Array<{ name: string; count: number }>;
-  commander?: Array<{ name: string; count: number }>;
+  commander?: Array<{ name: string; count: number; set_code?: string; number?: string; foil?: boolean }>;
 }
 
 interface RefPreconInsert {
@@ -60,7 +62,10 @@ interface RefPreconInsert {
   color_identity: string | null;
   release_date: string | null;
   card_count: number;
-  archidekt_url: string | null;
+  /** Full card list (DRAFT migration ref_precons_cards must be applied before the sync is run). */
+  cards: PreconCard[];
+  /** The useless Archidekt search link is no longer stored. */
+  archidekt_url: null;
 }
 
 // Helpers
@@ -148,15 +153,6 @@ async function getCommanderScryfallId(commanderName: string): Promise<string | n
 }
 
 /**
- * Generate Archidekt search URL for a precon
- * (Users can search Archidekt for official precon decklists)
- */
-function generateArchidektSearchUrl(preconName: string, setName: string): string {
-  const query = encodeURIComponent(`${preconName} ${setName} precon`);
-  return `https://archidekt.com/search/decks?orderBy=-viewCount&query=${query}`;
-}
-
-/**
  * Transform raw precon data to database format
  */
 async function transformPrecons(decks: PreconDeckRaw[]): Promise<RefPreconInsert[]> {
@@ -174,11 +170,9 @@ async function transformPrecons(decks: PreconDeckRaw[]): Promise<RefPreconInsert
       commanderScryfallId = await getCommanderScryfallId(commanderName);
     }
     
-    // Calculate card count
-    const mainCount = deck.cards?.reduce((sum, c) => sum + c.count, 0) || 0;
-    const sideboardCount = deck.sideboard?.reduce((sum, c) => sum + c.count, 0) || 0;
-    const commanderCount = deck.commander?.reduce((sum, c) => sum + c.count, 0) || 0;
-    const cardCount = mainCount + sideboardCount + commanderCount;
+    // Full card list (main deck + commander, commander flagged); the count comes from it.
+    const cards = buildStoredCards(deck);
+    const cardCount = preconCardCount(cards);
     
     results.push({
       name: deck.name,
@@ -189,7 +183,8 @@ async function transformPrecons(decks: PreconDeckRaw[]): Promise<RefPreconInsert
       color_identity: colorIdentity,
       release_date: deck.release_date || null,
       card_count: cardCount || 100,
-      archidekt_url: generateArchidektSearchUrl(deck.name, deck.set_name),
+      cards,
+      archidekt_url: null,
     });
   }
   

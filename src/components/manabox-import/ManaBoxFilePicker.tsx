@@ -111,7 +111,7 @@ export function ManaBoxFilePicker({
           </>
         ) : (
           <>
-            <span className="text-[length:var(--fs-lg)] font-medium text-foreground">Drop your ManaBox file here</span>
+            <span className="text-[length:var(--fs-lg)] font-medium text-foreground">Drop your file here</span>
             <span className="text-[length:var(--fs-xs)]">or</span>
             <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
               Choose file
@@ -138,7 +138,7 @@ export function ImportHelpCards({ kind }: { kind: StageKind }) {
   return (
     <div className="grid grid-cols-2 gap-3">
       <section className="rounded-[10px] border border-[var(--border-subtle)] px-3 py-2.5">
-        <h4 className="mb-1 text-[length:var(--fs-xs)] font-medium">Export from ManaBox</h4>
+        <h4 className="mb-1 text-[length:var(--fs-xs)] font-medium">Export your list</h4>
         <p className="text-[length:var(--fs-xs)] text-muted-foreground">{exportHelpText(kind)}</p>
       </section>
       <section className="rounded-[10px] border border-[var(--border-subtle)] px-3 py-2.5">

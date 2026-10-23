@@ -188,7 +188,7 @@ describe('DeckImportButton', () => {
     await waitFor(() => expect(screen.getByText(/Import a deck from a URL/i)).toBeInTheDocument())
     const content = () => document.querySelector('[data-slot="dialog-content"]')!
     expect(content().className).toContain('h-[min(46rem,calc(100dvh-4rem))]')
-    for (const tab of ['Paste List', 'Precon', 'URL']) {
+    for (const tab of ['Paste text', 'Precon', 'URL']) {
       fireEvent.click(screen.getByRole('button', { name: tab }))
       expect(content().className).toContain('h-[min(46rem,calc(100dvh-4rem))]')
       expect(content().className).toContain('sm:max-w-3xl')
@@ -238,7 +238,7 @@ describe('DeckImportButton', () => {
     fireEvent.change(input, { target: { files: [new File(['1 Sol Ring'], 'deck.txt', { type: 'text/plain' })] } })
     await waitFor(() => expect(screen.getByText('Sol Ring')).toBeInTheDocument())
     expect(screen.queryByRole('button', { name: 'URL' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Paste List' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Paste text' })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit Sol Ring' }))
     fireEvent.click(within(screen.getByRole('group', { name: 'Copy 1 type' })).getByRole('button', { name: 'Proxy' }))
@@ -265,6 +265,6 @@ describe('DeckImportButton', () => {
     fireEvent.change(await screen.findByPlaceholderText(/archidekt|moxfield|url/i), { target: { value: 'https://archidekt.com/decks/123' } })
     fireEvent.click(screen.getAllByRole('radio')[0])
     fireEvent.click(screen.getByRole('button', { name: /fetch deck/i }))
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Paste List' })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Paste text' })).not.toBeInTheDocument())
   })
 })

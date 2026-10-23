@@ -518,7 +518,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
         <ManaBoxFilePicker
           accept=".csv,.txt,text/csv,text/plain"
           extensions={['csv', 'txt']}
-          label="ManaBox .csv or .txt"
+          label=".csv or .txt"
           kind="deck"
           showHelp={fill}
           onFile={handleFile}

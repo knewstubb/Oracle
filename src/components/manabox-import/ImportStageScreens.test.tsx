@@ -27,8 +27,8 @@ describe('upload stage', () => {
 
   it('shows the drop zone and both help cards', () => {
     setup()
-    expect(screen.getByText('Drop your ManaBox file here')).toBeInTheDocument()
-    expect(screen.getByText('Export from ManaBox')).toBeInTheDocument()
+    expect(screen.getByText('Drop your file here')).toBeInTheDocument()
+    expect(screen.getByText('Export your list')).toBeInTheDocument()
     expect(screen.getByText('What happens next')).toBeInTheDocument()
   })
 
@@ -44,7 +44,7 @@ describe('upload stage', () => {
     const { onFile, onError } = setup()
     const input = screen.getByLabelText('Choose file')
     fireEvent.change(input, { target: { files: [new File(['x'], 'deck.pdf')] } })
-    expect(onError).toHaveBeenCalledWith(expect.stringMatching(/isn't a ManaBox/))
+    expect(onError).toHaveBeenCalledWith(expect.stringMatching(/isn't a \.csv file/))
     fireEvent.change(input, { target: { files: [new File([''], 'empty.csv')] } })
     expect(onError).toHaveBeenLastCalledWith(expect.stringMatching(/no cards/))
     expect(onFile).not.toHaveBeenCalled()

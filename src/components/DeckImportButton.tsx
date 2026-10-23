@@ -26,7 +26,7 @@ import { ImportDiscardDialog } from '@/components/manabox-import/ImportDiscardDi
 import { IMPORT_MODAL_CLASS, IMPORT_INTERACTIVE_CLASS } from '@/components/manabox-import/import-labels'
 import { decideDeckDialogClose } from '@/components/manabox-import/import-close-guard'
 import { ImportIntentChoice } from '@/components/manabox-import/ImportIntentChoice'
-import { intentHeading, PRECON_INTENT_NOTE, PRECONS_NOT_SET_UP, PRECONS_NOT_SET_UP_HINT, PRECON_OPEN_FAILED } from '@/components/manabox-import/import-copy'
+import { intentHeading, PRECONS_NOT_SET_UP, PRECONS_NOT_SET_UP_HINT, PRECON_OPEN_FAILED, URL_HELP_TITLE, URL_HELP_EXAMPLES, URL_HELP_NOTE } from '@/components/manabox-import/import-copy'
 import { preconCardsToCsv, preconCommanderName, preconFileName, type PreconDetail, type PreconListItem } from '@/lib/precons'
 import type { ImportIntent } from '../../docs/oracle/contracts/import-intent.types'
 
@@ -525,7 +525,7 @@ export function DeckImportButton({
                     if (tab !== activeTab) askBeforeDiscard(() => { setPastedFile(null); setPreconPick(null); setActiveTab(tab) })
                   }}
                 >
-                  {tab === 'url' ? 'URL' : tab === 'paste' ? 'Paste List' : tab === 'file' ? 'File' : 'Precon'}
+                  {tab === 'url' ? 'URL' : tab === 'paste' ? 'Paste text' : tab === 'file' ? 'File' : 'Precon'}
                 </button>
               ))}
             </div>
@@ -538,19 +538,17 @@ export function DeckImportButton({
                   value={shownIntent}
                   onChange={(v) => { setIntent(v); setIntentError(false) }}
                   showError={intentError}
-                  disabled={preconLocked}
+                  disabledValues={preconLocked ? ['built', 'planned'] : undefined}
                 />
-                {preconLocked && (
-                  <p className="mt-1.5 text-[length:var(--fs-xs)] text-muted-foreground">{PRECON_INTENT_NOTE}</p>
-                )}
               </div>
             )}
 
             {/* Tab content: same height on every tab, so the window never changes size */}
-            <div className={fileTab ? 'flex min-h-0 flex-1 flex-col' : 'min-h-0 flex-1 overflow-y-auto'}>
-              {/* URL tab */}
+            <div className={activeTab === 'precon' ? 'min-h-0 flex-1 overflow-y-auto' : 'flex min-h-0 flex-1 flex-col'}>
+              {/* URL tab: centred in the fixed body, with the sites it accepts */}
               {activeTab === 'url' && (
-                <div className="flex flex-col gap-3">
+                <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto">
+                <div className="flex w-full max-w-md flex-col gap-3">
                 <Input
                   type="url"
                   value={url}
@@ -577,12 +575,25 @@ export function DeckImportButton({
                     )}
                   </div>
                 )}
+                </div>
+                <div className="w-full max-w-md rounded-[10px] border border-[var(--border-subtle)] px-3 py-2.5 text-[length:var(--fs-xs)] text-muted-foreground">
+                  <p className="mb-1 font-medium text-foreground">{URL_HELP_TITLE}</p>
+                  <ul className="flex flex-col gap-0.5">
+                    {URL_HELP_EXAMPLES.map((ex) => (
+                      <li key={ex.site}>
+                        <span className="text-foreground">{ex.site}</span>{' '}
+                        <code className="font-mono">{ex.example}</code>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-1">{URL_HELP_NOTE}</p>
+                </div>
               </div>
             )}
 
-            {/* Paste tab */}
+            {/* Paste tab: the text box fills the rest of the window */}
             {activeTab === 'paste' && (
-              <div className="flex flex-col gap-3">
+              <div className="flex min-h-0 flex-1 flex-col gap-3">
                 <Input
                   type="text"
                   value={pasteDeckName}
@@ -596,8 +607,7 @@ export function DeckImportButton({
                   onKeyDown={handleKeyDown}
                   placeholder={"1 Sol Ring\n1 Command Tower\n1 Arcane Signet\n..."}
                   disabled={importMutation.isPending}
-                  rows={8}
-                  className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-[length:var(--fs-sm)] text-foreground placeholder:text-muted-foreground focus:border-[var(--accent-primary)] focus:outline-none resize-none font-mono"
+                  className="min-h-0 w-full flex-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-[length:var(--fs-sm)] text-foreground placeholder:text-muted-foreground focus:border-[var(--accent-primary)] focus:outline-none resize-none font-mono"
                 />
 
                 {pasteError && (

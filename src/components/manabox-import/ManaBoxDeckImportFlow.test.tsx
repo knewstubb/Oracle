@@ -102,7 +102,7 @@ describe('ManaBoxDeckImportFlow', () => {
     render(<ManaBoxDeckImportFlow onComplete={() => {}} onCancel={() => {}} />, {
       wrapper: createWrapper(),
     })
-    expect(screen.getByText(/ManaBox \.csv or \.txt/i)).toBeInTheDocument()
+    expect(screen.getByText(/\.csv or \.txt/i)).toBeInTheDocument()
   })
 
   it('moves to review and shows controls for deck rows', async () => {

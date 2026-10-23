@@ -56,7 +56,9 @@ describe('DeckImportButton first-screen order', () => {
     const radios = screen.getAllByRole('radio') as HTMLInputElement[]
     expect(radios).toHaveLength(3)
     expect(radios[0].checked).toBe(true)
-    expect(radios.every((r) => r.disabled)).toBe(true)
+    expect(radios[0].disabled).toBe(false)
+    expect(radios[1].disabled && radios[2].disabled).toBe(true)
+    expect(screen.queryByText(/always something you bought/)).toBeNull()
     expect(screen.getByText("What's this deck?")).toBeInTheDocument()
   })
 })

@@ -4,19 +4,19 @@ import type { ImportIntent } from '../../../docs/oracle/contracts/import-intent.
 export type StageKind = 'collection' | 'deck'
 
 export function wrongTypeMessage(extensions: string[]): string {
-  return `That isn't a ManaBox ${extensions.map((e) => `.${e}`).join(' or ')} file. Choose the file you exported from ManaBox.`
+  return `That isn't a ${extensions.map((e) => `.${e}`).join(' or ')} file. Choose a ${extensions.map((e) => `.${e}`).join(' or ')} file exported from your deck or collection app.`
 }
 
 export const EMPTY_FILE_MESSAGE =
-  'This file has no cards. Check you exported the right list from ManaBox, then try again.'
+  'This file has no cards. Check you exported the right list, then try again.'
 
 export const UNREADABLE_FILE_MESSAGE =
-  "We couldn't read that file. Export it from ManaBox again and retry."
+  "We couldn't read that file. Export it again and retry."
 
 export function exportHelpText(kind: StageKind): string {
   return kind === 'deck'
-    ? 'Open the deck in ManaBox and export it as CSV or text.'
-    : 'Open your collection in ManaBox and export it as CSV.'
+    ? 'Export the deck from your deck app or site as CSV or text.'
+    : 'Export your collection from your collection app as CSV.'
 }
 
 export const NEXT_STEPS = [
@@ -56,9 +56,18 @@ export const OWNERSHIP_FAILED = "Couldn't check your collection."
 export const INTENT_SAVE_PENDING = 'Saving built and planned decks is coming soon. You can review the list now.'
 
 /** Precon tab. */
-export const PRECON_INTENT_NOTE = 'Precons are always something you bought, so this is set for you.'
+/** URL tab: the sites the importer reads (src/lib/url-parser.ts). Keep in step with that file. */
+export const URL_HELP_TITLE = 'Works with links from'
+export const URL_HELP_EXAMPLES = [
+  { site: 'Archidekt', example: 'archidekt.com/decks/1234567' },
+  { site: 'Moxfield', example: 'moxfield.com/decks/aBc123XyZ' },
+  { site: 'MTGGoldfish', example: 'mtggoldfish.com/deck/1234567' },
+  { site: 'TappedOut', example: 'tappedout.net/mtg-decks/my-deck/' },
+  { site: 'Deckbox', example: 'deckbox.org/sets/1234567' },
+]
+export const URL_HELP_NOTE = 'The deck must be public. Add https:// or leave it off.'
 export const PRECONS_NOT_SET_UP = 'Precons not set up yet'
-export const PRECONS_NOT_SET_UP_HINT = 'The precon list has not been loaded into your library yet. You can still import by URL, pasted list or file.'
+export const PRECONS_NOT_SET_UP_HINT = 'The precon list has not been loaded into your library yet. You can still import by URL, pasted text or file.'
 export const PRECON_OPEN_FAILED = "Couldn't open that precon. Try again."
 
 /** Per-card controls (spec §4-§6). */

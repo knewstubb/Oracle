@@ -10,14 +10,15 @@ export interface ImportIntentChoiceProps {
   onChange: (intent: ImportIntent) => void
   /** Show "Choose one to continue." under the cards. */
   showError?: boolean
-  disabled?: boolean
+  /** Options that can't be picked right now (the selected one never looks disabled). */
+  disabledValues?: ImportIntent[]
 }
 
 /**
  * "What's this deck?": three radio cards, nothing pre-selected. Native radios, so the arrow keys
  * move and select within the group (spec §10).
  */
-export function ImportIntentChoice({ value, onChange, showError, disabled }: ImportIntentChoiceProps) {
+export function ImportIntentChoice({ value, onChange, showError, disabledValues }: ImportIntentChoiceProps) {
   const labelId = useId()
   const errorId = useId()
   const name = useId()
@@ -34,6 +35,7 @@ export function ImportIntentChoice({ value, onChange, showError, disabled }: Imp
       >
         {INTENT_OPTIONS.map((opt) => {
           const checked = value === opt.value
+          const disabled = !checked && !!disabledValues?.includes(opt.value)
           return (
             <label
               key={opt.value}
@@ -45,7 +47,7 @@ export function ImportIntentChoice({ value, onChange, showError, disabled }: Imp
                 checked
                   ? 'border-[var(--accent-primary)] bg-[var(--accent-primary-bg)]'
                   : 'border-[var(--border-default)]',
-                disabled && 'cursor-not-allowed opacity-50'
+                disabled && 'cursor-not-allowed opacity-50 hover:border-[var(--border-default)] hover:bg-transparent'
               )}
             >
               <input

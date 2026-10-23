@@ -64,6 +64,8 @@ export interface ImportCardListProps {
     onChangeAdd: (row: UiPreviewRow, add: boolean) => void
     /** Precon: everything is added, so the Add ticks and column are hidden. */
     hideAdd?: boolean
+    /** Planned decks: no ownership or sleeve tags until the owner changes something. */
+    quiet?: boolean
   }
 }
 
@@ -101,13 +103,12 @@ export function ImportCardList({
       const resolved = resolveRowCopies(row, defaults, copyEdits, row.rowKey)
       // With an intent, the type shown is what saving would do (e.g. Unsleeved for a card not owned).
       const views = intent?.viewsByRow[row.rowKey]
-      const typed =
-        views && !isGenericRow(row, kind)
-          ? resolved.map((c) => ({ ...c, type: views.find((v) => v.index === c.index)?.type ?? c.type }))
-          : resolved
+      const typed = views
+        ? resolved.map((c) => ({ ...c, type: views.find((v) => v.index === c.index)?.type ?? c.type }))
+        : resolved
       map.set(
         row.rowKey,
-        isGenericRow(row, kind) ? typed.map((c) => ({ ...c, type: 'original' as const })) : typed
+        isGenericRow(row, kind) && !views ? typed.map((c) => ({ ...c, type: 'original' as const })) : typed
       )
     }
     return map
@@ -358,6 +359,7 @@ export function ImportCardList({
                               },
                               onChangeAdd: (add) => intent.onChangeAdd(row, add),
                               hideAdd: intent.hideAdd,
+                              quiet: intent.quiet,
                             }
                           : undefined
                       }

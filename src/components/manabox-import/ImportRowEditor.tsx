@@ -42,6 +42,8 @@ export interface IntentRowControls {
   onChangeAdd: (add: boolean) => void
   /** Precon: every card is added, so no Add ticks are shown. */
   hideAdd?: boolean
+  /** Planned decks: no ownership or sleeve tags until the owner changes something. */
+  quiet?: boolean
 }
 
 /** Columns of the review list; the list header uses the same. */
@@ -262,7 +264,7 @@ export function ImportRowEditor({
               Generic
             </span>
           )}
-          {generic && resolved.some((c) => c.type === 'unsleeved') && (
+          {generic && !intent?.quiet && resolved.some((c) => c.type === 'unsleeved') && (
             <span
               data-tag="unsleeved"
               className="inline-flex h-[18px] items-center rounded-full border border-[var(--signal-warning)] px-1.5 text-[length:var(--fs-xs)] text-[var(--signal-warning)]"
@@ -272,7 +274,7 @@ export function ImportRowEditor({
           )}
           {!open && (
             <>
-              {summary.tags.filter((tag) => !(notOwnedAll && tag.label === 'Unsleeved')).map((tag) => (
+              {summary.tags.filter((tag) => !(notOwnedAll && tag.label === 'Unsleeved') && !(intent?.quiet && tag.label === 'Unsleeved')).map((tag) => (
                 <span
                   key={`${tag.kind}-${tag.label}`}
                   data-tag={tag.kind}
@@ -297,7 +299,7 @@ export function ImportRowEditor({
                   +{summary.overflow} more
                 </span>
               )}
-              {intentTags?.map((tag) => (
+              {!intent?.quiet && intentTags?.map((tag) => (
                 <span
                   key={`intent-${tag.label}`}
                   data-tag="ownership"
@@ -328,9 +330,7 @@ export function ImportRowEditor({
         </span>
         {intent && (
           <span className="flex justify-center">
-            {generic ? (
-              <span className="text-[length:var(--fs-xs)] text-muted-foreground" title="Generic basics are never added">–</span>
-            ) : !intent.hideAdd && intent.views.some((v) => v.multi) ? (
+            {generic ? null : !intent.hideAdd && intent.views.some((v) => v.multi) ? (
               <AddTick
                 cardName={row.cardName}
                 views={intent.views}

@@ -74,9 +74,6 @@ export function parseTextDecklist(
     ...parsed.warnings,
     ...parsed.notes,
   ]
-  if (parsed.lines.some((l) => l.board === 'companion')) {
-    warnings.push('A companion was found. It is kept in the main list for now.')
-  }
 
   // Derive colour identity placeholder (will be resolved by the import pipeline)
   const deck: NormalizedDeck = {

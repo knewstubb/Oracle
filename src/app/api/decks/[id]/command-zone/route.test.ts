@@ -47,10 +47,15 @@ describe('PUT /api/decks/[id]/command-zone', () => {
     expect(h.rpc).not.toHaveBeenCalled()
   })
 
-  it('refuses a second commander with no role', async () => {
-    const res = await call({ primaryCardId: 1, secondCardId: 2 })
+  it('refuses a second commander with a role that is not partner/background', async () => {
+    const res = await call({ primaryCardId: 1, secondCardId: 2, secondRole: 'companion' })
     expect(res.status).toBe(400)
     expect(h.rpc).not.toHaveBeenCalled()
+  })
+
+  it('refuses a role with no second commander', async () => {
+    const res = await call({ primaryCardId: 1, secondRole: 'partner' })
+    expect(res.status).toBe(400)
   })
 
   it('refuses a non-numeric deck id', async () => {

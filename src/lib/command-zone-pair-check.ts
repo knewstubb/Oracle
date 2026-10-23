@@ -3,11 +3,11 @@
  * needs card text, so the route checks it; the table constraints are only the backstop).
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { verifySecondCommander, type PairCardFacts } from '@/lib/commander-pairing'
+import { verifySecondCommander, secondRoleFor, type PairCardFacts } from '@/lib/commander-pairing'
 import type { CommandZoneRequest } from '@/lib/command-zone-request'
 
 export type PairCheckResult =
-  | { ok: true }
+  | { ok: true; secondRole: 'partner' | 'background' | null }
   | { ok: false; status: number; code: string; error: string }
 
 export async function checkSecondCommanderPair(
@@ -17,7 +17,7 @@ export async function checkSecondCommanderPair(
   userId: string,
   req: CommandZoneRequest
 ): Promise<PairCheckResult> {
-  if (req.secondCardId === null || req.primaryCardId === null || req.secondRole === null) return { ok: true }
+  if (req.secondCardId === null || req.primaryCardId === null) return { ok: true, secondRole: req.secondRole }
 
   const { data: rows, error } = await supabase
     .from('deck_cards')
@@ -48,7 +48,8 @@ export async function checkSecondCommanderPair(
     return { ok: false, status: 422, code: 'pair_unverifiable', error: 'Card details for the pair are missing, so it cannot be checked.' }
   }
 
-  const verdict = verifySecondCommander(primary, second, req.secondRole)
+  const role = req.secondRole ?? secondRoleFor(second)
+  const verdict = verifySecondCommander(primary, second, role)
   if (!verdict.ok) return { ok: false, status: 422, code: 'illegal_pair', error: verdict.reason }
-  return { ok: true }
+  return { ok: true, secondRole: role }
 }

@@ -81,7 +81,12 @@ describe('route pair check (mocked client)', () => {
   it('passes a legal pair', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const c = client([{ id: 1, card_name: 'A' }, { id: 2, card_name: 'B' }], [A, B]) as any
-    expect(await checkSecondCommanderPair(c, 1, 'u', req)).toEqual({ ok: true })
+    expect(await checkSecondCommanderPair(c, 1, 'u', req)).toEqual({ ok: true, secondRole: 'partner' })
+  })
+  it('works out the role when the request has none', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const c = client([{ id: 1, card_name: 'A' }, { id: 2, card_name: 'B' }], [A, B]) as any
+    expect(await checkSecondCommanderPair(c, 1, 'u', { ...req, secondRole: null })).toEqual({ ok: true, secondRole: 'partner' })
   })
   it('422 for an illegal pair', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -97,6 +102,6 @@ describe('route pair check (mocked client)', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const c = client([], []) as any
     const r = (parseCommandZoneRequest({ primaryCardId: 1 }) as { ok: true; value: Parameters<typeof checkSecondCommanderPair>[3] }).value
-    expect(await checkSecondCommanderPair(c, 1, 'u', r)).toEqual({ ok: true })
+    expect(await checkSecondCommanderPair(c, 1, 'u', r)).toEqual({ ok: true, secondRole: null })
   })
 })

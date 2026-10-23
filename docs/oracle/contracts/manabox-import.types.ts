@@ -167,6 +167,8 @@ export interface ManaBoxPreviewResponse {
   notes?: string[]
   /** T-60 S-6 (Developer addition): cards the file marked as commander, to pre-tick in the picker. */
   commanders?: Array<{ name: string; scryfallId: string | null }>
+  /** T-62 S-7 (Developer addition): the companion the file marks (first one only), to pre-tick. */
+  companion?: { name: string; scryfallId: string | null }
 }
 
 // ---------------------------------------------------------------------------

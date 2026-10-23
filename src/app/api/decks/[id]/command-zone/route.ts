@@ -47,7 +47,7 @@ export async function PUT(
     p_user_id: userId,
     p_primary_card_id: req.primaryCardId,
     p_second_card_id: req.secondCardId,
-    p_second_role: req.secondRole,
+    p_second_role: pair.secondRole,
     p_companion_card_id: req.companionCardId,
   })
 
@@ -66,7 +66,7 @@ export async function PUT(
     deckId,
     primaryCardId: req.primaryCardId,
     secondCardId: req.secondCardId,
-    secondRole: req.secondRole,
+    secondRole: pair.secondRole,
     companionCardId: req.companionCardId,
   })
 }

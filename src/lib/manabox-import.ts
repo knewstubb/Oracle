@@ -37,6 +37,7 @@ import {
   type CsvColumnMap,
 } from '@/lib/import-csv'
 import { normaliseQuotes, parseListText } from '@/lib/import-text-parser'
+import { fileCommandZone, limitCompanions, retagCompanions } from '@/lib/import-command-zone'
 import type {
   ImportCopyFileValues,
   ImportFinish,
@@ -782,7 +783,7 @@ function deckPreviewNotes(resolution: ManaBoxResolution): string[] {
   const companions = resolution.candidates.filter((c) => c.board === 'companion')
   if (companions.length > 0) {
     notes.push(
-      `${companions.map((c) => c.cardName).join(', ')} is marked as a companion. For now it is kept in the main list; set it up as the companion after the import.`
+      `${[...new Set(companions.map((c) => c.cardName))].join(', ')} is marked as a companion. It is ticked as the companion below; untick it to keep it in the main list.`
     )
   }
   const maybe = resolution.candidates
@@ -799,28 +800,35 @@ function deckPreviewNotes(resolution: ManaBoxResolution): string[] {
   return notes
 }
 
-/** The cards the file marks as commanders, one per card, for pre-ticking the picker (N-1). */
-function deckPreviewCommanders(
-  candidates: ResolvedManaBoxCandidate[]
-): Array<{ name: string; scryfallId: string | null }> {
-  const seen = new Set<string>()
-  const out: Array<{ name: string; scryfallId: string | null }> = []
-  for (const c of candidates) {
-    if (c.board !== 'commander' || seen.has(c.oracleId)) continue
-    seen.add(c.oracleId)
-    out.push({ name: c.cardName, scryfallId: c.scryfallId || null })
-  }
-  return out
-}
-
 /** Build the non-writing preview for a ManaBox deck CSV or text export. */
 export async function buildDeckPreview(
   input: ManaBoxDeckPreviewInput,
-  resolver: ManaBoxResolver
+  resolver: ManaBoxResolver,
+  /** Optional: oracle text by lower-case card name, used only to spot a companion listed with the commanders (E-22). */
+  loadOracleText?: (names: string[]) => Promise<Map<string, string | null>>
 ): Promise<ManaBoxPreviewResponse> {
-  const resolution = await resolveDeckRows(input, resolver)
-  const notes = deckPreviewNotes(resolution)
-  const commanders = deckPreviewCommanders(resolution.candidates)
+  const resolved = await resolveDeckRows(input, resolver)
+  const zoneNotes: string[] = []
+  let candidates = resolved.candidates
+  const commanderBoard = candidates.filter((c) => c.board === 'commander')
+  if (loadOracleText && commanderBoard.length >= 2) {
+    try {
+      const text = await loadOracleText([...new Set(commanderBoard.map((c) => c.cardName))])
+      const retagged = retagCompanions(candidates, text)
+      candidates = retagged.candidates
+      zoneNotes.push(...retagged.notes)
+    } catch {
+      // No card text: leave the file's own headings as they are.
+    }
+  }
+  const limited = limitCompanions(candidates)
+  candidates = limited.candidates
+  zoneNotes.push(...limited.notes)
+  const resolution = { ...resolved, candidates }
+  const notes = [...deckPreviewNotes(resolution), ...zoneNotes]
+  const zone = fileCommandZone(candidates)
+  const commanders = zone.commanders
+  const companion = zone.companion
   return {
     fileName: resolution.fileName,
     totalLines: resolution.totalLines,
@@ -830,5 +838,6 @@ export async function buildDeckPreview(
     notices: countUnrecognisedValues(resolution.candidates),
     ...(notes.length > 0 ? { notes } : {}),
     ...(commanders.length > 0 ? { commanders } : {}),
+    ...(companion ? { companion } : {}),
   }
 }

@@ -13,6 +13,7 @@ import { requireAuth } from '@/lib/auth'
 import { buildDeckPreview } from '@/lib/manabox-import'
 import { checkImportFile } from '@/lib/import-file-guard'
 import { createSupabaseManaBoxResolver } from '@/lib/manabox-resolver'
+import { loadOracleTextByName } from '@/lib/ref-oracle-text'
 import { parseDeckUrl, isParseError } from '@/lib/url-parser'
 import { fetchDeck } from '@/lib/archidekt-client'
 import { fetchMoxfieldDeck } from '@/lib/moxfield-client'
@@ -53,7 +54,8 @@ export async function POST(request: NextRequest) {
         kind === 'csv'
           ? { fileName, csvContent: content }
           : { fileName, textContent: content },
-        createSupabaseManaBoxResolver({ userId: authResult.id })
+        createSupabaseManaBoxResolver({ userId: authResult.id }),
+        loadOracleTextByName
       )
       return Response.json(preview)
     } catch (err) {
@@ -83,7 +85,8 @@ export async function POST(request: NextRequest) {
       // The file's content decides CSV or text, not its extension (E-12).
       const preview = await buildDeckPreview(
         check.kind === 'csv' ? { fileName, csvContent: content } : { fileName, textContent: content },
-        createSupabaseManaBoxResolver({ userId: authResult.id })
+        createSupabaseManaBoxResolver({ userId: authResult.id }),
+        loadOracleTextByName
       )
       return Response.json(preview)
     } catch (err) {

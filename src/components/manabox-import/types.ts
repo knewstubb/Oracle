@@ -43,6 +43,8 @@ export type ImportStep =
         notes?: string[]
         /** Commanders the file marks, for pre-ticking the picker (import-formats S-6). */
         commanders?: Array<{ name: string; scryfallId: string | null }>
+        /** The companion the file marks (T-62 S-7), to pre-tick. */
+        companion?: { name: string; scryfallId: string | null }
       }
       deckName: string
       format: string

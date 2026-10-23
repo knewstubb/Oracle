@@ -4,6 +4,8 @@
  * No card names are hard-coded.
  */
 
+import { checkCommanderPair, type PairCardFacts } from '@/lib/commander-pairing'
+
 export interface CommanderCardFacts {
   type_line: string | null
   oracle_text: string | null
@@ -54,5 +56,21 @@ export function eligibleCompanionNames(names: string[], facts: Map<string, Comma
   return names.filter((name) => {
     const f = facts.get(name.toLowerCase())
     return !!f && isEligibleCompanion(f)
+  })
+}
+
+/**
+ * Names from `names` that can be the second commander next to `primary`: they can lead a deck and
+ * the pair is legal (Partner with Partner, Choose a Background with a Background, ...).
+ */
+export function eligibleSecondNames(
+  primary: PairCardFacts,
+  names: string[],
+  facts: Map<string, CommanderCardFacts & { name: string }>
+): string[] {
+  return names.filter((name) => {
+    const f = facts.get(name.toLowerCase())
+    if (!f || !isEligibleCommander(f)) return false
+    return checkCommanderPair(primary, { name: f.name, type_line: f.type_line, oracle_text: f.oracle_text }).ok
   })
 }

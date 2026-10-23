@@ -24,6 +24,13 @@ import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 import { isBasicLand, isGenericBasic, getBasicLandDefaultScryfallId, pickGenericArt, resolveGenericSleeved } from '@/lib/basic-lands'
 import { deriveDefaultCategory } from '@/lib/card-definition-resolver'
 import { createVersionSnapshot } from '@/lib/deck-versions'
+import {
+  applyCommandZoneAfterImport,
+  hasExtraRoles,
+  resolveImportCommandZone,
+  tagCommandZoneRows,
+  type ImportCommandZone,
+} from '@/lib/import-command-zone-save'
 import type { NormalizedCard, NormalizedDeck } from '@/lib/deck-normalizer'
 import {
   ImportValidationError,
@@ -107,6 +114,8 @@ export interface ManaBoxDeckImportOptions {
   intent?: ImportIntent
   /** Reads ownership facts for the plan (tests inject a fake). Defaults to the real, read-only loader. */
   loadOwnership?: (request: OwnershipRequest) => Promise<OwnershipResponse>
+  /** The command zone picked on the review (card names). Contract command-zone-roles §4. */
+  commandZone?: ImportCommandZone
 }
 
 /** One deck per file — a fresh numeric id for each import. */
@@ -452,6 +461,11 @@ export async function importManaBoxDeck(
   }
 
   // 5. One atomic write: new copies + linked slots + planned slots.
+  const zone = await resolveImportCommandZone(supabase as never, options.commandZone)
+  const zoneNotes: string[] = [...zone.notes]
+  if (intent) {
+    zoneNotes.push(...tagCommandZoneRows(insertRows as unknown as Record<string, unknown>[], zone))
+  }
   if (intent) {
     // Draft M2 (not applied until the Architect has reviewed it). If it is missing, nothing is saved and the
     // empty deck we just created is removed again (we made it a moment ago; the id and owner both must match).
@@ -460,7 +474,7 @@ export async function importManaBoxDeck(
       supabase as unknown as {
         rpc: (name: string, args: unknown) => Promise<{ data: unknown; error: { code?: string; message: string } | null }>
       }
-    ).rpc('import_deck_with_intent', {
+    ).rpc(hasExtraRoles(zone) ? 'import_deck_with_intent_roles' : 'import_deck_with_intent', {
       p_deck_id: deckId,
       p_user_id: options.userId,
       p_rows: insertRows as unknown as Json,
@@ -486,9 +500,12 @@ export async function importManaBoxDeck(
       deckId,
       allocationSummary: { assigned, shortfall, errors: [], unmatched: options.unmatched ?? [] },
       unlistedFinish: finishCheck.unlistedFinish,
-      genericNotes: mixedGenericTypes.map(
-        (name) => `Some ${name} lines were Unsleeved, so all ${name} generics in this deck are Unsleeved.`
-      ),
+      genericNotes: [
+        ...mixedGenericTypes.map(
+          (name) => `Some ${name} lines were Unsleeved, so all ${name} generics in this deck are Unsleeved.`
+        ),
+        ...zoneNotes,
+      ],
       intentSummary,
     }
   }
@@ -520,6 +537,8 @@ export async function importManaBoxDeck(
     options.name || options.deck.name
   )
 
+  zoneNotes.push(...(await applyCommandZoneAfterImport(supabase as never, deckId, options.userId, zone)))
+
   return {
     deckId,
     allocationSummary: {
@@ -529,9 +548,12 @@ export async function importManaBoxDeck(
       unmatched: options.unmatched ?? [],
     },
     unlistedFinish: finishCheck.unlistedFinish,
-    genericNotes: mixedGenericTypes.map(
-      (name) => `Some ${name} lines were Unsleeved, so all ${name} generics in this deck are Unsleeved.`
-    ),
+    genericNotes: [
+      ...mixedGenericTypes.map(
+        (name) => `Some ${name} lines were Unsleeved, so all ${name} generics in this deck are Unsleeved.`
+      ),
+      ...zoneNotes,
+    ],
   }
 }
 

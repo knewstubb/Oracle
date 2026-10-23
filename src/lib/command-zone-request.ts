@@ -22,7 +22,8 @@ function idOrNull(v: unknown, field: string): number | null | { error: string } 
   return v
 }
 
-/** Body: { primaryCardId, secondCardId?, secondRole?, companionCardId? } — all are deck_cards.id values. */
+/** Body: { primaryCardId, secondCardId?, secondRole?, companionCardId? } — all ids are deck_cards.id values.
+ *  When a second commander is given without a role, the server works the role out from the card (Background or Partner). */
 export function parseCommandZoneRequest(body: unknown): ParsedCommandZoneRequest {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {
     return { ok: false, error: 'Invalid request body' }
@@ -38,7 +39,7 @@ export function parseCommandZoneRequest(body: unknown): ParsedCommandZoneRequest
   if (second === null && role !== null) {
     return { ok: false, error: 'A second commander role needs a second commander.' }
   }
-  if (second !== null && role !== 'partner' && role !== 'background') {
+  if (role !== null && role !== 'partner' && role !== 'background') {
     return { ok: false, error: 'The second commander must be a Partner or a Background.' }
   }
   if (second !== null && primary === null) {

@@ -21,6 +21,7 @@ import { importManaBoxDeck, type ManaBoxDeckCard } from '@/lib/manabox-deck-impo
 import type { NormalizedDeck } from '@/lib/deck-normalizer'
 import { ImportValidationError } from '@/lib/import-copies'
 import { NeedsChoiceError } from '@/lib/import-intent-save'
+import { parseImportCommandZone } from '@/lib/import-command-zone-save'
 import type { ImportIntent } from '../../../../../docs/oracle/contracts/import-intent.types'
 import type {
   ImportCopyEdits,
@@ -42,6 +43,8 @@ interface DeckImportBody {
   source?: unknown
   genericArt?: Record<string, { scryfallId: string }>
   unmatched?: ManaBoxUnmatchedLine[]
+  /** Command zone picked on the review: card names (command-zone-roles §4). */
+  commandZone?: unknown
 }
 
 /** A ManaBox deck import carries per-row copies and the import defaults. */
@@ -99,6 +102,7 @@ export async function POST(request: NextRequest) {
         genericArt: body.genericArt,
         userId,
         unmatched: body.unmatched,
+        commandZone: parseImportCommandZone(body.commandZone),
       })
       return Response.json(result)
     } catch (err) {

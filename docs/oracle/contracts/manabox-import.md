@@ -97,7 +97,7 @@ not listed are ignored.
 | `Rarity` | no | ignored | |
 | `Quantity` | yes | number of `user_copies` rows created | Capped at 100 per row [Confirmed: `src/lib/import-engine-v2.ts` line 95] |
 | `ManaBox ID` | no | ignored | Internal ManaBox identifier |
-| `Scryfall ID` | yes | `user_copies.printing_id`; `deck_cards.scryfall_id` | Primary printing identifier (D-003) |
+| `Scryfall ID` | no (preferred) | `user_copies.printing_id`; `deck_cards.scryfall_id` | Primary printing identifier (D-003). Used when present; when the column or a row's value is missing, the printing is resolved from `Set code` + `Collector number` (§5.1 rule 2). Only `Name`, `Quantity` and either `Scryfall ID` or `Set code` + `Collector number` are needed. See also [import-formats.md](./import-formats.md). |
 | `Purchase price` | no | `user_copies.purchase_price` | Stored in USD; 0 or empty → `NULL` |
 | `Misprint` | no | ignored | |
 | `Altered` | no | ignored | |

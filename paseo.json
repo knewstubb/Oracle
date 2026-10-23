@@ -2,6 +2,28 @@
   "scripts": {
     "setup": {
       "command": "npm ci --ignore-scripts --no-audit --no-fund"
+    },
+    "dev-live": {
+      "command": "npx next dev -p 3000",
+      "type": "service",
+      "port": 3000
+    },
+    "dev-test": {
+      "command": "bash scripts/dev-test.sh",
+      "type": "service",
+      "port": 3100
+    },
+    "check": {
+      "command": "npm run check"
+    },
+    "test": {
+      "command": "npm test"
+    },
+    "typecheck": {
+      "command": "npm run typecheck"
+    },
+    "lint": {
+      "command": "npm run lint"
     }
   }
 }

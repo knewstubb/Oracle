@@ -57,6 +57,20 @@ const PREVIEW = {
   notices: { unrecognisedCondition: 0, unrecognisedLanguage: 0, unrecognisedFinish: 0 },
 }
 
+const TWO = {
+  ...PREVIEW,
+  rows: [
+    {
+      ...PREVIEW.rows[0],
+      qty: 2,
+      copies: [
+        { index: 0, sourceLine: 2, file: { finish: 'nonfoil' }, owner: {} },
+        { index: 1, sourceLine: 2, file: { finish: 'nonfoil' }, owner: {} },
+      ],
+    },
+  ],
+}
+
 const OWNED = {
   rows: [
     {
@@ -72,10 +86,10 @@ const NOT_OWNED = { rows: [{ rowKey: 'emil|nonfoil', oracleId: 'emil-oracle', fr
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
-async function open(intent: ImportIntent, ownership: unknown) {
+async function open(intent: ImportIntent, ownership: unknown, preview: unknown = PREVIEW) {
   const user = userEvent.setup()
   const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(async (input) =>
-    String(input).includes('/ownership') ? json(ownership) : json(PREVIEW)
+    String(input).includes('/ownership') ? json(ownership) : json(preview)
   )
   render(<ManaBoxDeckImportFlow intent={intent} onComplete={() => {}} onCancel={() => {}} />, { wrapper: wrapper() })
   await user.upload(screen.getByLabelText('Choose file'), new File(['x'], 'deck.csv', { type: 'text/csv' }))
@@ -91,28 +105,28 @@ describe('Add to collection tick (review)', () => {
   beforeEach(() => vi.restoreAllMocks())
 
   it('I bought it: ticked by default and Import stays enabled', async () => {
-    await open('purchased', OWNED)
+    await open('purchased', OWNED, TWO)
     await waitFor(tickReady)
     expect(addTick()).toBeChecked()
     expect(screen.getByRole('button', { name: /Import deck/i })).toBeEnabled()
   })
 
   it('built: unticked by default and Import is disabled with the note', async () => {
-    await open('built', OWNED)
+    await open('built', OWNED, TWO)
     await waitFor(tickReady)
     expect(addTick()).not.toBeChecked()
     expect(screen.getByRole('button', { name: /Import deck/i })).toBeDisabled()
   })
 
   it('planned: unticked by default and Import is disabled', async () => {
-    await open('planned', OWNED)
+    await open('planned', OWNED, TWO)
     await waitFor(tickReady)
     expect(addTick()).not.toBeChecked()
     expect(screen.getByRole('button', { name: /Import deck/i })).toBeDisabled()
   })
 
   it('I bought it: unticking Add disables Import until it is ticked again', async () => {
-    const { user } = await open('purchased', OWNED)
+    const { user } = await open('purchased', OWNED, TWO)
     await waitFor(tickReady)
     await user.click(addTick())
     expect(addTick()).not.toBeChecked()
@@ -123,7 +137,7 @@ describe('Add to collection tick (review)', () => {
 
   it('the tick waits while the collection is being checked', async () => {
     vi.spyOn(global, 'fetch').mockImplementation(async (input) =>
-      String(input).includes('/ownership') ? new Promise<Response>(() => {}) : json(PREVIEW)
+      String(input).includes('/ownership') ? new Promise<Response>(() => {}) : json(TWO)
     )
     const user = userEvent.setup()
     render(<ManaBoxDeckImportFlow intent="built" onComplete={() => {}} onCancel={() => {}} />, { wrapper: wrapper() })
@@ -133,9 +147,40 @@ describe('Add to collection tick (review)', () => {
   })
 
   it('built, nothing owned: the Add tick starts unticked and no flow change is saved', async () => {
-    await open('built', NOT_OWNED)
+    await open('built', NOT_OWNED, TWO)
     await waitFor(tickReady)
     expect(addTick()).not.toBeChecked()
+  })
+})
+
+describe('Single-copy rows (review)', () => {
+  beforeEach(() => vi.restoreAllMocks())
+
+  it('shows no Add checkbox; a card you do not own offers Original / Proxy / Unowned, never Unsleeved', async () => {
+    const { user } = await open('built', NOT_OWNED)
+    await waitFor(() => expect(screen.queryByText('Checking your collection…')).toBeNull())
+    expect(screen.queryAllByRole('checkbox', { name: /to collection/i })).toHaveLength(0)
+    await user.click(screen.getByRole('button', { name: /Edit Emil/ }))
+    expect(screen.getByRole('button', { name: 'Unowned' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Unsleeved' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Proxy' })).not.toBeDisabled()
+  })
+
+  it('an owned card keeps the word Unsleeved', async () => {
+    const { user } = await open('built', OWNED)
+    await waitFor(() => expect(screen.queryByText('Checking your collection…')).toBeNull())
+    await user.click(screen.getByRole('button', { name: /Edit Emil/ }))
+    expect(screen.getByRole('button', { name: 'Unsleeved' })).toBeInTheDocument()
+  })
+
+  it('choosing Proxy on a not-owned card adds it; Import for I bought it stays enabled', async () => {
+    const { user } = await open('purchased', NOT_OWNED)
+    await waitFor(() => expect(screen.queryByText('Checking your collection…')).toBeNull())
+    await user.click(screen.getByRole('button', { name: /Edit Emil/ }))
+    await user.click(screen.getByRole('button', { name: 'Unowned' }))
+    expect(screen.getByRole('button', { name: /Import deck/i })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Proxy' }))
+    expect(screen.getByRole('button', { name: /Import deck/i })).toBeEnabled()
   })
 })
 
@@ -204,7 +249,7 @@ describe('Inline choices (review)', () => {
   })
 
   it('the save request carries no Add, move or printing fields', async () => {
-    const { user, fetchSpy } = await open('purchased', OWNED)
+    const { user, fetchSpy } = await open('purchased', OWNED, TWO)
     await waitFor(tickReady)
     await user.click(screen.getByRole('button', { name: /Import deck/i }))
     await waitFor(() =>

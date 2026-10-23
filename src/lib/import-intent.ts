@@ -390,6 +390,8 @@ export interface IntentCopyView {
   canOriginal: boolean
   canProxy: boolean
   anyOwned: boolean
+  /** The card has more than one copy in this import, so the Add tick is shown per copy. */
+  multi: boolean
   /** Copy held in other deck(s): the move choice. `chosen` is a deck id, 'skip', or undefined. */
   move?: { candidates: HeldCandidate[]; chosen: number | 'skip' | undefined }
   /** Owned only in another printing: the printing choice. */
@@ -425,6 +427,7 @@ export function intentCopyViews(
         canOriginal: plan?.canOriginal ?? true,
         canProxy: plan?.canProxy ?? false,
         anyOwned: alloc?.anyOwned ?? false,
+        multi: !generic && row.copies.length > 1,
       }
       if (alloc?.source.kind === 'held') {
         view.move = { candidates: alloc.source.candidates, chosen: alloc.source.chosen }
@@ -486,6 +489,7 @@ export function applyIntentChange(
     canOriginal: view.canOriginal,
     canProxy: view.canProxy,
     isGeneric: view.generic,
+    impliedAdd: !view.multi,
   })
   let edit = result.edit
   // "Add this printing" ticks Add; unticking Add takes that choice back.
@@ -527,6 +531,8 @@ export interface CoerceContext {
   canOriginal: boolean
   canProxy: boolean
   isGeneric?: boolean
+  /** Single-copy row: the Add tick is hidden, so the choice itself decides whether the copy is added. */
+  impliedAdd?: boolean
 }
 
 export interface CoerceResult {
@@ -564,12 +570,16 @@ export function coerceIntentEdit(
   if ((change.type === 'original' || change.type === 'proxy') && change.add === undefined && !ctx.effectiveAdd) {
     const allowed = change.type === 'original' ? ctx.canOriginal : ctx.canProxy
     if (!allowed) {
+      // A single-copy row has no Add tick: choosing Original/Proxy for a copy you can't sleeve means "add it".
+      if (ctx.impliedAdd) return { edit: { ...next, add: true } }
       return {
         edit: current,
         message: ctx.anyOwned ? 'No free copy: tick Add' : 'Not owned: tick Add',
       }
     }
   }
+  // A single-copy row has no Add tick: Unowned / Unsleeved means "not added".
+  if (ctx.impliedAdd && change.type === 'unsleeved' && change.add === undefined) next.add = false
   return { edit: next, message }
 }
 

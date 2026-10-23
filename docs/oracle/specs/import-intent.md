@@ -28,7 +28,9 @@ Basics (generic and ordinary lines) default to **unsleeved** under I'm planning 
 ## 4. Per-card controls
 Only two things per copy:
 - **Add to collection** tick: a new copy (ticked) or an owned copy (unticked).
-- **Original · Proxy · Unsleeved.**
+- **Original · Proxy · Unsleeved.** When the card is **not owned** the third choice reads **Unowned** (a not-owned slot, nothing added); "Unsleeved" is kept for owned cards left out of the deck. In the saved data both are the same value (`unsleeved`); only the label differs.
+- **The Add tick shows only on a card with more than one copy** in the import (per copy, plus a mixed tick on the collapsed row). On a single-copy card the tick is hidden and Add is implied by the choice: Original/Proxy on a card you cannot sleeve from your collection = add it (so those buttons are never disabled); Unowned/Unsleeved = not added; Original on an owned free copy = sleeve it (no add).
+- Proxy means a proxy copy is added to the collection and sleeved. Unowned means a not-owned slot in the deck: nothing added, nothing sleeved.
 
 There is no "From collection" choice and no per-card "N free" hint. Owned copies are matched automatically, in order: exact printing, then a free original, then a free proxy (if the only free copy is a proxy, the proxy is sleeved). One owned copy is used once per import.
 
@@ -42,7 +44,7 @@ There is no "From collection" choice and no per-card "N free" hint. Owned copies
 | ✗ | Unsleeved, owned | Owned (list only) |
 | ✗ | Unsleeved, not owned | ⊖ Unowned |
 
-Keeping valid: Original and Proxy are **disabled** when Add is unticked and nothing free is owned (title text: "Not owned: tick Add" or "No free copy: tick Add"). Ticking Add on an Unsleeved copy makes it Original. Unticking Add with no free copy makes it Unsleeved. Collapsed row: select · qty · name, set · tags · Add tick · caret. Tags: Proxy, Owned copy, Moves here, Choose printing, Unsleeved, ⊖ Unowned (counts when partial).
+Keeping valid (cards with several copies, where the tick is shown): Original and Proxy are **disabled** when Add is unticked and nothing free is owned (title text: "Not owned: tick Add" or "No free copy: tick Add"). Single-copy cards have no tick, so nothing is disabled: choosing Original/Proxy there sets Add, choosing Unowned/Unsleeved clears it. Ticking Add on an Unsleeved copy makes it Original. Unticking Add with no free copy makes it Unsleeved (shown **Unowned** if the card is not owned). Collapsed row: select · qty · name, set · tags · Add tick (several-copy cards only) · caret. Tags: Proxy, Owned copy, Moves here, Choose printing, Unsleeved (owned cards only), ⊖ Unowned (counts when partial).
 
 ## 5. Card held in other deck(s): the copy moves
 Inline row under the card (never a modal): **{Card}: copy will be moved from [Korvold | Skip]**; with several decks **[Korvold | Yuriko | Skip]**. The UI is the same for one deck or many; the owner picks which deck is missing it. With one deck, that deck is **pre-selected**. With several, none is selected and the card shows as needing a choice until picked.

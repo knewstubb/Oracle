@@ -47,7 +47,8 @@ export const ROW_GRID = 'grid-cols-[24px_28px_1fr_auto]'
 export const ROW_GRID_INTENT = 'grid-cols-[24px_28px_1fr_112px_28px]'
 
 function typeReasons(view: IntentCopyView | undefined): Partial<Record<ImportCopyType, string>> | undefined {
-  if (!view || view.generic) return undefined
+  // Single-copy rows have no Add tick, so nothing is disabled: choosing Original/Proxy implies adding it.
+  if (!view || view.generic || !view.multi) return undefined
   const why = view.anyOwned ? NO_FREE_COPY_TITLE : NOT_OWNED_TITLE
   const out: Partial<Record<ImportCopyType, string>> = {}
   if (!view.canOriginal) out.original = why
@@ -200,6 +201,8 @@ export function ImportRowEditor({
   intent,
 }: ImportRowEditorProps) {
   const summary = summariseRowTags(resolved, defaults)
+  // Not-owned cards show "Unowned" (the ownership tag), never "Unsleeved".
+  const notOwnedAll = !!intent && !generic && intent.views.length > 0 && intent.views.every((v) => !v.anyOwned)
   const heroArtId = generic ? art?.scryfallId ?? getBasicLandDefaultScryfallId(row.cardName) : row.scryfallId ?? null
   const { triggerProps: nameHover } = useCardHoverPreview({ scryfallId: heroArtId, cardName: row.cardName })
   // Copies whose default finish isn't made for this printing, so their own finish is used.
@@ -267,7 +270,7 @@ export function ImportRowEditor({
           )}
           {!open && (
             <>
-              {summary.tags.map((tag) => (
+              {summary.tags.filter((tag) => !(notOwnedAll && tag.label === 'Unsleeved')).map((tag) => (
                 <span
                   key={`${tag.kind}-${tag.label}`}
                   data-tag={tag.kind}
@@ -325,14 +328,14 @@ export function ImportRowEditor({
           <span className="flex justify-center">
             {generic ? (
               <span className="text-[length:var(--fs-xs)] text-muted-foreground" title="Generic basics are never added">–</span>
-            ) : (
+            ) : intent.views.some((v) => v.multi) ? (
               <AddTick
                 cardName={row.cardName}
                 views={intent.views}
                 busy={intent.busy}
                 onChange={intent.onChangeAdd}
               />
-            )}
+            ) : null}
           </span>
         )}
         {(
@@ -499,7 +502,7 @@ function CopyLine({
         </>
       ) : (
         <>
-          {intentView && onIntentChange && (
+          {intentView && intentView.multi && onIntentChange && (
             <label className="inline-flex items-center gap-1 text-[length:var(--fs-xs)] text-muted-foreground">
               <Checkbox
                 checked={intentView.add}
@@ -515,6 +518,7 @@ function CopyLine({
             value={copy.type}
             options={typeOptions}
             label={`Copy ${n} type`}
+            labels={intentView ? { unsleeved: intentView.anyOwned ? 'Unsleeved' : 'Unowned' } : undefined}
             disabledReasons={intentBusy ? undefined : typeReasons(intentView)}
             onChange={(type) => (onIntentChange ? onIntentChange({ type }) : onChange({ type }))}
           />

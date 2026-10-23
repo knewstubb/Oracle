@@ -296,7 +296,11 @@ export function ImportCardList({
             <Checkbox checked={allSelected} onCheckedChange={handleSelectAll} aria-label="Select all shown" />
             <span>Qty</span>
             <span>Card</span>
-            {intent && <span className="text-center">{ADD_COLUMN}</span>}
+            {intent && (
+              <span className="text-center">
+                {Object.values(intent.viewsByRow).some((vs) => vs.some((v) => v.multi)) ? ADD_COLUMN : ''}
+              </span>
+            )}
             {intent && <span />}
           </div>
         )}

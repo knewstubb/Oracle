@@ -88,14 +88,29 @@ describe('Original / Proxy availability', () => {
     const [v] = views(r, [facts(r)], 'built', { k1: { 0: { add: true } } })
     expect(v).toMatchObject({ add: true, canOriginal: true, canProxy: true })
   })
-  it('a blocked click changes nothing and says why', () => {
-    const r = row()
+  it('a blocked click changes nothing and says why (rows with several copies, where the tick is shown)', () => {
+    const r = row({ qty: 2 })
     const [v] = views(r, [facts(r)], 'built')
+    expect(v.multi).toBe(true)
     const res = applyIntentChange({}, 'k1', 'Sol Ring', v, { type: 'proxy' })
     expect(res.edits).toEqual({})
     expect(res.message).toBe('Not owned: tick Add')
     const [owned] = views(r, [facts(r, [free()])], 'built')
-    expect(applyIntentChange({}, 'k1', 'Sol Ring', owned, { type: 'proxy' }).message).toBe('No free copy: tick Add')
+    expect(applyIntentChange({}, 'k1', 'Sol Ring', { ...owned, canProxy: false, anyOwned: true, add: false }, { type: 'proxy' }).message).toBe('No free copy: tick Add')
+  })
+  it('single-copy row (no tick shown): Proxy/Original imply Add; Unowned implies not added', () => {
+    const r = row()
+    const [v] = views(r, [facts(r)], 'built')
+    expect(v.multi).toBe(false)
+    const proxy = applyIntentChange({}, 'k1', 'Sol Ring', v, { type: 'proxy' })
+    expect(proxy.edits.k1[0]).toEqual({ add: true, type: 'proxy' })
+    expect(proxy.message).toBeUndefined()
+    const [p] = views(r, [facts(r)], 'purchased')
+    const off = applyIntentChange({}, 'k1', 'Sol Ring', p, { type: 'unsleeved' })
+    expect(off.edits.k1[0]).toEqual({ add: false, type: 'unsleeved' })
+    // An owned free copy: Original just sleeves it (add stays off).
+    const [owned] = views(r, [facts(r, [free()])], 'built')
+    expect(applyIntentChange({}, 'k1', 'Sol Ring', owned, { type: 'original' }).edits.k1?.[0]?.add).not.toBe(true)
   })
   it('ticking Add on an unsleeved copy makes it Original; unticking an unowned one leaves it Unsleeved', () => {
     const r = row()

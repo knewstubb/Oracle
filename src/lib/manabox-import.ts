@@ -27,7 +27,16 @@ import {
   parseFileFinish,
   parseFileLanguage,
 } from '@/lib/import-copies'
-import { parseListText } from '@/lib/import-text-parser'
+import {
+  boardFromCells,
+  looksLikeCardCsv,
+  looksLikeSetCode,
+  mapCsvHeaders,
+  normaliseFinishCell,
+  readCsv,
+  type CsvColumnMap,
+} from '@/lib/import-csv'
+import { normaliseQuotes, parseListText } from '@/lib/import-text-parser'
 import type {
   ImportCopyFileValues,
   ImportFinish,
@@ -36,6 +45,7 @@ import type {
 } from '../../docs/oracle/contracts/import-row-editing.types'
 import type {
   ManaBoxCsvFinish,
+  ImportBoard,
   ManaBoxCsvRow,
   ManaBoxTextLine,
   ManaBoxUnmatchedLine,
@@ -62,6 +72,8 @@ export interface ManaBoxCsvParseResult {
   records: ManaBoxCsvRecord[]
   /** Rows that could not be parsed (missing name, invalid quantity). */
   badRows: ManaBoxUnmatchedLine[]
+  /** Plain-words warnings from reading the file (for example a row listing two sections). */
+  warnings: string[]
 }
 
 export interface ManaBoxTextParseResult {
@@ -141,64 +153,25 @@ export type ManaBoxFileKind = 'csv' | 'text'
  */
 export const MANABOX_CSV_MARKERS = ['Set code', 'Collector number'] as const
 
-/** Required columns a ManaBox CSV must carry to be importable. */
-const REQUIRED_CSV_COLUMNS = [
-  'Name',
-  'Set code',
-  'Collector number',
-  'Foil',
-  'Quantity',
-] as const
-
 /**
- * Parse a single CSV line into fields, honouring RFC 4180 quoting and escaped
- * double quotes ("a""b" → a"b).
- */
-function parseCsvLine(line: string): string[] {
-  const fields: string[] = []
-  let current = ''
-  let inQuotes = false
-
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i]
-    if (inQuotes) {
-      if (char === '"') {
-        if (i + 1 < line.length && line[i + 1] === '"') {
-          current += '"'
-          i++
-        } else {
-          inQuotes = false
-        }
-      } else {
-        current += char
-      }
-    } else if (char === '"') {
-      inQuotes = true
-    } else if (char === ',') {
-      fields.push(current.trim())
-      current = ''
-    } else {
-      current += char
-    }
-  }
-  fields.push(current.trim())
-  return fields
-}
-
-/** Split file content into lines without stripping empty ones (line numbers matter). */
-function splitLines(content: string): string[] {
-  return content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')
-}
-
-/**
- * True when the first non-empty line carries every ManaBox CSV marker.
- * Detection is case-sensitive on the exact header strings (contract §2.1).
+ * True when the first non-empty line is a card-list CSV header: ManaBox's own markers, or any
+ * other site's header recognised through the alias table (contract §3.2, E-12). Needs at least
+ * a name column and a quantity, printing or id column, and either two delimiters or both a name
+ * and a quantity column so a plain sentence with one comma is not read as a header.
  */
 export function isManaBoxCsv(content: string): boolean {
-  const firstLine = splitLines(content).find((line) => line.trim() !== '')
+  const firstLine = content
+    .replace(/^\uFEFF/, '')
+    .split(/\r\n|\n|\r/)
+    .find((line) => line.trim() !== '')
   if (!firstLine) return false
-  const headers = parseCsvLine(firstLine)
-  return MANABOX_CSV_MARKERS.every((marker) => headers.includes(marker))
+  const table = readCsv(firstLine)
+  const headers = table.headers
+  if (headers.length < 2) return false
+  if (MANABOX_CSV_MARKERS.every((marker) => headers.includes(marker))) return true
+  if (!looksLikeCardCsv(headers)) return false
+  const map = mapCsvHeaders(headers)
+  return headers.length >= 3 || (map.name !== undefined && map.quantity !== undefined)
 }
 
 /**
@@ -276,77 +249,99 @@ export function parseProxyFlag(raw: string | undefined): boolean | undefined {
   return undefined
 }
 
-function extractCsvRow(fields: string[], colIdx: Record<string, number>): ManaBoxCsvRow {
-  const get = (name: string): string | undefined => {
-    const idx = colIdx[name]
-    return idx === undefined ? undefined : fields[idx]
+function extractCsvRow(
+  fields: string[],
+  map: CsvColumnMap,
+  byHeader: Map<string, number>
+): { row: ManaBoxCsvRow; rawFinish: string | undefined; warning?: string } {
+  const at = (index: number | undefined): string | undefined =>
+    index === undefined ? undefined : fields[index]
+  const extra = (name: string): string | undefined => at(byHeader.get(name))
+
+  // A "set" cell is a code when it is 2-6 letters/digits (ManaBox, Moxfield `Edition`); a longer
+  // value is a set NAME (Deckbox `Edition`) which cannot be used as a code (§3.2).
+  let setCode = (at(map.setCode) ?? '').trim()
+  let setName = at(map.setName)?.trim() || undefined
+  if (setCode && !looksLikeSetCode(setCode)) {
+    setName = setName ?? setCode
+    setCode = ''
+  }
+  if (!setCode && setName && looksLikeSetCode(setName) && map.collectorNumber !== undefined) {
+    setCode = setName
+    setName = undefined
   }
 
+  const boardResult = boardFromCells((map.boardColumns ?? []).map((index) => fields[index]))
+  const rawFinish = map.finish === undefined ? undefined : normaliseFinishCell(fields[map.finish])
+  const quantityCell = at(map.quantity)
+
   return {
-    name: get('Name') ?? '',
-    setCode: get('Set code') ?? '',
-    setName: get('Set name'),
-    collectorNumber: get('Collector number') ?? '',
-    finish: parseManaBoxRawFinish(get('Foil')),
-    rarity: get('Rarity'),
-    quantity: Number.parseInt(get('Quantity') ?? '', 10),
-    manaBoxId: get('ManaBox ID'),
-    scryfallId: get('Scryfall ID') ?? '',
-    purchasePrice: parseOptionalNumber(get('Purchase price')),
-    misprint: parseOptionalBoolean(get('Misprint')),
-    altered: parseOptionalBoolean(get('Altered')),
-    signed: parseOptionalBoolean(get('Signed')),
-    condition: get('Condition'),
-    language: get('Language'),
-    proxy: parseProxyFlag(get('Proxy')),
-    purchasePriceCurrency: get('Purchase price currency'),
-    added: get('Added'),
+    row: {
+      name: at(map.name) ?? '',
+      setCode,
+      setName,
+      collectorNumber: (at(map.collectorNumber) ?? '').trim(),
+      finish: parseManaBoxRawFinish(rawFinish),
+      rarity: extra('rarity'),
+      // A missing quantity COLUMN means 1 each; an empty or bad cell is a bad row (§3.2).
+      quantity: map.quantity === undefined ? 1 : parseWholeNumber(quantityCell),
+      manaBoxId: extra('manabox id'),
+      scryfallId: (at(map.scryfallId) ?? '').trim(),
+      purchasePrice: parseOptionalNumber(extra('purchase price')),
+      misprint: parseOptionalBoolean(extra('misprint')),
+      altered: parseOptionalBoolean(extra('altered')),
+      signed: parseOptionalBoolean(extra('signed')),
+      condition: at(map.condition),
+      language: at(map.language),
+      proxy: parseProxyFlag(at(map.proxy)),
+      purchasePriceCurrency: extra('purchase price currency'),
+      added: extra('added'),
+      board: boardResult.board,
+    },
+    rawFinish,
+    warning: boardResult.warning,
   }
 }
 
+/** A whole number >= 0 as written; NaN when the cell is empty or not a plain integer. */
+function parseWholeNumber(raw: string | undefined): number {
+  const trimmed = (raw ?? '').trim()
+  return /^\d+$/.test(trimmed) ? Number.parseInt(trimmed, 10) : Number.NaN
+}
+
 /**
- * Parse a ManaBox collection or deck CSV. Rows with no name or an invalid
- * quantity become `badRows` (unmatched, reason `bad_line`) rather than being
- * dropped silently (contract §11.2).
+ * Parse a collection or deck CSV from ManaBox or any other site (import-formats §3.2). Rows with
+ * no name or an invalid quantity become `badRows` (unmatched, reason `bad_line`) rather than being
+ * dropped silently (contract §11.2). Throws when the file has no name column.
  */
 export function parseManaBoxCsv(content: string): ManaBoxCsvParseResult {
-  const lines = splitLines(content)
-  const firstIndex = lines.findIndex((line) => line.trim() !== '')
-  if (firstIndex === -1) {
-    return { headers: [], records: [], badRows: [] }
+  const table = readCsv(content)
+  const { headers } = table
+  if (headers.length === 0) {
+    return { headers: [], records: [], badRows: [], warnings: [] }
   }
 
-  const headers = parseCsvLine(lines[firstIndex])
-  const colIdx: Record<string, number> = {}
-  for (let i = 0; i < headers.length; i++) {
-    colIdx[headers[i]] = i
+  const map = mapCsvHeaders(headers)
+  if (map.name === undefined) {
+    throw new Error('CSV missing required columns: Name')
   }
-
-  const missing = REQUIRED_CSV_COLUMNS.filter((column) => colIdx[column] === undefined)
-  if (missing.length > 0) {
-    throw new Error(
-      `CSV missing required columns: ${missing.join(', ')}`
-    )
-  }
+  const byHeader = new Map<string, number>()
+  headers.forEach((header, index) => {
+    const key = header.replace(/^\uFEFF/, '').trim().toLowerCase()
+    if (!byHeader.has(key)) byHeader.set(key, index)
+  })
 
   const records: ManaBoxCsvRecord[] = []
   const badRows: ManaBoxUnmatchedLine[] = []
+  const warnings: string[] = []
 
-  for (let i = firstIndex + 1; i < lines.length; i++) {
-    const rawLine = lines[i]
-    if (rawLine.trim() === '') continue
-
-    // 1-based physical line number; the header is line `firstIndex + 1`.
-    const lineNumber = i + 1
-    const fields = parseCsvLine(rawLine)
-    const row = extractCsvRow(fields, colIdx)
+  for (const record of table.records) {
+    const lineNumber = record.line
+    const rawLine = record.raw
+    const { row, rawFinish, warning } = extractCsvRow(record.cells, map, byHeader)
 
     if (!row.name.trim()) {
-      badRows.push({
-        sourceIndex: lineNumber,
-        rawLine,
-        reason: 'bad_line',
-      })
+      badRows.push({ sourceIndex: lineNumber, rawLine, reason: 'bad_line' })
       continue
     }
 
@@ -362,15 +357,11 @@ export function parseManaBoxCsv(content: string): ManaBoxCsvParseResult {
       continue
     }
 
-    records.push({
-      rowIndex: lineNumber,
-      raw: rawLine,
-      row,
-      rawFoil: colIdx['Foil'] === undefined ? undefined : fields[colIdx['Foil']],
-    })
+    if (warning) warnings.push(`Line ${lineNumber}: ${warning}`)
+    records.push({ rowIndex: lineNumber, raw: rawLine, row, rawFoil: rawFinish })
   }
 
-  return { headers, records, badRows }
+  return { headers, records, badRows, warnings }
 }
 
 // ---------------------------------------------------------------------------
@@ -417,6 +408,8 @@ export interface ResolvedManaBoxCandidate {
   qty: number
   /** `text` lines carry no finish, condition or language (contract §2A). */
   source: 'csv' | 'text'
+  /** Which section the source line named (import-formats §4). Undefined = main. */
+  board?: ImportBoard
   /** What the file supplied for this line. Never defaulted here (contract §3). */
   file: ImportCopyFileValues
   /** Which cells held a value the app could not use (counted in notices). */
@@ -542,6 +535,23 @@ async function resolveCsvRecord(
       })
       return null
     }
+  } else if (!row.setCode || !row.collectorNumber) {
+    // No Scryfall id and no full printing (Moxfield without numbers, Deckbox with a set NAME,
+    // Name+Quantity lists): find the card by name and take the default printing (§3.2).
+    facts = resolver.resolveByName
+      ? await resolver.resolveByName(normaliseQuotes(row.name), { setCode: row.setCode || undefined })
+      : null
+    if (!facts) {
+      unmatched.push({
+        sourceIndex: record.rowIndex,
+        rawLine: record.raw,
+        cardName: row.name,
+        setCode: row.setCode,
+        collectorNumber: row.collectorNumber,
+        reason: 'no_card',
+      })
+      return null
+    }
   } else {
     facts = await resolver.resolveBySetCollector(row.setCode, row.collectorNumber)
     if (!facts) {
@@ -578,16 +588,19 @@ async function resolveCsvRecord(
   // The file's Proxy column sets the review row's default to Proxy (D-055); the owner can change it.
   if (row.proxy === true) file.proxy = true
 
+  const printingGiven = Boolean(scryfallId || (row.setCode && row.collectorNumber))
+
   return {
     sourceIndex: record.rowIndex,
-    cardName: row.name,
+    cardName: printingGiven ? row.name : frontFaceName(facts.cardName),
     setCode: facts.setCode || row.setCode.toLowerCase(),
-    collectorNumber: row.collectorNumber,
+    collectorNumber: printingGiven ? row.collectorNumber : (facts.collectorNumber ?? ''),
     scryfallId: facts.scryfallId,
     oracleId: facts.oracleId,
     qty: Math.min(row.quantity, 100),
     source: 'csv',
-    printingGiven: true, // a CSV row always carries a Scryfall id or set + number
+    printingGiven, // false for a Name + Quantity list: the default printing is a guess
+    board: row.board,
     file,
     unrecognised: {
       finish: isUnrecognisedFinish(record.rawFoil),

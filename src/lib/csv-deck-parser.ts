@@ -3,53 +3,14 @@
 // ---------------------------------------------------------------------------
 
 import type { NormalizedCard, NormalizedDeck } from '@/lib/deck-normalizer'
+import { boardFromCells, mapCsvHeaders, readCsv } from '@/lib/import-csv'
 
 /**
- * Expected Archidekt deck export CSV format:
- * Quantity,Card Name,Categories,Label,Set Code,Set Name,Collector Number,Scryfall ID
- *
- * Also supports variations: "Name" instead of "Card Name", "Edition Code" instead of "Set Code"
+ * Deck export CSV from Archidekt or any site in the import-formats alias table (§3.2). Reading is
+ * done by the shared reader (RFC 4180 across lines, `;`/tab delimiters, BOM), so a quoted newline
+ * no longer splits a record (E-9). Prefer the full import flow; this stays for callers that want
+ * a NormalizedDeck.
  */
-
-/**
- * Parse a CSV string that may contain quoted fields with commas, newlines, etc.
- * Implements RFC 4180 parsing.
- */
-function parseCSVRow(row: string): string[] {
-  const fields: string[] = []
-  let current = ''
-  let inQuotes = false
-
-  for (let i = 0; i < row.length; i++) {
-    const char = row[i]
-
-    if (inQuotes) {
-      if (char === '"') {
-        // Check if it's an escaped quote (double-quote)
-        if (i + 1 < row.length && row[i + 1] === '"') {
-          current += '"'
-          i++ // skip next quote
-        } else {
-          inQuotes = false
-        }
-      } else {
-        current += char
-      }
-    } else {
-      if (char === '"') {
-        inQuotes = true
-      } else if (char === ',') {
-        fields.push(current.trim())
-        current = ''
-      } else {
-        current += char
-      }
-    }
-  }
-
-  fields.push(current.trim())
-  return fields
-}
 
 /**
  * Parse Archidekt-style categories string: "[Ramp,Removal]" or "[Ramp]"
@@ -83,68 +44,55 @@ export function isCSVParseError(result: CSVParseResult | CSVParseError): result 
  * @param deckName - User-provided deck name
  */
 export function parseDeckCSV(csvText: string, deckName: string): CSVParseResult | CSVParseError {
-  const lines = csvText.split(/\r?\n/).filter((line) => line.trim() !== '')
-
-  if (lines.length < 2) {
+  const table = readCsv(csvText)
+  if (table.headers.length === 0 || table.records.length === 0) {
     return { error: 'CSV file must have a header row and at least one card row' }
   }
 
-  // Parse header to find column indices
-  const header = parseCSVRow(lines[0])
-  const headerLower = header.map((h) => h.toLowerCase().trim())
-
-  const quantityIdx = headerLower.findIndex((h) => h === 'quantity')
-  const cardNameIdx = headerLower.findIndex((h) => h === 'card name' || h === 'name')
-  const categoriesIdx = headerLower.findIndex((h) => h === 'categories')
-  const labelIdx = headerLower.findIndex((h) => h === 'label' || h === 'tags')
-  const setCodeIdx = headerLower.findIndex((h) => h === 'set code' || h === 'edition code')
-  const scryfallIdIdx = headerLower.findIndex((h) => h === 'scryfall id')
-
-  if (cardNameIdx === -1) {
+  const map = mapCsvHeaders(table.headers)
+  if (map.name === undefined) {
     return { error: 'CSV must have a "Card Name" or "Name" column' }
   }
 
   const cards: NormalizedCard[] = []
+  const maybeboard: NormalizedCard[] = []
   const warnings: string[] = []
 
-  for (let i = 1; i < lines.length; i++) {
-    const fields = parseCSVRow(lines[i])
+  for (const record of table.records) {
+    const fields = record.cells
+    const at = (idx: number | undefined) => (idx === undefined ? '' : (fields[idx]?.trim() ?? ''))
 
-    const cardName = fields[cardNameIdx]?.trim()
+    const cardName = at(map.name)
     if (!cardName) {
-      warnings.push(`Row ${i + 1}: Skipped — no card name`)
+      warnings.push(`Row ${record.line}: Skipped — no card name`)
       continue
     }
 
-    const quantity = quantityIdx !== -1
-      ? parseInt(fields[quantityIdx], 10) || 1
-      : 1
+    // A missing quantity COLUMN means 1; an empty or bad cell is skipped, not guessed (§3.2).
+    let quantity = 1
+    if (map.quantity !== undefined) {
+      const cell = at(map.quantity)
+      if (!/^\d+$/.test(cell) || Number.parseInt(cell, 10) < 1) {
+        warnings.push(`Row ${record.line}: Skipped — quantity "${cell}" is not a whole number`)
+        continue
+      }
+      quantity = Number.parseInt(cell, 10)
+    }
 
-    const setCode = setCodeIdx !== -1
-      ? (fields[setCodeIdx]?.trim() ?? '')
-      : ''
+    const setCode = at(map.setCode)
+    const scryfallId = at(map.scryfallId)
 
-    const scryfallId = scryfallIdIdx !== -1
-      ? (fields[scryfallIdIdx]?.trim() ?? '')
-      : ''
+    const boardCells = (map.boardColumns ?? []).map((idx) => fields[idx]?.trim() ?? '')
+    const sourceCategories = boardCells.flatMap(parseCategories)
+    const boardResult = boardFromCells(boardCells)
+    if (boardResult.warning) warnings.push(`Row ${record.line}: ${boardResult.warning}`)
 
-    const rawCategories = categoriesIdx !== -1
-      ? (fields[categoriesIdx]?.trim() ?? '')
-      : ''
-    const sourceCategories = parseCategories(rawCategories)
+    const isCommander = boardResult.board === 'commander'
+    const isProxy =
+      /^(true|1|yes|y|x)$/i.test(at(map.proxy)) ||
+      boardCells.some((cell) => /proxy/i.test(cell))
 
-    const rawLabel = labelIdx !== -1
-      ? (fields[labelIdx]?.trim().toLowerCase() ?? '')
-      : ''
-
-    const isCommander = sourceCategories.some(
-      (c) => c.toLowerCase() === 'commander'
-    )
-
-    const isProxy = rawLabel.includes('proxy') ||
-      sourceCategories.some((c) => c.toLowerCase() === 'proxy')
-
-    cards.push({
+    const card: NormalizedCard = {
       cardName,
       scryfallId,
       oracleId: '',
@@ -156,10 +104,12 @@ export function parseDeckCSV(csvText: string, deckName: string): CSVParseResult 
       manaCost: null,
       colorIdentity: [],
       sourceCategories,
-    })
+    }
+    if (boardResult.board === 'maybeboard') maybeboard.push(card)
+    else cards.push(card)
   }
 
-  if (cards.length === 0) {
+  if (cards.length === 0 && maybeboard.length === 0) {
     return { error: 'No valid cards found in CSV' }
   }
 
@@ -175,6 +125,7 @@ export function parseDeckCSV(csvText: string, deckName: string): CSVParseResult 
     cardCount: cards.reduce((sum, c) => sum + c.quantity, 0),
     colourIdentity: '',
   }
+  if (maybeboard.length > 0) deck.maybeboard = maybeboard
 
   return { deck, warnings }
 }

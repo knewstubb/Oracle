@@ -190,8 +190,10 @@ describe('parseManaBoxCsv', () => {
     expect(badRows[1].cardName).toBe('Mana Crypt')
   })
 
-  it('throws when required columns are missing', () => {
-    expect(() => parseManaBoxCsv('Name,Quantity\nSol Ring,1')).toThrow(/missing required columns/i)
+  it('throws when there is no name column; a missing quantity column means 1 (import-formats §3.2)', () => {
+    expect(() => parseManaBoxCsv('Quantity,Set code,Collector number\n1,cmm,400')).toThrow(/missing required columns/i)
+    const { records } = parseManaBoxCsv('Name,Set code\nSol Ring,cmm')
+    expect(records[0].row.quantity).toBe(1)
   })
 })
 

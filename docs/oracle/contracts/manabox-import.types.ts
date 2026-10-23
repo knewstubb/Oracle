@@ -46,6 +46,8 @@ export interface ManaBoxCsvRow {
   condition?: string
   language?: string
   proxy?: boolean
+  /** Which section the row's Board/Categories/Tags cell names; `main` when none (import-formats §3.2). */
+  board?: ImportBoard
   purchasePriceCurrency?: string
   added?: string
 }

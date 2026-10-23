@@ -305,6 +305,7 @@ export type Database = {
         Row: {
           card_name: string
           categories: string | null
+          command_zone_role: string | null
           copy_id: number | null
           dead_weight_flag: string | null
           dead_weight_reason: string | null
@@ -327,6 +328,7 @@ export type Database = {
         Insert: {
           card_name: string
           categories?: string | null
+          command_zone_role?: string | null
           copy_id?: number | null
           dead_weight_flag?: string | null
           dead_weight_reason?: string | null
@@ -349,6 +351,7 @@ export type Database = {
         Update: {
           card_name?: string
           categories?: string | null
+          command_zone_role?: string | null
           copy_id?: number | null
           dead_weight_flag?: string | null
           dead_weight_reason?: string | null
@@ -2471,6 +2474,21 @@ export type Database = {
       }
       set_import_claim_printing: {
         Args: { p_claim_id: number; p_printing_id?: string; p_user_id: string }
+        Returns: Json
+      }
+      set_deck_command_zone: {
+        Args: {
+          p_companion_card_id: number | null
+          p_deck_id: number
+          p_primary_card_id: number | null
+          p_second_card_id: number | null
+          p_second_role: string | null
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      import_deck_with_intent_roles: {
+        Args: { p_deck_id: number; p_rows: Json; p_user_id: string }
         Returns: Json
       }
       set_import_claim_resolution: {

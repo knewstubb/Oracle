@@ -12,6 +12,7 @@ import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { mapCommandZoneError, parseCommandZoneRequest } from '@/lib/command-zone-request'
+import { checkSecondCommanderPair } from '@/lib/command-zone-pair-check'
 
 export async function PUT(
   request: NextRequest,
@@ -35,6 +36,11 @@ export async function PUT(
   const req = parsed.value
 
   const supabase = createAdminClient()
+
+  const pair = await checkSecondCommanderPair(supabase, deckId, userId, req)
+  if (!pair.ok) {
+    return Response.json({ error: pair.error, code: pair.code }, { status: pair.status })
+  }
 
   const { data, error } = await supabase.rpc('set_deck_command_zone', {
     p_deck_id: deckId,

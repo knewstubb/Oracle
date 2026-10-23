@@ -65,3 +65,28 @@ export function checkCommanderPair(a: PairCardFacts, b: PairCardFacts): PairVerd
     reason: `${a.name} and ${b.name} can't be commanders together. Both need Partner, or one needs "Choose a Background" with a Background.`,
   }
 }
+
+/** Which second-commander role a card fills: a Background is 'background', anything else is 'partner'. */
+export function secondRoleFor(card: PairCardFacts): 'partner' | 'background' {
+  return keywordsOf(card).set.has('background') ? 'background' : 'partner'
+}
+
+/**
+ * Check a chosen second commander: the pair must be legal and the role must match the card
+ * (a Background cannot be saved as a partner, or the other way round).
+ */
+export function verifySecondCommander(
+  primary: PairCardFacts,
+  second: PairCardFacts,
+  role: 'partner' | 'background'
+): PairVerdict {
+  const pair = checkCommanderPair(primary, second)
+  if (!pair.ok) return pair
+  if (secondRoleFor(second) !== role) {
+    return {
+      ok: false,
+      reason: `${second.name} should be saved as a ${secondRoleFor(second) === 'background' ? 'Background' : 'Partner'}, not a ${role === 'background' ? 'Background' : 'Partner'}.`,
+    }
+  }
+  return { ok: true }
+}

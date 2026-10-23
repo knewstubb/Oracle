@@ -1,17 +1,30 @@
 /**
  * POST /api/commanders/eligible  { names: string[] }
  * Returns which of the given card names can be chosen as a commander.
+ *
+ * POST /api/commanders/eligible?role=companion  { names: string[] }
+ * Returns which of the given card names have the Companion keyword (can be chosen as a companion).
+ * Without `role` the response is unchanged.
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { getAuthUser } from '@/lib/auth'
-import { eligibleNames, type CommanderCardFacts } from '@/lib/commander-eligibility'
+import {
+  eligibleCompanionNames,
+  eligibleNames,
+  type CommanderCardFacts,
+} from '@/lib/commander-eligibility'
 
 const MAX_NAMES = 500
 
 export async function POST(request: NextRequest) {
   const user = await getAuthUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const role = request.nextUrl.searchParams.get('role')
+  if (role !== null && role !== 'companion') {
+    return NextResponse.json({ error: 'Unknown role' }, { status: 400 })
+  }
 
   const body = await request.json().catch(() => null)
   const names: string[] = Array.isArray(body?.names)
@@ -28,5 +41,7 @@ export async function POST(request: NextRequest) {
 
   const facts = new Map<string, CommanderCardFacts>()
   for (const row of data ?? []) facts.set(row.name.toLowerCase(), row)
-  return NextResponse.json({ eligible: eligibleNames(names, facts) })
+  return NextResponse.json({
+    eligible: role === 'companion' ? eligibleCompanionNames(names, facts) : eligibleNames(names, facts),
+  })
 }

@@ -39,3 +39,20 @@ export function eligibleNames(names: string[], facts: Map<string, CommanderCardF
     return !!f && isEligibleCommander(f)
   })
 }
+
+/**
+ * Can this card be a companion? It needs the Companion keyword ("Companion — ...") and to be Commander-legal.
+ * The deck rule of each companion (e.g. "no duplicates") is deliberately not checked (contract: claim nothing).
+ */
+export function isEligibleCompanion(card: Pick<CommanderCardFacts, 'oracle_text' | 'commander_legal'>): boolean {
+  if (!card.commander_legal) return false
+  return /(^|\n)\s*Companion\s*[—–-]/i.test(frontFace(card.oracle_text))
+}
+
+/** Names (original case) from `names` that have the Companion keyword. */
+export function eligibleCompanionNames(names: string[], facts: Map<string, CommanderCardFacts>): string[] {
+  return names.filter((name) => {
+    const f = facts.get(name.toLowerCase())
+    return !!f && isEligibleCompanion(f)
+  })
+}

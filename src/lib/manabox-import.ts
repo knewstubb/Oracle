@@ -613,6 +613,14 @@ async function resolveCsvRecord(
   }
 }
 
+/** What a text line says about finish and proxy; empty when it has no marker. */
+export function textLineFileValues(line: Pick<ManaBoxTextLine, 'finish' | 'proxy'>): ImportCopyFileValues {
+  const file: ImportCopyFileValues = {}
+  if (line.finish) file.finish = line.finish
+  if (line.proxy === true) file.proxy = true
+  return file
+}
+
 async function resolveTextLine(
   line: ManaBoxTextLine,
   resolver: ManaBoxResolver,
@@ -661,8 +669,11 @@ async function resolveTextLine(
     qty: Math.min(line.quantity, 100),
     source: 'text',
     printingGiven: hasPrintingGiven(line),
-    // A text line carries no finish, condition or language (contract §2A).
-    file: {},
+    // A text line carries no condition or language (contract §2A). A `*F*`/`*E*` marker sets the
+    // finish and a `^Proxy^` label the type default (N-3, N-5); no marker leaves both unset, so
+    // ManaBox text stays nonfoil / Original.
+    file: textLineFileValues(line),
+    board: line.board,
     availableFinishes: facts.availableFinishes ?? null,
   }
 }

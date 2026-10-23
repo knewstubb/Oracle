@@ -449,3 +449,32 @@ Default printings chosen: Ghen CMR 275; Eiganjo SOC 13; Bitter Reunion FDC 139; 
 1. Architect reviews the M2 file. 2. Then it is moved into `supabase/migrations` and applied. 3. Then set the flag and try a built deck with one card.
 
 **Process notes (honest):** I used `sed -i ''` on two test files earlier to swap assertion lines, and one small python replace on `ManaBoxDeckImportFlow.tsx` this round (against the edit-tool-only rule). One edit mangled a comment in `import-intent.ts`; typecheck caught it and it was fixed. `npm run check` passes.
+
+---
+
+## Round 19
+
+**In plain words:** the new save function is now in the live database, and the risky clean-up is fixed. The feature is still switched OFF.
+
+**1. M2 applied (live, owner + Architect approved)**
+- Re-read once; only comments mention delete (no DELETE/TRUNCATE/DROP in the code). Moved to `supabase/migrations/20261023160000_import_deck_with_intent.sql` (Architect's edits included), `supabase db push` applied exactly that one migration.
+- Read-only verification (no data written): calling it for a deck that doesn't exist returned `deck_not_found` before any write; calling it with the public (anon) key was refused (`permission denied`). So it exists, rejects bad calls first, and only the server can call it.
+- Not verified: the Architect's note that older movement functions may be callable by anon; I did not check live grants.
+
+**2. R1 done.** After a failed save the app deletes its just-created deck only if (a) the function clearly refused (error code P0001, or function missing) and (b) the deck still has no slots. Timeouts, dropped connections and any other ambiguous error never delete. Tests: clear rejection deletes; three ambiguous errors don't; non-empty deck isn't deleted even on a clear rejection; function missing still cleans up.
+
+**3. R3 done.** Contract section 5 now says the function picks the exact copy under lock from a descriptor; also the non-waiting lock wording and the new clean-up rule. Section 7 table marks M2 applied.
+
+**4. R2 skipped** (snapshot the donor decks of a move): not trivial, it needs a new version-snapshot call per donor deck in the save path plus tests. Recommended for later.
+
+**5. Flag NOT turned on.** `NEXT_PUBLIC_IMPORT_INTENT_SAVE` is unset; built/planned saving is still disabled in the screen.
+
+**Untested:** the function has only had the two reject checks above. Add/sleeve/move/skip/alerts have never run against a database; the app side is tested with fakes only. No test DB exists.
+
+**Smallest safe try (for the owner)**
+1. Make a throwaway deck mentally: pick ONE card you own that is free (not in any deck), and a built-style list with just that one card (e.g. paste "1 Sol Ring" or your card).
+2. Add `NEXT_PUBLIC_IMPORT_INTENT_SAVE=true` to `.env.local`, restart the dev server.
+3. Import with "I built it" (nothing ticked): expect "sleeved from your collection: 1", no card added.
+4. Check afterwards: the new deck has exactly 1 slot with your copy sleeved; your collection count for that card is unchanged; the card shows as in that deck; no alerts.
+5. Then try one card held in another deck: choose Skip and confirm a new copy is added and the other deck gets an alert; try Move only on a card you can afford to re-sleeve.
+6. Turn the flag off again if anything looks wrong and tell us what you saw. Delete the throwaway deck in the app if you like (nothing else was changed).

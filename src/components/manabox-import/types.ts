@@ -52,6 +52,10 @@ export type ImportStep =
       genericArt?: Record<string, { scryfallId: string }>
       /** Commander chosen on the review screen; saved on the new deck after the import. */
       commander: { name: string; scryfallId: string | null } | null
+      /** Second commander (Partner / Background), chosen on the review screen (T-62). */
+      second?: { name: string; scryfallId: string | null } | null
+      /** Companion, chosen on the review screen; sits outside the 100 cards (T-62). */
+      companion?: { name: string; scryfallId: string | null } | null
       /** The "Importing as" bar. Held here only; never saved. */
       defaults: ImportDefaults
       /** Owner edits by row key then copy index. */

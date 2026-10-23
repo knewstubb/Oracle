@@ -210,6 +210,16 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
           const hit = preview.rows.find((r) => !r.isBasicLand && r.cardName === wanted)
           return hit ? { name: hit.cardName, scryfallId: hit.scryfallId } : null
         })(),
+        second: (() => {
+          const wanted = initialCommanderName ? undefined : preview.commanders?.[1]?.name
+          const hit = wanted ? preview.rows.find((r) => !r.isBasicLand && r.cardName === wanted) : undefined
+          return hit ? { name: hit.cardName, scryfallId: hit.scryfallId } : null
+        })(),
+        companion: (() => {
+          const wanted = preview.companion?.name
+          const hit = wanted ? preview.rows.find((r) => !r.isBasicLand && r.cardName === wanted) : undefined
+          return hit ? { name: hit.cardName, scryfallId: hit.scryfallId } : null
+        })(),
         defaults: INITIAL_DEFAULTS,
         copyEdits: {},
         openRowKeys: new Set(),
@@ -390,6 +400,15 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
           ...(intentSaveOn ? { intent } : {}),
           genericArt: step.genericArt ?? {},
           unmatched: step.preview.unmatched,
+          ...(getFormatConfig(step.format).hasCommander && (step.commander || step.companion)
+            ? {
+                commandZone: {
+                  commander: step.commander?.name ?? null,
+                  second: step.commander ? (step.second?.name ?? null) : null,
+                  companion: step.companion?.name ?? null,
+                },
+              }
+            : {}),
         }),
       })
 
@@ -516,7 +535,18 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
   }, [])
 
   const setCommander = useCallback((commander: { name: string; scryfallId: string | null } | null) => {
-    setStep((prev) => (prev.status === 'review' ? { ...prev, commander } : prev))
+    // A new commander can invalidate the second commander (the pair rule), so it is cleared.
+    setStep((prev) =>
+      prev.status === 'review' ? { ...prev, commander, second: prev.commander?.name === commander?.name ? prev.second : null } : prev
+    )
+  }, [])
+
+  const setSecond = useCallback((second: { name: string; scryfallId: string | null } | null) => {
+    setStep((prev) => (prev.status === 'review' ? { ...prev, second } : prev))
+  }, [])
+
+  const setCompanion = useCallback((companion: { name: string; scryfallId: string | null } | null) => {
+    setStep((prev) => (prev.status === 'review' ? { ...prev, companion } : prev))
   }, [])
 
   const setFilter = useCallback((filter: RowFilter) => {
@@ -591,6 +621,29 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
               ) : undefined
             }
           />
+          {getFormatConfig(step.format).hasCommander && (
+            <div className="grid grid-cols-2 items-end gap-2.5">
+              {step.commander && (
+                <ReviewCommanderSelect
+                  slot="second"
+                  cards={step.preview.rows
+                    .filter((r) => !r.isBasicLand)
+                    .map((r) => ({ name: r.cardName, scryfallId: r.scryfallId }))}
+                  withName={step.commander.name}
+                  value={step.second ?? null}
+                  onChange={setSecond}
+                />
+              )}
+              <ReviewCommanderSelect
+                slot="companion"
+                cards={step.preview.rows
+                  .filter((r) => !r.isBasicLand)
+                  .map((r) => ({ name: r.cardName, scryfallId: r.scryfallId }))}
+                value={step.companion ?? null}
+                onChange={setCompanion}
+              />
+            </div>
+          )}
           <ImportNotices
             unmatched={step.preview.unmatched}
             tokens={step.preview.skippedTokens}

@@ -10,14 +10,21 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { DeckCard } from '@/components/CardGrid'
 
-/** Asks the server which of these names can be a commander (null when the check fails). */
-export async function fetchEligibleNames(names: string[]): Promise<Set<string> | null> {
+/**
+ * Asks the server which of these names can be a commander (null when the check fails).
+ * With `role` it asks the same question for a companion, or for a second commander next to `withName`.
+ */
+export async function fetchEligibleNames(
+  names: string[],
+  opts?: { role: 'companion' | 'second'; withName?: string }
+): Promise<Set<string> | null> {
   if (names.length === 0) return new Set()
   try {
-    const res = await fetch('/api/commanders/eligible', {
+    const url = opts ? `/api/commanders/eligible?role=${opts.role}` : '/api/commanders/eligible'
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ names }),
+      body: JSON.stringify(opts?.role === 'second' ? { names, with: opts.withName } : { names }),
     })
     if (!res.ok) return null
     const data = await res.json()

@@ -24,11 +24,26 @@ import {
   processingDetail,
   INTENT_FILE_HELD,
   INTENT_SAVE_PENDING,
+  INTENT_SAVE_PENDING_UNTICKED,
   OWNERSHIP_FAILED,
   OWNERSHIP_LOADING,
 } from './import-copy'
-import type { ImportIntent, OwnershipResponse, OwnershipRowFacts } from '../../../docs/oracle/contracts/import-intent.types'
-import { isGenericImportRow, planImport, rowIntentTags, summariseImportPlan, summaryText, needsChoice, type IntentTag } from '@/lib/import-intent'
+import type { ImportIntent, IntentCopyEdits, OwnershipResponse, OwnershipRowFacts } from '../../../docs/oracle/contracts/import-intent.types'
+import {
+  applyIntentChange,
+  hasUntickedAdd,
+  intentCopyViews,
+  isGenericImportRow,
+  needsChoice,
+  planImportDetailed,
+  rowIntentTags,
+  setIntentEdit,
+  stripIntentFields,
+  summariseImportPlan,
+  summaryText,
+  type IntentChange,
+  type IntentTag,
+} from '@/lib/import-intent'
 import { ImportResult } from './ImportResult'
 import { IMPORT_STAGE_CLASS } from './import-labels'
 import type { ImportStep, RowFilter, ImportSource } from './types'
@@ -218,7 +233,10 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
           .reduce((sum, r) => sum + r.qty, 0)
       : 0
 
-  const needsOwnership = intent === 'built' || intent === 'planned'
+  // Built and planned decks can't be saved yet (S4). Every deck with an intent checks ownership
+  // (read-only) so the Add tick and the choices know what the owner has.
+  const saveBlockedByIntent = intent === 'built' || intent === 'planned'
+  const needsOwnership = !!intent
   const reviewRows = step.status === 'review' ? step.preview.rows : null
   const ownershipCards = useMemo(
     () =>
@@ -246,6 +264,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
         })
         if (!res.ok) throw new Error(String(res.status))
         const data: OwnershipResponse = await res.json()
+        if (!Array.isArray(data.rows)) throw new Error('bad_response')
         if (!cancelled) setOwnershipResult({ token: ownershipToken, facts: data.rows })
       } catch {
         if (!cancelled) setOwnershipResult({ token: ownershipToken, facts: null })
@@ -267,21 +286,58 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
           ? { status: 'ready', facts: ownershipResult.facts }
           : { status: 'failed' }
 
-  const intentPlan = useMemo(() => {
-    if (!needsOwnership || !reviewRows || step.status !== 'review' || ownership.status !== 'ready') return null
-    const plans = planImport({
+  // What each copy shows and does. Before the ownership check finishes nothing is known to be owned,
+  // so the controls wait (`busy`) and tags stay hidden.
+  const intentView = useMemo(() => {
+    if (!needsOwnership || !reviewRows || step.status !== 'review') return null
+    const ready = ownership.status === 'ready'
+    const { plans, allocation } = planImportDetailed({
       rows: reviewRows,
-      facts: ownership.facts,
+      facts: ready ? ownership.facts : [],
       edits: step.copyEdits,
       intent: effectiveIntent,
       defaults: step.defaults,
     })
-    const byRow: Record<string, ReturnType<typeof planImport>> = {}
+    const views = intentCopyViews(reviewRows, plans, allocation, step.copyEdits, effectiveIntent, step.defaults)
+    const byRow: Record<string, typeof plans> = {}
     for (const p of plans) (byRow[p.rowKey] ??= []).push(p)
     const tags: Record<string, IntentTag[]> = {}
-    for (const [k, v] of Object.entries(byRow)) tags[k] = rowIntentTags(v)
-    return { plans, tags, summary: summaryText(summariseImportPlan(plans)), choices: needsChoice(plans).length }
+    if (ready) for (const [k, v] of Object.entries(byRow)) tags[k] = rowIntentTags(v)
+    return {
+      views,
+      tags: ready ? tags : undefined,
+      busy: !ready,
+      untickedAdd: hasUntickedAdd(views),
+      summary: ready ? summaryText(summariseImportPlan(plans)) : null,
+      choices: ready ? needsChoice(plans).length : 0,
+    }
   }, [needsOwnership, reviewRows, step, ownership, effectiveIntent])
+
+  const changeIntentCopy = useCallback(
+    (row: { rowKey: string; cardName: string }, index: number, change: IntentChange): string | undefined => {
+      const view = intentView?.views[row.rowKey]?.find((v) => v.index === index)
+      if (!view || step.status !== 'review') return undefined
+      const result = applyIntentChange(step.copyEdits as IntentCopyEdits, row.rowKey, row.cardName, view, change)
+      setStep((prev) => (prev.status === 'review' ? { ...prev, copyEdits: result.edits } : prev))
+      return result.message
+    },
+    [intentView, step]
+  )
+
+  /** The collapsed row's tick: all of a card's copies at once. */
+  const changeIntentAdd = useCallback(
+    (row: { rowKey: string; cardName: string }, add: boolean) => {
+      const views = intentView?.views[row.rowKey]
+      if (!views || step.status !== 'review') return
+      let edits = step.copyEdits as IntentCopyEdits
+      for (const view of views) {
+        if (view.generic) continue
+        edits = applyIntentChange(edits, row.rowKey, row.cardName, { ...view, add: !add }, { add }).edits
+      }
+      setStep((prev) => (prev.status === 'review' ? { ...prev, copyEdits: edits } : prev))
+    },
+    [intentView, step]
+  )
 
   const handleImport = useCallback(async () => {
     if (step.status !== 'review' || savingRef.current) return
@@ -303,7 +359,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
           name: step.deckName,
           format: step.format,
           defaults: step.defaults,
-          copyEdits: step.copyEdits,
+          copyEdits: stripIntentFields(step.copyEdits as IntentCopyEdits),
           genericArt: step.genericArt ?? {},
           unmatched: step.preview.unmatched,
         }),
@@ -549,7 +605,17 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
             onQueryChange={setQuery}
             selectedIds={step.selectedIds}
             onSelectedIdsChange={setSelectedIds}
-            intentTagsByRow={intentPlan?.tags}
+            intentTagsByRow={intentView?.tags}
+            intent={
+              intentView
+                ? {
+                    viewsByRow: intentView.views,
+                    busy: intentView.busy,
+                    onChange: changeIntentCopy,
+                    onChangeAdd: changeIntentAdd,
+                  }
+                : undefined
+            }
           />
           {needsOwnership && ownership.status === 'loading' && (
             <p role="status" className="text-[length:var(--fs-sm)] text-muted-foreground">
@@ -564,9 +630,9 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
               </button>
             </p>
           )}
-          {intentPlan && (
+          {intentView?.summary && (
             <p role="status" className="text-[length:var(--fs-sm)] text-muted-foreground">
-              {intentPlan.summary}
+              {intentView.summary}
             </p>
           )}
         </div>
@@ -637,13 +703,16 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
             onShowHidden={notes.restoreAll}
           />
           <div className="flex items-center gap-2">
-            {needsOwnership && intentPlan && intentPlan.choices > 0 && (
+            {intentView && intentView.choices > 0 && (
               <span className="text-[length:var(--fs-sm)] text-[var(--signal-warning)]">
-                {intentPlan.choices} {intentPlan.choices === 1 ? 'card needs' : 'cards need'} a choice
+                {intentView.choices} {intentView.choices === 1 ? 'card needs' : 'cards need'} a choice
               </span>
             )}
-            {needsOwnership && (
+            {saveBlockedByIntent && (
               <span className="text-[length:var(--fs-sm)] text-muted-foreground">{INTENT_SAVE_PENDING}</span>
+            )}
+            {!saveBlockedByIntent && intentView?.untickedAdd && (
+              <span className="text-[length:var(--fs-sm)] text-muted-foreground">{INTENT_SAVE_PENDING_UNTICKED}</span>
             )}
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancel
@@ -651,7 +720,12 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
             <Button
               type="button"
               onClick={handleImport}
-              disabled={needsOwnership || step.preview.rows.length === 0 || !step.deckName.trim()}
+              disabled={
+                saveBlockedByIntent ||
+                !!intentView?.untickedAdd ||
+                step.preview.rows.length === 0 ||
+                !step.deckName.trim()
+              }
             >
               Import deck
             </Button>

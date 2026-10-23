@@ -60,3 +60,21 @@ export const PRECON_INTENT_NOTE = 'Precons are always something you bought, so t
 export const PRECONS_NOT_SET_UP = 'Precons not set up yet'
 export const PRECONS_NOT_SET_UP_HINT = 'The precon list has not been loaded into your library yet. You can still import by URL, pasted list or file.'
 export const PRECON_OPEN_FAILED = "Couldn't open that precon. Try again."
+
+/** Per-card controls (spec §4-§6). */
+export const ADD_COLUMN = 'Add to collection'
+export const ADD_WAITING_TITLE = 'Checking your collection…'
+export const NOT_OWNED_TITLE = 'Not owned: tick Add'
+export const NO_FREE_COPY_TITLE = 'No free copy: tick Add'
+export const MOVE_FROM = 'copy will be moved from'
+export const MOVE_SKIP = 'Skip'
+export const MOVE_SKIP_TITLE = 'Adds a new sleeved copy here; the other deck shows an alert on this card.'
+export const PRINTING_ADD = 'Add this printing'
+export const PRINTING_USE = (printing: string) => `Use my ${printing}`
+export const printingNeedsChoice = (owned: string, listed: string) =>
+  `you own it as ${owned}; this deck lists ${listed}. It can't be sleeved until you choose.`
+export const printingLabel = (p: { setCode: string; collectorNumber: string }) =>
+  `${p.setCode.toUpperCase()} ${p.collectorNumber}`
+/** Purchased decks with an unticked Add can't be saved yet (owned-copy saving comes in a later slice). */
+export const INTENT_SAVE_PENDING_UNTICKED =
+  'Saving cards you already own is coming soon. Tick Add on every card to import now.'

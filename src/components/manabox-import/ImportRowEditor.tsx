@@ -28,7 +28,32 @@ import type {
 import { languageLabel, LANGUAGE_LABELS, SELECT_CLASS } from './import-labels'
 import { languageChoices, type LanguageLookup } from '@/lib/printing-languages'
 import { usePrintingLanguages } from './use-printing-languages'
-import type { IntentTag } from '@/lib/import-intent'
+import type { IntentChange, IntentCopyView, IntentTag } from '@/lib/import-intent'
+import { IntentDecisionRows } from './IntentDecisionRows'
+import { ADD_WAITING_TITLE, NOT_OWNED_TITLE, NO_FREE_COPY_TITLE } from './import-copy'
+
+/** Per-card "what's this deck?" controls (spec §4-§6). Present only for deck imports with an intent. */
+export interface IntentRowControls {
+  views: IntentCopyView[]
+  /** The ownership check has not finished: the Add tick and choices wait. */
+  busy: boolean
+  onChange: (index: number, change: IntentChange) => void
+  /** The collapsed row's tick: every copy at once. */
+  onChangeAdd: (add: boolean) => void
+}
+
+/** Columns of the review list; the list header uses the same. */
+export const ROW_GRID = 'grid-cols-[24px_28px_1fr_auto]'
+export const ROW_GRID_INTENT = 'grid-cols-[24px_28px_1fr_112px_28px]'
+
+function typeReasons(view: IntentCopyView | undefined): Partial<Record<ImportCopyType, string>> | undefined {
+  if (!view || view.generic) return undefined
+  const why = view.anyOwned ? NO_FREE_COPY_TITLE : NOT_OWNED_TITLE
+  const out: Partial<Record<ImportCopyType, string>> = {}
+  if (!view.canOriginal) out.original = why
+  if (!view.canProxy) out.proxy = why
+  return out
+}
 
 const TYPE_STYLE: Record<ImportCopyType, { label: string; selected: string }> = {
   original: {
@@ -52,6 +77,7 @@ export function TypeToggle({
   onChange,
   label,
   labels,
+  disabledReasons,
 }: {
   /** `mixed` presses nothing. */
   value: ImportCopyType | 'mixed'
@@ -60,6 +86,8 @@ export function TypeToggle({
   label: string
   /** Replace a button's text (generic basics call "original" Sleeved). */
   labels?: Partial<Record<ImportCopyType, string>>
+  /** A type that can't be chosen now, with the reason (shown as its title). */
+  disabledReasons?: Partial<Record<ImportCopyType, string>>
 }) {
   return (
     <span
@@ -69,14 +97,17 @@ export function TypeToggle({
     >
       {options.map((type) => {
         const pressed = value === type
+        const reason = disabledReasons?.[type]
         return (
           <button
             key={type}
             type="button"
             aria-pressed={pressed}
+            disabled={reason !== undefined}
+            title={reason}
             onClick={() => onChange(type)}
             className={cn(
-              'inline-flex h-full shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 text-[length:var(--fs-xs)] text-muted-foreground hover:bg-[var(--bg-surface-hover)]',
+              'inline-flex h-full shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 text-[length:var(--fs-xs)] text-muted-foreground hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent',
               pressed && TYPE_STYLE[type].selected
             )}
           >
@@ -146,6 +177,8 @@ export interface ImportRowEditorProps {
   onApplyAll: () => void
   /** Deck imports with an intent: ownership tags (Owned copy, Unowned, ...). Display only. */
   intentTags?: IntentTag[]
+  /** Deck imports with an intent: the Add tick, Original/Proxy rules and inline choices. */
+  intent?: IntentRowControls
 }
 
 export function ImportRowEditor({
@@ -164,6 +197,7 @@ export function ImportRowEditor({
   onChangeAllCopies,
   onApplyAll,
   intentTags,
+  intent,
 }: ImportRowEditorProps) {
   const summary = summariseRowTags(resolved, defaults)
   const heroArtId = generic ? art?.scryfallId ?? getBasicLandDefaultScryfallId(row.cardName) : row.scryfallId ?? null
@@ -197,7 +231,10 @@ export function ImportRowEditor({
           if ((e.target as HTMLElement).closest('button,input,label,[role="checkbox"]')) return
           onToggleOpen()
         }}
-        className="group grid min-h-[34px] cursor-pointer grid-cols-[24px_28px_1fr_auto] items-center gap-2 px-2.5 hover:bg-[var(--bg-surface-hover)]"
+        className={cn(
+          'group grid min-h-[34px] cursor-pointer items-center gap-2 px-2.5 hover:bg-[var(--bg-surface-hover)]',
+          intent ? ROW_GRID_INTENT : ROW_GRID
+        )}
       >
         <Checkbox
           checked={selected}
@@ -284,6 +321,20 @@ export function ImportRowEditor({
             </>
           )}
         </span>
+        {intent && (
+          <span className="flex justify-center">
+            {generic ? (
+              <span className="text-[length:var(--fs-xs)] text-muted-foreground" title="Generic basics are never added">–</span>
+            ) : (
+              <AddTick
+                cardName={row.cardName}
+                views={intent.views}
+                busy={intent.busy}
+                onChange={intent.onChangeAdd}
+              />
+            )}
+          </span>
+        )}
         {(
           <button
             type="button"
@@ -301,6 +352,10 @@ export function ImportRowEditor({
         )}
       </div>
 
+      {intent && !generic && (
+        <IntentDecisionRows cardName={row.cardName} views={intent.views} disabled={intent.busy} onChange={intent.onChange} />
+      )}
+
       {open && (
         <div className="flex flex-col pb-2 pl-[62px] pr-2.5">
           {(generic ? resolved.slice(0, 1) : resolved).map((copy, position) => (
@@ -311,6 +366,9 @@ export function ImportRowEditor({
               position={position}
               total={generic ? 1 : resolved.length}
               typeOptions={typeOptions}
+              intentView={generic ? undefined : intent?.views.find((v) => v.index === copy.index)}
+              intentBusy={intent?.busy}
+              onIntentChange={intent ? (change) => intent.onChange(copy.index, change) : undefined}
               generic={generic}
               art={art}
               onChangeArt={onChangeArt}
@@ -330,6 +388,36 @@ export function ImportRowEditor({
   )
 }
 
+/** The collapsed row's Add tick: every copy at once; mixed when only some copies are ticked. */
+function AddTick({
+  cardName,
+  views,
+  busy,
+  onChange,
+}: {
+  cardName: string
+  views: IntentCopyView[]
+  busy: boolean
+  onChange: (add: boolean) => void
+}) {
+  const real = views.filter((v) => !v.generic)
+  const on = real.filter((v) => v.add).length
+  const mixed = on > 0 && on < real.length
+  const label = mixed
+    ? `Add ${cardName} to collection, ${on} of ${real.length} copies`
+    : `Add ${cardName} to collection`
+  return (
+    <Checkbox
+      checked={on === real.length && real.length > 0}
+      indeterminate={mixed}
+      disabled={busy}
+      title={busy ? ADD_WAITING_TITLE : undefined}
+      aria-label={label}
+      onCheckedChange={() => onChange(mixed ? true : on === 0)}
+    />
+  )
+}
+
 function CopyLine({
   row,
   copy,
@@ -343,8 +431,14 @@ function CopyLine({
   fileLanguages,
   onChange,
   onApplyAll,
+  intentView,
+  intentBusy,
+  onIntentChange,
 }: {
   generic: boolean
+  intentView?: IntentCopyView
+  intentBusy?: boolean
+  onIntentChange?: (change: IntentChange) => void
   art?: { scryfallId: string } | null
   onChangeArt?: (art: { scryfallId: string } | null) => void
   row: ImportRow
@@ -404,12 +498,27 @@ function CopyLine({
           />
         </>
       ) : (
-        <TypeToggle
-          value={copy.type}
-          options={typeOptions}
-          label={`Copy ${n} type`}
-          onChange={(type) => onChange({ type })}
-        />
+        <>
+          {intentView && onIntentChange && (
+            <label className="inline-flex items-center gap-1 text-[length:var(--fs-xs)] text-muted-foreground">
+              <Checkbox
+                checked={intentView.add}
+                disabled={intentBusy}
+                title={intentBusy ? ADD_WAITING_TITLE : undefined}
+                onCheckedChange={(v) => onIntentChange({ add: v === true })}
+                aria-label={`Add copy ${n} of ${row.cardName} to collection`}
+              />
+              Add
+            </label>
+          )}
+          <TypeToggle
+            value={copy.type}
+            options={typeOptions}
+            label={`Copy ${n} type`}
+            disabledReasons={intentBusy ? undefined : typeReasons(intentView)}
+            onChange={(type) => (onIntentChange ? onIntentChange({ type }) : onChange({ type }))}
+          />
+        </>
       )}
       {visible.language && languages.mode !== 'hidden' && (
         <FieldWithDot fromFile={fromFile(copy.sources.language)}>

@@ -144,13 +144,12 @@ describe('ManaBoxDeckImportFlow with an intent', () => {
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
   })
 
-  it('purchased: no ownership check and Import is enabled', async () => {
+  it('purchased: Import stays enabled whatever the ownership check says', async () => {
     const user = userEvent.setup()
-    const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(async () => json(PREVIEW))
+    vi.spyOn(global, 'fetch').mockImplementation(async () => json(PREVIEW))
     render(<Harness initial="purchased" />, { wrapper: wrapper() })
     await user.upload(screen.getByLabelText('Choose file'), new File(['x'], 'deck.csv', { type: 'text/csv' }))
     await waitFor(() => expect(screen.getByText('Emil, Vastlands Roamer')).toBeInTheDocument())
-    expect(fetchSpy.mock.calls.some(([u]) => String(u).includes('/ownership'))).toBe(false)
     expect(screen.getByRole('button', { name: /Import deck/i })).toBeEnabled()
   })
 })

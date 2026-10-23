@@ -154,8 +154,8 @@ function buildPool(facts: OwnershipRowFacts[]): Map<string, PoolEntry> {
     // Several rows may carry the same card; the endpoint batches by oracle id, so the first one wins.
     if (pool.has(f.oracleId)) continue
     pool.set(f.oracleId, {
-      free: f.free.map((g) => ({ ...g, left: g.count })),
-      held: f.held.map((g) => ({ ...g, left: g.count })),
+      free: (f.free ?? []).map((g) => ({ ...g, left: g.count })),
+      held: (f.held ?? []).map((g) => ({ ...g, left: g.count })),
     })
   }
   return pool

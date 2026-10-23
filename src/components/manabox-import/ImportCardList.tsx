@@ -28,6 +28,7 @@ import { isGenericRow } from './types'
 import { ImportRowEditor, TypeToggle } from './ImportRowEditor'
 import { LANGUAGE_LABELS, SELECT_CLASS } from './import-labels'
 import { sortImportRows, type ImportSort } from '@/lib/import-sort'
+import { ADD_COLUMN } from './import-copy'
 
 const FILTER_OPTIONS: { value: RowFilter; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -54,6 +55,13 @@ export interface ImportCardListProps {
   onSelectedIdsChange: (ids: Set<string>) => void
   /** Deck imports with an intent: ownership tags by row key (display only). */
   intentTagsByRow?: Record<string, import('@/lib/import-intent').IntentTag[]>
+  /** Deck imports with an intent: per-card Add tick and choices. `onChange` returns a note to announce. */
+  intent?: {
+    viewsByRow: Record<string, import('@/lib/import-intent').IntentCopyView[]>
+    busy: boolean
+    onChange: (row: UiPreviewRow, index: number, change: import('@/lib/import-intent').IntentChange) => string | undefined
+    onChangeAdd: (row: UiPreviewRow, add: boolean) => void
+  }
 }
 
 export function ImportCardList({
@@ -73,6 +81,7 @@ export function ImportCardList({
   selectedIds,
   onSelectedIdsChange,
   intentTagsByRow,
+  intent,
 }: ImportCardListProps) {
   const parentRef = useRef<HTMLDivElement>(null)
   const [announcement, setAnnouncement] = useState('')
@@ -87,13 +96,19 @@ export function ImportCardList({
     const map = new Map<string, ReturnType<typeof resolveRowCopies>>()
     for (const row of rows) {
       const resolved = resolveRowCopies(row, defaults, copyEdits, row.rowKey)
+      // With an intent, the type shown is what saving would do (e.g. Unsleeved for a card not owned).
+      const views = intent?.viewsByRow[row.rowKey]
+      const typed =
+        views && !isGenericRow(row, kind)
+          ? resolved.map((c) => ({ ...c, type: views.find((v) => v.index === c.index)?.type ?? c.type }))
+          : resolved
       map.set(
         row.rowKey,
-        isGenericRow(row, kind) ? resolved.map((c) => ({ ...c, type: 'original' as const })) : resolved
+        isGenericRow(row, kind) ? typed.map((c) => ({ ...c, type: 'original' as const })) : typed
       )
     }
     return map
-  }, [rows, defaults, copyEdits, kind])
+  }, [rows, defaults, copyEdits, kind, intent?.viewsByRow])
 
   // Import order is the default; the choice lasts only while this list is on screen.
   const [sort, setSort] = useState<ImportSort>('file')
@@ -272,12 +287,17 @@ export function ImportCardList({
           />
         ) : (
           <div
-            className="grid min-h-[30px] grid-cols-[24px_28px_1fr] items-center gap-2 rounded-t-lg px-2.5 text-[length:var(--fs-xs)] text-muted-foreground"
+            className={cn(
+              'grid min-h-[30px] items-center gap-2 rounded-t-lg px-2.5 text-[length:var(--fs-xs)] text-muted-foreground',
+              intent ? 'grid-cols-[24px_28px_1fr_112px_28px]' : 'grid-cols-[24px_28px_1fr]'
+            )}
             style={{ background: 'var(--bg-canvas)' }}
           >
             <Checkbox checked={allSelected} onCheckedChange={handleSelectAll} aria-label="Select all shown" />
             <span>Qty</span>
             <span>Card</span>
+            {intent && <span className="text-center">{ADD_COLUMN}</span>}
+            {intent && <span />}
           </div>
         )}
 
@@ -321,6 +341,19 @@ export function ImportCardList({
                       onChangeAllCopies={(indexes, patch) => changeCopies(row, indexes, patch)}
                       onApplyAll={() => applyAll(row)}
                       intentTags={intentTagsByRow?.[row.rowKey]}
+                      intent={
+                        intent && intent.viewsByRow[row.rowKey]
+                          ? {
+                              views: intent.viewsByRow[row.rowKey],
+                              busy: intent.busy,
+                              onChange: (index, change) => {
+                                const note = intent.onChange(row, index, change)
+                                if (note) setAnnouncement(note)
+                              },
+                              onChangeAdd: (add) => intent.onChangeAdd(row, add),
+                            }
+                          : undefined
+                      }
                     />
                   </div>
                 )

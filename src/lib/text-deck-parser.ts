@@ -3,16 +3,15 @@
 // ---------------------------------------------------------------------------
 
 import type { NormalizedCard, NormalizedDeck } from '@/lib/deck-normalizer'
+import { parseListText } from '@/lib/import-text-parser'
 
 /**
- * Supported grammar:
- * - `<qty> <name>` per line (e.g. "1 Sol Ring", "4 Lightning Bolt")
- * - `<qty>x <name>` tolerated (e.g. "1x Sol Ring")
- * - Blank lines are ignored
- * - Lines starting with `//` or `#` are comments (ignored)
- * - A line containing only "Commander" or "Commander:" opens a commander section
- *   (subsequent cards until next section or blank line are marked as commander)
- * - Optional set info in parentheses: "1 Sol Ring (CMR) 472" — parsed but not required
+ * Grammar: see import-text-parser.ts (docs/oracle/contracts/import-formats.md §5-§6).
+ * Section words (Commander, Deck, Sideboard, Maybeboard, Companion, Tokens), `SB:` lines and
+ * line tags decide the board. Sideboard and Maybeboard cards go to the MAYBEBOARD relation
+ * and never to the main list (D-018). A blank line does not end a section.
+ *
+ * Companion cards stay in the main list until the command-zone role exists (slice S-7).
  */
 
 export interface TextParseResult {
@@ -35,103 +34,55 @@ export function parseTextDecklist(
   text: string,
   deckName: string
 ): TextParseResult | TextParseError {
-  const lines = text.split(/\r?\n/)
+  const parsed = parseListText(text)
   const cards: NormalizedCard[] = []
-  const warnings: string[] = []
-  let commanderSection = false
+  const maybeboard: NormalizedCard[] = []
   let commanderCard: NormalizedCard | null = null
-  let lineNum = 0
 
-  for (const rawLine of lines) {
-    lineNum++
-    const line = rawLine.trim()
-
-    // Skip empty lines
-    if (!line) {
-      commanderSection = false // blank line ends commander section
-      continue
-    }
-
-    // Skip comments
-    if (line.startsWith('//') || line.startsWith('#')) continue
-
-    // Check for section headers
-    const lowerLine = line.toLowerCase()
-    if (lowerLine === 'commander' || lowerLine === 'commander:') {
-      commanderSection = true
-      continue
-    }
-
-    // Check for other common section headers (sideboard, maybeboard)
-    if (/^(sideboard|maybeboard|companion|considering):?$/i.test(line)) {
-      commanderSection = false
-      continue
-    }
-
-    // MTGA uses "Deck" as a section header — skip it
-    if (/^(deck|mainboard|main):?$/i.test(line)) {
-      commanderSection = false
-      continue
-    }
-
-    // Handle "SB:" prefix (used by some tools for sideboard)
-    let actualLine = line
-    if (/^SB:\s*/i.test(actualLine)) {
-      actualLine = actualLine.replace(/^SB:\s*/i, '')
-    }
-
-    // Parse card line: <qty>[x] <name> [(SET) COLLECTOR#]
-    const match = actualLine.match(/^(\d+)\s*x?\s+(.+)$/i)
-    if (!match) {
-      warnings.push(`Line ${lineNum}: couldn't parse "${actualLine.substring(0, 50)}"`)
-      continue
-    }
-
-    const quantity = parseInt(match[1], 10)
-    let cardText = match[2].trim()
-
-    // Extract optional set info: "Sol Ring (CMR) 472" → name="Sol Ring",
-    // setCode="CMR", collectorNumber="472". The collector number is kept so
-    // set + collector identity resolution works (contract §6.2).
-    let setCode = ''
-    let collectorNumber = ''
-    const setMatch = cardText.match(/^(.+?)\s+\(([A-Za-z0-9]+)\)\s*(\S+)?$/)
-    if (setMatch) {
-      cardText = setMatch[1].trim()
-      setCode = setMatch[2]
-      collectorNumber = setMatch[3] ?? ''
-    }
-
+  for (const line of parsed.lines) {
+    const board = line.board ?? 'main'
+    const isCommander = board === 'commander'
     const card: NormalizedCard = {
-      cardName: cardText,
-      quantity,
+      cardName: line.cardName,
+      quantity: line.quantity,
       scryfallId: '',
       oracleId: '',
-      setCode,
-      collectorNumber,
+      setCode: line.setCode,
+      collectorNumber: line.collectorNumber,
       typeLine: '',
-      isProxy: false,
-      isCommander: commanderSection,
+      isProxy: line.proxy === true,
+      isCommander,
       manaCost: null,
       colorIdentity: [],
-      sourceCategories: commanderSection ? ['Commander'] : [],
+      sourceCategories: isCommander ? ['Commander'] : board === 'maybeboard' ? ['Maybeboard'] : [],
     }
 
-    if (commanderSection && !commanderCard) {
-      commanderCard = card
+    if (board === 'maybeboard') {
+      maybeboard.push(card)
+      continue
     }
-
+    if (isCommander && !commanderCard) commanderCard = card
     cards.push(card)
   }
 
-  if (cards.length === 0) {
+  if (cards.length === 0 && maybeboard.length === 0) {
     return { error: 'No cards found in the pasted text. Expected format: "1 Sol Ring" per line.' }
+  }
+
+  const warnings = [
+    ...parsed.badLines.map((b) => `Line ${b.sourceIndex}: couldn't parse "${b.rawLine.trim().substring(0, 50)}"`),
+    ...parsed.warnings,
+    ...parsed.notes,
+  ]
+  if (parsed.lines.some((l) => l.board === 'companion')) {
+    warnings.push('A companion was found. It is kept in the main list for now.')
   }
 
   // Derive colour identity placeholder (will be resolved by the import pipeline)
   const deck: NormalizedDeck = {
     name: deckName || 'Pasted Deck',
     cards,
+    maybeboard,
     cardCount: cards.reduce((sum, c) => sum + c.quantity, 0),
     commander: commanderCard ?? null,
     colourIdentity: '',

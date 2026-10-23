@@ -68,7 +68,19 @@ export interface ManaBoxTextLine {
   rawLine: string
   /** 1-based line number in the file. */
   lineNumber: number
+  /** T-60 (import-formats §2, Developer addition): which board the line was under. Absent = `main`. */
+  board?: ImportBoard
+  /** T-60 S-4 (N-3): `*F*` / `*E*` marker on the line. Absent = the line said nothing. */
+  finish?: 'foil' | 'etched'
+  /** T-60 S-1 (N-5): `^Proxy^` label on the line. */
+  proxy?: boolean
 }
+
+/**
+ * T-60 (import-formats §2): the only thing section words change. `companion` is held as
+ * `main` until slice S-7 (needs the `command_zone_role` migration).
+ */
+export type ImportBoard = 'main' | 'commander' | 'maybeboard' | 'companion'
 
 // ---------------------------------------------------------------------------
 // Identity resolution
@@ -149,6 +161,10 @@ export interface ManaBoxPreviewResponse {
     ImportValueNotices,
     'unrecognisedCondition' | 'unrecognisedLanguage' | 'unrecognisedFinish'
   >
+  /** T-60 (Developer addition): plain-words notes for the preview (kept-in-main, ignored headings, etc.). */
+  notes?: string[]
+  /** T-60 S-6 (Developer addition): cards the file marked as commander, to pre-tick in the picker. */
+  commanders?: Array<{ name: string; scryfallId: string | null }>
 }
 
 // ---------------------------------------------------------------------------

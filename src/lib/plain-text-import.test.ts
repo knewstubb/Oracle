@@ -61,10 +61,13 @@ describe('parseManaBoxText: plain lines', () => {
     expect(lines[1]).toMatchObject({ cardName: 'Sol Ring', setCode: 'CMR', collectorNumber: '' })
   })
 
-  it('skips a "Deck" heading but reports a line it cannot read', () => {
-    const { lines, badLines } = parseManaBoxText('Deck\n1 Sol Ring\nSideboard')
-    expect(lines).toHaveLength(1)
-    expect(badLines.map((b) => b.rawLine)).toEqual(['Sideboard'])
+  it('skips a "Deck" heading, and Sideboard is now a heading too (T-60 S-2)', () => {
+    const { lines, badLines } = parseManaBoxText('Deck\n1 Sol Ring\nSideboard\n1 Negate')
+    expect(lines.map((l) => [l.cardName, l.board])).toEqual([
+      ['Sol Ring', 'main'],
+      ['Negate', 'maybeboard'],
+    ])
+    expect(badLines).toEqual([])
   })
 })
 

@@ -27,6 +27,7 @@ import {
   parseFileFinish,
   parseFileLanguage,
 } from '@/lib/import-copies'
+import { parseListText } from '@/lib/import-text-parser'
 import type {
   ImportCopyFileValues,
   ImportFinish,
@@ -67,6 +68,13 @@ export interface ManaBoxTextParseResult {
   lines: ManaBoxTextLine[]
   /** Lines that did not match the grammar. */
   badLines: ManaBoxUnmatchedLine[]
+  /** Lines under a Tokens heading (D-049). */
+  skippedTokens: ManaBoxSkippedToken[]
+  /** Plain-words warnings and notes from the shared parser (import-formats §5). */
+  warnings: string[]
+  notes: string[]
+  nameOnly: boolean
+  headingsSeen: number
 }
 
 /**
@@ -205,7 +213,8 @@ export function detectManaBoxFile(content: string): ManaBoxFileKind | null {
   if (isManaBoxCsv(content)) return 'csv'
 
   const parsed = parseManaBoxText(content)
-  if (parsed.lines.length > 0) return 'text'
+  // A list with no quantity anywhere and no section word is plain prose, not a deck file.
+  if (parsed.lines.length > 0 && (!parsed.nameOnly || parsed.headingsSeen > 0)) return 'text'
 
   return null
 }
@@ -365,73 +374,17 @@ export function parseManaBoxCsv(content: string): ManaBoxCsvParseResult {
 }
 
 // ---------------------------------------------------------------------------
-// Text parsing (contract §6)
+// Text parsing (contract §6; shared parser in import-text-parser.ts)
 // ---------------------------------------------------------------------------
 
 /**
- * `<quantity> <card name> (<set code>) <collector number>`
- * Set code is 2–4 alphanumerics; the collector number is kept verbatim.
- * The printing part is optional: a plain decklist line (`10 Island`, `1x Sol Ring`)
- * has no set code, and the card is then found by name. A set code without a
- * collector number (`1 Sol Ring (CMR)`) is also accepted. Missing parts are
- * returned as empty strings.
- */
-const TEXT_LINE_RE = /^(\d+)x?\s+(.+?)(?:\s+\(([A-Za-z0-9]{2,4})\)(?:\s+(\S+))?)?\s*$/
-
-/** Section headings that plain decklists put above the main list; they carry no card. */
-const TEXT_HEADING_RE = /^(deck|mainboard|main)\s*:?$/i
-
-/**
- * Parse a ManaBox text export. The collector number is preserved (the old
- * paste parser dropped it) and DFC names keep their ` // ` separator.
+ * Parse a ManaBox or other site's text list. One shared parser reads every format (T-60 S-2,
+ * import-text-parser.ts): section words, `SB:` lines, tags, finish markers, 2-6 character set
+ * codes. The collector number is preserved and DFC names keep their ` // ` separator.
  */
 export function parseManaBoxText(content: string): ManaBoxTextParseResult {
-  const lines = splitLines(content)
-  const parsed: ManaBoxTextLine[] = []
-  const badLines: ManaBoxUnmatchedLine[] = []
-
-  for (let i = 0; i < lines.length; i++) {
-    const rawLine = lines[i]
-    const line = rawLine.trim()
-    if (line === '') continue
-    if (line.startsWith('//') || line.startsWith('#')) continue
-    if (TEXT_HEADING_RE.test(line)) continue
-
-    const lineNumber = i + 1
-    const match = line.match(TEXT_LINE_RE)
-    if (!match) {
-      badLines.push({ sourceIndex: lineNumber, rawLine, reason: 'bad_line' })
-      continue
-    }
-
-    const quantity = Number.parseInt(match[1], 10)
-    const cardName = match[2].trim()
-    const setCode = match[3] ?? ''
-    const collectorNumber = match[4] ?? ''
-
-    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100) {
-      badLines.push({
-        sourceIndex: lineNumber,
-        rawLine,
-        cardName,
-        setCode,
-        collectorNumber,
-        reason: 'bad_line',
-      })
-      continue
-    }
-
-    parsed.push({
-      quantity,
-      cardName,
-      setCode,
-      collectorNumber,
-      rawLine,
-      lineNumber,
-    })
-  }
-
-  return { lines: parsed, badLines }
+  const { lines, badLines, skippedTokens, warnings, notes, nameOnly, headingsSeen } = parseListText(content)
+  return { lines, badLines, skippedTokens, warnings, notes, nameOnly, headingsSeen }
 }
 
 // ---------------------------------------------------------------------------

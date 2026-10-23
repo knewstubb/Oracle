@@ -22,6 +22,12 @@ function card(over: Partial<NormalizedCard>): NormalizedCard {
 }
 
 describe('deckToCsv', () => {
+  it('names no printing for basic lands, so they import as generic basics', () => {
+    const out = deckToCsv({ cards: [card({ cardName: 'Forest', quantity: 8 })], maybeboard: [] })
+    const line = out.trim().split('\n')[1]
+    expect(line).toBe('Forest,,,8,,,')
+  })
+
   const csv = deckToCsv({
     cards: [card({}), card({ cardName: 'Korvold, Fae-Cursed King', isCommander: true }), card({ cardName: 'Proxy Card', isProxy: true })],
     maybeboard: [card({ cardName: 'Maybe, "Quoted"' })],

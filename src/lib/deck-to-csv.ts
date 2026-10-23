@@ -4,6 +4,7 @@
  * (Commander / Maybeboard) so maybeboard cards follow the same rules as pasted lists (D-018, D-022).
  */
 import type { NormalizedCard, NormalizedDeck } from '@/lib/deck-normalizer'
+import { isBasicLand } from '@/lib/basic-lands'
 
 const HEADER = ['Name', 'Set code', 'Collector number', 'Quantity', 'Scryfall ID', 'Board', 'Proxy']
 
@@ -12,12 +13,14 @@ function cell(value: string): string {
 }
 
 function line(card: NormalizedCard, board: string): string {
+  // Basic lands from a link become generic basics (D-048, on by default): no printing is named.
+  const basic = isBasicLand(card.cardName)
   return [
     cell(card.cardName),
-    cell(card.setCode ?? ''),
-    cell(card.collectorNumber ?? ''),
+    cell(basic ? '' : card.setCode ?? ''),
+    cell(basic ? '' : card.collectorNumber ?? ''),
     String(card.quantity),
-    cell(card.scryfallId ?? ''),
+    cell(basic ? '' : card.scryfallId ?? ''),
     board,
     card.isProxy ? 'true' : '',
   ].join(',')

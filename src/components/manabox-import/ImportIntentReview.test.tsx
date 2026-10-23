@@ -118,11 +118,10 @@ describe('Add to collection tick (review)', () => {
     expect(screen.getByRole('button', { name: /Import deck/i })).toBeDisabled()
   })
 
-  it('planned: unticked by default and Import is disabled', async () => {
+  it('planned: no Add tick is shown (nothing can be added)', async () => {
     await open('planned', OWNED, TWO)
-    await waitFor(tickReady)
-    expect(addTick()).not.toBeChecked()
-    expect(screen.getByRole('button', { name: /Import deck/i })).toBeDisabled()
+    await waitFor(() => expect(screen.getByRole('button', { name: /Import deck/i })).toBeInTheDocument())
+    expect(screen.queryAllByRole('checkbox', { name: /Add .*to collection/i })).toHaveLength(0)
   })
 
   it('I bought it: unticking Add disables Import until it is ticked again', async () => {

@@ -710,7 +710,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
                     busy: intentView.busy,
                     onChange: changeIntentCopy,
                     onChangeAdd: changeIntentAdd,
-                    hideAdd: precon,
+                    hideAdd: precon || intent === 'planned',
                   }
                 : undefined
             }

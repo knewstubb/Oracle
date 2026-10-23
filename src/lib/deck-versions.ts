@@ -18,6 +18,8 @@ export interface CardSnapshot {
   scryfall_id: string | null
   set_code: string | null
   is_commander: boolean
+  /** partner | background | companion. Absent in old snapshots (reads as null). */
+  command_zone_role?: string | null
 }
 
 export interface VersionDiff {

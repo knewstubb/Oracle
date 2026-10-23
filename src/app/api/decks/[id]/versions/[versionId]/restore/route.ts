@@ -91,6 +91,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     categories: card.categories,
     quantity: card.quantity ?? 1,
     is_commander: card.is_commander,
+    command_zone_role: card.command_zone_role ?? null,
   }))
 
   const { data: restoreResult, error: restoreErr } = await supabase.rpc('apply_ai_deck_delta', {

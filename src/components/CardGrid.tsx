@@ -28,6 +28,8 @@ export interface DeckCard {
   categories: string
   tags: string
   is_commander: boolean | number
+  /** partner | background | companion (command-zone-roles contract). NULL for ordinary rows and the primary commander. */
+  command_zone_role?: string | null
   /** Generic basic (no collection copy). See generic-basic-lands contract. */
   is_generic?: boolean
   generic_sleeved?: boolean

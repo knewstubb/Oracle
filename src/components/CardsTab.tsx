@@ -22,6 +22,7 @@ import { AddCardSearch } from '@/components/AddCardSearch'
 import { DeckImportButton } from '@/components/DeckImportButton'
 import { CardGroupSection } from '@/components/CardGroupSection'
 import { CardSlotBadge } from '@/components/CardSlotBadge'
+import { isCompanion } from '@/lib/command-zone'
 import { PicklistProgress, type PicklistCard } from '@/components/PicklistV2'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -478,8 +479,8 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
   }, [])
 
   const handleSelectAll = useCallback(() => {
-    // Select all non-commander cards
-    const ids = cards.filter(c => !c.is_commander).map(c => c.id)
+    // Select all non-commander cards (a companion is not a deck card either)
+    const ids = cards.filter(c => !c.is_commander && !isCompanion(c)).map(c => c.id)
     setSelectedCardIds(new Set(ids))
   }, [cards])
 
@@ -1509,7 +1510,7 @@ function AutoCategorizeButton({ cards, deckId }: AutoCategorizeButtonProps) {
       // Skip basic lands
       if (isBasicLand(card.card_name)) return false
       // Skip commanders
-      if (card.is_commander) return false
+      if (card.is_commander || isCompanion(card)) return false
       
       const parsed = parseCategoriesCapped(card.categories)
       return parsed.primary_category === 'Other' || parsed.primary_category === ''

@@ -18,6 +18,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
+import { evaluateCommanderLegality } from '@/lib/deck-legality'
 
 export async function GET(
   request: NextRequest,
@@ -62,7 +63,7 @@ export async function GET(
   // Get all cards in deck
   const { data: deckCards, error: cardsErr } = await supabase
     .from('deck_cards')
-    .select('card_name, quantity, is_commander')
+    .select('card_name, quantity, is_commander, command_zone_role')
     .eq('deck_id', deckId)
 
   if (cardsErr) {
@@ -98,76 +99,8 @@ export async function GET(
     }
   }
 
-  // Check each card for issues
-  const issues: Array<{
-    cardName: string
-    reason: 'banned' | 'color_identity' | 'over_limit'
-    details: string
-  }> = []
-
-  for (const deckCard of deckCards) {
-    const cardData = legalityMap[deckCard.card_name]
-    
-    // Skip if we don't have data for this card (might be a basic land or custom card)
-    if (!cardData) continue
-
-    // Check banned status
-    if (!cardData.commander_legal) {
-      issues.push({
-        cardName: deckCard.card_name,
-        reason: 'banned',
-        details: `${deckCard.card_name} is banned in Commander`,
-      })
-      continue
-    }
-
-    // Check color identity (skip for commanders as they define the identity)
-    if (!deckCard.is_commander && cardData.color_identity) {
-      // Parse card color identity - handle comma-separated format like "B, U"
-      const cardColors = new Set(
-        cardData.color_identity
-          .split(/[,\s]+/)
-          .filter((c: string) => 'WUBRG'.includes(c))
-      )
-      const invalidColors: string[] = []
-      
-      for (const color of cardColors) {
-        if (!deckColorIdentity.has(color)) {
-          invalidColors.push(color)
-        }
-      }
-
-      if (invalidColors.length > 0) {
-        const colorNames: Record<string, string> = {
-          W: 'White',
-          U: 'Blue',
-          B: 'Black',
-          R: 'Red',
-          G: 'Green',
-        }
-        const colorList = invalidColors.map(c => colorNames[c] || c).join(', ')
-        issues.push({
-          cardName: deckCard.card_name,
-          reason: 'color_identity',
-          details: `Contains ${colorList} which is outside your commander's color identity`,
-        })
-      }
-    }
-
-    // Check singleton rule (Commander allows only 1 copy of non-basic lands)
-    // Basic lands are exempt
-    const isBasicLand = ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 
-                         'Snow-Covered Plains', 'Snow-Covered Island', 'Snow-Covered Swamp',
-                         'Snow-Covered Mountain', 'Snow-Covered Forest', 'Wastes'].includes(deckCard.card_name)
-    
-    if (!isBasicLand && (deckCard.quantity ?? 0) > 1) {
-      issues.push({
-        cardName: deckCard.card_name,
-        reason: 'over_limit',
-        details: `Commander allows only 1 copy of each card (you have ${deckCard.quantity})`,
-      })
-    }
-  }
+  // Check each card for issues (the companion is outside the deck: see deck-legality.ts)
+  const issues = evaluateCommanderLegality(deckCards, legalityMap, deckColorIdentity)
 
   return NextResponse.json({
     format,

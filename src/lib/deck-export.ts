@@ -18,6 +18,7 @@ interface ExportCard {
   quantity: number
   categories: string
   is_commander: boolean | number
+  command_zone_role?: string | null
 }
 
 /**
@@ -28,6 +29,7 @@ interface ExportCard {
  */
 export function exportDeckAsText(cards: ExportCard[]): string {
   const commander: string[] = []
+  const companion: string[] = []
   const mainDeck: string[] = []
   const sideboard: string[] = []
   const maybeboard: string[] = []
@@ -36,7 +38,9 @@ export function exportDeckAsText(cards: ExportCard[]): string {
     const line = formatLine(card)
     const category = parsePrimaryCategory(card.categories)
 
-    if (card.is_commander) {
+    if (card.command_zone_role === 'companion') {
+      companion.push(line)
+    } else if (card.is_commander) {
       commander.push(line)
     } else if (category === 'Sideboard') {
       sideboard.push(line)
@@ -58,6 +62,12 @@ export function exportDeckAsText(cards: ExportCard[]): string {
   if (mainDeck.length > 0) {
     if (commander.length > 0) sections.push('// Deck')
     sections.push(...mainDeck)
+  }
+
+  if (companion.length > 0) {
+    sections.push('')
+    sections.push('// Companion')
+    sections.push(...companion)
   }
 
   if (sideboard.length > 0) {

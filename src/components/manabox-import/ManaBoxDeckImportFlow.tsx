@@ -203,8 +203,11 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
         deckName: file.name.replace(/\.(csv|txt)$/i, ''),
         format: 'commander',
         commander: (() => {
-          if (!initialCommanderName) return null
-          const hit = preview.rows.find((r) => !r.isBasicLand && r.cardName === initialCommanderName)
+          // A name passed in (a precon) wins; otherwise the commander the file marks is pre-ticked
+          // (import-formats S-6). The picker still opens so the owner can change it.
+          const wanted = initialCommanderName ?? preview.commanders?.[0]?.name
+          if (!wanted) return null
+          const hit = preview.rows.find((r) => !r.isBasicLand && r.cardName === wanted)
           return hit ? { name: hit.cardName, scryfallId: hit.scryfallId } : null
         })(),
         defaults: INITIAL_DEFAULTS,

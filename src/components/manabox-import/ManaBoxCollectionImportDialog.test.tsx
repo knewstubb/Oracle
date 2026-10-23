@@ -290,6 +290,17 @@ describe('ManaBoxCollectionImportDialog', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
+  it('asks "Discard edits?" when Escape is pressed after an edit, same as X', async () => {
+    const { user, onOpenChange } = await previewThenReview()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Sol Ring' }))
+    fireEvent.click(within(screen.getByRole('group', { name: 'Copy 1 type' })).getByRole('button', { name: 'Proxy' }))
+    await user.keyboard('{Escape}')
+    expect(await screen.findByText('Discard edits?')).toBeInTheDocument()
+    expect(onOpenChange).not.toHaveBeenCalledWith(false)
+    await user.click(screen.getByRole('button', { name: 'Discard edits' }))
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
   it('keeps the result open until the owner closes it', async () => {
     const lines = [
       { type: 'complete', summary: { inserted: 4, skipped: 0, removed: 0, sourceTag: 'manabox', errors: [], unmatched: [], durationMs: 5 } },

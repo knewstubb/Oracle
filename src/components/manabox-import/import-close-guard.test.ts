@@ -28,7 +28,11 @@ describe('decideCollectionClose', () => {
   it('blocks outside click and Escape before the result', () => {
     expect(decideCollectionClose('outside-press', st)).toBe('block')
     expect(decideCollectionClose('escape-key', st)).toBe('block')
-    expect(decideCollectionClose('escape-key', { ...st, hasEdits: true })).toBe('block')
+  })
+  it('asks "Discard edits?" on Escape when the review has edits, like X', () => {
+    expect(decideCollectionClose('escape-key', { ...st, hasEdits: true })).toBe('confirm')
+    expect(decideCollectionClose('escape-key', { ...st, hasEdits: true, saving: true })).toBe('block')
+    expect(decideCollectionClose('outside-press', { ...st, hasEdits: true })).toBe('block')
   })
   it('lets Escape close the result screen', () => {
     expect(decideCollectionClose('escape-key', { ...st, finished: true })).toBe('allow')

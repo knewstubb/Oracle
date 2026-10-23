@@ -1,4 +1,4 @@
--- DRAFT. NOT APPLIED. NOT IN supabase/migrations/. OWNER APPROVAL REQUIRED BEFORE IT IS MOVED THERE AND APPLIED.
+-- Approved by the owner (Round 18) and moved here from contracts/drafts. Safety re-read done: additive only.
 -- Brief: docs/oracle/briefs/import-cleanup.md section 6a (slice P1). Contract: import-intent.md section 7 (row P1).
 --
 -- Adds ONE nullable column to ref_precons: `cards`, each precon's full card list

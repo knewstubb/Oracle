@@ -1,4 +1,4 @@
--- DRAFT. NOT APPLIED. NOT IN supabase/migrations/. OWNER APPROVAL REQUIRED BEFORE IT IS MOVED THERE AND APPLIED.
+-- Approved by the owner (Round 18) and moved here from contracts/drafts. Safety re-read done: additive only.
 -- Contract: docs/oracle/contracts/import-intent.md §5 and §7.
 --
 -- Adds ONE new table, deck_card_alerts: "Accounting error" alerts shown on a decklist when an

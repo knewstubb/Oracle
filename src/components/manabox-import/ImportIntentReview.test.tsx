@@ -207,7 +207,8 @@ describe('Inline choices (review)', () => {
   beforeEach(() => vi.restoreAllMocks())
 
   it('one other deck holds the copy: it is pre-picked and Skip is offered', async () => {
-    await open('built', HELD([{ id: 7, name: 'Elves' }]))
+    const { user } = await open('built', HELD([{ id: 7, name: 'Elves' }]))
+    await user.click(await screen.findByRole('button', { name: /Edit Emil/ }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Elves' })).toBeInTheDocument())
     expect(screen.getByRole('button', { name: 'Elves' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Skip' })).toHaveAttribute('aria-pressed', 'false')
@@ -221,6 +222,7 @@ describe('Inline choices (review)', () => {
         { id: 8, name: 'Goblins' },
       ])
     )
+    await user.click(await screen.findByRole('button', { name: /Edit Emil/ }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Goblins' })).toBeInTheDocument())
     expect(screen.getByRole('button', { name: 'Elves' })).toHaveAttribute('aria-pressed', 'false')
     await user.click(screen.getByRole('button', { name: 'Goblins' }))
@@ -241,6 +243,7 @@ describe('Inline choices (review)', () => {
         },
       ],
     })
+    await user.click(await screen.findByRole('button', { name: /Edit Emil/ }))
     const use = await screen.findByRole('button', { name: /Use my/ })
     expect(use).toHaveTextContent(/CMM 410/i)
     await user.click(screen.getByRole('button', { name: 'Add this printing' }))

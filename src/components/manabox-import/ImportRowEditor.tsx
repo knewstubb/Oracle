@@ -357,7 +357,7 @@ export function ImportRowEditor({
         )}
       </div>
 
-      {intent && !generic && (
+      {intent && !generic && open && (
         <IntentDecisionRows cardName={row.cardName} views={intent.views} disabled={intent.busy} onChange={intent.onChange} />
       )}
 

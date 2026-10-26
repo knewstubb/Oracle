@@ -61,28 +61,10 @@ export function IntentDecisionRows({
               </>
             )}
             {v.printing && (
-              <>
-                <span>
-                  <b className="font-medium">{prefix}{cardName}:</b>{' '}
-                  {printingNeedsChoice(printingLabel(v.printing.owned), printingLabel(v.printing.listed))}
-                </span>
-                <span className="inline-flex flex-wrap gap-1">
-                  <ChoiceButton
-                    pressed={v.printing.chosen === 'use_mine'}
-                    disabled={disabled}
-                    onClick={() => onChange(v.index, { printing: 'use_mine' })}
-                  >
-                    {PRINTING_USE(printingLabel(v.printing.owned))}
-                  </ChoiceButton>
-                  <ChoiceButton
-                    pressed={v.printing.chosen === 'add_this'}
-                    disabled={disabled}
-                    onClick={() => onChange(v.index, { printing: 'add_this' })}
-                  >
-                    {PRINTING_ADD}
-                  </ChoiceButton>
-                </span>
-              </>
+              <span>
+                <b className="font-medium">{prefix}{cardName}:</b>{' '}
+                you own {printingLabel(v.printing.owned)}; this list has {printingLabel(v.printing.listed)}. Tick Add to add the listed printing instead.
+              </span>
             )}
           </div>
         )

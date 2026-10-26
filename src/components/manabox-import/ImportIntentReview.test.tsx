@@ -232,7 +232,7 @@ describe('Inline choices (review)', () => {
     expect(screen.getByRole('button', { name: 'Goblins' })).toHaveAttribute('aria-pressed', 'false')
   })
 
-  it('owned in another printing: offers Use my … / Add this printing', async () => {
+  it('owned in another printing: the row shows the usual Add tick and a note when opened', async () => {
     const { user } = await open('built', {
       rows: [
         {
@@ -243,11 +243,12 @@ describe('Inline choices (review)', () => {
         },
       ],
     })
+    const tick = await screen.findByRole('checkbox', { name: /Add Emil/ })
+    expect(tick).not.toBeChecked()
     await user.click(await screen.findByRole('button', { name: /Edit Emil/ }))
-    const use = await screen.findByRole('button', { name: /Use my/ })
-    expect(use).toHaveTextContent(/CMM 410/i)
-    await user.click(screen.getByRole('button', { name: 'Add this printing' }))
-    expect(screen.getByRole('button', { name: 'Add this printing' })).toHaveAttribute('aria-pressed', 'true')
+    expect(await screen.findByText(/you own/i)).toHaveTextContent(/CMM 410/i)
+    await user.click(tick)
+    expect(tick).toBeChecked()
   })
 
   it('the save request carries no Add, move or printing fields', async () => {

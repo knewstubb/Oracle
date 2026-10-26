@@ -118,10 +118,10 @@ describe('plans by intent', () => {
 })
 
 describe('matching order', () => {
-  it('other printing free needs a printing choice, naming the owned printing', () => {
+  it('other printing free defaults to using the owned printing, naming it', () => {
     const r = row()
     const [p] = plan([r], [facts(r, [free({ printingId: 'p-cmm', setCode: 'cmm', collectorNumber: '410' })])], 'built')
-    expect(p.kind).toBe('needs_choice_printing')
+    expect(p.kind).toBe('sleeve_owned')
     expect(p.ownedPrinting?.setCode).toBe('cmm')
   })
   it('Use my printing sleeves the owned copy and shows what was really sleeved', () => {
@@ -175,11 +175,10 @@ describe('matching order', () => {
     const [p] = plan([r], [facts(r, [], [held(7)])], 'built', { k1: { 0: { move: { kind: 'skip' } } } })
     expect(p.alertDeckIds).toEqual([7])
   })
-  it('other printing held elsewhere needs a printing choice, then a move on that printing', () => {
+  it('other printing held elsewhere defaults to a move on that printing', () => {
     const r = row()
     const f = [facts(r, [], [held(7, { printingId: 'p-cmm', setCode: 'cmm', collectorNumber: '410' })])]
-    expect(plan([r], f, 'built')[0].kind).toBe('needs_choice_printing')
-    const [p] = plan([r], f, 'built', { k1: { 0: { printing: 'use_mine' } } })
+    const [p] = plan([r], f, 'built')
     expect(p.kind).toBe('move')
     expect(p.slotPrintingId).toBe('p-cmm')
   })
@@ -310,10 +309,10 @@ describe('rowIntentTags', () => {
       { label: 'Unowned', count: 1, all: false, tone: 'unowned' },
     ])
   })
-  it('all copies the same: no count; printing choice is amber', () => {
+  it('all copies the same: no count; other printing is just an owned copy', () => {
     const r = row()
     const t = rowIntentTags(plan([r], [facts(r, [free({ printingId: 'p-x' })])], 'built'))
-    expect(t).toEqual([{ label: 'Choose printing', count: 1, all: true, tone: 'warn' }])
+    expect(t.map((x) => x.label)).toEqual(['Owned copy'])
   })
 })
 

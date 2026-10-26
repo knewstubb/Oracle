@@ -225,7 +225,7 @@ function pickSource(
   e: IntentCopyOwnerEdits
 ): CopySource {
   const proxyOnly = st.type === 'proxy'
-  const mine = e.printing === 'use_mine'
+  const mine = e.printing !== 'add_this'
   const free = entry.free.filter((g) => g.left > 0 && (!proxyOnly || g.isProxy)).sort(byWanted(st.finish))
 
   // 1-2. Free copies: exact printing first; another printing needs a choice.
@@ -432,11 +432,11 @@ export function intentCopyViews(
       if (alloc?.source.kind === 'held') {
         view.move = { candidates: alloc.source.candidates, chosen: alloc.source.chosen }
       }
-      if (alloc?.otherPrinting && (alloc.source.kind === 'other_printing' || e?.printing)) {
+      if (alloc?.otherPrinting) {
         view.printing = {
           owned: alloc.otherPrinting,
           listed: { setCode: row.setCode, collectorNumber: row.collectorNumber },
-          chosen: e?.printing,
+          chosen: e?.printing ?? 'use_mine',
         }
       }
       return view
@@ -489,7 +489,7 @@ export function applyIntentChange(
     canOriginal: view.canOriginal,
     canProxy: view.canProxy,
     isGeneric: view.generic,
-    impliedAdd: !view.multi,
+    impliedAdd: !view.multi && !view.printing,
   })
   let edit = result.edit
   // "Add this printing" ticks Add; unticking Add takes that choice back.

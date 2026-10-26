@@ -154,10 +154,10 @@ describe('move choice view', () => {
 
 describe('printing choice view', () => {
   const cmm = { printingId: 'p-cmm', setCode: 'cmm', collectorNumber: '410' }
-  it('owned in another printing: needs a choice naming both printings', () => {
+  it('owned in another printing: defaults to using mine, naming both printings', () => {
     const r = row()
     const [v] = views(r, [facts(r, [free(cmm)])], 'built')
-    expect(v.printing).toMatchObject({ owned: cmm, listed: { setCode: 'clb', collectorNumber: '351' }, chosen: undefined })
+    expect(v.printing).toMatchObject({ owned: cmm, listed: { setCode: 'clb', collectorNumber: '351' }, chosen: 'use_mine' })
   })
   it('Use my copy sleeves the owned printing; Add this printing ticks Add; both keep the row visible', () => {
     const r = row()

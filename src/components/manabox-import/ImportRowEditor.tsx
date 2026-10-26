@@ -330,7 +330,7 @@ export function ImportRowEditor({
         </span>
         {intent && (
           <span className="flex justify-center">
-            {generic ? null : !intent.hideAdd && intent.views.some((v) => v.multi) ? (
+            {generic ? null : !intent.hideAdd && intent.views.some((v) => v.multi || v.printing) ? (
               <AddTick
                 cardName={row.cardName}
                 views={intent.views}
@@ -507,7 +507,7 @@ function CopyLine({
         </>
       ) : (
         <>
-          {intentView && intentView.multi && onIntentChange && !hideAdd && (
+          {intentView && (intentView.multi || intentView.printing) && onIntentChange && !hideAdd && (
             <label className="inline-flex items-center gap-1 text-[length:var(--fs-xs)] text-muted-foreground">
               <Checkbox
                 checked={intentView.add}

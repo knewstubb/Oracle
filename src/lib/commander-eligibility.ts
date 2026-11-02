@@ -53,25 +53,16 @@ function identityLetters(text: string | null | undefined): Set<string> {
 }
 
 /**
- * Lead-commander names that would not put the rest of the deck off-colour: every other card's colour identity
- * must sit inside the candidate's. `deckIdentities` are the colour identity texts of the other main-list cards.
- * A commander that can take a second one (Partner, Friends forever, Choose a Background, ...) skips the colour test:
- * its partner may supply the missing colours, and the pair check runs when the partner is added. Without this a
- * Partner deck (e.g. Tymna + Tana, four colours between them) could never get its first commander.
+ * Lead-commander names: any legal commander that is not a Background. The colours of the other cards in the deck
+ * are deliberately ignored; the deck's colours follow the chosen commander, not the other way round.
  */
 export function eligibleLeadNames(
   names: string[],
-  facts: Map<string, CommanderCardFacts & { color_identity?: string | null }>,
-  deckIdentities: Array<string | null | undefined> = []
+  facts: Map<string, CommanderCardFacts & { color_identity?: string | null }>
 ): string[] {
-  const deck = new Set<string>()
-  for (const text of deckIdentities) for (const c of identityLetters(text)) deck.add(c)
   return names.filter((name) => {
     const f = facts.get(name.toLowerCase())
-    if (!f || !isEligibleLeadCommander(f)) return false
-    if (secondSlotKindFor({ name, type_line: f.type_line, oracle_text: f.oracle_text }) !== null) return true
-    const own = identityLetters(f.color_identity)
-    return [...deck].every((c) => own.has(c))
+    return !!f && isEligibleLeadCommander(f)
   })
 }
 

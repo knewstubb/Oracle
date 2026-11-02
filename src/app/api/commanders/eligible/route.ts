@@ -11,9 +11,9 @@
  * POST /api/commanders/eligible?role=second-kind  { with: string }
  * Returns { kind } : which second-commander slot the commander `with` allows (partner, partner_with, background,
  * friends_forever, doctors_companion) or null when it allows none.
- * POST /api/commanders/eligible?role=lead  { names: string[], deckNames?: string[] }
- * Returns which names can be the deck's first commander right now: a legal commander that is not a Background, and
- * whose colour identity covers every card in `deckNames` (the deck's main list), so choosing it leaves no card off-colour.
+ * POST /api/commanders/eligible?role=lead  { names: string[] }
+ * Returns which names can be the deck's first commander right now: any legal commander that is not a Background,
+ * whatever the colours of the other cards in the deck.
  * Without `role` the response is unchanged.
  */
 import { NextRequest, NextResponse } from 'next/server'
@@ -82,22 +82,15 @@ export async function POST(request: NextRequest) {
     })
   }
   if (role === 'lead') {
-    const deckNames: string[] = Array.isArray(body?.deckNames)
-      ? [...new Set<string>(body.deckNames.filter((n: unknown): n is string => typeof n === 'string'))].slice(0, MAX_NAMES)
-      : []
     const { data: rows, error: err } = await supabase
       .from('ref_cards')
       .select('name, type_line, oracle_text, power, toughness, commander_legal, can_be_commander, color_identity')
-      .in('name', [...new Set([...names, ...deckNames])])
+      .in('name', names)
     if (err) return NextResponse.json({ error: 'Could not check commanders' }, { status: 500 })
     const byName = new Map<string, CommanderCardFacts & { color_identity?: string | null }>()
     for (const row of rows ?? []) byName.set(row.name.toLowerCase(), row)
     return NextResponse.json({
-      eligible: eligibleLeadNames(
-        names,
-        byName,
-        deckNames.map((n) => byName.get(n.toLowerCase())?.color_identity)
-      ),
+      eligible: eligibleLeadNames(names, byName),
     })
   }
   const { data, error } = await supabase

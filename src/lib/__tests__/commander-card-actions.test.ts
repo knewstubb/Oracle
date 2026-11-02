@@ -202,45 +202,13 @@ describe('first-commander eligibility', () => {
     expect(isEligibleLeadCommander(facts({ commander_legal: false }))).toBe(false)
   })
 
-  it('a commander whose colours leave a card off-colour is not offered', () => {
+  it('offers any legal commander whatever the colours of the deck', () => {
     const map = new Map([
       ['rakdos', facts({ color_identity: 'B, R' })],
       ['atraxa', facts({ color_identity: 'B, G, U, W' })],
       ['plain', facts({ type_line: 'Artifact' })],
     ])
-    expect(eligibleLeadNames(['Rakdos', 'Atraxa', 'Plain'], map, ['G', 'B, R', ''])).toEqual([])
-    expect(eligibleLeadNames(['Rakdos', 'Atraxa'], map, ['B', 'B, R'])).toEqual(['Rakdos'])
-    expect(eligibleLeadNames(['Rakdos', 'Atraxa'], map, ['G', 'U'])).toEqual(['Atraxa'])
-  })
-})
-
-describe('REGRESSION: first commander on a Partner deck (Tymna + Tana, four colours between them)', () => {
-  const f = (over: Partial<CommanderCardFacts> & { color_identity?: string }): CommanderCardFacts & { color_identity?: string } => ({
-    type_line: 'Legendary Creature — Human',
-    oracle_text: '',
-    power: '2',
-    toughness: '2',
-    commander_legal: true,
-    ...over,
-  })
-  const map = new Map([
-    ['tymna the weaver', f({ oracle_text: 'Lifelink\nPartner (You can have two commanders if both have partner.)', color_identity: 'B, W' })],
-    ['tana, the bloodsower', f({ oracle_text: 'Trample\nPartner (You can have two commanders if both have partner.)', color_identity: 'G, R' })],
-    ['kraum', f({ oracle_text: 'Flying', color_identity: 'U, R' })],
-    ['sol ring', f({ type_line: 'Artifact', color_identity: '' })],
-  ])
-  // The deck holds W/B and R/G cards, so no single commander's colours cover it.
-  const deck = ['B, W', 'G, R', 'B, W', 'G, R']
-
-  it('offers the first commander to a Partner card even though its colours do not cover the whole deck', () => {
-    expect(eligibleLeadNames(['Tymna the Weaver', 'Tana, the Bloodsower', 'Kraum', 'Sol Ring'], map, deck)).toEqual([
-      'Tymna the Weaver',
-      'Tana, the Bloodsower',
-    ])
-  })
-
-  it('a non-partner card still has to cover the deck', () => {
-    expect(eligibleLeadNames(['Kraum'], map, deck)).toEqual([])
+    expect(eligibleLeadNames(['Rakdos', 'Atraxa', 'Plain'], map)).toEqual(['Rakdos', 'Atraxa'])
   })
 })
 

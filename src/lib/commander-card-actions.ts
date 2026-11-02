@@ -38,7 +38,7 @@ export function actionLabel(a: CardCommanderAction): string {
 
 /** What the server said about the deck's cards (names are card names). */
 export interface CommanderEligibility {
-  /** Names that could be the first commander right now (legal, not a Background, colours cover the deck). */
+  /** Names that could be the first commander right now (legal, not a Background; deck colours are ignored). */
   lead: ReadonlySet<string>
   /** Names that could be the other commander next to the current one (valid pair). */
   second: ReadonlySet<string>

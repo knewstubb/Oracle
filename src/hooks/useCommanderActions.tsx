@@ -73,7 +73,7 @@ export function useCommanderEligibility(cards: ActionCard[], commanderName: stri
   })
   const leadQ = useQuery({
     queryKey: ['commander-eligible', 'lead', mainNames],
-    queryFn: () => fetchNames('lead', { names: mainNames, deckNames: mainNames }),
+    queryFn: () => fetchNames('lead', { names: mainNames }),
     enabled: wantLead,
     staleTime: STALE,
   })

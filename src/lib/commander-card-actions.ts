@@ -166,3 +166,54 @@ export function planCommandZoneBody(
   if (commanders.length === 1) return { primaryCardId: commanders[0].id, secondCardId: cardId, companionCardId }
   return null
 }
+
+/** Cards as the deck page holds them; the extra fields are only read for the commander art. */
+type LocalCard = ActionCard & { scryfall_id?: string | null }
+
+export interface LocalCommandZone<T extends LocalCard> {
+  cards: T[]
+  /** What the deck's commander name becomes (the first commander, or null). */
+  commanderName: string | null
+  commanderScryfallId: string | null
+}
+
+/**
+ * What the deck looks like once the save has gone through, so the screen can change before the server answers.
+ * Mirrors set_deck_command_zone: every commander / partner / background goes back to an ordinary card, then the new
+ * roles are set, and a companion is moved to the Sideboard (outside the 100). Nothing is added or removed.
+ * `secondRole` is the role the other commander is saved with.
+ */
+export function applyCommandZoneLocally<T extends LocalCard>(
+  cards: T[],
+  body: CommandZoneBody,
+  secondRole?: 'partner' | 'background'
+): LocalCommandZone<T> {
+  const next = cards.map((c) => {
+    let card: T = c
+    if (c.is_commander || c.command_zone_role === 'partner' || c.command_zone_role === 'background') {
+      card = { ...c, is_commander: false, command_zone_role: null }
+    }
+    if (c.id === body.primaryCardId) card = { ...card, is_commander: true, command_zone_role: null }
+    else if (c.id === body.secondCardId) {
+      // A second commander that was already one keeps its role unless the action names one.
+      const kept = c.command_zone_role === 'background' ? 'background' : 'partner'
+      card = { ...card, is_commander: true, command_zone_role: secondRole ?? kept }
+    }
+    else if (c.id === body.companionCardId) {
+      card = { ...card, is_commander: false, command_zone_role: 'companion', categories: '["Sideboard"]' }
+    }
+    return card
+  })
+  const primary = next.find((c) => c.id === body.primaryCardId)
+  return {
+    cards: next,
+    commanderName: primary?.card_name ?? null,
+    commanderScryfallId: (primary as LocalCard | undefined)?.scryfall_id ?? null,
+  }
+}
+
+/** The role a chosen "add" action saves the other commander with; null when the action does not add one (keep the existing role). */
+export function secondRoleForAction(action: CardCommanderAction): 'partner' | 'background' | undefined {
+  if (action.kind !== 'add-commander') return undefined
+  return action.as === 'background' ? 'background' : 'partner'
+}

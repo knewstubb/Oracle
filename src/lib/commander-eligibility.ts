@@ -4,7 +4,7 @@
  * No card names are hard-coded.
  */
 
-import { checkCommanderPair, type PairCardFacts } from '@/lib/commander-pairing'
+import { checkCommanderPair, secondSlotKindFor, type PairCardFacts } from '@/lib/commander-pairing'
 
 export interface CommanderCardFacts {
   type_line: string | null
@@ -55,6 +55,9 @@ function identityLetters(text: string | null | undefined): Set<string> {
 /**
  * Lead-commander names that would not put the rest of the deck off-colour: every other card's colour identity
  * must sit inside the candidate's. `deckIdentities` are the colour identity texts of the other main-list cards.
+ * A commander that can take a second one (Partner, Friends forever, Choose a Background, ...) skips the colour test:
+ * its partner may supply the missing colours, and the pair check runs when the partner is added. Without this a
+ * Partner deck (e.g. Tymna + Tana, four colours between them) could never get its first commander.
  */
 export function eligibleLeadNames(
   names: string[],
@@ -66,6 +69,7 @@ export function eligibleLeadNames(
   return names.filter((name) => {
     const f = facts.get(name.toLowerCase())
     if (!f || !isEligibleLeadCommander(f)) return false
+    if (secondSlotKindFor({ name, type_line: f.type_line, oracle_text: f.oracle_text }) !== null) return true
     const own = identityLetters(f.color_identity)
     return [...deck].every((c) => own.has(c))
   })

@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import {
   actionLabel,
+  applyCommandZoneLocally,
   companionKeepsCount,
   companionSlotVisible,
   offeredActions,
   planCommandZoneBody,
+  secondRoleForAction,
   type ActionCard,
   type CommanderEligibility,
 } from '@/lib/commander-card-actions'
@@ -209,5 +211,80 @@ describe('first-commander eligibility', () => {
     expect(eligibleLeadNames(['Rakdos', 'Atraxa', 'Plain'], map, ['G', 'B, R', ''])).toEqual([])
     expect(eligibleLeadNames(['Rakdos', 'Atraxa'], map, ['B', 'B, R'])).toEqual(['Rakdos'])
     expect(eligibleLeadNames(['Rakdos', 'Atraxa'], map, ['G', 'U'])).toEqual(['Atraxa'])
+  })
+})
+
+describe('REGRESSION: first commander on a Partner deck (Tymna + Tana, four colours between them)', () => {
+  const f = (over: Partial<CommanderCardFacts> & { color_identity?: string }): CommanderCardFacts & { color_identity?: string } => ({
+    type_line: 'Legendary Creature — Human',
+    oracle_text: '',
+    power: '2',
+    toughness: '2',
+    commander_legal: true,
+    ...over,
+  })
+  const map = new Map([
+    ['tymna the weaver', f({ oracle_text: 'Lifelink\nPartner (You can have two commanders if both have partner.)', color_identity: 'B, W' })],
+    ['tana, the bloodsower', f({ oracle_text: 'Trample\nPartner (You can have two commanders if both have partner.)', color_identity: 'G, R' })],
+    ['kraum', f({ oracle_text: 'Flying', color_identity: 'U, R' })],
+    ['sol ring', f({ type_line: 'Artifact', color_identity: '' })],
+  ])
+  // The deck holds W/B and R/G cards, so no single commander's colours cover it.
+  const deck = ['B, W', 'G, R', 'B, W', 'G, R']
+
+  it('offers the first commander to a Partner card even though its colours do not cover the whole deck', () => {
+    expect(eligibleLeadNames(['Tymna the Weaver', 'Tana, the Bloodsower', 'Kraum', 'Sol Ring'], map, deck)).toEqual([
+      'Tymna the Weaver',
+      'Tana, the Bloodsower',
+    ])
+  })
+
+  it('a non-partner card still has to cover the deck', () => {
+    expect(eligibleLeadNames(['Kraum'], map, deck)).toEqual([])
+  })
+})
+
+describe('applyCommandZoneLocally (what the screen shows before the server answers)', () => {
+  type C = ActionCard & { scryfall_id?: string }
+  const row = (over: Partial<C> & { id: number; card_name: string }): C => c(over) as C
+  const a = row({ id: 1, card_name: 'A', is_commander: true, scryfall_id: 'sa' })
+  const b = row({ id: 2, card_name: 'B', scryfall_id: 'sb' })
+  const d = row({ id: 3, card_name: 'D' })
+
+  it('first commander on a deck with none', () => {
+    const r = applyCommandZoneLocally([b, d], planCommandZoneBody([b, d], null, { kind: 'add-commander', as: 'commander' }, 2)!)
+    expect(r.cards.find((x) => x.id === 2)).toMatchObject({ is_commander: true, command_zone_role: null })
+    expect(r.commanderName).toBe('B')
+    expect(r.commanderScryfallId).toBe('sb')
+  })
+
+  it('partner and background are saved with their role, the first commander stays', () => {
+    for (const as of ['partner', 'background'] as const) {
+      const action = { kind: 'add-commander', as } as const
+      const r = applyCommandZoneLocally([a, b], planCommandZoneBody([a, b], 'A', action, 2)!, secondRoleForAction(action))
+      expect(r.cards.find((x) => x.id === 2)).toMatchObject({ is_commander: true, command_zone_role: as })
+      expect(r.cards.find((x) => x.id === 1)).toMatchObject({ is_commander: true, command_zone_role: null })
+      expect(r.commanderName).toBe('A')
+    }
+  })
+
+  it('companion moves to the Sideboard and is not a commander; an existing background keeps its role', () => {
+    const bg = row({ id: 5, card_name: 'BG', is_commander: true, command_zone_role: 'background' })
+    const r = applyCommandZoneLocally([a, bg, b], planCommandZoneBody([a, bg, b], 'A', { kind: 'add-companion' }, 2)!)
+    expect(r.cards.find((x) => x.id === 2)).toMatchObject({ is_commander: false, command_zone_role: 'companion', categories: '["Sideboard"]' })
+    expect(r.cards.find((x) => x.id === 5)).toMatchObject({ is_commander: true, command_zone_role: 'background' })
+  })
+
+  it('remove promotes the other commander; removing the only one clears the name; nothing is deleted', () => {
+    const p = row({ id: 4, card_name: 'P', is_commander: true, command_zone_role: 'partner', scryfall_id: 'sp' })
+    const both = applyCommandZoneLocally([a, p, d], planCommandZoneBody([a, p, d], 'A', { kind: 'remove-commander' }, 1)!)
+    expect(both.cards).toHaveLength(3)
+    expect(both.cards.find((x) => x.id === 4)).toMatchObject({ is_commander: true, command_zone_role: null })
+    expect(both.cards.find((x) => x.id === 1)).toMatchObject({ is_commander: false })
+    expect(both.commanderName).toBe('P')
+    const only = applyCommandZoneLocally([a, d], planCommandZoneBody([a, d], 'A', { kind: 'remove-commander' }, 1)!)
+    expect(only.commanderName).toBeNull()
+    expect(only.commanderScryfallId).toBeNull()
+    expect(only.cards.some((x) => x.is_commander)).toBe(false)
   })
 })

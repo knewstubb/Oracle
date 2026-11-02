@@ -1,20 +1,29 @@
 'use client'
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { deckKeys } from '@/hooks/useDeckQueryKeys'
 import type { SecondSlotKind } from '@/lib/commander-pairing'
 import {
   actionLabel,
+  applyCommandZoneLocally,
   currentCommanders,
   isMainListCard,
   offeredActions,
   planCommandZoneBody,
+  secondRoleForAction,
   type ActionCard,
   type CardCommanderAction,
   type CommanderEligibility,
 } from '@/lib/commander-card-actions'
+
+type DeckCardLike = ActionCard & { scryfall_id?: string | null }
+/** The deck page's cached answer (only the parts this file touches). */
+interface DeckCache {
+  deck: { commander_name?: string | null; commander_scryfall_id?: string | null } & Record<string, unknown>
+  cards: unknown[]
+}
 
 /**
  * Which commander actions each deck card gets ("Add as commander / partner / background / companion", "Remove as
@@ -124,6 +133,9 @@ export function CommanderActionsProvider({
   const queryClient = useQueryClient()
   const { eligibility } = useCommanderEligibility(cards, commanderName)
   const [busyId, setBusyId] = useState<number | null>(null)
+  // Saves run one after another so the server sees them in the order they were clicked.
+  const queue = useRef<Promise<void>>(Promise.resolve())
+  const pending = useRef(0)
 
   const actionsFor = useCallback(
     (card: ActionCard) => offeredActions(card, cards, commanderName, eligibility, deckTarget),
@@ -132,35 +144,60 @@ export function CommanderActionsProvider({
 
   const run = useCallback(
     async (card: ActionCard, action: CardCommanderAction) => {
-      const body = planCommandZoneBody(cards, commanderName, action, card.id)
+      const key = deckKeys.detail(deckId)
+      // Plan from what is on screen right now (which already includes earlier clicks that are still saving).
+      const cached = queryClient.getQueryData<DeckCache>(key)
+      const liveCards = (cached?.cards as ActionCard[] | undefined) ?? cards
+      const liveName = cached ? cached.deck?.commander_name : commanderName
+      const body = planCommandZoneBody(liveCards, liveName, action, card.id)
       if (!body) return
-      setBusyId(card.id)
-      try {
-        const res = await fetch(`/api/decks/${deckId}/command-zone`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
+
+      // 1. Change the screen now: the card moves, the header and slots follow because they read the same deck data.
+      await queryClient.cancelQueries({ queryKey: key })
+      const snapshot = queryClient.getQueryData<DeckCache>(key)
+      if (snapshot) {
+        const local = applyCommandZoneLocally(snapshot.cards as DeckCardLike[], body, secondRoleForAction(action))
+        queryClient.setQueryData<DeckCache>(key, {
+          ...snapshot,
+          cards: local.cards,
+          deck: { ...snapshot.deck, commander_name: local.commanderName, commander_scryfall_id: local.commanderScryfallId },
         })
-        if (!res.ok) {
-          const payload = (await res.json().catch(() => ({}))) as { error?: string }
-          toast.error(payload.error ?? 'Could not save the command zone.')
+      }
+      setBusyId(card.id)
+      pending.current += 1
+
+      // 2. Save in the background; 3. put it back with a clear message if the save fails.
+      const save = queue.current.then(async () => {
+        let error: string | null = null
+        try {
+          const res = await fetch(`/api/decks/${deckId}/command-zone`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          })
+          if (!res.ok) {
+            const payload = (await res.json().catch(() => ({}))) as { error?: string }
+            error = payload.error ?? 'The server could not save it.'
+          }
+        } catch {
+          error = 'Could not reach the server.'
+        }
+        pending.current -= 1
+        setBusyId((id) => (id === card.id ? null : id))
+        if (error) {
+          if (snapshot) queryClient.setQueryData(key, snapshot)
+          toast.error(`Couldn't ${actionLabel(action).toLowerCase()} for ${card.card_name}. It has been put back. ${error}`)
+          if (pending.current === 0) void queryClient.invalidateQueries({ queryKey: key })
           return
         }
-        toast.success(
-          action.kind === 'remove-commander'
-            ? `${card.card_name} is no longer a commander`
-            : action.kind === 'add-companion'
-              ? `${card.card_name} is the companion`
-              : `${card.card_name} is a commander`
-        )
-        queryClient.invalidateQueries({ queryKey: ['deck-legality'] })
-        queryClient.invalidateQueries({ queryKey: ['commander-eligible'] })
-        await queryClient.invalidateQueries({ queryKey: deckKeys.detail(deckId) })
-      } catch {
-        toast.error('Could not save the command zone.')
-      } finally {
-        setBusyId(null)
-      }
+        // The deck on screen already matches what was saved, so it is only marked out of date (no re-download of the
+        // whole deck). The legality check and counts do depend on the new commander, so those reload.
+        void queryClient.invalidateQueries({ queryKey: key, refetchType: 'none' })
+        void queryClient.invalidateQueries({ queryKey: ['deck-legality'] })
+        void queryClient.invalidateQueries({ queryKey: deckKeys.health(deckId) })
+      })
+      queue.current = save
+      await save
     },
     [cards, commanderName, deckId, queryClient]
   )

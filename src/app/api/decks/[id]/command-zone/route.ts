@@ -12,6 +12,7 @@ import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { mapCommandZoneError, parseCommandZoneRequest } from '@/lib/command-zone-request'
+import { lookupDeckColourIdentity } from '@/lib/deck-colour-identity'
 import { checkSecondCommanderPair } from '@/lib/command-zone-pair-check'
 
 export async function PUT(
@@ -59,6 +60,29 @@ export async function PUT(
   const result = (data ?? {}) as Record<string, unknown>
   if (result.deck_id !== deckId) {
     return Response.json({ error: 'Could not save the command zone. Nothing was changed.' }, { status: 500 })
+  }
+
+  // Keep the deck's colour identity (read by the legality check) in step with the commander(s).
+  // Best effort: the command zone is already saved, so a failure here must not fail the request.
+  try {
+    const ids = [req.primaryCardId, req.secondCardId].filter((v): v is number => typeof v === 'number')
+    if (ids.length > 0) {
+      const { data: zoneRows } = await supabase
+        .from('deck_cards')
+        .select('card_name')
+        .eq('deck_id', deckId)
+        .eq('user_id', userId)
+        .in('id', ids)
+      const identity = await lookupDeckColourIdentity(
+        supabase,
+        (zoneRows ?? []).map((r: { card_name: string }) => r.card_name)
+      )
+      if (identity !== null) {
+        await supabase.from('decks').update({ colour_identity: identity }).eq('id', deckId).eq('user_id', userId)
+      }
+    }
+  } catch {
+    // ignored on purpose
   }
 
   return Response.json({

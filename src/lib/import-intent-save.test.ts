@@ -169,6 +169,23 @@ describe('intent save: what is sent to import_deck_with_intent', () => {
     expect(r.intentSummary).toMatchObject({ sleevedFromCollection: 1, unowned: 1 })
   })
 
+  it('purchased: a copy the file marks Proxy is saved as a proxy; the owner can override', async () => {
+    const proxyCard = (name: string, i: number) => {
+      const c = card(name, 1, `${name}-p1`, i)
+      c.copies = [{ index: 0, sourceLine: i, file: { proxy: true }, owner: {} }]
+      return c
+    }
+    const f = fake({ printings: ['Sol Ring-p1', 'Arcane Signet-p1'] })
+    const r = await run('purchased', [proxyCard('Sol Ring', 1), card('Arcane Signet', 1, 'Arcane Signet-p1', 2)], f)
+    expect(f.rpcCalls[0].rows.map((x) => x.is_proxy)).toEqual([true, false])
+    expect(r.intentSummary?.addedProxies).toBe(1)
+
+    const f2 = fake({ printings: ['Sol Ring-p1'] })
+    const edits: IntentCopyEdits = { 'Sol Ring-p1|nonfoil': { 0: { type: 'original' } } }
+    await run('purchased', [proxyCard('Sol Ring', 1)], f2, { edits })
+    expect(f2.rpcCalls[0].rows[0].is_proxy).toBe(false)
+  })
+
   it('planned: nothing is sleeved or added', async () => {
     const f = fake({ printings: ['Sol Ring-p1'] })
     await run('planned', [card('Sol Ring', 2)], f)

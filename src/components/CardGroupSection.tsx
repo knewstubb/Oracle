@@ -20,7 +20,9 @@
 import { useState, useCallback, useMemo, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { applyStatusPatch, type StatusPatch } from '@/lib/generic-status-patch'
-import { ChevronDown, ChevronRight, Tags, MoreVertical, Trash2, GripVertical, Sparkles, Check, AlertCircle } from 'lucide-react'
+import { ChevronDown, ChevronRight, Tags, MoreVertical, Trash2, GripVertical, Sparkles, Check, AlertCircle, Crown } from 'lucide-react'
+import { useCommanderActions } from '@/hooks/useCommanderActions'
+import { actionLabel } from '@/lib/commander-card-actions'
 import { toast } from 'sonner'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog'
@@ -463,6 +465,7 @@ function UnifiedCardRow({
           maxCopies={maxCopies}
           currentCategories={card.categories}
           onCategoryChange={onCategoryChange}
+          card={card}
         />
       )}
 
@@ -833,6 +836,8 @@ interface CardRowKebabProps {
   currentCategories?: string
   /** Callback when categories are updated via suggestion */
   onCategoryChange?: (cardId: number, categories: StructuredCategories) => void
+  /** The deck row, so commander actions (Add as commander / partner / background / companion, Remove as commander) can be offered. */
+  card?: DeckCard
 }
 
 function CardRowKebab({
@@ -843,8 +848,11 @@ function CardRowKebab({
   maxCopies = 1,
   currentCategories,
   onCategoryChange,
+  card,
 }: CardRowKebabProps) {
   const [open, setOpen] = useState(false)
+  const commanderActions = useCommanderActions()
+  const offered = card && commanderActions ? commanderActions.actionsFor(card) : []
   const [printingPickerOpen, setPrintingPickerOpen] = useState(false)
   const [suggestionsOpen, setSuggestionsOpen] = useState(false)
   const [optimisticQty, setOptimisticQty] = useState(quantity)
@@ -1047,6 +1055,18 @@ function CardRowKebab({
               </button>
             )
           )}
+          {offered.map((action) => (
+            <button
+              key={action.kind === 'add-commander' ? `add-${action.as}` : action.kind}
+              type="button"
+              onClick={() => { setOpen(false); void commanderActions?.run(card!, action) }}
+              disabled={commanderActions?.busyId === card?.id}
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-[length:var(--fs-xs)] text-foreground transition-colors hover:bg-white/[0.05] disabled:opacity-40"
+            >
+              <Crown className="size-3" aria-hidden="true" />
+              {actionLabel(action)}
+            </button>
+          ))}
           <button
             type="button"
             onClick={() => { setPrintingPickerOpen(true); setOpen(false) }}

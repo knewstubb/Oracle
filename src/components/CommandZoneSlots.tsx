@@ -8,9 +8,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { fetchEligibleNames, type CommanderCandidate } from '@/components/manabox-import/CommanderPicker'
-import { SECOND_SLOT_LABEL, type SecondSlotKind } from '@/lib/commander-pairing'
+import { SECOND_SLOT_LABEL } from '@/lib/commander-pairing'
 import { isCompanion, isSecondCommander } from '@/lib/command-zone'
 import { COMPANION_CATEGORY } from '@/lib/command-zone'
+import { companionKeepsCount, companionSlotVisible, isMainListCard } from '@/lib/commander-card-actions'
+import { fetchSecondSlotKind, useCommanderEligibility } from '@/hooks/useCommanderActions'
 import { deckKeys } from '@/hooks/useDeckQueryKeys'
 import type { DeckCard } from '@/components/CardGrid'
 
@@ -18,12 +20,18 @@ import type { DeckCard } from '@/components/CardGrid'
  * The other-commander (Partner, Background...) and companion slots on the deck page (T-62 S5).
  * Wording and layout follow the commander slot; there is no Designer spec for the companion yet.
  * The companion sits outside the 100 cards (saved as Sideboard) and outside colour identity and legality.
+ * Each slot is shown only when it can be used: the other-commander slot when the commander's rules allow one (or one
+ * is set), the companion slot when a companion is set or the deck holds a card with the Companion ability.
  */
 
 export interface CommandZoneSlotsProps {
   deckId: number
   cards: DeckCard[]
   commanderName: string | null | undefined
+  /** Cards the deck should hold (100); a card is not offered as companion if moving it out would drop the deck below this. */
+  deckTarget?: number | null
+  /** Draw a "Commander" heading above the slots (used when the Commander section has no card). */
+  heading?: boolean
 }
 
 type Slot = 'second' | 'companion'
@@ -57,18 +65,8 @@ async function putCommandZone(deckId: number, body: PutBody): Promise<string | n
   }
 }
 
-async function fetchSecondSlotKind(commander: string): Promise<SecondSlotKind | null> {
-  const res = await fetch('/api/commanders/eligible?role=second-kind', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ with: commander }),
-  })
-  if (!res.ok) throw new Error('Could not check the commander')
-  const data = (await res.json()) as { kind: SecondSlotKind | null }
-  return data.kind ?? null
-}
 
-export function CommandZoneSlots({ deckId, cards, commanderName }: CommandZoneSlotsProps) {
+export function CommandZoneSlots({ deckId, cards, commanderName, deckTarget, heading = false }: CommandZoneSlotsProps) {
   const queryClient = useQueryClient()
   const primary = useMemo(() => findPrimaryRow(cards, commanderName), [cards, commanderName])
   // Which second-commander slot the commander's own rules text allows (null = none, so no slot).
@@ -81,6 +79,11 @@ export function CommandZoneSlots({ deckId, cards, commanderName }: CommandZoneSl
   const slotKind = kindQuery.data ?? null
   const second = cards.find((c) => isSecondCommander(c)) ?? null
   const companion = cards.find((c) => isCompanion(c)) ?? null
+  const { eligibility, companionNames } = useCommanderEligibility(cards, commanderName)
+  const showCompanion = companionSlotVisible(cards, companionNames)
+  const showSecond = !!primary && !!(second || slotKind)
+  const hasCommander = !!primary || cards.some((c) => !!c.is_commander && !isCompanion(c))
+  const showLeadHint = heading && !hasCommander && eligibility.lead.size > 0
   const [confirmingRemove, setConfirmingRemove] = useState(false)
   const [removing, setRemoving] = useState(false)
 
@@ -125,9 +128,16 @@ export function CommandZoneSlots({ deckId, cards, commanderName }: CommandZoneSl
     }
   }
 
-  return (
-    <div className="flex flex-wrap items-center gap-2" data-testid="command-zone-slots">
-      {primary && (second || slotKind) && (
+  if (!showSecond && !showCompanion && !showLeadHint) return null
+
+  const body = (
+    <div className="mt-2 flex flex-wrap items-center gap-2" data-testid="command-zone-slots">
+      {showLeadHint && (
+        <p className="text-[length:var(--fs-sm)] text-muted-foreground">
+          No commander yet. A card that can lead this deck has Add as commander on its menu.
+        </p>
+      )}
+      {showSecond && primary && (
         <SlotPicker
           slot="second"
           label={slotKind ? SECOND_SLOT_LABEL[slotKind] : 'Partner or Background'}
@@ -137,7 +147,7 @@ export function CommandZoneSlots({ deckId, cards, commanderName }: CommandZoneSl
           onPick={(c) => save({ secondCardId: c?.id ?? null }, c ? `${c.name} is a commander` : `${second?.card_name ?? 'Commander'} removed`)}
         />
       )}
-      {confirmingRemove && companion ? (
+      {showCompanion && (confirmingRemove && companion ? (
         <div role="alertdialog" aria-label="Remove companion" className="flex items-center gap-2 text-[length:var(--fs-sm)]">
           <span>Remove {companion.card_name} from this deck?</span>
           <Button type="button" size="sm" variant="destructive" disabled={removing} onClick={removeCompanion}>
@@ -155,6 +165,7 @@ export function CommandZoneSlots({ deckId, cards, commanderName }: CommandZoneSl
             current={companion}
             onPick={(c) => save({ companionCardId: c?.id ?? null }, `${c?.name ?? 'Companion'} is the companion`)}
             deckId={deckId}
+            deckTarget={deckTarget}
             requestAddCard={async (name) => {
               const res = await fetch(`/api/decks/${deckId}/cards`, {
                 method: 'POST',
@@ -172,12 +183,20 @@ export function CommandZoneSlots({ deckId, cards, commanderName }: CommandZoneSl
             </Button>
           )}
         </div>
-      )}
+      ))}
     </div>
+  )
+  if (!heading) return body
+  return (
+    <section aria-label="Commander" className="mb-6">
+      <h4 className="text-[length:var(--fs-sm)] font-medium uppercase text-muted-foreground">Commander</h4>
+      {body}
+    </section>
   )
 }
 
 interface SlotPickerProps {
+  deckTarget?: number | null
   slot: Slot
   /** Slot name shown on the chip; the second-commander slot is named for what it is (Partner, Background...). */
   label?: string
@@ -191,7 +210,7 @@ interface SlotPickerProps {
   requestAddCard?: (name: string) => Promise<number | null>
 }
 
-function SlotPicker({ slot, label: labelProp, cards, current, onPick, withName, requestAddCard }: SlotPickerProps) {
+function SlotPicker({ slot, label: labelProp, cards, current, onPick, withName, requestAddCard, deckTarget }: SlotPickerProps) {
   const isSecond = slot === 'second'
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -209,12 +228,19 @@ function SlotPicker({ slot, label: labelProp, cards, current, onPick, withName, 
   const noneText = `No ${label.toLowerCase()} · Add`
   const Icon = isSecond ? Users : Shield
 
+  // Only cards that could validly fill the slot are candidates before the server check: the other commander must be on
+  // the main list (so the 100 is unchanged); a companion must not drop a full deck below its size.
   const candidates = useMemo(
     () =>
       cards.filter(
-        (c) => c.id !== current?.id && !(isSecond && c.card_name === withName) && !isCompanion(c) && !isSecondCommander(c)
+        (c) =>
+          c.id !== current?.id &&
+          !(isSecond && c.card_name === withName) &&
+          !isCompanion(c) &&
+          !isSecondCommander(c) &&
+          (isSecond ? isMainListCard(c) : !isMainListCard(c) || companionKeepsCount(c, cards, deckTarget))
       ),
-    [cards, current, isSecond, withName]
+    [cards, current, isSecond, withName, deckTarget]
   )
   const namesKey = useMemo(() => [...new Set(candidates.map((c) => c.card_name))].sort().join('\n'), [candidates])
 

@@ -22,14 +22,32 @@ function wrap(ui: React.ReactNode) {
   return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>)
 }
 
-/** The commander's allowed second-slot kind is answered here; everything else goes to `impl`. */
-function mockFetch(impl: (url: string, init?: RequestInit) => Response | Promise<Response>, kind: string | null = 'partner') {
-  const f = vi.fn(async (url: string, init?: RequestInit) =>
-    url.includes('role=second-kind') ? Response.json({ kind }) : impl(url, init)
-  )
+/**
+ * The commander's allowed second-slot kind and which cards have Companion are answered here (the deck-level check
+ * is the first Companion request; later ones come from the picker); everything else goes to `impl`.
+ */
+function mockFetch(
+  impl: (url: string, init?: RequestInit) => Response | Promise<Response>,
+  kind: string | null = 'partner',
+  companion: string[] = ['Lurrus of the Dream-Den'],
+  failPickerCheck = false
+) {
+  let companionCalls = 0
+  const f = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.includes('role=second-kind')) return Response.json({ kind })
+    if (url.includes('role=companion')) {
+      companionCalls += 1
+      if (failPickerCheck && companionCalls > 1) return new Response('{}', { status: 500 })
+      const names: string[] = JSON.parse(String(init?.body)).names
+      return Response.json({ eligible: names.filter((n) => companion.includes(n)) })
+    }
+    return impl(url, init)
+  })
   vi.stubGlobal('fetch', f)
   return f
 }
+
+const isSave = (c: unknown[]) => String(c[0]).startsWith('/api/decks/')
 
 describe('findPrimaryRow', () => {
   it('prefers the flagged row, falls back to the commander name, ignores companion/second', () => {
@@ -44,11 +62,26 @@ describe('CommandZoneSlots', () => {
   beforeEach(() => vi.unstubAllGlobals())
   afterEach(() => vi.unstubAllGlobals())
 
-  it('shows empty slots, and no second-commander slot until there is a commander', () => {
+  it('shows the companion slot when the deck has a Companion card, and no second slot until there is a commander', async () => {
     mockFetch(() => Response.json({}))
     wrap(<CommandZoneSlots deckId={9} cards={[lurrus]} commanderName={null} />)
-    expect(screen.getByText('No companion · Add')).toBeTruthy()
+    expect(await screen.findByText('No companion · Add')).toBeTruthy()
     expect(screen.queryByText('No partner or background · Add')).toBeNull()
+  })
+
+  it('shows no companion slot when no card in the deck has Companion', async () => {
+    const f = mockFetch(() => Response.json({}), 'partner', [])
+    wrap(<CommandZoneSlots deckId={9} cards={[primary, sol]} commanderName="Atraxa" />)
+    expect(await screen.findByText('No partner · Add')).toBeTruthy()
+    await waitFor(() => expect(f.mock.calls.some((c) => String(c[0]).includes('role=companion'))).toBe(true))
+    expect(screen.queryByText(/companion · Add/i)).toBeNull()
+  })
+
+  it('draws nothing when there is no slot to show', async () => {
+    mockFetch(() => Response.json({}), null, [])
+    const { container } = wrap(<CommandZoneSlots deckId={9} cards={[sol]} commanderName={null} />)
+    await new Promise((r) => setTimeout(r, 20))
+    expect(container.querySelector('[data-testid="command-zone-slots"]')).toBeNull()
   })
 
   it('shows the companion by name, and a Partner slot only because the commander allows it', async () => {
@@ -73,8 +106,8 @@ describe('CommandZoneSlots', () => {
     const f = mockFetch(() => Response.json({}), null)
     wrap(<CommandZoneSlots deckId={9} cards={[primary, sol]} commanderName="Atraxa" />)
     await waitFor(() => expect(f).toHaveBeenCalled())
-    expect(screen.getByText('No companion · Add')).toBeTruthy()
     expect(screen.queryByText(/No (partner|background)/)).toBeNull()
+    expect(screen.queryByText(/companion · Add/i)).toBeNull()
   })
 
   it('shows a filled second commander even if detection says none', async () => {
@@ -84,10 +117,10 @@ describe('CommandZoneSlots', () => {
     expect(await screen.findByText('Tymna')).toBeTruthy()
   })
 
-  it('shows the companion slot in a deck with no commander', () => {
+  it('shows the companion slot in a deck with no commander when a card has Companion', async () => {
     mockFetch(() => Response.json({}), null)
-    wrap(<CommandZoneSlots deckId={9} cards={[sol]} commanderName={null} />)
-    expect(screen.getByText('No companion · Add')).toBeTruthy()
+    wrap(<CommandZoneSlots deckId={9} cards={[lurrus, sol]} commanderName={null} />)
+    expect(await screen.findByText('No companion · Add')).toBeTruthy()
   })
 
   it('picks a companion from the deck: PUT carries the primary id and the existing second commander', async () => {
@@ -95,7 +128,7 @@ describe('CommandZoneSlots', () => {
       url.includes('/api/commanders/eligible') ? Response.json({ eligible: ['Lurrus of the Dream-Den'] }) : Response.json({ deck_id: 9 })
     )
     wrap(<CommandZoneSlots deckId={9} cards={[primary, lurrus, sol]} commanderName="Atraxa" />)
-    await userEvent.click(screen.getByRole('button', { name: /No companion/ }))
+    await userEvent.click(await screen.findByRole('button', { name: /No companion/ }))
     await userEvent.click(await screen.findByRole('option', { name: /Lurrus of the Dream-Den/ }))
     await waitFor(() => expect(f.mock.calls.some((c) => c[0] === '/api/decks/9/command-zone')).toBe(true))
     const put = f.mock.calls.find((c) => c[0] === '/api/decks/9/command-zone')!
@@ -103,17 +136,26 @@ describe('CommandZoneSlots', () => {
     expect(JSON.parse(String(put[1]?.body))).toEqual({ primaryCardId: 1, secondCardId: null, companionCardId: 2 })
   })
 
-  it('shows the empty message when no deck card has Companion', async () => {
-    mockFetch(() => Response.json({ eligible: [] }))
-    wrap(<CommandZoneSlots deckId={9} cards={[primary, sol]} commanderName="Atraxa" />)
-    await userEvent.click(screen.getByRole('button', { name: /No companion/ }))
+  it('does not list a Companion card whose move would drop a full deck below its size', async () => {
+    mockFetch(() => Response.json({}))
+    // Target 3, three main-list cards: moving Lurrus out would leave 2.
+    wrap(<CommandZoneSlots deckId={9} cards={[primary, lurrus, sol]} commanderName="Atraxa" deckTarget={3} />)
+    await userEvent.click(await screen.findByRole('button', { name: /No companion/ }))
     expect(await screen.findByText('No card in this deck has Companion')).toBeTruthy()
+    expect(screen.queryByRole('option', { name: /Lurrus/ })).toBeNull()
+  })
+
+  it('lists the Companion card when the deck has room (one over its size)', async () => {
+    mockFetch(() => Response.json({}))
+    wrap(<CommandZoneSlots deckId={9} cards={[primary, lurrus, sol]} commanderName="Atraxa" deckTarget={2} />)
+    await userEvent.click(await screen.findByRole('button', { name: /No companion/ }))
+    expect(await screen.findByRole('option', { name: /Lurrus/ })).toBeTruthy()
   })
 
   it('shows an error when the check fails', async () => {
-    mockFetch(() => new Response('{}', { status: 500 }))
-    wrap(<CommandZoneSlots deckId={9} cards={[primary, sol]} commanderName="Atraxa" />)
-    await userEvent.click(screen.getByRole('button', { name: /No companion/ }))
+    mockFetch(() => Response.json({}), 'partner', ['Lurrus of the Dream-Den'], true)
+    wrap(<CommandZoneSlots deckId={9} cards={[primary, lurrus]} commanderName="Atraxa" />)
+    await userEvent.click(await screen.findByRole('button', { name: /No companion/ }))
     expect((await screen.findByRole('alert')).textContent).toMatch(/Could not check/)
   })
 
@@ -135,9 +177,9 @@ describe('CommandZoneSlots', () => {
     wrap(<CommandZoneSlots deckId={9} cards={[primary, companionRow]} commanderName="Atraxa" />)
     await userEvent.click(screen.getByRole('button', { name: 'Remove companion Yorion, Sky Nomad' }))
     expect(screen.getByText('Remove Yorion, Sky Nomad from this deck?')).toBeTruthy()
-    expect(f.mock.calls.some((c) => !String(c[0]).includes('second-kind'))).toBe(false)
+    expect(f.mock.calls.some(isSave)).toBe(false)
     await userEvent.click(screen.getByRole('button', { name: 'Keep' }))
-    expect(f.mock.calls.some((c) => !String(c[0]).includes('second-kind'))).toBe(false)
+    expect(f.mock.calls.some(isSave)).toBe(false)
     expect(screen.getByText('Companion · Yorion, Sky Nomad')).toBeTruthy()
   })
 

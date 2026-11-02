@@ -132,6 +132,8 @@ export interface ToolLoopOptions {
   /** Callback for streaming text deltas — called as text arrives from the model */
   onTextDelta?: (text: string) => void
   userId?: string
+  /** Deck being viewed (deck chat); passed to tools by the server */
+  deckId?: number
   /** Optional tool choice to force tool usage on the first iteration */
   toolChoice?: ToolChoice
   /** Context type for filtering available tools (e.g., 'deck-list', 'deck', 'exploration') */
@@ -154,7 +156,7 @@ export interface ToolLoopResult {
  * Returns the final text response and accumulated token usage.
  */
 export async function runToolLoop(options: ToolLoopOptions): Promise<ToolLoopResult> {
-  const { adapter, model, system, messages, maxTokens, onToolEvent, onTextDelta, userId, toolChoice, contextType } = options
+  const { adapter, model, system, messages, maxTokens, onToolEvent, onTextDelta, userId, deckId, toolChoice, contextType } = options
   // Use context-aware tool filtering to exclude deck-building tools in exploration contexts
   const tools = contextType ? getToolDefinitionsForContext(contextType) : getToolDefinitions()
   
@@ -234,7 +236,7 @@ export async function runToolLoop(options: ToolLoopOptions): Promise<ToolLoopRes
           throw new ToolNotAllowedError(call.name)
         }
         result = await Promise.race([
-          executeTool(call.name, call.arguments, { userId }),
+          executeTool(call.name, call.arguments, { userId, deckId }),
           new Promise<ToolExecutionResult>((_, reject) =>
             setTimeout(() => reject(new Error('Tool timeout')), TOOL_TIMEOUT_MS)
           ),

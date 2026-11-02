@@ -139,7 +139,7 @@ ${list(facts.originals)}
 On the list but no copy sleeved in yet (${facts.noCopy.length}):
 ${list(facts.noCopy)}${unknown}
 
-Notes: "No copy sleeved in yet" often just means the physical cards have not been assigned to this deck, not that the deck is badly built. Say that rather than blaming the deck. You cannot see which cards the owner has spare, or in other decks: do not claim the owner owns any card you suggest.`
+Notes: "No copy sleeved in yet" often just means the physical cards have not been assigned to this deck, not that the deck is badly built. Say that rather than blaming the deck. This list does not show what is spare or in other decks: for any card you suggest, use check_owned_copies before claiming the owner owns it.`
 }
 
 /** Minimal read-only client shape (the admin Supabase client satisfies it). */

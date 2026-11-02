@@ -18,6 +18,7 @@ import { getCommanderStaples, formatEDHRECResponse } from './edhrec-client'
 import { validateCommander, formatCommanderValidation, searchCards, formatSearchResults } from './scryfall-client'
 import { findCombosForCard, formatComboResults } from './spellbook-client'
 import { createAdminClient } from './supabase'
+import { lookupOwnedCopies, MAX_LOOKUP_NAMES, type LookupClient } from './owned-copy-lookup'
 
 // ---------------------------------------------------------------------------
 // Registry Core
@@ -32,6 +33,9 @@ const DECK_BUILDING_TOOLS = new Set([
   'update_deck_card',
 ])
 
+// Tools offered only in the deck chat
+const DECK_CHAT_ONLY_TOOLS = new Set(['check_owned_copies'])
+
 // Contexts where deck-building tools should NOT be available
 const EXPLORATION_CONTEXTS = new Set([
   'deck-list',
@@ -43,7 +47,9 @@ const EXPLORATION_CONTEXTS = new Set([
 
 /** Get all tool definitions for the Anthropic API `tools` parameter */
 export function getToolDefinitions(): AnthropicToolDefinition[] {
-  return Array.from(registry.values()).map(t => t.definition)
+  return Array.from(registry.values())
+    .filter(t => !DECK_CHAT_ONLY_TOOLS.has(t.definition.name))
+    .map(t => t.definition)
 }
 
 /** Context type the deck chat route passes to the tool loop. */
@@ -68,6 +74,7 @@ export function isToolAllowedInContext(
   contextType?: string,
   options?: { deckChatEditEnabled?: boolean }
 ): boolean {
+  if (DECK_CHAT_ONLY_TOOLS.has(toolName)) return contextType === DECK_CHAT_CONTEXT
   if (!contextType || !DECK_BUILDING_TOOLS.has(toolName)) return true
   if (contextType === DECK_CHAT_CONTEXT) {
     return options?.deckChatEditEnabled ?? isDeckChatEditToolsEnabled()
@@ -93,7 +100,7 @@ export function getToolDefinitionsForContext(
 export async function executeTool(
   name: string,
   input: Record<string, unknown>,
-  context?: { userId?: string }
+  context?: { userId?: string; deckId?: number }
 ): Promise<ToolExecutionResult> {
   const tool = registry.get(name)
   if (!tool) {
@@ -1016,6 +1023,47 @@ registry.set('collection_lookup', {
       console.error('[collection_lookup] Error:', err)
       const msg = err instanceof Error ? err.message : 'Collection lookup failed'
       return { content: `Collection lookup error: ${msg}`, is_error: true }
+    }
+  },
+})
+
+registry.set('check_owned_copies', {
+  definition: {
+    name: 'check_owned_copies',
+    description:
+      `Read-only. For replace-a-proxy and fill-a-gap questions: sorts card names into SPARE (a real copy sleeved in no deck), IN_ANOTHER_DECK (real copy exists but is in another deck; includes the deck name and a warning to show), or UNOWNED (no real copy; includes a Scryfall price ESTIMATE or "no price"). Proxies never count as owned. Matches by card, any printing. Checks the viewed deck's commander colours when known. Send ALL candidate names in ONE call (max ${MAX_LOOKUP_NAMES}). It never changes anything.`,
+    input_schema: {
+      type: 'object',
+      properties: {
+        card_names: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Exact card names to check, all in one call',
+        },
+      },
+      required: ['card_names'],
+    },
+  },
+  execute: async (input, context) => {
+    try {
+      const userId = context?.userId
+      if (!userId) {
+        return { content: 'Owned-copy lookup requires authentication — userId not available', is_error: true }
+      }
+      const names = Array.isArray(input.card_names) ? input.card_names.filter((n): n is string => typeof n === 'string') : []
+      if (names.length === 0) {
+        return { content: 'No card names given.', is_error: true }
+      }
+      const result = await lookupOwnedCopies(createAdminClient() as unknown as LookupClient, {
+        userId,
+        deckId: context?.deckId ?? null,
+        cardNames: names,
+      })
+      return { content: JSON.stringify(result, null, 2), is_error: false }
+    } catch (err) {
+      console.error('[check_owned_copies] Error:', err)
+      const msg = err instanceof Error ? err.message : 'lookup failed'
+      return { content: `Owned-copy lookup unavailable (${msg}). Say you could not check what the owner has; do not guess.`, is_error: true }
     }
   },
 })

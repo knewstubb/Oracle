@@ -18,6 +18,7 @@ import { getCommanderStaples, formatEDHRECResponse } from './edhrec-client'
 import { validateCommander, formatCommanderValidation, searchCards, formatSearchResults } from './scryfall-client'
 import { findCombosForCard, formatComboResults } from './spellbook-client'
 import { createAdminClient } from './supabase'
+import { classifyDeckCardCopy, type DeckCardCopyStatus } from './deck-chat-facts'
 import { lookupOwnedCopies, MAX_LOOKUP_NAMES, type LookupClient } from './owned-copy-lookup'
 
 // ---------------------------------------------------------------------------
@@ -1153,7 +1154,7 @@ registry.set('get_deck_cards', {
   definition: {
     name: 'get_deck_cards',
     description:
-      'Get the complete card list for a specific deck. Returns all cards with their categories, quantities, mana costs, and prices. Use this when you need to see what cards are in a deck the user is viewing or asking about. The deck_id is available in the context when the user is viewing a deck page.',
+      'Get the complete card list for a specific deck. Returns all cards with their categories, quantities, mana costs, prices, and copy_status (proxy / real / no_copy_sleeved / generic_basic_land / maybeboard / unknown: whether the physical copy sleeved in the deck is a proxy). Proxy data IS available here; never say it is not. Use this when you need to see what cards are in a deck the user is viewing or asking about. The deck_id is available in the context when the user is viewing a deck page.',
     input_schema: {
       type: 'object',
       properties: {
@@ -1191,19 +1192,26 @@ registry.set('get_deck_cards', {
         return { content: `Deck not found or access denied (id: ${deckId})`, is_error: true }
       }
       
-      // Fetch the cards in the deck - just the basic info from deck_cards
-      const { data: cards, error: cardsError } = await supabase
+      // Fetch the cards in the deck, with the sleeved copy's proxy flag (read-only join,
+      // same one the deck chat facts use). If the join fails, retry without it and report
+      // copy_status 'unknown' rather than guessing.
+      const baseCols = 'id, card_name, quantity, categories, set_code, scryfall_id'
+      let proxyKnown = true
+      let { data: cards, error: cardsError } = await supabase
         .from('deck_cards')
-        .select(`
-          id,
-          card_name,
-          quantity,
-          categories,
-          set_code,
-          scryfall_id
-        `)
+        .select(`${baseCols}, copy_id, user_copies!deck_cards_copy_id_fkey(is_proxy)`)
         .eq('deck_id', deckId)
         .order('card_name')
+      if (cardsError) {
+        proxyKnown = false
+        const retry = await supabase
+          .from('deck_cards')
+          .select(baseCols)
+          .eq('deck_id', deckId)
+          .order('card_name')
+        cards = retry.data as typeof cards
+        cardsError = retry.error
+      }
       
       if (cardsError) {
         console.error('[get_deck_cards] Query error:', cardsError)
@@ -1265,6 +1273,7 @@ registry.set('get_deck_cards', {
         mana_value: number | null
         type_line: string | null
         price_usd: number | null
+        copy_status: DeckCardCopyStatus
       }>> = {}
       
       let totalCards = 0
@@ -1297,6 +1306,18 @@ registry.set('get_deck_cards', {
         totalCards += qty
         totalValue += (priceUsd || 0) * qty
         
+        const cardRow = card as unknown as Record<string, unknown>
+        const sleevedCopy = cardRow.user_copies as { is_proxy?: boolean } | null | undefined
+        const copyStatus: DeckCardCopyStatus = !proxyKnown
+          ? 'unknown'
+          : classifyDeckCardCopy({
+              card_name: card.card_name,
+              categories: typeof card.categories === 'string' ? card.categories : JSON.stringify(card.categories ?? ''),
+              copy_id: (cardRow.copy_id as number | null | undefined) ?? null,
+              scryfall_id: card.scryfall_id ?? null,
+              is_proxy: typeof sleevedCopy?.is_proxy === 'boolean' ? sleevedCopy.is_proxy : null,
+            })
+
         cardsByCategory[primaryCategory].push({
           name: card.card_name,
           quantity: qty,
@@ -1304,6 +1325,7 @@ registry.set('get_deck_cards', {
           mana_value: meta.mana_value,
           type_line: meta.type_line,
           price_usd: priceUsd,
+          copy_status: copyStatus,
         })
       }
       

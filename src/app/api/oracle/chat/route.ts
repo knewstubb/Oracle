@@ -21,7 +21,9 @@ import type { ToolChoice } from '@/lib/provider-adapter'
 import { getModelConfig, DEFAULT_MODEL_ID } from '@/lib/ai-models'
 import { createProviderAdapter, ProviderConfigError } from '@/lib/provider-factory'
 import { getUserPreferences, formatPlayerContextPrompt } from '@/lib/user-preferences'
-import { buildOracleSystemPrompt, type OracleChatContext } from '@/lib/oracle-prompt'
+import { buildOracleSystemPrompt, type OracleChatContext, type OracleDeckChatPromptOptions } from '@/lib/oracle-prompt'
+import { loadDeckSlotFacts, formatDeckSlotFactsForPrompt, type DeckFactsClient } from '@/lib/deck-chat-facts'
+import { DECK_CHAT_CONTEXT, isDeckChatEditToolsEnabled } from '@/lib/tool-registry'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -380,7 +382,35 @@ export async function POST(request: NextRequest) {
   }
 
   // --- Build system prompt based on context ---
-  const systemPrompt = buildOracleSystemPrompt(context, playerContext, commanderColorIdentity)
+  // --- Deck context: same proxy/gap facts, owned-copy lookup and suggest-only
+  // behaviour as the per-deck chat. Only when the deck really belongs to this user;
+  // otherwise behaviour is unchanged. ---
+  let deckChatOptions: OracleDeckChatPromptOptions | undefined
+  let deckChatDeckId: number | undefined
+  if (context.type === 'deck' && typeof context.deckId === 'number' && context.deckId > 0) {
+    const { data: ownedDeck } = await supabase
+      .from('decks')
+      .select('id, deck_type')
+      .eq('id', context.deckId)
+      .eq('user_id', userId)
+      .maybeSingle()
+    if (ownedDeck) {
+      const slotFacts = await loadDeckSlotFacts(
+        supabase as unknown as DeckFactsClient,
+        context.deckId,
+        ownedDeck.deck_type ?? null
+      )
+      deckChatOptions = {
+        deckChat: {
+          editToolsEnabled: isDeckChatEditToolsEnabled(),
+          slotFacts: formatDeckSlotFactsForPrompt(slotFacts),
+        },
+      }
+      deckChatDeckId = context.deckId
+    }
+  }
+
+  const systemPrompt = buildOracleSystemPrompt(context, playerContext, commanderColorIdentity, deckChatOptions)
   
   // Debug: Log deck context for troubleshooting
   if (context.type === 'deck') {
@@ -469,8 +499,11 @@ export async function POST(request: NextRequest) {
           onToolEvent,
           onTextDelta,
           userId,
+          deckId: deckChatDeckId,
           toolChoice,
-          contextType: context.type, // Filter out deck-building tools in exploration contexts
+          // Deck context uses the deck-chat tool set (edit tools gated, owned-copy lookup on);
+          // everything else keeps its own context type.
+          contextType: deckChatDeckId !== undefined ? DECK_CHAT_CONTEXT : context.type,
         })
 
         fullResponseText = finalResponse.text

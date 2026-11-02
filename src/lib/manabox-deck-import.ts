@@ -55,6 +55,8 @@ import {
   cleanupEmptyDeckAfterRejection,
   isIntentRpcMissing,
   needsChoiceRowKeys,
+  sharedRowKeys,
+  SharedCopyError,
   planToIntentRpcRow,
   validateIntentEdits,
   type IntentRowOrigin,
@@ -259,7 +261,9 @@ export async function importManaBoxDeck(
         .map((r) => ({ rowKey: r.rowKey, oracleId: r.oracleId, printingId: r.scryfallId, qty: r.qty })),
     }
     let facts: OwnershipResponse['rows'] = []
-    const needsFacts = intent !== 'purchased' || Object.values(intentEdits).some((c) => Object.values(c).some((e) => e.add === false))
+    const needsFacts =
+      intent !== 'purchased' ||
+      Object.values(intentEdits).some((c) => Object.values(c).some((e) => e.add === false || (e.source !== undefined && e.source !== 'new')))
     if (needsFacts && request.cards.length > 0) {
       try {
         const load = options.loadOwnership ?? ((r: OwnershipRequest) => loadOwnershipFacts(createAdminClient(), options.userId, r))
@@ -274,8 +278,13 @@ export async function importManaBoxDeck(
       }
     }
     plans = planImport({ rows, facts, edits: intentEdits, intent, defaults: options.defaults })
+    // Ownership unavailable: a Collection copy finds nothing, but that is not the owner's choice to make.
+    // It is saved Unowned and listed below instead of blocking the save.
+    if (ownershipFailedCopies.has('*')) plans = plans.map((p) => (p.short ? { ...p, short: undefined } : p))
     const blocked = needsChoiceRowKeys(plans)
     if (blocked.length > 0) throw new NeedsChoiceError(blocked)
+    const shared = sharedRowKeys(plans)
+    if (shared.length > 0) throw new SharedCopyError(shared)
     // Generic basics follow the plan (the intent's default is Unsleeved for planned decks).
     for (const entry of resolvedByCard) {
       if (!isGeneric(entry.card)) continue
@@ -448,9 +457,10 @@ export async function importManaBoxDeck(
             { rowKey: origin.rowKey, availableFinishes: printingById.get(card.scryfallId)?.finishes ?? null },
             intent,
             intentEdits,
-            options.defaults
+            options.defaults,
+            true // facts are unknown: treat the card as owned so a Built default counts as Collection
           )
-          if (!st.add && st.type !== 'unsleeved') unavailable.push(origin)
+          if (st.source === 'collection') unavailable.push(origin)
         }
         continue
       }

@@ -92,8 +92,17 @@ export type MoveChoice =
 /** What the owner chose when the owned printing differs from the listed one. */
 export type PrintingChoice = 'use_mine' | 'add_this'
 
+/**
+ * Card source (owner decision 2026-10-30): where this copy's physical card comes from.
+ * none = not in the deck (a slot only); collection = a copy you own, any printing, even one in another deck
+ * (shared, flagged on both decks, never a new copy); new = a new copy added to the collection.
+ */
+export type CardSource = 'none' | 'collection' | 'new'
+
 /** Owner edits for one copy. All fields optional; absent = untouched (intent default applies). */
 export interface IntentCopyOwnerEdits extends ImportCopyOwnerEdits {
+  /** Card source. Absent = intent default (purchased: new; built: collection when owned, else none; planned: none). Wins over add/move/printing. */
+  source?: CardSource
   /** "Add to collection" tick. Absent = intent default (true for purchased, else false). */
   add?: boolean
   /** Only meaningful when the copy is not free but held in other deck(s). */
@@ -121,6 +130,7 @@ export type CopyPlanKind =
   | 'owned_unsleeved' // planned slot; owner owns the card (list only)
   | 'unowned' // planned slot; owner does not own it
   | 'generic' // generic basic: no copy; sleeved flag only
+  | 'share' // collection copy held by another deck, allocated here too; flagged on every deck (needs DB support to save)
 
 export interface CopyPlan {
   rowKey: string
@@ -136,6 +146,12 @@ export interface CopyPlan {
   alertDeckIds?: number[]
   /** For sleeve_owned/move: describes the owned printing when it differs from the listed one. */
   ownedPrinting?: { printingId: string; setCode: string; collectorNumber: string }
+  /** needs_choice_printing only: the other printing is held by another deck (alt printing in use). */
+  printingInUse?: boolean
+  /** Card source asked for Collection but no owned copy is left for this copy: saved as a slot only until the owner picks None or New. */
+  short?: boolean
+  /** share only: the deck(s) that already hold the copy. */
+  sharedWith?: Array<{ deckId: number; deckName: string }>
   /** Generic basics only. */
   genericSleeved?: boolean
   /** UI state: Original/Proxy options enabled? (contract §4 'availableKinds') */

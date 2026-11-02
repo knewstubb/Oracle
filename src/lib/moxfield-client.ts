@@ -8,6 +8,8 @@ export interface MoxfieldCardData {
   name: string
   scryfall_id: string
   set: string
+  /** Collector number. */
+  cn?: string
   type_line: string
   oracle_id?: string
   cmc: number

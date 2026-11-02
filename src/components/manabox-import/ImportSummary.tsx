@@ -20,19 +20,25 @@ function plural(n: number, singular: string, plural?: string): string {
   return `${n} ${n === 1 ? singular : plural ?? singular + 's'}`
 }
 
+/** The deck total. It does not change with the selected chip. */
+function DeckCounts({ totals }: { totals: ReturnType<typeof computeTotals> }) {
+  const deck = totals.cards
+  const maybe = totals.maybeboard
+  let text: string
+  if (maybe === 0) text = `${deck} in deck`
+  else text = `${deck + maybe} cards: ${deck} in deck · ${maybe} in maybeboard`
+  return <strong className="text-foreground">{text}</strong>
+}
+
 export function ImportSummary({ rows, kind, defaults, copyEdits, unmatchedCount = 0, hiddenCount = 0, onShowHidden }: ImportSummaryProps) {
   const totals = computeTotals(rows, kind, defaults, copyEdits)
-
+  const showExtras = kind === 'collection'
   return (
     <span className="text-[length:var(--fs-xs)] text-muted-foreground" aria-live="polite">
-      <strong className="text-foreground">
-        {kind === 'collection' ? plural(totals.tracked, 'copy', 'copies') : plural(totals.tracked, 'card')}
-      </strong>
-      {kind === 'deck' && rows.length > 0 && rows.length !== totals.cards && (
-        <>
-          <span aria-hidden="true"> · </span>
-          {plural(rows.length, 'printing')}
-        </>
+      {kind === 'collection' ? (
+        <strong className="text-foreground">{plural(totals.tracked, 'copy', 'copies')}</strong>
+      ) : (
+        <DeckCounts totals={totals} />
       )}
       {unmatchedCount > 0 && <span aria-hidden="true"> · </span>}
       {unmatchedCount > 0 && `${unmatchedCount} ${unmatchedCount === 1 ? 'row' : 'rows'} not matched`}
@@ -49,14 +55,12 @@ export function ImportSummary({ rows, kind, defaults, copyEdits, unmatchedCount 
           </button>
         </>
       )}
-      {totals.proxies > 0 && <span aria-hidden="true"> · </span>}
-      {totals.proxies > 0 && plural(totals.proxies, 'proxy', 'proxies')}
-      {totals.unsleeved > 0 && <span aria-hidden="true"> · </span>}
-      {totals.unsleeved > 0 && `${totals.unsleeved} unsleeved`}
-      {totals.foil > 0 && <span aria-hidden="true"> · </span>}
-      {totals.foil > 0 && `${totals.foil} foil`}
-      {kind === 'deck' && totals.basics > 0 && <span aria-hidden="true"> · </span>}
-      {kind === 'deck' && totals.basics > 0 && `${totals.basics} ${totals.basics === 1 ? 'basic' : 'basics'} (generic)`}
+      {showExtras && totals.proxies > 0 && <span aria-hidden="true"> · </span>}
+      {showExtras && totals.proxies > 0 && plural(totals.proxies, 'proxy', 'proxies')}
+      {showExtras && totals.unsleeved > 0 && <span aria-hidden="true"> · </span>}
+      {showExtras && totals.unsleeved > 0 && `${totals.unsleeved} unsleeved`}
+      {showExtras && totals.foil > 0 && <span aria-hidden="true"> · </span>}
+      {showExtras && totals.foil > 0 && `${totals.foil} foil`}
     </span>
   )
 }

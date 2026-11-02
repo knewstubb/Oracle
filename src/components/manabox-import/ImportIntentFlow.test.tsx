@@ -59,6 +59,31 @@ const PREVIEW = {
   notices: { unrecognisedCondition: 0, unrecognisedLanguage: 0, unrecognisedFinish: 0 },
 }
 
+const SOL = {
+  ...PREVIEW.rows[0],
+  rowKey: 'sol|nonfoil',
+  sourceIndex: 3,
+  sourceLines: [3],
+  cardName: 'Sol Ring',
+  scryfallId: 'sol-sf',
+  oracleId: 'sol-oracle',
+  copies: [{ index: 0, sourceLine: 3, file: { finish: 'nonfoil' }, owner: {} }],
+}
+const PREVIEW2 = { ...PREVIEW, rows: [...PREVIEW.rows, SOL] }
+const EMIL_FREE = {
+  rowKey: 'emil|nonfoil',
+  oracleId: 'emil-oracle',
+  free: [{ printingId: 'emil-sf', setCode: 'sos', collectorNumber: '146', finish: 'nonfoil', isProxy: false, count: 1 }],
+  held: [],
+}
+const OWN_HALF = { rows: [EMIL_FREE, { rowKey: 'sol|nonfoil', oracleId: 'sol-oracle', free: [], held: [] }] }
+const OWN_NONE = {
+  rows: [
+    { rowKey: 'emil|nonfoil', oracleId: 'emil-oracle', free: [], held: [] },
+    { rowKey: 'sol|nonfoil', oracleId: 'sol-oracle', free: [], held: [] },
+  ],
+}
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
@@ -74,6 +99,30 @@ describe('ImportIntentChoice', () => {
     expect(onChange).toHaveBeenCalledTimes(1)
   })
 
+  it('shows the numbers and the headline; the suggestion is only pre-selected (no reason text)', () => {
+    render(
+      <ImportIntentChoice
+        value="built"
+        onChange={() => {}}
+        stats={{ purchased: '2 new copies', built: '1 from collection', planned: '2 not in deck' }}
+        headline="You own 1 of the 2 cards."
+        suggestion={{ value: 'built', reason: 'suggested: you own most of these cards' }}
+      />
+    )
+    expect(screen.getByText('You own 1 of the 2 cards.')).toBeInTheDocument()
+    expect(screen.getByText('1 from collection')).toBeInTheDocument()
+    expect(screen.queryByText(/suggested/)).toBeNull()
+    expect(screen.getByRole('radio', { name: /I built it/ })).toBeChecked()
+  })
+
+  it('disabled: every choice is greyed out and says numbers come once the deck has loaded', () => {
+    render(<ImportIntentChoice value={null} onChange={() => {}} disabled />)
+    const radios = screen.getAllByRole('radio')
+    expect(radios).toHaveLength(3)
+    radios.forEach((r) => expect(r).toBeDisabled())
+    expect(screen.getAllByText('Numbers appear once the deck has loaded')).toHaveLength(3)
+  })
+
   it('shows the error only when asked', () => {
     const { rerender } = render(<ImportIntentChoice value={null} onChange={() => {}} />)
     expect(screen.queryByText('Choose one to continue.')).toBeNull()
@@ -82,52 +131,161 @@ describe('ImportIntentChoice', () => {
   })
 })
 
-function Harness({ initial }: { initial: ImportIntent | null }) {
+function Harness({
+  initial,
+  precon,
+  onIntent,
+  onCancel = () => {},
+}: {
+  initial: ImportIntent | null
+  precon?: boolean
+  onIntent?: (i: ImportIntent | null) => void
+  onCancel?: () => void
+}) {
   const [intent, setIntent] = useState<ImportIntent | null>(initial)
   return (
-    <>
-      <button onClick={() => setIntent('built')}>pick built</button>
-      <ManaBoxDeckImportFlow intent={intent} onComplete={() => {}} onCancel={() => {}} />
-    </>
+    <ManaBoxDeckImportFlow
+      intent={intent}
+      precon={precon}
+      onIntentChange={(i) => {
+        onIntent?.(i)
+        setIntent(i)
+      }}
+      onComplete={() => {}}
+      onCancel={onCancel}
+    />
   )
 }
+
+async function load(ownership: unknown, preview: unknown = PREVIEW2, props: Partial<Parameters<typeof Harness>[0]> = {}) {
+  const user = userEvent.setup()
+  const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(async (input) =>
+    String(input).includes('/ownership') ? json(ownership) : json(preview)
+  )
+  render(<Harness initial={null} {...props} />, { wrapper: wrapper() })
+  await user.upload(screen.getByLabelText('Choose file'), new File(['x'], 'deck.csv', { type: 'text/csv' }))
+  return { user, fetchSpy }
+}
+
+const radio = (name: RegExp) => screen.getByRole('radio', { name })
+
+describe("What's this deck? (after the deck loads)", () => {
+  beforeEach(() => vi.restoreAllMocks())
+
+  it('reads the file without an intent, then asks with real numbers and a suggestion', async () => {
+    const { fetchSpy } = await load(OWN_HALF)
+    await waitFor(() => expect(screen.getByText(/You own 1 of the 2 cards/)).toBeInTheDocument())
+    expect(screen.getByText(/2 cards · 2 different cards/)).toBeInTheDocument()
+    expect(fetchSpy.mock.calls.some(([u]) => String(u).includes('/preview'))).toBe(true)
+    expect(radio(/I built it/)).toBeChecked()
+    expect(screen.queryByText(/\(suggested/)).toBeNull()
+    expect(radio(/I built it/)).toHaveAccessibleName(/1 from collection/)
+    expect(radio(/I bought it/)).toHaveAccessibleName(/2 new copies/)
+    expect(radio(/I'm planning it/)).toHaveAccessibleName(/2 not in deck/)
+    // The review list is not shown yet.
+    expect(screen.queryByRole('button', { name: /Import deck/i })).toBeNull()
+  })
+
+  it('before a file is chosen the choices are shown but disabled, and Continue is disabled', () => {
+    vi.spyOn(global, 'fetch')
+    render(<Harness initial={null} />, { wrapper: wrapper() })
+    expect(screen.getByLabelText('Choose file')).toBeInTheDocument()
+    expect(screen.getByText("What's this deck?")).toBeInTheDocument()
+    screen.getAllByRole('radio').forEach((r) => {
+      expect(r).toBeDisabled()
+      expect(r).not.toBeChecked()
+    })
+    expect(screen.getAllByText('Numbers appear once the deck has loaded')).toHaveLength(3)
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+  })
+
+  it('while the file is read the spinner shows above the still-disabled choices; then they enable', async () => {
+    let finishPreview: (r: Response) => void = () => {}
+    vi.spyOn(global, 'fetch').mockImplementation((input) =>
+      String(input).includes('/ownership')
+        ? Promise.resolve(json(OWN_HALF))
+        : new Promise<Response>((resolve) => {
+            finishPreview = resolve
+          })
+    )
+    const user = userEvent.setup()
+    render(<Harness initial={null} />, { wrapper: wrapper() })
+    await user.upload(screen.getByLabelText('Choose file'), new File(['x'], 'deck.csv', { type: 'text/csv' }))
+    expect(await screen.findByText('Processing deck list…')).toBeInTheDocument()
+    const spinner = screen.getByText('Processing deck list…')
+    const question = screen.getByText("What's this deck?")
+    expect(spinner.compareDocumentPosition(question) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getAllByRole('radio')).toHaveLength(3)
+    screen.getAllByRole('radio').forEach((r) => expect(r).toBeDisabled())
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+    finishPreview(json(PREVIEW2))
+    await waitFor(() => expect(radio(/I built it/)).toBeChecked())
+    screen.getAllByRole('radio').forEach((r) => expect(r).toBeEnabled())
+    expect(screen.queryByText('Processing deck list…')).toBeNull()
+    expect(screen.queryByText('Numbers appear once the deck has loaded')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled()
+  })
+
+  it("suggests I'm planning it when you own few of the cards", async () => {
+    await load(OWN_NONE)
+    await waitFor(() => expect(radio(/I'm planning it/)).toBeChecked())
+    expect(radio(/I bought it/)).toBeEnabled()
+  })
+
+  it('Continue uses the suggestion; Back on the review returns to the question', async () => {
+    const onIntent = vi.fn()
+    const { user } = await load(OWN_HALF, PREVIEW2, { onIntent })
+    await waitFor(() => expect(radio(/I built it/)).toBeChecked())
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(onIntent).toHaveBeenLastCalledWith('built')
+    await waitFor(() => expect(screen.getByRole('button', { name: /Import deck/i })).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+    expect(onIntent).toHaveBeenLastCalledWith(null)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: /Import deck/i })).toBeNull()
+  })
+
+  it('Continue uses the option the owner picks instead', async () => {
+    const onIntent = vi.fn()
+    const { user } = await load(OWN_HALF, PREVIEW2, { onIntent })
+    await waitFor(() => expect(radio(/I built it/)).toBeChecked())
+    await user.click(radio(/I bought it/))
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(onIntent).toHaveBeenLastCalledWith('purchased')
+  })
+
+  it('Cancel on the question cancels the import', async () => {
+    const onCancel = vi.fn()
+    const { user } = await load(OWN_HALF, PREVIEW2, { onCancel })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(onCancel).toHaveBeenCalled()
+  })
+
+  it('a precon suggests I bought it but built and planned stay open', async () => {
+    const onIntent = vi.fn()
+    const { user } = await load(OWN_HALF, PREVIEW2, { precon: true, onIntent })
+    await waitFor(() => expect(radio(/I bought it/)).toBeChecked())
+    expect(radio(/I built it/)).toBeEnabled()
+    expect(radio(/I'm planning it/)).toBeEnabled()
+    await user.click(radio(/I'm planning it/))
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(onIntent).toHaveBeenLastCalledWith('planned')
+  })
+})
 
 describe('ManaBoxDeckImportFlow with an intent', () => {
   beforeEach(() => vi.restoreAllMocks())
 
-  it('holds a file until an intent is chosen, then reads it', async () => {
+  it('built: checks the collection (read-only POST), uses the owned copy, and keeps Import disabled (save flag off)', async () => {
     const user = userEvent.setup()
     const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(async (input) =>
-      String(input).includes('/ownership') ? json({ rows: [] }) : json(PREVIEW)
-    )
-    render(<Harness initial={null} />, { wrapper: wrapper() })
-    await user.upload(screen.getByLabelText('Choose file'), new File(['x'], 'deck.csv', { type: 'text/csv' }))
-    expect(screen.getByText(/Choose one below/)).toBeInTheDocument()
-    expect(fetchSpy).not.toHaveBeenCalled()
-    await user.click(screen.getByText('pick built'))
-    await waitFor(() => expect(screen.getByText('Emil, Vastlands Roamer')).toBeInTheDocument())
-  })
-
-  it('built: checks the collection (read-only POST), tags rows, and keeps Import disabled', async () => {
-    const user = userEvent.setup()
-    const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(async (input) =>
-      String(input).includes('/ownership')
-        ? json({
-            rows: [
-              {
-                rowKey: 'emil|nonfoil',
-                oracleId: 'emil-oracle',
-                free: [{ printingId: 'emil-sf', setCode: 'sos', collectorNumber: '146', finish: 'nonfoil', isProxy: false, count: 1 }],
-                held: [],
-              },
-            ],
-          })
-        : json(PREVIEW)
+      String(input).includes('/ownership') ? json({ rows: [EMIL_FREE] }) : json(PREVIEW)
     )
     render(<Harness initial="built" />, { wrapper: wrapper() })
     await user.upload(screen.getByLabelText('Choose file'), new File(['x'], 'deck.csv', { type: 'text/csv' }))
-    await waitFor(() => expect(screen.getByText('Owned copy')).toBeInTheDocument())
-    expect(screen.getByText(/to sleeve from your collection/)).toBeInTheDocument()
+    const origin = await screen.findByRole('button', { name: 'Card origin for Emil, Vastlands Roamer' })
+    await waitFor(() => expect(origin).toHaveTextContent('From collection'))
     expect(screen.getByRole('button', { name: /Import deck/i })).toBeDisabled()
     const ownershipCall = fetchSpy.mock.calls.find(([u]) => String(u).includes('/ownership'))!
     expect((ownershipCall[1] as RequestInit).method).toBe('POST')
@@ -144,12 +302,14 @@ describe('ManaBoxDeckImportFlow with an intent', () => {
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
   })
 
-  it('purchased: Import stays enabled whatever the ownership check says', async () => {
+  it('purchased: every card New, so Import is enabled', async () => {
     const user = userEvent.setup()
-    vi.spyOn(global, 'fetch').mockImplementation(async () => json(PREVIEW))
+    vi.spyOn(global, 'fetch').mockImplementation(async (input) =>
+      String(input).includes('/ownership') ? json({ rows: [EMIL_FREE] }) : json(PREVIEW)
+    )
     render(<Harness initial="purchased" />, { wrapper: wrapper() })
     await user.upload(screen.getByLabelText('Choose file'), new File(['x'], 'deck.csv', { type: 'text/csv' }))
     await waitFor(() => expect(screen.getByText('Emil, Vastlands Roamer')).toBeInTheDocument())
-    expect(screen.getByRole('button', { name: /Import deck/i })).toBeEnabled()
+    await waitFor(() => expect(screen.getByRole('button', { name: /Import deck/i })).toBeEnabled())
   })
 })

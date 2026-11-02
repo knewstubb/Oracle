@@ -10,12 +10,11 @@ import type {
 } from '../../docs/oracle/contracts/import-intent.types'
 import {
   applyIntentChange,
-  hasUntickedAdd,
+  hasNonNewCopy,
   intentCopyViews,
   planImportDetailed,
   setIntentEdit,
   stripIntentFields,
-  type IntentCopyView,
 } from './import-intent'
 
 const defaults: ImportDefaults = { ...INITIAL_IMPORT_DEFAULTS }
@@ -54,148 +53,132 @@ function views(r: ImportRow, fs: OwnershipRowFacts[], intent: ImportIntent, edit
   return intentCopyViews([r], plans, allocation, edits, intent, defaults)[r.rowKey]
 }
 
-describe('intentCopyViews: Add tick defaults', () => {
-  it('purchased starts ticked, built and planned start unticked', () => {
+/** Click a control on copy `i` and return the new edits (and any note), like the review screen does. */
+function click(r: ImportRow, fs: OwnershipRowFacts[], intent: ImportIntent, edits: IntentCopyEdits, i: number, change: Parameters<typeof applyIntentChange>[4]) {
+  const v = views(r, fs, intent, edits)[i]
+  return applyIntentChange(edits, r.rowKey, r.cardName, v, change)
+}
+
+describe('intentCopyViews: starting Card source', () => {
+  it('purchased starts New, planned None, built Collection when owned else None', () => {
     const r = row()
-    expect(views(r, [facts(r)], 'purchased')[0].add).toBe(true)
-    expect(views(r, [facts(r)], 'built')[0].add).toBe(false)
-    expect(views(r, [facts(r)], 'planned')[0].add).toBe(false)
+    expect(views(r, [facts(r)], 'purchased')[0]).toMatchObject({ source: 'new', type: 'original', short: false })
+    expect(views(r, [facts(r, [free()])], 'planned')[0]).toMatchObject({ source: 'none', type: 'unsleeved', anyOwned: true })
+    expect(views(r, [facts(r, [free()])], 'built')[0]).toMatchObject({ source: 'collection', type: 'original', canCollection: true })
+    expect(views(r, [facts(r)], 'built')[0]).toMatchObject({ source: 'none', type: 'unsleeved', canCollection: false, anyOwned: false })
   })
-  it('generic basics have no Add tick', () => {
+  it('generic basics are marked generic and follow the intent', () => {
     const r = row({ cardName: 'Island', isBasicLand: true, printingGiven: false })
-    expect(views(r, [], 'purchased')[0].generic).toBe(true)
-    expect(hasUntickedAdd({ k1: views(r, [], 'built') })).toBe(false)
+    expect(views(r, [], 'purchased')[0]).toMatchObject({ generic: true, type: 'original' })
+    expect(views(r, [], 'planned')[0]).toMatchObject({ generic: true, type: 'unsleeved' })
   })
-  it('hasUntickedAdd sees built and planned cards but not a purchased deck', () => {
+  it('a short copy shows no source and is flagged', () => {
+    const r = row({ qty: 2 })
+    const [a, b] = views(r, [facts(r, [free()])], 'built')
+    expect(a).toMatchObject({ source: 'collection', short: false })
+    expect(b).toMatchObject({ source: null, short: true, type: 'unsleeved', canCollection: false, anyOwned: true })
+  })
+  it('a shared copy names the other deck', () => {
     const r = row()
-    expect(hasUntickedAdd({ k1: views(r, [facts(r)], 'purchased') })).toBe(false)
-    expect(hasUntickedAdd({ k1: views(r, [facts(r)], 'built') })).toBe(true)
+    expect(views(r, [facts(r, [], [held(5)])], 'built')[0]).toMatchObject({
+      source: 'collection',
+      sharedWith: [{ deckId: 5, deckName: 'Deck 5' }],
+    })
+    expect(views(r, [facts(r, [free()])], 'built')[0].sharedWith).toBeUndefined()
   })
 })
 
-describe('Original / Proxy availability', () => {
-  it('not owned and Add unticked: Original and Proxy are off, copy shows Unsleeved', () => {
+describe('hasNonNewCopy', () => {
+  it('is false only when every real card is New (generic basics ignored)', () => {
     const r = row()
-    const [v] = views(r, [facts(r)], 'built')
-    expect(v).toMatchObject({ canOriginal: false, canProxy: false, type: 'unsleeved', anyOwned: false })
+    const basic = row({ rowKey: 'b', cardName: 'Island', isBasicLand: true, printingGiven: false })
+    expect(hasNonNewCopy({ k1: views(r, [facts(r)], 'purchased'), b: views(basic, [], 'planned') })).toBe(false)
+    expect(hasNonNewCopy({ k1: views(r, [facts(r)], 'purchased', { k1: { 0: { source: 'none' } } }) })).toBe(true)
+    expect(hasNonNewCopy({ k1: views(r, [facts(r, [free()])], 'built') })).toBe(true)
   })
-  it('a free original but no free proxy: Original on, Proxy off', () => {
+})
+
+describe('applyIntentChange: Card source', () => {
+  it('Collection is refused when nothing is owned, with a note', () => {
     const r = row()
-    expect(views(r, [facts(r, [free()])], 'built')[0]).toMatchObject({ canOriginal: true, canProxy: false })
-  })
-  it('ticking Add switches both on', () => {
-    const r = row()
-    const [v] = views(r, [facts(r)], 'built', { k1: { 0: { add: true } } })
-    expect(v).toMatchObject({ add: true, canOriginal: true, canProxy: true })
-  })
-  it('a blocked click changes nothing and says why (rows with several copies, where the tick is shown)', () => {
-    const r = row({ qty: 2 })
-    const [v] = views(r, [facts(r)], 'built')
-    expect(v.multi).toBe(true)
-    const res = applyIntentChange({}, 'k1', 'Sol Ring', v, { type: 'proxy' })
+    const res = click(r, [facts(r)], 'purchased', {}, 0, { source: 'collection' })
     expect(res.edits).toEqual({})
-    expect(res.message).toBe('Not owned: tick Add')
-    const [owned] = views(r, [facts(r, [free()])], 'built')
-    expect(applyIntentChange({}, 'k1', 'Sol Ring', { ...owned, canProxy: false, anyOwned: true, add: false }, { type: 'proxy' }).message).toBe('No free copy: tick Add')
+    expect(res.message).toBe('Sol Ring: none left in your collection.')
   })
-  it('single-copy row (no tick shown): Proxy/Original imply Add; Unowned implies not added', () => {
+  it('purchased -> Collection uses an owned copy; -> None leaves a slot', () => {
     const r = row()
-    const [v] = views(r, [facts(r)], 'built')
-    expect(v.multi).toBe(false)
-    const proxy = applyIntentChange({}, 'k1', 'Sol Ring', v, { type: 'proxy' })
-    expect(proxy.edits.k1[0]).toEqual({ add: true, type: 'proxy' })
-    expect(proxy.message).toBeUndefined()
-    const [p] = views(r, [facts(r)], 'purchased')
-    const off = applyIntentChange({}, 'k1', 'Sol Ring', p, { type: 'unsleeved' })
-    expect(off.edits.k1[0]).toEqual({ add: false, type: 'unsleeved' })
-    // An owned free copy: Original just sleeves it (add stays off).
-    const [owned] = views(r, [facts(r, [free()])], 'built')
-    expect(applyIntentChange({}, 'k1', 'Sol Ring', owned, { type: 'original' }).edits.k1?.[0]?.add).not.toBe(true)
+    const fs = [facts(r, [free()])]
+    const toCol = click(r, fs, 'purchased', {}, 0, { source: 'collection' })
+    expect(toCol.edits).toEqual({ k1: { 0: { source: 'collection' } } })
+    expect(views(r, fs, 'purchased', toCol.edits)[0]).toMatchObject({ source: 'collection', type: 'original' })
+    const toNone = click(r, fs, 'purchased', toCol.edits, 0, { source: 'none' })
+    expect(views(r, fs, 'purchased', toNone.edits)[0]).toMatchObject({ source: 'none', type: 'unsleeved' })
   })
-  it('ticking Add on an unsleeved copy makes it Original; unticking an unowned one leaves it Unsleeved', () => {
+  it('a short copy is resolved by picking None or New', () => {
+    const r = row({ qty: 2 })
+    const fs = [facts(r, [free()])]
+    const none = click(r, fs, 'built', {}, 1, { source: 'none' })
+    expect(views(r, fs, 'built', none.edits)[1]).toMatchObject({ source: 'none', short: false })
+    const added = click(r, fs, 'built', {}, 1, { source: 'new' })
+    expect(added.edits.k1[1]).toEqual({ source: 'new', type: 'original' })
+    expect(views(r, fs, 'built', added.edits)[1]).toMatchObject({ source: 'new', type: 'original', short: false })
+  })
+  it('New -> Collection drops a Proxy the collection does not have, so the copy is not left short', () => {
+    const r = row()
+    const fs = [facts(r, [free()])]
+    const proxy = click(r, fs, 'purchased', {}, 0, { type: 'proxy' })
+    expect(proxy.edits.k1[0]).toEqual({ source: 'new', type: 'proxy' })
+    const col = click(r, fs, 'purchased', proxy.edits, 0, { source: 'collection' })
+    expect(col.edits.k1[0]).toEqual({ source: 'collection' })
+    expect(views(r, fs, 'purchased', col.edits)[0]).toMatchObject({ source: 'collection', type: 'original', short: false })
+  })
+  it('New -> Collection keeps a Proxy the collection has', () => {
+    const r = row()
+    const fs = [facts(r, [free(), free({ isProxy: true })])]
+    const proxy = click(r, fs, 'purchased', {}, 0, { type: 'proxy' })
+    const col = click(r, fs, 'purchased', proxy.edits, 0, { source: 'collection' })
+    expect(views(r, fs, 'purchased', col.edits)[0]).toMatchObject({ source: 'collection', type: 'proxy' })
+  })
+})
+
+describe('applyIntentChange: Type', () => {
+  it('under New both types are open', () => {
+    const r = row()
+    expect(views(r, [facts(r)], 'purchased')[0]).toMatchObject({ canOriginal: true, canProxy: true })
+    const res = click(r, [facts(r)], 'purchased', {}, 0, { type: 'proxy' })
+    expect(views(r, [facts(r)], 'purchased', res.edits)[0].type).toBe('proxy')
+  })
+  it('under None the type cannot change', () => {
     const r = row()
     const [v] = views(r, [facts(r)], 'planned')
-    const ticked = applyIntentChange({}, 'k1', 'Sol Ring', v, { add: true })
-    expect(ticked.edits.k1[0]).toEqual({ add: true, type: 'original' })
-    const [p] = views(r, [facts(r)], 'purchased')
-    const off = applyIntentChange({}, 'k1', 'Sol Ring', p, { add: false })
-    expect(off.edits.k1[0]).toMatchObject({ add: false, type: 'unsleeved' })
-    expect(off.message).toBe('Sol Ring: left unsleeved.')
+    expect(v).toMatchObject({ canOriginal: false, canProxy: false })
+    expect(click(r, [facts(r)], 'planned', {}, 0, { type: 'original' }).edits).toEqual({})
   })
-})
-
-describe('move choice view', () => {
-  it('one holding deck is pre-selected; Skip and re-picking work', () => {
+  it('under Collection only an owned type can be picked', () => {
     const r = row()
-    const fs = [facts(r, [], [held(5)])]
-    expect(views(r, fs, 'built')[0].move).toMatchObject({ chosen: 5 })
-    const [v] = views(r, fs, 'built')
-    const skip = applyIntentChange({}, 'k1', 'Sol Ring', v, { move: { kind: 'skip' } })
-    expect(views(r, fs, 'built', skip.edits)[0].move?.chosen).toBe('skip')
-    const back = applyIntentChange(skip.edits, 'k1', 'Sol Ring', views(r, fs, 'built', skip.edits)[0], {
-      move: { kind: 'move', fromDeckId: 5 },
-    })
-    expect(views(r, fs, 'built', back.edits)[0].move?.chosen).toBe(5)
-  })
-  it('several decks: none selected until the owner picks', () => {
-    const r = row()
-    const fs = [facts(r, [], [held(5), held(6)])]
-    const [v] = views(r, fs, 'built')
-    expect(v.move?.candidates.map((c) => c.deckId)).toEqual([5, 6])
-    expect(v.move?.chosen).toBeUndefined()
-    const picked = applyIntentChange({}, 'k1', 'Sol Ring', v, { move: { kind: 'move', fromDeckId: 6 } })
-    expect(views(r, fs, 'built', picked.edits)[0].move?.chosen).toBe(6)
-  })
-  it('no move row when a free copy exists', () => {
-    const r = row()
-    expect(views(r, [facts(r, [free()], [held(5)])], 'built')[0].move).toBeUndefined()
-  })
-})
-
-describe('printing choice view', () => {
-  const cmm = { printingId: 'p-cmm', setCode: 'cmm', collectorNumber: '410' }
-  it('owned in another printing: defaults to using mine, naming both printings', () => {
-    const r = row()
-    const [v] = views(r, [facts(r, [free(cmm)])], 'built')
-    expect(v.printing).toMatchObject({ owned: cmm, listed: { setCode: 'clb', collectorNumber: '351' }, chosen: 'use_mine' })
-  })
-  it('Use my copy sleeves the owned printing; Add this printing ticks Add; both keep the row visible', () => {
-    const r = row()
-    const fs = [facts(r, [free(cmm)])]
-    const [v] = views(r, fs, 'built')
-    const mine = applyIntentChange({}, 'k1', 'Sol Ring', v, { printing: 'use_mine' })
-    expect(views(r, fs, 'built', mine.edits)[0]).toMatchObject({ add: false, printing: { chosen: 'use_mine' } })
-    const add = applyIntentChange({}, 'k1', 'Sol Ring', v, { printing: 'add_this' })
-    expect(views(r, fs, 'built', add.edits)[0]).toMatchObject({ add: true, printing: { chosen: 'add_this' } })
-  })
-  it('unticking Add takes "Add this printing" back', () => {
-    const r = row()
-    const fs = [facts(r, [free(cmm)])]
-    const added = applyIntentChange({}, 'k1', 'Sol Ring', views(r, fs, 'built')[0], { printing: 'add_this' }).edits
-    const off = applyIntentChange(added, 'k1', 'Sol Ring', views(r, fs, 'built', added)[0], { add: false })
-    expect(off.edits.k1?.[0]?.printing).toBeUndefined()
-    expect(views(r, fs, 'built', off.edits)[0].add).toBe(false)
-  })
-  it('no printing row when the exact printing is owned', () => {
-    const r = row()
-    expect(views(r, [facts(r, [free()])], 'built')[0].printing).toBeUndefined()
+    const fs = [facts(r, [free()])]
+    expect(views(r, fs, 'built')[0]).toMatchObject({ canOriginal: true, canProxy: false })
+    const res = click(r, fs, 'built', {}, 0, { type: 'proxy' })
+    expect(res.edits).toEqual({})
+    expect(res.message).toBe('Sol Ring: no proxy in your collection.')
+    const both = [facts(r, [free(), free({ isProxy: true })])]
+    const ok = click(r, both, 'built', {}, 0, { type: 'proxy' })
+    expect(views(r, both, 'built', ok.edits)[0]).toMatchObject({ source: 'collection', type: 'proxy' })
   })
 })
 
 describe('setIntentEdit / stripIntentFields', () => {
   it('clears empty edits', () => {
-    const a = setIntentEdit({}, 'k', 0, { add: true })
-    expect(a).toEqual({ k: { 0: { add: true } } })
+    const a = setIntentEdit({}, 'k', 0, { source: 'new' })
+    expect(a).toEqual({ k: { 0: { source: 'new' } } })
     expect(setIntentEdit(a, 'k', 0, {})).toEqual({})
+    expect(setIntentEdit({}, 'k', 0, { source: 'none', type: undefined })).toEqual({ k: { 0: { source: 'none' } } })
   })
-  it('strips add / move / printing and keeps row-editing fields', () => {
+  it('strips source / add / move / printing and keeps row-editing fields', () => {
     const edits: IntentCopyEdits = {
-      a: { 0: { add: true, type: 'proxy' }, 1: { add: false, move: { kind: 'skip' } } },
+      a: { 0: { source: 'new', type: 'proxy' }, 1: { add: false, move: { kind: 'skip' } } },
       b: { 0: { printing: 'use_mine', finish: 'foil' } },
     }
     expect(stripIntentFields(edits)).toEqual({ a: { 0: { type: 'proxy' } }, b: { 0: { finish: 'foil' } } })
   })
 })
-
-// Keeps the type import used.
-export type _V = IntentCopyView

@@ -91,7 +91,6 @@ describe('S-5 one preview per site', () => {
     expect(maybeNames(p).sort()).toEqual(['Cyclonic Rift', 'Rhystic Study'])
     expect(p.rows.filter((r) => r.board === 'maybeboard')).toHaveLength(2)
     expect(p.rows.filter((r) => r.board !== 'maybeboard')).toHaveLength(5)
-    expect(p.notes?.join(' ')).toMatch(/2 cards are on the maybeboard/)
   })
 
   it('Archidekt text: Maybeboard and Sideboard tags go to the maybeboard, DFC kept', async () => {
@@ -180,7 +179,8 @@ describe('S-5 maybeboard rows follow D-018 / D-022', () => {
     const mainOnly = computeTotals(p.rows.filter((r) => r.board !== 'maybeboard'), 'deck', INITIAL_DEFAULTS, {})
     expect(withMaybe.unsleeved).toBe(mainOnly.unsleeved)
     expect(withMaybe.foil).toBe(mainOnly.foil)
-    expect(withMaybe.cards).toBe(mainOnly.cards + 2)
+    expect(withMaybe.cards).toBe(mainOnly.cards)
+    expect(withMaybe.maybeboard).toBe(2)
   })
 
   it('a maybeboard basic land is not a generic row', async () => {

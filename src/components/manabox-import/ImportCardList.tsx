@@ -25,10 +25,10 @@ import type {
 } from '../../../docs/oracle/contracts/import-row-editing.types'
 import type { ImportKind, ImportSource, RowFilter, UiPreviewRow } from './types'
 import { isGenericRow } from './types'
-import { ImportRowEditor, TypeToggle } from './ImportRowEditor'
+import { ImportRowEditor, ROW_GRID_INTENT, ROW_GRID_PLANNED, TypeToggle } from './ImportRowEditor'
 import { LANGUAGE_LABELS, SELECT_CLASS } from './import-labels'
 import { sortImportRows, type ImportSort } from '@/lib/import-sort'
-import { ADD_COLUMN } from './import-copy'
+import { SOURCE_COLUMN, SOURCE_LABELS, STATUS_COLUMN, TYPE_COLUMN } from './import-copy'
 import { filterChipCounts } from './filter-counts'
 
 const FILTER_OPTIONS: { value: RowFilter; label: string }[] = [
@@ -55,15 +55,13 @@ export interface ImportCardListProps {
   selectedIds: Set<string>
   onSelectedIdsChange: (ids: Set<string>) => void
   /** Deck imports with an intent: ownership tags by row key (display only). */
-  intentTagsByRow?: Record<string, import('@/lib/import-intent').IntentTag[]>
-  /** Deck imports with an intent: per-card Add tick and choices. `onChange` returns a note to announce. */
+  /** Deck imports with an intent: per-card Card origin and Type. `onChange` returns a note to announce. */
   intent?: {
     viewsByRow: Record<string, import('@/lib/import-intent').IntentCopyView[]>
     busy: boolean
     onChange: (row: UiPreviewRow, index: number, change: import('@/lib/import-intent').IntentChange) => string | undefined
-    onChangeAdd: (row: UiPreviewRow, add: boolean) => void
-    /** Precon: everything is added, so the Add ticks and column are hidden. */
-    hideAdd?: boolean
+    /** Every copy of each given row at once (collapsed row and bulk bar). */
+    onChangeRows: (rows: UiPreviewRow[], change: import('@/lib/import-intent').IntentChange) => void
     /** Planned decks: no ownership or sleeve tags until the owner changes something. */
     quiet?: boolean
   }
@@ -85,7 +83,6 @@ export function ImportCardList({
   onQueryChange,
   selectedIds,
   onSelectedIdsChange,
-  intentTagsByRow,
   intent,
 }: ImportCardListProps) {
   const parentRef = useRef<HTMLDivElement>(null)
@@ -120,10 +117,19 @@ export function ImportCardList({
 
   const visibleRows = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return sortedRows.filter((row) => {
+    const ordered =
+      kind === 'deck' && filter === 'all'
+        ? [...sortedRows.filter((r) => r.board !== 'maybeboard'), ...sortedRows.filter((r) => r.board === 'maybeboard')]
+        : sortedRows
+    return ordered.filter((row) => {
       const resolved = resolvedByKey.get(row.rowKey) ?? []
+      const isMaybe = row.board === 'maybeboard'
+      if (filter === 'maybeboard') return isMaybe && (!q || row.cardName.toLowerCase().includes(q))
+      // Only All and Maybeboard show maybeboard cards; Deck and the other chips are main-deck cards.
+      if (isMaybe && kind === 'deck' && filter !== 'all') return false
       const matchesFilter =
         filter === 'all' ||
+        filter === 'deck' ||
         (filter === 'proxy' && resolved.some((c) => c.type === 'proxy')) ||
         (filter === 'unsleeved' && resolved.some((c) => c.type === 'unsleeved')) ||
         (filter === 'basic' && isBasic(row))
@@ -222,23 +228,51 @@ export function ImportCardList({
         ? 'No unsleeved cards'
         : filter === 'basic'
           ? 'No basics'
+          : filter === 'deck'
+            ? 'No deck cards'
+          : filter === 'maybeboard'
+            ? 'No maybeboard cards'
           : 'No cards'
 
-  const chipCounts = filterChipCounts(rows, resolvedByKey, isBasic)
+  const mainRows = rows.filter((r) => r.board !== 'maybeboard')
+  const maybeboardCount = rows.reduce((sum, r) => sum + (r.board === 'maybeboard' ? r.qty : 0), 0)
+  const chipCounts = filterChipCounts(mainRows, resolvedByKey, isBasic)
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-1.5">
       <div className="flex items-center gap-1.5">
-        {FILTER_OPTIONS.map((f) => (
+        <FilterChip
+          label="All"
+          count={chipCounts.all + maybeboardCount}
+          selected={filter === 'all'}
+          onClick={() => onFilterChange('all')}
+        />
+        {maybeboardCount > 0 && (
+          <>
+            <FilterChip
+              label="Deck"
+              count={chipCounts.all}
+              selected={filter === 'deck'}
+              onClick={() => onFilterChange('deck')}
+            />
+            <FilterChip
+              label="Maybeboard"
+              count={maybeboardCount}
+              selected={filter === 'maybeboard'}
+              onClick={() => onFilterChange('maybeboard')}
+            />
+          </>
+        )}
+        {kind === 'collection' && FILTER_OPTIONS.filter((f) => f.value !== 'all').map((f) => (
           <FilterChip
             key={f.value}
             label={f.label}
-            count={f.value === 'all' ? chipCounts.all : f.value === 'proxy' ? chipCounts.proxy : chipCounts.unsleeved}
+            count={f.value === 'proxy' ? chipCounts.proxy : chipCounts.unsleeved}
             selected={filter === f.value}
             onClick={() => onFilterChange(f.value)}
           />
         ))}
-        {hasBasics && (
+        {kind === 'collection' && hasBasics && (
           <FilterChip
             label="Basics (generic)"
             count={chipCounts.basic}
@@ -279,6 +313,17 @@ export function ImportCardList({
         {showBulk ? (
           <BulkBar
             options={options}
+            onIntentChange={
+              intent && !intent.quiet
+                ? (change) =>
+                    intent.onChangeRows(
+                      selectedRows.filter((r) => intent.viewsByRow[r.rowKey]),
+                      change
+                    )
+                : undefined
+            }
+            planned={!!intent?.quiet}
+            intentViews={intent && !intent.quiet ? selectedRows.flatMap((r) => intent.viewsByRow[r.rowKey] ?? []) : undefined}
             rows={rows}
             selectedRows={selectedRows}
             selectedResolved={selectedResolved}
@@ -292,18 +337,15 @@ export function ImportCardList({
           <div
             className={cn(
               'grid min-h-[30px] items-center gap-2 rounded-t-lg px-2.5 text-[length:var(--fs-xs)] text-muted-foreground',
-              intent ? 'grid-cols-[24px_28px_1fr_112px_28px]' : 'grid-cols-[24px_28px_1fr]'
+              intent ? (intent.quiet ? ROW_GRID_PLANNED : ROW_GRID_INTENT) : 'grid-cols-[24px_28px_1fr]'
             )}
             style={{ background: 'var(--bg-canvas)' }}
           >
             <Checkbox checked={allSelected} onCheckedChange={handleSelectAll} aria-label="Select all shown" />
             <span>Qty</span>
             <span>Card</span>
-            {intent && (
-              <span className="text-center">
-                {!intent.hideAdd && Object.values(intent.viewsByRow).some((vs) => vs.some((v) => v.multi)) ? ADD_COLUMN : ''}
-              </span>
-            )}
+            {intent && <span>{intent.quiet ? STATUS_COLUMN : SOURCE_COLUMN}</span>}
+            {intent && !intent.quiet && <span>{TYPE_COLUMN}</span>}
             {intent && <span />}
           </div>
         )}
@@ -317,6 +359,11 @@ export function ImportCardList({
             <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
               {virtualizer.getVirtualItems().map((virtualItem) => {
                 const row = visibleRows[virtualItem.index]
+                const startsMaybeboard =
+                  kind === 'deck' &&
+                  filter === 'all' &&
+                  row.board === 'maybeboard' &&
+                  (virtualItem.index === 0 || visibleRows[virtualItem.index - 1].board !== 'maybeboard')
                 return (
                   <div
                     key={row.rowKey}
@@ -332,6 +379,15 @@ export function ImportCardList({
                       transform: `translateY(${virtualItem.start}px)`,
                     }}
                   >
+                    {startsMaybeboard && (
+                      <div
+                        data-testid="maybeboard-separator"
+                        className="px-2.5 py-1.5 text-[length:var(--fs-xs)] font-medium text-muted-foreground"
+                        style={{ background: 'var(--bg-canvas)' }}
+                      >
+                        Maybeboard
+                      </div>
+                    )}
                     <ImportRowEditor
                       row={row}
                       resolved={resolvedByKey.get(row.rowKey) ?? []}
@@ -347,18 +403,16 @@ export function ImportCardList({
                       onChangeCopy={(index, patch) => changeCopy(row, index, patch)}
                       onChangeAllCopies={(indexes, patch) => changeCopies(row, indexes, patch)}
                       onApplyAll={() => applyAll(row)}
-                      intentTags={intentTagsByRow?.[row.rowKey]}
                       intent={
-                        intent && intent.viewsByRow[row.rowKey]
+                        intent && (intent.viewsByRow[row.rowKey] || row.board === 'maybeboard')
                           ? {
-                              views: intent.viewsByRow[row.rowKey],
+                              views: intent.viewsByRow[row.rowKey] ?? [],
                               busy: intent.busy,
                               onChange: (index, change) => {
                                 const note = intent.onChange(row, index, change)
                                 if (note) setAnnouncement(note)
                               },
-                              onChangeAdd: (add) => intent.onChangeAdd(row, add),
-                              hideAdd: intent.hideAdd,
+                              onChangeRow: (change) => intent.onChangeRows([row], change),
                               quiet: intent.quiet,
                             }
                           : undefined
@@ -378,6 +432,18 @@ export function ImportCardList({
   )
 }
 
+function bulkSource(views: import('@/lib/import-intent').IntentCopyView[]) {
+  const set = new Set(views.filter((v) => !v.generic && v.source).map((v) => v.source))
+  return set.size === 1 ? ([...set][0] as 'none' | 'collection' | 'new') : 'mixed'
+}
+
+function bulkIntentType(views: import('@/lib/import-intent').IntentCopyView[]): ImportCopyType | 'mixed' {
+  const set = new Set(
+    views.filter((v) => !v.generic && (v.source === 'collection' || v.source === 'new')).map((v) => v.type)
+  )
+  return set.size === 1 ? [...set][0] : 'mixed'
+}
+
 function BulkBar({
   options,
   rows,
@@ -388,7 +454,15 @@ function BulkBar({
   onCopyEditsChange,
   onClear,
   onAnnounce,
+  onIntentChange,
+  intentViews,
+  planned,
 }: {
+  /** Planned decks have no Card origin or Type to set. */
+  planned?: boolean;
+  /** Deck imports with an intent: Card origin and Type go through the intent rules. */
+  onIntentChange?: (change: import('@/lib/import-intent').IntentChange) => void
+  intentViews?: import('@/lib/import-intent').IntentCopyView[]
   options: ImportCopyType[]
   rows: UiPreviewRow[]
   selectedRows: UiPreviewRow[]
@@ -449,8 +523,34 @@ function BulkBar({
     >
       <span className="text-foreground">{selectedRows.length} selected</span>
       <span className="ml-auto flex items-center gap-2">
-        <TypeToggle value={typeState} options={options} label="Set type for selected" onChange={setType} />
-        {typeState === 'mixed' && <span className="text-muted-foreground">Mixed</span>}
+        {onIntentChange && intentViews ? (
+          <>
+            <TypeToggle<'none' | 'collection' | 'new'>
+              value={bulkSource(intentViews)}
+              options={['none', 'collection', 'new']}
+              labels={SOURCE_LABELS}
+              label="Set card origin for selected"
+              onChange={(source) => {
+                onIntentChange({ source })
+                onAnnounce('Card origin set for selected rows.')
+              }}
+            />
+            <TypeToggle
+              value={bulkIntentType(intentViews)}
+              options={['original', 'proxy']}
+              label="Set type for selected"
+              onChange={(type) => {
+                onIntentChange({ type })
+                onAnnounce('Type set for selected rows.')
+              }}
+            />
+          </>
+        ) : planned ? null : (
+          <>
+            <TypeToggle value={typeState} options={options} label="Set type for selected" onChange={setType} />
+            {typeState === 'mixed' && <span className="text-muted-foreground">Mixed</span>}
+          </>
+        )}
         <button
           ref={triggerRef}
           type="button"

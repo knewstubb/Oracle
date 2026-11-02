@@ -4,7 +4,7 @@
       "command": "npm ci --ignore-scripts --no-audit --no-fund"
     },
     "dev-live": {
-      "command": "npx next dev -p 3000",
+      "command": "NEXT_PUBLIC_IMPORT_INTENT_SAVE=true npx next dev -p 3000",
       "type": "service",
       "port": 3000
     },

@@ -1,0 +1,46 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Review screens with dropdowns</title><style>
+  body { font: 13px/1.4 system-ui, sans-serif; background: #f4f4f4; color: #222; margin: 0; padding: 24px; }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  .note { color: #666; margin: 0 0 20px; max-width: 760px; }
+  .frame { background: #fff; border: 1px solid #bbb; border-radius: 8px; width: 820px; margin-bottom: 32px; }
+  .head { padding: 12px 16px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
+  .chips span { border: 1px solid #aaa; border-radius: 12px; padding: 2px 10px; margin-right: 6px; }
+  .chips .on { background: #222; color: #fff; border-color: #222; }
+  .grid { display: grid; grid-template-columns: 24px 28px 1fr 230px 130px; gap: 8px; align-items: center; padding: 6px 16px; border-bottom: 1px solid #eee; }
+  .grid.hdr { color: #777; font-size: 12px; background: #fafafa; }
+  .sub { color: #888; }
+  .seg { display: inline-flex; border: 1px solid #aaa; border-radius: 12px; overflow: hidden; }
+  .seg span { padding: 2px 9px; border-left: 1px solid #ccc; }
+  .seg span:first-child { border-left: 0; }
+  .seg .on { background: #222; color: #fff; }
+  .seg .off { color: #bbb; background: repeating-linear-gradient(45deg,#fff,#fff 4px,#f2f2f2 4px,#f2f2f2 8px); }
+  .box { width: 12px; height: 12px; border: 1px solid #888; border-radius: 2px; display: inline-block; }
+  .divider { padding: 4px 16px; background: #f0f0f0; color: #777; font-size: 12px; }
+  .foot { padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #ddd; }
+  .btn { border: 1px solid #888; border-radius: 6px; padding: 4px 12px; margin-left: 6px; }
+  .btn.pri { background: #222; color: #fff; border-color: #222; }
+  .bulk { padding: 6px 16px; background: #fffbe6; border-bottom: 1px solid #eee; }
+  .flag { border: 1px solid #c90; color: #a60; border-radius: 10px; padding: 1px 8px; font-size: 12px; }
+  .call { color: #a33; font-size: 12px; font-style: italic; }
+
+  .dd { display:inline-flex; align-items:center; gap:4px; padding:1px 8px; border-radius:12px; border:1px solid transparent; }
+  .dd::after { content:"▾"; color:#999; font-size:11px; }
+  .dd.hover { border-color:#aaa; background:#f6f6f6; }
+  .dd.warn { color:#a60; }
+  .menu { position:absolute; margin-top:2px; background:#fff; border:1px solid #aaa; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,.12); padding:4px 0; min-width:230px; z-index:2; }
+  .menu div { padding:3px 12px; } .menu small { display:block; color:#888; }
+  .menu .sel b { font-weight:700; } .menu .dim { color:#aaa; }
+  .g { display:grid; grid-template-columns:24px 28px 1fr 150px 90px; gap:6px; align-items:center; padding:6px 16px; border-bottom:1px solid #eee; }
+  .g.hdr { color:#777; font-size:12px; background:#fafafa; }
+  .g.p { grid-template-columns:24px 28px 1fr 150px; }
+  .status { color:#666; padding-left:8px; }
+</style></head><body>
+<h1>Review screens with quiet dropdowns</h1>
+<p class="note">Dropdowns appear only where there is a decision: "I bought it" and "I built it". A planned deck shows a plain status, nothing to edit. Column titles are "Card origin" and "Type". The closed value is short; the menu adds a one-line explanation.</p>
+<h1>1: Import purchased deck (bought)</h1><p class="note">Mostly New copy · Original. Basics default to Generic land.</p><div class="frame"><div class="head"><b>Import purchased deck</b><span class="chips"><span class="on">All</span><span>Needs attention</span></span></div><div class="g hdr"><span></span><span></span><span>Card</span><span>Card origin</span><span>Type</span></div><div class="g"><span class="box"></span><span></span><span>Sol Ring</span><span><span class="dd">New copy</span></span><span><span class="dd">Original</span></span></div><div class="g"><span class="box"></span><span></span><span>Command Tower</span><span><span class="dd">New copy</span></span><span><span class="dd">Original</span></span></div><div class="g"><span class="box"></span><span></span><span>Cultivate</span><span><span class="dd">New copy</span></span><span><span class="dd">Proxy</span></span></div><div class="g"><span class="box"></span><span></span><span>Forest ×5</span><span><span class="dd">Generic land</span></span><span><span class="dd">—</span></span></div><div class="g"><span class="box"></span><span></span><span>Arcane Signet</span><span><span class="dd">From collection</span></span><span><span class="dd">Original</span></span></div><div class="foot"><span class="sub"></span><span><span class="btn">Back</span><span class="btn">Cancel</span><span class="btn pri">Import deck</span></span></div></div>
+<h1>2: Import built deck (built)</h1><p class="note">Mostly From collection. Unowned cards stay Unowned.</p><div class="frame"><div class="head"><b>Import built deck</b><span class="chips"><span class="on">All</span><span>Needs attention</span></span></div><div class="g hdr"><span></span><span></span><span>Card</span><span>Card origin</span><span>Type</span></div><div class="g"><span class="box"></span><span></span><span>Sol Ring</span><span><span class="dd">From collection</span></span><span><span class="dd">Original</span></span></div><div class="g"><span class="box"></span><span></span><span>Command Tower</span><span><span class="dd">From collection</span></span><span><span class="dd">Original</span></span></div><div class="g"><span class="box"></span><span></span><span>Kodama's Reach</span><span><span class="dd">From collection</span></span><span><span class="dd">Proxy</span></span></div><div class="g"><span class="box"></span><span></span><span>Cultivate</span><span><span class="dd">Unowned</span></span><span><span class="dd">—</span></span></div><div class="g"><span class="box"></span><span></span><span>Lightning Greaves</span><span><span class="dd warn">From collection</span></span><span><span class="dd">Original</span></span></div><div class="g"><span class="box"></span><span></span><span>Forest ×5</span><span><span class="dd">Generic land</span></span><span><span class="dd">—</span></span></div><div class="foot"><span class="sub"></span><span><span class="btn">Back</span><span class="btn">Cancel</span><span class="btn pri">Import deck</span></span></div></div>
+<h1>2b: The menu on a built-deck row (Sol Ring)</h1>
+<p class="note">Options that don't apply stay visible but grey, with the reason: e.g. 'From collection: you don't own this'. 'Generic land' appears only on basic lands. 'Unowned' reads 'Owned, not in deck' when you do own the card.</p>
+<div class="frame" style="padding:16px;height:210px"><span class="dd hover">From collection</span><div class="menu"><div class="sel"><b>✓ From collection</b><small>Uses a copy you own</small></div><div>New copy<small>Adds one to your collection</small></div><div>Unowned<small>Just on the list, no copy</small></div><div>Generic land<small>Any basic, sleeved, not tracked</small></div></div></div>
+<h1>3: Import planned deck (planned)</h1><p class="note">Nothing is added or sleeved, so there are no dropdowns: just Owned or Unowned per card. Footer summary: You own 86 of 100 cards.</p><div class="frame"><div class="head"><b>Import planned deck</b><span class="chips"><span class="on">All</span><span>Needs attention</span></span></div><div class="g p hdr"><span></span><span></span><span>Card</span><span>Status</span></div><div class="g p"><span class="box"></span><span></span><span>Sol Ring</span><span class="status">Owned</span></div><div class="g p"><span class="box"></span><span></span><span>Command Tower</span><span class="status">Owned</span></div><div class="g p"><span class="box"></span><span></span><span>Cultivate</span><span class="status">Unowned</span></div><div class="g p"><span class="box"></span><span></span><span>Forest ×5</span><span class="status">Basic land</span></div><div class="foot"><span class="sub"></span><span><span class="btn">Back</span><span class="btn">Cancel</span><span class="btn pri">Import deck</span></span></div></div>
+</body></html>

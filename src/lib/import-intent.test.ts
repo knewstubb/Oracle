@@ -391,9 +391,9 @@ describe('file Proxy marker sets the starting type (D-055)', () => {
     )
     const { records } = parseManaBoxCsv(csv)
     const rows = records.map((rec, i) => {
-      const qty = rec.quantity
+      const qty = rec.row.quantity
       const r = row({ rowKey: `k${i}`, sourceIndex: i, oracleId: `o${i}`, qty })
-      r.copies = Array.from({ length: qty }, (_, c) => ({ index: c, sourceLine: i, file: rec.proxy === true ? { proxy: true } : {}, owner: {} }))
+      r.copies = Array.from({ length: qty }, (_, c) => ({ index: c, sourceLine: i, file: rec.row.proxy === true ? { proxy: true } : {}, owner: {} }))
       return r
     })
     const plans = planImport({ rows, facts: [], intent: 'purchased', defaults })

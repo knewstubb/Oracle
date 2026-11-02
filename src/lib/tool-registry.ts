@@ -46,20 +46,46 @@ export function getToolDefinitions(): AnthropicToolDefinition[] {
   return Array.from(registry.values()).map(t => t.definition)
 }
 
+/** Context type the deck chat route passes to the tool loop. */
+export const DECK_CHAT_CONTEXT = 'deck-chat'
+
+/**
+ * The one setting that controls whether the deck chat may use its deck-editing
+ * tools (add_cards_to_deck, remove_cards_from_deck, update_deck_card).
+ * Default OFF: the chat only suggests. Set to exactly "true" to switch it back on.
+ */
+export const DECK_CHAT_EDIT_TOOLS_ENV = 'ORACLE_DECK_CHAT_EDIT_TOOLS'
+
+export function isDeckChatEditToolsEnabled(
+  env: Record<string, string | undefined> = process.env
+): boolean {
+  return env[DECK_CHAT_EDIT_TOOLS_ENV] === 'true'
+}
+
+/** True when this tool may be offered and run in the given context. */
+export function isToolAllowedInContext(
+  toolName: string,
+  contextType?: string,
+  options?: { deckChatEditEnabled?: boolean }
+): boolean {
+  if (!contextType || !DECK_BUILDING_TOOLS.has(toolName)) return true
+  if (contextType === DECK_CHAT_CONTEXT) {
+    return options?.deckChatEditEnabled ?? isDeckChatEditToolsEnabled()
+  }
+  return !EXPLORATION_CONTEXTS.has(contextType)
+}
+
 /** 
  * Get tool definitions filtered by context.
- * Excludes deck-building tools when in exploration contexts.
+ * Excludes deck-building tools in exploration contexts, and in the deck chat
+ * unless the deck chat edit setting is on.
  */
-export function getToolDefinitionsForContext(contextType?: string): AnthropicToolDefinition[] {
-  const excludeDeckBuilding = contextType && EXPLORATION_CONTEXTS.has(contextType)
-  
+export function getToolDefinitionsForContext(
+  contextType?: string,
+  options?: { deckChatEditEnabled?: boolean }
+): AnthropicToolDefinition[] {
   return Array.from(registry.values())
-    .filter(t => {
-      if (excludeDeckBuilding && DECK_BUILDING_TOOLS.has(t.definition.name)) {
-        return false
-      }
-      return true
-    })
+    .filter(t => isToolAllowedInContext(t.definition.name, contextType, options))
     .map(t => t.definition)
 }
 

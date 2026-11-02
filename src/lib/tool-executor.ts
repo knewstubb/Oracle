@@ -7,7 +7,7 @@
 // ---------------------------------------------------------------------------
 // Requirements: 6.1, 6.2, 6.4
 
-import { getToolDefinitions, getToolDefinitionsForContext, executeTool } from './tool-registry'
+import { getToolDefinitions, getToolDefinitionsForContext, executeTool, isToolAllowedInContext, DECK_CHAT_CONTEXT } from './tool-registry'
 import type { ToolStreamEvent, ToolExecutionResult } from './tool-types'
 import type {
   ProviderAdapter,
@@ -116,6 +116,12 @@ export function detectCollectionTypeQuestion(message: string): string | null {
 // Public Interfaces
 // ---------------------------------------------------------------------------
 
+class ToolNotAllowedError extends Error {
+  constructor(name: string) {
+    super(`Tool not allowed: ${name}`)
+  }
+}
+
 export interface ToolLoopOptions {
   adapter: ProviderAdapter
   model: string
@@ -223,14 +229,21 @@ export async function runToolLoop(options: ToolLoopOptions): Promise<ToolLoopRes
 
       let result: ToolExecutionResult
       try {
+        // Deck chat: refuse a gated tool even if the model names it anyway.
+        if (contextType === DECK_CHAT_CONTEXT && !isToolAllowedInContext(call.name, contextType)) {
+          throw new ToolNotAllowedError(call.name)
+        }
         result = await Promise.race([
           executeTool(call.name, call.arguments, { userId }),
           new Promise<ToolExecutionResult>((_, reject) =>
             setTimeout(() => reject(new Error('Tool timeout')), TOOL_TIMEOUT_MS)
           ),
         ])
-      } catch {
-        result = {
+      } catch (err) {
+        result = err instanceof ToolNotAllowedError ? {
+          content: `Tool "${call.name}" is not available in this chat. Suggest the change in words instead; nothing was changed.`,
+          is_error: true,
+        } : {
           content: `Tool "${call.name}" timed out after ${TOOL_TIMEOUT_MS / 1000}s`,
           is_error: true,
         }

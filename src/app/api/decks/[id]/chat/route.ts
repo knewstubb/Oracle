@@ -15,6 +15,9 @@ import { getModelConfig, calculateCost, DEFAULT_MODEL_ID } from '@/lib/ai-models
 import { createProviderAdapter, ProviderConfigError } from '@/lib/provider-factory'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
+import { buildDeckChatPrompt } from '@/lib/deck-chat-prompt'
+import { loadDeckSlotFacts, formatDeckSlotFactsForPrompt } from '@/lib/deck-chat-facts'
+import { DECK_CHAT_CONTEXT, isDeckChatEditToolsEnabled } from '@/lib/tool-registry'
 import { getUserPreferences, formatPlayerContextPrompt } from '@/lib/user-preferences'
 
 // ---------------------------------------------------------------------------
@@ -25,67 +28,6 @@ interface ChatBody {
   message: string
   history: Array<{ role: 'user' | 'assistant'; content: string }>
   modelId?: string
-}
-
-// ---------------------------------------------------------------------------
-// System Prompt
-// ---------------------------------------------------------------------------
-
-function buildDeckChatPrompt(
-  deckName: string,
-  commanderName: string,
-  deckType: string | null,
-  cardCount: number,
-  cards: Array<{ name: string; category: string; quantity: number }>,
-  playerContext: string
-): string {
-  // Build a summary of the deck by category
-  const byCategory: Record<string, string[]> = {}
-  for (const card of cards) {
-    const cat = card.category || 'Other'
-    if (!byCategory[cat]) byCategory[cat] = []
-    byCategory[cat].push(card.quantity > 1 ? `${card.quantity}x ${card.name}` : card.name)
-  }
-  
-  const deckSummary = Object.entries(byCategory)
-    .map(([cat, names]) => `${cat} (${names.length}):\n${names.map(n => `  - ${n}`).join('\n')}`)
-    .join('\n\n')
-
-  return `You are Oracle — a peer-level deckbuilding collaborator for Commander (EDH). You're discussing an existing deck with the user.
-
-=== DECK CONTEXT ===
-Deck: ${deckName}
-Commander: ${commanderName}
-Format: ${deckType || 'commander'}
-Card Count: ${cardCount}
-
-=== CURRENT DECKLIST ===
-${deckSummary}
-
-=== PERSONALITY ===
-- You're discussing an existing deck, not building from scratch
-- Be helpful with strategy questions, card suggestions, cuts, and gameplay advice
-- Push back when reasonable — if a suggested change would hurt the deck, say so
-- Keep messages SHORT. One concept per message. Use bullet points.
-- ALWAYS wrap Magic card names in [[double brackets]] like [[Sol Ring]]
-
-${playerContext}
-
-=== CARD ACCURACY (STRICT) ===
-1. ONLY name cards you are 100% certain exist with their EXACT printed name.
-2. Use tools to verify card data when available.
-3. ALWAYS wrap Magic card names in [[double brackets]] — the UI uses these for hover previews.
-
-=== WHAT YOU CAN HELP WITH ===
-- Strategy advice for playing the deck
-- Card suggestions (adds, cuts, swaps)
-- Mana base analysis
-- Combo identification
-- Meta/matchup discussion
-- Budget alternatives
-- Explaining card synergies
-
-When suggesting cards to add or cut, be specific about WHY and what role they fill.`
 }
 
 // ---------------------------------------------------------------------------
@@ -162,6 +104,10 @@ export async function POST(
   const prefs = await getUserPreferences(userId)
   const playerContext = formatPlayerContextPrompt(prefs)
 
+  // Read-only proxy/gap facts for this deck (null = could not be loaded)
+  const slotFacts = await loadDeckSlotFacts(supabase, deckId, deck.deck_type)
+  const editToolsEnabled = isDeckChatEditToolsEnabled()
+
   // Build system prompt
   const systemPrompt = buildDeckChatPrompt(
     deck.name,
@@ -169,7 +115,8 @@ export async function POST(
     deck.deck_type,
     deck.card_count || cards.length,
     cards,
-    playerContext
+    playerContext,
+    { editToolsEnabled, slotFacts: formatDeckSlotFactsForPrompt(slotFacts) }
   )
 
   // Get model config
@@ -214,6 +161,8 @@ export async function POST(
           messages,
           maxTokens: 4096,
           userId,
+          // Suggest-only by default: edit tools are gated by ORACLE_DECK_CHAT_EDIT_TOOLS
+          contextType: DECK_CHAT_CONTEXT,
           onToolEvent: (event: ToolStreamEvent) => {
             if (event.type === 'tool_status') {
               send(JSON.stringify({ type: 'tool_status', tool_name: event.tool_name, status: event.status }))

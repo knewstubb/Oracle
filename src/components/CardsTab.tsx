@@ -25,6 +25,8 @@ import { CardGroupSection } from '@/components/CardGroupSection'
 import { CardSlotBadge } from '@/components/CardSlotBadge'
 import { isCompanion } from '@/lib/command-zone'
 import { CommandZoneSlots } from '@/components/CommandZoneSlots'
+import { CommanderActionsProvider, useCommanderActions } from '@/hooks/useCommanderActions'
+import { actionLabel } from '@/lib/commander-card-actions'
 import { PicklistProgress, type PicklistCard } from '@/components/PicklistV2'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -52,6 +54,8 @@ interface CardsTabProps {
   commanderName?: string | null
   /** Commander-format deck: show the second-commander and companion slots in the Commander section. */
   showCommandZone?: boolean
+  /** Cards the deck should hold (100 for Commander); decides whether moving a card out to be the companion would break the count. */
+  deckTarget?: number | null
 }
 
 // ─── API Response Types ──────────────────────────────────────────────────────
@@ -339,7 +343,21 @@ function applyGrouping(
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, onViewPicklist, maxCopies = 1, commanderName, showCommandZone = false }: CardsTabProps) {
+export function CardsTab(props: CardsTabProps) {
+  if (!props.showCommandZone) return <CardsTabInner {...props} />
+  return (
+    <CommanderActionsProvider
+      deckId={props.deckId}
+      cards={props.cards}
+      commanderName={props.commanderName}
+      deckTarget={props.deckTarget}
+    >
+      <CardsTabInner {...props} />
+    </CommanderActionsProvider>
+  )
+}
+
+function CardsTabInner({ cards, deckId, healthCategories, scrollToCategory, onViewPicklist, maxCopies = 1, commanderName, showCommandZone = false, deckTarget }: CardsTabProps) {
   // ── Derived Data ─────────────────────────────────────────────────────────────
 
   const availableCategories = useDeckCategories(cards)
@@ -593,17 +611,13 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
 
   // Second-commander and companion slots sit under the commander card(s) in the Commander section.
   const commanderSlots = showCommandZone ? (
-    <div className="mt-2">
-      <CommandZoneSlots deckId={deckId} cards={cards} commanderName={commanderName} />
-    </div>
+    <CommandZoneSlots deckId={deckId} cards={cards} commanderName={commanderName} deckTarget={deckTarget} />
   ) : null
-  // Decks with no commander card in the list (or a search hiding it) still get the slots, in a Commander heading.
+  // Decks with no commander card in the list (or a search hiding it) still get the slots, under a Commander heading
+  // (the component draws nothing when there is no slot to show).
   const standaloneSlots =
-    commanderSlots && !groupedCards.some(([name]) => name === 'Commander') ? (
-      <section aria-label="Commander" className="mb-6">
-        <h4 className="text-[length:var(--fs-sm)] font-medium uppercase text-muted-foreground">Commander</h4>
-        {commanderSlots}
-      </section>
+    showCommandZone && !groupedCards.some(([name]) => name === 'Commander') ? (
+      <CommandZoneSlots deckId={deckId} cards={cards} commanderName={commanderName} deckTarget={deckTarget} heading />
     ) : null
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
@@ -1404,6 +1418,9 @@ function GridView({
                         {statusLabel}
                       </span>
 
+                      {/* Commander actions — only the ones valid for this card */}
+                      <GridCommanderActions card={card} />
+
                       {/* Action buttons — state-dependent */}
                       {(cardStatus === 'original' || cardStatus === 'proxy') && (
                         <div className="mt-1 flex items-center gap-2">
@@ -1443,6 +1460,31 @@ function GridView({
 }
 
 // ─── Grid Card Action Button ─────────────────────────────────────────────────
+
+function GridCommanderActions({ card }: { card: DeckCard }) {
+  const commanderActions = useCommanderActions()
+  const offered = commanderActions ? commanderActions.actionsFor(card) : []
+  if (!commanderActions || offered.length === 0) return null
+  return (
+    <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
+      {offered.map((action) => (
+        <button
+          key={action.kind === 'add-commander' ? `add-${action.as}` : action.kind}
+          type="button"
+          disabled={commanderActions.busyId === card.id}
+          onClick={(e) => {
+            e.stopPropagation()
+            void commanderActions.run(card, action)
+          }}
+          className="rounded-md px-2.5 py-1 text-[length:var(--fs-xs)] font-medium transition-colors disabled:opacity-40"
+          style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.9)', border: '0.5px solid rgba(255,255,255,0.2)' }}
+        >
+          {actionLabel(action)}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 function GridCardAction({
   label,

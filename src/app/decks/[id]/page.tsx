@@ -27,8 +27,8 @@ import { useOracle } from '@/contexts/OracleContext'
 import { toast } from 'sonner'
 import { CardGrid, type DeckCard } from '@/components/CardGrid'
 import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
-import { ChooseCommanderButton } from '@/components/manabox-import/CommanderPicker'
-import { isCompanion } from '@/lib/command-zone'
+import { Crown } from 'lucide-react'
+import { commanderChipText, isCompanion } from '@/lib/command-zone'
 import { ImportResultLine } from '@/components/manabox-import/ImportResult'
 
 interface Deck {
@@ -80,9 +80,6 @@ export default function DeckViewPage() {
   // State for health pill → Cards tab scroll targeting
   const [scrollTarget, setScrollTarget] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string>('cards')
-
-  // Commander picker open-on-mount when coming from a fresh commander import.
-  const shouldOpenCommanderPicker = searchParams.get('pickCommander') === 'true'
 
   // Parallax scroll effect for commander art background
   const [parallaxOffset, setParallaxOffset] = useState(0)
@@ -266,13 +263,19 @@ export default function DeckViewPage() {
         totalValue={totalValue}
         nameSlot={
           getFormatConfig(deck.format).hasCommander ? (
-            <ChooseCommanderButton
-              deckId={deck.id}
-              cards={cards}
-              openOnMount={shouldOpenCommanderPicker && !deck.commander_name}
-              commanderName={deck.commander_name}
-              commanderNames={findCommanderCards(cards, deck.commander_name).map((c) => c.card_name)}
-            />
+            // Read-only: the commander(s) are chosen on the cards in the Cards tab, not here.
+            findCommanderCards(cards, deck.commander_name).length > 0 || deck.commander_name ? (
+              <span
+                className="inline-flex max-w-64 items-center gap-1.5 text-[length:var(--fs-sm)] text-muted-foreground"
+                data-testid="deck-commander-chip"
+              >
+                <Crown className="size-4 shrink-0" aria-hidden="true" />
+                <span className="truncate">
+                  {commanderChipText(findCommanderCards(cards, deck.commander_name).map((c) => c.card_name)) ??
+                    commanderChipText([deck.commander_name])}
+                </span>
+              </span>
+            ) : undefined
           ) : undefined
         }
         actions={
@@ -358,6 +361,7 @@ export default function DeckViewPage() {
               maxCopies={getFormatConfig(deck.deck_type).maxCopies}
               commanderName={deck.commander_name}
               showCommandZone={getFormatConfig(deck.format).hasCommander}
+              deckTarget={getFormatConfig(deck.format).deckSize}
             />
           </div>
         </TabsContent>

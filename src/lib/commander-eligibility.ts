@@ -34,6 +34,43 @@ export function isEligibleCommander(card: CommanderCardFacts): boolean {
   return card.can_be_commander === true
 }
 
+/**
+ * Can this card be the deck's FIRST commander on its own? Everything `isEligibleCommander` accepts except a
+ * Background, which is only ever a second commander next to "Choose a Background".
+ */
+export function isEligibleLeadCommander(card: CommanderCardFacts): boolean {
+  if (!isEligibleCommander(card)) return false
+  const types = frontFace(card.type_line)
+  const background = /\bLegendary\b/.test(types) && /\bBackground\b/.test(types)
+  if (!background) return true
+  // A Background that is also a legal commander in its own right (e.g. says "can be your commander") stays eligible.
+  return /can be your commander/i.test(frontFace(card.oracle_text)) || card.can_be_commander === true
+}
+
+/** Colour letters (W U B R G) in a stored identity text such as "G, R, W". */
+function identityLetters(text: string | null | undefined): Set<string> {
+  return new Set((text ?? '').toUpperCase().split('').filter((c) => 'WUBRG'.includes(c)))
+}
+
+/**
+ * Lead-commander names that would not put the rest of the deck off-colour: every other card's colour identity
+ * must sit inside the candidate's. `deckIdentities` are the colour identity texts of the other main-list cards.
+ */
+export function eligibleLeadNames(
+  names: string[],
+  facts: Map<string, CommanderCardFacts & { color_identity?: string | null }>,
+  deckIdentities: Array<string | null | undefined> = []
+): string[] {
+  const deck = new Set<string>()
+  for (const text of deckIdentities) for (const c of identityLetters(text)) deck.add(c)
+  return names.filter((name) => {
+    const f = facts.get(name.toLowerCase())
+    if (!f || !isEligibleLeadCommander(f)) return false
+    const own = identityLetters(f.color_identity)
+    return [...deck].every((c) => own.has(c))
+  })
+}
+
 /** Names (original case) from `names` whose facts say they can be a commander. */
 export function eligibleNames(names: string[], facts: Map<string, CommanderCardFacts>): string[] {
   return names.filter((name) => {

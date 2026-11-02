@@ -11,6 +11,9 @@
  * POST /api/commanders/eligible?role=second-kind  { with: string }
  * Returns { kind } : which second-commander slot the commander `with` allows (partner, partner_with, background,
  * friends_forever, doctors_companion) or null when it allows none.
+ * POST /api/commanders/eligible?role=lead  { names: string[], deckNames?: string[] }
+ * Returns which names can be the deck's first commander right now: a legal commander that is not a Background, and
+ * whose colour identity covers every card in `deckNames` (the deck's main list), so choosing it leaves no card off-colour.
  * Without `role` the response is unchanged.
  */
 import { NextRequest, NextResponse } from 'next/server'
@@ -20,6 +23,7 @@ import {
   eligibleCompanionNames,
   eligibleNames,
   eligibleSecondNames,
+  eligibleLeadNames,
   type CommanderCardFacts,
 } from '@/lib/commander-eligibility'
 import { secondSlotKindFor } from '@/lib/commander-pairing'
@@ -31,7 +35,7 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const role = request.nextUrl.searchParams.get('role')
-  if (role !== null && role !== 'companion' && role !== 'second' && role !== 'second-kind') {
+  if (role !== null && role !== 'companion' && role !== 'second' && role !== 'second-kind' && role !== 'lead') {
     return NextResponse.json({ error: 'Unknown role' }, { status: 400 })
   }
 
@@ -74,6 +78,25 @@ export async function POST(request: NextRequest) {
         { name: primary.name, type_line: primary.type_line, oracle_text: primary.oracle_text },
         names.filter((n) => n.toLowerCase() !== withName.toLowerCase()),
         byName
+      ),
+    })
+  }
+  if (role === 'lead') {
+    const deckNames: string[] = Array.isArray(body?.deckNames)
+      ? [...new Set<string>(body.deckNames.filter((n: unknown): n is string => typeof n === 'string'))].slice(0, MAX_NAMES)
+      : []
+    const { data: rows, error: err } = await supabase
+      .from('ref_cards')
+      .select('name, type_line, oracle_text, power, toughness, commander_legal, can_be_commander, color_identity')
+      .in('name', [...new Set([...names, ...deckNames])])
+    if (err) return NextResponse.json({ error: 'Could not check commanders' }, { status: 500 })
+    const byName = new Map<string, CommanderCardFacts & { color_identity?: string | null }>()
+    for (const row of rows ?? []) byName.set(row.name.toLowerCase(), row)
+    return NextResponse.json({
+      eligible: eligibleLeadNames(
+        names,
+        byName,
+        deckNames.map((n) => byName.get(n.toLowerCase())?.color_identity)
       ),
     })
   }

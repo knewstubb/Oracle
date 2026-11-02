@@ -6,6 +6,7 @@ import { getFormatConfig } from '@/lib/format-config'
 import { getCommanderBuildCardRepository } from '@/lib/commander-context'
 import { NextRequest } from 'next/server'
 import type { Database } from '@/types/supabase'
+import { deckColourIdentity } from '@/lib/deck-colour-identity'
 import type { PatchDeckCommanderBody } from '../../../../../docs/oracle/contracts/manabox-import.types'
 
 export const runtime = 'nodejs'
@@ -358,7 +359,7 @@ export async function PATCH(
       // Verify the named card can legally be a commander.
       const { data: refCard, error: refErr } = await supabase
         .from('ref_cards')
-        .select('name, can_be_commander')
+        .select('name, can_be_commander, color_identity')
         .eq('name', body.commander_name)
         .limit(1)
         .maybeSingle()
@@ -374,6 +375,8 @@ export async function PATCH(
       }
       updatePayload.commander_name = body.commander_name
       updatePayload.commander_id = null
+      // The legality check reads the deck's colour identity, so it follows the commander.
+      updatePayload.colour_identity = deckColourIdentity([refCard.color_identity])
       updatePayload.commander_scryfall_id = body.commander_scryfall_id ?? null
     } else if (body.commander_scryfall_id !== undefined) {
       updatePayload.commander_scryfall_id = body.commander_scryfall_id

@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { fetchEligibleNames, type CommanderCandidate } from '@/components/manabox-import/CommanderPicker'
 import { isCompanion, isSecondCommander } from '@/lib/command-zone'
 import { COMPANION_CATEGORY } from '@/lib/command-zone'
+import { deckKeys } from '@/hooks/useDeckQueryKeys'
 import type { DeckCard } from '@/components/CardGrid'
 
 /**
@@ -63,7 +64,10 @@ export function CommandZoneSlots({ deckId, cards, commanderName }: CommandZoneSl
   const [confirmingRemove, setConfirmingRemove] = useState(false)
   const [removing, setRemoving] = useState(false)
 
-  const refresh = useCallback(() => queryClient.invalidateQueries({ queryKey: ['decks', String(deckId)] }), [queryClient, deckId])
+  const refresh = useCallback(async () => {
+    queryClient.invalidateQueries({ queryKey: ['deck-legality'] })
+    await queryClient.invalidateQueries({ queryKey: deckKeys.detail(deckId) })
+  }, [queryClient, deckId])
 
   const save = useCallback(
     async (next: Partial<PutBody>, doneText: string) => {

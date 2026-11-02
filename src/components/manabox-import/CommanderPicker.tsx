@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
+import { deckKeys } from '@/hooks/useDeckQueryKeys'
 import { toast } from 'sonner'
 import type { DeckCard } from '@/components/CardGrid'
 
@@ -93,12 +94,14 @@ export function CommanderPicker({ deckId, cards, open, onOpenChange, onSet, comm
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ commander_id: null }),
               })
-              queryClient.invalidateQueries({ queryKey: ['decks', String(deckId)] })
+              queryClient.invalidateQueries({ queryKey: deckKeys.detail(deckId) })
             },
           },
         })
 
-        queryClient.invalidateQueries({ queryKey: ['decks', String(deckId)] })
+        queryClient.invalidateQueries({ queryKey: deckKeys.detail(deckId) })
+        // The colour-identity warnings depend on the commander.
+        queryClient.invalidateQueries({ queryKey: ['deck-legality'] })
         onOpenChange(false)
         onSet?.()
       } catch (err) {

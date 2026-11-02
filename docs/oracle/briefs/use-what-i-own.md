@@ -54,3 +54,4 @@ This moves a slice of Phase 8 ahead of Phases 3 to 7. Recommendation: finish onl
 
 **Open for the Architect (Gate 2):** how to store "moved, other deck now short" with the current data model, and whether a data change is needed. Any data change comes back for owner approval. No locked decision is changed by this addendum.
 **Status:** wording approved by the owner in chat; not yet audited or designed. Designer: one mockup of the check screen (single move, and the pick-a-deck case).
+- **Ignore basic lands (owner direction 2026-11-03):** the check screen has an "Ignore basic lands" toggle, **on by default (recommended)**. While on, basics are never listed as moved and never pulled from another deck, so the list stays short. Turn it off to include them. Snow-covered and other non-basic lands are still listed. Designer: show the toggle at the top of the check screen with a count of how many basics are being ignored.

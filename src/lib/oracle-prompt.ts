@@ -20,6 +20,8 @@ export interface OracleChatContext {
 
 /** Extra prompt input when the assistant has a deck context (see oracle chat route). */
 export interface OracleDeckChatPromptOptions {
+  /** All the deck's commanders (partner, background...), treated as equals. Never the companion. */
+  commanderNames?: string[]
   deckChat?: {
     /** ORACLE_DECK_CHAT_EDIT_TOOLS on: edit tools offered, suggest-only rules omitted */
     editToolsEnabled: boolean
@@ -588,7 +590,9 @@ export function buildOracleSystemPrompt(
       if (context.deckName) {
         parts.push(`Deck Name: ${context.deckName}`)
       }
-      if (context.commanderName) {
+      if (options?.commanderNames && options.commanderNames.length > 1) {
+        parts.push(`Commanders: ${options.commanderNames.join(' and ')} (both are commanders and both contribute to the deck's colours)`)
+      } else if (context.commanderName) {
         parts.push(`Commander: ${context.commanderName}`)
       }
       // CRITICAL: Add color identity constraint when available
@@ -598,7 +602,7 @@ export function buildOracleSystemPrompt(
 === COMMANDER COLOR IDENTITY: ${commanderColorIdentity} ===
 
 **CRITICAL RESTRICTION — ENFORCED:**
-This deck's commander is ${context.commanderName} with color identity: ${commanderColorIdentity} (${colorNames})
+${options?.commanderNames && options.commanderNames.length > 1 ? `This deck's commanders are ${options.commanderNames.join(' and ')}; their colours combined give the color identity` : `This deck's commander is ${context.commanderName} with color identity`}: ${commanderColorIdentity} (${colorNames})
 
 You may ONLY suggest cards that are:
 - Colorless, OR

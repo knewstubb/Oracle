@@ -19,6 +19,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { evaluateCommanderLegality } from '@/lib/deck-legality'
+import { findCommanderCards, type FlagRow } from '@/lib/commander-card-flag'
+import { parseColourLetters } from '@/lib/command-zone'
 
 export async function GET(
   request: NextRequest,
@@ -53,17 +55,13 @@ export async function GET(
   }
 
   const format = deck.format || 'commander'
-  // Parse deck color identity - stored as "UB" (no separators), split each character
-  const deckColorIdentity = new Set(
-    (deck.colour_identity || '')
-      .split('')
-      .filter((c: string) => 'WUBRG'.includes(c))
-  )
+  // The stored identity ("UB", no separators) is only the fallback; the commanders below decide it.
+  const storedColorIdentity = parseColourLetters(deck.colour_identity)
 
   // Get all cards in deck
   const { data: deckCards, error: cardsErr } = await supabase
     .from('deck_cards')
-    .select('card_name, quantity, is_commander, command_zone_role')
+    .select('id, card_name, quantity, categories, is_commander, command_zone_role')
     .eq('deck_id', deckId)
 
   if (cardsErr) {
@@ -97,6 +95,16 @@ export async function GET(
         color_identity: card.color_identity || '',
       }
     }
+  }
+
+  // Colour identity = ALL commanders together (partner, background...; never the companion). Computed from the
+  // commander cards so a stale stored value cannot flag a partner's colours as an error. If any commander's card
+  // data is missing, the stored value is used instead.
+  const commanderNames = findCommanderCards(deckCards as unknown as FlagRow[], deck.commander_name).map((c) => c.card_name)
+  if (deck.commander_name && !commanderNames.includes(deck.commander_name)) commanderNames.push(deck.commander_name)
+  let deckColorIdentity = storedColorIdentity
+  if (commanderNames.length > 0 && commanderNames.every((n) => legalityMap[n])) {
+    deckColorIdentity = new Set(commanderNames.flatMap((n) => [...parseColourLetters(legalityMap[n].color_identity)]))
   }
 
   // Check each card for issues (the companion is outside the deck: see deck-legality.ts)

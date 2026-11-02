@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import { findCommanderCards } from '@/lib/commander-card-flag'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
 import { buildAround, commanderOverview, suggestCuts } from '@/lib/mcp-client'
@@ -39,17 +40,16 @@ export async function POST(request: NextRequest) {
 
     const { data: cards, error: cardsErr } = await supabase
       .from('deck_cards')
-      .select('card_name, scryfall_id, set_code, is_commander')
+      .select('id, card_name, categories, scryfall_id, set_code, is_commander, command_zone_role')
       .eq('deck_id', deckId)
 
     if (cardsErr) {
       return Response.json({ error: cardsErr.message }, { status: 500 })
     }
 
-    const commanderName =
-      deck.commander_name ||
-      cards?.find((c) => c.is_commander)?.card_name ||
-      ''
+    // Every commander counts equally (partner, background...): the add suggestions use all of them.
+    const commanderNames = findCommanderCards(cards ?? [], deck.commander_name).map((c) => c.card_name)
+    const commanderName = commanderNames[0] || deck.commander_name || ''
     const cardNames = (cards ?? []).map((c) => c.card_name)
 
     // Fetch collection for owned checks — join through user_cards for card_name
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
 
     // Run MCP calls in parallel: build-around for adds, suggest-cuts for cuts
     const [addResult, cutResult] = await Promise.allSettled([
-      buildAround([commanderName], 'commander', { limit: 10 }),
+      buildAround(commanderNames.length > 0 ? commanderNames : [commanderName], 'commander', { limit: 10 }),
       suggestCuts(cardNames, commanderName, 5),
     ])
 

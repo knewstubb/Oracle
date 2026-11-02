@@ -48,7 +48,7 @@ describe('CommandZoneSlots', () => {
     mockFetch(() => Response.json({}))
     wrap(<CommandZoneSlots deckId={9} cards={[lurrus]} commanderName={null} />)
     expect(screen.getByText('No companion · Add')).toBeTruthy()
-    expect(screen.queryByText('No second commander · Add')).toBeNull()
+    expect(screen.queryByText('No partner or background · Add')).toBeNull()
   })
 
   it('shows the companion by name, and a Partner slot only because the commander allows it', async () => {
@@ -74,14 +74,14 @@ describe('CommandZoneSlots', () => {
     wrap(<CommandZoneSlots deckId={9} cards={[primary, sol]} commanderName="Atraxa" />)
     await waitFor(() => expect(f).toHaveBeenCalled())
     expect(screen.getByText('No companion · Add')).toBeTruthy()
-    expect(screen.queryByText(/No (partner|background|second commander)/)).toBeNull()
+    expect(screen.queryByText(/No (partner|background)/)).toBeNull()
   })
 
   it('shows a filled second commander even if detection says none', async () => {
     const partnerRow = card({ id: 5, card_name: 'Tymna', command_zone_role: 'partner', is_commander: true })
     mockFetch(() => Response.json({}), null)
     wrap(<CommandZoneSlots deckId={9} cards={[primary, partnerRow]} commanderName="Atraxa" />)
-    expect(await screen.findByText('Second commander · Tymna')).toBeTruthy()
+    expect(await screen.findByText('Tymna')).toBeTruthy()
   })
 
   it('shows the companion slot in a deck with no commander', () => {

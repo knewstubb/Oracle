@@ -174,7 +174,7 @@ UNKNOWN: the proxy and gap information could not be loaded. Do not say which car
 
   const size = facts.targetSize === null
     ? `Main list: ${facts.mainListCount} cards. No commander is set on this deck and its type does not give a size, so the target size is unknown: say that plainly if asked how many slots are empty, and do not guess a number.`
-    : `Main list: ${facts.mainListCount} of ${facts.targetSize} cards.${facts.commanderNames.length ? ` This count already INCLUDES the commander (${facts.commanderNames.join(' and ')}): never add the commander on top of it.` : ''}${facts.emptySlots ? ` Empty slots: ${facts.emptySlots}.` : ' No empty slots.'}`
+    : `Main list: ${facts.mainListCount} of ${facts.targetSize} cards.${facts.commanderNames.length ? ` This count already INCLUDES the ${facts.commanderNames.length > 1 ? 'commanders, which count equally' : 'commander'} (${facts.commanderNames.join(' and ')}): never add ${facts.commanderNames.length > 1 ? 'them' : 'the commander'} on top of it.` : ''}${facts.emptySlots ? ` Empty slots: ${facts.emptySlots}.` : ' No empty slots.'}`
 
   const unknown = facts.unknownType.length
     ? `\nCopy type UNKNOWN (could not be read; do not call these real or proxy):\n${list(facts.unknownType)}`

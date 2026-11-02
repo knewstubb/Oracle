@@ -61,3 +61,9 @@ export function deckColourIdentity(
 export function deckCountLabel(mainCount: number, target: number, hasCompanion: boolean): string {
   return `${mainCount}/${target}${hasCompanion ? ' + Companion' : ''}`
 }
+
+/** Header chip text: both commanders side by side as equals, e.g. "Commander · Tymna + Thrasios". Null when there is none. */
+export function commanderChipText(names: Array<string | null | undefined>): string | null {
+  const list = names.filter((n): n is string => !!n)
+  return list.length > 0 ? `Commander · ${list.join(' + ')}` : null
+}

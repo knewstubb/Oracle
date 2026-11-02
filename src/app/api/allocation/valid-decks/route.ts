@@ -7,6 +7,7 @@
  *
  * Returns: Array<{ deckId, deckName, isActive }>
  */
+import { parseColourLetters } from '@/lib/command-zone'
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
@@ -47,10 +48,9 @@ export async function GET(request: NextRequest) {
       .filter((deck) => {
         if (deck.format && deck.format !== 'commander') return true
         if (cardCI.length === 0) return true // Colorless cards go anywhere
-        const deckCI = deck.colour_identity
-          ? deck.colour_identity.split(',').map((c) => c.trim()).filter(Boolean)
-          : []
-        return cardCI.every((color) => deckCI.includes(color))
+        // Stored as "WBR" (or "W,B,R" on older decks): parseColourLetters reads both.
+        const deckCI = parseColourLetters(deck.colour_identity)
+        return cardCI.every((color) => deckCI.has(color))
       })
       .map((deck) => ({
         deckId: deck.id,

@@ -30,12 +30,12 @@ const SLOT_TEXT = {
     list: 'Commander candidates',
   },
   second: {
-    label: 'Second commander',
-    none: 'No second commander',
+    label: 'Partner or Background',
+    none: 'No partner or background',
     empty: 'No card in this deck can pair with this commander.',
     checking: 'Checking which cards can pair…',
     failed: "Couldn't check partners. Close and try again.",
-    list: 'Second commander candidates',
+    list: 'Partner or Background candidates',
   },
   companion: {
     label: 'Companion',

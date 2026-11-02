@@ -51,7 +51,7 @@ describe('ReviewCommanderSelect companion / second slots', () => {
   it('second: sends the commander it must pair with', async () => {
     const f = mockFetch(() => Response.json({ eligible: [] }))
     render(<ReviewCommanderSelect slot="second" withName="Atraxa" cards={cards} value={null} onChange={() => {}} />)
-    await userEvent.click(screen.getByRole('button', { name: /Second commander/ }))
+    await userEvent.click(screen.getByRole('button', { name: /Partner or Background/ }))
     await waitFor(() => expect(f).toHaveBeenCalled())
     expect(f.mock.calls[0][0]).toBe('/api/commanders/eligible?role=second')
     expect(JSON.parse(String(f.mock.calls[0][1].body))).toMatchObject({ with: 'Atraxa' })

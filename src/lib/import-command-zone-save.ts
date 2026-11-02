@@ -7,6 +7,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { verifySecondCommander, secondRoleFor, type PairCardFacts } from '@/lib/commander-pairing'
 import { COMPANION_CATEGORY } from '@/lib/command-zone'
+import { lookupDeckColourIdentity } from '@/lib/deck-colour-identity'
 
 export interface ImportCommandZone {
   commander?: string | null
@@ -48,7 +49,7 @@ export async function resolveImportCommandZone(
     const a = byName.get(zone.commander)
     const b = byName.get(zone.second)
     if (!a || !b) {
-      out.notes.push(`${zone.second} was not set as a second commander because its card details could not be checked. You can set it on the deck page.`)
+      out.notes.push(`${zone.second} was not set as a commander because its card details could not be checked. You can set it on the deck page.`)
     } else {
       const role = secondRoleFor(b)
       const verdict = verifySecondCommander(a, b, role)
@@ -56,7 +57,7 @@ export async function resolveImportCommandZone(
         out.second = zone.second
         out.secondRole = role
       } else {
-        out.notes.push(`${zone.second} was not set as a second commander: ${verdict.reason}`)
+        out.notes.push(`${zone.second} was not set as a commander: ${verdict.reason}`)
       }
     }
   }
@@ -77,7 +78,7 @@ export function tagCommandZoneRows(rows: RpcRow[], zone: ResolvedImportZone): st
       s.is_commander = true
       s.command_zone_role = zone.secondRole
     } else {
-      notes.push(`${zone.second} could not be set as a second commander because it is not in the deck.`)
+      notes.push(`${zone.second} could not be set as a commander because it is not in the deck.`)
     }
   }
   if (zone.companion) {
@@ -124,7 +125,7 @@ export async function applyCommandZoneAfterImport(
   const secondId = idOf(zone.second)
   const companionId = idOf(zone.companion)
   if (zone.second && (primaryId === null || secondId === null)) {
-    return ['The second commander could not be set after the import. You can set it on the deck page.']
+    return ['Both commanders could not be set after the import. You can set it on the deck page.']
   }
   const { error: rpcError } = await supabase.rpc('set_deck_command_zone', {
     p_deck_id: deckId,
@@ -136,4 +137,25 @@ export async function applyCommandZoneAfterImport(
   })
   if (rpcError) return ['The command zone could not be set after the import. You can set it on the deck page.']
   return []
+}
+
+/**
+ * When the owner picked two commanders on the import review, the deck's colour identity is the colours of BOTH
+ * (a companion never counts). Best effort: a failed lookup leaves the stored value alone and never fails the import.
+ */
+export async function saveImportColourIdentity(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any, any, any>,
+  deckId: number,
+  userId: string,
+  zone: ResolvedImportZone
+): Promise<void> {
+  if (!zone.second || !zone.primary) return
+  try {
+    const identity = await lookupDeckColourIdentity(supabase, [zone.primary, zone.second])
+    if (identity === null) return
+    await supabase.from('decks').update({ colour_identity: identity }).eq('id', deckId).eq('user_id', userId)
+  } catch {
+    // ignored on purpose
+  }
 }

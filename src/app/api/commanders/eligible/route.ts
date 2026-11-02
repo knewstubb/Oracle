@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
   if (role === 'second') {
     // Body: { names, with } — `with` is the commander the second one must pair with.
     const withName = typeof body?.with === 'string' ? body.with : null
-    if (!withName) return NextResponse.json({ error: 'A second commander needs the commander to pair with' }, { status: 400 })
+    if (!withName) return NextResponse.json({ error: 'A partner or background needs the commander to pair with' }, { status: 400 })
     const { data: rows, error: err } = await supabase
       .from('ref_cards')
       .select('name, type_line, oracle_text, power, toughness, commander_legal, can_be_commander')

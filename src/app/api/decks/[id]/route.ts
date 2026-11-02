@@ -7,7 +7,7 @@ import { getFormatConfig } from '@/lib/format-config'
 import { getCommanderBuildCardRepository } from '@/lib/commander-context'
 import { NextRequest } from 'next/server'
 import type { Database } from '@/types/supabase'
-import { deckColourIdentity } from '@/lib/deck-colour-identity'
+import { syncDeckColourIdentity } from '@/lib/deck-colour-identity'
 import type { PatchDeckCommanderBody } from '../../../../../docs/oracle/contracts/manabox-import.types'
 
 export const runtime = 'nodejs'
@@ -376,8 +376,8 @@ export async function PATCH(
       }
       updatePayload.commander_name = body.commander_name
       updatePayload.commander_id = null
-      // The legality check reads the deck's colour identity, so it follows the commander.
-      updatePayload.colour_identity = deckColourIdentity([refCard.color_identity])
+      // The deck's colour identity is the union of ALL commanders, so it is worked out after the
+      // flags are updated below (a partner already on the deck must keep contributing its colours).
       updatePayload.commander_scryfall_id = body.commander_scryfall_id ?? null
     } else if (body.commander_scryfall_id !== undefined) {
       updatePayload.commander_scryfall_id = body.commander_scryfall_id
@@ -411,6 +411,11 @@ export async function PATCH(
       authResult.id,
       updatePayload.commander_name ?? null
     )
+  }
+
+  // Colour identity follows every commander (not just the one chosen here). Best effort.
+  if (hasCommanderField) {
+    await syncDeckColourIdentity(supabase as never, deckId, authResult.id)
   }
 
   return Response.json({ success: true, updated: updatePayload, ...(commanderCard ? { commanderCard } : {}) })

@@ -26,6 +26,7 @@ import { deriveDefaultCategory } from '@/lib/card-definition-resolver'
 import { createVersionSnapshot } from '@/lib/deck-versions'
 import {
   applyCommandZoneAfterImport,
+  saveImportColourIdentity,
   hasExtraRoles,
   resolveImportCommandZone,
   tagCommandZoneRows,
@@ -502,6 +503,8 @@ export async function importManaBoxDeck(
 
     await createVersionSnapshot(deckId, options.userId, 'import', 'Imported from ManaBox', options.name || options.deck.name)
 
+    await saveImportColourIdentity(supabase as never, deckId, options.userId, zone)
+
     const intentSummary = buildIntentSummary(deckId, summariseImportPlan(plans), intentResult, origins)
     for (const origin of unavailable) {
       intentSummary.needsALook.push({ ...origin, reason: 'ownership_unavailable' })
@@ -548,6 +551,7 @@ export async function importManaBoxDeck(
   )
 
   zoneNotes.push(...(await applyCommandZoneAfterImport(supabase as never, deckId, options.userId, zone)))
+  await saveImportColourIdentity(supabase as never, deckId, options.userId, zone)
 
   return {
     deckId,

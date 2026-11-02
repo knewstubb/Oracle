@@ -16,6 +16,7 @@
 
 import { isBasicLand } from './basic-lands'
 import { isCommanderRow } from './command-zone'
+import { findCommanderCards } from './commander-card-flag'
 
 export const COMMANDER_DECK_SIZE = 100
 
@@ -51,6 +52,11 @@ export interface DeckSlotFacts {
   /** Slots with a copy whose proxy/real state could not be read */
   unknownType: string[]
   maybeboardCount: number
+  /**
+   * Commander card(s) found on the main list (flagged, else matched by the deck's commander name).
+   * They are INCLUDED in mainListCount, exactly once.
+   */
+  commanderNames: string[]
 }
 
 function isMaybeboard(categories: string | null): boolean {
@@ -128,6 +134,7 @@ export function buildDeckSlotFacts(
     genericLandCount: 0,
     unknownType: [],
     maybeboardCount: 0,
+    commanderNames: findCommanderCards(rows, commanderName).map(r => r.card_name),
   }
 
   for (const row of rows) {
@@ -167,7 +174,7 @@ UNKNOWN: the proxy and gap information could not be loaded. Do not say which car
 
   const size = facts.targetSize === null
     ? `Main list: ${facts.mainListCount} cards. No commander is set on this deck and its type does not give a size, so the target size is unknown: say that plainly if asked how many slots are empty, and do not guess a number.`
-    : `Main list: ${facts.mainListCount} of ${facts.targetSize} cards.${facts.emptySlots ? ` Empty slots: ${facts.emptySlots}.` : ' No empty slots.'}`
+    : `Main list: ${facts.mainListCount} of ${facts.targetSize} cards.${facts.commanderNames.length ? ` This count already INCLUDES the commander (${facts.commanderNames.join(' and ')}): never add the commander on top of it.` : ''}${facts.emptySlots ? ` Empty slots: ${facts.emptySlots}.` : ' No empty slots.'}`
 
   const unknown = facts.unknownType.length
     ? `\nCopy type UNKNOWN (could not be read; do not call these real or proxy):\n${list(facts.unknownType)}`

@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase'
+import { markCommanderCard } from '@/lib/commander-card-flag'
 import { requireAuth } from '@/lib/auth'
 import { assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 import { frontFaceName, countsAsSleeved } from '@/lib/basic-lands'
@@ -400,5 +401,17 @@ export async function PATCH(
     return Response.json({ error: updateErr.message }, { status: 500 })
   }
 
-  return Response.json({ success: true, updated: updatePayload })
+  // The commander is a card on the list: flag that card (and clear the previous one). Best effort,
+  // the commander name is already saved; a card not in the list yet simply has no flag until it is added.
+  let commanderCard: { markedId: number | null; error?: string } | undefined
+  if (hasCommanderField && 'commander_name' in updatePayload) {
+    commanderCard = await markCommanderCard(
+      supabase as never,
+      deckId,
+      authResult.id,
+      updatePayload.commander_name ?? null
+    )
+  }
+
+  return Response.json({ success: true, updated: updatePayload, ...(commanderCard ? { commanderCard } : {}) })
 }

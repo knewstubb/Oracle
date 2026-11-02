@@ -358,6 +358,7 @@ export default function DeckViewPage() {
               scrollToCategory={scrollTarget}
               onViewPicklist={() => setActiveTab('picklist')}
               maxCopies={getFormatConfig(deck.deck_type).maxCopies}
+              commanderName={deck.commander_name}
             />
           </div>
         </TabsContent>

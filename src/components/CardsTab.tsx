@@ -11,6 +11,7 @@ import { OwnershipBadge } from '@/components/OwnershipBadge'
 import { formatPrice } from '@/lib/collection-printing-utils'
 import { CardImage } from '@/components/CardImage'
 import { cn } from '@/lib/utils'
+import { findCommanderCards, withCommanderSection } from '@/lib/commander-card-flag'
 import { parseCategoriesCapped } from '@/lib/categoryUtils'
 import type { StructuredCategories } from '@/lib/categoryUtils'
 import { useDeckCategories } from '@/hooks/useDeckCategories'
@@ -46,6 +47,8 @@ interface CardsTabProps {
   onViewPicklist?: () => void
   /** Maximum copies per card allowed by the deck's format (null = no limit, 1 = singleton). Defaults to 1. */
   maxCopies?: number | null
+  /** The deck's commander name; finds the commander card on older decks where no card is flagged yet. */
+  commanderName?: string | null
 }
 
 // ─── API Response Types ──────────────────────────────────────────────────────
@@ -315,7 +318,8 @@ function sortCommanderFirst(groups: [string, DeckCard[]][]): [string, DeckCard[]
 function applyGrouping(
   cards: DeckCard[],
   groupBy: GroupBy,
-  statusMap: Map<number, CardSlotStatus>
+  statusMap: Map<number, CardSlotStatus>,
+  commanderCards: DeckCard[] = []
 ): [string, DeckCard[]][] {
   let groups: [string, DeckCard[]][]
   switch (groupBy) {
@@ -327,12 +331,12 @@ function applyGrouping(
     case 'price': groups = groupByPrice(cards); break
     default: groups = groupByCategory(cards)
   }
-  return sortCommanderFirst(groups)
+  return sortCommanderFirst(withCommanderSection(groups, commanderCards))
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, onViewPicklist, maxCopies = 1 }: CardsTabProps) {
+export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, onViewPicklist, maxCopies = 1, commanderName }: CardsTabProps) {
   // ── Derived Data ─────────────────────────────────────────────────────────────
 
   const availableCategories = useDeckCategories(cards)
@@ -573,8 +577,10 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
   // ── Grouped cards ────────────────────────────────────────────────────────────
 
   const groupedCards = useMemo(() => {
-    return applyGrouping(filteredCards, groupBy, statusMap)
-  }, [filteredCards, groupBy, statusMap])
+    const commanderIds = new Set(findCommanderCards(activeCards, commanderName).map((c) => c.id))
+    const commanderCards = filteredCards.filter((c) => commanderIds.has(c.id))
+    return applyGrouping(filteredCards, groupBy, statusMap, commanderCards)
+  }, [filteredCards, activeCards, groupBy, statusMap, commanderName])
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
 

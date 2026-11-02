@@ -50,17 +50,15 @@ export async function loadDeckCommanders(
   userId: string
 ): Promise<DeckCommanders | null> {
   try {
-    const { data: deck } = await supabase
-      .from('decks')
-      .select('commander_name')
-      .eq('id', deckId)
-      .eq('user_id', userId)
-      .maybeSingle()
-    const { data: cards, error } = await supabase
-      .from('deck_cards')
-      .select('id, card_name, categories, is_commander, command_zone_role')
-      .eq('deck_id', deckId)
-      .eq('user_id', userId)
+    // The two reads do not depend on each other, so they go out together (one round trip less before the save answers).
+    const [{ data: deck }, { data: cards, error }] = await Promise.all([
+      supabase.from('decks').select('commander_name').eq('id', deckId).eq('user_id', userId).maybeSingle(),
+      supabase
+        .from('deck_cards')
+        .select('id, card_name, categories, is_commander, command_zone_role')
+        .eq('deck_id', deckId)
+        .eq('user_id', userId),
+    ])
     if (error || !cards) return null
     const commanderName = (deck as { commander_name?: string | null } | null)?.commander_name ?? null
     const names = [...new Set(findCommanderCards(cards as FlagRow[], commanderName).map((r) => r.card_name))]

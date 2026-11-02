@@ -5,7 +5,7 @@ Read `docs/oracle/roadmap.md` first. Only tasks in the **current milestone** may
 
 **Owner note (2026-09-25):** Until Oracle reaches MVP, live data can be easily replaced. Migrations do not need to be overly cautious; clean-slate or drop-and-rebuild approaches are acceptable with owner approval.
 
-**Owner decision 2026-11-02:** the interim slice **Use what I own** (brief `docs/oracle/briefs/use-what-i-own.md`) is CURRENT; the rest of Phases 3 to 7 is PARKED until it works on three real decks. Gate 2 audit: Architect, report `reports/2026-11-02-architect-use-what-i-own-audit.md` (IN PROGRESS). Owner approved 2026-11-02: advisor contract brought onto main; suggestions first, AI edit ability kept but switched off in deck chat by default. Slice (a) dispatched to Developer.
+**Owner decision 2026-11-02:** the interim slice **Use what I own** (brief `docs/oracle/briefs/use-what-i-own.md`) is CURRENT; the rest of Phases 3 to 7 is PARKED until it works on three real decks. Gate 2 audit: Architect, report `reports/2026-11-02-architect-use-what-i-own-audit.md` (IN PROGRESS). Owner approved 2026-11-02: advisor contract brought onto main; suggestions first, AI edit ability kept but switched off in deck chat by default. Slice (a) and (b) merged to main 2026-11-02; slice (c) next. Import work (T-56, T-58, T-60, T-63) merged 2026-11-02 (check: 2352 tests pass); its 10 migrations (20261020120000 to 20261023170200) and T-57 are NOT yet applied to the hosted database (owner gate).
 
 ## Roadmap change 2026-10-11 — foundation-first phases
 

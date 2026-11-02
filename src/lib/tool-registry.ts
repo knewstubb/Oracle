@@ -19,6 +19,7 @@ import { validateCommander, formatCommanderValidation, searchCards, formatSearch
 import { findCombosForCard, formatComboResults } from './spellbook-client'
 import { createAdminClient } from './supabase'
 import { classifyDeckCardCopy, type DeckCardCopyStatus } from './deck-chat-facts'
+import { browseSpareCopies, MAX_BROWSE_LIMIT } from './spare-copy-browse'
 import { lookupOwnedCopies, MAX_LOOKUP_NAMES, type LookupClient } from './owned-copy-lookup'
 
 // ---------------------------------------------------------------------------
@@ -35,7 +36,7 @@ const DECK_BUILDING_TOOLS = new Set([
 ])
 
 // Tools offered only in the deck chat
-const DECK_CHAT_ONLY_TOOLS = new Set(['check_owned_copies'])
+const DECK_CHAT_ONLY_TOOLS = new Set(['check_owned_copies', 'browse_spare_copies'])
 
 // Contexts where deck-building tools should NOT be available
 const EXPLORATION_CONTEXTS = new Set([
@@ -1065,6 +1066,43 @@ registry.set('check_owned_copies', {
       console.error('[check_owned_copies] Error:', err)
       const msg = err instanceof Error ? err.message : 'lookup failed'
       return { content: `Owned-copy lookup unavailable (${msg}). Say you could not check what the owner has; do not guess.`, is_error: true }
+    }
+  },
+})
+
+registry.set('browse_spare_copies', {
+  definition: {
+    name: 'browse_spare_copies',
+    description:
+      `Read-only. Browses the owner's collection for cards that fit the viewed deck's colours, to replace a proxy or fill a gap. Lists SPARE real copies (sleeved in no deck, not proxies) first, then real copies held by other decks (each with a warning to show). Call this FIRST for replace-a-proxy / fill-a-gap questions, before suggesting anything to buy. Optional kind: a type (creature, artifact, enchantment, instant, sorcery, land, planeswalker) or a role (draw, ramp, removal). Capped (default 25 per group, max ${MAX_BROWSE_LIMIT}). Never changes anything.`,
+    input_schema: {
+      type: 'object',
+      properties: {
+        kind: { type: 'string', description: 'Optional type or role filter, e.g. "creature", "draw", "ramp", "removal"' },
+        limit: { type: 'number', description: `Optional max cards per group (default 25, max ${MAX_BROWSE_LIMIT})` },
+      },
+    },
+  },
+  execute: async (input, context) => {
+    try {
+      const userId = context?.userId
+      if (!userId) {
+        return { content: 'Collection browse requires authentication — userId not available', is_error: true }
+      }
+      if (!context?.deckId) {
+        return { content: 'No deck is being viewed, so there is no colour identity to browse against.', is_error: true }
+      }
+      const result = await browseSpareCopies(createAdminClient() as unknown as LookupClient, {
+        userId,
+        deckId: context.deckId,
+        kind: typeof input.kind === 'string' ? input.kind : null,
+        limit: typeof input.limit === 'number' ? input.limit : null,
+      })
+      return { content: JSON.stringify(result, null, 2), is_error: false }
+    } catch (err) {
+      console.error('[browse_spare_copies] Error:', err)
+      const msg = err instanceof Error ? err.message : 'browse failed'
+      return { content: `Collection browse unavailable (${msg}). Say you could not browse what the owner has; do not guess.`, is_error: true }
     }
   },
 })

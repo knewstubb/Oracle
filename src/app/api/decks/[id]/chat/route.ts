@@ -105,7 +105,7 @@ export async function POST(
   const playerContext = formatPlayerContextPrompt(prefs)
 
   // Read-only proxy/gap facts for this deck (null = could not be loaded)
-  const slotFacts = await loadDeckSlotFacts(supabase as unknown as DeckFactsClient, deckId, deck.deck_type)
+  const slotFacts = await loadDeckSlotFacts(supabase as unknown as DeckFactsClient, deckId, deck.deck_type, deck.commander_name)
   const editToolsEnabled = isDeckChatEditToolsEnabled()
 
   // Build system prompt

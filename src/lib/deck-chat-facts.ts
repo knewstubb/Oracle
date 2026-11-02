@@ -9,11 +9,13 @@
 //    [Confirmed: src/lib/card-status.ts computeDeckCardStatuses]
 //  - maybeboard = categories contain "Maybeboard"; not part of the main list (D-005)
 //    [Confirmed: src/lib/deck-cards-diff.ts relationOf]
-//  - Commander list size is 100 including the commander (D-002). Other formats: unknown here.
+//  - Commander list size is 100 including the commander (D-002). A deck with a commander set counts as
+//    Commander even when typed Custom. No commander and no Commander type: size unknown.
 // Unknown values stay null/unknown and are never turned into 0 or a fact.
 // ---------------------------------------------------------------------------
 
 import { isBasicLand } from './basic-lands'
+import { isCommanderRow } from './command-zone'
 
 export const COMMANDER_DECK_SIZE = 100
 
@@ -25,6 +27,8 @@ export interface DeckSlotRow {
   copy_id: number | null
   scryfall_id: string | null
   is_commander: boolean | null
+  /** deck_cards.command_zone_role (a companion is not a commander) */
+  command_zone_role?: string | null
   /** user_copies.is_proxy for the sleeved copy; null when it could not be read */
   is_proxy: boolean | null
 }
@@ -90,10 +94,29 @@ function label(row: DeckSlotRow): string {
   return n > 1 ? `${n}x ${row.card_name}` : row.card_name
 }
 
+/**
+ * Pure: is this a commander deck? Yes when the deck type says Commander (or is
+ * not set), or when a commander is set: a commander row on the list or a
+ * commander name on the deck. The owner's decks are typed "Custom", so the
+ * commander is what decides (D-002: 100 cards including the commander).
+ */
+export function isCommanderDeck(
+  deckType: string | null,
+  rows: Array<Pick<DeckSlotRow, 'is_commander' | 'command_zone_role'>>,
+  commanderName?: string | null
+): boolean {
+  if ((deckType ?? 'commander').toLowerCase() === 'commander') return true
+  if (typeof commanderName === 'string' && commanderName.trim() !== '') return true
+  return rows.some(r => isCommanderRow(r))
+}
+
 /** Pure: turn deck rows into proxy / gap facts. */
-export function buildDeckSlotFacts(rows: DeckSlotRow[], deckType: string | null): DeckSlotFacts {
-  const normalised = (deckType ?? 'commander').toLowerCase()
-  const targetSize = normalised === 'commander' ? COMMANDER_DECK_SIZE : null
+export function buildDeckSlotFacts(
+  rows: DeckSlotRow[],
+  deckType: string | null,
+  commanderName?: string | null
+): DeckSlotFacts {
+  const targetSize = isCommanderDeck(deckType, rows, commanderName) ? COMMANDER_DECK_SIZE : null
 
   const facts: DeckSlotFacts = {
     mainListCount: 0,
@@ -143,7 +166,7 @@ UNKNOWN: the proxy and gap information could not be loaded. Do not say which car
   }
 
   const size = facts.targetSize === null
-    ? `Main list: ${facts.mainListCount} cards. Target size for this format is not known, so say nothing about being short or complete.`
+    ? `Main list: ${facts.mainListCount} cards. No commander is set on this deck and its type does not give a size, so the target size is unknown: say that plainly if asked how many slots are empty, and do not guess a number.`
     : `Main list: ${facts.mainListCount} of ${facts.targetSize} cards.${facts.emptySlots ? ` Empty slots: ${facts.emptySlots}.` : ' No empty slots.'}`
 
   const unknown = facts.unknownType.length
@@ -180,13 +203,14 @@ export interface DeckFactsClient {
 export async function loadDeckSlotFacts(
   client: DeckFactsClient,
   deckId: number,
-  deckType: string | null
+  deckType: string | null,
+  commanderName?: string | null
 ): Promise<DeckSlotFacts | null> {
   try {
     const { data, error } = await client
       .from('deck_cards')
       .select(
-        'id, card_name, quantity, categories, copy_id, scryfall_id, is_commander, user_copies!deck_cards_copy_id_fkey(is_proxy)'
+        'id, card_name, quantity, categories, copy_id, scryfall_id, is_commander, command_zone_role, user_copies!deck_cards_copy_id_fkey(is_proxy)'
       )
       .eq('deck_id', deckId)
     if (error || !Array.isArray(data)) return null
@@ -201,10 +225,11 @@ export async function loadDeckSlotFacts(
         copy_id: (r.copy_id as number | null) ?? null,
         scryfall_id: (r.scryfall_id as string | null) ?? null,
         is_commander: (r.is_commander as boolean | null) ?? null,
+        command_zone_role: (r.command_zone_role as string | null) ?? null,
         is_proxy: typeof copy?.is_proxy === 'boolean' ? copy.is_proxy : null,
       }
     })
-    return buildDeckSlotFacts(rows, deckType)
+    return buildDeckSlotFacts(rows, deckType, commanderName)
   } catch {
     return null
   }

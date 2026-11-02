@@ -390,7 +390,7 @@ export async function POST(request: NextRequest) {
   if (context.type === 'deck' && typeof context.deckId === 'number' && context.deckId > 0) {
     const { data: ownedDeck } = await supabase
       .from('decks')
-      .select('id, deck_type')
+      .select('id, deck_type, commander_name')
       .eq('id', context.deckId)
       .eq('user_id', userId)
       .maybeSingle()
@@ -398,7 +398,8 @@ export async function POST(request: NextRequest) {
       const slotFacts = await loadDeckSlotFacts(
         supabase as unknown as DeckFactsClient,
         context.deckId,
-        ownedDeck.deck_type ?? null
+        ownedDeck.deck_type ?? null,
+        ownedDeck.commander_name ?? null
       )
       deckChatOptions = {
         deckChat: {

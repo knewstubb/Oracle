@@ -42,3 +42,15 @@ This moves a slice of Phase 8 ahead of Phases 3 to 7. Recommendation: finish onl
 2. **Design (Designer):** how the three groups appear in the chat, with one mockup covering S1 to S4. Owner approves.
 3. **Build in slices (Developer, Tester):** (a) the chat knows a deck's proxies and gaps; (b) it knows which cards are spare, in other decks or unowned; (c) the grouped answer with warnings. Owner sees each slice.
 4. **Close-out:** owner tries it on three real decks.
+
+## 9. Addendum 2026-11-03: cards that moved between decks (owner direction)
+**Problem:** decks get scanned out of order. A card is physically in deck B now, but Oracle still has it in deck A. Importing B today cannot save that card.
+
+**Owner decision: the scan wins, with a check screen.**
+- When a deck is imported and a card is already sleeved in another deck, the card moves to the scanned deck. The other deck then shows that card as short by one until it is scanned.
+- Before saving, the import lists "N cards moved from other decks". The owner can untick any card.
+- **Several copies in several decks:** if the owner has, for example, two Sol Rings and both are in other decks (Korvold and Prosper), the check screen asks which deck to pull each copy from. The owner picks per card. Where only one deck has a copy, it is chosen automatically.
+- Nothing is deleted. The deck that loses a card keeps it as a planned card and is marked short.
+
+**Open for the Architect (Gate 2):** how to store "moved, other deck now short" with the current data model, and whether a data change is needed. Any data change comes back for owner approval. No locked decision is changed by this addendum.
+**Status:** wording approved by the owner in chat; not yet audited or designed. Designer: one mockup of the check screen (single move, and the pick-a-deck case).

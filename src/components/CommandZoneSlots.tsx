@@ -79,11 +79,13 @@ export function CommandZoneSlots({ deckId, cards, commanderName, deckTarget, hea
   const slotKind = kindQuery.data ?? null
   const second = cards.find((c) => isSecondCommander(c)) ?? null
   const companion = cards.find((c) => isCompanion(c)) ?? null
-  const { eligibility, companionNames } = useCommanderEligibility(cards, commanderName)
+  const { companionNames } = useCommanderEligibility(cards, commanderName)
   const showCompanion = companionSlotVisible(cards, companionNames)
   const showSecond = !!primary && !!(second || slotKind)
   const hasCommander = !!primary || cards.some((c) => !!c.is_commander && !isCompanion(c))
-  const showLeadHint = heading && !hasCommander && eligibility.lead.size > 0
+  // Shown whenever there is no commander (the slots are only drawn for Commander-style decks). It goes as soon as
+  // a commander exists, including straight after the optimistic "Add as commander" (the cards then carry the flag).
+  const showLeadHint = heading && !hasCommander
   const [confirmingRemove, setConfirmingRemove] = useState(false)
   const [removing, setRemoving] = useState(false)
 
@@ -133,8 +135,8 @@ export function CommandZoneSlots({ deckId, cards, commanderName, deckTarget, hea
   const body = (
     <div className="mt-2 flex flex-wrap items-center gap-2" data-testid="command-zone-slots">
       {showLeadHint && (
-        <p className="text-[length:var(--fs-sm)] text-muted-foreground">
-          No commander yet. A card that can lead this deck has Add as commander on its menu.
+        <p className="text-[length:var(--fs-sm)] text-muted-foreground" data-testid="no-commander-note">
+          No commander yet. Open a card&apos;s menu and choose &apos;Add as commander&apos;.
         </p>
       )}
       {showSecond && primary && (

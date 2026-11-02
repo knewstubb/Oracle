@@ -16,7 +16,7 @@ import { createProviderAdapter, ProviderConfigError } from '@/lib/provider-facto
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
 import { buildDeckChatPrompt } from '@/lib/deck-chat-prompt'
-import { loadDeckSlotFacts, formatDeckSlotFactsForPrompt } from '@/lib/deck-chat-facts'
+import { loadDeckSlotFacts, formatDeckSlotFactsForPrompt, type DeckFactsClient } from '@/lib/deck-chat-facts'
 import { DECK_CHAT_CONTEXT, isDeckChatEditToolsEnabled } from '@/lib/tool-registry'
 import { getUserPreferences, formatPlayerContextPrompt } from '@/lib/user-preferences'
 
@@ -105,7 +105,7 @@ export async function POST(
   const playerContext = formatPlayerContextPrompt(prefs)
 
   // Read-only proxy/gap facts for this deck (null = could not be loaded)
-  const slotFacts = await loadDeckSlotFacts(supabase, deckId, deck.deck_type)
+  const slotFacts = await loadDeckSlotFacts(supabase as unknown as DeckFactsClient, deckId, deck.deck_type)
   const editToolsEnabled = isDeckChatEditToolsEnabled()
 
   // Build system prompt

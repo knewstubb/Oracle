@@ -15,6 +15,7 @@ import { getModelConfig, calculateCost, DEFAULT_MODEL_ID } from '@/lib/ai-models
 import { createProviderAdapter, ProviderConfigError } from '@/lib/provider-factory'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
+import { loadDeckCommanders } from '@/lib/deck-colour-identity'
 import { buildDeckChatPrompt } from '@/lib/deck-chat-prompt'
 import { loadDeckSlotFacts, formatDeckSlotFactsForPrompt, type DeckFactsClient } from '@/lib/deck-chat-facts'
 import { DECK_CHAT_CONTEXT, isDeckChatEditToolsEnabled } from '@/lib/tool-registry'
@@ -106,6 +107,7 @@ export async function POST(
 
   // Read-only proxy/gap facts for this deck (null = could not be loaded)
   const slotFacts = await loadDeckSlotFacts(supabase as unknown as DeckFactsClient, deckId, deck.deck_type, deck.commander_name)
+  const commanders = await loadDeckCommanders(supabase, deckId, userId)
   const editToolsEnabled = isDeckChatEditToolsEnabled()
 
   // Build system prompt
@@ -116,7 +118,12 @@ export async function POST(
     deck.card_count || cards.length,
     cards,
     playerContext,
-    { editToolsEnabled, slotFacts: formatDeckSlotFactsForPrompt(slotFacts) }
+    {
+      editToolsEnabled,
+      slotFacts: formatDeckSlotFactsForPrompt(slotFacts),
+      commanderNames: commanders?.names,
+      colourIdentity: commanders?.identity ?? null,
+    }
   )
 
   // Get model config

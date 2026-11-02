@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import { parseColourLetters } from '@/lib/command-zone'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
 import { suggestManaBase } from '@/lib/mcp-client'
@@ -63,9 +64,7 @@ export async function POST(request: NextRequest) {
     const landCount = landCards.length
 
     // Build colour distribution from the deck's colour identity
-    const colourIdentity = deck.colour_identity
-      ? deck.colour_identity.split(',').map((c) => c.trim())
-      : []
+    const colourIdentity = [...parseColourLetters(deck.colour_identity)]
     const colorDistribution: Record<string, number> = {}
     for (const colour of ['W', 'U', 'B', 'R', 'G']) {
       if (colourIdentity.includes(colour)) {

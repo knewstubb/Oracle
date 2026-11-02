@@ -9,6 +9,7 @@
  * - For Claimed slots: which deck(s) hold copies
  * - For all: valid decks for reassignment (filtered by color identity)
  */
+import { parseColourLetters } from '@/lib/command-zone'
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
@@ -174,11 +175,10 @@ export async function GET(
     const validDecks: CardActionContext['validDecks'] = (allDecks ?? [])
       .filter((deck) => {
         if (cardCI.length === 0) return true // Colorless cards go anywhere
-        const deckCI = deck.colour_identity
-          ? deck.colour_identity.split(',').map((c: string) => c.trim()).filter(Boolean)
-          : []
-        // Deck CI must contain every color in card CI
-        return cardCI.every((color: string) => deckCI.includes(color))
+        // Stored as "WBR" (or "W,B,R" on older decks): parseColourLetters reads both.
+        const deckCI = parseColourLetters(deck.colour_identity)
+        // Deck CI (all commanders together) must contain every color in card CI
+        return cardCI.every((color: string) => deckCI.has(color))
       })
       .map((deck) => ({
         deckId: deck.id,

@@ -115,17 +115,20 @@ export async function browseSpareCopies(
   const deckRows = await simple(client.from('decks').select('id, name, colour_identity').eq('id', deckId).eq('user_id', userId), 'deck')
   if (deckRows.length === 0) throw new Error('Deck not found')
 
-  // Colour identity: stored when present, else from the commander's card data
+  // Colour identity = ALL the commanders' colours together (partner, background...; never the companion).
+  // Worked out from the commander cards; the stored deck value is only the fallback, because it can lag behind.
   let identity: string[] | null = null
   let source: SpareBrowseResult['colour_source'] = 'unknown'
-  const stored = typeof deckRows[0].colour_identity === 'string' ? deckRows[0].colour_identity : ''
-  const storedSet = parseColourLetters(stored)
-  if (storedSet.size > 0) {
-    identity = [...storedSet].sort()
-    source = 'deck'
+  try { identity = await loadCommanderColours(client, deckId) } catch { identity = null }
+  if (identity) {
+    source = 'commander'
   } else {
-    try { identity = await loadCommanderColours(client, deckId) } catch { identity = null }
-    if (identity) source = 'commander'
+    const stored = typeof deckRows[0].colour_identity === 'string' ? deckRows[0].colour_identity : ''
+    const storedSet = parseColourLetters(stored)
+    if (storedSet.size > 0) {
+      identity = [...storedSet].sort()
+      source = 'deck'
+    }
   }
 
   const empty = (extra: string): SpareBrowseResult => ({

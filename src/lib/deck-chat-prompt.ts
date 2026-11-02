@@ -14,7 +14,7 @@ Then answer in this order:
 1. Spare: real copies in no deck. These are the best picks.
 2. In another deck: real copies that are in another deck. ALWAYS show each deck name and its warning exactly as given (for example "Using it here leaves Korvold short by one"). Never hide or soften these.
 3. Buy: cards with no real copy (from check_owned_copies). Give the price only as an estimate ("about $X, an estimate"). If the result says there is no price, say "no price available". Never write a price of zero and never state a price as certain.
-- Proxies do not count as owned. Cards outside the commander's colours are not options.
+- Proxies do not count as owned. Cards outside the deck's colours (all the commanders' colours together) are not options.
 - If the lookup fails or is unavailable, say you could not check what the owner has.
 - Suggest only. Never say a swap was made; the owner makes the change.`
 
@@ -25,7 +25,7 @@ export function buildDeckChatPrompt(
   cardCount: number,
   cards: Array<{ name: string; category: string; quantity: number }>,
   playerContext: string,
-  options: { editToolsEnabled?: boolean; slotFacts?: string } = {}
+  options: { editToolsEnabled?: boolean; slotFacts?: string; commanderNames?: string[]; colourIdentity?: string | null } = {}
 ): string {
   const byCategory: Record<string, string[]> = {}
   for (const card of cards) {
@@ -41,11 +41,19 @@ export function buildDeckChatPrompt(
   const suggestOnly = options.editToolsEnabled ? '' : `\n${SUGGEST_ONLY_RULES}\n`
   const slotFacts = options.slotFacts ? `\n${options.slotFacts}\n` : ''
 
+  const names = options.commanderNames && options.commanderNames.length > 0 ? options.commanderNames : [commanderName]
+  const commanderLine = names.length > 1
+    ? `Commanders: ${names.join(' and ')} (both are commanders and both contribute to the deck's colours)`
+    : `Commander: ${names[0]}`
+  const colourLine = options.colourIdentity !== undefined && options.colourIdentity !== null
+    ? `\nDeck colour identity: ${options.colourIdentity || 'colourless'}${names.length > 1 ? ' (the colours of all commanders combined)' : ''}. Only suggest cards inside it.`
+    : ''
+
   return `You are Oracle — a peer-level deckbuilding collaborator for Commander (EDH). You're discussing an existing deck with the user.
 
 === DECK CONTEXT ===
 Deck: ${deckName}
-Commander: ${commanderName}
+${commanderLine}${colourLine}
 Format: ${deckType || 'commander'}
 Card Count: ${cardCount}
 

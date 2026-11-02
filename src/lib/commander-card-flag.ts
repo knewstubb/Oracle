@@ -101,15 +101,18 @@ export async function markCommanderCard(
 }
 
 /**
- * Commander cards to show in the Commander section and to count: the flagged primary + partner/background
- * rows (never a companion). Old decks with only `commander_name` set fall back to the exact-name card.
+ * Every commander card, treated as equals: the flagged rows (the commander and any partner / background / friends
+ * forever / doctor's companion) and never a companion. If the deck's `commander_name` card is not among the flagged
+ * rows (old decks that only have the name, or a deck where only the second commander is flagged), that card is added
+ * too, so both commanders are always found. Used for the Commander section, the count, and colour identity.
  */
 export function findCommanderCards<T extends FlagRow>(rows: T[], commanderName?: string | null): T[] {
   const flagged = rows.filter((r) => !!r.is_commander && !isCompanion(r) && onMainList(r))
-  if (flagged.length > 0) return flagged
-  if (!commanderName) return []
+  if (!commanderName) return flagged
+  if (flagged.some((r) => r.card_name === commanderName)) return flagged
   const byName = findCommanderTarget(rows, commanderName)
-  return byName ? [rows.find((r) => r.id === byName.id) as T] : []
+  if (!byName) return flagged
+  return [rows.find((r) => r.id === byName.id) as T, ...flagged]
 }
 
 /**

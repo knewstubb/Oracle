@@ -23,6 +23,7 @@ import { createProviderAdapter, ProviderConfigError } from '@/lib/provider-facto
 import { getUserPreferences, formatPlayerContextPrompt } from '@/lib/user-preferences'
 import { buildOracleSystemPrompt, type OracleChatContext, type OracleDeckChatPromptOptions } from '@/lib/oracle-prompt'
 import { loadDeckSlotFacts, formatDeckSlotFactsForPrompt, type DeckFactsClient } from '@/lib/deck-chat-facts'
+import { loadDeckCommanders } from '@/lib/deck-colour-identity'
 import { DECK_CHAT_CONTEXT, isDeckChatEditToolsEnabled } from '@/lib/tool-registry'
 
 // ---------------------------------------------------------------------------
@@ -401,7 +402,11 @@ export async function POST(request: NextRequest) {
         ownedDeck.deck_type ?? null,
         ownedDeck.commander_name ?? null
       )
+      // Both commanders count: their colours together replace the single-commander lookup above.
+      const commanders = await loadDeckCommanders(supabase, context.deckId, userId)
+      if (commanders && commanders.identity) commanderColorIdentity = commanders.identity
       deckChatOptions = {
+        commanderNames: commanders?.names,
         deckChat: {
           editToolsEnabled: isDeckChatEditToolsEnabled(),
           slotFacts: formatDeckSlotFactsForPrompt(slotFacts),

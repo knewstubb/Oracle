@@ -15,7 +15,7 @@ import { deckKeys } from '@/hooks/useDeckQueryKeys'
 import type { DeckCard } from '@/components/CardGrid'
 
 /**
- * The second-commander and companion slots on the deck page (T-62 S5).
+ * The other-commander (Partner, Background...) and companion slots on the deck page (T-62 S5).
  * Wording and layout follow the commander slot; there is no Designer spec for the companion yet.
  * The companion sits outside the 100 cards (saved as Sideboard) and outside colour identity and legality.
  */
@@ -130,11 +130,11 @@ export function CommandZoneSlots({ deckId, cards, commanderName }: CommandZoneSl
       {primary && (second || slotKind) && (
         <SlotPicker
           slot="second"
-          label={slotKind ? SECOND_SLOT_LABEL[slotKind] : 'Second commander'}
+          label={slotKind ? SECOND_SLOT_LABEL[slotKind] : 'Partner or Background'}
           cards={cards}
           withName={primary.card_name}
           current={second}
-          onPick={(c) => save({ secondCardId: c?.id ?? null }, c ? `${c.name} is second commander` : 'Second commander removed')}
+          onPick={(c) => save({ secondCardId: c?.id ?? null }, c ? `${c.name} is a commander` : `${second?.card_name ?? 'Commander'} removed`)}
         />
       )}
       {confirmingRemove && companion ? (
@@ -204,7 +204,8 @@ function SlotPicker({ slot, label: labelProp, cards, current, onPick, withName, 
   const [allLoading, setAllLoading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const label = labelProp ?? (isSecond ? 'Second commander' : 'Companion')
+  // The other commander is a commander like the first: its kind (Partner, Background...) names the slot only while empty.
+  const label = labelProp ?? (isSecond ? 'Partner or Background' : 'Companion')
   const noneText = `No ${label.toLowerCase()} · Add`
   const Icon = isSecond ? Users : Shield
 
@@ -320,11 +321,11 @@ function SlotPicker({ slot, label: labelProp, cards, current, onPick, withName, 
             size="sm"
             aria-haspopup="dialog"
             aria-expanded={open}
-            aria-label={current ? `${label}: ${current.card_name}. Change.` : `No ${label.toLowerCase()}. Add ${label.toLowerCase()}.`}
+            aria-label={current ? (isSecond ? `Commander: ${current.card_name}. Change.` : `${label}: ${current.card_name}. Change.`) : `No ${label.toLowerCase()}. Add ${label.toLowerCase()}.`}
             className="max-w-64"
           >
             <Icon className="size-4 shrink-0" aria-hidden="true" />
-            <span className="truncate">{current ? `${label} · ${current.card_name}` : noneText}</span>
+            <span className="truncate">{current ? (isSecond ? current.card_name : `${label} · ${current.card_name}`) : noneText}</span>
           </Button>
         }
       />
@@ -349,12 +350,12 @@ function SlotPicker({ slot, label: labelProp, cards, current, onPick, withName, 
                 onClick={clear}
                 className="flex w-full rounded-md px-2 py-1.5 text-left text-[length:var(--fs-sm)] hover:bg-[var(--bg-surface-hover)]"
               >
-                No {label.toLowerCase()}
+                Remove {current?.card_name}
               </button>
             )}
             {failed && (
               <div role="alert" className="py-4 text-center text-[length:var(--fs-sm)] text-destructive">
-                Could not check which cards can be {isSecond ? 'a second commander' : 'a companion'}. Try again.
+                Could not check which cards can be {isSecond ? 'a partner or background' : 'a companion'}. Try again.
               </div>
             )}
             {mode === 'deck' && !failed && eligible === null && (
@@ -368,7 +369,7 @@ function SlotPicker({ slot, label: labelProp, cards, current, onPick, withName, 
                 {q
                   ? 'No match in this deck'
                   : isSecond
-                    ? 'No card in this deck can pair with this commander'
+                    ? 'No card in this deck can be a commander with this one'
                     : 'No card in this deck has Companion'}
               </div>
             )}

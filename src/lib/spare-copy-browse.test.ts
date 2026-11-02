@@ -130,11 +130,17 @@ describe('browseSpareCopies', () => {
     expect(r.notes.join(' ')).toContain('Showing 1 of 3')
   })
 
-  it('uses the stored colour identity when present', async () => {
-    const t = world({ decks: [{ id: 1, user_id: 'u1', name: 'Mendicant', colour_identity: 'RG' }] })
+  it('uses the stored colour identity only as the fallback, when no commander colours are known', async () => {
+    const t = world({ decks: [{ id: 1, user_id: 'u1', name: 'Mendicant', colour_identity: 'RG', commander_name: null }], deck_cards: [] })
     const r = await run(t)
     expect(r.colour_source).toBe('deck')
     expect(r.spare.map(c => c.card_name)).toContain('Green Card')
+  })
+
+  it('commanders win over a stale stored value (it may hold one commander only)', async () => {
+    const t = world({ decks: [{ id: 1, user_id: 'u1', name: 'Mendicant', colour_identity: 'ZZ', commander_name: 'Mendicant Core, Guidelight' }] })
+    const r = await run(t)
+    expect(r.colour_source).toBe('commander')
   })
 
   it('says colours could not be determined and lists nothing', async () => {

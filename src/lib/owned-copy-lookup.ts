@@ -22,6 +22,7 @@
 // ---------------------------------------------------------------------------
 
 import { isPriceDataStale } from './price-store'
+import { findCommanderCards, type FlagRow } from './commander-card-flag'
 
 export const MAX_LOOKUP_NAMES = 60
 const CHUNK = 100
@@ -129,16 +130,17 @@ async function resolveNames(client: LookupClient, names: string[]): Promise<Map<
 
 /** Commander colours of the viewed deck, or null when not known. */
 export async function loadCommanderColours(client: LookupClient, deckId: number): Promise<string[] | null> {
-  const cmdRows = await rows(
-    client.from('deck_cards').select('card_name').eq('deck_id', deckId).eq('is_commander', true),
+  // Every commander counts equally (partner, background...; never the companion). An old deck that only
+  // has the commander's name set still works: that card is found by name.
+  const cardRows = await rows(
+    client.from('deck_cards').select('id, card_name, categories, is_commander, command_zone_role').eq('deck_id', deckId),
     'commander'
   )
-  let names = cmdRows.map(r => String(r.card_name))
-  if (names.length === 0) {
-    const deck = await rows(client.from('decks').select('commander_name').eq('id', deckId), 'deck')
-    const n = deck[0]?.commander_name
-    if (typeof n === 'string' && n) names = [n]
-  }
+  const deck = await rows(client.from('decks').select('commander_name').eq('id', deckId), 'deck')
+  const n = deck[0]?.commander_name
+  const named = typeof n === 'string' && n ? n : null
+  const names = [...new Set(findCommanderCards(cardRows as unknown as FlagRow[], named).map(r => String(r.card_name)))]
+  if (named && !names.includes(named)) names.push(named)
   if (names.length === 0) return null
   const prints = await rows(client.from('ref_printings').select('name, color_identity').in('name', names), 'commander colours')
   const union = new Set<string>()

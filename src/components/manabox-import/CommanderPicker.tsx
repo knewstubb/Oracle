@@ -1,5 +1,6 @@
 'use client'
 
+import { commanderChipText } from '@/lib/command-zone'
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Crown, Search, Loader2, Check, X } from 'lucide-react'
@@ -48,9 +49,11 @@ export interface CommanderPickerProps {
   onSet?: () => void
   /** Current commander, shown on the button so it can also be changed. */
   commanderName?: string | null
+  /** Every commander on the deck (both partners); the chip shows them all. Falls back to commanderName. */
+  commanderNames?: string[]
 }
 
-export function CommanderPicker({ deckId, cards, open, onOpenChange, onSet, commanderName }: CommanderPickerProps) {
+export function CommanderPicker({ deckId, cards, open, onOpenChange, onSet, commanderName, commanderNames }: CommanderPickerProps) {
   const [query, setQuery] = useState('')
   const [mode, setMode] = useState<'deck' | 'all'>('deck')
   const [allResults, setAllResults] = useState<CommanderCandidate[]>([])
@@ -173,6 +176,7 @@ export function CommanderPicker({ deckId, cards, open, onOpenChange, onSet, comm
     .filter((c, i, arr) => arr.findIndex((x) => x.name === c.name) === i)
 
   const options = mode === 'deck' ? deckCandidates : allResults
+  const chipText = commanderChipText(commanderNames && commanderNames.length > 0 ? commanderNames : [commanderName])
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -184,12 +188,12 @@ export function CommanderPicker({ deckId, cards, open, onOpenChange, onSet, comm
             size="sm"
             aria-haspopup="dialog"
             aria-expanded={open}
-            aria-label={commanderName ? `Commander: ${commanderName}. Change.` : 'No commander. Choose commander.'}
+            aria-label={chipText ? `${chipText.replace('Commander · ', commanderNames && commanderNames.length > 1 ? 'Commanders: ' : 'Commander: ')}. Change.` : 'No commander. Choose commander.'}
             className="max-w-64"
           >
             <Crown className="size-4 shrink-0" aria-hidden="true" />
             <span className="truncate">
-              {commanderName ? `Commander · ${commanderName}` : 'No commander · Choose'}
+              {chipText ?? 'No commander · Choose'}
             </span>
           </Button>
         }
@@ -297,6 +301,7 @@ export interface ChooseCommanderButtonProps {
   openOnMount?: boolean
   onSet?: () => void
   commanderName?: string | null
+  commanderNames?: string[]
 }
 
 export function ChooseCommanderButton({
@@ -305,6 +310,7 @@ export function ChooseCommanderButton({
   openOnMount,
   onSet,
   commanderName,
+  commanderNames,
 }: ChooseCommanderButtonProps) {
   const [open, setOpen] = useState(openOnMount ?? false)
 
@@ -316,6 +322,7 @@ export function ChooseCommanderButton({
       onOpenChange={setOpen}
       onSet={onSet}
       commanderName={commanderName}
+      commanderNames={commanderNames}
     />
   )
 }

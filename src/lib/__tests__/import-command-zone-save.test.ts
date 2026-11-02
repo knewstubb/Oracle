@@ -35,7 +35,7 @@ describe('resolveImportCommandZone', () => {
   it('drops an illegal pair with a plain note', async () => {
     const z = await resolveImportCommandZone(refClient([partnerA, plain]), { commander: 'A', second: 'C' })
     expect(z.second).toBeNull()
-    expect(z.notes[0]).toMatch(/was not set as a second commander/)
+    expect(z.notes[0]).toMatch(/was not set as a commander/)
   })
   it('drops the second when card details are missing', async () => {
     const z = await resolveImportCommandZone(refClient([partnerA]), { commander: 'A', second: 'B' })

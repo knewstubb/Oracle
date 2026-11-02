@@ -7,6 +7,7 @@ import { AlertCircle, RefreshCw, ClipboardCopy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { findCommanderCards } from '@/lib/commander-card-flag'
 import { PersistentHeader } from '@/components/PersistentHeader'
 import { LegalityBanner } from '@/components/LegalityBanner'
 import { ActiveToggle } from '@/components/ActiveToggle'
@@ -270,6 +271,7 @@ export default function DeckViewPage() {
               cards={cards}
               openOnMount={shouldOpenCommanderPicker && !deck.commander_name}
               commanderName={deck.commander_name}
+              commanderNames={findCommanderCards(cards, deck.commander_name).map((c) => c.card_name)}
             />
           ) : undefined
         }

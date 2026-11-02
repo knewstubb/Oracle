@@ -53,6 +53,34 @@ function isMaybeboard(categories: string | null): boolean {
   return !!categories && categories.includes('Maybeboard')
 }
 
+export type DeckCardCopyStatus =
+  | 'proxy'
+  | 'real'
+  | 'generic_basic_land'
+  | 'no_copy_sleeved'
+  | 'unknown'
+  | 'maybeboard'
+
+/**
+ * Pure: the proxy / sleeved status of one deck row. Shared by the facts block
+ * and get_deck_cards so both always agree.
+ *  proxy / real = the sleeved copy's is_proxy; unknown = copy sleeved but is_proxy unreadable
+ *  generic_basic_land = counts as sleeved (D-032); no_copy_sleeved = on the list, no physical copy yet
+ *  maybeboard = not part of the main list (D-005)
+ */
+export function classifyDeckCardCopy(
+  row: Pick<DeckSlotRow, 'card_name' | 'categories' | 'copy_id' | 'scryfall_id' | 'is_proxy'>
+): DeckCardCopyStatus {
+  if (isMaybeboard(row.categories)) return 'maybeboard'
+  if (row.copy_id !== null) {
+    if (row.is_proxy === true) return 'proxy'
+    if (row.is_proxy === false) return 'real'
+    return 'unknown'
+  }
+  if (isBasicLand(row.card_name) && !row.scryfall_id) return 'generic_basic_land'
+  return 'no_copy_sleeved'
+}
+
 function qty(row: DeckSlotRow): number {
   return row.quantity && row.quantity > 0 ? row.quantity : 1
 }
@@ -80,21 +108,18 @@ export function buildDeckSlotFacts(rows: DeckSlotRow[], deckType: string | null)
   }
 
   for (const row of rows) {
-    if (isMaybeboard(row.categories)) {
+    const status = classifyDeckCardCopy(row)
+    if (status === 'maybeboard') {
       facts.maybeboardCount += qty(row)
       continue
     }
     facts.mainListCount += qty(row)
 
-    if (row.copy_id !== null) {
-      if (row.is_proxy === true) facts.proxies.push(label(row))
-      else if (row.is_proxy === false) facts.originals.push(label(row))
-      else facts.unknownType.push(label(row))
-    } else if (isBasicLand(row.card_name) && !row.scryfall_id) {
-      facts.genericLandCount += qty(row)
-    } else {
-      facts.noCopy.push(label(row))
-    }
+    if (status === 'proxy') facts.proxies.push(label(row))
+    else if (status === 'real') facts.originals.push(label(row))
+    else if (status === 'unknown') facts.unknownType.push(label(row))
+    else if (status === 'generic_basic_land') facts.genericLandCount += qty(row)
+    else facts.noCopy.push(label(row))
   }
 
   if (targetSize !== null) {

@@ -9,11 +9,35 @@
 // type names than the API. The API uses 'deck' while the context uses the same.
 // We accept both and normalize in buildOracleSystemPrompt.
 
+import { SUGGEST_ONLY_RULES, OWNED_COPY_RULES } from './deck-chat-prompt'
+
 export interface OracleChatContext {
   type: 'collection' | 'deck' | 'deck-list' | 'forge' | 'workbench' | 'general' | 'commander-selection' | 'exploration'
   deckId?: number
   deckName?: string
   commanderName?: string
+}
+
+/** Extra prompt input when the assistant has a deck context (see oracle chat route). */
+export interface OracleDeckChatPromptOptions {
+  deckChat?: {
+    /** ORACLE_DECK_CHAT_EDIT_TOOLS on: edit tools offered, suggest-only rules omitted */
+    editToolsEnabled: boolean
+    /** Output of formatDeckSlotFactsForPrompt (proxy/gap facts block) */
+    slotFacts: string
+  }
+}
+
+export function buildDeckChatAdditions(opts: NonNullable<OracleDeckChatPromptOptions['deckChat']>): string {
+  const lines = [
+    '=== DECK CHAT RULES (these override any earlier instruction) ===',
+    '- For which cards are proxies or real copies, use the PROXIES AND GAPS block below, or the copy_status on each card from get_deck_cards. NEVER say proxy data is unavailable unless the block says UNKNOWN.',
+    '- For "do I own it / is it spare / is it in another deck", use check_owned_copies, not collection_lookup.',
+  ]
+  const parts = [lines.join('\n'), opts.slotFacts]
+  if (!opts.editToolsEnabled) parts.push(SUGGEST_ONLY_RULES)
+  parts.push(OWNED_COPY_RULES)
+  return parts.join('\n\n')
 }
 
 // ---------------------------------------------------------------------------
@@ -209,7 +233,9 @@ If you're unsure about the deck contents, CALL get_deck_cards.
 
 When suggesting cards, check ownership with collection_lookup first.
 Reference the deck's commander and strategy when making suggestions.
+`
 
+const DECK_MODIFY_CONTEXT = `
 === MODIFYING THE DECK ===
 
 You can add and remove cards from the user's deck:
@@ -530,7 +556,8 @@ Re-scan your entire response right now. Did you write any card name without [[br
 export function buildOracleSystemPrompt(
   context: OracleChatContext,
   playerContext: string,
-  commanderColorIdentity?: string | null
+  commanderColorIdentity?: string | null,
+  options?: OracleDeckChatPromptOptions
 ): string {
   const parts: string[] = [ORACLE_PERSONALITY]
   
@@ -549,6 +576,11 @@ export function buildOracleSystemPrompt(
       break
     case 'deck':
       parts.push(DECK_CONTEXT)
+      // Deck chat: suggest-only unless the edit setting is on (the edit tools are
+      // gated off in the tool list too). The original text is kept, not deleted.
+      if (!options?.deckChat || options.deckChat.editToolsEnabled) {
+        parts.push(DECK_MODIFY_CONTEXT)
+      }
       if (context.deckId) {
         parts.push(`\n**DECK ID: ${context.deckId}** — Use this with get_deck_cards to see the card list.`)
       }
@@ -606,6 +638,11 @@ Example: If color identity is "WBR" (Mardu):
   
   // Add tool guidance
   parts.push(ORACLE_TOOL_PROMPT)
+
+  // Deck chat additions go last so they win over the general tool guidance above.
+  if (options?.deckChat && context.type === 'deck') {
+    parts.push(buildDeckChatAdditions(options.deckChat))
+  }
   
   return parts.join('\n\n')
 }

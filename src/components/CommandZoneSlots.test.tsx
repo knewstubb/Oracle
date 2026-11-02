@@ -22,8 +22,11 @@ function wrap(ui: React.ReactNode) {
   return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>)
 }
 
-function mockFetch(impl: (url: string, init?: RequestInit) => Response | Promise<Response>) {
-  const f = vi.fn(async (url: string, init?: RequestInit) => impl(url, init))
+/** The commander's allowed second-slot kind is answered here; everything else goes to `impl`. */
+function mockFetch(impl: (url: string, init?: RequestInit) => Response | Promise<Response>, kind: string | null = 'partner') {
+  const f = vi.fn(async (url: string, init?: RequestInit) =>
+    url.includes('role=second-kind') ? Response.json({ kind }) : impl(url, init)
+  )
   vi.stubGlobal('fetch', f)
   return f
 }
@@ -42,15 +45,49 @@ describe('CommandZoneSlots', () => {
   afterEach(() => vi.unstubAllGlobals())
 
   it('shows empty slots, and no second-commander slot until there is a commander', () => {
+    mockFetch(() => Response.json({}))
     wrap(<CommandZoneSlots deckId={9} cards={[lurrus]} commanderName={null} />)
     expect(screen.getByText('No companion · Add')).toBeTruthy()
     expect(screen.queryByText('No second commander · Add')).toBeNull()
   })
 
-  it('shows the companion by name', () => {
+  it('shows the companion by name, and a Partner slot only because the commander allows it', async () => {
+    mockFetch(() => Response.json({}), 'partner')
     wrap(<CommandZoneSlots deckId={9} cards={[primary, companionRow]} commanderName="Atraxa" />)
     expect(screen.getByText('Companion · Yorion, Sky Nomad')).toBeTruthy()
-    expect(screen.getByText('No second commander · Add')).toBeTruthy()
+    expect(await screen.findByText('No partner · Add')).toBeTruthy()
+  })
+
+  it.each([
+    ['background', 'No background · Add'],
+    ['partner_with', 'No partner with · Add'],
+    ['friends_forever', 'No friends forever · Add'],
+    ['doctors_companion', "No doctor's companion · Add"],
+  ])('labels the second slot for what it is (%s)', async (kind, text) => {
+    mockFetch(() => Response.json({}), kind)
+    wrap(<CommandZoneSlots deckId={9} cards={[primary]} commanderName="Atraxa" />)
+    expect(await screen.findByText(text)).toBeTruthy()
+  })
+
+  it('shows no second-commander slot when the commander allows none, but still the companion slot', async () => {
+    const f = mockFetch(() => Response.json({}), null)
+    wrap(<CommandZoneSlots deckId={9} cards={[primary, sol]} commanderName="Atraxa" />)
+    await waitFor(() => expect(f).toHaveBeenCalled())
+    expect(screen.getByText('No companion · Add')).toBeTruthy()
+    expect(screen.queryByText(/No (partner|background|second commander)/)).toBeNull()
+  })
+
+  it('shows a filled second commander even if detection says none', async () => {
+    const partnerRow = card({ id: 5, card_name: 'Tymna', command_zone_role: 'partner', is_commander: true })
+    mockFetch(() => Response.json({}), null)
+    wrap(<CommandZoneSlots deckId={9} cards={[primary, partnerRow]} commanderName="Atraxa" />)
+    expect(await screen.findByText('Second commander · Tymna')).toBeTruthy()
+  })
+
+  it('shows the companion slot in a deck with no commander', () => {
+    mockFetch(() => Response.json({}), null)
+    wrap(<CommandZoneSlots deckId={9} cards={[sol]} commanderName={null} />)
+    expect(screen.getByText('No companion · Add')).toBeTruthy()
   })
 
   it('picks a companion from the deck: PUT carries the primary id and the existing second commander', async () => {
@@ -88,7 +125,7 @@ describe('CommandZoneSlots', () => {
         : Response.json({ error: 'Those two cannot be commanders together.' }, { status: 422 })
     )
     wrap(<CommandZoneSlots deckId={9} cards={[primary, lurrus]} commanderName="Atraxa" />)
-    await userEvent.click(screen.getByRole('button', { name: /No second commander/ }))
+    await userEvent.click(await screen.findByRole('button', { name: /No partner/ }))
     await userEvent.click(await screen.findByRole('option', { name: /Lurrus/ }))
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Those two cannot be commanders together.'))
   })
@@ -98,9 +135,9 @@ describe('CommandZoneSlots', () => {
     wrap(<CommandZoneSlots deckId={9} cards={[primary, companionRow]} commanderName="Atraxa" />)
     await userEvent.click(screen.getByRole('button', { name: 'Remove companion Yorion, Sky Nomad' }))
     expect(screen.getByText('Remove Yorion, Sky Nomad from this deck?')).toBeTruthy()
-    expect(f).not.toHaveBeenCalled()
+    expect(f.mock.calls.some((c) => !String(c[0]).includes('second-kind'))).toBe(false)
     await userEvent.click(screen.getByRole('button', { name: 'Keep' }))
-    expect(f).not.toHaveBeenCalled()
+    expect(f.mock.calls.some((c) => !String(c[0]).includes('second-kind'))).toBe(false)
     expect(screen.getByText('Companion · Yorion, Sky Nomad')).toBeTruthy()
   })
 

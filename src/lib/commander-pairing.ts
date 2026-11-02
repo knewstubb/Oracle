@@ -90,3 +90,28 @@ export function verifySecondCommander(
   }
   return { ok: true }
 }
+
+/** What kind of second-commander slot a commander allows (null = none). */
+export type SecondSlotKind = 'background' | 'partner_with' | 'partner' | 'friends_forever' | 'doctors_companion'
+
+/**
+ * Which second-commander slot this commander's own text allows, using the same keyword detection as the pair check.
+ * Returns null when it has none of Partner / Partner with / Friends forever / Doctor's companion (or Doctor) / Choose a Background.
+ */
+export function secondSlotKindFor(card: PairCardFacts): SecondSlotKind | null {
+  const { set } = keywordsOf(card)
+  if (set.has('background_chooser')) return 'background'
+  if (set.has('partner_with')) return 'partner_with'
+  if (set.has('partner')) return 'partner'
+  if (set.has('friends_forever')) return 'friends_forever'
+  if (set.has('doctors_companion') || set.has('doctor')) return 'doctors_companion'
+  return null
+}
+
+export const SECOND_SLOT_LABEL: Record<SecondSlotKind, string> = {
+  background: 'Background',
+  partner_with: 'Partner with',
+  partner: 'Partner',
+  friends_forever: 'Friends forever',
+  doctors_companion: "Doctor's companion",
+}

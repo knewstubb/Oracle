@@ -27,7 +27,6 @@ import { toast } from 'sonner'
 import { CardGrid, type DeckCard } from '@/components/CardGrid'
 import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
 import { ChooseCommanderButton } from '@/components/manabox-import/CommanderPicker'
-import { CommandZoneSlots } from '@/components/CommandZoneSlots'
 import { isCompanion } from '@/lib/command-zone'
 import { ImportResultLine } from '@/components/manabox-import/ImportResult'
 
@@ -266,15 +265,12 @@ export default function DeckViewPage() {
         totalValue={totalValue}
         nameSlot={
           getFormatConfig(deck.format).hasCommander ? (
-            <>
-              <ChooseCommanderButton
-                deckId={deck.id}
-                cards={cards}
-                openOnMount={shouldOpenCommanderPicker && !deck.commander_name}
-                commanderName={deck.commander_name}
-              />
-              <CommandZoneSlots deckId={deck.id} cards={cards} commanderName={deck.commander_name} />
-            </>
+            <ChooseCommanderButton
+              deckId={deck.id}
+              cards={cards}
+              openOnMount={shouldOpenCommanderPicker && !deck.commander_name}
+              commanderName={deck.commander_name}
+            />
           ) : undefined
         }
         actions={
@@ -359,6 +355,7 @@ export default function DeckViewPage() {
               onViewPicklist={() => setActiveTab('picklist')}
               maxCopies={getFormatConfig(deck.deck_type).maxCopies}
               commanderName={deck.commander_name}
+              showCommandZone={getFormatConfig(deck.format).hasCommander}
             />
           </div>
         </TabsContent>

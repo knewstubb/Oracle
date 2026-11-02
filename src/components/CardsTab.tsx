@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { Fragment, useState, useMemo, useEffect, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Search, List, LayoutGrid, Columns3, ChevronDown, ChevronRight, Sparkles, Loader2, Check, X, Trash2, Tags } from 'lucide-react'
 import { toast } from 'sonner'
@@ -24,6 +24,7 @@ import { DeckImportButton } from '@/components/DeckImportButton'
 import { CardGroupSection } from '@/components/CardGroupSection'
 import { CardSlotBadge } from '@/components/CardSlotBadge'
 import { isCompanion } from '@/lib/command-zone'
+import { CommandZoneSlots } from '@/components/CommandZoneSlots'
 import { PicklistProgress, type PicklistCard } from '@/components/PicklistV2'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -49,6 +50,8 @@ interface CardsTabProps {
   maxCopies?: number | null
   /** The deck's commander name; finds the commander card on older decks where no card is flagged yet. */
   commanderName?: string | null
+  /** Commander-format deck: show the second-commander and companion slots in the Commander section. */
+  showCommandZone?: boolean
 }
 
 // ─── API Response Types ──────────────────────────────────────────────────────
@@ -336,7 +339,7 @@ function applyGrouping(
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, onViewPicklist, maxCopies = 1, commanderName }: CardsTabProps) {
+export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, onViewPicklist, maxCopies = 1, commanderName, showCommandZone = false }: CardsTabProps) {
   // ── Derived Data ─────────────────────────────────────────────────────────────
 
   const availableCategories = useDeckCategories(cards)
@@ -579,8 +582,29 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
   const groupedCards = useMemo(() => {
     const commanderIds = new Set(findCommanderCards(activeCards, commanderName).map((c) => c.id))
     const commanderCards = filteredCards.filter((c) => commanderIds.has(c.id))
-    return applyGrouping(filteredCards, groupBy, statusMap, commanderCards)
-  }, [filteredCards, activeCards, groupBy, statusMap, commanderName])
+    const grouped = applyGrouping(filteredCards, groupBy, statusMap, commanderCards)
+    // A filled companion shows in the Commander section like the commander (it is not part of the 100).
+    const companions = showCommandZone && !searchQuery.trim() ? cards.filter((c) => isCompanion(c)) : []
+    if (companions.length === 0) return grouped
+    const idx = grouped.findIndex(([name]) => name === 'Commander')
+    if (idx === -1) return [['Commander', companions] as [string, DeckCard[]], ...grouped]
+    return grouped.map((g, i) => (i === idx ? ([g[0], [...g[1], ...companions]] as [string, DeckCard[]]) : g))
+  }, [filteredCards, activeCards, groupBy, statusMap, commanderName, showCommandZone, cards, searchQuery])
+
+  // Second-commander and companion slots sit under the commander card(s) in the Commander section.
+  const commanderSlots = showCommandZone ? (
+    <div className="mt-2">
+      <CommandZoneSlots deckId={deckId} cards={cards} commanderName={commanderName} />
+    </div>
+  ) : null
+  // Decks with no commander card in the list (or a search hiding it) still get the slots, in a Commander heading.
+  const standaloneSlots =
+    commanderSlots && !groupedCards.some(([name]) => name === 'Commander') ? (
+      <section aria-label="Commander" className="mb-6">
+        <h4 className="text-[length:var(--fs-sm)] font-medium uppercase text-muted-foreground">Commander</h4>
+        {commanderSlots}
+      </section>
+    ) : null
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
 
@@ -818,8 +842,9 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
             </div>
           ) : viewMode === 'cards' ? (
             <>
+              {standaloneSlots}
               <GridView cards={filteredCards} groupedCards={groupedCards} statusMap={statusMap}
-                  lifecycleMap={lifecycleMap} deckId={deckId} />
+                  lifecycleMap={lifecycleMap} deckId={deckId} commanderSlots={commanderSlots} />
               {maybeboardCards.length > 0 && (
                 <MaybeboardSection
                   cards={maybeboardCards}
@@ -840,7 +865,9 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
             </>
           ) : viewMode === 'groups' ? (
             <>
+              {standaloneSlots}
               <UnifiedGroupsLayout
+                commanderSlots={commanderSlots}
                 groupedCards={groupedCards}
                 statusMap={statusMap}
                   lifecycleMap={lifecycleMap}
@@ -875,7 +902,9 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
             </>
           ) : (
             <>
+              {standaloneSlots}
               <UnifiedListLayout
+                commanderSlots={commanderSlots}
                 groupedCards={groupedCards}
                 healthCategories={healthCategories}
                 availableCategories={availableCategories}
@@ -1041,6 +1070,7 @@ function UnifiedListLayout({
   maxCopies,
   selectedIds,
   onSelectionChange,
+  commanderSlots,
 }: {
   groupedCards: [string, DeckCard[]][]
   healthCategories?: CardsTabProps['healthCategories']
@@ -1053,6 +1083,7 @@ function UnifiedListLayout({
   maxCopies?: number | null
   selectedIds?: Set<number>
   onSelectionChange?: (cardId: number, selected: boolean) => void
+  commanderSlots?: React.ReactNode
 }) {
   return (
     <div className="space-y-2">
@@ -1061,8 +1092,8 @@ function UnifiedListLayout({
           (h) => h.category.toLowerCase() === groupName.toLowerCase()
         )
         return (
+          <Fragment key={groupName}>
           <CardGroupSection
-            key={groupName}
             groupName={groupName}
             groupCards={groupCards}
             statusMap={statusMap}
@@ -1076,6 +1107,8 @@ function UnifiedListLayout({
             selectedIds={selectedIds}
             onSelectionChange={onSelectionChange}
           />
+            {groupName === 'Commander' && commanderSlots}
+          </Fragment>
         )
       })}
     </div>
@@ -1096,6 +1129,7 @@ function UnifiedGroupsLayout({
   maxCopies,
   selectedIds,
   onSelectionChange,
+  commanderSlots,
 }: {
   groupedCards: [string, DeckCard[]][]
   statusMap: Map<number, CardSlotStatus>
@@ -1108,6 +1142,7 @@ function UnifiedGroupsLayout({
   maxCopies?: number | null
   selectedIds?: Set<number>
   onSelectionChange?: (cardId: number, selected: boolean) => void
+  commanderSlots?: React.ReactNode
 }) {
   // Distribute groups across 3 columns using a greedy shortest-column algorithm
   const columns = useMemo(() => {
@@ -1134,8 +1169,8 @@ function UnifiedGroupsLayout({
               (h) => h.category.toLowerCase() === groupName.toLowerCase()
             )
             return (
+              <Fragment key={groupName}>
               <CardGroupSection
-                key={groupName}
                 groupName={groupName}
                 groupCards={groupCards}
                 statusMap={statusMap}
@@ -1150,6 +1185,8 @@ function UnifiedGroupsLayout({
                 onSelectionChange={onSelectionChange}
                 compact
               />
+              {groupName === 'Commander' && commanderSlots}
+              </Fragment>
             )
           })}
         </div>
@@ -1166,12 +1203,14 @@ function GridView({
   statusMap,
   lifecycleMap,
   deckId,
+  commanderSlots,
 }: {
   cards: DeckCard[]
   groupedCards: [string, DeckCard[]][]
   statusMap: Map<number, CardSlotStatus>
   lifecycleMap: Map<number, DeckCardLifecycle>
   deckId: number
+  commanderSlots?: React.ReactNode
 }) {
   return (
     <div className="space-y-6">
@@ -1395,6 +1434,7 @@ function GridView({
               )
             })}
           </div>
+          {groupName === 'Commander' && commanderSlots}
         </section>
         )
       })}

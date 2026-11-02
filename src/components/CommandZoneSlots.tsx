@@ -1,13 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Loader2, Shield, Users, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { fetchEligibleNames, type CommanderCandidate } from '@/components/manabox-import/CommanderPicker'
+import { SECOND_SLOT_LABEL, type SecondSlotKind } from '@/lib/commander-pairing'
 import { isCompanion, isSecondCommander } from '@/lib/command-zone'
 import { COMPANION_CATEGORY } from '@/lib/command-zone'
 import { deckKeys } from '@/hooks/useDeckQueryKeys'
@@ -56,9 +57,28 @@ async function putCommandZone(deckId: number, body: PutBody): Promise<string | n
   }
 }
 
+async function fetchSecondSlotKind(commander: string): Promise<SecondSlotKind | null> {
+  const res = await fetch('/api/commanders/eligible?role=second-kind', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ with: commander }),
+  })
+  if (!res.ok) throw new Error('Could not check the commander')
+  const data = (await res.json()) as { kind: SecondSlotKind | null }
+  return data.kind ?? null
+}
+
 export function CommandZoneSlots({ deckId, cards, commanderName }: CommandZoneSlotsProps) {
   const queryClient = useQueryClient()
   const primary = useMemo(() => findPrimaryRow(cards, commanderName), [cards, commanderName])
+  // Which second-commander slot the commander's own rules text allows (null = none, so no slot).
+  const kindQuery = useQuery({
+    queryKey: ['second-slot-kind', primary?.card_name ?? null],
+    queryFn: () => fetchSecondSlotKind(primary!.card_name),
+    enabled: !!primary,
+    staleTime: 5 * 60 * 1000,
+  })
+  const slotKind = kindQuery.data ?? null
   const second = cards.find((c) => isSecondCommander(c)) ?? null
   const companion = cards.find((c) => isCompanion(c)) ?? null
   const [confirmingRemove, setConfirmingRemove] = useState(false)
@@ -107,9 +127,10 @@ export function CommandZoneSlots({ deckId, cards, commanderName }: CommandZoneSl
 
   return (
     <div className="flex flex-wrap items-center gap-2" data-testid="command-zone-slots">
-      {primary && (
+      {primary && (second || slotKind) && (
         <SlotPicker
           slot="second"
+          label={slotKind ? SECOND_SLOT_LABEL[slotKind] : 'Second commander'}
           cards={cards}
           withName={primary.card_name}
           current={second}
@@ -158,6 +179,8 @@ export function CommandZoneSlots({ deckId, cards, commanderName }: CommandZoneSl
 
 interface SlotPickerProps {
   slot: Slot
+  /** Slot name shown on the chip; the second-commander slot is named for what it is (Partner, Background...). */
+  label?: string
   cards: DeckCard[]
   current: DeckCard | null
   /** Called with the chosen card (deck card id resolved) or null to clear. */
@@ -168,7 +191,7 @@ interface SlotPickerProps {
   requestAddCard?: (name: string) => Promise<number | null>
 }
 
-function SlotPicker({ slot, cards, current, onPick, withName, requestAddCard }: SlotPickerProps) {
+function SlotPicker({ slot, label: labelProp, cards, current, onPick, withName, requestAddCard }: SlotPickerProps) {
   const isSecond = slot === 'second'
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -181,8 +204,8 @@ function SlotPicker({ slot, cards, current, onPick, withName, requestAddCard }: 
   const [allLoading, setAllLoading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const label = isSecond ? 'Second commander' : 'Companion'
-  const noneText = isSecond ? 'No second commander · Add' : 'No companion · Add'
+  const label = labelProp ?? (isSecond ? 'Second commander' : 'Companion')
+  const noneText = `No ${label.toLowerCase()} · Add`
   const Icon = isSecond ? Users : Shield
 
   const candidates = useMemo(
@@ -326,7 +349,7 @@ function SlotPicker({ slot, cards, current, onPick, withName, requestAddCard }: 
                 onClick={clear}
                 className="flex w-full rounded-md px-2 py-1.5 text-left text-[length:var(--fs-sm)] hover:bg-[var(--bg-surface-hover)]"
               >
-                No second commander
+                No {label.toLowerCase()}
               </button>
             )}
             {failed && (

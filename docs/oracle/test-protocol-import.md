@@ -30,8 +30,8 @@ Tick each box as you go. If something fails, leave it unticked and add `FAIL:` a
   - [ ] The count reads 7 cards (10 copies).
 - [ ] **A2. Per-copy editing.** Expand Arcane Signet (qty 2).
   - [ ] There is one line per copy.
-  - [ ] There is no "Add to collection" tick (everything in Import cards is added; the tick only exists in deck imports).
-  - [ ] Finish only offers Non-foil (C21 has no foil).
+  - [ ] There is no "Add to collection" tick (everything in Import cards is added).
+  - [ ] There is no Finish choice (C21 has only non-foil, so the app hides it).
   - [ ] Set copy 2 to Proxy: finish and condition hide for that copy.
 - [ ] **A3. Escape guard.** After editing, press Escape or click outside.
   - [ ] A "Discard edits?" dialog appears.
@@ -53,19 +53,20 @@ Tick each box as you go. If something fails, leave it unticked and add `FAIL:` a
 ## B. Import deck, screens only (flag OFF)
 
 - [ ] **B1. First screen.** Open Import deck.
-  - [ ] Source tabs are on top (File, Paste text, URL, Precon).
-  - [ ] The three choices ("I bought it", "I built it", "I'm planning it") are below the tabs.
-  - [ ] Switching tabs never changes the modal size.
-  - [ ] On File, Paste and URL nothing is pre-selected and Continue says "Choose one to continue."
+  - [ ] Source tabs are on top (URL, Text list, File upload, Precon).
+  - [ ] "What's this deck?" is already there below the input area, with the three choices side by side, greyed out. Each says "Numbers appear once the deck has loaded". Continue is disabled.
+  - [ ] Switching tabs never changes the modal size, and the three choices stay in the same place.
+  - [ ] Choose a file: "Reading your file…" appears in the file area; the choices stay visible, still greyed out.
+  - [ ] When the deck has loaded, the file area shows "✓ name: N cards", the choices turn on with real numbers, and one is pre-selected (no "suggested" wording). The screen does not switch. Continue opens the review.
+  - [ ] Back on the review returns to this screen and the choice can be changed.
 - [ ] **B2. Precon tab.**
   - [ ] The list shows all ~200 decks (scrolls), and search narrows it.
-  - [ ] Pick **Eldrazi Unbound**: "I bought it" is selected and looks normal; the other two are greyed out.
+  - [ ] Pick **Eldrazi Unbound**: "What's this deck?" appears with "I bought it" suggested. "I built it" and "I'm planning it" can still be picked (no greyed-out choices).
   - [ ] The review shows 100 cards.
   - [ ] The commander (Zhulodok, Void Gorger) is preselected.
-  - [ ] All cards are Original, with exact printings.
+  - [ ] With "I bought it", every card's Card origin is New copy and its Type is Original.
   - [ ] Once a precon is picked you can't pick a different one; you cancel the import to start again.
-  - [ ] A colourless deck (Eldrazi Unbound) shows a colourless mana icon.
-  - [ ] The review says "100 cards" (87 printings), the filter chips use the same card counts, and there are no "Add to collection" ticks (precons add everything).
+  - [ ] The review says "100 cards" (87 printings), the filter chips use the same card counts, and every card has Card origin and Type controls (planned decks show a Status column instead).
 - [ ] **B3. URL tab.**
   - [ ] The field is centred.
   - [ ] Supported sites are listed (Archidekt, Moxfield, MTGGoldfish, TappedOut, Deckbox).
@@ -73,21 +74,27 @@ Tick each box as you go. If something fails, leave it unticked and add `FAIL:` a
   - [ ] Note what happens to the 20 maybeboard cards (shown, left out, or put somewhere else): ______
   - [ ] Paste `https://archidekt.com/decks/1`: you get a plain, friendly error, not a crash.
   - [ ] Paste `https://example.com/deck`: you get a plain, friendly error, not a crash.
-- [ ] **B3b. Intent choices on a URL deck.** With the Archidekt deck reviewing:
-  - [ ] Nothing is pre-selected and Continue says "Choose one to continue" until you pick.
-  - [ ] "I bought it": the heading changes to match.
-  - [ ] "I built it": the heading changes to match.
-  - [ ] "I'm planning it": the heading changes to match.
-  - [ ] The card choices change like they do for pasted text (C1–C3).
+- [ ] **B3b. Intent choices on a URL deck.** Paste the Archidekt link.
+  - [ ] "What's this deck?" appears after it loads, with numbers for each choice and one suggested.
+  - [ ] Pick each in turn (Continue, then Back): the heading and the cards' Card origin change to match (C1–C3).
+- [ ] **B3c. Maybeboard display.** Paste the Archidekt link again (any choice; don't import).
+  - [ ] The chips read All 120, Deck 100, Maybeboard 20 and nothing else (no Proxies, Unsleeved or Basics chips in deck imports). The Deck and Maybeboard chips only appear when the list has maybeboard cards.
+  - [ ] The footer (next to Back and Cancel) always reads "120 cards: 100 in deck · 20 in maybeboard" and never changes when you click a chip. No printings, basics or split there.
+  - [ ] The line just under the list follows the selected chip. On All and Deck it reads the deck's split, e.g. "17 original · 1 proxy · 82 unowned" (zeros left out, adds up to 100).
+  - [ ] On Maybeboard, the list shows the 20 cards, each tagged "Maybeboard", and the line under the list says maybeboard cards are not added or sleeved.
+  - [ ] Change the choice (bought / built / planning): the split under the list changes to match.
+  - [ ] Search works inside whichever chip is selected.
+  - [ ] Pasting `https://example.com/deck` says "We can't read that link. Check it's a link to a deck on one of the supported sites listed below."
+  - [ ] Sideboard chip: not built (see log).
 - [ ] **B4. File wording.**
   - [ ] No "ManaBox" appears anywhere, including error messages.
 
 ## C. Review rules (flag OFF, don't save)
 
-Use Import deck → Paste text.
+Use Import deck → Text list.
 
 - [ ] **C0.** The paste box fills the modal height.
-- [ ] **C1. Built deck.** Choose "I built it" and paste:
+- [ ] **C1. Built deck.** Paste the list below, then choose "I built it" on "What's this deck?".
     ```
     1 Atraxa, Praetors' Voice
     1 Sol Ring (CMM) 410
@@ -100,15 +107,18 @@ Use Import deck → Paste text.
     5 Forest
     ```
   - [ ] The heading reads "Import built deck".
-  - [ ] Sol Ring, Arcane Signet, Lightning Greaves and the 3 Island are owned and free: they default to sleeved from your collection, and the Add tick is off.
-  - [ ] Command Tower shows "you own it as CLB 351; this deck lists CMM 420" with "Use my CLB 351" and "Add this printing".
-  - [ ] Command Tower can't be sleeved until you choose.
-  - [ ] Kodama's Reach: your only copy is a proxy, and it is sleeved.
-  - [ ] Cultivate and Atraxa are not owned; options are Proxy or Unowned (never "Unsleeved"); default Unowned.
-  - [ ] The 5 Forest are one generic basics row.
+  - [ ] The column headers read "Card origin" and "Type". Card origin and Type are quiet dropdowns (plain text with a small ▾; a light outline on hover; click opens a menu with a description under each option). There is no "Add to collection" tick anywhere.
+  - [ ] Sol Ring, Arcane Signet, Lightning Greaves and the 3 Island: Card origin From collection, Type Original.
+  - [ ] Command Tower: Card origin From collection (your CLB 351 is used; no printing question).
+  - [ ] Kodama's Reach: Card origin From collection, Type Proxy (your only copy is a proxy). Original is greyed out.
+  - [ ] Cultivate and Atraxa: Card origin Unowned, Type empty. From collection is greyed out in the menu with a reason (you don't own them).
+  - [ ] Switch Cultivate to New copy: Type becomes Original. Switch back to Unowned: Type clears.
+  - [ ] While Card origin is Unowned, Original and Proxy are greyed out in the Type menu and say why.
+  - [ ] The 5 Forest are one generic row with a Card origin dropdown set to Generic land (the other choice is Unowned).
+  - [ ] Select several cards: the bulk bar still has segmented Card origin (No copy / From collection / New copy) and Type toggles that change them all.
   - [ ] The summary line is below the list.
   - [ ] Import is disabled with a note while the flag is off.
-- [ ] **C2. Planned deck.** Choose "I'm planning it" and paste:
+- [ ] **C2. Planned deck.** Paste the list, then choose "I'm planning it".
     ```
     1 Atraxa, Praetors' Voice
     1 Sol Ring (CMM) 410
@@ -116,10 +126,9 @@ Use Import deck → Paste text.
     10 Forest
     ```
   - [ ] The heading reads "Import planned deck".
-  - [ ] Nothing is added and nothing is sleeved.
-  - [ ] Every card is Unowned or unsleeved.
-  - [ ] The 10 Forest are generic and UNSLEEVED.
-- [ ] **C3. Purchased deck.** Choose "I bought it" and paste:
+  - [ ] There are no dropdowns and no Type column. A Status column reads Owned or Unowned for each card; nothing is added and nothing is sleeved. The bulk bar has no Card origin or Type toggles.
+  - [ ] The 10 Forest are generic and read "Basic land" in Status.
+- [ ] **C3. Purchased deck.** Paste the list, then choose "I bought it".
     ```
     1 Atraxa, Praetors' Voice
     1 Sol Ring (CMM) 410
@@ -129,57 +138,77 @@ Use Import deck → Paste text.
     4 Mountain
     ```
   - [ ] The heading reads "Import purchased deck".
-  - [ ] The 7 specific copies (1+1+1+1+3) are Original and will be added to the collection.
-  - [ ] The 4 plain Mountain are one generic row (Sleeved) and are not added.
-- [ ] **C4. Plain names.** Paste the contents of `docs/oracle/samples/plain-text/no-set-codes.txt` (any intent).
+  - [ ] The 7 specific copies (1+1+1+1+3) are New copy · Original.
+  - [ ] The 4 plain Mountain are one generic row (Generic land) and are not added.
+  - [ ] Change Sol Ring to From collection: with the flag off, Import is disabled and says so.
+- [ ] **C4. Plain names.** Paste the contents of `docs/oracle/samples/plain-text/no-set-codes.txt` (any choice).
   - [ ] It reviews with default printings.
   - [ ] `10 Island` is generic.
   - [ ] `Eiganjo Dynastorian // Replenish` resolves.
-- [ ] **C5. Generic mixed state.** Paste `6 Mountain` and `4 Mountain` on two lines, then set one row to Unsleeved.
+- [ ] **C5. Generic mixed state.** Paste `6 Mountain` and `4 Mountain` on two lines, then set one row's Card origin to Unowned.
   - [ ] There is one generic Mountain line.
-  - [ ] Unsleeved wins.
+  - [ ] Unowned wins.
   - [ ] The result screen says so.
 - [ ] **C6. Printing-named basics are real.** Paste `3 Plains (M21) 262` and `4 Plains`.
   - [ ] The first is a real card row.
   - [ ] The second is generic.
+- [ ] **C7. Not enough copies.** Paste `3 Sol Ring (CMM) 410` and choose "I built it".
+  - [ ] Copies you can't cover from the collection show From collection with no badge or note on the row; but the footer says "N cards are short".
+  - [ ] Import is disabled until each short copy is set to New copy or left out of the deck.
 
 ## D. Saving (flag ON, restart the server)
 
 - [ ] Tell me you're at section D so I can switch the flag on and restart the app.
-- [ ] The collection starts at 10 copies.
+- [ ] The collection page shows 108 cards (8 real copies from stage 2 plus the 100 Eldrazi Unbound cards imported early in stage 3). The page does not count proxies; including the 2 proxies it is 110 copies.  Totals below are the page figure.
 
 Do these in order.
 
-- [ ] **D1. Built deck, no moves.** Import the C1 list as "I built it". Choose Atraxa as commander, pick "Use my CLB 351" for Command Tower, leave Cultivate and Atraxa Unowned.
-  - [ ] The collection stays at 10.
+### Main scenario: a built deck that mostly uses cards you already own
+
+The collection (from A) holds: Sol Ring, Command Tower (CLB 351), Arcane Signet (one original, one proxy), Lightning Greaves (foil), Island ×3, Heroic Intervention, Kodama's Reach (proxy only). None of these are in a deck yet except what the Eldrazi precon uses, so they are all **free**. D1 uses most of them; D2 then mixes free, in-another-deck and unowned cards.
+
+- [ ] **D1. Built deck, mostly from the collection.** Import the C1 list as "I built it".
+  - [ ] "What's this deck?" suggests "I built it" and says you own most of the cards.
+  - [ ] Review before saving (Card origin / Type):
+    - Sol Ring, Command Tower, Arcane Signet, Lightning Greaves, 3 Island: **From collection · Original**.
+    - Kodama's Reach: **From collection · Proxy** (Original is greyed out in its menu).
+    - Cultivate and Atraxa: **Unowned** (no Type shown).
+    - 5 Forest: one row, **Generic land**.
+  - [ ] Open Cultivate's Card origin menu: "From collection" is greyed with a reason; "New copy" and "Unowned" are available.
+  - [ ] Change Cultivate to **New copy**: Type becomes Original. Change it back to **Unowned**: Type clears.
+  - [ ] Choose Atraxa as commander (leave it Unowned), then Import.
+  - [ ] The collection stays at 108 (nothing new added).
   - [ ] The deck has Sol Ring, Command Tower (CLB), Arcane Signet, Lightning Greaves, Kodama's Reach (proxy) and 3 Island, all sleeved from your collection.
-  - [ ] Cultivate and Atraxa are unowned.
+  - [ ] Cultivate and Atraxa are listed as unowned, not sleeved.
   - [ ] The 5 Forest are generic and sleeved.
-  - [ ] No alerts.
-- [ ] **D2. Move a copy.** Import `1 Sol Ring (CMM) 410` and `1 Heroic Intervention (CMM) 295` as "I built it".
-  - [ ] Sol Ring shows "Copy will be moved from (Deck 1 | Skip)" with Deck 1 preselected.
-  - [ ] Heroic Intervention is free and sleeves.
-  - [ ] After confirming, Sol Ring is sleeved in the new deck.
-  - [ ] The first deck's Sol Ring slot is unsleeved.
-  - [ ] The collection is still 10.
-- [ ] **D3. Skip, one holder.** Import `1 Lightning Greaves (CMM) 398` as "I built it" and choose Skip.
-  - [ ] The collection is 11 (a new Greaves added and sleeved here).
-  - [ ] The first deck shows an alert on Lightning Greaves.
-  - [ ] The alert stays until you press Fixed or Dismiss.
-- [ ] **D4. Skip, two holders.**
-  - [ ] Import `1 Arcane Signet (C21) 234` as "I built it" into a new deck. It takes your second free copy (the proxy), so no prompt appears.
-  - [ ] Import `1 Arcane Signet (C21) 234` again into another new deck. The card lists BOTH holder decks; choose Skip.
-  - [ ] The collection is up by 1.
-  - [ ] BOTH holder decks show an alert on Arcane Signet.
-- [ ] **D5. Add this printing.** Import `1 Command Tower (CMM) 420` as "I built it" and choose "Add this printing".
-  - [ ] The collection is up by 1 (a new CMM 420 copy).
-  - [ ] It is sleeved in the new deck.
+  - [ ] No alerts on any deck.
+- [ ] **D2. Free, in another deck, and unowned together.** Import this as "I built it":
+    ```
+    1 Heroic Intervention (CMM) 295
+    1 Arcane Signet (C21) 234
+    1 Sol Ring (CMM) 410
+    1 Cultivate (CMM) 889
+    ```
+  - [ ] Heroic Intervention (still free): From collection · Original.
+  - [ ] Arcane Signet (only the free proxy is left): From collection · Proxy; Original is greyed out.
+  - [ ] Sol Ring (its only copy is in the D1 deck): From collection is still selected. There is no "Also in" badge on the row.
+  - [ ] Import is disabled with a note that cards already in another deck can't be saved yet. (Sharing a copy between decks needs a database change; see the 2026-10-30 report.)
+  - [ ] Change Sol Ring to **New copy**: Import turns on.
+  - [ ] Import. The collection is up by 1 (the new Sol Ring) and the D1 deck's Sol Ring is untouched.
+  - [ ] Heroic Intervention and the Arcane Signet proxy are now sleeved in this deck; Cultivate is unowned.
+- [ ] **D3. New copy of a card you own.** Import `1 Lightning Greaves (CMM) 398` as "I built it" and set it to **New copy**.
+  - [ ] The collection goes up by 1. No alerts on other decks.
+- [ ] **D4. Proxy from New copy.** Import `1 Cultivate (CMM) 889` as "I built it", set it to **New copy**, then Type **Proxy**.
+  - [ ] A new proxy is added and sleeved; the collection page total doesn't change (it doesn't count proxies).
+- [ ] **D5. Nothing free.** Import `3 Island (FRA) 283` as "I built it" (all 3 are in the D1 deck).
+  - [ ] Every copy is From collection but none is free, so Import is disabled with a message that the cards are in other decks / short. No badge on the rows.
+  - [ ] Set the three copies to New copy (use the bulk bar: select all, Card origin → New copy): Import turns on.
 - [ ] **D6. Planned deck saves.** Import the C2 list as "I'm planning it".
   - [ ] The deck exists.
   - [ ] No collection change.
   - [ ] Nothing is sleeved.
   - [ ] Unowned cards show as unowned.
-  - [ ] The 10 Forest are generic and unsleeved.
+  - [ ] The 10 Forest are generic and not sleeved.
   - [ ] The status reads like "Short: Forest generics unsleeved".
 - [ ] **D7. Purchased deck saves.** Import the C3 list as "I bought it".
   - [ ] The collection is up by 7 originals (Atraxa, Sol Ring, Heroic Intervention, Cultivate, 3 Mountain).
@@ -187,10 +216,7 @@ Do these in order.
 - [ ] **D8. Double click.** Click Import twice quickly on a small list.
   - [ ] One deck, no duplicates.
   - [ ] No empty leftover deck.
-- [ ] **D9. Precon end to end.** Write down the collection total before: ______. Import **Eldrazi Unbound** from the Precon tab as "I bought it".
-  - [ ] A deck with 100 cards exists.
-  - [ ] The collection is up by 100 originals. Total after: ______.
-  - [ ] The commander (Zhulodok, Void Gorger) is set.
+- [ ] **D9. Precon end to end.** ALREADY DONE in stage 3 (imported early). Do not import it again. Confirmed by the owner on 2026-10-29: the deck has 100 cards, Zhulodok, Void Gorger is the commander, and the collection went up by 100.
 - [ ] **D10. Public Archidekt deck end to end.** Paste `https://archidekt.com/decks/3949764` into the URL tab and import it as "I'm planning it".
   - [ ] A deck with 100 cards exists.
   - [ ] Atraxa, Praetors' Voice is the commander.
@@ -225,7 +251,7 @@ Use the deck from D7.
 
 ## F. Other sites' formats and section headings (flag OFF, screens only)
 
-Use Import deck → Paste text, any intent. Check where each card lands in the review.
+Use Import deck → Text list, any intent. Check where each card lands in the review.
 
 - [ ] **F1. Sections.** Paste:
     ```

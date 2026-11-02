@@ -5,6 +5,8 @@ Read `docs/oracle/roadmap.md` first. Only tasks in the **current milestone** may
 
 **Owner note (2026-09-25):** Until Oracle reaches MVP, live data can be easily replaced. Migrations do not need to be overly cautious; clean-slate or drop-and-rebuild approaches are acceptable with owner approval.
 
+**Owner decision 2026-11-02:** the interim slice **Use what I own** (brief `docs/oracle/briefs/use-what-i-own.md`) is CURRENT; the rest of Phases 3 to 7 is PARKED until it works on three real decks. Gate 2 audit: Architect, report `reports/2026-11-02-architect-use-what-i-own-audit.md` (IN PROGRESS). Import finishing and merge approval still needed first.
+
 ## Roadmap change 2026-10-11 — foundation-first phases
 
 The owner replaced milestones M1–M5 with ten phases (see roadmap.md). **Phase 1 — Safety net is CURRENT.** Everything in the M2 and quality-pass sections below is paused until its phase. Mapping:

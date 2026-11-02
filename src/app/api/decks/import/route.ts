@@ -20,7 +20,7 @@ import type { ImportMode } from '@/lib/deck-import'
 import { importManaBoxDeck, type ManaBoxDeckCard } from '@/lib/manabox-deck-import'
 import type { NormalizedDeck } from '@/lib/deck-normalizer'
 import { ImportValidationError } from '@/lib/import-copies'
-import { NeedsChoiceError } from '@/lib/import-intent-save'
+import { NeedsChoiceError, SharedCopyError } from '@/lib/import-intent-save'
 import { parseImportCommandZone } from '@/lib/import-command-zone-save'
 import type { ImportIntent } from '../../../../../docs/oracle/contracts/import-intent.types'
 import type {
@@ -108,6 +108,9 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       if (err instanceof NeedsChoiceError) {
         return Response.json({ error: 'needs_choice', rowKeys: err.rowKeys }, { status: 400 })
+      }
+      if (err instanceof SharedCopyError) {
+        return Response.json({ error: 'shared_copy_unsupported', rowKeys: err.rowKeys }, { status: 400 })
       }
       if (err instanceof ImportValidationError) {
         return Response.json(

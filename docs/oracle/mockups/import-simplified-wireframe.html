@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Wireframe: simplified deck import</title>
+<style>
+  body { font: 13px/1.4 system-ui, sans-serif; background: #f4f4f4; color: #222; margin: 0; padding: 24px; }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  .note { color: #666; margin: 0 0 20px; max-width: 760px; }
+  .frame { background: #fff; border: 1px solid #bbb; border-radius: 8px; width: 820px; margin-bottom: 32px; }
+  .head { padding: 12px 16px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
+  .chips span { border: 1px solid #aaa; border-radius: 12px; padding: 2px 10px; margin-right: 6px; }
+  .chips .on { background: #222; color: #fff; border-color: #222; }
+  .grid { display: grid; grid-template-columns: 24px 28px 1fr 230px 130px; gap: 8px; align-items: center; padding: 6px 16px; border-bottom: 1px solid #eee; }
+  .grid.hdr { color: #777; font-size: 12px; background: #fafafa; }
+  .sub { color: #888; }
+  .seg { display: inline-flex; border: 1px solid #aaa; border-radius: 12px; overflow: hidden; }
+  .seg span { padding: 2px 9px; border-left: 1px solid #ccc; }
+  .seg span:first-child { border-left: 0; }
+  .seg .on { background: #222; color: #fff; }
+  .seg .off { color: #bbb; background: repeating-linear-gradient(45deg,#fff,#fff 4px,#f2f2f2 4px,#f2f2f2 8px); }
+  .box { width: 12px; height: 12px; border: 1px solid #888; border-radius: 2px; display: inline-block; }
+  .divider { padding: 4px 16px; background: #f0f0f0; color: #777; font-size: 12px; }
+  .foot { padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #ddd; }
+  .btn { border: 1px solid #888; border-radius: 6px; padding: 4px 12px; margin-left: 6px; }
+  .btn.pri { background: #222; color: #fff; border-color: #222; }
+  .bulk { padding: 6px 16px; background: #fffbe6; border-bottom: 1px solid #eee; }
+  .flag { border: 1px solid #c90; color: #a60; border-radius: 10px; padding: 1px 8px; font-size: 12px; }
+  .call { color: #a33; font-size: 12px; font-style: italic; }
+</style>
+</head>
+<body>
+
+<h1>Wireframe 0: First screen. The question appears below the input once the deck has loaded</h1>
+<p class="note">Step 1: pick the source and give the link, file or list. Step 2: the deck loads and your collection is checked, then "What's this deck?" appears underneath with real numbers. Changing the link reloads the numbers.</p>
+
+<div class="frame">
+  <div class="head"><b>Import deck</b></div>
+  <div style="padding:14px 16px;border-bottom:1px solid #eee">
+    <div class="chips" style="margin-bottom:10px"><span>File</span><span>Paste</span><span class="on">Link</span><span>Precon</span></div>
+    <div style="border:1px solid #aaa;border-radius:6px;padding:6px 10px">https://archidekt.com/decks/3949764</div>
+    <div class="sub" style="margin-top:6px">✓ Eldrazi Unbound: 120 cards (100 in deck · 20 in maybeboard)</div>
+  </div>
+  <div style="padding:14px 16px">
+    <div style="margin-bottom:10px"><b>What's this deck?</b> <span class="sub">You own 86 of the 100 cards. 6 of those are in other decks.</span></div>
+
+    <div style="border:2px solid #222;border-radius:8px;padding:10px 12px;margin-bottom:8px">
+      <b>◉ I built it</b> <span class="sub">(suggested: you own most of these cards)</span>
+      <div>The deck is already sleeved from cards you own.</div>
+      <div class="sub" style="margin-top:4px">80 from collection · 6 also in other decks (flagged after import) · 14 not in deck (you don't own them)</div>
+    </div>
+    <div style="border:1px solid #aaa;border-radius:8px;padding:10px 12px;margin-bottom:8px">
+      <b>○ I bought it</b>
+      <div>A deck you've just bought, such as a precon. Every card is added to your collection and sleeved.</div>
+      <div class="sub" style="margin-top:4px">100 new copies · you already own another copy of 86 of them</div>
+    </div>
+    <div style="border:1px solid #aaa;border-radius:8px;padding:10px 12px">
+      <b>○ I'm planning it</b>
+      <div>Just a list. Nothing is added or sleeved, and no other deck is touched.</div>
+      <div class="sub" style="margin-top:4px">100 not in deck · you own 86 of them</div>
+    </div>
+  </div>
+  <div class="foot"><span></span><span><span class="btn">Cancel</span><span class="btn pri">Continue</span></span></div>
+</div>
+
+<h1>Wireframe 0b: Precon tab. All three choices are open</h1>
+<p class="note">Picking a precon loads it the same way. "I bought it" is suggested, not locked, so you can import a precon just as a list.</p>
+
+<div class="frame">
+  <div class="head"><b>Import deck</b></div>
+  <div style="padding:14px 16px;border-bottom:1px solid #eee">
+    <div class="chips" style="margin-bottom:10px"><span>File</span><span>Paste</span><span>Link</span><span class="on">Precon</span></div>
+    <div style="border:1px solid #aaa;border-radius:6px;padding:6px 10px">Eldrazi Unbound (Modern Horizons 3) &nbsp;<span class="sub">▾ change</span></div>
+  </div>
+  <div style="padding:14px 16px">
+    <div style="margin-bottom:10px"><b>What's this deck?</b> <span class="sub">You own 12 of the 100 cards.</span></div>
+    <div style="border:2px solid #222;border-radius:8px;padding:10px 12px;margin-bottom:8px">
+      <b>◉ I bought it</b> <span class="sub">(suggested for a precon)</span>
+      <div class="sub" style="margin-top:4px">100 new copies</div>
+    </div>
+    <div style="border:1px solid #aaa;border-radius:8px;padding:10px 12px;margin-bottom:8px">
+      <b>○ I built it</b>
+      <div class="sub" style="margin-top:4px">12 from collection · 88 not in deck</div>
+    </div>
+    <div style="border:1px solid #aaa;border-radius:8px;padding:10px 12px">
+      <b>○ I'm planning it</b>
+      <div class="sub" style="margin-top:4px">100 not in deck · you own 12 of them</div>
+    </div>
+  </div>
+  <div class="foot"><span></span><span><span class="btn">Cancel</span><span class="btn pri">Continue</span></span></div>
+</div>
+
+<h1>Wireframe 1: Import built deck, review screen</h1>
+<p class="note">Each card answers two things. <b>Card source</b>: None (not in the deck), Collection (a copy you own) or New (adds a copy). <b>Type</b>: Original or Proxy, greyed out when Card source is None. There are no badges, questions or locked rows.</p>
+
+<div class="frame">
+  <div class="head">
+    <b>Import built deck: Eldrazi Unbound</b>
+    <div class="chips"><span class="on">All 120</span><span>Deck 100</span><span>Maybeboard 20</span></div>
+  </div>
+  <div class="bulk">2 selected: Card source [None | Collection | New] · Type [Original | Proxy]</div>
+  <div class="grid hdr"><span class="box"></span><span>Qty</span><span>Card</span><span>Card source</span><span>Type</span></div>
+
+  <div class="grid"><span class="box"></span><span>1</span><span>Sol Ring <span class="sub">CMM 410</span></span>
+    <span class="seg"><span>None</span><span class="on">Collection</span><span>New</span></span>
+    <span class="seg"><span class="on">Original</span><span>Proxy</span></span></div>
+  <div class="grid"><span class="box"></span><span>1</span><span>Mana Crypt <span class="sub">2XM 270</span></span>
+    <span class="seg"><span>None</span><span class="on">Collection</span><span>New</span></span>
+    <span class="seg"><span class="off">Original</span><span class="on">Proxy</span></span></div>
+  <div class="grid"><span></span><span></span><span class="call">Mana Crypt: you only own a proxy, so Original is greyed out.</span><span></span><span></span></div>
+  <div class="grid"><span class="box"></span><span>1</span><span>Arcane Signet <span class="sub">ONC 111</span> <span class="call">(also in Korvold, flagged after import)</span></span>
+    <span class="seg"><span>None</span><span class="on">Collection</span><span>New</span></span>
+    <span class="seg"><span class="on">Original</span><span>Proxy</span></span></div>
+  <div class="grid"><span class="box"></span><span>1</span><span>Kozilek, the Great Distortion <span class="sub">OGW 4</span></span>
+    <span class="seg"><span class="on">None</span><span class="off">Collection</span><span>New</span></span>
+    <span class="seg"><span class="off">Original</span><span class="off">Proxy</span></span></div>
+  <div class="grid"><span class="box"></span><span>1</span><span>All Is Dust <span class="sub">ROE 1</span></span>
+    <span class="seg"><span>None</span><span class="off">Collection</span><span class="on">New</span></span>
+    <span class="seg"><span class="on">Original</span><span>Proxy</span></span></div>
+  <div class="grid"><span class="box"></span><span>3</span><span>Mountain <span class="sub">ONE 269</span> <span class="flag">1 short: open to choose</span></span>
+    <span class="seg"><span>None</span><span class="on">Collection</span><span>New</span></span>
+    <span class="seg"><span class="on">Original</span><span>Proxy</span></span></div>
+  <div style="background:#f7f7f7;border-bottom:1px solid #eee;padding:6px 16px 8px 76px">
+    <div class="sub" style="margin-bottom:4px">Opened. You own 2 Mountains; copy 3 needs a different source.</div>
+    <div>1 &nbsp;<span class="seg"><span>None</span><span class="on">Collection</span><span>New</span></span> <span class="seg"><span class="on">Original</span><span>Proxy</span></span> &nbsp;English · Non-foil · NM</div>
+    <div style="margin-top:4px">2 &nbsp;<span class="seg"><span>None</span><span class="on">Collection</span><span>New</span></span> <span class="seg"><span class="on">Original</span><span>Proxy</span></span> &nbsp;English · Non-foil · NM</div>
+    <div style="margin-top:4px">3 &nbsp;<span class="seg"><span>None</span><span class="off">Collection</span><span>New</span></span> <span class="seg"><span class="off">Original</span><span class="off">Proxy</span></span> &nbsp;<span class="call">pick None or New</span></div>
+  </div>
+  <div class="grid"><span class="box"></span><span>10</span><span>Wastes <span class="sub">Generic land</span></span>
+    <span class="seg"><span>None</span><span class="on">Sleeved</span></span>
+    <span></span></div>
+
+  <div class="divider">Maybeboard</div>
+  <div class="grid"><span class="box"></span><span>1</span><span>Ulamog, the Ceaseless Hunger <span class="sub">BFZ 15</span></span>
+    <span class="sub">Not added or sleeved</span><span></span></div>
+
+  <div class="foot">
+    <span>120 cards: 100 in deck · 20 in maybeboard<br><span class="sub">80 from collection · 10 new · 10 not in deck · 6 also in other decks · 1 short</span></span>
+    <span><span class="btn">Back</span><span class="btn">Cancel</span><span class="btn pri">Import deck</span></span>
+  </div>
+</div>
+
+<p class="note">
+<b>Kozilek:</b> you don't own it, so Collection is greyed out. It starts at None.<br>
+<b>All Is Dust:</b> you changed it to New, so it is added to your collection as an Original.<br>
+<b>Arcane Signet:</b> your copy is in Korvold. The import uses it anyway, with no question asked, and flags it on both decks.<br>
+Opening a row still shows language, finish and condition. They are never locked.
+</p>
+
+<h1>Wireframe 2: Deck page after import</h1>
+<p class="note">Example: you own 2 Arcane Signets, one in Korvold and one in Prosper. Your new deck, Eldrazi, also uses one. Any fix on any of the three decks clears the flag everywhere.</p>
+<p class="note">The flag shows on every deck that uses the same physical copy, and you sort it out here.</p>
+
+<div class="frame">
+  <div class="head"><b>Eldrazi Unbound</b> <span class="sub">(the new deck)</span><span class="flag">⚠ 1 card short</span></div>
+  <div class="grid" style="grid-template-columns: 28px 1fr 380px"><span>1</span><span>Arcane Signet <span class="sub">Original</span> <span class="flag">2 copies, 3 decks</span></span>
+    <span><span class="btn">Pull from Korvold</span><span class="btn">Pull from Prosper</span><span class="btn">New copy here</span><span class="btn">Proxy here</span></span></div>
+</div>
+
+<div class="frame">
+  <div class="head"><b>Korvold</b> <span class="sub">(holds a copy)</span><span class="flag">⚠ 1 card wanted elsewhere</span></div>
+  <div class="grid" style="grid-template-columns: 28px 1fr 380px"><span>1</span><span>Arcane Signet <span class="sub">ONC 111 · Original</span> <span class="flag">Also wanted by Eldrazi</span></span>
+    <span><span class="btn">Send to Eldrazi</span></span></div>
+</div>
+
+<div class="frame">
+  <div class="head"><b>Prosper</b> <span class="sub">(holds a copy)</span><span class="flag">⚠ 1 card wanted elsewhere</span></div>
+  <div class="grid" style="grid-template-columns: 28px 1fr 380px"><span>1</span><span>Arcane Signet <span class="sub">CMM 410 · Original</span> <span class="flag">Also wanted by Eldrazi</span></span>
+    <span><span class="btn">Send to Eldrazi</span></span></div>
+</div>
+<p class="note">Any one of these fixes clears the flag on all three decks: Korvold or Prosper sends its copy, or Eldrazi pulls one, adds a new copy, or uses a proxy.</p>
+
+</body>
+</html>

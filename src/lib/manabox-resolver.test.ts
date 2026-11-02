@@ -138,3 +138,20 @@ describe('createSupabaseManaBoxResolver().resolveByName', () => {
     expect(await r.resolveByName!('Ghen, Arcanum Weaver', { setCode: 'zzz' })).toBeNull()
   })
 })
+
+describe('createSupabaseManaBoxResolver().resolveBySetCollector', () => {
+  it('falls back to the number without a face letter ("2129a" -> "2129")', async () => {
+    state.printings = [printing('virtue', 'Virtue of Persistence // Locthwain Scorn', { set_code: 'sld', collector_number: '2129', layout: 'adventure' })]
+    const r = createSupabaseManaBoxResolver()
+    expect((await r.resolveBySetCollector!('SLD', '2129a'))?.scryfallId).toBe('virtue')
+    expect(await r.resolveBySetCollector!('sld', '9999a')).toBeNull()
+  })
+
+  it('uses an exact lettered number when it exists', async () => {
+    state.printings = [
+      printing('plain', 'Plain', { set_code: 'sld', collector_number: '12' }),
+      printing('lettered', 'Lettered', { set_code: 'sld', collector_number: '12a' }),
+    ]
+    expect((await createSupabaseManaBoxResolver().resolveBySetCollector!('sld', '12a'))?.scryfallId).toBe('lettered')
+  })
+})

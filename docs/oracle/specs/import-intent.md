@@ -1,4 +1,6 @@
-# Deck import intent: spec (rev 3, current)
+# Deck import intent: spec (rev 4, current)
+
+> **Rev 4 (2026-10-30, owner-approved simplified design):** §15 below replaces §3 "chosen on the first screen", §4–§6 and the 2026-10-29 tag section. Wireframe: `docs/oracle/mockups/import-simplified-wireframe.html`. Where they conflict, §15 wins.
 
 Mockup: `docs/oracle/mockups/import-intent.html`. Applies to **deck imports from every source** (file, pasted list, link, precon). Collection import is unchanged. This is the single current version; earlier revisions are replaced.
 
@@ -29,7 +31,7 @@ Basics (generic and ordinary lines) default to **unsleeved** under I'm planning 
 Only two things per copy:
 - **Add to collection** tick: a new copy (ticked) or an owned copy (unticked).
 - **Original · Proxy · Unsleeved.** When the card is **not owned** the third choice reads **Unowned** (a not-owned slot, nothing added); "Unsleeved" is kept for owned cards left out of the deck. In the saved data both are the same value (`unsleeved`); only the label differs.
-- **The Add tick shows only on a card with more than one copy** in the import (per copy, plus a mixed tick on the collapsed row). On a single-copy card the tick is hidden and Add is implied by the choice: Original/Proxy on a card you cannot sleeve from your collection = add it (so those buttons are never disabled); Unowned/Unsleeved = not added; Original on an owned free copy = sleeve it (no add).
+- **The Add tick shows on every card** (owner decision 2026-10-29, replacing the earlier "several copies only" rule): per copy, plus a mixed tick on the collapsed row, unticked by default on a built or planned deck. Old rule, no longer used: on a single-copy card the tick was hidden and Add was implied by the choice: Original/Proxy on a card you cannot sleeve from your collection = add it (so those buttons are never disabled); Unowned/Unsleeved = not added; Original on an owned free copy = sleeve it (no add).
 - Proxy means a proxy copy is added to the collection and sleeved. Unowned means a not-owned slot in the deck: nothing added, nothing sleeved.
 
 There is no "From collection" choice and no per-card "N free" hint. Owned copies are matched automatically, in order: exact printing, then a free original, then a free proxy (if the only free copy is a proxy, the proxy is sleeved). One owned copy is used once per import.
@@ -44,7 +46,7 @@ There is no "From collection" choice and no per-card "N free" hint. Owned copies
 | ✗ | Unsleeved, owned | Owned (list only) |
 | ✗ | Unsleeved, not owned | ⊖ Unowned |
 
-Keeping valid (cards with several copies, where the tick is shown): Original and Proxy are **disabled** when Add is unticked and nothing free is owned (title text: "Not owned: tick Add" or "No free copy: tick Add"). Single-copy cards have no tick, so nothing is disabled: choosing Original/Proxy there sets Add, choosing Unowned/Unsleeved clears it. Ticking Add on an Unsleeved copy makes it Original. Unticking Add with no free copy makes it Unsleeved (shown **Unowned** if the card is not owned). Collapsed row: select · qty · name, set · tags · Add tick (several-copy cards only) · caret. Tags: Proxy, Owned copy, Moves here, Choose printing, Unsleeved (owned cards only), ⊖ Unowned (counts when partial).
+Keeping valid (cards with several copies, where the tick is shown): Original and Proxy are **disabled** when Add is unticked and nothing free is owned (title text: "Not owned: tick Add" or "No free copy: tick Add"). Single-copy cards have no tick, so nothing is disabled: choosing Original/Proxy there sets Add, choosing Unowned/Unsleeved clears it. Ticking Add on an Unsleeved copy makes it Original. Unticking Add with no free copy makes it Unsleeved (shown **Unowned** if the card is not owned). Collapsed row: select · qty · name, set · tags · Add tick (several-copy cards only) · caret. Tags: Proxy, Original, Moves here, Alt printing, Unsleeved (owned cards only), ⊖ Unowned (counts when partial).
 
 ## 5. Card held in other deck(s): the copy moves
 Inline row under the card (never a modal): **{Card}: copy will be moved from [Korvold | Skip]**; with several decks **[Korvold | Yuriko | Skip]**. The UI is the same for one deck or many; the owner picks which deck is missing it. With one deck, that deck is **pre-selected**. With several, none is selected and the card shows as needing a choice until picked.
@@ -52,7 +54,7 @@ Inline row under the card (never a modal): **{Card}: copy will be moved from [Ko
 - **The alert:** on the other deck's decklist the card shows **⚠ Accounting error** with the line "{Card} was sleeved into {deck} without moving this copy" and two actions, **Fixed** and **Dismiss**. It stays until the owner fixes or dismisses it. The rest of that decklist is unchanged.
 
 ## 6. Owned in a different printing
-Inline row: **{Card}: you own it as CMM 410; this deck lists CLB 351. It can't be sleeved until you choose.** Buttons **Use my CMM 410** and **Add this printing** (ticks Add; new Original). Until chosen the card shows a **Choose printing** tag and the footer counts it. No other explanation on the card.
+Inline row: **{Card}: you own it as CMM 410; this deck lists CLB 351. It can't be sleeved until you choose.** Buttons **Use my CMM 410** and **Add this printing** (ticks Add; new Original). Until chosen the card shows a **Alt printing** tag and the footer counts it. No other explanation on the card.
 
 ## 7. Layout
 - **First screen:** heading, source tabs, then the question "What's this deck?" and three radio cards (name plus one-line description) BELOW the tabs (owner's Round 17 order; the first mockup had the cards above the tabs). Error if Continue is pressed with none chosen: "Choose one to continue." A dropped file is held with "Choose one below." and reads when chosen. Nothing is pre-selected except in Precon.
@@ -91,7 +93,7 @@ Default, hover, focus, open, selected (rows as today) · Add tick on / off / mix
 - **Partly bought, partly owned:** pick I bought it and untick Add on the owned cards, or pick I built it and tick Add on new ones.
 
 ## 12. Copy (exact strings)
-Headings: "Import deck" · "Import purchased deck" · "Import built deck" · "Import planned deck". Question: "What's this deck?". Cards: "I bought it" · "I built it" · "I'm planning it". Errors: "Choose one to continue." · "Choose one below.". Column: "Add to collection". Choices: "Original" · "Proxy" · "Unsleeved". Tags: "Proxy" · "Owned copy" · "Moves here" · "Choose printing" · "Unsleeved" · "Unowned". Copy line status: "Owned copy" · "Owned proxy" · "Moves from {deck}" · "Not sleeved" · "Unowned" · "Owned". Move: "{Card}: copy will be moved from" + deck buttons + "Skip". Printing: "{Card}: you own it as {printing}; this deck lists {printing}. It can't be sleeved until you choose." · "Use my {printing}" · "Add this printing". Alert: "Accounting error" · "{Card} was sleeved into {deck} without moving this copy." · "Fixed" · "Dismiss". Disabled titles: "Not owned: tick Add" · "No free copy: tick Add". Footer: "{n} cards" · "{n} cards need a choice before it can be sleeved". Bulk: "Applied to {a} of {b} copies." No-match: "No cards match.".
+Headings: "Import deck" · "Import purchased deck" · "Import built deck" · "Import planned deck". Question: "What's this deck?". Cards: "I bought it" · "I built it" · "I'm planning it". Errors: "Choose one to continue." · "Choose one below.". Column: "Add to collection". Choices: "Original" · "Proxy" · "Unsleeved". Tags: "Proxy" · "Original" · "Moves here" · "Alt printing" · "Unsleeved" · "Unowned". Copy line status: "Owned copy" · "Owned proxy" · "Moves from {deck}" · "Not sleeved" · "Unowned" · "Owned". Move: "{Card}: copy will be moved from" + deck buttons + "Skip". Printing: "{Card}: you own it as {printing}; this deck lists {printing}. It can't be sleeved until you choose." · "Use my {printing}" · "Add this printing". Alert: "Accounting error" · "{Card} was sleeved into {deck} without moving this copy." · "Fixed" · "Dismiss". Disabled titles: "Not owned: tick Add" · "No free copy: tick Add". Footer: "{n} cards" · "{n} cards need a choice before it can be sleeved". Bulk: "Applied to {a} of {b} copies." No-match: "No cards match.".
 
 ## 13. Data binding (plain terms)
 Needs, per card: how many free originals and free proxies the owner has; which decks hold the owner's other copies; any other printing owned. Import must be able to move a copy from one deck to another, record a skipped move against the card and the other deck, and show and clear an alert on that deck's decklist. Precon needs a list of decks with exact printings. None of these is a contract today: **BLOCKED for the Architect.**
@@ -101,3 +103,39 @@ Needs, per card: how many free originals and free proxies the owner has; which d
 - Every state has a word plus an icon where one exists; mixed tick shows "–". No WUBRG hues for states.
 - Names: Add tick "Add Sol Ring to collection" (mixed: "…, 1 of 3 copies"); copy group "Copy 2 of 3"; intent group "What's this deck?"; move and printing rows are labelled groups "{Card}: needs a decision". The footer and summary are status text; changes are announced.
 - Targets at least 24 × 24 px. Tab order as §10.
+
+
+## 9. Tags and open questions (owner decision 2026-10-29; replaces the tag wording in §4–§6)
+Tags tell the owner what the import says about each card. Ownership tags: **Unowned** (not in the collection; nothing to decide), **Original** (owned and sleeved, or added; Proxy shows as Proxy), **Alt printing available** (a different printing is free), **Alt printing in use** (a different printing is held by another deck), **Overallocated** (the exact printing is held by another deck).
+- A card with an open question shows a warning tag and is **locked**: Original / Proxy / Unsleeved, language, finish and condition are disabled ("Answer the question above first") until it is answered. Add stays usable: ticking it resolves the question by adding a new copy.
+- Alt printing asks "Use my {printing}" or "Add this printing". Overallocated asks which deck to pull the copy from, or Skip. Nothing is pre-picked, including when one deck holds the card.
+- Alt printing in use asks both, printing first, then the deck. It keeps one tag until both are answered.
+- Ticking Add on an Unowned card makes it Original (a new copy record); it can then be changed to Proxy.
+- Supersedes: "one deck is pre-selected" (§5) and "Use my printing is the default" (§6). Maybeboard and Generic land are separate badges.
+
+## 15. Simplified model (rev 4, 2026-10-30; supersedes §4–§6 and the tag section)
+**When the question is asked.** One screen, no switch (wireframe `docs/oracle/mockups/import-no-switch-wireframe.html`). The source area (File dropzone, Paste box, URL field or Precon list) is on top; **What's this deck?** sits below it as three side-by-side choices, always visible but greyed out until the deck has loaded (the file area shows "Reading your file…" meanwhile). When loaded, the source area shows "✓ name: N cards" (File), the choices turn on with real numbers for this deck, and one is pre-selected (no "suggested" label). Continue opens the review; Back on the review returns here. Precons suggest "I bought it" but all three choices stay available (owner may import a precon list without adding cards).
+Suggestion rule: precon → I bought it; the owner owns at least half the cards → I built it; otherwise I'm planning it.
+
+**Per-copy controls (rev 5, owner-approved wireframe `docs/oracle/mockups/import-dropdowns-wireframe.html`).** Two columns: **Card origin** and **Type**, shown as quiet dropdowns on rows and copy lines: the closed value is plain text with a small ▾ and no border, a light outline appears on hover or focus, the control is only as wide as its text, and clicking opens a short menu with a one-line description under each option. Options that can't be used stay in the menu, greyed, with the reason as their description (for example "None left in your collection"). Grid: 24 / 28 / 1fr / 150 / 90 / 28 px.
+| Card origin (closed value) | Menu description | Type |
+|---|---|---|
+| Unowned (card not owned at all) or Owned, not in deck (owned in any printing, not used) | Just on the list, no copy | empty, can't be set |
+| From collection | Uses a copy you own | Original or Proxy ("The real card" / "A stand-in copy"), each only if one is available |
+| New copy | Adds one to your collection | Original (default) or Proxy |
+Defaults: I bought it → New copy · Original. I built it → From collection if owned, else Unowned. A short copy simply shows From collection (no badge or note on the row; the footer says how many are short and blocks Import).
+
+**Planned decks** have no dropdowns and no Type column. One plain, non-editable **Status** column reads Owned or Unowned (owned in any printing), or Basic land for generic basics. The bulk bar hides the Card origin and Type toggles.
+
+**Generic land.** Only generic basic rows (basics, Wastes, snow basics with no printing named) have a Card origin dropdown: **Generic land** ("Any basic, sleeved, not tracked") or **Unowned** ("No copy"). Generic land is the default (except planned, which shows Basic land status). It is never offered on other cards. Maybeboard rows read "Not added or sleeved".
+
+**Bulk bar** (several rows selected) keeps the segmented toggles, labelled Card origin: No copy / From collection / New copy, and Type: Original / Proxy.
+
+**Which owned copy is used.** Exact printing first, then other printings; originals before proxies (unless a type is picked); matching finish preferred. Free copies are used before copies in other decks.
+
+**Copy already in another deck.** Collection still uses it. The card is tagged "Also in {deck}". Owner rule: it stays allocated to all decks involved and is flagged on each; no new copy is created; resolving happens on the deck page (pull from another deck / send to this deck). **Not saveable yet**: Import is blocked with a note until the database supports one copy in several decks (needs Architect contract and owner-approved migration).
+
+**Not enough copies.** If Collection has nothing left for a copy, it shows as short (no row badge; the footer says how many) and blocks Import until set to New copy or left out of the deck.
+
+**Removed.** Add to collection tick, the printing question ("Use my / Add this printing"), the move question (pick deck / Skip), and row locking.
+

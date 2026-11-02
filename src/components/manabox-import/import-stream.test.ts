@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { estimateFileCards, readImportResponse } from './import-stream'
+import { estimateFileCards, estimateFileCopies, readImportResponse } from './import-stream'
 
 describe('estimateFileCards', () => {
   it('skips the header and blank lines', () => {
@@ -29,5 +29,17 @@ describe('readImportResponse', () => {
     await expect(
       readImportResponse(new Response(body, { headers: { 'Content-Type': 'application/x-ndjson' } }), () => {})
     ).rejects.toThrow('boom')
+  })
+})
+
+describe('estimateFileCopies', () => {
+  it('ignores commas inside quoted card names', () => {
+    expect(estimateFileCopies('Name,Set code,Collector number,Quantity\n"Kydele, Chosen of Kruphix",x,2962,1\nIsland,,,8\n')).toBe(9)
+  })
+  it('sums the Quantity column of a CSV', () => {
+    expect(estimateFileCopies('Name,Quantity\nSol Ring,1\nIsland,9\n')).toBe(10)
+  })
+  it('sums leading quantities in a text list', () => {
+    expect(estimateFileCopies('Commander\n1 Atraxa\n10 Island\n')).toBe(11)
   })
 })

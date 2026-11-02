@@ -36,9 +36,14 @@ Old milestones map as follows: M1 (complete) fed Phases 2, 4 and 5; M2 is now Ph
 **Outcome:** every card shown is the right card, printing and finish, with honestly labelled prices (D-003, D-004, D-035, D-038).
 **Exit test:** spot-check of real decks shows correct printing/finish everywhere; unknown prices never show as zero; Proxy records the requested printing.
 
-### Phase 3 — Shared words and building blocks  ← CURRENT (started 2026-10-12 while Phase 2 awaits owner testing)
+### Phase 3 — Shared words and building blocks  ← PARKED 2026-11-02 (owner) until "Use what I own" works on three real decks
 **Outcome:** one word, colour and badge per fact, and shared loading/empty/error states (D-012–D-015, D-025, D-030).
 **Exit test:** the agreed vocabulary appears on every screen; failed lookups never show as an answer. (T-25, T-26.)
+
+### Interim slice — Use what I own  ← CURRENT (owner-approved 2026-11-02)
+**Outcome:** Brad chats with the AI about which cards he owns could replace proxies or fill gaps in a deck; answers grouped Spare / In another deck (with warning) / Buy (Scryfall estimate). Suggest only; the AI does not change decks.
+**Brief:** `docs/oracle/briefs/use-what-i-own.md`. **Exit test:** works on three real decks (for example Rocco and two others). Needs the ManaBox import of all 17 decks and the loose collection first.
+**Parked meanwhile:** the rest of Phases 3 to 7 (owner, 2026-11-02: "Yes").
 
 ### Phase 4 — Collection and storage
 **Outcome:** one clear place to see, search, filter, add, edit and remove owned copies and their storage locations.

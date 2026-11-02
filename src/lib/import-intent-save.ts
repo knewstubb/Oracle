@@ -59,9 +59,29 @@ export class NeedsChoiceError extends Error {
 export function needsChoiceRowKeys(plans: CopyPlan[]): string[] {
   return [
     ...new Set(
-      plans.filter((p) => p.kind === 'needs_choice_move' || p.kind === 'needs_choice_printing').map((p) => p.rowKey)
+      plans
+        .filter((p) => p.short || p.kind === 'needs_choice_move' || p.kind === 'needs_choice_printing')
+        .map((p) => p.rowKey)
     ),
   ]
+}
+
+/**
+ * Thrown (before anything is written) when a copy would be shared with another deck. The database has no way
+ * to link one copy to two decks yet (needs an Architect contract and a migration), so it is refused, not faked.
+ */
+export class SharedCopyError extends Error {
+  readonly rowKeys: string[]
+  constructor(rowKeys: string[]) {
+    super(`Some cards use a copy that is already in another deck, which can't be saved yet: ${rowKeys.slice(0, 5).join(', ')}`)
+    this.name = 'SharedCopyError'
+    this.rowKeys = rowKeys
+  }
+}
+
+/** Row keys of every copy that would share an owned copy with another deck. */
+export function sharedRowKeys(plans: CopyPlan[]): string[] {
+  return [...new Set(plans.filter((p) => p.kind === 'share').map((p) => p.rowKey))]
 }
 
 /** One real (non-generic) copy -> one RPC row. `copy` is the resolved copy; the plan decides the action and type. */
@@ -99,6 +119,8 @@ export function planToIntentRpcRow(
     case 'owned_unsleeved':
     case 'unowned':
       return { ...toDeckRpcRow(asType('unsleeved'), context), action: 'planned', row_index: rowIndex }
+    case 'share':
+      throw new SharedCopyError([plan.rowKey])
     default:
       // needs_choice_* is rejected before this point; generic rows are built by the caller.
       throw new Error(`Cannot save a copy with plan "${plan.kind}"`)
@@ -147,6 +169,9 @@ export function validateIntentEdits(
     for (const [i, e] of Object.entries(perIndex)) {
       const qty = qtyByKey.get(rowKey)
       if (qty !== undefined && (Number(i) >= qty || Number(i) < 0)) problems.push(`${rowKey}: copy ${i} does not exist`)
+      if (e.source !== undefined && e.source !== 'none' && e.source !== 'collection' && e.source !== 'new') {
+        problems.push(`${rowKey}: source must be none, collection or new`)
+      }
       if (e.add !== undefined && typeof e.add !== 'boolean') problems.push(`${rowKey}: add must be true or false`)
       if (e.printing !== undefined && e.printing !== 'use_mine' && e.printing !== 'add_this') {
         problems.push(`${rowKey}: printing must be use_mine or add_this`)

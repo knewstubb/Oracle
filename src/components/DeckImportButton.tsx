@@ -20,12 +20,12 @@ import { parseDeckUrl, isParseError } from '@/lib/url-parser'
 import { FORMAT_OPTIONS } from '@/lib/format-config'
 import type { NormalizedDeck, CardsByType } from '@/lib/deck-normalizer'
 import type { ImportMode, AllocationConflict } from '@/lib/deck-import'
+import { ImportIntentChoice } from '@/components/manabox-import/ImportIntentChoice'
 import { ManaBoxDeckImportFlow, type DeckFlowState } from '@/components/manabox-import/ManaBoxDeckImportFlow'
 import { ImportTitleIcon } from '@/components/manabox-import/ImportTitleIcon'
 import { ImportDiscardDialog } from '@/components/manabox-import/ImportDiscardDialog'
 import { IMPORT_MODAL_CLASS, IMPORT_INTERACTIVE_CLASS } from '@/components/manabox-import/import-labels'
 import { decideDeckDialogClose } from '@/components/manabox-import/import-close-guard'
-import { ImportIntentChoice } from '@/components/manabox-import/ImportIntentChoice'
 import { intentHeading, PRECONS_NOT_SET_UP, PRECONS_NOT_SET_UP_HINT, PRECON_OPEN_FAILED, URL_HELP_TITLE, URL_HELP_EXAMPLES, URL_HELP_NOTE } from '@/components/manabox-import/import-copy'
 import { deckToCsv, deckCsvFileName } from '@/lib/deck-to-csv'
 import { preconCardsToCsv, preconCommanderName, preconFileName, type PreconDetail, type PreconListItem } from '@/lib/precons'
@@ -68,7 +68,7 @@ const RETRYABLE_STATUSES = new Set([502, 504])
 function getDisplayError(status: number, serverMessage: string): string {
   switch (status) {
     case 400:
-      return serverMessage || "This URL format isn't supported. We support Archidekt and Moxfield deck URLs."
+      return serverMessage || "We can't read that link. Check it's a link to a deck on one of the supported sites listed below."
     case 403:
       return 'This deck is private and cannot be imported. Make it public first.'
     case 404:
@@ -82,7 +82,7 @@ function getDisplayError(status: number, serverMessage: string): string {
   }
 }
 
-const NO_FLOW_STATE: DeckFlowState = { checking: false, saving: false, hasEdits: false, reviewing: false, done: false }
+const NO_FLOW_STATE: DeckFlowState = { checking: false, saving: false, hasEdits: false, reviewing: false, done: false, choosing: false }
 
 export function DeckImportButton({
   className,
@@ -100,7 +100,6 @@ export function DeckImportButton({
 
   // Paste tab state
   const [pasteText, setPasteText] = useState('')
-  const [pasteDeckName, setPasteDeckName] = useState('')
   const [pasteError, setPasteError] = useState<string | null>(null)
   // The pasted list, handed to the same check-and-review screen a file gets.
   const [pastedFile, setPastedFile] = useState<File | null>(null)
@@ -120,7 +119,6 @@ export function DeckImportButton({
   const [importFormat, setImportFormat] = useState<string>('commander')
   // First screen: what the deck is. Nothing is pre-selected.
   const [intent, setIntent] = useState<ImportIntent | null>(null)
-  const [intentError, setIntentError] = useState(false)
 
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -130,7 +128,6 @@ export function DeckImportButton({
     setValidationError(null)
     setLastErrorStatus(null)
     setPasteText('')
-    setPasteDeckName('')
     setPasteError(null)
     setPastedFile(null)
     setPreviewData(null)
@@ -195,7 +192,7 @@ export function DeckImportButton({
         onPreviewSuccess(data.deck, data.cardsByType)
       } else {
         // A link goes to the same review as a file, using the intent chosen on the first screen.
-        setLinkPick({ commander: data.deck.commander?.cardName ?? null })
+        setLinkPick({ commander: null })
         setPastedFile(new File([deckToCsv(data.deck)], deckCsvFileName(data.deck.name), { type: 'text/csv' }))
         setActiveTab('file')
       }
@@ -254,21 +251,13 @@ export function DeckImportButton({
     const parseResult = parseDeckUrl(trimmed)
     if (isParseError(parseResult)) {
       setValidationError(
-        "This URL format isn't supported. We support Archidekt and Moxfield deck URLs."
+        "We can't read that link. Check it's a link to a deck on one of the supported sites listed below."
       )
       return
     }
 
-    if (!requireIntent() || !intent) return
-    setImportMode(INTENT_URL_MODE[intent])
+    if (intent) setImportMode(INTENT_URL_MODE[intent])
     previewMutation.mutate(trimmed)
-  }
-
-  /** URL and Paste need an intent before they continue. */
-  function requireIntent(): boolean {
-    if (intent) return true
-    setIntentError(true)
-    return false
   }
 
   function handleRetry() {
@@ -289,9 +278,7 @@ export function DeckImportButton({
 
     // A pasted list takes the same path as an uploaded text file: names are looked up,
     // the owner reviews the cards, then the deck is created.
-    const name = pasteDeckName.trim() || 'Imported Deck'
-    if (!requireIntent()) return
-    setPastedFile(new File([trimmed], `${name}.txt`, { type: 'text/plain' }))
+    setPastedFile(new File([trimmed], 'Imported Deck.txt', { type: 'text/plain' }))
     setActiveTab('file')
   }
 
@@ -357,7 +344,6 @@ export function DeckImportButton({
     resetState()
     setActiveTab('url')
     setIntent(null)
-    setIntentError(false)
     setFlowState(NO_FLOW_STATE)
     previewMutation.reset()
     importMutation.reset()
@@ -376,14 +362,13 @@ export function DeckImportButton({
     closeDialog()
   }
 
-  const sourceChosen =
-    (fileTab && (flowState.checking || flowState.reviewing || flowState.saving || flowState.done)) ||
-    previewMutation.isPending
+  // Tabs and the choices stay put while a file is read; only the review, saving and done screens replace them.
+  const sourceChosen = fileTab && (flowState.reviewing || flowState.saving || flowState.done)
 
   const urlDisplayError = validationError ?? (previewMutation.isError ? previewMutation.error.message : null)
-  // A precon is always something the owner bought: the choice shows it, selected and locked.
-  const preconLocked = activeTab === 'precon' || preconPick !== null
-  const shownIntent: ImportIntent | null = preconLocked ? 'purchased' : intent
+  // While "What's this deck?" is asked, the tab the deck came from stays highlighted.
+  const originTab: InputTab = preconPick ? 'precon' : linkPick ? 'url' : pastedFile ? 'paste' : 'file'
+  const shownTab: InputTab = fileTab && (flowState.choosing || flowState.checking) ? originTab : activeTab
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -503,7 +488,7 @@ export function DeckImportButton({
             <DialogHeader>
               <DialogTitle>
                 <ImportTitleIcon kind="deck" />
-                {intentHeading(shownIntent)}
+                {intentHeading(intent)}
               </DialogTitle>
               {/* The "how" subtitle only helps on the source-choice screen. */}
               {!sourceChosen && (
@@ -521,31 +506,19 @@ export function DeckImportButton({
                   key={tab}
                   type="button"
                   className="flex-1 rounded px-3 py-1.5 text-[length:var(--fs-sm)] font-medium transition-colors hover:bg-white/10 hover:text-foreground disabled:hover:bg-transparent"
-                  style={activeTab === tab
+                  style={shownTab === tab
                     ? { background: 'var(--accent-primary)', color: 'white' }
                     : { color: 'var(--text-tertiary)' }
                   }
                   disabled={flowState.saving || flowState.checking}
                   onClick={() => {
-                    if (tab !== activeTab) askBeforeDiscard(() => { setPastedFile(null); setPreconPick(null); setActiveTab(tab) })
+                    if (tab !== shownTab || tab !== activeTab) askBeforeDiscard(() => { setPastedFile(null); setPreconPick(null); setLinkPick(null); setIntent(null); setActiveTab(tab) })
                   }}
                 >
-                  {tab === 'url' ? 'URL' : tab === 'paste' ? 'Paste text' : tab === 'file' ? 'File' : 'Precon'}
+                  {tab === 'url' ? 'URL' : tab === 'paste' ? 'Text list' : tab === 'file' ? 'File upload' : 'Precon'}
                 </button>
               ))}
             </div>
-            )}
-
-            {/* What's this deck? sits below the source tabs. On Precon it is preset and locked. */}
-            {!sourceChosen && (
-              <div>
-                <ImportIntentChoice
-                  value={shownIntent}
-                  onChange={(v) => { setIntent(v); setIntentError(false) }}
-                  showError={intentError}
-                  disabledValues={preconLocked ? ['built', 'planned'] : undefined}
-                />
-              </div>
             )}
 
             {/* Tab content: same height on every tab, so the window never changes size */}
@@ -554,7 +527,8 @@ export function DeckImportButton({
               {activeTab === 'url' && (
                 <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto">
                 <div className="flex w-full max-w-md flex-col gap-3">
-                <Input
+                <div className="flex gap-2">
+                <Input className="flex-1"
                   type="url"
                   value={url}
                   onChange={(e) => {
@@ -569,6 +543,11 @@ export function DeckImportButton({
                   aria-invalid={!!urlDisplayError}
                   autoFocus
                 />
+                <Button onClick={handleUrlSubmit} disabled={previewMutation.isPending || !url.trim()}>
+                  {previewMutation.isPending && <Loader2 className="size-4 animate-spin" aria-hidden="true" data-icon="inline-start" />}
+                  {previewMutation.isPending ? 'Fetching...' : 'Fetch Deck'}
+                </Button>
+                </div>
 
                 {urlDisplayError && (
                   <div className="flex items-start gap-2 rounded-md bg-destructive/10 px-3 py-2" role="alert">
@@ -599,13 +578,6 @@ export function DeckImportButton({
             {/* Paste tab: the text box fills the rest of the window */}
             {activeTab === 'paste' && (
               <div className="flex min-h-0 flex-1 flex-col gap-3">
-                <Input
-                  type="text"
-                  value={pasteDeckName}
-                  onChange={(e) => setPasteDeckName(e.target.value)}
-                  placeholder="Deck name"
-                  disabled={importMutation.isPending}
-                />
                 <textarea
                   value={pasteText}
                   onChange={(e) => { setPasteText(e.target.value); setPasteError(null) }}
@@ -628,8 +600,9 @@ export function DeckImportButton({
               <ManaBoxDeckImportFlow
                 fill
                 initialFile={pastedFile}
-                intent={preconPick ? 'purchased' : intent}
-                initialCommanderName={preconPick?.commander ?? linkPick?.commander ?? null}
+                intent={intent}
+                onIntentChange={setIntent}
+                initialCommanderName={preconPick?.commander ?? null}
                 precon={preconPick !== null}
                 onStateChange={onFlowState}
                 onComplete={(_deckId, _format, _deckName, summary) => {
@@ -650,6 +623,7 @@ export function DeckImportButton({
                     setPastedFile(null)
                     setPreconPick(null)
                     setLinkPick(null)
+                    setIntent(null)
                   })
                 }}
               />
@@ -766,19 +740,20 @@ export function DeckImportButton({
             )}
             </div>
 
-            {!fileTab && activeTab !== 'precon' && (
+            {/* Same place as on the File tab: greyed out until the deck has loaded. */}
+            {activeTab !== 'file' && <ImportIntentChoice value={null} onChange={() => {}} disabled />}
+
+            {!fileTab && (
             <DialogFooter>
-              {activeTab === 'url' && (
-                <Button onClick={handleUrlSubmit} disabled={previewMutation.isPending || !url.trim()}>
-                  {previewMutation.isPending && <Loader2 className="size-4 animate-spin" aria-hidden="true" data-icon="inline-start" />}
-                  {previewMutation.isPending ? 'Fetching...' : 'Fetch Deck'}
-                </Button>
-              )}
-              {activeTab === 'paste' && (
-                <Button onClick={handlePasteSubmit} disabled={!pasteText.trim()}>
-                  Continue
-                </Button>
-              )}
+              <Button variant="outline" onClick={() => handleOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handlePasteSubmit}
+                disabled={activeTab !== 'paste' || !pasteText.trim()}
+              >
+                Continue
+              </Button>
             </DialogFooter>
             )}
           </>

@@ -6,8 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Info } from 'lucide-react'
 import { ManaBoxFilePicker } from './ManaBoxFilePicker'
-import { estimateFileCards } from './import-stream'
-import { ImportFileChip } from './ImportFileChip'
+import { estimateFileCopies } from './import-stream'
 import { DeckImportOptions } from './DeckImportOptions'
 import { ImportNotices, ImportValueNoticeLines, useHiddenNotes, countHiddenNotes } from './ImportNoticeLine'
 import { ImportDefaultsBar } from './ImportDefaultsBar'
@@ -23,31 +22,35 @@ import {
   EMPTY_FILE_MESSAGE,
   UNREADABLE_FILE_MESSAGE,
   processingDetail,
-  INTENT_FILE_HELD,
   INTENT_SAVE_ENABLED,
   intentNotes,
   INTENT_SAVE_PENDING,
-  INTENT_SAVE_PENDING_UNTICKED,
+  INTENT_SAVE_PENDING_NOT_NEW,
+  SHORT_BLOCKS_IMPORT,
+  SHARED_BLOCKS_IMPORT,
   OWNERSHIP_FAILED,
   OWNERSHIP_LOADING,
 } from './import-copy'
 import type { DeckImportIntentSummary, ImportIntent, IntentCopyEdits, OwnershipResponse, OwnershipRowFacts } from '../../../docs/oracle/contracts/import-intent.types'
 import {
   applyIntentChange,
-  hasUntickedAdd,
+  hasNonNewCopy,
+  intentChoiceStats,
   intentCopyViews,
   isGenericImportRow,
   needsChoice,
   planImportDetailed,
-  rowIntentTags,
   setIntentEdit,
   stripIntentFields,
   summariseImportPlan,
   summaryText,
+  deckBreakdown,
+  breakdownLine,
   type IntentChange,
-  type IntentTag,
 } from '@/lib/import-intent'
 import { ImportResult } from './ImportResult'
+import { ImportDeckDetails } from './ImportDeckDetails'
+import { ImportIntentChoice } from './ImportIntentChoice'
 import { IMPORT_STAGE_CLASS } from './import-labels'
 import type { ImportStep, RowFilter, ImportSource } from './types'
 import { INITIAL_DEFAULTS, computeTotals, buildCommitDeck, isGenericRow } from './types'
@@ -76,13 +79,16 @@ export interface ManaBoxDeckImportFlowProps {
   /** A file to check straight away (used for pasted decklists), as if the owner had chosen it. */
   initialFile?: File | null
   /**
-   * What the deck is (I bought it / I built it / I'm planning it), chosen on the first screen.
-   * `null` = not chosen yet: a file is held until it is. `undefined` = no intent screen (plain purchase).
+   * What the deck is (I bought it / I built it / I'm planning it).
+   * `null` = not chosen yet: the deck is read and the question is asked with real numbers, then
+   * `onIntentChange` is called. `undefined` = no intent question (plain purchase).
    */
   intent?: ImportIntent | null
+  /** The owner answered "What's this deck?" (or went back: null). */
+  onIntentChange?: (intent: ImportIntent | null) => void
   /** Commander to preselect on the review screen (a precon knows its commander). */
   initialCommanderName?: string | null
-  /** A precon: every card is added, so the review hides the Add ticks. */
+  /** A precon: "I bought it" is suggested (not locked). */
   precon?: boolean
 }
 
@@ -97,9 +103,19 @@ export interface DeckFlowState {
   reviewing: boolean
   /** The result screen is showing. */
   done: boolean
+  /** The deck has loaded and "What's this deck?" is being asked. */
+  choosing: boolean
 }
 
-export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose, titleSlot, fill, onStateChange, initialFile, intent, initialCommanderName, precon }: ManaBoxDeckImportFlowProps) {
+/** "100 cards (95 in deck · 5 in maybeboard)". */
+function deckLoadLine(rows: { qty: number; board?: string }[]): string {
+  const maybe = rows.filter((r) => r.board === 'maybeboard').reduce((n, r) => n + r.qty, 0)
+  const all = rows.reduce((n, r) => n + r.qty, 0)
+  const cards = `${all} ${all === 1 ? 'card' : 'cards'}`
+  return maybe > 0 ? `${cards} (${all - maybe} in deck · ${maybe} in maybeboard)` : cards
+}
+
+export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose, titleSlot, fill, onStateChange, initialFile, intent, onIntentChange, initialCommanderName, precon }: ManaBoxDeckImportFlowProps) {
   const [step, setStep] = useState<ImportStep>({ status: 'idle' })
   const [error, setError] = useState<string | null>(null)
   const notes = useHiddenNotes()
@@ -113,8 +129,8 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
   const router = useRouter()
   const abortRef = useRef<AbortController | null>(null)
   const savingRef = useRef(false)
-  // A file chosen before an intent: held, then read once the owner chooses.
-  const [heldFile, setHeldFile] = useState<File | null>(null)
+  // "What's this deck?" before it is confirmed with Continue.
+  const [pickedIntent, setPickedIntent] = useState<ImportIntent | null>(null)
   const effectiveIntent: ImportIntent = intent ?? 'purchased'
   type OwnershipResult = { token: string; facts: OwnershipRowFacts[] | null }
   const [ownershipResult, setOwnershipResult] = useState<OwnershipResult | null>(null)
@@ -122,23 +138,25 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
 
   const checking = step.status === 'checking'
   const saving = step.status === 'importing'
-  const reviewing = step.status === 'review'
+  const choosing = step.status === 'review' && intent === null
+  const reviewing = step.status === 'review' && !choosing
   const done = step.status === 'done'
   const hasEdits =
     step.status === 'review' &&
     (Object.keys(step.copyEdits).length > 0 ||
       JSON.stringify(step.defaults) !== JSON.stringify(INITIAL_DEFAULTS))
   useEffect(() => {
-    onStateChange?.({ checking, saving, hasEdits, reviewing, done })
-  }, [checking, saving, hasEdits, reviewing, done, onStateChange])
+    onStateChange?.({ checking, saving, hasEdits, reviewing, done, choosing })
+  }, [checking, saving, hasEdits, reviewing, done, choosing, onStateChange])
 
   const reset = useCallback(() => {
     setStep({ status: 'idle' })
     setError(null)
-    setHeldFile(null)
+    setPickedIntent(null)
     abortRef.current?.abort()
     abortRef.current = null
-  }, [])
+    onIntentChange?.(null)
+  }, [onIntentChange])
 
   // The file's content decides CSV or text, not its extension (import-formats E-12).
   const detectSource = (text: string): ImportSource => {
@@ -147,11 +165,6 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
 
   const handleFile = useCallback(async (file: File) => {
     setError(null)
-    if (intent === null) {
-      setHeldFile(file)
-      return
-    }
-    setHeldFile(null)
     setStep({ status: 'checking', file })
     const controller = new AbortController()
     abortRef.current = controller
@@ -159,7 +172,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
     try {
       const text = await file.text()
       const source = detectSource(text)
-      setStep({ status: 'checking', file, cards: estimateFileCards(text) })
+      setStep({ status: 'checking', file, cards: estimateFileCopies(text) })
       const body =
         source === 'csv'
           ? { csvContent: text, fileName: file.name }
@@ -234,15 +247,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
       setError(UNREADABLE_FILE_MESSAGE)
       setStep({ status: 'idle' })
     }
-  }, [intent, initialCommanderName])
-
-  // A file held for an intent is read as soon as one is chosen.
-  useEffect(() => {
-    if (intent == null || !heldFile) return
-    // handleFile clears heldFile and starts the read; this is the one-shot release of a held file.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void handleFile(heldFile)
-  }, [intent, heldFile, handleFile])
+  }, [initialCommanderName])
 
   // A pasted decklist arrives as a small text file and goes through the same check and review.
   const handledInitialFile = useRef<File | null>(null)
@@ -270,7 +275,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
   // Switched on (NEXT_PUBLIC_IMPORT_INTENT_SAVE=true) only after migration M2 is applied and reviewed.
   const intentSaveOn = INTENT_SAVE_ENABLED && !!intent
   const saveBlockedByIntent = !INTENT_SAVE_ENABLED && (intent === 'built' || intent === 'planned')
-  const needsOwnership = !!intent
+  const needsOwnership = intent !== undefined
   const previewRows = step.status === 'review' ? step.preview.rows : null
   // Maybeboard rows are saved as maybes with no copies, so ownership and the plan ignore them (D-022).
   const reviewRows = useMemo(
@@ -338,19 +343,29 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
       defaults: step.defaults,
     })
     const views = intentCopyViews(reviewRows, plans, allocation, step.copyEdits, effectiveIntent, step.defaults)
-    const byRow: Record<string, typeof plans> = {}
-    for (const p of plans) (byRow[p.rowKey] ??= []).push(p)
-    const tags: Record<string, IntentTag[]> = {}
-    if (ready) for (const [k, v] of Object.entries(byRow)) tags[k] = rowIntentTags(v)
     return {
       views,
-      tags: ready ? tags : undefined,
       busy: !ready,
-      untickedAdd: hasUntickedAdd(views),
+      notAllNew: hasNonNewCopy(views),
       summary: ready ? summaryText(summariseImportPlan(plans)) : null,
+      breakdown: ready ? deckBreakdown(plans) : null,
       choices: ready ? needsChoice(plans).length : 0,
+      shared: ready ? plans.filter((p) => p.kind === 'share').length : 0,
     }
   }, [needsOwnership, reviewRows, step, ownership, effectiveIntent])
+
+  /** Review → "What's this deck?" again. Choices made under the old answer are dropped. */
+  const backToQuestion = useCallback(() => {
+    setStep((prev) => (prev.status === 'review' ? { ...prev, copyEdits: {}, selectedIds: new Set() } : prev))
+    onIntentChange?.(null)
+  }, [onIntentChange])
+
+  // "What's this deck?" with real numbers, once the deck and the collection check are in.
+  const choiceStats = useMemo(() => {
+    if (!choosing || !reviewRows || step.status !== 'review' || ownership.status !== 'ready') return null
+    return intentChoiceStats({ rows: reviewRows, facts: ownership.facts, defaults: step.defaults }, { precon })
+  }, [choosing, reviewRows, step, ownership, precon])
+  const shownPick = pickedIntent ?? choiceStats?.suggested ?? null
 
   const changeIntentCopy = useCallback(
     (row: { rowKey: string; cardName: string }, index: number, change: IntentChange): string | undefined => {
@@ -363,15 +378,16 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
     [intentView, step]
   )
 
-  /** The collapsed row's tick: all of a card's copies at once. */
-  const changeIntentAdd = useCallback(
-    (row: { rowKey: string; cardName: string }, add: boolean) => {
-      const views = intentView?.views[row.rowKey]
-      if (!views || step.status !== 'review') return
+  /** The collapsed row and the bulk bar: every copy of each row at once. */
+  const changeIntentRows = useCallback(
+    (rows: { rowKey: string; cardName: string }[], change: IntentChange) => {
+      if (step.status !== 'review') return
       let edits = step.copyEdits as IntentCopyEdits
-      for (const view of views) {
-        if (view.generic) continue
-        edits = applyIntentChange(edits, row.rowKey, row.cardName, { ...view, add: !add }, { add }).edits
+      for (const row of rows) {
+        for (const view of intentView?.views[row.rowKey] ?? []) {
+          if (view.generic) continue
+          edits = applyIntentChange(edits, row.rowKey, row.cardName, view, change).edits
+        }
       }
       setStep((prev) => (prev.status === 'review' ? { ...prev, copyEdits: edits } : prev))
     },
@@ -569,43 +585,82 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
     <div className={`flex flex-col gap-3 ${fill ? 'min-h-0 flex-1' : ''}`}>
       {titleSlot}
 
-      {step.status === 'idle' && intent === null && heldFile && (
-        <p className="text-[length:var(--fs-sm)] text-muted-foreground" role="status">
-          {heldFile.name} · {INTENT_FILE_HELD}
-        </p>
-      )}
-
-      {step.status === 'idle' && (
-        <ManaBoxFilePicker
-          accept=".csv,.txt,text/csv,text/plain"
-          extensions={['csv', 'txt']}
-          label=".csv or .txt"
-          kind="deck"
-          showHelp={fill}
-          onFile={handleFile}
-          onError={setError}
-          error={error}
-        />
-      )}
-
-      {step.status === 'checking' && (
-        <div className={stage || 'flex flex-col items-center py-6'}>
-          <ImportWorking
-            title="Reading your file…"
-            detail={processingDetail(step.cards)}
-            fileName={step.file.name}
-          />
+      {(step.status === 'idle' || step.status === 'checking' || choosing) && (
+        <div className={`flex flex-col gap-3 ${grow}`}>
+          {/* One screen: the source area on top, "What's this deck?" below (disabled until the deck has loaded). */}
+          <div className={fill ? 'flex min-h-0 flex-1 flex-col' : ''}>
+            {step.status === 'idle' && (
+              <ManaBoxFilePicker
+                accept=".csv,.txt,text/csv,text/plain"
+                extensions={['csv', 'txt']}
+                label=".csv or .txt"
+                kind="deck"
+                showHelp={false}
+                onFile={handleFile}
+                onError={setError}
+                error={error}
+              />
+            )}
+            {step.status === 'checking' && (
+              <div className={stage || 'flex flex-col items-center py-6'}>
+                <ImportWorking
+                  title="Processing deck list…"
+                  detail={processingDetail(step.cards)}
+                  fileName={step.file.name}
+                />
+              </div>
+            )}
+            {choosing && step.status === 'review' && (
+              <div className="flex min-h-0 flex-1 flex-col gap-2">
+                <ImportDeckDetails
+                  deckName={step.deckName}
+                  commander={step.commander}
+                  rows={step.preview.rows}
+                  summary={deckLoadLine(step.preview.rows)}
+                />
+                {ownership.status === 'loading' && (
+                  <p role="status" className="text-[length:var(--fs-sm)] text-muted-foreground">
+                    {OWNERSHIP_LOADING}
+                  </p>
+                )}
+                {ownership.status === 'failed' && (
+                  <p role="alert" className="text-[length:var(--fs-sm)] text-[var(--signal-warning)]">
+                    {OWNERSHIP_FAILED}{' '}
+                    <button type="button" className="underline" onClick={() => setOwnershipTry((n) => n + 1)}>
+                      Try again
+                    </button>
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+          {needsOwnership && (
+            <ImportIntentChoice
+              value={choosing ? shownPick : null}
+              onChange={setPickedIntent}
+              disabled={!choosing}
+              stats={choosing ? choiceStats?.byIntent : undefined}
+              headline={choosing ? choiceStats?.headline : undefined}
+              suggestion={choosing && choiceStats ? { value: choiceStats.suggested, reason: choiceStats.reason } : undefined}
+            />
+          )}
+          <div className="flex justify-end gap-2 -mx-4 -mb-4 rounded-b-xl border-t bg-muted/50 p-4">
+            <Button type="button" variant="outline" onClick={onCancel ?? reset}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={!choosing || !shownPick}
+              onClick={() => shownPick && onIntentChange?.(shownPick)}
+            >
+              Continue
+            </Button>
+          </div>
         </div>
       )}
 
-      {step.status === 'review' && (
+      {step.status === 'review' && !choosing && (
         <div className={`flex flex-col gap-3 ${grow}`}>
-          <ImportFileChip
-            fileName={step.preview.fileName}
-            cardCount={step.preview.rows.length}
-            copyCount={step.preview.rows.reduce((sum, r) => sum + r.qty, 0)}
-            onChange={reset}
-          />
           <DeckImportOptions
             name={step.deckName}
             onNameChange={setDeckName}
@@ -702,16 +757,14 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
             onQueryChange={setQuery}
             selectedIds={step.selectedIds}
             onSelectedIdsChange={setSelectedIds}
-            intentTagsByRow={intentView?.tags}
             intent={
               intentView
                 ? {
                     viewsByRow: intentView.views,
                     busy: intentView.busy,
                     onChange: changeIntentCopy,
-                    onChangeAdd: changeIntentAdd,
+                    onChangeRows: changeIntentRows,
                     quiet: intent === 'planned',
-                    hideAdd: precon || intent === 'planned',
                   }
                 : undefined
             }
@@ -729,9 +782,9 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
               </button>
             </p>
           )}
-          {intentView?.summary && (
+          {intentView?.breakdown && (
             <p role="status" className="text-[length:var(--fs-sm)] text-muted-foreground">
-              {intentView.summary}
+              {breakdownLine(intentView.breakdown, step.filter)}
             </p>
           )}
         </div>
@@ -790,8 +843,8 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
         />
       )}
 
-      {step.status === 'review' && (
-        <div className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-3">
+      {step.status === 'review' && !choosing && (
+        <div className="flex items-center justify-between -mx-4 -mb-4 rounded-b-xl border-t bg-muted/50 p-4">
           <ImportSummary
             rows={step.preview.rows}
             kind="deck"
@@ -804,15 +857,23 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
           <div className="flex items-center gap-2">
             {intentView && intentView.choices > 0 && (
               <span className="text-[length:var(--fs-sm)] text-[var(--signal-warning)]">
-                {intentView.choices} {intentView.choices === 1 ? 'card needs' : 'cards need'} a choice
+                {SHORT_BLOCKS_IMPORT(intentView.choices)}
+              </span>
+            )}
+            {intentSaveOn && intentView && intentView.shared > 0 && (
+              <span className="text-[length:var(--fs-sm)] text-[var(--signal-warning)]">
+                {SHARED_BLOCKS_IMPORT(intentView.shared)}
               </span>
             )}
             {saveBlockedByIntent && (
               <span className="text-[length:var(--fs-sm)] text-muted-foreground">{INTENT_SAVE_PENDING}</span>
             )}
-            {!intentSaveOn && !saveBlockedByIntent && intentView?.untickedAdd && (
-              <span className="text-[length:var(--fs-sm)] text-muted-foreground">{INTENT_SAVE_PENDING_UNTICKED}</span>
+            {!intentSaveOn && !saveBlockedByIntent && intentView?.notAllNew && !intentView.choices && (
+              <span className="text-[length:var(--fs-sm)] text-muted-foreground">{INTENT_SAVE_PENDING_NOT_NEW}</span>
             )}
+            <Button type="button" variant="outline" onClick={onIntentChange ? backToQuestion : reset}>
+              Back
+            </Button>
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancel
             </Button>
@@ -821,8 +882,9 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
               onClick={handleImport}
               disabled={
                 saveBlockedByIntent ||
-                (!intentSaveOn && !!intentView?.untickedAdd) ||
-                (intentSaveOn && (intentView?.choices ?? 0) > 0) ||
+                (!intentSaveOn && !!intentView?.notAllNew) ||
+                (intentView?.choices ?? 0) > 0 ||
+                (intentSaveOn && (intentView?.shared ?? 0) > 0) ||
                 step.preview.rows.length === 0 ||
                 !step.deckName.trim()
               }

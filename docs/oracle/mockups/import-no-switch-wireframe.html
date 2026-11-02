@@ -1,0 +1,51 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Wireframe: import without a screen switch</title><style>
+  body { font: 13px/1.4 system-ui, sans-serif; background: #f4f4f4; color: #222; margin: 0; padding: 24px; }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  .note { color: #666; margin: 0 0 20px; max-width: 760px; }
+  .frame { background: #fff; border: 1px solid #bbb; border-radius: 8px; width: 820px; margin-bottom: 32px; }
+  .head { padding: 12px 16px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
+  .chips span { border: 1px solid #aaa; border-radius: 12px; padding: 2px 10px; margin-right: 6px; }
+  .chips .on { background: #222; color: #fff; border-color: #222; }
+  .grid { display: grid; grid-template-columns: 24px 28px 1fr 230px 130px; gap: 8px; align-items: center; padding: 6px 16px; border-bottom: 1px solid #eee; }
+  .grid.hdr { color: #777; font-size: 12px; background: #fafafa; }
+  .sub { color: #888; }
+  .seg { display: inline-flex; border: 1px solid #aaa; border-radius: 12px; overflow: hidden; }
+  .seg span { padding: 2px 9px; border-left: 1px solid #ccc; }
+  .seg span:first-child { border-left: 0; }
+  .seg .on { background: #222; color: #fff; }
+  .seg .off { color: #bbb; background: repeating-linear-gradient(45deg,#fff,#fff 4px,#f2f2f2 4px,#f2f2f2 8px); }
+  .box { width: 12px; height: 12px; border: 1px solid #888; border-radius: 2px; display: inline-block; }
+  .divider { padding: 4px 16px; background: #f0f0f0; color: #777; font-size: 12px; }
+  .foot { padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #ddd; }
+  .btn { border: 1px solid #888; border-radius: 6px; padding: 4px 12px; margin-left: 6px; }
+  .btn.pri { background: #222; color: #fff; border-color: #222; }
+  .bulk { padding: 6px 16px; background: #fffbe6; border-bottom: 1px solid #eee; }
+  .flag { border: 1px solid #c90; color: #a60; border-radius: 10px; padding: 1px 8px; font-size: 12px; }
+  .call { color: #a33; font-size: 12px; font-style: italic; }
+  .dropzone { border:1.5px dashed #aaa; border-radius:8px; padding:16px; text-align:center; }
+  .spin { display:inline-block; width:12px; height:12px; border:2px solid #aaa; border-top-color:#222; border-radius:50%; vertical-align:-2px; margin-right:6px; }
+  .disabled { opacity:.45; pointer-events:none; }
+  .lock { color:#888; font-size:12px; margin-bottom:10px; }
+  .btn.dis { color:#aaa; border-color:#ccc; background:#f4f4f4; }
+  .row3 { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .row3 > div { margin-bottom:0 !important; }
+  .dropzone { padding:44px 16px !important; }
+</style></head><body>
+<h1>Import without a screen switch: three moments on the same screen</h1>
+<p class="note">The file area stays at the top the whole time. The three choices sit below it side by side, greyed out, so the file area gets the height until the deck has loaded. The spinner appears inside the file area. Nothing is replaced. The same layout works for Paste, Link and Precon (the loading line appears in their input area).</p>
+<h1>A. Before a file is chosen</h1><div class="frame"><div class="head"><b>Import deck</b></div>
+<div style="padding:14px 16px;border-bottom:1px solid #eee"><div class="chips" style="margin-bottom:10px"><span class="on">File</span><span>Paste</span><span>Link</span><span>Precon</span></div><div class="dropzone">Drop a deck file here, or <u>choose a file</u></div></div>
+<div style="padding:14px 16px"><div style="margin-bottom:10px"><b>What's this deck?</b> <span class="sub">Disabled until a deck loads</span></div>
+<div class="row3 disabled"><div style="border:1px solid #aaa;border-radius:8px;padding:10px 12px;margin-bottom:8px"><b>○ I built it</b><div>The deck is already sleeved from cards you own.</div><div class="sub" style="margin-top:4px">Numbers appear once the deck has loaded</div></div><div style="border:1px solid #aaa;border-radius:8px;padding:10px 12px;margin-bottom:8px"><b>○ I bought it</b><div>Every card is added to your collection and sleeved.</div><div class="sub" style="margin-top:4px">Numbers appear once the deck has loaded</div></div><div style="border:1px solid #aaa;border-radius:8px;padding:10px 12px;margin-bottom:8px"><b>○ I'm planning it</b><div>Just a list. Nothing is added or sleeved.</div><div class="sub" style="margin-top:4px">Numbers appear once the deck has loaded</div></div></div></div>
+<div class="foot"><span></span><span><span class="btn">Cancel</span><span class="btn dis">Continue</span></span></div></div>
+<h1>B. Reading the file</h1><div class="frame"><div class="head"><b>Import deck</b></div>
+<div style="padding:14px 16px;border-bottom:1px solid #eee"><div class="chips" style="margin-bottom:10px"><span class="on">File</span><span>Paste</span><span>Link</span><span>Precon</span></div><div class="dropzone"><span class="spin"></span>Reading your file… <span class="sub">eldrazi-unbound.csv</span></div></div>
+<div style="padding:14px 16px"><div style="margin-bottom:10px"><b>What's this deck?</b> <span class="sub">Disabled while the file is read</span></div>
+<div class="row3 disabled"><div style="border:1px solid #aaa;border-radius:8px;padding:10px 12px;margin-bottom:8px"><b>○ I built it</b><div>The deck is already sleeved from cards you own.</div><div class="sub" style="margin-top:4px">Checking your collection…</div></div><div style="border:1px solid #aaa;border-radius:8px;padding:10px 12px;margin-bottom:8px"><b>○ I bought it</b><div>Every card is added to your collection and sleeved.</div><div class="sub" style="margin-top:4px">Checking your collection…</div></div><div style="border:1px solid #aaa;border-radius:8px;padding:10px 12px;margin-bottom:8px"><b>○ I'm planning it</b><div>Just a list. Nothing is added or sleeved.</div><div class="sub" style="margin-top:4px">Checking your collection…</div></div></div></div>
+<div class="foot"><span></span><span><span class="btn">Cancel</span><span class="btn dis">Continue</span></span></div></div>
+<h1>C. Deck loaded: choices open, suggestion selected</h1><div class="frame"><div class="head"><b>Import deck</b></div>
+<div style="padding:14px 16px;border-bottom:1px solid #eee"><div class="chips" style="margin-bottom:10px"><span class="on">File</span><span>Paste</span><span>Link</span><span>Precon</span></div><div class="dropzone" style="border-style:solid;background:#f6fbf8">✓ eldrazi-unbound.csv: 120 cards (100 in deck · 20 in maybeboard) &nbsp;<span class="sub"><u>Choose a different file</u></span></div></div>
+<div style="padding:14px 16px"><div style="margin-bottom:10px"><b>What's this deck?</b> <span class="sub">You own 86 of the 100 cards. 6 of those are in other decks.</span></div>
+<div class="row3"><div style="border:2px solid #222;border-radius:8px;padding:10px 12px;margin-bottom:8px"><b>◉ I built it</b><div>The deck is already sleeved from cards you own.</div><div class="sub" style="margin-top:4px">80 from collection · 6 also in other decks · 14 not in deck</div></div><div style="border:1px solid #aaa;border-radius:8px;padding:10px 12px;margin-bottom:8px"><b>○ I bought it</b><div>Every card is added to your collection and sleeved.</div><div class="sub" style="margin-top:4px">100 new copies</div></div><div style="border:1px solid #aaa;border-radius:8px;padding:10px 12px;margin-bottom:8px"><b>○ I'm planning it</b><div>Just a list. Nothing is added or sleeved.</div><div class="sub" style="margin-top:4px">100 not in deck · you own 86 of them</div></div></div></div>
+<div class="foot"><span></span><span><span class="btn">Cancel</span><span class="btn pri">Continue</span></span></div></div>
+</body></html>

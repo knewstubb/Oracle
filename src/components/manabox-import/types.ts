@@ -15,7 +15,7 @@ export type ImportSource = 'csv' | 'text'
 
 export type CopyType = ImportCopyType
 
-export type RowFilter = 'all' | 'proxy' | 'unsleeved' | 'basic'
+export type RowFilter = 'all' | 'proxy' | 'unsleeved' | 'basic' | 'deck' | 'maybeboard'
 
 /** A review row is the contract's ImportRow; its immutable `rowKey` is the id. */
 export type UiPreviewRow = ImportRow
@@ -135,8 +135,10 @@ export function computeTotals(
   defaults: ImportDefaults,
   edits: ImportCopyEdits
 ): {
+  /** Main-deck cards (copies). Maybeboard cards are counted separately. */
   cards: number
   tracked: number
+  maybeboard: number
   /** Generic basics only (no collection copy). */
   basics: number
   /** Basic lands that name a printing: real copies, already inside `tracked`. */
@@ -146,6 +148,7 @@ export function computeTotals(
   foil: number
 } {
   let cards = 0
+  let maybeboard = 0
   let basics = 0
   let specificBasics = 0
   let proxies = 0
@@ -153,9 +156,12 @@ export function computeTotals(
   let foil = 0
 
   for (const row of rows) {
-    cards += row.qty
     // Maybeboard cards add no copies, so they never count as proxies, unsleeved or foil (D-022).
-    if (row.board === 'maybeboard') continue
+    if (row.board === 'maybeboard') {
+      maybeboard += row.qty
+      continue
+    }
+    cards += row.qty
     if (isGenericRow(row, kind)) {
       basics += row.qty
       continue
@@ -168,7 +174,7 @@ export function computeTotals(
     }
   }
 
-  return { cards, tracked: cards - basics, basics, specificBasics, proxies, unsleeved, foil }
+  return { cards, tracked: cards - basics, maybeboard, basics, specificBasics, proxies, unsleeved, foil }
 }
 
 /** Convert UI rows into the normalized deck shape the commit route expects. */

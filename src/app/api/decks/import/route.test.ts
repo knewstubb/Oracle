@@ -25,7 +25,14 @@ vi.mock('@/lib/deck-import', () => ({
   importDeckNewCards: (...args: unknown[]) => mockImportNewCards(...args),
 }))
 
+const mockImportManaBox = vi.fn()
+vi.mock('@/lib/manabox-deck-import', async (orig) => ({
+  ...(await orig<typeof import('@/lib/manabox-deck-import')>()),
+  importManaBoxDeck: (...args: unknown[]) => mockImportManaBox(...args),
+}))
+
 import { POST } from './route'
+import { NeedsChoiceError, SharedCopyError } from '@/lib/import-intent-save'
 import { requireAuth } from '@/lib/auth'
 
 // ---------------------------------------------------------------------------
@@ -218,5 +225,21 @@ describe('POST /api/decks/import', () => {
 
     const data = await response.json()
     expect(data.error).toBe('Deck import failed')
+  })
+
+  // --- ManaBox intent save refusals ---
+
+  it('returns 400 shared_copy_unsupported when a copy is held by another deck', async () => {
+    mockImportManaBox.mockRejectedValueOnce(new SharedCopyError(['Sol Ring|nonfoil']))
+    const res = await POST(makeRequest({ deck: makeDeck(), defaults: {}, intent: 'built' }))
+    expect(res.status).toBe(400)
+    expect(await res.json()).toEqual({ error: 'shared_copy_unsupported', rowKeys: ['Sol Ring|nonfoil'] })
+  })
+
+  it('returns 400 needs_choice when a copy is short', async () => {
+    mockImportManaBox.mockRejectedValueOnce(new NeedsChoiceError(['Sol Ring|nonfoil']))
+    const res = await POST(makeRequest({ deck: makeDeck(), defaults: {}, intent: 'built' }))
+    expect(res.status).toBe(400)
+    expect(await res.json()).toEqual({ error: 'needs_choice', rowKeys: ['Sol Ring|nonfoil'] })
   })
 })

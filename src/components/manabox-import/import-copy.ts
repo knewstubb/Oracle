@@ -37,12 +37,11 @@ export function processingDetail(cards?: number): string {
 
 export const INTENT_QUESTION = "What's this deck?"
 export const INTENT_CHOOSE_ERROR = 'Choose one to continue.'
-export const INTENT_FILE_HELD = 'Choose one below.'
 
 export const INTENT_OPTIONS: { value: ImportIntent; label: string; description: string; heading: string }[] = [
-  { value: 'purchased', label: 'I bought it', description: 'Adds every card to your collection and sleeves it.', heading: 'Import purchased deck' },
-  { value: 'built', label: 'I built it', description: 'Uses cards you own. Add any new ones as you go.', heading: 'Import built deck' },
-  { value: 'planned', label: "I'm planning it", description: 'Just a list. Nothing is added or sleeved.', heading: 'Import planned deck' },
+  { value: 'purchased', label: 'I bought it', description: "A deck you've just bought, such as a precon. Every card is added to your collection and sleeved.", heading: 'Import purchased deck' },
+  { value: 'built', label: 'I built it', description: 'The deck is already sleeved from cards you own.', heading: 'Import built deck' },
+  { value: 'planned', label: "I'm planning it", description: 'Just a list. Nothing is added or sleeved, and no other deck is touched.', heading: 'Import planned deck' },
 ]
 
 /** Dialog heading: "Import deck" until an intent is chosen. */
@@ -112,3 +111,46 @@ export const printingLabel = (p: { setCode: string; collectorNumber: string }) =
 /** Purchased decks with an unticked Add can't be saved yet (owned-copy saving comes in a later slice). */
 export const INTENT_SAVE_PENDING_UNTICKED =
   'Saving cards you already own is coming soon. Tick Add on every card to import now.'
+
+/** Simplified review (owner decision 2026-10-30): Card origin and Type. */
+export const SOURCE_COLUMN = 'Card origin'
+export const TYPE_COLUMN = 'Type'
+export const STATUS_COLUMN = 'Status'
+/** Bulk bar toggles (short texts). */
+export const SOURCE_LABELS = { none: 'No copy', collection: 'From collection', new: 'New copy' } as const
+/** Row dropdown options: closed label plus the one-line description in the menu. */
+export const ORIGIN_OPTION_TEXT = {
+  none: { label: 'Unowned', description: 'Just on the list, no copy' },
+  collection: { label: 'From collection', description: 'Uses a copy you own' },
+  new: { label: 'New copy', description: 'Adds one to your collection' },
+} as const
+/** The "none" label depends on whether the card is owned at all. */
+export const originNoneLabel = (anyOwned: boolean) => (anyOwned ? 'Owned, not in deck' : 'Unowned')
+export const TYPE_OPTION_TEXT = {
+  original: { label: 'Original', description: 'The real card' },
+  proxy: { label: 'Proxy', description: 'A stand-in copy' },
+} as const
+export const GENERIC_ORIGIN_TEXT = { label: 'Generic land', description: 'Any basic, sleeved, not tracked' } as const
+export const STATUS_OWNED = 'Owned'
+export const STATUS_UNOWNED = 'Unowned'
+export const STATUS_BASIC = 'Basic land'
+export const SOURCE_TITLES = {
+  none: 'Not in the deck: just a slot on the list.',
+  collection: 'Uses a copy you own (any printing). A copy already in another deck is used too and flagged on both.',
+  new: 'Adds a new copy of this printing to your collection.',
+} as const
+export const NO_COLLECTION_TITLE = 'None left in your collection'
+export const NO_ORIGINAL_TITLE = 'No original in your collection'
+export const NO_PROXY_TITLE = 'No proxy in your collection'
+export const PICK_SOURCE_FIRST_TITLE = 'Choose a card origin first'
+export const MAYBEBOARD_NOT_ADDED = 'Not added or sleeved'
+/** Purchased decks with a non-New copy can't be saved by the old path. */
+export const INTENT_SAVE_PENDING_NOT_NEW =
+  'Saving cards from your collection is coming soon. Set every card to New copy to import now.'
+export const SHORT_BLOCKS_IMPORT = (n: number) =>
+  `${n} ${n === 1 ? 'card is' : 'cards are'} short: open ${n === 1 ? 'it' : 'them'} and pick New copy or leave ${n === 1 ? 'it' : 'them'} out of the deck.`
+export const SHARED_BLOCKS_IMPORT = (n: number) =>
+  `${n} ${n === 1 ? 'card uses a copy' : 'cards use copies'} already in another deck. Saving that is coming soon: set ${n === 1 ? 'it' : 'them'} to New copy or leave out of the deck for now.`
+
+/** Under each choice while the deck is still loading. */
+export const INTENT_NUMBERS_PENDING = 'Numbers appear once the deck has loaded'

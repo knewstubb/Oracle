@@ -172,20 +172,22 @@ export function createSupabaseManaBoxResolver(options: { userId?: string } = {})
       const key = `${set}|${collector}`
       if (bySetCollector.has(key)) return bySetCollector.get(key) ?? null
 
-      const { data, error } = await supabase
-        .from('ref_printings')
-        .select(PRINTING_COLUMNS)
-        .eq('set_code', set)
-        .eq('collector_number', collector)
-        .limit(1)
-
-      if (error) {
-        throw new Error(
-          `Failed to resolve printing ${set}/${collector}: ${error.message}`
-        )
+      const find = async (num: string): Promise<ManaBoxCardFacts | null> => {
+        const { data, error } = await supabase
+          .from('ref_printings')
+          .select(PRINTING_COLUMNS)
+          .eq('set_code', set)
+          .eq('collector_number', num)
+          .limit(1)
+        if (error) {
+          throw new Error(`Failed to resolve printing ${set}/${num}: ${error.message}`)
+        }
+        return data && data.length > 0 ? toFacts(data[0] as PrintingRow) : null
       }
-
-      const facts = data && data.length > 0 ? toFacts(data[0] as PrintingRow) : null
+      let facts = await find(collector)
+      // Some lists add a face letter ("2129a" for the front of a two-faced card); Scryfall numbers the card "2129".
+      const bare = /^(\d+)[a-z]$/i.exec(collector)?.[1]
+      if (!facts && bare) facts = await find(bare)
       bySetCollector.set(key, facts)
       return facts
     },

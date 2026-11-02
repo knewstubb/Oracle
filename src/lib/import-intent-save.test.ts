@@ -9,9 +9,16 @@ import { describe, it, expect, vi } from 'vitest'
 vi.mock('@/lib/deck-versions', () => ({ createVersionSnapshot: vi.fn(async () => undefined) }))
 
 import { importManaBoxDeck, type ManaBoxDeckCard } from '@/lib/manabox-deck-import'
-import { NeedsChoiceError, validateIntentEdits } from '@/lib/import-intent-save'
+import {
+  NeedsChoiceError,
+  SharedCopyError,
+  needsChoiceRowKeys,
+  planToIntentRpcRow,
+  sharedRowKeys,
+  validateIntentEdits,
+} from '@/lib/import-intent-save'
 import type { ImportDefaults } from '../../docs/oracle/contracts/import-row-editing.types'
-import type { ImportIntent, IntentCopyEdits, OwnershipResponse } from '../../docs/oracle/contracts/import-intent.types'
+import type { CopyPlan, ImportIntent, IntentCopyEdits, OwnershipResponse } from '../../docs/oracle/contracts/import-intent.types'
 import type { NormalizedDeck } from '@/lib/deck-normalizer'
 
 const DEFAULTS: ImportDefaults = { finish: 'nonfoil', condition: 'near_mint', language: 'en' }
@@ -175,38 +182,48 @@ describe('intent save: what is sent to import_deck_with_intent', () => {
     expect(f.rpcCalls[0].rows.map((x) => x.action)).toEqual(['planned', 'planned'])
   })
 
-  it('a ticked Add on a built deck adds a new copy', async () => {
-    const f = fake({ printings: ['Sol Ring-p1'] })
-    const edits: IntentCopyEdits = { 'Sol Ring-p1|nonfoil': { 0: { add: true } } }
-    await run('built', [card('Sol Ring', 1)], f, { edits })
-    expect(f.rpcCalls[0].rows.map((x) => x.action)).toEqual(['add_sleeved'])
+  it('Card source New on a built deck adds a new copy (the legacy add:true means the same)', async () => {
+    for (const edit of [{ source: 'new' as const }, { add: true }]) {
+      const f = fake({ printings: ['Sol Ring-p1'] })
+      await run('built', [card('Sol Ring', 1)], f, { edits: { 'Sol Ring-p1|nonfoil': { 0: edit } } })
+      expect(f.rpcCalls[0].rows.map((x) => x.action)).toEqual(['add_sleeved'])
+    }
   })
 
-  it('move: sends the donor deck; skip sends the alert decks (all holder decks)', async () => {
-    const held = (deckId: number) => ({ ...free(1), deckId, deckName: `Deck ${deckId}` })
+  it('Card source None on a purchased deck is a planned slot; Collection sleeves the owned copy', async () => {
     const facts: OwnershipResponse = {
-      rows: [{ rowKey: 'Sol Ring-p1|nonfoil', oracleId: 'oracle-Sol Ring', free: [], held: [held(7), held(8)] }],
-    }
-    const moveEdits: IntentCopyEdits = { 'Sol Ring-p1|nonfoil': { 0: { move: { kind: 'move', fromDeckId: 8 } } } }
-    const f1 = fake({ printings: ['Sol Ring-p1'] })
-    await run('built', [card('Sol Ring', 1)], f1, { facts, edits: moveEdits })
-    expect(f1.rpcCalls[0].rows[0]).toMatchObject({ action: 'move', from_deck_id: 8 })
-
-    const skipEdits: IntentCopyEdits = { 'Sol Ring-p1|nonfoil': { 0: { move: { kind: 'skip' } } } }
-    const f2 = fake({ printings: ['Sol Ring-p1'] })
-    const r = await run('built', [card('Sol Ring', 1)], f2, { facts, edits: skipEdits })
-    expect(f2.rpcCalls[0].rows[0]).toMatchObject({ action: 'move_skipped', alert_deck_ids: [7, 8] })
-    expect(r.intentSummary?.alertsOnOtherDecks).toBe(2)
-  })
-
-  it('a choice still open is refused before anything is written', async () => {
-    const held = (deckId: number) => ({ ...free(1), deckId, deckName: `Deck ${deckId}` })
-    const facts: OwnershipResponse = {
-      rows: [{ rowKey: 'Sol Ring-p1|nonfoil', oracleId: 'oracle-Sol Ring', free: [], held: [held(7), held(8)] }],
+      rows: [{ rowKey: 'Sol Ring-p1|nonfoil', oracleId: 'oracle-Sol Ring', free: [free(1)], held: [] }],
     }
     const f = fake({ printings: ['Sol Ring-p1'] })
-    await expect(run('built', [card('Sol Ring', 1)], f, { facts })).rejects.toBeInstanceOf(NeedsChoiceError)
+    const edits: IntentCopyEdits = { 'Sol Ring-p1|nonfoil': { 0: { source: 'none' }, 1: { source: 'collection' } } }
+    await run('purchased', [card('Sol Ring', 2)], f, { facts, edits })
+    expect(f.rpcCalls[0].rows.map((x) => x.action)).toEqual(['planned', 'sleeve_owned'])
+  })
+
+  it('a copy only held by another deck (shared) is refused before anything is written', async () => {
+    const held = (deckId: number) => ({ ...free(1), deckId, deckName: `Deck ${deckId}` })
+    const facts: OwnershipResponse = {
+      rows: [{ rowKey: 'Sol Ring-p1|nonfoil', oracleId: 'oracle-Sol Ring', free: [], held: [held(7)] }],
+    }
+    const f = fake({ printings: ['Sol Ring-p1'] })
+    const err = await run('built', [card('Sol Ring', 1)], f, { facts }).catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(SharedCopyError)
+    expect((err as SharedCopyError).rowKeys).toEqual(['Sol Ring-p1|nonfoil'])
     expect(f.rpcCalls).toHaveLength(0)
+  })
+
+  it('a short copy (Collection with nothing left) is refused as needing a choice', async () => {
+    const facts: OwnershipResponse = {
+      rows: [{ rowKey: 'Sol Ring-p1|nonfoil', oracleId: 'oracle-Sol Ring', free: [free(1)], held: [] }],
+    }
+    const f = fake({ printings: ['Sol Ring-p1'] })
+    const err = await run('built', [card('Sol Ring', 2)], f, { facts }).catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(NeedsChoiceError)
+    expect(f.rpcCalls).toHaveLength(0)
+    // Picking None for the short copy lets it save.
+    const f2 = fake({ printings: ['Sol Ring-p1'] })
+    await run('built', [card('Sol Ring', 2)], f2, { facts, edits: { 'Sol Ring-p1|nonfoil': { 1: { source: 'none' } } } })
+    expect(f2.rpcCalls[0].rows.map((x) => x.action)).toEqual(['sleeve_owned', 'planned'])
   })
 
   it('ownership unavailable: saved planned and listed, not an error', async () => {
@@ -220,6 +237,29 @@ describe('intent save: what is sent to import_deck_with_intent', () => {
     expect(r.intentSummary?.needsALook).toEqual([
       { rowKey: 'Sol Ring-p1|nonfoil', copyIndex: 0, cardName: 'Sol Ring', reason: 'ownership_unavailable' },
     ])
+  })
+
+  it('ownership unavailable with an explicit Collection pick on a purchased deck: listed, not blocked', async () => {
+    const f = fake({ printings: ['Sol Ring-p1'] })
+    const r = await run('purchased', [card('Sol Ring', 2)], f, {
+      edits: { 'Sol Ring-p1|nonfoil': { 0: { source: 'collection' } } },
+      facts: async () => {
+        throw new Error('db down')
+      },
+    })
+    expect(f.rpcCalls[0].rows.map((x) => x.action)).toEqual(['planned', 'add_sleeved'])
+    expect(r.intentSummary?.needsALook?.map((n) => [n.copyIndex, n.reason])).toEqual([[0, 'ownership_unavailable']])
+  })
+
+  it('ownership unavailable on a planned deck: nothing is listed', async () => {
+    const f = fake({ printings: ['Sol Ring-p1'] })
+    const r = await run('planned', [card('Sol Ring', 1)], f, {
+      facts: async () => {
+        throw new Error('db down')
+      },
+    })
+    expect(f.rpcCalls[0].rows.map((x) => x.action)).toEqual(['planned'])
+    expect(r.intentSummary?.needsALook ?? []).toEqual([])
   })
 
   it('maps a needs_a_look answer from the function back to the card', async () => {
@@ -262,10 +302,38 @@ describe('intent save: what is sent to import_deck_with_intent', () => {
   })
 })
 
+function plan(over: Partial<CopyPlan>): CopyPlan {
+  return { rowKey: 'a', copyIndex: 0, kind: 'add_sleeved', type: 'original', slotPrintingId: 'p', canOriginal: true, canProxy: true, ...over }
+}
+
+describe('plan helpers', () => {
+  it('needsChoiceRowKeys includes short copies; sharedRowKeys lists shared rows once', () => {
+    const plans = [
+      plan({ rowKey: 'a' }),
+      plan({ rowKey: 'b', kind: 'unowned', short: true }),
+      plan({ rowKey: 'c', kind: 'share', fromDeckId: 7, sharedWith: [{ deckId: 7, deckName: 'D' }] }),
+      plan({ rowKey: 'c', copyIndex: 1, kind: 'share', fromDeckId: 7 }),
+    ]
+    expect(needsChoiceRowKeys(plans)).toEqual(['b'])
+    expect(sharedRowKeys(plans)).toEqual(['c'])
+  })
+  it('planToIntentRpcRow refuses a shared copy', () => {
+    const copy = { finish: 'nonfoil', condition: 'near_mint', language: 'en', type: 'original' } as never
+    const ctx = { cardId: 1, cardName: 'Sol Ring', scryfallId: 'p', setCode: 'tst', categories: [] } as never
+    expect(() => planToIntentRpcRow(plan({ kind: 'share', fromDeckId: 7 }), copy, ctx, 0)).toThrow(SharedCopyError)
+  })
+})
+
 describe('validateIntentEdits', () => {
   const rows = [{ rowKey: 'a', qty: 2 }]
   it('accepts good input', () => {
+    expect(validateIntentEdits('built', { a: { 0: { source: 'collection', type: 'proxy' }, 1: { source: 'none' } } }, rows)).toEqual([])
     expect(validateIntentEdits('built', { a: { 1: { add: true, move: { kind: 'skip' }, printing: 'use_mine' } } }, rows)).toEqual([])
+  })
+  it('rejects a bad source', () => {
+    expect(validateIntentEdits('built', { a: { 0: { source: 'mine' as never } } }, rows)).toEqual([
+      'a: source must be none, collection or new',
+    ])
   })
   it('rejects a bad intent, index, add, move and printing', () => {
     expect(validateIntentEdits('nope', {}, rows)).not.toEqual([])

@@ -80,7 +80,7 @@ describe('DeckImportButton', () => {
     fireEvent.click(screen.getByRole('button', { name: /fetch deck/i }))
 
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent(/isn't supported/i)
+      expect(screen.getByRole('alert')).toHaveTextContent(/can't read that link/i)
     })
   })
 
@@ -146,7 +146,6 @@ describe('DeckImportButton', () => {
 
     const input = screen.getByPlaceholderText(/archidekt\.com\/decks/i)
     fireEvent.change(input, { target: { value: 'https://archidekt.com/decks/12345' } })
-    fireEvent.click(screen.getAllByRole('radio')[0])
     fireEvent.click(screen.getByRole('button', { name: /fetch deck/i }))
 
     await waitFor(() => {
@@ -174,7 +173,6 @@ describe('DeckImportButton', () => {
 
     const input = screen.getByPlaceholderText(/archidekt\.com\/decks/i)
     fireEvent.change(input, { target: { value: 'https://archidekt.com/decks/99999' } })
-    fireEvent.click(screen.getAllByRole('radio')[0])
     fireEvent.click(screen.getByRole('button', { name: /fetch deck/i }))
 
     await waitFor(() => {
@@ -188,12 +186,12 @@ describe('DeckImportButton', () => {
     await waitFor(() => expect(screen.getByText(/Import a deck from a URL/i)).toBeInTheDocument())
     const content = () => document.querySelector('[data-slot="dialog-content"]')!
     expect(content().className).toContain('h-[min(46rem,calc(100dvh-4rem))]')
-    for (const tab of ['Paste text', 'Precon', 'URL']) {
+    for (const tab of ['Text list', 'Precon', 'URL']) {
       fireEvent.click(screen.getByRole('button', { name: tab }))
       expect(content().className).toContain('h-[min(46rem,calc(100dvh-4rem))]')
       expect(content().className).toContain('sm:max-w-3xl')
     }
-    fireEvent.click(screen.getByRole('button', { name: 'File' }))
+    fireEvent.click(screen.getByRole('button', { name: 'File upload' }))
     await waitFor(() => expect(screen.getByLabelText('Choose file')).toBeInTheDocument())
     expect(content().className).toContain('h-[min(46rem,calc(100dvh-4rem))]')
     fireEvent.pointerDown(document.body)
@@ -226,45 +224,104 @@ describe('DeckImportButton', () => {
       skippedTokens: [],
       unmatched: [],
     }
-    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
-      new Response(JSON.stringify(preview), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    vi.spyOn(global, 'fetch').mockImplementation(async (input) =>
+      new Response(JSON.stringify(String(input).includes('/ownership') ? { rows: [] } : preview), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
     )
     render(<DeckImportButton onPreviewSuccess={onPreviewSuccess} />, { wrapper: createWrapper() })
     fireEvent.click(screen.getByRole('button', { name: /import deck/i }))
     await waitFor(() => expect(document.querySelector('[data-import-icon="deck"]')).toBeInTheDocument())
-    fireEvent.click(screen.getAllByRole('radio')[0])
-    fireEvent.click(screen.getByRole('button', { name: 'File' }))
+    screen.getAllByRole('radio').forEach((r) => expect(r).toBeDisabled())
+    fireEvent.click(screen.getByRole('button', { name: 'File upload' }))
     const input = await screen.findByLabelText('Choose file')
     fireEvent.change(input, { target: { files: [new File(['1 Sol Ring'], 'deck.txt', { type: 'text/plain' })] } })
+    // The deck loads first, then "What's this deck?" with the tabs still shown and File highlighted.
+    await waitFor(() => expect(screen.getByRole('radio', { name: /I'm planning it/ })).toBeChecked())
+    expect(screen.getByRole('button', { name: 'URL' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'File upload' }).getAttribute('style')).toContain('var(--accent-primary)')
+    expect(screen.getByRole('button', { name: 'URL' }).getAttribute('style') ?? '').not.toContain('var(--accent-primary)')
+    expect(screen.getByRole('heading', { name: 'Import deck' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
     await waitFor(() => expect(screen.getByText('Sol Ring')).toBeInTheDocument())
+    expect(screen.getByRole('heading', { name: 'Import planned deck' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'URL' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Paste text' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Text list' })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit Sol Ring' }))
-    fireEvent.click(within(screen.getByRole('group', { name: 'Copy 1 type' })).getByRole('button', { name: 'Proxy' }))
+    // Planned decks have no Card origin dropdown; any edit makes the deck dirty.
+    expect(screen.queryByRole('button', { name: /card origin for Sol Ring/i })).toBeNull()
+    fireEvent.change(screen.getByLabelText(/^Copy 1 finish/), { target: { value: 'foil' } })
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(await screen.findByText('Discard edits?')).toBeInTheDocument()
     expect(confirmSpy).not.toHaveBeenCalled()
   })
 
-  it('asks to choose what the deck is before fetching, and fetches nothing', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch')
+  it('shows "What\'s this deck?" disabled on the URL tab before loading, and Fetch works without an intent', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(() => new Promise(() => {}))
     render(<DeckImportButton onPreviewSuccess={onPreviewSuccess} />, { wrapper: createWrapper() })
     fireEvent.click(screen.getByRole('button', { name: /import deck/i }))
     fireEvent.change(await screen.findByPlaceholderText(/archidekt|moxfield|url/i), { target: { value: 'https://archidekt.com/decks/123' } })
-    expect(screen.getAllByRole('radio').some((r) => (r as HTMLInputElement).checked)).toBe(false)
+    expect(screen.getByText("What's this deck?")).toBeInTheDocument()
+    expect(screen.getAllByRole('radio')).toHaveLength(3)
+    screen.getAllByRole('radio').forEach((r) => expect(r).toBeDisabled())
+    expect(screen.getAllByText('Numbers appear once the deck has loaded')).toHaveLength(3)
     fireEvent.click(screen.getByRole('button', { name: /fetch deck/i }))
-    expect(await screen.findByText('Choose one to continue.')).toBeInTheDocument()
-    expect(fetchSpy).not.toHaveBeenCalled()
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalled())
+    expect(screen.queryByText('Choose one to continue.')).toBeNull()
   })
 
-  it('hides the tabs as soon as a URL fetch starts', async () => {
+  it('keeps the tabs (and the disabled choices) while a URL fetch runs', async () => {
     vi.spyOn(global, 'fetch').mockImplementationOnce(() => new Promise(() => {}))
     render(<DeckImportButton onPreviewSuccess={onPreviewSuccess} />, { wrapper: createWrapper() })
     fireEvent.click(screen.getByRole('button', { name: /import deck/i }))
     fireEvent.change(await screen.findByPlaceholderText(/archidekt|moxfield|url/i), { target: { value: 'https://archidekt.com/decks/123' } })
-    fireEvent.click(screen.getAllByRole('radio')[0])
     fireEvent.click(screen.getByRole('button', { name: /fetch deck/i }))
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Paste text' })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('button', { name: /fetching/i })).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Text list' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'URL' })).toBeInTheDocument()
+    screen.getAllByRole('radio').forEach((r) => expect(r).toBeDisabled())
+  })
+  it('every tab has Cancel and Continue; Continue is disabled except on Text list with text; Cancel closes', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({ precons: [], setup: false }), { status: 200 }))
+    render(<DeckImportButton onPreviewSuccess={onPreviewSuccess} />, { wrapper: createWrapper() })
+    fireEvent.click(screen.getByRole('button', { name: /import deck/i }))
+    for (const tab of ['URL', 'Text list', 'Precon', 'File upload']) {
+      fireEvent.click(await screen.findByRole('button', { name: tab }))
+      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Text list' }))
+    fireEvent.change(screen.getByPlaceholderText(/1 Sol Ring/), { target: { value: '1 Sol Ring' } })
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument())
+  })
+
+  it('Fetch Deck sits inline beside the URL field', async () => {
+    render(<DeckImportButton onPreviewSuccess={onPreviewSuccess} />, { wrapper: createWrapper() })
+    fireEvent.click(screen.getByRole('button', { name: /import deck/i }))
+    const input = await screen.findByPlaceholderText(/archidekt\.com\/decks/i)
+    const fetchBtn = screen.getByRole('button', { name: /fetch deck/i })
+    expect(input.parentElement).toBe(fetchBtn.parentElement)
+  })
+
+  it('Text list tab has no deck name field', async () => {
+    render(<DeckImportButton onPreviewSuccess={onPreviewSuccess} />, { wrapper: createWrapper() })
+    fireEvent.click(screen.getByRole('button', { name: /import deck/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Text list' }))
+    expect(screen.queryByRole('button', { name: 'Paste text' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/deck name/i)).toBeNull()
+    expect(screen.queryByPlaceholderText(/deck name/i)).toBeNull()
+  })
+
+  it('File tab shows no help cards', async () => {
+    render(<DeckImportButton onPreviewSuccess={onPreviewSuccess} />, { wrapper: createWrapper() })
+    fireEvent.click(screen.getByRole('button', { name: /import deck/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'File upload' }))
+    await screen.findByLabelText('Choose file')
+    expect(screen.queryByText('Export your list')).toBeNull()
+    expect(screen.queryByText('What happens next')).toBeNull()
   })
 })

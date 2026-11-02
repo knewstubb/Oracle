@@ -786,12 +786,6 @@ function deckPreviewNotes(resolution: ManaBoxResolution): string[] {
       `${[...new Set(companions.map((c) => c.cardName))].join(', ')} is marked as a companion. It is ticked as the companion below; untick it to keep it in the main list.`
     )
   }
-  const maybe = resolution.candidates
-    .filter((c) => c.board === 'maybeboard')
-    .reduce((sum, c) => sum + c.qty, 0)
-  if (maybe > 0) {
-    notes.push(`${maybe} ${maybe === 1 ? 'card is' : 'cards are'} on the maybeboard. They are saved as maybes, with no copies added.`)
-  }
   if (resolution.unmatched.some((u) => u.setCode && u.reason === 'no_card')) {
     notes.push(
       "Some lines name a set or number we couldn't find. Other sites sometimes use set codes that differ from ours, so those lines are listed instead of guessed."

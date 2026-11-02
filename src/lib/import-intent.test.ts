@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { parseManaBoxCsv } from '@/lib/manabox-import'
 import { describe, it, expect } from 'vitest'
 import type { ImportRow, ImportFinish, ImportDefaults } from '../../docs/oracle/contracts/import-row-editing.types'
 import { INITIAL_IMPORT_DEFAULTS } from '../../docs/oracle/contracts/import-row-editing.types'
@@ -347,3 +350,56 @@ describe('normalizedDeckToPreview (links)', () => {
 // keep the finish type import used
 const _f: ImportFinish = 'nonfoil'
 void _f
+
+describe('file Proxy marker sets the starting type (D-055)', () => {
+  const proxyRow = (over: Partial<ImportRow> = {}) => {
+    const r = row(over)
+    r.copies = [{ index: 0, sourceLine: 1, file: { proxy: true }, owner: {} }]
+    return r
+  }
+  it('purchased: a file-proxy copy is added as a proxy', () => {
+    const [p] = plan([proxyRow()], [], 'purchased')
+    expect(p.kind).toBe('add_sleeved')
+    expect(p.type).toBe('proxy')
+  })
+  it('purchased: no marker stays original', () => {
+    const [p] = plan([row()], [], 'purchased')
+    expect(p.type).toBe('original')
+  })
+  it('purchased: the owner choosing Original beats the file', () => {
+    const r = proxyRow()
+    const [p] = plan([r], [], 'purchased', { k1: { 0: { type: 'original' } } })
+    expect(p.type).toBe('original')
+  })
+  it('built: a file-proxy copy looks for an owned proxy', () => {
+    const r = proxyRow()
+    const [p] = plan([r], [facts(r, [free({ isProxy: true })])], 'built')
+    expect(p.kind).toBe('sleeve_owned')
+    expect(p.type).toBe('proxy')
+  })
+  it('planned: stays unsleeved until Add is ticked, then adds as a proxy', () => {
+    const r = proxyRow()
+    expect(plan([r], [facts(r)], 'planned')[0].kind).toBe('unowned')
+    const [p] = plan([r], [facts(r)], 'planned', { k1: { 0: { add: true } } })
+    expect(p.kind).toBe('add_sleeved')
+    expect(p.type).toBe('proxy')
+  })
+  it('rocco.csv: 6 proxies of 100 under "I bought it", preview equals summary', () => {
+    const csv = readFileSync(
+      join(__dirname, '../../tests/fixtures/rocco.csv'),
+      'utf8'
+    )
+    const { records } = parseManaBoxCsv(csv)
+    const rows = records.map((rec, i) => {
+      const qty = rec.quantity
+      const r = row({ rowKey: `k${i}`, sourceIndex: i, oracleId: `o${i}`, qty })
+      r.copies = Array.from({ length: qty }, (_, c) => ({ index: c, sourceLine: i, file: rec.proxy === true ? { proxy: true } : {}, owner: {} }))
+      return r
+    })
+    const plans = planImport({ rows, facts: [], intent: 'purchased', defaults })
+    const s = summariseImportPlan(plans)
+    expect(plans).toHaveLength(100)
+    expect(s.addedProxies).toBe(6)
+    expect(summaryText(s)).toContain('(6 proxies)')
+  })
+})

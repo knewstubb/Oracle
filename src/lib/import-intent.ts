@@ -80,7 +80,10 @@ export function effectiveCopyState(
   let add = e.add ?? start.add
   // Choosing "Add this printing" implies Add.
   if (e.printing === 'add_this') add = true
-  const type: ImportCopyType = e.type ?? copy.owner.type ?? start.type
+  // Owner's choice, then the file's Proxy marker (D-055), then the intent's starting type.
+  // Under "planned" the start is Unsleeved (no type applies) unless the copy is being added.
+  const fileProxy = copy.file.proxy === true && (start.type !== 'unsleeved' || add)
+  const type: ImportCopyType = e.type ?? copy.owner.type ?? (fileProxy ? 'proxy' : start.type)
   const owner = { ...copy.owner }
   if (e.finish !== undefined) owner.finish = e.finish
   const finish = resolveCopy({ ...copy, owner }, defaults, row.availableFinishes).finish

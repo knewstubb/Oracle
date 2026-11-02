@@ -146,30 +146,31 @@ export function OracleProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
   
   // Core state
-  const [isOpen, setIsOpen] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false
-    return localStorage.getItem(STORAGE_KEY_OPEN) === 'true'
-  })
-  const [width, setWidthState] = useState<number>(() => {
-    if (typeof window === 'undefined') return DEFAULT_WIDTH
-    const stored = localStorage.getItem(STORAGE_KEY_WIDTH)
-    if (stored !== null) {
-      const parsed = parseInt(stored, 10)
-      if (!isNaN(parsed) && parsed >= MIN_WIDTH && parsed <= MAX_WIDTH) {
-        return parsed
-      }
-    }
-    return DEFAULT_WIDTH
-  })
+  const [isOpen, setIsOpen] = useState(false)
+  const [width, setWidthState] = useState(DEFAULT_WIDTH)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [activeContext, setActiveContext] = useState<OracleContext>({ type: 'general' })
   const [activeSession, setActiveSession] = useState<OracleSession | null>(null)
   const [isStreaming, setIsStreaming] = useState(false)
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false)
-  // Hydrated synchronously: isOpen and width are lazily initialised from
-  // localStorage on the first render, so no mount effect is required.
-  const isHydrated = true
+  const [isHydrated, setIsHydrated] = useState(false)
+
+  useEffect(() => {
+    // Read browser-only preferences after hydration so server and client start with identical markup.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsOpen(localStorage.getItem(STORAGE_KEY_OPEN) === 'true')
+
+    const storedWidth = localStorage.getItem(STORAGE_KEY_WIDTH)
+    if (storedWidth !== null) {
+      const parsedWidth = parseInt(storedWidth, 10)
+      if (!isNaN(parsedWidth) && parsedWidth >= MIN_WIDTH && parsedWidth <= MAX_WIDTH) {
+        setWidthState(parsedWidth)
+      }
+    }
+
+    setIsHydrated(true)
+  }, [])
   
   // Track context changes to trigger session loading
   const lastContextKey = useRef<string | null>(null)

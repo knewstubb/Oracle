@@ -472,7 +472,7 @@ function UnifiedCardRow({
       {/* Right-click context menu — desktop only */}
       {!isMobile && contextMenuPos && (
         <div
-          className="fixed z-50 min-w-[140px] rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-1 shadow-lg"
+          className="fixed z-50 w-max whitespace-nowrap min-w-[140px] rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-1 shadow-lg"
           style={{ top: contextMenuPos.y, left: contextMenuPos.x }}
           onMouseLeave={() => setContextMenuPos(null)}
         >
@@ -786,7 +786,7 @@ function GenericLandRow({ landName, count, deckId, cardIds, cards, selectedIds, 
           </button>
           {menuOpen && (
             <div
-              className="absolute right-0 top-7 z-20 min-w-[140px] rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-2 px-3 shadow-lg"
+              className="absolute right-0 top-7 z-20 w-max whitespace-nowrap min-w-[140px] rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-2 px-3 shadow-lg"
               onMouseLeave={() => setMenuOpen(false)}
             >
               <button
@@ -996,7 +996,7 @@ function CardRowKebab({
       </button>
       {open && (
         <div
-          className="absolute right-0 top-7 z-20 min-w-[160px] rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-1 shadow-lg"
+          className="absolute right-0 top-7 z-20 w-max whitespace-nowrap min-w-[160px] rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-1 shadow-lg"
           onMouseLeave={() => setOpen(false)}
         >
           {/* Qty adjuster — shown for non-singleton formats */}
@@ -1352,7 +1352,7 @@ function SpecificLandRow({
           </button>
           {menuOpen && (
             <div
-              className="absolute right-0 top-7 z-20 min-w-[140px] rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-2 px-3 shadow-lg"
+              className="absolute right-0 top-7 z-20 w-max whitespace-nowrap min-w-[140px] rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-2 px-3 shadow-lg"
               onMouseLeave={() => setMenuOpen(false)}
             >
               <div className="flex items-center gap-2 mb-2">

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { checkCommanderPair, type PairCardFacts } from '@/lib/commander-pairing'
+import { checkCommanderPair, secondSlotKindFor, type PairCardFacts } from '@/lib/commander-pairing'
 
 const card = (name: string, type_line: string, oracle_text: string): PairCardFacts => ({ name, type_line, oracle_text })
 
@@ -40,5 +40,21 @@ describe('S-6 commander pair legality', () => {
 
   it('does not treat "Partner with" as plain Partner', () => {
     expect(checkCommanderPair(withA, partnerA).ok).toBe(false)
+  })
+})
+
+describe('secondSlotKindFor (which second-commander slot a commander allows)', () => {
+  const c = (type_line: string, oracle_text: string) => ({ name: 'X', type_line, oracle_text })
+  it('maps each pairing keyword to its slot', () => {
+    expect(secondSlotKindFor(c('Legendary Creature — Human', 'Partner (You can have two commanders if both have partner.)'))).toBe('partner')
+    expect(secondSlotKindFor(c('Legendary Creature — Human', 'Partner with Pir, Imaginative Rascal'))).toBe('partner_with')
+    expect(secondSlotKindFor(c('Legendary Creature — Elf', 'Friends forever'))).toBe('friends_forever')
+    expect(secondSlotKindFor(c('Legendary Creature — Elf', 'Choose a Background'))).toBe('background')
+    expect(secondSlotKindFor(c('Legendary Creature — Human', "Doctor's companion"))).toBe('doctors_companion')
+    expect(secondSlotKindFor(c('Legendary Creature — Time Lord Doctor', 'Flying'))).toBe('doctors_companion')
+  })
+  it('returns null for an ordinary commander', () => {
+    expect(secondSlotKindFor(c('Legendary Creature — Angel', 'Flying, vigilance'))).toBeNull()
+    expect(secondSlotKindFor(c('Legendary Creature — Cat', 'Companion — Each permanent card has MV 2 or less.'))).toBeNull()
   })
 })

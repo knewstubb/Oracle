@@ -383,17 +383,26 @@ describe('computeDeckCardStatuses', () => {
     expect(result[1].allocationStatus).toBe('proxy')
   })
 
-  it('classifies basic lands as "generic_land"', async () => {
+  it('classifies flagged generic basics as "generic_land", Sleeved by default, even with a default scryfall_id (regression)', async () => {
     const cards = [
-      { id: 1, card_name: 'Forest', copy_id: null, is_proxy: null },
-      { id: 2, card_name: 'Island', copy_id: null, is_proxy: null },
+      { id: 1, card_name: 'Forest', copy_id: null, is_proxy: null, is_generic: true, scryfall_id: 'mh3-forest' },
+      { id: 2, card_name: 'Island', copy_id: null, is_proxy: null, is_generic: true, generic_sleeved: false },
     ]
 
     const result = await computeDeckCardStatuses(cards, 'user-1')
     expect(result[0].status).toBe('generic_land')
-    expect(result[0].lifecycle).toBe('planned')
+    expect(result[0].lifecycle).toBe('sleeved')
     expect(result[0].allocationStatus).toBe('generic_land')
     expect(result[1].status).toBe('generic_land')
+    expect(result[1].lifecycle).toBe('planned')
+  })
+
+  it('an unflagged basic with no copy is an ordinary slot, not generic', async () => {
+    const result = await computeDeckCardStatuses(
+      [{ id: 1, card_name: 'Forest', copy_id: null, is_proxy: null, scryfall_id: 'znr-forest', is_generic: false }],
+      'user-1'
+    )
+    expect(result[0].status).not.toBe('generic_land')
   })
 
   it('classifies unresolved cards as planned with an allocation context', async () => {

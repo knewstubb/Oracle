@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Deck xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <NetDeckID>0</NetDeckID>
+  <Cards CatID="1" Quantity="4" Sideboard="false" Name="Lightning Bolt" />
+</Deck>

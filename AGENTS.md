@@ -53,6 +53,9 @@ A Magic: The Gathering Commander/EDH collection and deck manager. Replaces Archi
 5. No destructive database operations (drop, truncate, delete-all, clear-and-recompute) unless the task explicitly names them and cites owner approval.
 6. Finish every task by writing a report to `docs/oracle/reports/<YYYY-MM-DD>-<role>-<slug>.md` in the format below, then stop.
 
+## Feature process
+New features follow `docs/oracle/process.md` (brief, audit, design, sliced build, close-out). Read it before starting feature work. If there is no approved brief in `docs/oracle/briefs/`, stop and report.
+
 ## Report format
 ```
 # Report: <task slug>

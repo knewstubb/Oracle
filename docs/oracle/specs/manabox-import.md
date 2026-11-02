@@ -1,16 +1,18 @@
 # Spec: ManaBox import — collection and deck (T-54)
 
-Role: Designer · Phase 5 (Getting cards in) · Status: **Draft for owner review — revision 5** · 2026-10-13
+Role: Designer · Phase 5 (Getting cards in) · Status: **Draft for owner review — revision 6** · 2026-10-20
 Mockup: `docs/oracle/mockups/manabox-import.html` (open in a browser; the dashed bar at the top switches file, step and error states, adds illustrative lines, and has a greyscale check). The **Foil** tick box only appears for text files: pick **Deck text file · Strixhaven ✦ Foil tick box** in that bar.
 Inputs: D-044–D-053 (this feature; D-047 revised and D-050–D-052 added on main in 151967d; D-053 colours in db273de), D-002, D-005, D-012–D-015, D-019–D-021, D-025, D-031, D-032, D-039, D-043 (locked vocabulary, `docs/oracle/specs/vocabulary.md`); the owner's sample files in `docs/oracle/samples/manabox/`; `docs/oracle/reports/2026-10-13-gene-manabox-import-request.md` (incl. the 18:47 follow-up).
 Pairs with: T-53 (Architect contract, in parallel). Every field this spec needs from T-53 is listed in §7.
+
+**Revision 6 (2026-10-20, owner-approved "option 1"):** the floating count picker overlapped neighbouring rows' controls in the 30 px list. It is replaced by an **in-place count stepper**: on a 2+ copy row, Proxy or Unsleeved turns that row's own control into "Proxy − 1 +" with "· Original 1" beside it. Nothing floats; no other row is covered. Component `CopyCountPicker` → `CopyCountStepper`; §5.3, §6.2, §6.3, copy and accessibility updated. D-047 ("split by count") is unchanged; D-052 concerns the commander picker only.
 
 **Revision 5 (2026-10-13, owner: "Lets use the app green. Its the state we want a card in"):** a selected **Original** uses the app green `--accent-primary` #1D9E75 instead of mint. No new colour token. D-053 needs amending (G6).
 
 **Revision 4 (2026-10-13, D-053 "Proxy blue and original a mint"):**
 - A selected **Original** is now **mint**: a proposed new token `--status-original` #8FE6C1, used for the tint, border and icon.
 - **Proxy** keeps `--status-proxy` #4A93A0, now called **blue** (not teal).
-- The colours apply to row segments, to the bulk-bar icons, and to the count picker, which now also shows how many stay Original.
+- The colours apply to row segments, to the bulk-bar icons, and to the count picker (now the stepper, rev 6), which now also shows how many stay Original.
 - The mockup's text-file example is labelled so the Foil tick box is easy to find.
 
 **Revision 3 (2026-10-13, owner answers):**
@@ -21,7 +23,9 @@ Pairs with: T-53 (Architect contract, in parallel). Every field this spec needs 
 - After a Commander-format deck import, the deck opens with the commander picker already open, with no "Later" step (D-052).
 - Deck import shows a spinner only (G5). The collection importer keeps accepting today's other CSV layouts (G4).
 
-**Revision 2:** text was cut down and rows were made denser (30 px). The "Some" option was replaced by the count picker.
+**Revision 3 (owner, 2026-10-20):** on rows with 2+ copies the stepper is always visible, with no click to open it. The pill reads "✓ Original N | Proxy − n +" (deck imports add an Unsleeved stepper). Original shows the copies left over; clicking it makes every copy Original. Proxy/Unsleeved go from 0 to the number of copies. Same pill, height and text size as a 1-copy row. This replaces the click-to-open behaviour described below.
+
+**Revision 2:** text was cut down and rows were made denser (30 px). The "Some" option was replaced by the count picker (a stepper since rev 6).
 
 ---
 
@@ -39,7 +43,7 @@ Brad needs three things:
 - **Preview before commit (Nielsen #5):** the file is checked and listed *before* anything is written.
 - **Minimalist design (Nielsen #8):** every visible word helps a decision. The footer counts are the only summary, and explanations live in tooltips.
 - **Sensible defaults:** the common case needs no changes. Every card starts Original, Generic basics is on, and the format is Commander.
-- **Progressive disclosure:** the count picker appears only when you split a row with 2 or more copies. Token lines appear only after **Show**.
+- **Progressive disclosure:** the count stepper appears only when you split a row with 2 or more copies. Token lines appear only after **Show**.
 - **Visibility of system status, honestly (Nielsen #1, D-030):** skipped tokens and unmatched lines are always named.
 - **Object–action mapping (D-015):** the choice sits on each row. Bulk actions appear in the list header only while rows are selected.
 - **Colour marks the choice (D-014, D-053):** a selected Original is the app green (the state we want a card in), a selected Proxy is blue with the mask icon, and Unsleeved is a grey outline with no fill (vocabulary §3). The unmatched line is the only amber element.
@@ -71,7 +75,7 @@ Primitives come from `src/components/ui/` [Confirmed: dialog, tabs, radio-group,
 | `ImportNoticeLine` | `tone: 'warning'\|'info'`, `icon`, `text`, `action?`, `details?` | — | One line each. Not matched (warning, **Copy**); Tokens skipped (info, **Show/Hide**). Several unmatched lines: "3 not matched" + **Show** + **Copy**. |
 | `ImportCardList` | `rows`, `kind: 'deck'\|'collection'`, `source: 'csv'\|'txt'`, `selection`, `filter`, `query` | `Checkbox`, `Input` | 30 px rows. The header becomes the bulk bar when ≥1 row is selected. Filters: All · Proxies · Unsleeved (deck) · Basics (deck, when there are basics). Text files add a **Foil** column. Virtualise above ~200 rows. |
 | `CopyTypeControl` | `qty`, `counts: {original, proxy, unsleeved}`, `onChange`, `cardName`, `options` | `RadioGroup` (1 copy) / `ToggleGroup` (2+ copies) | Deck: **Original · Proxy · Unsleeved**. Collection: **Original · Proxy**. When a row is split, each chosen segment shows its count, e.g. "Original 1 · Proxy 1". A generic basic shows the **Basic** badge instead. |
-| `CopyCountPicker` | `qty`, `type: 'proxy'\|'unsleeved'`, `value`, `base`, `onPick(n)`, `onClose` | `Popover` + `RadioGroup` (number buttons) | "Proxies [1] [2] of 2 · ✓ Original 1" / "Unsleeved [1] [2] of 2 · ✓ Original 1". The Original count (green check) updates as the selected number moves. Buttons 1…qty; above 8 copies, a number input (1–qty) replaces them. Anchored under the segment. |
+| `CopyCountStepper` | `qty`, `type: 'proxy'\|'unsleeved'`, `value`, `base`, `onChange(n)`, `onClose` | Native buttons + `role="spinbutton"` (no Popover) | Replaces the row's segments while editing: "Proxy [−] 1 [+] · ✓ Original 1" / "Unsleeved [−] 1 [+] · ✓ Original 1". Range 0…qty (owner, 2026-10-20: 0 resets the row to all Original); − disabled at 0, + disabled at qty. The Original remainder (green check) updates live. Same row height (24 px), rendered in the row, never floating. Works at any qty. |
 | `FoilCheckbox` | `checked`, `cardName` | `Checkbox` | Text-file rows only (D-051). Applies to every copy on the row. |
 | `ImportSummary` | `totals`, `kind` | — | Footer counts, `aria-live="polite"`. |
 | `ImportProgress` | `processed`, `total`, `cancellable` | progress bar, `Button` | Collection only. Reuse the existing collection progress [Confirmed: CollectionImportButton.tsx]. |
@@ -108,7 +112,7 @@ Primitives come from `src/components/ui/` [Confirmed: dialog, tabs, radio-group,
 | Generic basic row | **Basic** badge; no checkbox and no control (it isn't a physical card). |
 | Foil (text files) | A tick box in the Foil column, off by default. Ticked = every copy on the row imports as foil. CSV rows show their file finish as a `FinishTag` (Foil / Etched); Nonfoil shows nothing (D-043). |
 | Language | Rows that aren't English show a language tag ("JA"), one row per language (D-051). |
-| Count picker | Closed / open under the clicked segment, with the current count selected. |
+| Count stepper | **Collapsed:** the normal segments (counts shown when split). **Editing:** this row's segments are replaced by "Proxy − n + · Original r". **At 1:** − disabled (dimmed, still announced). **At qty:** + disabled; Original reads 0. **Split result (after collapse):** "Original 1 · Proxy 1". Only one row edits at a time. Hover/focus: buttons use `--bg-hover`; the number has a 2 px focus ring. |
 | Selection | Header: "{n} selected · ✓ Original · Proxy · Unsleeved · Clear". The check icon is green and the mask icon blue; the buttons themselves stay neutral. |
 | Empty filter / search | "No proxies" / "No unsleeved cards" / "No match for "sol r"". |
 | Primary | **Import**. Disabled while checking, with no name, or with 0 cards. |
@@ -168,14 +172,15 @@ The samples have no unmatched lines (D-049: 186/186 matched), and the collection
 - **Copy** copies the unmatched lines, and its label reads "Copied" for 2 s. **Show/Hide** toggles the token lines.
 - **Choose commander** → picker → click an option. Card ⋯ → **Make commander**. **Undo** reverts.
 
-### 6.2 Count picker (rows with 2+ copies)
-- **Clicking Proxy or Unsleeved** on a row where that type isn't in use sets **all** copies to it and opens the picker under the segment with that number selected.
-- **Clicking a number** (1…qty) sets it and closes the picker.
-- **Where the other copies go:** raising a number takes copies from Original first, then from the other type. Lowering it returns copies to Original.
-  - "2 Pull from the Grave" → **Proxy** → picker "Proxies [1] [2] of 2", 2 selected → click 1 → "Original 1 · Proxy 1".
-  - Then **Unsleeved** → click 1 → "Proxy 1 · Unsleeved 1".
-- **Clicking a segment that's already on** reopens its picker with the current number selected. Clicking it again, or anywhere outside, closes the picker and keeps the number.
-- Only one picker is open at a time. Rows with 1 copy never open it, and **Original** never opens it.
+### 6.2 Count stepper (rows with 2+ copies)
+- **Clicking Proxy or Unsleeved** on a row where that type isn't in use sets **all** copies to it and turns the row's control into the stepper, showing that number. Clicking a type already in use opens the stepper at its current number.
+- **− / +** change the number by 1 within 0…qty; 0 resets the row to all Original. Reaching qty makes the whole row that type (Original 0).
+- **Where the other copies go:** raising the number takes copies from Original first, then from the other type. Lowering it returns copies to Original.
+  - "2 Pull from the Grave" → **Proxy** → "Proxy − 2 + · Original 0" → **−** → "Proxy − 1 + · Original 1".
+  - Collapsed: "Original 1 · Proxy 1". Then **Unsleeved** → stepper → 1 → "Proxy 1 · Unsleeved 1".
+- **Collapsing:** click anywhere outside the stepper, press Escape or Enter, or Tab away. Changes apply live, so collapsing **keeps** the number. There is no cancel.
+- Only one stepper is open at a time (opening another collapses the first). Rows with 1 copy never show it, and **Original** never opens it.
+- **Bulk bar:** with several rows selected, **Proxy** or **Unsleeved** applies to **all copies** of every selected row. No stepper opens, even on multi-copy rows; the per-row count is adjusted afterwards by clicking that row's own segment. (Unchanged from rev 3; stated here because the stepper is per row.)
 
 ### 6.3 Keyboard
 | Where | Keys |
@@ -183,8 +188,8 @@ The samples have no unmatched lines (D-049: 186/186 matched), and the collection
 | Dialog | Opens with focus on Choose file / Name (deck review) / search (collection review). Tab stays in the dialog. Escape closes (not while importing) and returns focus to the **Import** button that opened it. |
 | Drop zone | Not focusable. The **Choose file** button inside it is (Enter/Space), and that is the keyboard way to do the drop. |
 | Row control, 1 copy | Radio group: Tab enters at the selected option; ←/→ move **and** select. |
-| Row control, 2+ copies | Toggle group: Tab enters at the first segment in use; ←/→ **move focus only**; Enter/Space chooses it. For Proxy or Unsleeved this opens the picker, and focus goes to the selected number. Arrow keys never open the picker. |
-| Count picker | ←/→ move between numbers; Enter/Space picks it and closes; focus returns to the segment. Escape closes without change and returns focus to the segment. |
+| Row control, 2+ copies | Toggle group: Tab enters at the first segment in use; ←/→ **move focus only**; Enter/Space chooses it. For Proxy or Unsleeved this opens the stepper, and focus goes to the number. Arrow keys never open the stepper. |
+| Count stepper | The number is the one Tab stop (`spinbutton`); − and + are pointer-only. **↑ / → / + / =** add 1; **↓ / ← / − / _** subtract 1; Home = 1; End = qty. Keys stop at the ends (no wrap). Enter, Space or Escape collapses, keeping the number, and returns focus to the segment. Tab collapses and moves on. |
 | Foil / row checkbox | Space toggles. |
 | Generic basics | Space toggles. |
 | List | Per row: select checkbox → Foil (text files) → row control. |
@@ -228,7 +233,7 @@ No contract defines the ManaBox import yet: **T-53 (Architect) is writing it**. 
 | Filters / search | All {n} · Proxies {n} · Unsleeved {n} · Basics {n} · Find card |
 | List header | Qty · Card · Foil (text files) — selected: {n} selected · ✓ Original · Proxy · Unsleeved · Clear |
 | Row | Original · Proxy · Unsleeved — split: Original {n} · Proxy {n} · Unsleeved {n} — Basic · Foil · Etched · {LANG} |
-| Count picker | Proxies [1] [2] … of {qty} · ✓ Original {n} — Unsleeved [1] [2] … of {qty} · ✓ Original {n} |
+| Count stepper | Proxy − {n} + · ✓ Original {r} — Unsleeved − {n} + · ✓ Original {r} |
 | Empty list | No proxies · No unsleeved cards · No match for "{query}" |
 | Footer | **{n} cards** · {p} proxies · {u} unsleeved (if any) · {f} foil (if any) · {b} basics (if any) |
 | Buttons | Cancel · Import · Add {n} · Back · Try again · Open deck · View collection |
@@ -245,9 +250,9 @@ Use singulars correctly ("1 proxy", "1 token", "1 basic").
 
 | Pair | Ratio | Use |
 |---|---|---|
-| `--text-primary` on Proxy-selected tint (18% `--status-proxy`, blue) | 11.1:1 | Proxy label; selected number in the Proxies picker |
+| `--text-primary` on Proxy-selected tint (18% `--status-proxy`, blue) | 11.1:1 | Proxy label; number in the Proxy stepper |
 | `--text-primary` on Original-selected tint (18% `--accent-primary`, green) | 11.1:1 | Original label |
-| `--accent-primary` (green icon) on surface | 5.1:1 | Check icon; picker "✓ Original n" icon |
+| `--accent-primary` (green icon) on surface | 5.1:1 | Check icon; stepper "✓ Original n" icon |
 | `--accent-primary` border vs its tint | 4.0:1 | Non-text ✓ |
 | `--status-proxy` border vs that tint | 3.9:1 | Non-text ✓ |
 | Selected outline `--text-secondary` vs `--bg-surface` | 6.4:1 | Unsleeved (outline only) |
@@ -268,17 +273,17 @@ Use singulars correctly ("1 proxy", "1 token", "1 basic").
   - The mockup's greyscale switch shows every state still reads.
 - **D-013 / D-014 / D-015 / D-053:** no new colours. A selected Original uses the app green `--accent-primary` #1D9E75 (owner, 2026-10-13: "Lets use the app green. Its the state we want a card in"). Only Original, Proxy and the unmatched line carry colour. The dashed border is used only on the empty drop zone.
 - **Tooltips** hold explanations only. They show on hover and focus, and their text is also the control's `aria-description`.
-- **Focus order (deck review):** Change → Name → Format → Generic basics → notice actions → filters → search → select-all → per row (select → Foil → row control; picker when open) → Cancel → Import.
+- **Focus order (deck review):** Change → Name → Format → Generic basics → notice actions → filters → search → select-all → per row (select → Foil → row control; stepper number when editing) → Cancel → Import.
 - **Screen-reader names:**
   - Row group: "Pull from the Grave, 2 copies".
   - Segments on a 2+ copy row: toggle buttons named "Proxy, 1 of 2".
-  - Picker: "How many Pull from the Grave are proxies" / "… are unsleeved", containing a radiogroup.
-  - Picking announces "Pull from the Grave: 1 original, 1 proxy".
+  - Stepper: group "How many Pull from the Grave are proxies" / "… are unsleeved"; number is a spinbutton ("Proxies, 1 of 2", min 1, max qty); buttons "Fewer proxies" / "More proxies" (disabled at the ends).
+  - The Original remainder is `aria-live="polite"` and atomic: each step announces "Original 1". Collapsing announces "Pull from the Grave: 1 original, 1 proxy".
   - Foil tick box: "Foil, Abrade".
   - The footer is `aria-live="polite"` (debounced ~500 ms). Bulk actions announce "3 cards set to Unsleeved".
   - The checking state and the import result line are `role="status"`; failure is `role="alertdialog"`.
 - **Commander picker:** WAI-ARIA combobox with `aria-activedescendant`. When it opens straight after import, focus goes to its search, and the deck heading stays the page's first heading.
-- **Target size:** segments, picker numbers and tick boxes are ≥ 24 px tall, or 15 px boxes inside 30 px rows with a 24 px clickable area (WCAG 2.2 2.5.8 ✓).
+- **Target size:** segments, stepper buttons (26 × 24 px) and tick boxes are ≥ 24 px tall, or 15 px boxes inside 30 px rows with a 24 px clickable area (WCAG 2.2 2.5.8 ✓).
 - **Motion:** spinners stop under `prefers-reduced-motion` [Confirmed: src/app/globals.css].
 
 ## 10. What this replaces

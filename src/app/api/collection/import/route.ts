@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { executeInstanceLevelImport, type ImportProgress } from '@/lib/import-engine-v2'
 import { executeManaBoxCollectionImport } from '@/lib/manabox-collection-import'
 import { requireAuth } from '@/lib/auth'
-import type { ManaBoxProxyCounts } from '../../../../../docs/oracle/contracts/manabox-import.types'
+import { ImportValidationError } from '@/lib/import-copies'
+import type {
+  ImportCopyEdits,
+  ImportDefaults,
+} from '../../../../../docs/oracle/contracts/import-row-editing.types'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -68,6 +72,63 @@ function streamReplaceImport(csvContent: string, userId: string): Response {
   })
 }
 
+/** Streams `progress` events (in copies), then `complete` or `error`, as NDJSON. */
+function streamManaBoxImport(args: {
+  csvContent: string
+  fileName: string
+  userId: string
+  defaults: ImportDefaults | undefined
+  copyEdits: ImportCopyEdits | undefined
+}): Response {
+  let closed = false
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const send = (event: unknown) => {
+        if (closed) return
+        try {
+          controller.enqueue(ndjsonLine(event))
+        } catch {
+          closed = true
+        }
+      }
+      void executeManaBoxCollectionImport({
+        ...args,
+        defaults: args.defaults as ImportDefaults,
+        onProgress: (progress) => send({ type: 'progress', ...progress }),
+      })
+        .then((summary) => send({ type: 'complete', summary }))
+        .catch((err: unknown) => {
+          if (err instanceof ImportValidationError) {
+            send({ type: 'error', message: 'Invalid import request', problems: err.problems })
+          } else {
+            const message = err instanceof Error ? err.message : String(err)
+            send({ type: 'error', message: `Import failed: ${message}` })
+          }
+        })
+        .finally(() => {
+          if (!closed) {
+            closed = true
+            try {
+              controller.close()
+            } catch {
+              // client cancelled
+            }
+          }
+        })
+    },
+    cancel() {
+      closed = true
+    },
+  })
+  return new Response(stream, {
+    headers: {
+      'Cache-Control': 'no-cache, no-transform',
+      'Content-Type': 'application/x-ndjson; charset=utf-8',
+      'X-Accel-Buffering': 'no',
+    },
+  })
+}
+
 /**
  * Determines if an error is a CSV parse error (invalid format, missing columns, etc.).
  */
@@ -100,7 +161,8 @@ export async function POST(request: NextRequest) {
   ) {
     let csvContent = ''
     let fileName = 'collection.csv'
-    let proxyCounts: ManaBoxProxyCounts | undefined
+    let defaults: ImportDefaults | undefined
+    let copyEdits: ImportCopyEdits | undefined
 
     if (manaboxContentType.includes('multipart/form-data')) {
       const formData = await request.formData()
@@ -110,16 +172,27 @@ export async function POST(request: NextRequest) {
       }
       csvContent = await file.text()
       if (file instanceof File) fileName = file.name
+      try {
+        const rawDefaults = formData.get('defaults')
+        const rawEdits = formData.get('copyEdits')
+        if (typeof rawDefaults === 'string') defaults = JSON.parse(rawDefaults)
+        if (typeof rawEdits === 'string') copyEdits = JSON.parse(rawEdits)
+      } catch {
+        return NextResponse.json({ error: 'Invalid defaults or edits' }, { status: 400 })
+      }
     } else {
       try {
         const body = (await request.json()) as {
           csvContent?: string
           fileName?: string
-          proxyCounts?: ManaBoxProxyCounts
+          defaults?: ImportDefaults
+          copyEdits?: ImportCopyEdits
         }
         csvContent = body.csvContent ?? ''
         if (body.fileName) fileName = body.fileName
-        proxyCounts = body.proxyCounts
+        // `userId` in the body, if any, is ignored: the session decides who owns the copies.
+        defaults = body.defaults
+        copyEdits = body.copyEdits
       } catch {
         return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
       }
@@ -129,15 +202,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No CSV content provided' }, { status: 400 })
     }
 
+    if (searchParams.get('stream') === '1') {
+      return streamManaBoxImport({ csvContent, fileName, userId, defaults, copyEdits })
+    }
+
     try {
       const summary = await executeManaBoxCollectionImport({
         csvContent,
         fileName,
         userId,
-        proxyCounts,
+        defaults: defaults as ImportDefaults,
+        copyEdits,
       })
       return NextResponse.json(summary)
     } catch (err) {
+      if (err instanceof ImportValidationError) {
+        return NextResponse.json(
+          { error: 'Invalid import request', problems: err.problems },
+          { status: 400 }
+        )
+      }
       const message = err instanceof Error ? err.message : String(err)
       return NextResponse.json({ error: `Import failed: ${message}` }, { status: 500 })
     }

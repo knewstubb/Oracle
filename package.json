@@ -18,7 +18,8 @@
     "test:e2e:shared-readonly:setup": "playwright test tests/e2e/auth.setup.ts --project=shared-readonly-auth --headed",
     "export:commander-context": "tsx scripts/export-commander-context.ts",
     "typecheck:commander-context-export": "tsc -p scripts/tsconfig.export-commander-context.json",
-    "seed:scryfall": "tsx scripts/seed-scryfall-bulk.ts"
+    "seed:scryfall": "tsx scripts/seed-scryfall-bulk.ts",
+    "sync:cards": "tsx scripts/sync-scryfall-printings.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.106.0",

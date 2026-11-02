@@ -63,7 +63,7 @@ export function PillToggle<T extends string>({
             onClick={() => {
               if (!selected) onChange(option.value)
             }}
-            className="rounded-full px-2.5 py-1 text-[length:var(--fs-xs)] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-40"
+            className="cursor-pointer rounded-full px-2.5 py-1 text-[length:var(--fs-xs)] font-medium transition-all hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-40"
             style={selected ? ACTIVE_STYLE[option.tone] : { color: 'rgba(255,255,255,0.4)' }}
           >
             {option.label}

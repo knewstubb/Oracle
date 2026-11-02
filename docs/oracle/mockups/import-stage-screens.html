@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oracle — Import stage screens: upload, processing, importing, result (mockup, rev 1)</title>
+<style>
+  /* Colours copied from src/styles/tokens.css — no new colours */
+  :root{
+    --bg-canvas:#131316; --bg-surface:#1A1A1E; --bg-hover:#212126; --border:#35353A; --border-subtle:#262629;
+    --text-primary:#E8E8EA; --text-secondary:#9C9CA3; --text-tertiary:#6E6E76;
+    --status-proxy:#4A93A0; --signal-warning:#EF9F27; --signal-critical:#E24B4A; --accent-primary:#1D9E75;
+    --h:640px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg-canvas);color:var(--text-primary);font:13px/1.4 "Helvetica Neue",Helvetica,Arial,sans-serif}
+  button,select{font:inherit;color:inherit}
+  :focus-visible{outline:2px solid var(--accent-primary);outline-offset:2px}
+  .page{max-width:840px;margin:0 auto;padding:20px}
+  h1{font-size:18px;margin:0 0 4px}
+  h2{font-size:12px;font-weight:500;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;margin:30px 0 4px}
+  .ann{color:var(--text-secondary);font-size:12px;margin:0 0 10px;max-width:720px}
+  .ann b{color:var(--text-primary);font-weight:500}
+
+  /* Mockup controls (not part of the design) */
+  .mc{position:sticky;top:0;z-index:50;background:#0d0d10;border-bottom:1px dashed var(--text-tertiary);padding:6px 14px;display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;font-size:12px;color:var(--text-secondary)}
+  .mc b{color:var(--text-primary);font-weight:500}
+  .mc .seg{display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden}
+  .mc .seg button{background:none;border:0;padding:3px 9px;cursor:pointer;color:var(--text-secondary)}
+  .mc .seg button[aria-pressed=true]{background:var(--bg-hover);color:var(--text-primary)}
+
+  /* Dialog frame: 48rem wide, up to 46rem tall */
+  .frame{width:768px;max-width:100%;height:var(--h);display:flex;flex-direction:column;background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.5);overflow:hidden}
+  .dh{padding:12px 16px 10px;border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;gap:10px}
+  .dh h3{margin:0;font-size:15px;font-weight:500;flex:1}
+  .dh .x{background:none;border:0;color:var(--text-secondary);width:28px;height:28px;border-radius:6px;cursor:pointer}
+  .dh .x:hover{background:var(--bg-hover)}
+  .db{flex:1;min-height:0;padding:16px;display:flex;flex-direction:column;gap:14px;overflow:auto}
+  .df{padding:10px 16px;border-top:1px solid var(--border-subtle);display:flex;gap:8px;justify-content:flex-end}
+
+  .btn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:7px;border:1px solid var(--border);background:var(--bg-hover);cursor:pointer;white-space:nowrap}
+  .btn:hover{background:#2a2a30}
+  .btn.primary{background:var(--accent-primary);border-color:var(--accent-primary);color:#fff;font-weight:500}
+  .btn.ghost{background:none;border-color:transparent;color:var(--text-secondary)}
+  .btn.ghost:hover{background:var(--bg-hover);color:var(--text-primary)}
+  .btn.sm{height:24px;padding:0 8px;font-size:12px}
+  svg{flex:none}
+  .ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+  /* 1. Upload */
+  .drop{flex:1;min-height:200px;border:1.5px dashed var(--border);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:24px;color:var(--text-secondary);transition:border-color .15s,background .15s}
+  .drop .disc{width:56px;height:56px;border-radius:50%;background:var(--bg-hover);display:grid;place-items:center;color:var(--text-secondary)}
+  .drop .disc .ic{width:26px;height:26px}
+  .drop .big{font-size:16px;color:var(--text-primary);font-weight:500}
+  .drop .or{font-size:12px}
+  .drop .fmt{font-size:12px;color:var(--text-secondary)}
+  .drop.over{border-color:var(--accent-primary);background:rgba(29,158,117,.07)}
+  .drop.over .disc{background:rgba(29,158,117,.18);color:var(--accent-primary)}
+  .alert{display:flex;gap:8px;align-items:flex-start;padding:8px 12px;border:1px solid var(--signal-critical);border-radius:8px;background:rgba(226,75,74,.10)}
+  .alert .ic{color:var(--signal-critical);margin-top:1px}
+  .alert b{font-weight:500}
+  .alert span{color:var(--text-secondary)}
+  .help{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .help section{border:1px solid var(--border-subtle);border-radius:10px;padding:10px 12px}
+  .help h4{margin:0 0 4px;font-size:12px;font-weight:500;color:var(--text-primary)}
+  .help p,.help ol{margin:0;color:var(--text-secondary);font-size:12px}
+  .help ol{padding-left:16px}
+
+  /* 2-3. Processing / importing */
+  .center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center}
+  .spin{width:36px;height:36px;border-radius:50%;border:3px solid rgba(255,255,255,.10);border-top-color:var(--accent-primary);animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){.spin{animation:none;border-top-color:var(--accent-primary);border-right-color:var(--accent-primary)}}
+  .center .t{font-size:16px;font-weight:500}
+  .center .s{color:var(--text-secondary);font-size:12px}
+  .chip{display:inline-flex;gap:6px;align-items:center;height:24px;padding:0 10px;border:1px solid var(--border-subtle);border-radius:999px;color:var(--text-secondary);font-size:12px}
+  .bar{width:360px;max-width:100%;height:6px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--accent-primary);border-radius:999px}
+  .prog{display:flex;gap:8px;align-items:center;color:var(--text-secondary);font-size:12px;font-variant-numeric:tabular-nums}
+
+  /* 4. Result */
+  .res{margin:auto;width:100%;max-width:460px;display:flex;flex-direction:column;gap:16px;align-items:stretch}
+  .hero{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+  .tick{width:52px;height:52px;border-radius:50%;background:rgba(29,158,117,.16);color:var(--accent-primary);display:grid;place-items:center;margin-bottom:4px}
+  .tick .ic{width:28px;height:28px;stroke-width:2.2}
+  .hero .hl{font-size:20px;font-weight:500}
+  .hero .sub{color:var(--text-secondary)}
+  .stats{border:1px solid var(--border-subtle);border-radius:10px}
+  .stat{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border-subtle)}
+  .stat:last-child{border-bottom:0}
+  .stat .k{flex:1;display:flex;align-items:center;gap:7px}
+  .stat .k small{color:var(--text-secondary);font-size:12px}
+  .stat .v{font-variant-numeric:tabular-nums;font-weight:500}
+  .stat .g{width:12px;text-align:center;font-size:11px}
+  .stat.px .g,.stat.px .k b{color:var(--status-proxy)}
+  .stat.o .g{color:var(--accent-primary)}
+  .stat.quiet .k{color:var(--text-secondary)}
+  .notes{display:flex;flex-direction:column;gap:6px}
+  .notes .hd{display:flex;align-items:center;font-size:12px;color:var(--text-secondary)}
+  .notes .hd span{flex:1}
+  .nt{display:flex;gap:8px;align-items:flex-start;padding:7px 10px;border:1px solid var(--signal-warning);border-radius:8px;background:rgba(239,159,39,.08);font-size:12px}
+  .nt .ic{color:var(--signal-warning);margin-top:1px;width:15px;height:15px}
+  .nt.info{border-color:var(--border-subtle);background:none;color:var(--text-secondary)}
+  .nt.info .ic{color:var(--text-secondary)}
+  .nt .body{flex:1;min-width:0}
+  .nt code{font:12px "SF Mono",Menlo,monospace;background:rgba(0,0,0,.25);padding:0 4px;border-radius:4px;color:var(--text-primary)}
+  .ul{margin:6px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:3px}
+  .ul li{display:flex;gap:6px;align-items:center}
+  .ul li .tx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-secondary)}
+  .stage-label{display:inline-block;margin-bottom:6px;font-size:12px;color:var(--text-primary)}
+  .group{margin-bottom:22px}
+</style>
+</head>
+<body>
+<div class="mc">
+  <span><b>Mockup controls</b></span>
+  <span>Modal height <span class="seg" id="hseg"><button data-h="736px" aria-pressed="false">Max (46rem)</button><button data-h="640px" aria-pressed="true">Typical</button><button data-h="520px" aria-pressed="false">Short</button></span></span>
+  <span>Import type <span class="seg" id="kseg"><button data-k="collection" aria-pressed="true">Collection</button><button data-k="deck" aria-pressed="false">Deck</button></span></span>
+</div>
+
+<div class="page">
+  <h1>Import stage screens</h1>
+  <p class="ann">Rev 1. Every stage uses the same fixed modal (48rem wide, up to 46rem tall). Use the controls above to check balance at the maximum, typical and short heights, and to switch between collection and deck wording. The review screen is unchanged and not shown here. Sample data only.</p>
+
+  <h2>1 · Upload</h2>
+  <p class="ann">The drop zone is the screen: it fills the body. Two small help cards sit under it. Hover a file over the first zone in your browser to see the drag-over state for real, or use the second frame.</p>
+  <div id="s-upload"></div>
+
+  <h2>2 · Processing (reading and matching the file)</h2>
+  <div id="s-proc"></div>
+
+  <h2>3 · Importing (adding to the collection)</h2>
+  <div id="s-imp"></div>
+
+  <h2>4 · Result</h2>
+  <p class="ann">Quiet by default: a clean import shows only the headline and one line. Counts and notes appear only when there is something to say.</p>
+  <div id="s-res"></div>
+</div>
+
+<script>
+const I = {
+  upload:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>',
+  file:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8zM14 3v5h5"/></svg>',
+  alert:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20zM12 10v4M12 17.5v.01"/></svg>',
+  info:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></svg>',
+  check:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  x:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  circleUp:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V5M7 10l5-5 5 5"/></svg>'
+};
+let KIND = 'collection', H = '640px';
+const frame = (title, body, foot='') => `<div class="frame"><div class="dh"><h3>${title}</h3><button class="x" aria-label="Close">${I.x}</button></div><div class="db">${body}</div>${foot}</div>`;
+const T = () => KIND==='deck' ? 'Import deck' : 'Import collection';
+const FMT = () => KIND==='deck' ? 'ManaBox .csv or .txt' : 'ManaBox .csv';
+
+function drop(state){
+  const over = state==='over';
+  return `<div class="drop${over?' over':''}" role="region" aria-label="File drop zone" data-drop>
+    <div class="disc">${over?I.circleUp:I.upload}</div>
+    <div class="big">${over?'Drop to import':'Drop your ManaBox file here'}</div>
+    ${over?`<div class="fmt">Release to read ${KIND==='deck'?'the deck':'the file'}</div>`:`<div class="or">or</div>
+    <button class="btn" type="button" data-choose>Choose file</button>
+    <div class="fmt">${FMT()}</div>`}
+  </div>`;
+}
+function help(){
+  return `<div class="help">
+    <section><h4>Export from ManaBox</h4>
+      <p>${KIND==='deck'?'Open the deck in ManaBox and export it as CSV or text.':'Open your collection in ManaBox and export it as CSV.'}</p></section>
+    <section><h4>What happens next</h4>
+      <ol><li>We read finish, condition and language from your file.</li><li>You review the cards and can change any copy.</li><li>Nothing is added until you confirm.</li></ol></section>
+  </div>`;
+}
+function alertBox(msg, hint){ return `<div class="alert" role="alert">${I.alert}<div><b>${msg}</b> <span>${hint}</span></div></div>`; }
+
+function renderUpload(){
+  const e = KIND==='deck' ? '.csv or .txt' : '.csv';
+  document.getElementById('s-upload').innerHTML =
+   `<div class="group"><span class="stage-label">1a · Empty (interactive: drag a file over it)</span>${frame(T(), drop('idle')+help())}</div>
+    <div class="group"><span class="stage-label">1b · Drag over</span>${frame(T(), drop('over')+help())}</div>
+    <div class="group"><span class="stage-label">1c · Error: wrong file type (zone stays, so the user can retry immediately)</span>${frame(T(), alertBox('That isn’t a ManaBox '+e+' file.','Choose the file you exported from ManaBox.')+drop('idle')+help())}</div>
+    <div class="group"><span class="stage-label">1d · Error: empty file</span>${frame(T(), alertBox('This file has no cards.','Check you exported the right list from ManaBox, then try again.')+drop('idle')+help())}</div>`;
+  const z = document.querySelector('#s-upload [data-drop]');
+  ['dragenter','dragover'].forEach(ev=>z.addEventListener(ev,e=>{e.preventDefault();z.classList.add('over')}));
+  ['dragleave','drop'].forEach(ev=>z.addEventListener(ev,e=>{e.preventDefault();z.classList.remove('over')}));
+}
+function renderProc(){
+  document.getElementById('s-proc').innerHTML = frame(T(),
+   `<div class="center" role="status"><div class="spin" aria-hidden="true"></div>
+      <div class="t">Reading your file…</div>
+      <div class="s">Matching 148 cards to Scryfall. This usually takes a few seconds.</div>
+      <span class="chip">${I.file}manabox-scan-2026-10-13.csv</span></div>`);
+}
+function renderImp(){
+  document.getElementById('s-imp').innerHTML = frame(T(),
+   `<div class="center"><div class="t">${KIND==='deck'?'Creating your deck…':'Adding to your collection…'}</div>
+      <div class="bar" role="progressbar" aria-label="Import progress" aria-valuemin="0" aria-valuemax="148" aria-valuenow="87"><i style="width:59%"></i></div>
+      <div class="prog"><span>87 of 148 copies</span></div>
+      <div class="s">Keep this window open until it finishes.</div>
+      <button class="btn ghost sm" type="button">Cancel import</button></div>`);
+}
+
+const stat = (cls, glyph, label, n, note='') => `<div class="stat ${cls}"><span class="k"><span class="g" aria-hidden="true">${glyph}</span><b style="font-weight:400">${label}</b>${note?`<small>${note}</small>`:''}</span><span class="v">${n}</span></div>`;
+function result({total, proxies=0, foils=0, tokens=0, notices=[], unmatched=[]}){
+  const deck = KIND==='deck';
+  const head = deck ? 'Strix draft imported' : `${total} ${total===1?'copy':'copies'} added`;
+  const sub = deck ? `${total} cards added and sleeved` : 'to your collection';
+  const originals = total - proxies;
+  const rows = [];
+  if (proxies||foils||tokens){
+    rows.push(stat('o','●','Originals',originals));
+    if (proxies) rows.push(stat('px','◆','Proxies',proxies));
+    if (foils) rows.push(stat('quiet','★','Foil','', 'included in the counts above').replace('<span class="v"></span>',`<span class="v">${foils}</span>`));
+    if (tokens) rows.push(stat('quiet','','Tokens skipped',tokens));
+  }
+  const stats = rows.length ? `<div class="stats" role="list" aria-label="Breakdown">${rows.join('')}</div>` : (`<div class="hero"><span class="sub" style="margin-top:-8px">All originals.</span></div>`);
+  let notes = '';
+  if (notices.length || unmatched.length){
+    notes = `<div class="notes" role="group" aria-label="Needs a look">
+      <div class="hd"><span>Needs a look</span>${unmatched.length?'<button class="btn ghost sm" type="button">Copy unmatched lines</button>':''}</div>
+      ${notices.map(n=>`<div class="nt">${I.alert}<div class="body">${n}</div></div>`).join('')}
+      ${unmatched.length?`<div class="nt">${I.alert}<div class="body"><b style="font-weight:500">${unmatched.length} ${unmatched.length===1?'card couldn’t':'cards couldn’t'} be matched</b>, so ${unmatched.length===1?'it wasn’t':'they weren’t'} added.
+        <ul class="ul">${unmatched.map(u=>`<li><code>${u[0]}</code><span class="tx">${u[1]}</span></li>`).join('')}</ul></div></div>`:''}
+    </div>`;
+  }
+  const hint = deck ? `<div class="nt info">${I.info}<div class="body">No commander yet. Choose one on the deck page.</div></div>` : '';
+  const hero = `<div class="hero"><div class="tick" aria-hidden="true">${I.check}</div><h3 class="hl" style="margin:0">${head}</h3><div class="sub">${sub}</div></div>`;
+  const foot = `<div class="df"><button class="btn" type="button">Close</button><button class="btn primary" type="button">${deck?'Open deck':'View collection'}</button></div>`;
+  // when stats row replaces the "All originals" line, hero is followed directly by it
+  return frame(T(), `<div class="res" role="status">${hero}${rows.length?stats:`<div class="hero" style="margin-top:-14px"><div class="sub">All originals.</div></div>`}${notes}${hint}</div>`, foot);
+}
+function renderRes(){
+  document.getElementById('s-res').innerHTML =
+   `<div class="group"><span class="stage-label">4a · Success, nothing to report</span>${result({total:148})}</div>
+    <div class="group"><span class="stage-label">4b · Success with breakdown (proxies, foils, tokens)</span>${result({total:148, proxies:5, foils:12, tokens:2})}</div>
+    <div class="group"><span class="stage-label">4c · Success with notices and unmatched cards</span>${result({total:148, proxies:5, foils:12, tokens:2,
+      notices:['<b style="font-weight:500">3 values</b> in your file weren’t recognised, so your defaults were used.','<b style="font-weight:500">2 copies</b> have a finish Scryfall doesn’t list for that printing. They were kept as in your file.'],
+      unmatched:[['Rehearsed Debater (MH3) 999','no such card'],['Sol Rign','unreadable line'],['Drake (TFDN) 8','unknown card ID']]})}</div>`;
+}
+function renderAll(){ document.documentElement.style.setProperty('--h',H); renderUpload(); renderProc(); renderImp(); renderRes(); wire(); }
+function wire(){ document.querySelectorAll('[data-choose]').forEach(b=>b.onclick=()=>{}); }
+document.getElementById('hseg').onclick = e => { const b=e.target.closest('button'); if(!b) return; H=b.dataset.h; [...e.currentTarget.children].forEach(x=>x.setAttribute('aria-pressed',x===b)); renderAll(); };
+document.getElementById('kseg').onclick = e => { const b=e.target.closest('button'); if(!b) return; KIND=b.dataset.k; [...e.currentTarget.children].forEach(x=>x.setAttribute('aria-pressed',x===b)); renderAll(); };
+renderAll();
+</script>
+</body>
+</html>

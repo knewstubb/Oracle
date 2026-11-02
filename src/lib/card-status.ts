@@ -23,7 +23,7 @@
  */
 
 import { createAdminClient } from '@/lib/supabase'
-import { isBasicLand } from '@/lib/basic-lands'
+import { isGenericSlot, isGenericSleeved } from '@/lib/basic-lands'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -250,6 +250,8 @@ export async function computeDeckCardStatuses(
     copy_id: number | null
     is_proxy: boolean | null
     scryfall_id?: string | null
+    is_generic?: boolean | null
+    generic_sleeved?: boolean | null
   }>,
   userId: string
 ): Promise<CardSlotWithStatus[]> {
@@ -259,7 +261,19 @@ export async function computeDeckCardStatuses(
   const unresolvedCards: Array<{ id: number; card_name: string }> = []
 
   for (const card of deckCards) {
-    if (card.copy_id !== null) {
+    if (isGenericSlot(card)) {
+      // Explicit generic basic: no copy, no allocation. Sleeved/Unsleeved comes from the flag.
+      resolved.push({
+        deckCardsId: card.id,
+        cardName: card.card_name,
+        copyId: null,
+        physicalCopyId: null,
+        isProxy: null,
+        lifecycle: isGenericSleeved(card) ? 'sleeved' : 'planned',
+        allocationStatus: 'generic_land',
+        status: 'generic_land',
+      })
+    } else if (card.copy_id !== null) {
       resolved.push({
         deckCardsId: card.id,
         cardName: card.card_name,
@@ -269,18 +283,6 @@ export async function computeDeckCardStatuses(
         lifecycle: 'sleeved',
         allocationStatus: card.is_proxy ? 'proxy' : 'original',
         status: card.is_proxy ? 'proxy' : 'original',
-      })
-    } else if (isBasicLand(card.card_name) && !card.scryfall_id) {
-      // Generic basic land (no specific printing) — always considered "original"
-      resolved.push({
-        deckCardsId: card.id,
-        cardName: card.card_name,
-        copyId: null,
-        physicalCopyId: null,
-        isProxy: null,
-        lifecycle: 'planned',
-        allocationStatus: 'generic_land',
-        status: 'generic_land',
       })
     } else {
       // Unresolved: either a non-land card, or a specific-printing land
@@ -293,7 +295,7 @@ export async function computeDeckCardStatuses(
   // Pass preferred printings so we can distinguish 'available' (exact) from 'alternate'
   const preferredPrintings = new Map<string, string | null>()
   for (const card of deckCards) {
-    if (card.copy_id === null && card.scryfall_id) {
+    if (card.copy_id === null && card.scryfall_id && !isGenericSlot(card)) {
       preferredPrintings.set(card.card_name, card.scryfall_id)
     }
   }

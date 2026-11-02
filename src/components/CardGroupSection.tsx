@@ -17,8 +17,9 @@
  * - Health bar indicators (from List view)
  */
 
-import { useState, useCallback, useMemo } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState, useCallback, useMemo, useRef } from 'react'
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { applyStatusPatch, type StatusPatch } from '@/lib/generic-status-patch'
 import { ChevronDown, ChevronRight, Tags, MoreVertical, Trash2, GripVertical, Sparkles, Check, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
@@ -26,6 +27,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button'
 import { CardHoverPreview, useCardHoverPreview, showCardPreview, updateCardPreviewPosition, hideCardPreview } from '@/components/CardHoverPreview'
 import { PrintingPicker } from '@/components/PrintingPicker'
+import { GenericArtPicker } from '@/components/GenericArtPicker'
 import { StatusChipPopover } from '@/components/StatusChipPopover'
 import { CardSlotBadge } from '@/components/CardSlotBadge'
 import { CategoryTagEditor } from '@/components/CategoryTagEditor'
@@ -36,7 +38,7 @@ import { useIsMobile } from '@/hooks/useIsMobile'
 import type { StructuredCategories } from '@/lib/categoryUtils'
 import type { DeckCard } from '@/components/CardGrid'
 import type { CardSlotStatus, DeckCardLifecycle } from '@/lib/card-status'
-import { isBasicLand } from '@/lib/basic-lands'
+import { isBasicLand, isGenericSlot, isGenericSleeved, getBasicLandDefaultScryfallId } from '@/lib/basic-lands'
 import { ManaCost } from '@/components/ManaCost'
 import { formatPrice } from '@/lib/collection-printing-utils'
 
@@ -110,9 +112,8 @@ export function CardGroupSection({
   const specificLandGroups = new Map<string, { count: number; cards: DeckCard[]; card: DeckCard }>()
 
   for (const card of groupCards) {
-    const cardStatus = statusMap.get(card.id)
-    if (isBasicLand(card.card_name) && cardStatus === 'generic_land') {
-      // Generic land — group by name
+    if (isGenericSlot(card)) {
+      // Generic land (explicit is_generic flag) — one line per basic type, never merged with a printing line
       const existing = genericLandCounts.get(card.card_name) ?? { count: 0, cards: [] }
       existing.count += card.quantity || 1
       existing.cards.push(card)
@@ -130,8 +131,6 @@ export function CardGroupSection({
     }
   }
 
-  // Determine if this is a land group with specific-printing lands (for bulk generic button)
-  const hasSpecificLands = specificLandGroups.size > 0
   const isLandGroup = groupName.toLowerCase() === 'land' || groupName.toLowerCase() === 'lands'
 
   return (
@@ -166,9 +165,12 @@ export function CardGroupSection({
           )}
         </button>
 
-        {/* Bulk "Make all generic" — only in land groups with specific-printing lands */}
-        {isLandGroup && hasSpecificLands && !collapsed && (
-          <MakeAllGenericButton deckId={deckId} specificLandGroups={specificLandGroups} />
+        {/* Add a generic basic — generics are permanent and unlimited; no swap */}
+        {isLandGroup && !collapsed && (
+          <AddGenericBasicButton
+            deckId={deckId}
+            genericCounts={new Map(Array.from(genericLandCounts.entries()).map(([n, g]) => [n, g.count]))}
+          />
         )}
       </div>
 
@@ -188,6 +190,7 @@ export function CardGroupSection({
               count={count}
               deckId={deckId}
               cardIds={landCards.map(c => c.id)}
+              cards={landCards}
               selectedIds={selectedIds}
               onSelectionChange={onSelectionChange}
             />
@@ -569,18 +572,108 @@ function MobileStatusDot({ status }: { status: CardSlotStatus }) {
 // GenericLandRow — simple row for generic (untracked) basic lands
 // ---------------------------------------------------------------------------
 
-function GenericLandRow({ landName, count, deckId, cardIds, selectedIds, onSelectionChange }: { 
+function patchStatusCounts(queryClient: QueryClient, deckId: number, patch: StatusPatch) {
+  queryClient.setQueryData(deckKeys.cardStatuses(deckId), (old: { counts?: Record<string, unknown> } | undefined) =>
+    applyStatusPatch(old, patch)
+  )
+}
+
+function GenericLandRow({ landName, count, deckId, cardIds, cards, selectedIds, onSelectionChange }: { 
   landName: string
   count: number
   deckId: number
   cardIds: number[]
+  cards: DeckCard[]
   selectedIds?: Set<number>
   onSelectionChange?: (cardId: number, selected: boolean) => void
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [optimisticCount, setOptimisticCount] = useState(count)
+  const [artOpen, setArtOpen] = useState(false)
   const queryClient = useQueryClient()
-  const { invalidateDeck } = createDeckInvalidators(queryClient)
+
+  // Optimistic values shown instantly; cleared once the server's answer has been refetched.
+  const [countOverride, setCountOverride] = useState<number | null>(null)
+  const [sleevedOverride, setSleevedOverride] = useState<boolean | null>(null)
+  const countRef = useRef<number | null>(null)
+  const versionRef = useRef(0)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Unsleeved wins: the line is Sleeved only if every row is.
+  const serverSleeved = cards.every((c) => isGenericSleeved(c))
+  const sleeved = sleevedOverride ?? serverSleeved
+  const shownCount = countOverride ?? count
+  const artId = cards[0]?.scryfall_id || null
+  const finish = cards[0]?.requested_finish ?? null
+  const pending = false
+
+  const hoverArtId = artId || getBasicLandDefaultScryfallId(landName)
+  const { triggerProps: nameHover } = useCardHoverPreview({ scryfallId: hoverArtId, cardName: landName })
+
+  const refreshDeck = async (): Promise<void> => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: deckKeys.detail(deckId), exact: true }),
+      queryClient.invalidateQueries({ queryKey: deckKeys.cardStatuses(deckId), exact: true }),
+      queryClient.invalidateQueries({ queryKey: deckKeys.picklist(deckId), exact: true }),
+    ])
+  }
+
+  const send = async (method: 'POST' | 'PATCH', body: Record<string, unknown>, failMsg: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/decks/${deckId}/generic-basics`, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cardName: landName, ...body }),
+      })
+      if (!res.ok) throw new Error(failMsg)
+      return true
+    } catch {
+      toast.error(failMsg)
+      return false
+    }
+  }
+
+  /** Instant +/- : update the number and the deck totals now, send one request when clicks pause. */
+  const changeCount = (delta: number) => {
+    const from = countRef.current ?? count
+    const next = Math.max(0, from + delta)
+    if (next === from) return
+    countRef.current = next
+    setCountOverride(next)
+    patchStatusCounts(queryClient, deckId, { size: next - from, generic: next - from, sleeved })
+    const version = ++versionRef.current
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(async () => {
+      const target = countRef.current as number
+      const ok = await send('POST', { count: target }, `Couldn't change the generic ${landName} count`)
+      if (ok) await refreshDeck()
+      else await queryClient.invalidateQueries({ queryKey: deckKeys.cardStatuses(deckId), exact: true })
+      if (versionRef.current === version) {
+        countRef.current = null
+        setCountOverride(null)
+      }
+    }, 350)
+  }
+
+  const handleAdd = () => changeCount(1)
+  const handleRemove = () => changeCount(-1)
+  const handleRemoveAll = () => {
+    setMenuOpen(false)
+    changeCount(-(countRef.current ?? count))
+  }
+  const handleSleeved = async (next: boolean) => {
+    setSleevedOverride(next)
+    patchStatusCounts(queryClient, deckId, { unsleeveFlip: next ? 'sleeve' : 'unsleeve', amount: shownCount, name: landName })
+    const ok = await send('PATCH', { sleeved: next }, `Couldn't change sleeving for ${landName}`)
+    await (ok ? refreshDeck() : queryClient.invalidateQueries({ queryKey: deckKeys.cardStatuses(deckId), exact: true }))
+    setSleevedOverride(null)
+  }
+  const handleArt = async (p: { scryfallId: string } | null) => {
+    setArtOpen(false)
+    if (p) {
+      const ok = await send('PATCH', { scryfallId: p.scryfallId }, `Couldn't change the art for ${landName}`)
+      if (ok) await refreshDeck()
+    }
+  }
 
   // Check if all cards in this group are selected
   const allSelected = cardIds.length > 0 && cardIds.every(id => selectedIds?.has(id))
@@ -588,42 +681,6 @@ function GenericLandRow({ landName, count, deckId, cardIds, selectedIds, onSelec
 
   const handleSelectAll = (checked: boolean) => {
     cardIds.forEach(id => onSelectionChange?.(id, checked))
-  }
-
-  const handleAdd = () => {
-    setOptimisticCount(c => c + 1)
-    fetch(`/api/decks/${deckId}/cards`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cardName: landName }),
-    }).then(res => {
-      if (!res.ok) { setOptimisticCount(c => c - 1); toast.error('Failed to add') }
-      invalidateDeck(deckId)
-    }).catch(() => setOptimisticCount(c => c - 1))
-  }
-
-  const handleRemove = () => {
-    if (optimisticCount <= 0) return
-    setOptimisticCount(c => c - 1)
-    const idToRemove = cardIds[cardIds.length - 1]
-    if (!idToRemove) return
-    fetch(`/api/decks/${deckId}/cards/${idToRemove}`, { method: 'DELETE' })
-      .then(res => {
-        if (!res.ok) { setOptimisticCount(c => c + 1); toast.error('Failed to remove') }
-        invalidateDeck(deckId)
-      }).catch(() => setOptimisticCount(c => c + 1))
-  }
-
-  const handleRemoveAll = () => {
-    const prev = optimisticCount
-    setOptimisticCount(0)
-    Promise.all(cardIds.map(id => fetch(`/api/decks/${deckId}/cards/${id}`, { method: 'DELETE' })))
-      .then(() => {
-        toast.success(`Removed all ${landName}`)
-        invalidateDeck(deckId)
-      })
-      .catch(() => setOptimisticCount(prev))
-    setMenuOpen(false)
   }
 
   return (
@@ -642,28 +699,77 @@ function GenericLandRow({ landName, count, deckId, cardIds, selectedIds, onSelec
           aria-label={`Select ${landName}`}
         />
 
-        {/* Quantity */}
-        <span className="w-4 shrink-0 text-right text-[length:var(--fs-xs)] text-muted-foreground">
-          {optimisticCount}
-        </span>
+        {/* Quantity stepper: always visible, updates instantly */}
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={handleRemove}
+            disabled={shownCount <= 0}
+            aria-label={`Remove one generic ${landName}`}
+            className="flex size-5 items-center justify-center rounded border border-[var(--border-default)] text-[length:var(--fs-xs)] text-foreground hover:bg-white/[0.05] disabled:opacity-40"
+          >
+            −
+          </button>
+          <span className="w-6 text-center text-[length:var(--fs-xs)] tabular-nums text-foreground" data-testid="generic-count">
+            {shownCount}
+          </span>
+          <button
+            type="button"
+            onClick={handleAdd}
+            aria-label={`Add one generic ${landName}`}
+            className="flex size-5 items-center justify-center rounded border border-[var(--border-default)] text-[length:var(--fs-xs)] text-foreground hover:bg-white/[0.05]"
+          >
+            +
+          </button>
+        </div>
+
+        {/* Art thumbnail: click to change art */}
+        <button
+          type="button"
+          onClick={() => setArtOpen(true)}
+          aria-label={`Change art for ${landName}`}
+          title="Change art"
+          className="shrink-0 overflow-hidden rounded border border-[var(--border-default)] hover:border-[var(--accent-primary)]"
+        >
+          {hoverArtId ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={`https://cards.scryfall.io/art_crop/front/${hoverArtId.charAt(0)}/${hoverArtId.charAt(1)}/${hoverArtId}.jpg`}
+              alt=""
+              className="h-6 w-9 object-cover"
+            />
+          ) : (
+            <span className="block h-6 w-9 bg-muted" />
+          )}
+        </button>
 
         {/* Land name */}
-        <span className="min-w-0 flex-1 truncate text-[length:var(--fs-sm)]">
-          {landName}
+        <span className="min-w-0 flex-1 truncate text-[length:var(--fs-sm)]" {...nameHover}>
+          {landName} <span className="text-muted-foreground">(generic)</span>
         </span>
 
-        {/* Original badge */}
-        <span
-          className="inline-flex items-center gap-1 shrink-0 rounded-full px-2 py-0.5 text-[length:var(--fs-xs)] font-medium"
-          style={{ color: 'var(--signal-success)', backgroundColor: 'rgba(29, 158, 117, 0.12)' }}
+        {/* Visible Change art button */}
+        <button
+          type="button"
+          onClick={() => setArtOpen(true)}
+          className="shrink-0 rounded px-2 py-0.5 text-[length:var(--fs-xs)] text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
         >
-          <span
-            className="material-symbols-outlined inline-flex items-center justify-center"
-            style={{ fontSize: '12px', fontVariationSettings: "'FILL' 1, 'wght' 400, 'opsz' 20", color: 'var(--signal-success)' }}
-            aria-hidden="true"
-          >circle</span>
-          Original
-        </span>
+          Change art…
+        </button>
+
+        {/* Sleeved / Unsleeved state for the whole line */}
+        <button
+          type="button"
+          onClick={() => handleSleeved(!sleeved)}
+          aria-pressed={!sleeved}
+          aria-label={`${landName} generics are ${sleeved ? 'sleeved' : 'unsleeved'}. Click to mark ${sleeved ? 'unsleeved' : 'sleeved'}`}
+          className="inline-flex items-center gap-1 shrink-0 rounded-full px-2 py-0.5 text-[length:var(--fs-xs)] font-medium disabled:opacity-40"
+          style={sleeved
+            ? { color: 'var(--signal-success)', backgroundColor: 'rgba(29, 158, 117, 0.12)' }
+            : { color: 'var(--signal-warning, #EF9F27)', backgroundColor: 'rgba(239, 159, 39, 0.14)' }}
+        >
+          {sleeved ? 'Sleeved' : '◇ Unsleeved'}
+        </button>
 
         {/* Kebab menu with quantity picker */}
         <div className="relative shrink-0">
@@ -680,30 +786,17 @@ function GenericLandRow({ landName, count, deckId, cardIds, selectedIds, onSelec
               className="absolute right-0 top-7 z-20 min-w-[140px] rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-2 px-3 shadow-lg"
               onMouseLeave={() => setMenuOpen(false)}
             >
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-[length:var(--fs-xs)] text-muted-foreground">Qty:</span>
-                <button
-                  type="button"
-                  onClick={handleRemove}
-                  disabled={optimisticCount <= 0}
-                  className="flex size-6 items-center justify-center rounded border border-[var(--border-default)] text-[length:var(--fs-sm)] text-foreground hover:bg-white/[0.05] disabled:opacity-40"
-                >
-                  −
-                </button>
-                <span className="w-6 text-center text-[length:var(--fs-sm)] text-foreground tabular-nums">{optimisticCount}</span>
-                <button
-                  type="button"
-                  onClick={handleAdd}
-                  disabled={false}
-                  className="flex size-6 items-center justify-center rounded border border-[var(--border-default)] text-[length:var(--fs-sm)] text-foreground hover:bg-white/[0.05] disabled:opacity-40"
-                >
-                  +
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => { setMenuOpen(false); setArtOpen(true) }}
+                className="flex w-full items-center gap-2 rounded px-1 py-1 text-[length:var(--fs-xs)] text-muted-foreground transition-colors hover:bg-white/[0.05] hover:text-foreground"
+              >
+                Change art…
+              </button>
               <button
                 type="button"
                 onClick={handleRemoveAll}
-                disabled={false}
+                disabled={pending}
                 className="flex w-full items-center gap-2 rounded px-1 py-1 text-[length:var(--fs-xs)] transition-colors hover:bg-[rgba(226,75,74,0.1)] disabled:opacity-40"
                 style={{ color: 'rgba(226,75,74,0.8)' }}
               >
@@ -714,6 +807,14 @@ function GenericLandRow({ landName, count, deckId, cardIds, selectedIds, onSelec
           )}
         </div>
       </div>
+      <GenericArtPicker
+        open={artOpen}
+        cardName={landName}
+        currentScryfallId={artId}
+        finish={finish}
+        onSelect={handleArt}
+        onClose={() => setArtOpen(false)}
+      />
     </div>
   )
 }
@@ -1065,61 +1166,73 @@ function PrintingPickerWithOwned({
 }
 
 // ---------------------------------------------------------------------------
-// MakeAllGenericButton — bulk convert specific-printing lands to generic
+// AddGenericBasicButton — add one generic basic of a chosen type (no swap, no copy used)
 // ---------------------------------------------------------------------------
 
-function MakeAllGenericButton({
+const ADDABLE_BASICS = ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes'] as const
+
+function AddGenericBasicButton({
   deckId,
-  specificLandGroups,
+  genericCounts,
 }: {
   deckId: number
-  specificLandGroups: Map<string, { count: number; cards: DeckCard[]; card: DeckCard }>
+  genericCounts: Map<string, number>
 }) {
+  const [open, setOpen] = useState(false)
   const [isPending, setIsPending] = useState(false)
   const queryClient = useQueryClient()
 
-  const handleClick = async (e: React.MouseEvent) => {
-    e.stopPropagation() // Prevent collapsing the section
+  const add = async (name: string) => {
+    setOpen(false)
     setIsPending(true)
-    toast.loading('Converting all lands to generic...', { id: 'bulk-generic' })
-
+    patchStatusCounts(queryClient, deckId, { size: 1, generic: 1, sleeved: true })
     try {
-      const allCardIds = Array.from(specificLandGroups.values()).flatMap(g => g.cards.map(c => c.id))
-      await Promise.all(
-        allCardIds.map(id =>
-          fetch(`/api/decks/${deckId}/cards/${id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ scryfall_id: null, set_code: null }),
-          })
-        )
-      )
-      toast.dismiss('bulk-generic')
-      toast.success(`Converted ${allCardIds.length} lands to generic`)
-      queryClient.invalidateQueries({ queryKey: ['decks', String(deckId)] })
-      queryClient.invalidateQueries({ queryKey: ['decks', deckId] })
-      queryClient.invalidateQueries({ queryKey: ['decks', String(deckId), 'card-statuses'] })
-      queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'card-statuses'] })
-      queryClient.invalidateQueries({ queryKey: ['picklist', deckId] })
-      queryClient.invalidateQueries({ queryKey: ['picklist', String(deckId)] })
+      const res = await fetch(`/api/decks/${deckId}/generic-basics`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cardName: name, count: (genericCounts.get(name) ?? 0) + 1 }),
+      })
+      if (!res.ok) throw new Error('Failed to add')
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: deckKeys.detail(deckId), exact: true }),
+        queryClient.invalidateQueries({ queryKey: deckKeys.cardStatuses(deckId), exact: true }),
+        queryClient.invalidateQueries({ queryKey: deckKeys.picklist(deckId), exact: true }),
+      ])
     } catch {
-      toast.dismiss('bulk-generic')
-      toast.error('Failed to convert some lands')
+      toast.error(`Couldn't add a generic ${name}`)
+      queryClient.invalidateQueries({ queryKey: deckKeys.cardStatuses(deckId), exact: true })
     } finally {
       setIsPending(false)
     }
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={isPending}
-      className="shrink-0 rounded px-2 py-0.5 text-[length:var(--fs-xs)] font-medium text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground disabled:opacity-40"
-      aria-label="Convert all specific-printing lands to generic"
-    >
-      {isPending ? 'Converting...' : 'Make all generic'}
-    </button>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        className="shrink-0 rounded px-2 py-0.5 text-[length:var(--fs-xs)] font-medium text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground disabled:opacity-40"
+        aria-label="Add generic basic"
+        disabled={isPending}
+      >
+        + Add generic basic
+      </PopoverTrigger>
+      <PopoverContent className="w-44 p-1" align="end">
+        <ul role="menu" aria-label="Add generic basic">
+          {ADDABLE_BASICS.map((name) => (
+            <li key={name} role="none">
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => add(name)}
+                disabled={isPending}
+                className="w-full rounded px-2 py-1.5 text-left text-[length:var(--fs-sm)] hover:bg-white/[0.06] disabled:opacity-40"
+              >
+                {name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -1150,6 +1263,7 @@ function SpecificLandRow({
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const queryClient = useQueryClient()
+  const { triggerProps: specificHover } = useCardHoverPreview({ scryfallId, cardName: displayName })
 
   // Check if all cards in this group are selected
   const allSelected = cardIds.length > 0 && cardIds.every(id => selectedIds?.has(id))
@@ -1187,34 +1301,6 @@ function SpecificLandRow({
     onError: (err: Error) => toast.error(err.message),
   })
 
-  const makeGenericMutation = useMutation({
-    mutationFn: async () => {
-      toast.loading('Converting to generic...', { id: 'make-generic' })
-      for (const id of cardIds) {
-        const res = await fetch(`/api/decks/${deckId}/cards/${id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scryfall_id: null, set_code: null }),
-        })
-        if (!res.ok) throw new Error('Failed to update')
-      }
-    },
-    onSuccess: () => {
-      toast.dismiss('make-generic')
-      queryClient.invalidateQueries({ queryKey: ['decks', String(deckId)] })
-      queryClient.invalidateQueries({ queryKey: ['decks', deckId] })
-      queryClient.invalidateQueries({ queryKey: ['decks', String(deckId), 'card-statuses'] })
-      queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'card-statuses'] })
-      queryClient.invalidateQueries({ queryKey: ['decks', String(deckId), 'health'] })
-      queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'health'] })
-      queryClient.invalidateQueries({ queryKey: ['picklist', deckId] })
-      queryClient.invalidateQueries({ queryKey: ['picklist', String(deckId)] })
-      toast.success('Converted to generic')
-      setMenuOpen(false)
-    },
-    onError: (err: Error) => { toast.dismiss('make-generic'); toast.error(err.message) },
-  })
-
   return (
     <div role="listitem" className="border-b border-[rgba(255,255,255,0.04)] last:border-b-0">
       <div className="group flex items-center gap-2 px-3 py-2 transition-colors hover:bg-white/[0.03]">
@@ -1229,7 +1315,7 @@ function SpecificLandRow({
         />
 
         <span className="w-4 shrink-0 text-right text-[length:var(--fs-xs)] text-muted-foreground">{count}</span>
-        <span className="min-w-0 flex-1 truncate text-[length:var(--fs-sm)]">{displayName}</span>
+        <span className="min-w-0 flex-1 truncate text-[length:var(--fs-sm)]" {...specificHover}>{displayName}</span>
 
         {/* Status chip */}
         <CardSlotBadge status={status} lifecycle={lifecycle} variant="icon" />
@@ -1269,15 +1355,6 @@ function SpecificLandRow({
                   +
                 </button>
               </div>
-              <button
-                type="button"
-                onClick={() => makeGenericMutation.mutate()}
-                disabled={makeGenericMutation.isPending}
-                className="flex w-full items-center gap-2 rounded px-1 py-1 text-[length:var(--fs-xs)] text-muted-foreground transition-colors hover:bg-white/[0.05] hover:text-foreground disabled:opacity-40"
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '12px' }} aria-hidden="true">circle</span>
-                Make generic
-              </button>
               <button
                 type="button"
                 onClick={() => updateQtyMutation.mutate(0)}

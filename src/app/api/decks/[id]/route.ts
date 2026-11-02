@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
 import { assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
-import { frontFaceName } from '@/lib/basic-lands'
+import { frontFaceName, countsAsSleeved } from '@/lib/basic-lands'
 import { getFormatConfig } from '@/lib/format-config'
 import { getCommanderBuildCardRepository } from '@/lib/commander-context'
 import { NextRequest } from 'next/server'
@@ -197,7 +197,7 @@ export async function GET(
   // Merge allocation status, mana cost, price, edition, and synergy into cards
   const cardsWithStatus = (cards ?? []).map(card => ({
     ...card,
-    lifecycle: card.copy_id != null ? 'sleeved' as const : 'planned' as const,
+    lifecycle: countsAsSleeved(card) ? 'sleeved' as const : 'planned' as const,
     allocation_status: card.copy_id != null
       ? (card.ownership_status || 'original')
       : null,

@@ -6,7 +6,7 @@ import { createAdminClient } from '@/lib/supabase'
 import type { Json } from '@/types/supabase'
 import type { NormalizedDeck, NormalizedCard } from '@/lib/deck-normalizer'
 import { MAYBEBOARD_CATEGORY } from '@/lib/deck-normalizer'
-import { isBasicLand } from '@/lib/basic-lands'
+import { isBasicLand, isGenericBasic } from '@/lib/basic-lands'
 import { resolveCardDefinitions } from '@/lib/card-definition-resolver'
 import {
   diffDeckCards,
@@ -134,7 +134,7 @@ function buildBuiltImportRows(
       categories,
       is_commander: isMaybeboard ? false : card.isCommander,
       is_basic_land: !isMaybeboard && isBasicLand(card.cardName),
-      is_generic_land: !isMaybeboard && isBasicLand(card.cardName) && !card.scryfallId,
+      is_generic_land: !isMaybeboard && isGenericBasic(card.cardName, Boolean(card.scryfallId)),
       is_maybeboard: isMaybeboard,
     })
   }

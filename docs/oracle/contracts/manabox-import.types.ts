@@ -6,6 +6,12 @@
  */
 
 import type { NormalizedCard, NormalizedDeck } from '@/lib/deck-normalizer'
+import type {
+  ImportCopyEdits,
+  ImportDefaults,
+  ImportRow,
+  ImportValueNotices,
+} from './import-row-editing.types'
 
 // ---------------------------------------------------------------------------
 // CSV parsing
@@ -40,6 +46,8 @@ export interface ManaBoxCsvRow {
   condition?: string
   language?: string
   proxy?: boolean
+  /** Which section the row's Board/Categories/Tags cell names; `main` when none (import-formats §3.2). */
+  board?: ImportBoard
   purchasePriceCurrency?: string
   added?: string
 }
@@ -58,13 +66,23 @@ export interface ManaBoxTextLine {
   cardName: string
   setCode: string
   collectorNumber: string
-  /** Default nonfoil; the UI offers a per-row Foil checkbox (D-051). */
-  isFoil: boolean
   /** Original line text, kept for unmatched-line reporting. */
   rawLine: string
   /** 1-based line number in the file. */
   lineNumber: number
+  /** T-60 (import-formats §2, Developer addition): which board the line was under. Absent = `main`. */
+  board?: ImportBoard
+  /** T-60 S-4 (N-3): `*F*` / `*E*` marker on the line. Absent = the line said nothing. */
+  finish?: 'foil' | 'etched'
+  /** T-60 S-1 (N-5): `^Proxy^` label on the line. */
+  proxy?: boolean
 }
+
+/**
+ * T-60 (import-formats §2): the only thing section words change. `companion` is held as
+ * `main` until slice S-7 (needs the `command_zone_role` migration).
+ */
+export type ImportBoard = 'main' | 'commander' | 'maybeboard' | 'companion'
 
 // ---------------------------------------------------------------------------
 // Identity resolution
@@ -122,67 +140,35 @@ export interface ManaBoxSkippedToken {
 // Per-row import overrides
 // ---------------------------------------------------------------------------
 
-/**
- * Collection import: number of proxies for a single combined row.
- *
- * The key is the 1-based CSV row index of the first source row in the combined
- * row. Value is 0…qty. Omitted rows default to 0 (all Original).
- */
-export type ManaBoxProxyCounts = Record<number, number>
-
-/**
- * Deck import: per-row Original / Proxy / Unsleeved split.
- *
- * `originalCount + proxyCount + unsleevedCount` must equal the row's `qty`.
- * Omitted rows default to `{ originalCount: qty, proxyCount: 0, unsleevedCount: 0 }`.
- */
-export interface ManaBoxRowSplit {
-  originalCount: number
-  proxyCount: number
-  unsleevedCount: number
-}
-
-export type ManaBoxRowSplits = Record<number, ManaBoxRowSplit>
+// Superseded by import-row-editing.types.ts (rev 2026-10-20): ManaBoxProxyCounts and
+// ManaBoxRowSplit(s) are removed; per-copy type, finish, condition and language are
+// `ImportCopyEdits` + `ImportDefaults`.
 
 // ---------------------------------------------------------------------------
 // Preview
 // ---------------------------------------------------------------------------
 
 /**
- * A combined row returned by the non-writing preview.
- */
-export interface ManaBoxPreviewRow {
-  /** 1-based index of the first source line/row contributing to this row. */
-  sourceIndex: number
-  /** All source line/row indices that were combined into this row. */
-  sourceLines: number[]
-  cardName: string
-  setCode: string
-  collectorNumber: string
-  scryfallId: string
-  oracleId: string
-  qty: number
-  finish: 'nonfoil' | 'foil' | 'etched'
-  /**
-   * Collection preview only. Different conditions are combined into one preview
-   * row, but each stored copy keeps its own condition (D-051).
-   */
-  condition?: string
-  /** Collection preview only. Different languages show as separate rows (D-051). */
-  language?: string
-  /** True when this row is a basic land eligible for the generic switch. */
-  isBasicLand: boolean
-}
-
-/**
- * Non-writing preview response for collection and deck imports.
+ * Non-writing preview response for collection and deck imports. Rows are
+ * `ImportRow`s (one per printing/finish/language group, each holding its copies).
  */
 export interface ManaBoxPreviewResponse {
   fileName: string
   totalLines: number
-  rows: ManaBoxPreviewRow[]
+  rows: ImportRow[]
   skippedTokens: ManaBoxSkippedToken[]
   unmatched: ManaBoxUnmatchedLine[]
+  /** Counted notices known at preview time (unrecognised file values). */
+  notices: Pick<
+    ImportValueNotices,
+    'unrecognisedCondition' | 'unrecognisedLanguage' | 'unrecognisedFinish'
+  >
+  /** T-60 (Developer addition): plain-words notes for the preview (kept-in-main, ignored headings, etc.). */
+  notes?: string[]
+  /** T-60 S-6 (Developer addition): cards the file marked as commander, to pre-tick in the picker. */
+  commanders?: Array<{ name: string; scryfallId: string | null }>
+  /** T-62 S-7 (Developer addition): the companion the file marks (first one only), to pre-tick. */
+  companion?: { name: string; scryfallId: string | null }
 }
 
 // ---------------------------------------------------------------------------
@@ -190,32 +176,28 @@ export interface ManaBoxPreviewResponse {
 // ---------------------------------------------------------------------------
 
 /**
- * Body for a ManaBox collection import (add-only, D-050).
+ * Body for a ManaBox collection import (add-only, D-050). The server re-reads the
+ * file; the client sends only defaults and the owner's per-copy edits.
  */
 export interface ManaBoxCollectionImportBody {
   /** Raw CSV content, or supplied via multipart `file`. */
   csvContent?: string
-  /**
-   * Per-row proxy count. Key is the 1-based CSV row index.
-   * Value is the number of copies (0…qty) that should be proxies.
-   * Omitted rows default to 0 proxies (all Original).
-   */
-  proxyCounts?: ManaBoxProxyCounts
+  defaults: ImportDefaults
+  copyEdits?: ImportCopyEdits
 }
 
 /**
- * Body for a ManaBox deck import.
+ * Body for a ManaBox deck import. Each card carries `rowKey` and `copies`
+ * (see `DeckImportCardV2` in import-row-editing.types.ts).
  */
 export interface ManaBoxDeckImportBody {
   deck: NormalizedDeck
   name: string
   format?: string
-  /** Convert basic lands to generic, untracked slots. Default true (D-048). */
+  /** Ignored since Round 13 (the "Generic basics" toggle is display only). Kept so old clients still parse. */
   convertBasicLandsToGeneric?: boolean
-  /**
-   * Per-row Original / Proxy / Unsleeved split (D-047 revised).
-   */
-  rowSplits?: ManaBoxRowSplits
+  defaults: ImportDefaults
+  copyEdits?: ImportCopyEdits
 }
 
 // ---------------------------------------------------------------------------
@@ -238,10 +220,9 @@ export interface ManaBoxParsedDeck {
  */
 export interface ManaBoxNormalizedCard extends NormalizedCard {
   collectorNumber?: string
-  /** Resolved finish; text exports default to nonfoil unless marked foil (D-051). */
-  finish: 'nonfoil' | 'foil' | 'etched'
-  /** Deck import only. Default { originalCount: qty, proxyCount: 0, unsleevedCount: 0 }. */
-  rowSplit?: ManaBoxRowSplit
+  /** Row key and per-copy file values (import-row-editing.types.ts). */
+  rowKey?: string
+  copies?: import('./import-row-editing.types').ImportCopy[]
   /** True when the slot should become a generic basic land. */
   isGenericBasicLand?: boolean
 }
@@ -262,6 +243,10 @@ export interface ManaBoxCollectionImportSummary {
   errors: string[]
   unmatched: ManaBoxUnmatchedLine[]
   durationMs: number
+  /** Copies whose file finish Scryfall does not list for the printing (kept, flagged). */
+  unlistedFinish?: number
+  /** Copies stored with a foil or etched finish (proxies excluded). */
+  foils?: number
 }
 
 /**
@@ -275,6 +260,12 @@ export interface ManaBoxDeckImportSummary {
     errors: string[]
     unmatched: ManaBoxUnmatchedLine[]
   }
+  /** Copies whose file finish Scryfall does not list (kept as in the file). */
+  unlistedFinish?: number
+  /** Plain-language notes for the result screen (e.g. "Unsleeved wins" for a generic type). */
+  genericNotes?: string[]
+  /** Intent save only (contract import-intent §5, S4-S8): counts for the result screen and the "needs a look" list. */
+  intentSummary?: import('./import-intent.types').DeckImportIntentSummary
 }
 
 // ---------------------------------------------------------------------------

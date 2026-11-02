@@ -45,3 +45,7 @@ Paseo itself doesn't store per-role system prompts in the repo. The mechanism he
 
 ## Where you step in
 The Orchestrator is instructed to stop and wait for you at: any migration, any UX/UI spec or mockup, any challenge to a locked decision, any destructive database operation, and any merge to main.
+
+## Skipping the login screen locally (optional)
+
+To sign in automatically when running Oracle on your own machine, open `.env.local`, add `LOCAL_AUTO_LOGIN_EMAIL` and `LOCAL_AUTO_LOGIN_PASSWORD` (your own Supabase account), then restart `npm run dev`. It only works in development mode, so the live site is unaffected. If the sign-in fails, the normal login screen appears and a warning is printed in the terminal (the password is never printed).

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { Download, Loader2, RefreshCw, Upload, Search } from 'lucide-react'
+import { Download, Loader2, RefreshCw, Search } from 'lucide-react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -17,26 +17,29 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { parseDeckUrl, isParseError } from '@/lib/url-parser'
-import { parseDeckCSV, isCSVParseError } from '@/lib/csv-deck-parser'
-import { parseTextDecklist, isTextParseError } from '@/lib/text-deck-parser'
 import { FORMAT_OPTIONS } from '@/lib/format-config'
 import type { NormalizedDeck, CardsByType } from '@/lib/deck-normalizer'
 import type { ImportMode, AllocationConflict } from '@/lib/deck-import'
+import { ManaBoxDeckImportFlow, type DeckFlowState } from '@/components/manabox-import/ManaBoxDeckImportFlow'
+import { ImportTitleIcon } from '@/components/manabox-import/ImportTitleIcon'
+import { ImportDiscardDialog } from '@/components/manabox-import/ImportDiscardDialog'
+import { IMPORT_MODAL_CLASS, IMPORT_INTERACTIVE_CLASS } from '@/components/manabox-import/import-labels'
+import { decideDeckDialogClose } from '@/components/manabox-import/import-close-guard'
+import { ImportIntentChoice } from '@/components/manabox-import/ImportIntentChoice'
+import { intentHeading, PRECONS_NOT_SET_UP, PRECONS_NOT_SET_UP_HINT, PRECON_OPEN_FAILED, URL_HELP_TITLE, URL_HELP_EXAMPLES, URL_HELP_NOTE } from '@/components/manabox-import/import-copy'
+import { deckToCsv, deckCsvFileName } from '@/lib/deck-to-csv'
+import { preconCardsToCsv, preconCommanderName, preconFileName, type PreconDetail, type PreconListItem } from '@/lib/precons'
+import type { ImportIntent } from '../../docs/oracle/contracts/import-intent.types'
 
-type InputTab = 'url' | 'paste' | 'csv' | 'precon'
-
-interface Precon {
-  id: string
-  name: string
-  set_code: string
-  set_name: string
-  commander_name: string | null
-  color_identity: string | null
-  release_date: string | null
-  card_count: number
-  archidekt_url: string | null
-  commander_image: string | null
+const INTENT_URL_MODE: Record<ImportIntent, ImportMode> = {
+  purchased: 'new_cards',
+  built: 'built',
+  planned: 'theorycrafted',
 }
+
+type InputTab = 'url' | 'paste' | 'file' | 'precon'
+
+type Precon = PreconListItem
 
 interface DeckImportButtonProps {
   className?: string
@@ -79,6 +82,8 @@ function getDisplayError(status: number, serverMessage: string): string {
   }
 }
 
+const NO_FLOW_STATE: DeckFlowState = { checking: false, saving: false, hasEdits: false, reviewing: false, done: false }
+
 export function DeckImportButton({
   className,
   onPreviewSuccess,
@@ -93,27 +98,29 @@ export function DeckImportButton({
   const [lastErrorStatus, setLastErrorStatus] = useState<number | null>(null)
   const lastSubmittedUrl = useRef<string>('')
 
-  // CSV tab state
-  const [deckName, setDeckName] = useState('')
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [csvError, setCsvError] = useState<string | null>(null)
-  const csvInputRef = useRef<HTMLInputElement>(null)
-
   // Paste tab state
   const [pasteText, setPasteText] = useState('')
   const [pasteDeckName, setPasteDeckName] = useState('')
   const [pasteError, setPasteError] = useState<string | null>(null)
+  // The pasted list, handed to the same check-and-review screen a file gets.
+  const [pastedFile, setPastedFile] = useState<File | null>(null)
 
   // Precon tab state
   const [preconSearch, setPreconSearch] = useState('')
   const [debouncedPreconSearch, setDebouncedPreconSearch] = useState('')
-  const [selectedPrecon, setSelectedPrecon] = useState<Precon | null>(null)
   const [preconError, setPreconError] = useState<string | null>(null)
-
-  // Confirmation step state
+  // A precon the owner picked: its card list goes to the same review as a file (all purchased).
+  const [preconPick, setPreconPick] = useState<{ name: string; commander: string | null } | null>(null)
+  const [preconOpeningId, setPreconOpeningId] = useState<string | null>(null)
+  const [preconsNotSetUp, setPreconsNotSetUp] = useState(false)
+  // A deck fetched from a link, reviewed like a file.
+  const [linkPick, setLinkPick] = useState<{ commander: string | null } | null>(null)
   const [previewData, setPreviewData] = useState<PreviewResponse | null>(null)
   const [importMode, setImportMode] = useState<ImportMode>('new_cards')
   const [importFormat, setImportFormat] = useState<string>('commander')
+  // First screen: what the deck is. Nothing is pre-selected.
+  const [intent, setIntent] = useState<ImportIntent | null>(null)
+  const [intentError, setIntentError] = useState(false)
 
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -122,17 +129,18 @@ export function DeckImportButton({
     setUrl('')
     setValidationError(null)
     setLastErrorStatus(null)
-    setDeckName('')
-    setSelectedFile(null)
-    setCsvError(null)
     setPasteText('')
     setPasteDeckName('')
     setPasteError(null)
+    setPastedFile(null)
     setPreviewData(null)
     setPreconSearch('')
     setDebouncedPreconSearch('')
-    setSelectedPrecon(null)
     setPreconError(null)
+    setPreconPick(null)
+    setPreconOpeningId(null)
+    setPreconsNotSetUp(false)
+    setLinkPick(null)
     setImportMode('new_cards')
     setImportFormat('commander')
   }, [])
@@ -149,12 +157,12 @@ export function DeckImportButton({
   const { data: preconsData, isLoading: preconsLoading } = useQuery({
     queryKey: ['precons', debouncedPreconSearch],
     queryFn: async () => {
-      const params = new URLSearchParams({ limit: '30' })
+      const params = new URLSearchParams({ limit: '300' })
       if (debouncedPreconSearch) params.set('q', debouncedPreconSearch)
       const res = await fetch(`/api/precons?${params}`)
       if (!res.ok) throw new Error('Failed to fetch precons')
-      const data = await res.json()
-      return data.precons as Precon[]
+      const data = (await res.json()) as { precons: Precon[]; setup?: boolean }
+      return { precons: data.precons ?? [], setup: data.setup !== false }
     },
     enabled: activeTab === 'precon',
     staleTime: 60_000,
@@ -186,7 +194,10 @@ export function DeckImportButton({
         resetState()
         onPreviewSuccess(data.deck, data.cardsByType)
       } else {
-        setPreviewData(data)
+        // A link goes to the same review as a file, using the intent chosen on the first screen.
+        setLinkPick({ commander: data.deck.commander?.cardName ?? null })
+        setPastedFile(new File([deckToCsv(data.deck)], deckCsvFileName(data.deck.name), { type: 'text/csv' }))
+        setActiveTab('file')
       }
     },
   })
@@ -207,7 +218,7 @@ export function DeckImportButton({
 
       return res.json()
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['decks'] })
 
       if (data.allocationSummary.errors.length > 0) {
@@ -218,9 +229,11 @@ export function DeckImportButton({
         toast.success('Deck imported successfully')
       }
 
+      // A commander deck with no commander from the source: the deck page prompts for one.
+      const needsCommander = variables.format === 'commander' && !variables.deck.commander
       setOpen(false)
       resetState()
-      router.push(`/decks/${data.deckId}?freshImport=true`)
+      router.push(`/decks/${data.deckId}?freshImport=true${needsCommander ? '&pickCommander=true' : ''}`)
     },
   })
 
@@ -246,7 +259,16 @@ export function DeckImportButton({
       return
     }
 
+    if (!requireIntent() || !intent) return
+    setImportMode(INTENT_URL_MODE[intent])
     previewMutation.mutate(trimmed)
+  }
+
+  /** URL and Paste need an intent before they continue. */
+  function requireIntent(): boolean {
+    if (intent) return true
+    setIntentError(true)
+    return false
   }
 
   function handleRetry() {
@@ -265,67 +287,39 @@ export function DeckImportButton({
       return
     }
 
+    // A pasted list takes the same path as an uploaded text file: names are looked up,
+    // the owner reviews the cards, then the deck is created.
     const name = pasteDeckName.trim() || 'Imported Deck'
-    const result = parseTextDecklist(trimmed, name)
-
-    if (isTextParseError(result)) {
-      setPasteError(result.error)
-      return
-    }
-
-    if (result.warnings.length > 0) {
-      toast.info(`Parsed with ${result.warnings.length} warning(s)`, {
-        description: result.warnings.slice(0, 3).join('; '),
-      })
-    }
-
-    setPreviewData({ deck: result.deck, cardsByType: {} as CardsByType })
+    if (!requireIntent()) return
+    setPastedFile(new File([trimmed], `${name}.txt`, { type: 'text/plain' }))
+    setActiveTab('file')
   }
 
-  async function handleCSVImport() {
-    setCsvError(null)
-
-    if (!selectedFile) {
-      setCsvError('Please select a CSV file')
-      return
-    }
-
+  /** Open a precon in the same review as a file: all purchased, exact printings. */
+  async function handlePreconPick(precon: Precon) {
+    if (preconOpeningId) return
+    setPreconError(null)
+    setPreconOpeningId(precon.id)
     try {
-      const csvText = await selectedFile.text()
-      const result = parseDeckCSV(csvText, deckName || selectedFile.name.replace(/\.csv$/i, ''))
-
-      if (isCSVParseError(result)) {
-        setCsvError(result.error)
+      const res = await fetch(`/api/precons/${precon.id}`)
+      if (res.status === 503) {
+        setPreconsNotSetUp(true)
         return
       }
-
-      if (result.warnings.length > 0) {
-        toast.info(`Parsed with ${result.warnings.length} warning(s)`, {
-          description: result.warnings.slice(0, 3).join('; '),
-        })
+      if (!res.ok) throw new Error('open failed')
+      const { precon: detail } = (await res.json()) as { precon: PreconDetail }
+      if (!detail.cards?.length) {
+        setPreconsNotSetUp(true)
+        return
       }
-
-      setPreviewData({ deck: result.deck, cardsByType: {} as CardsByType })
+      const csv = preconCardsToCsv(detail.cards)
+      setPreconPick({ name: detail.name, commander: preconCommanderName(detail.cards, detail.commander_name) })
+      setPastedFile(new File([csv], preconFileName(detail.name), { type: 'text/csv' }))
+      setActiveTab('file')
     } catch {
-      setCsvError('Failed to read CSV file')
-    }
-  }
-
-  async function handlePreconSubmit() {
-    setPreconError(null)
-
-    if (!selectedPrecon) {
-      setPreconError('Please select a precon')
-      return
-    }
-
-    // Use the archidekt URL to fetch the deck
-    if (selectedPrecon.archidekt_url) {
-      // Extract the search URL and use it to find the official precon deck
-      // For now, we'll use the URL preview flow
-      previewMutation.mutate(selectedPrecon.archidekt_url)
-    } else {
-      setPreconError('No deck URL available for this precon. Try importing via URL tab.')
+      setPreconError(PRECON_OPEN_FAILED)
+    } finally {
+      setPreconOpeningId(null)
     }
   }
 
@@ -333,20 +327,7 @@ export function DeckImportButton({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       if (activeTab === 'url') handleUrlSubmit()
-      else if (activeTab === 'csv') handleCSVImport()
       else if (activeTab === 'paste') handlePasteSubmit()
-      else if (activeTab === 'precon' && selectedPrecon) handlePreconSubmit()
-    }
-  }
-
-  function handleCSVFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (file) {
-      setSelectedFile(file)
-      setCsvError(null)
-      if (!deckName) {
-        setDeckName(file.name.replace(/\.csv$/i, '').replace(/[-_]/g, ' '))
-      }
     }
   }
 
@@ -359,18 +340,50 @@ export function DeckImportButton({
     })
   }
 
-  function handleOpenChange(nextOpen: boolean) {
-    setOpen(nextOpen)
-    if (!nextOpen) {
-      resetState()
-      setActiveTab('url')
-      previewMutation.reset()
-      importMutation.reset()
-    }
+  const [flowState, setFlowState] = useState<DeckFlowState>(NO_FLOW_STATE)
+  const onFlowState = useCallback((state: DeckFlowState) => setFlowState(state), [])
+  const fileTab = activeTab === 'file' && !previewData
+  // The app's own "Discard edits?" dialog; holds what to do if the owner confirms.
+  const [discardAction, setDiscardAction] = useState<(() => void) | null>(null)
+
+  /** Run `action`, but ask first if the review list has edits. */
+  function askBeforeDiscard(action: () => void) {
+    if (fileTab && flowState.hasEdits) setDiscardAction(() => action)
+    else action()
   }
 
+  function closeDialog() {
+    setOpen(false)
+    resetState()
+    setActiveTab('url')
+    setIntent(null)
+    setIntentError(false)
+    setFlowState(NO_FLOW_STATE)
+    previewMutation.reset()
+    importMutation.reset()
+  }
+
+  function handleOpenChange(nextOpen: boolean, details?: { reason?: string; cancel?: () => void }) {
+    if (nextOpen) return setOpen(true)
+    if (fileTab) {
+      const decision = decideDeckDialogClose(details?.reason, flowState)
+      if (decision === 'block') return details?.cancel?.()
+      if (decision === 'confirm') {
+        setDiscardAction(() => closeDialog)
+        return details?.cancel?.()
+      }
+    }
+    closeDialog()
+  }
+
+  const sourceChosen =
+    (fileTab && (flowState.checking || flowState.reviewing || flowState.saving || flowState.done)) ||
+    previewMutation.isPending
+
   const urlDisplayError = validationError ?? (previewMutation.isError ? previewMutation.error.message : null)
-  const csvDisplayError = csvError ?? (importMutation.isError && activeTab === 'csv' ? importMutation.error.message : null)
+  // A precon is always something the owner bought: the choice shows it, selected and locked.
+  const preconLocked = activeTab === 'precon' || preconPick !== null
+  const shownIntent: ImportIntent | null = preconLocked ? 'purchased' : intent
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -383,11 +396,13 @@ export function DeckImportButton({
         }
       >
         <Download className="size-4" aria-hidden="true" />
-        Import Deck
+        Import deck
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-2xl">
-        {/* ─── Confirmation Step (mode picker) ─── */}
+      <DialogContent
+        className={previewData ? `${IMPORT_INTERACTIVE_CLASS} sm:max-w-2xl` : IMPORT_MODAL_CLASS}
+        showCloseButton={!(flowState.saving || importMutation.isPending)}
+      >
         {previewData ? (
           <>
             <DialogHeader>
@@ -405,7 +420,7 @@ export function DeckImportButton({
               <div className="flex flex-col gap-2">
                 <button
                   type="button"
-                  className="rounded-lg border px-4 py-3 text-left transition-colors"
+                  className="rounded-lg border px-4 py-3 text-left transition-colors hover:bg-[var(--bg-surface-hover)] hover:border-[var(--text-secondary)]"
                   style={importMode === 'new_cards'
                     ? { borderColor: 'var(--accent-primary)', background: 'var(--accent-primary-bg)' }
                     : { borderColor: 'var(--border-default)' }
@@ -419,7 +434,7 @@ export function DeckImportButton({
                 </button>
                 <button
                   type="button"
-                  className="rounded-lg border px-4 py-3 text-left transition-colors"
+                  className="rounded-lg border px-4 py-3 text-left transition-colors hover:bg-[var(--bg-surface-hover)] hover:border-[var(--text-secondary)]"
                   style={importMode === 'built'
                     ? { borderColor: 'var(--accent-primary)', background: 'var(--accent-primary-bg)' }
                     : { borderColor: 'var(--border-default)' }
@@ -433,7 +448,7 @@ export function DeckImportButton({
                 </button>
                 <button
                   type="button"
-                  className="rounded-lg border px-4 py-3 text-left transition-colors"
+                  className="rounded-lg border px-4 py-3 text-left transition-colors hover:bg-[var(--bg-surface-hover)] hover:border-[var(--text-secondary)]"
                   style={importMode === 'theorycrafted'
                     ? { borderColor: 'var(--accent-primary)', background: 'var(--accent-primary-bg)' }
                     : { borderColor: 'var(--border-default)' }
@@ -479,42 +494,66 @@ export function DeckImportButton({
                 {importMutation.isPending && (
                   <Loader2 className="size-4 animate-spin" aria-hidden="true" data-icon="inline-start" />
                 )}
-                {importMutation.isPending ? 'Importing...' : 'Import Deck'}
+                {importMutation.isPending ? 'Importing...' : 'Import deck'}
               </Button>
             </DialogFooter>
           </>
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>Import Deck</DialogTitle>
-              <DialogDescription>
-                Import a deck from a URL, paste a decklist, or upload a CSV file.
-              </DialogDescription>
+              <DialogTitle>
+                <ImportTitleIcon kind="deck" />
+                {intentHeading(shownIntent)}
+              </DialogTitle>
+              {/* The "how" subtitle only helps on the source-choice screen. */}
+              {!sourceChosen && (
+                <DialogDescription>
+                  Import a deck from a URL, paste a decklist, or upload a CSV file.
+                </DialogDescription>
+              )}
             </DialogHeader>
 
-            {/* Input mode tabs */}
+            {/* Input mode tabs: not useful once cards are being reviewed or saved */}
+            {!sourceChosen && (
             <div className="flex gap-1 rounded-md p-0.5" style={{ background: 'rgba(255,255,255,0.05)', border: '0.5px solid rgba(255,255,255,0.1)' }}>
-              {(['url', 'paste', 'csv', 'precon'] as const).map((tab) => (
+              {(['url', 'paste', 'file', 'precon'] as const).map((tab) => (
                 <button
                   key={tab}
                   type="button"
-                  className="flex-1 rounded px-3 py-1.5 text-[length:var(--fs-sm)] font-medium transition-colors"
+                  className="flex-1 rounded px-3 py-1.5 text-[length:var(--fs-sm)] font-medium transition-colors hover:bg-white/10 hover:text-foreground disabled:hover:bg-transparent"
                   style={activeTab === tab
                     ? { background: 'var(--accent-primary)', color: 'white' }
                     : { color: 'var(--text-tertiary)' }
                   }
-                  onClick={() => setActiveTab(tab)}
+                  disabled={flowState.saving || flowState.checking}
+                  onClick={() => {
+                    if (tab !== activeTab) askBeforeDiscard(() => { setPastedFile(null); setPreconPick(null); setActiveTab(tab) })
+                  }}
                 >
-                  {tab === 'url' ? 'URL' : tab === 'paste' ? 'Paste List' : tab === 'csv' ? 'CSV' : 'Precon'}
+                  {tab === 'url' ? 'URL' : tab === 'paste' ? 'Paste text' : tab === 'file' ? 'File' : 'Precon'}
                 </button>
               ))}
             </div>
+            )}
 
-            {/* Tab content - fixed height to prevent jumping */}
-            <div className="h-[340px]">
-              {/* URL tab */}
+            {/* What's this deck? sits below the source tabs. On Precon it is preset and locked. */}
+            {!sourceChosen && (
+              <div>
+                <ImportIntentChoice
+                  value={shownIntent}
+                  onChange={(v) => { setIntent(v); setIntentError(false) }}
+                  showError={intentError}
+                  disabledValues={preconLocked ? ['built', 'planned'] : undefined}
+                />
+              </div>
+            )}
+
+            {/* Tab content: same height on every tab, so the window never changes size */}
+            <div className={activeTab === 'precon' ? 'min-h-0 flex-1 overflow-y-auto' : 'flex min-h-0 flex-1 flex-col'}>
+              {/* URL tab: centred in the fixed body, with the sites it accepts */}
               {activeTab === 'url' && (
-                <div className="flex flex-col gap-3">
+                <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto">
+                <div className="flex w-full max-w-md flex-col gap-3">
                 <Input
                   type="url"
                   value={url}
@@ -541,12 +580,25 @@ export function DeckImportButton({
                     )}
                   </div>
                 )}
+                </div>
+                <div className="w-full max-w-md rounded-[10px] border border-[var(--border-subtle)] px-3 py-2.5 text-[length:var(--fs-xs)] text-muted-foreground">
+                  <p className="mb-1 font-medium text-foreground">{URL_HELP_TITLE}</p>
+                  <ul className="flex flex-col gap-0.5">
+                    {URL_HELP_EXAMPLES.map((ex) => (
+                      <li key={ex.site}>
+                        <span className="text-foreground">{ex.site}</span>{' '}
+                        <code className="font-mono">{ex.example}</code>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-1">{URL_HELP_NOTE}</p>
+                </div>
               </div>
             )}
 
-            {/* Paste tab */}
+            {/* Paste tab: the text box fills the rest of the window */}
             {activeTab === 'paste' && (
-              <div className="flex flex-col gap-3">
+              <div className="flex min-h-0 flex-1 flex-col gap-3">
                 <Input
                   type="text"
                   value={pasteDeckName}
@@ -560,8 +612,7 @@ export function DeckImportButton({
                   onKeyDown={handleKeyDown}
                   placeholder={"1 Sol Ring\n1 Command Tower\n1 Arcane Signet\n..."}
                   disabled={importMutation.isPending}
-                  rows={8}
-                  className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-[length:var(--fs-sm)] text-foreground placeholder:text-muted-foreground focus:border-[var(--accent-primary)] focus:outline-none resize-none font-mono"
+                  className="min-h-0 w-full flex-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-[length:var(--fs-sm)] text-foreground placeholder:text-muted-foreground focus:border-[var(--accent-primary)] focus:outline-none resize-none font-mono"
                 />
 
                 {pasteError && (
@@ -572,39 +623,41 @@ export function DeckImportButton({
               </div>
             )}
 
-            {/* CSV tab */}
-            {activeTab === 'csv' && (
-              <div className="flex flex-col gap-3">
-                <Input
-                  type="text"
-                  value={deckName}
-                  onChange={(e) => setDeckName(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Deck name (e.g. 'World Breaker')"
-                  disabled={importMutation.isPending}
-                />
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => csvInputRef.current?.click()} disabled={importMutation.isPending}>
-                    <Upload className="size-3.5" aria-hidden="true" data-icon="inline-start" />
-                    Choose CSV File
-                  </Button>
-                  <span className="text-[length:var(--fs-sm)] text-muted-foreground truncate">
-                    {selectedFile?.name || 'No file selected'}
-                  </span>
-                </div>
-                <input ref={csvInputRef} type="file" accept=".csv" className="hidden" onChange={handleCSVFile} />
-
-                {csvDisplayError && (
-                  <div className="rounded-md bg-destructive/10 px-3 py-2" role="alert">
-                    <p className="text-[length:var(--fs-md)] text-destructive">{csvDisplayError}</p>
-                  </div>
-                )}
-              </div>
+            {/* File tab */}
+            {activeTab === 'file' && (
+              <ManaBoxDeckImportFlow
+                fill
+                initialFile={pastedFile}
+                intent={preconPick ? 'purchased' : intent}
+                initialCommanderName={preconPick?.commander ?? linkPick?.commander ?? null}
+                precon={preconPick !== null}
+                onStateChange={onFlowState}
+                onComplete={(_deckId, _format, _deckName, summary) => {
+                  try {
+                    sessionStorage.setItem('manabox-import-summary', JSON.stringify(summary))
+                  } catch {
+                    // ignore storage errors
+                  }
+                }}
+                onClose={closeDialog}
+                onFinish={(deckId) => {
+                  closeDialog()
+                  router.push(`/decks/${deckId}?freshImport=true&pickCommander=true`)
+                }}
+                onCancel={() => {
+                  askBeforeDiscard(() => {
+                    setActiveTab(preconPick ? 'precon' : linkPick ? 'url' : pastedFile ? 'paste' : 'url')
+                    setPastedFile(null)
+                    setPreconPick(null)
+                    setLinkPick(null)
+                  })
+                }}
+              />
             )}
 
             {/* Precon tab */}
             {activeTab === 'precon' && (
-              <div className="flex flex-col gap-3">
+              <div className="flex h-full min-h-0 flex-col gap-3">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -614,33 +667,36 @@ export function DeckImportButton({
                     onKeyDown={handleKeyDown}
                     placeholder="Search precons..."
                     className="pl-9"
-                    disabled={previewMutation.isPending}
+                    disabled={!!preconOpeningId}
                     autoFocus
                   />
                 </div>
 
                 {/* Precon list */}
-                <div className="h-[220px] overflow-y-auto rounded-lg border border-[var(--border-default)]">
+                <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-[var(--border-default)]">
                   {preconsLoading ? (
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="size-5 animate-spin text-muted-foreground" />
                     </div>
-                  ) : !preconsData?.length ? (
+                  ) : preconsNotSetUp || (preconsData && !preconsData.setup) ? (
+                    <div className="px-4 py-8 text-center" role="status">
+                      <p className="text-[length:var(--fs-md)] font-medium">{PRECONS_NOT_SET_UP}</p>
+                      <p className="mt-1 text-[length:var(--fs-sm)] text-muted-foreground">{PRECONS_NOT_SET_UP_HINT}</p>
+                    </div>
+                  ) : !preconsData?.precons.length ? (
                     <div className="py-8 text-center text-[length:var(--fs-sm)] text-muted-foreground">
                       {debouncedPreconSearch ? 'No precons found' : 'Loading precons...'}
                     </div>
                   ) : (
                     <div className="divide-y divide-[var(--border-default)]">
-                      {preconsData.map((precon) => (
+                      {preconsData.precons.map((precon) => (
                         <button
                           key={precon.id}
                           type="button"
-                          className="w-full px-3 py-3 text-left transition-colors hover:bg-[var(--bg-surface-hover)]"
-                          style={selectedPrecon?.id === precon.id
-                            ? { background: 'var(--accent-primary-bg)' }
-                            : {}
-                          }
-                          onClick={() => setSelectedPrecon(precon)}
+                          className="w-full px-3 py-3 text-left transition-colors hover:bg-[var(--bg-surface-hover)] disabled:opacity-60"
+                          disabled={!!preconOpeningId}
+                          aria-busy={preconOpeningId === precon.id}
+                          onClick={() => void handlePreconPick(precon)}
                         >
                           <div className="flex items-center gap-3">
                             {/* Commander art crop */}
@@ -669,11 +725,14 @@ export function DeckImportButton({
                                 {precon.set_name} · {precon.release_date ? new Date(precon.release_date).getFullYear() : ''}
                               </p>
                             </div>
-                            {/* Color identity - MTG mana pips */}
-                            {precon.color_identity && (
+                            {/* Color identity - MTG mana pips; colourless decks show the colourless symbol */}
+                            {(
                               <span className="flex shrink-0 items-center gap-0.5">
+                                {['W', 'U', 'B', 'R', 'G'].every(c => !(precon.color_identity ?? '').includes(c)) && (
+                                  <i className="ms ms-c ms-cost ms-shadow" style={{ fontSize: '16px' }} aria-label="Colorless" />
+                                )}
                                 {['W', 'U', 'B', 'R', 'G']
-                                  .filter(c => precon.color_identity!.includes(c))
+                                  .filter(c => (precon.color_identity ?? '').includes(c))
                                   .map(c => (
                                     <i
                                       key={c}
@@ -692,28 +751,10 @@ export function DeckImportButton({
                   )}
                 </div>
 
-                {/* Selected precon preview */}
-                {selectedPrecon && (
-                  <div className="flex gap-3 rounded-lg border border-[var(--accent-primary)] bg-[var(--accent-primary-bg)] p-3">
-                    {selectedPrecon.commander_image && (
-                      <img
-                        src={selectedPrecon.commander_image}
-                        alt={selectedPrecon.commander_name || 'Commander'}
-                        className="h-16 w-20 shrink-0 rounded object-cover"
-                      />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[length:var(--fs-md)] font-medium">
-                        {selectedPrecon.name}
-                      </p>
-                      <p className="text-[length:var(--fs-sm)] text-muted-foreground">
-                        {selectedPrecon.commander_name}
-                      </p>
-                      <p className="text-[length:var(--fs-xs)] text-muted-foreground">
-                        {selectedPrecon.card_count} cards · {selectedPrecon.set_name}
-                      </p>
-                    </div>
-                  </div>
+                {preconOpeningId && (
+                  <p className="flex items-center gap-2 text-[length:var(--fs-sm)] text-muted-foreground" role="status">
+                    <Loader2 className="size-4 animate-spin" aria-hidden="true" /> Opening the precon…
+                  </p>
                 )}
 
                 {preconError && (
@@ -725,6 +766,7 @@ export function DeckImportButton({
             )}
             </div>
 
+            {!fileTab && activeTab !== 'precon' && (
             <DialogFooter>
               {activeTab === 'url' && (
                 <Button onClick={handleUrlSubmit} disabled={previewMutation.isPending || !url.trim()}>
@@ -737,22 +779,20 @@ export function DeckImportButton({
                   Continue
                 </Button>
               )}
-              {activeTab === 'csv' && (
-                <Button onClick={handleCSVImport} disabled={importMutation.isPending || !selectedFile}>
-                  {importMutation.isPending && <Loader2 className="size-4 animate-spin" aria-hidden="true" data-icon="inline-start" />}
-                  Continue
-                </Button>
-              )}
-              {activeTab === 'precon' && (
-                <Button onClick={handlePreconSubmit} disabled={previewMutation.isPending || !selectedPrecon}>
-                  {previewMutation.isPending && <Loader2 className="size-4 animate-spin" aria-hidden="true" data-icon="inline-start" />}
-                  {previewMutation.isPending ? 'Fetching...' : 'Import Precon'}
-                </Button>
-              )}
             </DialogFooter>
+            )}
           </>
         )}
       </DialogContent>
+      <ImportDiscardDialog
+        open={discardAction !== null}
+        onKeepEditing={() => setDiscardAction(null)}
+        onDiscard={() => {
+          const action = discardAction
+          setDiscardAction(null)
+          action?.()
+        }}
+      />
     </Dialog>
   )
 }

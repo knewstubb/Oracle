@@ -22,12 +22,14 @@ import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { getBatchRankedCandidates, type RankedCandidate } from '@/lib/allocation-candidates'
 import { computeDeckCardStatuses } from '@/lib/card-status'
-import { isBasicLand } from '@/lib/basic-lands'
+import { isGenericSlot, isGenericSleeved } from '@/lib/basic-lands'
 
 interface PicklistCard {
   id: number
   card_name: string
   scryfall_id: string | null
+  is_generic: boolean | null
+  generic_sleeved: boolean | null
   copy_id: number | null
   ownership_status: string | null
   user_copies: { is_proxy: boolean } | null
@@ -70,6 +72,8 @@ export async function GET(
       id,
       card_name,
       scryfall_id,
+      is_generic,
+      generic_sleeved,
       copy_id,
       ownership_status,
       user_copies!deck_cards_copy_id_fkey(is_proxy)
@@ -88,15 +92,18 @@ export async function GET(
       card_name: card.card_name,
       copy_id: card.copy_id,
       scryfall_id: card.scryfall_id,
+      is_generic: card.is_generic,
+      generic_sleeved: card.generic_sleeved,
       is_proxy: card.user_copies?.is_proxy ?? null,
     })),
     userId,
   )
   const statusByDeckCardId = new Map(statuses.map((status) => [status.deckCardsId, status]))
 
-  // Generic lands = basic land name + no specific printing (scryfall_id is null)
-  const isGenericLand = (c: PicklistCard) => isBasicLand(c.card_name) && !c.scryfall_id
-  const genericLandCount = cards.filter(isGenericLand).length
+  // Generic lands = explicit is_generic flag (contract generic-basic-lands §3)
+  const isGenericLand = (c: PicklistCard) => isGenericSlot(c)
+  // Only Sleeved generics count as resolved (sleeved N/100); an Unsleeved generic does not.
+  const genericLandCount = cards.filter(c => isGenericLand(c) && isGenericSleeved(c)).length
   const nonGenericResolved = cards.filter(c => c.copy_id !== null && !isGenericLand(c)).length
   const resolved = nonGenericResolved + genericLandCount
   const total = cards.length // Include all cards (lands count toward deck total)

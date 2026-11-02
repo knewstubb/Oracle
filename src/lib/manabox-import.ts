@@ -13,19 +13,45 @@
 
 import {
   isBasicLand,
+  isGenericBasic,
+  hasPrintingGiven,
   frontFaceName,
 } from '@/lib/basic-lands'
+import {
+  buildRowCopies,
+  buildRowKey,
+  isUnrecognisedCondition,
+  isUnrecognisedFinish,
+  isUnrecognisedLanguage,
+  parseFileCondition,
+  parseFileFinish,
+  parseFileLanguage,
+} from '@/lib/import-copies'
+import {
+  boardFromCells,
+  looksLikeCardCsv,
+  looksLikeSetCode,
+  mapCsvHeaders,
+  normaliseFinishCell,
+  readCsv,
+  type CsvColumnMap,
+} from '@/lib/import-csv'
+import { normaliseQuotes, parseListText } from '@/lib/import-text-parser'
+import { fileCommandZone, limitCompanions, retagCompanions } from '@/lib/import-command-zone'
+import type {
+  ImportCopyFileValues,
+  ImportFinish,
+  ImportRow,
+  ImportValueNotices,
+} from '../../docs/oracle/contracts/import-row-editing.types'
 import type {
   ManaBoxCsvFinish,
+  ImportBoard,
   ManaBoxCsvRow,
   ManaBoxTextLine,
   ManaBoxUnmatchedLine,
   ManaBoxSkippedToken,
-  ManaBoxPreviewRow,
   ManaBoxPreviewResponse,
-  ManaBoxProxyCounts,
-  ManaBoxRowSplit,
-  ManaBoxRowSplits,
 } from '../../docs/oracle/contracts/manabox-import.types'
 
 // ---------------------------------------------------------------------------
@@ -38,6 +64,8 @@ export interface ManaBoxCsvRecord {
   rowIndex: number
   raw: string
   row: ManaBoxCsvRow
+  /** The raw `Foil` cell, kept so "blank" and "unrecognised" can be told apart. */
+  rawFoil?: string
 }
 
 export interface ManaBoxCsvParseResult {
@@ -45,12 +73,21 @@ export interface ManaBoxCsvParseResult {
   records: ManaBoxCsvRecord[]
   /** Rows that could not be parsed (missing name, invalid quantity). */
   badRows: ManaBoxUnmatchedLine[]
+  /** Plain-words warnings from reading the file (for example a row listing two sections). */
+  warnings: string[]
 }
 
 export interface ManaBoxTextParseResult {
   lines: ManaBoxTextLine[]
   /** Lines that did not match the grammar. */
   badLines: ManaBoxUnmatchedLine[]
+  /** Lines under a Tokens heading (D-049). */
+  skippedTokens: ManaBoxSkippedToken[]
+  /** Plain-words warnings and notes from the shared parser (import-formats §5). */
+  warnings: string[]
+  notes: string[]
+  nameOnly: boolean
+  headingsSeen: number
 }
 
 /**
@@ -62,8 +99,15 @@ export interface ManaBoxCardFacts {
   scryfallId: string
   cardName: string
   setCode: string
+  /** Collector number of the printing, when the resolver knows it. */
+  collectorNumber?: string
   layout: string | null
   typeLine: string | null
+  /**
+   * Finishes Scryfall lists for this printing (nonfoil/foil/etched), or null when
+   * not known yet (contract §5A). Optional so older callers and tests may omit it.
+   */
+  availableFinishes?: ImportFinish[] | null
 }
 
 /**
@@ -76,6 +120,14 @@ export interface ManaBoxResolver {
     setCode: string,
     collectorNumber: string
   ): Promise<ManaBoxCardFacts | null>
+  /**
+   * Plain decklists name no printing. Find the card by NAME (its canonical identity,
+   * `oracle_id`) and return the printing to use by default: one the owner already owns,
+   * otherwise the newest regular paper printing. `setCode` narrows the choice when the
+   * line gave a set but no collector number. Optional: resolvers that cannot do this
+   * leave such lines unmatched.
+   */
+  resolveByName?(name: string, options?: { setCode?: string }): Promise<ManaBoxCardFacts | null>
 }
 
 export interface ManaBoxCollectionPreviewInput {
@@ -95,73 +147,32 @@ export type ManaBoxFileKind = 'csv' | 'text'
 // Header detection (contract §2.1)
 // ---------------------------------------------------------------------------
 
-/** The four case-sensitive markers that identify a ManaBox CSV. */
-export const MANABOX_CSV_MARKERS = [
-  'ManaBox ID',
-  'Scryfall ID',
-  'Set code',
-  'Collector number',
-] as const
-
-/** Required columns a ManaBox CSV must carry to be importable. */
-const REQUIRED_CSV_COLUMNS = [
-  'Name',
-  'Set code',
-  'Collector number',
-  'Foil',
-  'Quantity',
-  'Scryfall ID',
-] as const
-
 /**
- * Parse a single CSV line into fields, honouring RFC 4180 quoting and escaped
- * double quotes ("a""b" → a"b).
+ * The case-sensitive markers that identify a ManaBox CSV. `ManaBox ID` and
+ * `Scryfall ID` are optional: a file without them is matched by set code +
+ * collector number (contract §5.1 rule 2).
  */
-function parseCsvLine(line: string): string[] {
-  const fields: string[] = []
-  let current = ''
-  let inQuotes = false
-
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i]
-    if (inQuotes) {
-      if (char === '"') {
-        if (i + 1 < line.length && line[i + 1] === '"') {
-          current += '"'
-          i++
-        } else {
-          inQuotes = false
-        }
-      } else {
-        current += char
-      }
-    } else if (char === '"') {
-      inQuotes = true
-    } else if (char === ',') {
-      fields.push(current.trim())
-      current = ''
-    } else {
-      current += char
-    }
-  }
-  fields.push(current.trim())
-  return fields
-}
-
-/** Split file content into lines without stripping empty ones (line numbers matter). */
-function splitLines(content: string): string[] {
-  return content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')
-}
+export const MANABOX_CSV_MARKERS = ['Set code', 'Collector number'] as const
 
 /**
- * True when the first non-empty line carries every ManaBox CSV marker.
- * Detection is case-sensitive on the exact header strings (contract §2.1).
+ * True when the first non-empty line is a card-list CSV header: ManaBox's own markers, or any
+ * other site's header recognised through the alias table (contract §3.2, E-12). Needs at least
+ * a name column and a quantity, printing or id column, and either two delimiters or both a name
+ * and a quantity column so a plain sentence with one comma is not read as a header.
  */
 export function isManaBoxCsv(content: string): boolean {
-  const firstLine = splitLines(content).find((line) => line.trim() !== '')
+  const firstLine = content
+    .replace(/^\uFEFF/, '')
+    .split(/\r\n|\n|\r/)
+    .find((line) => line.trim() !== '')
   if (!firstLine) return false
-  const headers = parseCsvLine(firstLine)
-  return MANABOX_CSV_MARKERS.every((marker) => headers.includes(marker))
+  const table = readCsv(firstLine)
+  const headers = table.headers
+  if (headers.length < 2) return false
+  if (MANABOX_CSV_MARKERS.every((marker) => headers.includes(marker))) return true
+  if (!looksLikeCardCsv(headers)) return false
+  const map = mapCsvHeaders(headers)
+  return headers.length >= 3 || (map.name !== undefined && map.quantity !== undefined)
 }
 
 /**
@@ -176,7 +187,8 @@ export function detectManaBoxFile(content: string): ManaBoxFileKind | null {
   if (isManaBoxCsv(content)) return 'csv'
 
   const parsed = parseManaBoxText(content)
-  if (parsed.lines.length > 0) return 'text'
+  // A list with no quantity anywhere and no section word is plain prose, not a deck file.
+  if (parsed.lines.length > 0 && (!parsed.nameOnly || parsed.headingsSeen > 0)) return 'text'
 
   return null
 }
@@ -226,77 +238,111 @@ function parseOptionalBoolean(raw: string | undefined): boolean | undefined {
   return undefined
 }
 
-function extractCsvRow(fields: string[], colIdx: Record<string, number>): ManaBoxCsvRow {
-  const get = (name: string): string | undefined => {
-    const idx = colIdx[name]
-    return idx === undefined ? undefined : fields[idx]
+/**
+ * The file's Proxy cell (N-5): true/1/yes/x/y = proxy; blank/false/0/no = not a proxy;
+ * anything else is treated as "the file did not say" (undefined).
+ */
+export function parseProxyFlag(raw: string | undefined): boolean | undefined {
+  if (raw === undefined) return undefined
+  const value = raw.trim().toLowerCase()
+  if (['true', '1', 'yes', 'y', 'x'].includes(value)) return true
+  if (['', 'false', '0', 'no', 'n'].includes(value)) return false
+  return undefined
+}
+
+function extractCsvRow(
+  fields: string[],
+  map: CsvColumnMap,
+  byHeader: Map<string, number>
+): { row: ManaBoxCsvRow; rawFinish: string | undefined; warning?: string } {
+  const at = (index: number | undefined): string | undefined =>
+    index === undefined ? undefined : fields[index]
+  const extra = (name: string): string | undefined => at(byHeader.get(name))
+
+  // A "set" cell is a code when it is 2-6 letters/digits (ManaBox, Moxfield `Edition`); a longer
+  // value is a set NAME (Deckbox `Edition`) which cannot be used as a code (§3.2).
+  let setCode = (at(map.setCode) ?? '').trim()
+  let setName = at(map.setName)?.trim() || undefined
+  if (setCode && !looksLikeSetCode(setCode)) {
+    setName = setName ?? setCode
+    setCode = ''
+  }
+  if (!setCode && setName && looksLikeSetCode(setName) && map.collectorNumber !== undefined) {
+    setCode = setName
+    setName = undefined
   }
 
+  const boardResult = boardFromCells((map.boardColumns ?? []).map((index) => fields[index]))
+  const rawFinish = map.finish === undefined ? undefined : normaliseFinishCell(fields[map.finish])
+  const quantityCell = at(map.quantity)
+
   return {
-    name: get('Name') ?? '',
-    setCode: get('Set code') ?? '',
-    setName: get('Set name'),
-    collectorNumber: get('Collector number') ?? '',
-    finish: parseManaBoxRawFinish(get('Foil')),
-    rarity: get('Rarity'),
-    quantity: Number.parseInt(get('Quantity') ?? '', 10),
-    manaBoxId: get('ManaBox ID'),
-    scryfallId: get('Scryfall ID') ?? '',
-    purchasePrice: parseOptionalNumber(get('Purchase price')),
-    misprint: parseOptionalBoolean(get('Misprint')),
-    altered: parseOptionalBoolean(get('Altered')),
-    signed: parseOptionalBoolean(get('Signed')),
-    condition: get('Condition'),
-    language: get('Language'),
-    proxy: parseOptionalBoolean(get('Proxy')),
-    purchasePriceCurrency: get('Purchase price currency'),
-    added: get('Added'),
+    row: {
+      name: at(map.name) ?? '',
+      setCode,
+      setName,
+      collectorNumber: (at(map.collectorNumber) ?? '').trim(),
+      finish: parseManaBoxRawFinish(rawFinish),
+      rarity: extra('rarity'),
+      // A missing quantity COLUMN means 1 each; an empty or bad cell is a bad row (§3.2).
+      quantity: map.quantity === undefined ? 1 : parseWholeNumber(quantityCell),
+      manaBoxId: extra('manabox id'),
+      scryfallId: (at(map.scryfallId) ?? '').trim(),
+      purchasePrice: parseOptionalNumber(extra('purchase price')),
+      misprint: parseOptionalBoolean(extra('misprint')),
+      altered: parseOptionalBoolean(extra('altered')),
+      signed: parseOptionalBoolean(extra('signed')),
+      condition: at(map.condition),
+      language: at(map.language),
+      proxy: parseProxyFlag(at(map.proxy)),
+      purchasePriceCurrency: extra('purchase price currency'),
+      added: extra('added'),
+      board: boardResult.board,
+    },
+    rawFinish,
+    warning: boardResult.warning,
   }
 }
 
+/** A whole number >= 0 as written; NaN when the cell is empty or not a plain integer. */
+function parseWholeNumber(raw: string | undefined): number {
+  const trimmed = (raw ?? '').trim()
+  return /^\d+$/.test(trimmed) ? Number.parseInt(trimmed, 10) : Number.NaN
+}
+
 /**
- * Parse a ManaBox collection or deck CSV. Rows with no name or an invalid
- * quantity become `badRows` (unmatched, reason `bad_line`) rather than being
- * dropped silently (contract §11.2).
+ * Parse a collection or deck CSV from ManaBox or any other site (import-formats §3.2). Rows with
+ * no name or an invalid quantity become `badRows` (unmatched, reason `bad_line`) rather than being
+ * dropped silently (contract §11.2). Throws when the file has no name column.
  */
 export function parseManaBoxCsv(content: string): ManaBoxCsvParseResult {
-  const lines = splitLines(content)
-  const firstIndex = lines.findIndex((line) => line.trim() !== '')
-  if (firstIndex === -1) {
-    return { headers: [], records: [], badRows: [] }
+  const table = readCsv(content)
+  const { headers } = table
+  if (headers.length === 0) {
+    return { headers: [], records: [], badRows: [], warnings: [] }
   }
 
-  const headers = parseCsvLine(lines[firstIndex])
-  const colIdx: Record<string, number> = {}
-  for (let i = 0; i < headers.length; i++) {
-    colIdx[headers[i]] = i
+  const map = mapCsvHeaders(headers)
+  if (map.name === undefined) {
+    throw new Error('CSV missing required columns: Name')
   }
-
-  const missing = REQUIRED_CSV_COLUMNS.filter((column) => colIdx[column] === undefined)
-  if (missing.length > 0) {
-    throw new Error(
-      `CSV missing required columns: ${missing.join(', ')}`
-    )
-  }
+  const byHeader = new Map<string, number>()
+  headers.forEach((header, index) => {
+    const key = header.replace(/^\uFEFF/, '').trim().toLowerCase()
+    if (!byHeader.has(key)) byHeader.set(key, index)
+  })
 
   const records: ManaBoxCsvRecord[] = []
   const badRows: ManaBoxUnmatchedLine[] = []
+  const warnings: string[] = []
 
-  for (let i = firstIndex + 1; i < lines.length; i++) {
-    const rawLine = lines[i]
-    if (rawLine.trim() === '') continue
-
-    // 1-based physical line number; the header is line `firstIndex + 1`.
-    const lineNumber = i + 1
-    const fields = parseCsvLine(rawLine)
-    const row = extractCsvRow(fields, colIdx)
+  for (const record of table.records) {
+    const lineNumber = record.line
+    const rawLine = record.raw
+    const { row, rawFinish, warning } = extractCsvRow(record.cells, map, byHeader)
 
     if (!row.name.trim()) {
-      badRows.push({
-        sourceIndex: lineNumber,
-        rawLine,
-        reason: 'bad_line',
-      })
+      badRows.push({ sourceIndex: lineNumber, rawLine, reason: 'bad_line' })
       continue
     }
 
@@ -312,73 +358,25 @@ export function parseManaBoxCsv(content: string): ManaBoxCsvParseResult {
       continue
     }
 
-    records.push({ rowIndex: lineNumber, raw: rawLine, row })
+    if (warning) warnings.push(`Line ${lineNumber}: ${warning}`)
+    records.push({ rowIndex: lineNumber, raw: rawLine, row, rawFoil: rawFinish })
   }
 
-  return { headers, records, badRows }
+  return { headers, records, badRows, warnings }
 }
 
 // ---------------------------------------------------------------------------
-// Text parsing (contract §6)
+// Text parsing (contract §6; shared parser in import-text-parser.ts)
 // ---------------------------------------------------------------------------
 
 /**
- * `<quantity> <card name> (<set code>) <collector number>`
- * Set code is 2–4 alphanumerics; the collector number is kept verbatim.
- */
-const TEXT_LINE_RE = /^(\d+)\s+(.+?)\s+\(([A-Za-z0-9]{2,4})\)\s+(\S+)\s*$/
-
-/**
- * Parse a ManaBox text export. The collector number is preserved (the old
- * paste parser dropped it) and DFC names keep their ` // ` separator.
+ * Parse a ManaBox or other site's text list. One shared parser reads every format (T-60 S-2,
+ * import-text-parser.ts): section words, `SB:` lines, tags, finish markers, 2-6 character set
+ * codes. The collector number is preserved and DFC names keep their ` // ` separator.
  */
 export function parseManaBoxText(content: string): ManaBoxTextParseResult {
-  const lines = splitLines(content)
-  const parsed: ManaBoxTextLine[] = []
-  const badLines: ManaBoxUnmatchedLine[] = []
-
-  for (let i = 0; i < lines.length; i++) {
-    const rawLine = lines[i]
-    const line = rawLine.trim()
-    if (line === '') continue
-    if (line.startsWith('//') || line.startsWith('#')) continue
-
-    const lineNumber = i + 1
-    const match = line.match(TEXT_LINE_RE)
-    if (!match) {
-      badLines.push({ sourceIndex: lineNumber, rawLine, reason: 'bad_line' })
-      continue
-    }
-
-    const quantity = Number.parseInt(match[1], 10)
-    const cardName = match[2].trim()
-    const setCode = match[3]
-    const collectorNumber = match[4]
-
-    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100) {
-      badLines.push({
-        sourceIndex: lineNumber,
-        rawLine,
-        cardName,
-        setCode,
-        collectorNumber,
-        reason: 'bad_line',
-      })
-      continue
-    }
-
-    parsed.push({
-      quantity,
-      cardName,
-      setCode,
-      collectorNumber,
-      isFoil: false,
-      rawLine,
-      lineNumber,
-    })
-  }
-
-  return { lines: parsed, badLines }
+  const { lines, badLines, skippedTokens, warnings, notes, nameOnly, headingsSeen } = parseListText(content)
+  return { lines, badLines, skippedTokens, warnings, notes, nameOnly, headingsSeen }
 }
 
 // ---------------------------------------------------------------------------
@@ -397,84 +395,10 @@ export function isTokenCard(facts: Pick<ManaBoxCardFacts, 'layout' | 'typeLine'>
 }
 
 // ---------------------------------------------------------------------------
-// Per-row overrides (contract §8, §9, §15)
-// ---------------------------------------------------------------------------
-
-/** A row that a split/proxy override can target. */
-export interface ManaBoxSplittableRow {
-  /** 1-based source index of the combined row. */
-  sourceIndex: number
-  qty: number
-}
-
-/**
- * Resolve a deck row's Original / Proxy / Unsleeved split, defaulting to all
- * Original. Invalid splits (wrong sum, negative counts) fall back to the
- * default rather than inventing copies.
- */
-export function normalizeDeckRowSplits(
-  rows: ManaBoxSplittableRow[],
-  splits?: ManaBoxRowSplits
-): Map<number, ManaBoxRowSplit> {
-  const result = new Map<number, ManaBoxRowSplit>()
-
-  for (const row of rows) {
-    const requested = splits?.[row.sourceIndex]
-    if (
-      requested &&
-      Number.isInteger(requested.originalCount) &&
-      Number.isInteger(requested.proxyCount) &&
-      Number.isInteger(requested.unsleevedCount) &&
-      requested.originalCount >= 0 &&
-      requested.proxyCount >= 0 &&
-      requested.unsleevedCount >= 0 &&
-      requested.originalCount + requested.proxyCount + requested.unsleevedCount === row.qty
-    ) {
-      result.set(row.sourceIndex, { ...requested })
-    } else {
-      result.set(row.sourceIndex, {
-        originalCount: row.qty,
-        proxyCount: 0,
-        unsleevedCount: 0,
-      })
-    }
-  }
-
-  return result
-}
-
-/**
- * Resolve a collection row's proxy count, defaulting to 0 proxies. A count
- * outside 0…qty falls back to 0.
- */
-export function normalizeProxyCounts(
-  rows: ManaBoxSplittableRow[],
-  proxyCounts?: ManaBoxProxyCounts
-): Map<number, number> {
-  const result = new Map<number, number>()
-
-  for (const row of rows) {
-    const requested = proxyCounts?.[row.sourceIndex]
-    if (
-      requested !== undefined &&
-      Number.isInteger(requested) &&
-      requested >= 0 &&
-      requested <= row.qty
-    ) {
-      result.set(row.sourceIndex, requested)
-    } else {
-      result.set(row.sourceIndex, 0)
-    }
-  }
-
-  return result
-}
-
-// ---------------------------------------------------------------------------
 // Preview
 // ---------------------------------------------------------------------------
 
-/** A resolved, not-yet-combined candidate row. */
+/** A resolved, not-yet-combined candidate row (one source line). */
 export interface ResolvedManaBoxCandidate {
   sourceIndex: number
   cardName: string
@@ -482,10 +406,19 @@ export interface ResolvedManaBoxCandidate {
   collectorNumber: string
   scryfallId: string
   oracleId: string
-  finish: 'nonfoil' | 'foil' | 'etched'
   qty: number
-  condition?: string
-  language?: string
+  /** `text` lines carry no finish, condition or language (contract §2A). */
+  source: 'csv' | 'text'
+  /** Which section the source line named (import-formats §4). Undefined = main. */
+  board?: ImportBoard
+  /** What the file supplied for this line. Never defaulted here (contract §3). */
+  file: ImportCopyFileValues
+  /** Which cells held a value the app could not use (counted in notices). */
+  unrecognised?: { finish: boolean; condition: boolean; language: boolean }
+  /** Finishes Scryfall lists for the printing; null when unknown. */
+  availableFinishes?: ImportFinish[] | null
+  /** Did the source line name a printing (set/number or Scryfall id)? False for "11 Plains". */
+  printingGiven?: boolean
   /** Collection only: purchase price in USD, or null. */
   purchasePrice?: number | null
   /** Collection only: ISO `Added` timestamp, or undefined. */
@@ -499,51 +432,86 @@ export interface ManaBoxResolution {
   candidates: ResolvedManaBoxCandidate[]
   skippedTokens: ManaBoxSkippedToken[]
   unmatched: ManaBoxUnmatchedLine[]
+  /** Plain-words notes from reading the file (ignored headings, kept-in-main cards, etc.). */
+  notes?: string[]
 }
+export type ManaBoxRowKind = 'collection' | 'deck'
 
-/** Combine resolved candidates into preview rows (contract §13.3). */
+/**
+ * Combine resolved candidates into preview rows (contract §4, §13.3). Rows are
+ * grouped by the FILE's values only (D-051): same printing and finish in
+ * different languages are separate rows; different conditions share one row.
+ * The row key is built once here and never recomputed.
+ */
 export function combineResolvedRows(
   candidates: ResolvedManaBoxCandidate[],
-  kind: 'collection' | 'deck'
-): ManaBoxPreviewRow[] {
-  const grouped = new Map<string, ManaBoxPreviewRow>()
+  kind: ManaBoxRowKind
+): ImportRow[] {
+  const grouped = new Map<string, { row: ImportRow; lines: ResolvedManaBoxCandidate[] }>()
 
   for (const candidate of candidates) {
-    const key =
-      kind === 'collection'
-        ? `${candidate.scryfallId}|${candidate.finish}|${candidate.language ?? 'en'}`
-        : `${candidate.scryfallId}|${candidate.finish}`
+    const rowKind = candidate.source === 'text' ? 'text' : kind
+    const printingGiven = candidate.printingGiven ?? true
+    // A plain "11 Plains" must never merge with "Plains (ZNR) 250" even if the default printing
+    // is that same card: one becomes a generic slot, the other a real copy.
+    // A maybeboard line is its own row, never merged with the same card in the main list (E-1),
+    // and basics there are never turned into generic slots (E-13).
+    const onMaybeboard = candidate.board === 'maybeboard'
+    const key = onMaybeboard
+      ? `${buildRowKey(candidate, rowKind)}|maybeboard`
+      : buildRowKey(candidate, rowKind) + (isGenericBasic(candidate.cardName, printingGiven) ? '|generic' : '')
 
     const existing = grouped.get(key)
     if (existing) {
-      existing.qty += candidate.qty
-      existing.sourceLines.push(candidate.sourceIndex)
-      existing.sourceIndex = Math.min(existing.sourceIndex, candidate.sourceIndex)
+      existing.lines.push(candidate)
+      existing.row.sourceLines.push(candidate.sourceIndex)
+      existing.row.sourceIndex = Math.min(existing.row.sourceIndex, candidate.sourceIndex)
       continue
     }
 
     grouped.set(key, {
-      sourceIndex: candidate.sourceIndex,
-      sourceLines: [candidate.sourceIndex],
-      cardName: candidate.cardName,
-      setCode: candidate.setCode,
-      collectorNumber: candidate.collectorNumber,
-      scryfallId: candidate.scryfallId,
-      oracleId: candidate.oracleId,
-      qty: candidate.qty,
-      finish: candidate.finish,
-      condition: candidate.condition,
-      language: candidate.language,
-      isBasicLand: isBasicLand(candidate.cardName),
+      lines: [candidate],
+      row: {
+        rowKey: key,
+        sourceIndex: candidate.sourceIndex,
+        sourceLines: [candidate.sourceIndex],
+        cardName: candidate.cardName,
+        setCode: candidate.setCode,
+        collectorNumber: candidate.collectorNumber,
+        scryfallId: candidate.scryfallId,
+        oracleId: candidate.oracleId,
+        qty: 0,
+        availableFinishes: candidate.availableFinishes ?? null,
+        copies: [],
+        isBasicLand: isBasicLand(candidate.cardName),
+        printingGiven,
+        ...(onMaybeboard ? { board: 'maybeboard' as const } : {}),
+      },
     })
   }
 
-  const rows = [...grouped.values()]
-  for (const row of rows) {
+  const rows: ImportRow[] = []
+  for (const { row, lines } of grouped.values()) {
     row.sourceLines.sort((a, b) => a - b)
+    row.copies = buildRowCopies(lines)
+    row.qty = row.copies.length
+    rows.push(row)
   }
   rows.sort((a, b) => a.sourceIndex - b.sourceIndex)
   return rows
+}
+
+/** Count the file cells the app could not use (one count per source line). */
+export function countUnrecognisedValues(
+  candidates: ResolvedManaBoxCandidate[]
+): Pick<ImportValueNotices, 'unrecognisedCondition' | 'unrecognisedLanguage' | 'unrecognisedFinish'> {
+  const counts = { unrecognisedCondition: 0, unrecognisedLanguage: 0, unrecognisedFinish: 0 }
+  for (const candidate of candidates) {
+    if (candidate.unrecognised?.condition) counts.unrecognisedCondition++
+    if (candidate.unrecognised?.language) counts.unrecognisedLanguage++
+    if (candidate.unrecognised?.finish) counts.unrecognisedFinish++
+  }
+  return counts
 }
 
 /**
@@ -573,6 +541,23 @@ async function resolveCsvRecord(
       })
       return null
     }
+  } else if (!row.setCode || !row.collectorNumber) {
+    // No Scryfall id and no full printing (Moxfield without numbers, Deckbox with a set NAME,
+    // Name+Quantity lists): find the card by name and take the default printing (§3.2).
+    facts = resolver.resolveByName
+      ? await resolver.resolveByName(normaliseQuotes(row.name), { setCode: row.setCode || undefined })
+      : null
+    if (!facts) {
+      unmatched.push({
+        sourceIndex: record.rowIndex,
+        rawLine: record.raw,
+        cardName: row.name,
+        setCode: row.setCode,
+        collectorNumber: row.collectorNumber,
+        reason: 'no_card',
+      })
+      return null
+    }
   } else {
     facts = await resolver.resolveBySetCollector(row.setCode, row.collectorNumber)
     if (!facts) {
@@ -597,22 +582,49 @@ async function resolveCsvRecord(
     return null
   }
 
-  const language = (row.language ?? '').trim().toLowerCase() || 'en'
+  // File values are kept raw-but-parsed; a blank or unusable cell is "not supplied"
+  // and is never defaulted here (contract §3).
+  const file: ImportCopyFileValues = {}
+  const finish = parseFileFinish(record.rawFoil)
+  const condition = parseFileCondition(row.condition)
+  const language = parseFileLanguage(row.language)
+  if (finish) file.finish = finish
+  if (condition) file.condition = condition
+  if (language) file.language = language
+  // The file's Proxy column sets the review row's default to Proxy (D-055); the owner can change it.
+  if (row.proxy === true) file.proxy = true
+
+  const printingGiven = Boolean(scryfallId || (row.setCode && row.collectorNumber))
 
   return {
     sourceIndex: record.rowIndex,
-    cardName: row.name,
+    cardName: printingGiven ? row.name : frontFaceName(facts.cardName),
     setCode: facts.setCode || row.setCode.toLowerCase(),
-    collectorNumber: row.collectorNumber,
+    collectorNumber: printingGiven ? row.collectorNumber : (facts.collectorNumber ?? ''),
     scryfallId: facts.scryfallId,
     oracleId: facts.oracleId,
-    finish: mapManaBoxFinish(row.finish),
     qty: Math.min(row.quantity, 100),
-    condition: (row.condition ?? '').trim().toLowerCase() || undefined,
-    language,
+    source: 'csv',
+    printingGiven, // false for a Name + Quantity list: the default printing is a guess
+    board: row.board,
+    file,
+    unrecognised: {
+      finish: isUnrecognisedFinish(record.rawFoil),
+      condition: isUnrecognisedCondition(row.condition),
+      language: isUnrecognisedLanguage(row.language),
+    },
+    availableFinishes: facts.availableFinishes ?? null,
     purchasePrice: row.purchasePrice ?? null,
     acquiredAt: (row.added ?? '').trim() || undefined,
   }
+}
+
+/** What a text line says about finish and proxy; empty when it has no marker. */
+export function textLineFileValues(line: Pick<ManaBoxTextLine, 'finish' | 'proxy'>): ImportCopyFileValues {
+  const file: ImportCopyFileValues = {}
+  if (line.finish) file.finish = line.finish
+  if (line.proxy === true) file.proxy = true
+  return file
 }
 
 async function resolveTextLine(
@@ -621,7 +633,14 @@ async function resolveTextLine(
   unmatched: ManaBoxUnmatchedLine[],
   skippedTokens: ManaBoxSkippedToken[]
 ): Promise<ResolvedManaBoxCandidate | null> {
-  const facts = await resolver.resolveBySetCollector(line.setCode, line.collectorNumber)
+  // A line with a full printing (set + collector number) resolves exactly; a plain line
+  // (no printing) resolves by card name to a default printing.
+  const facts =
+    line.setCode && line.collectorNumber
+      ? await resolver.resolveBySetCollector(line.setCode, line.collectorNumber)
+      : resolver.resolveByName
+        ? await resolver.resolveByName(line.cardName, { setCode: line.setCode || undefined })
+        : null
   if (!facts) {
     unmatched.push({
       sourceIndex: line.lineNumber,
@@ -643,32 +662,48 @@ async function resolveTextLine(
     return null
   }
 
+  const namedPrinting = Boolean(line.setCode && line.collectorNumber)
   return {
     sourceIndex: line.lineNumber,
-    // Text exports store the front-face name only (contract §5.3).
-    cardName: frontFaceName(line.cardName),
+    // Text exports store the front-face name only (contract §5.3). A line that gave no
+    // printing takes the card's proper spelling from the database (so "ghen, arcanum weaver" is fixed).
+    cardName: frontFaceName(namedPrinting ? line.cardName : facts.cardName),
     setCode: facts.setCode || line.setCode.toLowerCase(),
-    collectorNumber: line.collectorNumber,
+    collectorNumber: namedPrinting ? line.collectorNumber : (facts.collectorNumber ?? ''),
     scryfallId: facts.scryfallId,
     oracleId: facts.oracleId,
-    finish: line.isFoil ? 'foil' : 'nonfoil',
     qty: Math.min(line.quantity, 100),
+    source: 'text',
+    printingGiven: hasPrintingGiven(line),
+    // A text line carries no condition or language (contract §2A). A `*F*`/`*E*` marker sets the
+    // finish and a `^Proxy^` label the type default (N-3, N-5); no marker leaves both unset, so
+    // ManaBox text stays nonfoil / Original.
+    file: textLineFileValues(line),
+    board: line.board,
+    availableFinishes: facts.availableFinishes ?? null,
   }
 }
 
 /** Parse and resolve a ManaBox collection CSV without writing anything. */
 export async function resolveCollectionRows(
   input: ManaBoxCollectionPreviewInput,
-  resolver: ManaBoxResolver
+  resolver: ManaBoxResolver,
+  onProgress?: (resolvedCopies: number, totalCopies: number) => void
 ): Promise<ManaBoxResolution> {
   const { records, badRows } = parseManaBoxCsv(input.csvContent)
   const unmatched: ManaBoxUnmatchedLine[] = [...badRows]
   const skippedTokens: ManaBoxSkippedToken[] = []
 
   const candidates: ResolvedManaBoxCandidate[] = []
+  const totalCopies = records.reduce((sum, record) => sum + (record.row.quantity || 0), 0)
+  let resolvedCopies = 0
   for (const record of records) {
     const candidate = await resolveCsvRecord(record, resolver, unmatched, skippedTokens)
-    if (candidate) candidates.push(candidate)
+    if (candidate) {
+      candidates.push(candidate)
+      resolvedCopies += candidate.qty
+      onProgress?.(resolvedCopies, totalCopies)
+    }
   }
 
   return {
@@ -689,9 +724,11 @@ export async function resolveDeckRows(
   const skippedTokens: ManaBoxSkippedToken[] = []
   const candidates: ResolvedManaBoxCandidate[] = []
   let totalLines = 0
+  const notes: string[] = []
 
   if (input.csvContent !== undefined && isManaBoxCsv(input.csvContent)) {
-    const { records, badRows } = parseManaBoxCsv(input.csvContent)
+    const { records, badRows, warnings } = parseManaBoxCsv(input.csvContent)
+    notes.push(...warnings)
     totalLines = records.length + badRows.length
     unmatched.push(...badRows)
     for (const record of records) {
@@ -699,8 +736,11 @@ export async function resolveDeckRows(
       if (candidate) candidates.push(candidate)
     }
   } else if (input.textContent !== undefined) {
-    const { lines, badLines } = parseManaBoxText(input.textContent)
-    totalLines = lines.length + badLines.length
+    const parsed = parseManaBoxText(input.textContent)
+    const { lines, badLines } = parsed
+    notes.push(...parsed.warnings, ...parsed.notes)
+    skippedTokens.push(...parsed.skippedTokens)
+    totalLines = lines.length + badLines.length + parsed.skippedTokens.length
     unmatched.push(...badLines)
     for (const line of lines) {
       const candidate = await resolveTextLine(line, resolver, unmatched, skippedTokens)
@@ -717,6 +757,7 @@ export async function resolveDeckRows(
     candidates,
     skippedTokens,
     unmatched,
+    notes,
   }
 }
 
@@ -732,20 +773,71 @@ export async function buildCollectionPreview(
     rows: combineResolvedRows(resolution.candidates, 'collection'),
     skippedTokens: resolution.skippedTokens,
     unmatched: resolution.unmatched,
+    notices: countUnrecognisedValues(resolution.candidates),
   }
+}
+
+/** Plain-words notes the deck preview adds for boards and unmatched lines (import-formats §4, E-16). */
+function deckPreviewNotes(resolution: ManaBoxResolution): string[] {
+  const notes = [...(resolution.notes ?? [])]
+  const companions = resolution.candidates.filter((c) => c.board === 'companion')
+  if (companions.length > 0) {
+    notes.push(
+      `${[...new Set(companions.map((c) => c.cardName))].join(', ')} is marked as a companion. It is ticked as the companion below; untick it to keep it in the main list.`
+    )
+  }
+  const maybe = resolution.candidates
+    .filter((c) => c.board === 'maybeboard')
+    .reduce((sum, c) => sum + c.qty, 0)
+  if (maybe > 0) {
+    notes.push(`${maybe} ${maybe === 1 ? 'card is' : 'cards are'} on the maybeboard. They are saved as maybes, with no copies added.`)
+  }
+  if (resolution.unmatched.some((u) => u.setCode && u.reason === 'no_card')) {
+    notes.push(
+      "Some lines name a set or number we couldn't find. Other sites sometimes use set codes that differ from ours, so those lines are listed instead of guessed."
+    )
+  }
+  return notes
 }
 
 /** Build the non-writing preview for a ManaBox deck CSV or text export. */
 export async function buildDeckPreview(
   input: ManaBoxDeckPreviewInput,
-  resolver: ManaBoxResolver
+  resolver: ManaBoxResolver,
+  /** Optional: oracle text by lower-case card name, used only to spot a companion listed with the commanders (E-22). */
+  loadOracleText?: (names: string[]) => Promise<Map<string, string | null>>
 ): Promise<ManaBoxPreviewResponse> {
-  const resolution = await resolveDeckRows(input, resolver)
+  const resolved = await resolveDeckRows(input, resolver)
+  const zoneNotes: string[] = []
+  let candidates = resolved.candidates
+  const commanderBoard = candidates.filter((c) => c.board === 'commander')
+  if (loadOracleText && commanderBoard.length >= 2) {
+    try {
+      const text = await loadOracleText([...new Set(commanderBoard.map((c) => c.cardName))])
+      const retagged = retagCompanions(candidates, text)
+      candidates = retagged.candidates
+      zoneNotes.push(...retagged.notes)
+    } catch {
+      // No card text: leave the file's own headings as they are.
+    }
+  }
+  const limited = limitCompanions(candidates)
+  candidates = limited.candidates
+  zoneNotes.push(...limited.notes)
+  const resolution = { ...resolved, candidates }
+  const notes = [...deckPreviewNotes(resolution), ...zoneNotes]
+  const zone = fileCommandZone(candidates)
+  const commanders = zone.commanders
+  const companion = zone.companion
   return {
     fileName: resolution.fileName,
     totalLines: resolution.totalLines,
     rows: combineResolvedRows(resolution.candidates, 'deck'),
     skippedTokens: resolution.skippedTokens,
     unmatched: resolution.unmatched,
+    notices: countUnrecognisedValues(resolution.candidates),
+    ...(notes.length > 0 ? { notes } : {}),
+    ...(commanders.length > 0 ? { commanders } : {}),
+    ...(companion ? { companion } : {}),
   }
 }

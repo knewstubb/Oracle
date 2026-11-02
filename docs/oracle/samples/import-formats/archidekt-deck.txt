@@ -1,0 +1,7 @@
+1x Atraxa, Praetors' Voice (c16) 28 [Commander{top}]
+1x Sol Ring (cmm) 400 *F* [Ramp{noDeck}{noPrice}] ^Have,#37d67a^
+1x Arcane Signet (c21) 234 *E* [Ramp] ^Proxy,#ff0000^
+1x Command Tower (clb) 351 [Land]
+1x Cyclonic Rift (mm3) 31 [Maybeboard{noDeck}{noPrice}]
+1x Swords to Plowshares (cmm) 129 [Sideboard{noDeck}{noPrice}]
+1x Adventurous Eater // Have a Bite (sos) 72 [Removal]

@@ -1,13 +1,17 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { attemptLocalAutoLogin, getLocalAutoLoginCredentials } from '@/lib/local-auto-login'
 
 const PUBLIC_ROUTES = ['/login', '/auth/callback', '/api/cards/search', '/api/cards/autocomplete']
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // Local-only opt-in auto sign-in (null unless dev + both env vars set)
+  const autoLogin = getLocalAutoLoginCredentials()
+
   // Allow public routes to pass through without auth check
-  if (PUBLIC_ROUTES.some((route) => pathname.startsWith(route))) {
+  if (!(autoLogin && pathname.startsWith('/login')) && PUBLIC_ROUTES.some((route) => pathname.startsWith(route))) {
     return NextResponse.next()
   }
 
@@ -37,7 +41,15 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
+  let signedIn = !!user
+  if (!user && autoLogin) {
+    signedIn = await attemptLocalAutoLogin(supabase, autoLogin)
+  }
+
+  if (!signedIn) {
+    // Auto sign-in failed on /login: show the normal login screen
+    if (pathname.startsWith('/login')) return NextResponse.next()
+
     // API routes should return 401 instead of redirecting to an HTML page
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -46,6 +58,12 @@ export async function middleware(request: NextRequest) {
     // Page routes redirect to login
     const loginUrl = new URL('/login', request.url)
     return NextResponse.redirect(loginUrl)
+  }
+
+  if (autoLogin && pathname.startsWith('/login')) {
+    const redirect = NextResponse.redirect(new URL('/', request.url))
+    supabaseResponse.cookies.getAll().forEach((c) => redirect.cookies.set(c))
+    return redirect
   }
 
   return supabaseResponse

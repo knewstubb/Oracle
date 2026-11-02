@@ -123,11 +123,19 @@
   .tag{display:inline-flex;gap:3px;align-items:center;font-size:11px;color:var(--text-secondary);margin-left:6px}
   .tag svg.i{width:11px;height:11px}
 
-  /* Proxy count picker */
-  .qp{position:absolute;right:10px;top:calc(100% - 2px);z-index:15;background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.5);padding:6px;display:flex;gap:6px;align-items:center;font-size:12px;color:var(--text-secondary)}
-  .qp button{min-width:28px;height:26px;border-radius:6px;border:1px solid var(--border);background:none;cursor:pointer;font-variant-numeric:tabular-nums}
-  .qp.un button[aria-checked=true]{background:var(--bg-hover);border-color:var(--text-secondary);color:var(--text-primary)}
-  .qp button[aria-checked=true]{background:rgba(74,147,160,.18);border-color:var(--status-proxy);color:var(--text-primary)}
+  /* In-place count stepper (replaces the floating picker, 2026-10-20) */
+  .qp{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);white-space:nowrap}
+  .qp .stp{display:inline-flex;align-items:center;height:24px;border:1px solid var(--status-proxy);border-radius:7px;background:rgba(74,147,160,.18);color:var(--text-primary);overflow:hidden}
+  .qp.un .stp{border-color:var(--text-secondary);background:var(--bg-hover)}
+  .qp .stp .w{padding:0 8px;font-size:12px}
+  .qp .stp button{width:26px;height:22px;border:0;border-left:1px solid var(--border);background:none;color:var(--text-primary);cursor:pointer;font-size:14px;line-height:1}
+  .qp .stp button:last-child{border-right:0}
+  .qp .stp button[disabled]{color:var(--text-secondary);opacity:.45;cursor:not-allowed}
+  .qp .stp .n{min-width:24px;text-align:center;font-variant-numeric:tabular-nums;font-weight:600;border-left:1px solid var(--border);line-height:22px}
+  .qp .stp .n:focus-visible{outline:2px solid var(--text-primary);outline-offset:-2px}
+  .qp .rest{display:inline-flex;align-items:center;gap:3px}
+  .qp .rest svg.i{width:13px;height:13px;color:var(--accent-primary)}
+  .states{display:grid;grid-template-columns:110px 1fr;gap:6px 10px;align-items:center;padding:8px 10px;margin:6px 0;border:1px solid var(--border-subtle);border-radius:8px;font-size:12px;color:var(--text-secondary)}
 
   .progress{height:5px;border-radius:999px;background:var(--bg-canvas);overflow:hidden;margin:4px 0}
   .progress div{height:100%;background:var(--accent-primary);width:55%}
@@ -175,6 +183,12 @@
   <label><input type="checkbox" id="mc-grey"> Greyscale</label>
 </div>
 <div id="root"></div>
+<div class="ann"><b>Count stepper, three states of the same row</b> (static preview; try it live by clicking Proxy on any row with 2+ copies)
+  <div class="states">
+    <span>Collapsed, all Proxy</span><span><span class="segc sm"><button style="color:var(--text-secondary)">Original</button><button class="px" aria-pressed="true">Proxy</button><button>Unsleeved</button></span></span>
+    <span>Editing</span><span class="qp"><span class="stp"><span class="w">Proxy</span><button tabindex="-1" disabled aria-label="Fewer proxies">−</button><span class="n">1</span><button tabindex="-1" aria-label="More proxies">+</button></span><span class="rest">· Original 1</span></span>
+    <span>Split, collapsed</span><span><span class="segc sm"><button aria-pressed="true">Original 1</button><button class="px" aria-pressed="true">Proxy 1</button><button>Unsleeved</button></span></span>
+  </div></div>
 <div id="live" class="sr" aria-live="polite"></div>
 <p class="ann" id="ann">The <b>Foil tick box</b> appears only for text files: choose <b>Deck text file · Strixhaven</b> above. Cards are the owner's sample files. "Illustrative lines" adds an unmatched line (all files) and, for the collection, a skipped token and a Japanese copy; the samples have none. Commander candidates are hand-picked. Full rules: docs/oracle/specs/manabox-import.md.</p>
 
@@ -259,18 +273,20 @@ function copyControl(r,i){
     const [w,icon,cls] = TY[k], sel = c[k]>0, tab = k===on[0]?0:-1;
     const lab = `${icon?ic(icon):''}${w}${split&&sel?` ${c[k]}`:''}`;
     if (!multi) return `<button role="radio" id="ct-${i}-${k}" class="${cls}" aria-checked="${sel}" tabindex="${tab}" data-ct="${i}" data-k="${k}">${lab}</button>`;
-    const pop = k!=='o' ? `aria-haspopup="dialog" aria-expanded="${!!(S.qp&&S.qp.i===i&&S.qp.k===k)}"` : '';
+    const pop = '';
     return `<button id="ct-${i}-${k}" class="${cls}" aria-pressed="${sel}" tabindex="${tab}" data-ct="${i}" data-k="${k}" ${pop} aria-label="${w}, ${c[k]} of ${r.q}">${lab}</button>`;
   };
-  return `<span class="segc sm" role="${multi?'group':'radiogroup'}" aria-label="${nm}${multi?`, ${r.q} copies`:''}">${ks.map(btn).join('')}</span>${S.qp&&S.qp.i===i?qtyPicker(r,i):''}`;
+  if (S.qp&&S.qp.i===i) return qtyPicker(r,i);   // editing: the stepper replaces this row's segments in place
+  return `<span class="segc sm" role="${multi?'group':'radiogroup'}" aria-label="${nm}${multi?`, ${r.q} copies`:''}">${ks.map(btn).join('')}</span>`;
 }
 const restO = (b,k,n) => { const d = n-b[k]; return d>0 ? Math.max(0,b.o-d) : b.o-d; };
 function qtyPicker(r,i){
-  const k = S.qp.k, v = cnt(i)[k], w = k==='p'?'Proxies':'Unsleeved';
-  return `<div class="qp ${k==='u'?'un':''}" role="dialog" aria-label="How many ${esc(r.n)} are ${k==='p'?'proxies':'unsleeved'}">${w}
-    <span role="radiogroup" aria-label="Number ${k==='p'?'of proxies':'unsleeved'}" style="display:flex;gap:4px">${Array.from({length:r.q},(_,n)=>n+1).map(n=>
-      `<button role="radio" id="qp-${i}-${n}" data-qp="${i}" data-n="${n}" data-o="${restO(S.qp.base,k,n)}" aria-checked="${n===v}" tabindex="${n===v?0:-1}">${n}</button>`).join('')}</span>
-    of ${r.q}<span class="rest" aria-hidden="true">${ic('check')}Original <span id="qrest">${restO(S.qp.base,k,v)}</span></span></div>`;
+  const k = S.qp.k, v = cnt(i)[k], w = k==='p'?'Proxy':'Unsleeved', nm = esc(r.n);
+  return `<span class="qp ${k==='u'?'un':''}" role="group" aria-label="How many ${nm} are ${k==='p'?'proxies':'unsleeved'}"><span class="stp"><span class="w">${w}</span>
+    <button tabindex="-1" data-qs="${i}" data-d="-1" aria-label="Fewer ${k==='p'?'proxies':'unsleeved'}" ${v<=1?'disabled':''}>−</button>
+    <span class="n" id="qs-${i}" role="spinbutton" tabindex="0" aria-valuemin="1" aria-valuemax="${r.q}" aria-valuenow="${v}" aria-valuetext="${v} of ${r.q}" aria-label="${k==='p'?'Proxies':'Unsleeved'}">${v}</span>
+    <button tabindex="-1" data-qs="${i}" data-d="1" aria-label="More ${k==='p'?'proxies':'unsleeved'}" ${v>=r.q?'disabled':''}>+</button></span>
+    <span class="rest" aria-live="polite" aria-atomic="true">· ${ic('check')}Original ${restO(S.qp.base,k,v)}</span></span>`;
 }
 function visibleRows(){
   const q = S.q.trim().toLowerCase();
@@ -436,13 +452,13 @@ function applyQty(i,k,n,base){
 function setCopy(i,k){
   const r = R()[i];
   if (k==='o' || r.q===1) { S.ct[i] = {p:k==='p'?r.q:0, u:k==='u'?r.q:0}; S.qp=null; render(); return say(`${r.n}: ${descr(i)}`); }
-  if (S.qp && S.qp.i===i && S.qp.k===k) { S.qp=null; render(); return focus(`ct-${i}-${k}`); }
-  const base = cnt(i);
+    const base = cnt(i);
   S.qp = {i,k,base};
   if (!base[k]) applyQty(i,k,r.q,base);   // default: all copies
-  render(); focus(`qp-${i}-${cnt(i)[k]}`);
+  render(); focus(`qs-${i}`); say(`${r.n}: ${descr(i)}`);
 }
-function pickQty(i,n){ const {k,base} = S.qp; applyQty(i,k,n,base); S.qp=null; render(); focus(`ct-${i}-${k}`); say(`${R()[i].n}: ${descr(i)}`); }
+function stepQty(i,n){ const {k,base} = S.qp, q=R()[i].q; n=Math.max(1,Math.min(q,n)); applyQty(i,k,n,base); render(); focus(`qs-${i}`); say(`${k==='p'?'Proxies':'Unsleeved'} ${n} of ${q}. Original ${cnt(i).o}`); }
+function closeStep(i,k,f){ S.qp=null; render(); if(f) focus(`ct-${i}-${k}`); say(`${R()[i].n}: ${descr(i)}`); }
 function choose(n){ S.cmdr=n; S.cq=''; S.pop=false; S.menu=null; S.toast=`${esc(n)} is commander`; render(); focus('undo'); say(`${n} is commander`); }
 function finish(){
   if (deckKind() && S.format==='commander') { S.step=5; S.pop=true; S.result=true; S.popIdx=0; render(); return focus('cq'); }
@@ -456,7 +472,7 @@ document.addEventListener('click', e => {
   if (d.sc) { reset(d.sc); return render(); }
   if (d.step) { S.step=+d.step; S.pop=S.step===5; S.result=S.step===5; S.menu=null; S.toast=null; S.qp=null; return render(); }
   if (b.closest('.mc')) return;
-  if (S.qp!==null && !b.closest('.qp') && d.ct!==String(S.qp.i)) S.qp=null;
+  if (S.qp!==null && !b.closest('.qp')) S.qp=null;
   switch (b.id) {
     case 'choose': if (!S.ferr) S.step=2; return render();
     case 'change': S.step=1; return render();
@@ -476,7 +492,7 @@ document.addEventListener('click', e => {
     case 'searchall': say('Opens card search; the chosen card is added as commander.'); return;
   }
   if (d.ct) return setCopy(+d.ct, d.k);
-  if (d.qp) return pickQty(+d.qp, +d.n);
+  if (d.qs) return stepQty(+d.qs, cnt(+d.qs)[S.qp.k]+ +d.d);
   if (d.sel) { const i=+d.sel; S.sel.has(i)?S.sel.delete(i):S.sel.add(i); return render(); }
   if (d.foil) { const i=+d.foil; S.foil[i]=!S.foil[i]; return render(); }
   if (d.f) { S.filter=d.f; return render(); }
@@ -502,9 +518,18 @@ document.addEventListener('keydown', e => {
     const g = [...t.parentElement.querySelectorAll('button')];
     const nx = g[(g.indexOf(t) + (['ArrowRight','ArrowDown'].includes(e.key)?1:-1) + g.length) % g.length];
     g.forEach(x=>x.tabIndex=-1); nx.tabIndex=0;
-    if (t.dataset.qp) { g.forEach(x=>x.setAttribute('aria-checked','false')); nx.setAttribute('aria-checked','true'); const qr=document.getElementById('qrest'); if (qr) qr.textContent=nx.dataset.o; return nx.focus(); }
-    if (t.getAttribute('role')==='radio') { nx.click(); return focus(nx.id); }   // 1-copy rows: arrows select (no picker on 1-copy rows)
+        if (t.getAttribute('role')==='radio') { nx.click(); return focus(nx.id); }   // 1-copy rows: arrows select (no picker on 1-copy rows)
     return nx.focus();                                                         // 2+ copies: arrows move focus; Enter/Space chooses
+  }
+  if (t.dataset && t.id && t.id.startsWith('qs-') && S.qp) {
+    const i=S.qp.i, k=S.qp.k, v=cnt(i)[k], q=R()[i].q, K=e.key;
+    if (['ArrowUp','ArrowRight','+','='].includes(K)) { e.preventDefault(); return stepQty(i,v+1); }
+    if (['ArrowDown','ArrowLeft','-','_'].includes(K)) { e.preventDefault(); return stepQty(i,v-1); }
+    if (K==='Home') { e.preventDefault(); return stepQty(i,1); }
+    if (K==='End') { e.preventDefault(); return stepQty(i,q); }
+    if (K==='Enter'||K===' ') { e.preventDefault(); return closeStep(i,k,true); }
+    if (K==='Escape') { e.preventDefault(); return closeStep(i,k,true); }
+    if (K==='Tab') { setTimeout(()=>closeStep(i,k,false),0); return; }
   }
   if (t.id==='cq') {
     const list = sc().cmdrs.filter(n=>n.toLowerCase().includes(S.cq.toLowerCase())), n = list.length;
@@ -514,7 +539,7 @@ document.addEventListener('keydown', e => {
     if (e.key==='Enter'){e.preventDefault();choose(list[S.popIdx]);}
   }
   if (e.key==='Escape') {
-    if (S.qp!==null){const {i,k}=S.qp;S.qp=null;render();return focus(`ct-${i}-${k}`);}
+    if (S.qp!==null){const {i,k}=S.qp;return closeStep(i,k,true);}
     if (S.pop){S.pop=false;render();return focus('pick');}
     if (S.menu!==null){const k=S.menu;S.menu=null;render();return document.querySelector(`[data-menu="${k}"]`)?.focus();}
     if (S.step<=2||S.step===4){S.step=1;render();}

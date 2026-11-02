@@ -8,13 +8,13 @@ import {
   parseManaBoxText,
   mapManaBoxFinish,
   isTokenCard,
-  normalizeDeckRowSplits,
-  normalizeProxyCounts,
   buildCollectionPreview,
   buildDeckPreview,
   type ManaBoxCardFacts,
   type ManaBoxResolver,
+  parseProxyFlag,
 } from '@/lib/manabox-import'
+import { resolveRowCopies, setCopyField, toCollectionRpcRow } from '@/lib/import-copies'
 
 const SAMPLES = resolve(process.cwd(), 'docs/oracle/samples/manabox')
 
@@ -190,8 +190,10 @@ describe('parseManaBoxCsv', () => {
     expect(badRows[1].cardName).toBe('Mana Crypt')
   })
 
-  it('throws when required columns are missing', () => {
-    expect(() => parseManaBoxCsv('Name,Quantity\nSol Ring,1')).toThrow(/missing required columns/i)
+  it('throws when there is no name column; a missing quantity column means 1 (import-formats §3.2)', () => {
+    expect(() => parseManaBoxCsv('Quantity,Set code,Collector number\n1,cmm,400')).toThrow(/missing required columns/i)
+    const { records } = parseManaBoxCsv('Name,Set code\nSol Ring,cmm')
+    expect(records[0].row.quantity).toBe(1)
   })
 })
 
@@ -209,7 +211,7 @@ describe('parseManaBoxText', () => {
     expect(drake.quantity).toBe(1)
     expect(drake.setCode).toBe('TFDN')
     expect(drake.collectorNumber).toBe('8')
-    expect(drake.isFoil).toBe(false)
+    expect('isFoil' in drake).toBe(false)
   })
 
   it('parses Strixhaven.txt and preserves double-faced names', () => {
@@ -259,23 +261,6 @@ describe('finish, tokens and overrides', () => {
     expect(isTokenCard({ layout: 'normal', typeLine: 'Token Creature — Drake' })).toBe(true)
     expect(isTokenCard({ layout: 'transform', typeLine: 'Creature' })).toBe(false)
     expect(isTokenCard({ layout: null, typeLine: null })).toBe(false)
-  })
-
-  it('defaults deck splits to all Original and rejects invalid sums', () => {
-    const rows = [{ sourceIndex: 2, qty: 2 }, { sourceIndex: 5, qty: 3 }]
-    const splits = normalizeDeckRowSplits(rows, {
-      2: { originalCount: 1, proxyCount: 1, unsleevedCount: 0 },
-      5: { originalCount: 1, proxyCount: 1, unsleevedCount: 0 }, // sums to 2, not 3
-    })
-    expect(splits.get(2)).toEqual({ originalCount: 1, proxyCount: 1, unsleevedCount: 0 })
-    expect(splits.get(5)).toEqual({ originalCount: 3, proxyCount: 0, unsleevedCount: 0 })
-  })
-
-  it('defaults collection proxy counts to 0 and clamps out-of-range values', () => {
-    const rows = [{ sourceIndex: 2, qty: 2 }, { sourceIndex: 3, qty: 1 }]
-    const counts = normalizeProxyCounts(rows, { 2: 5, 3: 1 })
-    expect(counts.get(2)).toBe(0)
-    expect(counts.get(3)).toBe(1)
   })
 })
 
@@ -338,10 +323,10 @@ describe('buildCollectionPreview', () => {
     )
     // nonfoil/en (2 copies, conditions combined), foil/en, nonfoil/ja → 3 rows.
     expect(preview.rows).toHaveLength(3)
-    const enNonfoil = preview.rows.find((r) => r.finish === 'nonfoil' && r.language === 'en')!
+    const enNonfoil = preview.rows.find((r) => r.copies[0].file.finish === 'nonfoil' && r.copies[0].file.language === 'en')!
     expect(enNonfoil.qty).toBe(2)
     expect(enNonfoil.sourceLines).toEqual([2, 3])
-    expect(preview.rows.some((r) => r.language === 'ja')).toBe(true)
+    expect(preview.rows.some((r) => r.copies[0].file.language === 'ja')).toBe(true)
   })
 
   it('reports an unknown Scryfall ID and a no-card set+collector lookup', async () => {
@@ -435,5 +420,115 @@ describe('buildDeckPreview', () => {
     // Text exports store the front-face name only (contract §5.3).
     expect(preview.rows.some((r) => r.cardName === 'Adventurous Eater')).toBe(true)
     expect(preview.rows.some((r) => r.cardName.includes(' // '))).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// CSV without a Scryfall ID column (contract §5.1 rule 2)
+// ---------------------------------------------------------------------------
+
+describe('CSV with no Scryfall ID column', () => {
+  const FIXTURE = readFileSync(
+    resolve(process.cwd(), 'tests/fixtures/manabox-no-scryfall-id.csv'),
+    'utf8'
+  )
+  const known = new Map<string, ManaBoxCardFacts>()
+  for (const [setCode, num, name] of [
+    ['cmm', '410', 'Sol Ring'],
+    ['clb', '351', 'Command Tower'],
+    ['c21', '234', 'Arcane Signet'],
+    ['cmm', '398', 'Lightning Greaves'],
+    ['fra', '283', 'Island'],
+    ['cmm', '295', 'Heroic Intervention'],
+    ['cmm', '300', "Kodama's Reach"],
+  ]) {
+    known.set(`${setCode}|${num}`, {
+      oracleId: `oracle-${setCode}-${num}`,
+      scryfallId: `sf-${setCode}-${num}`,
+      cardName: name,
+      setCode,
+      layout: null,
+      typeLine: 'Artifact',
+    })
+  }
+  const resolver = makeResolver(new Map(), known)
+
+  it('is detected as a ManaBox CSV and parses all rows', () => {
+    expect(detectManaBoxFile(FIXTURE)).toBe('csv')
+    const { records, badRows } = parseManaBoxCsv(FIXTURE)
+    expect(records).toHaveLength(8)
+    expect(badRows).toHaveLength(0)
+    expect(records[6].row.proxy).toBe(true)
+  })
+
+  it('collection preview matches 7 rows (10 copies) by set + number, 1 unmatched', async () => {
+    const preview = await buildCollectionPreview(
+      { fileName: '01-collection.csv', csvContent: FIXTURE },
+      resolver
+    )
+    expect(preview.rows).toHaveLength(7)
+    expect(preview.rows.reduce((sum, r) => sum + r.qty, 0)).toBe(10)
+    expect(preview.rows.some((r) => r.cardName === "Kodama's Reach")).toBe(true)
+    // S-1 (D-055): the file's Proxy column sets the row's default to Proxy; every other row is Original.
+    const defaults = { finish: 'nonfoil', condition: 'near_mint', language: 'en' } as const
+    for (const row of preview.rows) {
+      const types = resolveRowCopies(row, defaults).map((c) => c.type)
+      const expected = row.cardName === "Kodama's Reach" ? 'proxy' : 'original'
+      expect(types.every((t) => t === expected), row.cardName).toBe(true)
+    }
+    expect(preview.unmatched).toHaveLength(1)
+    expect(preview.unmatched[0].cardName).toBe('Not A Real Card')
+    expect(preview.unmatched[0].reason).toBe('no_card')
+  })
+
+  it('deck preview accepts the same file', async () => {
+    const preview = await buildDeckPreview(
+      { fileName: 'deck.csv', csvContent: FIXTURE },
+      resolver
+    )
+    expect(preview.rows).toHaveLength(7)
+    expect(preview.unmatched).toHaveLength(1)
+    const reach = preview.rows.find((r) => r.cardName === "Kodama's Reach")!
+    expect(reach.copies[0].file.proxy).toBe(true)
+    expect(preview.rows.find((r) => r.cardName === 'Sol Ring')!.copies[0].file.proxy).toBeUndefined()
+  })
+
+  it("the owner's change on a Proxy row wins over the file", async () => {
+    const preview = await buildCollectionPreview({ fileName: 'c.csv', csvContent: FIXTURE }, resolver)
+    const reach = preview.rows.find((r) => r.cardName === "Kodama's Reach")!
+    const defaults = { finish: 'nonfoil', condition: 'near_mint', language: 'en' } as const
+    const edits = setCopyField({}, reach.rowKey, 0, 'type', 'original')
+    expect(resolveRowCopies(reach, defaults, edits, reach.rowKey)[0].type).toBe('original')
+    // ...and the saved row follows the owner's choice.
+    const saved = resolveRowCopies(reach, defaults, edits, reach.rowKey)[0]
+    expect(toCollectionRpcRow(saved, { cardId: 1, scryfallId: reach.scryfallId }).is_proxy).toBe(false)
+    const asProxy = resolveRowCopies(reach, defaults)[0]
+    expect(toCollectionRpcRow(asProxy, { cardId: 1, scryfallId: reach.scryfallId }).is_proxy).toBe(true)
+  })
+})
+
+describe('parseProxyFlag (N-5)', () => {
+  it.each([
+    ['true', true],
+    ['TRUE', true],
+    ['1', true],
+    ['yes', true],
+    ['x', true],
+    ['false', false],
+    ['0', false],
+    ['', false],
+    ['maybe', undefined],
+  ])('%j -> %j', (raw, expected) => {
+    expect(parseProxyFlag(raw)).toBe(expected)
+  })
+  it('a missing column is undefined', () => {
+    expect(parseProxyFlag(undefined)).toBeUndefined()
+  })
+})
+
+describe('Proxy default does not change existing ManaBox samples', () => {
+  it('the Strix draft deck CSV has no proxy rows', () => {
+    const { records } = parseManaBoxCsv(sample(DECK_CSV))
+    expect(records.some((r) => r.row.proxy === true)).toBe(false)
   })
 })

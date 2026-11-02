@@ -26,6 +26,7 @@ export interface ExistingDeckCardRow {
   quantity: number
   categories: string
   is_commander: boolean
+  command_zone_role?: string | null
   user_id: string
   // Enriched columns — preserved on kept rows
   copy_id: number | null
@@ -42,6 +43,7 @@ export interface IncomingCard {
   quantity: number
   categories: string
   is_commander: boolean
+  command_zone_role?: string | null
 }
 
 export interface NewRow {
@@ -50,6 +52,7 @@ export interface NewRow {
   set_code: string
   categories: string
   is_commander: boolean
+  command_zone_role?: string | null
   copy_id: null
   ownership_status: null
 }
@@ -162,6 +165,7 @@ export function diffDeckCards(
             set_code: incomingEntry.card.set_code,
             categories: incomingEntry.card.categories,
             is_commander: incomingEntry.card.is_commander,
+            command_zone_role: incomingEntry.card.command_zone_role ?? null,
             copy_id: null,
             ownership_status: null,
           })
@@ -205,6 +209,7 @@ export function diffDeckCards(
         set_code: entry.card.set_code,
         categories: entry.card.categories,
         is_commander: entry.card.is_commander,
+        command_zone_role: entry.card.command_zone_role ?? null,
         copy_id: null,
         ownership_status: null,
       })
@@ -250,6 +255,7 @@ export async function applyDeckCardsDiff(
       set_code: row.set_code,
       categories: row.categories,
       is_commander: row.is_commander,
+      command_zone_role: row.command_zone_role ?? null,
       user_id: userId,
     })),
   })

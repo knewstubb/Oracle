@@ -305,6 +305,7 @@ export type Database = {
         Row: {
           card_name: string
           categories: string | null
+          command_zone_role: string | null
           copy_id: number | null
           dead_weight_flag: string | null
           dead_weight_reason: string | null
@@ -316,6 +317,9 @@ export type Database = {
           proxy_of_deck_id: number | null
           quantity: number | null
           requested_finish: string | null
+          requested_language: string | null
+          generic_sleeved: boolean
+          is_generic: boolean
           scryfall_id: string | null
           set_code: string | null
           tags: string | null
@@ -324,6 +328,7 @@ export type Database = {
         Insert: {
           card_name: string
           categories?: string | null
+          command_zone_role?: string | null
           copy_id?: number | null
           dead_weight_flag?: string | null
           dead_weight_reason?: string | null
@@ -335,6 +340,9 @@ export type Database = {
           proxy_of_deck_id?: number | null
           quantity?: number | null
           requested_finish?: string | null
+          requested_language?: string | null
+          generic_sleeved?: boolean
+          is_generic?: boolean
           scryfall_id?: string | null
           set_code?: string | null
           tags?: string | null
@@ -343,6 +351,7 @@ export type Database = {
         Update: {
           card_name?: string
           categories?: string | null
+          command_zone_role?: string | null
           copy_id?: number | null
           dead_weight_flag?: string | null
           dead_weight_reason?: string | null
@@ -354,6 +363,9 @@ export type Database = {
           proxy_of_deck_id?: number | null
           quantity?: number | null
           requested_finish?: string | null
+          requested_language?: string | null
+          generic_sleeved?: boolean
+          is_generic?: boolean
           scryfall_id?: string | null
           set_code?: string | null
           tags?: string | null
@@ -1665,6 +1677,8 @@ export type Database = {
         Row: {
           archidekt_url: string | null
           card_count: number | null
+          /** Added by the DRAFT migration ref_precons_cards (not applied yet). */
+          cards: Json | null
           color_identity: string | null
           commander_name: string | null
           commander_scryfall_id: string | null
@@ -1680,6 +1694,7 @@ export type Database = {
         Insert: {
           archidekt_url?: string | null
           card_count?: number | null
+          cards?: Json | null
           color_identity?: string | null
           commander_name?: string | null
           commander_scryfall_id?: string | null
@@ -1695,6 +1710,7 @@ export type Database = {
         Update: {
           archidekt_url?: string | null
           card_count?: number | null
+          cards?: Json | null
           color_identity?: string | null
           commander_name?: string | null
           commander_scryfall_id?: string | null
@@ -1716,6 +1732,7 @@ export type Database = {
           color_identity: string[] | null
           colors: string[] | null
           digital: boolean | null
+          finishes: string[] | null
           image_uri_art_crop: string | null
           image_uri_large: string | null
           image_uri_normal: string | null
@@ -1744,6 +1761,7 @@ export type Database = {
           color_identity?: string[] | null
           colors?: string[] | null
           digital?: boolean | null
+          finishes?: string[] | null
           image_uri_art_crop?: string | null
           image_uri_large?: string | null
           image_uri_normal?: string | null
@@ -1772,6 +1790,7 @@ export type Database = {
           color_identity?: string[] | null
           colors?: string[] | null
           digital?: boolean | null
+          finishes?: string[] | null
           image_uri_art_crop?: string | null
           image_uri_large?: string | null
           image_uri_normal?: string | null
@@ -2455,6 +2474,21 @@ export type Database = {
       }
       set_import_claim_printing: {
         Args: { p_claim_id: number; p_printing_id?: string; p_user_id: string }
+        Returns: Json
+      }
+      set_deck_command_zone: {
+        Args: {
+          p_companion_card_id: number | null
+          p_deck_id: number
+          p_primary_card_id: number | null
+          p_second_card_id: number | null
+          p_second_role: string | null
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      import_deck_with_intent_roles: {
+        Args: { p_deck_id: number; p_rows: Json; p_user_id: string }
         Returns: Json
       }
       set_import_claim_resolution: {

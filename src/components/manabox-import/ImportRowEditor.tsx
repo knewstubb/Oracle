@@ -1,0 +1,602 @@
+'use client'
+
+import { Check, VenetianMask, ChevronsDown, ChevronDown, Info } from 'lucide-react'
+import { useState } from 'react'
+import { GenericArtPicker } from '@/components/GenericArtPicker'
+import { useCardHoverPreview } from '@/components/CardHoverPreview'
+import { getBasicLandDefaultScryfallId } from '@/lib/basic-lands'
+import { Checkbox } from '@/components/ui/checkbox'
+import { cn } from '@/lib/utils'
+import {
+  CONDITION_LABELS,
+  CONDITION_SHORT_LABELS,
+  FINISH_LABELS,
+  finishControlState,
+  summariseRowTags,
+  tagDisplayText,
+  visibleFields,
+  type ResolvedImportCopy,
+} from '@/lib/import-copies'
+import type {
+  ImportCondition,
+  ImportCopyOwnerEdits,
+  ImportDefaults,
+  ImportFinish,
+  ImportRow,
+  ImportCopyType,
+} from '../../../docs/oracle/contracts/import-row-editing.types'
+import { languageLabel, LANGUAGE_LABELS, SELECT_CLASS } from './import-labels'
+import { languageChoices, type LanguageLookup } from '@/lib/printing-languages'
+import { usePrintingLanguages } from './use-printing-languages'
+import type { IntentChange, IntentCopyView, IntentTag } from '@/lib/import-intent'
+import { IntentDecisionRows } from './IntentDecisionRows'
+import { ADD_WAITING_TITLE, NOT_OWNED_TITLE, NO_FREE_COPY_TITLE } from './import-copy'
+
+/** Per-card "what's this deck?" controls (spec §4-§6). Present only for deck imports with an intent. */
+export interface IntentRowControls {
+  views: IntentCopyView[]
+  /** The ownership check has not finished: the Add tick and choices wait. */
+  busy: boolean
+  onChange: (index: number, change: IntentChange) => void
+  /** The collapsed row's tick: every copy at once. */
+  onChangeAdd: (add: boolean) => void
+  /** Precon: every card is added, so no Add ticks are shown. */
+  hideAdd?: boolean
+  /** Planned decks: no ownership or sleeve tags until the owner changes something. */
+  quiet?: boolean
+}
+
+/** Columns of the review list; the list header uses the same. */
+export const ROW_GRID = 'grid-cols-[24px_28px_1fr_auto]'
+export const ROW_GRID_INTENT = 'grid-cols-[24px_28px_1fr_112px_28px]'
+
+function typeReasons(view: IntentCopyView | undefined): Partial<Record<ImportCopyType, string>> | undefined {
+  // Single-copy rows have no Add tick, so nothing is disabled: choosing Original/Proxy implies adding it.
+  if (!view || view.generic || !view.multi) return undefined
+  const why = view.anyOwned ? NO_FREE_COPY_TITLE : NOT_OWNED_TITLE
+  const out: Partial<Record<ImportCopyType, string>> = {}
+  if (!view.canOriginal) out.original = why
+  if (!view.canProxy) out.proxy = why
+  return out
+}
+
+const TYPE_STYLE: Record<ImportCopyType, { label: string; selected: string }> = {
+  original: {
+    label: 'Original',
+    selected: 'bg-[rgba(29,158,117,0.18)] shadow-[inset_0_0_0_1px_var(--accent-primary)] text-foreground',
+  },
+  proxy: {
+    label: 'Proxy',
+    selected: 'bg-[rgba(74,147,160,0.18)] shadow-[inset_0_0_0_1px_var(--status-proxy)] text-foreground',
+  },
+  unsleeved: {
+    label: 'Unsleeved',
+    selected: 'shadow-[inset_0_0_0_1px_var(--text-secondary)] text-foreground',
+  },
+}
+
+/** Segmented Original / Proxy (/ Unsleeved) control. Shared by copy lines and the bulk bar. */
+export function TypeToggle({
+  value,
+  options,
+  onChange,
+  label,
+  labels,
+  disabledReasons,
+}: {
+  /** `mixed` presses nothing. */
+  value: ImportCopyType | 'mixed'
+  options: ImportCopyType[]
+  onChange: (type: ImportCopyType) => void
+  label: string
+  /** Replace a button's text (generic basics call "original" Sleeved). */
+  labels?: Partial<Record<ImportCopyType, string>>
+  /** A type that can't be chosen now, with the reason (shown as its title). */
+  disabledReasons?: Partial<Record<ImportCopyType, string>>
+}) {
+  return (
+    <span
+      role="group"
+      aria-label={label}
+      className="inline-flex h-6 shrink-0 items-center gap-0.5 rounded-full border border-[var(--border-default)] p-0.5"
+    >
+      {options.map((type) => {
+        const pressed = value === type
+        const reason = disabledReasons?.[type]
+        return (
+          <button
+            key={type}
+            type="button"
+            aria-pressed={pressed}
+            disabled={reason !== undefined}
+            title={reason}
+            onClick={() => onChange(type)}
+            className={cn(
+              'inline-flex h-full shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 text-[length:var(--fs-xs)] text-muted-foreground hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent',
+              pressed && TYPE_STYLE[type].selected
+            )}
+          >
+            {type === 'original' && <Check className="size-3 text-[var(--accent-primary)]" aria-hidden="true" />}
+            {type === 'proxy' && <VenetianMask className="size-3 text-[var(--status-proxy)]" aria-hidden="true" />}
+            {labels?.[type] ?? TYPE_STYLE[type].label}
+          </button>
+        )
+      })}
+    </span>
+  )
+}
+
+/** Small marker: the default finish isn't available for this printing, so another finish is used. */
+function FinishFallbackMark({ finishes }: { finishes: string[] }) {
+  const text = `Default finish not available; using ${finishes.join(' / ')}`
+  return (
+    <span
+      data-finish-fallback="true"
+      title={text}
+      aria-label={text}
+      tabIndex={0}
+      className="inline-flex h-[18px] cursor-help items-center gap-0.5 rounded-full border border-[var(--signal-warning)] px-1.5 text-[length:var(--fs-xs)] text-muted-foreground hover:bg-[var(--bg-surface-hover)] focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)]"
+    >
+      <Info className="size-3 text-[var(--signal-warning)]" aria-hidden="true" />
+      {finishes.join(' / ')}
+    </span>
+  )
+}
+
+/** Wraps a field; a small dot marks a value that came from the file. */
+function FieldWithDot({ fromFile, children }: { fromFile: boolean; children: React.ReactNode }) {
+  if (!fromFile) return <>{children}</>
+  return (
+    <span className="relative inline-block shrink-0" title="From your file" data-from-file="true">
+      {children}
+      <span
+        aria-hidden="true"
+        data-testid="file-dot"
+        className="pointer-events-none absolute -right-0.5 -top-0.5 size-1.5 rounded-full bg-foreground shadow-[0_0_0_2px_var(--bg-surface-hover)]"
+      />
+    </span>
+  )
+}
+
+export interface ImportRowEditorProps {
+  row: ImportRow
+  resolved: ResolvedImportCopy[]
+  kind: 'collection' | 'deck'
+  defaults: ImportDefaults
+  open: boolean
+  selected: boolean
+  /**
+   * A GENERIC basic (a basic land whose line named no printing): it still opens and edits (finish),
+   * but takes no collection copy, so there is no Original/Proxy/Unsleeved choice, and language and
+   * condition can't be saved on a planned slot. A basic naming a printing is not generic.
+   */
+  generic: boolean
+  /** Generic basics only: art chosen for this basic (image only); null = default art. */
+  art?: { scryfallId: string } | null
+  onChangeArt?: (art: { scryfallId: string } | null) => void
+  onToggleOpen: () => void
+  onToggleSelect: (checked: boolean) => void
+  onChangeCopy: (index: number, patch: ImportCopyOwnerEdits) => void
+  /** Generic rows: one line edits every copy of the row at once. */
+  onChangeAllCopies?: (indexes: number[], patch: ImportCopyOwnerEdits) => void
+  onApplyAll: () => void
+  /** Deck imports with an intent: ownership tags (Owned copy, Unowned, ...). Display only. */
+  intentTags?: IntentTag[]
+  /** Deck imports with an intent: the Add tick, Original/Proxy rules and inline choices. */
+  intent?: IntentRowControls
+}
+
+export function ImportRowEditor({
+  row,
+  resolved,
+  kind,
+  defaults,
+  open,
+  selected,
+  generic,
+  art,
+  onChangeArt,
+  onToggleOpen,
+  onToggleSelect,
+  onChangeCopy,
+  onChangeAllCopies,
+  onApplyAll,
+  intentTags,
+  intent,
+}: ImportRowEditorProps) {
+  const summary = summariseRowTags(resolved, defaults)
+  // Not-owned cards show "Unowned" (the ownership tag), never "Unsleeved".
+  const notOwnedAll = !!intent && !generic && intent.views.length > 0 && intent.views.every((v) => !v.anyOwned)
+  const heroArtId = generic ? art?.scryfallId ?? getBasicLandDefaultScryfallId(row.cardName) : row.scryfallId ?? null
+  const { triggerProps: nameHover } = useCardHoverPreview({ scryfallId: heroArtId, cardName: row.cardName })
+  // Copies whose default finish isn't made for this printing, so their own finish is used.
+  const fallbackFinishes = [
+    ...new Set(resolved.filter((c) => c.finishNote === 'fallback').map((c) => FINISH_LABELS[c.finish])),
+  ]
+  const tagText = [
+    ...summary.tags.map(tagDisplayText),
+    ...(summary.overflow > 0 ? [`${summary.overflow} more`] : []),
+  ]
+  const typeOptions: ImportCopyType[] = kind === 'deck' ? ['original', 'proxy', 'unsleeved'] : ['original', 'proxy']
+  // Languages are looked up once, the first time the row is opened.
+  const languageLookup = usePrintingLanguages(row.setCode, row.collectorNumber, open && !generic)
+  const basicTag = generic
+  const fileLanguages = row.copies.map((c) => c.file.language).filter((l): l is string => !!l)
+
+  return (
+    <div
+      data-row-key={row.rowKey}
+      className={cn(
+        'border-b border-[var(--border-subtle)]',
+        open && 'bg-[var(--bg-surface-hover)] shadow-[inset_2px_0_0_var(--text-secondary)]'
+      )}
+    >
+      <div
+        data-row-header
+        onClick={(e) => {
+          // Clicks on the checkbox or caret button do their own job.
+          if ((e.target as HTMLElement).closest('button,input,label,[role="checkbox"]')) return
+          onToggleOpen()
+        }}
+        className={cn(
+          'group grid min-h-[34px] cursor-pointer items-center gap-2 px-2.5 hover:bg-[var(--bg-surface-hover)]',
+          intent ? ROW_GRID_INTENT : ROW_GRID
+        )}
+      >
+        <Checkbox
+          checked={selected}
+          onCheckedChange={(v) => onToggleSelect(v === true)}
+          aria-label={`Select ${row.cardName}`}
+        />
+        <span className="text-[length:var(--fs-xs)] tabular-nums text-muted-foreground">{row.qty}</span>
+        <span className="flex min-w-0 flex-wrap items-center gap-1.5 py-1 text-[length:var(--fs-xs)]">
+          <span className="truncate text-foreground" {...nameHover}>{row.cardName}</span>
+          {!generic && (
+            <span className="text-muted-foreground">
+              {row.setCode} {row.collectorNumber}
+            </span>
+          )}
+          {basicTag && (
+            <span
+              data-tag="basic"
+              className="inline-flex h-[18px] items-center rounded-full border border-[var(--border-default)] px-1.5 text-[length:var(--fs-xs)] text-muted-foreground"
+            >
+              Generic
+            </span>
+          )}
+          {generic && !intent?.quiet && resolved.some((c) => c.type === 'unsleeved') && (
+            <span
+              data-tag="unsleeved"
+              className="inline-flex h-[18px] items-center rounded-full border border-[var(--signal-warning)] px-1.5 text-[length:var(--fs-xs)] text-[var(--signal-warning)]"
+            >
+              ◇ Unsleeved
+            </span>
+          )}
+          {!open && (
+            <>
+              {summary.tags.filter((tag) => !(notOwnedAll && tag.label === 'Unsleeved') && !(intent?.quiet && tag.label === 'Unsleeved')).map((tag) => (
+                <span
+                  key={`${tag.kind}-${tag.label}`}
+                  data-tag={tag.kind}
+                  className={cn(
+                    'inline-flex h-[18px] items-center gap-0.5 rounded-full border px-1.5 text-[length:var(--fs-xs)] text-muted-foreground',
+                    tag.label === 'Proxy'
+                      ? 'border-[var(--status-proxy)] text-[var(--status-proxy)]'
+                      : 'border-[var(--border-default)]'
+                  )}
+                >
+                  {tag.label === 'Proxy' && <span aria-hidden="true">◆</span>}
+                  {tag.label === 'Foil' && <span aria-hidden="true">★</span>}
+                  {tag.label === 'Etched' && <span aria-hidden="true">✦</span>}
+                  {tagDisplayText(tag)}
+                </span>
+              ))}
+              {summary.overflow > 0 && (
+                <span
+                  title="Press Edit to see all"
+                  className="inline-flex h-[18px] items-center rounded-full border border-[var(--border-default)] px-1.5 text-[length:var(--fs-xs)] text-muted-foreground"
+                >
+                  +{summary.overflow} more
+                </span>
+              )}
+              {!intent?.quiet && intentTags?.map((tag) => (
+                <span
+                  key={`intent-${tag.label}`}
+                  data-tag="ownership"
+                  className={cn(
+                    'inline-flex h-[18px] items-center gap-0.5 rounded-full border px-1.5 text-[length:var(--fs-xs)] text-foreground',
+                    tag.tone === 'warn' && 'border-[var(--signal-warning)]',
+                    tag.tone === 'unowned' && 'border-[var(--status-unowned)]',
+                    tag.tone === 'neutral' && 'border-[var(--border-default)] text-muted-foreground'
+                  )}
+                >
+                  {tag.tone === 'unowned' && (
+                    <span aria-hidden="true" className="text-[var(--status-unowned)]">⊖</span>
+                  )}
+                  {tag.tone === 'warn' && (
+                    <span aria-hidden="true" className="text-[var(--signal-warning)]">⚠</span>
+                  )}
+                  {tag.all ? tag.label : `${tag.count} ${tag.label}`}
+                </span>
+              ))}
+              {fallbackFinishes.length > 0 && (
+                <FinishFallbackMark finishes={fallbackFinishes} />
+              )}
+              <span className="sr-only">
+                {tagText.length > 0 ? `Differs from defaults: ${tagText.join(', ')}` : 'Uses defaults'}
+              </span>
+            </>
+          )}
+        </span>
+        {intent && (
+          <span className="flex justify-center">
+            {generic ? null : !intent.hideAdd && intent.views.some((v) => v.multi || v.printing) ? (
+              <AddTick
+                cardName={row.cardName}
+                views={intent.views}
+                busy={intent.busy}
+                onChange={intent.onChangeAdd}
+              />
+            ) : null}
+          </span>
+        )}
+        {(
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-label={`${open ? 'Collapse' : 'Edit'} ${row.cardName}`}
+            onClick={onToggleOpen}
+            title={open ? 'Collapse' : 'Edit copies'}
+            className="inline-flex size-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)] group-hover:text-foreground"
+          >
+            <ChevronDown
+              aria-hidden="true"
+              className={cn('size-4 transition-transform', open && 'rotate-180')}
+            />
+          </button>
+        )}
+      </div>
+
+      {intent && !generic && open && (
+        <IntentDecisionRows cardName={row.cardName} views={intent.views} disabled={intent.busy} onChange={intent.onChange} />
+      )}
+
+      {open && (
+        <div className="flex flex-col pb-2 pl-[62px] pr-2.5">
+          {(generic ? resolved.slice(0, 1) : resolved).map((copy, position) => (
+            <CopyLine
+              key={copy.index}
+              row={row}
+              copy={generic ? { ...copy, type: resolved.some((c) => c.type === 'unsleeved') ? 'unsleeved' : 'original' } : copy}
+              position={position}
+              total={generic ? 1 : resolved.length}
+              typeOptions={typeOptions}
+              intentView={generic ? undefined : intent?.views.find((v) => v.index === copy.index)}
+              intentBusy={intent?.busy}
+              hideAdd={intent?.hideAdd}
+              onIntentChange={intent ? (change) => intent.onChange(copy.index, change) : undefined}
+              generic={generic}
+              art={art}
+              onChangeArt={onChangeArt}
+              languageLookup={languageLookup}
+              fileLanguages={fileLanguages}
+              onChange={(patch) =>
+                generic && onChangeAllCopies
+                  ? onChangeAllCopies(resolved.map((c) => c.index), patch)
+                  : onChangeCopy(copy.index, patch)
+              }
+              onApplyAll={position === 0 && resolved.length > 1 ? onApplyAll : undefined}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** The collapsed row's Add tick: every copy at once; mixed when only some copies are ticked. */
+function AddTick({
+  cardName,
+  views,
+  busy,
+  onChange,
+}: {
+  cardName: string
+  views: IntentCopyView[]
+  busy: boolean
+  onChange: (add: boolean) => void
+}) {
+  const real = views.filter((v) => !v.generic)
+  const on = real.filter((v) => v.add).length
+  const mixed = on > 0 && on < real.length
+  const label = mixed
+    ? `Add ${cardName} to collection, ${on} of ${real.length} copies`
+    : `Add ${cardName} to collection`
+  return (
+    <Checkbox
+      checked={on === real.length && real.length > 0}
+      indeterminate={mixed}
+      disabled={busy}
+      title={busy ? ADD_WAITING_TITLE : undefined}
+      aria-label={label}
+      onCheckedChange={() => onChange(mixed ? true : on === 0)}
+    />
+  )
+}
+
+function CopyLine({
+  row,
+  copy,
+  position,
+  total,
+  typeOptions,
+  generic,
+  art,
+  onChangeArt,
+  languageLookup,
+  fileLanguages,
+  onChange,
+  onApplyAll,
+  intentView,
+  intentBusy,
+  hideAdd,
+  onIntentChange,
+}: {
+  generic: boolean
+  hideAdd?: boolean
+  intentView?: IntentCopyView
+  intentBusy?: boolean
+  onIntentChange?: (change: IntentChange) => void
+  art?: { scryfallId: string } | null
+  onChangeArt?: (art: { scryfallId: string } | null) => void
+  row: ImportRow
+  copy: ResolvedImportCopy
+  position: number
+  total: number
+  typeOptions: ImportCopyType[]
+  languageLookup: LanguageLookup
+  fileLanguages: string[]
+  onChange: (patch: ImportCopyOwnerEdits) => void
+  onApplyAll?: () => void
+}) {
+  const n = position + 1
+  const [artOpen, setArtOpen] = useState(false)
+  const visible = generic ? { language: true, finish: true, condition: false } : visibleFields(copy.type)
+  const finishState = finishControlState(row.availableFinishes, copy.finish, copy.sources.finish)
+  const showFinish = visible.finish && finishState.mode === 'select'
+  const languages = generic
+    ? { mode: 'ready' as const, codes: Object.keys(LANGUAGE_LABELS) }
+    : languageChoices(languageLookup, fileLanguages, copy.language)
+  const fromFile = (source: string) => source === 'file'
+  const suffix = (source: string) => (fromFile(source) ? ' (from your file)' : '')
+
+  return (
+    <div
+      role="group"
+      aria-label={`Copy ${n} of ${total}`}
+      className="flex flex-wrap items-center gap-2 border-t border-[var(--border-subtle)] py-1 first:border-t-0"
+    >
+      {!generic && <span className="w-4 shrink-0 text-[length:var(--fs-xs)] tabular-nums text-[var(--text-tertiary)]">{n}</span>}
+      {generic ? (
+        <>
+          <TypeToggle
+            value={copy.type === 'unsleeved' ? 'unsleeved' : 'original'}
+            options={['original', 'unsleeved']}
+            labels={{ original: 'Sleeved' }}
+            label={`Generic ${row.cardName} sleeving`}
+            onChange={(type) => onChange({ type })}
+          />
+          <button
+            type="button"
+            onClick={() => setArtOpen(true)}
+            className="rounded-md border border-[var(--border-default)] px-2 py-0.5 text-[length:var(--fs-xs)] text-muted-foreground hover:text-foreground"
+          >
+            {art ? 'Change art…' : 'Choose art…'}
+          </button>
+          <GenericArtPicker
+            open={artOpen}
+            cardName={row.cardName}
+            currentScryfallId={art?.scryfallId ?? null}
+            finish={copy.finish}
+            onSelect={(p) => {
+              setArtOpen(false)
+              onChangeArt?.(p ? { scryfallId: p.scryfallId } : null)
+            }}
+            onClose={() => setArtOpen(false)}
+          />
+        </>
+      ) : (
+        <>
+          {intentView && (intentView.multi || intentView.printing) && onIntentChange && !hideAdd && (
+            <label className="inline-flex items-center gap-1 text-[length:var(--fs-xs)] text-muted-foreground">
+              <Checkbox
+                checked={intentView.add}
+                disabled={intentBusy}
+                title={intentBusy ? ADD_WAITING_TITLE : undefined}
+                onCheckedChange={(v) => onIntentChange({ add: v === true })}
+                aria-label={`Add copy ${n} of ${row.cardName} to collection`}
+              />
+              Add
+            </label>
+          )}
+          <TypeToggle
+            value={copy.type}
+            options={typeOptions}
+            label={`Copy ${n} type`}
+            labels={intentView ? { unsleeved: intentView.anyOwned ? 'Unsleeved' : 'Unowned' } : undefined}
+            disabledReasons={intentBusy || hideAdd ? undefined : typeReasons(intentView)}
+            onChange={(type) => (onIntentChange ? onIntentChange({ type }) : onChange({ type }))}
+          />
+        </>
+      )}
+      {visible.language && languages.mode !== 'hidden' && (
+        <FieldWithDot fromFile={fromFile(copy.sources.language)}>
+          <select
+            className={SELECT_CLASS}
+            aria-label={`Copy ${n} language${suffix(copy.sources.language)}`}
+            value={copy.language}
+            disabled={languages.mode === 'loading'}
+            aria-busy={languages.mode === 'loading'}
+            onChange={(e) => onChange({ language: e.target.value })}
+          >
+            {languages.mode === 'loading' && <option value={copy.language}>Loading…</option>}
+            {languages.mode !== 'loading' &&
+              languages.codes.map((code) => (
+                <option key={code} value={code}>
+                  {languageLabel(code)}
+                </option>
+              ))}
+          </select>
+        </FieldWithDot>
+      )}
+      {showFinish && (
+        <FieldWithDot fromFile={fromFile(copy.sources.finish)}>
+          <select
+            className={SELECT_CLASS}
+            aria-label={`Copy ${n} finish${suffix(copy.sources.finish)}`}
+            value={copy.finish}
+            onChange={(e) => onChange({ finish: e.target.value as ImportFinish })}
+          >
+            {finishState.options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {FINISH_LABELS[option.value]}
+                {option.unlisted ? ' — not listed by Scryfall' : ''}
+              </option>
+            ))}
+          </select>
+        </FieldWithDot>
+      )}
+      {visible.finish && copy.finishNote === 'unlisted' && (
+        <span className="text-[length:var(--fs-xs)] text-[var(--signal-warning)]">not listed by Scryfall</span>
+      )}
+      {visible.finish && copy.finishNote === 'fallback' && <FinishFallbackMark finishes={[FINISH_LABELS[copy.finish]]} />}
+      {visible.condition && (
+        <FieldWithDot fromFile={fromFile(copy.sources.condition)}>
+          <select
+            className={SELECT_CLASS}
+            aria-label={`Copy ${n} condition${suffix(copy.sources.condition)}`}
+            value={copy.heldCondition}
+            onChange={(e) => onChange({ condition: e.target.value as ImportCondition })}
+          >
+            {Object.entries(CONDITION_SHORT_LABELS).map(([value, label]) => (
+              <option key={value} value={value} title={CONDITION_LABELS[value as ImportCondition]}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </FieldWithDot>
+      )}
+      {onApplyAll && (
+        <button
+          type="button"
+          onClick={onApplyAll}
+          aria-label="Make all copies like copy 1"
+          title="Make all copies like copy 1"
+          className="ml-auto inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-[var(--bg-surface-hover)] hover:text-foreground"
+        >
+          <ChevronsDown className="size-3.5" aria-hidden="true" />
+        </button>
+      )}
+    </div>
+  )
+}

@@ -13,6 +13,8 @@ interface DeckCardStatusRow {
   id: number
   card_name: string
   scryfall_id: string | null
+  is_generic: boolean | null
+  generic_sleeved: boolean | null
   copy_id: number | null
   categories: string | null
   user_copies: { is_proxy: boolean | null } | null
@@ -41,6 +43,8 @@ export async function GET(
       id,
       card_name,
       scryfall_id,
+      is_generic,
+      generic_sleeved,
       copy_id,
       categories,
       user_copies!deck_cards_copy_id_fkey(is_proxy)
@@ -68,6 +72,8 @@ export async function GET(
     id: row.id,
     card_name: row.card_name,
     scryfall_id: row.scryfall_id ?? null,
+    is_generic: row.is_generic ?? false,
+    generic_sleeved: row.generic_sleeved ?? true,
     copy_id: row.copy_id,
     is_proxy: row.user_copies?.is_proxy ?? null,
     categories: row.categories,
@@ -87,19 +93,30 @@ export async function GET(
     return category !== 'Maybeboard' && category !== 'Sideboard'
   })
 
-  // Compute summary counts (exclude generic_land from total — it's an exemption, not a status)
+  // Compute summary counts. Generics count toward deck size whatever their state (D-002) but toward
+  // "sleeved" only while Sleeved; an Unsleeved generic is counted in `planned` and `generic_unsleeved`.
   // 'alternate' counts as 'available' since it represents owned cards in storage (different printing)
+  const genericStatuses = countableStatuses.filter(s => s.status === 'generic_land')
   const counts = {
     total: countableStatuses.filter(s => s.status !== 'generic_land').length,
+    size: countableStatuses.length,
     original: countableStatuses.filter(s => s.allocationStatus === 'original').length,
     proxy: countableStatuses.filter(s => s.allocationStatus === 'proxy').length,
     available: countableStatuses.filter(s => s.allocationStatus === 'available' || s.allocationStatus === 'alternate').length,
     claimed: countableStatuses.filter(s => s.allocationStatus === 'claimed').length,
     unowned: countableStatuses.filter(s => s.allocationStatus === 'unowned').length,
-    generic_land: countableStatuses.filter(s => s.allocationStatus === 'generic_land').length,
-    planned: countableStatuses.filter(s => s.lifecycle === 'planned' && s.status !== 'generic_land').length,
+    generic_land: genericStatuses.length,
+    generic_unsleeved: genericStatuses.filter(s => s.lifecycle !== 'sleeved').length,
+    planned: countableStatuses.filter(s => s.lifecycle === 'planned').length,
     sleeved: countableStatuses.filter(s => s.lifecycle === 'sleeved').length,
   }
 
-  return Response.json({ cards: statuses, counts })
+  // Names of basics whose generics are Unsleeved, for the deck status ("Short: Island generics unsleeved").
+  const unsleevedGenericNames = [
+    ...new Set(
+      genericStatuses.filter(s => s.lifecycle !== 'sleeved').map(s => s.cardName)
+    ),
+  ]
+
+  return Response.json({ cards: statuses, counts: { ...counts, unsleevedGenericNames } })
 }

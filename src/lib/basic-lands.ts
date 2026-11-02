@@ -57,6 +57,81 @@ export function isBasicLand(cardName: string): boolean {
 }
 
 /**
+ * Did an import line name a specific printing? True for a set code and/or collector number
+ * (text) or a Scryfall id (CSV). A plain name ("11 Plains") names none.
+ */
+export function hasPrintingGiven(line: {
+  setCode?: string | null
+  collectorNumber?: string | null
+  scryfallId?: string | null
+}): boolean {
+  return Boolean(line.setCode?.trim() || line.collectorNumber?.trim() || line.scryfallId?.trim())
+}
+
+/**
+ * Deck import: does this line become a GENERIC basic (a deck slot with no collection copy)?
+ * Only a basic land name with no printing given. Independent of the "Generic basics" display
+ * toggle, which never affects imports.
+ */
+export function isGenericBasic(cardName: string, printingGiven: boolean): boolean {
+  return isBasicLand(cardName) && !printingGiven
+}
+
+/**
+ * THE one test for "is this deck slot a generic basic?" (contract generic-basic-lands §3).
+ * Reads the explicit `is_generic` flag only. Never infer from a missing copy or an empty
+ * printing id. Accepts snake_case DB rows and camelCase client rows.
+ */
+export function isGenericSlot(
+  row: { is_generic?: boolean | null; isGeneric?: boolean | null } | null | undefined
+): boolean {
+  return Boolean(row && (row.is_generic ?? row.isGeneric))
+}
+
+/** True when a generic slot is Sleeved. A missing flag means Sleeved (the default). */
+export function isGenericSleeved(
+  row: { generic_sleeved?: boolean | null; genericSleeved?: boolean | null }
+): boolean {
+  const v = row.generic_sleeved ?? row.genericSleeved
+  return v !== false
+}
+
+/** Does this slot count toward "sleeved N/100"? Real copy = sleeved; generic = by its flag. */
+export function countsAsSleeved(row: {
+  copy_id?: number | null
+  is_generic?: boolean | null
+  generic_sleeved?: boolean | null
+}): boolean {
+  if (isGenericSlot(row)) return isGenericSleeved(row)
+  return row.copy_id != null
+}
+
+/**
+ * Pick the stored art for a new generic line: a random printing of that basic the owner owns,
+ * else the Round 12 default. `random` is injected (0 <= r < 1) so this stays testable.
+ * Called once at write time; the result is stored and never recomputed on display.
+ */
+export function pickGenericArt(
+  cardName: string,
+  ownedScryfallIds: readonly string[],
+  random: () => number = Math.random
+): string | undefined {
+  const owned = Array.from(new Set(ownedScryfallIds.filter(Boolean)))
+  if (owned.length > 0) {
+    const i = Math.min(owned.length - 1, Math.floor(random() * owned.length))
+    return owned[i]
+  }
+  return getBasicLandDefaultScryfallId(cardName)
+}
+
+/**
+ * Mixed states in one import for one basic type: Unsleeved wins (never silently Sleeved).
+ */
+export function resolveGenericSleeved(states: readonly boolean[]): boolean {
+  return states.every(s => s !== false)
+}
+
+/**
  * Check if a basic land slot is "tracked" (has a copy_id assigned).
  * A tracked basic land behaves like a normal card — real status, real resolution.
  */

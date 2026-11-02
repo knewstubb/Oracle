@@ -17,11 +17,12 @@ import { useDeckCategories } from '@/hooks/useDeckCategories'
 import { deckKeys } from '@/hooks/useDeckQueryKeys'
 import type { DeckCard } from '@/components/CardGrid'
 import type { CardSlotStatus, DeckCardLifecycle } from '@/lib/card-status'
-import { isBasicLand, getBasicLandDefaultScryfallId } from '@/lib/basic-lands'
+import { isBasicLand, isGenericSlot, isGenericSleeved, getBasicLandDefaultScryfallId } from '@/lib/basic-lands'
 import { AddCardSearch } from '@/components/AddCardSearch'
 import { DeckImportButton } from '@/components/DeckImportButton'
 import { CardGroupSection } from '@/components/CardGroupSection'
 import { CardSlotBadge } from '@/components/CardSlotBadge'
+import { isCompanion } from '@/lib/command-zone'
 import { PicklistProgress, type PicklistCard } from '@/components/PicklistV2'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -69,6 +70,10 @@ interface CardStatusResponse {
     unowned: number
     planned?: number
     sleeved?: number
+    generic_land?: number
+    generic_unsleeved?: number
+    size?: number
+    unsleevedGenericNames?: string[]
   }
 }
 
@@ -474,8 +479,8 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
   }, [])
 
   const handleSelectAll = useCallback(() => {
-    // Select all non-commander cards
-    const ids = cards.filter(c => !c.is_commander).map(c => c.id)
+    // Select all non-commander cards (a companion is not a deck card either)
+    const ids = cards.filter(c => !c.is_commander && !isCompanion(c)).map(c => c.id)
     setSelectedCardIds(new Set(ids))
   }, [cards])
 
@@ -520,16 +525,18 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
   // ── Roll up basic lands — collapse duplicate basic land entries into one with summed quantity ──
 
   const rolledUpCards = useMemo(() => {
-    const landCounts = new Map<string, { card: DeckCard; count: number }>()
+    const landCounts = new Map<string, { card: DeckCard; count: number; sleeved: boolean }>()
     const nonLands: DeckCard[] = []
 
     for (const card of activeCards) {
-      if (isBasicLand(card.card_name) && statusMap.get(card.id) === 'generic_land') {
+      if (isGenericSlot(card) || (isBasicLand(card.card_name) && statusMap.get(card.id) === 'generic_land')) {
         const existing = landCounts.get(card.card_name)
+        const sleeved = isGenericSleeved(card)
         if (existing) {
           existing.count += (card.quantity || 1)
+          existing.sleeved = existing.sleeved && sleeved // Unsleeved wins
         } else {
-          landCounts.set(card.card_name, { card, count: card.quantity || 1 })
+          landCounts.set(card.card_name, { card, count: card.quantity || 1, sleeved })
         }
       } else {
         nonLands.push(card)
@@ -537,9 +544,10 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
     }
 
     // Create rolled-up entries for basic lands
-    const rolledLands: DeckCard[] = Array.from(landCounts.values()).map(({ card, count }) => ({
+    const rolledLands: DeckCard[] = Array.from(landCounts.values()).map(({ card, count, sleeved }) => ({
       ...card,
       quantity: count,
+      generic_sleeved: sleeved,
     }))
 
     return [...nonLands, ...rolledLands]
@@ -764,6 +772,9 @@ export function CardsTab({ cards, deckId, healthCategories, scrollToCategory, on
                 claimed: statusData.counts.claimed,
                 unowned: statusData.counts.unowned,
                 total: statusData.counts.total,
+                genericSleeved: (statusData.counts.generic_land ?? 0) - (statusData.counts.generic_unsleeved ?? 0),
+                genericUnsleeved: statusData.counts.generic_unsleeved ?? 0,
+                unsleevedGenericNames: statusData.counts.unsleevedGenericNames,
               }}
               action={
                 onViewPicklist && (
@@ -1499,7 +1510,7 @@ function AutoCategorizeButton({ cards, deckId }: AutoCategorizeButtonProps) {
       // Skip basic lands
       if (isBasicLand(card.card_name)) return false
       // Skip commanders
-      if (card.is_commander) return false
+      if (card.is_commander || isCompanion(card)) return false
       
       const parsed = parseCategoriesCapped(card.categories)
       return parsed.primary_category === 'Other' || parsed.primary_category === ''

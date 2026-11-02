@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oracle — Deck import starting point (I bought it / I built it / I'm planning it)</title>
+<style>
+  /* Colours copied from the app's design tokens. No new colours. */
+  :root{
+    --bg-canvas:#131316; --bg-surface:#1A1A1E; --bg-hover:#212126; --bg-open:#1F1F24; --border:#35353A; --border-subtle:#262629;
+    --text-primary:#E8E8EA; --text-secondary:#9C9CA3; --text-tertiary:#6E6E76;
+    --status-proxy:#4A93A0; --status-unowned:#F0339E; --signal-warning:#EF9F27; --signal-critical:#E24B4A; --accent-primary:#1D9E75;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg-canvas);color:var(--text-primary);font:13px/1.45 "Helvetica Neue",Helvetica,Arial,sans-serif}
+  button,select,input,textarea{font:inherit;color:inherit}
+  :focus-visible{outline:2px solid var(--accent-primary);outline-offset:2px}
+  .page{max-width:900px;margin:0 auto;padding:24px 20px 80px}
+  h1{font-size:19px;margin:0 0 4px} h2{font-size:15px;margin:36px 0 6px}
+  .ann{color:var(--text-secondary);font-size:12px;margin:0 0 12px;max-width:780px}
+  .ann b{color:var(--text-primary);font-weight:500}
+  .frame{width:768px;max-width:100%;background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .dh{padding:12px 16px;border-bottom:1px solid var(--border-subtle);font-weight:500;display:flex;justify-content:space-between}
+  .db{padding:14px 16px}
+  .df{padding:10px 16px;border-top:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center;color:var(--text-secondary)}
+  .btn{background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;cursor:pointer}
+  .btn:hover{background:var(--bg-hover)}
+  .btn.primary{background:var(--accent-primary);border-color:var(--accent-primary);color:#fff}
+  .btn.sm{padding:2px 8px;font-size:12px;border-radius:6px}
+  .link{background:none;border:0;color:var(--text-primary);text-decoration:underline;cursor:pointer;padding:0;font-size:12px}
+  .muted{color:var(--text-secondary)} .small{font-size:12px} .xs{font-size:11px}
+
+  /* Starting-point cards */
+  .q{font-weight:500;margin:0 0 8px}
+  .intent{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .icard{display:flex;gap:10px;align-items:flex-start;text-align:left;background:none;border:1px solid var(--border);border-radius:10px;padding:10px 12px;cursor:pointer}
+  .icard:hover{background:var(--bg-hover);border-color:var(--text-secondary)}
+  .icard[aria-checked=true]{border-color:var(--accent-primary);background:rgba(29,158,117,.10)}
+  .icard[aria-checked=true] .t{font-weight:700}
+  .dot{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--text-secondary);flex:none;margin-top:2px;display:grid;place-items:center}
+  .icard[aria-checked=true] .dot{border-color:var(--accent-primary)}
+  .icard[aria-checked=true] .dot::after{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent-primary)}
+  .icard .t{display:block;font-weight:500}
+  .icard .d{display:block;color:var(--text-secondary);font-size:12px;margin-top:2px}
+  .note{color:var(--text-secondary);font-size:12px;margin:8px 0 0}
+  .err{color:var(--text-primary);font-size:12px;margin:8px 0 0;display:none;align-items:center;gap:6px}
+  .err.show{display:flex} .err .i{color:var(--signal-critical)}
+  .tabs{display:flex;gap:4px;margin:16px 0 10px;border-bottom:1px solid var(--border-subtle)}
+  .tab{background:none;border:0;border-bottom:2px solid transparent;padding:6px 10px;cursor:pointer;color:var(--text-secondary)}
+  .tab[aria-selected=true]{color:var(--text-primary);border-bottom-color:var(--accent-primary)}
+  .drop{border:1.5px dashed var(--border);border-radius:10px;min-height:150px;display:grid;place-items:center;text-align:center;padding:16px}
+  .chip{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--border);border-radius:8px;padding:4px 8px;font-size:12px;margin-top:8px}
+  textarea,input.txt{width:100%;background:var(--bg-canvas);border:1px solid var(--border);border-radius:8px;padding:8px}
+
+  /* Review header */
+  .hdr{display:grid;grid-template-columns:1fr 130px 200px;gap:10px;margin-bottom:12px}
+  .fld label{display:block;font-size:11px;color:var(--text-secondary);margin-bottom:2px}
+  .fld .box{border:1px solid var(--border);border-radius:8px;padding:5px 8px}
+  .sp{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .seg{display:inline-flex;gap:2px;border:1px solid var(--border);border-radius:999px;padding:2px}
+  .seg button{background:none;border:0;border-radius:999px;padding:3px 10px;cursor:pointer;color:var(--text-secondary);font-size:12px;white-space:nowrap}
+  .seg button:hover:not(:disabled){background:var(--bg-hover)}
+  .seg button[aria-pressed=true]{color:var(--text-primary);box-shadow:inset 0 0 0 1px var(--text-secondary)}
+  .seg button.orig[aria-pressed=true]{background:rgba(29,158,117,.18);box-shadow:inset 0 0 0 1px var(--accent-primary)}
+  .seg button.prox[aria-pressed=true]{background:rgba(74,147,160,.18);box-shadow:inset 0 0 0 1px var(--status-proxy)}
+  .seg button:disabled{opacity:.4;cursor:not-allowed}
+  .seg.sm button{padding:1px 8px;font-size:11px}
+  .summary{margin:10px 0 2px;padding:8px 10px;border:1px solid var(--border-subtle);border-radius:8px;background:var(--bg-canvas)}
+  .summary b{font-weight:500}
+  .defaults{font-size:12px;color:var(--text-secondary);margin:8px 0}
+  .chips{display:flex;gap:6px;margin:8px 0}
+  .fchip{border:1px solid var(--border);border-radius:999px;padding:1px 9px;font-size:12px;background:none;cursor:pointer;color:var(--text-secondary)}
+  .fchip[aria-pressed=true]{color:var(--text-primary);border-color:var(--text-secondary);background:var(--bg-hover)}
+
+  /* List */
+  .list{border:1px solid var(--border-subtle);border-radius:8px;overflow:hidden}
+  .lh,.row{display:grid;grid-template-columns:24px 26px minmax(0,1fr) auto 86px 28px;gap:8px;align-items:center;padding:0 10px}
+  .lh{min-height:32px;border-bottom:1px solid var(--border-subtle);font-size:11px;color:var(--text-secondary)}
+  .lh .addh{text-align:center}
+  .row{min-height:36px;cursor:pointer}
+  .row:hover{background:var(--bg-hover)}
+  .rwrap{border-bottom:1px solid var(--border-subtle)}
+  .rwrap.open{background:var(--bg-open);box-shadow:inset 2px 0 0 var(--text-secondary)}
+  .nm{min-width:0;line-height:1.3;padding:4px 0}
+  .nm .set{color:var(--text-tertiary);font-size:11px;margin-left:6px}
+  .nm .hint{color:var(--text-secondary);font-size:11px;margin-left:8px;white-space:nowrap}
+  .tags{display:flex;gap:4px;justify-content:flex-end}
+  .tag{display:inline-flex;gap:3px;align-items:center;border:1px solid var(--border);border-radius:999px;padding:0 7px;font-size:11px;color:var(--text-secondary);white-space:nowrap;height:18px}
+  .tag.proxy{border-color:var(--status-proxy);color:var(--text-primary)} .tag.proxy .ic{color:var(--status-proxy)}
+  .tag.unowned{border-color:var(--status-unowned);color:var(--text-primary)} .tag.unowned .ic{color:var(--status-unowned)}
+  .tag.coll .ic{color:var(--text-primary)}
+  .addc{display:flex;justify-content:center}
+  input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent-primary);cursor:pointer;margin:0}
+  .caret{background:none;border:0;width:26px;height:26px;border-radius:6px;cursor:pointer;color:var(--text-secondary)}
+  .caret:hover{background:var(--bg-hover);color:var(--text-primary)}
+  .copies{padding:2px 10px 10px 58px}
+  .cl{display:grid;grid-template-columns:22px 70px auto 1fr;gap:8px;align-items:center;padding:4px 0}
+  .cl .n{color:var(--text-tertiary);font-size:11px}
+  .cl label.add{display:flex;gap:5px;align-items:center;font-size:11px;color:var(--text-secondary);cursor:pointer}
+  .det{font-size:11px;color:var(--text-secondary);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .det select{background:var(--bg-canvas);border:1px solid var(--border);border-radius:6px;font-size:11px;padding:1px 4px}
+  .cons{grid-column:3 / 5;font-size:11px;color:var(--text-secondary);margin-top:-2px}
+  .cons .ic{color:var(--status-unowned)}
+  .gen{padding:4px 0 6px;font-size:12px;color:var(--text-secondary);display:flex;gap:10px;align-items:center}
+  .dash{color:var(--text-tertiary)}
+  .callout{margin:0 10px 8px 58px;padding:8px 10px;border:1px solid var(--signal-warning);border-radius:8px;background:var(--bg-canvas);font-size:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .callout .skipn{flex-basis:100%;font-size:11px;color:var(--text-secondary)}
+  .callout.ok{border-color:var(--border-subtle)}
+  .tag.warn{border-color:var(--signal-warning);color:var(--text-primary)}
+  .summary.after{margin:10px 0 0}
+  .dlmock{max-width:520px;border:1px solid var(--border-subtle);border-radius:8px;overflow:hidden;font-size:12px}
+  .dlmock .hd{padding:6px 10px;background:var(--bg-hover);color:var(--text-secondary)}
+  .dlmock .rw{display:flex;gap:8px;align-items:center;padding:6px 10px;border-top:1px solid var(--border-subtle)}
+  .dlmock .al{border-color:var(--signal-warning);margin:0 10px 8px;border:1px solid var(--signal-warning);border-radius:6px;padding:6px 8px;color:var(--text-secondary)}
+
+  .bulk{display:flex;gap:10px;align-items:center;flex-wrap:wrap;min-height:32px;padding:4px 10px;border-bottom:1px solid var(--border-subtle);background:var(--bg-hover);font-size:12px}
+  .bulk label{display:flex;gap:5px;align-items:center;cursor:pointer}
+  .bnote{font-size:11px;color:var(--text-secondary);padding:4px 10px;border-bottom:1px solid var(--border-subtle)}
+
+  .result{text-align:center;padding:24px 16px}
+  .ok{width:44px;height:44px;border-radius:50%;background:var(--accent-primary);display:grid;place-items:center;margin:0 auto 10px;color:#fff;font-size:22px}
+  .rlist{max-width:460px;margin:14px auto 0;border:1px solid var(--border-subtle);border-radius:8px;text-align:left}
+  .rlist div{display:flex;justify-content:space-between;padding:6px 10px;border-bottom:1px solid var(--border-subtle)}
+  .rlist div:last-child{border-bottom:0}
+  table.t{border-collapse:collapse;width:100%;max-width:780px;font-size:12px}
+  table.t th,table.t td{border:1px solid var(--border-subtle);padding:6px 8px;text-align:left;vertical-align:top}
+  table.t th{color:var(--text-secondary);font-weight:500}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .live{position:fixed;right:16px;bottom:16px;max-width:340px;background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--text-secondary);opacity:0;transition:opacity .2s}
+  .live.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Deck import: "What's this deck?"</h1>
+  <p class="ann">Applies to every deck import. Screens are live: pick an intent, open rows, tick, select rows.</p>
+
+  <!-- 1. Input step -->
+  <h2>1 · Import deck: first screen (every source)</h2>
+  <p class="ann">The heading follows the intent. Nothing is pre-selected.</p>
+  <div class="frame" id="inputFrame">
+    <div class="dh"><span id="inHead">Import deck</span><span class="muted">✕</span></div>
+    <div class="db">
+      <p class="q" id="q-label">What's this deck?</p>
+      <div class="intent" role="radiogroup" aria-labelledby="q-label" aria-describedby="q-err" id="intentCards"></div>
+      <p class="err" id="q-err" role="alert"><span class="i" aria-hidden="true">⚠</span><span>Choose one to continue.</span></p>
+
+      <div class="tabs" role="tablist" aria-label="Where's the deck from?" id="tabs"></div>
+      <div id="tabBody"></div>
+    </div>
+    <div class="df"><span class="small" id="inputFoot"></span><button class="btn primary" id="continueBtn">Continue</button></div>
+  </div>
+
+  <!-- 2. Review -->
+  <h2>2 · Review</h2>
+  <p class="ann">Edge cases: <b>Sol Ring</b>, <b>Ancient Tomb</b> (move); <b>Command Tower</b> (other printing); <b>Professional Face-Breaker</b> (proxy only); <b>Mountain ZNR</b> (3 wanted, 2 owned).</p>
+  <div class="frame" id="reviewFrame">
+    <div class="dh"><span id="revHead">Import built deck</span><span class="muted">✕</span></div>
+    <div class="db">
+      <div class="hdr">
+        <div class="fld"><label>Name</label><div class="box">Prosper Exile Value</div></div>
+        <div class="fld"><label>Format</label><div class="box">Commander</div></div>
+        <div class="fld"><label>Commander</label><div class="box">Prosper, Tome-Bound ▾</div></div>
+      </div>
+      <div class="defaults">Non-foil · Near Mint · English · <button class="link">Change</button></div>
+      <div class="chips" id="chips"></div>
+      <div class="list" id="list"></div>
+      <div class="summary small after" role="status" id="summary"></div>
+    </div>
+    <div class="df"><span class="small" id="foot"></span><button class="btn primary" id="importBtn">Import deck</button></div>
+  </div>
+
+  <!-- 3. Result -->
+  <h2>3 · Result</h2>
+  <p class="ann">Press <b>Import deck</b> above to refresh.</p>
+  <div class="frame"><div class="result" id="result"></div><div class="df"><span></span><span><button class="btn">Close</button> <button class="btn primary">Open deck</button></span></div></div>
+
+  <!-- 4. Reference -->
+  <h2>4 · Add tick and choice</h2>
+  <table class="t">
+    <tr><th>Add to collection</th><th>Choice</th><th>What happens</th></tr>
+    <tr><td>✓</td><td>Original / Proxy</td><td>New copy, sleeved here</td></tr>
+    <tr><td>✓</td><td>Unsleeved</td><td>New original, not sleeved</td></tr>
+    <tr><td>✗</td><td>Original / Proxy, free copy owned</td><td>Owned copy sleeved (the proxy if it's the only free one)</td></tr>
+    <tr><td>✗</td><td>Original, only copy in another deck</td><td>Moves here; pick the deck or Skip (new copy + alert on that deck)</td></tr>
+    <tr><td>✗</td><td>Original, other printing owned</td><td>Blocked until you choose</td></tr>
+    <tr><td>✗</td><td>Unsleeved, not owned</td><td><span class="tag unowned"><span class="ic">⊖</span>Unowned</span></td></tr>
+  </table>
+  <p class="ann" style="margin-top:8px">Not owned: Original and Proxy stay disabled until Add is ticked.</p>
+
+  <h2>5 · Alert on the other deck</h2>
+  <p class="ann">Sol Ring skipped. Korvold's decklist:</p>
+  <div class="dlmock">
+    <div class="hd">Korvold · decklist</div>
+    <div class="rw"><span>1</span><span>Sol Ring</span><span class="tag warn"><span aria-hidden="true">⚠</span>Accounting error</span></div>
+    <div class="al">Sol Ring was sleeved into Prosper Exile Value without moving this copy. <button class="link">Fixed</button> <button class="link">Dismiss</button></div>
+    <div class="rw"><span>1</span><span>Arcane Signet</span></div>
+  </div>
+</div>
+<div class="live" id="live" aria-live="polite"></div>
+
+<script>
+const INTENTS = [
+  {id:'bought', t:"I bought it", d:"Adds every card to your collection and sleeves it.", h:"Import purchased deck"},
+  {id:'built', t:"I built it", d:"Uses cards you own. Add any new ones as you go.", h:"Import built deck"},
+  {id:'planning', t:"I'm planning it", d:"Just a list. Nothing is added or sleeved.", h:"Import planned deck"},
+];
+// orig/prox = free copies in the collection; elsewhere = other decks holding your only copies.
+const POOLS = {
+  prosper:{orig:1,prox:0,elsewhere:[],owned:1},
+  sol:{orig:0,prox:0,elsewhere:['Korvold'],owned:1},
+  signet:{orig:1,prox:0,elsewhere:['Breya'],owned:2},
+  tower:{orig:0,prox:0,elsewhere:[],owned:1,other:'CMM 410',listed:'CLB 351'},
+  dockside:{orig:0,prox:0,elsewhere:[],owned:0},
+  pfb:{orig:0,prox:1,elsewhere:[],owned:1},
+  fable:{orig:1,prox:0,elsewhere:[],owned:1},
+  jeska:{orig:0,prox:0,elsewhere:[],owned:0},
+  swat:{orig:1,prox:0,elsewhere:[],owned:1},
+  ancient:{orig:0,prox:0,elsewhere:['Korvold','Breya'],owned:2},
+  mtnz:{orig:2,prox:0,elsewhere:[],owned:2},
+};
+const ROWS = [
+  {key:'prosper',name:'Prosper, Tome-Bound',set:'AFC 2',qty:1,pool:'prosper'},
+  {key:'sol',name:'Sol Ring',set:'C21 263',qty:1,pool:'sol'},
+  {key:'signet',name:'Arcane Signet',set:'CMM 397',qty:1,pool:'signet'},
+  {key:'tower',name:'Command Tower',set:'CLB 351',qty:1,pool:'tower'},
+  {key:'dockside',name:'Dockside Extortionist',set:'2X2 107',qty:1,pool:'dockside'},
+  {key:'pfb',name:'Professional Face-Breaker',set:'SNC 116',qty:1,pool:'pfb'},
+  {key:'fable',name:'Fable of the Mirror-Breaker',set:'NEO 141',qty:1,pool:'fable'},
+  {key:'jeska',name:"Jeska's Will",set:'CMR 187',qty:1,pool:'jeska'},
+  {key:'swat',name:'Deflecting Swat',set:'C20 50',qty:1,pool:'swat'},
+  {key:'ancient',name:'Ancient Tomb',set:'UMA 236',qty:1,pool:'ancient'},
+  {key:'signet2',name:'Arcane Signet',set:'CMM 397 · Foil',qty:1,pool:'signet'},
+  {key:'mtnz',name:'Mountain',set:'ZNR 267',qty:3,pool:'mtnz'},
+  {key:'mtn',name:'Mountain',qty:8,generic:true},
+  {key:'swp',name:'Swamp',qty:7,generic:true},
+];
+const PRECONS=['Mind Flayer Menace','Eldrazi Unbound','Tinker Time','Revenant Recon'];
+const S = {
+  inputIntent:null, heldFile:false, tab:'file', precon:null,
+  intent:'built', copies:{}, generic:{}, open:new Set(['tower','mtnz']), sel:new Set(), filter:'all', bnote:'',
+};
+ROWS.forEach(r=>{ if(r.generic) S.generic[r.key]={sleeved:true,touched:false}; else S.copies[r.key]=Array.from({length:r.qty},()=>({add:false,type:'unsleeved',touched:false,print:null,mv:null})); });
+
+/* Owned copies are matched automatically. take() says what backs a sleeved copy, given what earlier copies already used. */
+function take(c,p,u){
+  if(c.type==='proxy'){ if(p.prox-u.p>0){u.p++;return 'owned-proxy'} return 'none'}
+  if(p.orig-u.o>0){u.o++;return 'owned'}
+  if(p.prox-u.p>0){u.p++;return 'owned-proxy'}          // only free copy is a proxy: sleeve the proxy
+  if(u.m<p.elsewhere.length){u.m++;return 'move'}        // only copy is in another deck: it moves here
+  if(p.other&&u.x<1){u.x++;return 'otherprint'}
+  return 'none'}
+function resolve(row,i,asType){
+  const target=S.copies[row.key][i];const p=POOLS[row.pool];const u={o:0,p:0,m:0,x:0};
+  for(const r of ROWS){ if(r.generic||r.pool!==row.pool)continue;
+    for(let j=0;j<S.copies[r.key].length;j++){ if(r===row&&j===i)break;
+      const d=S.copies[r.key][j]; if(d.add||d.type==='unsleeved'||(d.print==='add'))continue; take(d,p,u)}
+    if(r===row)break}
+  const type=asType||target.type;
+  if(type==='unsleeved')return {k:'none'};
+  if(target.add&&!asType)return {k:'new'};
+  const k=take({type},p,u);
+  if(k==='move'){const mv=target.mv||(p.elsewhere.length===1?p.elsewhere[0]:null);
+    if(!mv)return {k:'move',pending:true};
+    if(mv==='skip')return {k:'new',skipped:true};
+    return {k:'move',deck:mv}}
+  if(k==='otherprint'){ if(target.print==='use')return {k:'owned',other:true}; return {k:'otherprint',pending:true}}
+  return {k}}
+function canSleeve(row,i,type){const c=S.copies[row.key][i];if(c.add)return true;return resolve(row,i,type).k!=='none'}
+function ownsAny(row){return POOLS[row.pool].owned>0}
+function plural(n,a,b){return n===1?a:b}
+function announce(msg){const l=document.getElementById('live');l.textContent=msg;l.classList.add('show');clearTimeout(announce.t);announce.t=setTimeout(()=>l.classList.remove('show'),2600)}
+function deckLabel(row){ if(!ownsAny(row))return {t:'Unowned on the deck',unowned:true}; return {t:'Owned'}}
+
+function applyIntent(intent){
+  S.intent=intent;
+  for(const r of ROWS){
+    if(r.generic){S.generic[r.key].sleeved=intent!=='planning';continue}
+    S.copies[r.key].forEach((c,i)=>{
+      c.print=null;c.mv=null;
+      if(intent==='bought'){c.add=true;c.type='original'}
+      else if(intent==='built'){c.add=false;c.type=resolve(r,i,'original').k==='none'?'unsleeved':'original'}
+      else {c.add=false;c.type='unsleeved'}
+    });
+  }
+  render();
+}
+
+function setChoice(row,i,type,quiet){
+  const c=S.copies[row.key][i];
+  if(type!=='unsleeved'&&!canSleeve(row,i,type))return false;
+  c.type=type;c.touched=true;
+  if(type==='unsleeved'&&c.add&&c.print==='add')c.print=null;
+  return true}
+function setAdd(row,i,val,quiet){
+  const c=S.copies[row.key][i];c.touched=true;
+  if(val){c.add=true;if(c.type==='unsleeved')c.type='original'}
+  else{c.add=false;if(c.print==='add')c.print=null;
+    if(c.type!=='unsleeved'&&resolve(row,i,c.type).k==='none'){c.type='unsleeved';if(!quiet)announce(`${row.name}: you don't own a free copy, so it is left unsleeved.`)}}
+}
+function outcome(row,c,i){
+  const r=resolve(row,i);
+  if(r.k==='new'){return c.type==='unsleeved'?'addedFree':'added'}
+  if(r.pending)return 'pending';
+  if(r.k==='move')return 'moved';
+  if(r.k==='owned'||r.k==='owned-proxy')return 'coll';
+  return ownsAny(row)?'unsleeved':'unowned'}
+
+function totals(){const t={total:0,added:0,addedProxy:0,coll:0,moved:0,addedFree:0,unsleeved:0,unowned:0,pending:0,alerts:0,genS:0,genU:0};
+  for(const r of ROWS){t.total+=r.qty;
+    if(r.generic){if(S.generic[r.key].sleeved)t.genS+=r.qty;else t.genU+=r.qty;continue}
+    S.copies[r.key].forEach((c,i)=>{const o=outcome(r,c,i);t[o]++;if(o==='added'&&c.type==='proxy')t.addedProxy++;if(resolve(r,i).skipped)t.alerts++})}
+  return t}
+function summaryParts(t,past){
+  const parts=[];
+  if(!t.added&&!t.addedFree) parts.push('<b>Nothing added to your collection</b>');
+  if(t.added) parts.push(`<b>${t.added}</b> added to your collection${t.addedProxy?` (${t.addedProxy} ${plural(t.addedProxy,'proxy','proxies')})`:''}`);
+  if(t.coll) parts.push(`<b>${t.coll}</b> ${past?'sleeved':'to sleeve'} from your collection`);
+  if(t.moved) parts.push(`<b>${t.moved}</b> ${past?'moved':'to move'} from another deck`);
+  if(t.addedFree) parts.push(`<b>${t.addedFree}</b> added, not sleeved`);
+  if(t.unsleeved) parts.push(`<b>${t.unsleeved}</b> unsleeved`);
+  if(t.unowned) parts.push(`<span class="tag unowned"><span class="ic" aria-hidden="true">⊖</span><b>${t.unowned}</b>&nbsp;unowned</span>`);
+  if(t.pending) parts.push(`<span class="tag warn"><b>${t.pending}</b>&nbsp;${plural(t.pending,'needs','need')} a choice</span>`);
+  if(t.alerts) parts.push(`<span class="tag warn">⚠ <b>${t.alerts}</b>&nbsp;${plural(t.alerts,'alert','alerts')} on other decks</span>`);
+  const g=t.genS+t.genU;
+  if(g){ if(!t.genU) parts.push(`<b>${g}</b> generic basics`); else if(!t.genS) parts.push(`<b>${g}</b> generic basics, unsleeved`); else parts.push(`<b>${g}</b> generic basics, ${t.genU} unsleeved`); }
+  return parts}
+
+/* ---------- Input step ---------- */
+function renderInput(){
+  const box=document.getElementById('intentCards');box.innerHTML='';
+  INTENTS.forEach((it,idx)=>{const b=document.createElement('button');b.className='icard';b.setAttribute('role','radio');
+    b.setAttribute('aria-checked',S.inputIntent===it.id);b.tabIndex=(S.inputIntent?S.inputIntent===it.id:idx===0)?0:-1;
+    b.innerHTML=`<span class="dot" aria-hidden="true"></span><span><span class="t">${it.t}</span><span class="d">${it.d}</span></span>`;
+    b.onclick=()=>{S.inputIntent=it.id;document.getElementById('q-err').classList.remove('show');renderInput();box.children[idx].focus()};
+    b.onkeydown=e=>{if(['ArrowRight','ArrowDown','ArrowLeft','ArrowUp'].includes(e.key)){e.preventDefault();const d=(e.key==='ArrowRight'||e.key==='ArrowDown')?1:-1;const n=(idx+d+3)%3;S.inputIntent=INTENTS[n].id;renderInput();box.children[n].focus()}};
+    box.appendChild(b)});
+  const tabs=document.getElementById('tabs');tabs.innerHTML='';
+  [['link','Link'],['paste','Paste list'],['file','File'],['precon','Precon']].forEach(([id,l])=>{const t=document.createElement('button');t.className='tab';t.setAttribute('role','tab');t.setAttribute('aria-selected',S.tab===id);t.textContent=l;t.onclick=()=>{S.tab=id;renderInput()};tabs.appendChild(t)});
+  const body=document.getElementById('tabBody');
+  if(S.tab==='file'){
+    body.innerHTML=`<div class="drop"><div><div style="font-size:20px" aria-hidden="true">⇪</div><div>Drop your ManaBox file here</div><div class="muted small">or</div><button class="btn sm" id="sample">Use sample file</button><div class="muted xs" style="margin-top:4px">ManaBox .csv or .txt</div>
+      ${S.heldFile?`<div class="chip">📄 prosper.csv <span class="muted">· ${S.inputIntent?'Reading your file…':'Choose one above.'}</span></div>`:''}</div></div>`;
+    document.getElementById('sample').onclick=()=>{S.heldFile=true;renderInput();if(S.inputIntent)goReview()};
+  } else if(S.tab==='paste'){ body.innerHTML=`<textarea rows="5" aria-label="Deck list">1 Prosper, Tome-Bound (AFC) 2\n1 Sol Ring (C21) 263\n8 Mountain</textarea>`;
+  } else if(S.tab==='link'){ body.innerHTML=`<input class="txt" aria-label="Deck link" value="https://archidekt.com/decks/123456">`;
+  } else { body.innerHTML=`<div class="list" role="listbox" aria-label="Precon decks">${PRECONS.map(p=>`<div class="row" role="option" tabindex="0" data-p="${p}" style="grid-template-columns:1fr auto"><span>${p}</span><span class="muted xs">100 cards</span></div>`).join('')}</div>`;
+    body.querySelectorAll('[data-p]').forEach(el=>{const go=()=>{S.precon=el.dataset.p;S.inputIntent='bought';renderInput();goReview()};el.onclick=go;el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go()}}}); }
+  document.getElementById('continueBtn').style.visibility=(S.tab==='file'||S.tab==='precon')?'hidden':'visible';
+  document.getElementById('inputFoot').textContent='';
+  document.getElementById('inHead').textContent=S.inputIntent?INTENTS.find(i=>i.id===S.inputIntent).h:'Import deck';
+}
+function goReview(){applyIntent(S.inputIntent);document.getElementById('reviewFrame').scrollIntoView({behavior:'smooth'})}
+document.getElementById('continueBtn').onclick=()=>{if(!S.inputIntent){document.getElementById('q-err').classList.add('show');document.querySelector('#intentCards .icard').focus();return}goReview()};
+
+/* ---------- Review ---------- */
+function render(){
+  document.getElementById('revHead').textContent=INTENTS.find(i=>i.id===S.intent).h;
+  const t=totals();
+  document.getElementById('summary').innerHTML=`<b>${t.total} cards:</b> `+summaryParts(t).join(' · ');
+  document.getElementById('foot').textContent=t.pending?`${t.pending} ${plural(t.pending,'card needs','cards need')} a choice before it can be sleeved`:`${t.total} cards`;
+  // chips
+  const chips=document.getElementById('chips');chips.innerHTML='';
+  const has=(r,f)=>r.generic?(f==='basic'||(f==='unsleeved'&&!S.generic[r.key].sleeved)):S.copies[r.key].some((c,i)=>f==='proxy'?(c.type==='proxy'||resolve(r,i).k==='owned-proxy'):f==='unsleeved'?c.type==='unsleeved':f==='unowned'?outcome(r,c,i)==='unowned':false)||(f==='basic'&&r.name==='Mountain');
+  [['all','All'],['proxy','Proxies'],['unsleeved','Unsleeved'],['unowned','Unowned'],['basic','Basics']].forEach(([f,l])=>{const n=f==='all'?ROWS.length:ROWS.filter(r=>has(r,f)).length;const b=document.createElement('button');b.className='fchip';b.setAttribute('aria-pressed',S.filter===f);b.textContent=`${l} ${n}`;b.onclick=()=>{S.filter=f;render()};chips.appendChild(b)});
+  // list
+  const list=document.getElementById('list');list.innerHTML='';
+  const shown=ROWS.filter(r=>S.filter==='all'||has(r,S.filter));
+  if(S.sel.size){list.appendChild(bulkBar())} 
+  else {const lh=document.createElement('div');lh.className='lh';const all=shown.length&&shown.every(r=>S.sel.has(r.key));
+    lh.innerHTML=`<input type="checkbox" aria-label="Select all shown" ${all?'checked':''}><span></span><span>Card</span><span></span><span class="addh">Add to collection</span><span></span>`;
+    lh.querySelector('input').onchange=e=>{shown.forEach(r=>e.target.checked?S.sel.add(r.key):S.sel.delete(r.key));S.bnote='';render()};list.appendChild(lh)}
+  if(S.bnote){const n=document.createElement('div');n.className='bnote';n.textContent=S.bnote;list.appendChild(n)}
+  shown.forEach(r=>list.appendChild(rowEl(r)));
+  if(!shown.length){const e=document.createElement('div');e.className='bnote';e.textContent='No cards match.';list.appendChild(e)}
+}
+function rowTags(r){
+  if(r.generic){return S.generic[r.key].sleeved?'<span class="tag">Generic</span>':'<span class="tag">Generic</span><span class="tag" style="border-color:var(--signal-warning)"><span aria-hidden="true">◇</span>Unsleeved</span>'}
+  const cs=S.copies[r.key],n=cs.length,out=[];
+  const kinds=cs.map((c,i)=>resolve(r,i));
+  const cnt=f=>kinds.filter(f).length,lab=(k,l)=>k===n?l:`${k} ${l}`;
+  const p=cs.filter((c,i)=>c.type==='proxy'||kinds[i].k==='owned-proxy').length;if(p)out.push(`<span class="tag proxy"><span class="ic" aria-hidden="true">◆</span>${lab(p,'Proxy')}</span>`);
+  const co=cnt(k=>k.k==='owned'||k.k==='owned-proxy');if(co)out.push(`<span class="tag coll"><span class="ic" aria-hidden="true">↩</span>${lab(co,'Owned copy')}</span>`);
+  const mv=cnt(k=>k.k==='move');if(mv)out.push(`<span class="tag warn">${lab(mv,'Moves here')}</span>`);
+  const pd=cnt(k=>k.pending&&k.k==='otherprint');if(pd)out.push('<span class="tag warn">Choose printing</span>');
+  const un=cs.filter((c,i)=>outcome(r,c,i)==='unowned').length;const us=cs.filter(c=>c.type==='unsleeved').length-un;
+  if(us)out.push(`<span class="tag">${lab(us,'Unsleeved')}</span>`);
+  if(un)out.push(`<span class="tag unowned"><span class="ic" aria-hidden="true">⊖</span>${lab(un,'Unowned')}</span>`);
+  return out.join('')}
+function rowEl(r){
+  const w=document.createElement('div');w.className='rwrap'+(S.open.has(r.key)?' open':'');
+  const row=document.createElement('div');row.className='row';
+  const addState=r.generic?null:(()=>{const a=S.copies[r.key].filter(c=>c.add).length;return a===0?'off':a===r.qty?'on':'mixed'})();
+  row.innerHTML=`<input type="checkbox" class="sel" aria-label="Select ${r.name}" ${S.sel.has(r.key)?'checked':''}>
+    <span class="muted">${r.qty}</span>
+    <span class="nm">${r.name}${r.set?`<span class="set">${r.set}</span>`:''}</span>
+    <span class="tags">${rowTags(r)}</span>
+    <span class="addc">${r.generic?'<span class="dash" title="Generic basics aren\'t collection cards" aria-label="Generic basics aren\'t collection cards">—</span>':`<input type="checkbox" class="addt" aria-label="Add ${r.name} to collection${addState==='mixed'?`, ${S.copies[r.key].filter(c=>c.add).length} of ${r.qty} copies`:''}" ${addState==='on'?'checked':''}>`}</span>
+    <button class="caret" aria-expanded="${S.open.has(r.key)}" aria-label="${S.open.has(r.key)?'Collapse':'Edit'} ${r.name}">${S.open.has(r.key)?'▴':'▾'}</button>`;
+  row.querySelector('.sel').onchange=e=>{e.target.checked?S.sel.add(r.key):S.sel.delete(r.key);S.bnote='';render()};
+  const at=row.querySelector('.addt');if(at){at.indeterminate=addState==='mixed';at.onchange=()=>{const v=addState!=='on';S.copies[r.key].forEach((c,i)=>setAdd(r,i,v,r.qty>1));if(r.qty>1)announce(`${r.name}: Add to collection ${v?'ticked':'unticked'} for all copies.`);render()}}
+  row.onclick=e=>{if(e.target.closest('input,button,label'))return;toggle(r.key)};
+  row.querySelector('.caret').onclick=()=>toggle(r.key);
+  w.appendChild(row);
+  if(S.open.has(r.key)) w.appendChild(r.generic?genericEl(r):copiesEl(r));
+  if(!r.generic) S.copies[r.key].forEach((c,i)=>{const co=calloutEl(r,c,i);if(co)w.appendChild(co)});
+  return w}
+function calloutEl(r,c,i){
+  const x=resolve(r,i),p=POOLS[r.pool];if(!x.pending&&!x.skipped&&x.k!=='move'&&!c.print)return null;
+  const d=document.createElement('div');d.className='callout'+(x.pending?'':' ok');d.setAttribute('role','group');d.setAttribute('aria-label',`${r.name}: needs a decision`);
+  const seg=(items)=>`<span class="seg sm" role="group">${items.map(([id,l,on])=>`<button data-a="${id}" aria-pressed="${on}">${l}</button>`).join('')}</span>`;
+  if(x.k==='otherprint'||(c.print==='use')||(c.print==='add')){
+    d.innerHTML=`<span><b>${r.name}:</b> you own it as ${p.other}; this deck lists ${p.listed}. ${x.pending?'It can\'t be sleeved until you choose.':''}</span>${seg([['use',`Use my ${p.other}`,c.print==='use'],['addp','Add this printing',c.print==='add']])}`;
+    d.querySelectorAll('button').forEach(b=>b.onclick=()=>{c.touched=true;if(b.dataset.a==='use'){c.print='use';c.add=false;c.type='original'}else{c.print='add';c.add=true;c.type='original'}render()});return d}
+  const decks=p.elsewhere;
+  const cur=x.skipped?'skip':(c.mv||(decks.length===1?decks[0]:null));
+  d.innerHTML=`<span><b>${r.name}:</b> copy will be moved from</span>${seg([...decks.map(k=>[k,k,cur===k]),['skip','Skip',cur==='skip']])}`;
+  const sk=d.querySelector('[data-a="skip"]');if(sk)sk.title='Skip: adds a new sleeved copy here; the other deck shows an alert on this card.';
+  d.querySelectorAll('button').forEach(b=>b.onclick=()=>{c.mv=b.dataset.a;c.touched=true;render()});
+  return d}
+function toggle(k){S.open.has(k)?S.open.delete(k):S.open.add(k);render()}
+function genericEl(r){const d=document.createElement('div');d.className='copies';const g=S.generic[r.key];
+  d.innerHTML=`<div class="gen">Generic line · Sleeves <span class="seg sm" role="group" aria-label="Sleeves for ${r.name}"><button class="orig" aria-pressed="${g.sleeved}">Sleeved</button><button aria-pressed="${!g.sleeved}">Unsleeved</button></span> <span class="xs">No Add to collection: generic basics aren't collection cards.</span></div>`;
+  const [a,b]=d.querySelectorAll('button');a.onclick=()=>{g.sleeved=true;g.touched=true;render()};b.onclick=()=>{g.sleeved=false;g.touched=true;render()};return d}
+function copiesEl(r){const d=document.createElement('div');d.className='copies';
+  S.copies[r.key].forEach((c,i)=>{
+    const x=resolve(r,i);
+    const line=document.createElement('div');line.className='cl';line.setAttribute('role','group');line.setAttribute('aria-label',`Copy ${i+1} of ${r.qty}`);
+    const reasonId=`rs-${r.key}-${i}`;
+    let det='',cons='';
+    const lang=`<select aria-label="Language"><option>English</option></select>`;
+    if(x.k==='new'&&c.type==='original'){det=`${lang}<select aria-label="Finish"><option>Non-foil</option><option>Foil</option></select><select aria-label="Condition"><option>Near Mint</option><option>LP</option></select>`}
+    else if(x.k==='new'&&c.type==='proxy'){det=lang}
+    else if(x.k==='new'){det=`${lang}<select aria-label="Finish"><option>Non-foil</option></select><select aria-label="Condition"><option>Near Mint</option></select>`;cons='Not sleeved'}
+    else if(x.k==='owned')cons='Owned copy';
+    else if(x.k==='owned-proxy')cons='Owned proxy';
+    else if(x.k==='move')cons=x.pending?'':`Moves from ${x.deck}`;
+    else if(x.k==='otherprint')cons='';
+    else {const dl=deckLabel(r);cons=dl.unowned?'<span class="ic" aria-hidden="true">⊖</span> Unowned':dl.t}
+    const noOrig=!canSleeve(r,i,'original'),noProx=!canSleeve(r,i,'proxy');
+    const reasonTxt=ownsAny(r)?'No free copy: tick Add':'Not owned: tick Add';
+    line.innerHTML=`<span class="n">#${i+1}</span>
+      <label class="add"><input type="checkbox" ${c.add?'checked':''} aria-label="Add copy ${i+1} of ${r.name} to collection"> Add</label>
+      <span class="seg sm" role="group" aria-label="Copy ${i+1}: in this deck">
+        <button class="orig" data-t="original" aria-pressed="${c.type==='original'}" ${noOrig&&!c.add?`disabled title="${reasonTxt}"`:''}>Original</button>
+        <button class="prox" data-t="proxy" aria-pressed="${c.type==='proxy'}" ${noProx&&!c.add?`disabled title="${reasonTxt}"`:''}>Proxy</button>
+        <button data-t="unsleeved" aria-pressed="${c.type==='unsleeved'}">Unsleeved</button>
+      </span>
+      <span class="det">${det}</span>${cons?`<span class="cons">${cons}</span>`:''}`;
+    line.querySelector('input').onchange=e=>{setAdd(r,i,e.target.checked);render()};
+    line.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{setChoice(r,i,b.dataset.t);render()});
+    d.appendChild(line)});
+  return d}
+function bulkBar(){
+  const rows=ROWS.filter(r=>S.sel.has(r.key));const cps=rows.filter(r=>!r.generic).flatMap(r=>S.copies[r.key]);
+  const a=cps.filter(c=>c.add).length;const addState=!cps.length?'off':a===0?'off':a===cps.length?'on':'mixed';
+  const types=new Set(cps.map(c=>c.type));const t=types.size===1?[...types][0]:'mixed';
+  const b=document.createElement('div');b.className='bulk';
+  b.innerHTML=`<span>${rows.length} selected</span>
+    <label><input type="checkbox" ${addState==='on'?'checked':''} aria-label="Add selected to collection"> Add to collection</label>
+    <span class="seg sm" role="group" aria-label="Set for selected">
+      <button class="orig" data-t="original" aria-pressed="${t==='original'}">Original</button>
+      <button class="prox" data-t="proxy" aria-pressed="${t==='proxy'}">Proxy</button>
+      <button data-t="unsleeved" aria-pressed="${t==='unsleeved'}">Unsleeved</button>
+    </span>${t==='mixed'?'<span class="muted">Mixed</span>':''}
+    <button class="link">Set finish / condition / language ▾</button>
+    <button class="link" id="clr">Clear</button>`;
+  const cb=b.querySelector('input');cb.indeterminate=addState==='mixed';
+  cb.onchange=()=>{const v=addState!=='on';rows.forEach(r=>{if(r.generic)return;S.copies[r.key].forEach((c,i)=>setAdd(r,i,v,true))});S.bnote='';announce(`Add to collection ${v?'ticked':'unticked'} for selected rows.`);render()};
+  b.querySelectorAll('.seg button').forEach(btn=>btn.onclick=()=>{const ty=btn.dataset.t;let ok=0,skip=0;
+    rows.forEach(r=>{if(r.generic){if(ty==='original'){S.generic[r.key].sleeved=true;S.generic[r.key].touched=true}else if(ty==='unsleeved'){S.generic[r.key].sleeved=false;S.generic[r.key].touched=true}return}
+      S.copies[r.key].forEach((c,i)=>{if(setChoice(r,i,ty,true)===false)skip++;else ok++})});
+    S.bnote=skip?`Applied to ${ok} of ${ok+skip} copies. ${skip} ${plural(skip,'has','have')} no free copy and ${plural(skip,'stays','stay')} as ${plural(skip,'it was','they were')}.`:'';
+    announce(S.bnote||'Applied to selected rows.');render()});
+  b.querySelector('#clr').onclick=()=>{S.sel.clear();S.bnote='';render()};
+  return b}
+document.getElementById('importBtn').onclick=()=>{renderResult();document.getElementById('result').scrollIntoView({behavior:'smooth'})};
+function renderResult(){const t=totals();
+  const rows=[['Added to your collection',t.added],['  of which proxies',t.addedProxy],['Sleeved from your collection',t.coll],['Moved from another deck',t.moved],['Added, not sleeved',t.addedFree],['Unsleeved',t.unsleeved],['Unowned',t.unowned],['Alerts on other decks',t.alerts],['Generic basics',t.genS+t.genU]].filter(([l,n])=>n||l==='Added to your collection');
+  document.getElementById('result').innerHTML=`<div class="ok" aria-hidden="true">✓</div><div style="font-size:16px;font-weight:500">Prosper Exile Value imported</div>
+   <div class="muted small" style="margin-top:4px">${summaryParts(t,true).join(' · ').replace(/<b>|<\/b>/g,'')}</div>
+   <div class="rlist">${rows.map(([l,n])=>`<div><span>${l}</span><span>${n}</span></div>`).join('')}</div>`}
+
+renderInput();applyIntent('built',false);renderResult();
+</script>
+</body>
+</html>

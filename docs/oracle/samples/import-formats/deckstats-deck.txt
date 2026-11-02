@@ -1,0 +1,10 @@
+//Commander
+1 [C16#28] Atraxa, Praetors' Voice
+//Main
+1 [CMM#400] Sol Ring # my favourite
+1 Command Tower
+1 Rhystic Study # commander
+//Maybeboard
+1 Cyclonic Rift
+SB: 1 Negate
+1 [CMM#245] Cultivate

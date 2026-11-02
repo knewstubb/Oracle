@@ -19,10 +19,15 @@ import { importDeckTheorycrafted, importDeckBuilt, importDeckNewCards } from '@/
 import type { ImportMode } from '@/lib/deck-import'
 import { importManaBoxDeck, type ManaBoxDeckCard } from '@/lib/manabox-deck-import'
 import type { NormalizedDeck } from '@/lib/deck-normalizer'
+import { ImportValidationError } from '@/lib/import-copies'
+import { NeedsChoiceError } from '@/lib/import-intent-save'
+import { parseImportCommandZone } from '@/lib/import-command-zone-save'
+import type { ImportIntent } from '../../../../../docs/oracle/contracts/import-intent.types'
 import type {
-  ManaBoxRowSplits,
-  ManaBoxUnmatchedLine,
-} from '../../../../../docs/oracle/contracts/manabox-import.types'
+  ImportCopyEdits,
+  ImportDefaults,
+} from '../../../../../docs/oracle/contracts/import-row-editing.types'
+import type { ManaBoxUnmatchedLine } from '../../../../../docs/oracle/contracts/manabox-import.types'
 
 const VALID_MODES: ImportMode[] = ['new_cards', 'built', 'theorycrafted']
 
@@ -31,17 +36,23 @@ interface DeckImportBody {
   mode?: ImportMode
   format?: string
   name?: string
-  convertBasicLandsToGeneric?: boolean
-  rowSplits?: ManaBoxRowSplits
+  defaults?: ImportDefaults
+  copyEdits?: ImportCopyEdits
+  /** Intent save (S4+): present only when the review used the intent choice. */
+  intent?: unknown
+  source?: unknown
+  genericArt?: Record<string, { scryfallId: string }>
   unmatched?: ManaBoxUnmatchedLine[]
+  /** Command zone picked on the review: card names (command-zone-roles §4). */
+  commandZone?: unknown
 }
 
-/** A ManaBox deck import is identified by per-card finish or the row splits. */
+/** A ManaBox deck import carries per-row copies and the import defaults. */
 function isManaBoxDeckBody(body: DeckImportBody): boolean {
-  if (body.rowSplits !== undefined && body.deck !== undefined) return true
+  if (body.defaults !== undefined) return true
   const cards = body.deck?.cards as ManaBoxDeckCard[] | undefined
   if (!cards) return false
-  return cards.some((card) => 'finish' in card || 'rowSplit' in card)
+  return cards.some((card) => 'copies' in card || 'rowKey' in card)
 }
 
 export async function POST(request: NextRequest) {
@@ -85,13 +96,25 @@ export async function POST(request: NextRequest) {
         deck,
         name: body.name || deck.name,
         format: deckFormat,
-        convertBasicLandsToGeneric: body.convertBasicLandsToGeneric,
-        rowSplits: body.rowSplits,
+        defaults: body.defaults as ImportDefaults,
+        copyEdits: body.copyEdits,
+        intent: body.intent as ImportIntent | undefined,
+        genericArt: body.genericArt,
         userId,
         unmatched: body.unmatched,
+        commandZone: parseImportCommandZone(body.commandZone),
       })
       return Response.json(result)
     } catch (err) {
+      if (err instanceof NeedsChoiceError) {
+        return Response.json({ error: 'needs_choice', rowKeys: err.rowKeys }, { status: 400 })
+      }
+      if (err instanceof ImportValidationError) {
+        return Response.json(
+          { error: 'Invalid import request', problems: err.problems },
+          { status: 400 }
+        )
+      }
       const message = err instanceof Error ? err.message : String(err)
       console.error(`[decks/import] ManaBox import failed: ${message}`)
       return Response.json({ error: 'Deck import failed' }, { status: 500 })

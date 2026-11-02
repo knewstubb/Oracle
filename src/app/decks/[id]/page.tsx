@@ -26,6 +26,10 @@ import { useOracle } from '@/contexts/OracleContext'
 import { toast } from 'sonner'
 import { CardGrid, type DeckCard } from '@/components/CardGrid'
 import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
+import { ChooseCommanderButton } from '@/components/manabox-import/CommanderPicker'
+import { CommandZoneSlots } from '@/components/CommandZoneSlots'
+import { isCompanion } from '@/lib/command-zone'
+import { ImportResultLine } from '@/components/manabox-import/ImportResult'
 
 interface Deck {
   id: number
@@ -76,6 +80,9 @@ export default function DeckViewPage() {
   // State for health pill → Cards tab scroll targeting
   const [scrollTarget, setScrollTarget] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string>('cards')
+
+  // Commander picker open-on-mount when coming from a fresh commander import.
+  const shouldOpenCommanderPicker = searchParams.get('pickCommander') === 'true'
 
   // Parallax scroll effect for commander art background
   const [parallaxOffset, setParallaxOffset] = useState(0)
@@ -155,6 +162,27 @@ export default function DeckViewPage() {
     return () => clearTimeout(timer)
   }, [deckId, searchParams, queryClient])
 
+  // Read import summary placed by the import flow before navigation.
+  const [importSummary, setImportSummary] = useState<{
+    inserted: number
+    skipped: number
+    basics: number
+    proxies: number
+    unsleeved: number
+    unmatched: import('../../../../docs/oracle/contracts/manabox-import.types').ManaBoxUnmatchedLine[]
+  } | null>(() => {
+    if (typeof window === 'undefined') return null
+    if (new URLSearchParams(window.location.search).get('freshImport') !== 'true') return null
+    try {
+      const raw = sessionStorage.getItem('manabox-import-summary')
+      if (!raw) return null
+      sessionStorage.removeItem('manabox-import-summary')
+      return JSON.parse(raw)
+    } catch {
+      return null
+    }
+  })
+
   // HealthStrip pill click → switch to Cards tab and scroll to category
   const handlePillClick = useCallback((category: string) => {
     setActiveTab('cards')
@@ -233,8 +261,22 @@ export default function DeckViewPage() {
       <PersistentHeader
         deck={deck}
         totalCards={totalCards}
+        hasCompanion={cards.some((c) => isCompanion(c))}
         proxyCount={proxyCount}
         totalValue={totalValue}
+        nameSlot={
+          getFormatConfig(deck.format).hasCommander ? (
+            <>
+              <ChooseCommanderButton
+                deckId={deck.id}
+                cards={cards}
+                openOnMount={shouldOpenCommanderPicker && !deck.commander_name}
+                commanderName={deck.commander_name}
+              />
+              <CommandZoneSlots deckId={deck.id} cards={cards} commanderName={deck.commander_name} />
+            </>
+          ) : undefined
+        }
         actions={
           <>
             <Button
@@ -259,6 +301,21 @@ export default function DeckViewPage() {
           </>
         }
       />
+
+      {/* Fresh import result line */}
+      {importSummary && (
+        <div className="mx-auto max-w-[var(--content-max-width)] px-6 pt-2">
+          <ImportResultLine
+            inserted={importSummary.inserted}
+            skipped={importSummary.skipped}
+            basics={importSummary.basics}
+            proxies={importSummary.proxies}
+            unsleeved={importSummary.unsleeved}
+            unmatched={importSummary.unmatched}
+            onDismiss={() => setImportSummary(null)}
+          />
+        </div>
+      )}
 
       {/* Legality Banner — shows if deck has illegal cards */}
       <LegalityBanner deckId={deck.id} />

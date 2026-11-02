@@ -161,6 +161,7 @@ export async function POST(
           messages,
           maxTokens: 4096,
           userId,
+          deckId,
           // Suggest-only by default: edit tools are gated by ORACLE_DECK_CHAT_EDIT_TOOLS
           contextType: DECK_CHAT_CONTEXT,
           onToolEvent: (event: ToolStreamEvent) => {

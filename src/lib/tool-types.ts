@@ -58,6 +58,8 @@ export interface ToolExecutionResult {
 /** Execution context passed to tools */
 export interface ToolExecutionContext {
   userId?: string
+  /** Deck being viewed (deck chat only). Set by the server, never by the model. */
+  deckId?: number
 }
 
 /** A registered tool: schema + executor */

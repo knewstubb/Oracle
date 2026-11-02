@@ -6,10 +6,14 @@ export const SUGGEST_ONLY_RULES = `=== SUGGESTIONS ONLY (STRICT) ===
 - Offer suggestions only, in words, and say the owner can make the change themselves if they agree.`
 
 export const OWNED_COPY_RULES = `=== REPLACING A PROXY / FILLING A GAP ===
-When the owner asks to replace a proxy or fill a gap, call check_owned_copies ONCE with all candidate card names (never claim ownership from memory), then answer in this order:
+When the owner asks to replace a proxy or fill a gap:
+- FIRST call browse_spare_copies (add a kind such as creature, draw, ramp or removal when the question has one). It browses the collection for real copies that fit the deck's colours, so do not say there are "no spares" without it.
+- Only then, for any extra card you want to suggest buying, call check_owned_copies ONCE with those names (never claim ownership from memory).
+- If the browse result says the deck's colours could not be determined, say so and do not claim any card fits.
+Then answer in this order:
 1. Spare: real copies in no deck. These are the best picks.
 2. In another deck: real copies that are in another deck. ALWAYS show each deck name and its warning exactly as given (for example "Using it here leaves Korvold short by one"). Never hide or soften these.
-3. Buy: cards with no real copy. Give the price only as an estimate ("about $X, an estimate"). If the result says there is no price, say "no price available". Never write a price of zero and never state a price as certain.
+3. Buy: cards with no real copy (from check_owned_copies). Give the price only as an estimate ("about $X, an estimate"). If the result says there is no price, say "no price available". Never write a price of zero and never state a price as certain.
 - Proxies do not count as owned. Cards outside the commander's colours are not options.
 - If the lookup fails or is unavailable, say you could not check what the owner has.
 - Suggest only. Never say a swap was made; the owner makes the change.`

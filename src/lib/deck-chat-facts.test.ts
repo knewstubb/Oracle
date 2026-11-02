@@ -52,7 +52,26 @@ describe('buildDeckSlotFacts', () => {
     const f = buildDeckSlotFacts([row({})], 'casual')
     expect(f.targetSize).toBeNull()
     expect(f.emptySlots).toBeNull()
-    expect(formatDeckSlotFactsForPrompt(f)).toContain('not known')
+    expect(formatDeckSlotFactsForPrompt(f)).toContain('target size is unknown')
+  })
+
+  it('a Custom deck with a commander row targets 100 including the commander (84 cards = 16 empty)', () => {
+    const rows = [row({ card_name: 'Mendicant Core, Guidelight', is_commander: true }), row({ card_name: 'Sol Ring', quantity: 83 })]
+    const f = buildDeckSlotFacts(rows, 'Custom')
+    expect(f.mainListCount).toBe(84)
+    expect(f.targetSize).toBe(100)
+    expect(f.emptySlots).toBe(16)
+  })
+  it('a Custom deck with only a commander name set targets 100; maybeboard is excluded', () => {
+    const f = buildDeckSlotFacts([row({}), row({ categories: '["Maybeboard"]' })], 'Custom', 'Mendicant Core, Guidelight')
+    expect(f.targetSize).toBe(100)
+    expect(f.mainListCount).toBe(1)
+  })
+  it('a companion alone is not a commander; no commander on a Custom deck stays unknown', () => {
+    const f = buildDeckSlotFacts([row({ is_commander: true, command_zone_role: 'companion' })], 'Custom', '  ')
+    expect(f.targetSize).toBeNull()
+    expect(f.emptySlots).toBeNull()
+    expect(formatDeckSlotFactsForPrompt(f)).toContain('do not guess a number')
   })
 })
 
@@ -93,6 +112,15 @@ describe('loadDeckSlotFacts (mocked client, read only)', () => {
     }), 1, 'commander')
     expect(f?.proxies).toEqual(['A'])
     expect(f?.unknownType).toEqual(['B'])
+  })
+
+  it('loader: Custom deck with a commander row gets the 100 target', async () => {
+    const f = await loadDeckSlotFacts(client({
+      error: null,
+      data: [{ id: 1, card_name: 'Mendicant Core, Guidelight', quantity: 1, categories: null, copy_id: null, scryfall_id: 'x', is_commander: true, command_zone_role: null, user_copies: null }],
+    }), 1, 'Custom')
+    expect(f?.targetSize).toBe(100)
+    expect(f?.emptySlots).toBe(99)
   })
 
   it('returns null on error or throw', async () => {

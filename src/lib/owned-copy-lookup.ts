@@ -128,7 +128,7 @@ async function resolveNames(client: LookupClient, names: string[]): Promise<Map<
 }
 
 /** Commander colours of the viewed deck, or null when not known. */
-async function loadCommanderColours(client: LookupClient, deckId: number): Promise<string[] | null> {
+export async function loadCommanderColours(client: LookupClient, deckId: number): Promise<string[] | null> {
   const cmdRows = await rows(
     client.from('deck_cards').select('card_name').eq('deck_id', deckId).eq('is_commander', true),
     'commander'

@@ -32,6 +32,7 @@ export function buildDeckChatAdditions(opts: NonNullable<OracleDeckChatPromptOpt
   const lines = [
     '=== DECK CHAT RULES (these override any earlier instruction) ===',
     '- For which cards are proxies or real copies, use the PROXIES AND GAPS block below, or the copy_status on each card from get_deck_cards. NEVER say proxy data is unavailable unless the block says UNKNOWN.',
+    '- To replace a proxy or fill a gap, call browse_spare_copies FIRST (spare real copies that fit the deck colours), then check_owned_copies for anything to buy.',
     '- For "do I own it / is it spare / is it in another deck", use check_owned_copies, not collection_lookup.',
   ]
   const parts = [lines.join('\n'), opts.slotFacts]

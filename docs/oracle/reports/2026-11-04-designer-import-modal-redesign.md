@@ -1,60 +1,41 @@
-# Report: import-modal-redesign
+# Report: import-modal-redesign (reworked on today's modal)
 Role: Designer
-Status: DONE
-Task as received: "revise the scan-wins import review mockup (docs/oracle/mockups/scan-wins-review.html) into a full redesign of the 'Import built deck' modal. Read AGENTS.md, your role files, docs/oracle/process.md, docs/oracle/briefs/use-what-i-own.md (sections 9 and 10 are the requirements; section 10 supersedes the separate 'cards in other decks' section), and the existing components in src/components/manabox-import/. Work in a new git worktree/branch off main. Deliver: an updated HTML mockup (docs/oracle/mockups/) showing all states (collapsed rows incl. mixed-source icon with number, expanded New/From collection/Unowned/pulled-from-deck rows with multi-deck per-copy picker, top non-dismissable warnings bar plus 'N need attention' chip, commander row with partner/background/companion conditional, Importing-as line with ignore-basics toggle, duplicate-deck-name warning, result screen listing what moved, laptop-size view), a short spec in docs/oracle/specs/, and a report in docs/oracle/reports/. Open questions go in the report in plain language for the owner (a BA/UX person who does not read code). Do not write app code. Stop after the report."
+Status: DONE (two owner questions still open)
+Task as received: first, a full redesign mockup of the "Import built deck" modal from brief §9/§10. Then owner feedback: "the mockup does not match the current app. Rework it so the CURRENT import modal is the baseline… Change or add ONLY what brief §10 requires… Mark each changed or added element… Owner answers now locked… Update mockup, spec and report, commit, and stop."
 
 ## Summary for the owner
-The "Import built deck" window is redesigned as one clickable mockup. Each card row now holds its own "where does this copy come from" choice, problems are pinned in a bar at the top that you can't close, and the result screen lists exactly which cards moved out of which decks. Please open the mockup, try it, and answer the questions below; nothing is built until you approve.
+You were right: my first mockup invented its own layout. I rebuilt it from the live modal, using its real sizes, colours, columns (Qty, Card, Card origin, Type), header and footer. Only the §10 changes are different, and a **"Highlight what changed"** tick box at the top of the mockup outlines each one with a numbered tag. Untick it to see the modal looking like today's app. The numbered key under the controls says what each tag means.
 
-Open it: `docs/oracle/mockups/import-modal-redesign.html` (in the worktree `oracle_app-import-modal-redesign`, branch `design/import-modal-redesign-2026-11-04`). Use the dashed strip at the top to switch screens, switch between large and laptop size, tick "Companion in file", and so on. Try: expand "Sol Ring" and choose a deck for each copy; watch the top warning and the "need attention" chip clear.
+Open `docs/oracle/mockups/import-modal-redesign.html` (worktree `oracle_app-import-modal-redesign`, branch `design/import-modal-redesign-2026-11-04`). Try: "Expand all rows"; pick a different source for "Cultivate" and watch the top warning and the "need attention" chip clear; pick "Tymna the Weaver" as commander to see Partner appear; tick "File contains a Companion"; tick "Deck name already exists"; switch to Result and to Laptop size.
 
 ## Changed files
-- `docs/oracle/mockups/import-modal-redesign.html` — the new mockup (self-contained, replaces the §9 mockup's design; the old file is left for Developer/Gene to delete at build time).
-- `docs/oracle/specs/import-modal-redesign.md` — implementation spec.
-- `docs/oracle/reports/2026-11-04-designer-import-modal-redesign.md` — this report.
+- `docs/oracle/mockups/import-modal-redesign.html`: replaced with the baseline-faithful version.
+- `docs/oracle/specs/import-modal-redesign.md`: rewritten as a "what changes on top of today" table (13 items) with the locked answers.
+- `docs/oracle/reports/2026-11-04-designer-import-modal-redesign.md`: this report.
 
-## New decisions made (need owner confirmation)
-- **"Leave Unsleeved" replaces the untick box.** Each copy's source menu ends with "Leave Unsleeved (don't use a copy)". It does what unticking did: the card stays on the new deck's list as Unsleeved, the real card stays where it is.
-- **Spare copies come first.** If you own a loose copy in no deck, it is preselected before any deck copy is offered.
-- **The "pulled from deck" icon** is a violet outlined card with an arrow leaving it (the proxy icon stays the teal filled mask). Violet is a new colour for the palette, outside the five Magic colours.
-- **The number beside the pulled icon** shows only on rows with 2 or more copies, and counts how many are pulled.
-- **Which problems block Import:** missing source choices and unmatched cards block it. The duplicate-deck-name warning does not.
-- **The chip counts cards, not warnings** (so the duplicate-name warning doesn't count towards "N need attention").
-- **Warnings bar shows two warnings, with "Show N more"** for the rest. It never hides one for good.
-- **Laptop screens (800px tall or less):** the modal fills the screen with a 16px margin; the top section and the list scroll together while the warnings bar, filter chips and footer stay in view. Larger screens: modal is 88% of screen height.
-- **Darker background for every pop-up:** 72% black plus a blur, set once in the shared pop-up.
-- **Result screen** has a box for this deck, then one box per deck that lost cards ("Korvold · 2 cards moved out · now short by 2"), and a plain note that moves can't be undone yet.
+## What differs from today (all highlighted in the mockup)
+1. Partner/Background beside the commander, only when allowed. 2. Companion only when the file has one (today always shown). 3. "Ignore basic lands" switch in the "Importing as" bar. 4. Importing-as defaults apply to new copies only. 5. Source deck chosen on each copy inside the expanded row. 6. Violet "pulled from deck" mark on the row (number only with 2+ copies). 7. Top warnings bar that can't be closed. 8. "N need attention" chip by the Import button (replaces the amber footer text). 9. Taller modal with a laptop margin. 10. Darker background on every pop-up. 11. Duplicate-name warning. 12. Edit rules per source, and the result screen listing what moved. 13. Dark text on the green Import button.
+
+## Locked answers applied
+Spare copy preselected; Import blocked until every copy has a source; duplicate name only warns; dark button text goes in the global button component; language on Unowned held back (the mockup shows "Language: held back" on Unowned copies, finish only).
 
 ## Assumptions
-- Existing hover/focus styles, filter chips and the "Change" defaults editor are kept as they are today.
-- Sample cards and decks (Sol Ring, Korvold, Thrasios, Lae'zel, and so on) are made up for illustration.
-- "Ignore basic lands" only stops basics being pulled from other decks; the basics are still added to the deck. Not stated in the brief.
-- Escape closes with the existing "Discard this import?" check; the mockup only shows a note.
-- Hosted-database status (§10.13) is not a design matter; I have not checked it.
+- Q4 (single-copy rows show no "1") and Q5 (ignored basics still added to the deck) as stated, pending you.
+- The warnings bar shows two lines and "Show N more".
+- The pulled mark is a violet outlined card with an arrow leaving; violet is a new colour outside the five Magic colours.
+- Card and deck names are made up; partner/background/companion names are not checked against real card data.
 
 ## Challenges to locked decisions
-- D-020 / D-047 — the owner-approved move-between-decks exception is now visible on every pulled row and in the result. No change from me; Gene reconciles at close-out as the brief says.
+- D-020 / D-047: the owner-approved move between decks is now visible on every pulled row and in the result. Gene reconciles at close-out, as the brief says.
 - None to D-012 to D-015.
-- Design-system note: the existing green primary button with white text is 3.4:1 contrast and fails the accessibility target (4.5:1). The mockup uses near-black text on it (5.5:1). Worth fixing app-wide; I didn't change the token.
+- Design-system note: white on the green button measures 3.4:1 and fails the 4.5:1 target; dark text is 5.5:1. Locked to apply globally; the Developer should check every primary button.
 
-## Open questions
-1. **A spare copy and a deck copy both exist (for example one loose Sol Ring and one in Korvold). Which should the screen pick for you?**
-   - Recommended: the loose one, since taking it from nowhere costs no deck anything. You would see "Spare copy" preselected and nothing in the warnings bar.
-   - Other: ask every time. You would see "Choose source" and the chip count go up for each such card.
-2. **Should Import be blocked until every "Choose source" is answered?**
-   - Recommended: yes. You would see Import greyed out with the chip beside it, and you can't accidentally leave a decision open.
-   - Other: let Import go ahead and treat unanswered copies as "Leave Unsleeved". Faster, but a copy could stay unsleeved without you noticing.
-3. **A deck with the same name already exists: warn only, or stop?**
-   - Recommended: warn only (as shown). You can still import, and the warning goes away when you rename.
-   - Other: block Import until the name is changed. Safer, but gets in the way if you really want two decks with one name.
-4. **Pulled icon number.** Right now a row with one copy shows the icon alone, and a row with 2+ copies shows the icon plus how many were pulled. Is that what you meant, or should the number also appear on single-copy rows ("1")?
-5. **Ignored basic lands.** With the switch on, are the ignored basics still added to the new deck as ordinary basics (what the mockup assumes), or left out entirely?
-6. **Language on Unowned cards.** The mockup lets you pick language on an unowned card, but whether Oracle can save that is still unconfirmed by the Architect (brief §10.5). I'd hold that one control back until it is answered; the rest can be built.
-7. **The green Import button.** I made its text dark so it is readable. OK to change it in the app everywhere, or keep white and accept the lower contrast?
+## Open questions (plain language)
+1. **Pulled number on one-copy rows.** For a row with a single copy taken from another deck, should the mark show a "1", or just the icon? I assumed just the icon, with a number only on rows of 2 or more copies. You would see the icon alone on "Swords to Plowshares" in the mockup.
+2. **Ignored basic lands.** With the switch on, should the basics still be added to the new deck (assumed), or left out of it entirely? "Ignored" in the mockup means "don't try to match them to your collection or take them from other decks".
 
 ## Verification
-- Read AGENTS.md, designer base and project role files, process.md, the brief (§9, §10), the previous scan-wins mockup and report, and the import components (defaults bar, card list, commander select, notice line).
-- Created worktree `../oracle_app-import-modal-redesign` on branch `design/import-modal-redesign-2026-11-04` from main; no app code, schema, contracts or decisions touched.
-- Opened the mockup in Chrome via Playwright: no console errors; exercised row expand, per-copy picking, rename clearing the duplicate warning, commander change, companion toggle, laptop size, result screen. Screenshots of large, laptop and result states reviewed. One real bug found and fixed (the Ignore switch could not be clicked).
-- Contrast ratios computed with the WCAG formula (listed in the spec).
-- Not verified: screen-reader behaviour (not tested with a real screen reader); the mockup's partner/background/companion sample cards are not checked against real card data.
+- Read AGENTS.md, role files, process.md, brief §9/§10 and the existing components. Compared with the live app at 1440×900, read-only; I never pressed the real Import button. Metrics and colours in the mockup were read from the running app's computed styles.
+- Opened the mockup in Chrome via Playwright: no console errors. Exercised commander→partner, companion toggle, duplicate warning, per-copy source change clearing the warning, laptop size and the result screen. Found and fixed one layout bug (the highlight outline stopped the pop-up background filling the screen).
+- Not verified: screen-reader behaviour; real card data; pixel-for-pixel match of every state (header, columns and collapsed rows were matched to the live app; the expanded copy line is a close approximation).
+- No app code, schema or contracts touched.

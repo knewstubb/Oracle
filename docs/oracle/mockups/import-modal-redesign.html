@@ -1,579 +1,324 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Oracle — “Import built deck” modal redesign (mockup)</title>
+<title>Import built deck: changes on top of today's modal</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-  /* Existing Oracle tokens (src/styles/tokens.css). --status-pulled is NEW and proposed. */
-  :root{
-    --bg-canvas:#131316;--bg-surface:#1A1A1E;--bg-hover:#212126;--bg-open:#1F1F24;
-    --border:#35353A;--border-subtle:#262629;--text-primary:#E8E8EA;--text-secondary:#9C9CA3;
-    --status-proxy:#4A93A0;--status-unowned:#F0339E;--status-pulled:#A78BFA;
-    --signal-warning:#EF9F27;--signal-warning-bg:rgba(239,159,39,.15);--accent-primary:#1D9E75;
-    --on-accent:#08150F;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;background:#0b0b0d;color:var(--text-primary);font:13px/1.45 "Helvetica Neue",Helvetica,Arial,sans-serif}
-  button,select,input{font:inherit;color:inherit}
-  :focus-visible{outline:2px solid #5BD6AE;outline-offset:2px}
-  /* ---- review-only controls (not part of the product) ---- */
-  .preview{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:8px 16px;background:#0d0d10;border-bottom:1px dashed #8a8a92;font-size:12px;color:var(--text-secondary)}
-  .preview .grp{display:flex;align-items:center;gap:6px}
-  .preview .seg{display:inline-flex;border:1px solid var(--border);border-radius:7px;overflow:hidden}
-  .preview .seg button{background:none;border:0;padding:4px 9px;cursor:pointer;color:var(--text-secondary)}
-  .preview .seg button[aria-pressed=true]{background:var(--bg-hover);color:var(--text-primary)}
-  .preview label{display:flex;align-items:center;gap:5px;cursor:pointer}
-  .page{padding:14px 16px 40px}
-  .page h1{font-size:18px;font-weight:500;margin:0 0 4px}
-  .intro{color:var(--text-secondary);font-size:12px;margin:0 0 12px;max-width:900px}
-  .stagewrap{position:relative;margin:0 auto;overflow:hidden;border:1px solid var(--border);border-radius:6px}
-  .stagelabel{color:var(--text-secondary);font-size:11px;margin:0 0 6px;text-align:center}
-  /* ---- simulated screen: the page behind + overlay + modal ---- */
-  .stage{position:absolute;left:0;top:0;transform-origin:0 0;background:#16161a;overflow:hidden}
-  .fakepage{position:absolute;inset:0;padding:28px 40px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-content:start}
-  .fakepage .tile{height:150px;border-radius:10px;background:#24242b;border:1px solid #33333b}
-  .fakepage .bar{grid-column:1/-1;height:34px;border-radius:8px;background:#2a2a32}
-  .overlay{position:absolute;inset:0;background:rgba(0,0,0,.72);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center}
-  .modal{width:min(1120px,calc(100% - 64px));height:88%;display:flex;flex-direction:column;background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 24px 80px rgba(0,0,0,.6);overflow:hidden}
-  .stage.laptop .modal{width:calc(100% - 32px);height:calc(100% - 32px)}
-  .stage.laptop .fakepage .tile{height:110px}
-  .dh{min-height:46px;padding:9px 16px;border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;gap:10px;flex:none}
-  .dh h2{margin:0;font-size:15px;font-weight:500;flex:1}
-  .x{width:28px;height:28px;border:0;border-radius:6px;background:none;color:var(--text-secondary);cursor:pointer;font-size:14px}
-  .x:hover{background:var(--bg-hover);color:var(--text-primary)}
-  /* warnings bar: pinned, not dismissable */
-  .warnbar{flex:none;background:var(--signal-warning-bg);border-bottom:1px solid rgba(239,159,39,.45);padding:7px 16px;display:flex;flex-direction:column;gap:5px}
-  .warn{display:flex;align-items:flex-start;gap:8px;font-size:12px}
-  .warn svg{flex:none;margin-top:1px;color:var(--signal-warning)}
-  .warn .msg{flex:1}
-  .warn .msg b{font-weight:600}
-  .warn .act{flex:none;background:none;border:1px solid rgba(239,159,39,.6);border-radius:6px;color:var(--text-primary);padding:1px 8px;cursor:pointer;font-size:11px}
-  .warn .act:hover{background:rgba(239,159,39,.2)}
-  .warnmore{align-self:flex-start;background:none;border:0;color:var(--text-primary);text-decoration:underline;cursor:pointer;font-size:11px;padding:0}
-  /* header block */
-  .scrollbody{flex:1;min-height:0;display:flex;flex-direction:column}
-  .stage.laptop .scrollbody{overflow:auto}
-  .stage.laptop .listwrap{flex:none;min-height:auto}
-  .stage.laptop .rows{overflow:visible;flex:none}
-  .stage.laptop .filters{position:sticky;top:0;z-index:3;background:var(--bg-surface);padding:6px 0;margin:0 0 4px}
-  .stage.laptop .head{border-bottom:0}
-  .head{flex:none;padding:12px 16px 10px;border-bottom:1px solid var(--border-subtle);display:flex;flex-direction:column;gap:9px}
-  .r1{display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:10px}
-  .r2{display:flex;gap:10px;flex-wrap:wrap}
-  .r2 .field{flex:1 1 230px;min-width:0}
-  .field label{display:block;color:var(--text-secondary);font-size:11px;margin-bottom:3px}
-  .field .hint{color:var(--text-secondary);font-size:11px;margin-top:3px}
-  .input,select{width:100%;height:30px;padding:3px 9px;border:1px solid var(--border);border-radius:7px;background:var(--bg-canvas);min-width:0}
-  select{padding-right:22px}
-  .input.err{border-color:var(--signal-warning)}
-  .val{height:30px;display:flex;align-items:center;padding:0 9px;border:1px solid var(--border);border-radius:7px;background:var(--bg-canvas);color:var(--text-secondary)}
-  .slot-new{animation:none}
-  .importing{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;padding:7px 10px;border:1px solid var(--border-subtle);border-radius:8px;background:var(--bg-canvas);font-size:12px}
-  .importing .lbl{color:var(--text-secondary)}
-  .importing .sep{color:var(--text-secondary)}
-  .link{padding:0;border:0;background:none;text-decoration:underline;cursor:pointer;font-size:11px}
-  .vsep{width:1px;align-self:stretch;background:var(--border);margin:0 4px}
-  .tog{display:inline-flex;align-items:center;gap:7px;cursor:pointer}
-  .switch{position:relative;width:30px;height:18px;flex:none}
-  .switch input{position:absolute;inset:0;z-index:1;opacity:0;margin:0;cursor:pointer;width:100%;height:100%}
-  .switch .track{position:absolute;inset:0;border-radius:999px;background:#3a3a41;transition:background .12s}
-  .switch .track::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#e8e8ea;transition:left .12s}
-  .switch input:checked~.track{background:var(--accent-primary)}
-  .switch input:checked~.track::after{left:14px}
-  .switch input:focus-visible~.track{outline:2px solid #5BD6AE;outline-offset:2px}
-  .importing .note{margin-left:auto;color:var(--text-secondary);font-size:11px}
-  .editdef{display:flex;gap:10px;flex-wrap:wrap;padding-top:8px;border-top:1px solid var(--border-subtle);width:100%}
-  .editdef .field{width:150px}
-  /* list */
-  .listwrap{flex:1;min-height:0;display:flex;flex-direction:column;padding:10px 16px 0}
-  .filters{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px;flex:none}
-  .chip{display:inline-flex;align-items:center;gap:5px;min-height:24px;padding:2px 10px;border:1px solid var(--border);border-radius:999px;background:none;color:var(--text-secondary);font-size:11px;cursor:pointer;white-space:nowrap}
-  .chip[aria-pressed=true]{background:var(--bg-hover);color:var(--text-primary);border-color:#6b6b73}
-  .chip.attn{border-color:var(--signal-warning);color:var(--text-primary)}
-  .chip.attn[aria-pressed=true]{background:var(--signal-warning-bg)}
-  .filters .sp{flex:1}
-  .rows{flex:1;min-height:0;overflow:auto;border:1px solid var(--border-subtle);border-radius:8px;margin-bottom:10px}
-  .row{border-bottom:1px solid var(--border-subtle)}
-  .row:last-child{border-bottom:0}
-  .rowhead{width:100%;display:grid;grid-template-columns:18px 34px minmax(0,1fr) auto 150px;gap:8px;align-items:center;padding:7px 10px;background:none;border:0;text-align:left;cursor:pointer;min-height:38px}
-  .rowhead:hover{background:var(--bg-hover)}
-  .row.open>.rowhead{background:var(--bg-open)}
-  .chev{color:var(--text-secondary);transition:transform .1s;display:inline-block;font-size:10px}
-  .row.open .chev{transform:rotate(90deg)}
-  .qty{color:var(--text-secondary);text-align:right;font-variant-numeric:tabular-nums}
-  .nm{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .nm small{font-weight:400;color:var(--text-secondary);margin-left:6px;font-size:11px}
-  .marks{display:flex;align-items:center;gap:7px}
-  .badge{display:inline-flex;align-items:center;gap:4px;min-height:20px;padding:1px 8px;border-radius:999px;font-size:11px;white-space:nowrap;border:1px solid var(--border);color:var(--text-primary)}
-  .badge.new{color:var(--text-secondary)}
-  .badge.coll{color:var(--text-primary)}
-  .badge.unowned{border-color:var(--status-unowned);color:var(--text-primary)}
-  .badge.mixed{color:var(--text-primary)}
-  .badge.attn{border-color:var(--signal-warning);color:var(--text-primary);background:var(--signal-warning-bg)}
-  .ico{display:inline-flex;align-items:center;gap:2px;font-size:11px;font-variant-numeric:tabular-nums;position:relative;cursor:default;border-radius:4px}
-  .ico.proxy{color:var(--status-proxy)}
-  .ico.pulled{color:var(--status-pulled)}
-  .tip{position:absolute;bottom:calc(100% + 6px);right:-6px;z-index:20;min-width:150px;padding:6px 9px;border-radius:7px;background:#0c0c0f;border:1px solid var(--border);color:var(--text-primary);font-size:11px;line-height:1.4;white-space:nowrap;display:none;box-shadow:0 6px 20px rgba(0,0,0,.5)}
-  .ico:hover .tip,.ico:focus .tip,.ico:focus-within .tip{display:block}
-  .rowhead:first-child .tip{bottom:auto}
-  .summ{color:var(--text-secondary);font-size:11px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .rowbody{padding:4px 10px 12px 62px;background:var(--bg-open);display:flex;flex-direction:column;gap:8px}
-  .copy{display:grid;grid-template-columns:64px 270px minmax(0,1fr);gap:10px;align-items:start;padding:8px 10px;border:1px solid var(--border-subtle);border-radius:8px;background:var(--bg-surface)}
-  .copy.needs{border-color:var(--signal-warning)}
-  .copy .cl{color:var(--text-secondary);font-size:11px;padding-top:6px}
-  .copy .field label{font-size:10px}
-  .copy .edits{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
-  .copy .edits .field{width:118px}
-  .copy .ro{color:var(--text-secondary);font-size:11px;padding-top:6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-  .copy .after{grid-column:2/4;color:var(--text-secondary);font-size:11px;margin-top:-2px}
-  .copy .after .s{color:var(--text-primary)}
-  .need-msg{color:var(--text-primary)}
-  .nomatch{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
-  .nomatch .field{width:260px}
-  .basicsline{padding:8px 10px;color:var(--text-secondary);font-size:11px;display:flex;gap:7px;align-items:center}
-  .empty{padding:18px;color:var(--text-secondary);text-align:center}
-  /* footer */
-  .df{flex:none;min-height:52px;padding:9px 16px;border-top:1px solid var(--border-subtle);display:flex;align-items:center;gap:10px}
-  .df .sum{flex:1;color:var(--text-secondary);font-size:12px}
-  .df .sum b{color:var(--text-primary);font-weight:500}
-  .btn{height:32px;padding:0 13px;border:1px solid var(--border);border-radius:7px;background:var(--bg-hover);cursor:pointer;white-space:nowrap}
-  .btn:hover:not(:disabled){background:#2a2a30}
-  .btn.primary{background:var(--accent-primary);border-color:var(--accent-primary);color:var(--on-accent);font-weight:600}
-  .btn.primary:hover:not(:disabled){background:#22b386}
-  .btn:disabled{opacity:.5;cursor:not-allowed}
-  .btn.ghost{background:none;border-color:transparent;color:var(--text-secondary)}
-  /* saving + result */
-  .center{flex:1;overflow:auto;display:flex;flex-direction:column;align-items:center;padding:26px 20px;text-align:center}
-  .center.mid{justify-content:center}
-  .center h3{font-size:19px;font-weight:500;margin:0 0 4px}
-  .center p{margin:0;color:var(--text-secondary);font-size:12px}
-  .success{display:grid;place-items:center;width:42px;height:42px;border-radius:50%;margin-bottom:12px;background:rgba(29,158,117,.15);color:#5BD6AE;font-size:22px}
-  .spinner{width:30px;height:30px;border:3px solid rgba(255,255,255,.1);border-top-color:var(--accent-primary);border-radius:50%;animation:spin 1s linear infinite;margin-bottom:12px}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  @media(prefers-reduced-motion:reduce){.spinner{animation:none;border-right-color:var(--accent-primary)}.chev,.switch .track,.switch .track::after{transition:none}}
-  .res{width:min(680px,100%);margin:16px 0 0;text-align:left;display:flex;flex-direction:column;gap:10px}
-  .resbox{border:1px solid var(--border-subtle);border-radius:8px;overflow:hidden}
-  .resbox h4{margin:0;padding:7px 10px;background:var(--bg-canvas);font-size:12px;font-weight:500;border-bottom:1px solid var(--border-subtle);display:flex;justify-content:space-between;gap:8px}
-  .resbox h4 span{color:var(--text-secondary);font-weight:400}
-  .resline{display:flex;justify-content:space-between;gap:12px;padding:6px 10px;border-bottom:1px solid var(--border-subtle);font-size:12px}
-  .resline:last-child{border-bottom:0}
-  .resline span:last-child{color:var(--text-secondary);text-align:right}
-  .resfoot{color:var(--text-secondary);font-size:11px}
-  /* annotations below the stage */
-  .notes{max-width:1100px;margin:18px auto 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
-  .card{background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
-  .card h3{margin:0 0 6px;font-size:13px;font-weight:500}
-  .card p,.card li{color:var(--text-secondary);font-size:12px;margin:0 0 5px}
-  .card ul{margin:0;padding-left:16px}
-  .key{display:flex;flex-direction:column;gap:7px}
-  .key div{display:flex;align-items:center;gap:9px;font-size:12px}
-  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+/* Tokens copied from src/styles/tokens.css (today's app). */
+:root{
+  --bg-canvas:#131316; --bg-surface:#1A1A1E; --bg-surface-hover:#212126;
+  --border-default:#35353A; --border-subtle:#2A2A2F;
+  --text-primary:#E8E8EA; --text-secondary:#9C9CA3; --text-tertiary:#76767E;
+  --accent-primary:#1D9E75; --status-proxy:#4A93A0; --signal-warning:#EF9F27;
+  --status-pulled:#A78BFA; /* NEW token proposed for the pulled-from-deck icon */
+  --input-bg:rgba(53,53,58,.3);
+}
+*{box-sizing:border-box}
+body{margin:0;background:#0b0b0d;color:var(--text-primary);font:14px "Helvetica Neue",Helvetica,Arial,sans-serif}
+button,select,input{font:inherit;color:inherit}
+/* ---------- review controls (not part of the design) ---------- */
+.rc{position:sticky;top:0;z-index:50;background:#222;border-bottom:1px solid #444;padding:8px 14px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:12px;color:#ddd}
+.rc b{color:#fff}.rc label{display:flex;gap:5px;align-items:center;cursor:pointer}
+.rc button,.rc select{background:#333;border:1px solid #555;border-radius:6px;padding:3px 8px;color:#eee;cursor:pointer}
+.rc .on{outline:2px solid #A78BFA}
+.keywrap{max-width:1000px;margin:10px auto;padding:0 14px;font-size:12px;color:#bbb;display:none}
+body.hl .keywrap{display:block}
+.keywrap ol{margin:4px 0 0;padding-left:20px;columns:2;column-gap:30px}
+.keywrap li{margin-bottom:3px}
+.viewport{margin:12px auto;position:relative;overflow:hidden;border:1px solid #333;background:#1b1b1f;transform-origin:top left}
+.ov{position:absolute;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center}
+body.dark .ov{background:rgba(0,0,0,.72);backdrop-filter:blur(8px)}
+.bgapp{position:absolute;inset:0;opacity:.5;padding:30px;font-size:22px;color:#555}
+/* ---------- modal: today's metrics ---------- */
+.modal{width:768px;background:var(--bg-surface);border-radius:16.8px;padding:16px;display:flex;flex-direction:column;gap:12px;overflow:hidden;position:relative;box-shadow:0 0 0 1px rgba(255,255,255,.08)}
+.t-row{display:flex;align-items:center;justify-content:space-between}
+.title{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:500;margin:0}
+.x{background:none;border:0;color:var(--text-secondary);cursor:pointer;font-size:16px}
+.lbl{font-size:11px;color:var(--text-secondary);margin-bottom:4px;display:block}
+.inp,.sel{height:32px;border:1px solid var(--border-default);border-radius:12px;background:var(--input-bg);padding:4px 10px;width:100%}
+.sel{font-size:12px;background:transparent;padding:0 10px}
+.sel option{background:#1A1A1E}
+.g1{display:grid;grid-template-columns:1fr 150px minmax(0,220px);gap:10px;align-items:end}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end}
+.imp{border:1px solid var(--border-default);border-radius:12px;padding:8px 12px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
+.imp .m{color:var(--text-secondary);font-size:12px}
+.lnk{background:none;border:0;color:var(--text-secondary);text-decoration:underline;cursor:pointer;font-size:12px;padding:0}
+.defs{display:flex;gap:10px;flex-basis:100%;align-items:center;flex-wrap:wrap}
+.defs .sel{width:130px;height:28px}
+.sw{display:inline-flex;align-items:center;gap:6px;font-size:12px;cursor:pointer}
+.sw i{width:28px;height:16px;border-radius:9px;background:#444;position:relative;display:inline-block}
+.sw i:after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:.15s}
+.sw input{position:absolute;opacity:0;width:28px;height:16px;margin:0;cursor:pointer;z-index:1}
+.sw input:checked+i{background:var(--accent-primary)}
+.sw input:checked+i:after{left:14px}
+.sw span.w{position:relative;display:inline-flex}
+.fr{display:flex;align-items:center;gap:8px}
+.chip{height:24px;border-radius:999px;border:1px solid var(--border-default);background:transparent;padding:0 10px;font-size:11px;cursor:pointer}
+.chip.s{border-color:var(--text-secondary);background:var(--bg-surface-hover)}
+.chip.attn{border-color:var(--signal-warning);color:var(--signal-warning)}
+.fr .r{margin-left:auto;display:flex;gap:10px;align-items:center;font-size:11px;color:var(--text-secondary)}
+.fr .r input{height:24px;width:176px;border:1px solid var(--border-default);border-radius:12px;background:var(--input-bg);padding:0 10px;font-size:12px}
+.list{border:1px solid var(--border-default);border-radius:12px;background:var(--bg-surface);overflow:hidden;display:flex;flex-direction:column;min-height:0;flex:1}
+.lh,.rw{display:grid;grid-template-columns:24px 28px 1fr 150px 90px 28px;gap:8px;padding:0 10px;align-items:center}
+.lh{background:var(--bg-canvas);min-height:30px;font-size:11px;color:var(--text-secondary)}
+.body{overflow:auto;flex:1;min-height:0}
+.row{border-bottom:1px solid var(--border-subtle)}
+.row.open{background:var(--bg-surface-hover);box-shadow:inset 2px 0 0 var(--text-secondary)}
+.row:hover{background:var(--bg-surface-hover)}
+.rw{min-height:34px;font-size:12px}
+.rw .q{color:var(--text-secondary);font-variant-numeric:tabular-nums}
+.nm{display:flex;gap:6px;align-items:center;min-width:0;white-space:nowrap;overflow:hidden}
+.nm .s{color:var(--text-tertiary);font-size:11px}
+.cb{width:14px;height:14px;border:1px solid var(--border-default);border-radius:4px;display:inline-block}
+.qs{background:none;border:1px solid transparent;border-radius:8px;font-size:12px;padding:2px 4px;cursor:pointer;text-align:left;display:flex;gap:4px;align-items:center;min-width:0}
+.qs:hover{border-color:var(--border-default)}
+.qs .a{font-size:9px;color:var(--text-secondary)}
+.chev{background:none;border:0;color:var(--text-secondary);cursor:pointer;width:28px;height:28px;border-radius:8px}
+.chev:hover{background:var(--bg-surface-hover)}
+.row.open .chev{transform:rotate(180deg)}
+.pill{height:18px;border-radius:999px;border:1px solid var(--border-default);font-size:11px;padding:0 6px;display:inline-flex;align-items:center;color:var(--text-secondary)}
+.ic{width:18px;height:18px;border-radius:50%;border:1px solid;display:inline-flex;align-items:center;justify-content:center;flex:none;font-size:10px;gap:0}
+.ic.px{color:var(--status-proxy)}
+.ic.pu{color:var(--status-pulled);width:auto;min-width:18px;padding:0 3px;border-radius:9px}
+.ic svg{width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.cps{padding:0 10px 8px 62px}
+.cl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border-top:1px solid var(--border-subtle);padding:4px 0;position:relative}
+.cl .n{width:16px;color:var(--text-tertiary);font-size:11px}
+.s6{height:24px;font-size:11px;border:1px solid var(--border-default);border-radius:8px;background:transparent;padding:0 6px}
+.s6 option{background:#1A1A1E}
+.cl.attn .s6.src{border-color:var(--signal-warning);color:var(--signal-warning)}
+.note{font-size:11px;color:var(--text-tertiary)}
+.below{font-size:11px;color:var(--text-secondary)}
+.ft{margin:0 -16px -16px;border-top:1px solid var(--border-default);background:rgba(33,33,38,.5);padding:16px;display:flex;gap:12px;align-items:center;border-radius:0 0 16.8px 16.8px}
+.ft .sum{font-size:14px;flex:1}
+.btn{height:32px;border-radius:12px;padding:0 10px;font-weight:500;border:1px solid var(--border-default);background:var(--input-bg);cursor:pointer}
+.btn.p{background:var(--accent-primary);border-color:transparent;color:#08150F}
+.btn.p[disabled]{opacity:.5;cursor:not-allowed}
+.wbar{border:1px solid var(--signal-warning);border-radius:12px;padding:8px 12px;font-size:12px;display:flex;flex-direction:column;gap:4px;background:rgba(239,159,39,.07)}
+.wbar div{display:flex;gap:8px;align-items:flex-start;color:var(--signal-warning)}
+.wbar .more{background:none;border:0;color:var(--text-secondary);text-decoration:underline;cursor:pointer;font-size:12px;padding:0;text-align:left}
+.res{padding:6px 2px;overflow:auto;flex:1;font-size:13px;display:flex;flex-direction:column;gap:10px}
+.res h3{margin:0;font-size:14px}.res ul{margin:4px 0 0;padding-left:18px;color:var(--text-secondary)}
+.pop{position:absolute;z-index:5;background:var(--bg-surface);border:1px solid var(--border-default);border-radius:12px;padding:4px;width:256px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.pop button{display:block;width:100%;text-align:left;background:none;border:0;padding:6px 8px;border-radius:8px;cursor:pointer;font-size:12px}
+.pop button:hover{background:var(--bg-surface-hover)}
+.pop small{display:block;color:var(--text-secondary);font-size:11px}
+.bar{height:8px;border-radius:4px;background:#333;overflow:hidden;margin:10px 0}.bar i{display:block;height:100%;width:62%;background:var(--accent-primary)}
+/* ---------- review-only: highlight changes ---------- */
+[data-chg]{position:relative}
+.ov[data-chg]{position:absolute}
+body.hl [data-chg]{outline:1.5px dashed var(--status-pulled);outline-offset:2px}
+body.hl [data-chg]::after{content:attr(data-chg);position:absolute;top:-8px;right:-6px;background:var(--status-pulled);color:#14101f;font:700 10px/14px sans-serif;min-width:14px;height:14px;text-align:center;border-radius:7px;padding:0 3px;z-index:9;pointer-events:none}
+body.hl .modal[data-chg]{outline-offset:-3px}
+body.hl .ov[data-chg]{outline-offset:-4px}
+body.hl .ov[data-chg]::after{top:6px;right:6px}
 </style>
 </head>
 <body>
-<div class="preview" aria-label="Mockup review controls (not part of the product)">
-  <span><strong style="color:var(--text-primary);font-weight:500">Review controls</strong> (not part of the product)</span>
-  <div class="grp">Screen
-    <div class="seg" role="group" aria-label="Screen to show">
-      <button type="button" data-screen="review" aria-pressed="true">Review</button>
-      <button type="button" data-screen="saving" aria-pressed="false">Importing</button>
-      <button type="button" data-screen="result" aria-pressed="false">Result</button>
-    </div>
-  </div>
-  <div class="grp">Display
-    <div class="seg" role="group" aria-label="Screen size">
-      <button type="button" data-size="large" aria-pressed="true">Large (1440×900)</button>
-      <button type="button" data-size="laptop" aria-pressed="false">Laptop (1366×650 usable)</button>
-    </div>
-  </div>
-  <label><input type="checkbox" id="pvDup" checked> A deck with this name already exists</label>
-  <label><input type="checkbox" id="pvComp"> File contains a Companion card</label>
-  <button type="button" class="seg" id="pvExpand" style="background:none;color:var(--text-secondary);padding:4px 9px;cursor:pointer">Expand all rows</button>
-  <button type="button" class="seg" id="pvReset" style="background:none;color:var(--text-secondary);padding:4px 9px;cursor:pointer">Reset sample</button>
+<div class="rc">
+  <b>Review controls (not part of the design)</b>
+  <label><input type="checkbox" id="hl" checked> Highlight what changed</label>
+  <span>Screen: <button data-scr="review" class="on">Review</button> <button data-scr="importing">Importing</button> <button data-scr="result">Result</button></span>
+  <span>Screen size: <button data-size="large" class="on">Large 1440×900</button> <button data-size="laptop">Laptop 1280×720</button></span>
+  <label><input type="checkbox" id="dup"> Deck name already exists</label>
+  <label><input type="checkbox" id="cmp"> File contains a Companion</label>
+  <button id="expand">Expand all rows</button>
+  <button id="reset">Reset</button>
 </div>
-
-<main class="page">
-  <h1>Import built deck · redesigned modal</h1>
-  <p class="intro">Everything below is the real modal, working on sample data. Try: pick a source deck for each Sol Ring copy (the warning and the “need attention” chip clear as you go), rename the deck to clear the duplicate-name warning, change the commander to see Partner / Background appear, switch “Ignore basic lands”, expand rows. The sample cards and decks are illustrative, not real data.</p>
-  <p class="stagelabel" id="stagelabel"></p>
-  <div class="stagewrap" id="wrap"><div class="stage" id="stage"></div></div>
-
-  <section class="notes" aria-label="Design notes">
-    <div class="card"><h3>Icon key</h3>
-      <div class="key">
-        <div><span class="ico proxy" aria-hidden="true">ICON_PROXY</span> Proxy — teal, filled mask (existing icon)</div>
-        <div><span class="ico pulled" aria-hidden="true">ICON_PULLED</span> Pulled from another deck — violet, outlined card with an arrow leaving it. A number appears when the row has 2+ copies.</div>
-        <div><span class="ico" style="color:var(--signal-warning)" aria-hidden="true">ICON_WARN</span> Needs attention — amber triangle, always with words in the badge or bar.</div>
-      </div>
-    </div>
-    <div class="card"><h3>What the sample shows</h3>
-      <ul>
-        <li><b>Sol Ring ×2</b>: both copies could come from two different decks, so each copy has its own picker. Unresolved at first.</li>
-        <li><b>Arcane Signet ×2</b>: one spare copy + one pulled from Korvold (mixed row: badge “Mixed”, icon with 1).</li>
-        <li><b>Command Tower</b>, <b>Snow-Covered Forest</b>: single pulled copy, chosen automatically.</li>
-        <li><b>Rhystic Study</b>: a new Proxy. <b>Smothering Tithe</b>: unowned, list only.</li>
-        <li><b>Eternal Wtiness</b>: not matched, so it needs a decision.</li>
-      </ul>
-    </div>
-    <div class="card"><h3>Screen sizes</h3>
-      <p>Large: the modal is 88% of the screen height. Laptop (under 800px usable height): the modal fills the screen minus a 16px margin on every side. Only the card list scrolls; the header, warnings bar and footer stay in view.</p>
-    </div>
-  </section>
-</main>
-<div class="sr-only" id="live" aria-live="polite" aria-atomic="true"></div>
+<div class="keywrap" id="key">
+  <b>What the highlights mean</b> (everything not outlined is exactly as it is in the app today)
+  <ol>
+    <li>Commander picker now sits in the header with the deck details; Partner / Background appears beside it only when the chosen commander allows it.</li>
+    <li>Companion picker only appears when the file contains a Companion (today it is always shown).</li>
+    <li>"Ignore basic lands" moved into the Importing-as line.</li>
+    <li>Importing-as defaults apply to new copies only (rows using an existing copy don't show finish, condition or language).</li>
+    <li>Source deck is chosen inside the expanded row, per copy.</li>
+    <li>Pulled-from-deck icon (with a number when a row has several copies from different places).</li>
+    <li>Top warnings bar (cannot be dismissed; each line clears itself when fixed).</li>
+    <li>"N need attention" chip next to Import. Click it to filter the list. Replaces today's amber footer text.</li>
+    <li>Bigger modal on tall screens, with a margin kept on laptops.</li>
+    <li>Darker background behind this and every pop-up.</li>
+    <li>Warning that a deck with this name already exists (warns only).</li>
+    <li>Result screen listing what moved. Which fields can be edited depends on the copy's source. Unowned copies: finish only for now (language is held back, see report).</li>
+    <li>Import button text is dark (white on this green fails the contrast guideline). Applies to all primary buttons in the app.</li>
+  </ol>
+</div>
+<div id="wrap"><div class="viewport" id="vp"></div></div>
 
 <script>
-/* ---------- icons ---------- */
-const I = {
-  proxy:`<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 4c3-1.5 6-1.5 9-.5 3-1 6-1 9 .5v7c0 5-4 8.5-9 9.5-5-1-9-4.500-9-9.500V4Zm4.500 5a1.800 1.800 0 1 0 0 3.600 1.800 1.800 0 0 0 0-3.600Zm9 0a1.800 1.800 0 1 0 0 3.600 1.800 1.800 0 0 0 0-3.600ZM8 15.500c1.200 1.800 2.500 2.500 4 2.500s2.800-.7 4-2.500c-1.300.6-2.600.9-4 .9s-2.700-.3-4-.9Z"/></svg>`,
-  pulled:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.800" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 20H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7"/><path d="M10 12h11"/><path d="m17 8 4 4-4 4"/></svg>`,
-  warn:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.300 3.900 1.800 18a2 2 0 0 0 1.700 3h17a2 2 0 0 0 1.700-3L13.700 3.900a2 2 0 0 0-3.400 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>`
-};
-document.querySelectorAll(".key .ico, .card .ico").forEach(el=>{const k=el.textContent.trim();el.innerHTML=k==="ICON_PROXY"?I.proxy:k==="ICON_PULLED"?I.pulled:I.warn});
-
-/* ---------- sample data ---------- */
-const DECKS = {
-  korvold:{name:"Korvold, Fae-Cursed King"},
-  jund:{name:"Jund Core"},
-  rocco:{name:"Rocco, Street Chef"},
-  kraum:{name:"Kraum & Tymna"}
-};
-// For each row: copies the owner already has (spare = in no deck; deck = sleeved in a deck).
-const CMDRS = {
-  prosper:{name:"Prosper, Tome-Bound", partner:null, bg:false},
-  thrasios:{name:"Thrasios, Triton Hero", partner:"Partner", bg:false},
-  laezel:{name:"Lae'zel, Githyanki Warrior", partner:"Background", bg:true}
-};
-const PARTNERS = ["Tymna the Weaponmaster","Vial Smasher the Fierce","Kraum, Ludevic's Opus"];
-const BACKGROUNDS = ["Raised by Giants","Cultist of the Absolute","Scion of Stygia"];
-const FINISH=["Nonfoil","Foil","Etched"], COND=["Near Mint","Lightly Played","Moderately Played","Heavily Played"], LANG=["English","Japanese","German","Spanish","French"];
-
-function baseRows(){
-  const copy=(o)=>Object.assign({choice:"",finish:"",cond:"",lang:"",type:"Original"},o);
-  return [
-    {id:"prosper",name:"Prosper, Tome-Bound",set:"MH3 #279",matched:true,owned:{spare:0,decks:[]},copies:[copy({choice:"new"})]},
-    {id:"sol",name:"Sol Ring",set:"CMM #396",matched:true,owned:{spare:0,decks:[
-      {key:"korvold",label:"Original · CMM #396 · Nonfoil",proxy:false},
-      {key:"jund",label:"Proxy · C21 #263 · Nonfoil",proxy:true}]},copies:[copy({choice:""}),copy({choice:""})]},
-    {id:"signet",name:"Arcane Signet",set:"CMM #297",matched:true,owned:{spare:1,decks:[{key:"korvold",label:"Original · CMM #297 · Nonfoil",proxy:false}]},copies:[copy({choice:"spare"}),copy({choice:"deck:korvold"})]},
-    {id:"tower",name:"Command Tower",set:"CMM #350",matched:true,owned:{spare:0,decks:[{key:"rocco",label:"Original · MOC #354 · Nonfoil",proxy:false}]},copies:[copy({choice:"deck:rocco"})]},
-    {id:"snow",name:"Snow-Covered Forest",set:"KHM #283",matched:true,owned:{spare:0,decks:[{key:"jund",label:"Original · KHM #283 · Foil",proxy:false}]},copies:[copy({choice:"deck:jund"})]},
-    {id:"rhystic",name:"Rhystic Study",set:"JMP #129",matched:true,owned:{spare:0,decks:[]},copies:[copy({choice:"new",type:"Proxy"})]},
-    {id:"sentinel",name:"Esper Sentinel",set:"MH1 #12",matched:true,owned:{spare:0,decks:[]},copies:[copy({choice:"new"})]},
-    {id:"tithe",name:"Smothering Tithe",set:"RNA #22",matched:true,owned:{spare:0,decks:[]},copies:[copy({choice:"unowned"})]},
-    {id:"wtiness",name:"Eternal Wtiness",set:"",matched:false,skipped:false,fix:"",owned:{spare:0,decks:[]},copies:[copy({choice:"new"})],line:"Row 41"}
-  ];
-}
-const BASIC_ROWS = [
-  {id:"forest",name:"Forest",set:"KHM #277",basic:true,matched:true,owned:{spare:0,decks:[{key:"jund",label:"Original · KHM #277 · Nonfoil",proxy:false},{key:"jund",label:"Original · KHM #277 · Nonfoil",proxy:false}]},copies:[{choice:"deck:jund",type:"Original"},{choice:"deck:jund",type:"Original"}]},
-  {id:"wastes",name:"Wastes",set:"OGW #184",basic:true,matched:true,owned:{spare:0,decks:[{key:"kraum",label:"Original · OGW #184 · Nonfoil",proxy:false}]},copies:[{choice:"deck:kraum",type:"Original"}]}
-];
-const COMPANION_ROW = {id:"lurrus",name:"Lurrus of the Dream-Den",set:"IKO #226",matched:true,companion:true,owned:{spare:0,decks:[]},copies:[{choice:"new",type:"Original"}]};
-const IGNORED_BASICS = 3;
-const DEFAULT_NAME = "Prosper Exile Value";
-
-/* ---------- state ---------- */
-let S;
-function fresh(){
-  S = {screen:S?S.screen:"review", size:S?S.size:"large", deckName:DEFAULT_NAME, cmdr:"prosper", partner:"", bgPick:"", comp:false,
-    ignore:true, defaults:{finish:"Nonfoil",cond:"Near Mint",lang:"English"}, defOpen:false, filter:"all", open:{sol:true}, warnOpen:false,
-    dupSample:document.getElementById("pvDup").checked, rows:baseRows()};
-  S.comp=document.getElementById("pvComp").checked;
-}
-const rowsAll = () => {
-  let r = S.rows.slice();
-  if(S.comp) r.splice(1,0,JSON.parse(JSON.stringify(COMPANION_ROW)));
-  if(!S.ignore) r = r.concat(JSON.parse(JSON.stringify(BASIC_ROWS.map(b=>S.basicState&&S.basicState[b.id]?S.basicState[b.id]:b))));
-  return r;
-};
-// Basic rows (shown only when the toggle is off) live in S.basics so edits persist.
-function getRows(){
-  const base=S.rows.slice();
-  if(S.comp){ if(!S.companionRow) S.companionRow=JSON.parse(JSON.stringify(COMPANION_ROW)); base.splice(1,0,S.companionRow); }
-  if(!S.ignore){ if(!S.basics) S.basics=JSON.parse(JSON.stringify(BASIC_ROWS)); return base.concat(S.basics); }
-  return base;
-}
-const nm = k => DECKS[k].name;
-const plural=(n,a,b)=>n===1?a:b;
-
-/* ---------- derived ---------- */
-function options(row,ci){
-  // choices available to one copy of a row; a spare/deck copy can only be used by one copy of the row
-  const used = row.copies.map((c,i)=>i===ci?null:c.choice).filter(Boolean);
-  const opts=[{v:"new",t:"New copy (add to collection)"}];
-  if(row.owned.spare>0){ opts.push({v:"spare",t:`Spare copy · in no deck`,off:used.filter(u=>u==="spare").length>=row.owned.spare}); }
-  const seen={};
-  row.owned.decks.forEach((d,di)=>{
-    const key="deck:"+d.key; seen[key]=(seen[key]||0)+1;
-    const taken=used.filter(u=>u===key).length;
-    const count=row.owned.decks.filter(x=>x.key===d.key).length;
-    opts.push({v:key,t:`${nm(d.key)} · ${d.label}`,off:taken>=count&&row.copies[ci].choice!==key, dedupe:true});
-  });
-  opts.push({v:"unowned",t:"Leave Unsleeved (don't use a copy)"});
-  // collapse duplicate deck options (same deck listed twice for 2 copies)
-  const out=[],seenV={};
-  opts.forEach(o=>{ if(o.v.startsWith("deck:")){ if(seenV[o.v]) return; seenV[o.v]=1;} out.push(o)});
-  return out;
-}
-function copyNeeds(row,c){ if(row.matched===false) return !row.skipped && !row.fix; return c.choice===""; }
-function rowNeeds(row){ return row.matched===false ? (!row.skipped && !row.fix) : row.copies.some(c=>c.choice===""); }
-function kindOf(c){ return c.choice==="new"?"new":c.choice==="unowned"?"unowned":"coll"; }
-function rowKind(row){
-  if(row.matched===false) return "nomatch";
-  const ks=[...new Set(row.copies.map(c=>c.choice===""?"needs":kindOf(c)))];
-  return ks.length===1?ks[0]:"mixed";
-}
-function pulledOf(row){ return row.copies.filter(c=>c.choice.startsWith("deck:")); }
-function hasProxy(row){
-  return row.copies.some(c=>{
-    if(c.choice==="new") return c.type==="Proxy";
-    if(c.choice.startsWith("deck:")){ const d=row.owned.decks.find(x=>"deck:"+x.key===c.choice); return d&&d.proxy; }
-    return false;
-  });
-}
+const DECKS=['Atraxa Counters','Tymna Blink'];
+const COMMANDERS=[
+ {n:'No commander',t:''},{n:'Samwise Gamgee',t:''},{n:'Tymna the Weaver',t:'partner'},{n:'Wilson, Refined Tinkerer (Background pairs)',t:'bg'},{n:'Rocco, Street Chef',t:''}];
+const BASE=()=>({
+  screen:'review',size:'large',filter:'all',open:{},hl:true,dup:false,cmp:false,expandAll:false,
+  name:'Samwise Food Deck',format:'Commander',cmdr:'Samwise Gamgee',second:'',comp:'',ignoreBasics:true,changeOpen:false,
+  def:{finish:'Non-foil',cond:'Near Mint',lang:'English'},warnAll:false,pop:null,
+  rows:[
+   {id:'sol',name:'Sol Ring',set:'C21 263',type:'Artifact',spare:1,decks:[],c:[{o:'col',s:'spare'}]},
+   {id:'arc',name:'Arcane Signet',set:'C21 297',type:'Artifact',spare:1,decks:['Atraxa Counters'],c:[{o:'col',s:'spare'},{o:'col',s:'Atraxa Counters'}]},
+   {id:'swo',name:'Swords to Plowshares',set:'2XM 33',type:'Instant',spare:0,decks:['Tymna Blink'],c:[{o:'col',s:'Tymna Blink'}]},
+   {id:'cul',name:'Cultivate',set:'C21 160',type:'Sorcery',spare:0,decks:['Atraxa Counters','Tymna Blink'],c:[{o:'col',s:''}]},
+   {id:'rhy',name:'Rhystic Study',set:'WAR 62',type:'Enchantment',spare:0,decks:[],c:[{o:'none',fin:'Non-foil'}]},
+   {id:'cmd',name:'Command Tower',set:'C21 305',type:'Land',spare:0,decks:[],c:[{o:'new',fin:'Non-foil',cond:'Near Mint',lang:'English'}]},
+   {id:'for',name:'Forest',set:'LTR 276',type:'Basic Land',basic:true,spare:0,decks:[],c:Array.from({length:12},()=>({o:'new',fin:'Non-foil',cond:'Near Mint',lang:'English'}))}
+  ]});
+let S=BASE();
+const $=s=>document.querySelector(s);
+const total=()=>S.rows.reduce((a,r)=>a+r.c.length,0);
+const needs=r=>!(S.ignoreBasics&&r.basic)&&r.c.some(c=>c.o==='col'&&!c.s);
+const pulled=c=>c.o==='col'&&c.s&&c.s!=='spare';
+const attnRows=()=>S.rows.filter(needs);
 function warnings(){
-  const w=[]; const rows=getRows();
-  if(S.dupSample && S.deckName.trim().toLowerCase()===DEFAULT_NAME.toLowerCase())
-    w.push({id:"dup",block:false,html:`A deck named <b>“${esc(S.deckName)}”</b> already exists. Importing will create a second deck with the same name. Rename this one to clear the warning.`,act:"Rename",go:"name"});
-  const unresolvedCopies=rows.filter(r=>r.matched!==false).reduce((n,r)=>n+r.copies.filter(c=>c.choice==="").length,0);
-  if(unresolvedCopies) w.push({id:"src",block:true,html:`<b>${unresolvedCopies} ${plural(unresolvedCopies,"copy needs","copies need")} a source deck.</b> Choose where each one comes from, or leave it Unsleeved.`,act:"Show them",go:"filter"});
-  const um=rows.filter(r=>r.matched===false&&!r.skipped&&!r.fix).length;
-  if(um) w.push({id:"unm",block:true,html:`<b>${um} ${plural(um,"card wasn't","cards weren't")} matched.</b> Pick the right card or skip it.`,act:"Show it",go:"filter"});
+  const w=[];
+  attnRows().forEach(r=>w.push({k:'a',t:`${r.name}: ${r.decks.length} of your decks have a copy and no spare is free. Choose which one to use.`}));
+  S.rows.filter(r=>r.c.some(pulled)).forEach(r=>w.push({k:'p',t:`${r.name}: ${r.c.filter(pulled).length} copy will be taken out of ${[...new Set(r.c.filter(pulled).map(c=>c.s))].join(', ')}.`}));
+  if(S.dup)w.push({k:'d',t:`You already have a deck called "${S.name}". Importing creates a second deck with the same name.`});
   return w;
 }
-const attentionCount=()=>getRows().filter(rowNeeds).length;
-const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const ICON_PULL='<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>';
+const ICON_PROXY='<svg viewBox="0 0 24 24"><path d="M18 11c-1.5 0-2.5.5-3 2-.5-1.5-1.5-2-3-2s-2.5.5-3 2c-.5-1.5-1.5-2-3-2"/><path d="M5 9c0-4 3-7 7-7s7 3 7 7v5c0 4-3 8-7 8s-7-4-7-8z"/></svg>';
+const sel=(id,opts,val,extra='')=>`<select class="s6 ${extra}" id="${id}">${opts.map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join('')}</select>`;
+const chg=n=>`data-chg="${n}"`;
 
-/* ---------- render ---------- */
-function renderModal(){
-  const st=document.getElementById("stage");
-  st.className="stage"+(S.size==="laptop"?" laptop":"");
-  const dims=S.size==="laptop"?[1366,650]:[1440,900];
-  st.style.width=dims[0]+"px"; st.style.height=dims[1]+"px";
-  let inner="";
-  if(S.screen==="review") inner=reviewHTML();
-  else if(S.screen==="saving") inner=savingHTML();
-  else inner=resultHTML();
-  st.innerHTML=`<div class="fakepage" aria-hidden="true"><div class="bar"></div>${"<div class='tile'></div>".repeat(8)}</div>
-    <div class="overlay"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="mtitle">${inner}</section></div>`;
-  scaleStage(); bind();
+function originLabel(r){
+  if(S.ignoreBasics&&r.basic)return 'Ignored basic';
+  const set=new Set(r.c.map(c=>c.o));
+  if(set.size>1)return 'Mixed';
+  const o=r.c[0].o;
+  return o==='col'?'From collection':o==='new'?'New copy':'Unowned';
 }
-function headerBar(title){return `<header class="dh"><h2 id="mtitle">${title}</h2><button class="x" type="button" aria-label="Close import (asks before discarding)" data-close>✕</button></header>`}
-function slotsHTML(){
-  const c=CMDRS[S.cmdr];
-  let h=`<div class="field"><label for="cmdr">Commander</label><select id="cmdr">${Object.entries(CMDRS).map(([k,v])=>`<option value="${k}" ${k===S.cmdr?"selected":""}>${v.name}</option>`).join("")}</select></div>`;
-  if(c.partner){
-    const list=c.bg?BACKGROUNDS:PARTNERS, val=c.bg?S.bgPick:S.partner;
-    h+=`<div class="field"><label for="second">${c.bg?"Background":"Partner"}</label><select id="second"><option value="">${c.bg?"No background":"No partner"}</option>${list.map(x=>`<option ${x===val?"selected":""}>${x}</option>`).join("")}</select><div class="hint">${c.name.split(",")[0]} can be paired with ${c.bg?"a Background":"another Partner"}.</div></div>`;
+function rowHtml(r){
+  const open=S.open[r.id]||S.expandAll;
+  const np=r.c.filter(pulled).length;
+  const mixed=new Set(r.c.map(c=>c.o==='col'?(c.s==='spare'?'spare':'deck:'+c.s):c.o)).size>1;
+  const num=r.c.length>1&&np?np:'';
+  const icon=np?`<span class="ic pu" ${chg(6)} title="Pulled from: ${[...new Set(r.c.filter(pulled).map(c=>c.s))].join(', ')}">${ICON_PULL}${num}</span>`:'';
+  const nr=needs(r);
+  return `<div class="row ${open?'open':''}" id="row-${r.id}">
+   <div class="rw"><span class="cb"></span><span class="q">${r.c.length}</span>
+    <span class="nm"><span style="overflow:hidden;text-overflow:ellipsis">${r.name}</span><span class="s">${r.set}</span>${r.basic?'<span class="pill">Generic land</span>':''}${icon}${nr?'<span class="pill" style="color:var(--signal-warning);border-color:var(--signal-warning)">Needs a source</span>':''}</span>
+    <button class="qs" data-o="${r.id}">${originLabel(r)} <span class="a">▾</span></button>
+    <button class="qs" data-o="${r.id}">${S.ignoreBasics&&r.basic?'—':'Original'} <span class="a">▾</span></button>
+    <button class="chev" data-t="${r.id}" aria-label="Edit ${r.name}">⌄</button></div>
+   ${open?`<div class="cps">${r.c.map((c,i)=>copy(r,c,i)).join('')}</div>`:''}</div>`;
+}
+function copy(r,c,i){
+  const id=`${r.id}-${i}`;
+  const first=i===0;
+  const opts=[['col','From collection'],['new','New copy'],['none','Unowned']];
+  const owned=r.spare>0||r.decks.length>0;
+  const originSel=`<select class="s6" style="min-width:128px" data-id="${id}" data-f="o">${opts.filter(o=>o[0]!=='col'||owned).map(o=>`<option value="${o[0]}" ${c.o===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select>`;
+  let more='';
+  const chgn=12;
+  if(c.o==='col'){
+    const srcOpts=[...(r.spare>0?[['spare','Spare copy (not in a deck)']]:[]),...r.decks.map(d=>[d,'Take from '+d])];
+    more=`<select class="s6 src" data-id="${id}" data-f="s" ${chg(5)}>${c.s?'':'<option value="">Choose a source…</option>'}${srcOpts.map(o=>`<option value="${o[0]}" ${c.s===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select>
+      ${pulled(c)?`<span class="ic pu" title="Pulled from ${c.s}" ${chg(6)}>${ICON_PULL}</span><span class="note">leaves ${c.s}</span>`:''}`;
+    more+=`<select class="s6" data-id="${id}" data-f="t" ${chg(12)}><option>Original</option><option>Proxy</option></select>`;
+  } else if(c.o==='new'){
+    more=`<select class="s6" data-id="${id}" data-f="t"><option>Original</option><option>Proxy</option></select>${sel('',['English','Japanese','German','French','Spanish'],c.lang)}${sel('',['Non-foil','Foil','Etched'],c.fin)}${sel('',['Near Mint','Lightly Played','Moderately Played'],c.cond)}`;
+  } else {
+    more=`<span class="note">Just on the list, no copy.</span><span ${chg(12)}>${sel('',['Non-foil','Foil','Etched'],c.fin)}</span><span class="note" ${chg(12)}>Language: held back</span>`;
   }
-  if(S.comp) h+=`<div class="field"><label for="compn">Companion</label><select id="compn"><option>Lurrus of the Dream-Den</option><option value="">No companion</option></select><div class="hint">Found in your file. Kept outside the 100.</div></div>`;
-  return h;
+  const att=c.o==='col'&&!c.s;
+  return `<div class="cl ${att?'attn':''}"><span class="n">${r.c.length>1?i+1:''}</span>${originSel}${more}${first&&r.c.length>1?'<span style="margin-left:auto" class="note">↓ make all like copy 1</span>':''}</div>`;
 }
-function reviewHTML(){
-  const rows=getRows(), w=warnings(), attn=attentionCount();
-  const dupWarnErr=w.some(x=>x.id==="dup");
-  // warnings bar (not dismissable)
-  const shown=S.warnOpen?w:w.slice(0,2);
-  const bar=w.length?`<div class="warnbar" role="region" aria-label="Things to check before importing">
-    ${shown.map(x=>`<div class="warn">${I.warn}<span class="msg">${x.html}</span>${x.act?`<button type="button" class="act" data-warnact="${x.go}">${x.act}</button>`:""}</div>`).join("")}
-    ${w.length>2?`<button type="button" class="warnmore" data-warnmore aria-expanded="${S.warnOpen}">${S.warnOpen?"Show fewer":`Show ${w.length-2} more`}</button>`:""}
-  </div>`:"";
-  // counts
-  const f=S.filter;
-  const cnt={all:rows.length,new:0,coll:0,unowned:0};
-  rows.forEach(r=>{const k=rowKind(r);if(k==="new")cnt.new++;else if(k==="coll")cnt.coll++;else if(k==="unowned")cnt.unowned++;else if(k==="mixed"){cnt.new+=r.copies.some(c=>c.choice==="new")?1:0;cnt.coll+=r.copies.some(c=>kindOf(c)==="coll"&&c.choice)?1:0;cnt.unowned+=r.copies.some(c=>c.choice==="unowned")?1:0}});
-  const filtered=rows.filter(r=>{
-    if(f==="all")return true; if(f==="attn")return rowNeeds(r);
-    const k=rowKind(r); if(k==="mixed"||k==="needs"){ return r.copies.some(c=>kindOf(c)===f&&c.choice); }
-    return k===f;});
-  const chips=[["all","All",cnt.all],["new","New",cnt.new],["coll","From collection",cnt.coll],["unowned","Unowned",cnt.unowned]];
-  const list=filtered.length?filtered.map(rowHTML).join(""):`<div class="empty">No cards need attention. Clear the filter to see the whole list.</div>`;
-  const basics=S.ignore?`<div class="basicsline"><span>${IGNORED_BASICS} regular basic lands (Forest ×2, Wastes ×1) are ignored: never pulled from another deck. They are still added to the deck.</span></div>`:"";
-  const pulledTotal=rows.reduce((n,r)=>n+pulledOf(r).length,0), newTotal=rows.reduce((n,r)=>n+r.copies.filter(c=>c.choice==="new").length,0);
-  const block=w.some(x=>x.block);
-  const blockMsg=block?`Resolve the ${attn} ${plural(attn,"item","items")} marked “need attention” to import.`:"";
-  return `${headerBar("Import built deck")}
-  ${bar}
-  <div class="scrollbody">
-  <div class="head">
-    <div class="r1">
-      <div class="field"><label for="deckname">Deck name</label><input class="input ${dupWarnErr?"err":""}" id="deckname" value="${esc(S.deckName)}" ${dupWarnErr?'aria-describedby="dupmsg"':""}></div>
-      <div class="field"><label>Format</label><div class="val">Commander</div></div>
-    </div>
-    <div class="r2" aria-label="Command zone">${slotsHTML()}</div>
-    <div class="importing" role="group" aria-label="Importing as">
-      <span class="lbl">Importing as:</span><span>${S.defaults.finish}</span><span class="sep" aria-hidden="true">·</span><span>${S.defaults.cond}</span><span class="sep" aria-hidden="true">·</span><span>${S.defaults.lang}</span>
-      <button type="button" class="link" id="defbtn" aria-expanded="${S.defOpen}" aria-controls="defedit">${S.defOpen?"Done":"Change"}</button>
-      <span class="vsep" aria-hidden="true"></span>
-      <label class="tog"><span class="switch"><input type="checkbox" role="switch" id="ign" ${S.ignore?"checked":""}><span class="track"></span></span>Ignore basic lands</label>
-      <span class="lbl">${S.ignore?`${IGNORED_BASICS} ignored`:"included"}</span>
-      <span class="note">Applies to new copies only</span>
-      ${S.defOpen?`<div class="editdef" id="defedit">
-        ${selField("Finish","dfin",FINISH,S.defaults.finish)}${selField("Condition","dcond",COND,S.defaults.cond)}${selField("Language","dlang",LANG,S.defaults.lang)}
-      </div>`:""}
-    </div>
-  </div>
-  <div class="listwrap">
-    <div class="filters" role="group" aria-label="Filter cards">
-      ${chips.map(([k,l,n])=>`<button type="button" class="chip" data-filter="${k}" aria-pressed="${f===k}">${l} <span>${n}</span></button>`).join("")}
-      <span class="sp"></span>
-      <span style="color:var(--text-secondary);font-size:11px">${rows.length} cards · select a row to edit it</span>
-    </div>
-    <div class="rows" id="rows" role="list" aria-label="Cards in this deck">${list}${basics}</div>
-  </div>
-  </div>
-  <footer class="df">
-    <span class="sum" id="sum"><b>${newTotal}</b> new ${plural(newTotal,"copy","copies")} · <b>${pulledTotal}</b> ${plural(pulledTotal,"copy","copies")} pulled from other decks${pulledTotal?" — those decks will show as short":""}</span>
-    ${attn?`<button type="button" class="chip attn" data-filter="attn" aria-pressed="${f==="attn"}" aria-label="${attn} ${plural(attn,"card needs","cards need")} attention. ${f==="attn"?"Showing only these. Select to show all.":"Select to show only these."}">${I.warn}${attn} need attention</button>`:""}
-    <button class="btn ghost" type="button" data-close>Cancel</button>
-    <button class="btn primary" type="button" id="go" ${block?"disabled aria-describedby=\"blockmsg\"":""}>Import deck</button>
-    <span class="sr-only" id="blockmsg">${blockMsg}</span>
-  </footer>`;
+function modalInner(){
+  const w=warnings();
+  const cmdr=COMMANDERS.find(c=>c.n===S.cmdr)||COMMANDERS[0];
+  const needsSecond=cmdr.t==='partner'||cmdr.t==='bg';
+  const ignored=S.rows.filter(r=>r.basic).reduce((a,r)=>a+r.c.length,0);
+  const att=attnRows().length;
+  const rows=S.filter==='attn'?attnRows():S.rows;
+  const blocked=att>0;
+  const shown=w.slice(0,S.warnAll?99:2);
+  const newOnly=S.rows.some(r=>r.c.some(c=>c.o==='new'));
+  return `
+   <div class="t-row"><h2 class="title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1D9E75" stroke-width="2"><path d="m12 2 10 5-10 5L2 7z"/><path d="m2 12 10 5 10-5"/><path d="m2 17 10 5 10-5"/></svg>Import built deck</h2><button class="x">✕</button></div>
+   ${w.length?`<div class="wbar" ${chg(7)} role="status">${shown.map(x=>`<div><span>⚠</span><span>${x.t}</span></div>`).join('')}${w.length>2&&!S.warnAll?`<button class="more" id="more">Show ${w.length-2} more</button>`:''}</div>`:''}
+   <div class="g1">
+    <div><label class="lbl" ${S.dup?chg(11):''}>Name</label><input class="inp" id="name" value="${S.name}"></div>
+    <div><label class="lbl">Format</label><select class="sel"><option>Commander</option><option>Standard</option></select></div>
+    <div ${chg(1)}><label class="lbl">Commander</label><select class="sel" id="cmdr">${COMMANDERS.map(c=>`<option ${c.n===S.cmdr?'selected':''}>${c.n}</option>`).join('')}</select></div>
+   </div>
+   ${(needsSecond||S.cmp)?`<div class="g2">
+     ${needsSecond?`<div ${chg(1)}><label class="lbl">${cmdr.t==='bg'?'Background':'Partner'}</label><select class="sel" id="second"><option value="">${cmdr.t==='bg'?'No background':'No partner'}</option><option ${S.second==='x'?'selected':''} value="x">${cmdr.t==='bg'?'Raised by Giants':'Kraum, Ludevic’s Opus'}</option></select></div>`:'<div></div>'}
+     ${S.cmp?`<div ${chg(2)}><label class="lbl">Companion</label><select class="sel" id="comp"><option value="">No companion</option><option value="l" ${S.comp==='l'?'selected':''}>Lurrus of the Dream-Den</option></select></div>`:'<div></div>'}
+   </div>`:''}
+   <div class="imp"><span>Importing as: ${S.def.finish} · ${S.def.cond} · ${S.def.lang}</span><button class="lnk" id="chg">${S.changeOpen?'Done':'Change'}</button>
+     <label class="sw" ${chg(3)}><span class="w"><input type="checkbox" id="ib" ${S.ignoreBasics?'checked':''}><i></i></span>Ignore basic lands${S.ignoreBasics?` <span class="m">· ${ignored} ignored, still added to the deck</span>`:''}</label>
+     <span class="m" style="margin-left:auto" ${chg(4)}>20 new copies use these</span>
+     ${S.changeOpen?`<div class="defs">${sel('d1',['Non-foil','Foil','Etched'],S.def.finish).replace('s6','sel')}${sel('d2',['Near Mint','Lightly Played'],S.def.cond).replace('s6','sel')}${sel('d3',['English','Japanese','German'],S.def.lang).replace('s6','sel')}
+       <span class="note" ${chg(4)}>Applies to new copies only. Copies you already own keep their own finish, condition and language.</span></div>`:''}
+   </div>
+   <div class="fr"><button class="chip ${S.filter==='all'?'s':''}" data-f="all">All ${total()}</button>
+     <div class="r"><span>Sort <span style="color:var(--text-primary)">Import order ▾</span></span><input placeholder="Find card"></div></div>
+   <div class="list"><div class="lh"><span class="cb"></span><span>Qty</span><span>Card</span><span>Card origin</span><span>Type</span><span></span></div>
+    <div class="body">${rows.map(rowHtml).join('')}</div></div>
+   <div class="below">${S.rows.filter(r=>r.c.some(c=>c.o==='col')).length} from collection · ${S.rows.filter(r=>r.c.some(pulled)).length} with copies pulled from other decks</div>
+   <div class="ft"><div class="sum"><b>${total()}</b> in deck</div>
+     ${att?`<button class="chip attn ${S.filter==='attn'?'s':''}" id="chip2" ${chg(8)} title="Show only these cards">${att} need attention</button>`:''}
+     <button class="btn">Back</button><button class="btn">Cancel</button><button class="btn p" id="imp" ${chg(13)} ${blocked?'disabled':''}>Import deck</button></div>`;
 }
-function selField(l,id,list,val){return `<div class="field"><label for="${id}">${l}</label><select id="${id}">${list.map(x=>`<option ${x===val?"selected":""}>${x}</option>`).join("")}</select></div>`}
-function rowHTML(r){
-  const open=!!S.open[r.id]; const k=rowKind(r); const needs=rowNeeds(r);
-  const q=r.copies.length; const pulled=pulledOf(r).length;
-  let badge;
-  if(r.matched===false) badge=`<span class="badge attn">${I.warn}Not matched</span>`;
-  else if(k==="needs") badge=`<span class="badge attn">${I.warn}Choose source</span>`;
-  else if(k==="new") badge=`<span class="badge new">New</span>`;
-  else if(k==="coll") badge=`<span class="badge coll">From collection</span>`;
-  else if(k==="unowned") badge=`<span class="badge unowned">Unowned</span>`;
-  else badge=`<span class="badge mixed">Mixed</span>`;
-  if(needs&&k==="mixed") badge=`<span class="badge attn">${I.warn}Choose source</span>`;
-  let marks="";
-  if(hasProxy(r)) marks+=`<span class="ico proxy" tabindex="0" role="img" aria-label="Includes a proxy">${I.proxy}</span>`;
-  if(pulled){
-    const names=pulledOf(r).map(c=>nm(c.choice.slice(5)));
-    const label=`${pulled} ${plural(pulled,"copy","copies")} pulled from other decks: ${names.join(", ")}`;
-    marks+=`<span class="ico pulled" tabindex="0" role="img" aria-label="${label}">${I.pulled}${q>1?`<span aria-hidden="true">${pulled}</span>`:""}<span class="tip" aria-hidden="true">${names.map(n=>esc(n)).join("<br>")}</span></span>`;
-  }
-  // summary text on the right: only for rows with new/unowned copies
-  let summ="";
-  const nc=r.copies.filter(c=>c.choice==="new"), uc=r.copies.filter(c=>c.choice==="unowned");
-  if(r.matched!==false){ if(nc.length&&!pulled&&!uc.length) summ=`${nc[0].type} · ${nc[0].finish||S.defaults.finish}`; else if(uc.length&&!nc.length&&!pulled) summ=`Unsleeved · ${uc[0].finish||S.defaults.finish}`; else if(k==="coll"&&pulled===q) summ=pulledOf(r).length?[...new Set(pulledOf(r).map(c=>nm(c.choice.slice(5))))].join(", "):""; }
-  return `<div class="row ${open?"open":""}" role="listitem">
-    <button type="button" class="rowhead" data-toggle="${r.id}" aria-expanded="${open}" aria-controls="b-${r.id}" id="h-${r.id}">
-      <span class="chev" aria-hidden="true">▶</span><span class="qty">${q}×</span>
-      <span class="nm">${esc(r.name)}<small>${esc(r.set||"")}</small></span>
-      <span class="marks">${marks}${badge}</span><span class="summ">${esc(summ)}</span>
-    </button>
-    ${open?`<div class="rowbody" id="b-${r.id}">${bodyHTML(r)}</div>`:""}
-  </div>`;
+function resultInner(){
+  const moves={};
+  S.rows.forEach(r=>r.c.filter(pulled).forEach(c=>{(moves[c.s]=moves[c.s]||[]).push(r.name)}));
+  const spare=S.rows.filter(r=>r.c.some(c=>c.o==='col'&&c.s==='spare')).map(r=>r.name);
+  const nw=S.rows.reduce((a,r)=>a+r.c.filter(c=>c.o==='new').length,0);
+  return `<div class="t-row"><h2 class="title">Import built deck</h2><button class="x">✕</button></div>
+  <div class="res" ${chg(12)}><h3>✓ "${S.name}" is ready — ${total()} cards</h3>
+   <div><h3>Spare copies used</h3><ul><li>${spare.join(', ')||'None'}</li></ul></div>
+   <div><h3>Moved out of other decks</h3>${Object.keys(moves).length?Object.entries(moves).map(([d,n])=>`<ul><li><b style="color:var(--text-primary)">${d}</b>: ${n.join(', ')} — that deck is now short ${n.length} card${n.length>1?'s':''}</li></ul>`).join(''):'<ul><li>Nothing moved</li></ul>'}</div>
+   <div><h3>New copies added to your collection</h3><ul><li>${nw} cards</li></ul></div>
+   <div class="note">Moves can't be undone from here. Put a card back by editing the other deck.</div></div>
+  <div class="ft"><div class="sum"></div><button class="btn">View deck</button><button class="btn p">Done</button></div>`;
 }
-function bodyHTML(r){
-  if(r.matched===false){
-    return `<div class="nomatch"><div class="field"><label for="fix-${r.id}">${r.line}: “${esc(r.name)}” isn't a card we know</label><select id="fix-${r.id}" data-fix="${r.id}"><option value="">Choose the right card…</option><option value="Eternal Witness" ${r.fix?"selected":""}>Eternal Witness</option><option value="skip" ${r.skipped?"selected":""}>Skip this row (don't import it)</option></select></div></div>`;
-  }
-  return r.copies.map((c,i)=>copyHTML(r,c,i)).join("");
+function importingInner(){return `<div class="t-row"><h2 class="title">Import built deck</h2></div><div class="res"><h3>Importing ${total()} cards…</h3><div class="bar"><i></i></div><div class="note">Moving copies out of other decks and creating the new deck. Please keep this window open.</div></div>`}
+function render(){
+  const [W,H]=S.size==='large'?[1440,900]:[1280,720];
+  const vp=$('#vp');
+  document.body.className=(S.hl?'hl ':'')+'dark';
+  const avail=window.innerWidth-28,scale=Math.min(1,avail/W);
+  vp.style.cssText=`width:${W}px;height:${H}px;transform:scale(${scale});margin:12px 0 ${-(H*(1-scale))+12}px 14px`;
+  // 9: height as % of screen above a minimum, keeping a margin on laptops
+  const mh=S.size==='large'?`min(90%,calc(100% - 4rem))`:`calc(100% - 4rem)`;
+  const inner=S.screen==='review'?modalInner():S.screen==='result'?resultInner():importingInner();
+  vp.innerHTML=`<div class="bgapp">Decks · Collection</div><div class="ov" ${chg(10)}><div class="modal" ${chg(9)} style="height:${mh}">${inner}</div></div>`;
+  $('#key').style.display=S.hl?'block':'none';
+  const fid=document.activeElement&&document.activeElement.id;
+  bind();
 }
-function copyHTML(r,c,i){
-  const total=r.copies.length;
-  const opts=options(r,i);
-  const needs=c.choice==="";
-  const sel=`<div class="field"><label for="src-${r.id}-${i}">${total>1?"This copy comes from":"Comes from"}</label><select id="src-${r.id}-${i}" data-src="${r.id}:${i}"><option value="">Choose a source…</option>${opts.map(o=>`<option value="${o.v}" ${c.choice===o.v?"selected":""} ${o.off?"disabled":""}>${esc(o.t)}${o.off?" (already used)":""}</option>`).join("")}</select></div>`;
-  let right="", after="";
-  if(c.choice==="new"){
-    right=`<div class="edits">${selSmall("Type",`ty-${r.id}-${i}`,"type",r.id,i,["Original","Proxy"],c.type)}${selSmall("Finish",`fi-${r.id}-${i}`,"finish",r.id,i,FINISH,c.finish||S.defaults.finish)}${selSmall("Condition",`co-${r.id}-${i}`,"cond",r.id,i,COND,c.cond||S.defaults.cond)}${selSmall("Language",`la-${r.id}-${i}`,"lang",r.id,i,LANG,c.lang||S.defaults.lang)}</div>`;
-    after=`Adds a new ${c.type==="Proxy"?"proxy":"original"} copy to your collection and sleeves it into this deck.`;
-  } else if(c.choice==="unowned"){
-    right=`<div class="edits">${selSmall("Finish",`fi-${r.id}-${i}`,"finish",r.id,i,FINISH,c.finish||S.defaults.finish)}${selSmall("Language",`la-${r.id}-${i}`,"lang",r.id,i,LANG,c.lang||S.defaults.lang)}</div>`;
-    after=`Stays on the list as <span class="s">Unsleeved</span>. No copy is added or moved.`;
-  } else if(c.choice==="spare"){
-    right=`<div class="ro"><span>Original · spare copy · cannot be edited here</span></div>`;
-    after=`Uses a copy that is in no deck. Nothing else changes.`;
-  } else if(c.choice.startsWith("deck:")){
-    const key=c.choice.slice(5); const d=r.owned.decks.find(x=>x.key===key);
-    right=`<div class="ro">${d.proxy?`<span class="ico proxy" style="gap:4px">${I.proxy}<span style="color:var(--text-primary)">Proxy</span></span>`:`<span>Original</span>`}<span>· ${esc(d.label.split(" · ").slice(1).join(" · "))} · keeps its status · cannot be edited here</span></div>`;
-    after=`Moves into this deck. <span class="s">${esc(nm(key))}</span> keeps ${esc(r.name)} on its list as <span class="s">Unsleeved</span> and shows short by one.`;
-  } else after=`<span class="need-msg">Choose a source for this copy to continue.</span>`;
-  return `<div class="copy ${needs?"needs":""}"><span class="cl">${total>1?`Copy ${i+1} of ${total}`:"Copy"}</span>${sel}${right}<div class="after">${after}</div></div>`;
-}
-function selSmall(l,id,key,rid,i,list,val){return `<div class="field"><label for="${id}">${l}</label><select id="${id}" data-edit="${key}:${rid}:${i}">${list.map(x=>`<option ${x===val?"selected":""}>${x}</option>`).join("")}</select></div>`}
-
-function savingHTML(){return `${headerBar("Import built deck")}<div class="center mid" role="status"><div class="spinner" aria-hidden="true"></div><h3>Importing ${esc(S.deckName)}…</h3><p>Saving the deck and moving the selected cards. Keep this window open.</p></div><footer class="df"><span class="sum">This can take a few seconds.</span><button class="btn primary" disabled>Importing…</button></footer>`}
-
-function resultHTML(){
-  const rows=getRows();
-  const moved={}, spare=[], news=[], uns=[];
-  rows.forEach(r=>{ if(r.matched===false&&r.skipped) return;
-    r.copies.forEach(c=>{ if(c.choice.startsWith("deck:")){const k=c.choice.slice(5);(moved[k]=moved[k]||[]).push(r.name);} else if(c.choice==="spare")spare.push(r.name); else if(c.choice==="new")news.push(r.name); else if(c.choice==="unowned")uns.push(r.name);});});
-  const movedTotal=Object.values(moved).reduce((n,a)=>n+a.length,0);
-  const group=(names)=>{const m={};names.forEach(n=>m[n]=(m[n]||0)+1);return Object.entries(m).map(([n,q])=>q>1?`${n} ×${q}`:n).join(", ")};
-  const deckBoxes=Object.entries(moved).map(([k,names])=>`<div class="resbox"><h4>${esc(nm(k))} <span>${names.length} ${plural(names.length,"card","cards")} moved out · now short by ${names.length}</span></h4><div class="resline"><span>${esc(group(names))}</span><span>Now Unsleeved in ${esc(nm(k))}</span></div></div>`).join("");
-  return `${headerBar("Import complete")}<div class="center"><div class="success" aria-hidden="true">✓</div><h3>${esc(S.deckName)} imported</h3><p>${movedTotal} ${plural(movedTotal,"card","cards")} moved from other decks. Here's exactly what changed.</p>
-  <div class="res" role="status">
-    <div class="resbox"><h4>This deck <span>${esc(S.deckName)}</span></h4>
-      <div class="resline"><span>New copies added to your collection</span><span>${news.length}${news.length?` · ${esc(group(news))}`:""}</span></div>
-      <div class="resline"><span>Spare copies sleeved in</span><span>${spare.length}${spare.length?` · ${esc(group(spare))}`:""}</span></div>
-      <div class="resline"><span>Moved in from other decks</span><span>${movedTotal}</span></div>
-      <div class="resline"><span>Left Unsleeved (no copy used)</span><span>${uns.length}${uns.length?` · ${esc(group(uns))}`:""}</span></div>
-      ${S.ignore?`<div class="resline"><span>Regular basic lands ignored for moves</span><span>${IGNORED_BASICS}</span></div>`:""}
-    </div>
-    ${movedTotal?`<div style="font-size:12px;color:var(--text-primary)">Cards that moved</div>${deckBoxes}`:`<div class="resbox"><div class="resline"><span>No cards were moved out of other decks.</span><span></span></div></div>`}
-    <div class="resfoot">Moves can't be undone from this screen. To put a card back, import or scan the other deck again.</div>
-  </div></div>
-  <footer class="df"><span class="sum"></span><button class="btn" type="button" data-screen-go="review">Import another</button><button class="btn primary" type="button">Open ${esc(S.deckName)}</button></footer>`;
-}
-
-/* ---------- interaction ---------- */
 function bind(){
-  const q=(s)=>document.querySelectorAll(s);
-  q("[data-close]").forEach(b=>b.onclick=()=>say("In the product, closing asks “Discard this import?” first."));
-  q("[data-toggle]").forEach(b=>b.onclick=()=>{S.open[b.dataset.toggle]=!S.open[b.dataset.toggle];keep("h-"+b.dataset.toggle)});
-  q("[data-filter]").forEach(b=>b.onclick=()=>{const v=b.dataset.filter;S.filter=(v==="attn"&&S.filter==="attn")?"all":v;keep(b.dataset.filter==="attn"?"chipattn":null,b)});
-  q("[data-warnmore]").forEach(b=>b.onclick=()=>{S.warnOpen=!S.warnOpen;keep()});
-  q("[data-warnact]").forEach(b=>b.onclick=()=>{const g=b.dataset.warnact; if(g==="name"){render();document.getElementById("deckname").focus();document.getElementById("deckname").select()} else {S.filter="attn";rows_open_first();render();}});
-  const dn=document.getElementById("deckname");
-  if(dn) dn.oninput=()=>{S.deckName=dn.value;partial()};
-  const cm=document.getElementById("cmdr"); if(cm) cm.onchange=()=>{S.cmdr=cm.value;S.partner="";S.bgPick="";keep("cmdr")};
-  const sc=document.getElementById("second"); if(sc) sc.onchange=()=>{if(CMDRS[S.cmdr].bg)S.bgPick=sc.value;else S.partner=sc.value;say(sc.value?`${sc.value} chosen.`:"Cleared.")};
-  const ig=document.getElementById("ign"); if(ig) ig.onchange=()=>{S.ignore=ig.checked;say(S.ignore?"Ignoring regular basic lands.":"Including regular basic lands.");keep("ign")};
-  const db=document.getElementById("defbtn"); if(db) db.onclick=()=>{S.defOpen=!S.defOpen;keep("defbtn")};
-  [["dfin","finish"],["dcond","cond"],["dlang","lang"]].forEach(([id,k])=>{const e=document.getElementById(id);if(e)e.onchange=()=>{S.defaults[k]=e.value;keep(id)}});
-  q("[data-src]").forEach(e=>e.onchange=()=>{const [id,i]=e.dataset.src.split(":");const r=getRows().find(x=>x.id===id);r.copies[+i].choice=e.value;say(w2s());keep(e.id)});
-  q("[data-edit]").forEach(e=>e.onchange=()=>{const [k,id,i]=e.dataset.edit.split(":");const r=getRows().find(x=>x.id===id);r.copies[+i][k]=e.value;keep(e.id)});
-  q("[data-fix]").forEach(e=>e.onchange=()=>{const r=getRows().find(x=>x.id===e.dataset.fix);r.fix=e.value==="Eternal Witness"?"x":"";r.skipped=e.value==="skip";if(r.fix){r.name="Eternal Witness";r.matched=true;r.set="CMM #208";r.owned={spare:0,decks:[]}} say(w2s());keep()});
-  const go=document.getElementById("go"); if(go) go.onclick=()=>{setScreen("saving");setTimeout(()=>{if(S.screen==="saving")setScreen("result")},1100)};
-  q("[data-screen-go]").forEach(b=>b.onclick=()=>setScreen(b.dataset.screenGo));
+  const m=document.querySelector('.modal');
+  m.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{S.open[b.dataset.t]=!S.open[b.dataset.t];S.expandAll=false;render()});
+  m.querySelectorAll('.qs').forEach(b=>b.onclick=()=>{S.open[b.dataset.o]=true;render()});
+  m.querySelectorAll('[data-f].chip').forEach(b=>b.onclick=()=>{S.filter=b.dataset.f;render()});
+  const c2=$('#chip2');if(c2)c2.onclick=()=>{S.filter=S.filter==='attn'?'all':'attn';render()};
+  m.querySelectorAll('select[data-id]').forEach(s=>s.onchange=()=>{
+    const [rid,i]=s.dataset.id.split('-');const r=S.rows.find(x=>x.id===rid);const c=r.c[+i];
+    if(s.dataset.f==='o'){c.o=s.value;if(c.o==='col')c.s=r.spare>0?'spare':(r.decks.length===1?r.decks[0]:'');if(c.o==='new'){c.fin='Non-foil';c.cond='Near Mint';c.lang='English'}if(c.o==='none')c.fin='Non-foil'}
+    if(s.dataset.f==='s')c.s=s.value;
+    if(S.filter==='attn'&&!attnRows().length)S.filter='all';
+    render();});
+  const set=(id,fn)=>{const e=$(id);if(e)e.onchange=()=>{fn(e);render()}};
+  set('#cmdr',e=>{S.cmdr=e.value;S.second=''});set('#second',e=>S.second=e.value);set('#comp',e=>S.comp=e.value);
+  set('#ib',e=>S.ignoreBasics=e.checked);
+  set('#d1',e=>S.def.finish=e.value);set('#d2',e=>S.def.cond=e.value);set('#d3',e=>S.def.lang=e.value);
+  const n=$('#name');if(n)n.oninput=()=>{S.name=n.value};
+  const ch=$('#chg');if(ch)ch.onclick=()=>{S.changeOpen=!S.changeOpen;render()};
+  const mo=$('#more');if(mo)mo.onclick=()=>{S.warnAll=true;render()};
+  const im=$('#imp');if(im)im.onclick=()=>{S.screen='importing';render();setTimeout(()=>{S.screen='result';sync();render()},1200)};
 }
-function rows_open_first(){const r=getRows().find(rowNeeds);if(r)S.open[r.id]=true}
-function w2s(){const n=attentionCount();return n?`${n} ${plural(n,"card needs","cards need")} attention.`:"Everything is resolved."}
-function say(t){document.getElementById("live").textContent=t}
-function render(){renderModal()}
-function keep(id,el){
-  const a=id||(document.activeElement&&document.activeElement.id);
-  renderModal();
-  if(a){const n=document.getElementById(a);if(n)n.focus();}
-  else if(el&&el.dataset&&el.dataset.filter){const n=document.querySelector(`[data-filter="${el.dataset.filter}"]`);if(n)n.focus()}
-}
-function partial(){ // typing in the name field: refresh warnings/footer without losing the caret
-  const w=warnings(); const old=document.querySelector(".warnbar");
-  const wasDup=!!old&&/already exists/.test(old.textContent);
-  const nowDup=w.some(x=>x.id==="dup");
-  if(wasDup!==nowDup||true){ const pos=document.getElementById("deckname").selectionStart; renderModal(); const d=document.getElementById("deckname"); d.focus(); d.setSelectionRange(pos,pos); }
-}
-function setScreen(s){S.screen=s;document.querySelectorAll("[data-screen]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.screen===s));renderModal();say(s==="result"?"Import complete.":s==="saving"?"Importing.":"")}
-
-/* review controls */
-document.querySelectorAll("[data-screen]").forEach(b=>b.onclick=()=>{ if(b.dataset.screen==="result"&&attentionCount()>0&&S.screen==="review"){ /* allow preview even with unresolved: use defaults */ getRows().forEach(r=>r.copies.forEach((c,i)=>{if(c.choice==="")c.choice=options(r,i).find(o=>!o.off&&o.v!=="new"&&o.v!=="unowned")?.v||"unowned"})); getRows().forEach(r=>{if(r.matched===false&&!r.fix){r.skipped=true}}) } setScreen(b.dataset.screen)});
-document.querySelectorAll("[data-size]").forEach(b=>b.onclick=()=>{S.size=b.dataset.size;document.querySelectorAll("[data-size]").forEach(x=>x.setAttribute("aria-pressed",x===b));renderModal()});
-document.getElementById("pvDup").onchange=()=>{S.dupSample=document.getElementById("pvDup").checked;renderModal()};
-document.getElementById("pvComp").onchange=()=>{S.comp=document.getElementById("pvComp").checked;renderModal()};
-document.getElementById("pvExpand").onclick=()=>{const all=getRows();const allOpen=all.every(r=>S.open[r.id]);all.forEach(r=>S.open[r.id]=!allOpen);document.getElementById("pvExpand").textContent=allOpen?"Expand all rows":"Collapse all rows";renderModal()};
-document.getElementById("pvReset").onclick=()=>{const sc=S.screen,sz=S.size;S=null;fresh();S.screen=sc;S.size=sz;renderModal()};
-window.addEventListener("resize",scaleStage);
-function scaleStage(){
-  const wrap=document.getElementById("wrap"),st=document.getElementById("stage");
-  const W=parseInt(st.style.width),H=parseInt(st.style.height);
-  const avail=document.querySelector(".page").clientWidth-32;
-  const sc=Math.min(1,avail/W);
-  st.style.transform=`scale(${sc})`;wrap.style.width=W*sc+"px";wrap.style.height=H*sc+"px";
-  document.getElementById("stagelabel").textContent=`Simulated ${S.size==="laptop"?"laptop screen, 1366×650 usable after browser toolbars":"large screen, 1440×900"}${sc<1?` — shown at ${Math.round(sc*100)}% to fit your window`:""}`;
-}
-fresh(); renderModal();
+function sync(){document.querySelectorAll('[data-scr]').forEach(b=>b.classList.toggle('on',b.dataset.scr===S.screen))}
+document.querySelectorAll('[data-scr]').forEach(b=>b.onclick=()=>{S.screen=b.dataset.scr;sync();render()});
+document.querySelectorAll('[data-size]').forEach(b=>b.onclick=()=>{S.size=b.dataset.size;document.querySelectorAll('[data-size]').forEach(x=>x.classList.toggle('on',x===b));render()});
+$('#hl').onchange=e=>{S.hl=e.target.checked;render()};
+$('#dup').onchange=e=>{S.dup=e.target.checked;render()};
+$('#cmp').onchange=e=>{S.cmp=e.target.checked;render()};
+$('#expand').onclick=()=>{S.expandAll=!S.expandAll;render()};
+$('#reset').onclick=()=>{const k={hl:S.hl,size:S.size,dup:S.dup,cmp:S.cmp};S=Object.assign(BASE(),k);sync();render()};
+window.onresize=render;render();
 </script>
 </body>
 </html>

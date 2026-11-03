@@ -49,9 +49,10 @@ This moves a slice of Phase 8 ahead of Phases 3 to 7. Recommendation: finish onl
 **Owner decision: the scan wins, with a check screen.**
 - When a deck is imported and a card is already sleeved in another deck, the card moves to the scanned deck. The other deck then shows that card as short by one until it is scanned.
 - Before saving, the import lists "N cards moved from other decks". The owner can untick any card.
+- **If a move is unticked (owner-approved 2026-11-03):** leave that card in the scanned deck as unsleeved/short; keep the physical copy in its current deck. Do not create another copy.
 - **Several copies in several decks:** if the owner has, for example, two Sol Rings and both are in other decks (Korvold and Prosper), the check screen asks which deck to pull each copy from. The owner picks per card. Where only one deck has a copy, it is chosen automatically.
 - Nothing is deleted. The deck that loses a card keeps it as a planned card and is marked short.
 
-**Open for the Architect (Gate 2):** how to store "moved, other deck now short" with the current data model, and whether a data change is needed. Any data change comes back for owner approval. No locked decision is changed by this addendum.
-**Status:** wording approved by the owner in chat; not yet audited or designed. Designer: one mockup of the check screen (single move, and the pick-a-deck case).
-- **Ignore basic lands (owner direction 2026-11-03):** the check screen has an "Ignore basic lands" toggle, **on by default (recommended)**. While on, basics are never listed as moved and never pulled from another deck, so the list stays short. Turn it off to include them. Snow-covered and other non-basic lands are still listed. Designer: show the toggle at the top of the check screen with a count of how many basics are being ignored.
+**Audit (Gate 2):** report `docs/oracle/reports/2026-11-03-architect-scan-wins-audit.md` found the existing data model can represent the move and source-deck shortage without a schema change.
+**Status:** behavior is approved; the screen design is pending owner approval. No locked decision is changed by this addendum.
+- **Ignore basic lands (owner-approved 2026-11-03):** the check screen has an "Ignore basic lands" toggle, **on by default**. While on, the five regular basic lands and Wastes are never listed as moved or pulled from another deck; show how many are being ignored. Snow-Covered lands and other nonbasic lands remain listed. Turn the toggle off to include regular basics and Wastes.

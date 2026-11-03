@@ -228,7 +228,7 @@ function modalInner(){
    </div>
    <div class="imp"><span>Importing as: ${S.def.finish} · ${S.def.cond} · ${S.def.lang}</span><button class="lnk" id="chg">${S.changeOpen?'Done':'Change'}</button>
      <label class="sw" ${chg(3)}><span class="w"><input type="checkbox" id="ib" ${S.ignoreBasics?'checked':''}><i></i></span>Ignore basic lands</label>
-     <span class="m" ${chg(3)}>${S.ignoreBasics?`${ignored} basics added as ordinary basics, never taken from other decks`:`Basics can be taken from other decks, like any card`}</span>
+     ${S.ignoreBasics?`<span class="m" ${chg(3)}>${ignored} basics</span>`:''}
      ${S.changeOpen?`<div class="defs">${sel('d1',['Non-foil','Foil','Etched'],S.def.finish).replace('s6','sel')}${sel('d2',['Near Mint','Lightly Played'],S.def.cond).replace('s6','sel')}${sel('d3',['English','Japanese','German'],S.def.lang).replace('s6','sel')}
        <span class="note" ${chg(4)}>Applies to new copies only. Copies you already own keep their own finish, condition and language.</span></div>`:''}
    </div>
@@ -238,7 +238,7 @@ function modalInner(){
     <div class="body">${rows.map(rowHtml).join('')}</div></div>
    <div class="below">${S.rows.filter(r=>r.c.some(c=>c.o==='col')).length} from collection · ${S.rows.filter(r=>r.c.some(c=>c.o==='col'&&c.s&&c.s!=='spare')).length} taken from other decks</div>
    <div class="ft"><div class="sum"><b>${total()}</b> in deck</div>
-     ${att?`<span style="color:var(--signal-warning);font-size:12px;flex:2">${att} ${att>1?'cards need':'card needs'} a source before you can import. Choose one for each copy.</span>`:''}
+     ${att?`<span style="color:var(--signal-warning);font-size:12px;flex:2">${att} ${att>1?'cards need':'card needs'} a source.</span>`:''}
      <button class="btn">Back</button><button class="btn">Cancel</button><button class="btn p" id="imp" ${chg(13)} ${blocked?'disabled':''}>Import deck</button></div>`;
 }
 function resultInner(){

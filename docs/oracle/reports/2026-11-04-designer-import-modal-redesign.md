@@ -4,20 +4,19 @@ Status: DONE (two owner questions still open)
 Task as received: first, a full redesign mockup of the "Import built deck" modal from brief §9/§10. Then owner feedback: "the mockup does not match the current app. Rework it so the CURRENT import modal is the baseline… Change or add ONLY what brief §10 requires… Mark each changed or added element… Owner answers now locked… Update mockup, spec and report, commit, and stop."
 
 ## Summary for the owner
-I applied your review to the mockup, spec and this report.
-- **Commander** now sits on its own row below Name / Format. Partner, Background and Companion sit beside it only when they apply; otherwise the commander takes the full width.
-- **Ignore basic lands:** the switch now says what it does. With it on, basics are never taken from other decks, need no source and raise no warning; the deck just gets ordinary basics. With it off, basics held by other decks need a source like any card (untick it in the mockup to see 12 Forests ask for one).
-- **Pulled-from-deck icon, top warnings bar, "need attention" chip: removed.** What is left of "needs a source": the row shows the existing small amber "Needs a source" pill; the expanded row has the Source dropdown, whose first option "Choose source" clears the choice; and the existing amber footer text says how many cards still need one. Import stays off until none are left.
-- **Result screen** restyled with the existing list-box look (grey header strip, rows), no new colours.
-- 4, 5, 9, 10, 11, 13 unchanged. The "Highlight what changed" key keeps your numbering (6, 7, 8 shown as unused).
+Two approved tweaks applied:
+- **Ignore basic lands** now shows just the label, the switch and the count (e.g. "12 basics"). The explanation text is gone.
+- **Footer message** is now just "1 card needs a source." (or "N cards need a source.").
 
-Open `docs/oracle/mockups/import-modal-redesign.html`. Try: tick "Deck name already exists" and "File contains a Companion", pick Tymna as commander, expand all rows, set "Cultivate" to a deck and back to "Choose source", untick Ignore basic lands, then view Result.
+Confirmed in the spec: when a copy has exactly one possible source (a spare copy, or a single other deck), it is chosen automatically. A spare wins over decks. You only pick when several decks hold the card and there is no spare; until you do, the row shows "Choose source" and Import stays off. In the mockup, "Cultivate" is the example (two decks, no spare); "Swords to Plowshares" (one deck) is pre-filled.
+
+Open `docs/oracle/mockups/import-modal-redesign.html`.
 
 ## Changed files
 - `docs/oracle/mockups/import-modal-redesign.html`, `docs/oracle/specs/import-modal-redesign.md`, this report.
 
 ## Assumptions
-- The "Needs a source" pill reuses the existing small pill shape with the existing amber text colour; the footer line reuses the existing amber blocking text (reworded, since the old "coming soon" message no longer applies).
+- The "Needs a source" pill reuses the existing small pill shape with the existing amber text colour; the footer line reuses the existing amber blocking text (shortened to "N card(s) need a source.").
 - The duplicate-name note is one line of existing amber small text under the Name field.
 - The "Language: held back" note on Unowned copies was dropped from the mockup; language is simply absent there until the Architect confirms storage.
 

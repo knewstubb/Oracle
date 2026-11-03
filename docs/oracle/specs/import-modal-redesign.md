@@ -19,9 +19,9 @@ Also answered: ignored basics still go into the deck as ordinary basics.
 |---|---|---|---|
 | 1 | Header | Commander select shares row 1 with Name and Format | Row 1 is Name + Format. **Commander gets its own row below it.** |
 | 2 | Commander row | Second-slot select appears once a commander is chosen; Companion always shown | Partner / Background and Companion sit **next to the commander field**, only when they apply (Companion only when the file has one). The commander takes the full width when none applies. |
-| 3 | "Importing as" bar | Ignore-basics control lives elsewhere | A switch in the bar, on by default. **On: basic lands are never taken from other decks. They need no source and raise no warning; the deck just gets ordinary basics.** Off: basics behave like any card and, if held by other decks, need a source. Line beside the switch states which applies. |
+| 3 | "Importing as" bar | Ignore-basics control lives elsewhere | A switch in the bar, on by default. **On: basic lands are never taken from other decks. They need no source and raise no warning; the deck just gets ordinary basics.** Off: basics behave like any card and, if held by other decks, need a source. Beside the switch only the count shows (e.g. "12 basics") while it is on; no explanatory text. |
 | 4 | "Importing as" bar | Defaults apply to all copies not set by hand | Apply to **new copies only**; note under Change. Rows using an existing copy show no finish, condition or language. |
-| 5 | Row needing a source | Amber footer text blocks Import for copies in other decks ("coming soon") | Only the "needs a source" behaviour. A row with a copy that has no source shows the existing small pill in the existing amber, and its copy line shows "Choose source". In the expanded row, a **Source** select on each From-collection copy: "Choose source" (first, to clear it), "Spare copy (not in a deck)", "Take from {deck}". A spare copy is preselected where one exists. Import stays disabled until every copy has a source; the existing amber footer text says how many cards need one. |
+| 5 | Row needing a source | Amber footer text blocks Import for copies in other decks ("coming soon") | Only the "needs a source" behaviour. A row with a copy that has no source shows the existing small pill in the existing amber, and its copy line shows "Choose source". In the expanded row, a **Source** select on each From-collection copy: "Choose source" (first, to clear it), "Spare copy (not in a deck)", "Take from {deck}". A spare copy is preselected where one exists. Import stays disabled until every copy has a source; the existing amber footer text says only "N card(s) need a source." |
 | 9 | Modal size | `min(46rem, 100dvh − 4rem)` | 90% of screen height on tall screens; `100% − 4rem` on laptops (margin kept). Width stays 768px. |
 | 10 | Every pop-up overlay | black 50% + light blur | Black 72% + 8px blur, once in the shared dialog overlay. |
 | 11 | Name field | none | Amber one-line note under the field when a deck with this name exists. Warns only. |
@@ -33,7 +33,7 @@ Also answered: ignored basics still go into the deck as ordinary basics.
 Not changed: Back/Cancel behaviour, sort and search, bulk bar, "make all like copy 1", Original/Proxy for new copies, file errors, discard confirmation.
 
 ## 4. Behaviour
-- **Default source for a collection copy:** spare if any; else the only deck holding a copy; else none ("Choose source").
+- **Auto-select rule:** when a copy has exactly one possible source (a spare copy, or a single other deck) it is selected automatically. If a spare exists it wins over decks. The owner only picks when there are several candidate decks and no spare; until then the copy shows "Choose source".
 - **Un-set:** choosing "Choose source" in the dropdown clears the copy's source. The row is flagged again and Import is disabled.
 - **Blocking:** Import is disabled while any copy is From collection with no source. A duplicate name never blocks.
 - **Ignore basic lands on:** basics show as New copy (ordinary basics), need no source, never reduce another deck. **Off:** basics held by other decks need a source like any card.

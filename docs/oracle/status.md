@@ -9,6 +9,7 @@ Read `docs/oracle/roadmap.md` first. Only tasks in the **current milestone** may
 
 **Owner decision 2026-11-02:** new deck states (D-059): Unowned cards / Assembling / Playable, plus a global Use proxies toggle in the top toolbar. Not started; Phase 6 deck-states work to be re-briefed against D-059 after Use what I own.
 **Owner decision 2026-11-02:** the interim slice **Use what I own** (brief `docs/oracle/briefs/use-what-i-own.md`) is CURRENT; the rest of Phases 3 to 7 is PARKED until it works on three real decks. Gate 2 audit: Architect, report `reports/2026-11-02-architect-use-what-i-own-audit.md` (IN PROGRESS). Import finishing and merge approval still needed first.
+**Scan-wins deck import (owner-approved 2026-11-03):** Gate 2 data audit is DONE; no schema change is needed. Owner clarified that unticking a move leaves the incoming slot Unsleeved and the physical copy in its source deck, and approved ignoring Plains, Island, Swamp, Mountain, Forest and Wastes by default while still listing Snow-Covered lands. Gate 3 mockup is ready for owner approval; no production code started.
 
 ## Roadmap change 2026-10-11 — foundation-first phases
 

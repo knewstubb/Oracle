@@ -227,6 +227,10 @@ describe('Review list: Card origin and Type', () => {
     await waitFor(() => expect(shown(ORIGIN)).toBe('New copy'))
     await pick(user, TYPE, 'Proxy')
     await waitFor(() => expect(shown(TYPE)).toBe('Proxy'))
+    const proxyChip = screen.getByTestId('proxy-chip')
+    expect(proxyChip.textContent).toBe('')
+    expect(proxyChip).toHaveAttribute('aria-label', '1 proxy copy')
+    expect(proxyChip.previousElementSibling).toHaveTextContent('SOS 146')
   })
 
   it('the controls wait while the collection is being checked', async () => {
@@ -291,6 +295,7 @@ describe('Review list: Card origin and Type', () => {
     await pick(user, `Copy 2 card origin for ${EMIL}`, 'New copy')
     await pick(user, `Copy 2 type for ${EMIL}`, 'Proxy')
     await waitFor(() => expect(shown(`Copy 2 type for ${EMIL}`)).toBe('Proxy'))
+    expect(screen.getByTestId('proxy-chip').textContent).toBe('')
     expect(shown(`Copy 1 card origin for ${EMIL}`)).toBe('Owned, not in deck')
   })
 

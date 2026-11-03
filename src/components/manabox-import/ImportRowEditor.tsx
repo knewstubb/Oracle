@@ -489,6 +489,9 @@ export function ImportRowEditor({
     ...summary.tags.map(tagDisplayText),
     ...(summary.overflow > 0 ? [`${summary.overflow} more`] : []),
   ];
+  const proxyCount = intent
+    ? resolved.filter((copy) => copy.type === "proxy").length
+    : 0;
   const typeOptions: ImportCopyType[] =
     kind === "deck"
       ? ["original", "proxy", "unsleeved"]
@@ -615,6 +618,17 @@ export function ImportRowEditor({
           {!generic && (
             <span className="text-muted-foreground">
               {row.setCode?.toUpperCase()} {row.collectorNumber}
+            </span>
+          )}
+          {proxyCount > 0 && (
+            <span
+              data-testid="proxy-chip"
+              data-tag="proxy"
+              aria-label={`${proxyCount} proxy ${proxyCount === 1 ? "copy" : "copies"}`}
+              title={`${proxyCount} proxy ${proxyCount === 1 ? "copy" : "copies"}`}
+              className="inline-flex size-[18px] shrink-0 items-center justify-center rounded-full border border-[var(--status-proxy)] text-[var(--status-proxy)]"
+            >
+              <VenetianMask className="size-3" aria-hidden="true" />
             </span>
           )}
           {badges}

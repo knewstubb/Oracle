@@ -36,7 +36,7 @@ export const IMPORT_INTERACTIVE_CLASS =
 
 /** One fixed modal size for every import stage (no jump between stages). */
 export const IMPORT_MODAL_CLASS =
-  IMPORT_INTERACTIVE_CLASS + ' flex h-[min(46rem,calc(100dvh-4rem))] flex-col gap-3 overflow-hidden sm:max-w-3xl'
+  IMPORT_INTERACTIVE_CLASS + ' flex h-[calc(100dvh-4rem)] flex-col gap-3 overflow-hidden sm:max-w-3xl [@media(min-height:1000px)]:h-[min(90dvh,calc(100dvh-4rem))]'
 
 /** The body of a non-list stage: fills the modal and centres its content. */
 export const IMPORT_STAGE_CLASS = 'flex min-h-0 flex-1 flex-col items-center justify-center gap-3 text-center'

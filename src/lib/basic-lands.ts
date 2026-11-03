@@ -56,6 +56,17 @@ export function isBasicLand(cardName: string): boolean {
   return BASIC_LAND_NAMES.has(cardName)
 }
 
+/** The names "Ignore basic lands" covers on import: the five basics and Wastes. Snow-Covered lands are NOT included. */
+const IGNORABLE_BASIC_NAMES: ReadonlySet<string> = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes'])
+
+/**
+ * Is this a basic the import's "Ignore basic lands" switch covers (spec import-modal-redesign §3)?
+ * Deliberately narrower than isBasicLand (D-048's 11 names): Snow-Covered lands stay ordinary cards.
+ */
+export function isIgnorableBasic(cardName: string): boolean {
+  return IGNORABLE_BASIC_NAMES.has(cardName)
+}
+
 /**
  * Did an import line name a specific printing? True for a set code and/or collector number
  * (text) or a Scryfall id (CSV). A plain name ("11 Plains") names none.

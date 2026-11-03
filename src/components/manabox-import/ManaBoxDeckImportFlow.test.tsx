@@ -133,19 +133,16 @@ describe('ManaBoxDeckImportFlow', () => {
   it('sends per-copy file values, edits, defaults and the generic-basics flag', async () => {
     const user = userEvent.setup()
     const onComplete = vi.fn()
-    vi.spyOn(global, 'fetch')
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(PREVIEW_RESPONSE), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        })
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ deckId: 12345, allocationSummary: { assigned: 3, shortfall: 0, errors: [], unmatched: [] } }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        })
-      )
+    vi.spyOn(global, 'fetch').mockImplementation(async (input) => {
+      const url = String(input)
+      const json = (body: unknown) =>
+        new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      if (url === '/api/decks/import/preview') return json(PREVIEW_RESPONSE)
+      if (url === '/api/decks/import') {
+        return json({ deckId: 12345, allocationSummary: { assigned: 3, shortfall: 0, errors: [], unmatched: [] } })
+      }
+      return json({ decks: [] })
+    })
 
     render(<ManaBoxDeckImportFlow onComplete={onComplete} onCancel={() => {}} />, {
       wrapper: createWrapper(),

@@ -105,7 +105,7 @@
 
   /* Primary = accent-primary */
   --primary: var(--accent-primary);
-  --primary-foreground: #ffffff;
+  --primary-foreground: #08150F; /* dark text on the green primary: 5.5:1 (white is 3.4:1) */
 
   /* Semantic states */
   --success: var(--accent-primary);

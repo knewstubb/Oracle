@@ -154,3 +154,7 @@ export const SHARED_BLOCKS_IMPORT = (n: number) =>
 
 /** Under each choice while the deck is still loading. */
 export const INTENT_NUMBERS_PENDING = 'Numbers appear once the deck has loaded'
+
+/** Amber one-line note under the Name field when a deck with this name exists. Warns only; never blocks. */
+export const DUPLICATE_NAME_NOTE = (name: string) =>
+  `You already have a deck called "${name}". Importing will create a second one.`

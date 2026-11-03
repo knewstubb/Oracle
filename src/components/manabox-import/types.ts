@@ -58,6 +58,8 @@ export type ImportStep =
       companion?: { name: string; scryfallId: string | null } | null
       /** The "Importing as" bar. Held here only; never saved. */
       defaults: ImportDefaults
+      /** "Ignore basic lands" switch in the Importing as bar. On by default. */
+      ignoreBasics?: boolean
       /** Owner edits by row key then copy index. */
       copyEdits: ImportCopyEdits
       /** Rows currently expanded (row keys). */

@@ -8,8 +8,10 @@ export interface DeckImportOptionsProps {
   onNameChange: (name: string) => void
   format: string
   onFormatChange: (format: string) => void
-  /** The commander picker; sits next to the name and format. */
+  /** The commander row (commander, plus Partner / Background and Companion when they apply). Its own row below Name and Format. */
   commanderSlot?: React.ReactNode
+  /** One amber line under the Name field (a deck with this name exists). Warns only. */
+  nameNote?: string | null
   disabled?: boolean
 }
 
@@ -19,10 +21,12 @@ export function DeckImportOptions({
   format,
   onFormatChange,
   commanderSlot,
+  nameNote,
   disabled,
 }: DeckImportOptionsProps) {
   return (
-    <div className={`grid items-end gap-2.5 ${commanderSlot ? 'grid-cols-[1fr_150px_minmax(0,220px)]' : 'grid-cols-[1fr_150px]'}`}>
+    <div className="flex flex-col gap-2.5">
+    <div className="grid grid-cols-[1fr_150px] items-start gap-2.5">
       <div className="flex flex-col gap-1">
         <label htmlFor="import-deck-name" className="text-[length:var(--fs-xs)] text-muted-foreground">
           Name
@@ -34,7 +38,13 @@ export function DeckImportOptions({
           disabled={disabled}
           aria-invalid={!name.trim()}
           autoFocus
+          aria-describedby={nameNote ? 'import-deck-name-note' : undefined}
         />
+        {nameNote && (
+          <p id="import-deck-name-note" className="text-[length:var(--fs-xs)] text-[var(--signal-warning)]">
+            {nameNote}
+          </p>
+        )}
       </div>
 
       <div className="flex flex-col gap-1">
@@ -55,7 +65,7 @@ export function DeckImportOptions({
           ))}
         </select>
       </div>
-
+    </div>
       {commanderSlot}
     </div>
   )

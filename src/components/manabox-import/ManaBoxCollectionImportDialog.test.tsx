@@ -208,7 +208,7 @@ describe('ManaBoxCollectionImportDialog', () => {
     render(<ManaBoxCollectionImportDialog open onOpenChange={() => {}} />, { wrapper: createWrapper() })
     const size = () => document.querySelector('[data-slot="dialog-content"]')!.className
     const idle = size()
-    expect(idle).toContain('h-[min(46rem,calc(100dvh-4rem))]')
+    expect(idle).toContain('h-[calc(100dvh-4rem)]')
     await user.upload(screen.getByLabelText('Choose file'), new File(['name,header\nx'], 'scan.csv', { type: 'text/csv' }))
     await waitFor(() => expect(screen.getByText('Sol Ring')).toBeInTheDocument())
     expect(size()).toBe(idle)

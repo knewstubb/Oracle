@@ -118,17 +118,33 @@ describe('finish fallback marker (replaces the banner)', () => {
   })
 })
 
-describe('Generic basics toggle is gone from the Importing as bar', () => {
-  it('shows only the basics count, with no switch', () => {
+describe('Ignore basic lands switch in the Importing as bar', () => {
+  it('shows the switch (on) with only the basics count beside it', () => {
+    const onChange = vi.fn()
     render(
       <ImportDefaultsBar
         defaults={INITIAL_DEFAULTS}
         onChange={() => {}}
-        basics={{ generic: 36, specific: 4 }}
+        ignoreBasics={{ on: true, count: 12, onChange }}
       />
     )
-    expect(screen.queryByRole('switch')).toBeNull()
-    expect(screen.getByText('36 basics (generic) · 4 with a printing')).toBeInTheDocument()
+    const sw = screen.getByRole('switch', { name: 'Ignore basic lands' })
+    expect(sw).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByText('12 basics')).toBeInTheDocument()
+    fireEvent.click(sw)
+    expect(onChange).toHaveBeenCalledWith(false)
+  })
+
+  it('hides the count while off', () => {
+    render(
+      <ImportDefaultsBar
+        defaults={INITIAL_DEFAULTS}
+        onChange={() => {}}
+        ignoreBasics={{ on: false, count: 12, onChange: () => {} }}
+      />
+    )
+    expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'false')
+    expect(screen.queryByText('12 basics')).toBeNull()
   })
 
   it('the Name/Format row has no count line and no "commander picked next"', () => {

@@ -32,7 +32,6 @@ export function ImportDiscardDialog({ open, onKeepEditing, onDiscard }: ImportDi
         role="alertdialog"
         showCloseButton={false}
         forceOverlay
-        overlayClassName="bg-black/40 supports-backdrop-filter:backdrop-blur-md"
         className="sm:max-w-sm"
       >
         <DialogHeader>

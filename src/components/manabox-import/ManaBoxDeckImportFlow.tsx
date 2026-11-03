@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Info } from 'lucide-react'
@@ -11,6 +11,8 @@ import { DeckImportOptions } from './DeckImportOptions'
 import { ImportNotices, ImportValueNoticeLines, useHiddenNotes, countHiddenNotes } from './ImportNoticeLine'
 import { ImportDefaultsBar } from './ImportDefaultsBar'
 import { ReviewCommanderSelect } from './ReviewCommanderSelect'
+import { useSlotApplies } from './use-slot-applies'
+import { isIgnorableBasic } from '@/lib/basic-lands'
 import { getFormatConfig } from '@/lib/format-config'
 import { countFinishNotices } from '@/lib/import-copies'
 import { isManaBoxCsv } from '@/lib/manabox-import'
@@ -30,6 +32,7 @@ import {
   SHARED_BLOCKS_IMPORT,
   OWNERSHIP_FAILED,
   OWNERSHIP_LOADING,
+  DUPLICATE_NAME_NOTE,
 } from './import-copy'
 import type { DeckImportIntentSummary, ImportIntent, IntentCopyEdits, OwnershipResponse, OwnershipRowFacts } from '../../../docs/oracle/contracts/import-intent.types'
 import {
@@ -53,7 +56,7 @@ import { ImportDeckDetails } from './ImportDeckDetails'
 import { ImportIntentChoice } from './ImportIntentChoice'
 import { IMPORT_STAGE_CLASS } from './import-labels'
 import type { ImportStep, RowFilter, ImportSource } from './types'
-import { INITIAL_DEFAULTS, computeTotals, buildCommitDeck, isGenericRow } from './types'
+import { INITIAL_DEFAULTS, computeTotals, buildCommitDeck } from './types'
 import type { ManaBoxPreviewResponse } from '../../../docs/oracle/contracts/manabox-import.types'
 
 export interface ManaBoxDeckImportFlowProps {
@@ -236,6 +239,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
           return hit ? { name: hit.cardName, scryfallId: hit.scryfallId } : null
         })(),
         defaults: INITIAL_DEFAULTS,
+        ignoreBasics: true,
         copyEdits: {},
         openRowKeys: new Set(),
         filter: 'all',
@@ -257,18 +261,41 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
     void handleFile(initialFile)
   }, [initialFile, handleFile])
 
-  const basicsQty =
+  // "Ignore basic lands" covers the five basics and Wastes (not Snow-Covered). The count is copies, not rows.
+  const ignorableBasicsQty =
     step.status === 'review'
       ? step.preview.rows
-          .filter((r) => isGenericRow(r, 'deck'))
+          .filter((r) => r.board !== 'maybeboard' && isIgnorableBasic(r.cardName))
           .reduce((sum, r) => sum + r.qty, 0)
       : 0
-  const specificBasicsQty =
-    step.status === 'review'
-      ? step.preview.rows
-          .filter((r) => r.isBasicLand && !isGenericRow(r, 'deck'))
-          .reduce((sum, r) => sum + r.qty, 0)
-      : 0
+  const ignoreBasics = step.status === 'review' ? step.ignoreBasics !== false : true
+
+  // Existing decks, for the duplicate-name warning (the same read the deck list uses). Warns only.
+  const decksQuery = useQuery<{ decks?: { name: string }[] }>({
+    queryKey: ['decks'],
+    queryFn: () =>
+      fetch('/api/decks')
+        .then((r) => (r.ok ? r.json() : { decks: [] }))
+        .catch(() => ({ decks: [] })),
+    enabled: step.status === 'review',
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  })
+
+  const commanderCards = useMemo(
+    () =>
+      step.status === 'review'
+        ? step.preview.rows.filter((r) => !r.isBasicLand).map((r) => ({ name: r.cardName, scryfallId: r.scryfallId }))
+        : [],
+    [step]
+  )
+  const showSecond = useSlotApplies('second', commanderCards, step.status === 'review' ? step.commander?.name : undefined, step.status === 'review' && !choosing)
+  const showCompanion = useSlotApplies('companion', commanderCards, undefined, step.status === 'review' && !choosing)
+  const duplicateName = useMemo(() => {
+    if (step.status !== 'review') return false
+    const wanted = step.deckName.trim().toLowerCase()
+    return !!wanted && (decksQuery.data?.decks ?? []).some((d) => d.name?.trim().toLowerCase() === wanted)
+  }, [step, decksQuery.data])
 
   // Built and planned decks can't be saved yet (S4). Every deck with an intent checks ownership
   // (read-only) so the Add tick and the choices know what the owner has.
@@ -530,6 +557,10 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
     setStep((prev) => (prev.status === 'review' ? { ...prev, copyEdits } : prev))
   }, [])
 
+  const setIgnoreBasics = useCallback((ignoreBasics: boolean) => {
+    setStep((prev) => (prev.status === 'review' ? { ...prev, ignoreBasics } : prev))
+  }, [])
+
   const setOpenRowKeys = useCallback((openRowKeys: Set<string>) => {
     setStep((prev) => (prev.status === 'review' ? { ...prev, openRowKeys } : prev))
   }, [])
@@ -664,43 +695,29 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
           <DeckImportOptions
             name={step.deckName}
             onNameChange={setDeckName}
+            nameNote={duplicateName ? DUPLICATE_NAME_NOTE(step.deckName.trim()) : null}
             format={step.format}
             onFormatChange={setFormat}
             commanderSlot={
               getFormatConfig(step.format).hasCommander ? (
-                <ReviewCommanderSelect
-                  cards={step.preview.rows
-                    .filter((r) => !r.isBasicLand)
-                    .map((r) => ({ name: r.cardName, scryfallId: r.scryfallId }))}
-                  value={step.commander}
-                  onChange={setCommander}
-                />
+                <div className="flex items-end gap-2.5 [&>*]:min-w-0 [&>*]:flex-1">
+                  <ReviewCommanderSelect cards={commanderCards} value={step.commander} onChange={setCommander} />
+                  {step.commander && showSecond && (
+                    <ReviewCommanderSelect
+                      slot="second"
+                      cards={commanderCards}
+                      withName={step.commander.name}
+                      value={step.second ?? null}
+                      onChange={setSecond}
+                    />
+                  )}
+                  {showCompanion && (
+                    <ReviewCommanderSelect slot="companion" cards={commanderCards} value={step.companion ?? null} onChange={setCompanion} />
+                  )}
+                </div>
               ) : undefined
             }
           />
-          {getFormatConfig(step.format).hasCommander && (
-            <div className="grid grid-cols-2 items-end gap-2.5">
-              {step.commander && (
-                <ReviewCommanderSelect
-                  slot="second"
-                  cards={step.preview.rows
-                    .filter((r) => !r.isBasicLand)
-                    .map((r) => ({ name: r.cardName, scryfallId: r.scryfallId }))}
-                  withName={step.commander.name}
-                  value={step.second ?? null}
-                  onChange={setSecond}
-                />
-              )}
-              <ReviewCommanderSelect
-                slot="companion"
-                cards={step.preview.rows
-                  .filter((r) => !r.isBasicLand)
-                  .map((r) => ({ name: r.cardName, scryfallId: r.scryfallId }))}
-                value={step.companion ?? null}
-                onChange={setCompanion}
-              />
-            </div>
-          )}
           <ImportNotices
             unmatched={step.preview.unmatched}
             tokens={step.preview.skippedTokens}
@@ -724,11 +741,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
           <ImportDefaultsBar
             defaults={step.defaults}
             onChange={setDefaults}
-            basics={
-              basicsQty + specificBasicsQty > 0
-                ? { generic: basicsQty, specific: specificBasicsQty }
-                : undefined
-            }
+            ignoreBasics={{ on: ignoreBasics, count: ignorableBasicsQty, onChange: setIgnoreBasics }}
           />
           <ImportValueNoticeLines
             unrecognised={

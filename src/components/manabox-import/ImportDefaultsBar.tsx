@@ -18,14 +18,14 @@ export interface ImportDefaultsBarProps {
   defaults: ImportDefaults
   onChange: (defaults: ImportDefaults) => void
   /**
-   * Deck import only. A read-only count: `generic` = basics with no printing named (become
-   * generic basics, no collection copy); `specific` = basics naming a printing (real copies).
+   * Deck import only: the "Ignore basic lands" switch. On: the five basics and Wastes are never taken from
+   * other decks (they need no source). `count` = how many such basics the file lists (shown while on).
    */
-  basics?: { generic: number; specific: number }
+  ignoreBasics?: { on: boolean; count: number; onChange: (on: boolean) => void }
 }
 
 /** "Importing as: Non-foil · Near Mint · English  Change". Values never carry the file dot. */
-export function ImportDefaultsBar({ defaults, onChange, basics }: ImportDefaultsBarProps) {
+export function ImportDefaultsBar({ defaults, onChange, ignoreBasics }: ImportDefaultsBarProps) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -50,19 +50,35 @@ export function ImportDefaultsBar({ defaults, onChange, basics }: ImportDefaults
         >
           {open ? 'Done' : 'Change'}
         </button>
-        <span className="ml-auto flex items-center gap-2">
-          {basics && basics.generic + basics.specific > 0 ? (
-            <span className="text-[length:var(--fs-xs)] text-muted-foreground">
-              {basics.generic > 0 && `${basics.generic} ${basics.generic === 1 ? 'basic' : 'basics'} (generic)`}
-              {basics.generic > 0 && basics.specific > 0 && ' · '}
-              {basics.specific > 0 && `${basics.specific} with a printing`}
-            </span>
-          ) : (
-            <span className="text-[length:var(--fs-xs)] text-muted-foreground">
-              Values in your file are used automatically where present.
-            </span>
-          )}
-        </span>
+        {ignoreBasics ? (
+          <span className="ml-auto flex items-center gap-2">
+            {ignoreBasics.on && ignoreBasics.count > 0 && (
+              <span className="text-[length:var(--fs-xs)] text-muted-foreground">
+                {ignoreBasics.count} {ignoreBasics.count === 1 ? 'basic' : 'basics'}
+              </span>
+            )}
+            <label className="inline-flex min-h-6 cursor-pointer items-center gap-1.5 text-[length:var(--fs-xs)]">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={ignoreBasics.on}
+                aria-label="Ignore basic lands"
+                onClick={() => ignoreBasics.onChange(!ignoreBasics.on)}
+                className={`relative inline-block h-4 w-7 shrink-0 cursor-pointer rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)] ${ignoreBasics.on ? 'bg-[var(--accent-primary)]' : 'bg-[var(--border-default)]'}`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`absolute top-0.5 size-3 rounded-full bg-white transition-all ${ignoreBasics.on ? 'left-[14px]' : 'left-0.5'}`}
+                />
+              </button>
+              Ignore basic lands
+            </label>
+          </span>
+        ) : (
+          <span className="ml-auto text-[length:var(--fs-xs)] text-muted-foreground">
+            Values in your file are used automatically where present.
+          </span>
+        )}
       </div>
       {open && (
         <div
@@ -118,7 +134,7 @@ export function ImportDefaultsBar({ defaults, onChange, basics }: ImportDefaults
             </select>
           </label>
           <span className="pb-1 text-[length:var(--fs-xs)] text-muted-foreground">
-            Applies to copies you haven&apos;t set yourself. Proxies keep only language. Values in your file are used automatically where present.
+            Applies to new copies only. Copies from your collection keep their own. Proxies keep only language. Values in your file are used automatically where present.
           </span>
         </div>
       )}

@@ -792,9 +792,14 @@ function CopyLine({
 }) {
   const n = position + 1;
   const [artOpen, setArtOpen] = useState(false);
+  // A copy taken from the collection keeps the finish, condition and language it already has (spec §3 #4/#12).
+  const usesExistingCopy =
+    !generic && !!intentView && !intentQuiet && (intentView.source === "collection" || intentView.source === null);
   const visible = generic
     ? { language: true, finish: true, condition: false }
-    : visibleFields(copy.type);
+    : usesExistingCopy
+      ? { language: false, finish: false, condition: false }
+      : visibleFields(copy.type);
   const finishState = finishControlState(
     row.availableFinishes,
     copy.finish,

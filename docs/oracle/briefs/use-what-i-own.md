@@ -56,3 +56,19 @@ This moves a slice of Phase 8 ahead of Phases 3 to 7. Recommendation: finish onl
 **Audit (Gate 2):** report `docs/oracle/reports/2026-11-03-architect-scan-wins-audit.md` found the existing data model can represent the move and source-deck shortage without a schema change.
 **Status:** behavior is approved; the screen design is pending owner approval. No locked decision is changed by this addendum.
 - **Ignore basic lands (owner-approved 2026-11-03):** the check screen has an "Ignore basic lands" toggle, **on by default**. While on, the five regular basic lands and Wastes are never listed as moved or pulled from another deck; show how many are being ignored. Snow-Covered lands and other nonbasic lands remain listed. Turn the toggle off to include regular basics and Wastes.
+
+## 10. Addendum 2026-11-04: import modal redesign (owner approved)
+Supersedes the separate "cards already in other decks" section in the §9 mockup. Owner approved moving cards between decks on import (narrow exception to D-020/D-047; Gene reconciles at close-out). Needs a Designer revision and owner approval (Gate 3) before build.
+1. Commander selection on the second row of the header.
+2. Partner / Background options appear next to the commander only when the chosen commander allows them. Companion slot appears only when the deck contains a card with Companion.
+3. "Ignore basic lands" moves into the "Importing as" line.
+4. "Importing as" defaults apply to NEW copies only. Rows using an existing collection copy do not offer finish/condition/language.
+5. Unowned rows still choose language and finish (language storage to be checked by Architect; no promise until confirmed).
+6. Source deck choice lives inside the expanded row, per copy when several decks hold copies. No separate section.
+7. Collapsed row shows a "pulled from deck" icon plus a number when a row mixes sources; deck names on hover. Icon must differ in shape and colour from the proxy icon. No text.
+8. Warnings move to a top bar. NOT dismissable; each warning disappears when resolved. A small "N need attention" chip stays by the Import button and filters the list on click.
+9. Bigger modal: height as a % of screen height above a minimum breakpoint; margin kept on laptops.
+10. Darker blur behind the modal, applied to every pop-up.
+11. Warn when a deck with the same name already exists. Result screen lists what moved. No undo for now.
+12. Edit rules on expanded row: New copy = everything; From collection = source deck only; Unowned = finish and language; a pulled copy keeps its Original/Proxy status.
+13. Before build: test on a separate test account; hosted migration status must be verified and owner approves applying it.

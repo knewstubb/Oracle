@@ -12,33 +12,32 @@ Mockup: `docs/oracle/mockups/import-modal-redesign.html` · Requirements: `docs/
 4. The Import button's dark text (`#08150F` on `#1D9E75`, 5.5:1; white is 3.4:1 and fails AA) applies to the **global primary button component**, not only this modal.
 5. Language on Unowned rows is **held back**: not built until the Architect confirms where it is stored. Everything else is built.
 
-Pending owner, assumed here: Q4 no "1" on single-copy rows; Q5 ignored basics are still added to the deck.
+Also answered: ignored basics still go into the deck as ordinary basics.
 
-## 3. What changes (numbers match the mockup tags)
+## 3. What changes (numbers match the mockup tags; owner review 2026-11-04 applied)
 | # | Where | Today | Change |
 |---|---|---|---|
-| 1 | Header | Commander select in row 1; second-slot select appears when a commander is chosen | Second slot (Partner or Background) appears only when the chosen commander allows one. Uses existing `ReviewCommanderSelect` slot types (`commander`, `second`). |
-| 2 | Header row 2 | Companion select always shown | Shown only when the file contains a Companion card (`companion` slot). |
-| 3 | "Importing as" bar | "Ignore basic lands" lives elsewhere | A switch inside the bar, on by default, plus "N ignored, still added to the deck". |
-| 4 | "Importing as" bar | Defaults apply to all copies not set by hand | Apply to **new copies only**. Note under the Change editor: "Applies to new copies only. Copies you already own keep their own finish, condition and language." Rows using an existing copy show no finish, condition or language. |
-| 5 | Expanded row | Origin/type per copy; copies held in another deck are flagged "shared" and never moved | When a copy is From collection, a **Source** select sits on the copy line: "Spare copy (not in a deck)" first (preselected), then "Take from {deck}" per deck holding a copy. Per copy, so two copies can come from two decks. No separate section. If no spare and 2+ decks: placeholder "Choose a source…" (amber); the copy needs attention. |
-| 6 | Collapsed row, after the name | Only the teal proxy mark | Pulled-from-deck mark, 18px round, same style as the proxy mark but a **violet outlined card with an arrow leaving it** (new token `--status-pulled #A78BFA`, outside WUBRG, D-013). A number inside shows how many copies are pulled, only when the row has 2+ copies (Q4). No text; deck names on hover/focus (tabindex 0). |
-| 7 | Top of modal | Amber text in the footer ("Saving that is coming soon…") | A **warnings bar** under the title: no close button; each line clears when resolved. Shows 2 lines plus "Show N more". Lines: needs-source (blocks), pulled-copy notices (info), duplicate name (warn only). |
-| 8 | Footer, beside the buttons | none | **"N need attention" chip** (amber, same chip metrics as "All"), only when N > 0. Counts rows, not warnings. Click filters the list to those rows; click again clears. Replaces the amber footer text. |
-| 9 | Modal size | `min(46rem, 100dvh − 4rem)` | Height 90% of the screen on tall screens; on laptops (≤ 800px tall) `100% − 4rem`, so a margin stays. Width stays 768px. The list is what scrolls. |
-| 10 | Every pop-up overlay | black 50% + light blur | Darker: black 72% + 8px blur, set once in the shared dialog overlay. |
-| 11 | Name field | none | A line in the warnings bar when a deck with this name exists. Warns only. Clears on rename. |
-| 12 | Expanded copy line / result | Result screen exists | Edit rules per copy: **New copy** = origin, type, language, finish, condition (as today). **From collection** = source only; a pulled copy keeps its Original/Proxy status. **Unowned** = finish (language held back). **Result screen** lists spare copies used, cards moved out of each deck ("that deck is now short N") and new copies added. No undo. |
-| 13 | Import button | white text | Dark text `#08150F`, applied to the global primary button. |
+| 1 | Header | Commander select shares row 1 with Name and Format | Row 1 is Name + Format. **Commander gets its own row below it.** |
+| 2 | Commander row | Second-slot select appears once a commander is chosen; Companion always shown | Partner / Background and Companion sit **next to the commander field**, only when they apply (Companion only when the file has one). The commander takes the full width when none applies. |
+| 3 | "Importing as" bar | Ignore-basics control lives elsewhere | A switch in the bar, on by default. **On: basic lands are never taken from other decks. They need no source and raise no warning; the deck just gets ordinary basics.** Off: basics behave like any card and, if held by other decks, need a source. Line beside the switch states which applies. |
+| 4 | "Importing as" bar | Defaults apply to all copies not set by hand | Apply to **new copies only**; note under Change. Rows using an existing copy show no finish, condition or language. |
+| 5 | Row needing a source | Amber footer text blocks Import for copies in other decks ("coming soon") | Only the "needs a source" behaviour. A row with a copy that has no source shows the existing small pill in the existing amber, and its copy line shows "Choose source". In the expanded row, a **Source** select on each From-collection copy: "Choose source" (first, to clear it), "Spare copy (not in a deck)", "Take from {deck}". A spare copy is preselected where one exists. Import stays disabled until every copy has a source; the existing amber footer text says how many cards need one. |
+| 9 | Modal size | `min(46rem, 100dvh − 4rem)` | 90% of screen height on tall screens; `100% − 4rem` on laptops (margin kept). Width stays 768px. |
+| 10 | Every pop-up overlay | black 50% + light blur | Black 72% + 8px blur, once in the shared dialog overlay. |
+| 11 | Name field | none | Amber one-line note under the field when a deck with this name exists. Warns only. |
+| 12 | Expanded copy line / result | Result screen exists | Per-copy edit rules: **New copy** = everything (as today); **From collection** = source (and Original/Proxy of the pulled copy is kept); **Unowned** = finish (language held back). **Result screen** uses the existing list-box look: "Used spare copies", "Taken from other decks" (with "now short N"), "New copies added". No undo. |
+| 13 | Import button | white text | Dark text `#08150F`, in the global primary button component. |
 
-Not changed and not highlighted: Back/Cancel behaviour, sort and search, bulk bar, "make all like copy 1", per-row Original/Proxy for new copies, file errors, discard confirmation.
+**Removed after owner review (do not build):** the violet pulled-from-deck icon and its number, the top warnings bar, the "N need attention" chip, the new `--status-pulled` colour, and any extra banners. No new colours or patterns are introduced. (Numbers 6, 7 and 8 are intentionally unused so the owner's numbering stays stable.)
+
+Not changed: Back/Cancel behaviour, sort and search, bulk bar, "make all like copy 1", Original/Proxy for new copies, file errors, discard confirmation.
 
 ## 4. Behaviour
-- **Default source for a collection copy:** spare if any; else the only deck holding a copy; else none (needs attention).
-- **Blocking:** Import is disabled while any copy is From collection with no source. Chip and top bar say why.
-- **Warnings bar:** non-dismissable, `role="status"` (not an alert, so it doesn't interrupt on every change).
-- **Ignore basic lands:** basics show "Ignored basic" in Card origin and are never matched to collection copies; they are still added to the deck (Q5).
-- A pulled copy keeps its Original/Proxy status. Choosing a deck as the source means that deck loses the card ("leaves {deck}" note beside it).
+- **Default source for a collection copy:** spare if any; else the only deck holding a copy; else none ("Choose source").
+- **Un-set:** choosing "Choose source" in the dropdown clears the copy's source. The row is flagged again and Import is disabled.
+- **Blocking:** Import is disabled while any copy is From collection with no source. A duplicate name never blocks.
+- **Ignore basic lands on:** basics show as New copy (ordinary basics), need no source, never reduce another deck. **Off:** basics held by other decks need a source like any card.
+- A pulled copy keeps its Original/Proxy status.
 - Escape keeps the existing "Discard this import?" confirmation.
 
 ## 5. Data binding
@@ -54,10 +53,10 @@ Not changed and not highlighted: Back/Cancel behaviour, sort and search, bulk ba
 No field is invented. Card and deck names in the mockup are illustrative.
 
 ## 6. Accessibility
-Contrast on `#1A1A1E` (computed): violet pulled mark 6.4:1; teal proxy 4.9:1; amber 8.0:1; secondary text 6.4:1; dark text on the green button 5.5:1 (white: 3.4:1, fails). D-012: every state is colour plus text or icon; the pulled mark differs from the proxy mark in shape and colour and has a screen-reader label. Chip, switch and selects are ≥ 24px tall. The switch uses `role="switch"`. Changes to the attention count are announced in a polite live region.
+Contrast on `#1A1A1E` (computed): teal proxy 4.9:1; amber 8.0:1; secondary text 6.4:1; dark text on the green button 5.5:1 (white: 3.4:1, fails). D-012: the needs-source flag is amber plus the words "Needs a source". Chip, switch and selects are ≥ 24px tall. The switch uses `role="switch"`. The footer message is in a polite live region.
 
 ## 7. Before build (brief §10.13)
 Test on a separate test account; verify hosted migration status and get the owner's approval before applying it. Not a design matter and not done here.
 
 ## 8. Open questions
-Q4 and Q5 above, pending owner. See the report.
+None. Q4 is moot (icon removed); Q5 answered (ignored basics go into the deck as ordinary basics).

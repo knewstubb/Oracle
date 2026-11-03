@@ -11,7 +11,7 @@
   --border-default:#35353A; --border-subtle:#2A2A2F;
   --text-primary:#E8E8EA; --text-secondary:#9C9CA3; --text-tertiary:#76767E;
   --accent-primary:#1D9E75; --status-proxy:#4A93A0; --signal-warning:#EF9F27;
-  --status-pulled:#A78BFA; /* NEW token proposed for the pulled-from-deck icon */
+  --review-hl:#A78BFA; /* review-only highlight colour, not part of the design */
   --input-bg:rgba(53,53,58,.3);
 }
 *{box-sizing:border-box}
@@ -80,7 +80,6 @@ body.dark .ov{background:rgba(0,0,0,.72);backdrop-filter:blur(8px)}
 .pill{height:18px;border-radius:999px;border:1px solid var(--border-default);font-size:11px;padding:0 6px;display:inline-flex;align-items:center;color:var(--text-secondary)}
 .ic{width:18px;height:18px;border-radius:50%;border:1px solid;display:inline-flex;align-items:center;justify-content:center;flex:none;font-size:10px;gap:0}
 .ic.px{color:var(--status-proxy)}
-.ic.pu{color:var(--status-pulled);width:auto;min-width:18px;padding:0 3px;border-radius:9px}
 .ic svg{width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .cps{padding:0 10px 8px 62px}
 .cl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border-top:1px solid var(--border-subtle);padding:4px 0;position:relative}
@@ -95,9 +94,6 @@ body.dark .ov{background:rgba(0,0,0,.72);backdrop-filter:blur(8px)}
 .btn{height:32px;border-radius:12px;padding:0 10px;font-weight:500;border:1px solid var(--border-default);background:var(--input-bg);cursor:pointer}
 .btn.p{background:var(--accent-primary);border-color:transparent;color:#08150F}
 .btn.p[disabled]{opacity:.5;cursor:not-allowed}
-.wbar{border:1px solid var(--signal-warning);border-radius:12px;padding:8px 12px;font-size:12px;display:flex;flex-direction:column;gap:4px;background:rgba(239,159,39,.07)}
-.wbar div{display:flex;gap:8px;align-items:flex-start;color:var(--signal-warning)}
-.wbar .more{background:none;border:0;color:var(--text-secondary);text-decoration:underline;cursor:pointer;font-size:12px;padding:0;text-align:left}
 .res{padding:6px 2px;overflow:auto;flex:1;font-size:13px;display:flex;flex-direction:column;gap:10px}
 .res h3{margin:0;font-size:14px}.res ul{margin:4px 0 0;padding-left:18px;color:var(--text-secondary)}
 .pop{position:absolute;z-index:5;background:var(--bg-surface);border:1px solid var(--border-default);border-radius:12px;padding:4px;width:256px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
@@ -108,8 +104,8 @@ body.dark .ov{background:rgba(0,0,0,.72);backdrop-filter:blur(8px)}
 /* ---------- review-only: highlight changes ---------- */
 [data-chg]{position:relative}
 .ov[data-chg]{position:absolute}
-body.hl [data-chg]{outline:1.5px dashed var(--status-pulled);outline-offset:2px}
-body.hl [data-chg]::after{content:attr(data-chg);position:absolute;top:-8px;right:-6px;background:var(--status-pulled);color:#14101f;font:700 10px/14px sans-serif;min-width:14px;height:14px;text-align:center;border-radius:7px;padding:0 3px;z-index:9;pointer-events:none}
+body.hl [data-chg]{outline:1.5px dashed var(--review-hl);outline-offset:2px}
+body.hl [data-chg]::after{content:attr(data-chg);position:absolute;top:-8px;right:-6px;background:var(--review-hl);color:#14101f;font:700 10px/14px sans-serif;min-width:14px;height:14px;text-align:center;border-radius:7px;padding:0 3px;z-index:9;pointer-events:none}
 body.hl .modal[data-chg]{outline-offset:-3px}
 body.hl .ov[data-chg]{outline-offset:-4px}
 body.hl .ov[data-chg]::after{top:6px;right:6px}
@@ -129,19 +125,19 @@ body.hl .ov[data-chg]::after{top:6px;right:6px}
 <div class="keywrap" id="key">
   <b>What the highlights mean</b> (everything not outlined is exactly as it is in the app today)
   <ol>
-    <li>Commander picker now sits in the header with the deck details; Partner / Background appears beside it only when the chosen commander allows it.</li>
-    <li>Companion picker only appears when the file contains a Companion (today it is always shown).</li>
-    <li>"Ignore basic lands" moved into the Importing-as line.</li>
-    <li>Importing-as defaults apply to new copies only (rows using an existing copy don't show finish, condition or language).</li>
-    <li>Source deck is chosen inside the expanded row, per copy.</li>
-    <li>Pulled-from-deck icon (with a number when a row has several copies from different places).</li>
-    <li>Top warnings bar (cannot be dismissed; each line clears itself when fixed).</li>
-    <li>"N need attention" chip next to Import. Click it to filter the list. Replaces today's amber footer text.</li>
+    <li>Commander picker now sits on its own row below Name / Format.</li>
+    <li>Partner / Background / Companion sit next to the commander, only when they apply. The commander takes the full width when none does.</li>
+    <li>"Ignore basic lands" moved into the Importing-as line. On = basics are never taken from other decks; the deck gets ordinary basics.</li>
+    <li>Importing-as defaults apply to new copies only.</li>
+    <li>A row with a copy that has no source is flagged; the source is chosen (or cleared back to "Choose source") inside the expanded row. Import stays off until none are left.</li>
+    <li>(not used: icon, warnings bar and chip were removed)</li>
+    <li>(not used)</li>
+    <li>(not used)</li>
     <li>Bigger modal on tall screens, with a margin kept on laptops.</li>
     <li>Darker background behind this and every pop-up.</li>
-    <li>Warning that a deck with this name already exists (warns only).</li>
-    <li>Result screen listing what moved. Which fields can be edited depends on the copy's source. Unowned copies: finish only for now (language is held back, see report).</li>
-    <li>Import button text is dark (white on this green fails the contrast guideline). Applies to all primary buttons in the app.</li>
+    <li>Warning under the name when a deck with this name already exists (warns only).</li>
+    <li>Edit rules per copy source, and the result screen listing what moved. Unowned copies: finish only for now (language held back).</li>
+    <li>Import button text is dark. Applies to all primary buttons in the app.</li>
   </ol>
 </div>
 <div id="wrap"><div class="viewport" id="vp"></div></div>
@@ -161,28 +157,19 @@ const BASE=()=>({
    {id:'cul',name:'Cultivate',set:'C21 160',type:'Sorcery',spare:0,decks:['Atraxa Counters','Tymna Blink'],c:[{o:'col',s:''}]},
    {id:'rhy',name:'Rhystic Study',set:'WAR 62',type:'Enchantment',spare:0,decks:[],c:[{o:'none',fin:'Non-foil'}]},
    {id:'cmd',name:'Command Tower',set:'C21 305',type:'Land',spare:0,decks:[],c:[{o:'new',fin:'Non-foil',cond:'Near Mint',lang:'English'}]},
-   {id:'for',name:'Forest',set:'LTR 276',type:'Basic Land',basic:true,spare:0,decks:[],c:Array.from({length:12},()=>({o:'new',fin:'Non-foil',cond:'Near Mint',lang:'English'}))}
+   {id:'for',name:'Forest',set:'LTR 276',type:'Basic Land',basic:true,spare:0,decks:['Atraxa Counters','Tymna Blink'],c:Array.from({length:12},()=>({o:'new',fin:'Non-foil',cond:'Near Mint',lang:'English'}))}
   ]});
 let S=BASE();
 const $=s=>document.querySelector(s);
 const total=()=>S.rows.reduce((a,r)=>a+r.c.length,0);
-const needs=r=>!(S.ignoreBasics&&r.basic)&&r.c.some(c=>c.o==='col'&&!c.s);
+const needs=r=>r.c.some(c=>c.o==='col'&&!c.s);
 const pulled=c=>c.o==='col'&&c.s&&c.s!=='spare';
 const attnRows=()=>S.rows.filter(needs);
-function warnings(){
-  const w=[];
-  attnRows().forEach(r=>w.push({k:'a',t:`${r.name}: ${r.decks.length} of your decks have a copy and no spare is free. Choose which one to use.`}));
-  S.rows.filter(r=>r.c.some(pulled)).forEach(r=>w.push({k:'p',t:`${r.name}: ${r.c.filter(pulled).length} copy will be taken out of ${[...new Set(r.c.filter(pulled).map(c=>c.s))].join(', ')}.`}));
-  if(S.dup)w.push({k:'d',t:`You already have a deck called "${S.name}". Importing creates a second deck with the same name.`});
-  return w;
-}
-const ICON_PULL='<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>';
-const ICON_PROXY='<svg viewBox="0 0 24 24"><path d="M18 11c-1.5 0-2.5.5-3 2-.5-1.5-1.5-2-3-2s-2.5.5-3 2c-.5-1.5-1.5-2-3-2"/><path d="M5 9c0-4 3-7 7-7s7 3 7 7v5c0 4-3 8-7 8s-7-4-7-8z"/></svg>';
+function setBasics(){S.rows.filter(r=>r.basic).forEach(r=>{r.c=r.c.map(()=>S.ignoreBasics?{o:'new',fin:'Non-foil',cond:'Near Mint',lang:'English'}:{o:'col',s:''})})}
 const sel=(id,opts,val,extra='')=>`<select class="s6 ${extra}" id="${id}">${opts.map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join('')}</select>`;
 const chg=n=>`data-chg="${n}"`;
 
 function originLabel(r){
-  if(S.ignoreBasics&&r.basic)return 'Ignored basic';
   const set=new Set(r.c.map(c=>c.o));
   if(set.size>1)return 'Mixed';
   const o=r.c[0].o;
@@ -190,16 +177,13 @@ function originLabel(r){
 }
 function rowHtml(r){
   const open=S.open[r.id]||S.expandAll;
-  const np=r.c.filter(pulled).length;
-  const mixed=new Set(r.c.map(c=>c.o==='col'?(c.s==='spare'?'spare':'deck:'+c.s):c.o)).size>1;
-  const num=r.c.length>1&&np?np:'';
-  const icon=np?`<span class="ic pu" ${chg(6)} title="Pulled from: ${[...new Set(r.c.filter(pulled).map(c=>c.s))].join(', ')}">${ICON_PULL}${num}</span>`:'';
+  const icon='';
   const nr=needs(r);
   return `<div class="row ${open?'open':''}" id="row-${r.id}">
    <div class="rw"><span class="cb"></span><span class="q">${r.c.length}</span>
-    <span class="nm"><span style="overflow:hidden;text-overflow:ellipsis">${r.name}</span><span class="s">${r.set}</span>${r.basic?'<span class="pill">Generic land</span>':''}${icon}${nr?'<span class="pill" style="color:var(--signal-warning);border-color:var(--signal-warning)">Needs a source</span>':''}</span>
+    <span class="nm"><span style="overflow:hidden;text-overflow:ellipsis">${r.name}</span><span class="s">${r.set}</span>${r.basic?'<span class="pill">Generic land</span>':''}${icon}${nr?`<span class="pill" ${chg(5)} style="color:var(--signal-warning);border-color:var(--signal-warning)">Needs a source</span>`:''}</span>
     <button class="qs" data-o="${r.id}">${originLabel(r)} <span class="a">▾</span></button>
-    <button class="qs" data-o="${r.id}">${S.ignoreBasics&&r.basic?'—':'Original'} <span class="a">▾</span></button>
+    <button class="qs" data-o="${r.id}">Original <span class="a">▾</span></button>
     <button class="chev" data-t="${r.id}" aria-label="Edit ${r.name}">⌄</button></div>
    ${open?`<div class="cps">${r.c.map((c,i)=>copy(r,c,i)).join('')}</div>`:''}</div>`;
 }
@@ -213,52 +197,48 @@ function copy(r,c,i){
   const chgn=12;
   if(c.o==='col'){
     const srcOpts=[...(r.spare>0?[['spare','Spare copy (not in a deck)']]:[]),...r.decks.map(d=>[d,'Take from '+d])];
-    more=`<select class="s6 src" data-id="${id}" data-f="s" ${chg(5)}>${c.s?'':'<option value="">Choose a source…</option>'}${srcOpts.map(o=>`<option value="${o[0]}" ${c.s===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select>
-      ${pulled(c)?`<span class="ic pu" title="Pulled from ${c.s}" ${chg(6)}>${ICON_PULL}</span><span class="note">leaves ${c.s}</span>`:''}`;
-    more+=`<select class="s6" data-id="${id}" data-f="t" ${chg(12)}><option>Original</option><option>Proxy</option></select>`;
+    more=`<select class="s6 src" data-id="${id}" data-f="s" ${chg(5)}><option value="" ${c.s?'':'selected'}>Choose source</option>${srcOpts.map(o=>`<option value="${o[0]}" ${c.s===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select>`;
+    more+=`<select class="s6" data-id="${id}" data-f="t"><option>Original</option><option>Proxy</option></select>`;
   } else if(c.o==='new'){
     more=`<select class="s6" data-id="${id}" data-f="t"><option>Original</option><option>Proxy</option></select>${sel('',['English','Japanese','German','French','Spanish'],c.lang)}${sel('',['Non-foil','Foil','Etched'],c.fin)}${sel('',['Near Mint','Lightly Played','Moderately Played'],c.cond)}`;
   } else {
-    more=`<span class="note">Just on the list, no copy.</span><span ${chg(12)}>${sel('',['Non-foil','Foil','Etched'],c.fin)}</span><span class="note" ${chg(12)}>Language: held back</span>`;
+    more=`<span class="note">Just on the list, no copy.</span><span ${chg(12)}>${sel('',['Non-foil','Foil','Etched'],c.fin)}</span>`;
   }
   const att=c.o==='col'&&!c.s;
   return `<div class="cl ${att?'attn':''}"><span class="n">${r.c.length>1?i+1:''}</span>${originSel}${more}${first&&r.c.length>1?'<span style="margin-left:auto" class="note">↓ make all like copy 1</span>':''}</div>`;
 }
 function modalInner(){
-  const w=warnings();
   const cmdr=COMMANDERS.find(c=>c.n===S.cmdr)||COMMANDERS[0];
   const needsSecond=cmdr.t==='partner'||cmdr.t==='bg';
   const ignored=S.rows.filter(r=>r.basic).reduce((a,r)=>a+r.c.length,0);
   const att=attnRows().length;
-  const rows=S.filter==='attn'?attnRows():S.rows;
+  const rows=S.rows;
   const blocked=att>0;
-  const shown=w.slice(0,S.warnAll?99:2);
-  const newOnly=S.rows.some(r=>r.c.some(c=>c.o==='new'));
+  const nslots=1+(needsSecond?1:0)+(S.cmp?1:0);
   return `
    <div class="t-row"><h2 class="title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1D9E75" stroke-width="2"><path d="m12 2 10 5-10 5L2 7z"/><path d="m2 12 10 5 10-5"/><path d="m2 17 10 5 10-5"/></svg>Import built deck</h2><button class="x">✕</button></div>
-   ${w.length?`<div class="wbar" ${chg(7)} role="status">${shown.map(x=>`<div><span>⚠</span><span>${x.t}</span></div>`).join('')}${w.length>2&&!S.warnAll?`<button class="more" id="more">Show ${w.length-2} more</button>`:''}</div>`:''}
-   <div class="g1">
-    <div><label class="lbl" ${S.dup?chg(11):''}>Name</label><input class="inp" id="name" value="${S.name}"></div>
+   <div class="g1" style="grid-template-columns:1fr 150px">
+    <div><label class="lbl">Name</label><input class="inp" id="name" value="${S.name}">${S.dup?`<div ${chg(11)} style="color:var(--signal-warning);font-size:11px;margin-top:4px">You already have a deck called “${S.name}”. Importing creates a second one.</div>`:''}</div>
     <div><label class="lbl">Format</label><select class="sel"><option>Commander</option><option>Standard</option></select></div>
-    <div ${chg(1)}><label class="lbl">Commander</label><select class="sel" id="cmdr">${COMMANDERS.map(c=>`<option ${c.n===S.cmdr?'selected':''}>${c.n}</option>`).join('')}</select></div>
    </div>
-   ${(needsSecond||S.cmp)?`<div class="g2">
-     ${needsSecond?`<div ${chg(1)}><label class="lbl">${cmdr.t==='bg'?'Background':'Partner'}</label><select class="sel" id="second"><option value="">${cmdr.t==='bg'?'No background':'No partner'}</option><option ${S.second==='x'?'selected':''} value="x">${cmdr.t==='bg'?'Raised by Giants':'Kraum, Ludevic’s Opus'}</option></select></div>`:'<div></div>'}
-     ${S.cmp?`<div ${chg(2)}><label class="lbl">Companion</label><select class="sel" id="comp"><option value="">No companion</option><option value="l" ${S.comp==='l'?'selected':''}>Lurrus of the Dream-Den</option></select></div>`:'<div></div>'}
-   </div>`:''}
+   <div class="g2" style="grid-template-columns:repeat(${nslots},1fr)" ${chg(1)}>
+     <div><label class="lbl">Commander</label><select class="sel" id="cmdr">${COMMANDERS.map(c=>`<option ${c.n===S.cmdr?'selected':''}>${c.n}</option>`).join('')}</select></div>
+     ${needsSecond?`<div ${chg(2)}><label class="lbl">${cmdr.t==='bg'?'Background':'Partner'}</label><select class="sel" id="second"><option value="">${cmdr.t==='bg'?'No background':'No partner'}</option><option ${S.second==='x'?'selected':''} value="x">${cmdr.t==='bg'?'Raised by Giants':'Kraum, Ludevic’s Opus'}</option></select></div>`:''}
+     ${S.cmp?`<div ${chg(2)}><label class="lbl">Companion</label><select class="sel" id="comp"><option value="">No companion</option><option value="l" ${S.comp==='l'?'selected':''}>Lurrus of the Dream-Den</option></select></div>`:''}
+   </div>
    <div class="imp"><span>Importing as: ${S.def.finish} · ${S.def.cond} · ${S.def.lang}</span><button class="lnk" id="chg">${S.changeOpen?'Done':'Change'}</button>
-     <label class="sw" ${chg(3)}><span class="w"><input type="checkbox" id="ib" ${S.ignoreBasics?'checked':''}><i></i></span>Ignore basic lands${S.ignoreBasics?` <span class="m">· ${ignored} ignored, still added to the deck</span>`:''}</label>
-     <span class="m" style="margin-left:auto" ${chg(4)}>20 new copies use these</span>
+     <label class="sw" ${chg(3)}><span class="w"><input type="checkbox" id="ib" ${S.ignoreBasics?'checked':''}><i></i></span>Ignore basic lands</label>
+     <span class="m" ${chg(3)}>${S.ignoreBasics?`${ignored} basics added as ordinary basics, never taken from other decks`:`Basics can be taken from other decks, like any card`}</span>
      ${S.changeOpen?`<div class="defs">${sel('d1',['Non-foil','Foil','Etched'],S.def.finish).replace('s6','sel')}${sel('d2',['Near Mint','Lightly Played'],S.def.cond).replace('s6','sel')}${sel('d3',['English','Japanese','German'],S.def.lang).replace('s6','sel')}
        <span class="note" ${chg(4)}>Applies to new copies only. Copies you already own keep their own finish, condition and language.</span></div>`:''}
    </div>
-   <div class="fr"><button class="chip ${S.filter==='all'?'s':''}" data-f="all">All ${total()}</button>
+   <div class="fr"><button class="chip s">All ${total()}</button>
      <div class="r"><span>Sort <span style="color:var(--text-primary)">Import order ▾</span></span><input placeholder="Find card"></div></div>
    <div class="list"><div class="lh"><span class="cb"></span><span>Qty</span><span>Card</span><span>Card origin</span><span>Type</span><span></span></div>
     <div class="body">${rows.map(rowHtml).join('')}</div></div>
-   <div class="below">${S.rows.filter(r=>r.c.some(c=>c.o==='col')).length} from collection · ${S.rows.filter(r=>r.c.some(pulled)).length} with copies pulled from other decks</div>
+   <div class="below">${S.rows.filter(r=>r.c.some(c=>c.o==='col')).length} from collection · ${S.rows.filter(r=>r.c.some(c=>c.o==='col'&&c.s&&c.s!=='spare')).length} taken from other decks</div>
    <div class="ft"><div class="sum"><b>${total()}</b> in deck</div>
-     ${att?`<button class="chip attn ${S.filter==='attn'?'s':''}" id="chip2" ${chg(8)} title="Show only these cards">${att} need attention</button>`:''}
+     ${att?`<span style="color:var(--signal-warning);font-size:12px;flex:2">${att} ${att>1?'cards need':'card needs'} a source before you can import. Choose one for each copy.</span>`:''}
      <button class="btn">Back</button><button class="btn">Cancel</button><button class="btn p" id="imp" ${chg(13)} ${blocked?'disabled':''}>Import deck</button></div>`;
 }
 function resultInner(){
@@ -266,12 +246,14 @@ function resultInner(){
   S.rows.forEach(r=>r.c.filter(pulled).forEach(c=>{(moves[c.s]=moves[c.s]||[]).push(r.name)}));
   const spare=S.rows.filter(r=>r.c.some(c=>c.o==='col'&&c.s==='spare')).map(r=>r.name);
   const nw=S.rows.reduce((a,r)=>a+r.c.filter(c=>c.o==='new').length,0);
+  const box=(h,body)=>`<div style="border:1px solid var(--border-default);border-radius:12px;overflow:hidden"><div class="lh" style="grid-template-columns:1fr">${h}</div>${body}</div>`;
+  const line=t=>`<div class="rw" style="grid-template-columns:1fr;border-bottom:1px solid var(--border-subtle)"><span>${t}</span></div>`;
   return `<div class="t-row"><h2 class="title">Import built deck</h2><button class="x">✕</button></div>
-  <div class="res" ${chg(12)}><h3>✓ "${S.name}" is ready — ${total()} cards</h3>
-   <div><h3>Spare copies used</h3><ul><li>${spare.join(', ')||'None'}</li></ul></div>
-   <div><h3>Moved out of other decks</h3>${Object.keys(moves).length?Object.entries(moves).map(([d,n])=>`<ul><li><b style="color:var(--text-primary)">${d}</b>: ${n.join(', ')} — that deck is now short ${n.length} card${n.length>1?'s':''}</li></ul>`).join(''):'<ul><li>Nothing moved</li></ul>'}</div>
-   <div><h3>New copies added to your collection</h3><ul><li>${nw} cards</li></ul></div>
-   <div class="note">Moves can't be undone from here. Put a card back by editing the other deck.</div></div>
+  <div class="res" ${chg(12)}><div style="font-size:14px">“${S.name}” imported · <b>${total()}</b> in deck</div>
+   ${box('Used spare copies',line(spare.join(', ')||'None'))}
+   ${box('Taken from other decks',Object.keys(moves).length?Object.entries(moves).map(([d,n])=>line(`${d}: ${n.join(', ')} <span style="color:var(--text-secondary)">· now short ${n.length}</span>`)).join(''):line('Nothing was taken from other decks'))}
+   ${box('New copies added to your collection',line(nw+' cards'))}
+   <div class="note">This can't be undone here. To put a card back, edit the other deck.</div></div>
   <div class="ft"><div class="sum"></div><button class="btn">View deck</button><button class="btn p">Done</button></div>`;
 }
 function importingInner(){return `<div class="t-row"><h2 class="title">Import built deck</h2></div><div class="res"><h3>Importing ${total()} cards…</h3><div class="bar"><i></i></div><div class="note">Moving copies out of other decks and creating the new deck. Please keep this window open.</div></div>`}
@@ -293,21 +275,17 @@ function bind(){
   const m=document.querySelector('.modal');
   m.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{S.open[b.dataset.t]=!S.open[b.dataset.t];S.expandAll=false;render()});
   m.querySelectorAll('.qs').forEach(b=>b.onclick=()=>{S.open[b.dataset.o]=true;render()});
-  m.querySelectorAll('[data-f].chip').forEach(b=>b.onclick=()=>{S.filter=b.dataset.f;render()});
-  const c2=$('#chip2');if(c2)c2.onclick=()=>{S.filter=S.filter==='attn'?'all':'attn';render()};
   m.querySelectorAll('select[data-id]').forEach(s=>s.onchange=()=>{
     const [rid,i]=s.dataset.id.split('-');const r=S.rows.find(x=>x.id===rid);const c=r.c[+i];
     if(s.dataset.f==='o'){c.o=s.value;if(c.o==='col')c.s=r.spare>0?'spare':(r.decks.length===1?r.decks[0]:'');if(c.o==='new'){c.fin='Non-foil';c.cond='Near Mint';c.lang='English'}if(c.o==='none')c.fin='Non-foil'}
     if(s.dataset.f==='s')c.s=s.value;
-    if(S.filter==='attn'&&!attnRows().length)S.filter='all';
     render();});
   const set=(id,fn)=>{const e=$(id);if(e)e.onchange=()=>{fn(e);render()}};
   set('#cmdr',e=>{S.cmdr=e.value;S.second=''});set('#second',e=>S.second=e.value);set('#comp',e=>S.comp=e.value);
-  set('#ib',e=>S.ignoreBasics=e.checked);
+  set('#ib',e=>{S.ignoreBasics=e.checked;setBasics()});
   set('#d1',e=>S.def.finish=e.value);set('#d2',e=>S.def.cond=e.value);set('#d3',e=>S.def.lang=e.value);
   const n=$('#name');if(n)n.oninput=()=>{S.name=n.value};
   const ch=$('#chg');if(ch)ch.onclick=()=>{S.changeOpen=!S.changeOpen;render()};
-  const mo=$('#more');if(mo)mo.onclick=()=>{S.warnAll=true;render()};
   const im=$('#imp');if(im)im.onclick=()=>{S.screen='importing';render();setTimeout(()=>{S.screen='result';sync();render()},1200)};
 }
 function sync(){document.querySelectorAll('[data-scr]').forEach(b=>b.classList.toggle('on',b.dataset.scr===S.screen))}

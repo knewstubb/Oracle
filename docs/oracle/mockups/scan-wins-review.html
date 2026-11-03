@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oracle — ManaBox scan-wins import review (mockup)</title>
+<style>
+  /* Existing Oracle tokens, copied from src/styles/tokens.css. */
+  :root{
+    --bg-canvas:#131316;--bg-surface:#1A1A1E;--bg-hover:#212126;--bg-open:#1F1F24;
+    --border:#35353A;--border-subtle:#262629;--text-primary:#E8E8EA;
+    --text-secondary:#9C9CA3;--text-tertiary:#6E6E76;--status-proxy:#4A93A0;
+    --signal-warning:#EF9F27;--signal-critical:#E24B4A;--accent-primary:#1D9E75;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg-canvas);color:var(--text-primary);font:13px/1.45 "Helvetica Neue",Helvetica,Arial,sans-serif}
+  button,select,input{font:inherit;color:inherit}
+  :focus-visible{outline:2px solid var(--accent-primary);outline-offset:2px}
+  .preview{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px max(16px,calc((100vw - 980px)/2));background:#0d0d10;border-bottom:1px dashed var(--text-tertiary);font-size:12px;color:var(--text-secondary)}
+  .preview strong{color:var(--text-primary);font-weight:500;margin-right:3px}
+  .preview .seg{display:inline-flex;border:1px solid var(--border);border-radius:7px;overflow:hidden}
+  .preview button{background:none;border:0;padding:4px 9px;cursor:pointer;color:var(--text-secondary)}
+  .preview button[aria-pressed=true]{background:var(--bg-hover);color:var(--text-primary)}
+  .page{max-width:980px;margin:0 auto;padding:18px 20px 52px}
+  h1{font-size:18px;margin:0 0 4px;font-weight:500}
+  .intro{color:var(--text-secondary);font-size:12px;margin:0 0 14px;max-width:780px}
+  .frame{width:820px;max-width:100%;height:min(720px,calc(100vh - 118px));min-height:570px;display:flex;flex-direction:column;background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.4);overflow:hidden}
+  .dh{min-height:49px;padding:10px 16px;border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;gap:10px}
+  .dh h2{margin:0;font-size:15px;font-weight:500;flex:1}
+  .x{width:28px;height:28px;border:0;border-radius:6px;background:none;color:var(--text-secondary);cursor:pointer}
+  .x:hover{background:var(--bg-hover);color:var(--text-primary)}
+  .db{flex:1;min-height:0;padding:16px;overflow:auto}
+  .df{min-height:54px;padding:10px 16px;border-top:1px solid var(--border-subtle);display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .btn{height:32px;padding:0 12px;border:1px solid var(--border);border-radius:7px;background:var(--bg-hover);cursor:pointer;white-space:nowrap}
+  .btn:hover:not(:disabled){background:#2a2a30}
+  .btn.primary{background:var(--accent-primary);border-color:var(--accent-primary);color:#fff;font-weight:500}
+  .btn:disabled{opacity:.48;cursor:not-allowed}
+  .btn.ghost{background:none;border-color:transparent;color:var(--text-secondary)}
+  .x:focus-visible,.btn:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent-primary);outline-offset:2px}
+  .fields{display:grid;grid-template-columns:1fr 132px 220px;gap:10px;margin-bottom:8px}
+  .field label{display:block;color:var(--text-secondary);font-size:11px;margin-bottom:3px}
+  .value{height:30px;padding:5px 9px;border:1px solid var(--border);border-radius:7px;background:var(--bg-canvas);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .defaults{display:flex;align-items:center;gap:6px;color:var(--text-secondary);font-size:11px;margin:0 0 14px}
+  .link{padding:0;border:0;background:none;color:var(--text-primary);font-size:11px;text-decoration:underline;cursor:pointer}
+  .section-head{display:flex;align-items:center;gap:8px;margin:0 0 5px}
+  .section-head h3{margin:0;font-size:13px;font-weight:500}
+  .count{display:inline-flex;align-items:center;min-height:20px;padding:1px 8px;border:1px solid var(--border);border-radius:999px;color:var(--text-secondary);font-size:11px;white-space:nowrap}
+  .help{margin:0 0 10px;color:var(--text-secondary);font-size:11px}
+  .moves{border:1px solid var(--border-subtle);border-radius:8px;overflow:hidden}
+  .move{display:grid;grid-template-columns:24px minmax(155px,1fr) minmax(225px,1.05fr);gap:10px;align-items:start;padding:9px 10px;border-bottom:1px solid var(--border-subtle)}
+  .move:last-child{border-bottom:0}
+  .move:hover{background:var(--bg-hover)}
+  .move.off{background:var(--bg-canvas)}
+  input[type=checkbox]{width:16px;height:16px;margin:2px 0 0;accent-color:var(--accent-primary);cursor:pointer}
+  .cardname{font-weight:500}
+  .detail{display:block;margin-top:2px;color:var(--text-secondary);font-size:11px}
+  .origin{display:flex;flex-direction:column;gap:4px;min-width:0}
+  .origin label{color:var(--text-secondary);font-size:10px}
+  select{width:100%;min-width:0;height:29px;padding:3px 25px 3px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-canvas);font-size:11px}
+  .auto-source{display:flex;align-items:center;min-height:29px;gap:5px;color:var(--text-primary);font-size:11px}
+  .auto-source .check{color:var(--accent-primary);font-weight:700}
+  .row-note{grid-column:2/4;color:var(--text-secondary);font-size:11px;margin-top:-3px}
+  .short{color:var(--signal-warning)}
+  .no-moves{padding:13px 12px;color:var(--text-secondary);font-size:12px}
+  .basic-control{display:flex;align-items:flex-start;gap:9px;margin:11px 0 0;padding:10px 11px;border:1px solid var(--border-subtle);border-radius:8px;background:var(--bg-canvas)}
+  .basic-control input{margin-top:2px}
+  .basic-copy{min-width:0;flex:1}
+  .basic-copy label{display:block;cursor:pointer;font-weight:500}
+  .basic-copy p{margin:2px 0 0;color:var(--text-secondary);font-size:11px}
+  .basic-count{align-self:center;color:var(--text-secondary);font-size:11px;white-space:nowrap}
+  .basics{display:block;margin-top:3px;color:var(--text-tertiary);font-size:10px}
+  .main-list{margin-top:16px}
+  .list{border:1px solid var(--border-subtle);border-radius:8px;overflow:hidden}
+  .list-head,.list-row{display:grid;grid-template-columns:minmax(0,1fr) 90px;gap:8px;align-items:center;padding:7px 10px}
+  .list-head{background:var(--bg-canvas);color:var(--text-secondary);font-size:10px;border-bottom:1px solid var(--border-subtle)}
+  .list-row{min-height:33px;border-bottom:1px solid var(--border-subtle);font-size:12px}
+  .list-row:last-child{border-bottom:0}
+  .list-row .qty{text-align:right;color:var(--text-secondary);font-size:11px}
+  .summary{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;padding:8px 10px;border:1px solid var(--border-subtle);border-radius:8px;background:var(--bg-canvas);font-size:11px}
+  .summary strong{font-weight:500}
+  .summary .muted{color:var(--text-secondary)}
+  .footnote{color:var(--text-secondary);font-size:11px}
+  .result,.saving{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px}
+  .result h3,.saving h3{font-size:19px;font-weight:500;margin:0 0 5px}
+  .result p,.saving p{margin:0;color:var(--text-secondary);font-size:12px}
+  .success{display:grid;place-items:center;width:42px;height:42px;border-radius:50%;margin-bottom:12px;background:rgba(29,158,117,.15);color:var(--accent-primary);font-size:22px}
+  .result-stats{width:min(440px,100%);margin:18px 0;border:1px solid var(--border-subtle);border-radius:8px;text-align:left}
+  .stat{display:flex;justify-content:space-between;gap:12px;padding:8px 10px;border-bottom:1px solid var(--border-subtle);font-size:12px}
+  .stat:last-child{border-bottom:0}
+  .stat span:last-child{color:var(--text-secondary);text-align:right}
+  .spinner{width:30px;height:30px;border:3px solid rgba(255,255,255,.1);border-top-color:var(--accent-primary);border-radius:50%;animation:spin 1s linear infinite;margin-bottom:12px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media(prefers-reduced-motion:reduce){.spinner{animation:none;border-right-color:var(--accent-primary)}}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  @media(max-width:680px){
+    .page{padding:12px}.frame{height:calc(100vh - 114px);min-height:540px}
+    .fields{grid-template-columns:1fr 1fr}.fields .field:first-child{grid-column:1/-1}
+    .move{grid-template-columns:22px minmax(0,1fr);gap:6px}.origin{grid-column:2}
+    .row-note{grid-column:2}.basic-count{white-space:normal;text-align:right}
+    .df{align-items:flex-start}.df .btn{flex:none}
+  }
+</style>
+</head>
+<body>
+<div class="preview" aria-label="Mockup sample controls">
+  <strong>Preview sample</strong>
+  <div class="seg" role="group" aria-label="Choose sample import">
+    <button type="button" data-scenario="none" aria-pressed="false">No conflicts</button>
+    <button type="button" data-scenario="one" aria-pressed="true">One move</button>
+    <button type="button" data-scenario="many" aria-pressed="false">Several copies</button>
+  </div>
+  <span>These sample controls are not part of the import screen.</span>
+</div>
+<main class="page">
+  <h1>ManaBox deck import · review</h1>
+  <p class="intro">One review screen: confirm the imported deck, check any cards that will move from other decks, then import. Use the sample controls above to preview each scenario.</p>
+  <section class="frame" aria-label="Review deck import">
+    <header class="dh">
+      <h2 id="screenTitle">Review deck import</h2>
+      <button class="x" type="button" aria-label="Close import review">✕</button>
+    </header>
+    <div class="db" id="body"></div>
+    <footer class="df" id="footer"></footer>
+  </section>
+</main>
+<div class="sr-only" id="live" aria-live="polite" aria-atomic="true"></div>
+
+<script>
+const sources = {
+  korvold: {name:"Korvold", detail:"Original · CMM #396 · Nonfoil"},
+  prosper: {name:"Prosper", detail:"Original · 2X2 #256 · Nonfoil"},
+  rocco: {name:"Rocco", detail:"Original · MOC #354 · Nonfoil"},
+  jund: {name:"Jund Core", detail:"Original · M21 #266 · Nonfoil"}
+};
+const scenarios = {
+  none: {moves:[], cards:[["Arcane Signet","1"],["Command Tower","1"],["Sol Ring","1"],["Snow-Covered Forest","1"]]},
+  one: {
+    moves:[{id:"sol",name:"Sol Ring",copy:"copy 1",checked:true,auto:true,candidates:["korvold"]}],
+    cards:[["Arcane Signet","1"],["Sol Ring","1"],["Command Tower","1"],["Snow-Covered Forest","1"]]
+  },
+  many: {
+    moves:[
+      {id:"sol1",name:"Sol Ring",copy:"copy 1",checked:true,candidates:["korvold","prosper"],group:"sol"},
+      {id:"sol2",name:"Sol Ring",copy:"copy 2",checked:true,candidates:["korvold","prosper"],group:"sol"},
+      {id:"snow",name:"Snow-Covered Forest",copy:"copy 1",checked:true,auto:true,candidates:["korvold"]},
+      {id:"tower",name:"Command Tower",copy:"copy 1",checked:true,auto:true,candidates:["rocco"]}
+    ],
+    cards:[["Sol Ring","2"],["Snow-Covered Forest","1"],["Command Tower","1"],["Arcane Signet","1"]]
+  }
+};
+const ignoredBasics = 3; // Sample file: Forest x2 and Wastes x1.
+let scenario = "one";
+let ignoreBasics = true;
+let view = "review";
+let chosen = {};
+let saveTimer;
+
+function resetScenario(next) {
+  scenario = next;
+  chosen = {};
+  view = "review";
+  render();
+}
+function allMoves() {
+  const rows = (scenarios[scenario].moves || []).map(x => ({...x,candidates:[...x.candidates]}));
+  if (!ignoreBasics && scenario === "many") {
+    rows.push(
+      {id:"forest1",name:"Forest",copy:"copy 1",checked:true,auto:true,candidates:["jund"],basic:true},
+      {id:"forest2",name:"Forest",copy:"copy 2",checked:true,auto:true,candidates:["jund"],basic:true},
+      {id:"wastes",name:"Wastes",copy:"copy 1",checked:true,auto:true,candidates:["prosper"],basic:true}
+    );
+  }
+  return rows;
+}
+function pickedSource(row) {
+  return row.auto ? row.candidates[0] : chosen[row.id] || "";
+}
+function rowIsChecked(row) {
+  return row.checked !== false && chosen["off:"+row.id] !== true;
+}
+function setRowChecked(id, checked) {
+  chosen["off:"+id] = !checked;
+  render();
+}
+function setSource(id, value) {
+  chosen[id] = value;
+  render();
+}
+function sourceTaken(row, sourceId) {
+  return allMoves().some(other => other.id !== row.id && other.group && row.group === other.group &&
+    rowIsChecked(other) && pickedSource(other) === sourceId);
+}
+function renderReview() {
+  const sample = scenarios[scenario];
+  const moves = allMoves();
+  const active = moves.filter(rowIsChecked);
+  const unresolved = active.filter(row => !pickedSource(row)).length;
+  const cards = sample.cards.slice();
+  if (!ignoreBasics && scenario !== "many") {
+    // The sample file includes these quantities; with no matching source they remain listed,
+    // but do not become proposed moves.
+    cards.push(["Forest","2 · included"],["Wastes","1 · included"]);
+  }
+  const countText = active.length === 0 ? "0 proposed moves" : `${active.length} proposed ${active.length === 1 ? "move" : "moves"}`;
+  const moveRows = moves.length ? moves.map(row => {
+    const checked = rowIsChecked(row);
+    const source = pickedSource(row);
+    const multiple = row.candidates.length > 1;
+    let sourceControl;
+    if (multiple) {
+      sourceControl = `<div class="origin"><label for="source-${row.id}">Move this copy from</label>
+        <select id="source-${row.id}" data-source="${row.id}" aria-label="${row.name}, ${row.copy}: choose source deck">
+          <option value="">Choose a deck…</option>
+          ${row.candidates.map(key => {
+            const disabled = sourceTaken(row,key) ? " disabled" : "";
+            const selected = source === key ? " selected" : "";
+            return `<option value="${key}"${selected}${disabled}>${sources[key].name} · 1 copy · ${sources[key].detail}</option>`;
+          }).join("")}
+        </select></div>`;
+    } else {
+      sourceControl = `<div class="origin"><label>Move this copy from</label><div class="auto-source"><span class="check" aria-hidden="true">✓</span><span>${sources[row.candidates[0]].name}</span><span class="detail">Auto-selected · ${sources[row.candidates[0]].detail}</span></div></div>`;
+    }
+    let outcome = "";
+    if (!checked) {
+      const sourceName = source ? sources[source].name : "its current deck";
+      outcome = `<div class="row-note"><span class="short">Not moved.</span> Stays in ${sourceName}; this copy stays <strong>Unsleeved</strong> in Prosper. No new copy is added.</div>`;
+    } else if (multiple && !source) {
+      outcome = `<div class="row-note">Choose which deck to move this copy from.</div>`;
+    } else {
+      outcome = `<div class="row-note">Moves to Prosper. ${sources[source].name} keeps the card on its list as <strong>Unsleeved</strong>.</div>`;
+    }
+    return `<div class="move${checked ? "" : " off"}">
+      <input type="checkbox" id="move-${row.id}" data-move="${row.id}" ${checked ? "checked" : ""} aria-label="${checked ? "Move" : "Do not move"} ${row.name}, ${row.copy}">
+      <div><label class="cardname" for="move-${row.id}">${row.name}</label><span class="detail">${row.copy}${row.basic ? " · basic land included" : ""}</span></div>
+      ${sourceControl}${outcome}</div>`;
+  }).join("") : `<div class="no-moves">No cards were found in another deck. Nothing needs to move; your import stays unchanged.</div>`;
+  const selectedSummary = `${active.length} ${active.length === 1 ? "card" : "cards"} will move`;
+  const held = moves.filter(row => !rowIsChecked(row)).length;
+  const basicLine = ignoreBasics
+    ? `<span class="basic-count">${ignoredBasics} ${ignoredBasics === 1 ? "copy" : "copies"} ignored</span>`
+    : `<span class="basic-count">${ignoredBasics} regular basic ${ignoredBasics === 1 ? "card" : "cards"} included</span>`;
+  document.getElementById("body").innerHTML = `
+    <div class="fields">
+      <div class="field"><label>Deck name</label><div class="value">Prosper Exile Value</div></div>
+      <div class="field"><label>Format</label><div class="value">Commander</div></div>
+      <div class="field"><label>Commander</label><div class="value">Prosper, Tome-Bound</div></div>
+    </div>
+    <p class="defaults">Nonfoil · Near Mint · English · <button class="link" type="button">Change</button></p>
+    <section aria-labelledby="moves-heading">
+      <div class="section-head"><h3 id="moves-heading">Cards already in other decks</h3><span class="count" aria-live="polite">${countText}</span></div>
+      <p class="help">Choose which copies move into Prosper. A deck that gives up a copy keeps that card on its list as Unsleeved.</p>
+      <div class="moves">${moveRows}</div>
+      <div class="basic-control">
+        <input type="checkbox" id="ignore-basics" ${ignoreBasics ? "checked" : ""}>
+        <div class="basic-copy">
+          <label for="ignore-basics">Ignore basic lands</label>
+          <p>When on, these scanned cards are left out of the move check. Snow-Covered lands and nonbasic lands stay in the list above.</p>
+          <span class="basics">Plains · Island · Swamp · Mountain · Forest · Wastes</span>
+        </div>${basicLine}
+      </div>
+    </section>
+    <section class="main-list" aria-labelledby="list-heading">
+      <div class="section-head"><h3 id="list-heading">Deck list from ManaBox</h3><span class="count">${cards.length} card types</span></div>
+      <div class="list"><div class="list-head"><span>Card</span><span style="text-align:right">Quantity</span></div>
+        ${cards.map(([name,qty]) => `<div class="list-row"><span>${name}</span><span class="qty">${qty}</span></div>`).join("")}
+      </div>
+    </section>
+    <div class="summary" aria-live="polite">
+      <strong>${selectedSummary}</strong>
+      ${held ? `<span class="muted">· ${held} stays in its current deck; Prosper stays Unsleeved for that copy</span>` : ""}
+      ${unresolved ? `<span class="short">· Choose a source deck for ${unresolved} ${unresolved === 1 ? "copy" : "copies"} to continue</span>` : ""}
+    </div>`;
+  const buttonDisabled = unresolved > 0;
+  document.getElementById("footer").innerHTML = `
+    <span class="footnote">${unresolved ? "Finish choosing sources to import." : "Review complete · nothing is saved until you import."}</span>
+    <button class="btn primary" id="import-button" type="button" ${buttonDisabled ? "disabled" : ""}>Import deck</button>`;
+  document.querySelectorAll("[data-move]").forEach(el => el.addEventListener("change", e => setRowChecked(e.target.dataset.move,e.target.checked)));
+  document.querySelectorAll("[data-source]").forEach(el => el.addEventListener("change", e => setSource(e.target.dataset.source,e.target.value)));
+  document.getElementById("ignore-basics").addEventListener("change", e => {ignoreBasics=e.target.checked;render()});
+  document.getElementById("import-button").addEventListener("click", save);
+}
+function save() {
+  view = "saving";
+  document.getElementById("body").innerHTML = `<div class="saving" role="status"><div class="spinner" aria-hidden="true"></div><h3>Importing Prosper Exile Value…</h3><p>Saving the deck and the selected card moves.</p></div>`;
+  document.getElementById("footer").innerHTML = `<span class="footnote">Keep this window open while the import finishes.</span><button class="btn primary" disabled>Importing…</button>`;
+  document.getElementById("live").textContent = "Importing deck and selected moves.";
+  saveTimer = setTimeout(showResult,900);
+}
+function showResult() {
+  view = "result";
+  const moves = allMoves().filter(rowIsChecked);
+  const impact = {};
+  moves.forEach(row => {const key=pickedSource(row);if(key) impact[key]=(impact[key]||0)+1});
+  const moved = moves.length;
+  const left = allMoves().filter(row => !rowIsChecked(row)).length;
+  const ignored = ignoreBasics ? ignoredBasics : 0;
+  document.getElementById("body").innerHTML = `
+    <div class="result" role="status">
+      <div class="success" aria-hidden="true">✓</div><h3>Prosper Exile Value imported</h3>
+      <p>Your deck list is saved. Physical cards only moved where you left the move checked.</p>
+      <div class="result-stats">
+        <div class="stat"><span>Cards moved from other decks</span><span>${moved}</span></div>
+        ${Object.entries(impact).map(([key,n])=>`<div class="stat"><span>${sources[key].name}</span><span>${n} ${n===1?"card":"cards"} moved · ${n} ${n===1?"slot":"slots"} now Unsleeved</span></div>`).join("")}
+        ${left?`<div class="stat"><span>Cards left in their current decks</span><span>${left} · Prosper stays Unsleeved</span></div>`:""}
+        ${ignored?`<div class="stat"><span>Basic lands ignored</span><span>${ignored}</span></div>`:""}
+      </div>
+    </div>`;
+  document.getElementById("footer").innerHTML = `<span class="footnote">The source decks keep their card-list entries.</span><button class="btn primary" type="button" id="done">Open deck</button>`;
+  document.getElementById("done").addEventListener("click",()=>{document.getElementById("live").textContent="Mockup complete. Open deck.";});
+  document.getElementById("live").textContent="Deck imported. Move summary shown.";
+}
+function render() {
+  document.querySelectorAll("[data-scenario]").forEach(button => button.setAttribute("aria-pressed",String(button.dataset.scenario===scenario)));
+  document.getElementById("screenTitle").textContent = view === "result" ? "Import complete" : "Review deck import";
+  if(view==="review") renderReview();
+}
+document.querySelectorAll("[data-scenario]").forEach(button => button.addEventListener("click",()=>resetScenario(button.dataset.scenario)));
+render();
+</script>
+</body>
+</html>

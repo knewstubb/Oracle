@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { SessionHistoryPanel } from '@/components/SessionHistoryPanel'
 import { autoBracketCardsSync } from '@/lib/auto-bracket-cards'
+import { OVERLAY_BACKDROP } from '@/lib/overlay-classes'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -497,7 +498,7 @@ export function OracleSidebar() {
     <>
       {/* Backdrop for mobile */}
       <div 
-        className="fixed inset-x-0 top-[110px] bottom-0 bg-black/50 z-40 md:hidden"
+        className={`fixed inset-x-0 top-[110px] bottom-0 ${OVERLAY_BACKDROP} z-40 md:hidden`}
         onClick={close}
       />
       
@@ -665,7 +666,7 @@ export function OracleSidebar() {
 
         {/* New chat confirmation dialog */}
         {showClearConfirm && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-20">
+          <div className={`absolute inset-0 flex items-center justify-center ${OVERLAY_BACKDROP} z-20`}>
             <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-4 mx-4 max-w-sm shadow-xl">
               <p className="text-sm text-zinc-200 mb-4">
                 Start a new conversation? Current chat will be saved to history.

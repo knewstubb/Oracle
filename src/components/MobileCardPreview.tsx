@@ -3,6 +3,7 @@
 import { useEffect, useCallback } from 'react'
 import { X } from 'lucide-react'
 import { CardImage } from '@/components/CardImage'
+import { OVERLAY_BACKDROP } from '@/lib/overlay-classes'
 
 interface MobileCardPreviewProps {
   cardName: string
@@ -43,7 +44,7 @@ export function MobileCardPreview({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+      className={`fixed inset-0 z-50 flex items-center justify-center ${OVERLAY_BACKDROP}`}
       onClick={onClose}
       role="dialog"
       aria-modal="true"

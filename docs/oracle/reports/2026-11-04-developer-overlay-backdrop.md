@@ -30,3 +30,11 @@ Those seven overlays now have the same darker, blurrier backdrop as every other 
 - `npx vitest run` — all passed after updating the #10 check (previously 1 failure, since it looked for the class text in dialog.tsx).
 - `npx eslint src` — 0 errors, 251 warnings (unchanged).
 - Not checked visually in a browser.
+
+## Update: "everywhere" (branch `build/overlay-backdrop-everywhere-2026-11-04`)
+Owner asked for the shared backdrop on every overlay. Now also using it:
+- `app/decks/new/page.tsx` (two overlays), `MobileCardPreview`, `TopNav` (menu backdrop).
+- Found by grep: `OracleSidebar` (mobile backdrop, and the "new chat" confirmation scrim) and `collection/CollectionRollupTab` (mobile full-screen detail scrim).
+- Deliberately NOT changed (not modal backdrops): hover/selected overlays on tiles (`ConceptTile`, `DraftDeckTile`, `DraftSessionTile`, `BrewCanvas`), `SessionHistoryPanel` (a panel background), sticky headers/toolbars with their own light blur (`decks/new` header, `CanvasToolbar`, `OracleSidebar` panel), small code-chip backgrounds.
+- The layout test now also checks `MobileCardPreview`, `TopNav`, `OracleSidebar` and `CollectionRollupTab`.
+- Verification: `tsc` clean; `vitest` 219 files passed, 0 failed; `eslint` 0 errors, 251 warnings (unchanged). Not checked in a browser.

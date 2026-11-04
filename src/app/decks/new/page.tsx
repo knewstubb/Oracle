@@ -12,6 +12,7 @@ import { CommanderCard, type CommanderData } from '@/components/CommanderCard'
 import { ColorIdentityFilter } from '@/components/ColorIdentityFilter'
 import { useOracle } from '@/contexts/OracleContext'
 import { toast } from 'sonner'
+import { OVERLAY_BACKDROP } from '@/lib/overlay-classes'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -388,7 +389,7 @@ export default function NewDeckPage() {
       
       {/* Creating deck overlay */}
       {createDeckMutation.isPending && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+        <div className={`fixed inset-0 z-50 ${OVERLAY_BACKDROP} flex items-center justify-center`}>
           <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 flex items-center gap-4">
             <Loader2 className="w-6 h-6 animate-spin text-amber-400" />
             <span className="text-zinc-200">Creating your deck...</span>
@@ -398,7 +399,7 @@ export default function NewDeckPage() {
       
       {/* Partner selection overlay */}
       {partnerMode && firstPartner && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm overflow-y-auto">
+        <div className={`fixed inset-0 z-50 ${OVERLAY_BACKDROP} overflow-y-auto`}>
           <div className="min-h-full flex items-start justify-center py-8 px-4">
             <div className="w-full max-w-4xl bg-zinc-900 border border-zinc-700 rounded-xl overflow-hidden">
               {/* Header */}

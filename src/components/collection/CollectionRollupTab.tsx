@@ -9,6 +9,7 @@ import { useSelectionModel } from '@/hooks/useSelectionModel'
 import { RollupListPane } from './RollupListPane'
 import { InstanceDetailPanel } from './InstanceDetailPanel'
 import { BulkActionBar } from './BulkActionBar'
+import { OVERLAY_BACKDROP } from '@/lib/overlay-classes'
 
 /* ─── useIsMobile Hook ──────────────────────────────────────────────── */
 
@@ -248,7 +249,7 @@ export function CollectionRollupTab() {
       {/* Mobile overlay: Detail panel as full-screen push */}
       {selectedOracleId && isMobile && (
         <div
-          className="fixed inset-0 z-50 flex flex-col bg-black/60"
+          className={`fixed inset-0 z-50 flex flex-col ${OVERLAY_BACKDROP}`}
         >
           <div
             className="flex flex-1 flex-col overflow-hidden bg-[var(--bg-surface)]"

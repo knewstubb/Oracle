@@ -15,6 +15,7 @@ import {
 import { logout } from '@/app/actions/auth'
 import { useOracle } from '@/contexts/OracleContext'
 import { CardDataLastUpdate } from '@/components/CardDataLastUpdate'
+import { OVERLAY_BACKDROP } from '@/lib/overlay-classes'
 
 // Material icon wrapper
 function MaterialIcon({ name, className }: { name: string; className?: string }) {
@@ -278,7 +279,7 @@ export function TopNav() {
         <div className="fixed inset-0 z-50 md:hidden">
           {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className={`absolute inset-0 ${OVERLAY_BACKDROP}`}
             onClick={() => setMobileMenuOpen(false)}
             aria-hidden="true"
           />

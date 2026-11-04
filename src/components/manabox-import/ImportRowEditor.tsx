@@ -535,14 +535,6 @@ export function ImportRowEditor({
     scryfallId: heroArtId,
     cardName: row.cardName,
   });
-  // Copies whose default finish isn't made for this printing, so their own finish is used.
-  const fallbackFinishes = [
-    ...new Set(
-      resolved
-        .filter((c) => c.finishNote === "fallback")
-        .map((c) => FINISH_LABELS[c.finish]),
-    ),
-  ];
   const tagText = [
     ...summary.tags.map(tagDisplayText),
     ...(summary.overflow > 0 ? [`${summary.overflow} more`] : []),
@@ -594,9 +586,6 @@ export function ImportRowEditor({
         >
           +{summary.overflow} more
         </span>
-      )}
-      {fallbackFinishes.length > 0 && (
-        <FinishFallbackMark finishes={fallbackFinishes} />
       )}
       <span className="sr-only">
         {tagText.length > 0

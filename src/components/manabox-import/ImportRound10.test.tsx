@@ -91,7 +91,7 @@ describe('basic lands are editable (Round 11)', () => {
 })
 
 describe('finish fallback marker (replaces the banner)', () => {
-  it('marks the row with the resulting finish and explains it', () => {
+  it('collapsed row shows no amber note; the finish chip already says Foil', () => {
     const resolved = resolveRowCopies(FOIL_ONLY_ROW, INITIAL_DEFAULTS, {}, 'f')
     render(
       <ImportRowEditor
@@ -108,8 +108,9 @@ describe('finish fallback marker (replaces the banner)', () => {
         onApplyAll={() => {}}
       />
     )
-    const mark = screen.getByLabelText('Default finish not available; using Foil')
-    expect(mark).toHaveAttribute('title', 'Default finish not available; using Foil')
+    expect(
+      screen.queryByLabelText('Default finish not available; using Foil')
+    ).not.toBeInTheDocument()
   })
 
   it('no longer shows the default-finish banner', () => {

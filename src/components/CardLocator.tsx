@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge'
 import { CardSlotBadge } from '@/components/CardSlotBadge'
 import { cn } from '@/lib/utils'
 import type { CardSlotStatus } from '@/lib/card-status'
+import { OVERLAY_BACKDROP } from '@/lib/overlay-classes'
 
 interface CardLocation {
   deckId: number
@@ -165,7 +166,7 @@ export function CardLocator() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 pt-[10vh] backdrop-blur-sm"
+      className={`fixed inset-0 z-50 flex items-start justify-center ${OVERLAY_BACKDROP} pt-[10vh]`}
       onClick={handleBackdropClick}
       data-testid="card-locator-overlay"
     >

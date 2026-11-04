@@ -15,6 +15,7 @@ import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { X, Search, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { OVERLAY_BACKDROP } from '@/lib/overlay-classes'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -108,7 +109,7 @@ export function PrintingPicker({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className={`absolute inset-0 ${OVERLAY_BACKDROP}`} onClick={onClose} />
 
       {/* Modal */}
       <div

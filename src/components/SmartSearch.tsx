@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ManaCost } from '@/components/ManaCost'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
+import { OVERLAY_BACKDROP } from '@/lib/overlay-classes'
 
 interface SearchCard {
   name: string
@@ -193,7 +194,7 @@ export function SmartSearch({ currentDeckCards = [] }: SmartSearchProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 pt-[10vh] backdrop-blur-sm"
+      className={`fixed inset-0 z-50 flex items-start justify-center ${OVERLAY_BACKDROP} pt-[10vh]`}
       onClick={handleBackdropClick}
       data-testid="smart-search-overlay"
     >

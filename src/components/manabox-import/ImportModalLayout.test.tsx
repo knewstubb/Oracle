@@ -49,9 +49,24 @@ describe('import modal layout (spec import-modal-redesign §3)', () => {
   })
 
   it('#10 the shared dialog overlay is black 72% with an 8px blur, and nothing overrides it', () => {
-    const dialog = fs.readFileSync(path.join(process.cwd(), 'src/components/ui/dialog.tsx'), 'utf8')
-    expect(dialog).toContain('bg-black/72')
-    expect(dialog).toContain('backdrop-blur-[8px]')
+    const read = (f: string) => fs.readFileSync(path.join(process.cwd(), f), 'utf8')
+    const token = read('src/lib/overlay-classes.ts')
+    expect(token).toContain('bg-black/72')
+    expect(token).toContain('backdrop-blur-[8px]')
+    for (const f of [
+      'ui/dialog',
+      'PrintingPicker',
+      'OracleChat',
+      'CardLocator',
+      'SmartSearch',
+      'MobileHeader',
+      'brew-v2/CommanderDetailModal',
+      'explore/CommanderBrowser',
+    ]) {
+      const src = read(`src/components/${f}.tsx`)
+      expect(src, f).toContain('OVERLAY_BACKDROP')
+      expect(src, f).not.toMatch(/bg-black\/\d+/)
+    }
     const discard = fs.readFileSync(path.join(process.cwd(), 'src/components/manabox-import/ImportDiscardDialog.tsx'), 'utf8')
     expect(discard).not.toContain('overlayClassName')
   })

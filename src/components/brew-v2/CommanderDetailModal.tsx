@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { X, Crown } from 'lucide-react'
 import { formatPrice } from '@/lib/collection-printing-utils'
+import { OVERLAY_BACKDROP } from '@/lib/overlay-classes'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -112,7 +113,7 @@ export function CommanderDetailModal({
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+      className={`fixed inset-0 z-50 flex items-center justify-center ${OVERLAY_BACKDROP}`}
       onClick={onClose}
     >
       <div 

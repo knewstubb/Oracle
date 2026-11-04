@@ -10,6 +10,7 @@ import { CommanderGrid } from '@/components/CommanderGrid'
 import { ColorIdentityFilter } from '@/components/ColorIdentityFilter'
 import { cn } from '@/lib/utils'
 import type { CommanderData } from '@/components/CommanderCard'
+import { OVERLAY_BACKDROP } from '@/lib/overlay-classes'
 
 // ---------------------------------------------------------------------------
 // CommanderBrowser — Simplified browse/search for /explore page
@@ -168,7 +169,7 @@ export function CommanderBrowser() {
 
       {/* Creating deck overlay */}
       {createDeckMutation.isPending && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+        <div className={`fixed inset-0 z-50 ${OVERLAY_BACKDROP} flex items-center justify-center`}>
           <div className="bg-surface border border-border rounded-xl p-6 flex items-center gap-4">
             <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
             <span className="text-foreground">Creating your deck...</span>

@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { logout } from '@/app/actions/auth'
+import { OVERLAY_BACKDROP } from '@/lib/overlay-classes'
 
 // ---------------------------------------------------------------------------
 // Nav Items (matches Sidebar)
@@ -93,7 +94,7 @@ export function MobileHeader() {
         <div className="fixed inset-0 z-50 md:hidden">
           {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className={`absolute inset-0 ${OVERLAY_BACKDROP}`}
             onClick={() => setOpen(false)}
             aria-hidden="true"
           />

@@ -6,6 +6,7 @@ import { ArrowUp, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ChatMessage } from '@/lib/debrief-types'
 import { renderMessageContent } from '@/lib/render-card-links'
+import { OVERLAY_BACKDROP } from '@/lib/overlay-classes'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -261,7 +262,7 @@ export function OracleChat({
       ref={containerRef}
       className={cn(
         'flex h-full',
-        isOverlay && 'fixed inset-0 z-50 backdrop-blur-sm bg-black/60'
+        isOverlay && `fixed inset-0 z-50 ${OVERLAY_BACKDROP}`
       )}
       role={isOverlay ? 'dialog' : undefined}
       aria-modal={isOverlay ? true : undefined}

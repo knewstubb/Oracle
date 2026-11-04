@@ -89,6 +89,14 @@ export type MoveChoice =
   | { kind: 'move'; fromDeckId: number }
   | { kind: 'skip' }
 
+/**
+ * Which owned copy a From-collection copy uses (spec import-modal-redesign §4; Developer addition, Architect to confirm).
+ * none = "Choose source" (cleared; blocks Import); spare = a copy in no deck; deck = take the copy from that deck.
+ * Absent = automatic: a spare copy if one exists, else the single deck that holds one, else none.
+ * The browser always sends the resolved pick, so the server never moves a copy the owner did not see.
+ */
+export type SourcePick = { kind: 'none' } | { kind: 'spare' } | { kind: 'deck'; deckId: number }
+
 /** What the owner chose when the owned printing differs from the listed one. */
 export type PrintingChoice = 'use_mine' | 'add_this'
 
@@ -109,6 +117,8 @@ export interface IntentCopyOwnerEdits extends ImportCopyOwnerEdits {
   move?: MoveChoice
   /** Only meaningful when the owned printing differs from the listed one. */
   printing?: PrintingChoice
+  /** From-collection copies only: which owned copy to use. */
+  pick?: SourcePick
 }
 
 /** rowKey -> copy index -> edits. Same shape as import-row-editing ImportCopyEdits. */
@@ -130,7 +140,6 @@ export type CopyPlanKind =
   | 'owned_unsleeved' // planned slot; owner owns the card (list only)
   | 'unowned' // planned slot; owner does not own it
   | 'generic' // generic basic: no copy; sleeved flag only
-  | 'share' // collection copy held by another deck, allocated here too; flagged on every deck (needs DB support to save)
 
 export interface CopyPlan {
   rowKey: string
@@ -144,14 +153,16 @@ export interface CopyPlan {
   fromDeckId?: number
   /** move_skipped only: every holder deck that will get an alert. */
   alertDeckIds?: number[]
+  /** sleeve_owned / move: the exact finish of the owned copy chosen (finish is its own attribute, D-003). */
+  finish?: ImportFinish
+  /** move only: name of the deck the copy comes from (for the result screen). */
+  fromDeckName?: string
   /** For sleeve_owned/move: describes the owned printing when it differs from the listed one. */
   ownedPrinting?: { printingId: string; setCode: string; collectorNumber: string }
   /** needs_choice_printing only: the other printing is held by another deck (alt printing in use). */
   printingInUse?: boolean
   /** Card source asked for Collection but no owned copy is left for this copy: saved as a slot only until the owner picks None or New. */
   short?: boolean
-  /** share only: the deck(s) that already hold the copy. */
-  sharedWith?: Array<{ deckId: number; deckName: string }>
   /** Generic basics only. */
   genericSleeved?: boolean
   /** UI state: Original/Proxy options enabled? (contract §4 'availableKinds') */
@@ -201,6 +212,12 @@ export interface DeckImportIntentSummary extends ImportPlanSummary {
   needsALook: NeedsALookItem[]
   /** Alerts actually created (equals alertsOnOtherDecks unless something changed at save). */
   alertsCreated: number
+  /** Architect to confirm (2026-11-04): result-screen lists. Cards that used a spare copy. */
+  usedSpare?: string[]
+  /** Cards taken from another deck (scan wins); the source deck now has a planned slot (short by one). */
+  taken?: Array<{ cardName: string; fromDeckId: number; fromDeckName: string }>
+  /** Cards added as new copies. */
+  newCopies?: string[]
 }
 
 /** One element of p_rows for import_deck_with_intent, one per copy / slot. Extends DeckImportRpcRow. */

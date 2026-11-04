@@ -63,10 +63,28 @@ export function intentNotes(s?: {
   moved: number
   alertsCreated: number
   needsALook: { cardName: string }[]
+  usedSpare?: string[]
+  taken?: Array<{ cardName: string; fromDeckId: number; fromDeckName: string }>
+  newCopies?: string[]
 }): string[] {
   if (!s) return []
   const notes: string[] = []
-  if (s.moved > 0) notes.push(`${s.moved} ${s.moved === 1 ? 'copy was' : 'copies were'} moved from other decks.`)
+  const names = (list: string[]) => [...new Set(list)].join(', ')
+  if (s.usedSpare && s.usedSpare.length > 0) notes.push(`Used spare copies: ${names(s.usedSpare)}.`)
+  if (s.taken && s.taken.length > 0) {
+    const byDeck = new Map<number, { deck: string; cards: string[] }>()
+    for (const t of s.taken) {
+      const d = byDeck.get(t.fromDeckId) ?? { deck: t.fromDeckName, cards: [] }
+      d.cards.push(t.cardName)
+      byDeck.set(t.fromDeckId, d)
+    }
+    for (const { deck, cards } of byDeck.values()) {
+      notes.push(`Taken from ${deck}: ${names(cards)}. ${deck} is now short ${cards.length}.`)
+    }
+  } else if (s.moved > 0) {
+    notes.push(`${s.moved} ${s.moved === 1 ? 'copy was' : 'copies were'} moved from other decks.`)
+  }
+  if (s.newCopies && s.newCopies.length > 0) notes.push(`New copies added: ${names(s.newCopies)}.`)
   if (s.alertsCreated > 0) {
     notes.push(`${s.alertsCreated} ${s.alertsCreated === 1 ? 'alert was' : 'alerts were'} added to your other decks.`)
   }
@@ -147,10 +165,8 @@ export const MAYBEBOARD_NOT_ADDED = 'Not added or sleeved'
 /** Purchased decks with a non-New copy can't be saved by the old path. */
 export const INTENT_SAVE_PENDING_NOT_NEW =
   'Saving cards from your collection is coming soon. Set every card to New copy to import now.'
-export const SHORT_BLOCKS_IMPORT = (n: number) =>
-  `${n} ${n === 1 ? 'card is' : 'cards are'} short: open ${n === 1 ? 'it' : 'them'} and pick New copy or leave ${n === 1 ? 'it' : 'them'} out of the deck.`
-export const SHARED_BLOCKS_IMPORT = (n: number) =>
-  `${n} ${n === 1 ? 'card uses a copy' : 'cards use copies'} already in another deck. Saving that is coming soon: set ${n === 1 ? 'it' : 'them'} to New copy or leave out of the deck for now.`
+/** Footer, amber: Import stays off until every copy from the collection has a source. */
+export const NEEDS_SOURCE_BLOCKS_IMPORT = (n: number) => `${n} ${n === 1 ? 'card needs' : 'cards need'} a source.`
 
 /** Under each choice while the deck is still loading. */
 export const INTENT_NUMBERS_PENDING = 'Numbers appear once the deck has loaded'

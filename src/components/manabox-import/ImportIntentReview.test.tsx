@@ -264,7 +264,7 @@ describe('Review list: Card origin and Type', () => {
     await user.click(trigger(TYPE))
     const proxy = await item('Proxy')
     expect(proxy).toHaveAttribute('aria-disabled', 'true')
-    expect(proxy).toHaveTextContent('No proxy in your collection')
+    expect(proxy).toHaveTextContent('A copy from your collection keeps its own type')
   })
 
   it('built, nothing owned: starts Unowned and Type waits for a card origin', async () => {
@@ -369,15 +369,13 @@ describe('Review list: generic basics and maybeboard', () => {
 describe('Review footer: what blocks Import', () => {
   it('a short copy blocks Import, shows no note on the row, and clears once set to New copy', async () => {
     const { user } = await open('built', OWNED, TWO)
-    expect(
-      await screen.findByText('1 card is short: open it and pick New copy or leave it out of the deck.')
-    ).toBeInTheDocument()
+    expect(await screen.findByText('1 card needs a source.')).toBeInTheDocument()
     expect(importBtn()).toBeDisabled()
     await user.click(screen.getByRole('button', { name: `Edit ${EMIL}` }))
     expect(screen.queryByText(/pick None or New/)).toBeNull()
     expect(shown(`Copy 2 card origin for ${EMIL}`)).toBe('From collection')
     await pick(user, `Copy 2 card origin for ${EMIL}`, 'New copy')
-    await waitFor(() => expect(screen.queryByText(/card is short/)).toBeNull())
+    await waitFor(() => expect(screen.queryByText(/needs a source/)).toBeNull())
   })
 
   it('flag off: built decks are blocked with the coming-soon note', async () => {
@@ -411,14 +409,31 @@ describe('Review footer: what blocks Import', () => {
     expect(screen.queryByText(/Also in Elves/)).toBeNull()
   })
 
-  it('flag on: a shared copy blocks Import; built decks are otherwise allowed', async () => {
+  it('flag on: one holder deck is auto-selected and saved as an explicit pick', async () => {
     flag.on = true
-    const { user } = await open('built', HELD([{ id: 7, name: 'Elves' }]))
-    expect(await screen.findByText(/1 card uses a copy already in another deck/)).toBeInTheDocument()
-    expect(importBtn()).toBeDisabled()
-    expect(screen.queryByText(/Saving built and planned decks is coming soon/)).toBeNull()
-    await pick(user, ORIGIN, 'Owned, not in deck')
+    const { user, fetchSpy } = await open('built', HELD([{ id: 7, name: 'Elves' }]))
+    await waitFor(ready)
+    expect(screen.queryByText(/needs a source/)).toBeNull()
     await waitFor(() => expect(importBtn()).toBeEnabled())
+    await user.click(importBtn())
+    await waitFor(() => expect(saveCall(fetchSpy)).toBeDefined())
+    const body = JSON.parse(String((saveCall(fetchSpy)![1] as RequestInit).body))
+    expect(body.copyEdits).toEqual({ 'emil|nonfoil': { 0: { source: 'collection', pick: { kind: 'deck', deckId: 7 } } } })
+    expect(body.ignoreBasics).toBe(true)
+  })
+
+  it('flag on: several holder decks need a source; choosing one clears it, and it can be un-set again', async () => {
+    flag.on = true
+    const { user } = await open('built', HELD([{ id: 7, name: 'Elves' }, { id: 8, name: 'Goblins' }]))
+    expect(await screen.findByText('1 card needs a source.')).toBeInTheDocument()
+    expect(screen.getByText(/Needs a source/)).toBeInTheDocument()
+    expect(importBtn()).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: `Edit ${EMIL}` }))
+    await pick(user, `Copy 1 source for ${EMIL}`, 'Take from Goblins')
+    await waitFor(() => expect(importBtn()).toBeEnabled())
+    expect(shown(`Copy 1 source for ${EMIL}`)).toBe('From Goblins')
+    await pick(user, `Copy 1 source for ${EMIL}`, 'Choose source')
+    await waitFor(() => expect(importBtn()).toBeDisabled())
   })
 
   it('flag on: a purchased deck with a From collection card can import, and the save carries intent and source', async () => {
@@ -432,7 +447,7 @@ describe('Review footer: what blocks Import', () => {
     await waitFor(() => expect(saveCall(fetchSpy)).toBeDefined())
     const body = JSON.parse(String((saveCall(fetchSpy)![1] as RequestInit).body))
     expect(body.intent).toBe('purchased')
-    expect(body.copyEdits).toEqual({ 'emil|nonfoil': { 0: { source: 'collection' } } })
+    expect(body.copyEdits).toEqual({ 'emil|nonfoil': { 0: { source: 'collection', pick: { kind: 'spare' } } } })
   })
 
   it('flag off: the save request carries no source, Add, move or printing fields', async () => {

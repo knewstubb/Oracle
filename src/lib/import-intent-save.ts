@@ -67,21 +67,21 @@ export function needsChoiceRowKeys(plans: CopyPlan[]): string[] {
 }
 
 /**
- * Thrown (before anything is written) when a copy would be shared with another deck. The database has no way
- * to link one copy to two decks yet (needs an Architect contract and a migration), so it is refused, not faked.
+ * Row keys of every copy that would move out of another deck without the owner having picked that deck.
+ * A move is only ever saved when the review showed it (the client writes the pick); the server never moves silently.
  */
-export class SharedCopyError extends Error {
-  readonly rowKeys: string[]
-  constructor(rowKeys: string[]) {
-    super(`Some cards use a copy that is already in another deck, which can't be saved yet: ${rowKeys.slice(0, 5).join(', ')}`)
-    this.name = 'SharedCopyError'
-    this.rowKeys = rowKeys
-  }
-}
-
-/** Row keys of every copy that would share an owned copy with another deck. */
-export function sharedRowKeys(plans: CopyPlan[]): string[] {
-  return [...new Set(plans.filter((p) => p.kind === 'share').map((p) => p.rowKey))]
+export function unconfirmedMoveRowKeys(plans: CopyPlan[], edits: IntentCopyEdits): string[] {
+  return [
+    ...new Set(
+      plans
+        .filter((p) => {
+          if (p.kind !== 'move') return false
+          const pick = edits[p.rowKey]?.[p.copyIndex]?.pick
+          return !(pick?.kind === 'deck' && pick.deckId === p.fromDeckId)
+        })
+        .map((p) => p.rowKey)
+    ),
+  ]
 }
 
 /** One real (non-generic) copy -> one RPC row. `copy` is the resolved copy; the plan decides the action and type. */
@@ -109,6 +109,8 @@ export function planToIntentRpcRow(
       const proxy = plan.type === 'proxy'
       return {
         ...toDeckRpcRow(asType(proxy ? 'proxy' : 'original'), context),
+        // The finish seen in the review: the database prefers a copy with this exact finish.
+        ...(plan.finish ? { finish: plan.finish } : {}),
         action: plan.kind,
         row_index: rowIndex,
         link_printing_id: plan.slotPrintingId,
@@ -119,8 +121,6 @@ export function planToIntentRpcRow(
     case 'owned_unsleeved':
     case 'unowned':
       return { ...toDeckRpcRow(asType('unsleeved'), context), action: 'planned', row_index: rowIndex }
-    case 'share':
-      throw new SharedCopyError([plan.rowKey])
     default:
       // needs_choice_* is rejected before this point; generic rows are built by the caller.
       throw new Error(`Cannot save a copy with plan "${plan.kind}"`)
@@ -132,7 +132,8 @@ export function buildIntentSummary(
   deckId: number,
   summary: ImportPlanSummary,
   rpcResult: Record<string, unknown>,
-  origins: IntentRowOrigin[]
+  origins: IntentRowOrigin[],
+  plans: CopyPlan[] = []
 ): DeckImportIntentSummary {
   const raw = Array.isArray(rpcResult.needs_a_look) ? (rpcResult.needs_a_look as unknown[]) : []
   const needsALook: NeedsALookItem[] = []
@@ -148,7 +149,21 @@ export function buildIntentSummary(
     })
   }
   // A copy that could not be honoured was saved Unsleeved, so it no longer counts as sleeved/moved.
-  const out: DeckImportIntentSummary = { ...summary, deckId, needsALook, alertsCreated: Number(rpcResult.alerts_created ?? 0) }
+  const nameOf = new Map(origins.map((o) => [`${o.rowKey}\u0000${o.copyIndex}`, o.cardName]))
+  const name = (p: CopyPlan) => nameOf.get(`${p.rowKey}\u0000${p.copyIndex}`) ?? p.rowKey
+  const failed = new Set(needsALook.map((n) => `${n.rowKey}\u0000${n.copyIndex}`))
+  const honoured = plans.filter((p) => !failed.has(`${p.rowKey}\u0000${p.copyIndex}`))
+  const out: DeckImportIntentSummary = {
+    ...summary,
+    deckId,
+    needsALook,
+    alertsCreated: Number(rpcResult.alerts_created ?? 0),
+    usedSpare: honoured.filter((p) => p.kind === 'sleeve_owned').map(name),
+    taken: honoured
+      .filter((p) => p.kind === 'move' && p.fromDeckId !== undefined)
+      .map((p) => ({ cardName: name(p), fromDeckId: p.fromDeckId as number, fromDeckName: p.fromDeckName ?? 'another deck' })),
+    newCopies: honoured.filter((p) => p.kind === 'add_sleeved').map(name),
+  }
   return out
 }
 
@@ -171,6 +186,11 @@ export function validateIntentEdits(
       if (qty !== undefined && (Number(i) >= qty || Number(i) < 0)) problems.push(`${rowKey}: copy ${i} does not exist`)
       if (e.source !== undefined && e.source !== 'none' && e.source !== 'collection' && e.source !== 'new') {
         problems.push(`${rowKey}: source must be none, collection or new`)
+      }
+      if (e.pick !== undefined) {
+        const k = e.pick as { kind?: unknown; deckId?: unknown }
+        const ok = k && (k.kind === 'none' || k.kind === 'spare' || (k.kind === 'deck' && Number.isInteger(k.deckId)))
+        if (!ok) problems.push(`${rowKey}: pick must be none, spare or a deck`)
       }
       if (e.add !== undefined && typeof e.add !== 'boolean') problems.push(`${rowKey}: add must be true or false`)
       if (e.printing !== undefined && e.printing !== 'use_mine' && e.printing !== 'add_this') {

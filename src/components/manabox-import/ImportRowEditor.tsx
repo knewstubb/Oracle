@@ -119,10 +119,68 @@ function typeReasonsFor(
       proxy: PICK_SOURCE_FIRST_TITLE,
     };
   }
+  if (live.every((v) => v.source === "collection")) {
+    return { original: OWNED_TYPE_TITLE, proxy: OWNED_TYPE_TITLE };
+  }
   const out: Partial<Record<ImportCopyType, string>> = {};
   if (!live.some((v) => v.canOriginal)) out.original = NO_ORIGINAL_TITLE;
   if (!live.some((v) => v.canProxy)) out.proxy = NO_PROXY_TITLE;
   return out;
+}
+
+const OWNED_TYPE_TITLE = "A copy from your collection keeps its own type";
+
+/** "Choose source" for one From-collection copy: a spare copy, or take it from a deck that holds it. */
+function PullSelect({
+  view,
+  cardName,
+  n,
+  onChange,
+}: {
+  view: IntentCopyView;
+  cardName: string;
+  n: number;
+  onChange: (change: IntentChange) => void;
+}) {
+  const pull = view.pull;
+  if (!pull) return null;
+  type Key = "none" | "spare" | `deck:${number}`;
+  const value: Key =
+    pull.pick === "spare" ? "spare" : pull.pick === "deck" && pull.deckId !== undefined ? `deck:${pull.deckId}` : "none";
+  const options: QuietOption<Key>[] = [
+    { value: "none", label: "Choose source", description: "Nothing is taken until you pick" },
+    ...(pull.options.spare
+      ? [{ value: "spare" as Key, label: "Spare copy (not in a deck)", description: "Uses a copy that is free" }]
+      : []),
+    ...pull.options.decks.map((d) => ({
+      value: `deck:${d.deckId}` as Key,
+      label: `Take from ${d.deckName}`,
+      description: "Moves the copy here; that deck keeps the card as not in deck",
+    })),
+  ];
+  const display =
+    pull.pick === "spare"
+      ? "Spare copy"
+      : pull.pick === "deck"
+        ? `From ${pull.deckName}`
+        : pull.pick === "short"
+          ? "None left"
+          : "Choose source";
+  return (
+    <span className={view.needsSource ? "flex items-center text-[var(--signal-warning)]" : "flex items-center"}>
+      <QuietSelect<Key>
+        value={value}
+        display={display}
+        options={options}
+        label={`Copy ${n} source for ${cardName}`}
+        onChange={(v) =>
+          onChange({
+            pick: v === "none" ? { kind: "none" } : v === "spare" ? { kind: "spare" } : { kind: "deck", deckId: Number(v.slice(5)) },
+          })
+        }
+      />
+    </span>
+  );
 }
 
 interface QuietOption<T extends string> {
@@ -566,6 +624,14 @@ export function ImportRowEditor({
           Generic land
         </span>
       )}
+      {!generic && !intent?.quiet && intent?.views.some((v) => v.needsSource) && (
+        <span
+          data-tag="needs-source"
+          className="inline-flex h-[18px] items-center rounded-full border border-[var(--signal-warning)] px-1.5 text-[length:var(--fs-xs)] text-[var(--signal-warning)]"
+        >
+          ◇ Needs a source
+        </span>
+      )}
       {generic && !intent && resolved.some((c) => c.type === "unsleeved") && (
         <span
           data-tag="unsleeved"
@@ -880,6 +946,9 @@ function CopyLine({
               label={`Copy ${n} type`}
               onChange={(type) => onChange({ type })}
             />
+          )}
+          {intentView && onIntentChange && !intentQuiet && intentView.source === "collection" && (
+            <PullSelect view={intentView} cardName={row.cardName} n={n} onChange={onIntentChange} />
           )}
         </>
       )}

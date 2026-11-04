@@ -28,8 +28,7 @@ import {
   intentNotes,
   INTENT_SAVE_PENDING,
   INTENT_SAVE_PENDING_NOT_NEW,
-  SHORT_BLOCKS_IMPORT,
-  SHARED_BLOCKS_IMPORT,
+  NEEDS_SOURCE_BLOCKS_IMPORT,
   OWNERSHIP_FAILED,
   OWNERSHIP_LOADING,
   DUPLICATE_NAME_NOTE,
@@ -47,6 +46,7 @@ import {
   stripIntentFields,
   summariseImportPlan,
   summaryText,
+  withResolvedPicks,
   deckBreakdown,
   breakdownLine,
   type IntentChange,
@@ -368,8 +368,9 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
       edits: step.copyEdits,
       intent: effectiveIntent,
       defaults: step.defaults,
+      ignoreBasics,
     })
-    const views = intentCopyViews(reviewRows, plans, allocation, step.copyEdits, effectiveIntent, step.defaults)
+    const views = intentCopyViews(reviewRows, plans, allocation, step.copyEdits, effectiveIntent, step.defaults, ignoreBasics)
     return {
       views,
       busy: !ready,
@@ -377,9 +378,8 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
       summary: ready ? summaryText(summariseImportPlan(plans)) : null,
       breakdown: ready ? deckBreakdown(plans) : null,
       choices: ready ? needsChoice(plans).length : 0,
-      shared: ready ? plans.filter((p) => p.kind === 'share').length : 0,
     }
-  }, [needsOwnership, reviewRows, step, ownership, effectiveIntent])
+  }, [needsOwnership, reviewRows, step, ownership, effectiveIntent, ignoreBasics])
 
   /** Review → "What's this deck?" again. Choices made under the old answer are dropped. */
   const backToQuestion = useCallback(() => {
@@ -441,7 +441,10 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
           name: step.deckName,
           format: step.format,
           defaults: step.defaults,
-          copyEdits: intentSaveOn ? step.copyEdits : stripIntentFields(step.copyEdits as IntentCopyEdits),
+          copyEdits: intentSaveOn
+            ? withResolvedPicks(step.copyEdits as IntentCopyEdits, intentView?.views ?? {})
+            : stripIntentFields(step.copyEdits as IntentCopyEdits),
+          ignoreBasics,
           ...(intentSaveOn ? { intent } : {}),
           genericArt: step.genericArt ?? {},
           unmatched: step.preview.unmatched,
@@ -532,7 +535,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
     } finally {
       savingRef.current = false
     }
-  }, [step, queryClient, onComplete])
+  }, [step, queryClient, onComplete, intentView, intentSaveOn, intent, ignoreBasics])
 
   /** "Open deck" on the result screen: the only thing that navigates. */
   const handleDone = useCallback(() => {
@@ -868,16 +871,9 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
             onShowHidden={notes.restoreAll}
           />
           <div className="flex items-center gap-2">
-            {intentView && intentView.choices > 0 && (
-              <span className="text-[length:var(--fs-sm)] text-[var(--signal-warning)]">
-                {SHORT_BLOCKS_IMPORT(intentView.choices)}
-              </span>
-            )}
-            {intentSaveOn && intentView && intentView.shared > 0 && (
-              <span className="text-[length:var(--fs-sm)] text-[var(--signal-warning)]">
-                {SHARED_BLOCKS_IMPORT(intentView.shared)}
-              </span>
-            )}
+            <span role="status" aria-live="polite" className="text-[length:var(--fs-sm)] text-[var(--signal-warning)]">
+              {intentView && intentView.choices > 0 ? NEEDS_SOURCE_BLOCKS_IMPORT(intentView.choices) : null}
+            </span>
             {saveBlockedByIntent && (
               <span className="text-[length:var(--fs-sm)] text-muted-foreground">{INTENT_SAVE_PENDING}</span>
             )}
@@ -897,7 +893,6 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
                 saveBlockedByIntent ||
                 (!intentSaveOn && !!intentView?.notAllNew) ||
                 (intentView?.choices ?? 0) > 0 ||
-                (intentSaveOn && (intentView?.shared ?? 0) > 0) ||
                 step.preview.rows.length === 0 ||
                 !step.deckName.trim()
               }

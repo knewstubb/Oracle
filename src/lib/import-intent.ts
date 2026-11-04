@@ -27,9 +27,10 @@ import type {
   IntentCopyOwnerEdits,
   OwnedCopyGroup,
   OwnershipRowFacts,
+  SourcePick,
 } from '../../docs/oracle/contracts/import-intent.types'
 import type { ManaBoxPreviewResponse } from '../../docs/oracle/contracts/manabox-import.types'
-import { isBasicLand, isGenericBasic } from '@/lib/basic-lands'
+import { isBasicLand, isGenericBasic, isIgnorableBasic } from '@/lib/basic-lands'
 import { resolveCopy } from '@/lib/import-copies'
 import type { NormalizedDeck } from '@/lib/deck-normalizer'
 
@@ -55,7 +56,12 @@ export function defaultsForIntent(intent: ImportIntent): IntentStartingState {
   }
 }
 
-/** Is this review row a generic basic (a basic with no printing named)? Never matched, never added. */
+/** Is this row an "ignored basic": one of the five basics or Wastes, naming a printing, with the switch on? */
+export function isIgnoredBasicRow(row: Pick<ImportRow, 'cardName' | 'printingGiven'>, ignoreBasics: boolean | undefined): boolean {
+  return !!ignoreBasics && !isGenericImportRow(row) && isIgnorableBasic(row.cardName)
+}
+
+/** Is this row a generic basic (a basic with no printing named)? Never matched, never added. */
 export function isGenericImportRow(row: Pick<ImportRow, 'cardName' | 'printingGiven'>): boolean {
   return isGenericBasic(row.cardName, row.printingGiven ?? true)
 }
@@ -91,12 +97,15 @@ export function effectiveCopyState(
   intent: ImportIntent,
   edits: IntentCopyEdits | undefined,
   defaults: ImportDefaults,
-  anyOwned = false
+  anyOwned = false,
+  /** An ignored basic ("Ignore basic lands" on): never From collection; the deck just gets an ordinary basic. */
+  ignored = false
 ): EffectiveCopyState {
   const e: IntentCopyOwnerEdits = edits?.[row.rowKey]?.[copy.index] ?? {}
   // Owner's choice, then the file's Proxy marker (D-055), then Original.
   const start = defaultsForIntent(intent).source
-  const source: CardSource = editedSource(e) ?? (start === 'owned' ? (anyOwned ? 'collection' : 'none') : start)
+  const asked: CardSource = editedSource(e) ?? (start === 'owned' ? (ignored ? 'new' : anyOwned ? 'collection' : 'none') : start)
+  const source: CardSource = ignored && asked === 'collection' ? 'new' : asked
   const wantedType = source === 'none' ? undefined : (sleevedType(e.type) ?? sleevedType(copy.owner.type) ?? (copy.file.proxy === true ? 'proxy' : undefined))
   const type: ImportCopyType = source === 'none' ? 'unsleeved' : (wantedType ?? 'original')
   const owner = { ...copy.owner }
@@ -118,8 +127,10 @@ export interface OwnedPrintingInfo {
 export type CopySource =
   /** A free copy (exact printing first, then any other printing). */
   | ({ kind: 'free'; isProxy: boolean; finish: ImportFinish } & OwnedPrintingInfo)
-  /** A copy another deck holds: used here too, flagged on both decks (owner decision 2026-10-30). */
-  | ({ kind: 'held'; isProxy: boolean; deckId: number; deckName: string } & OwnedPrintingInfo)
+  /** A copy another deck holds: it MOVES to this deck on save; the other deck keeps the card as a planned slot (owner decision 2026-11-04). */
+  | ({ kind: 'held'; isProxy: boolean; finish: ImportFinish; deckId: number; deckName: string } & OwnedPrintingInfo)
+  /** Collection was asked for and owned copies exist, but no source is chosen yet ("Choose source"). Blocks Import. */
+  | { kind: 'unset' }
   /** Collection was asked for but no owned copy is left. */
   | { kind: 'short' }
   | { kind: 'none' }
@@ -136,6 +147,17 @@ export interface CopyAllocation {
   /** An owned original / proxy is left for this copy, whatever its current source (for a switch to Collection). */
   ownedOriginalLeft?: boolean
   ownedProxyLeft?: boolean
+  /** Collection copies only: what is chosen and what could be chosen (the Source select). */
+  pull?: PullState
+}
+
+/** Where a From-collection copy's physical card comes from, and the choices open to it. */
+export interface PullState {
+  /** unset = "Choose source" (blocks); short = nothing left to use. */
+  pick: 'spare' | 'deck' | 'unset' | 'short'
+  deckId?: number
+  deckName?: string
+  options: { spare: boolean; decks: Array<{ deckId: number; deckName: string; count: number }> }
 }
 
 /** rowKey -> copy index -> allocation. Generic basics have no entry. */
@@ -147,6 +169,8 @@ export interface AllocateInput {
   edits?: IntentCopyEdits
   intent: ImportIntent
   defaults: ImportDefaults
+  /** "Ignore basic lands": the five basics and Wastes are never pulled from other decks. */
+  ignoreBasics?: boolean
 }
 
 interface PoolFree extends OwnedCopyGroup {
@@ -194,10 +218,24 @@ function pickCopy<G extends OwnedCopyGroup & { left: number }>(
   return ok.sort((a, b) => rank(a) - rank(b))[0]
 }
 
+const freeSource = (g: PoolFree): CopySource => ({ kind: 'free', ...info(g), isProxy: g.isProxy, finish: g.finish })
+const heldSource = (g: PoolHeld): CopySource => ({
+  kind: 'held',
+  ...info(g),
+  isProxy: g.isProxy,
+  finish: g.finish,
+  deckId: g.deckId,
+  deckName: g.deckName,
+})
+
 /**
- * Decide, for every copy whose card source is Collection, which owned copy it uses.
+ * Decide, for every copy whose card source is Collection, which owned copy it uses (spec import-modal-redesign §4).
+ * - An explicit pick (spare / a deck / none = "Choose source") is honoured first, so automatic choices never take it.
+ * - Otherwise: a spare copy wins; else the single deck that holds one; else nothing is chosen until the owner picks.
+ * - An explicit pick that can no longer be met is "short", never silently swapped for another source.
  * Rows run in `sourceIndex` order and copies in index order; one owned copy is used once per import.
- * Free copies come before copies other decks hold. Nothing ever moves out of another deck.
+ * The finish asked for is the file's (or the owner's); the copy's own Original/Proxy is kept (never filtered).
+ * Ignored basics are never Collection, so they never touch the pool.
  */
 export function allocateOwnedCopies(input: AllocateInput): OwnedAllocation {
   const { rows, facts, edits, intent, defaults } = input
@@ -205,42 +243,104 @@ export function allocateOwnedCopies(input: AllocateInput): OwnedAllocation {
   const out: OwnedAllocation = {}
   const ordered = [...rows].sort((a, b) => a.sourceIndex - b.sourceIndex)
 
+  interface Item {
+    row: ImportRow
+    copy: ImportCopy
+    st: EffectiveCopyState
+    entry: PoolEntry
+    anyOwned: boolean
+    pick?: SourcePick
+    source: CopySource
+  }
+  const items: Item[] = []
+  const all: Item[] = []
+
   for (const row of ordered) {
     if (isGenericImportRow(row)) continue
+    const ignored = isIgnoredBasicRow(row, input.ignoreBasics)
     const entry = pool.get(row.oracleId) ?? { free: [], held: [] }
     const anyOwned = entry.free.length + entry.held.length > 0
     out[row.rowKey] = {}
-
     for (const copy of row.copies) {
-      const st = effectiveCopyState(copy, row, intent, edits, defaults, anyOwned)
-      const left = [...entry.free, ...entry.held].filter((g) => g.left > 0)
-      const canCollection = left.length > 0
-      const flags = {
-        anyOwned,
-        canCollection,
-        canOriginal: st.source === 'new' || (st.source === 'collection' && left.some((g) => !g.isProxy)),
-        canProxy: st.source === 'new' || (st.source === 'collection' && left.some((g) => g.isProxy)),
-        ownedOriginalLeft: left.some((g) => !g.isProxy),
-        ownedProxyLeft: left.some((g) => g.isProxy),
-      }
-      if (st.source !== 'collection') {
-        out[row.rowKey][copy.index] = { source: { kind: 'none' }, ...flags }
-        continue
-      }
-      let source: CopySource = { kind: 'short' }
-      const free = pickCopy(entry.free, row.scryfallId, st)
-      if (free) {
-        free.left -= 1
-        source = { kind: 'free', ...info(free), isProxy: free.isProxy, finish: free.finish }
-      } else {
-        const held = pickCopy(entry.held, row.scryfallId, st)
-        if (held) {
-          held.left -= 1
-          source = { kind: 'held', ...info(held), isProxy: held.isProxy, deckId: held.deckId, deckName: held.deckName }
-        }
-      }
-      out[row.rowKey][copy.index] = { source, ...flags }
+      const st = effectiveCopyState(copy, row, intent, edits, defaults, anyOwned, ignored)
+      const item: Item = { row, copy, st, entry, anyOwned, pick: edits?.[row.rowKey]?.[copy.index]?.pick, source: { kind: 'none' } }
+      all.push(item)
+      if (st.source === 'collection') items.push(item)
     }
+  }
+
+  const wantFinish = (c: ImportCopy): ImportFinish => c.owner.finish ?? c.file.finish ?? 'nonfoil'
+  const take = <G extends OwnedCopyGroup & { left: number }>(groups: G[], it: Item): G | undefined => {
+    const g = pickCopy(groups, it.row.scryfallId, { ...it.st, wantedType: undefined, finish: wantFinish(it.copy) })
+    if (g) g.left -= 1
+    return g
+  }
+  const own = new Map<Item, PoolFree | PoolHeld>()
+  const takeSpare = (it: Item) => {
+    const g = take(it.entry.free, it)
+    if (g) own.set(it, g)
+    it.source = g ? freeSource(g) : { kind: 'short' }
+  }
+  const takeDeck = (it: Item, deckId: number) => {
+    const g = take(it.entry.held.filter((h) => h.deckId === deckId), it)
+    if (g) own.set(it, g)
+    it.source = g ? heldSource(g) : { kind: 'short' }
+  }
+
+  // Pass 1: explicit picks reserve their copies.
+  for (const it of items) {
+    if (!it.pick) continue
+    if (it.pick.kind === 'none') it.source = { kind: 'unset' }
+    else if (it.pick.kind === 'spare') takeSpare(it)
+    else takeDeck(it, it.pick.deckId)
+  }
+  // Pass 2: automatic choices take what is left.
+  for (const it of items) {
+    if (it.pick) continue
+    if (it.entry.free.some((g) => g.left > 0)) {
+      takeSpare(it)
+      continue
+    }
+    const deckIds = [...new Set(it.entry.held.filter((g) => g.left > 0).map((g) => g.deckId))]
+    if (deckIds.length === 0) it.source = { kind: 'short' }
+    else if (deckIds.length === 1) takeDeck(it, deckIds[0])
+    else it.source = { kind: 'unset' }
+  }
+
+  for (const it of all) {
+    const mine = own.get(it)
+    const left = [...it.entry.free, ...it.entry.held].filter((g) => g.left > 0 || g === mine)
+    const ignored = isIgnoredBasicRow(it.row, input.ignoreBasics)
+    const canCollection = !ignored && left.length > 0
+    const flags: Omit<CopyAllocation, 'source'> = {
+      anyOwned: it.anyOwned,
+      canCollection,
+      canOriginal: it.st.source === 'new' || (it.st.source === 'collection' && left.some((g) => !g.isProxy)),
+      canProxy: it.st.source === 'new' || (it.st.source === 'collection' && left.some((g) => g.isProxy)),
+      ownedOriginalLeft: left.some((g) => !g.isProxy),
+      ownedProxyLeft: left.some((g) => g.isProxy),
+    }
+    if (it.st.source === 'collection') {
+      const byDeck = new Map<number, { deckId: number; deckName: string; count: number }>()
+      for (const g of it.entry.held) {
+        const n = g.left + (g === mine ? 1 : 0)
+        if (n <= 0) continue
+        const cur = byDeck.get(g.deckId) ?? { deckId: g.deckId, deckName: g.deckName, count: 0 }
+        cur.count += n
+        byDeck.set(g.deckId, cur)
+      }
+      const pick: PullState['pick'] =
+        it.source.kind === 'free' ? 'spare' : it.source.kind === 'held' ? 'deck' : it.source.kind === 'unset' ? 'unset' : 'short'
+      flags.pull = {
+        pick,
+        ...(it.source.kind === 'held' ? { deckId: it.source.deckId, deckName: it.source.deckName } : {}),
+        options: {
+          spare: it.entry.free.some((g) => g.left > 0 || g === mine),
+          decks: [...byDeck.values()].sort((a, b) => a.deckName.localeCompare(b.deckName)),
+        },
+      }
+    }
+    out[it.row.rowKey][it.copy.index] = { source: it.st.source === 'collection' ? it.source : { kind: 'none' }, ...flags }
   }
   return out
 }
@@ -255,7 +355,8 @@ export function resolveCopyPlan(
   intent: ImportIntent,
   edits: IntentCopyEdits | undefined,
   allocation: OwnedAllocation,
-  defaults: ImportDefaults
+  defaults: ImportDefaults,
+  ignoreBasics = false
 ): CopyPlan {
   const base = { rowKey: row.rowKey, copyIndex: copy.index, slotPrintingId: row.scryfallId }
   const e = edits?.[row.rowKey]?.[copy.index] ?? {}
@@ -280,7 +381,7 @@ export function resolveCopyPlan(
     canProxy: false,
     anyOwned: false,
   }
-  const st = effectiveCopyState(copy, row, intent, edits, defaults, alloc.anyOwned)
+  const st = effectiveCopyState(copy, row, intent, edits, defaults, alloc.anyOwned, isIgnoredBasicRow(row, ignoreBasics))
   const flags = { canOriginal: alloc.canOriginal, canProxy: alloc.canProxy }
   const notInDeck = alloc.anyOwned ? 'owned_unsleeved' : 'unowned'
 
@@ -298,20 +399,25 @@ export function resolveCopyPlan(
         kind: 'sleeve_owned',
         type: src.isProxy ? 'proxy' : 'original',
         slotPrintingId: src.printingId,
+        finish: src.finish,
         ownedPrinting: ownedPrinting(src),
         ...flags,
       }
     case 'held':
+      // Scan wins: the copy moves here; the deck it leaves keeps the card as a planned slot (and is short by one).
       return {
         ...base,
-        kind: 'share',
+        kind: 'move',
         type: src.isProxy ? 'proxy' : 'original',
         slotPrintingId: src.printingId,
+        finish: src.finish,
         ownedPrinting: ownedPrinting(src),
         fromDeckId: src.deckId,
-        sharedWith: [{ deckId: src.deckId, deckName: src.deckName }],
+        fromDeckName: src.deckName,
         ...flags,
       }
+    case 'unset':
+      return { ...base, kind: 'needs_choice_move', type: 'unsleeved', ...flags }
     default:
       return { ...base, kind: notInDeck, type: 'unsleeved', short: true, ...flags }
   }
@@ -328,7 +434,7 @@ export function planImportDetailed(input: AllocateInput): { plans: CopyPlan[]; a
   const plans: CopyPlan[] = []
   for (const row of input.rows) {
     for (const copy of row.copies) {
-      plans.push(resolveCopyPlan(copy, row, input.intent, input.edits, allocation, input.defaults))
+      plans.push(resolveCopyPlan(copy, row, input.intent, input.edits, allocation, input.defaults, input.ignoreBasics))
     }
   }
   return { plans, allocation }
@@ -351,8 +457,10 @@ export interface IntentCopyView {
   anyOwned: boolean
   /** Collection asked for, no owned copy left: the owner must pick None or New. Blocks Import. */
   short: boolean
-  /** The collection copy is also in these decks (it will be flagged on both). */
-  sharedWith?: Array<{ deckId: number; deckName: string }>
+  /** From collection with no source yet ("Choose source"), or nothing left to use. Blocks Import. */
+  needsSource: boolean
+  /** From collection: what is chosen and what could be chosen (the Source select). */
+  pull?: PullState
   /** An owned original / proxy is left for this copy (decides which type survives a switch to Collection). */
   ownedOriginalLeft?: boolean
   ownedProxyLeft?: boolean
@@ -364,7 +472,8 @@ export function intentCopyViews(
   allocation: OwnedAllocation,
   edits: IntentCopyEdits | undefined,
   intent: ImportIntent,
-  defaults: ImportDefaults
+  defaults: ImportDefaults,
+  ignoreBasics = false
 ): Record<string, IntentCopyView[]> {
   const planOf = new Map(plans.map((p) => [`${p.rowKey}#${p.copyIndex}`, p]))
   const out: Record<string, IntentCopyView[]> = {}
@@ -373,7 +482,7 @@ export function intentCopyViews(
     out[row.rowKey] = row.copies.map((copy) => {
       const plan = planOf.get(`${row.rowKey}#${copy.index}`)
       const alloc = allocation[row.rowKey]?.[copy.index]
-      const st = effectiveCopyState(copy, row, intent, edits, defaults, alloc?.anyOwned ?? false)
+      const st = effectiveCopyState(copy, row, intent, edits, defaults, alloc?.anyOwned ?? false, isIgnoredBasicRow(row, ignoreBasics))
       const short = !!plan?.short
       return {
         index: copy.index,
@@ -385,7 +494,8 @@ export function intentCopyViews(
         canProxy: plan?.canProxy ?? false,
         anyOwned: alloc?.anyOwned ?? false,
         short,
-        ...(plan?.sharedWith ? { sharedWith: plan.sharedWith } : {}),
+        needsSource: short || plan?.kind === 'needs_choice_move',
+        ...(alloc?.pull ? { pull: alloc.pull } : {}),
         ...(alloc ? { ownedOriginalLeft: !!alloc.ownedOriginalLeft, ownedProxyLeft: !!alloc.ownedProxyLeft } : {}),
       }
     })
@@ -394,6 +504,26 @@ export function intentCopyViews(
 }
 
 /** Does any non-generic copy come from somewhere other than New? Such a deck can't be saved by the old path. */
+/**
+ * The source the owner saw for every From-collection copy, written into the edits as explicit picks.
+ * Sent with the import so the server only ever makes the moves the review showed (never a different one).
+ */
+export function withResolvedPicks(edits: IntentCopyEdits, views: Record<string, IntentCopyView[]>): IntentCopyEdits {
+  const out: IntentCopyEdits = {}
+  for (const [rowKey, perIndex] of Object.entries(edits)) out[rowKey] = { ...perIndex }
+  for (const [rowKey, list] of Object.entries(views)) {
+    for (const v of list) {
+      const pull = v.pull
+      if (!pull || v.source !== 'collection') continue
+      const pick: SourcePick | undefined =
+        pull.pick === 'spare' ? { kind: 'spare' } : pull.pick === 'deck' && pull.deckId !== undefined ? { kind: 'deck', deckId: pull.deckId } : undefined
+      if (!pick) continue
+      out[rowKey] = { ...out[rowKey], [v.index]: { ...out[rowKey]?.[v.index], source: 'collection', pick } }
+    }
+  }
+  return out
+}
+
 export function hasNonNewCopy(views: Record<string, IntentCopyView[]>): boolean {
   return Object.values(views).some((copies) => copies.some((c) => !c.generic && c.source !== 'new'))
 }
@@ -451,7 +581,8 @@ export function stripIntentFields(edits: IntentCopyEdits): ImportCopyEdits {
   const out: ImportCopyEdits = {}
   for (const [rowKey, copies] of Object.entries(edits)) {
     for (const [i, e] of Object.entries(copies)) {
-      const { add: _a, move: _m, printing: _p, source: _s, ...rest } = e
+      const { add: _a, move: _m, printing: _p, source: _s, pick: _k, ...rest } = e
+      void _k
       void _a
       void _m
       void _p
@@ -514,17 +645,17 @@ export function coerceIntentEdit(
       return { edit: current, message: `${ctx.cardName}: none left in your collection.` }
     }
     const keep = sleevedType(kept.type)
+    // A source pick belongs to From collection only; switching origin starts it afresh.
+    if (change.source !== 'collection' || ctx.source !== 'collection') delete next.pick
     if (change.source === 'none') next.type = undefined
     else if (change.source === 'new') next.type = keep ?? sleevedType(ctx.effectiveType) ?? 'original'
-    // Collection: keep an asked-for kind only while one is left; otherwise take what is there.
-    else next.type = keep === 'original' && ctx.canOriginal ? keep : keep === 'proxy' && ctx.canProxy ? keep : undefined
+    // Collection: the pulled copy keeps its own Original/Proxy; the owner does not choose it.
+    else next.type = undefined
   }
   if (change.type !== undefined) {
     const t = sleevedType(change.type)
     if (!t || next.source === 'none' || next.source === undefined) return { edit: current }
-    if (next.source === 'collection' && !(t === 'original' ? ctx.canOriginal : ctx.canProxy)) {
-      return { edit: current, message: `${ctx.cardName}: no ${t} in your collection.` }
-    }
+    if (next.source === 'collection') return { edit: current }
   }
   return { edit: next }
 }
@@ -568,11 +699,8 @@ export function summariseImportPlan(plans: CopyPlan[]): ImportPlanSummary {
       case 'sleeve_owned':
         s.sleevedFromCollection++
         break
-      case 'share':
-        s.sleevedFromCollection++
-        s.alertsOnOtherDecks += p.sharedWith?.length ?? 0
-        break
       case 'move':
+        s.sleevedFromCollection++
         s.moved++
         break
       case 'owned_unsleeved':
@@ -602,7 +730,7 @@ export interface DeckBreakdown {
   collection: number
   new: number
   notInDeck: number
-  /** Of `collection`: copies also in another deck. */
+  /** Of `collection`: copies taken from another deck. */
   shared: number
   short: number
 }
@@ -613,8 +741,8 @@ export function deckBreakdown(plans: CopyPlan[]): DeckBreakdown {
   for (const p of plans) {
     if (p.short) b.short++
     else if (p.kind === 'add_sleeved' || p.kind === 'add_unsleeved' || p.kind === 'move_skipped') b.new++
-    else if (p.kind === 'sleeve_owned' || p.kind === 'move') b.collection++
-    else if (p.kind === 'share') {
+    else if (p.kind === 'sleeve_owned') b.collection++
+    else if (p.kind === 'move') {
       b.collection++
       b.shared++
     } else if (p.kind === 'generic') {
@@ -633,7 +761,7 @@ export function breakdownLine(b: DeckBreakdown, filter: string): string {
       [b.collection, 'from collection'],
       [b.new, 'new'],
       [b.notInDeck, 'not in deck'],
-      [b.shared, 'also in other decks'],
+      [b.shared, 'taken from other decks'],
       [b.short, 'short'],
     ] as const
   )
@@ -649,7 +777,7 @@ export function summaryText(s: ImportPlanSummary): string {
   if (s.added > 0) parts.push(`${s.added} new`)
   if (s.unsleeved + s.unowned > 0) parts.push(`${s.unsleeved + s.unowned} not in deck`)
   if (s.needChoice > 0) parts.push(`${s.needChoice} short`)
-  if (s.alertsOnOtherDecks > 0) parts.push(`⚠ ${s.alertsOnOtherDecks} also in other decks`)
+  if (s.moved > 0) parts.push(`${s.moved} taken from other decks`)
   if (s.genericBasics > 0) parts.push(`${s.genericBasics} generic basics`)
   return parts.join(' · ')
 }
@@ -683,13 +811,13 @@ export function intentChoiceStats(
 ): IntentChoiceStats {
   const built = planImport({ ...input, intent: 'built' }).filter((p) => p.kind !== 'generic')
   const total = built.length
-  const owned = built.filter((p) => p.kind === 'sleeve_owned' || p.kind === 'share').length
-  const shared = built.filter((p) => p.kind === 'share').length
+  const owned = built.filter((p) => p.kind === 'sleeve_owned' || p.kind === 'move').length
+  const shared = built.filter((p) => p.kind === 'move').length
   const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
   const ownedNote = (text: string) => (owned > 0 ? ` · ${text}` : '')
   const builtParts = [
     `${owned - shared} from collection`,
-    ...(shared > 0 ? [`${shared} also in other decks (flagged after import)`] : []),
+    ...(shared > 0 ? [`${shared} taken from other decks`] : []),
     ...(total - owned > 0 ? [`${total - owned} not in deck (you don't own them)`] : []),
   ]
   const byIntent: Record<ImportIntent, string> = {

@@ -15,6 +15,7 @@ import {
   planImportDetailed,
   setIntentEdit,
   stripIntentFields,
+  withResolvedPicks,
 } from './import-intent'
 
 const defaults: ImportDefaults = { ...INITIAL_IMPORT_DEFAULTS }
@@ -78,13 +79,20 @@ describe('intentCopyViews: starting Card source', () => {
     expect(a).toMatchObject({ source: 'collection', short: false })
     expect(b).toMatchObject({ source: null, short: true, type: 'unsleeved', canCollection: false, anyOwned: true })
   })
-  it('a shared copy names the other deck', () => {
+  it('a copy held by one other deck is auto-selected and names the deck', () => {
     const r = row()
     expect(views(r, [facts(r, [], [held(5)])], 'built')[0]).toMatchObject({
       source: 'collection',
-      sharedWith: [{ deckId: 5, deckName: 'Deck 5' }],
+      needsSource: false,
+      pull: { pick: 'deck', deckId: 5, deckName: 'Deck 5' },
     })
-    expect(views(r, [facts(r, [free()])], 'built')[0].sharedWith).toBeUndefined()
+    expect(views(r, [facts(r, [free()])], 'built')[0].pull).toMatchObject({ pick: 'spare' })
+  })
+  it('several holder decks leave the source unset (needs a source)', () => {
+    const r = row()
+    const [v] = views(r, [facts(r, [], [held(5), held(6)])], 'built')
+    expect(v).toMatchObject({ needsSource: true, pull: { pick: 'unset' } })
+    expect(v.pull?.options.decks.map((d) => d.deckId)).toEqual([5, 6])
   })
 })
 
@@ -132,12 +140,12 @@ describe('applyIntentChange: Card source', () => {
     expect(col.edits.k1[0]).toEqual({ source: 'collection' })
     expect(views(r, fs, 'purchased', col.edits)[0]).toMatchObject({ source: 'collection', type: 'original', short: false })
   })
-  it('New -> Collection keeps a Proxy the collection has', () => {
+  it('New -> Collection takes the owned copy and its own type (a chosen Proxy is not kept)', () => {
     const r = row()
     const fs = [facts(r, [free(), free({ isProxy: true })])]
     const proxy = click(r, fs, 'purchased', {}, 0, { type: 'proxy' })
     const col = click(r, fs, 'purchased', proxy.edits, 0, { source: 'collection' })
-    expect(views(r, fs, 'purchased', col.edits)[0]).toMatchObject({ source: 'collection', type: 'proxy' })
+    expect(views(r, fs, 'purchased', col.edits)[0]).toMatchObject({ source: 'collection', type: 'original' })
   })
 })
 
@@ -154,16 +162,12 @@ describe('applyIntentChange: Type', () => {
     expect(v).toMatchObject({ canOriginal: false, canProxy: false })
     expect(click(r, [facts(r)], 'planned', {}, 0, { type: 'original' }).edits).toEqual({})
   })
-  it('under Collection only an owned type can be picked', () => {
+  it('under Collection the type cannot be changed (the owned copy keeps its own)', () => {
     const r = row()
-    const fs = [facts(r, [free()])]
-    expect(views(r, fs, 'built')[0]).toMatchObject({ canOriginal: true, canProxy: false })
-    const res = click(r, fs, 'built', {}, 0, { type: 'proxy' })
-    expect(res.edits).toEqual({})
-    expect(res.message).toBe('Sol Ring: no proxy in your collection.')
     const both = [facts(r, [free(), free({ isProxy: true })])]
-    const ok = click(r, both, 'built', {}, 0, { type: 'proxy' })
-    expect(views(r, both, 'built', ok.edits)[0]).toMatchObject({ source: 'collection', type: 'proxy' })
+    const res = click(r, both, 'built', {}, 0, { type: 'proxy' })
+    expect(res.edits).toEqual({})
+    expect(views(r, both, 'built')[0]).toMatchObject({ source: 'collection', type: 'original' })
   })
 })
 
@@ -180,5 +184,18 @@ describe('setIntentEdit / stripIntentFields', () => {
       b: { 0: { printing: 'use_mine', finish: 'foil' } },
     }
     expect(stripIntentFields(edits)).toEqual({ a: { 0: { type: 'proxy' } }, b: { 0: { finish: 'foil' } } })
+  })
+})
+
+describe('withResolvedPicks', () => {
+  it('writes the shown spare / deck source as an explicit pick; unset copies get none', () => {
+    const r = row({ qty: 2 })
+    const fs = [facts(r, [free()], [held(5)])]
+    const v = { k1: views(r, fs, 'built') }
+    expect(withResolvedPicks({}, v)).toEqual({
+      k1: { 0: { source: 'collection', pick: { kind: 'spare' } }, 1: { source: 'collection', pick: { kind: 'deck', deckId: 5 } } },
+    })
+    const two = [facts(r, [], [held(5), held(6)])]
+    expect(withResolvedPicks({}, { k1: views(r, two, 'built') })).toEqual({})
   })
 })

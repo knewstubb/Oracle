@@ -48,7 +48,7 @@ import {
   type ImportFinish,
   type ImportRow,
 } from '@/lib/import-copies'
-import { effectiveCopyState, planImport, stripIntentFields, summariseImportPlan } from '@/lib/import-intent'
+import { effectiveCopyState, isIgnoredBasicRow, planImport, stripIntentFields, summariseImportPlan } from '@/lib/import-intent'
 import { loadOwnershipFacts } from '@/lib/import-ownership'
 import {
   NeedsChoiceError,
@@ -56,8 +56,7 @@ import {
   cleanupEmptyDeckAfterRejection,
   isIntentRpcMissing,
   needsChoiceRowKeys,
-  sharedRowKeys,
-  SharedCopyError,
+  unconfirmedMoveRowKeys,
   planToIntentRpcRow,
   validateIntentEdits,
   type IntentRowOrigin,
@@ -100,6 +99,8 @@ export interface ManaBoxDeckImportOptions {
   name: string
   format?: string
   defaults: ImportDefaults
+  /** "Ignore basic lands" (default on when absent): basics are never pulled from other decks. */
+  ignoreBasics?: boolean
   /** Owner edits: rowKey -> copy index -> fields. Holds no database ids. */
   copyEdits?: ImportCopyEdits
   /** Always the signed-in user's id. */
@@ -278,14 +279,14 @@ export async function importManaBoxDeck(
         ownershipFailedCopies.add('*')
       }
     }
-    plans = planImport({ rows, facts, edits: intentEdits, intent, defaults: options.defaults })
+    plans = planImport({ rows, facts, edits: intentEdits, intent, defaults: options.defaults, ignoreBasics: options.ignoreBasics !== false })
     // Ownership unavailable: a Collection copy finds nothing, but that is not the owner's choice to make.
     // It is saved Unowned and listed below instead of blocking the save.
     if (ownershipFailedCopies.has('*')) plans = plans.map((p) => (p.short ? { ...p, short: undefined } : p))
     const blocked = needsChoiceRowKeys(plans)
     if (blocked.length > 0) throw new NeedsChoiceError(blocked)
-    const shared = sharedRowKeys(plans)
-    if (shared.length > 0) throw new SharedCopyError(shared)
+    const unconfirmed = unconfirmedMoveRowKeys(plans, intentEdits)
+    if (unconfirmed.length > 0) throw new NeedsChoiceError(unconfirmed)
     // Generic basics follow the plan (the intent's default is Unsleeved for planned decks).
     for (const entry of resolvedByCard) {
       if (!isGeneric(entry.card)) continue
@@ -459,7 +460,8 @@ export async function importManaBoxDeck(
             intent,
             intentEdits,
             options.defaults,
-            true // facts are unknown: treat the card as owned so a Built default counts as Collection
+            true, // facts are unknown: treat the card as owned so a Built default counts as Collection
+            isIgnoredBasicRow({ cardName: card.cardName, printingGiven: card.printingGiven }, options.ignoreBasics !== false)
           )
           if (st.source === 'collection') unavailable.push(origin)
         }
@@ -505,7 +507,7 @@ export async function importManaBoxDeck(
 
     await saveImportColourIdentity(supabase as never, deckId, options.userId, zone)
 
-    const intentSummary = buildIntentSummary(deckId, summariseImportPlan(plans), intentResult, origins)
+    const intentSummary = buildIntentSummary(deckId, summariseImportPlan(plans), intentResult, origins, plans)
     for (const origin of unavailable) {
       intentSummary.needsALook.push({ ...origin, reason: 'ownership_unavailable' })
     }

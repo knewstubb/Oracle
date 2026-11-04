@@ -193,12 +193,11 @@ describe('allocation order (Collection)', () => {
     const [p] = plan([r], [facts(r, [free({ ...cmm }), free({ isProxy: true })])], 'built')
     expect(p).toMatchObject({ type: 'proxy', slotPrintingId: 'p-clb' })
   })
-  it('a requested type only takes that type', () => {
+  it('a type asked for is ignored under Collection: the owned copy keeps its own type', () => {
     const r = row()
     const fs = [facts(r, [free(), free({ ...cmm, isProxy: true })])]
-    expect(plan([r], fs, 'built', collection({ type: 'proxy' }))[0]).toMatchObject({ kind: 'sleeve_owned', type: 'proxy', slotPrintingId: 'p-cmm' })
-    // Only an original owned, a proxy asked for: nothing fits, so the copy is short.
-    expect(plan([r], [facts(r, [free()])], 'built', collection({ type: 'proxy' }))[0]).toMatchObject({ kind: 'owned_unsleeved', short: true })
+    expect(plan([r], fs, 'built', collection({ type: 'proxy' }))[0]).toMatchObject({ kind: 'sleeve_owned', type: 'original' })
+    expect(plan([r], [facts(r, [free(cmm)])], 'built', collection({ type: 'original' }))[0]).toMatchObject({ kind: 'sleeve_owned' })
   })
   it('the wanted finish is preferred, any finish is used otherwise', () => {
     const r = row()
@@ -211,7 +210,7 @@ describe('allocation order (Collection)', () => {
   it('free copies are used before copies held by other decks', () => {
     const r = row({ qty: 2 })
     const plans = plan([r], [facts(r, [free()], [held(7)])], 'built')
-    expect(plans.map((p) => p.kind)).toEqual(['sleeve_owned', 'share'])
+    expect(plans.map((p) => p.kind)).toEqual(['sleeve_owned', 'move'])
   })
   it('a free other printing beats the exact printing held in another deck', () => {
     const r = row()
@@ -234,22 +233,61 @@ describe('allocation order (Collection)', () => {
   })
 })
 
-describe('share and short', () => {
-  it('a copy held by another deck is shared: named deck, flagged, never moved', () => {
+describe('moves, sources and short', () => {
+  const pickEdits = (...picks: Array<IntentCopyOwnerEdits['pick']>): IntentCopyEdits => ({
+    k1: Object.fromEntries(picks.map((pick, i) => [i, { source: 'collection' as const, pick }])),
+  })
+  it('a single holder deck is auto-selected: the copy moves from it', () => {
     const r = row()
     const [p] = plan([r], [facts(r, [], [held(7)])], 'built')
-    expect(p).toMatchObject({
-      kind: 'share',
-      type: 'original',
-      fromDeckId: 7,
-      sharedWith: [{ deckId: 7, deckName: 'Deck 7' }],
-      slotPrintingId: 'p-clb',
-    })
+    expect(p).toMatchObject({ kind: 'move', type: 'original', fromDeckId: 7, fromDeckName: 'Deck 7', slotPrintingId: 'p-clb', finish: 'nonfoil' })
   })
-  it('a held other printing is shared and names the printing', () => {
+  it('a held other printing moves and names the printing', () => {
     const r = row()
     const [p] = plan([r], [facts(r, [], [held(7, cmm)])], 'built')
-    expect(p).toMatchObject({ kind: 'share', slotPrintingId: 'p-cmm', ownedPrinting: cmm })
+    expect(p).toMatchObject({ kind: 'move', slotPrintingId: 'p-cmm', ownedPrinting: cmm })
+  })
+  it('several holder decks: unset, blocks as needs a choice', () => {
+    const r = row()
+    const [p] = plan([r], [facts(r, [], [held(7), held(8)])], 'built')
+    expect(p.kind).toBe('needs_choice_move')
+    expect(needsChoice([p])).toHaveLength(1)
+  })
+  it('an explicit deck pick resolves it; an explicit "none" un-sets it even with a spare', () => {
+    const r = row()
+    const f = [facts(r, [free()], [held(7), held(8)])]
+    expect(plan([r], f, 'built', pickEdits({ kind: 'deck', deckId: 8 }))[0]).toMatchObject({ kind: 'move', fromDeckId: 8 })
+    expect(plan([r], f, 'built', pickEdits({ kind: 'none' }))[0].kind).toBe('needs_choice_move')
+  })
+  it('an explicit pick is reserved before an automatic one takes it', () => {
+    const r = row({ qty: 2 })
+    const f = [facts(r, [free()], [held(7)])]
+    // Copy 0 is automatic (would take the spare); copy 1 explicitly wants the spare, so copy 0 falls to the deck.
+    const plans = plan([r], f, 'built', { k1: { 0: { source: 'collection' }, 1: { source: 'collection', pick: { kind: 'spare' } } } })
+    expect(plans.map((p) => p.kind)).toEqual(['move', 'sleeve_owned'])
+  })
+  it('an explicit pick that cannot be met is short, never swapped', () => {
+    const r = row()
+    const [p] = plan([r], [facts(r, [free()])], 'built', pickEdits({ kind: 'deck', deckId: 9 }))
+    expect(p).toMatchObject({ short: true })
+  })
+  it('the exact finish asked for is the one planned; the copy keeps its own Original/Proxy', () => {
+    const r = row({ copies: [{ index: 0, sourceLine: 1, file: { finish: 'foil' }, owner: {} }] })
+    const f = [facts(r, [free(), free({ finish: 'foil' })])]
+    expect(plan([r], f, 'built')[0]).toMatchObject({ kind: 'sleeve_owned', finish: 'foil', type: 'original' })
+    const proxyOnly = [facts(r, [free({ finish: 'foil', isProxy: true })])]
+    expect(plan([r], proxyOnly, 'built')[0]).toMatchObject({ kind: 'sleeve_owned', finish: 'foil', type: 'proxy' })
+  })
+  it('ignore basic lands: the six names are never pulled; Snow-Covered and other cards still are', () => {
+    const mk = (cardName: string) => row({ cardName, oracleId: `o-${cardName}` })
+    const run = (cardName: string, ignoreBasics: boolean) => {
+      const r = mk(cardName)
+      return planImport({ rows: [r], facts: [facts(r, [], [held(7)])], intent: 'built', defaults, ignoreBasics })[0]
+    }
+    expect(run('Forest', true)).toMatchObject({ kind: 'add_sleeved' })
+    expect(run('Wastes', true)).toMatchObject({ kind: 'add_sleeved' })
+    expect(run('Forest', false).kind).toBe('move')
+    expect(run('Snow-Covered Forest', true).kind).toBe('move')
   })
   it('3 Mountain with 2 owned: copies 1-2 sleeved, copy 3 short (owned, nothing left)', () => {
     const r = row({ cardName: 'Mountain', oracleId: 'o-mtn', qty: 3 })
@@ -295,27 +333,25 @@ describe('coerceIntentEdit', () => {
     expect(coerceIntentEdit({}, { source: 'new' }, { ...ctx, source: 'collection', effectiveType: 'proxy' }).edit).toEqual({ source: 'new', type: 'proxy' })
     expect(coerceIntentEdit({}, { source: 'new' }, ctx).edit).toEqual({ source: 'new', type: 'original' })
   })
-  it('Collection keeps an asked-for type only while that type is owned', () => {
+  it('Collection drops any asked-for type: the pulled copy keeps its own', () => {
     const base = { ...ctx, source: 'new' as const, effectiveType: 'proxy' as const, canCollection: true }
     expect(coerceIntentEdit({ source: 'new', type: 'proxy' }, { source: 'collection' }, { ...base, canOriginal: true, canProxy: true }).edit)
-      .toEqual({ source: 'collection', type: 'proxy' })
-    const r = coerceIntentEdit({ source: 'new', type: 'proxy' }, { source: 'collection' }, { ...base, canOriginal: true, canProxy: false })
-    expect(r.edit).toEqual({ source: 'collection' })
-    expect(r.message).toBeUndefined()
+      .toEqual({ source: 'collection' })
+  })
+  it('switching away from Collection clears the source pick', () => {
+    const r = coerceIntentEdit({ source: 'collection', pick: { kind: 'spare' } }, { source: 'new' }, { ...ctx, source: 'collection' })
+    expect(r.edit.pick).toBeUndefined()
   })
   it('refuses a type change under None, silently', () => {
     const r = coerceIntentEdit({ source: 'none' }, { type: 'original' }, ctx)
     expect(r.edit).toEqual({ source: 'none' })
     expect(r.message).toBeUndefined()
   })
-  it('refuses a type that is not owned under Collection, and says so', () => {
-    const r = coerceIntentEdit({}, { type: 'proxy' }, { ...ctx, source: 'collection', effectiveType: 'original', canCollection: true, canOriginal: true })
+  it('refuses a type change under Collection (the owned copy keeps its own)', () => {
+    const r = coerceIntentEdit({}, { type: 'proxy' }, { ...ctx, source: 'collection', canCollection: true, canProxy: true })
     expect(r.edit).toEqual({})
-    expect(r.message).toBe('Sol Ring: no proxy in your collection.')
   })
-  it('allows a type that is owned under Collection, and any type under New', () => {
-    expect(coerceIntentEdit({}, { type: 'proxy' }, { ...ctx, source: 'collection', canCollection: true, canProxy: true }).edit)
-      .toEqual({ source: 'collection', type: 'proxy' })
+  it('allows any type under New', () => {
     expect(coerceIntentEdit({}, { type: 'proxy' }, { ...ctx, source: 'new', canOriginal: true, canProxy: true }).edit)
       .toEqual({ source: 'new', type: 'proxy' })
   })
@@ -345,11 +381,11 @@ describe('summary', () => {
     expect(s).toMatchObject({ added: 2, addedProxies: 1 })
     expect(summaryText(s)).toBe('2 new')
   })
-  it('a shared copy counts as from your collection and raises an alert per deck', () => {
+  it('a moved copy counts as from your collection and as taken from another deck', () => {
     const r = row()
     const s = summariseImportPlan(plan([r], [facts(r, [], [held(7)])], 'built'))
-    expect(s).toMatchObject({ sleevedFromCollection: 1, alertsOnOtherDecks: 1 })
-    expect(summaryText(s)).toBe('1 from your collection · ⚠ 1 also in other decks')
+    expect(s).toMatchObject({ sleevedFromCollection: 1, moved: 1 })
+    expect(summaryText(s)).toBe('1 from your collection · 1 taken from other decks')
   })
   it('a short copy counts as needing a choice and blocks', () => {
     const r = row({ qty: 2 })
@@ -365,7 +401,7 @@ describe('deckBreakdown / breakdownLine', () => {
   const base = { rowKey: 'k', copyIndex: 0, slotPrintingId: 'p', canOriginal: true, canProxy: true }
   const plans = [
     { ...base, kind: 'sleeve_owned', type: 'original' },
-    { ...base, kind: 'share', type: 'original', sharedWith: [{ deckId: 7, deckName: 'Deck 7' }] },
+    { ...base, kind: 'move', type: 'original', fromDeckId: 7 },
     { ...base, kind: 'generic', type: 'original', genericSleeved: true },
     { ...base, kind: 'generic', type: 'unsleeved', genericSleeved: false },
     { ...base, kind: 'add_sleeved', type: 'proxy' },
@@ -379,7 +415,7 @@ describe('deckBreakdown / breakdownLine', () => {
     expect(b.collection + b.new + b.notInDeck + b.short).toBe(plans.length)
   })
   it('the line under the list omits zeros; the maybeboard has its own line', () => {
-    expect(breakdownLine(deckBreakdown(plans), 'all')).toBe('3 from collection · 1 new · 3 not in deck · 1 also in other decks · 1 short')
+    expect(breakdownLine(deckBreakdown(plans), 'all')).toBe('3 from collection · 1 new · 3 not in deck · 1 taken from other decks · 1 short')
     expect(breakdownLine({ collection: 0, new: 2, notInDeck: 0, shared: 0, short: 0 }, 'all')).toBe('2 new')
     expect(breakdownLine(deckBreakdown(plans), 'maybeboard')).toBe('Maybeboard cards are not added to your collection or sleeved.')
   })
@@ -397,7 +433,7 @@ describe('intentChoiceStats', () => {
     const s = intentChoiceStats({ rows, facts: fs, defaults })
     expect(s.byIntent).toEqual({
       purchased: '3 new copies · you already own another copy of 2 of them',
-      built: "1 from collection · 1 also in other decks (flagged after import) · 1 not in deck (you don't own them)",
+      built: "1 from collection · 1 taken from other decks · 1 not in deck (you don't own them)",
       planned: '3 not in deck · you own 2 of them',
     })
     expect(s.headline).toBe('You own 2 of the 3 cards. 1 of those is in other decks.')

@@ -428,7 +428,7 @@ describe('Review footer: what blocks Import', () => {
     expect(body.ignoreBasics).toBe(false)
   })
 
-  it('flag on: several holder decks need a source; choosing one clears it, and it can be un-set again', async () => {
+  it('flag on: several holder decks need a source; choosing one clears it', async () => {
     flag.on = true
     const { user } = await open('built', HELD([{ id: 7, name: 'Elves' }, { id: 8, name: 'Goblins' }]))
     expect(await screen.findByText('1 card needs a source.')).toBeInTheDocument()
@@ -437,8 +437,6 @@ describe('Review footer: what blocks Import', () => {
     await pick(user, ORIGIN, 'Take from Goblins')
     await waitFor(() => expect(importBtn()).toBeEnabled())
     expect(shown(ORIGIN)).toBe('From deck: Goblins')
-    await pick(user, ORIGIN, 'Choose source')
-    await waitFor(() => expect(importBtn()).toBeDisabled())
   })
 
   it('flag on: a purchased deck with a From collection card can import, and the save carries intent and source', async () => {

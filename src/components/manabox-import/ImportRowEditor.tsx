@@ -172,6 +172,7 @@ function PullSelect({
         value={value}
         display={display}
         options={options}
+        warn={view.needsSource}
         label={`Copy ${n} source for ${cardName}`}
         onChange={(v) =>
           onChange({
@@ -198,6 +199,7 @@ export function QuietSelect<T extends string>({
   options,
   label,
   title,
+  warn,
   onChange,
 }: {
   /** The chosen option; "mixed" marks none as chosen. */
@@ -206,6 +208,8 @@ export function QuietSelect<T extends string>({
   options: QuietOption<T>[];
   label: string;
   title?: string;
+  /** Amber text, for a value that still needs the owner's attention. */
+  warn?: boolean;
   onChange: (v: T) => void;
 }) {
   return (
@@ -213,7 +217,7 @@ export function QuietSelect<T extends string>({
       <DropdownMenuTrigger
         aria-label={label}
         title={title}
-        className="inline-flex h-6 max-w-full shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-md border border-transparent px-1.5 text-[length:var(--fs-xs)] text-foreground hover:border-[var(--border-default)] focus-visible:border-[var(--border-default)] focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)] data-[popup-open]:border-[var(--border-default)]"
+        className={`inline-flex h-6 max-w-full shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-md border border-transparent px-1.5 text-[length:var(--fs-xs)] ${warn ? "text-[var(--signal-warning)]" : "text-foreground"} hover:border-[var(--border-default)] focus-visible:border-[var(--border-default)] focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)] data-[popup-open]:border-[var(--border-default)]`}
       >
         {display}
         <span aria-hidden="true" className="text-[10px] text-muted-foreground">
@@ -326,6 +330,7 @@ function SourceAndType({
                     : ORIGIN_OPTION_TEXT[source].label
           }
           options={originOptions}
+          warn={needsSource}
           label={`${scope ? `${scope}card origin` : "Card origin"} for ${cardName}`}
           onChange={(v) => {
             if (v === "pick:spare") onChange({ pick: { kind: "spare" } });

@@ -79,12 +79,12 @@ describe('intentCopyViews: starting Card source', () => {
     expect(a).toMatchObject({ source: 'collection', short: false })
     expect(b).toMatchObject({ source: null, short: true, type: 'unsleeved', canCollection: false, anyOwned: true })
   })
-  it('a copy held by one other deck is auto-selected and names the deck', () => {
+  it('a copy held by one other deck needs a source until the owner picks it', () => {
     const r = row()
     expect(views(r, [facts(r, [], [held(5)])], 'built')[0]).toMatchObject({
       source: 'collection',
-      needsSource: false,
-      pull: { pick: 'deck', deckId: 5, deckName: 'Deck 5' },
+      needsSource: true,
+      pull: { pick: 'unset' },
     })
     expect(views(r, [facts(r, [free()])], 'built')[0].pull).toMatchObject({ pick: 'spare' })
   })
@@ -193,7 +193,7 @@ describe('withResolvedPicks', () => {
     const fs = [facts(r, [free()], [held(5)])]
     const v = { k1: views(r, fs, 'built') }
     expect(withResolvedPicks({}, v)).toEqual({
-      k1: { 0: { source: 'collection', pick: { kind: 'spare' } }, 1: { source: 'collection', pick: { kind: 'deck', deckId: 5 } } },
+      k1: { 0: { source: 'collection', pick: { kind: 'spare' } } },
     })
     const two = [facts(r, [], [held(5), held(6)])]
     expect(withResolvedPicks({}, { k1: views(r, two, 'built') })).toEqual({})

@@ -235,9 +235,11 @@ export function QuietSelect<T extends string>({
               {o.value === value ? "✓ " : ""}
               {o.label}
             </span>
-            <span className="text-[length:var(--fs-xs)] text-muted-foreground">
-              {o.reason ?? o.description}
-            </span>
+            {o.reason && (
+              <span className="text-[length:var(--fs-xs)] text-muted-foreground">
+                {o.reason}
+              </span>
+            )}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

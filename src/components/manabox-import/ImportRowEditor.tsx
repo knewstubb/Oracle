@@ -13,7 +13,6 @@ import {
   Mountain,
   Package,
   Plus,
-  type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { GenericArtPicker } from "@/components/GenericArtPicker";
@@ -193,20 +192,18 @@ function PullSelect({
 }
 
 /** Small icon for a Card origin choice, picked from its label. */
-function originIcon(label: string): LucideIcon | null {
-  if (label.startsWith("Select source")) return CircleHelp;
-  if (label.startsWith("From deck") || label.startsWith("Take from")) return ArrowRightLeft;
-  if (label.startsWith("From collection") || label.startsWith("Spare copy")) return Package;
-  if (label.startsWith("New copy")) return Plus;
-  if (label.startsWith("Planned")) return CircleDashed;
-  if (label.startsWith("Unowned")) return CircleOff;
-  if (label.startsWith("Generic land")) return Mountain;
-  return null;
-}
-
 function OriginIcon({ label }: { label: string }) {
-  const Icon = originIcon(label);
-  return Icon ? <Icon className="size-3 shrink-0" aria-hidden="true" /> : null;
+  const cls = "size-3 shrink-0";
+  if (label.startsWith("Select source")) return <CircleHelp className={cls} aria-hidden="true" />;
+  if (label.startsWith("From deck") || label.startsWith("Take from"))
+    return <ArrowRightLeft className={cls} aria-hidden="true" />;
+  if (label.startsWith("From collection") || label.startsWith("Spare copy"))
+    return <Package className={cls} aria-hidden="true" />;
+  if (label.startsWith("New copy")) return <Plus className={cls} aria-hidden="true" />;
+  if (label.startsWith("Planned")) return <CircleDashed className={cls} aria-hidden="true" />;
+  if (label.startsWith("Unowned")) return <CircleOff className={cls} aria-hidden="true" />;
+  if (label.startsWith("Generic land")) return <Mountain className={cls} aria-hidden="true" />;
+  return null;
 }
 
 interface QuietOption<T extends string> {

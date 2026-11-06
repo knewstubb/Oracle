@@ -269,6 +269,12 @@ function SourceAndType({
     live.map((v) => (v.type === "proxy" ? "proxy" : "original")),
   );
   const anyOwned = views.some((v) => v.anyOwned);
+  // When every copy comes from other decks the origin names them instead of "From collection".
+  const pulls = views.filter((v) => v.source === "collection").map((v) => v.pull);
+  const deckNames =
+    pulls.length > 0 && pulls.every((p) => p?.pick === "deck" && p.deckName)
+      ? [...new Set(pulls.map((p) => p!.deckName as string))]
+      : [];
   const noneLabel = originNoneLabel(anyOwned);
   const sourceReason = sourceReasons(views, busy);
   const originOptions = SOURCE_OPTIONS.map((v) => ({
@@ -295,7 +301,9 @@ function SourceAndType({
               ? "Mixed"
               : source === "none"
                 ? noneLabel
-                : ORIGIN_OPTION_TEXT[source].label
+                : source === "collection" && deckNames.length > 0
+                  ? `From deck: ${deckNames.join(", ")}`
+                  : ORIGIN_OPTION_TEXT[source].label
           }
           options={originOptions}
           label={`${scope ? `${scope}card origin` : "Card origin"} for ${cardName}`}

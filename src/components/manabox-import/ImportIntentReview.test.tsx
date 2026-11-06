@@ -396,11 +396,11 @@ describe('Review footer: what blocks Import', () => {
     expect(importBtn()).toBeEnabled()
   })
 
-  it('a copy held by another deck shows no "Also in" tag and uses From collection', async () => {
+  it('a copy held by another deck shows no "Also in" tag and names the deck as its origin', async () => {
     await open('built', HELD([{ id: 7, name: 'Elves' }]))
     await waitFor(ready)
     expect(screen.queryByText(/Also in Elves/)).toBeNull()
-    expect(shown(ORIGIN)).toBe('From collection')
+    expect(shown(ORIGIN)).toBe('From deck: Elves')
   })
 
   it('planned decks show no ownership tags', async () => {

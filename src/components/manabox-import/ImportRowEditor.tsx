@@ -130,7 +130,7 @@ function typeReasonsFor(
 
 const OWNED_TYPE_TITLE = "A copy from your collection keeps its own type";
 
-/** "Choose source" for one From-collection copy: a spare copy, or take it from a deck that holds it. */
+/** "Select source" for one From-collection copy: a spare copy, or take it from a deck that holds it. */
 function PullSelect({
   view,
   cardName,
@@ -148,7 +148,6 @@ function PullSelect({
   const value: Key =
     pull.pick === "spare" ? "spare" : pull.pick === "deck" && pull.deckId !== undefined ? `deck:${pull.deckId}` : "none";
   const options: QuietOption<Key>[] = [
-    { value: "none", label: "Choose source", description: "Nothing is taken until you pick" },
     ...(pull.options.spare
       ? [{ value: "spare" as Key, label: "Spare copy (not in a deck)", description: "Uses a copy that is free" }]
       : []),
@@ -165,7 +164,7 @@ function PullSelect({
         ? `From ${pull.deckName}`
         : pull.pick === "short"
           ? "None left"
-          : "Choose source";
+          : "Select source";
   return (
     <span className={view.needsSource ? "flex items-center text-[var(--signal-warning)]" : "flex items-center"}>
       <QuietSelect<Key>
@@ -307,7 +306,6 @@ function SourceAndType({
         label: `Take from ${d.deckName}`,
         description: "Moves the copy here; that deck keeps the card as not in deck",
       })),
-      { value: "pick:none", label: "Choose source", description: "Clear the source for this card" },
     );
   }
   const typeReason = typeReasonsFor(views, busy);

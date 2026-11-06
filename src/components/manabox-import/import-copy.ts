@@ -143,7 +143,7 @@ export const ORIGIN_OPTION_TEXT = {
   new: { label: 'New copy', description: 'Adds one to your collection' },
 } as const
 /** The "none" label depends on whether the card is owned at all. */
-export const originNoneLabel = (anyOwned: boolean) => (anyOwned ? 'Owned, not in deck' : 'Unowned')
+export const originNoneLabel = (anyOwned: boolean) => (anyOwned ? 'Planned' : 'Unowned')
 export const TYPE_OPTION_TEXT = {
   original: { label: 'Original', description: 'The real card' },
   proxy: { label: 'Proxy', description: 'A stand-in copy' },

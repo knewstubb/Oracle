@@ -120,7 +120,7 @@ Suggestion rule: precon → I bought it; the owner owns at least half the cards 
 **Per-copy controls (rev 5, owner-approved wireframe `docs/oracle/mockups/import-dropdowns-wireframe.html`).** Two columns: **Card origin** and **Type**, shown as quiet dropdowns on rows and copy lines: the closed value is plain text with a small ▾ and no border, a light outline appears on hover or focus, the control is only as wide as its text, and clicking opens a short menu with a one-line description under each option. Options that can't be used stay in the menu, greyed, with the reason as their description (for example "None left in your collection"). Grid: 24 / 28 / 1fr / 150 / 90 / 28 px.
 | Card origin (closed value) | Menu description | Type |
 |---|---|---|
-| Unowned (card not owned at all) or Owned, not in deck (owned in any printing, not used) | Just on the list, no copy | empty, can't be set |
+| Unowned (card not owned at all) or Planned (owned in any printing, not used) | Just on the list, no copy | empty, can't be set |
 | From collection | Uses a copy you own | Original or Proxy ("The real card" / "A stand-in copy"), each only if one is available |
 | New copy | Adds one to your collection | Original (default) or Proxy |
 Defaults: I bought it → New copy · Original. I built it → From collection if owned, else Unowned. A short copy simply shows From collection (no badge or note on the row; the footer says how many are short and blocks Import).

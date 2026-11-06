@@ -210,7 +210,7 @@ describe('allocation order (Collection)', () => {
   it('free copies are used before copies held by other decks', () => {
     const r = row({ qty: 2 })
     const plans = plan([r], [facts(r, [free()], [held(7)])], 'built')
-    expect(plans.map((p) => p.kind)).toEqual(['sleeve_owned', 'move'])
+    expect(plans.map((p) => p.kind)).toEqual(['sleeve_owned', 'needs_choice_move'])
   })
   it('a free other printing beats the exact printing held in another deck', () => {
     const r = row()
@@ -237,14 +237,15 @@ describe('moves, sources and short', () => {
   const pickEdits = (...picks: Array<IntentCopyOwnerEdits['pick']>): IntentCopyEdits => ({
     k1: Object.fromEntries(picks.map((pick, i) => [i, { source: 'collection' as const, pick }])),
   })
-  it('a single holder deck is auto-selected: the copy moves from it', () => {
+  it('a single holder deck is never auto-selected: it needs a choice, and picking it moves the copy', () => {
     const r = row()
-    const [p] = plan([r], [facts(r, [], [held(7)])], 'built')
+    expect(plan([r], [facts(r, [], [held(7)])], 'built')[0].kind).toBe('needs_choice_move')
+    const [p] = plan([r], [facts(r, [], [held(7)])], 'built', pickEdits({ kind: 'deck', deckId: 7 }))
     expect(p).toMatchObject({ kind: 'move', type: 'original', fromDeckId: 7, fromDeckName: 'Deck 7', slotPrintingId: 'p-clb', finish: 'nonfoil' })
   })
   it('a held other printing moves and names the printing', () => {
     const r = row()
-    const [p] = plan([r], [facts(r, [], [held(7, cmm)])], 'built')
+    const [p] = plan([r], [facts(r, [], [held(7, cmm)])], 'built', pickEdits({ kind: 'deck', deckId: 7 }))
     expect(p).toMatchObject({ kind: 'move', slotPrintingId: 'p-cmm', ownedPrinting: cmm })
   })
   it('several holder decks: unset, blocks as needs a choice', () => {
@@ -262,9 +263,9 @@ describe('moves, sources and short', () => {
   it('an explicit pick is reserved before an automatic one takes it', () => {
     const r = row({ qty: 2 })
     const f = [facts(r, [free()], [held(7)])]
-    // Copy 0 is automatic (would take the spare); copy 1 explicitly wants the spare, so copy 0 falls to the deck.
+    // Copy 0 is automatic (would take the spare); copy 1 explicitly wants the spare, so copy 0 is left to choose a deck.
     const plans = plan([r], f, 'built', { k1: { 0: { source: 'collection' }, 1: { source: 'collection', pick: { kind: 'spare' } } } })
-    expect(plans.map((p) => p.kind)).toEqual(['move', 'sleeve_owned'])
+    expect(plans.map((p) => p.kind)).toEqual(['needs_choice_move', 'sleeve_owned'])
   })
   it('an explicit pick that cannot be met is short, never swapped', () => {
     const r = row()
@@ -286,8 +287,8 @@ describe('moves, sources and short', () => {
     }
     expect(run('Forest', true)).toMatchObject({ kind: 'add_sleeved' })
     expect(run('Wastes', true)).toMatchObject({ kind: 'add_sleeved' })
-    expect(run('Forest', false).kind).toBe('move')
-    expect(run('Snow-Covered Forest', true).kind).toBe('move')
+    expect(run('Forest', false).kind).toBe('needs_choice_move')
+    expect(run('Snow-Covered Forest', true).kind).toBe('needs_choice_move')
   })
   it('3 Mountain with 2 owned: copies 1-2 sleeved, copy 3 short (owned, nothing left)', () => {
     const r = row({ cardName: 'Mountain', oracleId: 'o-mtn', qty: 3 })
@@ -383,7 +384,7 @@ describe('summary', () => {
   })
   it('a moved copy counts as from your collection and as taken from another deck', () => {
     const r = row()
-    const s = summariseImportPlan(plan([r], [facts(r, [], [held(7)])], 'built'))
+    const s = summariseImportPlan(plan([r], [facts(r, [], [held(7)])], 'built', { k1: { 0: { source: 'collection', pick: { kind: 'deck', deckId: 7 } } } }))
     expect(s).toMatchObject({ sleevedFromCollection: 1, moved: 1 })
     expect(summaryText(s)).toBe('1 from your collection · 1 taken from other decks')
   })

@@ -209,13 +209,13 @@ describe('Review list: Card origin and Type', () => {
     expect(importBtn()).toBeEnabled()
   })
 
-  it('the dropdowns are native buttons that open a menu with a description under each option', async () => {
+  it('the dropdowns are native buttons that open a menu with no description under each option', async () => {
     const { user } = await open('purchased', OWNED)
     await waitFor(ready)
     await user.click(trigger(ORIGIN))
-    expect(await item('From collection')).toHaveTextContent('Uses a copy you own')
-    expect(await item('New copy')).toHaveTextContent('Adds one to your collection')
-    expect(await item('Unowned|Owned, not in deck')).toHaveTextContent('Just on the list, no copy')
+    expect(await item('From collection')).not.toHaveTextContent('Uses a copy you own')
+    expect(await item('New copy')).not.toHaveTextContent('Adds one to your collection')
+    expect(await item('Unowned|Owned, not in deck')).not.toHaveTextContent('Just on the list, no copy')
   })
 
   it('picking from the Card origin and Type menus changes the value', async () => {
@@ -345,7 +345,7 @@ describe('Review list: generic basics and maybeboard', () => {
     const { user } = await open('purchased', NOT_OWNED, WITH_ISLAND)
     expect(shown(G)).toBe('Generic land')
     await user.click(trigger(G))
-    expect(await item('Generic land')).toHaveTextContent('Any basic, sleeved, not tracked')
+    expect(await item('Generic land')).not.toHaveTextContent('Any basic, sleeved, not tracked')
     await user.click(await item('Unowned'))
     await waitFor(() => expect(shown(G)).toBe('Unowned'))
     // Other cards never offer Generic land.
@@ -396,11 +396,13 @@ describe('Review footer: what blocks Import', () => {
     expect(importBtn()).toBeEnabled()
   })
 
-  it('a copy held by another deck shows no "Also in" tag and names the deck as its origin', async () => {
-    await open('built', HELD([{ id: 7, name: 'Elves' }]))
+  it('a copy held only by another deck shows Select source, then names the deck once picked', async () => {
+    const { user } = await open('built', HELD([{ id: 7, name: 'Elves' }]))
     await waitFor(ready)
     expect(screen.queryByText(/Also in Elves/)).toBeNull()
-    expect(shown(ORIGIN)).toBe('From deck: Elves')
+    expect(shown(ORIGIN)).toBe('Select source')
+    await pick(user, ORIGIN, 'Take from Elves')
+    await waitFor(() => expect(shown(ORIGIN)).toBe('From deck: Elves'))
   })
 
   it('planned decks show no ownership tags', async () => {
@@ -409,11 +411,12 @@ describe('Review footer: what blocks Import', () => {
     expect(screen.queryByText(/Also in Elves/)).toBeNull()
   })
 
-  it('flag on: one holder deck is auto-selected and saved as an explicit pick', async () => {
+  it('flag on: one holder deck still needs a source; picking it is saved as an explicit pick', async () => {
     flag.on = true
     const { user, fetchSpy } = await open('built', HELD([{ id: 7, name: 'Elves' }]))
     await waitFor(ready)
-    expect(screen.queryByText(/needs a source/)).toBeNull()
+    expect(importBtn()).toBeDisabled()
+    await pick(user, ORIGIN, 'Take from Elves')
     await waitFor(() => expect(importBtn()).toBeEnabled())
     await user.click(importBtn())
     await waitFor(() => expect(saveCall(fetchSpy)).toBeDefined())

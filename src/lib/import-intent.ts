@@ -231,7 +231,7 @@ const heldSource = (g: PoolHeld): CopySource => ({
 /**
  * Decide, for every copy whose card source is Collection, which owned copy it uses (spec import-modal-redesign §4).
  * - An explicit pick (spare / a deck / none = "Choose source") is honoured first, so automatic choices never take it.
- * - Otherwise: a spare copy wins; else the single deck that holds one; else nothing is chosen until the owner picks.
+ * - Otherwise: a spare copy wins; else nothing is chosen until the owner picks a deck.
  * - An explicit pick that can no longer be met is "short", never silently swapped for another source.
  * Rows run in `sourceIndex` order and copies in index order; one owned copy is used once per import.
  * The finish asked for is the file's (or the owner's); the copy's own Original/Proxy is kept (never filtered).
@@ -303,7 +303,7 @@ export function allocateOwnedCopies(input: AllocateInput): OwnedAllocation {
     }
     const deckIds = [...new Set(it.entry.held.filter((g) => g.left > 0).map((g) => g.deckId))]
     if (deckIds.length === 0) it.source = { kind: 'short' }
-    else if (deckIds.length === 1) takeDeck(it, deckIds[0])
+    // Taking a card out of another deck is always the owner's choice, even with one candidate deck.
     else it.source = { kind: 'unset' }
   }
 
@@ -811,8 +811,9 @@ export function intentChoiceStats(
 ): IntentChoiceStats {
   const built = planImport({ ...input, intent: 'built' }).filter((p) => p.kind !== 'generic')
   const total = built.length
-  const owned = built.filter((p) => p.kind === 'sleeve_owned' || p.kind === 'move').length
-  const shared = built.filter((p) => p.kind === 'move').length
+  const inOtherDecks = (k: string) => k === 'move' || k === 'needs_choice_move'
+  const owned = built.filter((p) => p.kind === 'sleeve_owned' || inOtherDecks(p.kind)).length
+  const shared = built.filter((p) => inOtherDecks(p.kind)).length
   const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
   const ownedNote = (text: string) => (owned > 0 ? ` · ${text}` : '')
   const builtParts = [

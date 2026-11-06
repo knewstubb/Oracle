@@ -401,7 +401,10 @@ describe('Review footer: what blocks Import', () => {
     await waitFor(ready)
     expect(screen.queryByText(/Also in Elves/)).toBeNull()
     expect(shown(ORIGIN)).toBe('Select source')
-    await pick(user, ORIGIN, 'Take from Elves')
+    await user.click(trigger(ORIGIN))
+    expect(await item('Take from Elves')).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: /^(✓ )?From collection/ })).toBeNull()
+    await user.click(await item('Take from Elves'))
     await waitFor(() => expect(shown(ORIGIN)).toBe('From deck: Elves'))
   })
 

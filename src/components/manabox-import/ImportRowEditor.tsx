@@ -277,12 +277,28 @@ function SourceAndType({
       : [];
   const noneLabel = originNoneLabel(anyOwned);
   const sourceReason = sourceReasons(views, busy);
-  const originOptions = SOURCE_OPTIONS.map((v) => ({
+  const originOptions: QuietOption<string>[] = SOURCE_OPTIONS.map((v) => ({
     value: v,
     label: v === "none" ? noneLabel : ORIGIN_OPTION_TEXT[v].label,
     description: ORIGIN_OPTION_TEXT[v].description,
     reason: sourceReason[v],
   }));
+  // Source choices sit in the same menu, so a row needs no expanding to pick one.
+  const needsSource = views.some((v) => v.source === "collection" && v.needsSource);
+  const pullBase = views.find((v) => v.source === "collection" && v.pull && v.pull.options.decks.length + (v.pull.options.spare ? 1 : 0) > 0)?.pull;
+  if (pullBase) {
+    originOptions.push(
+      ...(pullBase.options.spare
+        ? [{ value: "pick:spare", label: "Spare copy", description: "Uses a copy that is not in a deck" }]
+        : []),
+      ...pullBase.options.decks.map((d) => ({
+        value: `pick:deck:${d.deckId}`,
+        label: `Take from ${d.deckName}`,
+        description: "Moves the copy here; that deck keeps the card as not in deck",
+      })),
+      { value: "pick:none", label: "Choose source", description: "Clear the source for this card" },
+    );
+  }
   const typeReason = typeReasonsFor(views, busy);
   const typeOptions = SLEEVED_TYPES.map((v) => ({
     value: v,
@@ -293,21 +309,28 @@ function SourceAndType({
   const typeValue = live.length === 0 ? "mixed" : type;
   return (
     <>
-      <span className="flex items-center">
-        <QuietSelect<CardSource>
+      <span className={needsSource ? "flex items-center text-[var(--signal-warning)]" : "flex items-center"}>
+        <QuietSelect<string>
           value={source}
           display={
-            source === "mixed"
-              ? "Mixed"
-              : source === "none"
-                ? noneLabel
-                : source === "collection" && deckNames.length > 0
-                  ? `From deck: ${deckNames.join(", ")}`
-                  : ORIGIN_OPTION_TEXT[source].label
+            needsSource
+              ? "Select source"
+              : source === "mixed"
+                ? "Mixed"
+                : source === "none"
+                  ? noneLabel
+                  : source === "collection" && deckNames.length > 0
+                    ? `From deck: ${deckNames.join(", ")}`
+                    : ORIGIN_OPTION_TEXT[source].label
           }
           options={originOptions}
           label={`${scope ? `${scope}card origin` : "Card origin"} for ${cardName}`}
-          onChange={(v) => onChange({ source: v })}
+          onChange={(v) => {
+            if (v === "pick:spare") onChange({ pick: { kind: "spare" } });
+            else if (v === "pick:none") onChange({ pick: { kind: "none" } });
+            else if (v.startsWith("pick:deck:")) onChange({ pick: { kind: "deck", deckId: Number(v.slice(10)) } });
+            else onChange({ source: v as CardSource });
+          }}
         />
       </span>
       <span className="flex items-center">
@@ -619,14 +642,6 @@ export function ImportRowEditor({
           className="inline-flex h-[18px] items-center rounded-full border border-[var(--border-default)] px-1.5 text-[length:var(--fs-xs)] text-muted-foreground"
         >
           Generic land
-        </span>
-      )}
-      {!generic && !intent?.quiet && intent?.views.some((v) => v.needsSource) && (
-        <span
-          data-tag="needs-source"
-          className="inline-flex h-[18px] items-center rounded-full border border-[var(--signal-warning)] px-1.5 text-[length:var(--fs-xs)] text-[var(--signal-warning)]"
-        >
-          ◇ Needs a source
         </span>
       )}
       {generic && !intent && resolved.some((c) => c.type === "unsleeved") && (

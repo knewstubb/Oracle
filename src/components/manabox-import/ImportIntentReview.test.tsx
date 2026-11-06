@@ -419,20 +419,19 @@ describe('Review footer: what blocks Import', () => {
     await waitFor(() => expect(saveCall(fetchSpy)).toBeDefined())
     const body = JSON.parse(String((saveCall(fetchSpy)![1] as RequestInit).body))
     expect(body.copyEdits).toEqual({ 'emil|nonfoil': { 0: { source: 'collection', pick: { kind: 'deck', deckId: 7 } } } })
-    expect(body.ignoreBasics).toBe(true)
+    expect(body.ignoreBasics).toBe(false)
   })
 
   it('flag on: several holder decks need a source; choosing one clears it, and it can be un-set again', async () => {
     flag.on = true
     const { user } = await open('built', HELD([{ id: 7, name: 'Elves' }, { id: 8, name: 'Goblins' }]))
     expect(await screen.findByText('1 card needs a source.')).toBeInTheDocument()
-    expect(screen.getByText(/Needs a source/)).toBeInTheDocument()
+    expect(shown(ORIGIN)).toBe('Select source')
     expect(importBtn()).toBeDisabled()
-    await user.click(screen.getByRole('button', { name: `Edit ${EMIL}` }))
-    await pick(user, `Copy 1 source for ${EMIL}`, 'Take from Goblins')
+    await pick(user, ORIGIN, 'Take from Goblins')
     await waitFor(() => expect(importBtn()).toBeEnabled())
-    expect(shown(`Copy 1 source for ${EMIL}`)).toBe('From Goblins')
-    await pick(user, `Copy 1 source for ${EMIL}`, 'Choose source')
+    expect(shown(ORIGIN)).toBe('From deck: Goblins')
+    await pick(user, ORIGIN, 'Choose source')
     await waitFor(() => expect(importBtn()).toBeDisabled())
   })
 

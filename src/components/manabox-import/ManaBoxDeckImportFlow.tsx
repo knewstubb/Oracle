@@ -239,7 +239,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
           return hit ? { name: hit.cardName, scryfallId: hit.scryfallId } : null
         })(),
         defaults: INITIAL_DEFAULTS,
-        ignoreBasics: true,
+        ignoreBasics: false,
         copyEdits: {},
         openRowKeys: new Set(),
         filter: 'all',
@@ -268,7 +268,7 @@ export function ManaBoxDeckImportFlow({ onComplete, onCancel, onFinish, onClose,
           .filter((r) => r.board !== 'maybeboard' && isIgnorableBasic(r.cardName))
           .reduce((sum, r) => sum + r.qty, 0)
       : 0
-  const ignoreBasics = step.status === 'review' ? step.ignoreBasics !== false : true
+  const ignoreBasics = step.status === 'review' ? step.ignoreBasics === true : false
 
   // Existing decks, for the duplicate-name warning (the same read the deck list uses). Warns only.
   const decksQuery = useQuery<{ decks?: { name: string }[] }>({

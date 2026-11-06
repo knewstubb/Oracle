@@ -279,7 +279,7 @@ export async function importManaBoxDeck(
         ownershipFailedCopies.add('*')
       }
     }
-    plans = planImport({ rows, facts, edits: intentEdits, intent, defaults: options.defaults, ignoreBasics: options.ignoreBasics !== false })
+    plans = planImport({ rows, facts, edits: intentEdits, intent, defaults: options.defaults, ignoreBasics: options.ignoreBasics === true })
     // Ownership unavailable: a Collection copy finds nothing, but that is not the owner's choice to make.
     // It is saved Unowned and listed below instead of blocking the save.
     if (ownershipFailedCopies.has('*')) plans = plans.map((p) => (p.short ? { ...p, short: undefined } : p))
@@ -461,7 +461,7 @@ export async function importManaBoxDeck(
             intentEdits,
             options.defaults,
             true, // facts are unknown: treat the card as owned so a Built default counts as Collection
-            isIgnoredBasicRow({ cardName: card.cardName, printingGiven: card.printingGiven }, options.ignoreBasics !== false)
+            isIgnoredBasicRow({ cardName: card.cardName, printingGiven: card.printingGiven }, options.ignoreBasics === true)
           )
           if (st.source === 'collection') unavailable.push(origin)
         }

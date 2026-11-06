@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
         format: deckFormat,
         defaults: body.defaults as ImportDefaults,
         copyEdits: body.copyEdits,
-        ignoreBasics: body.ignoreBasics === false ? false : true,
+        ignoreBasics: body.ignoreBasics === true,
         intent: body.intent as ImportIntent | undefined,
         genericArt: body.genericArt,
         userId,

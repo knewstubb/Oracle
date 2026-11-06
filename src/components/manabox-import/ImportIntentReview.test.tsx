@@ -213,7 +213,7 @@ describe('Review list: Card origin and Type', () => {
     const { user } = await open('purchased', OWNED)
     await waitFor(ready)
     await user.click(trigger(ORIGIN))
-    expect(await item('From collection')).not.toHaveTextContent('Uses a copy you own')
+    expect(await item('Collection')).not.toHaveTextContent('Uses a copy you own')
     expect(await item('New copy')).not.toHaveTextContent('Adds one to your collection')
     expect(await item('Unowned|Planned')).not.toHaveTextContent('Just on the list, no copy')
   })
@@ -221,8 +221,8 @@ describe('Review list: Card origin and Type', () => {
   it('picking from the Card origin and Type menus changes the value', async () => {
     const { user } = await open('purchased', OWNED)
     await waitFor(ready)
-    await pick(user, ORIGIN, 'From collection')
-    await waitFor(() => expect(shown(ORIGIN)).toBe('From collection'))
+    await pick(user, ORIGIN, 'Collection')
+    await waitFor(() => expect(shown(ORIGIN)).toBe('Collection'))
     await pick(user, ORIGIN, 'New copy')
     await waitFor(() => expect(shown(ORIGIN)).toBe('New copy'))
     await pick(user, TYPE, 'Proxy')
@@ -242,7 +242,7 @@ describe('Review list: Card origin and Type', () => {
     await user.upload(screen.getByLabelText('Choose file'), new File(['x'], 'deck.csv', { type: 'text/csv' }))
     await waitFor(() => expect(screen.getByText(EMIL)).toBeInTheDocument())
     await user.click(trigger(ORIGIN))
-    const collection = await item('From collection')
+    const collection = await item('Collection')
     expect(collection).toHaveAttribute('aria-disabled', 'true')
     expect(collection).toHaveTextContent('Checking your collection…')
   })
@@ -251,7 +251,7 @@ describe('Review list: Card origin and Type', () => {
     const { user } = await open('purchased', NOT_OWNED)
     await waitFor(ready)
     await user.click(trigger(ORIGIN))
-    const collection = await item('From collection')
+    const collection = await item('Collection')
     expect(collection).toHaveAttribute('aria-disabled', 'true')
     expect(collection).toHaveTextContent('None left in your collection')
   })
@@ -259,7 +259,7 @@ describe('Review list: Card origin and Type', () => {
   it('built, owned: starts From collection / Original; Proxy is disabled when only an original is owned', async () => {
     const { user } = await open('built', OWNED)
     await waitFor(ready)
-    expect(shown(ORIGIN)).toBe('From collection')
+    expect(shown(ORIGIN)).toBe('Collection')
     expect(shown(TYPE)).toBe('Original')
     await user.click(trigger(TYPE))
     const proxy = await item('Proxy')
@@ -306,11 +306,11 @@ describe('Review list: Card origin and Type', () => {
     const bulk = 'Set card origin for selected'
     expect(within(group(bulk)).getAllByRole('button').map((b) => b.textContent)).toEqual([
       'No copy',
-      'From collection',
+      'Collection',
       'New copy',
     ])
-    await user.click(btn(bulk, 'From collection'))
-    await waitFor(() => expect(shown(ORIGIN)).toBe('From collection'))
+    await user.click(btn(bulk, 'Collection'))
+    await waitFor(() => expect(shown(ORIGIN)).toBe('Collection'))
     await user.click(btn(bulk, 'New copy'))
     await user.click(btn('Set type for selected', 'Proxy'))
     expect(shown(ORIGIN)).toBe('New copy')
@@ -373,7 +373,7 @@ describe('Review footer: what blocks Import', () => {
     expect(importBtn()).toBeDisabled()
     await user.click(screen.getByRole('button', { name: `Edit ${EMIL}` }))
     expect(screen.queryByText(/pick None or New/)).toBeNull()
-    expect(shown(`Copy 2 card origin for ${EMIL}`)).toBe('From collection')
+    expect(shown(`Copy 2 card origin for ${EMIL}`)).toBe('Collection')
     await pick(user, `Copy 2 card origin for ${EMIL}`, 'New copy')
     await waitFor(() => expect(screen.queryByText(/needs a source/)).toBeNull())
   })
@@ -389,7 +389,7 @@ describe('Review footer: what blocks Import', () => {
     const { user } = await open('purchased', OWNED)
     await waitFor(ready)
     expect(importBtn()).toBeEnabled()
-    await pick(user, ORIGIN, 'From collection')
+    await pick(user, ORIGIN, 'Collection')
     expect(screen.getByText(/Set every card to New copy to import now/)).toBeInTheDocument()
     expect(importBtn()).toBeDisabled()
     await pick(user, ORIGIN, 'New copy')
@@ -402,10 +402,10 @@ describe('Review footer: what blocks Import', () => {
     expect(screen.queryByText(/Also in Elves/)).toBeNull()
     expect(shown(ORIGIN)).toBe('Select source')
     await user.click(trigger(ORIGIN))
-    expect(await item('Take from Elves')).toBeInTheDocument()
+    expect(await item('Elves')).toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: /^(✓ )?From collection/ })).toBeNull()
-    await user.click(await item('Take from Elves'))
-    await waitFor(() => expect(shown(ORIGIN)).toBe('From deck: Elves'))
+    await user.click(await item('Elves'))
+    await waitFor(() => expect(shown(ORIGIN)).toBe('Elves'))
   })
 
   it('planned decks show no ownership tags', async () => {
@@ -419,7 +419,7 @@ describe('Review footer: what blocks Import', () => {
     const { user, fetchSpy } = await open('built', HELD([{ id: 7, name: 'Elves' }]))
     await waitFor(ready)
     expect(importBtn()).toBeDisabled()
-    await pick(user, ORIGIN, 'Take from Elves')
+    await pick(user, ORIGIN, 'Elves')
     await waitFor(() => expect(importBtn()).toBeEnabled())
     await user.click(importBtn())
     await waitFor(() => expect(saveCall(fetchSpy)).toBeDefined())
@@ -434,16 +434,16 @@ describe('Review footer: what blocks Import', () => {
     expect(await screen.findByText('1 card needs a source.')).toBeInTheDocument()
     expect(shown(ORIGIN)).toBe('Select source')
     expect(importBtn()).toBeDisabled()
-    await pick(user, ORIGIN, 'Take from Goblins')
+    await pick(user, ORIGIN, 'Goblins')
     await waitFor(() => expect(importBtn()).toBeEnabled())
-    expect(shown(ORIGIN)).toBe('From deck: Goblins')
+    expect(shown(ORIGIN)).toBe('Goblins')
   })
 
   it('flag on: a purchased deck with a From collection card can import, and the save carries intent and source', async () => {
     flag.on = true
     const { user, fetchSpy } = await open('purchased', OWNED)
     await waitFor(ready)
-    await pick(user, ORIGIN, 'From collection')
+    await pick(user, ORIGIN, 'Collection')
     expect(screen.queryByText(/Set every card to New/)).toBeNull()
     expect(importBtn()).toBeEnabled()
     await user.click(importBtn())

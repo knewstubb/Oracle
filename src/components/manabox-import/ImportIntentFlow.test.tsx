@@ -285,7 +285,7 @@ describe('ManaBoxDeckImportFlow with an intent', () => {
     render(<Harness initial="built" />, { wrapper: wrapper() })
     await user.upload(screen.getByLabelText('Choose file'), new File(['x'], 'deck.csv', { type: 'text/csv' }))
     const origin = await screen.findByRole('button', { name: 'Card origin for Emil, Vastlands Roamer' })
-    await waitFor(() => expect(origin).toHaveTextContent('From collection'))
+    await waitFor(() => expect(origin).toHaveTextContent('Collection'))
     expect(screen.getByRole('button', { name: /Import deck/i })).toBeDisabled()
     const ownershipCall = fetchSpy.mock.calls.find(([u]) => String(u).includes('/ownership'))!
     expect((ownershipCall[1] as RequestInit).method).toBe('POST')

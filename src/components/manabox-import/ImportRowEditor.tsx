@@ -7,7 +7,6 @@ import {
   ArrowRightLeft,
   ChevronDown,
   CircleDashed,
-  CircleHelp,
   CircleOff,
   Info,
   Mountain,
@@ -156,19 +155,20 @@ function PullSelect({
     pull.pick === "spare" ? "spare" : pull.pick === "deck" && pull.deckId !== undefined ? `deck:${pull.deckId}` : "none";
   const options: QuietOption<Key>[] = [
     ...(pull.options.spare
-      ? [{ value: "spare" as Key, label: "Spare copy (not in a deck)", description: "Uses a copy that is free" }]
+      ? [{ value: "spare" as Key, label: "Collection", description: "" }]
       : []),
     ...pull.options.decks.map((d) => ({
       value: `deck:${d.deckId}` as Key,
-      label: `Take from ${d.deckName}`,
-      description: "Moves the copy here; that deck keeps the card as not in deck",
+      label: d.deckName,
+      description: "",
+      icon: "deck" as const,
     })),
   ];
   const display =
     pull.pick === "spare"
-      ? "Spare copy"
+      ? "Collection"
       : pull.pick === "deck"
-        ? `From ${pull.deckName}`
+        ? (pull.deckName ?? "Deck")
         : pull.pick === "short"
           ? "None left"
           : "Select source";
@@ -180,6 +180,7 @@ function PullSelect({
         options={options}
         warn={view.needsSource}
         icons
+        displayIcon={pull.pick === "deck" ? "deck" : undefined}
         label={`Copy ${n} source for ${cardName}`}
         onChange={(v) =>
           onChange({
@@ -191,25 +192,44 @@ function PullSelect({
   );
 }
 
-/** Small icon for a Card origin choice, picked from its label. */
-function OriginIcon({ label }: { label: string }) {
-  const cls = "size-3 shrink-0";
-  if (label.startsWith("Select source")) return <CircleHelp className={cls} aria-hidden="true" />;
-  if (label.startsWith("From deck") || label.startsWith("Take from"))
-    return <ArrowRightLeft className={cls} aria-hidden="true" />;
-  if (label.startsWith("From collection") || label.startsWith("Spare copy"))
-    return <Package className={cls} aria-hidden="true" />;
-  if (label.startsWith("New copy")) return <Plus className={cls} aria-hidden="true" />;
-  if (label.startsWith("Planned")) return <CircleDashed className={cls} aria-hidden="true" />;
-  if (label.startsWith("Unowned")) return <CircleOff className={cls} aria-hidden="true" />;
-  if (label.startsWith("Generic land")) return <Mountain className={cls} aria-hidden="true" />;
+type OriginKind = "collection" | "deck" | "new" | "planned" | "unowned" | "generic";
+
+function originKind(label: string): OriginKind | null {
+  if (label.startsWith("Collection")) return "collection";
+  if (label.startsWith("New copy")) return "new";
+  if (label.startsWith("Planned")) return "planned";
+  if (label.startsWith("Unowned")) return "unowned";
+  if (label.startsWith("Generic land")) return "generic";
   return null;
+}
+
+/** Small icon for a Card origin choice. */
+function OriginIcon({ kind }: { kind: OriginKind | null }) {
+  const cls = "size-3 shrink-0";
+  switch (kind) {
+    case "collection":
+      return <Package className={cls} aria-hidden="true" />;
+    case "deck":
+      return <ArrowRightLeft className={cls} aria-hidden="true" />;
+    case "new":
+      return <Plus className={cls} aria-hidden="true" />;
+    case "planned":
+      return <CircleDashed className={cls} aria-hidden="true" />;
+    case "unowned":
+      return <CircleOff className={cls} aria-hidden="true" />;
+    case "generic":
+      return <Mountain className={cls} aria-hidden="true" />;
+    default:
+      return null;
+  }
 }
 
 interface QuietOption<T extends string> {
   value: T;
   label: string;
   description: string;
+  /** Icon kind when the label alone doesn't say it (a deck name). */
+  icon?: OriginKind;
   /** Can't be chosen now: stays in the menu, greyed, with this as its description. */
   reason?: string;
 }
@@ -223,6 +243,7 @@ export function QuietSelect<T extends string>({
   title,
   warn,
   icons,
+  displayIcon,
   onChange,
 }: {
   /** The chosen option; "mixed" marks none as chosen. */
@@ -235,6 +256,7 @@ export function QuietSelect<T extends string>({
   warn?: boolean;
   /** Show a small icon before each Card origin label. */
   icons?: boolean;
+  displayIcon?: OriginKind;
   onChange: (v: T) => void;
 }) {
   return (
@@ -244,7 +266,7 @@ export function QuietSelect<T extends string>({
         title={title}
         className={`inline-flex h-6 max-w-full shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-md border border-transparent px-1.5 text-[length:var(--fs-xs)] ${warn ? "text-[var(--signal-warning)]" : "text-foreground"} hover:border-[var(--border-default)] focus-visible:border-[var(--border-default)] focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)] data-[popup-open]:border-[var(--border-default)]`}
       >
-        {icons && <OriginIcon label={display} />}
+        {icons && <OriginIcon kind={displayIcon ?? originKind(display)} />}
         {display}
         <span aria-hidden="true" className="text-[10px] text-muted-foreground">
           ▾
@@ -262,7 +284,7 @@ export function QuietSelect<T extends string>({
             className="flex-col items-start gap-0 py-1.5"
           >
             <span className="flex items-center gap-1.5 text-[length:var(--fs-xs)] text-foreground">
-              {icons && <OriginIcon label={o.label} />}
+              {icons && <OriginIcon kind={o.icon ?? originKind(o.label)} />}
               <span>
                 {o.value === value ? "✓ " : ""}
                 {o.label}
@@ -322,19 +344,17 @@ function SourceAndType({
   const needsSource = views.some((v) => v.source === "collection" && v.needsSource);
   const pullBase = views.find((v) => v.source === "collection" && v.pull && v.pull.options.decks.length + (v.pull.options.spare ? 1 : 0) > 0)?.pull;
   if (pullBase) {
-    // With no spare copy, "From collection" would be a hidden deck pick: only the decks are offered.
+    // With no spare copy, "Collection" would be a hidden deck pick: only the decks are offered.
     if (!pullBase.options.spare) {
       const at = originOptions.findIndex((o) => o.value === "collection");
       if (at >= 0) originOptions.splice(at, 1);
     }
     originOptions.push(
-      ...(pullBase.options.spare
-        ? [{ value: "pick:spare", label: "Spare copy", description: "Uses a copy that is not in a deck" }]
-        : []),
       ...pullBase.options.decks.map((d) => ({
         value: `pick:deck:${d.deckId}`,
-        label: `Take from ${d.deckName}`,
-        description: "Moves the copy here; that deck keeps the card as not in deck",
+        label: d.deckName,
+        description: "",
+        icon: "deck" as const,
       })),
     );
   }
@@ -359,16 +379,16 @@ function SourceAndType({
                 : source === "none"
                   ? noneLabel
                   : source === "collection" && deckNames.length > 0
-                    ? `From deck: ${deckNames.join(", ")}`
+                    ? deckNames.join(", ")
                     : ORIGIN_OPTION_TEXT[source].label
           }
           options={originOptions}
           warn={needsSource}
           icons
+          displayIcon={!needsSource && source === "collection" && deckNames.length > 0 ? "deck" : undefined}
           label={`${scope ? `${scope}card origin` : "Card origin"} for ${cardName}`}
           onChange={(v) => {
-            if (v === "pick:spare") onChange({ pick: { kind: "spare" } });
-            else if (v === "pick:none") onChange({ pick: { kind: "none" } });
+            if (v === "collection" && pullBase?.options.spare) onChange({ source: "collection", pick: { kind: "spare" } });
             else if (v.startsWith("pick:deck:")) onChange({ pick: { kind: "deck", deckId: Number(v.slice(10)) } });
             else onChange({ source: v as CardSource });
           }}

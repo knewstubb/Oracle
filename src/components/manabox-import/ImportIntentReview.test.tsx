@@ -215,7 +215,7 @@ describe('Review list: Card origin and Type', () => {
     await user.click(trigger(ORIGIN))
     expect(await item('From collection')).not.toHaveTextContent('Uses a copy you own')
     expect(await item('New copy')).not.toHaveTextContent('Adds one to your collection')
-    expect(await item('Unowned|Owned, not in deck')).not.toHaveTextContent('Just on the list, no copy')
+    expect(await item('Unowned|Planned')).not.toHaveTextContent('Just on the list, no copy')
   })
 
   it('picking from the Card origin and Type menus changes the value', async () => {
@@ -277,26 +277,26 @@ describe('Review list: Card origin and Type', () => {
     expect(original).toHaveTextContent('Choose a card origin first')
   })
 
-  it('an owned card that is not used reads "Owned, not in deck", not "Unowned"', async () => {
+  it('an owned card that is not used reads "Planned", not "Unowned"', async () => {
     const { user } = await open('built', OWNED)
     await waitFor(ready)
-    await pick(user, ORIGIN, 'Owned, not in deck')
-    await waitFor(() => expect(shown(ORIGIN)).toBe('Owned, not in deck'))
+    await pick(user, ORIGIN, 'Planned')
+    await waitFor(() => expect(shown(ORIGIN)).toBe('Planned'))
   })
 
   it('the row dropdown sets every copy; New copy -> Proxy is kept per copy', async () => {
     const { user } = await open('purchased', OWNED, TWO)
     await waitFor(ready)
-    await pick(user, ORIGIN, 'Owned, not in deck')
-    expect(shown(ORIGIN)).toBe('Owned, not in deck')
+    await pick(user, ORIGIN, 'Planned')
+    expect(shown(ORIGIN)).toBe('Planned')
     await user.click(screen.getByRole('button', { name: `Edit ${EMIL}` }))
-    expect(shown(`Copy 1 card origin for ${EMIL}`)).toBe('Owned, not in deck')
-    expect(shown(`Copy 2 card origin for ${EMIL}`)).toBe('Owned, not in deck')
+    expect(shown(`Copy 1 card origin for ${EMIL}`)).toBe('Planned')
+    expect(shown(`Copy 2 card origin for ${EMIL}`)).toBe('Planned')
     await pick(user, `Copy 2 card origin for ${EMIL}`, 'New copy')
     await pick(user, `Copy 2 type for ${EMIL}`, 'Proxy')
     await waitFor(() => expect(shown(`Copy 2 type for ${EMIL}`)).toBe('Proxy'))
     expect(screen.getByTestId('proxy-chip').textContent).toBe('')
-    expect(shown(`Copy 1 card origin for ${EMIL}`)).toBe('Owned, not in deck')
+    expect(shown(`Copy 1 card origin for ${EMIL}`)).toBe('Planned')
   })
 
   it('the bulk bar keeps segmented Card origin and Type toggles', async () => {

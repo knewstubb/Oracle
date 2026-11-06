@@ -293,6 +293,11 @@ function SourceAndType({
   const needsSource = views.some((v) => v.source === "collection" && v.needsSource);
   const pullBase = views.find((v) => v.source === "collection" && v.pull && v.pull.options.decks.length + (v.pull.options.spare ? 1 : 0) > 0)?.pull;
   if (pullBase) {
+    // With no spare copy, "From collection" would be a hidden deck pick: only the decks are offered.
+    if (!pullBase.options.spare) {
+      const at = originOptions.findIndex((o) => o.value === "collection");
+      if (at >= 0) originOptions.splice(at, 1);
+    }
     originOptions.push(
       ...(pullBase.options.spare
         ? [{ value: "pick:spare", label: "Spare copy", description: "Uses a copy that is not in a deck" }]

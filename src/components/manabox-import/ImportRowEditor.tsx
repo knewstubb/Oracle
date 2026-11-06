@@ -4,8 +4,16 @@ import {
   Check,
   VenetianMask,
   ChevronsDown,
+  ArrowRightLeft,
   ChevronDown,
+  CircleDashed,
+  CircleHelp,
+  CircleOff,
   Info,
+  Mountain,
+  Package,
+  Plus,
+  type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { GenericArtPicker } from "@/components/GenericArtPicker";
@@ -172,6 +180,7 @@ function PullSelect({
         display={display}
         options={options}
         warn={view.needsSource}
+        icons
         label={`Copy ${n} source for ${cardName}`}
         onChange={(v) =>
           onChange({
@@ -181,6 +190,23 @@ function PullSelect({
       />
     </span>
   );
+}
+
+/** Small icon for a Card origin choice, picked from its label. */
+function originIcon(label: string): LucideIcon | null {
+  if (label.startsWith("Select source")) return CircleHelp;
+  if (label.startsWith("From deck") || label.startsWith("Take from")) return ArrowRightLeft;
+  if (label.startsWith("From collection") || label.startsWith("Spare copy")) return Package;
+  if (label.startsWith("New copy")) return Plus;
+  if (label.startsWith("Planned")) return CircleDashed;
+  if (label.startsWith("Unowned")) return CircleOff;
+  if (label.startsWith("Generic land")) return Mountain;
+  return null;
+}
+
+function OriginIcon({ label }: { label: string }) {
+  const Icon = originIcon(label);
+  return Icon ? <Icon className="size-3 shrink-0" aria-hidden="true" /> : null;
 }
 
 interface QuietOption<T extends string> {
@@ -199,6 +225,7 @@ export function QuietSelect<T extends string>({
   label,
   title,
   warn,
+  icons,
   onChange,
 }: {
   /** The chosen option; "mixed" marks none as chosen. */
@@ -209,6 +236,8 @@ export function QuietSelect<T extends string>({
   title?: string;
   /** Amber text, for a value that still needs the owner's attention. */
   warn?: boolean;
+  /** Show a small icon before each Card origin label. */
+  icons?: boolean;
   onChange: (v: T) => void;
 }) {
   return (
@@ -218,6 +247,7 @@ export function QuietSelect<T extends string>({
         title={title}
         className={`inline-flex h-6 max-w-full shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-md border border-transparent px-1.5 text-[length:var(--fs-xs)] ${warn ? "text-[var(--signal-warning)]" : "text-foreground"} hover:border-[var(--border-default)] focus-visible:border-[var(--border-default)] focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)] data-[popup-open]:border-[var(--border-default)]`}
       >
+        {icons && <OriginIcon label={display} />}
         {display}
         <span aria-hidden="true" className="text-[10px] text-muted-foreground">
           ▾
@@ -234,9 +264,12 @@ export function QuietSelect<T extends string>({
             onClick={() => onChange(o.value)}
             className="flex-col items-start gap-0 py-1.5"
           >
-            <span className="text-[length:var(--fs-xs)] text-foreground">
-              {o.value === value ? "✓ " : ""}
-              {o.label}
+            <span className="flex items-center gap-1.5 text-[length:var(--fs-xs)] text-foreground">
+              {icons && <OriginIcon label={o.label} />}
+              <span>
+                {o.value === value ? "✓ " : ""}
+                {o.label}
+              </span>
             </span>
             {o.reason && (
               <span className="text-[length:var(--fs-xs)] text-muted-foreground">
@@ -334,6 +367,7 @@ function SourceAndType({
           }
           options={originOptions}
           warn={needsSource}
+          icons
           label={`${scope ? `${scope}card origin` : "Card origin"} for ${cardName}`}
           onChange={(v) => {
             if (v === "pick:spare") onChange({ pick: { kind: "spare" } });
@@ -378,6 +412,7 @@ function GenericOrigin({
     <QuietSelect<ImportCopyType>
       value={value}
       display={unsleeved ? "Unowned" : GENERIC_ORIGIN_TEXT.label}
+      icons
       label={label}
       options={[
         {

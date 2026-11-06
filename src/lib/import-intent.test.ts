@@ -179,9 +179,10 @@ describe('allocation order (Collection)', () => {
     expect(p).toMatchObject({ kind: 'sleeve_owned', slotPrintingId: 'p-clb' })
     expect(p.ownedPrinting).toBeUndefined()
   })
-  it('another printing is used when the listed one is not owned, and is named', () => {
+  it('another printing is never chosen automatically; the owner picks it, and it is named', () => {
     const r = row()
-    const [p] = plan([r], [facts(r, [free(cmm)])], 'built')
+    expect(plan([r], [facts(r, [free(cmm)])], 'built')[0].kind).toBe('needs_choice_move')
+    const [p] = plan([r], [facts(r, [free(cmm)])], 'built', collection({ pick: { kind: 'spare' } }))
     expect(p).toMatchObject({ kind: 'sleeve_owned', slotPrintingId: 'p-cmm', ownedPrinting: cmm })
   })
   it('originals before proxies when no type is asked for', () => {
@@ -197,7 +198,7 @@ describe('allocation order (Collection)', () => {
     const r = row()
     const fs = [facts(r, [free(), free({ ...cmm, isProxy: true })])]
     expect(plan([r], fs, 'built', collection({ type: 'proxy' }))[0]).toMatchObject({ kind: 'sleeve_owned', type: 'original' })
-    expect(plan([r], [facts(r, [free(cmm)])], 'built', collection({ type: 'original' }))[0]).toMatchObject({ kind: 'sleeve_owned' })
+    expect(plan([r], [facts(r, [free(cmm)])], 'built', collection({ type: 'original', pick: { kind: 'spare' } }))[0]).toMatchObject({ kind: 'sleeve_owned' })
   })
   it('the wanted finish is preferred, any finish is used otherwise', () => {
     const r = row()
@@ -212,9 +213,9 @@ describe('allocation order (Collection)', () => {
     const plans = plan([r], [facts(r, [free()], [held(7)])], 'built')
     expect(plans.map((p) => p.kind)).toEqual(['sleeve_owned', 'needs_choice_move'])
   })
-  it('a free other printing beats the exact printing held in another deck', () => {
+  it('a free other printing is not auto-picked when the exact printing is held in another deck', () => {
     const r = row()
-    expect(plan([r], [facts(r, [free(cmm)], [held(7)])], 'built')[0].kind).toBe('sleeve_owned')
+    expect(plan([r], [facts(r, [free(cmm)], [held(7)])], 'built')[0].kind).toBe('needs_choice_move')
   })
   it('one owned copy is used once, by the first row in import order; the next is short', () => {
     const a = row({ rowKey: 'a', sourceIndex: 1 })

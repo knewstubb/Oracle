@@ -46,10 +46,7 @@ import type {
 import { languageLabel, LANGUAGE_LABELS, SELECT_CLASS } from "./import-labels";
 import { languageChoices, type LanguageLookup } from "@/lib/printing-languages";
 import { usePrintingLanguages } from "./use-printing-languages";
-import type {
-  IntentChange,
-  IntentCopyView,
-} from "@/lib/import-intent";
+import type { IntentChange, IntentCopyView } from "@/lib/import-intent";
 import type { CardSource } from "../../../docs/oracle/contracts/import-intent.types";
 import {
   ADD_WAITING_TITLE,
@@ -152,10 +149,17 @@ function PullSelect({
   if (!pull) return null;
   type Key = "none" | "spare" | `deck:${number}`;
   const value: Key =
-    pull.pick === "spare" ? "spare" : pull.pick === "deck" && pull.deckId !== undefined ? `deck:${pull.deckId}` : "none";
+    pull.pick === "spare"
+      ? "spare"
+      : pull.pick === "deck" && pull.deckId !== undefined
+        ? `deck:${pull.deckId}`
+        : "none";
+  const collectionLabel = pull.options.spareAlt
+    ? `Collection (${pull.options.spareAlt})`
+    : "Collection";
   const options: QuietOption<Key>[] = [
     ...(pull.options.spare
-      ? [{ value: "spare" as Key, label: "Collection", description: "" }]
+      ? [{ value: "spare" as Key, label: collectionLabel, description: "" }]
       : []),
     ...pull.options.decks.map((d) => ({
       value: `deck:${d.deckId}` as Key,
@@ -166,14 +170,20 @@ function PullSelect({
   ];
   const display =
     pull.pick === "spare"
-      ? "Collection"
+      ? collectionLabel
       : pull.pick === "deck"
         ? (pull.deckName ?? "Deck")
         : pull.pick === "short"
           ? "None left"
           : "Select source";
   return (
-    <span className={view.needsSource ? "flex items-center text-[var(--signal-warning)]" : "flex items-center"}>
+    <span
+      className={
+        view.needsSource
+          ? "flex items-center text-[var(--signal-warning)]"
+          : "flex items-center"
+      }
+    >
       <QuietSelect<Key>
         value={value}
         display={display}
@@ -184,7 +194,12 @@ function PullSelect({
         label={`Copy ${n} source for ${cardName}`}
         onChange={(v) =>
           onChange({
-            pick: v === "none" ? { kind: "none" } : v === "spare" ? { kind: "spare" } : { kind: "deck", deckId: Number(v.slice(5)) },
+            pick:
+              v === "none"
+                ? { kind: "none" }
+                : v === "spare"
+                  ? { kind: "spare" }
+                  : { kind: "deck", deckId: Number(v.slice(5)) },
           })
         }
       />
@@ -192,7 +207,8 @@ function PullSelect({
   );
 }
 
-type OriginKind = "collection" | "deck" | "new" | "planned" | "unowned" | "generic";
+type OriginKind =
+  "collection" | "deck" | "new" | "planned" | "unowned" | "generic";
 
 function originKind(label: string): OriginKind | null {
   if (label.startsWith("Collection")) return "collection";
@@ -327,7 +343,9 @@ function SourceAndType({
   );
   const anyOwned = views.some((v) => v.anyOwned);
   // When every copy comes from other decks the origin names them instead of "From collection".
-  const pulls = views.filter((v) => v.source === "collection").map((v) => v.pull);
+  const pulls = views
+    .filter((v) => v.source === "collection")
+    .map((v) => v.pull);
   const deckNames =
     pulls.length > 0 && pulls.every((p) => p?.pick === "deck" && p.deckName)
       ? [...new Set(pulls.map((p) => p!.deckName as string))]
@@ -341,9 +359,21 @@ function SourceAndType({
     reason: sourceReason[v],
   }));
   // Source choices sit in the same menu, so a row needs no expanding to pick one.
-  const needsSource = views.some((v) => v.source === "collection" && v.needsSource);
-  const pullBase = views.find((v) => v.source === "collection" && v.pull && v.pull.options.decks.length + (v.pull.options.spare ? 1 : 0) > 0)?.pull;
+  const needsSource = views.some(
+    (v) => v.source === "collection" && v.needsSource,
+  );
+  const pullBase = views.find(
+    (v) =>
+      v.source === "collection" &&
+      v.pull &&
+      v.pull.options.decks.length + (v.pull.options.spare ? 1 : 0) > 0,
+  )?.pull;
+  const collectionText = pullBase?.options.spareAlt
+    ? `Collection (${pullBase.options.spareAlt})`
+    : "Collection";
   if (pullBase) {
+    const col = originOptions.find((o) => o.value === "collection");
+    if (col) col.label = collectionText;
     // With no spare copy, "Collection" would be a hidden deck pick: only the decks are offered.
     if (!pullBase.options.spare) {
       const at = originOptions.findIndex((o) => o.value === "collection");
@@ -368,7 +398,13 @@ function SourceAndType({
   const typeValue = live.length === 0 ? "mixed" : type;
   return (
     <>
-      <span className={needsSource ? "flex items-center text-[var(--signal-warning)]" : "flex items-center"}>
+      <span
+        className={
+          needsSource
+            ? "flex items-center text-[var(--signal-warning)]"
+            : "flex items-center"
+        }
+      >
         <QuietSelect<string>
           value={source}
           display={
@@ -380,16 +416,24 @@ function SourceAndType({
                   ? noneLabel
                   : source === "collection" && deckNames.length > 0
                     ? deckNames.join(", ")
-                    : ORIGIN_OPTION_TEXT[source].label
+                    : source === "collection"
+                      ? collectionText
+                      : ORIGIN_OPTION_TEXT[source].label
           }
           options={originOptions}
           warn={needsSource}
           icons
-          displayIcon={!needsSource && source === "collection" && deckNames.length > 0 ? "deck" : undefined}
+          displayIcon={
+            !needsSource && source === "collection" && deckNames.length > 0
+              ? "deck"
+              : undefined
+          }
           label={`${scope ? `${scope}card origin` : "Card origin"} for ${cardName}`}
           onChange={(v) => {
-            if (v === "collection" && pullBase?.options.spare) onChange({ source: "collection", pick: { kind: "spare" } });
-            else if (v.startsWith("pick:deck:")) onChange({ pick: { kind: "deck", deckId: Number(v.slice(10)) } });
+            if (v === "collection" && pullBase?.options.spare)
+              onChange({ source: "collection", pick: { kind: "spare" } });
+            else if (v.startsWith("pick:deck:"))
+              onChange({ pick: { kind: "deck", deckId: Number(v.slice(10)) } });
             else onChange({ source: v as CardSource });
           }}
         />
@@ -406,7 +450,9 @@ function SourceAndType({
           }
           options={typeOptions}
           label={`${scope ? `${scope}type` : "Type"} for ${cardName}`}
-          title={live.length === 0 && !busy ? PICK_SOURCE_FIRST_TITLE : undefined}
+          title={
+            live.length === 0 && !busy ? PICK_SOURCE_FIRST_TITLE : undefined
+          }
           onChange={(v) => onChange({ type: v })}
         />
       </span>
@@ -740,7 +786,11 @@ export function ImportRowEditor({
         }}
         className={cn(
           "group grid min-h-[34px] cursor-pointer items-center gap-2 px-2.5 hover:bg-[var(--bg-surface-hover)]",
-          intent ? (intent.quiet ? ROW_GRID_PLANNED : ROW_GRID_INTENT) : ROW_GRID,
+          intent
+            ? intent.quiet
+              ? ROW_GRID_PLANNED
+              : ROW_GRID_INTENT
+            : ROW_GRID,
         )}
       >
         <Checkbox
@@ -934,7 +984,10 @@ function CopyLine({
   const [artOpen, setArtOpen] = useState(false);
   // A copy taken from the collection keeps the finish, condition and language it already has (spec §3 #4/#12).
   const usesExistingCopy =
-    !generic && !!intentView && !intentQuiet && (intentView.source === "collection" || intentView.source === null);
+    !generic &&
+    !!intentView &&
+    !intentQuiet &&
+    (intentView.source === "collection" || intentView.source === null);
   const visible = generic
     ? { language: true, finish: true, condition: false }
     : usesExistingCopy
@@ -1021,9 +1074,17 @@ function CopyLine({
               onChange={(type) => onChange({ type })}
             />
           )}
-          {intentView && onIntentChange && !intentQuiet && intentView.source === "collection" && (
-            <PullSelect view={intentView} cardName={row.cardName} n={n} onChange={onIntentChange} />
-          )}
+          {intentView &&
+            onIntentChange &&
+            !intentQuiet &&
+            intentView.source === "collection" && (
+              <PullSelect
+                view={intentView}
+                cardName={row.cardName}
+                n={n}
+                onChange={onIntentChange}
+              />
+            )}
         </>
       )}
       {visible.language && languages.mode !== "hidden" && (

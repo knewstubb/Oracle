@@ -157,7 +157,8 @@ export interface PullState {
   pick: 'spare' | 'deck' | 'unset' | 'short'
   deckId?: number
   deckName?: string
-  options: { spare: boolean; decks: Array<{ deckId: number; deckName: string; count: number }> }
+  /** `spareAlt` is set (e.g. "SCD 268") when the only free copy is a different printing from the one in the file. */
+  options: { spare: boolean; spareAlt?: string; decks: Array<{ deckId: number; deckName: string; count: number }> }
 }
 
 /** rowKey -> copy index -> allocation. Generic basics have no entry. */
@@ -231,7 +232,7 @@ const heldSource = (g: PoolHeld): CopySource => ({
 /**
  * Decide, for every copy whose card source is Collection, which owned copy it uses (spec import-modal-redesign §4).
  * - An explicit pick (spare / a deck / none = "Choose source") is honoured first, so automatic choices never take it.
- * - Otherwise: a spare copy wins; else nothing is chosen until the owner picks a deck.
+ * - Otherwise: a free copy of the exact printing wins; else nothing is chosen until the owner picks (another printing, or a deck).
  * - An explicit pick that can no longer be met is "short", never silently swapped for another source.
  * Rows run in `sourceIndex` order and copies in index order; one owned copy is used once per import.
  * The finish asked for is the file's (or the owner's); the copy's own Original/Proxy is kept (never filtered).
@@ -297,13 +298,14 @@ export function allocateOwnedCopies(input: AllocateInput): OwnedAllocation {
   // Pass 2: automatic choices take what is left.
   for (const it of items) {
     if (it.pick) continue
-    if (it.entry.free.some((g) => g.left > 0)) {
+    // Only a free copy of the exact printing is chosen for the owner; a different printing is their call.
+    if (it.entry.free.some((g) => g.left > 0 && g.printingId === it.row.scryfallId)) {
       takeSpare(it)
       continue
     }
-    const deckIds = [...new Set(it.entry.held.filter((g) => g.left > 0).map((g) => g.deckId))]
-    if (deckIds.length === 0) it.source = { kind: 'short' }
-    // Taking a card out of another deck is always the owner's choice, even with one candidate deck.
+    const anyLeft = [...it.entry.free, ...it.entry.held].some((g) => g.left > 0)
+    if (!anyLeft) it.source = { kind: 'short' }
+    // Taking a card out of another deck, or using another printing, is always the owner's choice.
     else it.source = { kind: 'unset' }
   }
 
@@ -331,11 +333,14 @@ export function allocateOwnedCopies(input: AllocateInput): OwnedAllocation {
       }
       const pick: PullState['pick'] =
         it.source.kind === 'free' ? 'spare' : it.source.kind === 'held' ? 'deck' : it.source.kind === 'unset' ? 'unset' : 'short'
+      const freeLeft = it.entry.free.filter((g) => g.left > 0 || g === mine)
+      const alt = freeLeft.length > 0 && !freeLeft.some((g) => g.printingId === it.row.scryfallId) ? freeLeft[0] : undefined
       flags.pull = {
         pick,
         ...(it.source.kind === 'held' ? { deckId: it.source.deckId, deckName: it.source.deckName } : {}),
         options: {
-          spare: it.entry.free.some((g) => g.left > 0 || g === mine),
+          spare: freeLeft.length > 0,
+          ...(alt ? { spareAlt: `${alt.setCode.toUpperCase()} ${alt.collectorNumber}` } : {}),
           decks: [...byDeck.values()].sort((a, b) => a.deckName.localeCompare(b.deckName)),
         },
       }

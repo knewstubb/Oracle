@@ -135,11 +135,11 @@ export const SOURCE_COLUMN = 'Card origin'
 export const TYPE_COLUMN = 'Type'
 export const STATUS_COLUMN = 'Status'
 /** Bulk bar toggles (short texts). */
-export const SOURCE_LABELS = { none: 'No copy', collection: 'From collection', new: 'New copy' } as const
+export const SOURCE_LABELS = { none: 'No copy', collection: 'Collection', new: 'New copy' } as const
 /** Row dropdown options: closed label plus the one-line description in the menu. */
 export const ORIGIN_OPTION_TEXT = {
   none: { label: 'Unowned', description: 'Just on the list, no copy' },
-  collection: { label: 'From collection', description: 'Uses a copy you own' },
+  collection: { label: 'Collection', description: 'Uses a copy you own' },
   new: { label: 'New copy', description: 'Adds one to your collection' },
 } as const
 /** The "none" label depends on whether the card is owned at all. */

@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oracle · What's missing (Phase 2 mockup)</title>
+<style>
+:root{
+  --bg-canvas:#131316;--bg-surface:#1A1A1E;--bg-hover:#212126;
+  --border-subtle:#262629;--border:#35353A;
+  --text:#E8E8EA;--text2:#9C9CA3;
+  --accent:#1D9E75;--warn:#EF9F27;--warn-bg:rgba(239,159,39,.15);
+  --unowned:#F0339E;--crit:#E5484D;
+  --fs-xs:11px;--fs-sm:12px;--fs-base:13px;--fs-md:14px;--fs-lg:16px;--fs-xl:20px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#0b0b0d;color:var(--text);font:var(--fs-md)/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid #fff;outline-offset:2px}
+svg{width:1em;height:1em;flex:none;vertical-align:-.12em}
+
+/* ===== Mockup controls (not part of the app) ===== */
+.ctl{position:sticky;top:0;z-index:50;background:#000;border-bottom:1px solid var(--border);padding:10px 16px;display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center}
+.ctl h1{font-size:var(--fs-md);margin:0;font-weight:600}
+.ctl .grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.ctl .lbl{color:var(--text2);font-size:var(--fs-sm)}
+.seg{border:1px solid var(--border);background:var(--bg-surface);border-radius:6px;padding:6px 10px;font-size:var(--fs-sm);min-height:32px}
+.seg[aria-pressed=true]{background:var(--text);color:#111;border-color:var(--text)}
+.note{max-width:1100px;margin:12px auto 0;padding:0 16px;color:var(--text2);font-size:var(--fs-sm)}
+.note b{color:var(--text)}
+.stagewrap{padding:16px;display:flex;justify-content:center}
+
+/* ===== The app frame: container queries decide laptop vs phone layout ===== */
+.frame{container-type:inline-size;width:100%;max-width:1160px;height:700px;background:var(--bg-canvas);border:1px solid var(--border);border-radius:10px;overflow:hidden;position:relative;display:flex;flex-direction:column}
+.frame.phone{max-width:390px;height:780px;border-radius:28px;border-width:6px;border-color:#2a2a2e}
+.hdr{padding:14px 24px 0;border-bottom:1px solid var(--border-subtle)}
+.hdr .crumb{color:var(--text2);font-size:var(--fs-sm)}
+.hdr h2{margin:2px 0 8px;font-size:var(--fs-xl);font-weight:600}
+.hdr .meta{color:var(--text2);font-size:var(--fs-sm);margin-bottom:8px}
+.tabs{display:flex;gap:4px;overflow-x:auto}
+.tab{background:none;border:0;border-bottom:2px solid transparent;padding:8px 12px;color:var(--text2);white-space:nowrap;min-height:40px}
+.tab[aria-selected=true]{color:var(--text);border-bottom-color:var(--accent)}
+.main{flex:1;overflow:auto;padding:16px 24px;position:relative}
+.ghost{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;opacity:.5}
+.ghost i{display:block;aspect-ratio:5/7;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:8px}
+.ghostlbl{color:var(--text2);font-size:var(--fs-sm);margin:0 0 10px}
+
+/* ===== Health strip (existing component, extended) ===== */
+.strip{flex:none;border-top:1px solid var(--border);background:#17171a;padding:8px 24px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.verdict-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--bg-surface);border-radius:8px;padding:6px 10px;font-weight:600;font-size:var(--fs-base);min-height:36px}
+.verdict-chip.light{border-color:var(--warn);background:var(--warn-bg);color:var(--warn)}
+.verdict-chip .more{color:var(--text);font-weight:400}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:5px;border:1px solid transparent;background:transparent;border-radius:6px;padding:5px 8px;font-size:var(--fs-sm);font-weight:500;color:var(--text2);min-height:32px}
+.pill.light{background:var(--warn-bg);color:var(--warn)}
+.pill:hover{background:var(--bg-hover)}
+.pill.light:hover{background:rgba(239,159,39,.25)}
+.pill .of{opacity:.9;font-weight:400}
+.strip .open{margin-left:auto;background:none;border:0;color:var(--text);text-decoration:underline;text-underline-offset:3px;padding:6px 4px;min-height:36px;font-size:var(--fs-sm)}
+.skel{display:inline-block;height:28px;width:84px;border-radius:6px;background:linear-gradient(90deg,var(--bg-surface),var(--bg-hover),var(--bg-surface));background-size:200% 100%;animation:sh 1.4s infinite}
+@keyframes sh{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.skel{animation:none}}
+
+/* ===== Panel: right drawer on laptop, bottom sheet on phone ===== */
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.35);display:none}
+.panel{position:absolute;top:0;right:0;bottom:49px;width:420px;background:var(--bg-surface);border-left:1px solid var(--border);display:none;flex-direction:column;box-shadow:-8px 0 24px rgba(0,0,0,.35)}
+.panel.on,.scrim.on{display:flex}
+.scrim.on{display:block}
+.phead{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border-subtle)}
+.phead h3{margin:0;font-size:var(--fs-lg);font-weight:600;flex:1}
+.iconbtn{background:none;border:0;border-radius:6px;min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;color:var(--text);gap:4px}
+.iconbtn:hover{background:var(--bg-hover)}
+.backbtn{padding:0 8px;font-size:var(--fs-sm)}
+.pbody{flex:1;overflow:auto;padding:16px}
+.pfoot{padding:12px 16px;border-top:1px solid var(--border-subtle)}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--bg-hover);border-radius:8px;padding:10px 14px;min-height:44px;font-size:var(--fs-base)}
+.btn:hover{border-color:var(--text2)}
+.btn.block{width:100%;justify-content:center}
+.grab{display:none;width:40px;height:4px;border-radius:2px;background:var(--border);margin:8px auto 0}
+@container (max-width:700px){
+  .hdr,.main{padding-left:16px;padding-right:16px}
+  .strip{padding:8px 12px;gap:6px}
+  .pills{flex-wrap:nowrap;overflow-x:auto;width:100%;padding-bottom:2px}
+  .pill{flex:none;min-height:44px;padding:5px 10px}
+  .verdict-chip{min-height:44px}
+  .strip .open{min-height:44px}
+  .panel{left:0;right:0;top:auto;bottom:0;width:auto;height:86%;border-left:0;border-top:1px solid var(--border);border-radius:16px 16px 0 0;box-shadow:0 -8px 24px rgba(0,0,0,.45)}
+  .grab{display:block}
+}
+
+/* verdict block */
+.verdict{border:1px solid var(--border);border-radius:10px;padding:14px;background:var(--bg-canvas)}
+.verdict.light{border-color:var(--warn)}
+.verdict h4{margin:0 0 4px;font-size:var(--fs-xl);font-weight:600;display:flex;gap:8px;align-items:center}
+.verdict.light h4{color:var(--warn)}
+.verdict p{margin:4px 0 0;color:var(--text)}
+.src{color:var(--text2);font-size:var(--fs-sm);margin-top:8px}
+.sect{margin:18px 0 8px;font-size:var(--fs-sm);letter-spacing:.04em;text-transform:uppercase;color:var(--text2);font-weight:600}
+.row{display:block;width:100%;text-align:left;background:var(--bg-canvas);border:1px solid var(--border-subtle);border-radius:10px;padding:12px;margin-bottom:8px;min-height:44px}
+button.row:hover{background:var(--bg-hover);border-color:var(--border)}
+.row.light{border-color:rgba(239,159,39,.6)}
+.row .top{display:flex;align-items:center;gap:8px}
+.row .nm{font-weight:600;flex:1}
+.row .st{display:inline-flex;align-items:center;gap:4px;font-size:var(--fs-sm);color:var(--text2)}
+.row.light .st{color:var(--warn)}
+.row .why{color:var(--text2);font-size:var(--fs-sm);margin-top:4px}
+.meter{height:6px;background:var(--border-subtle);border-radius:3px;margin:8px 0 2px;position:relative}
+.meter b{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:var(--text2)}
+.row.light .meter b{background:var(--warn)}
+.meter s{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--text)}
+.chev{color:var(--text2)}
+.guide{display:inline-block;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-size:var(--fs-xs);color:var(--text);margin-left:6px;font-weight:500}
+
+/* card rows in a gap */
+.grp{margin-top:16px}
+.grp h5{margin:0 0 2px;font-size:var(--fs-md);font-weight:600;display:flex;gap:6px;align-items:center}
+.grp .sub{color:var(--text2);font-size:var(--fs-sm);margin:0 0 8px}
+.card{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--border-subtle)}
+.thumb{width:36px;height:50px;border-radius:4px;background:var(--bg-hover);border:1px solid var(--border);flex:none}
+.card .nm{font-weight:600}
+.card .ty{color:var(--text2);font-size:var(--fs-sm)}
+.card .badge{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--border);border-radius:999px;padding:1px 8px;font-size:var(--fs-sm);margin-top:4px}
+.badge.unavail{border-color:var(--warn)}
+.badge.unavail svg{color:var(--warn)}
+.badge.unown svg{color:var(--unowned)}
+.badge.unown{border-color:var(--unowned)}
+.card .price{margin-left:auto;text-align:right;font-size:var(--fs-sm);white-space:nowrap}
+.card .price small{display:block;color:var(--text2)}
+.warnline{display:flex;gap:6px;color:var(--warn);font-size:var(--fs-sm);margin-top:4px}
+.warnline span{color:var(--text)}
+.callout{border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--bg-canvas);margin-top:12px}
+.callout.info b{display:block}
+details.buy{margin-top:16px;border-top:1px solid var(--border-subtle);padding-top:8px}
+details.buy>summary{cursor:pointer;list-style:none;min-height:44px;display:flex;align-items:center;gap:6px;font-weight:600}
+details.buy>summary::-webkit-details-marker{display:none}
+details.buy>summary .tw{transition:transform .15s}
+details.buy[open]>summary .tw{transform:rotate(90deg)}
+.linkbtn{background:none;border:0;color:var(--text);text-decoration:underline;text-underline-offset:3px;padding:10px 0;min-height:44px;text-align:left;font-size:var(--fs-sm)}
+.err{display:flex;gap:8px;align-items:flex-start}
+.err svg{color:var(--crit);margin-top:3px}
+
+/* chat */
+.chat{display:flex;flex-direction:column;gap:12px;max-width:640px}
+.msg{padding:10px 12px;border-radius:12px;max-width:92%}
+.msg.u{align-self:flex-end;background:var(--bg-hover)}
+.msg.a{align-self:flex-start;background:var(--bg-surface);border:1px solid var(--border-subtle)}
+.msg ul{margin:6px 0 6px;padding:0;list-style:none}
+.msg li{margin:4px 0}
+.chipbtn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--bg-canvas);border-radius:8px;padding:6px 10px;min-height:44px;text-align:left;font-size:var(--fs-sm);width:100%}
+.chipbtn:hover{background:var(--bg-hover)}
+.chipbtn.light{border-color:rgba(239,159,39,.6)}
+.composer{margin-top:12px;display:flex;gap:8px;max-width:640px}
+.composer input{flex:1;background:var(--bg-canvas);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px;min-height:44px;font:inherit}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.askline{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+</style>
+</head>
+<body>
+
+<div class="ctl" role="region" aria-label="Mockup controls">
+  <h1>What's missing · Phase 2</h1>
+  <div class="grp" role="group" aria-label="Scenario"><span class="lbl">Scenario:</span><span id="scen"></span></div>
+  <div class="grp" role="group" aria-label="Device"><span class="lbl">Device:</span>
+    <button class="seg" data-dev="laptop" aria-pressed="true">Laptop</button>
+    <button class="seg" data-dev="phone" aria-pressed="false">Phone</button>
+  </div>
+</div>
+<p class="note" id="note"></p>
+<div class="stagewrap"><div class="frame" id="frame"></div></div>
+
+<script>
+/* ============ Sample data (invented for the mockup; real numbers come from the build) ============ */
+const ICON={
+ check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>',
+ warn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.01"/></svg>',
+ lock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>',
+ ring:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg>',
+ nodist:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M7 12h10"/></svg>',
+ chev:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>',
+ back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>',
+ x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+ err:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16v.01"/></svg>',
+ info:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></svg>'
+};
+
+const DECKS={
+ healthy:{name:'Korvold, Fae-Cursed King',cmd:'Korvold',meta:'Under construction · 100/100 · Bracket not set',mode:'edhrec',n:212,
+  roles:[{id:'ramp',name:'Ramp',have:11,typ:10},{id:'draw',name:'Draw',have:10,typ:9},{id:'removal',name:'Removal',have:8,typ:8},{id:'wipes',name:'Wipes',have:2,typ:2}]},
+ gappy:{name:'Atraxa, Praetors\' Voice',cmd:'Atraxa',meta:'Under construction · 100/100 · Bracket not set',mode:'edhrec',n:186,
+  roles:[{id:'ramp',name:'Ramp',have:10,typ:10},{id:'draw',name:'Draw',have:4,typ:9},{id:'removal',name:'Removal',have:3,typ:8},{id:'wipes',name:'Wipes',have:0,typ:2}]},
+ thin:{name:'Ghyrson Starn, Kelermorph',cmd:'Ghyrson Starn',meta:'Under construction · 100/100 · Bracket not set',mode:'thin',n:9,builds:4,
+  roles:[{id:'ramp',name:'Ramp',have:8,typ:10},{id:'draw',name:'Draw',have:6,typ:10},{id:'removal',name:'Removal',have:2,typ:6},{id:'wipes',name:'Wipes',have:1,typ:2}],
+  types:[['Lands',36,36],['Creatures',24,22],['Artifacts',7,9],['Enchantments',3,4],['Instants',9,8],['Sorceries',8,7],['Planeswalkers',1,1]]}
+};
+
+/* fillers per deck + role: spare = free originals; other = in another deck; buy = EDHREC cards not owned */
+const FILL={
+ gappy:{
+  removal:{spare:[
+    {n:'Swords to Plowshares',t:'Instant',why:'Exiles one creature. White, fits Atraxa.'},
+    {n:'Beast Within',t:'Instant',why:'Destroys any permanent. Green, fits Atraxa.'},
+    {n:'Putrefy',t:'Instant',why:'Destroys an artifact or creature. Black-green, fits Atraxa.'}],
+   other:[{n:'Anguished Unmaking',t:'Instant',deck:'Wilhelt',why:'Exiles any permanent.'}],
+   buy:[{n:'Assassin\'s Trophy',pct:58,p:'4.50'},{n:'Utter End',pct:44,p:'2.10'},{n:'Council\'s Judgment',pct:37,p:'1.80'}]},
+  wipes:{spare:[],
+   other:[{n:'Toxic Deluge',t:'Sorcery',deck:'Wilhelt',why:'Pay life, give every creature -X/-X.'},
+          {n:'Austere Command',t:'Sorcery',deck:'Teferi Control',why:'Choose two: destroy artifacts, enchantments or creatures by size.'}],
+   buy:[{n:'Farewell',pct:41,p:'9.00'},{n:'Merciless Eviction',pct:12,p:'1.40'},{n:'Hour of Devastation',pct:9,p:null}]},
+  draw:{spare:[],other:[],
+   buy:[{n:'Rhystic Study',pct:71,p:'38.00'},{n:'Beast Whisperer',pct:33,p:'0.60'},{n:'Soul of the Harvest',pct:21,p:null}]},
+  ramp:{spare:[],other:[],buy:[]}},
+ thin:{
+  removal:{spare:[{n:'Terminate',t:'Instant',why:'Destroys one creature. Black-red, fits Ghyrson Starn.'},
+                  {n:'Chaos Warp',t:'Instant',why:'Shuffles away any permanent. Red, fits Ghyrson Starn.'}],
+   other:[],buy:null},
+  draw:{spare:[],other:[],buy:null},
+  wipes:{spare:[],other:[{n:'Blasphemous Act',t:'Sorcery',deck:'Korvold',why:'Deals 13 damage to every creature.'}],buy:null},
+  ramp:{spare:[],other:[],buy:null}}
+};
+
+/* ============ State ============ */
+const S={scen:'healthy',dev:'laptop',open:false,gap:null,tab:'cards'};
+const SCEN=[
+ ['healthy','Healthy deck'],['overview','Gaps: overview'],['spare','Gap: spare cards'],['other','Gap: only in another deck'],
+ ['buy','Gap: nothing owned, buy ideas'],['thin','Thin data'],['chat','Chat answer'],['states','Checking / error']
+];
+const NOTES={
+ healthy:'<b>Healthy deck.</b> Quiet strip: ticks and no colour. Verdict "Well covered". Opening the panel shows the numbers and nothing to fix.',
+ overview:'<b>Deck with gaps.</b> The verdict names the biggest shortfalls. Light roles use amber + a warning icon + the words "Light". Tap a light role (or its pill) to see cards that fill it.',
+ spare:'<b>Gap with spare cards.</b> Removal: spare cards come first. Cards in another deck follow, with a warning. Buy ideas are collapsed because you already have options.',
+ other:'<b>Gap with cards only in another deck.</b> Wipes: nothing spare. Each card shows which deck it would leave short. Buy ideas are open by default because no spare card exists.',
+ buy:'<b>Gap with nothing owned.</b> Draw: Oracle says so plainly, then suggests buys. Prices are estimates; one card has no price and says "Price unknown", never $0.',
+ thin:'<b>Thin data.</b> This commander has only 9 classifiable EDHREC cards, so roles use the labelled "General guide". Type counts come from stored builds. No role number is invented, and there are no buy ideas.',
+ chat:'<b>Chat answers the same question.</b> Same verdict, same numbers, each gap is a button that opens the panel. Suggest-only: the chat changes nothing.',
+ states:'<b>Checking, then couldn\'t check.</b> Shows the loading strip for about two seconds, then the failure. Unknown is never shown as zero or as a pass.'
+};
+
+/* ============ Helpers ============ */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function deckFor(sc){return sc==='healthy'?DECKS.healthy:sc==='thin'?DECKS.thin:DECKS.gappy}
+function status(r){const short=r.typ-r.have;return short>=2?'light':'ok'}
+function be(n){return n==='Wipes'?'are':'is'}
+function shortBy(r){return Math.max(0,r.typ-r.have)}
+function lights(d){return d.roles.filter(r=>status(r)==='light').sort((a,b)=>shortBy(b)-shortBy(a))}
+function verdict(d){
+  const L=lights(d), g=d.mode==='thin';
+  if(!L.length) return {light:false,head:'Well covered',sub:g?'Nothing looks short against the general guide.':'Every role is at or near what decks like this usually run. Nothing to fix.'};
+  const names=L.slice(0,2).map(r=>r.name.toLowerCase());
+  const head='Light on '+names.join(' and ');
+  const rest=L.slice(2);
+  const parts=L.map(r=>r.name+' '+be(r.name)+' '+shortBy(r)+' short');
+  let sub=parts.join('. ')+'.';
+  const ok=d.roles.filter(r=>status(r)==='ok').map(r=>r.name);
+  if(ok.length) sub+=' '+ok.join(' and ')+(ok.length>1||ok[0]==='Wipes'?' are':' is')+' on track.';
+  return {light:true,head:head+(g?' (general guide)':''),sub,restN:rest.length};
+}
+function why(d,r){
+  const c=d.cmd;
+  if(d.mode==='thin') return 'General guide: most decks run about '+r.typ+' '+r.name.toLowerCase()+'. You have '+r.have+'. Not specific to '+c+'.';
+  return 'Decks built around '+c+' usually run about '+r.typ+'; you have '+r.have+'. Based on '+d.n+' EDHREC cards.';
+}
+function srcLine(d){
+  return d.mode==='thin'
+   ? 'No role data for '+d.cmd+' yet (only '+d.n+' EDHREC cards could be read). Showing type counts and a general guide.'
+   : 'Compared with decks built around '+d.cmd+' · based on '+d.n+' EDHREC cards';
+}
+function meter(r){const max=Math.max(r.typ*1.5,r.have,1);return '<div class="meter" aria-hidden="true"><b style="width:'+(r.have/max*100)+'%"></b><s style="left:'+(r.typ/max*100)+'%"></s></div>'}
+
+/* ============ Strip ============ */
+function strip(d,loading,failed){
+  if(loading) return '<div class="strip" aria-busy="true"><span class="skel"></span><span class="skel"></span><span class="skel"></span><span class="skel"></span><span class="vh" role="status">Checking what this deck is missing…</span></div>';
+  if(failed) return '<div class="strip"><span class="err" role="alert">'+ICON.err+'<span>Couldn\'t check what this deck is missing.</span></span><button class="btn" id="retry" style="margin-left:auto">Try again</button></div>';
+  const v=verdict(d), g=d.mode==='thin';
+  const pills=d.roles.map(r=>{
+    const l=status(r)==='light';
+    const lab=r.name+' '+r.have+' of '+r.typ+(g?' (general guide)':'')+(l?', light, '+shortBy(r)+' short':', on track');
+    return '<button class="pill '+(l?'light':'')+'" data-gap="'+r.id+'" aria-label="'+lab+'">'+(l?ICON.warn:ICON.check)+'<span>'+r.name+'</span><span class="of">'+r.have+'/'+r.typ+'</span></button>';
+  }).join('');
+  return '<div class="strip"><button class="verdict-chip '+(v.light?'light':'')+'" id="vchip" aria-haspopup="dialog">'+(v.light?ICON.warn:ICON.check)+'<span>'+esc(v.head)+'</span>'+(v.restN?'<span class="more">+'+v.restN+' more</span>':'')+'</button><div class="pills" role="group" aria-label="Role counts">'+pills+'</div><button class="open" id="vopen">What\'s missing</button></div>';
+}
+
+/* ============ Panel ============ */
+function panelOverview(d){
+  const v=verdict(d), g=d.mode==='thin';
+  let h='<div class="verdict '+(v.light?'light':'')+'"><h4>'+(v.light?ICON.warn:ICON.check)+'<span id="vh" tabindex="-1">'+esc(v.head)+'</span></h4><p>'+esc(v.sub)+'</p><div class="src">'+esc(srcLine(d))+'</div></div>';
+  h+='<div class="sect">Counts by role'+(g?'<span class="guide">General guide</span>':'')+'</div>';
+  h+=d.roles.map(r=>{
+    const l=status(r)==='light';
+    const body='<div class="top"><span class="nm">'+r.name+'</span><span class="st">'+(l?ICON.warn+'Light, '+shortBy(r)+' short':ICON.check+'On track')+'</span>'+(l?'<span class="chev">'+ICON.chev+'</span>':'')+'</div>'+meter(r)+'<div class="why">'+esc(why(d,r))+'</div>';
+    return l?'<button class="row light" data-gap="'+r.id+'" aria-label="'+r.name+': '+r.have+', typically about '+r.typ+', light, '+shortBy(r)+' short. See cards that fill it.">'+body+'</button>':'<div class="row">'+body+'</div>';
+  }).join('');
+  if(g){
+    h+='<div class="sect">Card types</div><div class="row" style="padding-bottom:4px">'+d.types.map(t=>{
+      return '<div class="top" style="padding:4px 0"><span class="nm" style="font-weight:500">'+t[0]+'</span><span class="st">You have '+t[1]+' · builds average '+t[2]+'</span></div>';
+    }).join('')+'<div class="why" style="margin:6px 0 8px">Type averages are from '+d.builds+' stored builds for '+d.cmd+'.</div></div>';
+  }
+  return h;
+}
+function cardRow(c,kind,roleName){
+  let badge='',extra='',right='';
+  if(kind==='spare'){badge='<span class="badge">'+ICON.ring+'Available</span>';}
+  if(kind==='other'){badge='<span class="badge unavail">'+ICON.lock+'Unavailable · In '+esc(c.deck)+'</span>';
+    extra='<div class="warnline">'+ICON.warn+'<span>Using it here leaves '+esc(c.deck)+' one short. Nothing moves until you decide.</span></div>';}
+  if(kind==='buy'){badge='<span class="badge unown">'+ICON.nodist+'Unowned</span>';
+    right='<div class="price">'+(c.p?'est. $'+c.p+'<small>Scryfall estimate</small>':'Price unknown<small>no estimate</small>')+'</div>';
+    return '<div class="card"><div class="thumb" aria-hidden="true"></div><div><div class="nm">'+esc(c.n)+'</div><div class="ty">In '+c.pct+'% of '+esc(window.__cmd)+' decks on EDHREC</div>'+badge+'</div>'+right+'</div>';}
+  return '<div class="card"><div class="thumb" aria-hidden="true"></div><div><div class="nm">'+esc(c.n)+' <span class="ty">· '+c.t+'</span></div><div class="ty">'+esc(c.why)+'</div>'+badge+extra+'</div></div>';
+}
+function panelGap(d,id){
+  const r=d.roles.find(x=>x.id===id), f=(FILL[d===DECKS.thin?'thin':'gappy']||{})[id]||{spare:[],other:[],buy:[]};
+  window.__cmd=d.cmd;
+  const g=d.mode==='thin', rn=r.name.toLowerCase();
+  let h='<div class="verdict light"><h4>'+ICON.warn+'<span id="vh" tabindex="-1">'+r.name+': '+r.have+' of about '+r.typ+'</span></h4><p>'+esc(why(d,r))+(g?'<span class="guide">General guide</span>':'')+'</p></div>';
+  h+='<button class="linkbtn" data-cards="'+id+'">See the '+r.have+' '+rn+' cards already in this deck</button>';
+  const owned=f.spare.length+f.other.length;
+  if(f.spare.length){
+    h+='<div class="grp"><h5>Spare ('+f.spare.length+')</h5><p class="sub">Owned originals that are free right now.</p>'+f.spare.map(c=>cardRow(c,'spare')).join('')+'</div>';
+  }
+  if(f.other.length){
+    h+='<div class="grp"><h5>In another deck ('+f.other.length+')</h5><p class="sub">You own these, but each is in a different deck.</p>'+f.other.map(c=>cardRow(c,'other')).join('')+'</div>';
+  }
+  if(!owned){
+    h+='<div class="callout info"><b>You don\'t own any card that adds '+rn+' and fits this deck.</b><span style="color:var(--text2)">Proxies and cards outside '+esc(d.cmd)+'\'s colours are not counted.</span></div>';
+  }
+  if(f.buy===null){
+    h+='<div class="callout"><b>No buy ideas yet.</b><span style="color:var(--text2)">We have no popularity data for '+esc(d.cmd)+', so we can\'t say which cards decks like this run. Nothing is guessed.</span></div>';
+  } else if(f.buy.length){
+    const open=owned===0;
+    h+='<details class="buy" '+(open?'open':'')+'><summary><span class="tw">'+ICON.chev+'</span>Buy ideas ('+f.buy.length+') · prices are estimates</summary>'+f.buy.map(c=>cardRow(c,'buy')).join('')+'<p class="src">Estimates come from Scryfall and can be out of date. Cards come from what decks for this commander run most.</p></details>';
+  }
+  return h;
+}
+function panel(sc){
+  const d=deckFor(sc==='spare'||sc==='other'||sc==='buy'?'gappy':sc);
+  let title='What\'s missing', body='', back=false;
+  if(sc==='states'){
+    body='<div class="err" role="alert">'+ICON.err+'<div><b>Couldn\'t check what this deck is missing.</b><div style="color:var(--text2)">Your cards haven\'t changed.</div><button class="btn" id="retry2" style="margin-top:10px">Try again</button></div></div>';
+    return {title,body,back};
+  }
+  if(S.gap){back=true;title=d.roles.find(r=>r.id===S.gap).name;body=panelGap(d,S.gap);}
+  else body=panelOverview(d);
+  return {title,body,back,d};
+}
+
+/* ============ Chat ============ */
+function chat(){
+  const d=DECKS.gappy,v=verdict(d);
+  const items=d.roles.filter(r=>status(r)==='light').map(r=>{
+    const f=FILL.gappy[r.id];
+    const own=f.spare.length?f.spare.length+' spare':f.other.length?f.other.length+' in another deck':'none owned';
+    return '<li><button class="chipbtn light" data-gap="'+r.id+'">'+ICON.warn+'<span><b>'+r.name+':</b> '+r.have+' of about '+r.typ+' · '+own+'</span><span class="chev" style="margin-left:auto">'+ICON.chev+'</span></button></li>';}).join('');
+  return '<div class="askline"><button class="btn" id="askbtn">Ask: what is my deck missing?</button></div>'+
+  '<div class="chat" role="log" aria-label="Chat"><div class="msg u">What is my deck missing?</div>'+
+  '<div class="msg a"><p style="margin:0 0 6px"><b>'+esc(v.head)+'.</b> Decks built around '+d.cmd+' usually run about 8 removal and 9 draw; you have 3 and 4. That is based on '+d.n+' EDHREC cards. Ramp is on track.</p>'+
+  '<ul>'+items+'</ul><p style="margin:6px 0 0;color:var(--text2);font-size:var(--fs-sm)">I only suggest. Nothing in your deck changes. Prices are estimates.</p></div></div>'+
+  '<div class="composer"><input aria-label="Message" placeholder="Ask about this deck"><button class="btn">Send</button></div>';
+}
+
+/* ============ Render ============ */
+let lastFocus=null;
+function render(){
+  const sc=S.scen, d=deckFor(sc==='spare'||sc==='other'||sc==='buy'||sc==='chat'||sc==='states'?'gappy':sc);
+  $('#note').innerHTML=NOTES[sc];
+  $('#scen').innerHTML=SCEN.map(s=>'<button class="seg" data-sc="'+s[0]+'" aria-pressed="'+(S.scen===s[0])+'">'+s[1]+'</button>').join('');
+  document.querySelectorAll('[data-dev]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.dev===S.dev));
+  const fr=$('#frame'); fr.className='frame'+(S.dev==='phone'?' phone':'');
+  const isChat=S.tab==='chat'||sc==='chat';
+  const main=isChat?chat():'<p class="ghostlbl">Cards tab (unchanged)</p><div class="ghost">'+Array(12).fill('<i></i>').join('')+'</div>';
+    const p=S.open?panel(sc):null;
+  fr.innerHTML=
+   '<div class="hdr"><div class="crumb">Decks ›</div><h2>'+esc(d.name)+'</h2><div class="meta">'+d.meta+'</div>'+
+   '<div class="tabs" role="tablist"><button class="tab" role="tab" data-tab="cards" aria-selected="'+!isChat+'">Cards</button><button class="tab" role="tab" data-tab="analysis" aria-selected="false">Analysis</button><button class="tab" role="tab" data-tab="chat" aria-selected="'+isChat+'">Chat</button></div></div>'+
+   '<div class="main">'+main+'</div>'+
+   (sc==='states'?(S.statesMode==='fail'?strip(d,false,true):S.statesMode==='ok'?strip(d):strip(d,true)):strip(d))+
+   '<div class="scrim '+(S.open?'on':'')+'" id="scrim"></div>'+
+   '<div class="panel '+(S.open?'on':'')+'" id="panel" role="dialog" aria-modal="false" aria-labelledby="ptitle"><div class="grab" aria-hidden="true"></div>'+
+   (p?'<div class="phead">'+(p.back?'<button class="iconbtn backbtn" id="pback" aria-label="Back to What\'s missing">'+ICON.back+'<span>Back</span></button>':'')+'<h3 id="ptitle">'+(p.back?esc(p.title):'What\'s missing')+'</h3><button class="iconbtn" id="pclose" aria-label="Close">'+ICON.x+'</button></div><div class="pbody">'+p.body+'</div>'+
+   (!p.back&&sc!=='states'?'<div class="pfoot"><button class="btn block" id="pask">Ask the chat about this</button></div>':''):'')+
+   '</div>';
+  if(S.open){const h=$('#vh')||$('#ptitle');if(h&&(S._focus)){h.setAttribute('tabindex','-1');h.focus();S._focus=false;}}
+}
+function open(gap){lastFocus=document.activeElement&&document.activeElement.id?document.activeElement.id:null;S.open=true;S.gap=gap||null;S._focus=true;render();}
+function close(){S.open=false;S.gap=null;render();if(lastFocus){const e=document.getElementById(lastFocus);e&&e.focus();}}
+
+document.addEventListener('click',e=>{
+  const t=e.target.closest('button,summary');if(!t)return;
+  if(t.dataset.sc){S.scen=t.dataset.sc;S.tab='cards';S.gap=null;S.open=false;S.statesMode=null;
+    if(t.dataset.sc==='spare'){S.open=true;S.gap='removal';}
+    if(t.dataset.sc==='other'){S.open=true;S.gap='wipes';}
+    if(t.dataset.sc==='buy'){S.open=true;S.gap='draw';}
+    if(t.dataset.sc==='overview'||t.dataset.sc==='thin'||t.dataset.sc==='healthy'){S.open=true;}
+    if(t.dataset.sc==='states'){S.statesMode='check';setTimeout(()=>{if(S.scen==='states'&&S.statesMode==='check'){S.statesMode='fail';S.open=true;render();}},1800);}
+    render();return;}
+  if(t.dataset.dev){S.dev=t.dataset.dev;render();return;}
+  if(t.dataset.tab){S.tab=t.dataset.tab==='chat'?'chat':'cards';if(S.scen==='chat'&&S.tab==='cards')S.scen='healthy';render();return;}
+  if(t.id==='vchip'||t.id==='vopen'){open(null);return;}
+  if(t.dataset.gap){
+    const ok=deckFor(S.scen==='healthy'?'healthy':S.scen==='thin'?'thin':'gappy');
+    if(S.scen==='chat'||S.tab==='chat'){}
+    open(t.dataset.gap);return;}
+  if(t.id==='pclose'||t.id==='scrim'){close();return;}
+  if(t.id==='pback'){S.gap=null;S._focus=true;render();return;}
+  if(t.id==='pask'||t.id==='askbtn'){S.tab='chat';if(S.scen!=='chat')S.scen='chat';S.open=false;render();return;}
+  if(t.dataset.cards){alert('Mockup: this jumps to the Cards tab and scrolls to the '+t.dataset.cards+' cards (the existing pill behaviour).');return;}
+  if(t.id==='retry'||t.id==='retry2'){S.statesMode='ok';S.open=false;render();return;}
+});
+$('#frame').addEventListener('click',e=>{if(e.target.id==='scrim')close();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.open)close();});
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Reconcile — Original shortages (T-29 mockup)</title>
+<style>
+  :root {
+    --bg-canvas: #131316; --bg-surface: #1A1A1E; --bg-surface-hover: #212126;
+    --border-default: #35353A; --border-subtle: #262629;
+    --text-primary: #E8E8EA; --text-secondary: #9C9CA3; --text-tertiary: #6E6E76;
+    --accent-primary: #1D9E75;
+    --signal-warning: #EF9F27; --signal-warning-bg: rgba(239,159,39,0.15);
+    --signal-critical: #E24B4A;
+    --status-proxy: #4A93A0;
+    --fs-xs: 11px; --fs-sm: 12px; --fs-md: 14px; --fs-lg: 16px; --fs-xl: 20px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: var(--bg-canvas);
+    color: var(--text-primary); font-size: var(--fs-md); line-height: 1.45; }
+  button, input, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* Review bar (mockup only) */
+  .review { background: #0E0E10; border-bottom: 1px solid var(--border-default); padding: 10px 16px; font-size: var(--fs-sm); color: var(--text-secondary); }
+  .review .inner { max-width: 1220px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; }
+  .review strong { color: var(--text-primary); font-weight: 600; }
+  .review label { display: inline-flex; gap: 6px; align-items: center; }
+  .review select { background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: 6px; padding: 3px 6px; }
+
+  .page-head { max-width: 1220px; margin: 0 auto; padding: 24px 16px 0; }
+  .page-head h1 { font-size: var(--fs-xl); margin: 0; font-weight: 600; }
+  .page-head p { margin: 2px 0 0; color: var(--text-secondary); }
+  main { max-width: 1220px; margin: 0 auto; padding: 24px 16px 64px; }
+  .grid { display: grid; gap: 24px; grid-template-columns: 300px minmax(0,1fr); align-items: start; }
+  .grid > * { min-width: 0; }
+  @media (max-width: 1023px) { .grid { grid-template-columns: minmax(0,1fr); } }
+
+  /* Sidebar */
+  aside { position: sticky; top: 16px; }
+  @media (max-width: 1023px) { aside { position: static; } nav.filters { flex-direction: row !important; overflow-x: auto; }
+    nav.filters .group { flex-direction: row !important; } nav.filters h2 { display: none; } .nav-item { min-width: 180px; } }
+  nav.filters { display: flex; flex-direction: column; gap: 16px; }
+  nav.filters .group { display: flex; flex-direction: column; gap: 4px; }
+  nav.filters h2 { margin: 0; padding: 0 12px 4px; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .04em; color: var(--text-secondary); font-weight: 600; }
+  .nav-item { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 10px 12px; border-radius: 8px;
+    border: 1px solid transparent; background: transparent; cursor: pointer; }
+  .nav-item:hover { background: var(--bg-surface-hover); }
+  .nav-item[aria-current="true"] { background: var(--bg-surface-hover); border-color: var(--border-default); }
+  .nav-item .ico { color: var(--text-secondary); display: inline-flex; }
+  .nav-item .t { flex: 1; min-width: 0; }
+  .nav-item .t b { display: block; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nav-item .t small { display: block; font-size: var(--fs-xs); color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pill { font-size: var(--fs-xs); font-weight: 600; background: rgba(255,255,255,.1); padding: 2px 7px; border-radius: 999px; min-width: 22px; text-align: center; }
+
+  /* List header + toolbar */
+  .list-head h2 { margin: 0; font-size: var(--fs-lg); font-weight: 600; }
+  .list-head p { margin: 2px 0 0; color: var(--text-secondary); font-size: var(--fs-sm); }
+  .summary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; color: var(--text-secondary); font-size: var(--fs-sm); margin: 12px 0 0; }
+  .summary span + span::before { content: '·'; margin: 0 8px; color: var(--text-tertiary); }
+  .summary b { color: var(--text-primary); font-weight: 600; }
+  .updating { margin-left: 12px; display: inline-flex; gap: 6px; align-items: center; }
+  .spinner { width: 14px; height: 14px; border: 2px solid var(--border-default); border-top-color: var(--text-secondary); border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .toolbar { display: flex; gap: 12px; align-items: center; margin: 16px 0 12px; flex-wrap: wrap; }
+  .search { flex: 1; min-width: 200px; position: relative; }
+  .search input { width: 100%; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: 8px; padding: 8px 10px 8px 32px; }
+  .search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); }
+  .sort { display: inline-flex; gap: 8px; align-items: center; color: var(--text-secondary); font-size: var(--fs-sm); }
+  .sort select { background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: 8px; padding: 7px 10px; color: var(--text-primary); }
+
+  /* Card rows */
+  ul.cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+  .row { display: flex; border: 1px solid var(--border-default); background: var(--bg-surface); border-radius: 12px; overflow: hidden; }
+  @media (max-width: 767px) { .row { flex-direction: column; } .row .left { border-right: 0 !important; border-bottom: 1px solid var(--border-subtle); width: auto !important; } }
+  .row .left { width: 320px; flex-shrink: 0; display: flex; gap: 12px; padding: 12px; border-right: 1px solid var(--border-subtle); }
+  .thumb { width: 63px; height: 88px; border-radius: 6px; background: var(--border-subtle); object-fit: cover; flex-shrink: 0; }
+  .name { font-size: var(--fs-md); font-weight: 500; margin: 0; background: none; border: 0; padding: 0; text-align: left; cursor: default; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .badge-short { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: var(--fs-xs); font-weight: 600;
+    color: var(--signal-warning); background: var(--signal-warning-bg); }
+  .tag-noorig { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px; font-size: var(--fs-xs);
+    border: 1px solid var(--border-default); color: var(--text-primary); }
+  dl.facts { margin: 8px 0 0; font-size: var(--fs-xs); color: var(--text-secondary); display: flex; flex-direction: column; gap: 1px; }
+  dl.facts dt, dl.facts dd { display: inline; margin: 0; }
+  dl.facts dd { color: var(--text-primary); font-weight: 500; margin-left: 3px; }
+  .hint { margin-top: 6px; font-size: var(--fs-xs); color: var(--text-secondary); display: flex; gap: 4px; align-items: flex-start; }
+  .row .right { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+  ul.decks { list-style: none; margin: 0; padding: 0; }
+  ul.decks li { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; padding: 9px 16px; border-top: 1px solid var(--border-subtle); }
+  ul.decks li:first-child { border-top: 0; }
+  ul.decks li.focus { background: rgba(255,255,255,.03); }
+  .deck-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-primary); text-decoration: none; font-size: var(--fs-sm); font-weight: 500; border-radius: 4px; padding: 2px 4px; margin-left: -4px; }
+  .deck-link:hover { text-decoration: underline; background: var(--bg-surface-hover); }
+  .deck-link svg { color: var(--text-secondary); }
+  .this-deck { font-size: var(--fs-xs); color: var(--text-secondary); margin-left: 6px; }
+  .chips { display: inline-flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-xs); font-weight: 500; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border-default); color: var(--text-primary); }
+  .chip.original { color: var(--text-secondary); border-color: var(--border-subtle); background: rgba(255,255,255,.04); }
+  .chip.proxy { border-color: var(--status-proxy); }
+  .chip.proxy svg { color: var(--status-proxy); }
+  .chip.unsleeved svg { color: var(--text-secondary); }
+  .act { font-size: var(--fs-xs); background: transparent; border: 1px solid var(--border-default); border-radius: 6px; padding: 3px 8px; cursor: pointer; }
+  .act:hover { background: var(--bg-surface-hover); }
+  .copies-toggle { margin-top: 8px; font-size: var(--fs-xs); background: none; border: 0; color: var(--text-secondary); padding: 0; cursor: pointer; text-decoration: underline; }
+  .copies { border-top: 1px solid var(--border-subtle); padding: 8px 16px 10px; font-size: var(--fs-xs); color: var(--text-secondary); }
+  .copies table { border-collapse: collapse; width: 100%; }
+  .copies td, .copies th { text-align: left; padding: 3px 8px 3px 0; font-weight: 400; }
+  .copies th { color: var(--text-tertiary); }
+
+  /* States */
+  .panel { border: 1px solid var(--border-default); border-radius: 12px; padding: 48px 16px; text-align: center; }
+  .panel h3 { margin: 8px 0 4px; font-size: var(--fs-lg); font-weight: 500; }
+  .panel p { margin: 0; color: var(--text-secondary); font-size: var(--fs-sm); }
+  .panel.error { border-color: rgba(226,75,74,.4); }
+  .btn { margin-top: 14px; background: transparent; border: 1px solid var(--border-default); border-radius: 8px; padding: 6px 14px; cursor: pointer; }
+  .btn:hover { background: var(--bg-surface-hover); }
+  .banner { display: flex; align-items: center; gap: 10px; border: 1px solid rgba(226,75,74,.4); border-radius: 8px; padding: 8px 12px; font-size: var(--fs-sm); margin-bottom: 12px; }
+  .banner .btn { margin: 0 0 0 auto; padding: 3px 10px; font-size: var(--fs-xs); }
+  .sk { background: rgba(255,255,255,.05); border-radius: 6px; animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .5; } }
+  @media (prefers-reduced-motion: reduce) { .sk, .spinner { animation: none; } }
+  .linkbtn { background: none; border: 0; color: var(--text-primary); text-decoration: underline; cursor: pointer; padding: 0; }
+
+  /* Choices panel (mockup only) */
+  .choices { max-width: 1220px; margin: 0 auto 64px; padding: 0 16px; }
+  .choices details { background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: 12px; padding: 12px 16px; }
+  .choices summary { cursor: pointer; font-weight: 600; }
+  .choices table { border-collapse: collapse; width: 100%; font-size: var(--fs-sm); margin-top: 10px; }
+  .choices td, .choices th { text-align: left; vertical-align: top; padding: 6px 8px; border-top: 1px solid var(--border-subtle); }
+  .choices th { color: var(--text-secondary); font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div class="review" role="region" aria-label="Mockup controls (not part of the design)">
+  <div class="inner">
+    <strong>Mockup controls</strong>
+    <label>Page state
+      <select id="ctl-state">
+        <option value="loaded">Loaded</option>
+        <option value="refreshing">Refreshing</option>
+        <option value="refresh-failed">Refresh failed</option>
+        <option value="loading">First load</option>
+        <option value="error">Load failed</option>
+        <option value="empty">No shortages</option>
+      </select>
+    </label>
+    <label>I-1 Row actions
+      <select id="ctl-i1">
+        <option value="a">a · Inform only (recommended)</option>
+        <option value="b">b · Swap in original</option>
+        <option value="c">c · Buy link (estimate)</option>
+      </select>
+    </label>
+    <label>I-3 Deck filter
+      <select id="ctl-i3">
+        <option value="a">a · Every short card the deck uses (recommended)</option>
+        <option value="b">b · Only proxy / Unsleeved slots</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="ctl-i6" /> I-6 Show copies expander</label>
+  </div>
+</div>
+
+<div class="page-head">
+  <h1>Reconcile</h1>
+  <p>Cards your decks need more originals of than you own. Proxies don't count as originals.</p>
+</div>
+
+<main id="app" aria-live="off"></main>
+<div id="live" class="sr-only" aria-live="polite"></div>
+
+<section class="choices" aria-label="Choices for owner approval">
+  <details open>
+    <summary>Choices for your approval (I-1 to I-11) — the screen above shows the recommended option</summary>
+    <table>
+      <tr><th>#</th><th>Question</th><th>Recommended</th><th>Alternatives</th></tr>
+      <tr><td>I-1</td><td>Should a row let you act, or only inform?</td><td>Inform only, with links to decks</td><td>Swap in original button; Buy link with Scryfall estimate price</td></tr>
+      <tr><td>I-2</td><td>Where does a deck link open?</td><td>Same tab; Back keeps your filters</td><td>New tab</td></tr>
+      <tr><td>I-3</td><td>When you pick a deck, which cards show?</td><td>Every short card that deck uses, its row marked "This deck"</td><td>Only cards that deck fills with a proxy or leaves Unsleeved</td></tr>
+      <tr><td>I-4</td><td>Default order?</td><td>Most originals needed</td><td>Most proxies sleeved; A–Z</td></tr>
+      <tr><td>I-5</td><td>"No original owned" filter in the sidebar?</td><td>Yes</td><td>No</td></tr>
+      <tr><td>I-6</td><td>Show copy-by-copy detail?</td><td>Not in this version</td><td>"Show copies" expander per card</td></tr>
+      <tr><td>I-7</td><td>Page name?</td><td>Keep "Reconcile"</td><td>"Original shortages"</td></tr>
+      <tr><td>I-8</td><td>Search by card name?</td><td>Yes</td><td>No</td></tr>
+      <tr><td>I-9</td><td>Does any original printing count?</td><td>Yes — any Sol Ring original covers any deck's Sol Ring</td><td>Only the exact printing the deck lists</td></tr>
+      <tr><td>I-10</td><td>Totals line at the top?</td><td>Yes</td><td>No</td></tr>
+      <tr><td>I-11</td><td>Show spare proxies (unused, in storage)?</td><td>Yes, as a small note</td><td>Hide them</td></tr>
+    </table>
+  </details>
+</section>
+
+<script>
+const ICON = {
+  warn: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+  slash: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>',
+  mask: '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="6" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M4 12c0-2.2 1.8-4 4-4s4 1.8 4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="3" y="4" width="10" height="3" rx="1" fill="currentColor" opacity=".35"/></svg>',
+  empty: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/></svg>',
+  info: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:2px" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
+  ext: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>',
+  pkg: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5Z"/><path d="m3 8 9 5 9-5"/><path d="M12 13v8"/></svg>',
+  layers: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m12 2 10 5-10 5L2 7Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>',
+  search: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
+  check: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9C9CA3" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>',
+  alert: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E24B4A" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>',
+};
+
+const DECKS = { 1: 'Atraxa, Praetors\u2019 Voice', 2: 'Korvold, Fae-Cursed King', 3: 'Prosper, Tome-Bound', 4: 'Yuriko, the Tiger\u2019s Shadow' };
+
+// Each deck entry: originals sleeved (o), proxies sleeved (p), unsleeved (u).
+const CARDS = [
+  { name: 'Sol Ring', originalsOwned: 1, originalsInStorage: 0, spareProxies: 0, price: '$1.50',
+    decks: [{ id: 2, o: 1, p: 0, u: 0 }, { id: 3, o: 0, p: 1, u: 0 }, { id: 1, o: 0, p: 1, u: 0 }],
+    copies: [['Original', 'Commander Masters · nonfoil', 'Korvold'], ['Proxy', 'Borderless · nonfoil', 'Prosper'], ['Proxy', 'Commander Masters · nonfoil', 'Atraxa']] },
+  { name: 'Dockside Extortionist', originalsOwned: 0, originalsInStorage: 0, spareProxies: 0, price: '$38.00',
+    decks: [{ id: 2, o: 0, p: 1, u: 0 }, { id: 3, o: 0, p: 1, u: 0 }],
+    copies: [['Proxy', 'Commander 2019 · nonfoil', 'Korvold'], ['Proxy', 'Commander 2019 · nonfoil', 'Prosper']] },
+  { name: 'Mana Crypt', originalsOwned: 0, originalsInStorage: 0, spareProxies: 0, price: '$190.00',
+    decks: [{ id: 4, o: 0, p: 1, u: 0 }],
+    copies: [['Proxy', 'Eternal Masters · nonfoil', 'Yuriko']] },
+  { name: 'Arcane Signet', originalsOwned: 2, originalsInStorage: 1, spareProxies: 0, price: '$0.60',
+    decks: [{ id: 1, o: 1, p: 0, u: 0 }, { id: 2, o: 0, p: 1, u: 0 }, { id: 3, o: 0, p: 1, u: 0 }],
+    copies: [['Original', 'Commander Legends · nonfoil', 'Atraxa'], ['Original', 'Throne of Eldraine · foil', 'Storage: Binder 2'], ['Proxy', '—', 'Korvold'], ['Proxy', '—', 'Prosper']] },
+  { name: 'Cyclonic Rift', originalsOwned: 1, originalsInStorage: 0, spareProxies: 1, price: '$28.00',
+    decks: [{ id: 4, o: 1, p: 0, u: 0 }, { id: 3, o: 0, p: 1, u: 0 }],
+    copies: [['Original', 'Return to Ravnica · nonfoil', 'Yuriko'], ['Proxy', '—', 'Prosper'], ['Proxy', '—', 'Storage: Proxy box']] },
+  { name: 'Smothering Tithe', originalsOwned: 1, originalsInStorage: 0, spareProxies: 0, price: '$14.00',
+    decks: [{ id: 2, o: 1, p: 0, u: 0 }, { id: 3, o: 0, p: 0, u: 1 }],
+    copies: [['Original', 'Ravnica Allegiance · nonfoil', 'Korvold']] },
+].map(c => {
+  const needed = c.decks.reduce((s, d) => s + d.o + d.p + d.u, 0);
+  const proxiesSleeved = c.decks.reduce((s, d) => s + d.p, 0);
+  return { ...c, needed, proxiesSleeved, short: needed - c.originalsOwned };
+});
+
+const ui = { filter: 'all', query: '', sort: 'short', state: 'loaded', i1: 'a', i3: 'a', i6: false, open: new Set() };
+const app = document.getElementById('app');
+const live = document.getElementById('live');
+const plural = (n, one, many) => `${n} ${n === 1 ? one : (many || one + 's')}`;
+const esc = s => s.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+const imgUrl = name => `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(name)}&format=image&version=small`;
+
+function deckUses(card, deckId, mode) {
+  const d = card.decks.find(x => x.id === deckId);
+  if (!d) return false;
+  return mode === 'a' ? true : (d.p + d.u) > 0;
+}
+
+function visibleCards() {
+  let list = CARDS.filter(c => c.short > 0);
+  if (ui.filter === 'noorig') list = list.filter(c => c.originalsOwned === 0);
+  if (ui.filter.startsWith('deck:')) { const id = +ui.filter.slice(5); list = list.filter(c => deckUses(c, id, ui.i3)); }
+  if (ui.query) list = list.filter(c => c.name.toLowerCase().includes(ui.query.toLowerCase()));
+  const by = { short: (a, b) => b.short - a.short, proxies: (a, b) => b.proxiesSleeved - a.proxiesSleeved, name: () => 0 }[ui.sort];
+  return list.sort((a, b) => by(a, b) || a.name.localeCompare(b.name));
+}
+
+function navItem(key, title, sub, count, icon) {
+  return `<button type="button" class="nav-item" data-filter="${key}" ${ui.filter === key ? 'aria-current="true"' : ''}
+    aria-label="${esc(title)}, ${plural(count, 'card')}">
+    ${icon ? `<span class="ico">${icon}</span>` : ''}
+    <span class="t"><b>${esc(title)}</b><small>${esc(sub)}</small></span><span class="pill" aria-hidden="true">${count}</span></button>`;
+}
+
+function sidebar() {
+  const all = CARDS.filter(c => c.short > 0);
+  const deckItems = Object.entries(DECKS).map(([id, name]) => {
+    const cards = all.filter(c => deckUses(c, +id, ui.i3));
+    const proxies = all.reduce((s, c) => s + (c.decks.find(d => d.id === +id)?.p || 0), 0);
+    return { id, name, count: cards.length, proxies };
+  }).filter(d => d.count > 0).sort((a, b) => a.name.localeCompare(b.name));
+  return `<aside><nav class="filters" aria-label="Shortage filters">
+    <div class="group">
+      ${navItem('all', 'All shortages', 'Every card you\u2019re short of', all.length, ICON.pkg)}
+      ${navItem('noorig', 'No original owned', 'Only played as proxies or empty slots', all.filter(c => c.originalsOwned === 0).length, ICON.slash.replace(/12/g, '16'))}
+    </div>
+    <div class="group"><h2>${ICON.layers} Decks</h2>
+      ${deckItems.map(d => navItem('deck:' + d.id, d.name, d.proxies ? plural(d.proxies, 'proxy sleeved', 'proxies sleeved') : 'No proxies sleeved', d.count)).join('')}
+    </div></nav></aside>`;
+}
+
+function chip(kind, n) {
+  if (!n) return '';
+  const label = { original: 'Original', proxy: 'Proxy', unsleeved: 'Unsleeved' }[kind];
+  const icon = { original: '', proxy: ICON.mask, unsleeved: ICON.empty }[kind];
+  return `<span class="chip ${kind}">${icon}${n > 1 ? n + ' \u00d7 ' : ''}${label}</span>`;
+}
+
+function cardRow(c, focusId) {
+  const decks = [...c.decks].sort((a, b) => (b.id === focusId) - (a.id === focusId) || DECKS[a.id].localeCompare(DECKS[b.id]));
+  const replace = Math.min(c.originalsInStorage, c.proxiesSleeved);
+  const ownedText = c.originalsOwned === 0 ? 'None' : c.originalsOwned + (c.originalsInStorage ? ` (${c.originalsInStorage} in storage)` : '');
+  const open = ui.open.has(c.name);
+  const id = 'c-' + c.name.replace(/\W+/g, '-');
+  let replacedOnce = false;
+  return `<li class="row" aria-labelledby="${id}">
+    <div class="left">
+      <img class="thumb" src="${imgUrl(c.name)}" alt="" loading="lazy" onerror="this.removeAttribute('src')" />
+      <div style="min-width:0">
+        <button type="button" class="name" id="${id}" title="${esc(c.name)} — preview">${esc(c.name)}</button>
+        <div class="tags"><span class="badge-short">${ICON.warn}${plural(c.short, 'more original', 'more originals')} needed</span>${c.originalsOwned === 0 ? `<span class="tag-noorig">${ICON.slash}No original owned</span>` : ''}</div>
+        <dl class="facts">
+          <div><dt>Needed in decks</dt><dd>${c.needed}</dd></div>
+          <div><dt>Originals owned</dt><dd>${ownedText}</dd></div>
+          <div><dt>Proxies sleeved</dt><dd>${c.proxiesSleeved}</dd></div>
+          ${c.spareProxies ? `<div><dt class="sr-only">Spare proxies</dt><dd style="margin:0;font-weight:400;color:var(--text-secondary)">${plural(c.spareProxies, 'spare proxy', 'spare proxies')}</dd></div>` : ''}
+        </dl>
+        ${replace ? `<div class="hint">${ICON.info}<span>${replace === 1 ? '1 original in storage could replace a proxy.' : replace + ' originals in storage could replace proxies.'}</span></div>` : ''}
+        ${ui.i6 ? `<button type="button" class="copies-toggle" data-copies="${esc(c.name)}" aria-expanded="${open}" aria-controls="${id}-copies">${open ? 'Hide copies' : 'Show copies'}</button>` : ''}
+      </div>
+    </div>
+    <div class="right">
+      <ul class="decks" aria-label="Decks using ${esc(c.name)}">
+        ${decks.map(d => {
+          const isFocus = d.id === focusId;
+          let action = '';
+          if (ui.i1 === 'b' && d.p > 0 && replace > 0 && !replacedOnce) { replacedOnce = true; action = `<button type="button" class="act">Swap in original</button>`; }
+          return `<li class="${isFocus ? 'focus' : ''}">
+            <span><a class="deck-link" href="#deck-${d.id}" aria-label="Open ${esc(DECKS[d.id])}">${esc(DECKS[d.id])} ${ICON.ext}</a>${isFocus ? '<span class="this-deck">This deck</span>' : ''}</span>
+            <span class="chips">${chip('original', d.o)}${chip('proxy', d.p)}${chip('unsleeved', d.u)}${action}</span></li>`;
+        }).join('')}
+        ${ui.i1 === 'c' ? `<li><span style="font-size:var(--fs-xs);color:var(--text-secondary)">About ${c.price} each (Scryfall estimate)</span><span class="chips"><a class="act" href="#buy" style="text-decoration:none">Buy ${plural(c.short, 'original', 'originals')}</a></span></li>` : ''}
+      </ul>
+      ${ui.i6 && open ? `<div class="copies" id="${id}-copies"><table><tr><th>Copy</th><th>Printing</th><th>Where</th></tr>${c.copies.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</table></div>` : ''}
+    </div>
+  </li>`;
+}
+
+function listSection() {
+  const all = CARDS.filter(c => c.short > 0);
+  const list = visibleCards();
+  const deckId = ui.filter.startsWith('deck:') ? +ui.filter.slice(5) : null;
+  const title = deckId ? DECKS[deckId] : ui.filter === 'noorig' ? 'No original owned' : 'All shortages';
+  const neededInView = list.reduce((s, c) => s + c.short, 0);
+  const sub = deckId ? `${plural(list.length, 'short card')} in this deck. Counts cover all decks.` : ui.filter === 'noorig' ? `${plural(list.length, 'card')} \u00b7 ${plural(neededInView, 'more original', 'more originals')} needed` : '';
+  const tot = all.reduce((s, c) => s + c.short, 0), prox = all.reduce((s, c) => s + c.proxiesSleeved, 0), noo = all.filter(c => c.originalsOwned === 0).length;
+  const status = ui.state === 'refreshing' ? `<span class="updating"><span class="spinner" aria-hidden="true"></span>Updating\u2026</span>` : '';
+  const banner = ui.state === 'refresh-failed' ? `<div class="banner" role="alert">${ICON.alert.replace('width="24" height="24"', 'width="16" height="16"')}<span>Couldn\u2019t refresh. Showing results from 7:12 pm.</span><button type="button" class="btn">Try again</button></div>` : '';
+  return `<section aria-label="${esc(title)}" ${ui.state === 'refreshing' ? 'aria-busy="true"' : ''}>
+    ${banner}
+    <div class="list-head"><h2>${esc(title)}</h2>${sub ? `<p>${sub}</p>` : ''}</div>
+    <p class="summary"><span><b>${tot}</b> more originals needed</span><span>${plural(all.length, 'card')}</span>${prox ? `<span>${plural(prox, 'proxy', 'proxies')} sleeved</span>` : ''}${noo ? `<span>${noo} with no original owned</span>` : ''}${status}</p>
+    <div class="toolbar">
+      <div class="search">${ICON.search}<label class="sr-only" for="q">Search cards</label><input id="q" type="search" placeholder="Search cards" value="${esc(ui.query)}" autocomplete="off" /></div>
+      <label class="sort">Sort <select id="sort">
+        <option value="short" ${ui.sort === 'short' ? 'selected' : ''}>Most originals needed</option>
+        <option value="proxies" ${ui.sort === 'proxies' ? 'selected' : ''}>Most proxies sleeved</option>
+        <option value="name" ${ui.sort === 'name' ? 'selected' : ''}>Card name A\u2013Z</option></select></label>
+    </div>
+    ${list.length ? `<ul class="cards">${list.map(c => cardRow(c, deckId)).join('')}</ul>`
+      : `<div class="panel"><p>No cards match \u201c${esc(ui.query)}\u201d. <button type="button" class="linkbtn" id="clear">Clear search</button></p></div>`}
+  </section>`;
+}
+
+function skeleton() {
+  const row = `<div class="row" style="height:132px"><div class="left"><div class="sk" style="width:63px;height:88px"></div><div style="flex:1"><div class="sk" style="height:14px;width:70%"></div><div class="sk" style="height:18px;width:60%;margin-top:10px;border-radius:999px"></div><div class="sk" style="height:10px;width:90%;margin-top:10px"></div></div></div>
+    <div class="right" style="padding:12px 16px;gap:14px"><div class="sk" style="height:14px;width:55%"></div><div class="sk" style="height:14px;width:45%"></div><div class="sk" style="height:14px;width:50%"></div></div></div>`;
+  return `<div class="grid" aria-busy="true"><aside><div style="display:flex;flex-direction:column;gap:8px">${'<div class="sk" style="height:44px"></div>'.repeat(2)}<div style="height:12px"></div>${'<div class="sk" style="height:44px"></div>'.repeat(4)}</div></aside>
+    <div><span class="sr-only">Loading shortages\u2026</span><div class="sk" style="height:18px;width:180px"></div><div class="sk" style="height:12px;width:240px;margin:12px 0 16px"></div><div style="display:flex;flex-direction:column;gap:12px">${row.repeat(3)}</div></div></div>`;
+}
+
+function render(announce) {
+  const s = ui.state;
+  if (s === 'loading') app.innerHTML = skeleton();
+  else if (s === 'error') app.innerHTML = `<div class="panel error" role="alert">${ICON.alert}<h3>Couldn\u2019t load shortages.</h3><p>The server didn\u2019t respond (HTTP 500).</p><button type="button" class="btn" id="retry">Try again</button></div>`;
+  else if (s === 'empty') app.innerHTML = `<div class="panel">${ICON.check}<h3>No original shortages.</h3><p>You own enough originals for every card in your decks.</p></div>`;
+  else app.innerHTML = `<div class="grid">${sidebar()}${listSection()}</div>`;
+  if (announce) live.textContent = announce;
+}
+
+app.addEventListener('click', e => {
+  const nav = e.target.closest('[data-filter]');
+  if (nav) { ui.filter = nav.dataset.filter; render(`Showing ${plural(visibleCards().length, 'card')}`); document.querySelector(`[data-filter="${ui.filter}"]`).focus(); return; }
+  const cp = e.target.closest('[data-copies]');
+  if (cp) { const n = cp.dataset.copies; ui.open.has(n) ? ui.open.delete(n) : ui.open.add(n); render(); document.querySelector(`[data-copies="${CSS.escape(n)}"]`).focus(); return; }
+  if (e.target.id === 'clear') { ui.query = ''; render('Search cleared'); document.getElementById('q').focus(); return; }
+  if (e.target.id === 'retry') { e.target.textContent = 'Retrying\u2026'; e.target.disabled = true; setTimeout(() => { ui.state = 'loaded'; document.getElementById('ctl-state').value = 'loaded'; render(); }, 900); return; }
+  const a = e.target.closest('a[href^="#"]');
+  if (a) { e.preventDefault(); alert(a.getAttribute('href') === '#buy' ? 'Mockup: would open a shop / price page.' : 'Mockup: opens the deck page in the same tab (I-2). Back returns here with filters kept.'); }
+  if (e.target.classList.contains('act') && e.target.tagName === 'BUTTON') alert('Mockup (I-1 b): would ask to confirm, then sleeve the original from storage into this slot and return the proxy to storage. Nothing happens automatically.');
+});
+let t;
+app.addEventListener('input', e => {
+  if (e.target.id !== 'q') return;
+  clearTimeout(t); const v = e.target.value;
+  t = setTimeout(() => { ui.query = v; const pos = v.length; render(`Showing ${plural(visibleCards().length, 'card')}`); const q = document.getElementById('q'); q.focus(); q.setSelectionRange(pos, pos); }, 150);
+});
+app.addEventListener('keydown', e => {
+  if (e.target.id === 'q' && e.key === 'Escape') { ui.query = ''; render('Search cleared'); document.getElementById('q').focus(); }
+});
+app.addEventListener('change', e => { if (e.target.id === 'sort') { ui.sort = e.target.value; render(); document.getElementById('sort').focus(); } });
+
+document.getElementById('ctl-state').addEventListener('change', e => { ui.state = e.target.value; render(); });
+document.getElementById('ctl-i1').addEventListener('change', e => { ui.i1 = e.target.value; render(); });
+document.getElementById('ctl-i3').addEventListener('change', e => { ui.i3 = e.target.value; render(); });
+document.getElementById('ctl-i6').addEventListener('change', e => { ui.i6 = e.target.checked; render(); });
+render();
+</script>
+</body>
+</html>

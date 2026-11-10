@@ -342,8 +342,10 @@ export default function DeckViewPage() {
       >
         <div className="shrink-0 border-b border-border px-6">
           <div className="mx-auto max-w-[var(--content-max-width)]">
-            {/* Tab list with horizontally scrollable wrapper on mobile */}
-            <div className="-mx-6 overflow-x-auto px-6 sm:mx-0 sm:px-0">
+            {/* Tab list with horizontally scrollable wrapper on mobile. The active-tab underline
+                sits 5px below the list, so the wrapper pads/offsets 8px to contain it (otherwise
+                overflow-x-auto forces a vertical scrollbar). */}
+            <div className="-mx-6 -mb-2 overflow-x-auto px-6 pb-2 [scrollbar-width:none] sm:mx-0 sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
               <TabsList variant="line" className="w-max sm:w-auto">
                 <TabsTrigger value="cards">Cards</TabsTrigger>
                 <TabsTrigger value="picklist">Sleeve List</TabsTrigger>

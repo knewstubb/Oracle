@@ -38,24 +38,6 @@ function parsePurchasePrice(raw: string | undefined): number | null {
   return isNaN(num) || num < 0 ? null : Math.round(num * 100) / 100
 }
 
-/**
- * Resolve the user's default storage location id through the atomic database
- * helper. A null result is returned only for compatibility with callers that
- * turn the failure into a user-visible error; no caller may insert locationless
- * storage copies after this fails.
- */
-export async function resolveDefaultLocationId(
-  supabase: ReturnType<typeof createAdminClient>,
-  userId: string
-): Promise<number | null> {
-  const { data, error } = await supabase.rpc('_ensure_default_storage_location_id', {
-    p_user_id: userId,
-  })
-
-  if (error || typeof data !== 'number') return null
-  return data
-}
-
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------

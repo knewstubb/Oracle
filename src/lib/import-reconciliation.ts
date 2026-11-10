@@ -39,24 +39,6 @@ export function normalizeInstanceState(value: string | null | undefined): Instan
   return 'planned'
 }
 
-/** Summarise a view for quick stats when counts are not yet loaded. */
-export function countRowsFromView(view: ReconciliationView | null): {
-  unresolvedTotal: number
-  unresolvedOwned: number
-  unresolvedUnowned: number
-  rowsTotal: number
-} {
-  if (!view) {
-    return { unresolvedTotal: 0, unresolvedOwned: 0, unresolvedUnowned: 0, rowsTotal: 0 }
-  }
-  return {
-    unresolvedTotal: view.counts.unresolvedTotal,
-    unresolvedOwned: view.counts.unresolvedOwned,
-    unresolvedUnowned: view.counts.unresolvedUnowned,
-    rowsTotal: view.counts.rowsTotal,
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Server RPC wrappers (T-22)
 // ---------------------------------------------------------------------------

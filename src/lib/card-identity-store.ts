@@ -101,17 +101,6 @@ export interface UpsertCollectionCopyParams {
 /** @deprecated Use UpsertCollectionCopyParams instead */
 export type UpsertPhysicalCopyParams = UpsertCollectionCopyParams
 
-export interface CollectionImportParams {
-  oracleId: string
-  cardName: string
-  scryfallPrintingId: string
-  finish: string
-  language?: string
-  quantity: number
-  purchasePrice?: number | null
-  userId: string
-}
-
 export interface CollectionRollupRow {
   cardId: number
   cardName: string
@@ -748,34 +737,6 @@ export async function setCollectionCopyState(
 
 /** @deprecated Use setCollectionCopyState instead */
 export const setPhysicalCopyState = setCollectionCopyState
-
-// ---------------------------------------------------------------------------
-// Collection Import
-// ---------------------------------------------------------------------------
-
-/**
- * Import a card into the collection.
- * Handles the full workflow: oracle_id → card → collection copy upsert.
- *
- * 1. Ensures a card exists for the given oracle_id
- * 2. Upserts a collection row using the printing-group key
- *
- * Validates: Requirements 8.2, 8.4, 2.9
- */
-export async function importCollectionCard(params: CollectionImportParams): Promise<CollectionCopy> {
-  const cardId = await ensureCardDefinition(params.oracleId, params.cardName, params.userId)
-
-  return upsertCollectionCopy({
-    cardId,
-    printingId: params.scryfallPrintingId,
-    finish: params.finish,
-    language: params.language ?? 'en',
-    isProxy: false,
-    quantity: params.quantity,
-    purchasePrice: params.purchasePrice ?? null,
-    userId: params.userId,
-  })
-}
 
 // ---------------------------------------------------------------------------
 // Computed In-Use Counts

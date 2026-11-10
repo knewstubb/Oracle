@@ -19,7 +19,7 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, ChevronRight, Tags, MoreVertical, Trash2, GripVertical, Sparkles, Check, AlertCircle } from 'lucide-react'
+import { ChevronDown, ChevronRight, Tags, MoreVertical, Trash2, GripVertical, Sparkles, Check, AlertCircle, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog'
@@ -275,6 +275,7 @@ function UnifiedCardRow({
   const [popoverOpen, setPopoverOpen] = useState(false)
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [editInstanceOpen, setEditInstanceOpen] = useState(false)
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false)
   const queryClient = useQueryClient()
   const isMobile = useIsMobile()
@@ -472,6 +473,14 @@ function UnifiedCardRow({
         >
           <button
             type="button"
+            onClick={() => { setContextMenuPos(null); setEditInstanceOpen(true) }}
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-[length:var(--fs-xs)] text-foreground transition-colors hover:bg-white/[0.05]"
+          >
+            <Pencil className="size-3" />
+            Edit card instance
+          </button>
+          <button
+            type="button"
             onClick={handleDeleteClick}
             className="flex w-full items-center gap-2 px-3 py-1.5 text-[length:var(--fs-xs)] transition-colors hover:bg-[rgba(226,75,74,0.1)]"
             style={{ color: 'rgba(226,75,74,0.9)' }}
@@ -507,6 +516,15 @@ function UnifiedCardRow({
       </DialogContent>
     </Dialog>
 
+    {/* Edit card instance dialog */}
+    {editInstanceOpen && (
+      <EditCardInstanceDialog
+        card={card}
+        deckId={deckId}
+        onClose={() => setEditInstanceOpen(false)}
+      />
+    )}
+
     {/* Mobile card preview modal */}
     <MobileCardPreview
       cardName={card.card_name}
@@ -514,6 +532,142 @@ function UnifiedCardRow({
       isOpen={mobilePreviewOpen}
       onClose={() => setMobilePreviewOpen(false)}
     />
+    </>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// EditCardInstanceDialog — change printing, finish, or language of a deck card
+// ---------------------------------------------------------------------------
+
+const FINISH_OPTIONS = [
+  { value: 'nonfoil', label: 'Normal' },
+  { value: 'foil', label: 'Foil' },
+  { value: 'etched', label: 'Etched' },
+]
+
+const LANGUAGE_OPTIONS = [
+  { value: 'en', label: 'English' },
+  { value: 'ja', label: 'Japanese' },
+  { value: 'de', label: 'German' },
+  { value: 'fr', label: 'French' },
+  { value: 'it', label: 'Italian' },
+  { value: 'es', label: 'Spanish' },
+  { value: 'pt', label: 'Portuguese' },
+  { value: 'ko', label: 'Korean' },
+  { value: 'ru', label: 'Russian' },
+  { value: 'zhs', label: 'Chinese (Simplified)' },
+  { value: 'zht', label: 'Chinese (Traditional)' },
+]
+
+function EditCardInstanceDialog({
+  card,
+  deckId,
+  onClose,
+}: {
+  card: DeckCard
+  deckId: number
+  onClose: () => void
+}) {
+  const queryClient = useQueryClient()
+  const { invalidateDeck } = createDeckInvalidators(queryClient)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [printing, setPrinting] = useState<{ scryfallId: string; setCode: string; setName: string } | null>(null)
+  const [finish, setFinish] = useState('')
+  const [language, setLanguage] = useState('')
+
+  const hasChanges = printing !== null || finish !== '' || language !== ''
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const body: Record<string, string> = {}
+      if (printing) {
+        body.scryfall_id = printing.scryfallId
+        body.set_code = printing.setCode
+      }
+      if (finish) body.finish = finish
+      if (language) body.language = language
+      const res = await fetch(`/api/decks/${deckId}/cards/${card.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error ?? 'Failed to update card')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      toast.success(`Updated ${card.card_name}`)
+      invalidateDeck(deckId)
+      onClose()
+    },
+    onError: (err: Error) => {
+      toast.error(err.message)
+    },
+  })
+
+  const selectClass =
+    'h-8 w-full rounded-md border border-[var(--border-default)] bg-transparent px-2 text-[length:var(--fs-sm)] text-foreground'
+
+  return (
+    <>
+      <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
+        <DialogContent className="sm:max-w-[400px]" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Edit card instance</DialogTitle>
+            <DialogDescription>
+              Change the printing, finish, or language of <strong>{card.card_name}</strong> in this deck.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <span className="text-[length:var(--fs-xs)] text-muted-foreground">Printing</span>
+              <Button variant="outline" onClick={() => setPickerOpen(true)}>
+                {printing
+                  ? printing.setName
+                  : card.edition_name || card.set_code?.toUpperCase() || 'Choose printing'}
+              </Button>
+            </div>
+            <label className="flex flex-col gap-1">
+              <span className="text-[length:var(--fs-xs)] text-muted-foreground">Finish</span>
+              <select className={selectClass} value={finish} onChange={(e) => setFinish(e.target.value)}>
+                <option value="">Keep current</option>
+                {FINISH_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[length:var(--fs-xs)] text-muted-foreground">Language</span>
+              <select className={selectClass} value={language} onChange={(e) => setLanguage(e.target.value)}>
+                <option value="">Keep current</option>
+                {LANGUAGE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </label>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button
+              onClick={() => saveMutation.mutate()}
+              disabled={!hasChanges || saveMutation.isPending}
+            >
+              {saveMutation.isPending ? 'Saving...' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <PrintingPickerWithOwned
+        open={pickerOpen}
+        cardName={card.card_name}
+        deckCardsId={card.id}
+        deckId={deckId}
+        onSelect={(p) => {
+          setPrinting({ scryfallId: p.scryfallId, setCode: p.setCode, setName: p.setName })
+          setPickerOpen(false)
+        }}
+        onClose={() => setPickerOpen(false)}
+      />
     </>
   )
 }

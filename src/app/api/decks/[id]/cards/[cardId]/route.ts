@@ -75,13 +75,18 @@ export async function DELETE(
 }
 
 
+const ALLOWED_FINISHES: string[] = ['nonfoil', 'foil', 'etched']
+
 /**
  * PATCH /api/decks/[id]/cards/[cardId]
  *
  * Updates fields on a deck_cards row. Used for converting specific-printing
- * lands to generic (clearing scryfall_id and set_code).
+ * lands to generic (clearing scryfall_id and set_code) and for editing the
+ * card instance (printing, finish, language). Printing and finish changes are
+ * mirrored onto the slot's assigned copy; language lives on the copy only.
  *
- * Body: { scryfall_id?: string | null, set_code?: string | null }
+ * Body: { scryfall_id?: string | null, set_code?: string | null,
+ *         finish?: 'nonfoil' | 'foil' | 'etched', language?: string }
  */
 export async function PATCH(
   request: NextRequest,
@@ -102,10 +107,22 @@ export async function PATCH(
   const body = await request.json()
   const supabase = createAdminClient()
 
+  const finish: unknown = body.finish
+  const language: unknown = body.language
+  if (finish !== undefined && !(typeof finish === 'string' && ALLOWED_FINISHES.includes(finish))) {
+    return Response.json(
+      { error: `finish must be one of: ${ALLOWED_FINISHES.join(', ')}` },
+      { status: 400 }
+    )
+  }
+  if (language !== undefined && !(typeof language === 'string' && /^[a-z]{2,3}(-[a-z]{2,4})?$/i.test(language))) {
+    return Response.json({ error: 'language must be a language code such as "en"' }, { status: 400 })
+  }
+
   // Verify ownership
   const { data: row } = await supabase
     .from('deck_cards')
-    .select('id, deck_id, decks!deck_cards_deck_id_fkey(user_id)')
+    .select('id, deck_id, copy_id, decks!deck_cards_deck_id_fkey(user_id)')
     .eq('id', deckCardsId)
     .eq('deck_id', deckId)
     .maybeSingle()
@@ -123,17 +140,47 @@ export async function PATCH(
   if ('scryfall_id' in body) update.scryfall_id = body.scryfall_id
   if ('set_code' in body) update.set_code = body.set_code
 
-  if (Object.keys(update).length === 0) {
+  if (typeof finish === 'string') update.requested_finish = finish
+
+  // Edit-instance fields also apply to the physical copy sleeved in this slot.
+  // Language only exists on the copy, so it cannot be set on an unallocated slot.
+  const copyId = (row as { copy_id?: number | null }).copy_id ?? null
+  const copyUpdate: Record<string, unknown> = {}
+  if (typeof finish === 'string') copyUpdate.finish = finish
+  if (typeof language === 'string') copyUpdate.language = language.toLowerCase()
+  if (typeof body.scryfall_id === 'string') copyUpdate.printing_id = body.scryfall_id
+  if (language !== undefined && copyId == null) {
+    return Response.json(
+      { error: 'Language can only be changed once a copy is assigned to this card' },
+      { status: 409 }
+    )
+  }
+
+  if (Object.keys(update).length === 0 && Object.keys(copyUpdate).length === 0) {
     return Response.json({ error: 'No valid fields to update' }, { status: 400 })
   }
 
-  const { error } = await supabase
-    .from('deck_cards')
-    .update(update as { scryfall_id?: string | null; set_code?: string | null })
-    .eq('id', deckCardsId)
+  if (Object.keys(update).length > 0) {
+    const { error } = await supabase
+      .from('deck_cards')
+      .update(update as { scryfall_id?: string | null; set_code?: string | null; requested_finish?: string | null })
+      .eq('id', deckCardsId)
 
-  if (error) {
-    return Response.json({ error: error.message }, { status: 500 })
+    if (error) {
+      return Response.json({ error: error.message }, { status: 500 })
+    }
+  }
+
+  if (copyId != null && Object.keys(copyUpdate).length > 0) {
+    const { error } = await supabase
+      .from('user_copies')
+      .update(copyUpdate)
+      .eq('id', copyId)
+      .eq('user_id', userId)
+
+    if (error) {
+      return Response.json({ error: error.message }, { status: 500 })
+    }
   }
 
   return Response.json({ updated: true })

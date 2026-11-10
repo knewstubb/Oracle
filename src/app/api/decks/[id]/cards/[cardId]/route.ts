@@ -145,7 +145,7 @@ export async function PATCH(
   // Edit-instance fields also apply to the physical copy sleeved in this slot.
   // Language only exists on the copy, so it cannot be set on an unallocated slot.
   const copyId = (row as { copy_id?: number | null }).copy_id ?? null
-  const copyUpdate: Record<string, unknown> = {}
+  const copyUpdate: { finish?: string; language?: string; printing_id?: string } = {}
   if (typeof finish === 'string') copyUpdate.finish = finish
   if (typeof language === 'string') copyUpdate.language = language.toLowerCase()
   if (typeof body.scryfall_id === 'string') copyUpdate.printing_id = body.scryfall_id

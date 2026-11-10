@@ -574,10 +574,28 @@ function EditCardInstanceDialog({
   const { invalidateDeck } = createDeckInvalidators(queryClient)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [printing, setPrinting] = useState<{ scryfallId: string; setCode: string; setName: string } | null>(null)
-  const [finish, setFinish] = useState('')
-  const [language, setLanguage] = useState('')
+  const [finishEdit, setFinishEdit] = useState<string | null>(null)
+  const [languageEdit, setLanguageEdit] = useState<string | null>(null)
 
-  const hasChanges = printing !== null || finish !== '' || language !== ''
+  const { data: current, isLoading } = useQuery<{ finish: string; language: string | null; hasCopy: boolean }>({
+    queryKey: ['deck-card-instance', deckId, card.id],
+    queryFn: async () => {
+      const res = await fetch(`/api/decks/${deckId}/cards/${card.id}`)
+      if (!res.ok) throw new Error('Failed to load card instance')
+      return res.json()
+    },
+    staleTime: 0,
+    gcTime: 0,
+  })
+
+  const finish = finishEdit ?? current?.finish ?? 'nonfoil'
+  const language = languageEdit ?? current?.language ?? ''
+  const finishChanged = !!current && finish !== current.finish
+  const languageChanged = !!current && current.language !== null && language !== current.language
+  const hasChanges = printing !== null || finishChanged || languageChanged
+  const languageOptions = LANGUAGE_OPTIONS.some((o) => o.value === language) || !language
+    ? LANGUAGE_OPTIONS
+    : [...LANGUAGE_OPTIONS, { value: language, label: language.toUpperCase() }]
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -586,8 +604,8 @@ function EditCardInstanceDialog({
         body.scryfall_id = printing.scryfallId
         body.set_code = printing.setCode
       }
-      if (finish) body.finish = finish
-      if (language) body.language = language
+      if (finishChanged) body.finish = finish
+      if (languageChanged) body.language = language
       const res = await fetch(`/api/decks/${deckId}/cards/${card.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -633,16 +651,20 @@ function EditCardInstanceDialog({
             </div>
             <label className="flex flex-col gap-1">
               <span className="text-[length:var(--fs-xs)] text-muted-foreground">Finish</span>
-              <select className={selectClass} value={finish} onChange={(e) => setFinish(e.target.value)}>
-                <option value="">Keep current</option>
+              <select className={selectClass} value={finish} disabled={isLoading} onChange={(e) => setFinishEdit(e.target.value)}>
                 {FINISH_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </label>
             <label className="flex flex-col gap-1">
               <span className="text-[length:var(--fs-xs)] text-muted-foreground">Language</span>
-              <select className={selectClass} value={language} onChange={(e) => setLanguage(e.target.value)}>
-                <option value="">Keep current</option>
-                {LANGUAGE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              <select
+                className={selectClass}
+                value={language}
+                disabled={isLoading || current?.language == null}
+                onChange={(e) => setLanguageEdit(e.target.value)}
+              >
+                {current?.language == null && <option value="">No copy assigned</option>}
+                {languageOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </label>
           </div>

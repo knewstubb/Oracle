@@ -78,6 +78,61 @@ export async function DELETE(
 const ALLOWED_FINISHES: string[] = ['nonfoil', 'foil', 'etched']
 
 /**
+ * GET /api/decks/[id]/cards/[cardId]
+ *
+ * Current instance values for the edit dialog. Finish and language come from
+ * the assigned copy when there is one; otherwise finish falls back to the
+ * slot's requested finish and language is null (not editable without a copy).
+ *
+ * Response: { finish: string, language: string | null, hasCopy: boolean }
+ */
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string; cardId: string }> }
+) {
+  const authResult = await requireAuth()
+  if (authResult instanceof Response) return authResult
+  const userId = authResult.id
+
+  const { id, cardId } = await params
+  const deckId = parseInt(id, 10)
+  const deckCardsId = parseInt(cardId, 10)
+  if (isNaN(deckId) || isNaN(deckCardsId)) {
+    return Response.json({ error: 'Invalid IDs' }, { status: 400 })
+  }
+
+  const supabase = createAdminClient()
+  const { data: row } = await supabase
+    .from('deck_cards')
+    .select('id, copy_id, requested_finish, decks!deck_cards_deck_id_fkey(user_id)')
+    .eq('id', deckCardsId)
+    .eq('deck_id', deckId)
+    .maybeSingle()
+
+  const deck = row?.decks as unknown as { user_id: string } | null | undefined
+  if (!row || !deck || deck.user_id !== userId) {
+    return Response.json({ error: 'Card not found' }, { status: 404 })
+  }
+
+  let finish = row.requested_finish ?? 'nonfoil'
+  let language: string | null = null
+  if (row.copy_id != null) {
+    const { data: copy } = await supabase
+      .from('user_copies')
+      .select('finish, language')
+      .eq('id', row.copy_id)
+      .eq('user_id', userId)
+      .maybeSingle()
+    if (copy) {
+      finish = copy.finish ?? finish
+      language = copy.language ?? 'en'
+    }
+  }
+
+  return Response.json({ finish, language, hasCopy: language !== null })
+}
+
+/**
  * PATCH /api/decks/[id]/cards/[cardId]
  *
  * Updates fields on a deck_cards row. Used for converting specific-printing

@@ -117,3 +117,17 @@ Post-game debrief; similar-card search outside his collection (vector trial clos
 - **Power ceiling / optimisation level:** how explosive a deck can be versus how smoothly it runs its plan.
 - **Upgrade / optimise:** a change that raises the ceiling (upgrade) versus one that only improves consistency (optimise).
 - **Goldfish clock:** solo test of how fast a deck wins with no opposition.
+
+## 17. Owner answers to the Gate 2 audit questions (2026-11-11)
+Audit: `reports/2026-11-11-architect-daily-use-audit.md`. These supersede anything above that disagrees.
+1. **Role numbers per commander:** derived by classifying EDHREC top cards by card text, cached per commander, and labelled with their source ("based on N EDHREC cards"). Where data is thin: show type counts only, say "no role data for this commander yet", and show a generic target labelled "general guide". Never invent a number.
+2. **Tags and strategy:** a new deck shows the generic role tags (ramp, draw, removal, wipes) until a strategy is agreed. Once the goal sentence is confirmed, the deck's own tags replace them (for example Mendicant: Fast Start, Artifact flood, Construct payoff), each with a suggested target the owner can change. A deck uses one set or the other. Oracle proposes a starting strategy and draft sentence from the stored build themes (all 1,885 builds have a theme; 6,459 strategy notes exist).
+3. **Bracket warnings:** only cards labelled "upgrade" warn; optimise cards never do.
+4. **"In your hand" is a real system location, not a label.** Ticking "found" takes the card out of its source deck at once (the deck shows short by one). It can be placed in a deck or location, or put back anywhere. This replaces the audit's "derived state" recommendation.
+5. **Goldfish clock: parked.** Show official bracket triggers and Oracle's own ratios first.
+6. **System locations:** In your hand, Missing, and Unsorted (existing name kept; used for new imports). Cards in Missing cannot be allocated to a deck and are excluded from "spare". A deck that loses a card to Missing keeps it as a planned slot, shows short by one, and Oracle suggests a proxy or a spare copy. **Owner approved bringing Missing back** (reverses D-028 for this purpose).
+7. **Valuable binder:** no price limit and no automatic suggestions. The binder is a location the owner fills by hand. (Replaces the price-threshold idea in section 6.)
+8. **Game Changers list changes:** existing decks stay as they are and show a banner ("bracket may now be 4"). Game Changers are stored as dated data, not hard-coded. Next possible change: 2026-11-30.
+
+**Decisions for Gene to reconcile at close-out (owner-approved in chat 2026-11-11):** D-028 reversed for the Missing system location; D-039 extended (a card removed from a deck for a move goes to In your hand until placed). `decisions.md` is not edited yet.
+**Correction for status.md:** the vector trial left 450 `ref_build_cards` rows (150 each for 3 builds), not 150.

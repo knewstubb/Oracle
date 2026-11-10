@@ -13,7 +13,7 @@ Read `docs/oracle/roadmap.md` first. Only tasks in the **current milestone** may
 
 ## Vector recommendation trial — CLOSED 2026-11-09 (NOT A GO), PARKED 2026-11-10; archived at `docs/oracle/archive/vector-trial-2026-11/`
 **CLOSED 2026-11-10 (owner decision).** The trial ended 2026-11-09 with a NOT A GO verdict. The owner parked vectors and keeps the EDHREC-based suggestions. All trial work was removed with owner approval: trial tables, similar-cards function and vector extension dropped from the hosted database (owner ran the SQL; migration history repaired to reverted); trial branches and worktrees deleted; local Postgres removed. Archive (README, reports, contract, freeze file, brief, results, draft migration): `docs/oracle/archive/vector-trial-2026-11/`. Report paths below that start `reports/` for trial work now live in the archive's `reports` folder. V-01 to V-22 and BR-1 are CLOSED (outcomes in the table below); none will be started. Nothing was merged to main. decisions.md not touched.
-**Data left behind:** `ref_build_cards` now holds 150 non-basic cards for 3 builds (Wilhelt zombies, Wilhelt aristocrats, Mendicant artifacts), loaded by the trial sync. Other build rows remain empty (1,885 builds, V-02).
+**Data left behind:** `ref_build_cards` now holds 450 rows (150 non-basic cards for each of 3 builds) (Wilhelt zombies, Wilhelt aristocrats, Mendicant artifacts), loaded by the trial sync. Other build rows remain empty (1,885 builds, V-02).
 **Backlog from the trial (none started):**
 - Commander Spellbook combo notes as a separate small feature (trial showed 14 of 23 combo-only cards graded 2+).
 - Unfiltered EDHREC build sync cannot read list-style tags (small fix).

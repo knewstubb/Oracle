@@ -131,3 +131,12 @@ Audit: `reports/2026-11-11-architect-daily-use-audit.md`. These supersede anythi
 
 **Decisions for Gene to reconcile at close-out (owner-approved in chat 2026-11-11):** D-028 reversed for the Missing system location; D-039 extended (a card removed from a deck for a move goes to In your hand until placed). `decisions.md` is not edited yet.
 **Correction for status.md:** the vector trial left 450 `ref_build_cards` rows (150 each for 3 builds), not 150.
+
+## 18. Phasing (owner agreed 2026-11-11)
+Step by step; the owner tries each phase before the next starts. Each phase gets its own Gate 3 mockup, Gate 4 slices and owner click-through.
+1. ~~Quick wins (store lookup, import history/undo, small-import fast path)~~ **Skipped for now (owner: can live without).** Parked in status.md.
+2. **What's missing view (CURRENT):** role numbers per commander from EDHREC, verdict plus counts, clickable gaps leading to spare cards then buy ideas, honest fallback (answer 1), generic tags until a strategy exists. Fixes the all-red health result.
+3. Know where cards are: system locations (In your hand, Missing, Unsorted), combined checklist, found/placed ticks. Needs a schema change and owner approval of the stored-data change first.
+4. Goal sentence, deck-specific tags, fit bands (tested against the owner's own judgement before being relied on).
+5. Proxy ranking, plain-description search, power ceiling and upgrade vs optimise.
+6. Later: new-set suggestions, tokens list, commander discovery.

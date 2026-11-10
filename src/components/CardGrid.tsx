@@ -42,6 +42,10 @@ export interface DeckCard {
   price_usd?: number | null
   edition_name?: string | null
   rarity?: string | null
+  /** Current instance values from the deck endpoint (language is null when no copy is assigned) */
+  finish?: string
+  language?: string | null
+  has_copy?: boolean
   /** Synergy score from EDHREC for the current build (null if no build set) */
   synergy_score?: number | null
 }

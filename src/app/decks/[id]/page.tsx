@@ -5,7 +5,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { AlertCircle, RefreshCw, ClipboardCopy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
+import { DeckViewSkeleton } from '@/components/DeckViewSkeleton'
+import { cardStatusesQueryOptions } from '@/lib/deck-card-statuses-query'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { findCommanderCards } from '@/lib/commander-card-flag'
 import { PersistentHeader } from '@/components/PersistentHeader'
@@ -25,7 +26,7 @@ import { getFormatConfig } from '@/lib/format-config'
 import { exportDeckAsText } from '@/lib/deck-export'
 import { useOracle } from '@/contexts/OracleContext'
 import { toast } from 'sonner'
-import { CardGrid, type DeckCard } from '@/components/CardGrid'
+import type { DeckCard } from '@/components/CardGrid'
 import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
 import { Crown } from 'lucide-react'
 import { commanderChipText, isCompanion } from '@/lib/command-zone'
@@ -121,6 +122,13 @@ export default function DeckViewPage() {
     enabled: !!deckId,
   })
 
+  // Card statuses are prefetched in parallel with the deck (CardsTab reads the same cache
+  // entry) so status icons and the progress bar render with real data on first paint.
+  const { isLoading: isStatusLoading } = useQuery({
+    ...cardStatusesQueryOptions(deckId),
+    enabled: !!deckId,
+  })
+
   // Health data query — deduped with HealthStrip's internal fetch by TanStack Query
   const { data: healthData } = useQuery({
     queryKey: deckKeys.health(deckId),
@@ -186,7 +194,7 @@ export default function DeckViewPage() {
     setScrollTarget(category)
   }, [])
 
-  if (isLoading) {
+  if (isLoading || (isStatusLoading && !error)) {
     return <DeckViewSkeleton />
   }
 
@@ -419,34 +427,6 @@ export default function DeckViewPage() {
         onPillClick={handlePillClick}
       />
       </div>{/* end content wrapper (z-10) */}
-    </div>
-  )
-}
-
-function DeckViewSkeleton() {
-  return (
-    <div className="flex h-full flex-col bg-[var(--bg-canvas)]">
-      <header className="shrink-0 border-b border-border px-6 py-4">
-        <div className="mx-auto flex max-w-[var(--content-max-width)] items-center gap-4">
-          <Skeleton className="size-9 rounded-full" />
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-5 w-48" />
-            <Skeleton className="h-3.5 w-24" />
-          </div>
-        </div>
-      </header>
-      <div className="flex items-center gap-2 px-6 py-2">
-        <Skeleton className="h-7 w-20 rounded-md" />
-        <Skeleton className="h-7 w-20 rounded-md" />
-        <Skeleton className="h-7 w-24 rounded-md" />
-        <Skeleton className="h-7 w-20 rounded-md" />
-        <Skeleton className="h-7 w-24 rounded-md" />
-      </div>
-      <div className="flex-1 px-6 py-6">
-        <div className="mx-auto max-w-[var(--content-max-width)]">
-          <CardGrid cards={[]} isLoading />
-        </div>
-      </div>
     </div>
   )
 }

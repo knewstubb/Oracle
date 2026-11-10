@@ -16,6 +16,8 @@ import { parseCategoriesCapped } from '@/lib/categoryUtils'
 import type { StructuredCategories } from '@/lib/categoryUtils'
 import { useDeckCategories } from '@/hooks/useDeckCategories'
 import { deckKeys } from '@/hooks/useDeckQueryKeys'
+import { cardStatusesQueryOptions } from '@/lib/deck-card-statuses-query'
+import { ProgressBarSkeleton } from '@/components/DeckViewSkeleton'
 import type { DeckCard } from '@/components/CardGrid'
 import type { CardSlotStatus, DeckCardLifecycle } from '@/lib/card-status'
 import { isBasicLand, isGenericSlot, isGenericSleeved, getBasicLandDefaultScryfallId } from '@/lib/basic-lands'
@@ -364,15 +366,7 @@ function CardsTabInner({ cards, deckId, healthCategories, scrollToCategory, onVi
 
   // ── Card Statuses Query ──────────────────────────────────────────────────────
 
-  const { data: statusData } = useQuery<CardStatusResponse>({
-    queryKey: deckKeys.cardStatuses(deckId),
-    queryFn: async () => {
-      const res = await fetch(`/api/decks/${deckId}/card-statuses`)
-      if (!res.ok) throw new Error('Failed to fetch card statuses')
-      return res.json()
-    },
-    staleTime: 5 * 60 * 1000,
-  })
+  const { data: statusData, isLoading: isStatusLoading } = useQuery<CardStatusResponse>(cardStatusesQueryOptions(deckId))
 
   // ── Picklist data (for progress bar) ─────────────────────────────────────
 
@@ -806,7 +800,8 @@ function CardsTabInner({ cards, deckId, healthCategories, scrollToCategory, onVi
       {/* ─── View Content Area ─────────────────────────────────────────── */}
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         <div className="mx-auto max-w-[var(--content-max-width)]">
-          {/* Progress bar - uses statusData.counts for immediate updates */}
+          {/* Progress bar - uses statusData.counts for immediate updates; placeholder reserves its space while loading */}
+          {isStatusLoading && !statusData && <ProgressBarSkeleton />}
           {statusData?.counts && (
             <PicklistProgress
               counts={{

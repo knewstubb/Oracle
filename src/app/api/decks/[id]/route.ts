@@ -196,9 +196,26 @@ export async function GET(
     }
   }
 
+  // Current finish/language of each slot's assigned copy (single source for the edit dialog)
+  const copyIds = [...new Set((cards ?? []).map(c => c.copy_id).filter((v): v is number => v != null))]
+  const copyMap: Record<number, { finish: string | null; language: string | null }> = {}
+  for (let i = 0; i < copyIds.length; i += 200) {
+    const { data: copyRows } = await supabase
+      .from('user_copies')
+      .select('id, finish, language')
+      .in('id', copyIds.slice(i, i + 200))
+      .eq('user_id', authResult.id)
+    for (const row of copyRows ?? []) {
+      copyMap[row.id] = { finish: row.finish, language: row.language }
+    }
+  }
+
   // Merge allocation status, mana cost, price, edition, and synergy into cards
   const cardsWithStatus = (cards ?? []).map(card => ({
     ...card,
+    finish: (card.copy_id != null ? copyMap[card.copy_id]?.finish : null) ?? card.requested_finish ?? 'nonfoil',
+    language: card.copy_id != null ? (copyMap[card.copy_id] ? (copyMap[card.copy_id].language ?? 'en') : null) : null,
+    has_copy: card.copy_id != null && copyMap[card.copy_id] !== undefined,
     lifecycle: countsAsSleeved(card) ? 'sleeved' as const : 'planned' as const,
     allocation_status: card.copy_id != null
       ? (card.ownership_status || 'original')

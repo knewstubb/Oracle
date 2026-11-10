@@ -1,5 +1,5 @@
 # Brief: Oracle as a daily-use deck workbench (Gate 1, DRAFT for owner approval)
-Author: drafted 2026-11-11 from an owner interview. Status: **DRAFT. Nothing approved, nothing built.**
+Author: drafted 2026-11-11 from an owner interview. Status: **APPROVED by owner 2026-11-11 (including the additions in sections 10, 10a and S9). Nothing built; next step is the Gate 2 audit.**
 Supersedes nothing. Widens `use-what-i-own.md` (its slice (c) is folded into priority 2 below).
 
 ## 1. What this is, in plain words
@@ -27,6 +27,7 @@ Supporting: search (section 8), tags (section 9), deck goal sentence and drift c
 | S6 | A new set releases | Existing decks | A list of new cards that fit, shown as "new" on the deck badge |
 | S7 | Moving cards around in real life | Oracle's picture of where cards are | A checklist grouped by where he walks, with found/placed ticks |
 | S8 | A card is not where Oracle says | A checklist item | "Can't find it": flagged missing, Oracle asks where to look next |
+| S9 | In a game store, phone in hand | A card in front of him | A fast search: do I own it (and where), and what is it worth |
 
 ## 5. Deck goal sentence and drift
 - Every deck has **one sentence** saying what it is trying to do. Oracle drafts it from the commander and the stored community builds for that commander; the owner confirms or edits it once.
@@ -65,6 +66,16 @@ For a card he owns once: a ranked list of decks with a tier (essential / good fi
 ## 10. Power level
 Each deck shows a bracket from 1 to 5. Each suggested card shows whether it raises or lowers the deck's bracket. A target bracket per deck is optional; if set, Oracle warns when a card would push past it.
 
+### 10a. Power ceiling, optimisation level, upgrading vs optimising (owner direction 2026-11-11)
+Each deck is assessed on two separate measures, mapped to the official brackets (1 Exhibition to 5 cEDH):
+- **Power ceiling:** how explosive the deck can be: fast mana, win conditions, and hard bracket triggers. Triggers: the count of official Game Changers (none in brackets 1 to 2, up to 3 in bracket 3, unlimited in 4 to 5), mass land denial, chained extra turns, and two-card combos that can win before turn 6.
+- **Optimisation level:** how smoothly the deck runs its own plan: card ratios (lands, cheap ramp, repeatable draw, removal), mana curve, tutor density, interaction density (aim for about 40% instant-speed answers), and draw consistency.
+- A **goldfish clock** (a solo test of how fast the deck wins with no opposition) gives median win turn versus best-case turn, to separate typical speed from ceiling.
+- **Upgrading** raises the ceiling or win speed (compact combos, fast mana, scalable engines) and may move the deck up a bracket. **Optimising** improves consistency and ratios without raising the ceiling or the bracket.
+- Every suggestion is labelled **upgrade** or **optimise**. A card that would raise the bracket is marked as an upgrade. Combined with the optional target bracket, optimise-only suggestions never push a deck past its target.
+- Owner-supplied thresholds (Game Changer limits, 40% interaction, turn 6) are starting values to verify against the current official bracket rules in the audit, since the Game Changers list and rules change.
+- **Power data source:** Scrollvault has a web bracket checker; no public data access is confirmed. Architect to check whether it can be used (terms and technical access). If not, Oracle computes the same measures itself from Game Changers, combo data (Commander Spellbook is already integrated) and card roles.
+
 ## 11. Import and keeping data current
 - Initial big load, then small regular imports, plus single cards added by hand.
 - Small import: one-line preview ("5 cards, all matched") and one confirm; full review only when something needs attention.
@@ -75,6 +86,9 @@ Each deck shows a bracket from 1 to 5. Each suggested card shows whether it rais
 
 ## 12. Tokens
 A list of tokens each deck can create. No ownership tracking for now (he is not scanning tokens).
+
+## 12a. Quick lookup in a store (S9)
+A fast card search that works well on a phone: type a name, see at once whether he owns it, how many, where each copy is (deck, box, binder), whether any copy is a proxy, and its current estimated price (labelled as an estimate; unknown is never shown as zero). It should also show which decks want it, so he knows if buying makes sense.
 
 ## 13. What must never happen
 - Suggesting a card he does not own as if he did; showing an unknown price as zero or as a fact.
@@ -90,7 +104,7 @@ Post-game debrief; similar-card search outside his collection (vector trial clos
 ## 15. Open questions for the Architect audit (Gate 2)
 - What already exists for each item above (many parts are already built: do not assume they are missing).
 - Where "typical numbers per commander" come from (community builds stored per commander; most build card lists are empty today).
-- Power bracket data: source and accuracy.
+- Power bracket data: source and accuracy; whether Scrollvault can be used at all; check the current official bracket rules (Game Changers list and limits).
 - Whether "in your hand" and the box / lands box / binder locations fit the current data model without a schema change.
 - Whether a fit band can be judged reliably, and how to test it.
 
@@ -100,3 +114,6 @@ Post-game debrief; similar-card search outside his collection (vector trial clos
 - **Goal sentence:** the one line saying what a deck is trying to do.
 - **Fit band:** core / supports / loose fit / off-plan.
 - **Drift check:** summary of cards that do not serve the goal.
+- **Power ceiling / optimisation level:** how explosive a deck can be versus how smoothly it runs its plan.
+- **Upgrade / optimise:** a change that raises the ceiling (upgrade) versus one that only improves consistency (optimise).
+- **Goldfish clock:** solo test of how fast a deck wins with no opposition.

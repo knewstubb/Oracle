@@ -577,21 +577,13 @@ function EditCardInstanceDialog({
   const [finishEdit, setFinishEdit] = useState<string | null>(null)
   const [languageEdit, setLanguageEdit] = useState<string | null>(null)
 
-  const { data: current, isLoading } = useQuery<{ finish: string; language: string | null; hasCopy: boolean }>({
-    queryKey: ['deck-card-instance', deckId, card.id],
-    queryFn: async () => {
-      const res = await fetch(`/api/decks/${deckId}/cards/${card.id}`)
-      if (!res.ok) throw new Error('Failed to load card instance')
-      return res.json()
-    },
-    staleTime: 0,
-    gcTime: 0,
-  })
+  const currentFinish = card.finish ?? 'nonfoil'
+  const currentLanguage = card.language ?? null
 
-  const finish = finishEdit ?? current?.finish ?? 'nonfoil'
-  const language = languageEdit ?? current?.language ?? ''
-  const finishChanged = !!current && finish !== current.finish
-  const languageChanged = !!current && current.language !== null && language !== current.language
+  const finish = finishEdit ?? currentFinish
+  const language = languageEdit ?? currentLanguage ?? ''
+  const finishChanged = finish !== currentFinish
+  const languageChanged = currentLanguage !== null && language !== currentLanguage
   const hasChanges = printing !== null || finishChanged || languageChanged
   const languageOptions = LANGUAGE_OPTIONS.some((o) => o.value === language) || !language
     ? LANGUAGE_OPTIONS
@@ -651,7 +643,7 @@ function EditCardInstanceDialog({
             </div>
             <label className="flex flex-col gap-1">
               <span className="text-[length:var(--fs-xs)] text-muted-foreground">Finish</span>
-              <select className={selectClass} value={finish} disabled={isLoading} onChange={(e) => setFinishEdit(e.target.value)}>
+              <select className={selectClass} value={finish} onChange={(e) => setFinishEdit(e.target.value)}>
                 {FINISH_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </label>
@@ -660,10 +652,10 @@ function EditCardInstanceDialog({
               <select
                 className={selectClass}
                 value={language}
-                disabled={isLoading || current?.language == null}
+                disabled={currentLanguage === null}
                 onChange={(e) => setLanguageEdit(e.target.value)}
               >
-                {current?.language == null && <option value="">No copy assigned</option>}
+                {currentLanguage === null && <option value="">No copy assigned</option>}
                 {languageOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </label>

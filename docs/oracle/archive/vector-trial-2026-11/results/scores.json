@@ -1,0 +1,218 @@
+{
+  "sheet_id": "vy4lclxd",
+  "gold_set_version": "2026-11-06",
+  "graded_rows": 205,
+  "per_list": {
+    "W1": {
+      "arms": {
+        "B1": {
+          "ndcg10": 0.851,
+          "precision10": 1
+        },
+        "B2": {
+          "ndcg10": 0.851,
+          "precision10": 1
+        },
+        "V": {
+          "ndcg10": 0.588,
+          "precision10": 0.7
+        },
+        "F2": {
+          "ndcg10": 0.903,
+          "precision10": 0.9
+        },
+        "F3": {
+          "ndcg10": 0.907,
+          "precision10": 0.9
+        }
+      },
+      "novel_finds_f3_top20": 0,
+      "combo_only_graded_2plus": "6 of 8",
+      "combo_harm_f3_minus_f2_ndcg10": 0.004,
+      "f3_minus_b1_ndcg10": 0.056,
+      "specificity_f3_top20": "not computed (no --staples file)"
+    },
+    "W2": {
+      "arms": {
+        "B1": {
+          "ndcg10": 0.73,
+          "precision10": 0.8
+        },
+        "B2": {
+          "ndcg10": 0.789,
+          "precision10": 0.8
+        },
+        "V": {
+          "ndcg10": 0.555,
+          "precision10": 0.5
+        },
+        "F2": {
+          "ndcg10": 0.802,
+          "precision10": 0.9
+        },
+        "F3": {
+          "ndcg10": 0.822,
+          "precision10": 0.9
+        }
+      },
+      "novel_finds_f3_top20": 2,
+      "combo_only_graded_2plus": "6 of 7",
+      "combo_harm_f3_minus_f2_ndcg10": 0.021,
+      "f3_minus_b1_ndcg10": 0.093,
+      "specificity_f3_top20": "not computed (no --staples file)"
+    },
+    "M1": {
+      "arms": {
+        "B1": {
+          "ndcg10": 0.865,
+          "precision10": 0.9
+        },
+        "B2": {
+          "ndcg10": 0.905,
+          "precision10": 0.9
+        },
+        "V": {
+          "ndcg10": 0.755,
+          "precision10": 0.9
+        },
+        "F2": {
+          "ndcg10": 0.759,
+          "precision10": 0.8
+        },
+        "F3": {
+          "ndcg10": 0.882,
+          "precision10": 0.9
+        }
+      },
+      "novel_finds_f3_top20": 1,
+      "combo_only_graded_2plus": "2 of 8",
+      "combo_harm_f3_minus_f2_ndcg10": 0.124,
+      "f3_minus_b1_ndcg10": 0.017,
+      "specificity_f3_top20": "not computed (no --staples file)"
+    }
+  },
+  "build_separation_f3_top20_overlap_W1_W2": 0.7,
+  "traps_by_slot": {
+    "W1": {
+      "B1": {
+        "unexposed_in_top10": [],
+        "exposed_in_top10": [],
+        "low_confidence_in_top10": []
+      },
+      "B2": {
+        "unexposed_in_top10": [],
+        "exposed_in_top10": [],
+        "low_confidence_in_top10": []
+      },
+      "V": {
+        "unexposed_in_top10": [],
+        "exposed_in_top10": [],
+        "low_confidence_in_top10": [
+          "W-T01"
+        ]
+      },
+      "F2": {
+        "unexposed_in_top10": [],
+        "exposed_in_top10": [],
+        "low_confidence_in_top10": []
+      },
+      "F3": {
+        "unexposed_in_top10": [],
+        "exposed_in_top10": [],
+        "low_confidence_in_top10": []
+      }
+    },
+    "W2": {
+      "B1": {
+        "unexposed_in_top10": [],
+        "exposed_in_top10": [],
+        "low_confidence_in_top10": []
+      },
+      "B2": {
+        "unexposed_in_top10": [],
+        "exposed_in_top10": [],
+        "low_confidence_in_top10": []
+      },
+      "V": {
+        "unexposed_in_top10": [],
+        "exposed_in_top10": [],
+        "low_confidence_in_top10": [
+          "W-T01"
+        ]
+      },
+      "F2": {
+        "unexposed_in_top10": [],
+        "exposed_in_top10": [],
+        "low_confidence_in_top10": []
+      },
+      "F3": {
+        "unexposed_in_top10": [],
+        "exposed_in_top10": [],
+        "low_confidence_in_top10": []
+      }
+    },
+    "M1": {
+      "B1": {
+        "unexposed_in_top10": [],
+        "exposed_in_top10": [],
+        "low_confidence_in_top10": []
+      },
+      "B2": {
+        "unexposed_in_top10": [],
+        "exposed_in_top10": [],
+        "low_confidence_in_top10": []
+      },
+      "V": {
+        "unexposed_in_top10": [],
+        "exposed_in_top10": [],
+        "low_confidence_in_top10": []
+      },
+      "F2": {
+        "unexposed_in_top10": [],
+        "exposed_in_top10": [],
+        "low_confidence_in_top10": []
+      },
+      "F3": {
+        "unexposed_in_top10": [],
+        "exposed_in_top10": [],
+        "low_confidence_in_top10": []
+      }
+    }
+  },
+  "flip_pair_ordering_f3_W1_vs_W2": {
+    "all_flip_cards": {
+      "pairs": 0,
+      "correct": 0,
+      "rate": null
+    },
+    "unexposed_contrast_only": {
+      "pairs": 0,
+      "correct": 0,
+      "rate": null
+    },
+    "note": "fewer than 8 qualifying pairs means inconclusive, not passed"
+  },
+  "deckdep_pair_ordering_f2_across_commanders": {
+    "W1_vs_M1": {
+      "pairs": 6,
+      "correct": 2,
+      "rate": 0.3333333333333333
+    },
+    "W2_vs_M1": {
+      "pairs": 7,
+      "correct": 2,
+      "rate": 0.2857142857142857
+    }
+  },
+  "blind_preference": {
+    "answered": 10,
+    "prefers_f3": 4,
+    "go_threshold": ">= 7 of 10"
+  },
+  "owner_edit_rate_vs_drafts": {
+    "rows": 0,
+    "changed": 0,
+    "rate": 0,
+    "meanAbsChange": 0
+  }
+}

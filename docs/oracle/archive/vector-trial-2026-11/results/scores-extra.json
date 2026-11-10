@@ -1,0 +1,1204 @@
+{
+  "edit_rate": {
+    "rows": 205,
+    "changed": 88,
+    "rate": 0.429,
+    "meanAbsChange": 0.449,
+    "direction": {
+      "owner_higher": 58,
+      "owner_lower": 30,
+      "same": 117
+    },
+    "by_list": {
+      "W1": {
+        "rows": 81,
+        "changed": 43
+      },
+      "W2": {
+        "rows": 56,
+        "changed": 22
+      },
+      "M1": {
+        "rows": 68,
+        "changed": 23
+      }
+    },
+    "draft_to_owner": {
+      "2->3": 25,
+      "1->0": 4,
+      "1->2": 26,
+      "3->3": 21,
+      "2->2": 59,
+      "1->1": 27,
+      "2->1": 7,
+      "3->1": 2,
+      "3->2": 17,
+      "0->0": 10,
+      "1->3": 2,
+      "0->1": 5
+    },
+    "owner_mean_grade": 1.898,
+    "draft_mean_grade": 1.761
+  },
+  "per_list": {
+    "W1": {
+      "pool_rows": 43,
+      "ndcg10_unrounded": {
+        "B1": 0.851,
+        "B2": 0.851,
+        "V": 0.588,
+        "F2": 0.903,
+        "F3": 0.907
+      },
+      "f3_minus_b1": 0.056,
+      "f3_minus_f2": 0.004,
+      "f2_minus_b1": 0.053,
+      "f3_minus_b2": 0.056,
+      "novel_finds_names": [],
+      "f3_top20_not_in_stored_build_with_grade": [],
+      "f3_top20_combo_only": [],
+      "f3_top20_share_graded_2plus": 0.95
+    },
+    "W2": {
+      "pool_rows": 40,
+      "ndcg10_unrounded": {
+        "B1": 0.73,
+        "B2": 0.789,
+        "V": 0.555,
+        "F2": 0.802,
+        "F3": 0.822
+      },
+      "f3_minus_b1": 0.093,
+      "f3_minus_f2": 0.021,
+      "f2_minus_b1": 0.072,
+      "f3_minus_b2": 0.034,
+      "novel_finds_names": [
+        "Graf Harvest",
+        "Diregraf Horde"
+      ],
+      "f3_top20_not_in_stored_build_with_grade": [
+        {
+          "name": "Graf Harvest",
+          "grade": 2
+        },
+        {
+          "name": "Diregraf Horde",
+          "grade": 2
+        }
+      ],
+      "f3_top20_combo_only": [],
+      "f3_top20_share_graded_2plus": 0.95
+    },
+    "M1": {
+      "pool_rows": 39,
+      "ndcg10_unrounded": {
+        "B1": 0.865,
+        "B2": 0.905,
+        "V": 0.755,
+        "F2": 0.759,
+        "F3": 0.882
+      },
+      "f3_minus_b1": 0.017,
+      "f3_minus_f2": 0.124,
+      "f2_minus_b1": -0.106,
+      "f3_minus_b2": -0.023,
+      "novel_finds_names": [
+        "Starting Column"
+      ],
+      "f3_top20_not_in_stored_build_with_grade": [
+        {
+          "name": "Starting Column",
+          "grade": 2
+        }
+      ],
+      "f3_top20_combo_only": [
+        {
+          "name": "Sensei's Divining Top",
+          "grade": 2
+        }
+      ],
+      "f3_top20_share_graded_2plus": 0.9
+    }
+  },
+  "trap_owner_grades": {
+    "W": [
+      {
+        "slot": "W-T01",
+        "exposed": true,
+        "confidence": "low",
+        "owner_grade": [
+          1
+        ],
+        "draft_grade": [
+          1
+        ]
+      },
+      {
+        "slot": "W-T02",
+        "exposed": false,
+        "confidence": null,
+        "owner_grade": [
+          2
+        ],
+        "draft_grade": [
+          1
+        ]
+      },
+      {
+        "slot": "W-T03",
+        "exposed": true,
+        "confidence": null,
+        "owner_grade": [
+          2
+        ],
+        "draft_grade": [
+          1
+        ]
+      },
+      {
+        "slot": "W-T04",
+        "exposed": false,
+        "confidence": null,
+        "owner_grade": [
+          1
+        ],
+        "draft_grade": [
+          1
+        ]
+      },
+      {
+        "slot": "W-T05",
+        "exposed": false,
+        "confidence": null,
+        "owner_grade": [
+          1
+        ],
+        "draft_grade": [
+          1
+        ]
+      },
+      {
+        "slot": "W-T06",
+        "exposed": false,
+        "confidence": null,
+        "owner_grade": [
+          2
+        ],
+        "draft_grade": [
+          1
+        ]
+      },
+      {
+        "slot": "W-T07",
+        "exposed": true,
+        "confidence": null,
+        "owner_grade": [
+          1
+        ],
+        "draft_grade": [
+          3
+        ]
+      },
+      {
+        "slot": "W-T08",
+        "exposed": true,
+        "confidence": null,
+        "owner_grade": [
+          2
+        ],
+        "draft_grade": [
+          1
+        ]
+      },
+      {
+        "slot": "W-T09",
+        "exposed": false,
+        "confidence": null,
+        "owner_grade": [
+          1
+        ],
+        "draft_grade": [
+          1
+        ]
+      },
+      {
+        "slot": "W-T10",
+        "exposed": true,
+        "confidence": null,
+        "owner_grade": [
+          1
+        ],
+        "draft_grade": [
+          1
+        ]
+      }
+    ],
+    "M": [
+      {
+        "slot": "M-T01",
+        "exposed": true,
+        "confidence": null,
+        "owner_grade": [
+          0
+        ],
+        "draft_grade": [
+          0
+        ]
+      },
+      {
+        "slot": "M-T02",
+        "exposed": false,
+        "confidence": null,
+        "owner_grade": [
+          1
+        ],
+        "draft_grade": [
+          0
+        ]
+      },
+      {
+        "slot": "M-T03",
+        "exposed": false,
+        "confidence": null,
+        "owner_grade": [
+          0
+        ],
+        "draft_grade": [
+          1
+        ]
+      },
+      {
+        "slot": "M-T04",
+        "exposed": false,
+        "confidence": null,
+        "owner_grade": [
+          1
+        ],
+        "draft_grade": [
+          0
+        ]
+      },
+      {
+        "slot": "M-T05",
+        "exposed": true,
+        "confidence": null,
+        "owner_grade": [
+          0
+        ],
+        "draft_grade": [
+          0
+        ]
+      },
+      {
+        "slot": "M-T06",
+        "exposed": false,
+        "confidence": null,
+        "owner_grade": [
+          1
+        ],
+        "draft_grade": [
+          0
+        ]
+      },
+      {
+        "slot": "M-T07",
+        "exposed": true,
+        "confidence": null,
+        "owner_grade": [
+          1
+        ],
+        "draft_grade": [
+          2
+        ]
+      },
+      {
+        "slot": "M-T08",
+        "exposed": true,
+        "confidence": null,
+        "owner_grade": [
+          1
+        ],
+        "draft_grade": [
+          1
+        ]
+      },
+      {
+        "slot": "M-T09",
+        "exposed": false,
+        "confidence": null,
+        "owner_grade": [
+          1
+        ],
+        "draft_grade": [
+          0
+        ]
+      },
+      {
+        "slot": "M-T10",
+        "exposed": true,
+        "confidence": null,
+        "owner_grade": [
+          0
+        ],
+        "draft_grade": [
+          0
+        ]
+      }
+    ]
+  },
+  "trap_grade_summary": {
+    "unexposed": {
+      "n": 10,
+      "mean": 1.1,
+      "graded_2plus": 2
+    },
+    "exposed": {
+      "n": 10,
+      "mean": 0.9,
+      "graded_2plus": 2
+    }
+  },
+  "multi_feature": [
+    {
+      "list": "W1",
+      "card": "Rhystic Study",
+      "feature_ask": "tax on opponents' spells",
+      "owner": 3,
+      "draft": 3
+    },
+    {
+      "list": "W1",
+      "card": "Wilhelt, the Rotcleaver",
+      "feature_ask": "makes replacement tokens when Zombies die",
+      "owner": 3,
+      "draft": 3
+    },
+    {
+      "list": "W1",
+      "card": "Ashnod's Altar",
+      "feature_ask": "adds mana",
+      "owner": 2,
+      "draft": 2
+    },
+    {
+      "list": "W1",
+      "card": "Ashnod's Altar",
+      "feature_ask": "sacrifice outlet",
+      "owner": 3,
+      "draft": 2
+    },
+    {
+      "list": "W1",
+      "card": "Cryptbreaker",
+      "feature_ask": "makes a Zombie",
+      "owner": 2,
+      "draft": 3
+    },
+    {
+      "list": "W1",
+      "card": "Mind Stone",
+      "feature_ask": "cycles for a card",
+      "owner": 2,
+      "draft": 2
+    },
+    {
+      "list": "W1",
+      "card": "Skullclamp",
+      "feature_ask": "draws when it dies",
+      "owner": 3,
+      "draft": 2
+    },
+    {
+      "list": "W1",
+      "card": "Wilhelt, the Rotcleaver",
+      "feature_ask": "sacrifice a creature to draw",
+      "owner": 3,
+      "draft": 3
+    },
+    {
+      "list": "W1",
+      "card": "Rhystic Study",
+      "feature_ask": "draw engine",
+      "owner": 2,
+      "draft": 3
+    },
+    {
+      "list": "W1",
+      "card": "Skullclamp",
+      "feature_ask": "shrinks a creature",
+      "owner": 2,
+      "draft": 2
+    },
+    {
+      "list": "W1",
+      "card": "Cryptbreaker",
+      "feature_ask": "draws and drains by tapping Zombies",
+      "owner": 2,
+      "draft": 3
+    },
+    {
+      "list": "W1",
+      "card": "Cryptbreaker",
+      "feature_ask": "discard cost",
+      "owner": 2,
+      "draft": 3
+    },
+    {
+      "list": "W1",
+      "card": "Mind Stone",
+      "feature_ask": "mana rock",
+      "owner": 2,
+      "draft": 2
+    },
+    {
+      "list": "M1",
+      "card": "Smothering Tithe",
+      "feature_ask": "taxes opponents' draws",
+      "owner": 1,
+      "draft": 3
+    },
+    {
+      "list": "M1",
+      "card": "Sai, Master Thopterist",
+      "feature_ask": "turns artifacts into cards",
+      "owner": 2,
+      "draft": 3
+    },
+    {
+      "list": "M1",
+      "card": "Scrap Trawler",
+      "feature_ask": "recursion when an artifact goes to the graveyard",
+      "owner": 2,
+      "draft": 2
+    },
+    {
+      "list": "M1",
+      "card": "Smothering Tithe",
+      "feature_ask": "ramp (Treasure)",
+      "owner": 2,
+      "draft": 3
+    },
+    {
+      "list": "M1",
+      "card": "Sai, Master Thopterist",
+      "feature_ask": "makes tokens when you cast artifacts",
+      "owner": 3,
+      "draft": 3
+    },
+    {
+      "list": "M1",
+      "card": "Mendicant Core, Guidelight",
+      "feature_ask": "counts artifacts you control",
+      "owner": 3,
+      "draft": 3
+    },
+    {
+      "list": "M1",
+      "card": "Scrap Trawler",
+      "feature_ask": "artifact payoff",
+      "owner": 2,
+      "draft": 2
+    },
+    {
+      "list": "M1",
+      "card": "Mendicant Core, Guidelight",
+      "feature_ask": "speed mechanic",
+      "owner": 2,
+      "draft": 3
+    },
+    {
+      "list": "M1",
+      "card": "Mendicant Core, Guidelight",
+      "feature_ask": "copies artifact spells at maximum speed",
+      "owner": 3,
+      "draft": 3
+    }
+  ],
+  "controls_f3_rank": [
+    {
+      "card": "Arcane Signet",
+      "W1": null,
+      "W2": null,
+      "M1": null
+    },
+    {
+      "card": "Mind Stone",
+      "W1": 161,
+      "W2": null,
+      "M1": null
+    },
+    {
+      "card": "Talisman of Dominance",
+      "W1": null,
+      "W2": null,
+      "M1": null
+    },
+    {
+      "card": "Fellwar Stone",
+      "W1": null,
+      "W2": null,
+      "M1": null
+    },
+    {
+      "card": "Thought Vessel",
+      "W1": null,
+      "W2": null,
+      "M1": null
+    }
+  ],
+  "flip_W1_vs_W2": {
+    "cards": [
+      {
+        "card": "Skullclamp",
+        "grade_a": 3,
+        "grade_b": 3,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Sai, Master Thopterist",
+        "grade_a": 0,
+        "grade_b": 0,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Nim Deathmantle",
+        "grade_a": 3,
+        "grade_b": 3,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Ashnod's Altar",
+        "grade_a": 2,
+        "grade_b": 3,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Falcon Abomination",
+        "grade_a": 3,
+        "grade_b": 2,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Phyrexian Altar",
+        "grade_a": 3,
+        "grade_b": 3,
+        "rank_a": 1,
+        "rank_b": 1
+      },
+      {
+        "card": "Lost Monarch of Ifnir",
+        "grade_a": 2,
+        "grade_b": 1,
+        "rank_a": 46,
+        "rank_b": 43
+      },
+      {
+        "card": "Prophet of the Scarab",
+        "grade_a": 2,
+        "grade_b": 2,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Blood Artist",
+        "grade_a": 2,
+        "grade_b": 3,
+        "rank_a": null,
+        "rank_b": 97
+      },
+      {
+        "card": "Rhystic Study",
+        "grade_a": 2,
+        "grade_b": 2,
+        "rank_a": 153,
+        "rank_b": 153
+      },
+      {
+        "card": "Sol Ring",
+        "grade_a": 2,
+        "grade_b": 2,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Etherium Sculptor",
+        "grade_a": 0,
+        "grade_b": 0,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Mystic Remora",
+        "grade_a": 1,
+        "grade_b": 1,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Entropic Eidolon",
+        "grade_a": 0,
+        "grade_b": 1,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Scrap Trawler",
+        "grade_a": 0,
+        "grade_b": 0,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Altar of Dementia",
+        "grade_a": 2,
+        "grade_b": 2,
+        "rank_a": 7,
+        "rank_b": 4
+      },
+      {
+        "card": "Zulaport Cutthroat",
+        "grade_a": 2,
+        "grade_b": 3,
+        "rank_a": null,
+        "rank_b": 76
+      },
+      {
+        "card": "Metalworker",
+        "grade_a": 0,
+        "grade_b": 0,
+        "rank_a": null,
+        "rank_b": null
+      }
+    ],
+    "pairs_graded_2_apart": 0,
+    "cards_graded_differently_at_all": 6
+  },
+  "deckdep_W1_vs_M1": {
+    "cards": [
+      {
+        "card": "Skullclamp",
+        "grade_a": 3,
+        "grade_b": 2,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Sai, Master Thopterist",
+        "grade_a": 0,
+        "grade_b": 3,
+        "rank_a": null,
+        "rank_b": 13
+      },
+      {
+        "card": "Nim Deathmantle",
+        "grade_a": 3,
+        "grade_b": 1,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Ashnod's Altar",
+        "grade_a": 2,
+        "grade_b": 1,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Phyrexian Altar",
+        "grade_a": 3,
+        "grade_b": 1,
+        "rank_a": 52,
+        "rank_b": null
+      },
+      {
+        "card": "Rhystic Study",
+        "grade_a": 2,
+        "grade_b": 2,
+        "rank_a": 145,
+        "rank_b": null
+      },
+      {
+        "card": "Sol Ring",
+        "grade_a": 2,
+        "grade_b": 2,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Etherium Sculptor",
+        "grade_a": 0,
+        "grade_b": 2,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Mystic Remora",
+        "grade_a": 1,
+        "grade_b": 1,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Scrap Trawler",
+        "grade_a": 0,
+        "grade_b": 2,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Altar of Dementia",
+        "grade_a": 2,
+        "grade_b": 1,
+        "rank_a": 111,
+        "rank_b": null
+      },
+      {
+        "card": "Metalworker",
+        "grade_a": 0,
+        "grade_b": 2,
+        "rank_a": null,
+        "rank_b": null
+      }
+    ],
+    "gap2_pairs": 6,
+    "neither_list_ranks_the_card": 4,
+    "ranked_in_at_least_one": 2
+  },
+  "deckdep_W2_vs_M1": {
+    "cards": [
+      {
+        "card": "Nim Deathmantle",
+        "grade_a": 3,
+        "grade_b": 1,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Ashnod's Altar",
+        "grade_a": 3,
+        "grade_b": 1,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Sol Ring",
+        "grade_a": 2,
+        "grade_b": 2,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Metalworker",
+        "grade_a": 0,
+        "grade_b": 2,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Etherium Sculptor",
+        "grade_a": 0,
+        "grade_b": 2,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Scrap Trawler",
+        "grade_a": 0,
+        "grade_b": 2,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Sai, Master Thopterist",
+        "grade_a": 0,
+        "grade_b": 3,
+        "rank_a": null,
+        "rank_b": 13
+      },
+      {
+        "card": "Skullclamp",
+        "grade_a": 3,
+        "grade_b": 2,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Phyrexian Altar",
+        "grade_a": 3,
+        "grade_b": 1,
+        "rank_a": 22,
+        "rank_b": null
+      },
+      {
+        "card": "Altar of Dementia",
+        "grade_a": 2,
+        "grade_b": 1,
+        "rank_a": 59,
+        "rank_b": null
+      },
+      {
+        "card": "Mystic Remora",
+        "grade_a": 1,
+        "grade_b": 1,
+        "rank_a": null,
+        "rank_b": null
+      },
+      {
+        "card": "Rhystic Study",
+        "grade_a": 2,
+        "grade_b": 2,
+        "rank_a": 146,
+        "rank_b": null
+      }
+    ],
+    "gap2_pairs": 7,
+    "neither_list_ranks_the_card": 5,
+    "ranked_in_at_least_one": 2
+  },
+  "deckdep_cards_at_least_2_apart_across_commanders": "see deckdep_* gap2_pairs",
+  "ab": [
+    {
+      "n": 1,
+      "list": "W1",
+      "situation": "Wilhelt, the Rotcleaver, Zombies build. no restriction: the ten best suggestions",
+      "picked": "A",
+      "picked_arm": "F3",
+      "cards_differing": 2,
+      "note": ""
+    },
+    {
+      "n": 2,
+      "list": "W2",
+      "situation": "Wilhelt, the Rotcleaver, Aristocrats build. no restriction: the ten best suggestions",
+      "picked": "B",
+      "picked_arm": "F3",
+      "cards_differing": 2,
+      "note": "B: altars, A has no outlets"
+    },
+    {
+      "n": 3,
+      "list": "W2",
+      "situation": "Wilhelt, the Rotcleaver, Aristocrats build. looking only for artifacts, enchantments, instants and sorceries",
+      "picked": "B",
+      "picked_arm": "F2",
+      "cards_differing": 2,
+      "note": ""
+    },
+    {
+      "n": 4,
+      "list": "W1",
+      "situation": "Wilhelt, the Rotcleaver, Zombies build. looking only for cards that are not creatures or lands",
+      "picked": "A",
+      "picked_arm": "F2",
+      "cards_differing": 2,
+      "note": ""
+    },
+    {
+      "n": 5,
+      "list": "W1",
+      "situation": "Wilhelt, the Rotcleaver, Zombies build. looking only for artifacts, enchantments, instants and sorceries",
+      "picked": "A",
+      "picked_arm": "F2",
+      "cards_differing": 2,
+      "note": ""
+    },
+    {
+      "n": 6,
+      "list": "W1",
+      "situation": "Wilhelt, the Rotcleaver, Zombies build. looking only for cheap cards (mana value 3 or less, no lands)",
+      "picked": "B",
+      "picked_arm": "F2",
+      "cards_differing": 2,
+      "note": ""
+    },
+    {
+      "n": 7,
+      "list": "W2",
+      "situation": "Wilhelt, the Rotcleaver, Aristocrats build. looking only for cards that are not creatures or lands",
+      "picked": "A",
+      "picked_arm": "F2",
+      "cards_differing": 2,
+      "note": ""
+    },
+    {
+      "n": 8,
+      "list": "M1",
+      "situation": "Mendicant Core, Guidelight, Artifacts build. looking only for cards that are not creatures or lands",
+      "picked": "A",
+      "picked_arm": "F3",
+      "cards_differing": 4,
+      "note": ""
+    },
+    {
+      "n": 9,
+      "list": "W2",
+      "situation": "Wilhelt, the Rotcleaver, Aristocrats build. looking only for cheap cards (mana value 3 or less, no lands)",
+      "picked": "A",
+      "picked_arm": "F3",
+      "cards_differing": 2,
+      "note": ""
+    },
+    {
+      "n": 10,
+      "list": "M1",
+      "situation": "Mendicant Core, Guidelight, Artifacts build. looking only for expensive cards (mana value 4 or more)",
+      "picked": "A",
+      "picked_arm": "F2",
+      "cards_differing": 2,
+      "note": ""
+    }
+  ],
+  "ab_difference_grades": [
+    {
+      "n": 1,
+      "only_f3": [
+        {
+          "name": "Phyrexian Altar",
+          "g": 3
+        },
+        {
+          "name": "Altar of Dementia",
+          "g": 2
+        }
+      ],
+      "only_f2": [
+        {
+          "name": "Archghoul of Thraben",
+          "g": 2
+        },
+        {
+          "name": "Open the Graves",
+          "g": 3
+        }
+      ]
+    },
+    {
+      "n": 2,
+      "only_f3": [
+        {
+          "name": "Altar of Dementia",
+          "g": 2
+        },
+        {
+          "name": "Phyrexian Altar",
+          "g": 3
+        }
+      ],
+      "only_f2": [
+        {
+          "name": "Endless Ranks of the Dead",
+          "g": 3
+        },
+        {
+          "name": "Cleaver Skaab",
+          "g": 2
+        }
+      ]
+    },
+    {
+      "n": 3,
+      "only_f3": [
+        {
+          "name": "Altar of Dementia",
+          "g": 2
+        },
+        {
+          "name": "Blasting Station",
+          "g": 3
+        }
+      ],
+      "only_f2": [
+        {
+          "name": "Revenge of the Drowned",
+          "g": 2
+        },
+        {
+          "name": "?",
+          "g": null
+        }
+      ]
+    },
+    {
+      "n": 4,
+      "only_f3": [
+        {
+          "name": "Altar of Dementia",
+          "g": 2
+        },
+        {
+          "name": "Phyrexian Altar",
+          "g": 3
+        }
+      ],
+      "only_f2": [
+        {
+          "name": "Empty the Laboratory",
+          "g": 3
+        },
+        {
+          "name": "Revenge of the Drowned",
+          "g": 2
+        }
+      ]
+    },
+    {
+      "n": 5,
+      "only_f3": [
+        {
+          "name": "Phyrexian Altar",
+          "g": 3
+        },
+        {
+          "name": "Altar of Dementia",
+          "g": 2
+        }
+      ],
+      "only_f2": [
+        {
+          "name": "Empty the Laboratory",
+          "g": 3
+        },
+        {
+          "name": "?",
+          "g": null
+        }
+      ]
+    },
+    {
+      "n": 6,
+      "only_f3": [
+        {
+          "name": "Phyrexian Altar",
+          "g": 3
+        },
+        {
+          "name": "Altar of Dementia",
+          "g": 2
+        }
+      ],
+      "only_f2": [
+        {
+          "name": "Unstoppable Slasher",
+          "g": 3
+        },
+        {
+          "name": "Gleaming Overseer",
+          "g": 3
+        }
+      ]
+    },
+    {
+      "n": 7,
+      "only_f3": [
+        {
+          "name": "Blasting Station",
+          "g": 3
+        },
+        {
+          "name": "Altar of Dementia",
+          "g": 2
+        }
+      ],
+      "only_f2": [
+        {
+          "name": "?",
+          "g": null
+        },
+        {
+          "name": "?",
+          "g": null
+        }
+      ]
+    },
+    {
+      "n": 8,
+      "only_f3": [
+        {
+          "name": "Worldwalker Helm",
+          "g": 2
+        },
+        {
+          "name": "Krark-Clan Ironworks",
+          "g": 2
+        },
+        {
+          "name": "Sensei's Divining Top",
+          "g": 2
+        },
+        {
+          "name": "Ashnod's Altar",
+          "g": 1
+        }
+      ],
+      "only_f2": [
+        {
+          "name": "?",
+          "g": null
+        },
+        {
+          "name": "Aether Syphon",
+          "g": 2
+        },
+        {
+          "name": "?",
+          "g": null
+        },
+        {
+          "name": "?",
+          "g": null
+        }
+      ]
+    },
+    {
+      "n": 9,
+      "only_f3": [
+        {
+          "name": "Phyrexian Altar",
+          "g": 3
+        },
+        {
+          "name": "Altar of Dementia",
+          "g": 2
+        }
+      ],
+      "only_f2": [
+        {
+          "name": "Graf Harvest",
+          "g": 2
+        },
+        {
+          "name": "Hobbling Zombie",
+          "g": 2
+        }
+      ]
+    },
+    {
+      "n": 10,
+      "only_f3": [
+        {
+          "name": "Krark-Clan Ironworks",
+          "g": 2
+        },
+        {
+          "name": "Ugin's Nexus",
+          "g": 0
+        }
+      ],
+      "only_f2": [
+        {
+          "name": "?",
+          "g": null
+        },
+        {
+          "name": "?",
+          "g": null
+        }
+      ]
+    }
+  ]
+}

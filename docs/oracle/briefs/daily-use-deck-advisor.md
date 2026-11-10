@@ -1,0 +1,102 @@
+# Brief: Oracle as a daily-use deck workbench (Gate 1, DRAFT for owner approval)
+Author: drafted 2026-11-11 from an owner interview. Status: **DRAFT. Nothing approved, nothing built.**
+Supersedes nothing. Widens `use-what-i-own.md` (its slice (c) is folded into priority 2 below).
+
+## 1. What this is, in plain words
+Brad wants to open Oracle every time he works on a deck and trust it. Archidekt is out of date for him, so Oracle has to be where his decks and cards live. The AI should act as a collaborator and instructor, not a template: it helps him understand why a deck works, and he builds his own version.
+
+## 2. Finish line (owner's words, summarised)
+A month from now: he looks at a deck he is building and quickly sees what it is missing, whether he owns a fix, and what he could buy with prices. He can tell whether a card raises or lowers the deck's power level. When he buys cards, importing them tells him which decks they fit and walks him through putting them away.
+
+## 3. Priority order (owner choice: "what's missing" first)
+1. **What's missing view** on a deck: verdict on top, counts below, with targets tailored to the commander and the deck's build, plus a short reason ("decks built around this commander usually run about 8 removal; you have 3"). Each gap is clickable and leads to owned cards that fill it (spare first); the chat answers the same question.
+2. **Owned-card and buy suggestions:** spare, in another deck (with warning), or buy (estimated price, labelled). If nothing owned fits, say so, then suggest buys.
+3. **Where every card is** with a combined move checklist (section 6).
+4. **Proxy ranking** for single real copies (section 7).
+
+Supporting: search (section 8), tags (section 9), deck goal sentence and drift check (section 5), power bracket (section 10), tokens list, mana curve and colour balance, import flow (section 11).
+
+## 4. Scenarios
+| # | Who / when | What he has | What he wants |
+|---|---|---|---|
+| S1 | At home, building a deck | A deck with gaps | A verdict and counts for what is missing, tailored to this deck |
+| S2 | Looking at a gap | Owned and unowned cards | Owned cards that fill it, spare first; if none, buy suggestions with prices |
+| S3 | After buying cards | A batch of new cards | Which decks they fit, and a checklist to put them away |
+| S4 | A card he owns only once | Several decks want it | A ranked list of decks with tier and one-line reason |
+| S5 | Choosing a new commander | 17 existing decks | Overlap with his existing archetypes, playstyles he does not cover, and how much he already owns |
+| S6 | A new set releases | Existing decks | A list of new cards that fit, shown as "new" on the deck badge |
+| S7 | Moving cards around in real life | Oracle's picture of where cards are | A checklist grouped by where he walks, with found/placed ticks |
+| S8 | A card is not where Oracle says | A checklist item | "Can't find it": flagged missing, Oracle asks where to look next |
+
+## 5. Deck goal sentence and drift
+- Every deck has **one sentence** saying what it is trying to do. Oracle drafts it from the commander and the stored community builds for that commander; the owner confirms or edits it once.
+- If a deck blends builds, Oracle blends the typical numbers from the closest builds. The owner can override with a custom target.
+- The sentence can be adjusted to what he owns.
+- **Drift check:** a view of how many cards support the goal and which do not. No per-card nagging when adding.
+- **Fit band** on each card: core / supports / loose fit / off-plan, with the reason shown on tap. Bands, not numbers.
+- Test idea (open): agree a set of known decks and check the bands against the owner's own judgement before relying on them. The vector trial (closed, not a go) is a reason to verify.
+
+## 6. Card locations and the move checklist
+- A card is in a deck, the alphabetical box, the lands box, or the valuable binder. Page or slot is an optional later addition.
+- **Valuable binder:** valuable cards can still go into decks like any other. The price threshold is set by the owner and can change.
+- **One combined checklist**, grouped by where he goes ("box: take these; Korvold: put in these, take out those, return to box").
+- **Two ticks per move:** found it, placed it. Each tick updates Oracle immediately. Between the ticks the card shows as **in your hand**.
+- If he stops part-way, ticked moves stay done; unticked cards stay where Oracle last had them.
+- **Can't find it:** the card is flagged missing and Oracle asks where to look next, keeping the flag until it turns up.
+- **Proxies** are tracked like any card. The checklist suggests swaps where a real copy is better placed elsewhere.
+- Works on phone and laptop; the checklist must be easy one-handed.
+
+## 7. Proxy ranking
+For a card he owns once: a ranked list of decks with a tier (essential / good fit / nice to have) and a one-line reason. Shown on the card ("own 1, wanted by 4 decks") and on the deck (flags on proxies: "a real copy exists but a deck needs it more"). Goal: minimise proxies.
+
+## 8. Deck building and search
+- Starting a deck: pick a commander and see typical builds, build from scratch, or import a list, or a mix.
+- **AI role:** asks questions and explains the engine, reacts to his ideas. Shows the popular template only when he asks, labelled as such.
+- **Search:** by name, by effect, and by plain description ("rewards me for making tokens"). Plain description matters most. Results are ordered by fit with this deck's goal, with a switch to "owned first". Each result shows whether he owns it, where it is, its fit band for this deck, and any other deck that wants it more.
+- **Lands:** curve and colour balance, plus a mana base check now. Land suggestions from his collection later.
+- **Deck states:** Unowned cards / **Under construction** (renamed from Assembling) / Playable, plus a global Use proxies toggle (D-059). A deck is playable if legal. There is no "mark as done"; decks keep evolving, and a summary (goal, bracket, gaps, unowned cards) is always visible.
+- **New cards:** a list after each set, plus a quiet badge on the deck when something strong exists. A spoiler-season heads-up is later.
+
+## 9. Tags
+- Role tags (ramp, removal, draw and so on) suggested automatically from the commander and build, plus his own tags.
+- Auto tags apply immediately and are marked "auto". His edits are never overwritten; a re-tag touches auto tags only.
+- A card can have several tags and counts in every group on the tag view; the deck total stays at 100.
+
+## 10. Power level
+Each deck shows a bracket from 1 to 5. Each suggested card shows whether it raises or lowers the deck's bracket. A target bracket per deck is optional; if set, Oracle warns when a card would push past it.
+
+## 11. Import and keeping data current
+- Initial big load, then small regular imports, plus single cards added by hand.
+- Small import: one-line preview ("5 cards, all matched") and one confirm; full review only when something needs attention.
+- After import: which decks the cards fit best, and a put-away checklist.
+- Scan wins over Oracle's data, with a list of differences he can untick (as designed today).
+- **Import history:** any past import can be undone.
+- He trusts ManaBox scans, so no extra handling for mismatches.
+
+## 12. Tokens
+A list of tokens each deck can create. No ownership tracking for now (he is not scanning tokens).
+
+## 13. What must never happen
+- Suggesting a card he does not own as if he did; showing an unknown price as zero or as a fact.
+- A move that silently loses a card or leaves another deck short without saying so.
+- Overwriting his own tags or goal sentence.
+- Advice that pushes him back to the popular template without saying so.
+- Testing against his live data (use the test account).
+- Choices that block a later public multi-user version.
+
+## 14. Parked (owner choices)
+Post-game debrief; similar-card search outside his collection (vector trial closed); token ownership; page-level locations; spoiler-season heads-up; land suggestions from collection.
+
+## 15. Open questions for the Architect audit (Gate 2)
+- What already exists for each item above (many parts are already built: do not assume they are missing).
+- Where "typical numbers per commander" come from (community builds stored per commander; most build card lists are empty today).
+- Power bracket data: source and accuracy.
+- Whether "in your hand" and the box / lands box / binder locations fit the current data model without a schema change.
+- Whether a fit band can be judged reliably, and how to test it.
+
+## 16. New words (to add to vocabulary.md on approval)
+- **In your hand:** picked up for a move but not yet placed.
+- **Under construction:** deck state replacing "Assembling".
+- **Goal sentence:** the one line saying what a deck is trying to do.
+- **Fit band:** core / supports / loose fit / off-plan.
+- **Drift check:** summary of cards that do not serve the goal.

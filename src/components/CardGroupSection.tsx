@@ -461,6 +461,7 @@ function UnifiedCardRow({
           maxCopies={maxCopies}
           currentCategories={card.categories}
           onCategoryChange={onCategoryChange}
+          onEditInstance={() => setEditInstanceOpen(true)}
         />
       )}
 
@@ -886,6 +887,8 @@ interface CardRowKebabProps {
   currentCategories?: string
   /** Callback when categories are updated via suggestion */
   onCategoryChange?: (cardId: number, categories: StructuredCategories) => void
+  /** Opens the edit-card-instance dialog */
+  onEditInstance?: () => void
 }
 
 function CardRowKebab({
@@ -896,6 +899,7 @@ function CardRowKebab({
   maxCopies = 1,
   currentCategories,
   onCategoryChange,
+  onEditInstance,
 }: CardRowKebabProps) {
   const [open, setOpen] = useState(false)
   const [printingPickerOpen, setPrintingPickerOpen] = useState(false)
@@ -1099,6 +1103,16 @@ function CardRowKebab({
                 Move to Maybeboard
               </button>
             )
+          )}
+          {onEditInstance && (
+            <button
+              type="button"
+              onClick={() => { setOpen(false); onEditInstance() }}
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-[length:var(--fs-xs)] text-foreground transition-colors hover:bg-white/[0.05]"
+            >
+              <Pencil className="size-3" />
+              Edit card instance
+            </button>
           )}
           <button
             type="button"

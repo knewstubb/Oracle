@@ -18,7 +18,7 @@ Read `docs/oracle/roadmap.md` first. Only tasks in the **current milestone** may
 - Commander Spellbook combo notes as a separate small feature (trial showed 14 of 23 combo-only cards graded 2+).
 - Unfiltered EDHREC build sync cannot read list-style tags (small fix).
 - `src/lib/spellbook-client.ts` bugs: reads the wrong field for card names; sorts least popular first.
-- Branch `import/review-polish` (11 import-review commits) is awaiting review and merge; not merged.
+- Branch `import/review-polish` (11 import-review commits) was merged to main before the 2026-11-11 branch cleanup; branch deleted. Nothing pending.
 - T-57 migration `20261013120000` on branch `t57-deck-import-foil` is unapplied and sorts earlier than applied migrations; never run a blanket `db push`.
 
 Read-only offline experiment, no UI (Gate 3 skipped, conditions in the plan). Brief `docs/oracle/briefs/vector-recommendation-trial.md`; contract `docs/oracle/contracts/vector-trial-2026-11.md` signed by Gene 2026-11-06 (C1–C10 resolved; sign-off conditions in `reports/2026-11-06-gene-signoff-next-slices.md`).
@@ -112,8 +112,8 @@ Plan: audit first (read-only), then fix in small disjoint batches. Fix tasks are
 | T-48 | Phase 2 fix batch: manual add and hover previews use a sensible printing (audit Batch 11) | Developer | T-46 | DONE — merged and pushed 2026-10-11; check passes (1614 tests). Not yet clicked through by owner |
 | T-49 | Phase 2 fix batch: Proxy records the requested printing and finish; deck slots remember finish (audit Batch 1, D-038, D-041). Needs a migration: owner gate before it is applied | Developer | T-46 | DONE — merged and pushed 2026-10-11; check passes (1614 tests). Migration 20261011120000 applied to the hosted database 2026-10-11 with owner approval (adds deck_cards.requested_finish; proxy actions now use the slot's printing and finish). Not yet clicked through by owner |
 | T-50 | Phase 2 fix batch: Refresh Prices really refreshes Scryfall prices (D-042) and collection value handles unknown prices (audit Batch 4) | Developer | owner answer on how unknown prices are counted | DONE — merged and pushed 2026-10-11; check passes (1614 tests). Not yet clicked through by owner |
-| T-51 | Fix: the collection value strip fails to load, so the value banner and Refresh Prices button never show (owner checklist C-03, C-04; cause is an ambiguous table link in the value lookup) | Developer | — | TODO |
-| T-52 | Fix: Add proxy is greyed out for a card you do not own (owner checklist C-01, C-02; the card lookup only finds cards already in the collection) | Developer | — | TODO |
+| T-51 | Fix: the collection value strip fails to load, so the value banner and Refresh Prices button never show (owner checklist C-03, C-04; cause is an ambiguous table link in the value lookup) | Developer | — | PARKED 2026-11-11 (owner close-out) |
+| T-52 | Fix: Add proxy is greyed out for a card you do not own (owner checklist C-01, C-02; the card lookup only finds cards already in the collection) | Developer | — | PARKED 2026-11-11 (owner close-out) |
 
 ## M1 — Trustworthy data (COMPLETE — migrations deployed 2026-09-26)
 | ID | Task | Owner role | Depends on | Status |

@@ -253,7 +253,7 @@ function shortBy(r){return Math.max(0,r.typ-r.have)}
 function lights(d){return d.roles.filter(r=>status(r)==='light').sort((a,b)=>shortBy(b)-shortBy(a))}
 function verdict(d){
   const L=lights(d), g=d.mode==='thin';
-  if(!L.length) return {light:false,head:'Well covered',sub:g?'Nothing short of the general guide.':'Nothing to fix.'};
+  if(!L.length) return {light:false,head:'Well covered',sub:''};
   const names=L.slice(0,2).map(r=>r.name.toLowerCase());
   const head='Light on '+names.join(' and ');
   const rest=L.slice(2);
@@ -292,7 +292,7 @@ function strip(d,loading,failed){
 function panelOverview(d){
   const v=verdict(d), g=d.mode==='thin';
   let h='<div class="strat"><div><div class="k">Strategy</div><div class="v">'+(g?'Not set yet, using the general guide':'Not set yet, using typical numbers')+'</div></div><button class="setstrat" aria-disabled="true" title="Coming in a later phase">Set strategy<span class="later">Phase 4 · not built yet</span></button></div>';
-  h+='<div class="verdict '+(v.light?'light':'')+'"><h4>'+(v.light?ICON.warn:ICON.check)+'<span id="vh" tabindex="-1">'+esc(v.head)+'</span></h4><p>'+esc(v.sub)+'</p><div class="src">'+esc(srcLine(d))+'</div><button class="btn" id="pask" style="margin-top:12px;min-height:32px;padding:5px 10px;font-size:var(--fs-sm)">Chat about this</button></div>';
+  h+='<div class="verdict '+(v.light?'light':'')+'"><h4>'+(v.light?ICON.warn:ICON.check)+'<span id="vh" tabindex="-1">'+esc(v.head)+'</span></h4>'+(v.sub?'<p>'+esc(v.sub)+'</p>':'')+'<div class="src">'+esc(srcLine(d))+'</div><button class="btn" id="pask" style="margin-top:12px;min-height:32px;padding:5px 10px;font-size:var(--fs-sm)">Chat about this</button></div>';
   h+='<div class="sect">Counts by role'+(g?'<span class="guide">General guide</span>':'')+'</div>';
   h+=d.roles.map(r=>{
     const l=status(r)==='light';
@@ -309,8 +309,7 @@ function panelOverview(d){
 function cardRow(c,kind,roleName){
   let badge='',extra='',right='';
   if(kind==='spare'){badge='<span class="badge">'+ICON.ring+'Available</span>';}
-  if(kind==='other'){badge='<span class="badge unavail">'+ICON.lock+'Unavailable · In '+esc(c.deck)+'</span>';
-    extra='<div class="warnline">'+ICON.warn+'<span>Using it here leaves '+esc(c.deck)+' one short.</span></div>';}
+  if(kind==='other'){badge='<span class="badge unavail">'+ICON.warn+'In '+esc(c.deck)+'</span>';}
   if(kind==='buy'){badge='<span class="badge unown">'+ICON.nodist+'Unowned</span>';
     right='<div class="price">'+(c.p?'est. $'+c.p+'':'Price unknown')+'</div>';
     return '<div class="card"><div class="thumb" aria-hidden="true"></div><div><div class="nm">'+esc(c.n)+'</div><div class="ty">In '+c.pct+'% of decks on EDHREC</div>'+badge+'</div>'+right+'</div>';}
@@ -327,7 +326,7 @@ function panelGap(d,id){
     h+='<div class="grp"><h5>Spare ('+f.spare.length+')</h5><p class="sub">Free now.</p>'+f.spare.map(c=>cardRow(c,'spare')).join('')+'</div>';
   }
   if(f.other.length){
-    h+='<div class="grp"><h5>In another deck ('+f.other.length+')</h5><p class="sub">Each is in a different deck.</p>'+f.other.map(c=>cardRow(c,'other')).join('')+'</div>';
+    h+='<div class="grp"><h5>In another deck ('+f.other.length+')</h5>'+f.other.map(c=>cardRow(c,'other')).join('')+'</div>';
   }
   if(!owned){
     h+='<div class="callout info"><b>You don\'t own a card that adds '+rn+'.</b></div>';
@@ -336,7 +335,7 @@ function panelGap(d,id){
     h+='<div class="callout"><b>No buy ideas yet.</b><span style="color:var(--text2)">No popularity data for this commander, so nothing is guessed.</span></div>';
   } else if(f.buy.length){
     const open=owned===0;
-    h+='<details class="buy" '+(open?'open':'')+'><summary><span class="tw">'+ICON.chev+'</span>Buy ideas ('+f.buy.length+') · estimates</summary>'+f.buy.map(c=>cardRow(c,'buy')).join('')+'<p class="src">Prices are Scryfall estimates.</p></details>';
+    h+='<details class="buy" '+(open?'open':'')+'><summary><span class="tw">'+ICON.chev+'</span>Buy ideas ('+f.buy.length+') · estimates</summary>'+f.buy.map(c=>cardRow(c,'buy')).join('')+'</details>';
   }
   return h;
 }

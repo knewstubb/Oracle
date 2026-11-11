@@ -47,7 +47,7 @@ Vocabulary (`docs/oracle/specs/vocabulary.md`): **Available** (spare), **Unavail
 
 ### 5.1 Verdict
 Rule: take the roles that are light (section 5.2), order by how many cards short, name up to two.
-- None light: **Well covered**. Sub-line: "Nothing to fix."
+- None light: **Well covered**, no sub-line (it adds nothing).
 - One or two: **Light on removal** / **Light on draw and removal**.
 - More than two: the headline names the two biggest; the sub-line lists all.
 - Sub-line: "Draw 5 short, removal 5 short, wipes 2 short. Ramp on track."
@@ -65,8 +65,8 @@ A role is **Light** when you have 2 or more fewer than the typical number. Withi
 ### 5.4 Gap detail (tap a light role)
 Title: role name. Header block: "Removal: 3 of about 8" plus the reason line. Then, in order:
 1. **Spare (3)**: "Free now." Badge **Available**.
-2. **In another deck (1)**: "Each is in a different deck." Badge **Unavailable · In Wilhelt**, plus the line "Using it here leaves Wilhelt one short." (No "nothing moves" line: Oracle only suggests.)
-3. **Buy ideas (3) · estimates**: badge **Unowned**, "In 58% of decks on EDHREC", price "est. $4.50" or "Price unknown". Footer: "Prices are Scryfall estimates."
+2. **In another deck (1)**: No group sentence. Compact amber marker with warning icon and the deck name only: **In Wilhelt**. No explanatory sentence; taking a card from a deck leaving it short is obvious (owner decision).
+3. **Buy ideas (3) · estimates**: badge **Unowned**, "In 58% of decks on EDHREC", price "est. $4.50" or "Price unknown". No footer; the group title and "est." prefix already say they are estimates.
 
 Open/closed: Buy ideas are **collapsed** when any owned card is listed and **open** when none is.
 Nothing owned fits: a callout "**You don't own a card that adds draw.**" appears above the buy ideas.
@@ -142,7 +142,7 @@ Drag: none.
 
 ## 11. Accessibility
 - Contrast on the real tokens: text `#E8E8EA` on surface `#1A1A1E` is 14.2:1; secondary text `#9C9CA3` is 6.4:1; amber `#EF9F27` is 8.0:1 on surface and 8.5:1 on canvas; magenta `#F0339E` is 4.7:1 on surface but 4.3:1 on hover, so it is used for the Unowned icon and border only (3:1 needed), and the word is in primary text. `--text-tertiary` (3.4:1) is not used for any text.
-- D-012: every status is colour plus icon plus word: Light (amber, triangle, "Light"), On track (tick, "On track"), Available (ring), Unavailable (lock, "In Wilhelt"), Unowned (minus-circle, "Unowned").
+- D-012: every status is colour plus icon plus word: Light (amber, triangle, "Light"), On track (tick, "On track"), Available (ring), Unavailable (warning icon, "In Wilhelt"), Unowned (minus-circle, "Unowned").
 - D-013: no new hue. Amber is the existing warning. Red is used only for "Couldn't check" icons, not for gaps.
 - Deck health button: accessible name "Deck health: Light on draw and removal" (the verdict text, so screen-reader users get it without opening the panel).
 - Pills: accessible name is a sentence ("Removal 3 of 8, light, 5 short"). Meter bars are `aria-hidden` because the text carries the same facts.

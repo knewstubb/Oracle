@@ -465,7 +465,7 @@ export function OracleSidebar() {
   return (
     <footer
       data-testid="oracle-footer"
-      className="relative z-30 shrink-0 border-t border-zinc-800/60 bg-[rgba(24,24,27,0.5)] backdrop-blur-md pb-[env(safe-area-inset-bottom)]"
+      className="relative z-30 shrink-0"
     >
       {/* Conversation: expands upward from the footer input row */}
       {isOpen && (
@@ -589,8 +589,12 @@ export function OracleSidebar() {
       </section>
       )}
 
-        {/* Input row (always visible in the footer) */}
-        <div className="px-3 py-2">
+        {/* Input row (always visible in the footer). Blur lives here, not on the footer,
+            so the conversation panel's own blur can still sample the page art behind it. */}
+        <div
+          data-testid="oracle-input-row"
+          className="border-t border-zinc-800/60 bg-[rgba(24,24,27,0.5)] backdrop-blur-md px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+        >
           {/* Quick build buttons when commanders are suggested */}
           {quickBuildCommanders.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-2">

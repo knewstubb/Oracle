@@ -75,7 +75,9 @@ describe('OracleSidebar (chat docked in the footer)', () => {
     const panel = screen.getByTestId('oracle-conversation')
     expect(panel.className).toContain('bottom-full')
     expect(panel.className).toContain('bg-[rgba(24,24,27,0.5)]')
-    expect(screen.getByTestId('oracle-footer').className).toContain('bg-[rgba(24,24,27,0.5)]')
+    expect(screen.getByTestId('oracle-input-row').className).toContain('bg-[rgba(24,24,27,0.5)]')
+    // Blur must not sit on the footer wrapper, or it would stop the panel seeing the page art.
+    expect(screen.getByTestId('oracle-footer').className).not.toContain('backdrop-blur')
     fireEvent.click(screen.getByLabelText('Close Oracle'))
     expect(close).toHaveBeenCalled()
   })

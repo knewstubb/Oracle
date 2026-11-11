@@ -27,9 +27,16 @@ Scroll bars are now see-through with a faint thumb instead of white. The Oracle 
 ## Challenges to locked decisions
 - none. decisions.md has no entry on chat placement, footer, scrollbars or opacity; no spec in docs/oracle/specs covers them. D-034 (AI changes undoable) is untouched.
 
+## Follow-up (background image on deck pages)
+- The only page-wide background image is the blurred commander art on the deck page [Confirmed: src/app/decks/[id]/page.tsx, art layer at z-0, hidden on phones by the existing `sm:block`]. Other art uses (deck tiles, workbench, new-deck) are thumbnails, not backgrounds.
+- Problem found: the soft blur sat on the footer wrapper, and a blur inside a blurred parent cannot see the page behind it, so the conversation panel would not have shown the art properly. Fix: the blur now sits on the input row and on the panel separately (OracleSidebar.tsx). The panel is above the page layers and not clipped.
+- The art fades to the plain dark background at the bottom of the page (existing gradient), so the thin input bar shows little art; the conversation panel, which covers the page, shows it. I did not change the art or its fade.
+- Owner decision recorded: the page does NOT shrink; the chat overlays the page (this is how it is built).
+- Tests: updated OracleSidebar.test.tsx (blur not on the footer wrapper, 50% background on the input row and panel); 4 pass. Typecheck unchanged (known error only). Still not checked in a browser.
+
 ## Open questions
-- Is a bottom bar that overlays the page acceptable, or should the page shrink to make room when the chat is open?
-- Where does the page background image come from? Nothing in the app defines one.
+- Is a bottom bar that overlays the page acceptable, or should the page shrink to make room when the chat is open? (Answered: overlay, no shrink.)
+- Where does the page background image come from? (Answered: commander art on deck pages.)
 
 ## Verification
 - npm run typecheck — only the known error in docs/oracle/contracts/card-state-actions.examples.ts.

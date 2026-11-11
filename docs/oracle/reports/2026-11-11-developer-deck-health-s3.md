@@ -136,3 +136,19 @@ Where the time went: the slowest single piece was reading full card text for eve
 **Open point:** in development, the first gap request is cancelled and sent again (React's double-start in dev mode), so the route runs twice per click. It does not happen in a production build.
 
 **Honest limit:** I have not seen the owner's browser. If it still fails after a restart, the one thing to send is the browser's Network tab entry for the `health/gap?role=…` request (status and time) or the terminal lines printed by the dev server when you click.
+
+## Follow-up 3: error shows "couldn't check your cards" on the owner's restarted server
+
+**Reproduction attempt (read-only, fresh dev server on port 3102, real HTTP route, local auto-login, GET only):** all 8 decks in the account × all 5 roles = 40 requests. Every one returned HTTP 200. Times 1.2–2.0 s (first request 4.1 s, which included compiling the route). Bodies 0.2–10 KB. Decks covered: Black Magic, Eldrazi Unbound, Landfall, Mendicant, Mendicant 2, rocco (two copies), Tymna and Tana. No server errors were logged. So I could not reproduce the failure, and I did not find a deck or card with unusual data that breaks the route.
+
+**Not ruled out:** the owner's browser login being a different user from the auto-login user (that would give 404 "server error 404"), or a slow first compile in his dev server.
+
+**Changes made so the next failure is diagnosable:**
+- The error state now has a small grey line "Reason: …" with one of: timeout, server error N (e.g. 500 or 404), network error, unreadable reply, unexpected reply.
+- The client timeout is 40 s in development and stays 20 s in production.
+- The route now logs `[health/gap] deck <id> role <role>: <status> <cause>` with `console.error` for any failure, and an unexpected crash becomes a clean JSON 500 instead of a hang.
+- Tests added for server error 500, network error and unexpected reply reason codes.
+
+**Checks:** unit tests 2,643 passing; typecheck only the known contract-file error; lint only the existing warnings. E2E not run (no separate test account). Temporary server and worktree removed.
+
+**If it still fails, the owner should send:** the "Reason:" text under the error, which deck and role he clicked, and any lines starting `[health/gap]` in the terminal running `npm run dev`.

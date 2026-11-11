@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, waitFor, cleanup, act } from '@testing-library/react'
+import { render, screen, cleanup, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { GapDetail } from './GapDetail'
 import type { DeckHealthGap } from '@/lib/deck-health-gap'
@@ -99,10 +99,16 @@ describe('GapDetail', () => {
     renderGap(() => json({ error: 'boom' }, 500))
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't check your cards")
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+    expect(screen.getByTestId('gap-error-reason')).toHaveTextContent('server error 500')
   })
 
-  it('shows an error, not a blank panel, when the response is not what was expected', async () => {
+  it('shows "network error" when the request cannot be made', async () => {
+    renderGap(() => Promise.reject(new TypeError('Failed to fetch')))
+    expect(await screen.findByTestId('gap-error-reason')).toHaveTextContent('network error')
+  })
+
+  it('shows "unexpected reply" for a malformed reply', async () => {
     renderGap(() => json({ nonsense: true }))
-    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
+    expect(await screen.findByTestId('gap-error-reason')).toHaveTextContent('unexpected reply')
   })
 })

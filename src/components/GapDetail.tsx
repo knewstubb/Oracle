@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, ChevronLeft, Circle } from 'lucide-react'
+import { AlertTriangle, Ban, ChevronLeft, ChevronRight, Circle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CardImage } from '@/components/CardImage'
@@ -10,6 +10,7 @@ import { MobileCardPreview } from '@/components/MobileCardPreview'
 import { useCardHoverPreview } from '@/components/CardHoverPreview'
 import { deckKeys } from '@/hooks/useDeckQueryKeys'
 import type { DeckHealthGap, GapCard } from '@/lib/deck-health-gap'
+import { formatPrice, type BuyIdea } from '@/lib/deck-health-buy'
 import type { HealthRoleKey } from '@/lib/deck-health'
 
 export interface GapDetailProps {
@@ -29,8 +30,11 @@ const NOTHING_OWNED: Record<HealthRoleKey, string> = {
   lands: "You don't own a spare land that fits.",
 }
 
-function CardRow({ card }: { card: GapCard }) {
-  const spare = card.status === 'SPARE'
+function CardRow({ card }: { card: GapCard | BuyIdea }) {
+  const buy = !('status' in card)
+  const spare = !buy && card.status === 'SPARE'
+  const spareCopies = 'spareCopies' in card ? card.spareCopies : 0
+  const otherDeckName = 'otherDeckName' in card ? card.otherDeckName : null
   const [previewOpen, setPreviewOpen] = useState(false)
   // Existing hover preview: shows the full card beside the pointer, kept inside the window. It does nothing without an image.
   const { triggerProps } = useCardHoverPreview({ scryfallId: card.printingId, cardName: card.name })
@@ -72,9 +76,13 @@ function CardRow({ card }: { card: GapCard }) {
             style={{ color: 'var(--text-primary)' }}
           >
             {card.name}
-            {card.spareCopies > 1 ? <span className="font-normal" style={{ color: 'var(--text-secondary)' }}> ×{card.spareCopies}</span> : null}
+            {spareCopies > 1 ? <span className="font-normal" style={{ color: 'var(--text-secondary)' }}> ×{spareCopies}</span> : null}
           </button>
-          {spare ? (
+          {buy ? (
+            <span data-testid="gap-price" className="shrink-0 text-[length:var(--fs-sm)] font-medium" style={{ color: 'var(--text-primary)' }}>
+              {formatPrice(card.price)}
+            </span>
+          ) : spare ? (
             <span
               data-testid="gap-badge"
               className="inline-flex max-w-[50%] shrink-0 items-center gap-1 rounded-full border px-2 text-[length:var(--fs-sm)]"
@@ -90,7 +98,7 @@ function CardRow({ card }: { card: GapCard }) {
               style={{ backgroundColor: 'var(--signal-warning-bg)', color: 'var(--signal-warning)' }}
             >
               <AlertTriangle size={12} aria-hidden="true" className="shrink-0" />
-              <span className="truncate">In {card.otherDeckName}</span>
+              <span className="truncate">In {otherDeckName}</span>
             </span>
           )}
         </div>
@@ -98,6 +106,21 @@ function CardRow({ card }: { card: GapCard }) {
           <p data-testid="gap-line" className="mt-0.5 text-[length:var(--fs-sm)]" style={{ color: 'var(--text-secondary)' }}>
             {card.detailLine}
           </p>
+        ) : null}
+        {buy && card.inclusionPct !== null ? (
+          <p data-testid="gap-popularity" className="text-[length:var(--fs-sm)]" style={{ color: 'var(--text-secondary)' }}>
+            In {card.inclusionPct}% of decks on EDHREC
+          </p>
+        ) : null}
+        {buy ? (
+          <span
+            data-testid="gap-badge"
+            className="mt-1 inline-flex items-center gap-1 rounded-full border px-2 text-[length:var(--fs-sm)]"
+            style={{ borderColor: 'var(--border-default)', color: 'var(--text-secondary)' }}
+          >
+            <Ban size={10} aria-hidden="true" />
+            Unowned
+          </span>
         ) : null}
       </div>
       <MobileCardPreview cardName={card.name} scryfallId={card.printingId} isOpen={previewOpen} onClose={() => setPreviewOpen(false)} />
@@ -271,8 +294,56 @@ export function GapDetail({ deckId, role, onBack }: GapDetailProps) {
               </ul>
             </section>
           )}
+
+          <BuyIdeasGroup
+            ideas={data.buyIdeas ?? []}
+            defaultOpen={Boolean(data.buyDefaultOpen)}
+            reason={data.buyUnavailableReason ?? null}
+          />
         </>
       )}
     </div>
+  )
+}
+
+/** Buy ideas: collapsed with a count when owned options exist, open when nothing owned fits. Suggest-only (no buy button). */
+function BuyIdeasGroup({ ideas, defaultOpen, reason }: { ideas: BuyIdea[]; defaultOpen: boolean; reason: DeckHealthGap['buyUnavailableReason'] }) {
+  const [open, setOpen] = useState(defaultOpen)
+  if (reason === 'thin_data') {
+    return (
+      <p data-testid="buy-thin" className="rounded-lg border px-3 py-2.5" style={{ borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}>
+        <span className="font-medium">No buy ideas yet.</span>{' '}
+        <span style={{ color: 'var(--text-secondary)' }}>No popularity data for this commander, so nothing is guessed.</span>
+      </p>
+    )
+  }
+  if (reason === 'lookup_failed') {
+    return (
+      <p role="status" data-testid="buy-failed" className="text-[length:var(--fs-sm)]" style={{ color: 'var(--signal-warning)' }}>
+        Couldn&apos;t check buy ideas just now. Your owned cards above are fine.
+      </p>
+    )
+  }
+  if (ideas.length === 0) return null
+  return (
+    <section aria-label="Buy ideas" className="border-t pt-2" style={{ borderColor: 'var(--border-default)' }}>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="flex min-h-11 w-full items-center gap-1.5 text-left font-semibold"
+        style={{ color: 'var(--text-primary)' }}
+      >
+        <ChevronRight size={14} aria-hidden="true" className={open ? 'rotate-90 transition-transform' : 'transition-transform'} />
+        Buy ideas ({ideas.length}) · estimates
+      </button>
+      {open && (
+        <ul>
+          {ideas.map((c) => (
+            <CardRow key={c.name} card={c} />
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }

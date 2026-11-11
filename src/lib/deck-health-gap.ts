@@ -9,6 +9,7 @@
  * - A failure is a real error, never an empty "nothing to suggest".
  */
 
+import { loadBuyIdeas, type BuyIdea, type BuyUnavailableReason } from './deck-health-buy'
 import { browseSpareCopies, MAX_BROWSE_LIMIT, type BrowseCard } from './spare-copy-browse'
 import type { LookupClient } from './owned-copy-lookup'
 import { loadHealthCards, loadTargets, type HealthClient, type LoadHealthOptions } from './deck-health-server'
@@ -43,6 +44,12 @@ export interface DeckHealthGap {
   /** More cards exist than are shown. */
   spareTotal: number
   inAnotherDeckTotal: number
+  /** EDHREC cards in this role that the owner does not own, are on-colour and not in the deck. At most 8. */
+  buyIdeas: BuyIdea[]
+  /** True when nothing owned fits (no spare and no other-deck card): the buy group opens by itself. */
+  buyDefaultOpen: boolean
+  nothingOwnedFits: boolean
+  buyUnavailableReason: BuyUnavailableReason
 }
 
 export type LoadGapResult =
@@ -91,6 +98,16 @@ export async function loadDeckGap(supabase: HealthClient, deckId: number, userId
     return { ok: false, status: 500, error: err instanceof Error ? err.message : 'Could not look through your cards' }
   }
   const browse = browsed.browse
+  // Buy ideas come from the saved EDHREC list (no new EDHREC call) and one owned-copies lookup of at most 60 names.
+  const buy = await loadBuyIdeas(supabase as unknown as LookupClient, {
+    userId,
+    deckId,
+    role,
+    targets,
+    deckCards: loaded.cards,
+    commanderNames: loaded.commanderNames,
+  })
+  const nothingOwnedFits = browse.total_spare === 0 && browse.total_in_another_deck === 0
   return {
     ok: true,
     gap: {
@@ -105,6 +122,10 @@ export async function loadDeckGap(supabase: HealthClient, deckId: number, userId
       coloursKnown: browse.colour_identity !== null,
       spareTotal: browse.total_spare,
       inAnotherDeckTotal: browse.total_in_another_deck,
+      buyIdeas: buy.buyIdeas,
+      buyDefaultOpen: nothingOwnedFits,
+      nothingOwnedFits,
+      buyUnavailableReason: buy.buyUnavailableReason,
     },
   }
 }

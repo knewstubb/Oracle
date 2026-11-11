@@ -28,6 +28,10 @@ const gap: DeckHealthGap = {
   coloursKnown: true,
   spareTotal: 1,
   inAnotherDeckTotal: 0,
+  buyIdeas: [],
+  buyDefaultOpen: false,
+  nothingOwnedFits: false,
+  buyUnavailableReason: null,
 }
 
 function Harness() {

@@ -115,3 +115,24 @@ Where the time went: the slowest single piece was reading full card text for eve
 **Not done:** not run in a browser or on Vercel; the owner's Vercel timing may differ from mine. Please retest: the list should appear in about 1 to 3 seconds.
 
 **Process note:** I briefly used a command-line text replace on one test file to surface an error message, and reverted it at once (file unchanged). Earlier in this follow-up I also used the edit tool only for the real changes.
+
+## Follow-up 2: still no result on the owner's server (investigated through the real route)
+
+**Method:** I ran a copy of this checkout (same commit, branch `deck-health-s1`) as my own dev server on other ports (3100 with webpack, 3101 with the same Turbopack as the owner's), signed in through the app's own local auto-login, and made only read requests. I also drove a headless browser (Chromium) through the real page: open the deck, click a Light pill, read the panel. No data was changed.
+
+**Results on my servers (real HTTP route, deck "Mendicant"):**
+- Gap route: HTTP 200 for all five roles, 1.3 to 1.8 s warm (2.9 to 4 s on first compile), body 2 to 8 KB. A bad role returns 400 in 0.4 s.
+- Browser: click "Ramp 5/10". After 1 s the panel shows "Looking through your cards…". About 2 s after the click it shows "Ramp: 5 of 10", "General guide", "See the 5 ramp cards already in this deck", "Spare (52)" and the cards. Same on both ports. No page errors.
+- The URL the screen fetches (`/api/decks/<id>/health/gap?role=…`) matches the route folder. The response shape matches what the panel expects.
+
+**Same requests against the owner's server on port 3000 (started Friday):**
+- The deck health route answers (200, 3.6 s).
+- The gap route never answers: no response after 100 s, and even a deliberately invalid role (which should return 400 instantly, before any database work) hangs for 25 s+. So the request never reaches our code.
+
+**Root cause:** the long-running dev server on port 3000 is stuck on the gap route. That route folder was created after the server started, and the server's hot-reload never finished building it, so every request waits forever. The screen then sits on loading (and, with the 20 s limit, ends in "Couldn't check your cards" once it has the new code). The app code is fine: a fresh server serves the same code correctly. This is not a code change; no new commit of code was needed.
+
+**Fix for the owner:** stop the dev server on port 3000 (Ctrl+C in its terminal) and start it again with `npm run dev`. If the route still hangs, delete the `.next` folder first and start again, then hard-refresh the browser tab. I did not stop the owner's server myself.
+
+**Open point:** in development, the first gap request is cancelled and sent again (React's double-start in dev mode), so the route runs twice per click. It does not happen in a production build.
+
+**Honest limit:** I have not seen the owner's browser. If it still fails after a restart, the one thing to send is the browser's Network tab entry for the `health/gap?role=…` request (status and time) or the terminal lines printed by the dev server when you click.

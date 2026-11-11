@@ -52,6 +52,8 @@ export interface CommanderTargets {
   typeCountsLabel: string
   fetchedAt: string | null
   stale: boolean
+  /** EDHREC's cards for this commander, already classified (the saved list). Used for buy ideas. Absent or empty for the guide. */
+  cards?: TargetsRow['cards']
 }
 
 /** One row of public.ref_commander_role_targets (contract 1.7). */
@@ -432,5 +434,6 @@ export function targetsFromRow(row: TargetsRow, stale: boolean, fallbackTypes?: 
     typeCountsLabel: types.label,
     fetchedAt: row.fetched_at,
     stale,
+    cards: row.cards ?? [],
   }
 }

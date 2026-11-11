@@ -182,20 +182,19 @@ export async function lookupOwnedCopies(
     notes.push(`Only the first ${MAX_LOOKUP_NAMES} card names were checked; ask again for the rest.`)
   }
 
-  const resolved = await resolveNames(client, requested)
+  // The name match and the commander's colours do not depend on each other, so they are read at the same time.
+  const colourRead = args.deckId
+    ? loadCommanderColours(client, args.deckId).catch((): string[] | null => null) // null = unknown, no filtering
+    : Promise.resolve<string[] | null>(null)
+  const [resolved, commander] = await Promise.all([resolveNames(client, requested), colourRead])
   const oracleIds = [...new Set([...resolved.values()].map(r => r.oracleId))]
 
-  // Colour identity of the viewed deck's commander (null = unknown, no filtering)
-  let commander: string[] | null = null
-  if (args.deckId) {
-    try { commander = await loadCommanderColours(client, args.deckId) } catch { commander = null }
-  }
-
-  // All printings of the resolved cards (colour identity + prices)
-  const printings: Row[] = []
-  for (const part of chunks(oracleIds)) {
-    printings.push(...await rows(client.from('ref_printings').select(PRINTING_COLS).in('oracle_id', part), 'card data'))
-  }
+  // All printings of the resolved cards (colour identity + prices) and the owner's card identities, read at the same time
+  const [printingParts, ownedParts] = await Promise.all([
+    Promise.all(chunks(oracleIds).map(part => rows(client.from('ref_printings').select(PRINTING_COLS).in('oracle_id', part), 'card data'))),
+    Promise.all(chunks(oracleIds).map(part => rows(client.from('user_cards').select('id, oracle_id').eq('user_id', userId).in('oracle_id', part), 'owned cards'))),
+  ])
+  const printings: Row[] = printingParts.flat()
   const printingsBy = new Map<string, Row[]>()
   for (const p of printings) {
     const k = String(p.oracle_id)
@@ -204,8 +203,7 @@ export async function lookupOwnedCopies(
 
   // Owner's card identities and real copies
   const cardIdToOracle = new Map<number, string>()
-  for (const part of chunks(oracleIds)) {
-    const rs = await rows(client.from('user_cards').select('id, oracle_id').eq('user_id', userId).in('oracle_id', part), 'owned cards')
+  for (const rs of ownedParts) {
     for (const r of rs) cardIdToOracle.set(Number(r.id), String(r.oracle_id))
   }
   const realCopies: Array<{ id: number; oracleId: string }> = []

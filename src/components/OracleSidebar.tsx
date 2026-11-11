@@ -19,8 +19,8 @@ import { OVERLAY_BACKDROP } from '@/lib/overlay-classes'
 // Constants
 // ---------------------------------------------------------------------------
 
-const MIN_WIDTH = 320
-const MAX_WIDTH = 600
+/** Height of the conversation panel when it expands upward from the footer. */
+const PANEL_HEIGHT = 'min(60vh, 560px)'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -108,7 +108,6 @@ function getPlaceholderText(context: OracleContext, isStreaming: boolean): strin
 export function OracleSidebar() {
   const {
     isOpen,
-    width,
     messages,
     activeContext,
     activeSession,
@@ -116,7 +115,7 @@ export function OracleSidebar() {
     isLoadingHistory,
     isHistoryPanelOpen,
     close,
-    setWidth,
+    open,
     sendMessage,
     clearMessages,
     openHistoryPanel,
@@ -300,49 +299,20 @@ export function OracleSidebar() {
   }, [isOpen, isHistoryPanelOpen])
 
   // ---------------------------------------------------------------------------
-  // Resize handling
-  // ---------------------------------------------------------------------------
-
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      e.preventDefault()
-      const startX = e.clientX
-      const startWidth = width
-      const target = e.currentTarget
-      target.setPointerCapture(e.pointerId)
-
-      const handlePointerMove = (ev: PointerEvent) => {
-        const delta = startX - ev.clientX
-        const maxAllowed = Math.min(MAX_WIDTH, window.innerWidth * 0.6)
-        const newWidth = Math.max(MIN_WIDTH, Math.min(maxAllowed, startWidth + delta))
-        setWidth(newWidth)
-      }
-
-      const handlePointerUp = () => {
-        target.removeEventListener('pointermove', handlePointerMove)
-        target.removeEventListener('pointerup', handlePointerUp)
-      }
-
-      target.addEventListener('pointermove', handlePointerMove)
-      target.addEventListener('pointerup', handlePointerUp)
-    },
-    [width, setWidth]
-  )
-
-  // ---------------------------------------------------------------------------
   // Send message
   // ---------------------------------------------------------------------------
 
   const handleSend = useCallback(() => {
     const text = inputValue.trim()
     if (!text || isStreaming) return
+    if (!isOpen) open()
     sendMessage(text)
     setInputValue('')
     // Reset textarea height
     if (inputRef.current) {
       inputRef.current.style.height = 'auto'
     }
-  }, [inputValue, isStreaming, sendMessage])
+  }, [inputValue, isStreaming, isOpen, open, sendMessage])
 
   // ---------------------------------------------------------------------------
   // New chat
@@ -487,40 +457,25 @@ export function OracleSidebar() {
   // Render
   // ---------------------------------------------------------------------------
 
-  if (!isOpen) return null
-
   const contextLabel = getContextLabel(activeContext)
   const contextSubtitle = getContextSubtitle(activeContext)
   const sessionName = activeSession?.sessionName
   const placeholderText = getPlaceholderText(activeContext, isStreaming)
 
   return (
-    <>
-      {/* Backdrop for mobile */}
-      <div 
-        className={`fixed inset-x-0 top-[110px] bottom-0 ${OVERLAY_BACKDROP} z-40 md:hidden`}
-        onClick={close}
-      />
-      
-      {/* Sidebar */}
-      <aside
+    <footer
+      data-testid="oracle-footer"
+      className="relative z-30 shrink-0 border-t border-zinc-800/60 bg-[rgba(24,24,27,0.5)] backdrop-blur-md pb-[env(safe-area-inset-bottom)]"
+    >
+      {/* Conversation: expands upward from the footer input row */}
+      {isOpen && (
+      <section
         ref={panelRef}
-        className={cn(
-          // Mobile: fixed overlay below header (nav + page header = ~110px)
-          'fixed right-0 top-[110px] bottom-0 z-50 flex flex-col',
-          // Desktop: static in flex flow, full height
-          'md:!static md:!top-auto md:!bottom-auto md:z-auto md:h-full',
-          'bg-[rgba(24,24,27,0.95)] backdrop-blur-md border-l border-zinc-800/60',
-          'shadow-2xl md:shadow-none'
-        )}
-        style={{ width, flexShrink: 0 }}
+        data-testid="oracle-conversation"
+        aria-label="Oracle conversation"
+        className="absolute inset-x-0 bottom-full flex flex-col border-t border-zinc-800/60 bg-[rgba(24,24,27,0.5)] backdrop-blur-md shadow-2xl"
+        style={{ height: PANEL_HEIGHT }}
       >
-        {/* Resize handle */}
-        <div
-          onPointerDown={handlePointerDown}
-          className="absolute left-0 top-0 z-10 h-full w-[4px] cursor-col-resize select-none hover:bg-emerald-500/40 transition-colors"
-        />
-
         {/* Header */}
         <div className="flex flex-col border-b border-zinc-800/60">
           {/* Top row: Session name + actions */}
@@ -604,8 +559,38 @@ export function OracleSidebar() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input area */}
-        <div className="border-t border-zinc-800/60 px-3 py-2">
+        {/* Session history panel */}
+        <SessionHistoryPanel />
+
+        {/* New chat confirmation dialog */}
+        {showClearConfirm && (
+          <div className={`absolute inset-0 flex items-center justify-center ${OVERLAY_BACKDROP} z-20`}>
+            <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-4 mx-4 max-w-sm shadow-xl">
+              <p className="text-sm text-zinc-200 mb-4">
+                Start a new conversation? Current chat will be saved to history.
+              </p>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setShowClearConfirm(false)}
+                  className="px-3 py-1.5 text-sm rounded-md text-zinc-400 hover:bg-zinc-800 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleNewChatConfirm}
+                  className="px-3 py-1.5 text-sm rounded-md bg-amber-600 text-white hover:bg-amber-700 transition-colors"
+                >
+                  New Chat
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+      )}
+
+        {/* Input row (always visible in the footer) */}
+        <div className="px-3 py-2">
           {/* Quick build buttons when commanders are suggested */}
           {quickBuildCommanders.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-2">
@@ -642,6 +627,7 @@ export function OracleSidebar() {
                 }
               }}
               disabled={isStreaming}
+              onFocus={() => { if (!isOpen) open() }}
               placeholder={placeholderText}
               rows={1}
               className="flex-1 resize-none bg-transparent text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none disabled:opacity-50"
@@ -660,36 +646,7 @@ export function OracleSidebar() {
             <kbd className="px-1 py-0.5 bg-zinc-800/50 rounded text-zinc-500">⌘⇧O</kbd> to toggle
           </div>
         </div>
-
-        {/* Session history panel */}
-        <SessionHistoryPanel />
-
-        {/* New chat confirmation dialog */}
-        {showClearConfirm && (
-          <div className={`absolute inset-0 flex items-center justify-center ${OVERLAY_BACKDROP} z-20`}>
-            <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-4 mx-4 max-w-sm shadow-xl">
-              <p className="text-sm text-zinc-200 mb-4">
-                Start a new conversation? Current chat will be saved to history.
-              </p>
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setShowClearConfirm(false)}
-                  className="px-3 py-1.5 text-sm rounded-md text-zinc-400 hover:bg-zinc-800 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleNewChatConfirm}
-                  className="px-3 py-1.5 text-sm rounded-md bg-amber-600 text-white hover:bg-amber-700 transition-colors"
-                >
-                  New Chat
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </aside>
-    </>
+    </footer>
   )
 }
 

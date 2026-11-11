@@ -29,8 +29,9 @@ export function MainContentWrapper({ children, sidebar }: MainContentWrapperProp
         >
           {children}
         </main>
-        {sidebar}
       </div>
+      {/* Oracle chat lives in the footer, below the content area */}
+      {sidebar}
     </div>
   )
 }

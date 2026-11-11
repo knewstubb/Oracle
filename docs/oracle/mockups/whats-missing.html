@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Oracle · What's missing (Phase 2 mockup)</title>
+<title>Oracle · Deck gaps (Phase 2 mockup)</title>
 <style>
 :root{
   --bg-canvas:#131316;--bg-surface:#1A1A1E;--bg-hover:#212126;
@@ -158,7 +158,7 @@ details.buy[open]>summary .tw{transform:rotate(90deg)}
 <body>
 
 <div class="ctl" role="region" aria-label="Mockup controls">
-  <h1>What's missing · Phase 2</h1>
+  <h1>Deck gaps · Phase 2</h1>
   <div class="grp" role="group" aria-label="Scenario"><span class="lbl">Scenario:</span><span id="scen"></span></div>
   <div class="grp" role="group" aria-label="Device"><span class="lbl">Device:</span>
     <button class="seg" data-dev="laptop" aria-pressed="true">Laptop</button>
@@ -269,15 +269,15 @@ function meter(r){const max=Math.max(r.typ*1.5,r.have,1);return '<div class="met
 
 /* ============ Strip ============ */
 function strip(d,loading,failed){
-  if(loading) return '<div class="strip" aria-busy="true"><span class="skel"></span><span class="skel"></span><span class="skel"></span><span class="skel"></span><span class="vh" role="status">Checking what this deck is missing…</span></div>';
-  if(failed) return '<div class="strip"><span class="err" role="alert">'+ICON.err+'<span>Couldn\'t check what this deck is missing.</span></span><button class="btn" id="retry" style="margin-left:auto">Try again</button></div>';
+  if(loading) return '<div class="strip" aria-busy="true"><span class="skel"></span><span class="skel"></span><span class="skel"></span><span class="skel"></span><span class="vh" role="status">Checking deck gaps…</span></div>';
+  if(failed) return '<div class="strip"><span class="err" role="alert">'+ICON.err+'<span>Couldn\'t check deck gaps.</span></span><button class="btn" id="retry" style="margin-left:auto">Try again</button></div>';
   const v=verdict(d), g=d.mode==='thin';
   const pills=d.roles.map(r=>{
     const l=status(r)==='light';
     const lab=r.name+' '+r.have+' of '+r.typ+(g?' (general guide)':'')+(l?', light, '+shortBy(r)+' short':', on track');
     return '<button class="pill '+(l?'light':'')+'" data-gap="'+r.id+'" aria-label="'+lab+'">'+(l?ICON.warn:ICON.check)+'<span>'+r.name+'</span><span class="of">'+r.have+'/'+r.typ+'</span></button>';
   }).join('');
-  return '<div class="strip"><button class="verdict-chip '+(v.light?'light':'')+'" id="vchip" aria-haspopup="dialog">'+(v.light?ICON.warn:ICON.check)+'<span>'+esc(v.head)+'</span>'+(v.restN?'<span class="more">+'+v.restN+' more</span>':'')+'</button><div class="pills" role="group" aria-label="Role counts">'+pills+'</div><button class="open" id="vopen">What\'s missing</button></div>';
+  return '<div class="strip"><button class="verdict-chip '+(v.light?'light':'')+'" id="vchip" aria-haspopup="dialog">'+(v.light?ICON.warn:ICON.check)+'<span>'+esc(v.head)+'</span>'+(v.restN?'<span class="more">+'+v.restN+' more</span>':'')+'</button><div class="pills" role="group" aria-label="Role counts">'+pills+'</div><button class="open" id="vopen">Deck gaps</button></div>';
 }
 
 /* ============ Panel ============ */
@@ -333,9 +333,9 @@ function panelGap(d,id){
 }
 function panel(sc){
   const d=deckFor(sc==='spare'||sc==='other'||sc==='buy'?'gappy':sc);
-  let title='What\'s missing', body='', back=false;
+  let title='Deck gaps', body='', back=false;
   if(sc==='states'){
-    body='<div class="err" role="alert">'+ICON.err+'<div><b>Couldn\'t check what this deck is missing.</b><div style="color:var(--text2)">Your cards haven\'t changed.</div><button class="btn" id="retry2" style="margin-top:10px">Try again</button></div></div>';
+    body='<div class="err" role="alert">'+ICON.err+'<div><b>Couldn\'t check deck gaps.</b><div style="color:var(--text2)">Your cards haven\'t changed.</div><button class="btn" id="retry2" style="margin-top:10px">Try again</button></div></div>';
     return {title,body,back};
   }
   if(S.gap){back=true;title=d.roles.find(r=>r.id===S.gap).name;body=panelGap(d,S.gap);}
@@ -350,8 +350,8 @@ function chat(){
     const f=FILL.gappy[r.id];
     const own=f.spare.length?f.spare.length+' spare':f.other.length?f.other.length+' in another deck':'none owned';
     return '<li><button class="chipbtn light" data-gap="'+r.id+'">'+ICON.warn+'<span><b>'+r.name+':</b> '+r.have+' of about '+r.typ+' · '+own+'</span><span class="chev" style="margin-left:auto">'+ICON.chev+'</span></button></li>';}).join('');
-  return '<div class="askline"><button class="btn" id="askbtn">Ask: what is my deck missing?</button></div>'+
-  '<div class="chat" role="log" aria-label="Chat"><div class="msg u">What is my deck missing?</div>'+
+  return '<div class="askline"><button class="btn" id="askbtn">Ask: what are the gaps in my deck?</button></div>'+
+  '<div class="chat" role="log" aria-label="Chat"><div class="msg u">What are the gaps in my deck?</div>'+
   '<div class="msg a"><p style="margin:0 0 6px"><b>'+esc(v.head)+'.</b> Decks built around '+d.cmd+' usually run about 8 removal and 9 draw; you have 3 and 4. That is based on '+d.n+' EDHREC cards. Ramp is on track.</p>'+
   '<ul>'+items+'</ul><p style="margin:6px 0 0;color:var(--text2);font-size:var(--fs-sm)">I only suggest. Nothing in your deck changes. Prices are estimates.</p></div></div>'+
   '<div class="composer"><input aria-label="Message" placeholder="Ask about this deck"><button class="btn">Send</button></div>';
@@ -375,7 +375,7 @@ function render(){
    (sc==='states'?(S.statesMode==='fail'?strip(d,false,true):S.statesMode==='ok'?strip(d):strip(d,true)):strip(d))+
    '<div class="scrim '+(S.open?'on':'')+'" id="scrim"></div>'+
    '<div class="panel '+(S.open?'on':'')+'" id="panel" role="dialog" aria-modal="false" aria-labelledby="ptitle"><div class="grab" aria-hidden="true"></div>'+
-   (p?'<div class="phead">'+(p.back?'<button class="iconbtn backbtn" id="pback" aria-label="Back to What\'s missing">'+ICON.back+'<span>Back</span></button>':'')+'<h3 id="ptitle">'+(p.back?esc(p.title):'What\'s missing')+'</h3><button class="iconbtn" id="pclose" aria-label="Close">'+ICON.x+'</button></div><div class="pbody">'+p.body+'</div>'+
+   (p?'<div class="phead">'+(p.back?'<button class="iconbtn backbtn" id="pback" aria-label="Back to Deck gaps">'+ICON.back+'<span>Back</span></button>':'')+'<h3 id="ptitle">'+(p.back?esc(p.title):'Deck gaps')+'</h3><button class="iconbtn" id="pclose" aria-label="Close">'+ICON.x+'</button></div><div class="pbody">'+p.body+'</div>'+
    (!p.back&&sc!=='states'?'<div class="pfoot"><button class="btn block" id="pask">Ask the chat about this</button></div>':''):'')+
    '</div>';
   if(S.open){const h=$('#vh')||$('#ptitle');if(h&&(S._focus)){h.setAttribute('tabindex','-1');h.focus();S._focus=false;}}

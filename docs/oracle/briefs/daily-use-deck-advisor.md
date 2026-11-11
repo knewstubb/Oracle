@@ -140,3 +140,10 @@ Step by step; the owner tries each phase before the next starts. Each phase gets
 4. Goal sentence, deck-specific tags, fit bands (tested against the owner's own judgement before being relied on).
 5. Proxy ranking, plain-description search, power ceiling and upgrade vs optimise.
 6. Later: new-set suggestions, tokens list, commander discovery.
+
+## 19. Phase 2 design answers (owner, 2026-11-11)
+Mockup `mockups/whats-missing.html`, spec `specs/whats-missing.md`, report `reports/2026-11-11-designer-phase2-whats-missing.md`.
+- The view is named **Deck gaps** (not "What's missing") so it cannot clash with the Missing location in Phase 3.
+- A role shows **Light** when it is 2 or more short of the typical number (7 of 8 reads "On track").
+- Buy ideas are collapsed with a count when owned options exist; they open by themselves when nothing owned fits.
+- With thin data, no buy ideas are shown; a plain sentence says why.

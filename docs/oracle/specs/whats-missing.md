@@ -1,4 +1,4 @@
-# Spec: What's missing view (Phase 2 of the daily-use deck advisor)
+# Spec: Deck gaps view (Phase 2 of the daily-use deck advisor)
 
 Role: Designer · Gate 3 · Status: **Draft for owner review** · 2026-11-11
 Mockup: `docs/oracle/mockups/whats-missing.html` (scenario and device switches at the top; laptop and phone layouts use the same page).
@@ -17,8 +17,8 @@ The deck page's health strip shows nine role pills against fixed global targets.
 ## 3. What changes on the deck page
 Built on the existing `HealthStrip` and `HealthPill`; no new page, tab or navigation.
 
-1. **Strip.** A **verdict chip** is added at its left, then the role pills, then a "What's missing" text button at the right. Pills show `Role have/typical` (for example `Removal 3/8`). Pills are limited to the four generic role tags: **Ramp, Draw, Removal, Wipes** (brief section 17, answer 2). Interaction, Finisher, Recursion, Tutor and Protection pills are hidden until a strategy exists (Phase 4).
-2. **Panel.** Clicking the verdict chip, "What's missing" or a pill opens the panel. Laptop: a right-hand drawer, 420px, over the deck. Phone and any frame narrower than 700px: a bottom sheet at 86% height. The deck stays visible behind it and is not rearranged.
+1. **Strip.** A **verdict chip** is added at its left, then the role pills, then a "Deck gaps" text button at the right. Pills show `Role have/typical` (for example `Removal 3/8`). Pills are limited to the four generic role tags: **Ramp, Draw, Removal, Wipes** (brief section 17, answer 2). Interaction, Finisher, Recursion, Tutor and Protection pills are hidden until a strategy exists (Phase 4).
+2. **Panel.** Clicking the verdict chip, "Deck gaps" or a pill opens the panel. Laptop: a right-hand drawer, 420px, over the deck. Phone and any frame narrower than 700px: a bottom sheet at 86% height. The deck stays visible behind it and is not rearranged.
 3. **Old pill behaviour is kept as a link.** The old "jump to the Cards tab and scroll to this role" now lives inside a gap as "See the 3 removal cards already in this deck".
 4. **Chat.** The Chat tab answers the same question with the same words and numbers; each gap in the answer is a button that opens the same panel (section 6).
 
@@ -28,7 +28,7 @@ Built on the existing `HealthStrip` and `HealthPill`; no new page, tab or naviga
 | `HealthStrip` (changed) | `deckId`, `onPillClick` becomes `onOpenGap(roleId \| null)` | existing |
 | `VerdictChip` (new, small) | `verdict: {light, head, moreCount}`, `onClick` | `Button` |
 | `HealthPill` (changed) | adds `typical`, `isGeneralGuide`; shows `have/typical` | existing |
-| `MissingPanel` (new) | `deckId`, `gapId?`, `onClose` | `Sheet` (side=right on laptop, side=bottom on phone) |
+| `DeckGapsPanel` (new) | `deckId`, `gapId?`, `onClose` | `Sheet` (side=right on laptop, side=bottom on phone) |
 | `RoleRow` | role, have, typical, source, status | `Button` (light) or plain `div` (on track) |
 | `GapCardRow` | card, group `spare \| other \| buy`, deck?, price? | existing `SlotBadge` from the vocabulary spec |
 | `BuyIdeas` | cards, `defaultOpen` | `Collapsible` |
@@ -45,7 +45,7 @@ Rule: take the roles that are light (section 5.2), order by how many cards short
 - Sub-line: "Draw is 4 short. Removal is 5 short. Wipes are 2 short. Ramp is on track."
 - With a general guide: head ends "(general guide)".
 
-### 5.2 Light or on track (default, see report question 1)
+### 5.2 Light or on track (owner decision)
 A role is **Light** when you have 2 or more fewer than the typical number. Within 1 short, or above, is **On track**. Being over is never a problem and gets no colour. There is no red state: "light" is advice, not an error, so the all-red result goes away.
 
 ### 5.3 Reason line (every role, every place)
@@ -71,13 +71,13 @@ Trigger: fewer classifiable EDHREC cards than a threshold set by the Architect (
 - Role targets use the generic target tagged **General guide**.
 - A **Card types** block lists "You have 36 · builds average 36" for lands, creatures and so on, with "Type averages are from 4 stored builds for Ghyrson Starn." If there are no stored builds, the block is replaced by "No stored builds for Ghyrson Starn yet."
 - Owned fillers still show (they need no popularity data).
-- Buy ideas are replaced by "**No buy ideas yet.** We have no popularity data for Ghyrson Starn, so we can't say which cards decks like this run. Nothing is guessed." (see report question 3).
+- Buy ideas are replaced by "**No buy ideas yet.** We have no popularity data for Ghyrson Starn, so we can't say which cards decks like this run. Nothing is guessed." (owner decision).
 
 ### 5.6 Healthy deck
 Chip: tick + "Well covered", neutral. Pills: tick, grey text, no fill. The panel shows the verdict and rows, all plain (not clickable), with no cards listed.
 
 ## 6. Chat
-- Question chips or typed text such as "What is my deck missing?" produce the same verdict, numbers and source line.
+- Question chips or typed text such as "What are the gaps in my deck?" produce the same verdict, numbers and source line.
 - Each light role is a full-width button: "Removal: 3 of about 8 · 3 spare" or "· 1 in another deck" or "· none owned". It opens the panel on that gap.
 - Closing line: "I only suggest. Nothing in your deck changes. Prices are estimates."
 - In thin-data decks the chat says: "I don't have role data for [commander] yet, so I'm using a general guide, not a number for this commander."
@@ -87,8 +87,8 @@ Chip: tick + "Well covered", neutral. Pills: tick, grey text, no fill. The panel
 ## 7. States
 | State | Behaviour |
 |---|---|
-| Loading | Strip shows four grey skeleton pills; screen readers hear "Checking what this deck is missing…" Never shows ticks or zeroes. |
-| Couldn't check | Strip: error icon + "Couldn't check what this deck is missing." + **Try again**. Panel: same words + "Your cards haven't changed." Never a pass, never 0. |
+| Loading | Strip shows four grey skeleton pills; screen readers hear "Checking deck gaps…" Never shows ticks or zeroes. |
+| Couldn't check | Strip: error icon + "Couldn't check deck gaps." + **Try again**. Panel: same words + "Your cards haven't changed." Never a pass, never 0. |
 | Healthy | section 5.6 |
 | Light role | amber, warning icon, word "Light" |
 | On track | tick, word "On track" |
@@ -107,7 +107,7 @@ Chip: tick + "Well covered", neutral. Pills: tick, grey text, no fill. The panel
 - Pushing him to the popular template without saying: buy ideas say they come from what decks for this commander run most.
 
 ## 9. Interactions
-Pointer: tap or click chip, pill, "What's missing" or a light row to open; Back returns to the overview; X or tapping the dimmed deck closes. Phone: swipe down on the grab handle closes (optional; X and Back always work).
+Pointer: tap or click chip, pill, "Deck gaps" or a light row to open; Back returns to the overview; X or tapping the dimmed deck closes. Phone: swipe down on the grab handle closes (optional; X and Back always work).
 Keyboard: Tab through strip (chip, pills, link), Enter or Space opens. Focus moves to the panel heading. Tab stays within the panel while it is open (it is a dialog); Esc closes and returns focus to what opened it. Back is a button first in tab order. Buy ideas toggles with Enter or Space.
 Drag: none.
 
@@ -141,5 +141,8 @@ One layout rule: below 700px of width the strip becomes the verdict chip on top,
 - The pill-click jump becomes a link inside the gap (section 3).
 - `oracleText: null` in the health route and the red/amber/red status mapping for roles.
 
-## 14. Open questions
-See the report: three, each with an example.
+## 14. Decisions (owner answers, 2026-11-11)
+1. **Light** at 2 or more short. Example: typical 8, you have 7 reads On track.
+2. **Buy ideas** are collapsed with a count when owned options exist, and open by themselves when nothing owned fits.
+3. **Thin data** shows no buy ideas, with a plain sentence saying why.
+4. **Name:** the view is called **Deck gaps** everywhere, so it cannot clash with the Phase 3 Missing location.

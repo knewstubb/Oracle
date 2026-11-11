@@ -1,57 +1,25 @@
 'use client'
 
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { HealthPill } from '@/components/HealthPill'
-import type { HealthPillCategory } from '@/components/HealthPill'
-import {
-  selectMostSevereViolation,
-  formatContextualNote,
-} from '@/lib/health-engine'
-import type { CategoryHealth, HealthResult } from '@/lib/health-engine'
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+import { DeckHealthButton } from '@/components/DeckHealthButton'
+import { DeckHealthPanel } from '@/components/DeckHealthPanel'
+import { deckKeys } from '@/hooks/useDeckQueryKeys'
+import type { DeckHealthResponse } from '@/lib/deck-health'
 
 export interface HealthStripProps {
   deckId: number
-  onPillClick: (category: string) => void
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+export function HealthStrip({ deckId }: HealthStripProps) {
+  const [panelOpen, setPanelOpen] = useState(false)
 
-/** Map API status ('green' | 'amber' | 'red') to HealthPill status ('ok' | 'warn' | 'crit') */
-function mapStatus(status: string): 'ok' | 'warn' | 'crit' {
-  switch (status) {
-    case 'amber':
-      return 'warn'
-    case 'red':
-      return 'crit'
-    default:
-      return 'ok'
-  }
-}
-
-/** Convert CategoryHealth from the API into the shape HealthPill expects */
-function toPillCategory(cat: CategoryHealth): HealthPillCategory {
-  return {
-    name: cat.category,
-    count: cat.actual,
-    status: mapStatus(cat.status),
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
-export function HealthStrip({ deckId, onPillClick }: HealthStripProps) {
-  const { data, isLoading, isError } = useQuery<HealthResult>({
-    queryKey: ['decks', deckId, 'health'],
+  const { data, isLoading, isError, refetch } = useQuery<DeckHealthResponse>({
+    queryKey: deckKeys.health(deckId),
     queryFn: async () => {
       const res = await fetch(`/api/decks/${deckId}/health`)
       if (!res.ok) throw new Error('Failed to fetch health data')
@@ -60,9 +28,7 @@ export function HealthStrip({ deckId, onPillClick }: HealthStripProps) {
     staleTime: 5 * 60 * 1000,
   })
 
-  // Determine if any violations exist for the contextual note
-  const violation = data ? selectMostSevereViolation(data.categories) : null
-  const contextualNote = violation ? formatContextualNote(violation) : null
+  const anyLight = !!data && data.roles.some((r) => r.state === 'light')
 
   return (
     <div
@@ -72,43 +38,57 @@ export function HealthStrip({ deckId, onPillClick }: HealthStripProps) {
         backgroundColor: 'rgba(255,255,255,0.02)',
       }}
     >
-      <div className="mx-auto flex max-w-[var(--content-max-width)] items-center gap-2">
-      {/* Loading state: skeleton pills */}
-      {isLoading && (
-        <>
-          <Skeleton className="h-7 w-20 rounded-md" />
-          <Skeleton className="h-7 w-20 rounded-md" />
-          <Skeleton className="h-7 w-24 rounded-md" />
-          <Skeleton className="h-7 w-20 rounded-md" />
-          <Skeleton className="h-7 w-24 rounded-md" />
-        </>
-      )}
+      <div className="mx-auto flex max-w-[var(--content-max-width)] items-center gap-2 overflow-x-auto">
+        {isLoading && (
+          <div className="flex items-center gap-2" aria-busy="true">
+            <Skeleton className="h-7 w-24 rounded-md" />
+            <Skeleton className="h-7 w-20 rounded-md" />
+            <Skeleton className="h-7 w-20 rounded-md" />
+            <Skeleton className="h-7 w-24 rounded-md" />
+            <span className="sr-only" role="status">
+              Checking deck health…
+            </span>
+          </div>
+        )}
 
-      {/* Error state */}
-      {isError && (
-        <span className="text-[length:var(--fs-sm)] text-muted-foreground">
-          Unable to load health data
-        </span>
-      )}
+        {isError && !isLoading && (
+          <div role="alert" className="flex items-center gap-2 text-[length:var(--fs-sm)]" style={{ color: 'var(--signal-critical)' }}>
+            <AlertCircle size={14} aria-hidden="true" />
+            <span>Couldn&apos;t check deck health.</span>
+            <Button variant="outline" size="sm" onClick={() => void refetch()}>
+              Try again
+            </Button>
+          </div>
+        )}
 
-      {/* Render pills when data is loaded */}
-      {data &&
-        data.categories.map((cat) => (
-          <HealthPill
-            key={cat.category}
-            category={toPillCategory(cat)}
-            onClick={() => onPillClick(cat.category)}
-          />
-        ))}
-
-      {/* Contextual note — right-aligned, only when violations exist */}
-      {contextualNote && (
-        <span className="ml-auto inline-flex items-center gap-1 text-[length:var(--fs-sm)] text-[var(--color-amber)]">
-          <AlertTriangle size={12} aria-hidden="true" />
-          {contextualNote}
-        </span>
-      )}
+        {data && !isError && (
+          <>
+            <DeckHealthButton state={anyLight ? 'light' : 'ok'} headline={data.verdict.headline} onClick={() => setPanelOpen(true)} />
+            <div role="group" aria-label="Role counts" className="flex items-center gap-1">
+              {data.roles.map((r) => (
+                <HealthPill
+                  key={r.role}
+                  label={r.label}
+                  have={r.have}
+                  typical={r.typical}
+                  state={r.state}
+                  isGeneralGuide={r.targetSource === 'general_guide'}
+                  onClick={() => setPanelOpen(true)}
+                />
+              ))}
+            </div>
+          </>
+        )}
       </div>
+
+      <DeckHealthPanel
+        open={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        data={data}
+        isLoading={isLoading}
+        isError={isError}
+        onRetry={() => void refetch()}
+      />
     </div>
   )
 }

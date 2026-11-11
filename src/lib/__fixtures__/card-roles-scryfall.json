@@ -1,0 +1,302 @@
+{
+ "Sol Ring": {
+  "typeLine": "Artifact",
+  "oracleText": "{T}: Add {C}{C}."
+ },
+ "Arcane Signet": {
+  "typeLine": "Artifact",
+  "oracleText": "{T}: Add one mana of any color in your commander's color identity."
+ },
+ "Llanowar Elves": {
+  "typeLine": "Creature — Elf Druid",
+  "oracleText": "{T}: Add {G}."
+ },
+ "Birds of Paradise": {
+  "typeLine": "Creature — Bird",
+  "oracleText": "Flying\n{T}: Add one mana of any color."
+ },
+ "Farseek": {
+  "typeLine": "Sorcery",
+  "oracleText": "Search your library for a Plains, Island, Swamp, or Mountain card, put it onto the battlefield tapped, then shuffle."
+ },
+ "Cultivate": {
+  "typeLine": "Sorcery",
+  "oracleText": "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle."
+ },
+ "Kodama's Reach": {
+  "typeLine": "Sorcery — Arcane",
+  "oracleText": "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle."
+ },
+ "Rampant Growth": {
+  "typeLine": "Sorcery",
+  "oracleText": "Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle."
+ },
+ "Three Visits": {
+  "typeLine": "Sorcery",
+  "oracleText": "Search your library for a Forest card, put it onto the battlefield, then shuffle."
+ },
+ "Sakura-Tribe Elder": {
+  "typeLine": "Creature — Snake Shaman",
+  "oracleText": "Sacrifice this creature: Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle."
+ },
+ "Wayfarer's Bauble": {
+  "typeLine": "Artifact",
+  "oracleText": "{2}, {T}, Sacrifice this artifact: Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle."
+ },
+ "Explosive Vegetation": {
+  "typeLine": "Sorcery",
+  "oracleText": "Search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle."
+ },
+ "Burnished Hart": {
+  "typeLine": "Artifact Creature — Elk",
+  "oracleText": "{3}, Sacrifice this creature: Search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle."
+ },
+ "Smothering Tithe": {
+  "typeLine": "Enchantment",
+  "oracleText": "Whenever an opponent draws a card, that player may pay {2}. If the player doesn't, you create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")"
+ },
+ "Talisman of Dominance": {
+  "typeLine": "Artifact",
+  "oracleText": "{T}: Add {C}.\n{T}: Add {U} or {B}. This artifact deals 1 damage to you."
+ },
+ "Exploration": {
+  "typeLine": "Enchantment",
+  "oracleText": "You may play an additional land on each of your turns."
+ },
+ "Mana Drain": {
+  "typeLine": "Instant",
+  "oracleText": "Counter target spell. At the beginning of your next main phase, add an amount of {C} equal to that spell's mana value."
+ },
+ "Demonic Tutor": {
+  "typeLine": "Sorcery",
+  "oracleText": "Search your library for a card, put that card into your hand, then shuffle."
+ },
+ "Viral Drake": {
+  "typeLine": "Creature — Phyrexian Drake",
+  "oracleText": "Flying\nInfect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)\n{3}{U}: Proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)"
+ },
+ "Ghostly Prison": {
+  "typeLine": "Enchantment",
+  "oracleText": "Creatures can't attack you unless their controller pays {2} for each creature they control that's attacking you."
+ },
+ "Propaganda": {
+  "typeLine": "Enchantment",
+  "oracleText": "Creatures can't attack you unless their controller pays {2} for each creature they control that's attacking you."
+ },
+ "Jace, the Mind Sculptor": {
+  "typeLine": "Legendary Planeswalker — Jace",
+  "oracleText": "+2: Look at the top card of target player's library. You may put that card on the bottom of that player's library.\n0: Draw three cards, then put two cards from your hand on top of your library in any order.\n−1: Return target creature to its owner's hand.\n−12: Exile all cards from target player's library, then that player shuffles their hand into their library."
+ },
+ "Rhystic Study": {
+  "typeLine": "Enchantment",
+  "oracleText": "Whenever an opponent casts a spell, you may draw a card unless that player pays {1}."
+ },
+ "Phyrexian Arena": {
+  "typeLine": "Enchantment",
+  "oracleText": "At the beginning of your upkeep, you draw a card and lose 1 life."
+ },
+ "Sign in Blood": {
+  "typeLine": "Sorcery",
+  "oracleText": "Target player draws two cards and loses 2 life."
+ },
+ "Night's Whisper": {
+  "typeLine": "Sorcery",
+  "oracleText": "You draw two cards and lose 2 life."
+ },
+ "Read the Bones": {
+  "typeLine": "Sorcery",
+  "oracleText": "Scry 2, then draw two cards. You lose 2 life. (To scry 2, look at the top two cards of your library, then put any number of them on the bottom and the rest on top in any order.)"
+ },
+ "Beast Whisperer": {
+  "typeLine": "Creature — Elf Druid",
+  "oracleText": "Whenever you cast a creature spell, draw a card."
+ },
+ "Mulldrifter": {
+  "typeLine": "Creature — Elemental",
+  "oracleText": "Flying\nWhen this creature enters, draw two cards.\nEvoke {2}{U} (You may cast this spell for its evoke cost. If you do, it's sacrificed when it enters.)"
+ },
+ "Ponder": {
+  "typeLine": "Sorcery",
+  "oracleText": "Look at the top three cards of your library, then put them back in any order. You may shuffle.\nDraw a card."
+ },
+ "Brainstorm": {
+  "typeLine": "Instant",
+  "oracleText": "Draw three cards, then put two cards from your hand on top of your library in any order."
+ },
+ "Land Tax": {
+  "typeLine": "Enchantment",
+  "oracleText": "At the beginning of your upkeep, if an opponent controls more lands than you, you may search your library for up to three basic land cards, reveal them, put them into your hand, then shuffle."
+ },
+ "Swords to Plowshares": {
+  "typeLine": "Instant",
+  "oracleText": "Exile target creature. Its controller gains life equal to its power."
+ },
+ "Beast Within": {
+  "typeLine": "Instant",
+  "oracleText": "Destroy target permanent. Its controller creates a 3/3 green Beast creature token."
+ },
+ "Putrefy": {
+  "typeLine": "Instant",
+  "oracleText": "Destroy target artifact or creature. It can't be regenerated."
+ },
+ "Chaos Warp": {
+  "typeLine": "Instant",
+  "oracleText": "The owner of target permanent shuffles it into their library, then reveals the top card of their library. If it's a permanent card, they put it onto the battlefield."
+ },
+ "Anguished Unmaking": {
+  "typeLine": "Instant",
+  "oracleText": "Exile target nonland permanent. You lose 3 life."
+ },
+ "Assassin's Trophy": {
+  "typeLine": "Instant",
+  "oracleText": "Destroy target permanent an opponent controls. Its controller may search their library for a basic land card, put it onto the battlefield, then shuffle."
+ },
+ "Council's Judgment": {
+  "typeLine": "Sorcery",
+  "oracleText": "Will of the council — Starting with you, each player votes for a nonland permanent you don't control. Exile each permanent with the most votes or tied for most votes."
+ },
+ "Terminate": {
+  "typeLine": "Instant",
+  "oracleText": "Destroy target creature. It can't be regenerated."
+ },
+ "Lightning Bolt": {
+  "typeLine": "Instant",
+  "oracleText": "Lightning Bolt deals 3 damage to any target."
+ },
+ "Disfigure": {
+  "typeLine": "Instant",
+  "oracleText": "Target creature gets -2/-2 until end of turn."
+ },
+ "Utter End": {
+  "typeLine": "Instant",
+  "oracleText": "Exile target nonland permanent."
+ },
+ "Toxic Deluge": {
+  "typeLine": "Sorcery",
+  "oracleText": "As an additional cost to cast this spell, pay X life.\nAll creatures get -X/-X until end of turn."
+ },
+ "Cyclonic Rift": {
+  "typeLine": "Instant",
+  "oracleText": "Return target nonland permanent you don't control to its owner's hand.\nOverload {6}{U} (You may cast this spell for its overload cost. If you do, change \"target\" in its text to \"each.\")"
+ },
+ "Damn": {
+  "typeLine": "Sorcery",
+  "oracleText": "Destroy target creature. A creature destroyed this way can't be regenerated.\nOverload {2}{W}{W} (You may cast this spell for its overload cost. If you do, change \"target\" in its text to \"each.\")"
+ },
+ "Wrath of God": {
+  "typeLine": "Sorcery",
+  "oracleText": "Destroy all creatures. They can't be regenerated."
+ },
+ "Blasphemous Act": {
+  "typeLine": "Sorcery",
+  "oracleText": "This spell costs {1} less to cast for each creature on the battlefield.\nBlasphemous Act deals 13 damage to each creature."
+ },
+ "Farewell": {
+  "typeLine": "Sorcery",
+  "oracleText": "Choose one or more —\n• Exile all artifacts.\n• Exile all creatures.\n• Exile all enchantments.\n• Exile all graveyards."
+ },
+ "Austere Command": {
+  "typeLine": "Sorcery",
+  "oracleText": "Choose two —\n• Destroy all artifacts.\n• Destroy all enchantments.\n• Destroy all creatures with mana value 3 or less.\n• Destroy all creatures with mana value 4 or greater."
+ },
+ "Merciless Eviction": {
+  "typeLine": "Sorcery",
+  "oracleText": "Choose one —\n• Exile all artifacts.\n• Exile all creatures.\n• Exile all enchantments.\n• Exile all planeswalkers."
+ },
+ "Hour of Devastation": {
+  "typeLine": "Sorcery",
+  "oracleText": "All creatures lose indestructible until end of turn. Hour of Devastation deals 5 damage to each creature and each non-Bolas planeswalker."
+ },
+ "Plague Wind": {
+  "typeLine": "Sorcery",
+  "oracleText": "Destroy all creatures you don't control. They can't be regenerated."
+ },
+ "Evacuation": {
+  "typeLine": "Instant",
+  "oracleText": "Return all creatures to their owners' hands."
+ },
+ "Flickerwisp": {
+  "typeLine": "Creature — Elemental",
+  "oracleText": "Flying\nWhen this creature enters, exile another target permanent. Return that card to the battlefield under its owner's control at the beginning of the next end step."
+ },
+ "Valakut Awakening // Valakut Stoneforge": {
+  "typeLine": "Instant // Land",
+  "oracleText": "Put any number of cards from your hand on the bottom of your library, then draw that many cards plus one.\n//\nThis land enters tapped.\n{T}: Add {R}."
+ },
+ "Shatterskull Smashing // Shatterskull, the Hammer Pass": {
+  "typeLine": "Sorcery // Land",
+  "oracleText": "Shatterskull Smashing deals X damage divided as you choose among up to two target creatures and/or planeswalkers. If X is 6 or more, Shatterskull Smashing deals twice X damage divided as you choose among them instead.\n//\nAs this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {R}."
+ },
+ "Blightstep Pathway // Searstep Pathway": {
+  "typeLine": "Land // Land",
+  "oracleText": "{T}: Add {B}.\n//\n{T}: Add {R}."
+ },
+ "Command Tower": {
+  "typeLine": "Land",
+  "oracleText": "{T}: Add one mana of any color in your commander's color identity."
+ },
+ "Forest": {
+  "typeLine": "Basic Land — Forest",
+  "oracleText": "({T}: Add {G}.)"
+ },
+ "Dryad Arbor": {
+  "typeLine": "Land Creature — Forest Dryad",
+  "oracleText": "(This land isn't a spell, it's affected by summoning sickness, and it has \"{T}: Add {G}.\")"
+ },
+ "Elesh Norn, Grand Cenobite": {
+  "typeLine": "Legendary Creature — Phyrexian Praetor",
+  "oracleText": "Vigilance\nOther creatures you control get +2/+2.\nCreatures your opponents control get -2/-2."
+ },
+ "Dismember": {
+  "typeLine": "Instant",
+  "oracleText": "({B/P} can be paid with either {B} or 2 life.)\nTarget creature gets -5/-5 until end of turn."
+ },
+ "Mystical Tutor": {
+  "typeLine": "Instant",
+  "oracleText": "Search your library for an instant or sorcery card, reveal it, then shuffle and put that card on top."
+ },
+ "Counterspell": {
+  "typeLine": "Instant",
+  "oracleText": "Counter target spell."
+ },
+ "Rabid Bite": {
+  "typeLine": "Sorcery",
+  "oracleText": "Target creature you control deals damage equal to its power to target creature you don't control."
+ },
+ "Diabolic Edict": {
+  "typeLine": "Instant",
+  "oracleText": "Target player sacrifices a creature of their choice."
+ },
+ "Skullclamp": {
+  "typeLine": "Artifact — Equipment",
+  "oracleText": "Equipped creature gets +1/-1.\nWhenever equipped creature dies, draw two cards.\nEquip {1}"
+ },
+ "Mystic Remora": {
+  "typeLine": "Enchantment",
+  "oracleText": "Cumulative upkeep {1} (At the beginning of your upkeep, put an age counter on this permanent, then sacrifice it unless you pay its upkeep cost for each age counter on it.)\nWhenever an opponent casts a noncreature spell, you may draw a card unless that player pays {4}."
+ },
+ "Armageddon": {
+  "typeLine": "Sorcery",
+  "oracleText": "Destroy all lands."
+ },
+ "Stone Rain": {
+  "typeLine": "Sorcery",
+  "oracleText": "Destroy target land."
+ },
+ "Dockside Extortionist": {
+  "typeLine": "Creature — Goblin Pirate",
+  "oracleText": "When this creature enters, create X Treasure tokens, where X is the number of artifacts and enchantments your opponents control. (Treasure tokens are artifacts with \"{T}, Sacrifice this token: Add one mana of any color.\")"
+ },
+ "Eternal Witness": {
+  "typeLine": "Creature — Human Shaman",
+  "oracleText": "When this creature enters, you may return target card from your graveyard to your hand."
+ },
+ "Harmonize": {
+  "typeLine": "Sorcery",
+  "oracleText": "Draw three cards."
+ },
+ "Blue Sun's Zenith": {
+  "typeLine": "Instant",
+  "oracleText": "Target player draws X cards. Shuffle Blue Sun's Zenith into its owner's library."
+ }
+}

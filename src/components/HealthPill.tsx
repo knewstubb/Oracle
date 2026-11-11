@@ -1,50 +1,41 @@
 'use client'
 
-import { Check, AlertTriangle, AlertCircle } from 'lucide-react'
+import { Check, AlertTriangle } from 'lucide-react'
 
-export interface HealthPillCategory {
-  name: string
-  count: number
-  status: 'ok' | 'warn' | 'crit'
-}
+export type HealthPillState = 'ok' | 'light'
 
-interface HealthPillProps {
-  category: HealthPillCategory
+export interface HealthPillProps {
+  label: string
+  have: number
+  typical: number
+  state: HealthPillState
+  isGeneralGuide: boolean
   onClick: () => void
 }
 
-const statusConfig = {
-  ok: {
-    Icon: Check,
-    color: 'var(--color-teal)',
-    bg: 'transparent',
-  },
-  warn: {
-    Icon: AlertTriangle,
-    color: 'var(--color-amber)',
-    bg: 'var(--color-amber-bg)',
-  },
-  crit: {
-    Icon: AlertCircle,
-    color: 'var(--color-red)',
-    bg: 'var(--color-red-bg)',
-  },
-} as const
-
-export function HealthPill({ category, onClick }: HealthPillProps) {
-  const { Icon, color, bg } = statusConfig[category.status]
+/** Role pill: "Removal 3/6". Light is amber with a warning icon; on track is a quiet tick. The accessible name is a sentence. */
+export function HealthPill({ label, have, typical, state, isGeneralGuide, onClick }: HealthPillProps) {
+  const light = state === 'light'
+  const short = Math.max(0, typical - have)
+  const Icon = light ? AlertTriangle : Check
+  const name = `${label} ${have} of ${typical}${isGeneralGuide ? ' (general guide)' : ''}, ${light ? `light, ${short} short` : 'on track'}`
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[length:var(--fs-sm)] font-medium cursor-pointer transition-opacity hover:opacity-80"
-      style={{ backgroundColor: bg, color }}
-      aria-label={`${category.status} ${category.name} ${category.count}`}
+      aria-label={name}
+      className="inline-flex min-h-7 shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[length:var(--fs-sm)] font-medium cursor-pointer transition-colors hover:bg-[var(--bg-surface-hover)] focus-visible:outline-2 focus-visible:outline-white"
+      style={{
+        backgroundColor: light ? 'var(--signal-warning-bg)' : 'transparent',
+        color: light ? 'var(--signal-warning)' : 'var(--text-secondary)',
+      }}
     >
       <Icon size={12} aria-hidden="true" />
-      <span>{category.name}</span>
-      <span>{category.count}</span>
+      <span>{label}</span>
+      <span>
+        {have}/{typical}
+      </span>
     </button>
   )
 }

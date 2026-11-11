@@ -50,3 +50,13 @@ Scroll bars are now see-through with a faint thumb instead of white. The Oracle 
 - npm test — 225 files passed, 5 skipped; 2657 tests passed, 42 skipped. New OracleSidebar tests pass.
 - Visual check — NOT done. Starting a second dev server on port 3100 was refused by Next.js ("Another next dev server is already running" for this folder), and I did not stop the owner's server on 3000. Scrollbar look, panel height on mobile and the half-see-through appearance are untested visually. Also not tested: the app login-protected pages in a browser, the session-history overlay inside the new panel.
 - Spec states: loading, empty (suggestions), streaming (thinking dots), history, and new-chat confirmation are preserved in the panel code; not re-tested visually.
+
+## Follow-up 3 (supersedes earlier overlay / upward-expand / "visual check NOT done" notes)
+
+- Reversal: page content now compresses by the 420px panel width when chat is open (768px and wider); on phones the panel overlays. Closed = full width.
+- One app-wide footer (MainContentWrapper). The Deck health pills are portaled into its left side; the chat input fills the rest. Pages without the strip show only the chat input. The separate footer bar was removed.
+- The conversation panel sits on the right, below the header, ending at the footer's top edge. 50% transparent background kept.
+- Deck art is now fixed full-viewport so it shows behind the panel and footer.
+- New: src/hooks/useDomHost.ts. Changed: HealthStrip.tsx, MainContentWrapper.tsx, OracleSidebar.tsx, decks/[id]/page.tsx, OracleSidebar.test.tsx.
+- Verified by headless screenshots on a /tmp copy (port 3100): open (main 1020 wide, panel 420, footer beneath) and closed (main 1440). Typecheck: only known error. Lint: 0 errors. Tests: 2657 passed.
+- Not verified: white scrollbar strip could not be reproduced headless (now color-scheme: dark); phone width, Firefox/Safari, health dialog scrolling.

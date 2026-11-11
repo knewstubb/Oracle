@@ -1,6 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
+import { createPortal } from 'react-dom'
+import { useDomHost } from '@/hooks/useDomHost'
 import { useRouter } from 'next/navigation'
 import { X, MessageSquarePlus, MessageSquare, Library, LayoutGrid, Sparkles, Wrench, Layers, History, Compass, ArrowRight, Crown } from 'lucide-react'
 import { useOracle, type OracleContext, type NavigatePrompt } from '@/contexts/OracleContext'
@@ -21,8 +23,6 @@ import { OVERLAY_BACKDROP } from '@/lib/overlay-classes'
 
 /** Height of the conversation panel when it expands upward from the footer. */
 const PANEL_WIDTH = 'min(420px, 100vw)'
-/** Fallback footer bar height (px) used until the real bar has been measured. */
-const DEFAULT_BAR_HEIGHT = 64
 
 // ---------------------------------------------------------------------------
 // Types
@@ -131,20 +131,8 @@ export function OracleSidebar() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
-  const barRef = useRef<HTMLDivElement>(null)
-  const [barHeight, setBarHeight] = useState(DEFAULT_BAR_HEIGHT)
-
-  // Keep the side panel ending exactly above the footer bar, whatever its height
-  // (the textarea grows, quick-build buttons appear, phone safe area).
-  useEffect(() => {
-    const el = barRef.current
-    if (!el || typeof ResizeObserver === 'undefined') return
-    const update = () => setBarHeight(el.offsetHeight || DEFAULT_BAR_HEIGHT)
-    update()
-    const ro = new ResizeObserver(update)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
+  // The side panel renders into a slot in the page row (MainContentWrapper) so the page can narrow for it.
+  const panelHost = useDomHost('oracle-panel-slot')
   const pendingLookups = useRef<Set<string>>(new Set())
 
   // ---------------------------------------------------------------------------
@@ -478,21 +466,13 @@ export function OracleSidebar() {
   const sessionName = activeSession?.sessionName
   const placeholderText = getPlaceholderText(activeContext, isStreaming)
 
-  return (
-    <footer
-      data-testid="oracle-footer"
-      className="shrink-0"
-    >
-      {/* Conversation: a right-hand side panel between the top bar and this footer bar.
-          Positioned against the content+footer area (MainContentWrapper), so it overlays
-          the page without resizing it. */}
-      {isOpen && (
+  const panel = isOpen && panelHost ? createPortal(
       <section
         ref={panelRef}
         data-testid="oracle-conversation"
         aria-label="Oracle conversation"
-        className="absolute right-0 top-0 z-30 flex flex-col border-l border-zinc-800/60 bg-[rgba(24,24,27,0.5)] backdrop-blur-md shadow-2xl"
-        style={{ width: PANEL_WIDTH, bottom: barHeight }}
+        className="z-30 flex h-full shrink-0 flex-col border-l border-zinc-800/60 bg-[rgba(24,24,27,0.5)] backdrop-blur-md max-md:absolute max-md:inset-y-0 max-md:right-0 max-md:shadow-2xl"
+        style={{ width: PANEL_WIDTH }}
       >
         {/* Header */}
         <div className="flex flex-col border-b border-zinc-800/60">
@@ -577,6 +557,26 @@ export function OracleSidebar() {
           <div ref={messagesEndRef} />
         </div>
 
+        {/* Quick build buttons when commanders are suggested */}
+        {quickBuildCommanders.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 border-t border-zinc-800/60 px-3 py-2">
+            {quickBuildCommanders.map((name) => (
+              <button
+                key={name}
+                onClick={() => handleStartDeck(name)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium',
+                  'bg-amber-500/15 border border-amber-500/30 text-amber-400',
+                  'hover:bg-amber-500/25 hover:border-amber-500/50 transition-colors'
+                )}
+              >
+                <Crown className="w-3 h-3" />
+                Build {name.split(',')[0]}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Session history panel */}
         <SessionHistoryPanel />
 
@@ -604,36 +604,19 @@ export function OracleSidebar() {
             </div>
           </div>
         )}
-      </section>
-      )}
+      </section>,
+      panelHost
+    ) : null
 
-        {/* Input row (always visible in the footer). Blur lives here, not on the footer,
-            so the conversation panel's own blur can still sample the page art behind it. */}
-        <div
-          ref={barRef}
-          data-testid="oracle-input-row"
-          className="relative z-30 border-t border-zinc-800/60 bg-[rgba(24,24,27,0.5)] backdrop-blur-md px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
-        >
-          {/* Quick build buttons when commanders are suggested */}
-          {quickBuildCommanders.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-2">
-              {quickBuildCommanders.map((name) => (
-                <button
-                  key={name}
-                  onClick={() => handleStartDeck(name)}
-                  className={cn(
-                    'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium',
-                    'bg-amber-500/15 border border-amber-500/30 text-amber-400',
-                    'hover:bg-amber-500/25 hover:border-amber-500/50 transition-colors'
-                  )}
-                >
-                  <Crown className="w-3 h-3" />
-                  Build {name.split(',')[0]}
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="flex items-end gap-2 rounded-lg border border-zinc-700/60 bg-zinc-900/60 px-2.5 py-1.5 transition-all focus-within:border-emerald-500/50 focus-within:bg-zinc-900/80">
+  return (
+    <>
+      {/* Conversation: a right-hand side panel inside the page row (see MainContentWrapper), so the
+          page narrows to make room. It sits above the footer, which spans the full width beneath. */}
+      {panel}
+
+      {/* Chat input: lives inside the app footer, next to any page footer content (e.g. deck health pills). */}
+      <div data-testid="oracle-input-row" className="min-w-[220px] flex-1">
+        <div className="flex items-end gap-2 rounded-lg border border-zinc-700/60 bg-zinc-900/60 px-2.5 py-1.5 transition-all focus-within:border-emerald-500/50 focus-within:bg-zinc-900/80">
             <textarea
               ref={inputRef}
               value={inputValue}
@@ -641,7 +624,7 @@ export function OracleSidebar() {
                 setInputValue(e.target.value)
                 // Auto-resize
                 e.target.style.height = 'auto'
-                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
+                e.target.style.height = Math.min(e.target.scrollHeight, 96) + 'px'
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -652,9 +635,10 @@ export function OracleSidebar() {
               disabled={isStreaming}
               onFocus={() => { if (!isOpen) open() }}
               placeholder={placeholderText}
+              title="⌘⇧O to open or close Oracle"
               rows={1}
               className="flex-1 resize-none bg-transparent text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none disabled:opacity-50"
-              style={{ minHeight: '22px', maxHeight: '120px' }}
+              style={{ minHeight: '22px', maxHeight: '96px' }}
             />
             <button
               onClick={handleSend}
@@ -664,12 +648,9 @@ export function OracleSidebar() {
             >
               <ArrowUpIcon />
             </button>
-          </div>
-          <div className="text-[10px] text-zinc-600 mt-1 text-center">
-            <kbd className="px-1 py-0.5 bg-zinc-800/50 rounded text-zinc-500">⌘⇧O</kbd> to toggle
-          </div>
         </div>
-    </footer>
+      </div>
+    </>
   )
 }
 

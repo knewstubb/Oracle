@@ -216,7 +216,7 @@ export default function DeckViewPage() {
       {/* Blurred commander art background with parallax — hidden on mobile */}
       {deck.commander_scryfall_id && (
         <div
-          className="pointer-events-none absolute inset-x-0 top-0 z-0 hidden h-full overflow-hidden sm:block"
+          className="pointer-events-none fixed inset-0 z-0 hidden overflow-hidden sm:block"
           aria-hidden="true"
         >
           <img

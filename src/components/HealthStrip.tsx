@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
+import { useDomHost } from '@/hooks/useDomHost'
 import { useQuery } from '@tanstack/react-query'
 import { AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -36,15 +38,12 @@ export function HealthStrip({ deckId }: HealthStripProps) {
 
   const anyLight = !!data && data.roles.some((r) => r.state === 'light')
 
-  return (
-    <div
-      className="shrink-0 border-t px-6 py-2"
-      style={{
-        borderColor: 'var(--border-default)',
-        backgroundColor: 'rgba(255,255,255,0.02)',
-      }}
-    >
-      <div className="mx-auto flex max-w-[var(--content-max-width)] items-center gap-2 overflow-x-auto">
+  // The strip lives in the app footer (shared with the Oracle chat input). If the footer slot
+  // isn't on the page (e.g. in isolated tests), fall back to rendering in place.
+  const footerHost = useDomHost('app-footer-left')
+
+  const strip = (
+      <div className="flex items-center gap-2" data-testid="health-strip">
         {isLoading && (
           <div className="flex items-center gap-2" aria-busy="true">
             <Skeleton className="h-7 w-24 rounded-md" />
@@ -87,6 +86,15 @@ export function HealthStrip({ deckId }: HealthStripProps) {
           </>
         )}
       </div>
+  )
+
+  return (
+    <>
+      {footerHost ? createPortal(strip, footerHost) : (
+        <div className="shrink-0 border-t px-6 py-2" style={{ borderColor: 'var(--border-default)' }}>
+          {strip}
+        </div>
+      )}
 
       <DeckHealthPanel
         open={panelOpen}
@@ -99,6 +107,6 @@ export function HealthStrip({ deckId }: HealthStripProps) {
         gapRole={gapRole}
         onGapRole={setGapRole}
       />
-    </div>
+    </>
   )
 }

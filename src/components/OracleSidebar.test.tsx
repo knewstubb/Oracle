@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { OracleSidebar } from './OracleSidebar'
+import { MainContentWrapper } from './MainContentWrapper'
+
+vi.mock('@/contexts/PageHeaderContext', () => ({ usePageHeaderContext: () => ({ config: null }) }))
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/components/SessionHistoryPanel', () => ({ SessionHistoryPanel: () => null }))
@@ -36,7 +39,9 @@ function renderChat() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
-      <OracleSidebar />
+      <MainContentWrapper sidebar={<OracleSidebar />}>
+        <div data-testid="page">page content</div>
+      </MainContentWrapper>
     </QueryClientProvider>
   )
 }
@@ -48,10 +53,13 @@ describe('OracleSidebar (chat docked in the footer)', () => {
     isOpen = false
   })
 
-  it('shows only the input row in the footer when collapsed', () => {
+  it('puts the chat input inside the single app footer, with no panel when collapsed', () => {
     renderChat()
-    expect(screen.getByTestId('oracle-footer').tagName).toBe('FOOTER')
-    expect(screen.getByLabelText('Send message')).toBeInTheDocument()
+    const footer = screen.getByTestId('app-footer')
+    expect(footer.tagName).toBe('FOOTER')
+    expect(footer).toContainElement(screen.getByTestId('oracle-input-row'))
+    expect(footer).toContainElement(screen.getByLabelText('Send message'))
+    expect(document.querySelectorAll('footer')).toHaveLength(1)
     expect(screen.queryByTestId('oracle-conversation')).toBeNull()
   })
 
@@ -69,19 +77,17 @@ describe('OracleSidebar (chat docked in the footer)', () => {
     expect(sendMessage).toHaveBeenCalledWith('hello')
   })
 
-  it('shows a right-hand side panel with a 50% opaque background when open', () => {
+  it('shows the panel beside the page (not in the footer) with a 50% opaque background when open', () => {
     isOpen = true
     renderChat()
     const panel = screen.getByTestId('oracle-conversation')
-    expect(panel.className).toContain('right-0')
-    expect(panel.className).toContain('top-0')
-    expect(panel.className).not.toContain('inset-x-0')
-    // Ends above the footer bar (bottom offset = bar height), so it never covers the bar.
-    expect(panel.getAttribute('style')).toContain('bottom')
+    // Same row as the page content, so the page narrows to make room.
+    const row = screen.getByTestId('page').closest('main')!.parentElement!
+    expect(row).toContainElement(panel)
+    // The footer is a separate full-width bar beneath the row, so the panel stops above it.
+    expect(screen.getByTestId('app-footer')).not.toContainElement(panel)
+    expect(row.contains(screen.getByTestId('app-footer'))).toBe(false)
     expect(panel.className).toContain('bg-[rgba(24,24,27,0.5)]')
-    expect(screen.getByTestId('oracle-input-row').className).toContain('bg-[rgba(24,24,27,0.5)]')
-    // Blur must not sit on the footer wrapper, or it would stop the panel seeing the page art.
-    expect(screen.getByTestId('oracle-footer').className).not.toContain('backdrop-blur')
     fireEvent.click(screen.getByLabelText('Close Oracle'))
     expect(close).toHaveBeenCalled()
   })

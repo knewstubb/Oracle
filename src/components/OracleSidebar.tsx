@@ -1,6 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
+import { createPortal } from 'react-dom'
+import { useDomHost } from '@/hooks/useDomHost'
 import { useRouter } from 'next/navigation'
 import { X, MessageSquarePlus, MessageSquare, Library, LayoutGrid, Sparkles, Wrench, Layers, History, Compass, ArrowRight, Crown } from 'lucide-react'
 import { useOracle, type OracleContext, type NavigatePrompt } from '@/contexts/OracleContext'
@@ -19,8 +21,8 @@ import { OVERLAY_BACKDROP } from '@/lib/overlay-classes'
 // Constants
 // ---------------------------------------------------------------------------
 
-const MIN_WIDTH = 320
-const MAX_WIDTH = 600
+/** Height of the conversation panel when it expands upward from the footer. */
+const PANEL_WIDTH = 'min(420px, 100vw)'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -108,7 +110,6 @@ function getPlaceholderText(context: OracleContext, isStreaming: boolean): strin
 export function OracleSidebar() {
   const {
     isOpen,
-    width,
     messages,
     activeContext,
     activeSession,
@@ -116,7 +117,7 @@ export function OracleSidebar() {
     isLoadingHistory,
     isHistoryPanelOpen,
     close,
-    setWidth,
+    open,
     sendMessage,
     clearMessages,
     openHistoryPanel,
@@ -130,6 +131,8 @@ export function OracleSidebar() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  // The side panel renders into a slot in the page row (MainContentWrapper) so the page can narrow for it.
+  const panelHost = useDomHost('oracle-panel-slot')
   const pendingLookups = useRef<Set<string>>(new Set())
 
   // ---------------------------------------------------------------------------
@@ -300,49 +303,20 @@ export function OracleSidebar() {
   }, [isOpen, isHistoryPanelOpen])
 
   // ---------------------------------------------------------------------------
-  // Resize handling
-  // ---------------------------------------------------------------------------
-
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      e.preventDefault()
-      const startX = e.clientX
-      const startWidth = width
-      const target = e.currentTarget
-      target.setPointerCapture(e.pointerId)
-
-      const handlePointerMove = (ev: PointerEvent) => {
-        const delta = startX - ev.clientX
-        const maxAllowed = Math.min(MAX_WIDTH, window.innerWidth * 0.6)
-        const newWidth = Math.max(MIN_WIDTH, Math.min(maxAllowed, startWidth + delta))
-        setWidth(newWidth)
-      }
-
-      const handlePointerUp = () => {
-        target.removeEventListener('pointermove', handlePointerMove)
-        target.removeEventListener('pointerup', handlePointerUp)
-      }
-
-      target.addEventListener('pointermove', handlePointerMove)
-      target.addEventListener('pointerup', handlePointerUp)
-    },
-    [width, setWidth]
-  )
-
-  // ---------------------------------------------------------------------------
   // Send message
   // ---------------------------------------------------------------------------
 
   const handleSend = useCallback(() => {
     const text = inputValue.trim()
     if (!text || isStreaming) return
+    if (!isOpen) open()
     sendMessage(text)
     setInputValue('')
     // Reset textarea height
     if (inputRef.current) {
       inputRef.current.style.height = 'auto'
     }
-  }, [inputValue, isStreaming, sendMessage])
+  }, [inputValue, isStreaming, isOpen, open, sendMessage])
 
   // ---------------------------------------------------------------------------
   // New chat
@@ -487,40 +461,19 @@ export function OracleSidebar() {
   // Render
   // ---------------------------------------------------------------------------
 
-  if (!isOpen) return null
-
   const contextLabel = getContextLabel(activeContext)
   const contextSubtitle = getContextSubtitle(activeContext)
   const sessionName = activeSession?.sessionName
   const placeholderText = getPlaceholderText(activeContext, isStreaming)
 
-  return (
-    <>
-      {/* Backdrop for mobile */}
-      <div 
-        className={`fixed inset-x-0 top-[110px] bottom-0 ${OVERLAY_BACKDROP} z-40 md:hidden`}
-        onClick={close}
-      />
-      
-      {/* Sidebar */}
-      <aside
+  const panel = isOpen && panelHost ? createPortal(
+      <section
         ref={panelRef}
-        className={cn(
-          // Mobile: fixed overlay below header (nav + page header = ~110px)
-          'fixed right-0 top-[110px] bottom-0 z-50 flex flex-col',
-          // Desktop: static in flex flow, full height
-          'md:!static md:!top-auto md:!bottom-auto md:z-auto md:h-full',
-          'bg-[rgba(24,24,27,0.95)] backdrop-blur-md border-l border-zinc-800/60',
-          'shadow-2xl md:shadow-none'
-        )}
-        style={{ width, flexShrink: 0 }}
+        data-testid="oracle-conversation"
+        aria-label="Oracle conversation"
+        className="z-30 my-3 mr-3 flex h-[calc(100%-1.5rem)] shrink-0 flex-col overflow-hidden rounded-xl border border-zinc-800/60 bg-[rgba(255,255,255,0.02)] [body:has([data-page-art])_&]:bg-[rgba(0,0,0,0.55)] shadow-[0_8px_24px_rgba(0,0,0,0.35)] backdrop-blur-sm max-md:absolute max-md:inset-y-0 max-md:right-0 max-md:shadow-2xl"
+        style={{ width: PANEL_WIDTH }}
       >
-        {/* Resize handle */}
-        <div
-          onPointerDown={handlePointerDown}
-          className="absolute left-0 top-0 z-10 h-full w-[4px] cursor-col-resize select-none hover:bg-emerald-500/40 transition-colors"
-        />
-
         {/* Header */}
         <div className="flex flex-col border-b border-zinc-800/60">
           {/* Top row: Session name + actions */}
@@ -604,28 +557,28 @@ export function OracleSidebar() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input area */}
-        <div className="border-t border-zinc-800/60 px-3 py-2">
-          {/* Quick build buttons when commanders are suggested */}
-          {quickBuildCommanders.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-2">
-              {quickBuildCommanders.map((name) => (
-                <button
-                  key={name}
-                  onClick={() => handleStartDeck(name)}
-                  className={cn(
-                    'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium',
-                    'bg-amber-500/15 border border-amber-500/30 text-amber-400',
-                    'hover:bg-amber-500/25 hover:border-amber-500/50 transition-colors'
-                  )}
-                >
-                  <Crown className="w-3 h-3" />
-                  Build {name.split(',')[0]}
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="flex items-end gap-2 rounded-lg border border-zinc-700/60 bg-zinc-900/60 px-2.5 py-1.5 transition-all focus-within:border-emerald-500/50 focus-within:bg-zinc-900/80">
+        {/* Quick build buttons when commanders are suggested */}
+        {quickBuildCommanders.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 border-t border-zinc-800/60 px-3 py-2">
+            {quickBuildCommanders.map((name) => (
+              <button
+                key={name}
+                onClick={() => handleStartDeck(name)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium',
+                  'bg-amber-500/15 border border-amber-500/30 text-amber-400',
+                  'hover:bg-amber-500/25 hover:border-amber-500/50 transition-colors'
+                )}
+              >
+                <Crown className="w-3 h-3" />
+                Build {name.split(',')[0]}
+              </button>
+            ))}
+          </div>
+        )}
+
+      <div data-testid="oracle-input-row" className="shrink-0 border-t border-zinc-800/60 px-3 py-3">
+        <div className="flex items-end gap-2 rounded-lg border border-zinc-700/60 bg-zinc-900/60 px-2.5 py-1.5 transition-all focus-within:border-emerald-500/50 focus-within:bg-zinc-900/80">
             <textarea
               ref={inputRef}
               value={inputValue}
@@ -633,7 +586,7 @@ export function OracleSidebar() {
                 setInputValue(e.target.value)
                 // Auto-resize
                 e.target.style.height = 'auto'
-                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
+                e.target.style.height = Math.min(e.target.scrollHeight, 96) + 'px'
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -643,9 +596,10 @@ export function OracleSidebar() {
               }}
               disabled={isStreaming}
               placeholder={placeholderText}
+              title="⌘⇧O to open or close Oracle"
               rows={1}
               className="flex-1 resize-none bg-transparent text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none disabled:opacity-50"
-              style={{ minHeight: '22px', maxHeight: '120px' }}
+              style={{ minHeight: '22px', maxHeight: '96px' }}
             />
             <button
               onClick={handleSend}
@@ -655,11 +609,8 @@ export function OracleSidebar() {
             >
               <ArrowUpIcon />
             </button>
-          </div>
-          <div className="text-[10px] text-zinc-600 mt-1 text-center">
-            <kbd className="px-1 py-0.5 bg-zinc-800/50 rounded text-zinc-500">⌘⇧O</kbd> to toggle
-          </div>
         </div>
+      </div>
 
         {/* Session history panel */}
         <SessionHistoryPanel />
@@ -688,7 +639,32 @@ export function OracleSidebar() {
             </div>
           </div>
         )}
-      </aside>
+      </section>,
+      panelHost
+    ) : null
+
+  // Closed: a small tab on the right edge, level with where the panel's top sits, that opens it.
+  const tab = !isOpen && panelHost ? createPortal(
+      <button
+        type="button"
+        data-testid="oracle-open-tab"
+        onClick={open}
+        aria-label="Open Oracle chat"
+        className="absolute right-0 top-3 z-30 flex flex-col items-center gap-1.5 rounded-l-lg border border-r-0 border-zinc-800/60 bg-[rgba(0,0,0,0.55)] px-1.5 py-2.5 text-zinc-300 shadow-[0_4px_12px_rgba(0,0,0,0.35)] backdrop-blur-sm transition-colors hover:bg-[rgba(0,0,0,0.75)] hover:text-white"
+      >
+        <MessageSquare className="h-4 w-4" />
+        <span className="text-[11px] font-medium [writing-mode:vertical-rl]">Oracle</span>
+      </button>,
+      panelHost
+    ) : null
+
+  return (
+    <>
+      {/* Conversation: a right-hand side panel inside the page row (see MainContentWrapper), so the
+          page narrows to make room. It sits above the footer, which spans the full width beneath.
+          The message input is pinned at the bottom of the panel. */}
+      {panel}
+      {tab}
     </>
   )
 }

@@ -148,6 +148,42 @@
 }
 
 @layer base {
+  /* Scrollbars: transparent track and corner, subtle thumb, so no white bars on the dark UI.
+     Applies everywhere (page, chat, deck health panel, dialogs). */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  }
+  *::-webkit-scrollbar,
+  *::-webkit-scrollbar-track,
+  *::-webkit-scrollbar-track-piece,
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+    background: transparent;
+  }
+  *::-webkit-resizer {
+    background: transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 9999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+  html {
+    color-scheme: dark;
+    background-color: var(--bg-canvas);
+  }
   * {
     @apply border-border outline-ring/50;
   }

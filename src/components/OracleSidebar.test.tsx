@@ -88,7 +88,7 @@ describe('OracleSidebar (side panel with input at the bottom)', () => {
     // The footer is a separate full-width bar beneath the row, so the panel stops above it.
     expect(screen.getByTestId('app-footer')).not.toContainElement(panel)
     expect(row.contains(screen.getByTestId('app-footer'))).toBe(false)
-    expect(panel.className).toContain('bg-[rgba(0,0,0,0.7)]')
+    expect(panel.className).toContain('bg-[rgba(0,0,0,0.6)]')
     fireEvent.click(screen.getByLabelText('Close Oracle'))
     expect(close).toHaveBeenCalled()
   })

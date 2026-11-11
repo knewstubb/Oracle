@@ -6,6 +6,7 @@ vi.mock('./mcp-client', () => ({ getMcpClient: vi.fn() }))
 import { loadDeckGap, parseGapRole } from './deck-health-gap'
 import { loadDeckHealth, type HealthClient } from './deck-health-server'
 import { cardsInRole, classifyDeckCard, type HealthDeckCard } from './deck-health'
+import { guideTargets } from './commander-targets'
 
 // In-memory fake database. Never the live one.
 type Row = Record<string, unknown>
@@ -131,6 +132,28 @@ describe('loadDeckGap', () => {
     expect(gap.gap.inDeckCount).toBe(21) // Command Tower + 20 Mountain
     expect(gap.gap.have).toBe(21)
     expect(gap.gap.typical).toBe(36)
+  })
+
+  it('uses the same commander typical numbers as the health check (lands 34 for Mendicant Core)', async () => {
+    const db = fakeDb(world())
+    const seen: string[][] = []
+    const targets = async (_db: unknown, names: string[]) => {
+      seen.push(names)
+      return {
+        ...guideTargets('x'),
+        status: 'ok' as const,
+        source: 'edhrec_average' as const,
+        sourceLabel: 'EDHREC average deck, 17,659 decks',
+        roles: (['ramp', 'draw', 'removal', 'wipes'] as const).map((role) => ({ role, typical: 12, cardsInRole: 12 })),
+        landsTypical: 34,
+      }
+    }
+    const gap = await loadDeckGap(db, 1, 'u1', 'lands', { targets })
+    const health = await loadDeckHealth(db, 1, 'u1', { targets })
+    if (!gap.ok || !health.ok) throw new Error('expected ok')
+    expect(seen[0]).toEqual(['Mendicant Core'])
+    expect(gap.gap.typical).toBe(34)
+    expect(health.health.roles.find((r) => r.role === 'lands')!.typical).toBe(34)
   })
 
   it("another user's deck is a 404 and nothing is read from their cards", async () => {

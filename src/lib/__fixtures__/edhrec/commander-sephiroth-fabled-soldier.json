@@ -1,0 +1,2024 @@
+{
+"creature": 30,
+"instant": 10,
+"sorcery": 8,
+"artifact": 9,
+"enchantment": 7,
+"battle": 0,
+"planeswalker": 1,
+"land": 34,
+"basic": 26,
+"nonbasic": 8,
+"header": "Sephiroth, Fabled SOLDIER (Commander)",
+"container": {
+"json_dict": {
+"card": {
+"num_decks": 32531,
+"name": "Sephiroth, Fabled SOLDIER",
+"sanitized": "sephiroth-fabled-soldier"
+},
+"cardlists": [
+{
+"header": "New Cards",
+"tag": "newcards",
+"cardviews": [
+{
+"name": "Avacyn, Angel of Horror",
+"sanitized": "avacyn-angel-of-horror",
+"synergy": 0.07912990358564241,
+"lift": 1.9662676058061943,
+"num_decks": 775,
+"potential_decks": 4813
+},
+{
+"name": "Winter, Tormented Loner",
+"sanitized": "winter-tormented-loner",
+"synergy": 0.09858417178363622,
+"lift": 5.129587820033183,
+"num_decks": 638,
+"potential_decks": 5210
+},
+{
+"name": "Lich's Relic",
+"sanitized": "lichs-relic",
+"synergy": 0.046618442821949414,
+"lift": 1.93658869093806,
+"num_decks": 457,
+"potential_decks": 4741
+},
+{
+"name": "Darklight Phoenix",
+"sanitized": "darklight-phoenix",
+"synergy": 0.07716129081469636,
+"lift": 5.478686529204664,
+"num_decks": 461,
+"potential_decks": 4884
+},
+{
+"name": "Bloodline Recollector",
+"sanitized": "bloodline-recollector",
+"synergy": 0.027908392674600286,
+"lift": 2.830088608239851,
+"num_decks": 551,
+"potential_decks": 12767
+}
+]
+},
+{
+"header": "Top Cards",
+"tag": "topcards",
+"cardviews": [
+{
+"name": "Accursed Marauder",
+"sanitized": "accursed-marauder",
+"synergy": 0.5684270494797842,
+"lift": 3.3652873809010986,
+"num_decks": 25820,
+"potential_decks": 32531
+},
+{
+"name": "Blood Artist",
+"sanitized": "blood-artist",
+"synergy": 0.4725321346184264,
+"lift": 2.4348994123735204,
+"num_decks": 25715,
+"potential_decks": 32531
+},
+{
+"name": "Dark Ritual",
+"sanitized": "dark-ritual",
+"synergy": 0.09861489620713082,
+"lift": 1.1380481515239123,
+"num_decks": 25187,
+"potential_decks": 32531
+},
+{
+"name": "Ophiomancer",
+"sanitized": "ophiomancer",
+"synergy": 0.5725534281123814,
+"lift": 3.994903655548008,
+"num_decks": 24374,
+"potential_decks": 32531
+},
+{
+"name": "Jet Medallion",
+"sanitized": "jet-medallion",
+"synergy": 0.10760772136765362,
+"lift": 1.1708391267096858,
+"num_decks": 23625,
+"potential_decks": 32531
+},
+{
+"name": "Pitiless Plunderer",
+"sanitized": "pitiless-plunderer",
+"synergy": 0.5161717814820964,
+"lift": 3.318047667300676,
+"num_decks": 23555,
+"potential_decks": 32531
+},
+{
+"name": "Zulaport Cutthroat",
+"sanitized": "zulaport-cutthroat",
+"synergy": 0.46634333409819145,
+"lift": 2.918876204364079,
+"num_decks": 22795,
+"potential_decks": 32531
+},
+{
+"name": "Reassembling Skeleton",
+"sanitized": "reassembling-skeleton",
+"synergy": 0.5127631767770677,
+"lift": 3.751619814845168,
+"num_decks": 22434,
+"potential_decks": 32531
+},
+{
+"name": "Skullclamp",
+"sanitized": "skullclamp",
+"synergy": 0.45325650203505075,
+"lift": 2.8840664383140524,
+"num_decks": 22133,
+"potential_decks": 32531
+},
+{
+"name": "Forsaken Miner",
+"sanitized": "forsaken-miner",
+"synergy": 0.5947209177895951,
+"lift": 7.350685939054392,
+"num_decks": 22049,
+"potential_decks": 32531
+}
+]
+},
+{
+"header": "High Lift Cards",
+"tag": "highliftcards",
+"cardviews": [
+{
+"name": "The Masamune",
+"sanitized": "the-masamune",
+"synergy": 0.5324916276392694,
+"lift": 8.56285931195448,
+"num_decks": 18916,
+"potential_decks": 31375
+},
+{
+"name": "Avenger of the Fallen",
+"sanitized": "avenger-of-the-fallen",
+"synergy": 0.22897218582916706,
+"lift": 7.734562957479325,
+"num_decks": 8503,
+"potential_decks": 32531
+},
+{
+"name": "Tombstone Stairwell",
+"sanitized": "tombstone-stairwell",
+"synergy": 0.08508405656601917,
+"lift": 6.644498576669373,
+"num_decks": 3202,
+"potential_decks": 32531
+},
+{
+"name": "Sephiroth's Intervention",
+"sanitized": "sephiroths-intervention",
+"synergy": 0.11103073214457432,
+"lift": 6.285654508793519,
+"num_decks": 4250,
+"potential_decks": 32188
+},
+{
+"name": "Vayne's Treachery",
+"sanitized": "vaynes-treachery",
+"synergy": 0.04484639652578755,
+"lift": 6.120700314499845,
+"num_decks": 1691,
+"potential_decks": 31546
+},
+{
+"name": "Endrek Sahr, Master Breeder",
+"sanitized": "endrek-sahr-master-breeder",
+"synergy": 0.3409279706253969,
+"lift": 5.835871162799679,
+"num_decks": 13205,
+"potential_decks": 32531
+},
+{
+"name": "Gaius van Baelsar",
+"sanitized": "gaius-van-baelsar",
+"synergy": 0.2030934786262565,
+"lift": 5.724398046497506,
+"num_decks": 7819,
+"potential_decks": 31774
+},
+{
+"name": "Vincent Valentine",
+"sanitized": "vincent-valentine",
+"synergy": 0.23886180369928547,
+"lift": 5.7067078019638915,
+"num_decks": 9322,
+"potential_decks": 32188
+},
+{
+"name": "Al Bhed Salvagers",
+"sanitized": "al-bhed-salvagers",
+"synergy": 0.12149651974414326,
+"lift": 5.537981206766827,
+"num_decks": 4786,
+"potential_decks": 32279
+},
+{
+"name": "Gisa, the Hellraiser",
+"sanitized": "gisa-the-hellraiser",
+"synergy": 0.1986038934815122,
+"lift": 5.475927611529103,
+"num_decks": 7774,
+"potential_decks": 32531
+}
+]
+},
+{
+"header": "Creatures",
+"tag": "creatures",
+"cardviews": [
+{
+"name": "Warren Soultrader",
+"sanitized": "warren-soultrader",
+"synergy": 0.5249013225296055,
+"lift": 4.3596996472029925,
+"num_decks": 21775,
+"potential_decks": 32531
+},
+{
+"name": "Fleshbag Marauder",
+"sanitized": "fleshbag-marauder",
+"synergy": 0.4931959088003086,
+"lift": 3.6257236673322035,
+"num_decks": 21708,
+"potential_decks": 32531
+},
+{
+"name": "Plaguecrafter",
+"sanitized": "plaguecrafter",
+"synergy": 0.4586801299008163,
+"lift": 3.182941221283244,
+"num_decks": 21452,
+"potential_decks": 32531
+},
+{
+"name": "Braids, Arisen Nightmare",
+"sanitized": "braids-arisen-nightmare",
+"synergy": 0.443680697829281,
+"lift": 3.1336475314420347,
+"num_decks": 20887,
+"potential_decks": 32531
+},
+{
+"name": "Bloodghast",
+"sanitized": "bloodghast",
+"synergy": 0.5081558946053526,
+"lift": 4.530963090982049,
+"num_decks": 20775,
+"potential_decks": 32531
+},
+{
+"name": "Viscera Seer",
+"sanitized": "viscera-seer",
+"synergy": 0.45359101647041905,
+"lift": 3.3798949554876616,
+"num_decks": 20565,
+"potential_decks": 32531
+},
+{
+"name": "Gravecrawler",
+"sanitized": "gravecrawler",
+"synergy": 0.4550739462881523,
+"lift": 3.6155505106315013,
+"num_decks": 20045,
+"potential_decks": 32531
+},
+{
+"name": "Ayara, First of Locthwain",
+"sanitized": "ayara-first-of-locthwain",
+"synergy": 0.3072324431477351,
+"lift": 2.157423372322549,
+"num_decks": 18401,
+"potential_decks": 32531
+},
+{
+"name": "Morbid Opportunist",
+"sanitized": "morbid-opportunist",
+"synergy": 0.3162115774832359,
+"lift": 2.180563961740924,
+"num_decks": 18380,
+"potential_decks": 32531
+},
+{
+"name": "Jadar, Ghoulcaller of Nephalia",
+"sanitized": "jadar-ghoulcaller-of-nephalia",
+"synergy": 0.45410607628552646,
+"lift": 4.859810498458013,
+"num_decks": 18356,
+"potential_decks": 32531
+},
+{
+"name": "Pawn of Ulamog",
+"sanitized": "pawn-of-ulamog",
+"synergy": 0.4213991345894629,
+"lift": 4.726989977625807,
+"num_decks": 17104,
+"potential_decks": 32531
+},
+{
+"name": "Nine-Lives Familiar",
+"sanitized": "nine-lives-familiar",
+"synergy": 0.4195871452705713,
+"lift": 5.323213813399325,
+"num_decks": 16482,
+"potential_decks": 32531
+},
+{
+"name": "Gray Merchant of Asphodel",
+"sanitized": "gray-merchant-of-asphodel",
+"synergy": -0.014196474379497503,
+"lift": 0.9759265355318643,
+"num_decks": 15955,
+"potential_decks": 32531
+},
+{
+"name": "Marionette Apprentice",
+"sanitized": "marionette-apprentice",
+"synergy": 0.3403517818338371,
+"lift": 4.058439124322059,
+"num_decks": 14576,
+"potential_decks": 32531
+},
+{
+"name": "Carrion Feeder",
+"sanitized": "carrion-feeder",
+"synergy": 0.317324575786047,
+"lift": 3.2858565811916334,
+"num_decks": 14560,
+"potential_decks": 32531
+},
+{
+"name": "Crypt Ghast",
+"sanitized": "crypt-ghast",
+"synergy": -0.021711833891071564,
+"lift": 0.9610915394012015,
+"num_decks": 14440,
+"potential_decks": 32531
+},
+{
+"name": "Merciless Executioner",
+"sanitized": "merciless-executioner",
+"synergy": 0.3506653290952794,
+"lift": 5.10789291990842,
+"num_decks": 13925,
+"potential_decks": 32531
+},
+{
+"name": "Yawgmoth, Thran Physician",
+"sanitized": "yawgmoth-thran-physician",
+"synergy": 0.31133946660936407,
+"lift": 3.9744335873474856,
+"num_decks": 13373,
+"potential_decks": 32531
+},
+{
+"name": "Syr Konrad, the Grim",
+"sanitized": "syr-konrad-the-grim",
+"synergy": 0.19294952876066335,
+"lift": 1.9339067197093642,
+"num_decks": 12843,
+"potential_decks": 32531
+},
+{
+"name": "Drivnod, Carnage Dominus",
+"sanitized": "drivnod-carnage-dominus",
+"synergy": 0.3048256585772042,
+"lift": 5.090767848552923,
+"num_decks": 12190,
+"potential_decks": 32531
+},
+{
+"name": "Nether Traitor",
+"sanitized": "nether-traitor",
+"synergy": 0.26636788147262086,
+"lift": 4.046233840828926,
+"num_decks": 11498,
+"potential_decks": 32531
+},
+{
+"name": "Zodiark, Umbral God",
+"sanitized": "zodiark-umbral-god",
+"synergy": 0.25916233390757343,
+"lift": 4.650981280059813,
+"num_decks": 10740,
+"potential_decks": 32531
+},
+{
+"name": "Demon's Disciple",
+"sanitized": "demons-disciple",
+"synergy": 0.24130092825356425,
+"lift": 3.8170904507511807,
+"num_decks": 10468,
+"potential_decks": 32531
+},
+{
+"name": "Bitterbloom Bearer",
+"sanitized": "bitterbloom-bearer",
+"synergy": 0.22903344210819673,
+"lift": 4.282038273224414,
+"num_decks": 6822,
+"potential_decks": 22830
+},
+{
+"name": "Massacre Wurm",
+"sanitized": "massacre-wurm",
+"synergy": 0.1048017157690587,
+"lift": 1.5748271415954045,
+"num_decks": 9063,
+"potential_decks": 32531
+},
+{
+"name": "Priest of Forgotten Gods",
+"sanitized": "priest-of-forgotten-gods",
+"synergy": 0.18355376515858196,
+"lift": 3.0189658997636806,
+"num_decks": 8826,
+"potential_decks": 32531
+},
+{
+"name": "Vengeful Bloodwitch",
+"sanitized": "vengeful-bloodwitch",
+"synergy": 0.20776717823257815,
+"lift": 4.080725148500364,
+"num_decks": 8810,
+"potential_decks": 32531
+},
+{
+"name": "Orcish Bowmasters",
+"sanitized": "orcish-bowmasters",
+"synergy": 0.13854004059823846,
+"lift": 2.0919438875711776,
+"num_decks": 8610,
+"potential_decks": 32531
+},
+{
+"name": "Umbral Collar Zealot",
+"sanitized": "umbral-collar-zealot",
+"synergy": 0.1618480360850394,
+"lift": 2.9169740287928407,
+"num_decks": 6648,
+"potential_decks": 26994
+},
+{
+"name": "Timeline Culler",
+"sanitized": "timeline-culler",
+"synergy": 0.18627974413958792,
+"lift": 5.372035234719643,
+"num_decks": 6220,
+"potential_decks": 27175
+},
+{
+"name": "Grim Haruspex",
+"sanitized": "grim-haruspex",
+"synergy": 0.13057836053191457,
+"lift": 2.493149306599136,
+"num_decks": 7078,
+"potential_decks": 32531
+},
+{
+"name": "K'rrik, Son of Yawgmoth",
+"sanitized": "krrik-son-of-yawgmoth",
+"synergy": 0.016203078165530016,
+"lift": 1.0664577061335616,
+"num_decks": 6797,
+"potential_decks": 32531
+},
+{
+"name": "Sifter of Skulls",
+"sanitized": "sifter-of-skulls",
+"synergy": 0.1653225898058363,
+"lift": 5.221461778240326,
+"num_decks": 6583,
+"potential_decks": 32531
+},
+{
+"name": "Infestation Sage",
+"sanitized": "infestation-sage",
+"synergy": 0.15754570046626848,
+"lift": 4.74131966852122,
+"num_decks": 6466,
+"potential_decks": 32531
+},
+{
+"name": "Dark Confidant",
+"sanitized": "dark-confidant",
+"synergy": 0.10894797459370388,
+"lift": 2.2441003106761266,
+"num_decks": 6108,
+"potential_decks": 32531
+},
+{
+"name": "Emeritus of Woe",
+"sanitized": "emeritus-of-woe",
+"synergy": 0.10806735603435846,
+"lift": 2.6244483725412766,
+"num_decks": 2434,
+"potential_decks": 13941
+},
+{
+"name": "Midnight Reaper",
+"sanitized": "midnight-reaper",
+"synergy": 0.0828959053778758,
+"lift": 1.9016346949090546,
+"num_decks": 5649,
+"potential_decks": 32531
+},
+{
+"name": "Boggart Trawler",
+"sanitized": "boggart-trawler",
+"synergy": 0.06747424838484105,
+"lift": 1.6298027951915228,
+"num_decks": 5323,
+"potential_decks": 32531
+},
+{
+"name": "Yahenni, Undying Partisan",
+"sanitized": "yahenni-undying-partisan",
+"synergy": 0.10242320838919566,
+"lift": 2.6026208319515973,
+"num_decks": 5316,
+"potential_decks": 32531
+},
+{
+"name": "Woe Strider",
+"sanitized": "woe-strider",
+"synergy": 0.1176093185924506,
+"lift": 3.5203126230836563,
+"num_decks": 5262,
+"potential_decks": 32531
+},
+{
+"name": "Solemn Simulacrum",
+"sanitized": "solemn-simulacrum",
+"synergy": -0.04668831058478465,
+"lift": 0.8004880056829309,
+"num_decks": 5105,
+"potential_decks": 32531
+},
+{
+"name": "Lord Skitter, Sewer King",
+"sanitized": "lord-skitter-sewer-king",
+"synergy": 0.0746136931585848,
+"lift": 1.9250030628979293,
+"num_decks": 4971,
+"potential_decks": 32531
+},
+{
+"name": "Bloodsoaked Champion",
+"sanitized": "bloodsoaked-champion",
+"synergy": 0.10185094194764976,
+"lift": 3.9191687968111255,
+"num_decks": 4441,
+"potential_decks": 32531
+},
+{
+"name": "Moseo, Vein's New Dean",
+"sanitized": "moseo-veins-new-dean",
+"synergy": 0.09851813585909767,
+"lift": 4.25029738130859,
+"num_decks": 1796,
+"potential_decks": 13941
+},
+{
+"name": "Greedy Freebooter",
+"sanitized": "greedy-freebooter",
+"synergy": 0.07156712135274196,
+"lift": 2.2460147681565625,
+"num_decks": 4163,
+"potential_decks": 32531
+},
+{
+"name": "Sheoldred, the Apocalypse",
+"sanitized": "sheoldred-the-apocalypse",
+"synergy": -0.02092591363386534,
+"lift": 0.8507742513875451,
+"num_decks": 4032,
+"potential_decks": 32531
+},
+{
+"name": "Grave Researcher",
+"sanitized": "grave-researcher",
+"synergy": 0.04614650250596644,
+"lift": 1.5970580434738202,
+"num_decks": 1786,
+"potential_decks": 14469
+},
+{
+"name": "Tergrid, God of Fright",
+"sanitized": "tergrid-god-of-fright",
+"synergy": 0.05096019009713207,
+"lift": 1.742410848437697,
+"num_decks": 4006,
+"potential_decks": 32531
+},
+{
+"name": "Zenos yae Galvus",
+"sanitized": "zenos-yae-galvus",
+"synergy": 0.09074480566714202,
+"lift": 4.004304925565822,
+"num_decks": 3929,
+"potential_decks": 32531
+},
+{
+"name": "Ogre Slumlord",
+"sanitized": "ogre-slumlord",
+"synergy": 0.022340348268149263,
+"lift": 1.2381534903693423,
+"num_decks": 3758,
+"potential_decks": 32531
+}
+]
+},
+{
+"header": "Instants",
+"tag": "instants",
+"cardviews": [
+{
+"name": "Deadly Dispute",
+"sanitized": "deadly-dispute",
+"synergy": 0.3763460894238767,
+"lift": 2.2636145449099705,
+"num_decks": 21249,
+"potential_decks": 32531
+},
+{
+"name": "Flare of Malice",
+"sanitized": "flare-of-malice",
+"synergy": 0.4340534186843781,
+"lift": 3.9663332363305512,
+"num_decks": 18549,
+"potential_decks": 32531
+},
+{
+"name": "Village Rites",
+"sanitized": "village-rites",
+"synergy": 0.2477220995802925,
+"lift": 1.9094684808574758,
+"num_decks": 16554,
+"potential_decks": 32531
+},
+{
+"name": "Withering Torment",
+"sanitized": "withering-torment",
+"synergy": 0.09006829335969191,
+"lift": 1.2627108610018132,
+"num_decks": 13524,
+"potential_decks": 32531
+},
+{
+"name": "Culling the Weak",
+"sanitized": "culling-the-weak",
+"synergy": 0.21241101653309763,
+"lift": 2.000113472295611,
+"num_decks": 13130,
+"potential_decks": 32531
+},
+{
+"name": "Malakir Rebirth",
+"sanitized": "malakir-rebirth",
+"synergy": 0.15752992411914168,
+"lift": 1.6071616614196091,
+"num_decks": 12904,
+"potential_decks": 32531
+},
+{
+"name": "Sheoldred's Edict",
+"sanitized": "sheoldreds-edict",
+"synergy": 0.22972295129476222,
+"lift": 2.4625429212858747,
+"num_decks": 12355,
+"potential_decks": 32531
+},
+{
+"name": "Deadly Rollick",
+"sanitized": "deadly-rollick",
+"synergy": 0.11399923024649933,
+"lift": 1.3912117400913275,
+"num_decks": 12145,
+"potential_decks": 32531
+},
+{
+"name": "Fell the Profane",
+"sanitized": "fell-the-profane",
+"synergy": 0.11786995103290565,
+"lift": 1.5463955715308675,
+"num_decks": 10277,
+"potential_decks": 32531
+},
+{
+"name": "Corrupted Conviction",
+"sanitized": "corrupted-conviction",
+"synergy": 0.10758456766100521,
+"lift": 1.8449935434206783,
+"num_decks": 7576,
+"potential_decks": 32531
+},
+{
+"name": "Not Dead After All",
+"sanitized": "not-dead-after-all",
+"synergy": 0.11802371593340256,
+"lift": 1.9937569391747478,
+"num_decks": 7518,
+"potential_decks": 32531
+},
+{
+"name": "Vampiric Tutor",
+"sanitized": "vampiric-tutor",
+"synergy": 0.019908481811808126,
+"lift": 1.107815404477904,
+"num_decks": 7321,
+"potential_decks": 32531
+},
+{
+"name": "Defile",
+"sanitized": "defile",
+"synergy": -0.14554485649889648,
+"lift": 0.5916755292874677,
+"num_decks": 6542,
+"potential_decks": 32531
+},
+{
+"name": "Tragic Slip",
+"sanitized": "tragic-slip",
+"synergy": 0.011009029778518115,
+"lift": 1.0812031206817474,
+"num_decks": 6355,
+"potential_decks": 32531
+},
+{
+"name": "Imp's Mischief",
+"sanitized": "imps-mischief",
+"synergy": -0.0709386393677103,
+"lift": 0.7138409304954364,
+"num_decks": 6070,
+"potential_decks": 32531
+},
+{
+"name": "Infernal Grasp",
+"sanitized": "infernal-grasp",
+"synergy": -0.0733768132515609,
+"lift": 0.710929346611988,
+"num_decks": 5825,
+"potential_decks": 32531
+},
+{
+"name": "Overkill",
+"sanitized": "overkill",
+"synergy": 0.1060554821974008,
+"lift": 2.7798211555356644,
+"num_decks": 5233,
+"potential_decks": 31592
+},
+{
+"name": "Soul Shatter",
+"sanitized": "soul-shatter",
+"synergy": 0.052819620337826376,
+"lift": 1.4796507147827427,
+"num_decks": 5334,
+"potential_decks": 32531
+},
+{
+"name": "Cabal Ritual",
+"sanitized": "cabal-ritual",
+"synergy": -0.027563103892861457,
+"lift": 0.8418038664252268,
+"num_decks": 5301,
+"potential_decks": 32531
+},
+{
+"name": "Entomb",
+"sanitized": "entomb",
+"synergy": 0.033943682374117684,
+"lift": 1.2428580986380449,
+"num_decks": 5207,
+"potential_decks": 32531
+},
+{
+"name": "Undying Malice",
+"sanitized": "undying-malice",
+"synergy": 0.05559764801700333,
+"lift": 1.4835616373806462,
+"num_decks": 5199,
+"potential_decks": 32531
+},
+{
+"name": "Snuff Out",
+"sanitized": "snuff-out",
+"synergy": 0.011098498882815583,
+"lift": 1.0419589383619523,
+"num_decks": 5015,
+"potential_decks": 32531
+},
+{
+"name": "Saw in Half",
+"sanitized": "saw-in-half",
+"synergy": 0.031649749347840164,
+"lift": 1.2656283934847103,
+"num_decks": 4031,
+"potential_decks": 32531
+},
+{
+"name": "Go for the Throat",
+"sanitized": "go-for-the-throat",
+"synergy": -0.10565213952935605,
+"lift": 0.5371996558929913,
+"num_decks": 3911,
+"potential_decks": 32531
+},
+{
+"name": "Fight On!",
+"sanitized": "fight-on",
+"synergy": 0.08675350746000576,
+"lift": 5.290484352714832,
+"num_decks": 3361,
+"potential_decks": 31419
+},
+{
+"name": "Plumb the Forbidden",
+"sanitized": "plumb-the-forbidden",
+"synergy": 0.057472182043657914,
+"lift": 2.2150727577496214,
+"num_decks": 3358,
+"potential_decks": 32531
+},
+{
+"name": "Feign Death",
+"sanitized": "feign-death",
+"synergy": 0.018474179771810234,
+"lift": 1.1776900575281175,
+"num_decks": 3328,
+"potential_decks": 32531
+},
+{
+"name": "Force of Despair",
+"sanitized": "force-of-despair",
+"synergy": 0.023067921784138565,
+"lift": 1.307081352704892,
+"num_decks": 3126,
+"potential_decks": 32531
+},
+{
+"name": "Fatal Push",
+"sanitized": "fatal-push",
+"synergy": 0.05963932912099789,
+"lift": 2.6687860881943752,
+"num_decks": 2997,
+"potential_decks": 32531
+},
+{
+"name": "Fake Your Own Death",
+"sanitized": "fake-your-own-death",
+"synergy": 0.013426010100717103,
+"lift": 1.1484125689913967,
+"num_decks": 2979,
+"potential_decks": 32531
+},
+{
+"name": "Vincent's Limit Break",
+"sanitized": "vincents-limit-break",
+"synergy": 0.0617821412483959,
+"lift": 3.720043281045526,
+"num_decks": 2647,
+"potential_decks": 31327
+},
+{
+"name": "Dismember",
+"sanitized": "dismember",
+"synergy": -0.027277689761303625,
+"lift": 0.74513769973619,
+"num_decks": 2489,
+"potential_decks": 32531
+},
+{
+"name": "Szat's Will",
+"sanitized": "szats-will",
+"synergy": 0.05226784129712132,
+"lift": 3.2648198228038576,
+"num_decks": 2445,
+"potential_decks": 32531
+},
+{
+"name": "Supernatural Stamina",
+"sanitized": "supernatural-stamina",
+"synergy": -0.002502111236487914,
+"lift": 0.942536576618482,
+"num_decks": 2421,
+"potential_decks": 32531
+},
+{
+"name": "Vona's Hunger",
+"sanitized": "vonas-hunger",
+"synergy": 0.01650110942523282,
+"lift": 1.3948063545866993,
+"num_decks": 1887,
+"potential_decks": 32531
+},
+{
+"name": "Darkness",
+"sanitized": "darkness",
+"synergy": -0.05218623521993045,
+"lift": 0.492424561723448,
+"num_decks": 1765,
+"potential_decks": 32531
+},
+{
+"name": "Murder",
+"sanitized": "murder",
+"synergy": -0.04099681761772175,
+"lift": 0.5825574950783119,
+"num_decks": 1696,
+"potential_decks": 32531
+},
+{
+"name": "Archenemy's Charm",
+"sanitized": "archenemys-charm",
+"synergy": -0.03750752539112565,
+"lift": 0.5811117310780073,
+"num_decks": 1414,
+"potential_decks": 27175
+}
+]
+},
+{
+"header": "Sorceries",
+"tag": "sorceries",
+"cardviews": [
+{
+"name": "Reanimate",
+"sanitized": "reanimate",
+"synergy": 0.16393614232554488,
+"lift": 1.3672308956367605,
+"num_decks": 18757,
+"potential_decks": 32531
+},
+{
+"name": "Feed the Swarm",
+"sanitized": "feed-the-swarm",
+"synergy": 0.05804927767043655,
+"lift": 1.1184560188857415,
+"num_decks": 18229,
+"potential_decks": 32531
+},
+{
+"name": "Toxic Deluge",
+"sanitized": "toxic-deluge",
+"synergy": 0.18161919787326053,
+"lift": 1.4851905674010815,
+"num_decks": 17941,
+"potential_decks": 32531
+},
+{
+"name": "Victimize",
+"sanitized": "victimize",
+"synergy": 0.24365920779516592,
+"lift": 1.8071332349195508,
+"num_decks": 17132,
+"potential_decks": 32531
+},
+{
+"name": "Diabolic Intent",
+"sanitized": "diabolic-intent",
+"synergy": 0.2560851052342158,
+"lift": 2.543987272348353,
+"num_decks": 13380,
+"potential_decks": 32531
+},
+{
+"name": "Unearth",
+"sanitized": "unearth",
+"synergy": 0.2163330172670443,
+"lift": 3.2722182355208216,
+"num_decks": 9993,
+"potential_decks": 32531
+},
+{
+"name": "Demonic Tutor",
+"sanitized": "demonic-tutor",
+"synergy": 0.03595599447687825,
+"lift": 1.1361419752937434,
+"num_decks": 9865,
+"potential_decks": 32531
+},
+{
+"name": "Blasphemous Edict",
+"sanitized": "blasphemous-edict",
+"synergy": 0.139575293515329,
+"lift": 1.9208041273421625,
+"num_decks": 9711,
+"potential_decks": 32531
+},
+{
+"name": "Innocent Blood",
+"sanitized": "innocent-blood",
+"synergy": 0.214349335612945,
+"lift": 4.533033989402407,
+"num_decks": 8841,
+"potential_decks": 32531
+},
+{
+"name": "Damnation",
+"sanitized": "damnation",
+"synergy": -0.008896002422456778,
+"lift": 0.9609102761887254,
+"num_decks": 6174,
+"potential_decks": 32531
+},
+{
+"name": "Rise of the Dark Realms",
+"sanitized": "rise-of-the-dark-realms",
+"synergy": 0.03983940854115184,
+"lift": 1.259181079936878,
+"num_decks": 5790,
+"potential_decks": 32531
+},
+{
+"name": "Agadeem's Awakening",
+"sanitized": "agadeems-awakening",
+"synergy": 0.0920306538019055,
+"lift": 2.067095018515191,
+"num_decks": 5563,
+"potential_decks": 32531
+},
+{
+"name": "Sign in Blood",
+"sanitized": "sign-in-blood",
+"synergy": -0.18692403060949983,
+"lift": 0.4710824552759749,
+"num_decks": 5274,
+"potential_decks": 32531
+},
+{
+"name": "Torment of Hailfire",
+"sanitized": "torment-of-hailfire",
+"synergy": 0.01012755973382723,
+"lift": 1.0893079669778982,
+"num_decks": 4988,
+"potential_decks": 32531
+},
+{
+"name": "Night's Whisper",
+"sanitized": "nights-whisper",
+"synergy": -0.11132262639663029,
+"lift": 0.5644053186465018,
+"num_decks": 4867,
+"potential_decks": 32531
+},
+{
+"name": "Dread Return",
+"sanitized": "dread-return",
+"synergy": 0.019370265235539155,
+"lift": 1.1640616051325894,
+"num_decks": 4501,
+"potential_decks": 32531
+},
+{
+"name": "Exsanguinate",
+"sanitized": "exsanguinate",
+"synergy": -0.10820154059580031,
+"lift": 0.5627153546888207,
+"num_decks": 4469,
+"potential_decks": 32531
+},
+{
+"name": "Living Death",
+"sanitized": "living-death",
+"synergy": 0.008928987115079279,
+"lift": 1.071762149567417,
+"num_decks": 3693,
+"potential_decks": 32531
+},
+{
+"name": "Buried Alive",
+"sanitized": "buried-alive",
+"synergy": -0.023506974018381505,
+"lift": 0.7986750059849076,
+"num_decks": 3447,
+"potential_decks": 32531
+},
+{
+"name": "Grim Tutor",
+"sanitized": "grim-tutor",
+"synergy": -0.008095382924689865,
+"lift": 0.9408720292499717,
+"num_decks": 3342,
+"potential_decks": 32531
+},
+{
+"name": "Will of the Abzan",
+"sanitized": "will-of-the-abzan",
+"synergy": 0.06682870260234285,
+"lift": 3.0351464139098767,
+"num_decks": 3213,
+"potential_decks": 32531
+},
+{
+"name": "Beseech the Mirror",
+"sanitized": "beseech-the-mirror",
+"synergy": 0.02753576855776038,
+"lift": 1.364687163910292,
+"num_decks": 3177,
+"potential_decks": 32531
+},
+{
+"name": "Diabolic Tutor",
+"sanitized": "diabolic-tutor",
+"synergy": -0.04573712369346937,
+"lift": 0.6723313415510723,
+"num_decks": 2786,
+"potential_decks": 32531
+},
+{
+"name": "Resentful Revelation",
+"sanitized": "resentful-revelation",
+"synergy": 0.05850314720136114,
+"lift": 4.162189236980433,
+"num_decks": 2416,
+"potential_decks": 31375
+},
+{
+"name": "Bubbling Muck",
+"sanitized": "bubbling-muck",
+"synergy": -0.08849201051768427,
+"lift": 0.43608592605043534,
+"num_decks": 2241,
+"potential_decks": 32531
+},
+{
+"name": "Insatiable Avarice",
+"sanitized": "insatiable-avarice",
+"synergy": -0.038168174596229856,
+"lift": 0.6448162914754667,
+"num_decks": 2093,
+"potential_decks": 32531
+},
+{
+"name": "Imperial Seal",
+"sanitized": "imperial-seal",
+"synergy": -0.0040681071176452005,
+"lift": 0.9445152066428517,
+"num_decks": 2065,
+"potential_decks": 32531
+},
+{
+"name": "Lively Dirge",
+"sanitized": "lively-dirge",
+"synergy": 0.025450781276907128,
+"lift": 1.6793664984686816,
+"num_decks": 2009,
+"potential_decks": 32531
+},
+{
+"name": "Mutilate",
+"sanitized": "mutilate",
+"synergy": -0.09110172841526862,
+"lift": 0.4217603437150521,
+"num_decks": 1982,
+"potential_decks": 32531
+},
+{
+"name": "Season of Loss",
+"sanitized": "season-of-loss",
+"synergy": 0.04109202721768776,
+"lift": 3.219313648756334,
+"num_decks": 1978,
+"potential_decks": 32531
+},
+{
+"name": "Army of the Damned",
+"sanitized": "army-of-the-damned",
+"synergy": 0.0032931098703688697,
+"lift": 1.0697692410401463,
+"num_decks": 1660,
+"potential_decks": 32531
+}
+]
+},
+{
+"header": "Utility Artifacts",
+"tag": "utilityartifacts",
+"cardviews": [
+{
+"name": "Ashnod's Altar",
+"sanitized": "ashnods-altar",
+"synergy": 0.42466451154077967,
+"lift": 2.9893853047924592,
+"num_decks": 20437,
+"potential_decks": 32531
+},
+{
+"name": "Phyrexian Altar",
+"sanitized": "phyrexian-altar",
+"synergy": 0.35836446225177787,
+"lift": 3.3486429768617643,
+"num_decks": 16308,
+"potential_decks": 32531
+},
+{
+"name": "Bolas's Citadel",
+"sanitized": "bolass-citadel",
+"synergy": 0.19597485962438366,
+"lift": 1.714284245913376,
+"num_decks": 15287,
+"potential_decks": 32531
+},
+{
+"name": "Bontu's Monument",
+"sanitized": "bontus-monument",
+"synergy": 0.08825963274974236,
+"lift": 1.299942201216773,
+"num_decks": 12143,
+"potential_decks": 32531
+},
+{
+"name": "Lightning Greaves",
+"sanitized": "lightning-greaves",
+"synergy": -0.06235920874438072,
+"lift": 0.8119224716396573,
+"num_decks": 8919,
+"potential_decks": 32531
+},
+{
+"name": "The Darkness Crystal",
+"sanitized": "the-darkness-crystal",
+"synergy": 0.07311529455723331,
+"lift": 1.3639939727224664,
+"num_decks": 8913,
+"potential_decks": 32531
+},
+{
+"name": "Swiftfoot Boots",
+"sanitized": "swiftfoot-boots",
+"synergy": -0.11419002948469087,
+"lift": 0.638841900909449,
+"num_decks": 6481,
+"potential_decks": 32531
+},
+{
+"name": "The One Ring",
+"sanitized": "the-one-ring",
+"synergy": 0.0393870640603306,
+"lift": 1.4330202819887654,
+"num_decks": 4260,
+"potential_decks": 32531
+},
+{
+"name": "Conjurer's Closet",
+"sanitized": "conjurers-closet",
+"synergy": 0.03959588897489889,
+"lift": 2.2022921036266,
+"num_decks": 2165,
+"potential_decks": 32531
+},
+{
+"name": "Spawning Pit",
+"sanitized": "spawning-pit",
+"synergy": 0.049034044743781896,
+"lift": 4.412341210954236,
+"num_decks": 2037,
+"potential_decks": 32531
+},
+{
+"name": "Sensei's Divining Top",
+"sanitized": "senseis-divining-top",
+"synergy": -0.015691201011016676,
+"lift": 0.8015116955517223,
+"num_decks": 1983,
+"potential_decks": 32531
+},
+{
+"name": "My Precious",
+"sanitized": "my-precious",
+"synergy": 0.019989285375364693,
+"lift": 1.5157737674974314,
+"num_decks": 750,
+"potential_decks": 12767
+},
+{
+"name": "Wishclaw Talisman",
+"sanitized": "wishclaw-talisman",
+"synergy": -0.014143670371983774,
+"lift": 0.7941652972877925,
+"num_decks": 1853,
+"potential_decks": 32531
+},
+{
+"name": "Wayfarer's Bauble",
+"sanitized": "wayfarers-bauble",
+"synergy": -0.08442993805242396,
+"lift": 0.4138846613459601,
+"num_decks": 1804,
+"potential_decks": 32531
+},
+{
+"name": "Expedition Map",
+"sanitized": "expedition-map",
+"synergy": -0.05421016448848482,
+"lift": 0.5153609223336988,
+"num_decks": 1749,
+"potential_decks": 32531
+},
+{
+"name": "Genesis Chamber",
+"sanitized": "genesis-chamber",
+"synergy": 0.029538637455641913,
+"lift": 2.302552896405803,
+"num_decks": 1718,
+"potential_decks": 32531
+}
+]
+},
+{
+"header": "Enchantments",
+"tag": "enchantments",
+"cardviews": [
+{
+"name": "Bastion of Remembrance",
+"sanitized": "bastion-of-remembrance",
+"synergy": 0.43039761052821096,
+"lift": 3.3354433431819883,
+"num_decks": 19683,
+"potential_decks": 32531
+},
+{
+"name": "Bitterblossom",
+"sanitized": "bitterblossom",
+"synergy": 0.43209256361988324,
+"lift": 4.188601219305209,
+"num_decks": 18286,
+"potential_decks": 32531
+},
+{
+"name": "Grave Pact",
+"sanitized": "grave-pact",
+"synergy": 0.35066639725141174,
+"lift": 2.68899231256995,
+"num_decks": 17828,
+"potential_decks": 32531
+},
+{
+"name": "The Meathook Massacre",
+"sanitized": "the-meathook-massacre",
+"synergy": 0.27471557804888846,
+"lift": 2.5414575658562133,
+"num_decks": 14518,
+"potential_decks": 32531
+},
+{
+"name": "Black Market Connections",
+"sanitized": "black-market-connections",
+"synergy": 0.16479065401888104,
+"lift": 1.6167066042493254,
+"num_decks": 13648,
+"potential_decks": 32531
+},
+{
+"name": "Dreadhorde Invasion",
+"sanitized": "dreadhorde-invasion",
+"synergy": 0.2759989254825244,
+"lift": 4.284600429479295,
+"num_decks": 11603,
+"potential_decks": 32531
+},
+{
+"name": "Dictate of Erebos",
+"sanitized": "dictate-of-erebos",
+"synergy": 0.23007538435647795,
+"lift": 3.0194704691636605,
+"num_decks": 11054,
+"potential_decks": 32531
+},
+{
+"name": "Phyrexian Arena",
+"sanitized": "phyrexian-arena",
+"synergy": -0.07145424018681484,
+"lift": 0.8318426765397411,
+"num_decks": 10510,
+"potential_decks": 32531
+},
+{
+"name": "Black Market",
+"sanitized": "black-market",
+"synergy": 0.010596078145726412,
+"lift": 1.0594818504067982,
+"num_decks": 6885,
+"potential_decks": 32531
+},
+{
+"name": "Necropotence",
+"sanitized": "necropotence",
+"synergy": 0.032474297475128894,
+"lift": 1.248387756629794,
+"num_decks": 5548,
+"potential_decks": 32531
+},
+{
+"name": "Chthonian Nightmare",
+"sanitized": "chthonian-nightmare",
+"synergy": 0.12913601162574173,
+"lift": 4.328760495973571,
+"num_decks": 5378,
+"potential_decks": 32531
+},
+{
+"name": "Ghoulish Procession",
+"sanitized": "ghoulish-procession",
+"synergy": 0.12793560700947743,
+"lift": 4.844100953753688,
+"num_decks": 5188,
+"potential_decks": 32531
+},
+{
+"name": "Animate Dead",
+"sanitized": "animate-dead",
+"synergy": -0.024240105753745134,
+"lift": 0.8574201895029444,
+"num_decks": 4934,
+"potential_decks": 32531
+},
+{
+"name": "Phyrexian Reclamation",
+"sanitized": "phyrexian-reclamation",
+"synergy": 0.03533702026771217,
+"lift": 1.3581753551441957,
+"num_decks": 4291,
+"potential_decks": 32531
+},
+{
+"name": "Exquisite Blood",
+"sanitized": "exquisite-blood",
+"synergy": -0.0011125401968793414,
+"lift": 1.0005001398662547,
+"num_decks": 4105,
+"potential_decks": 32531
+},
+{
+"name": "Sanguine Bond",
+"sanitized": "sanguine-bond",
+"synergy": 0.014704487503886768,
+"lift": 1.1599490664909569,
+"num_decks": 4061,
+"potential_decks": 32531
+},
+{
+"name": "Funeral Room // Awakening Hall",
+"sanitized": "funeral-room-awakening-hall",
+"synergy": 0.07792456772204719,
+"lift": 2.8505953426993953,
+"num_decks": 3932,
+"potential_decks": 32531
+},
+{
+"name": "Vampiric Rites",
+"sanitized": "vampiric-rites",
+"synergy": 0.03650280723443632,
+"lift": 1.6152029435615287,
+"num_decks": 3142,
+"potential_decks": 32531
+},
+{
+"name": "Meathook Massacre II",
+"sanitized": "meathook-massacre-ii",
+"synergy": 0.03575716677062565,
+"lift": 1.748917503331148,
+"num_decks": 2991,
+"potential_decks": 32531
+},
+{
+"name": "Bloodchief Ascension",
+"sanitized": "bloodchief-ascension",
+"synergy": 0.0009959019798223279,
+"lift": 1.0276178246150582,
+"num_decks": 2926,
+"potential_decks": 32531
+},
+{
+"name": "Kaya's Ghostform",
+"sanitized": "kayas-ghostform",
+"synergy": -0.012515310354513143,
+"lift": 0.8640491611928096,
+"num_decks": 2857,
+"potential_decks": 32531
+},
+{
+"name": "Dark Prophecy",
+"sanitized": "dark-prophecy",
+"synergy": 0.04269813716714535,
+"lift": 2.1297060573406834,
+"num_decks": 2603,
+"potential_decks": 32531
+},
+{
+"name": "Blight Mound",
+"sanitized": "blight-mound",
+"synergy": 0.04337633170827889,
+"lift": 2.821525710795367,
+"num_decks": 2188,
+"potential_decks": 32531
+},
+{
+"name": "Grave Venerations",
+"sanitized": "grave-venerations",
+"synergy": 0.030429452785813906,
+"lift": 2.2241195518500168,
+"num_decks": 1032,
+"potential_decks": 18666
+}
+]
+},
+{
+"header": "Planeswalkers",
+"tag": "planeswalkers",
+"cardviews": [
+{
+"name": "Liliana, Dreadhorde General",
+"sanitized": "liliana-dreadhorde-general",
+"synergy": 0.32481056729059565,
+"lift": 3.286667432679219,
+"num_decks": 15051,
+"potential_decks": 32531
+},
+{
+"name": "Tevesh Szat, Doom of Fools",
+"sanitized": "tevesh-szat-doom-of-fools",
+"synergy": 0.09663923130028644,
+"lift": 4.347106967561999,
+"num_decks": 4063,
+"potential_decks": 32531
+},
+{
+"name": "Liliana of the Dark Realms",
+"sanitized": "liliana-of-the-dark-realms",
+"synergy": -0.07204842148131835,
+"lift": 0.471380779129943,
+"num_decks": 2009,
+"potential_decks": 32531
+}
+]
+},
+{
+"header": "Utility Lands",
+"tag": "utilitylands",
+"cardviews": [
+{
+"name": "Cabal Coffers",
+"sanitized": "cabal-coffers",
+"synergy": 0.03774151722102648,
+"lift": 1.0660278842939341,
+"num_decks": 18996,
+"potential_decks": 32531
+},
+{
+"name": "Bojuka Bog",
+"sanitized": "bojuka-bog",
+"synergy": 0.08262776011379441,
+"lift": 1.1623045482521235,
+"num_decks": 18246,
+"potential_decks": 32531
+},
+{
+"name": "Phyrexian Tower",
+"sanitized": "phyrexian-tower",
+"synergy": 0.27698936336459745,
+"lift": 1.960855079148146,
+"num_decks": 17768,
+"potential_decks": 32531
+},
+{
+"name": "Midgar, City of Mako",
+"sanitized": "midgar-city-of-mako",
+"synergy": 0.3875016741131295,
+"lift": 4.908247119421482,
+"num_decks": 15312,
+"potential_decks": 31464
+},
+{
+"name": "Urborg, Tomb of Yawgmoth",
+"sanitized": "urborg-tomb-of-yawgmoth",
+"synergy": 0.034676213791101695,
+"lift": 1.0847140094390162,
+"num_decks": 13410,
+"potential_decks": 32531
+},
+{
+"name": "Nykthos, Shrine to Nyx",
+"sanitized": "nykthos-shrine-to-nyx",
+"synergy": 0.049870230921209846,
+"lift": 1.1555218254624071,
+"num_decks": 11324,
+"potential_decks": 32531
+},
+{
+"name": "High Market",
+"sanitized": "high-market",
+"synergy": 0.24005698716464363,
+"lift": 3.4650973500444553,
+"num_decks": 10629,
+"potential_decks": 32531
+},
+{
+"name": "Reliquary Tower",
+"sanitized": "reliquary-tower",
+"synergy": 0.03753217666202352,
+"lift": 1.1475722570171967,
+"num_decks": 10510,
+"potential_decks": 32531
+},
+{
+"name": "Cabal Stronghold",
+"sanitized": "cabal-stronghold",
+"synergy": -0.01644620675410441,
+"lift": 0.9569032288306559,
+"num_decks": 10382,
+"potential_decks": 32531
+},
+{
+"name": "Witch's Cottage",
+"sanitized": "witchs-cottage",
+"synergy": 0.035086584218241845,
+"lift": 1.1264276655956387,
+"num_decks": 9322,
+"potential_decks": 32531
+},
+{
+"name": "Takenuma, Abandoned Mire",
+"sanitized": "takenuma-abandoned-mire",
+"synergy": 0.04857817187410318,
+"lift": 1.2920303719344068,
+"num_decks": 6741,
+"potential_decks": 32531
+},
+{
+"name": "Westvale Abbey",
+"sanitized": "westvale-abbey",
+"synergy": 0.13490307679899768,
+"lift": 2.985196666020471,
+"num_decks": 6501,
+"potential_decks": 32531
+},
+{
+"name": "Castle Locthwain",
+"sanitized": "castle-locthwain",
+"synergy": 0.01253490122023751,
+"lift": 1.0710162637922627,
+"num_decks": 6032,
+"potential_decks": 32531
+},
+{
+"name": "Spymaster's Vault",
+"sanitized": "spymasters-vault",
+"synergy": 0.061794184411357075,
+"lift": 1.617925754072111,
+"num_decks": 5118,
+"potential_decks": 32531
+},
+{
+"name": "Crypt of Agadeem",
+"sanitized": "crypt-of-agadeem",
+"synergy": 0.03624666499929369,
+"lift": 1.2649408779555833,
+"num_decks": 4961,
+"potential_decks": 32531
+},
+{
+"name": "Barad-dûr",
+"sanitized": "barad-dur",
+"synergy": 0.10612100608471502,
+"lift": 3.8640022392321485,
+"num_decks": 4619,
+"potential_decks": 32531
+},
+{
+"name": "Ancient Tomb",
+"sanitized": "ancient-tomb",
+"synergy": 0.025508538497093086,
+"lift": 1.2136736234182615,
+"num_decks": 4578,
+"potential_decks": 32531
+},
+{
+"name": "Susur Secundi, Void Altar",
+"sanitized": "susur-secundi-void-altar",
+"synergy": 0.058681854572324,
+"lift": 1.8244131796748027,
+"num_decks": 3529,
+"potential_decks": 27175
+},
+{
+"name": "Mortuary Mire",
+"sanitized": "mortuary-mire",
+"synergy": 0.0013619031177540541,
+"lift": 1.0173019500569604,
+"num_decks": 4144,
+"potential_decks": 32531
+},
+{
+"name": "Rogue's Passage",
+"sanitized": "rogues-passage",
+"synergy": -0.06966760048535964,
+"lift": 0.6355942903346985,
+"num_decks": 4083,
+"potential_decks": 32531
+},
+{
+"name": "War Room",
+"sanitized": "war-room",
+"synergy": -0.03666362940989455,
+"lift": 0.7758325506310324,
+"num_decks": 4044,
+"potential_decks": 32531
+},
+{
+"name": "Shizo, Death's Storehouse",
+"sanitized": "shizo-deaths-storehouse",
+"synergy": -0.0003859610314613515,
+"lift": 0.9766412839800532,
+"num_decks": 3379,
+"potential_decks": 32531
+},
+{
+"name": "Command Beacon",
+"sanitized": "command-beacon",
+"synergy": 0.017786209581114557,
+"lift": 1.2015550822614751,
+"num_decks": 3200,
+"potential_decks": 32531
+},
+{
+"name": "Urza's Saga",
+"sanitized": "urzas-saga",
+"synergy": 0.01108737761367408,
+"lift": 1.127388403646182,
+"num_decks": 2969,
+"potential_decks": 32531
+},
+{
+"name": "Realm of Koh",
+"sanitized": "realm-of-koh",
+"synergy": 0.045167583353622566,
+"lift": 2.802775434986807,
+"num_decks": 1480,
+"potential_decks": 21076
+},
+{
+"name": "Temple of the False God",
+"sanitized": "temple-of-the-false-god",
+"synergy": -0.016529974218981593,
+"lift": 0.7949140325640489,
+"num_decks": 1831,
+"potential_decks": 32531
+},
+{
+"name": "Lake of the Dead",
+"sanitized": "lake-of-the-dead",
+"synergy": 0.0022706136655690837,
+"lift": 1.0345918329646404,
+"num_decks": 1751,
+"potential_decks": 32531
+},
+{
+"name": "Volrath's Stronghold",
+"sanitized": "volraths-stronghold",
+"synergy": 0.01658646040653631,
+"lift": 1.4399510786886385,
+"num_decks": 1738,
+"potential_decks": 32531
+}
+]
+},
+{
+"header": "Mana Artifacts",
+"tag": "manaartifacts",
+"cardviews": [
+{
+"name": "Sol Ring",
+"sanitized": "sol-ring",
+"synergy": 0.06321687028005385,
+"lift": 1.0748740033830448,
+"num_decks": 29835,
+"potential_decks": 32531
+},
+{
+"name": "Arcane Signet",
+"sanitized": "arcane-signet",
+"synergy": 0.010699967890574591,
+"lift": 1.0226882240416302,
+"num_decks": 20378,
+"potential_decks": 32531
+},
+{
+"name": "The Soul Stone",
+"sanitized": "the-soul-stone",
+"synergy": 0.06754114171926956,
+"lift": 1.4156398701830717,
+"num_decks": 5875,
+"potential_decks": 25539
+},
+{
+"name": "Thought Vessel",
+"sanitized": "thought-vessel",
+"synergy": -0.034482746400187725,
+"lift": 0.880685131190589,
+"num_decks": 6599,
+"potential_decks": 32531
+},
+{
+"name": "Mind Stone",
+"sanitized": "mind-stone",
+"synergy": -0.13715842102454642,
+"lift": 0.5205615124039606,
+"num_decks": 4486,
+"potential_decks": 32531
+},
+{
+"name": "Crowded Crypt",
+"sanitized": "crowded-crypt",
+"synergy": 0.05907112262462646,
+"lift": 2.1707669351102976,
+"num_decks": 3533,
+"potential_decks": 32531
+},
+{
+"name": "Charcoal Diamond",
+"sanitized": "charcoal-diamond",
+"synergy": -0.11972541246657256,
+"lift": 0.45851212910762684,
+"num_decks": 3137,
+"potential_decks": 32531
+},
+{
+"name": "Fellwar Stone",
+"sanitized": "fellwar-stone",
+"synergy": -0.045193843302739345,
+"lift": 0.6975454144628541,
+"num_decks": 3031,
+"potential_decks": 32531
+},
+{
+"name": "Lotus Petal",
+"sanitized": "lotus-petal",
+"synergy": 0.0033855768016995136,
+"lift": 1.0413957655557249,
+"num_decks": 2523,
+"potential_decks": 32531
+},
+{
+"name": "Chrome Mox",
+"sanitized": "chrome-mox",
+"synergy": 0.011171654898100507,
+"lift": 1.196860312357409,
+"num_decks": 2263,
+"potential_decks": 32531
+},
+{
+"name": "Throne of Eldraine",
+"sanitized": "throne-of-eldraine",
+"synergy": -0.02653170562925005,
+"lift": 0.7219131071887462,
+"num_decks": 1966,
+"potential_decks": 32531
+},
+{
+"name": "Mox Amber",
+"sanitized": "mox-amber",
+"synergy": 0.017637686296155974,
+"lift": 1.418685906554008,
+"num_decks": 1946,
+"potential_decks": 32531
+},
+{
+"name": "Mana Vault",
+"sanitized": "mana-vault",
+"synergy": -0.013260661776141026,
+"lift": 0.8059312628922938,
+"num_decks": 1655,
+"potential_decks": 32531
+}
+]
+},
+{
+"header": "Lands",
+"tag": "lands",
+"cardviews": [
+{
+"name": "Swamp",
+"sanitized": "swamp",
+"synergy": 0.024046891034997353,
+"lift": 1.0239647150840763,
+"num_decks": 31837,
+"potential_decks": 32531
+},
+{
+"name": "Malakir Rebirth",
+"sanitized": "malakir-rebirth",
+"synergy": 0.15752992411914168,
+"lift": 1.6071616614196091,
+"num_decks": 12904,
+"potential_decks": 32531
+},
+{
+"name": "Fell the Profane",
+"sanitized": "fell-the-profane",
+"synergy": 0.11786995103290565,
+"lift": 1.5463955715308675,
+"num_decks": 10277,
+"potential_decks": 32531
+},
+{
+"name": "Agadeem's Awakening",
+"sanitized": "agadeems-awakening",
+"synergy": 0.0920306538019055,
+"lift": 2.067095018515191,
+"num_decks": 5563,
+"potential_decks": 32531
+},
+{
+"name": "Boggart Trawler",
+"sanitized": "boggart-trawler",
+"synergy": 0.06747424838484105,
+"lift": 1.6298027951915228,
+"num_decks": 5323,
+"potential_decks": 32531
+},
+{
+"name": "Myriad Landscape",
+"sanitized": "myriad-landscape",
+"synergy": -0.08758551825674168,
+"lift": 0.6473534445116832,
+"num_decks": 4844,
+"potential_decks": 32531
+},
+{
+"name": "Urza's Cave",
+"sanitized": "urzas-cave",
+"synergy": -0.0010219368026888331,
+"lift": 0.9994401983003625,
+"num_decks": 2598,
+"potential_decks": 32531
+},
+{
+"name": "Command Tower",
+"sanitized": "command-tower",
+"synergy": 0.021257512500949025,
+"lift": 1.3592432158162977,
+"num_decks": 2579,
+"potential_decks": 32531
+},
+{
+"name": "Gemstone Caverns",
+"sanitized": "gemstone-caverns",
+"synergy": 0.013318375949002648,
+"lift": 1.2701575471229143,
+"num_decks": 1886,
+"potential_decks": 32531
+},
+{
+"name": "Bloodstained Mire",
+"sanitized": "bloodstained-mire",
+"synergy": 0.018613864716521454,
+"lift": 1.4159673375118873,
+"num_decks": 1878,
+"potential_decks": 32531
+},
+{
+"name": "Polluted Delta",
+"sanitized": "polluted-delta",
+"synergy": 0.01675075691307342,
+"lift": 1.3816293660659316,
+"num_decks": 1778,
+"potential_decks": 32531
+},
+{
+"name": "Cavern of Souls",
+"sanitized": "cavern-of-souls",
+"synergy": -0.013261865041202282,
+"lift": 0.795084905293665,
+"num_decks": 1769,
+"potential_decks": 32531
+},
+{
+"name": "Marsh Flats",
+"sanitized": "marsh-flats",
+"synergy": 0.01649816345388741,
+"lift": 1.3912057163115152,
+"num_decks": 1734,
+"potential_decks": 32531
+}
+]
+}
+]
+}
+}
+}

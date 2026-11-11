@@ -10,11 +10,12 @@
 
 import { isMainListCard } from './commander-card-actions'
 import { buildDeckHealth, type DeckHealthResponse, type HealthDeckCard } from './deck-health'
+import { fetchRefTextByName, type RefClient } from './ref-card-text'
+import { getCommanderTargets } from './commander-targets-server'
+import type { CommanderTargets } from './commander-targets'
 
 /** The small slice of the Supabase client used here (the admin client satisfies it). */
-export interface HealthClient {
-  from: (table: string) => any // eslint-disable-line @typescript-eslint/no-explicit-any
-}
+export type HealthClient = RefClient
 
 export type LoadHealthResult =
   | { ok: true; health: DeckHealthResponse }
@@ -28,65 +29,41 @@ interface DeckCardRow {
   command_zone_role: string | null
 }
 
-interface RefRow {
-  name: string
-  type_line: string | null
-  oracle_text: string | null
-}
-
-const NAME_BATCH = 200
-
-function escapeLike(s: string): string {
-  return s.replace(/[\\%_]/g, (c) => `\\${c}`)
-}
-
-/** Card text for each name: exact name first, then the front face of a double-faced card ("A // B"). */
-export async function fetchRefTextByName(
-  supabase: HealthClient,
-  names: string[],
-): Promise<{ map: Map<string, RefRow>; error: string | null }> {
-  const map = new Map<string, RefRow>()
-  const unique = [...new Set(names)]
-
-  const batches: string[][] = []
-  for (let i = 0; i < unique.length; i += NAME_BATCH) batches.push(unique.slice(i, i + NAME_BATCH))
-  const results = await Promise.all(batches.map((batch) => supabase.from('ref_cards').select('name, type_line, oracle_text').in('name', batch)))
-  for (const { data, error } of results) {
-    if (error) return { map, error: error.message }
-    for (const row of (data ?? []) as RefRow[]) map.set(row.name, row)
-  }
-
-  // Deck rows for double-faced cards may hold only the front face name.
-  const missing = unique.filter((n) => !map.has(n))
-  const fallbacks = await Promise.all(
-    missing.map(async (name) => {
-      const front = name.split(' // ')[0]
-      const { data, error } = await supabase
-        .from('ref_cards')
-        .select('name, type_line, oracle_text')
-        .ilike('name', `${escapeLike(front)} // %`)
-        .limit(1)
-      return { name, row: ((data ?? []) as RefRow[])[0], error }
-    }),
-  )
-  for (const f of fallbacks) {
-    if (f.error) return { map, error: f.error.message }
-    if (f.row) map.set(f.name, f.row)
-  }
-
-  return { map, error: null }
-}
+export { fetchRefTextByName } from './ref-card-text'
 
 export type LoadCardsResult =
-  | { ok: true; cards: HealthDeckCard[] }
+  | { ok: true; cards: HealthDeckCard[]; commanderNames: string[] }
   | { ok: false; status: 404 | 500; error: string }
+
+/** Injectable source of the commander's typical numbers. Tests pass a fake; the default reads the cache and EDHREC. */
+export type TargetsProvider = (supabase: HealthClient, commanderNames: string[], opts: { recheck?: boolean }) => Promise<CommanderTargets>
+
+export const defaultTargetsProvider: TargetsProvider = (supabase, names, opts) => getCommanderTargets({ supabase }, names, opts)
+
+export interface LoadHealthOptions {
+  recheck?: boolean
+  targets?: TargetsProvider
+}
+
+/**
+ * The deck's commander name(s): commander rows on the deck (partners give two), else the deck's own commander name.
+ * The front face is enough for EDHREC; the full name is kept for the stored-builds lookup.
+ */
+export function commanderNamesFor(rows: DeckCardRow[], deckCommanderName: string | null | undefined): string[] {
+  const fromRows = rows
+    .filter((r) => r.is_commander && r.command_zone_role !== 'companion')
+    .map((r) => r.card_name)
+  const unique = [...new Set(fromRows)]
+  if (unique.length > 0) return unique
+  return deckCommanderName && deckCommanderName.trim() ? [deckCommanderName.trim()] : []
+}
 
 /** The deck's cards with real card text. The deck is looked up by id AND owner. */
 export async function loadHealthCards(supabase: HealthClient, deckId: number, userId: string): Promise<LoadCardsResult> {
   try {
     const { data: deck, error: deckErr } = await supabase
       .from('decks')
-      .select('id')
+      .select('id, commander_name')
       .eq('id', deckId)
       .eq('user_id', userId)
       .maybeSingle()
@@ -124,14 +101,25 @@ export async function loadHealthCards(supabase: HealthClient, deckId: number, us
       }
     })
 
-    return { ok: true, cards }
+    return { ok: true, cards, commanderNames: commanderNamesFor(deckRows, (deck as { commander_name?: string | null }).commander_name) }
   } catch (err) {
     return { ok: false, status: 500, error: err instanceof Error ? err.message : 'Could not check deck health' }
   }
 }
 
-export async function loadDeckHealth(supabase: HealthClient, deckId: number, userId: string): Promise<LoadHealthResult> {
+/** The commander's typical numbers. EDHREC trouble never fails the check (it gives the stale or guide answer). */
+export async function loadTargets(supabase: HealthClient, commanderNames: string[], opts: LoadHealthOptions = {}): Promise<CommanderTargets> {
+  const provider = opts.targets ?? defaultTargetsProvider
+  return provider(supabase, commanderNames, { recheck: opts.recheck })
+}
+
+export async function loadDeckHealth(supabase: HealthClient, deckId: number, userId: string, opts: LoadHealthOptions = {}): Promise<LoadHealthResult> {
   const loaded = await loadHealthCards(supabase, deckId, userId)
   if (!loaded.ok) return loaded
-  return { ok: true, health: buildDeckHealth(loaded.cards) }
+  try {
+    const targets = await loadTargets(supabase, loaded.commanderNames, opts)
+    return { ok: true, health: buildDeckHealth(loaded.cards, targets) }
+  } catch (err) {
+    return { ok: false, status: 500, error: err instanceof Error ? err.message : 'Could not check deck health' }
+  }
 }

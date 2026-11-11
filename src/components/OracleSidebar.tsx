@@ -471,7 +471,7 @@ export function OracleSidebar() {
         ref={panelRef}
         data-testid="oracle-conversation"
         aria-label="Oracle conversation"
-        className="z-30 flex h-full shrink-0 flex-col border-l border-zinc-800/60 bg-[rgba(0,0,0,0.15)] [body:has([data-page-art])_&]:bg-[rgba(0,0,0,0.55)] backdrop-blur-sm max-md:absolute max-md:inset-y-0 max-md:right-0 max-md:shadow-2xl"
+        className="z-30 my-3 mr-3 flex h-[calc(100%-1.5rem)] shrink-0 flex-col overflow-hidden rounded-xl border border-zinc-800/60 bg-[rgba(0,0,0,0.15)] [body:has([data-page-art])_&]:bg-[rgba(0,0,0,0.55)] shadow-[0_8px_24px_rgba(0,0,0,0.35)] backdrop-blur-sm max-md:absolute max-md:inset-y-0 max-md:right-0 max-md:shadow-2xl"
         style={{ width: PANEL_WIDTH }}
       >
         {/* Header */}

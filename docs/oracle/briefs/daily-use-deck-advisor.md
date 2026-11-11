@@ -148,3 +148,4 @@ Mockup `mockups/whats-missing.html`, spec `specs/whats-missing.md`, report `repo
 - Buy ideas are collapsed with a count when owned options exist; they open by themselves when nothing owned fits.
 - With thin data, no buy ideas are shown; a plain sentence says why.
 - **Phase 2 mockup APPROVED by owner 2026-11-11** (name: Deck health). Two open design questions were approved on their recommended option: prices carry a small "est." suffix with no footer; strategy is set only inside Deck health (Phase 4 builds the editor; Phase 2 shows the Strategy row as "Not set yet").
+- **Typical numbers source (owner, 2026-11-11):** EDHREC's average deck first, then EDHREC's estimate, then the General guide. Archidekt searching rejected (its terms ban automated requests). If EDHREC is unreachable: show last saved numbers marked "may be out of date"; if none saved, "General guide (couldn't reach EDHREC)".

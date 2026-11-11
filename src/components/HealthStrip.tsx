@@ -45,6 +45,7 @@ export function HealthStrip({ deckId }: HealthStripProps) {
             <Skeleton className="h-7 w-20 rounded-md" />
             <Skeleton className="h-7 w-20 rounded-md" />
             <Skeleton className="h-7 w-24 rounded-md" />
+            <Skeleton className="h-7 w-20 rounded-md" />
             <span className="sr-only" role="status">
               Checking deck health…
             </span>

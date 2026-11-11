@@ -67,3 +67,11 @@ Deleted: `src/lib/health-engine.ts`, `src/lib/category-classifier.ts`, `src/comp
 - Lint: 0 errors; warnings are pre-existing.
 - E2E: not run (no separate test account).
 - Not visually checked in a browser.
+
+## Follow-up 2026-11-11: Lands as a fifth role (owner feedback)
+- Lands is now a fifth role after Wipes, in the strip pills and the panel's counts by role. Same Light rule (2 or more short). Example text: "Guide is 36; you have 31."
+- Counted from the front-face type line, by quantity, main deck only (no maybeboard, sideboard or commander). A double-faced card whose front is a spell (e.g. Bala Ged Recovery) is not a land; one whose front is a land is. Lands are never counted as unclassified.
+- Chosen guide: **36** (owner's figure; the contract gives no land guide). Reference data point: the 1,880 stored commander builds average 34.8 lands. I kept 36 because that is the instruction and with the Light rule 35 lands still reads fine, 34 reads Light. Say if you would rather use 35.
+- Lands is not a card role: `card-roles.ts` is unchanged; the land count lives in `src/lib/deck-health.ts`.
+- Files: `src/lib/deck-health.ts`, `src/lib/deck-health.test.ts` (land count, double-faced, 35 ok / 34 Light), `src/components/HealthStrip.tsx` (one more loading placeholder). Panel and pill needed no change as they list whatever roles come back. No drill-in detail (S3).
+- Verification: unit tests pass (2,622); typecheck only the known error; E2E not run.

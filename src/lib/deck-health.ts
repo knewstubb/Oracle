@@ -9,6 +9,10 @@
 import { ROLE_ORDER, rolesForCard, isLandTypeLine, hasClassifiableText, type Role } from './card-roles'
 import { isBasicLand } from './basic-lands'
 
+/** The four card roles plus Lands, which is counted from the front-face type line, not from card text. */
+export type HealthRoleKey = Role | 'lands'
+export const HEALTH_ROLE_ORDER: readonly HealthRoleKey[] = [...ROLE_ORDER, 'lands']
+
 // ---------------------------------------------------------------------------
 // Types (shapes from the contract, section 1.3 and 4)
 // ---------------------------------------------------------------------------
@@ -21,7 +25,7 @@ export interface TypeCount {
 export type RoleState = 'ok' | 'light'
 
 export interface DeckHealthRole {
-  role: Role
+  role: HealthRoleKey
   label: string
   have: number
   typical: number
@@ -46,9 +50,9 @@ export interface DeckHealthResponse {
 // The general guide (the old minimums of the four roles)
 // ---------------------------------------------------------------------------
 
-export const GENERAL_GUIDE: Record<Role, number> = { ramp: 10, draw: 10, removal: 6, wipes: 2 }
+export const GENERAL_GUIDE: Record<HealthRoleKey, number> = { ramp: 10, draw: 10, removal: 6, wipes: 2, lands: 36 }
 
-export const ROLE_LABELS: Record<Role, string> = { ramp: 'Ramp', draw: 'Draw', removal: 'Removal', wipes: 'Wipes' }
+export const ROLE_LABELS: Record<HealthRoleKey, string> = { ramp: 'Ramp', draw: 'Draw', removal: 'Removal', wipes: 'Wipes', lands: 'Lands' }
 
 /** More than this share of main-deck cards without card text means the check is only partial. */
 export const UNCLASSIFIED_PARTIAL_SHARE = 0.1
@@ -68,7 +72,7 @@ function shortBy(r: Pick<DeckHealthRole, 'have' | 'typical'>): number {
 }
 
 /** Lower-case role name for sentences ("removal", "wipes"). */
-function lower(role: Role): string {
+function lower(role: HealthRoleKey): string {
   return ROLE_LABELS[role].toLowerCase()
 }
 
@@ -92,7 +96,7 @@ export interface ComposeInput {
 export function composeHealthCopy(input: ComposeInput): { headline: string; subline: string; usingGeneralGuide: boolean } {
   const light = input.roles
     .filter((r) => r.state === 'light')
-    .sort((a, b) => shortBy(b) - shortBy(a) || ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role))
+    .sort((a, b) => shortBy(b) - shortBy(a) || HEALTH_ROLE_ORDER.indexOf(a.role) - HEALTH_ROLE_ORDER.indexOf(b.role))
 
   if (light.length === 0) {
     return { headline: 'Well covered', subline: '', usingGeneralGuide: input.usingGeneralGuide }
@@ -104,7 +108,7 @@ export function composeHealthCopy(input: ComposeInput): { headline: string; subl
 
   const parts = light.map((r, i) => `${i === 0 ? ROLE_LABELS[r.role] : lower(r.role)} ${shortBy(r)} short`)
   let subline = `${parts.join(', ')}.`
-  const onTrack = input.roles.filter((r) => r.state === 'ok').sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role))
+  const onTrack = input.roles.filter((r) => r.state === 'ok').sort((a, b) => HEALTH_ROLE_ORDER.indexOf(a.role) - HEALTH_ROLE_ORDER.indexOf(b.role))
   if (onTrack.length > 0) {
     subline += ` ${onTrack.map((r) => ROLE_LABELS[r.role]).join(' and ')} on track.`
   }
@@ -126,7 +130,7 @@ export interface HealthDeckCard {
 }
 
 export interface CountResult {
-  have: Record<Role, number>
+  have: Record<HealthRoleKey, number>
   /** Main-deck cards (by quantity, lands excluded) that have no card text, so were not checked. */
   unclassifiedCount: number
   /** All main-deck cards by quantity, lands included. */
@@ -134,7 +138,7 @@ export interface CountResult {
 }
 
 export function countRoles(cards: HealthDeckCard[]): CountResult {
-  const have: Record<Role, number> = { ramp: 0, draw: 0, removal: 0, wipes: 0 }
+  const have: Record<HealthRoleKey, number> = { ramp: 0, draw: 0, removal: 0, wipes: 0, lands: 0 }
   let unclassified = 0
   let mainDeck = 0
 
@@ -144,7 +148,10 @@ export function countRoles(cards: HealthDeckCard[]): CountResult {
     mainDeck += qty
 
     // A land is decided by the front-face type line. With no type line at all, a basic land is still a land by name.
-    if (c.typeLine ? isLandTypeLine(c.typeLine) : isBasicLand(c.cardName)) continue
+    if (c.typeLine ? isLandTypeLine(c.typeLine) : isBasicLand(c.cardName)) {
+      have.lands += qty
+      continue
+    }
 
     if (!hasClassifiableText(c)) {
       unclassified += qty
@@ -162,7 +169,7 @@ export function countRoles(cards: HealthDeckCard[]): CountResult {
 export function buildDeckHealth(cards: HealthDeckCard[], now: Date = new Date()): DeckHealthResponse {
   const { have, unclassifiedCount, mainDeckCount } = countRoles(cards)
 
-  const roles: DeckHealthRole[] = ROLE_ORDER.map((role) => {
+  const roles: DeckHealthRole[] = HEALTH_ROLE_ORDER.map((role) => {
     const typical = GENERAL_GUIDE[role]
     return {
       role,

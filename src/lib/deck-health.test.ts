@@ -63,7 +63,28 @@ describe('buildDeckHealth', () => {
     const cards = [card('Forest', 'Basic Land — Forest', null, 30), { ...card('X', 'Instant', 'Destroy target creature.'), inMainDeck: false }]
     const r = countRoles(cards)
     expect(r.have.removal).toBe(0)
+    expect(r.have.lands).toBe(30)
     expect(r.unclassifiedCount).toBe(0)
+  })
+
+  it('counts lands from the front-face type line, including double-faced lands, and is Light at 2+ short', () => {
+    const cards = [
+      card('Forest', 'Basic Land — Forest', null, 30),
+      card('Command Tower', 'Land', null, 1),
+      card('Shatterskull Smashing // Shatterskull, the Hammer Pass', 'Sorcery // Land', null, 1),
+      card('Bala Ged Recovery // Bala Ged Sanctuary', 'Sorcery // Land', null, 1),
+    ]
+    const h = buildDeckHealth(cards)
+    const lands = h.roles.find((r) => r.role === 'lands')!
+    expect(lands.typical).toBe(36)
+    expect(lands.have).toBe(31) // the two spell-front double-faced cards are not lands
+    expect(lands.state).toBe('light')
+    expect(h.roles).toHaveLength(5)
+  })
+
+  it('35 lands is fine, 34 is Light', () => {
+    expect(buildDeckHealth([card('Forest', 'Basic Land — Forest', null, 35)]).roles.find((r) => r.role === 'lands')?.state).toBe('ok')
+    expect(buildDeckHealth([card('Forest', 'Basic Land — Forest', null, 34)]).roles.find((r) => r.role === 'lands')?.state).toBe('light')
   })
 
   it('is partial when over 10% of the deck has no card text', () => {

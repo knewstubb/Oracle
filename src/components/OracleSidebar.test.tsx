@@ -88,7 +88,7 @@ describe('OracleSidebar (side panel with input at the bottom)', () => {
     expect(sendMessage).toHaveBeenCalledWith('hello')
   })
 
-  it('shows the panel beside the page (not in the footer), 3% white by default and 55% over page art', () => {
+  it('shows the panel beside the page (not in the footer), 2% white by default and 55% over page art', () => {
     isOpen = true
     renderChat()
     const panel = screen.getByTestId('oracle-conversation')
@@ -98,7 +98,7 @@ describe('OracleSidebar (side panel with input at the bottom)', () => {
     // The footer is a separate full-width bar beneath the row, so the panel stops above it.
     expect(screen.getByTestId('app-footer')).not.toContainElement(panel)
     expect(row.contains(screen.getByTestId('app-footer'))).toBe(false)
-    expect(panel.className).toContain('bg-[rgba(255,255,255,0.03)]')
+    expect(panel.className).toContain('bg-[rgba(255,255,255,0.02)]')
     expect(panel.className).toContain('[body:has([data-page-art])_&]:bg-[rgba(0,0,0,0.55)]')
     fireEvent.click(screen.getByLabelText('Close Oracle'))
     expect(close).toHaveBeenCalled()

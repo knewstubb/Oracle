@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Oracle · Deck gaps (Phase 2 mockup)</title>
+<title>Oracle · Deck health (Phase 2 mockup)</title>
 <style>
 :root{
   --bg-canvas:#131316;--bg-surface:#1A1A1E;--bg-hover:#212126;
@@ -88,6 +88,13 @@ svg{width:1em;height:1em;flex:none;vertical-align:-.12em}
   .grab{display:block}
 }
 
+/* strategy row (Phase 4 placeholder) */
+.strat{display:flex;align-items:center;gap:12px;padding:0 0 14px;margin-bottom:14px;border-bottom:1px solid var(--border-subtle)}
+.strat>div{flex:1}
+.strat .k{font-size:var(--fs-sm);color:var(--text2)}
+.strat .v{font-size:var(--fs-md)}
+.setstrat{background:none;border:0;color:var(--text2);text-decoration:underline;text-underline-offset:3px;min-height:44px;padding:0 4px;cursor:not-allowed;text-align:right;font-size:var(--fs-sm)}
+.later{display:block;font-size:var(--fs-xs);text-decoration:none;color:var(--text2)}
 /* verdict block */
 .verdict{border:1px solid var(--border);border-radius:10px;padding:14px;background:var(--bg-canvas)}
 .verdict.light{border-color:var(--warn)}
@@ -158,7 +165,7 @@ details.buy[open]>summary .tw{transform:rotate(90deg)}
 <body>
 
 <div class="ctl" role="region" aria-label="Mockup controls">
-  <h1>Deck gaps · Phase 2</h1>
+  <h1>Deck health · Phase 2</h1>
   <div class="grp" role="group" aria-label="Scenario"><span class="lbl">Scenario:</span><span id="scen"></span></div>
   <div class="grp" role="group" aria-label="Device"><span class="lbl">Device:</span>
     <button class="seg" data-dev="laptop" aria-pressed="true">Laptop</button>
@@ -197,21 +204,21 @@ const DECKS={
 const FILL={
  gappy:{
   removal:{spare:[
-    {n:'Swords to Plowshares',t:'Instant',why:'Exiles one creature. White, fits Atraxa.'},
-    {n:'Beast Within',t:'Instant',why:'Destroys any permanent. Green, fits Atraxa.'},
-    {n:'Putrefy',t:'Instant',why:'Destroys an artifact or creature. Black-green, fits Atraxa.'}],
+    {n:'Swords to Plowshares',t:'Instant',why:'Exiles one creature.'},
+    {n:'Beast Within',t:'Instant',why:'Destroys any permanent.'},
+    {n:'Putrefy',t:'Instant',why:'Destroys an artifact or creature.'}],
    other:[{n:'Anguished Unmaking',t:'Instant',deck:'Wilhelt',why:'Exiles any permanent.'}],
    buy:[{n:'Assassin\'s Trophy',pct:58,p:'4.50'},{n:'Utter End',pct:44,p:'2.10'},{n:'Council\'s Judgment',pct:37,p:'1.80'}]},
   wipes:{spare:[],
-   other:[{n:'Toxic Deluge',t:'Sorcery',deck:'Wilhelt',why:'Pay life, give every creature -X/-X.'},
-          {n:'Austere Command',t:'Sorcery',deck:'Teferi Control',why:'Choose two: destroy artifacts, enchantments or creatures by size.'}],
+   other:[{n:'Toxic Deluge',t:'Sorcery',deck:'Wilhelt',why:'Every creature gets -X/-X.'},
+          {n:'Austere Command',t:'Sorcery',deck:'Teferi Control',why:'Destroys artifacts, enchantments or creatures.'}],
    buy:[{n:'Farewell',pct:41,p:'9.00'},{n:'Merciless Eviction',pct:12,p:'1.40'},{n:'Hour of Devastation',pct:9,p:null}]},
   draw:{spare:[],other:[],
    buy:[{n:'Rhystic Study',pct:71,p:'38.00'},{n:'Beast Whisperer',pct:33,p:'0.60'},{n:'Soul of the Harvest',pct:21,p:null}]},
   ramp:{spare:[],other:[],buy:[]}},
  thin:{
-  removal:{spare:[{n:'Terminate',t:'Instant',why:'Destroys one creature. Black-red, fits Ghyrson Starn.'},
-                  {n:'Chaos Warp',t:'Instant',why:'Shuffles away any permanent. Red, fits Ghyrson Starn.'}],
+  removal:{spare:[{n:'Terminate',t:'Instant',why:'Destroys one creature.'},
+                  {n:'Chaos Warp',t:'Instant',why:'Shuffles away any permanent.'}],
    other:[],buy:null},
   draw:{spare:[],other:[],buy:null},
   wipes:{spare:[],other:[{n:'Blasphemous Act',t:'Sorcery',deck:'Korvold',why:'Deals 13 damage to every creature.'}],buy:null},
@@ -221,18 +228,18 @@ const FILL={
 /* ============ State ============ */
 const S={scen:'healthy',dev:'laptop',open:false,gap:null,tab:'cards'};
 const SCEN=[
- ['healthy','Healthy deck'],['overview','Gaps: overview'],['spare','Gap: spare cards'],['other','Gap: only in another deck'],
+ ['healthy','Healthy deck'],['overview','Overview'],['spare','Gap: spare cards'],['other','Gap: only in another deck'],
  ['buy','Gap: nothing owned, buy ideas'],['thin','Thin data'],['chat','Chat answer'],['states','Checking / error']
 ];
 const NOTES={
- healthy:'<b>Healthy deck.</b> Quiet strip: ticks and no colour. Verdict "Well covered". Opening the panel shows the numbers and nothing to fix.',
- overview:'<b>Deck with gaps.</b> The verdict names the biggest shortfalls. Light roles use amber + a warning icon + the words "Light". Tap a light role (or its pill) to see cards that fill it.',
- spare:'<b>Gap with spare cards.</b> Removal: spare cards come first. Cards in another deck follow, with a warning. Buy ideas are collapsed because you already have options.',
- other:'<b>Gap with cards only in another deck.</b> Wipes: nothing spare. Each card shows which deck it would leave short. Buy ideas are open by default because no spare card exists.',
- buy:'<b>Gap with nothing owned.</b> Draw: Oracle says so plainly, then suggests buys. Prices are estimates; one card has no price and says "Price unknown", never $0.',
- thin:'<b>Thin data.</b> This commander has only 9 classifiable EDHREC cards, so roles use the labelled "General guide". Type counts come from stored builds. No role number is invented, and there are no buy ideas.',
- chat:'<b>Chat answers the same question.</b> Same verdict, same numbers, each gap is a button that opens the panel. Suggest-only: the chat changes nothing.',
- states:'<b>Checking, then couldn\'t check.</b> Shows the loading strip for about two seconds, then the failure. Unknown is never shown as zero or as a pass.'
+ healthy:'<b>Healthy deck.</b> Quiet strip, no colour. Panel verdict: "Well covered".',
+ overview:'<b>Deck with gaps.</b> Light roles: amber, warning icon, the word "Light". Tap one to see cards that fill it.',
+ spare:'<b>Gap with spare cards.</b> Spare first, then another deck with a warning. Buy ideas collapsed because you have options.',
+ other:'<b>Gap with cards only in another deck.</b> Nothing spare. Each card shows the deck it would leave short. Buy ideas collapsed because owned options exist.',
+ buy:'<b>Gap with nothing owned.</b> Draw: says so, then suggests buys. One card shows "Price unknown", never $0.',
+ thin:'<b>Thin data.</b> Too few EDHREC cards, so roles use the labelled general guide. No buy ideas.',
+ chat:'<b>Chat answers the same question.</b> Same verdict and numbers. Each gap opens the panel.',
+ states:'<b>Checking, then couldn\'t check.</b> Loading for about two seconds, then the failure. Never a zero or a pass.'
 };
 
 /* ============ Helpers ============ */
@@ -245,45 +252,46 @@ function shortBy(r){return Math.max(0,r.typ-r.have)}
 function lights(d){return d.roles.filter(r=>status(r)==='light').sort((a,b)=>shortBy(b)-shortBy(a))}
 function verdict(d){
   const L=lights(d), g=d.mode==='thin';
-  if(!L.length) return {light:false,head:'Well covered',sub:g?'Nothing looks short against the general guide.':'Every role is at or near what decks like this usually run. Nothing to fix.'};
+  if(!L.length) return {light:false,head:'Well covered',sub:g?'Nothing short of the general guide.':'Nothing to fix.'};
   const names=L.slice(0,2).map(r=>r.name.toLowerCase());
   const head='Light on '+names.join(' and ');
   const rest=L.slice(2);
-  const parts=L.map(r=>r.name+' '+be(r.name)+' '+shortBy(r)+' short');
-  let sub=parts.join('. ')+'.';
+  const parts=L.map((r,i)=>(i?r.name.toLowerCase():r.name)+' '+shortBy(r)+' short');
+  let sub=parts.join(', ')+'.';
   const ok=d.roles.filter(r=>status(r)==='ok').map(r=>r.name);
-  if(ok.length) sub+=' '+ok.join(' and ')+(ok.length>1||ok[0]==='Wipes'?' are':' is')+' on track.';
+  if(ok.length) sub+=' '+ok.join(' and ')+' on track.';
   return {light:true,head:head+(g?' (general guide)':''),sub,restN:rest.length};
 }
 function why(d,r){
   const c=d.cmd;
-  if(d.mode==='thin') return 'General guide: most decks run about '+r.typ+' '+r.name.toLowerCase()+'. You have '+r.have+'. Not specific to '+c+'.';
-  return 'Decks built around '+c+' usually run about '+r.typ+'; you have '+r.have+'. Based on '+d.n+' EDHREC cards.';
+  if(d.mode==='thin') return 'General guide: about '+r.typ+'. You have '+r.have+'.';
+  return 'Decks like this usually run about '+r.typ+'; you have '+r.have+'. Based on '+d.n+' EDHREC cards.';
 }
 function srcLine(d){
   return d.mode==='thin'
-   ? 'No role data for '+d.cmd+' yet (only '+d.n+' EDHREC cards could be read). Showing type counts and a general guide.'
-   : 'Compared with decks built around '+d.cmd+' · based on '+d.n+' EDHREC cards';
+   ? 'No role data for this commander yet.'
+   : 'Based on '+d.n+' EDHREC cards';
 }
 function meter(r){const max=Math.max(r.typ*1.5,r.have,1);return '<div class="meter" aria-hidden="true"><b style="width:'+(r.have/max*100)+'%"></b><s style="left:'+(r.typ/max*100)+'%"></s></div>'}
 
 /* ============ Strip ============ */
 function strip(d,loading,failed){
-  if(loading) return '<div class="strip" aria-busy="true"><span class="skel"></span><span class="skel"></span><span class="skel"></span><span class="skel"></span><span class="vh" role="status">Checking deck gaps…</span></div>';
-  if(failed) return '<div class="strip"><span class="err" role="alert">'+ICON.err+'<span>Couldn\'t check deck gaps.</span></span><button class="btn" id="retry" style="margin-left:auto">Try again</button></div>';
+  if(loading) return '<div class="strip" aria-busy="true"><span class="skel"></span><span class="skel"></span><span class="skel"></span><span class="skel"></span><span class="vh" role="status">Checking deck health…</span></div>';
+  if(failed) return '<div class="strip"><span class="err" role="alert">'+ICON.err+'<span>Couldn\'t check deck health.</span></span><button class="btn" id="retry" style="margin-left:auto">Try again</button></div>';
   const v=verdict(d), g=d.mode==='thin';
   const pills=d.roles.map(r=>{
     const l=status(r)==='light';
     const lab=r.name+' '+r.have+' of '+r.typ+(g?' (general guide)':'')+(l?', light, '+shortBy(r)+' short':', on track');
     return '<button class="pill '+(l?'light':'')+'" data-gap="'+r.id+'" aria-label="'+lab+'">'+(l?ICON.warn:ICON.check)+'<span>'+r.name+'</span><span class="of">'+r.have+'/'+r.typ+'</span></button>';
   }).join('');
-  return '<div class="strip"><button class="verdict-chip '+(v.light?'light':'')+'" id="vchip" aria-haspopup="dialog">'+(v.light?ICON.warn:ICON.check)+'<span>'+esc(v.head)+'</span>'+(v.restN?'<span class="more">+'+v.restN+' more</span>':'')+'</button><div class="pills" role="group" aria-label="Role counts">'+pills+'</div><button class="open" id="vopen">Deck gaps</button></div>';
+  return '<div class="strip"><button class="verdict-chip '+(v.light?'light':'')+'" id="vchip" aria-haspopup="dialog" aria-label="Deck health: '+esc(v.head)+'">'+(v.light?ICON.warn:ICON.check)+'<span>Deck health</span></button><div class="pills" role="group" aria-label="Role counts">'+pills+'</div></div>';
 }
 
 /* ============ Panel ============ */
 function panelOverview(d){
   const v=verdict(d), g=d.mode==='thin';
-  let h='<div class="verdict '+(v.light?'light':'')+'"><h4>'+(v.light?ICON.warn:ICON.check)+'<span id="vh" tabindex="-1">'+esc(v.head)+'</span></h4><p>'+esc(v.sub)+'</p><div class="src">'+esc(srcLine(d))+'</div></div>';
+  let h='<div class="strat"><div><div class="k">Strategy</div><div class="v">'+(g?'Not set yet, using the general guide':'Not set yet, using typical numbers')+'</div></div><button class="setstrat" aria-disabled="true" title="Coming in a later phase">Set strategy<span class="later">Phase 4 · not built yet</span></button></div>';
+  h+='<div class="verdict '+(v.light?'light':'')+'"><h4>'+(v.light?ICON.warn:ICON.check)+'<span id="vh" tabindex="-1">'+esc(v.head)+'</span></h4><p>'+esc(v.sub)+'</p><div class="src">'+esc(srcLine(d))+'</div><button class="btn" id="pask" style="margin-top:12px">Chat about this</button></div>';
   h+='<div class="sect">Counts by role'+(g?'<span class="guide">General guide</span>':'')+'</div>';
   h+=d.roles.map(r=>{
     const l=status(r)==='light';
@@ -292,8 +300,8 @@ function panelOverview(d){
   }).join('');
   if(g){
     h+='<div class="sect">Card types</div><div class="row" style="padding-bottom:4px">'+d.types.map(t=>{
-      return '<div class="top" style="padding:4px 0"><span class="nm" style="font-weight:500">'+t[0]+'</span><span class="st">You have '+t[1]+' · builds average '+t[2]+'</span></div>';
-    }).join('')+'<div class="why" style="margin:6px 0 8px">Type averages are from '+d.builds+' stored builds for '+d.cmd+'.</div></div>';
+      return '<div class="top" style="padding:4px 0"><span class="nm" style="font-weight:500">'+t[0]+'</span><span class="st">You have '+t[1]+' · usually '+t[2]+'</span></div>';
+    }).join('')+'<div class="why" style="margin:6px 0 8px">Averages from '+d.builds+' stored builds.</div></div>';
   }
   return h;
 }
@@ -301,10 +309,10 @@ function cardRow(c,kind,roleName){
   let badge='',extra='',right='';
   if(kind==='spare'){badge='<span class="badge">'+ICON.ring+'Available</span>';}
   if(kind==='other'){badge='<span class="badge unavail">'+ICON.lock+'Unavailable · In '+esc(c.deck)+'</span>';
-    extra='<div class="warnline">'+ICON.warn+'<span>Using it here leaves '+esc(c.deck)+' one short. Nothing moves until you decide.</span></div>';}
+    extra='<div class="warnline">'+ICON.warn+'<span>Using it here leaves '+esc(c.deck)+' one short.</span></div>';}
   if(kind==='buy'){badge='<span class="badge unown">'+ICON.nodist+'Unowned</span>';
-    right='<div class="price">'+(c.p?'est. $'+c.p+'<small>Scryfall estimate</small>':'Price unknown<small>no estimate</small>')+'</div>';
-    return '<div class="card"><div class="thumb" aria-hidden="true"></div><div><div class="nm">'+esc(c.n)+'</div><div class="ty">In '+c.pct+'% of '+esc(window.__cmd)+' decks on EDHREC</div>'+badge+'</div>'+right+'</div>';}
+    right='<div class="price">'+(c.p?'est. $'+c.p+'':'Price unknown')+'</div>';
+    return '<div class="card"><div class="thumb" aria-hidden="true"></div><div><div class="nm">'+esc(c.n)+'</div><div class="ty">In '+c.pct+'% of decks on EDHREC</div>'+badge+'</div>'+right+'</div>';}
   return '<div class="card"><div class="thumb" aria-hidden="true"></div><div><div class="nm">'+esc(c.n)+' <span class="ty">· '+c.t+'</span></div><div class="ty">'+esc(c.why)+'</div>'+badge+extra+'</div></div>';
 }
 function panelGap(d,id){
@@ -312,30 +320,30 @@ function panelGap(d,id){
   window.__cmd=d.cmd;
   const g=d.mode==='thin', rn=r.name.toLowerCase();
   let h='<div class="verdict light"><h4>'+ICON.warn+'<span id="vh" tabindex="-1">'+r.name+': '+r.have+' of about '+r.typ+'</span></h4><p>'+esc(why(d,r))+(g?'<span class="guide">General guide</span>':'')+'</p></div>';
-  h+='<button class="linkbtn" data-cards="'+id+'">See the '+r.have+' '+rn+' cards already in this deck</button>';
+  if(r.have>0) h+='<button class="linkbtn" data-cards="'+id+'">See the '+r.have+' '+rn+' cards in this deck</button>';
   const owned=f.spare.length+f.other.length;
   if(f.spare.length){
-    h+='<div class="grp"><h5>Spare ('+f.spare.length+')</h5><p class="sub">Owned originals that are free right now.</p>'+f.spare.map(c=>cardRow(c,'spare')).join('')+'</div>';
+    h+='<div class="grp"><h5>Spare ('+f.spare.length+')</h5><p class="sub">Free now.</p>'+f.spare.map(c=>cardRow(c,'spare')).join('')+'</div>';
   }
   if(f.other.length){
-    h+='<div class="grp"><h5>In another deck ('+f.other.length+')</h5><p class="sub">You own these, but each is in a different deck.</p>'+f.other.map(c=>cardRow(c,'other')).join('')+'</div>';
+    h+='<div class="grp"><h5>In another deck ('+f.other.length+')</h5><p class="sub">Each is in a different deck.</p>'+f.other.map(c=>cardRow(c,'other')).join('')+'</div>';
   }
   if(!owned){
-    h+='<div class="callout info"><b>You don\'t own any card that adds '+rn+' and fits this deck.</b><span style="color:var(--text2)">Proxies and cards outside '+esc(d.cmd)+'\'s colours are not counted.</span></div>';
+    h+='<div class="callout info"><b>You don\'t own a card that adds '+rn+'.</b></div>';
   }
   if(f.buy===null){
-    h+='<div class="callout"><b>No buy ideas yet.</b><span style="color:var(--text2)">We have no popularity data for '+esc(d.cmd)+', so we can\'t say which cards decks like this run. Nothing is guessed.</span></div>';
+    h+='<div class="callout"><b>No buy ideas yet.</b><span style="color:var(--text2)">No popularity data for this commander, so nothing is guessed.</span></div>';
   } else if(f.buy.length){
     const open=owned===0;
-    h+='<details class="buy" '+(open?'open':'')+'><summary><span class="tw">'+ICON.chev+'</span>Buy ideas ('+f.buy.length+') · prices are estimates</summary>'+f.buy.map(c=>cardRow(c,'buy')).join('')+'<p class="src">Estimates come from Scryfall and can be out of date. Cards come from what decks for this commander run most.</p></details>';
+    h+='<details class="buy" '+(open?'open':'')+'><summary><span class="tw">'+ICON.chev+'</span>Buy ideas ('+f.buy.length+') · estimates</summary>'+f.buy.map(c=>cardRow(c,'buy')).join('')+'<p class="src">Prices are Scryfall estimates.</p></details>';
   }
   return h;
 }
 function panel(sc){
   const d=deckFor(sc==='spare'||sc==='other'||sc==='buy'?'gappy':sc);
-  let title='Deck gaps', body='', back=false;
+  let title='Deck health', body='', back=false;
   if(sc==='states'){
-    body='<div class="err" role="alert">'+ICON.err+'<div><b>Couldn\'t check deck gaps.</b><div style="color:var(--text2)">Your cards haven\'t changed.</div><button class="btn" id="retry2" style="margin-top:10px">Try again</button></div></div>';
+    body='<div class="err" role="alert">'+ICON.err+'<div><b>Couldn\'t check deck health.</b><div style="color:var(--text2)">Your cards haven\'t changed.</div><button class="btn" id="retry2" style="margin-top:10px">Try again</button></div></div>';
     return {title,body,back};
   }
   if(S.gap){back=true;title=d.roles.find(r=>r.id===S.gap).name;body=panelGap(d,S.gap);}
@@ -350,10 +358,10 @@ function chat(){
     const f=FILL.gappy[r.id];
     const own=f.spare.length?f.spare.length+' spare':f.other.length?f.other.length+' in another deck':'none owned';
     return '<li><button class="chipbtn light" data-gap="'+r.id+'">'+ICON.warn+'<span><b>'+r.name+':</b> '+r.have+' of about '+r.typ+' · '+own+'</span><span class="chev" style="margin-left:auto">'+ICON.chev+'</span></button></li>';}).join('');
-  return '<div class="askline"><button class="btn" id="askbtn">Ask: what are the gaps in my deck?</button></div>'+
-  '<div class="chat" role="log" aria-label="Chat"><div class="msg u">What are the gaps in my deck?</div>'+
-  '<div class="msg a"><p style="margin:0 0 6px"><b>'+esc(v.head)+'.</b> Decks built around '+d.cmd+' usually run about 8 removal and 9 draw; you have 3 and 4. That is based on '+d.n+' EDHREC cards. Ramp is on track.</p>'+
-  '<ul>'+items+'</ul><p style="margin:6px 0 0;color:var(--text2);font-size:var(--fs-sm)">I only suggest. Nothing in your deck changes. Prices are estimates.</p></div></div>'+
+  return '<div class="askline"><button class="btn" id="askbtn">Ask: how is my deck health?</button></div>'+
+  '<div class="chat" role="log" aria-label="Chat"><div class="msg u">How is my deck health?</div>'+
+  '<div class="msg a"><p style="margin:0 0 6px"><b>'+esc(v.head)+'.</b> Decks like this usually run about 8 removal and 9 draw; you have 3 and 4 (based on '+d.n+' EDHREC cards). Ramp is on track.</p>'+
+  '<ul>'+items+'</ul><p style="margin:6px 0 0;color:var(--text2);font-size:var(--fs-sm)">Prices are estimates.</p></div></div>'+
   '<div class="composer"><input aria-label="Message" placeholder="Ask about this deck"><button class="btn">Send</button></div>';
 }
 
@@ -375,8 +383,8 @@ function render(){
    (sc==='states'?(S.statesMode==='fail'?strip(d,false,true):S.statesMode==='ok'?strip(d):strip(d,true)):strip(d))+
    '<div class="scrim '+(S.open?'on':'')+'" id="scrim"></div>'+
    '<div class="panel '+(S.open?'on':'')+'" id="panel" role="dialog" aria-modal="false" aria-labelledby="ptitle"><div class="grab" aria-hidden="true"></div>'+
-   (p?'<div class="phead">'+(p.back?'<button class="iconbtn backbtn" id="pback" aria-label="Back to Deck gaps">'+ICON.back+'<span>Back</span></button>':'')+'<h3 id="ptitle">'+(p.back?esc(p.title):'Deck gaps')+'</h3><button class="iconbtn" id="pclose" aria-label="Close">'+ICON.x+'</button></div><div class="pbody">'+p.body+'</div>'+
-   (!p.back&&sc!=='states'?'<div class="pfoot"><button class="btn block" id="pask">Ask the chat about this</button></div>':''):'')+
+   (p?'<div class="phead">'+(p.back?'<button class="iconbtn backbtn" id="pback" aria-label="Back to Deck health">'+ICON.back+'<span>Back</span></button>':'')+'<h3 id="ptitle">'+(p.back?esc(p.title):'Deck health')+'</h3><button class="iconbtn" id="pclose" aria-label="Close">'+ICON.x+'</button></div><div class="pbody">'+p.body+'</div>'+
+   '':'')+
    '</div>';
   if(S.open){const h=$('#vh')||$('#ptitle');if(h&&(S._focus)){h.setAttribute('tabindex','-1');h.focus();S._focus=false;}}
 }

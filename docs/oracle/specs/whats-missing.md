@@ -57,9 +57,9 @@ Rule: take the roles that are light (section 5.2), order by how many cards short
 A role is **Light** when you have 2 or more fewer than the typical number. Within 1 short, or above, is **On track**. Being over is never a problem and gets no colour. There is no red state: "light" is advice, not an error, so the all-red result goes away.
 
 ### 5.3 Reason line (every role, every place)
-- Commander data: "Decks like this usually run about 8; you have 3. Based on 186 EDHREC cards."
+- Commander data: "Average is 8; you have 3." with "Based on 186 EDHREC cards" on the line below in smaller secondary text. Real numbers each time.
 - Source line in the verdict card: "Based on 186 EDHREC cards".
-- General guide: "General guide: about 6. You have 2." The label **General guide** also appears as a small tag next to the section and the verdict.
+- General guide: "Average is 6; you have 2." with "General guide" on the line below in smaller secondary text.
 - The number "about N" is always followed by its source. If no source exists, no number is shown (section 8).
 
 ### 5.4 Gap detail (tap a light role)

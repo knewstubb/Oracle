@@ -101,6 +101,7 @@ svg{width:1em;height:1em;flex:none;vertical-align:-.12em}
 .verdict h4{margin:0 0 4px;font-size:var(--fs-xl);font-weight:600;display:flex;gap:8px;align-items:center}
 .verdict.light h4{color:var(--warn)}
 .verdict p{margin:4px 0 0;color:var(--text)}
+.wsrc{display:block;color:var(--text2);font-size:12px;opacity:.85;margin-top:2px}
 .src{color:var(--text2);font-size:var(--fs-sm);margin-top:8px}
 .sect{margin:18px 0 8px;font-size:var(--fs-sm);letter-spacing:.04em;text-transform:uppercase;color:var(--text2);font-weight:600}
 .row{display:block;width:100%;text-align:left;background:var(--bg-canvas);border:1px solid var(--border-subtle);border-radius:10px;padding:12px;margin-bottom:8px;min-height:44px}
@@ -264,8 +265,8 @@ function verdict(d){
 }
 function why(d,r){
   const c=d.cmd;
-  if(d.mode==='thin') return 'General guide: about '+r.typ+'. You have '+r.have+'.';
-  return 'Decks like this usually run about '+r.typ+'; you have '+r.have+'. Based on '+d.n+' EDHREC cards.';
+  const line='Average is '+r.typ+'; you have '+r.have+'.';
+  return line+'<span class="wsrc">'+(d.mode==='thin'?'General guide':'Based on '+d.n+' EDHREC cards')+'</span>';
 }
 function srcLine(d){
   return d.mode==='thin'
@@ -291,11 +292,11 @@ function strip(d,loading,failed){
 function panelOverview(d){
   const v=verdict(d), g=d.mode==='thin';
   let h='<div class="strat"><div><div class="k">Strategy</div><div class="v">'+(g?'Not set yet, using the general guide':'Not set yet, using typical numbers')+'</div></div><button class="setstrat" aria-disabled="true" title="Coming in a later phase">Set strategy<span class="later">Phase 4 · not built yet</span></button></div>';
-  h+='<div class="verdict '+(v.light?'light':'')+'"><h4>'+(v.light?ICON.warn:ICON.check)+'<span id="vh" tabindex="-1">'+esc(v.head)+'</span></h4><p>'+esc(v.sub)+'</p><div class="src">'+esc(srcLine(d))+'</div><button class="btn" id="pask" style="margin-top:12px">Chat about this</button></div>';
+  h+='<div class="verdict '+(v.light?'light':'')+'"><h4>'+(v.light?ICON.warn:ICON.check)+'<span id="vh" tabindex="-1">'+esc(v.head)+'</span></h4><p>'+esc(v.sub)+'</p><div class="src">'+esc(srcLine(d))+'</div><button class="btn" id="pask" style="margin-top:12px;min-height:32px;padding:5px 10px;font-size:var(--fs-sm)">Chat about this</button></div>';
   h+='<div class="sect">Counts by role'+(g?'<span class="guide">General guide</span>':'')+'</div>';
   h+=d.roles.map(r=>{
     const l=status(r)==='light';
-    const body='<div class="top"><span class="nm">'+r.name+'</span><span class="st">'+(l?ICON.warn+'Light, '+shortBy(r)+' short':ICON.check+'On track')+'</span>'+(l?'<span class="chev">'+ICON.chev+'</span>':'')+'</div>'+meter(r)+'<div class="why">'+esc(why(d,r))+'</div>';
+    const body='<div class="top"><span class="nm">'+r.name+'</span><span class="st">'+(l?ICON.warn+'Light, '+shortBy(r)+' short':ICON.check+'On track')+'</span>'+(l?'<span class="chev">'+ICON.chev+'</span>':'')+'</div>'+meter(r)+'<div class="why">'+why(d,r)+'</div>';
     return l?'<button class="row light" data-gap="'+r.id+'" aria-label="'+r.name+': '+r.have+', typically about '+r.typ+', light, '+shortBy(r)+' short. See cards that fill it.">'+body+'</button>':'<div class="row">'+body+'</div>';
   }).join('');
   if(g){
@@ -319,7 +320,7 @@ function panelGap(d,id){
   const r=d.roles.find(x=>x.id===id), f=(FILL[d===DECKS.thin?'thin':'gappy']||{})[id]||{spare:[],other:[],buy:[]};
   window.__cmd=d.cmd;
   const g=d.mode==='thin', rn=r.name.toLowerCase();
-  let h='<div class="verdict light"><h4>'+ICON.warn+'<span id="vh" tabindex="-1">'+r.name+': '+r.have+' of about '+r.typ+'</span></h4><p>'+esc(why(d,r))+(g?'<span class="guide">General guide</span>':'')+'</p></div>';
+  let h='<div class="verdict light"><h4>'+ICON.warn+'<span id="vh" tabindex="-1">'+r.name+': '+r.have+' of about '+r.typ+'</span></h4><p>'+why(d,r)+'</p></div>';
   if(r.have>0) h+='<button class="linkbtn" data-cards="'+id+'">See the '+r.have+' '+rn+' cards in this deck</button>';
   const owned=f.spare.length+f.other.length;
   if(f.spare.length){
@@ -360,7 +361,7 @@ function chat(){
     return '<li><button class="chipbtn light" data-gap="'+r.id+'">'+ICON.warn+'<span><b>'+r.name+':</b> '+r.have+' of about '+r.typ+' · '+own+'</span><span class="chev" style="margin-left:auto">'+ICON.chev+'</span></button></li>';}).join('');
   return '<div class="askline"><button class="btn" id="askbtn">Ask: how is my deck health?</button></div>'+
   '<div class="chat" role="log" aria-label="Chat"><div class="msg u">How is my deck health?</div>'+
-  '<div class="msg a"><p style="margin:0 0 6px"><b>'+esc(v.head)+'.</b> Decks like this usually run about 8 removal and 9 draw; you have 3 and 4 (based on '+d.n+' EDHREC cards). Ramp is on track.</p>'+
+  '<div class="msg a"><p style="margin:0 0 6px"><b>'+esc(v.head)+'.</b> Average is 8 removal and 9 draw; you have 3 and 4. Ramp is on track.</p><p class="wsrc" style="margin:0 0 6px">Based on '+d.n+' EDHREC cards</p>'+
   '<ul>'+items+'</ul><p style="margin:6px 0 0;color:var(--text2);font-size:var(--fs-sm)">Prices are estimates.</p></div></div>'+
   '<div class="composer"><input aria-label="Message" placeholder="Ask about this deck"><button class="btn">Send</button></div>';
 }

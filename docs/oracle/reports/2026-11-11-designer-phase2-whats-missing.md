@@ -26,7 +26,7 @@ No app code, decisions.md or status.md touched. Note: `docs/oracle/vocabulary.md
 10. **A role counts as "Light"** when 2 or more short (owner decision).
 11. **Single Deck health button** in the strip (amber with a warning icon when any role is light, a tick otherwise); the verdict text sits at the top of the panel's verdict card. No "+1 more".
 12. **Chat about this** moved into the verdict card; the bottom footer is removed.
-13. **Shorter text:** no commander name or colours in reasons, hints or warnings ("Decks like this usually run about 8"). "Nothing moves until you decide." removed; "Using it here leaves Teferi Control one short." kept.
+13. **Shorter text:** no commander name or colours in reasons, hints or warnings ("Average is 8; you have 3", with "Based on N EDHREC cards" smaller on the line below; Chat about this button made smaller). "Nothing moves until you decide." removed; "Using it here leaves Teferi Control one short." kept.
 14. **Strategy row** at the top of the panel, shown as a Phase 4 placeholder (spec section 5.7).
 15. **Wording variant to confirm:** for decks with commander data the Strategy row reads "Not set yet, using typical numbers", and "Not set yet, using the general guide" only on thin data. Reason: the targets for a commander with EDHREC data are not the general guide, so the owner's wording would be untrue there. Say if you want the general-guide wording everywhere.
 

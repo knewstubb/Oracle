@@ -1,13 +1,17 @@
 /**
  * Deck health: the verdict and its wording (contract: docs/oracle/contracts/deck-health-phase2.md, sections 2 and 4).
  *
- * Slice 1 only: four roles (ramp, draw, removal, wipes) checked against the general guide.
- * No EDHREC numbers yet. All copy is composed here, in one place, so the strip, the panel and (later) chat agree.
- * Pure: no database, no network.
+ * Five rows (ramp, draw, removal, wipes, lands) checked against the commander's typical numbers from EDHREC
+ * (average deck, else estimate), or the general guide when there is no usable commander data (slice S2).
+ * All copy is composed here, in one place, so the strip, the panel and (later) chat agree.
+ * Pure: no database, no network. The typical numbers are passed in (see commander-targets-server.ts).
  */
 
 import { ROLE_ORDER, rolesForCard, isLandTypeLine, hasClassifiableText, type Role } from './card-roles'
 import { isBasicLand } from './basic-lands'
+import { guideTargets, type CommanderTargets, type TypeCount } from './commander-targets'
+
+export type { TypeCount } from './commander-targets'
 
 /** The four card roles plus Lands, which is counted from the front-face type line, not from card text. */
 export type HealthRoleKey = Role | 'lands'
@@ -16,11 +20,6 @@ export const HEALTH_ROLE_ORDER: readonly HealthRoleKey[] = [...ROLE_ORDER, 'land
 // ---------------------------------------------------------------------------
 // Types (shapes from the contract, section 1.3 and 4)
 // ---------------------------------------------------------------------------
-
-export interface TypeCount {
-  type: 'creature' | 'instant' | 'sorcery' | 'artifact' | 'enchantment' | 'planeswalker' | 'land'
-  average: number
-}
 
 export type RoleState = 'ok' | 'light'
 
@@ -37,6 +36,7 @@ export interface DeckHealthRole {
 export interface DeckHealthResponse {
   verdict: { headline: string; subline: string; usingGeneralGuide: boolean }
   strategy: { state: 'not_set'; text: string }
+  /** "EDHREC average deck, 12,431 decks" | "EDHREC estimate, N decks" | "General guide" | "..., may be out of date" | "General guide (couldn't reach EDHREC)". */
   sourceLine: string
   checkState: 'full' | 'partial'
   unclassifiedCount: number
@@ -78,6 +78,8 @@ function lower(role: HealthRoleKey): string {
 
 /** "Guide is 6; you have 2." (a rule of thumb, not an average, so the word "Average" is not used for the guide). */
 export function roleText(have: number, typical: number, source: DeckHealthRole['targetSource']): string {
+  // Typical 0 is not designed yet (contract section 4): shown as fine with this text. Flagged to the Designer.
+  if (typical === 0) return 'Not usually played'
   const lead = source === 'general_guide' ? 'Guide' : 'Average'
   return `${lead} is ${typical}; you have ${have}.`
 }
@@ -182,36 +184,62 @@ export function countRoles(cards: HealthDeckCard[]): CountResult {
   return { have, unclassifiedCount: unclassified, mainDeckCount: mainDeck }
 }
 
-/** Build the whole response for one deck from its counted cards. */
-export function buildDeckHealth(cards: HealthDeckCard[], now: Date = new Date()): DeckHealthResponse {
+/** Type counts for the deck itself (front-face type line, main deck only), to show "You have X" beside the averages. */
+export function countDeckTypes(cards: HealthDeckCard[]): Record<TypeCount['type'], number> {
+  const out: Record<TypeCount['type'], number> = { creature: 0, instant: 0, sorcery: 0, artifact: 0, enchantment: 0, planeswalker: 0, land: 0 }
+  for (const c of cards) {
+    if (!c.inMainDeck) continue
+    const qty = c.quantity > 0 ? c.quantity : 1
+    const front = (c.typeLine ?? (isBasicLand(c.cardName) ? 'Basic Land' : '')).split(' // ')[0].split(/\s+[—-]\s+/)[0].toLowerCase()
+    for (const t of Object.keys(out) as Array<TypeCount['type']>) if (new RegExp(`\\b${t}\\b`).test(front)) out[t] += qty
+  }
+  return out
+}
+
+/**
+ * Build the whole response for one deck from its counted cards and its commander's typical numbers.
+ * Without `targets` (or when they are not usable), the general guide is used.
+ */
+export function buildDeckHealth(cards: HealthDeckCard[], targets: CommanderTargets = guideTargets('General guide'), now: Date = new Date()): DeckHealthResponse {
   const { have, unclassifiedCount, mainDeckCount } = countRoles(cards)
+  const useEdhrec = targets.status === 'ok' && targets.source !== 'general_guide' && targets.roles.length > 0
+  const source: DeckHealthRole['targetSource'] = useEdhrec ? targets.source : 'general_guide'
+
+  const typicalFor = (role: HealthRoleKey): number => {
+    if (!useEdhrec) return GENERAL_GUIDE[role]
+    if (role === 'lands') return targets.landsTypical ?? GENERAL_GUIDE.lands
+    return targets.roles.find((r) => r.role === role)?.typical ?? GENERAL_GUIDE[role]
+  }
 
   const roles: DeckHealthRole[] = HEALTH_ROLE_ORDER.map((role) => {
-    const typical = GENERAL_GUIDE[role]
+    const typical = typicalFor(role)
+    // Lands fall back to the guide when EDHREC gave no land number; label it honestly.
+    const roleSource = useEdhrec && role === 'lands' && targets.landsTypical === null ? 'general_guide' : source
     return {
       role,
       label: ROLE_LABELS[role],
       have: have[role],
       typical,
-      targetSource: 'general_guide' as const,
+      targetSource: roleSource,
       state: roleState(have[role], typical),
-      text: roleText(have[role], typical, 'general_guide'),
+      text: roleText(have[role], typical, roleSource),
     }
   })
 
-  const usingGeneralGuide = true
+  const usingGeneralGuide = !useEdhrec
   const copy = composeHealthCopy({ roles, usingGeneralGuide })
   const partial = mainDeckCount > 0 && unclassifiedCount / mainDeckCount > UNCLASSIFIED_PARTIAL_SHARE
+  const deckTypes = countDeckTypes(cards)
 
   return {
     verdict: copy,
-    strategy: { state: 'not_set', text: 'Not set yet, using the general guide' },
-    sourceLine: 'General guide',
+    strategy: { state: 'not_set', text: useEdhrec ? 'Not set yet, using typical numbers' : 'Not set yet, using the general guide' },
+    sourceLine: targets.sourceLabel,
     checkState: partial ? 'partial' : 'full',
     unclassifiedCount,
     roles,
-    typeCounts: [],
-    typeCountsLabel: '',
+    typeCounts: targets.typeCounts.map((t) => ({ type: t.type, average: t.average, have: deckTypes[t.type] })),
+    typeCountsLabel: targets.typeCountsLabel,
     computedAt: now.toISOString(),
   }
 }

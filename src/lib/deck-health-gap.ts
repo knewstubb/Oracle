@@ -11,7 +11,7 @@
 
 import { browseSpareCopies, MAX_BROWSE_LIMIT, type BrowseCard } from './spare-copy-browse'
 import type { LookupClient } from './owned-copy-lookup'
-import { loadHealthCards, type HealthClient } from './deck-health-server'
+import { loadHealthCards, loadTargets, type HealthClient, type LoadHealthOptions } from './deck-health-server'
 import { buildDeckHealth, cardsInRole, HEALTH_ROLE_ORDER, type HealthRoleKey, type InDeckCard } from './deck-health'
 
 export interface GapCard {
@@ -63,7 +63,7 @@ const toGapCard = (c: BrowseCard, status: GapCard['status']): GapCard => ({
   detailLine: c.detail_line ?? null,
 })
 
-export async function loadDeckGap(supabase: HealthClient, deckId: number, userId: string, role: HealthRoleKey): Promise<LoadGapResult> {
+export async function loadDeckGap(supabase: HealthClient, deckId: number, userId: string, role: HealthRoleKey, opts: LoadHealthOptions = {}): Promise<LoadGapResult> {
   // The deck's own cards and the owner's spare cards do not depend on each other, so both are read at the same time.
   const [loaded, browsed] = await Promise.all([
     loadHealthCards(supabase, deckId, userId),
@@ -74,7 +74,14 @@ export async function loadDeckGap(supabase: HealthClient, deckId: number, userId
   ])
   if (!loaded.ok) return loaded
 
-  const health = buildDeckHealth(loaded.cards)
+  // Same typical numbers as the health panel (the saved commander targets), so "typical" agrees in both places.
+  let targets
+  try {
+    targets = await loadTargets(supabase, loaded.commanderNames, opts)
+  } catch (err) {
+    return { ok: false, status: 500, error: err instanceof Error ? err.message : 'Could not check deck health' }
+  }
+  const health = buildDeckHealth(loaded.cards, targets)
   const row = health.roles.find((r) => r.role === role)
   if (!row) return { ok: false, status: 500, error: 'Unknown role' }
   const inDeckCards = cardsInRole(loaded.cards, role)

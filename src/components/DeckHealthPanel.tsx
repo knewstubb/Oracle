@@ -5,7 +5,7 @@ import { Dialog as DialogPrimitive } from '@base-ui/react/dialog'
 import { Dialog, DialogPortal, DialogOverlay } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { StrategyRow } from '@/components/StrategyRow'
-import type { DeckHealthResponse, DeckHealthRole, HealthRoleKey } from '@/lib/deck-health'
+import type { DeckHealthResponse, DeckHealthRole, HealthRoleKey, TypeCount } from '@/lib/deck-health'
 import { GapDetail } from '@/components/GapDetail'
 
 export interface DeckHealthPanelProps {
@@ -44,6 +44,45 @@ function Meter({ role }: { role: DeckHealthRole }) {
   )
 }
 
+const SOURCE_SHORT: Record<DeckHealthRole['targetSource'], string> = {
+  edhrec_average: 'EDHREC average deck',
+  edhrec_estimate: 'EDHREC estimate',
+  general_guide: 'General guide',
+}
+
+const TYPE_LABELS: Record<TypeCount['type'], string> = {
+  creature: 'Creatures',
+  instant: 'Instants',
+  sorcery: 'Sorceries',
+  artifact: 'Artifacts',
+  enchantment: 'Enchantments',
+  planeswalker: 'Planeswalkers',
+  land: 'Lands',
+}
+
+/** Card types for this commander, shown when the role check uses the general guide (spec whats-missing 5.5). */
+function CardTypes({ data }: { data: DeckHealthResponse }) {
+  return (
+    <section aria-label="Card types" className="space-y-1">
+      <h3 className="pt-1 text-[length:var(--fs-sm)] font-medium" style={{ color: 'var(--text-secondary)' }}>
+        Card types
+      </h3>
+      {data.typeCounts.length > 0 ? (
+        <ul className="space-y-0.5 text-[length:var(--fs-sm)]" style={{ color: 'var(--text-primary)' }}>
+          {data.typeCounts.map((t) => (
+            <li key={t.type}>
+              {TYPE_LABELS[t.type]}: you have {t.have ?? 0} · usually {Math.round(t.average)}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <p className="text-[length:var(--fs-xs)]" style={{ color: 'var(--text-secondary)' }}>
+        {data.typeCountsLabel}
+      </p>
+    </section>
+  )
+}
+
 function RoleRow({ role, onOpen }: { role: DeckHealthRole; onOpen: (role: HealthRoleKey) => void }) {
   const light = role.state === 'light'
   const short = Math.max(0, role.typical - role.have)
@@ -68,7 +107,7 @@ function RoleRow({ role, onOpen }: { role: DeckHealthRole; onOpen: (role: Health
         {role.text}
       </div>
       <div className="text-[length:var(--fs-xs)]" style={{ color: 'var(--text-secondary)' }}>
-        {role.targetSource === 'general_guide' ? 'General guide' : ''}
+        {SOURCE_SHORT[role.targetSource]}
       </div>
     </>
   )
@@ -179,6 +218,7 @@ export function DeckHealthPanel({ open, onClose, data, isLoading, isError, onRet
                     <RoleRow key={r.role} role={r} onOpen={onGapRole} />
                   ))}
                 </div>
+                {data.verdict.usingGeneralGuide && data.typeCountsLabel && <CardTypes data={data} />}
               </>
             )}
           </div>

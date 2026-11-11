@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { roleState, composeHealthCopy, buildDeckHealth, countRoles, GENERAL_GUIDE, type HealthDeckCard } from './deck-health'
-import { loadDeckHealth, type HealthClient } from './deck-health-server'
+import { loadDeckHealth, commanderNamesFor, type HealthClient, type TargetsProvider } from './deck-health-server'
+import { guideTargets, type CommanderTargets } from './commander-targets'
 
 describe('roleState (Light = 2 or more short)', () => {
   it('8 typical: 7 is fine, 6 is light', () => {
@@ -158,5 +159,117 @@ describe('loadDeckHealth', () => {
       const r = await loadDeckHealth(client, 5, 'u')
       expect(r).toMatchObject({ ok: false, status: 500 })
     }
+  })
+
+  it('looks up the commander from its commander row, and passes Recheck through', async () => {
+    const { client } = fakeClient({
+      deck: { id: 5, commander_name: 'Old Name' } as { id: number },
+      deckCards: [{ card_name: 'Hearthhull, the Worldseed', quantity: 1, categories: null, is_commander: true, command_zone_role: null }],
+      refs: [],
+    })
+    const seen: Array<{ names: string[]; recheck?: boolean }> = []
+    const targets: TargetsProvider = async (_db, names, opts) => {
+      seen.push({ names, recheck: opts.recheck })
+      return edhrecTargets({ lands: 41 })
+    }
+    const r = await loadDeckHealth(client, 5, 'u', { recheck: true, targets })
+    expect(seen).toEqual([{ names: ['Hearthhull, the Worldseed'], recheck: true }])
+    expect(r.ok && r.health.sourceLine).toBe('EDHREC average deck, 33,879 decks')
+    expect(r.ok && r.health.roles.find((x) => x.role === 'lands')?.typical).toBe(41)
+  })
+})
+
+describe('commanderNamesFor', () => {
+  const row = (card_name: string, is_commander: boolean, command_zone_role: string | null = null) => ({ card_name, quantity: 1, categories: null, is_commander, command_zone_role })
+
+  it('uses commander rows (both partners), never the companion', () => {
+    expect(commanderNamesFor([row('Thrasios, Triton Hero', true), row('Tymna the Weaver', true, 'partner'), row('Lurrus', false, 'companion'), row('Sol Ring', false)], null)).toEqual([
+      'Thrasios, Triton Hero',
+      'Tymna the Weaver',
+    ])
+  })
+
+  it('falls back to the deck commander name when no row is marked (real case: the "Mendicant 2" deck)', () => {
+    expect(commanderNamesFor([row('Sol Ring', false)], 'Mendicant Core, Guidelight')).toEqual(['Mendicant Core, Guidelight'])
+    expect(commanderNamesFor([], null)).toEqual([])
+  })
+})
+
+function edhrecTargets(o: { lands: number | null; removal?: number }): CommanderTargets {
+  return {
+    status: 'ok',
+    source: 'edhrec_average',
+    sourceLabel: 'EDHREC average deck, 33,879 decks',
+    roles: [
+      { role: 'ramp', typical: 19, cardsInRole: 19 },
+      { role: 'draw', typical: 8, cardsInRole: 8 },
+      { role: 'removal', typical: o.removal ?? 9, cardsInRole: o.removal ?? 9 },
+      { role: 'wipes', typical: 2, cardsInRole: 2 },
+    ],
+    landsTypical: o.lands,
+    cardsUsed: 57,
+    deckSample: 33879,
+    coverage: null,
+    typeCounts: [
+      { type: 'creature', average: 30 },
+      { type: 'land', average: 41 },
+    ],
+    typeCountsLabel: 'EDHREC averages, 33,879 decks',
+    fetchedAt: '2026-11-11T00:00:00.000Z',
+    stale: false,
+  }
+}
+
+describe('buildDeckHealth with commander targets', () => {
+  const card = (name: string, typeLine: string, oracleText: string | null, quantity = 1): HealthDeckCard => ({ cardName: name, quantity, typeLine, oracleText, inMainDeck: true })
+  const removal = (n: number) => Array.from({ length: n }, (_, i) => card(`Kill ${i}`, 'Instant', 'Destroy target creature.'))
+
+  it('uses the EDHREC numbers, the "Average is" wording and the source on each row', () => {
+    const h = buildDeckHealth([...removal(7), card('Forest', 'Basic Land — Forest', null, 40)], edhrecTargets({ lands: 41 }))
+    const rem = h.roles.find((r) => r.role === 'removal')!
+    expect(rem).toMatchObject({ typical: 9, have: 7, state: 'light', targetSource: 'edhrec_average', text: 'Average is 9; you have 7.' })
+    expect(h.verdict.usingGeneralGuide).toBe(false)
+    expect(h.verdict.headline).not.toContain('general guide')
+    expect(h.strategy.text).toBe('Not set yet, using typical numbers')
+    expect(h.sourceLine).toBe('EDHREC average deck, 33,879 decks')
+  })
+
+  it('lands are commander-specific: 40 lands is fine for a 41-land commander but would be judged against 34 elsewhere', () => {
+    const cards = [card('Forest', 'Basic Land — Forest', null, 38)]
+    expect(buildDeckHealth(cards, edhrecTargets({ lands: 41 })).roles.find((r) => r.role === 'lands')).toMatchObject({ typical: 41, state: 'light' })
+    expect(buildDeckHealth(cards, edhrecTargets({ lands: 34 })).roles.find((r) => r.role === 'lands')).toMatchObject({ typical: 34, state: 'ok' })
+  })
+
+  it('with no EDHREC land number, Lands uses the guide (36) and says so', () => {
+    const lands = buildDeckHealth([], edhrecTargets({ lands: null })).roles.find((r) => r.role === 'lands')!
+    expect(lands).toMatchObject({ typical: 36, targetSource: 'general_guide', text: 'Guide is 36; you have 0.' })
+  })
+
+  it('a typical of 0 is never Light and reads "Not usually played"', () => {
+    const r = buildDeckHealth([], edhrecTargets({ lands: 41, removal: 0 })).roles.find((x) => x.role === 'removal')!
+    expect(r).toMatchObject({ state: 'ok', text: 'Not usually played' })
+  })
+
+  it('type counts carry what the deck has, counted from the front face', () => {
+    const h = buildDeckHealth([card('Bear', 'Creature — Bear', 'x', 3), card('Forest', 'Basic Land — Forest', null, 5), card('Mutavault', 'Land', null, 1)], edhrecTargets({ lands: 41 }))
+    expect(h.typeCounts).toEqual([
+      { type: 'creature', average: 30, have: 3 },
+      { type: 'land', average: 41, have: 6 },
+    ])
+    expect(h.typeCountsLabel).toBe('EDHREC averages, 33,879 decks')
+  })
+
+  it('thin data: general guide, with the card types shown instead', () => {
+    const thin = guideTargets('General guide', { typeCounts: [{ type: 'creature', average: 25 }], label: 'EDHREC averages, 61 decks' })
+    const h = buildDeckHealth(removal(6), thin)
+    expect(h.verdict.usingGeneralGuide).toBe(true)
+    expect(h.sourceLine).toBe('General guide')
+    expect(h.strategy.text).toBe('Not set yet, using the general guide')
+    expect(h.roles.every((r) => r.targetSource === 'general_guide')).toBe(true)
+    expect(h.typeCounts).toEqual([{ type: 'creature', average: 25, have: 0 }])
+  })
+
+  it('EDHREC unreachable with nothing saved: says so in the source line', () => {
+    expect(buildDeckHealth([], guideTargets("General guide (couldn't reach EDHREC)")).sourceLine).toBe("General guide (couldn't reach EDHREC)")
   })
 })

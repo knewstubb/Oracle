@@ -6,6 +6,7 @@ import { loadDeckHealth } from '@/lib/deck-health-server'
 /**
  * POST /api/decks/[id]/health/recheck
  * Fresh Deck health for one of the signed-in user's decks (same answer as GET, recounted now).
+ * Also refreshes the commander's typical numbers if the saved ones are out of date (at most once an hour).
  */
 export async function POST(
   request: NextRequest,
@@ -20,7 +21,7 @@ export async function POST(
     return Response.json({ error: 'Invalid deck ID' }, { status: 400 })
   }
 
-  const result = await loadDeckHealth(createAdminClient(), deckId, authResult.id)
+  const result = await loadDeckHealth(createAdminClient(), deckId, authResult.id, { recheck: true })
   if (!result.ok) return Response.json({ error: result.error }, { status: result.status })
   return Response.json(result.health)
 }

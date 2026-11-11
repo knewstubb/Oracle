@@ -156,3 +156,24 @@ Where the time went: the slowest single piece was reading full card text for eve
 ## Follow-up 4: owner confirmed the detail works (cause was a stale dev server); badge layout
 
 Card rows in role detail now put the status badge ('Available' or amber 'In <deck name>') at the far right on the same line as the card name. The name truncates (full name on hover) and the badge never gets pushed off; a long deck name truncates inside the badge (badge capped at half the row). Mockup check: `docs/oracle/mockups/whats-missing.html` shows the badge on its own line under the card name (left-aligned), so this is a deliberate change from the approved mockup at the owner's request. The mockup was not edited. Render test added for the row order. Unit tests for the changed files pass; E2E not run (no separate test account).
+
+## Follow-up 5: mockup row design in role detail (thumbnail, name, badge, short line, tap to preview)
+
+**Row now:** card thumbnail on the left (42px wide, as tall as the text block, lazy-loaded), then the card name (bold, truncates) with the badge at the far right of the same line (the owner's latest change kept), then one short line under the name saying what the card does for the role (e.g. "Draws two cards.", "Exiles target creature.", "Taps for mana.").
+
+**Spec check:** spec 5.4 says "Tapping a card name uses the existing card preview", so tapping a name opens the existing card preview (`MobileCardPreview`, closes with X, Escape or the backdrop). Hover preview on the thumbnail is switched off.
+
+**Where the image comes from (differs from the request):** `ref_cards` has no image columns at all. Images are keyed by printing id. The owner's own copy already carries a printing id (`user_copies.printing_id`), so I added that one column to the existing copies query (no new query, no migration) and show the owner's own printing (a spare copy is preferred). When a copy has no printing id, the thumbnail is a plain empty box (no broken image, no extra lookup), and the preview shows the existing "No image" placeholder.
+
+**Detail line:** worked out by simple rules from the card's front-face text (new `src/lib/gap-detail-line.ts`, with tests); falls back to a safe generic sentence ("Removes a threat.") rather than inventing detail. Not shown for lands that are not front-face lands.
+
+**Deviation to note:** the spec says thumbnail width follows the card ratio; I used a fixed 42px width like the approved mockup, which is about the 5:7 ratio at the normal row height.
+
+**Tests:** row with image (thumb first, lazy image, badge last on the name line, detail line), row without image (plain box, no img), tap opens and closes the preview, and golden tests for the detail sentences. Full unit suite 2,652 passing; typecheck only the known error; lint no new warnings. I did not re-time the live lookup: the change adds one column to an existing query and no new query, so speed should be unchanged, but I have not measured it. E2E not run (no separate test account).
+
+**Owner check steps:**
+1. Open a deck, click Deck health, click a Light pill (e.g. Draw).
+2. Each card row shows a small card picture on the left, the name with the Available / "In <deck>" badge at the far right, and a short line under the name.
+3. A card with no picture shows a plain empty box and the row still lines up.
+4. Tap a card name: the card picture opens full size; close with the X or Escape.
+5. Spot-check the short lines read correctly for a few cards; tell me any that are wrong or odd.

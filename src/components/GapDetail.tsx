@@ -5,6 +5,8 @@ import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, ChevronLeft, Circle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { CardImage } from '@/components/CardImage'
+import { MobileCardPreview } from '@/components/MobileCardPreview'
 import { deckKeys } from '@/hooks/useDeckQueryKeys'
 import type { DeckHealthGap, GapCard } from '@/lib/deck-health-gap'
 import type { HealthRoleKey } from '@/lib/deck-health'
@@ -28,31 +30,59 @@ const NOTHING_OWNED: Record<HealthRoleKey, string> = {
 
 function CardRow({ card }: { card: GapCard }) {
   const spare = card.status === 'SPARE'
+  const [previewOpen, setPreviewOpen] = useState(false)
   return (
-    <li className="flex items-center justify-between gap-3 border-t py-2.5" style={{ borderColor: 'var(--border-default)' }}>
-      <div className="min-w-0 flex-1 truncate text-[length:var(--fs-base)]" style={{ color: 'var(--text-primary)' }} title={card.name}>
-        {card.name}
-        {card.spareCopies > 1 ? <span style={{ color: 'var(--text-secondary)' }}> ×{card.spareCopies}</span> : null}
+    <li className="flex items-stretch gap-2.5 border-t py-2.5" style={{ borderColor: 'var(--border-default)' }}>
+      {/* Thumbnail: as tall as the text block (top of the name to bottom of the detail line); lazy-loaded; plain box when no image is known. */}
+      <div
+        data-testid="gap-thumb"
+        className="relative w-[42px] min-h-[56px] shrink-0 self-stretch overflow-hidden rounded-[4px] border"
+        style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-hover)' }}
+        aria-hidden={card.printingId ? undefined : true}
+      >
+        {card.printingId ? (
+          <CardImage scryfallId={card.printingId} alt={card.name} width={42} height={59} noPreview className="h-full w-full" />
+        ) : null}
       </div>
-      {spare ? (
-        <span
-          data-testid="gap-badge"
-          className="inline-flex max-w-[50%] shrink-0 items-center gap-1 rounded-full border px-2 text-[length:var(--fs-sm)]"
-          style={{ borderColor: 'var(--border-default)', color: 'var(--text-secondary)' }}
-        >
-          <Circle size={10} aria-hidden="true" />
-          Available
-        </span>
-      ) : (
-        <span
-          data-testid="gap-badge"
-          className="inline-flex max-w-[50%] shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-[length:var(--fs-sm)]"
-          style={{ backgroundColor: 'var(--signal-warning-bg)', color: 'var(--signal-warning)' }}
-        >
-          <AlertTriangle size={12} aria-hidden="true" className="shrink-0" />
-          <span className="truncate">In {card.otherDeckName}</span>
-        </span>
-      )}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => setPreviewOpen(true)}
+            title={card.name}
+            className="min-w-0 flex-1 truncate text-left text-[length:var(--fs-base)] font-semibold hover:underline"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            {card.name}
+            {card.spareCopies > 1 ? <span className="font-normal" style={{ color: 'var(--text-secondary)' }}> ×{card.spareCopies}</span> : null}
+          </button>
+          {spare ? (
+            <span
+              data-testid="gap-badge"
+              className="inline-flex max-w-[50%] shrink-0 items-center gap-1 rounded-full border px-2 text-[length:var(--fs-sm)]"
+              style={{ borderColor: 'var(--border-default)', color: 'var(--text-secondary)' }}
+            >
+              <Circle size={10} aria-hidden="true" />
+              Available
+            </span>
+          ) : (
+            <span
+              data-testid="gap-badge"
+              className="inline-flex max-w-[50%] shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-[length:var(--fs-sm)]"
+              style={{ backgroundColor: 'var(--signal-warning-bg)', color: 'var(--signal-warning)' }}
+            >
+              <AlertTriangle size={12} aria-hidden="true" className="shrink-0" />
+              <span className="truncate">In {card.otherDeckName}</span>
+            </span>
+          )}
+        </div>
+        {card.detailLine ? (
+          <p data-testid="gap-line" className="mt-0.5 text-[length:var(--fs-sm)]" style={{ color: 'var(--text-secondary)' }}>
+            {card.detailLine}
+          </p>
+        ) : null}
+      </div>
+      <MobileCardPreview cardName={card.name} scryfallId={card.printingId} isOpen={previewOpen} onClose={() => setPreviewOpen(false)} />
     </li>
   )
 }

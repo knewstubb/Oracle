@@ -16,8 +16,8 @@ const gap = (over: Partial<DeckHealthGap> = {}): DeckHealthGap => ({
   typical: 10,
   inDeckCount: 3,
   inDeckCards: [{ name: 'Night\'s Whisper', quantity: 1 }],
-  spare: [{ name: 'Spare Draw', typeLine: 'Sorcery', status: 'SPARE', otherDeckName: null, spareCopies: 1 }],
-  inAnotherDeck: [{ name: 'Held Draw', typeLine: 'Sorcery', status: 'IN_ANOTHER_DECK', otherDeckName: 'Korvold', spareCopies: 0 }],
+  spare: [{ name: 'Spare Draw', typeLine: 'Sorcery', status: 'SPARE', otherDeckName: null, spareCopies: 1, printingId: 'abcd1234-0000-0000-0000-000000000000', detailLine: 'Draws two cards.' }],
+  inAnotherDeck: [{ name: 'Held Draw', typeLine: 'Sorcery', status: 'IN_ANOTHER_DECK', otherDeckName: 'Korvold', spareCopies: 0, printingId: null, detailLine: null }],
   coloursKnown: true,
   spareTotal: 1,
   inAnotherDeckTotal: 1,
@@ -90,19 +90,41 @@ describe('GapDetail', () => {
     expect(screen.getByRole('button', { name: /See the 3 draw cards already in this deck/ })).toBeInTheDocument()
   })
 
-  it('puts the status badge on the same row as the card name, after it, in the same list item', async () => {
+  it('row: thumbnail, then name with the badge at the far right on the same line, then the short detail line', async () => {
     renderGap(() => json(gap()))
     await screen.findByText('Spare Draw')
     const row = screen.getByText('Spare Draw').closest('li')!
-    expect(row.className).toContain('flex')
-    expect(row.className).toContain('justify-between')
-    const badge = row.querySelector('[data-testid="gap-badge"]')!
+    const thumb = row.querySelector('[data-testid="gap-thumb"]')!
+    expect(row.firstElementChild).toBe(thumb)
+    expect(thumb.querySelector('img')).not.toBeNull()
+    expect(thumb.querySelector('img')!.getAttribute('loading')).toBe('lazy')
+    const nameLine = screen.getByText('Spare Draw').closest('div')!
+    expect(nameLine.className).toContain('justify-between')
+    const badge = nameLine.querySelector('[data-testid="gap-badge"]')!
     expect(badge).toHaveTextContent('Available')
-    expect(row.firstElementChild).toContainElement(screen.getByText('Spare Draw'))
-    expect(row.lastElementChild).toBe(badge)
-    expect(row.firstElementChild!.className).toContain('truncate')
-    const other = screen.getByText('In Korvold').closest('li')!
-    expect(other.lastElementChild).toContainElement(screen.getByText('In Korvold'))
+    expect(nameLine.lastElementChild).toBe(badge)
+    expect(screen.getByText('Spare Draw').className).toContain('truncate')
+    expect(row.querySelector('[data-testid="gap-line"]')).toHaveTextContent('Draws two cards.')
+  })
+
+  it('row without an image: plain box, no broken image, still shows name, badge and keeps layout', async () => {
+    renderGap(() => json(gap()))
+    await screen.findByText('Held Draw')
+    const row = screen.getByText('Held Draw').closest('li')!
+    const thumb = row.querySelector('[data-testid="gap-thumb"]')!
+    expect(thumb.querySelector('img')).toBeNull()
+    expect(row.querySelector('[data-testid="gap-line"]')).toBeNull()
+    expect(screen.getByText('In Korvold').closest('[data-testid="gap-badge"]')).not.toBeNull()
+  })
+
+  it('tapping a card name opens the existing card preview, and it can be closed', async () => {
+    renderGap(() => json(gap()))
+    const name = await screen.findByRole('button', { name: 'Spare Draw' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    act(() => name.click())
+    expect(screen.getByRole('dialog', { name: 'Card preview: Spare Draw' })).toBeInTheDocument()
+    act(() => screen.getByRole('button', { name: 'Close preview' }).click())
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('says so when you own nothing that fits', async () => {

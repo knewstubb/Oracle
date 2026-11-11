@@ -23,7 +23,7 @@ const gap: DeckHealthGap = {
   typical: 10,
   inDeckCount: 1,
   inDeckCards: [{ name: 'Divination', quantity: 1 }],
-  spare: [{ name: 'Spare Draw', typeLine: 'Sorcery', status: 'SPARE', otherDeckName: null, spareCopies: 1 }],
+  spare: [{ name: 'Spare Draw', typeLine: 'Sorcery', status: 'SPARE', otherDeckName: null, spareCopies: 1, printingId: null, detailLine: null }],
   inAnotherDeck: [],
   coloursKnown: true,
   spareTotal: 1,

@@ -22,6 +22,10 @@ export interface GapCard {
   otherDeckName: string | null
   /** How many spare copies the owner has. */
   spareCopies: number
+  /** Scryfall printing id of the owner's own copy, for the thumbnail. Null = no image known. */
+  printingId: string | null
+  /** Short sentence on what the card does for the role. Null when none. */
+  detailLine: string | null
 }
 
 export interface DeckHealthGap {
@@ -55,6 +59,8 @@ const toGapCard = (c: BrowseCard, status: GapCard['status']): GapCard => ({
   status,
   otherDeckName: status === 'IN_ANOTHER_DECK' ? c.in_other_decks.map((d) => d.deck_name).join(', ') || null : null,
   spareCopies: c.spare_copies,
+  printingId: c.printing_id ?? null,
+  detailLine: c.detail_line ?? null,
 })
 
 export async function loadDeckGap(supabase: HealthClient, deckId: number, userId: string, role: HealthRoleKey): Promise<LoadGapResult> {

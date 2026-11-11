@@ -19,6 +19,7 @@
 // ---------------------------------------------------------------------------
 
 import { isBasicLand } from './basic-lands'
+import { gapDetailLine } from './gap-detail-line'
 import { isLandTypeLine, rolesForCard, ROLE_TEXT_NEEDLES, type Role } from './card-roles'
 import { parseColourLetters } from './command-zone'
 import { loadCommanderColours, shortByOneWarning, withinIdentity, type LookupClient } from './owned-copy-lookup'
@@ -38,7 +39,10 @@ export interface BrowseCard {
   mana_value: number | null
   spare_copies: number
   in_other_decks: BrowseHolding[]
-}
+  /** Scryfall printing id of one of the owner's own copies (spare copy preferred); null when unknown. */
+  printing_id?: string | null
+  /** One short sentence on what the card does for the asked-for role, when a role was asked for. */
+  detail_line?: string | null}
 
 export interface SpareBrowseResult {
   /** null = could not be determined; nothing is listed as fitting in that case */
@@ -144,7 +148,7 @@ export async function browseSpareCopies(
     simple(client.from('decks').select('id, name, colour_identity').eq('id', deckId).eq('user_id', userId), 'deck'),
     loadCommanderColours(client, deckId).catch(() => null),
     pagedParallel(() => client.from('user_cards').select('id, card_name, oracle_id').eq('user_id', userId).order('id'), 'owned cards'),
-    pagedParallel(() => client.from('user_copies').select('id, card_id').eq('user_id', userId).eq('is_proxy', false).order('id'), 'owned copies', 5),
+    pagedParallel(() => client.from('user_copies').select('id, card_id, printing_id').eq('user_id', userId).eq('is_proxy', false).order('id'), 'owned copies', 5),
     pagedParallel(() => client.from('decks').select('id, name').eq('user_id', userId).order('id'), 'decks', 1),
   ])
   if (deckRows.length === 0) throw new Error('Deck not found')
@@ -175,7 +179,11 @@ export async function browseSpareCopies(
 
   const deckName = new Map(userDecks.map(d => [Number(d.id), String(d.name)]))
   const copiesByCard = new Map<number, number[]>()
-  for (const c of copies) copiesByCard.set(Number(c.card_id), [...(copiesByCard.get(Number(c.card_id)) ?? []), Number(c.id)])
+  const printingByCopy = new Map<number, string>()
+  for (const c of copies) {
+    copiesByCard.set(Number(c.card_id), [...(copiesByCard.get(Number(c.card_id)) ?? []), Number(c.id)])
+    if (typeof c.printing_id === 'string' && c.printing_id) printingByCopy.set(Number(c.id), c.printing_id)
+  }
 
   // Only cards the owner really has (not basics, not proxy-only) can be spare or held elsewhere.
   const names = [...new Set(cards.filter(c => (copiesByCard.get(Number(c.id)) ?? []).length > 0).map(c => String(c.card_name)))].filter(n => !isBasicLand(n))
@@ -243,10 +251,11 @@ export async function browseSpareCopies(
 
     let spareN = 0
     let inThis = 0
+    let spareCopyId: number | null = null
     const held = new Map<number, number>()
     for (const id of mine) {
       const ds = copyToDecks.get(id) ?? []
-      if (ds.length === 0) { spareN++; continue }
+      if (ds.length === 0) { spareN++; if (spareCopyId === null || (!printingByCopy.has(spareCopyId) && printingByCopy.has(id))) spareCopyId = id; continue }
       if (ds.includes(deckId)) { inThis++; continue }
       for (const d of new Set(ds)) held.set(d, (held.get(d) ?? 0) + 1)
     }
@@ -259,6 +268,8 @@ export async function browseSpareCopies(
       card_name: name, type_line: String(data.type_line ?? ''),
       mana_value: typeof data.mana_value === 'number' ? data.mana_value : null,
       spare_copies: spareN, in_other_decks: holdings,
+      printing_id: (spareCopyId !== null ? printingByCopy.get(spareCopyId) : undefined) ?? mine.map((id) => printingByCopy.get(id)).find(Boolean) ?? null,
+      detail_line: gapDetailLine(args.kind, String(data.type_line ?? ''), typeof data.oracle_text === 'string' ? data.oracle_text : null),
       rank: typeof data.edhrec_rank === 'number' ? data.edhrec_rank : Number.MAX_SAFE_INTEGER,
     }
     if (spareN > 0) spare.push(entry)

@@ -93,7 +93,7 @@ describe('OracleSidebar (side panel with input at the bottom)', () => {
     renderChat()
     const panel = screen.getByTestId('oracle-conversation')
     // Same row as the page content, so the page narrows to make room.
-    const row = screen.getByTestId('page').closest('main')!.parentElement!
+    const row = screen.getByTestId('page').closest('main')!.parentElement!.parentElement!
     expect(row).toContainElement(panel)
     // The footer is a separate full-width bar beneath the row, so the panel stops above it.
     expect(screen.getByTestId('app-footer')).not.toContainElement(panel)

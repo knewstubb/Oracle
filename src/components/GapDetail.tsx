@@ -225,8 +225,8 @@ export function GapDetail({ deckId, role, onBack }: GapDetailProps) {
             <p className="text-[length:var(--fs-base)]" style={{ color: 'var(--text-primary)' }}>
               {data.label}: {data.have} of {data.typical}
             </p>
-            <p className="text-[length:var(--fs-sm)]" style={{ color: 'var(--text-secondary)' }}>
-              General guide
+            <p data-testid="gap-source-line" className="text-[length:var(--fs-sm)]" style={{ color: 'var(--text-secondary)' }}>
+              {data.sourceLine || 'General guide'}
             </p>
           </div>
 

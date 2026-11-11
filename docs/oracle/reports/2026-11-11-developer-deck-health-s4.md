@@ -50,7 +50,7 @@ When you open a role (Ramp, Draw and so on) in Deck health, there is now a "Buy 
 
 ## Open questions
 
-- Pre-existing, not fixed: the panel always shows a "General guide" label even when targets come from EDHREC (S2/S3 leftover). Want it fixed?
+- Pre-existing, FIXED in the follow-up below: the panel always showed a "General guide" label even when targets came from EDHREC.
 
 ## Verification
 
@@ -65,3 +65,20 @@ When you open a role (Ramp, Draw and so on) in Deck health, there is now a "Buy 
 
 - I used python/sed shell scripts for a few file edits (test fixture fixes, the loader restructure, a type fix, a comment). All visible in the git diff.
 - I briefly printed a local auto-login cookie in a terminal; nothing was shared.
+
+## Follow-up: real source label in the role detail header
+
+**Changed:** the role detail header no longer says a fixed "General guide". It shows the same source line as the overview panel ("EDHREC average deck, N decks", "EDHREC estimate, N decks", "General guide", "General guide (couldn't reach EDHREC)", and ", may be out of date" when stale). The gap reply now carries `sourceLine` (taken from the same health calculation the overview uses); an older reply without it falls back to "General guide". Files: `src/lib/deck-health-gap.ts`, `src/components/GapDetail.tsx`, fixtures in `GapDetail.test.tsx` and `HealthStrip.gap.test.tsx`.
+
+**Tests:** 6 new in `GapDetail.buy.test.tsx` (each of the five labels, plus the fallback). Full suite: 2,754 passed, 42 skipped. Typecheck: only the known error. One earlier full run showed 8 errors while the machine was busy; a clean re-run passed with no changes, so I treat it as load flakiness, not a real failure.
+
+**Real-route timing (read-only, owner's real decks, copy of this branch on port 3100, local dev mode, to the hosted database):**
+
+| Deck (commander) | First view (cold) | Second view |
+|---|---|---|
+| Zhulodok, Void Gorger | 6.8s | 2.2s |
+| Hearthhull, the Worldseed | 4.5s | 3.7s |
+
+Both showed the right source ("EDHREC average deck, 21,789 decks" and "33,930 decks") and real prices (for example $36.88 for a card). The first view fills the saved EDHREC list and, in dev mode, also includes compiling the route, so it is slower. Warm views are 2.2 to 3.7s: close to, and once over, the 3s target. Dev mode is slower than the live site, so this is not a firm production number. I did not add EDHREC calls or caching beyond what exists. If the 3s target is firm, the next step is caching the final buy list per deck.
+
+**Process note:** I also ran one empty shell append to the report by mistake; it wrote nothing. The preview copy and server were removed; the server on port 3000 was untouched.

@@ -25,6 +25,7 @@ const gap = (over: Partial<DeckHealthGap> = {}): DeckHealthGap => ({
   buyDefaultOpen: false,
   nothingOwnedFits: false,
   buyUnavailableReason: null,
+  sourceLine: 'General guide',
   ...over,
 })
 

@@ -36,6 +36,7 @@ const gap = (over: Partial<DeckHealthGap> = {}): DeckHealthGap => ({
   buyDefaultOpen: true,
   nothingOwnedFits: true,
   buyUnavailableReason: null,
+  sourceLine: 'EDHREC average deck, 12,431 decks',
   ...over,
 })
 
@@ -48,6 +49,24 @@ function renderGap(body: DeckHealthGap) {
     </QueryClientProvider>,
   )
 }
+
+describe('GapDetail source label', () => {
+  it.each([
+    'EDHREC average deck, 12,431 decks',
+    'EDHREC estimate, 800 decks',
+    'General guide',
+    "General guide (couldn't reach EDHREC)",
+    'EDHREC average deck, 12,431 decks, may be out of date',
+  ])('header shows the real source line: %s', async (line) => {
+    renderGap(gap({ sourceLine: line }))
+    expect((await screen.findByTestId('gap-source-line')).textContent).toBe(line)
+  })
+
+  it('falls back to General guide when an older reply has no source line', async () => {
+    renderGap(gap({ sourceLine: undefined as unknown as string }))
+    expect((await screen.findByTestId('gap-source-line')).textContent).toBe('General guide')
+  })
+})
 
 describe('GapDetail buy ideas', () => {
   it('nothing owned fits: the group is open, with the callout, count, estimates and prices', async () => {

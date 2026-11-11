@@ -32,6 +32,7 @@ const gap: DeckHealthGap = {
   buyDefaultOpen: false,
   nothingOwnedFits: false,
   buyUnavailableReason: null,
+  sourceLine: 'General guide',
 }
 
 function Harness() {

@@ -51,6 +51,8 @@ export interface DeckHealthGap {
   buyDefaultOpen: boolean
   nothingOwnedFits: boolean
   buyUnavailableReason: BuyUnavailableReason
+  /** Where the typical numbers come from: the same text as the overview panel's source line. */
+  sourceLine: string
 }
 
 type LoadedCards = Extract<Awaited<ReturnType<typeof loadHealthCards>>, { ok: true }>
@@ -133,6 +135,7 @@ export async function loadDeckGap(supabase: HealthClient, deckId: number, userId
       buyDefaultOpen: nothingOwnedFits,
       nothingOwnedFits,
       buyUnavailableReason: buy.buyUnavailableReason,
+      sourceLine: health.sourceLine,
     },
   }
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, waitFor, cleanup } from '@testing-library/react'
+import { render, screen, waitFor, cleanup, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { GapDetail } from './GapDetail'
 import type { DeckHealthGap } from '@/lib/deck-health-gap'
@@ -57,6 +57,27 @@ describe('GapDetail', () => {
       </QueryClientProvider>,
     )
     expect(await screen.findByRole('alert', {}, { timeout: 3000 })).toHaveTextContent("Couldn't check your cards")
+  })
+
+  it('never hangs silently: a request that never answers is cancelled and shows the error with Try again', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.stubGlobal('fetch', vi.fn((_url: string, init?: RequestInit) => new Promise((_res, rej) => {
+        init?.signal?.addEventListener('abort', () => rej(new DOMException('aborted', 'AbortError')))
+      })))
+      const client = new QueryClient()
+      render(
+        <QueryClientProvider client={client}>
+          <GapDetail deckId={7} role="draw" onBack={() => {}} />
+        </QueryClientProvider>,
+      )
+      expect(screen.getByRole('status')).toBeInTheDocument()
+      await act(async () => { await vi.advanceTimersByTimeAsync(21_000) })
+      expect(screen.getByRole('alert')).toHaveTextContent("Couldn't check your cards")
+      expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('shows the heading, spare first, then the other-deck marker with the deck name only', async () => {

@@ -58,7 +58,14 @@ const toGapCard = (c: BrowseCard, status: GapCard['status']): GapCard => ({
 })
 
 export async function loadDeckGap(supabase: HealthClient, deckId: number, userId: string, role: HealthRoleKey): Promise<LoadGapResult> {
-  const loaded = await loadHealthCards(supabase, deckId, userId)
+  // The deck's own cards and the owner's spare cards do not depend on each other, so both are read at the same time.
+  const [loaded, browsed] = await Promise.all([
+    loadHealthCards(supabase, deckId, userId),
+    browseSpareCopies(supabase as unknown as LookupClient, { userId, deckId, kind: role, limit: MAX_BROWSE_LIMIT }).then(
+      (browse) => ({ browse, err: null as unknown }),
+      (err: unknown) => ({ browse: null, err }),
+    ),
+  ])
   if (!loaded.ok) return loaded
 
   const health = buildDeckHealth(loaded.cards)
@@ -66,30 +73,25 @@ export async function loadDeckGap(supabase: HealthClient, deckId: number, userId
   if (!row) return { ok: false, status: 500, error: 'Unknown role' }
   const inDeckCards = cardsInRole(loaded.cards, role)
 
-  try {
-    const browse = await browseSpareCopies(supabase as unknown as LookupClient, {
-      userId,
-      deckId,
-      kind: role,
-      limit: MAX_BROWSE_LIMIT,
-    })
-    return {
-      ok: true,
-      gap: {
-        role,
-        label: row.label,
-        have: row.have,
-        typical: row.typical,
-        inDeckCount: inDeckCards.reduce((n, c) => n + c.quantity, 0),
-        inDeckCards,
-        spare: browse.spare.map((c) => toGapCard(c, 'SPARE')),
-        inAnotherDeck: browse.in_another_deck.map((c) => toGapCard(c, 'IN_ANOTHER_DECK')),
-        coloursKnown: browse.colour_identity !== null,
-        spareTotal: browse.total_spare,
-        inAnotherDeckTotal: browse.total_in_another_deck,
-      },
-    }
-  } catch (err) {
+  if (!browsed.browse) {
+    const err = browsed.err
     return { ok: false, status: 500, error: err instanceof Error ? err.message : 'Could not look through your cards' }
+  }
+  const browse = browsed.browse
+  return {
+    ok: true,
+    gap: {
+      role,
+      label: row.label,
+      have: row.have,
+      typical: row.typical,
+      inDeckCount: inDeckCards.reduce((n, c) => n + c.quantity, 0),
+      inDeckCards,
+      spare: browse.spare.map((c) => toGapCard(c, 'SPARE')),
+      inAnotherDeck: browse.in_another_deck.map((c) => toGapCard(c, 'IN_ANOTHER_DECK')),
+      coloursKnown: browse.colour_identity !== null,
+      spareTotal: browse.total_spare,
+      inAnotherDeckTotal: browse.total_in_another_deck,
+    },
   }
 }

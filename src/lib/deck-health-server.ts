@@ -48,25 +48,30 @@ export async function fetchRefTextByName(
   const map = new Map<string, RefRow>()
   const unique = [...new Set(names)]
 
-  for (let i = 0; i < unique.length; i += NAME_BATCH) {
-    const batch = unique.slice(i, i + NAME_BATCH)
-    const { data, error } = await supabase.from('ref_cards').select('name, type_line, oracle_text').in('name', batch)
+  const batches: string[][] = []
+  for (let i = 0; i < unique.length; i += NAME_BATCH) batches.push(unique.slice(i, i + NAME_BATCH))
+  const results = await Promise.all(batches.map((batch) => supabase.from('ref_cards').select('name, type_line, oracle_text').in('name', batch)))
+  for (const { data, error } of results) {
     if (error) return { map, error: error.message }
     for (const row of (data ?? []) as RefRow[]) map.set(row.name, row)
   }
 
   // Deck rows for double-faced cards may hold only the front face name.
   const missing = unique.filter((n) => !map.has(n))
-  for (const name of missing) {
-    const front = name.split(' // ')[0]
-    const { data, error } = await supabase
-      .from('ref_cards')
-      .select('name, type_line, oracle_text')
-      .ilike('name', `${escapeLike(front)} // %`)
-      .limit(1)
-    if (error) return { map, error: error.message }
-    const row = ((data ?? []) as RefRow[])[0]
-    if (row) map.set(name, row)
+  const fallbacks = await Promise.all(
+    missing.map(async (name) => {
+      const front = name.split(' // ')[0]
+      const { data, error } = await supabase
+        .from('ref_cards')
+        .select('name, type_line, oracle_text')
+        .ilike('name', `${escapeLike(front)} // %`)
+        .limit(1)
+      return { name, row: ((data ?? []) as RefRow[])[0], error }
+    }),
+  )
+  for (const f of fallbacks) {
+    if (f.error) return { map, error: f.error.message }
+    if (f.row) map.set(f.name, f.row)
   }
 
   return { map, error: null }

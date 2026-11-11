@@ -83,3 +83,35 @@ Result: a blank panel with only the back link. The route itself returns correct 
 **Process note:** I edited the shared lookup file with a small script instead of the edit tool, once. Content is a plain diff in git for review.
 
 **Owner check:** open a deck, click a Light pill. You should see "Looking through your cards…" at once, then the list within a few seconds. If it fails you should see "Couldn't check your cards" with Try again.
+
+## Follow-up: make the detail lookup genuinely fast (owner retest: still loading after 30+ seconds)
+
+**Profile (read-only, real deck "Mendicant", 2,650 owned cards, 4,247 real copies, 8 decks; measured from my machine; the owner's Vercel run is slower per call):**
+
+| Step | Before (first fix) | After |
+|---|---|---|
+| Whole request, Draw | 7.1 s (13.5 s before the first fix) | 2.0 s (first run, cold) |
+| Whole request, Ramp / Removal / Wipes / Lands | 4.1 / 4.1 / 4.6 / 4.4 s | 1.3 / 1.3 / 1.2 / 1.0 s |
+| Database calls | 41, strictly in a chain of about 8 steps | 49, in 3 steps (most at once) |
+| Rows sent to the app | about 10,500 (2,586 full card-text rows = 753 KB) | about 2,586 short names (79 KB) plus only the possible candidates (200 to 880 rows, 60 to 276 KB) |
+
+Where the time went: the slowest single piece was reading full card text for every owned card (14 calls, 753 KB, 15 s of call time added up). Next were reading the 8 decks' cards one deck at a time, reading the collection page by page, and the commander colour lookup done as a chain of 3 steps. The deck's own check (4 card-text calls plus one call per double-faced card) ran one after another too.
+
+**What changed (no database migration; nothing applied):**
+- Card text is now filtered in the database: only cards whose text could give the role come back (Lands: only land type lines). The app still makes the final decision with the same role function. A new list of "possible text" per role sits next to the rules; a test runs it over every saved golden card to prove it never drops a real match.
+- Pages of big tables are asked for at the same time.
+- The decks' cards are read in one query, not one per deck.
+- Only cards you really own (not proxy-only, not basics) are looked up.
+- Commander colours, the collection, and the deck's own health read all happen at the same time.
+- Cards with no card data at all are still counted and reported as "not checked" (a cheap names-only check runs alongside).
+- Same answers as before: I compared totals for all five roles against the old code on the same deck (for example Draw 92 spare and 8 elsewhere, Ramp 52/5, Removal 64/8, Wipes 13/3, Lands 71/21): identical.
+
+**Hard timeout:** the screen cancels the request after 20 seconds and shows "Couldn't check your cards" with Try again. The server route also stops at 25 seconds. Automatic retries are off, so a failure shows at once.
+
+**Migration:** not needed to reach the target, so none written. A single database function could cut it further (to about one call); say if you want a draft.
+
+**Tests added/changed:** the needle golden test (`src/lib/card-roles.test.ts`), a 2,500-card collection read over several pages, the database narrowing rules, the "not checked" count, and a never-answering request that must end in the error with Try again (`src/components/GapDetail.test.tsx`). All use fake data. Full run: all tests pass; typecheck only the known error; lint 0 errors, and no new warnings in changed files.
+
+**Not done:** not run in a browser or on Vercel; the owner's Vercel timing may differ from mine. Please retest: the list should appear in about 1 to 3 seconds.
+
+**Process note:** I briefly used a command-line text replace on one test file to surface an error message, and reverted it at once (file unchanged). Earlier in this follow-up I also used the edit tool only for the real changes.

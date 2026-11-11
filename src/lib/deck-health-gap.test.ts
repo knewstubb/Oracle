@@ -20,10 +20,12 @@ function fakeDb(tables: Record<string, Row[]>, failTable?: string): HealthClient
         eq: (col: string, v: unknown) => { data = data.filter((r) => r[col] === v); return q },
         in: (col: string, vs: unknown[]) => { data = data.filter((r) => vs.includes(r[col])); return q },
         ilike: (col: string, pattern: string) => {
-          const prefix = pattern.replace(/%$/, '').toLowerCase()
-          data = data.filter((r) => String(r[col]).toLowerCase().startsWith(prefix))
+          const lower = pattern.toLowerCase()
+          const needle = lower.replace(/^%|%$/g, '')
+          data = data.filter((r) => (lower.startsWith('%') ? String(r[col]).toLowerCase().includes(needle) : String(r[col]).toLowerCase().startsWith(needle)))
           return q
         },
+        or: () => q, // pre-filter only narrows; the app-side role check still decides
         order: () => q,
         limit: (n: number) => { data = data.slice(0, n); return Promise.resolve(result()) },
         range: (a: number, b: number) => { data = data.slice(a, b + 1); return Promise.resolve(result()) },

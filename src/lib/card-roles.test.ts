@@ -5,6 +5,7 @@ import {
   frontFaceTypeLine,
   hasClassifiableText,
   CLASSIFIER_VERSION,
+  ROLE_TEXT_NEEDLES,
   type Role,
 } from './card-roles'
 import fixtures from './__fixtures__/card-roles-scryfall.json'
@@ -164,5 +165,14 @@ describe('rolesForCard: edge cases', () => {
 
   it('exposes a classifier version', () => {
     expect(CLASSIFIER_VERSION).toBe(1)
+  })
+
+  it('the database pre-filter needles never miss a card that has the role (all saved fixtures)', () => {
+    for (const [name, c] of Object.entries(cards)) {
+      const text = c.oracleText.toLowerCase()
+      for (const role of rolesForCard({ name, typeLine: c.typeLine, oracleText: c.oracleText })) {
+        expect(ROLE_TEXT_NEEDLES[role].some((n) => text.includes(n)), `${name} (${role})`).toBe(true)
+      }
+    }
   })
 })

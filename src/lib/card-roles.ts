@@ -16,6 +16,19 @@ export type Role = 'ramp' | 'draw' | 'removal' | 'wipes'
 /** Fixed display order, also the tie-break order for verdicts. */
 export const ROLE_ORDER: readonly Role[] = ['ramp', 'draw', 'removal', 'wipes']
 
+/**
+ * Cheap database pre-filter: every card that `rolesForCard` gives this role contains at least one of these
+ * pieces of text (case-insensitive, on the raw Oracle text). The database uses them to hand back only possible
+ * candidates instead of the whole collection; `rolesForCard` still makes the real decision.
+ * A golden test (card-roles.test.ts) checks this over every saved fixture card. Add a needle when a rule changes.
+ */
+export const ROLE_TEXT_NEEDLES: Record<Role, readonly string[]> = {
+  ramp: ['add', 'treasure', 'search your library', 'additional land', 'onto the battlefield'],
+  draw: ['draw'],
+  removal: ['destroy', 'exile', 'damage', '/-', '/\u2212', '/\u2013', 'to its owner', 'sacrifices', 'owner of target'],
+  wipes: ['destroy all', 'exile all', 'overload', '/-', '/\u2212', '/\u2013', 'damage to each', 'return all', 'return each'],
+}
+
 /** Bump on any rule change; invalidates cached targets (used from slice 2). */
 export const CLASSIFIER_VERSION = 1
 

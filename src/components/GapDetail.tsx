@@ -15,6 +15,8 @@ export interface GapDetailProps {
   onBack: () => void
 }
 
+const GAP_TIMEOUT_MS = 20_000
+
 const NOTHING_OWNED: Record<HealthRoleKey, string> = {
   ramp: "You don't own a card that adds ramp.",
   draw: "You don't own a card that adds draw.",
@@ -57,20 +59,27 @@ export function GapDetail({ deckId, role, onBack }: GapDetailProps) {
   const [showInDeck, setShowInDeck] = useState(false)
   const { data, isPending, isError, refetch } = useQuery<DeckHealthGap>({
     queryKey: [...deckKeys.health(deckId), 'gap', role],
-    queryFn: async () => {
-      const res = await fetch(`/api/decks/${deckId}/health/gap?role=${role}`)
-      if (!res.ok) throw new Error('Failed to fetch gap detail')
-      const body = await res.json()
-      // A reply without the expected lists is an error, never a blank panel.
-      if (!body || !Array.isArray(body.spare) || !Array.isArray(body.inAnotherDeck) || !Array.isArray(body.inDeckCards)) {
-        throw new Error('Unexpected gap detail response')
+    queryFn: async ({ signal }) => {
+      // Hard stop: never wait silently. After 20 seconds the request is cancelled and the error with Try again shows.
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), GAP_TIMEOUT_MS)
+      signal?.addEventListener('abort', () => controller.abort())
+      try {
+        const res = await fetch(`/api/decks/${deckId}/health/gap?role=${role}`, { signal: controller.signal })
+        if (!res.ok) throw new Error('Failed to fetch gap detail')
+        const body = await res.json()
+        // A reply without the expected lists is an error, never a blank panel.
+        if (!body || !Array.isArray(body.spare) || !Array.isArray(body.inAnotherDeck) || !Array.isArray(body.inDeckCards)) {
+          throw new Error('Unexpected gap detail response')
+        }
+        return body as DeckHealthGap
+      } finally {
+        clearTimeout(timer)
       }
-      return body as DeckHealthGap
     },
     staleTime: 60 * 1000,
-    // One quick retry only: the default (3 retries with waits) kept the panel on "loading" for a minute before any error showed.
-    retry: 1,
-    retryDelay: 500,
+    // No automatic retries: a failure or timeout shows the error straight away, and Try again is the owner's call.
+    retry: false,
   })
   const isLoading = isPending && !isError
 

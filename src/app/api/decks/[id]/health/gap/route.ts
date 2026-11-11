@@ -3,6 +3,9 @@ import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
 import { loadDeckGap, parseGapRole } from '@/lib/deck-health-gap'
 
+/** The server gives up after 25 seconds (a real error comes back); the screen gives up at 20 and shows Try again. */
+export const maxDuration = 25
+
 /**
  * GET /api/decks/[id]/health/gap?role=ramp|draw|removal|wipes|lands
  * Gap detail for one role: spare owned cards, then cards in another of the owner's decks, plus the deck's own cards in the role.

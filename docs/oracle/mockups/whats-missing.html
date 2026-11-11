@@ -123,11 +123,12 @@ button.row:hover{background:var(--bg-hover);border-color:var(--border)}
 .grp{margin-top:16px}
 .grp h5{margin:0 0 2px;font-size:var(--fs-md);font-weight:600;display:flex;gap:6px;align-items:center}
 .grp .sub{color:var(--text2);font-size:var(--fs-sm);margin:0 0 8px}
-.card{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--border-subtle)}
-.thumb{width:36px;height:50px;border-radius:4px;background:var(--bg-hover);border:1px solid var(--border);flex:none}
-.card .nm{font-weight:600}
+.card{display:flex;gap:10px;align-items:stretch;padding:10px 0;border-top:1px solid var(--border-subtle)}
+.thumb{width:42px;align-self:stretch;min-height:0;border-radius:4px;background:var(--bg-hover);border:1px solid var(--border);flex:none}
+.card .nm{font-weight:600;line-height:1.2}
+.card .est{color:var(--text2);font-size:11px;font-weight:400}
 .card .ty{color:var(--text2);font-size:var(--fs-sm)}
-.card .badge{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--border);border-radius:999px;padding:1px 8px;font-size:var(--fs-sm);margin-top:4px}
+.card .badge{display:flex;width:fit-content;align-items:center;gap:4px;border:1px solid var(--border);border-radius:999px;padding:1px 8px;font-size:var(--fs-sm);margin-top:4px}
 .badge.unavail{border-color:var(--warn)}
 .badge.unavail svg{color:var(--warn)}
 .badge.unown svg{color:var(--unowned)}
@@ -311,7 +312,7 @@ function cardRow(c,kind,roleName){
   if(kind==='spare'){badge='<span class="badge">'+ICON.ring+'Available</span>';}
   if(kind==='other'){badge='<span class="badge unavail">'+ICON.warn+'In '+esc(c.deck)+'</span>';}
   if(kind==='buy'){badge='<span class="badge unown">'+ICON.nodist+'Unowned</span>';
-    right='<div class="price">'+(c.p?'est. $'+c.p+'':'Price unknown')+'</div>';
+    right='<div class="price">'+(c.p?'$'+c.p+' <span class="est">est.</span>':'Price unknown')+'</div>';
     return '<div class="card"><div class="thumb" aria-hidden="true"></div><div><div class="nm">'+esc(c.n)+'</div><div class="ty">In '+c.pct+'% of decks on EDHREC</div>'+badge+'</div>'+right+'</div>';}
   return '<div class="card"><div class="thumb" aria-hidden="true"></div><div><div class="nm">'+esc(c.n)+' <span class="ty">· '+c.t+'</span></div><div class="ty">'+esc(c.why)+'</div>'+badge+extra+'</div></div>';
 }

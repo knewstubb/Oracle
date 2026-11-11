@@ -51,6 +51,12 @@ No app code, decisions.md or status.md touched. Note: `docs/oracle/vocabulary.md
    - **Recommended A:** strategy is set from inside Deck health. The row opens the editor in Phase 4; the existing Strategy tab is folded in or retired then. One place to look, and it sits next to the numbers it changes.
    - B: strategy stays only on the existing Strategy tab; Deck health shows a read-only line linking to it. Smallest change, but the strategy is separate from the numbers it drives.
    - C: both places can edit it. Convenient, but two editors for one sentence can disagree.
+2. **How are estimated prices labelled?** Currently each price reads like "$4.20 est." with a small "est.", and there is no footer line. Example: Rhystic Study shows "$38.00 est."; a card with no price shows "Price unknown".
+   - **Recommended A:** small "est." suffix on each price, no footer. Labelled where you read it, no extra line.
+   - B: bring back the footer "Prices are Scryfall estimates." under the buy ideas. Explains the source, but adds a sentence.
+   - C: no label at all. Cleanest, but an estimate could be read as a fixed price.
+
+Also changed: card thumbnails on every suggested row now stretch exactly from the top of the card name to the bottom of the status pill.
 
 ## Dependencies for the Architect (before Gate 4)
 - A per-commander role-target contract: role, typical number, number of EDHREC cards used, source label, and the thin threshold.

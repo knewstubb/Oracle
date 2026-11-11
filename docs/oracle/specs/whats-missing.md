@@ -43,7 +43,7 @@ Built on the existing `HealthStrip` and `HealthPill`; no new page, tab or naviga
 | Chat answer block | verdict, light roles as buttons | existing `DeckChatTab` message |
 
 ## 5. Wording
-Vocabulary (`docs/oracle/specs/vocabulary.md`): **Available** (spare), **Unavailable · In [deck]** (other deck), **Unowned** (buy), **est.** price prefix, **Price unknown**, **Checking…**, **Couldn't check**. New words proposed (see report): **Spare**, **Light**, **On track**, **General guide**, **Buy ideas**.
+Vocabulary (`docs/oracle/specs/vocabulary.md`): **Available** (spare), **Unavailable · In [deck]** (other deck), **Unowned** (buy), **est.** price label (shown as a small suffix, pending confirmation), **Price unknown**, **Checking…**, **Couldn't check**. New words proposed (see report): **Spare**, **Light**, **On track**, **General guide**, **Buy ideas**.
 
 ### 5.1 Verdict
 Rule: take the roles that are light (section 5.2), order by how many cards short, name up to two.
@@ -66,7 +66,7 @@ A role is **Light** when you have 2 or more fewer than the typical number. Withi
 Title: role name. Header block: "Removal: 3 of about 8" plus the reason line. Then, in order:
 1. **Spare (3)**: "Free now." Badge **Available**.
 2. **In another deck (1)**: No group sentence. Compact amber marker with warning icon and the deck name only: **In Wilhelt**. No explanatory sentence; taking a card from a deck leaving it short is obvious (owner decision).
-3. **Buy ideas (3) · estimates**: badge **Unowned**, "In 58% of decks on EDHREC", price "est. $4.50" or "Price unknown". No footer; the group title and "est." prefix already say they are estimates.
+3. **Buy ideas (3) · estimates**: badge **Unowned**, "In 58% of decks on EDHREC", price "$4.50" with a small "est." suffix, or "Price unknown". No footer (pending owner confirmation, see the report). Card thumbnails on every row (spare, in another deck, buy) stretch to exactly the height of the text block: top of the card name to bottom of the status pill, width follows the card ratio. Same on phone and laptop.
 
 Open/closed: Buy ideas are **collapsed** when any owned card is listed and **open** when none is.
 Nothing owned fits: a callout "**You don't own a card that adds draw.**" appears above the buy ideas.
@@ -117,7 +117,7 @@ First row in the panel, above the verdict card: label **Strategy**, value, and a
 
 ## 8. What must never happen (checked against the brief)
 - A card suggested as if owned: only Available, Unavailable and Unowned badges; each group is named.
-- An unknown price as 0 or as a fact: "Price unknown", and "est." plus "Scryfall estimate" on every price.
+- An unknown price as 0 or as a fact: "Price unknown", and a small "est." suffix on every price.
 - Moving a card from another deck without saying: every other-deck card carries the warning.
 - An invented number: a number appears only with its source (N EDHREC cards, N stored builds) or the **General guide** label.
 - Pushing him to the popular template without saying: the source line says "Based on N EDHREC cards" next to every typical number.

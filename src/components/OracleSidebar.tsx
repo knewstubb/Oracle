@@ -20,7 +20,9 @@ import { OVERLAY_BACKDROP } from '@/lib/overlay-classes'
 // ---------------------------------------------------------------------------
 
 /** Height of the conversation panel when it expands upward from the footer. */
-const PANEL_HEIGHT = 'min(60vh, 560px)'
+const PANEL_WIDTH = 'min(420px, 100vw)'
+/** Fallback footer bar height (px) used until the real bar has been measured. */
+const DEFAULT_BAR_HEIGHT = 64
 
 // ---------------------------------------------------------------------------
 // Types
@@ -129,6 +131,20 @@ export function OracleSidebar() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  const barRef = useRef<HTMLDivElement>(null)
+  const [barHeight, setBarHeight] = useState(DEFAULT_BAR_HEIGHT)
+
+  // Keep the side panel ending exactly above the footer bar, whatever its height
+  // (the textarea grows, quick-build buttons appear, phone safe area).
+  useEffect(() => {
+    const el = barRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const update = () => setBarHeight(el.offsetHeight || DEFAULT_BAR_HEIGHT)
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
   const pendingLookups = useRef<Set<string>>(new Set())
 
   // ---------------------------------------------------------------------------
@@ -465,16 +481,18 @@ export function OracleSidebar() {
   return (
     <footer
       data-testid="oracle-footer"
-      className="relative z-30 shrink-0"
+      className="shrink-0"
     >
-      {/* Conversation: expands upward from the footer input row */}
+      {/* Conversation: a right-hand side panel between the top bar and this footer bar.
+          Positioned against the content+footer area (MainContentWrapper), so it overlays
+          the page without resizing it. */}
       {isOpen && (
       <section
         ref={panelRef}
         data-testid="oracle-conversation"
         aria-label="Oracle conversation"
-        className="absolute inset-x-0 bottom-full flex flex-col border-t border-zinc-800/60 bg-[rgba(24,24,27,0.5)] backdrop-blur-md shadow-2xl"
-        style={{ height: PANEL_HEIGHT }}
+        className="absolute right-0 top-0 z-30 flex flex-col border-l border-zinc-800/60 bg-[rgba(24,24,27,0.5)] backdrop-blur-md shadow-2xl"
+        style={{ width: PANEL_WIDTH, bottom: barHeight }}
       >
         {/* Header */}
         <div className="flex flex-col border-b border-zinc-800/60">
@@ -592,8 +610,9 @@ export function OracleSidebar() {
         {/* Input row (always visible in the footer). Blur lives here, not on the footer,
             so the conversation panel's own blur can still sample the page art behind it. */}
         <div
+          ref={barRef}
           data-testid="oracle-input-row"
-          className="border-t border-zinc-800/60 bg-[rgba(24,24,27,0.5)] backdrop-blur-md px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+          className="relative z-30 border-t border-zinc-800/60 bg-[rgba(24,24,27,0.5)] backdrop-blur-md px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
         >
           {/* Quick build buttons when commanders are suggested */}
           {quickBuildCommanders.length > 0 && (

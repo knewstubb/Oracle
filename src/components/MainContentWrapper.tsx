@@ -21,17 +21,19 @@ export function MainContentWrapper({ children, sidebar }: MainContentWrapperProp
           actions={config.actions}
         />
       )}
-      {/* Content area with sidebar — flex row */}
-      <div className="flex flex-1 overflow-hidden">
-        <main
-          id="main-content"
-          className="flex flex-1 flex-col overflow-hidden pb-[env(safe-area-inset-bottom)]"
-        >
-          {children}
-        </main>
+      {/* Content area + Oracle footer. `relative` so the chat side panel can sit on the
+          right edge, between the headers above and the footer bar below, without resizing the page. */}
+      <div className="relative flex flex-1 flex-col overflow-hidden">
+        <div className="flex flex-1 overflow-hidden">
+          <main
+            id="main-content"
+            className="flex flex-1 flex-col overflow-hidden pb-[env(safe-area-inset-bottom)]"
+          >
+            {children}
+          </main>
+        </div>
+        {sidebar}
       </div>
-      {/* Oracle chat lives in the footer, below the content area */}
-      {sidebar}
     </div>
   )
 }

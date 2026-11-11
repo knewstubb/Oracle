@@ -14,7 +14,7 @@ Scroll bars are now see-through with a faint thumb instead of white. The Oracle 
 
 ## New decisions made (need owner confirmation)
 - There was no footer in the app [Confirmed: src/app/layout.tsx, src/components/MainContentWrapper.tsx; no footer element outside page-level pagination]. I created the app footer as the chat's home. If you meant a different footer, tell me.
-- Chose the docked input row that expands upward (as instructed for the ambiguous case). It overlays the page rather than pushing content up.
+- Chose the docked input row in the footer. (Superseded by owner feedback: the conversation is now a right-edge side panel between the top bar and the footer bar, not an upward-expanding panel; see Follow-up 2.) It overlays the page rather than pushing content.
 - The top-bar Oracle button and Cmd+Shift+O still open/close the conversation; the input row stays visible when closed.
 - The old right-hand chat width setting is no longer used (still saved in the browser, harmless).
 - The separate debrief/brew chat (OracleChat.tsx) was left unchanged; only the main Oracle chat was moved.
@@ -33,6 +33,12 @@ Scroll bars are now see-through with a faint thumb instead of white. The Oracle 
 - The art fades to the plain dark background at the bottom of the page (existing gradient), so the thin input bar shows little art; the conversation panel, which covers the page, shows it. I did not change the art or its fade.
 - Owner decision recorded: the page does NOT shrink; the chat overlays the page (this is how it is built).
 - Tests: updated OracleSidebar.test.tsx (blur not on the footer wrapper, 50% background on the input row and panel); 4 pass. Typecheck unchanged (known error only). Still not checked in a browser.
+
+## Follow-up 2 (side panel, scrollbars)
+- Owner feedback: the conversation was a full-width lower-half panel. Now it is a right-edge side panel, 420px wide (or the screen width if narrower), starting under the top bar / page title and ending above the footer message bar. 50% see-through background with blur. The page does not resize [Confirmed: src/components/OracleSidebar.tsx, MainContentWrapper.tsx]. The panel's bottom follows the footer bar height (measured), so it never covers the bar.
+- Scrollbars: the only scroll sources are the browser's own (no ScrollArea library; the shadcn `no-scrollbar` utility and one hidden-scrollbar strip on the deck page hide bars, they do not colour them). Global rules now cover: standard scrollbar colour/width, scrollbar, track, track-piece, corner, button (hidden), resizer, thumb; `color-scheme: dark` and a dark `html` background so any browser-drawn track or corner is dark, not white. I could not reproduce a white strip in headless Chrome even before the extra rules, so I cannot be sure what the owner's browser drew; the likely cause on macOS is a light colour scheme for the page scroll bar, which is now forced dark. If white persists, send a screenshot with the browser name.
+- Verified visually: copied the repo to /tmp, ran it with webpack on port 3100 (the owner's 3000 server was not touched; my 3100 server is stopped), headless Chrome with scroll bars forced visible and light OS scheme. Screenshots viewed: Decks page and a deck page with the chat open. Result: panel on the right between top bar and footer bar, page content not resized, commander art visible through the panel, chat scroll bar shows a faint thumb on a transparent track. Not visually checked: deck health panel scrolling, phone width, Firefox/Safari.
+- Tests: OracleSidebar.test.tsx updated; 4 pass. Full suite: all pass except none failing after the fix (225 files). Typecheck: only the known error. Lint: nothing new in touched files.
 
 ## Open questions
 - Is a bottom bar that overlays the page acceptable, or should the page shrink to make room when the chat is open? (Answered: overlay, no shrink.)

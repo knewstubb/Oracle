@@ -69,11 +69,15 @@ describe('OracleSidebar (chat docked in the footer)', () => {
     expect(sendMessage).toHaveBeenCalledWith('hello')
   })
 
-  it('expands the conversation above the input with a 50% opaque background when open', () => {
+  it('shows a right-hand side panel with a 50% opaque background when open', () => {
     isOpen = true
     renderChat()
     const panel = screen.getByTestId('oracle-conversation')
-    expect(panel.className).toContain('bottom-full')
+    expect(panel.className).toContain('right-0')
+    expect(panel.className).toContain('top-0')
+    expect(panel.className).not.toContain('inset-x-0')
+    // Ends above the footer bar (bottom offset = bar height), so it never covers the bar.
+    expect(panel.getAttribute('style')).toContain('bottom')
     expect(panel.className).toContain('bg-[rgba(24,24,27,0.5)]')
     expect(screen.getByTestId('oracle-input-row').className).toContain('bg-[rgba(24,24,27,0.5)]')
     // Blur must not sit on the footer wrapper, or it would stop the panel seeing the page art.

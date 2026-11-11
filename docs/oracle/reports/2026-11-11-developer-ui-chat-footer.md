@@ -60,3 +60,12 @@ Scroll bars are now see-through with a faint thumb instead of white. The Oracle 
 - New: src/hooks/useDomHost.ts. Changed: HealthStrip.tsx, MainContentWrapper.tsx, OracleSidebar.tsx, decks/[id]/page.tsx, OracleSidebar.test.tsx.
 - Verified by headless screenshots on a /tmp copy (port 3100): open (main 1020 wide, panel 420, footer beneath) and closed (main 1440). Typecheck: only known error. Lint: 0 errors. Tests: 2657 passed.
 - Not verified: white scrollbar strip could not be reproduced headless (now color-scheme: dark); phone width, Firefox/Safari, health dialog scrolling.
+
+## Follow-up 4 (supersedes Follow-up 3 where they differ)
+
+- Chat message input moved OUT of the footer into the bottom of the right-side panel (pinned, just above the footer). Input only exists while the panel is open; open via the top-bar chat button or ⌘⇧O (unchanged). The focus-to-open behaviour was removed with the footer input.
+- Footer now holds only page footer content (Deck health pills). The footer element is itself the portal target (#app-footer) and is hidden when empty, so pages without the strip (e.g. Decks) have no footer bar, as before my work.
+- Panel background is rgba(0,0,0,0.7) (was 50% grey-black), with a light blur (backdrop-blur-sm). Art still faintly shows through. Page still compresses by 420px when open; panel runs from below the header to the footer top.
+- Changed: OracleSidebar.tsx, MainContentWrapper.tsx, HealthStrip.tsx, OracleSidebar.test.tsx (tests: collapsed renders nothing and empty footer; input is last child of panel and not in footer; send works; panel beside main with 70% black bg).
+- Verified by headless screenshots (copy on port 3100), viewed: deck open (main 1020, panel 420 wide ending at footer top 711, input at panel bottom, footer pills only), deck closed (main 1440), Decks page open/closed (footer hidden). Typecheck only known error; lint 0 errors; 2657 tests pass.
+- Not verified: same gaps as above (scrollbar white strip, phone, other browsers).

@@ -32,17 +32,15 @@ export function MainContentWrapper({ children, sidebar }: MainContentWrapperProp
         </main>
         <div id="oracle-panel-slot" className="contents" />
       </div>
-      {/* App footer, one bar on every page, full width beneath the content AND the chat panel.
-          Left: page-specific footer content (e.g. deck health pills, rendered into #app-footer-left).
-          Right/remaining space: the Oracle chat input. */}
+      {/* App footer, full width beneath the content AND the chat panel. Pages render their footer
+          content into #app-footer (e.g. deck health pills). Hidden when empty (no extra bar). */}
       <footer
+        id="app-footer"
         data-testid="app-footer"
-        className="relative z-30 flex shrink-0 items-center gap-3 border-t px-6 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+        className="relative z-30 flex shrink-0 items-center gap-3 overflow-x-auto border-t px-6 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] empty:hidden"
         style={{ borderColor: 'var(--border-default)', backgroundColor: 'rgba(255,255,255,0.02)' }}
-      >
-        <div id="app-footer-left" className="flex min-w-0 max-w-full shrink items-center gap-2 overflow-x-auto" />
-        {sidebar}
-      </footer>
+      />
+      {sidebar}
     </div>
   )
 }

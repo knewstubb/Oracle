@@ -40,7 +40,7 @@ export function HealthStrip({ deckId }: HealthStripProps) {
 
   // The strip lives in the app footer (shared with the Oracle chat input). If the footer slot
   // isn't on the page (e.g. in isolated tests), fall back to rendering in place.
-  const footerHost = useDomHost('app-footer-left')
+  const footerHost = useDomHost('app-footer')
 
   const strip = (
       <div className="flex items-center gap-2" data-testid="health-strip">

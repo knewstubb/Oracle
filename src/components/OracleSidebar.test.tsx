@@ -46,38 +46,39 @@ function renderChat() {
   )
 }
 
-describe('OracleSidebar (chat docked in the footer)', () => {
+describe('OracleSidebar (side panel with input at the bottom)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     Element.prototype.scrollIntoView = vi.fn()
     isOpen = false
   })
 
-  it('puts the chat input inside the single app footer, with no panel when collapsed', () => {
+  it('renders nothing (no panel, no input, no footer content) when collapsed', () => {
     renderChat()
-    const footer = screen.getByTestId('app-footer')
-    expect(footer.tagName).toBe('FOOTER')
-    expect(footer).toContainElement(screen.getByTestId('oracle-input-row'))
-    expect(footer).toContainElement(screen.getByLabelText('Send message'))
-    expect(document.querySelectorAll('footer')).toHaveLength(1)
     expect(screen.queryByTestId('oracle-conversation')).toBeNull()
+    expect(screen.queryByTestId('oracle-input-row')).toBeNull()
+    expect(screen.getByTestId('app-footer')).toBeEmptyDOMElement()
   })
 
-  it('opens the conversation when the input is focused', () => {
+  it('puts the message input at the bottom of the panel, never in the footer', () => {
+    isOpen = true
     renderChat()
-    fireEvent.focus(screen.getByRole('textbox'))
-    expect(open).toHaveBeenCalled()
+    const panel = screen.getByTestId('oracle-conversation')
+    const input = screen.getByTestId('oracle-input-row')
+    expect(panel).toContainElement(input)
+    expect(panel.lastElementChild).toBe(input)
+    expect(screen.getByTestId('app-footer')).not.toContainElement(input)
   })
 
-  it('opens and sends when a message is submitted while collapsed', () => {
+  it('sends a message typed in the panel', () => {
+    isOpen = true
     renderChat()
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'hello' } })
     fireEvent.click(screen.getByLabelText('Send message'))
-    expect(open).toHaveBeenCalled()
     expect(sendMessage).toHaveBeenCalledWith('hello')
   })
 
-  it('shows the panel beside the page (not in the footer) with a 50% opaque background when open', () => {
+  it('shows the panel beside the page (not in the footer) with a 70% black background when open', () => {
     isOpen = true
     renderChat()
     const panel = screen.getByTestId('oracle-conversation')
@@ -87,7 +88,7 @@ describe('OracleSidebar (chat docked in the footer)', () => {
     // The footer is a separate full-width bar beneath the row, so the panel stops above it.
     expect(screen.getByTestId('app-footer')).not.toContainElement(panel)
     expect(row.contains(screen.getByTestId('app-footer'))).toBe(false)
-    expect(panel.className).toContain('bg-[rgba(24,24,27,0.5)]')
+    expect(panel.className).toContain('bg-[rgba(0,0,0,0.7)]')
     fireEvent.click(screen.getByLabelText('Close Oracle'))
     expect(close).toHaveBeenCalled()
   })

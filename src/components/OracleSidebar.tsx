@@ -471,7 +471,7 @@ export function OracleSidebar() {
         ref={panelRef}
         data-testid="oracle-conversation"
         aria-label="Oracle conversation"
-        className="z-30 flex h-full shrink-0 flex-col border-l border-zinc-800/60 bg-[rgba(24,24,27,0.5)] backdrop-blur-md max-md:absolute max-md:inset-y-0 max-md:right-0 max-md:shadow-2xl"
+        className="z-30 flex h-full shrink-0 flex-col border-l border-zinc-800/60 bg-[rgba(0,0,0,0.7)] backdrop-blur-sm max-md:absolute max-md:inset-y-0 max-md:right-0 max-md:shadow-2xl"
         style={{ width: PANEL_WIDTH }}
       >
         {/* Header */}
@@ -577,6 +577,41 @@ export function OracleSidebar() {
           </div>
         )}
 
+      <div data-testid="oracle-input-row" className="shrink-0 border-t border-zinc-800/60 px-3 py-3">
+        <div className="flex items-end gap-2 rounded-lg border border-zinc-700/60 bg-zinc-900/60 px-2.5 py-1.5 transition-all focus-within:border-emerald-500/50 focus-within:bg-zinc-900/80">
+            <textarea
+              ref={inputRef}
+              value={inputValue}
+              onChange={(e) => {
+                setInputValue(e.target.value)
+                // Auto-resize
+                e.target.style.height = 'auto'
+                e.target.style.height = Math.min(e.target.scrollHeight, 96) + 'px'
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSend()
+                }
+              }}
+              disabled={isStreaming}
+              placeholder={placeholderText}
+              title="⌘⇧O to open or close Oracle"
+              rows={1}
+              className="flex-1 resize-none bg-transparent text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none disabled:opacity-50"
+              style={{ minHeight: '22px', maxHeight: '96px' }}
+            />
+            <button
+              onClick={handleSend}
+              disabled={isStreaming || !inputValue.trim()}
+              className="flex items-center justify-center w-7 h-7 rounded-md bg-emerald-500 text-black transition-all hover:bg-emerald-400 disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+              aria-label="Send message"
+            >
+              <ArrowUpIcon />
+            </button>
+        </div>
+      </div>
+
         {/* Session history panel */}
         <SessionHistoryPanel />
 
@@ -611,45 +646,9 @@ export function OracleSidebar() {
   return (
     <>
       {/* Conversation: a right-hand side panel inside the page row (see MainContentWrapper), so the
-          page narrows to make room. It sits above the footer, which spans the full width beneath. */}
+          page narrows to make room. It sits above the footer, which spans the full width beneath.
+          The message input is pinned at the bottom of the panel. */}
       {panel}
-
-      {/* Chat input: lives inside the app footer, next to any page footer content (e.g. deck health pills). */}
-      <div data-testid="oracle-input-row" className="min-w-[220px] flex-1">
-        <div className="flex items-end gap-2 rounded-lg border border-zinc-700/60 bg-zinc-900/60 px-2.5 py-1.5 transition-all focus-within:border-emerald-500/50 focus-within:bg-zinc-900/80">
-            <textarea
-              ref={inputRef}
-              value={inputValue}
-              onChange={(e) => {
-                setInputValue(e.target.value)
-                // Auto-resize
-                e.target.style.height = 'auto'
-                e.target.style.height = Math.min(e.target.scrollHeight, 96) + 'px'
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  handleSend()
-                }
-              }}
-              disabled={isStreaming}
-              onFocus={() => { if (!isOpen) open() }}
-              placeholder={placeholderText}
-              title="⌘⇧O to open or close Oracle"
-              rows={1}
-              className="flex-1 resize-none bg-transparent text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none disabled:opacity-50"
-              style={{ minHeight: '22px', maxHeight: '96px' }}
-            />
-            <button
-              onClick={handleSend}
-              disabled={isStreaming || !inputValue.trim()}
-              className="flex items-center justify-center w-7 h-7 rounded-md bg-emerald-500 text-black transition-all hover:bg-emerald-400 disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
-              aria-label="Send message"
-            >
-              <ArrowUpIcon />
-            </button>
-        </div>
-      </div>
     </>
   )
 }

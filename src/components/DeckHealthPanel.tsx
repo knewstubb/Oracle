@@ -1,6 +1,6 @@
 'use client'
 
-import { AlertTriangle, Check, X } from 'lucide-react'
+import { AlertTriangle, Check, MessageCircle, X } from 'lucide-react'
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog'
 import { Dialog, DialogPortal, DialogOverlay } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -19,6 +19,8 @@ export interface DeckHealthPanelProps {
   /** The Light role whose gap detail is showing, or null for the overview. */
   gapRole: HealthRoleKey | null
   onGapRole: (role: HealthRoleKey | null) => void
+  /** Opens the Oracle chat with a question about the deck (role null) or one role. Omitted: no Chat about this buttons. */
+  onChat?: (role: HealthRoleKey | null) => void
 }
 
 function Meter({ role }: { role: DeckHealthRole }) {
@@ -133,7 +135,7 @@ function RoleRow({ role, onOpen }: { role: DeckHealthRole; onOpen: (role: Health
  * Deck health panel: right-hand drawer (420px) on wide screens, bottom sheet (86% high) below 700px.
  * Overview (Strategy row, verdict card, counts by role), or the gap detail of one Light role.
  */
-export function DeckHealthPanel({ open, onClose, data, isLoading, isError, onRetry, deckId, gapRole, onGapRole }: DeckHealthPanelProps) {
+export function DeckHealthPanel({ open, onClose, data, isLoading, isError, onRetry, deckId, gapRole, onGapRole, onChat }: DeckHealthPanelProps) {
   const light = data?.verdict.headline !== 'Well covered'
 
   return (
@@ -176,7 +178,7 @@ export function DeckHealthPanel({ open, onClose, data, isLoading, isError, onRet
             )}
 
             {gapRole && (
-              <GapDetail key={gapRole} deckId={deckId} role={gapRole} onBack={() => onGapRole(null)} />
+              <GapDetail key={gapRole} deckId={deckId} role={gapRole} onBack={() => onGapRole(null)} onChat={onChat ? () => onChat(gapRole) : undefined} />
             )}
 
             {data && !isError && !gapRole && (
@@ -207,6 +209,12 @@ export function DeckHealthPanel({ open, onClose, data, isLoading, isError, onRet
                     <p role="status" className="mt-2 text-[length:var(--fs-sm)]" style={{ color: 'var(--signal-warning)' }}>
                       Couldn&apos;t fully check. {data.unclassifiedCount} cards have no card text yet, so counts may be low.
                     </p>
+                  )}
+                  {onChat && (
+                    <Button variant="outline" size="sm" onClick={() => onChat(null)} className="mt-3 h-8 px-2.5 text-[length:var(--fs-sm)]">
+                      <MessageCircle aria-hidden="true" />
+                      Chat about this
+                    </Button>
                   )}
                 </section>
 

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, Ban, ChevronLeft, ChevronRight, Circle } from 'lucide-react'
+import { AlertTriangle, Ban, ChevronLeft, ChevronRight, Circle, MessageCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CardImage } from '@/components/CardImage'
@@ -17,6 +17,8 @@ export interface GapDetailProps {
   deckId: number
   role: HealthRoleKey
   onBack: () => void
+  /** Opens the Oracle chat with a question about this role. Omitted: no button. */
+  onChat?: () => void
 }
 
 /** Screen gives up after this long. Development gets longer: the first request also compiles the route. */
@@ -141,7 +143,7 @@ export function gapErrorReason(err: unknown): string {
   return 'unknown error'
 }
 
-export function GapDetail({ deckId, role, onBack }: GapDetailProps) {
+export function GapDetail({ deckId, role, onBack, onChat }: GapDetailProps) {
   const [showInDeck, setShowInDeck] = useState(false)
   const { data, error, isPending, isError, refetch } = useQuery<DeckHealthGap>({
     queryKey: [...deckKeys.health(deckId), 'gap', role],
@@ -228,6 +230,12 @@ export function GapDetail({ deckId, role, onBack }: GapDetailProps) {
             <p data-testid="gap-source-line" className="text-[length:var(--fs-sm)]" style={{ color: 'var(--text-secondary)' }}>
               {data.sourceLine || 'General guide'}
             </p>
+            {onChat && (
+              <Button variant="outline" size="sm" onClick={onChat} className="mt-2 h-8 px-2.5 text-[length:var(--fs-sm)]">
+                <MessageCircle aria-hidden="true" />
+                Chat about this
+              </Button>
+            )}
           </div>
 
           {data.inDeckCount > 0 && (

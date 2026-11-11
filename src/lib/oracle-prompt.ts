@@ -9,7 +9,7 @@
 // type names than the API. The API uses 'deck' while the context uses the same.
 // We accept both and normalize in buildOracleSystemPrompt.
 
-import { SUGGEST_ONLY_RULES, OWNED_COPY_RULES } from './deck-chat-prompt'
+import { SUGGEST_ONLY_RULES, OWNED_COPY_RULES, DECK_HEALTH_RULES } from './deck-chat-prompt'
 
 export interface OracleChatContext {
   type: 'collection' | 'deck' | 'deck-list' | 'forge' | 'workbench' | 'general' | 'commander-selection' | 'exploration'
@@ -40,6 +40,7 @@ export function buildDeckChatAdditions(opts: NonNullable<OracleDeckChatPromptOpt
   const parts = [lines.join('\n'), opts.slotFacts]
   if (!opts.editToolsEnabled) parts.push(SUGGEST_ONLY_RULES)
   parts.push(OWNED_COPY_RULES)
+  parts.push(DECK_HEALTH_RULES)
   return parts.join('\n\n')
 }
 

@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useDomHost } from '@/hooks/useDomHost'
+import { useOracleOptional } from '@/contexts/OracleContext'
+import { healthChatQuestion } from '@/lib/deck-health-chat-question'
 import { useQuery } from '@tanstack/react-query'
 import { AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -35,6 +37,17 @@ export function HealthStrip({ deckId }: HealthStripProps) {
     },
     staleTime: 5 * 60 * 1000,
   })
+
+  const oracle = useOracleOptional()
+  // "Chat about this": close the panel, open the Oracle chat (the same panel the footer opens) and send the question.
+  // Without the chat available (isolated tests) no button is shown.
+  const onChat = oracle
+    ? (role: HealthRoleKey | null) => {
+        setPanelOpen(false)
+        oracle.open()
+        void oracle.sendMessage(healthChatQuestion(role))
+      }
+    : undefined
 
   const anyLight = !!data && data.roles.some((r) => r.state === 'light')
 
@@ -106,6 +119,7 @@ export function HealthStrip({ deckId }: HealthStripProps) {
         deckId={deckId}
         gapRole={gapRole}
         onGapRole={setGapRole}
+        onChat={onChat}
       />
     </>
   )

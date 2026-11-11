@@ -29,14 +29,15 @@ const NOTHING_OWNED: Record<HealthRoleKey, string> = {
 function CardRow({ card }: { card: GapCard }) {
   const spare = card.status === 'SPARE'
   return (
-    <li className="border-t py-2.5" style={{ borderColor: 'var(--border-default)' }}>
-      <div className="text-[length:var(--fs-base)]" style={{ color: 'var(--text-primary)' }}>
+    <li className="flex items-center justify-between gap-3 border-t py-2.5" style={{ borderColor: 'var(--border-default)' }}>
+      <div className="min-w-0 flex-1 truncate text-[length:var(--fs-base)]" style={{ color: 'var(--text-primary)' }} title={card.name}>
         {card.name}
         {card.spareCopies > 1 ? <span style={{ color: 'var(--text-secondary)' }}> ×{card.spareCopies}</span> : null}
       </div>
       {spare ? (
         <span
-          className="mt-1 inline-flex items-center gap-1 rounded-full border px-2 text-[length:var(--fs-sm)]"
+          data-testid="gap-badge"
+          className="inline-flex max-w-[50%] shrink-0 items-center gap-1 rounded-full border px-2 text-[length:var(--fs-sm)]"
           style={{ borderColor: 'var(--border-default)', color: 'var(--text-secondary)' }}
         >
           <Circle size={10} aria-hidden="true" />
@@ -44,11 +45,12 @@ function CardRow({ card }: { card: GapCard }) {
         </span>
       ) : (
         <span
-          className="mt-1 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[length:var(--fs-sm)]"
+          data-testid="gap-badge"
+          className="inline-flex max-w-[50%] shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-[length:var(--fs-sm)]"
           style={{ backgroundColor: 'var(--signal-warning-bg)', color: 'var(--signal-warning)' }}
         >
-          <AlertTriangle size={12} aria-hidden="true" />
-          In {card.otherDeckName}
+          <AlertTriangle size={12} aria-hidden="true" className="shrink-0" />
+          <span className="truncate">In {card.otherDeckName}</span>
         </span>
       )}
     </li>

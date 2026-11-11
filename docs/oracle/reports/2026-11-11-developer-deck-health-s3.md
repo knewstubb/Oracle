@@ -152,3 +152,7 @@ Where the time went: the slowest single piece was reading full card text for eve
 **Checks:** unit tests 2,643 passing; typecheck only the known contract-file error; lint only the existing warnings. E2E not run (no separate test account). Temporary server and worktree removed.
 
 **If it still fails, the owner should send:** the "Reason:" text under the error, which deck and role he clicked, and any lines starting `[health/gap]` in the terminal running `npm run dev`.
+
+## Follow-up 4: owner confirmed the detail works (cause was a stale dev server); badge layout
+
+Card rows in role detail now put the status badge ('Available' or amber 'In <deck name>') at the far right on the same line as the card name. The name truncates (full name on hover) and the badge never gets pushed off; a long deck name truncates inside the badge (badge capped at half the row). Mockup check: `docs/oracle/mockups/whats-missing.html` shows the badge on its own line under the card name (left-aligned), so this is a deliberate change from the approved mockup at the owner's request. The mockup was not edited. Render test added for the row order. Unit tests for the changed files pass; E2E not run (no separate test account).

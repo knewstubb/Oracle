@@ -90,6 +90,21 @@ describe('GapDetail', () => {
     expect(screen.getByRole('button', { name: /See the 3 draw cards already in this deck/ })).toBeInTheDocument()
   })
 
+  it('puts the status badge on the same row as the card name, after it, in the same list item', async () => {
+    renderGap(() => json(gap()))
+    await screen.findByText('Spare Draw')
+    const row = screen.getByText('Spare Draw').closest('li')!
+    expect(row.className).toContain('flex')
+    expect(row.className).toContain('justify-between')
+    const badge = row.querySelector('[data-testid="gap-badge"]')!
+    expect(badge).toHaveTextContent('Available')
+    expect(row.firstElementChild).toContainElement(screen.getByText('Spare Draw'))
+    expect(row.lastElementChild).toBe(badge)
+    expect(row.firstElementChild!.className).toContain('truncate')
+    const other = screen.getByText('In Korvold').closest('li')!
+    expect(other.lastElementChild).toContainElement(screen.getByText('In Korvold'))
+  })
+
   it('says so when you own nothing that fits', async () => {
     renderGap(() => json(gap({ spare: [], inAnotherDeck: [], spareTotal: 0, inAnotherDeckTotal: 0 })))
     expect(await screen.findByText("You don't own a card that adds draw.")).toBeInTheDocument()

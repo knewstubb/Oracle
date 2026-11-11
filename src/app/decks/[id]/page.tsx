@@ -78,8 +78,6 @@ export default function DeckViewPage() {
   const deckId = params.id
   const { setContext } = useOracle()
 
-  // State for health pill → Cards tab scroll targeting
-  const [scrollTarget, setScrollTarget] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string>('cards')
 
   // Parallax scroll effect for commander art background
@@ -129,18 +127,6 @@ export default function DeckViewPage() {
     enabled: !!deckId,
   })
 
-  // Health data query — deduped with HealthStrip's internal fetch by TanStack Query
-  const { data: healthData } = useQuery({
-    queryKey: deckKeys.health(deckId),
-    queryFn: async () => {
-      const res = await fetch(`/api/decks/${deckId}/health`)
-      if (!res.ok) throw new Error('Failed to fetch health data')
-      return res.json()
-    },
-    staleTime: 5 * 60 * 1000,
-    enabled: !!deckId,
-  })
-
   // Set Oracle context when deck data loads
   useEffect(() => {
     if (data?.deck) {
@@ -187,12 +173,6 @@ export default function DeckViewPage() {
       return null
     }
   })
-
-  // HealthStrip pill click → switch to Cards tab and scroll to category
-  const handlePillClick = useCallback((category: string) => {
-    setActiveTab('cards')
-    setScrollTarget(category)
-  }, [])
 
   if (isLoading || (isStatusLoading && !error)) {
     return <DeckViewSkeleton />
@@ -365,8 +345,6 @@ export default function DeckViewPage() {
             <CardsTab
               cards={cards}
               deckId={deck.id}
-              healthCategories={healthData?.categories}
-              scrollToCategory={scrollTarget}
               onViewPicklist={() => setActiveTab('picklist')}
               maxCopies={getFormatConfig(deck.deck_type).maxCopies}
               commanderName={deck.commander_name}
@@ -424,10 +402,7 @@ export default function DeckViewPage() {
       </Tabs>
 
       {/* Health Strip — bottom of page */}
-      <HealthStrip
-        deckId={deck.id}
-        onPillClick={handlePillClick}
-      />
+      <HealthStrip deckId={deck.id} />
       </div>{/* end content wrapper (z-10) */}
     </div>
   )

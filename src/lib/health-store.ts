@@ -1,9 +1,9 @@
 /**
  * Health Persistence Layer
  *
- * Reads and writes deck health results and threshold overrides to/from Supabase.
- * The deck_health table stores computed health results per deck.
- * The deck_strategy.health_overrides column stores per-deck threshold overrides.
+ * Reads and writes per-deck threshold overrides (deck_strategy.health_overrides).
+ * Deck health itself is computed on request (src/lib/deck-health.ts) and no longer stored;
+ * old deck_health rows are left alone (contract section 4).
  *
  * Uses Supabase client for all database operations (async).
  *
@@ -15,23 +15,6 @@ import { createAdminClient } from '@/lib/supabase'
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-export type HealthStatus = 'green' | 'amber' | 'red'
-
-export interface CategoryHealth {
-  category: string
-  status: HealthStatus
-  actual: number
-  min: number
-  max: number
-}
-
-export interface HealthResult {
-  deckId: number
-  categories: CategoryHealth[]
-  overallStatus: HealthStatus
-  computedAt: string
-}
 
 export interface ThresholdEntry {
   min: number
@@ -45,62 +28,6 @@ export interface ThresholdSet {
 export interface OverrideMap {
   thresholds?: Partial<ThresholdSet>
   amber_margin?: number
-}
-
-// ---------------------------------------------------------------------------
-// Health Result CRUD
-// ---------------------------------------------------------------------------
-
-/**
- * Upsert a health result into the deck_health table.
- * Replaces any previous result for the same deck.
- */
-export async function upsertHealthResult(result: HealthResult, userId: string): Promise<void> {
-  const supabase = createAdminClient()
-
-  const { error } = await supabase
-    .from('deck_health')
-    .upsert(
-      {
-        deck_id: result.deckId,
-        result_json: JSON.stringify(result.categories),
-        overall_status: result.overallStatus,
-        computed_at: result.computedAt,
-        user_id: userId,
-      },
-      { onConflict: 'deck_id' }
-    )
-
-  if (error) {
-    throw new Error(`Failed to upsert health result for deck ${result.deckId}: ${error.message}`)
-  }
-}
-
-/**
- * Read the stored health result for a deck.
- * Returns null if no result exists.
- */
-export async function getHealthResult(deckId: number): Promise<HealthResult | null> {
-  const supabase = createAdminClient()
-
-  const { data, error } = await supabase
-    .from('deck_health')
-    .select('deck_id, result_json, overall_status, computed_at')
-    .eq('deck_id', deckId)
-    .maybeSingle()
-
-  if (error) {
-    throw new Error(`Failed to get health result for deck ${deckId}: ${error.message}`)
-  }
-
-  if (!data) return null
-
-  return {
-    deckId: data.deck_id,
-    categories: JSON.parse(data.result_json) as CategoryHealth[],
-    overallStatus: data.overall_status as HealthStatus,
-    computedAt: data.computed_at,
-  }
 }
 
 // ---------------------------------------------------------------------------

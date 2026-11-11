@@ -1,15 +1,12 @@
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
-import { computeHealth } from '@/lib/health-engine'
 import {
   getHealthOverrides,
   saveHealthOverrides,
   clearHealthOverrides,
-  upsertHealthResult,
 } from '@/lib/health-store'
 import type { OverrideMap } from '@/lib/health-store'
-import type { FunctionalCategory } from '@/lib/category-classifier'
 
 // ---------------------------------------------------------------------------
 // GET — Return current overrides for the deck
@@ -21,6 +18,7 @@ export async function GET(
 ) {
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
+  const userId = authResult.id
 
   const { id } = await params
   const deckId = parseInt(id, 10)
@@ -34,6 +32,7 @@ export async function GET(
     .from('decks')
     .select('id')
     .eq('id', deckId)
+    .eq('user_id', userId)
     .maybeSingle()
 
   if (deckErr) {
@@ -43,12 +42,16 @@ export async function GET(
     return Response.json({ error: 'Deck not found' }, { status: 404 })
   }
 
-  const overrides = await getHealthOverrides(deckId)
-  return Response.json({ overrides })
+  try {
+    const overrides = await getHealthOverrides(deckId)
+    return Response.json({ overrides })
+  } catch (err) {
+    return Response.json({ error: err instanceof Error ? err.message : 'Could not read overrides' }, { status: 500 })
+  }
 }
 
 // ---------------------------------------------------------------------------
-// PUT — Validate and save overrides, trigger health recomputation
+// PUT — Validate and save overrides
 // ---------------------------------------------------------------------------
 
 export async function PUT(
@@ -71,6 +74,7 @@ export async function PUT(
     .from('decks')
     .select('id')
     .eq('id', deckId)
+    .eq('user_id', userId)
     .maybeSingle()
 
   if (deckErr) {
@@ -95,17 +99,18 @@ export async function PUT(
 
   const overrides = body as OverrideMap
 
-  // Save overrides
-  await saveHealthOverrides(deckId, overrides)
+  // Save overrides. Deck health is computed on request and does not use these in Phase 2 (slice 1).
+  try {
+    await saveHealthOverrides(deckId, overrides)
+  } catch (err) {
+    return Response.json({ error: err instanceof Error ? err.message : 'Could not save overrides' }, { status: 500 })
+  }
 
-  // Recompute health
-  const result = await recomputeHealth(supabase, deckId, userId)
-
-  return Response.json(result)
+  return Response.json({ overrides })
 }
 
 // ---------------------------------------------------------------------------
-// DELETE — Clear overrides, recompute with global defaults
+// DELETE — Clear overrides
 // ---------------------------------------------------------------------------
 
 export async function DELETE(
@@ -128,6 +133,7 @@ export async function DELETE(
     .from('decks')
     .select('id')
     .eq('id', deckId)
+    .eq('user_id', userId)
     .maybeSingle()
 
   if (deckErr) {
@@ -137,13 +143,13 @@ export async function DELETE(
     return Response.json({ error: 'Deck not found' }, { status: 404 })
   }
 
-  // Clear overrides
-  await clearHealthOverrides(deckId)
+  try {
+    await clearHealthOverrides(deckId)
+  } catch (err) {
+    return Response.json({ error: err instanceof Error ? err.message : 'Could not clear overrides' }, { status: 500 })
+  }
 
-  // Recompute health with null overrides (global defaults)
-  const result = await recomputeHealth(supabase, deckId, userId)
-
-  return Response.json(result)
+  return Response.json({ overrides: null })
 }
 
 // ---------------------------------------------------------------------------
@@ -196,67 +202,4 @@ function validateOverrideMap(body: unknown): string | null {
   }
 
   return null
-}
-
-/**
- * Recompute health for a deck and persist the result.
- */
-async function recomputeHealth(supabase: ReturnType<typeof createAdminClient>, deckId: number, userId: string) {
-  const { data: rows } = await supabase
-    .from('deck_cards')
-    .select('card_name, categories')
-    .eq('deck_id', deckId)
-
-  const cards = (rows ?? []).map((row) => ({
-    cardName: row.card_name,
-    categories: row.categories,
-    oracleText: null,
-    typeLine: null,
-    isLand: isLandCard(row.categories),
-  }))
-
-  // No card-level classification overrides (empty map)
-  const overrides = new Map<string, FunctionalCategory>()
-
-  // Load per-deck health threshold overrides
-  const healthOverrides = await getHealthOverrides(deckId)
-
-  // Compute health
-  const result = computeHealth(cards, overrides, healthOverrides)
-  result.deckId = deckId
-
-  // Persist
-  await upsertHealthResult(result, userId)
-
-  return result
-}
-
-/**
- * Determine if a card is a land based on its Archidekt categories.
- */
-function isLandCard(rawCategories: string | null): boolean {
-  if (!rawCategories) return false
-
-  const trimmed = rawCategories.trim()
-
-  // Try JSON array parse
-  if (trimmed.startsWith('[')) {
-    try {
-      const parsed = JSON.parse(trimmed)
-      if (Array.isArray(parsed)) {
-        return parsed.some(
-          (cat: string) =>
-            cat.toLowerCase() === 'lands' || cat.toLowerCase() === 'land'
-        )
-      }
-    } catch {
-      // Fall through to comma-separated
-    }
-  }
-
-  // Comma-separated string
-  return trimmed.split(',').some((cat) => {
-    const c = cat.trim().toLowerCase()
-    return c === 'lands' || c === 'land'
-  })
 }

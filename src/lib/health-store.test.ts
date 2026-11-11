@@ -1,12 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
-  upsertHealthResult,
-  getHealthResult,
   getHealthOverrides,
   saveHealthOverrides,
   clearHealthOverrides,
 } from './health-store'
-import type { HealthResult, OverrideMap } from './health-store'
+import type { OverrideMap } from './health-store'
 
 // ---------------------------------------------------------------------------
 // Mock Supabase
@@ -57,87 +55,6 @@ function chainable(result: { data?: unknown; error?: unknown; count?: number }) 
 describe('health-store', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-  })
-
-  describe('upsertHealthResult', () => {
-    const sampleResult: HealthResult = {
-      deckId: 1,
-      categories: [
-        { category: 'Ramp', status: 'green', actual: 11, min: 10, max: 12 },
-        { category: 'Draw', status: 'amber', actual: 9, min: 10, max: 12 },
-        { category: 'Removal', status: 'red', actual: 3, min: 6, max: 10 },
-      ],
-      overallStatus: 'red',
-      computedAt: '2025-01-15T10:30:00.000Z',
-    }
-
-    it('calls supabase upsert with correct data', async () => {
-      const chain = chainable({ data: null, error: null })
-      mockFrom.mockReturnValue(chain)
-
-      await upsertHealthResult(sampleResult, 'user-123')
-
-      expect(mockFrom).toHaveBeenCalledWith('deck_health')
-      expect(chain.upsert).toHaveBeenCalledWith(
-        {
-          deck_id: 1,
-          result_json: JSON.stringify(sampleResult.categories),
-          overall_status: 'red',
-          computed_at: '2025-01-15T10:30:00.000Z',
-          user_id: 'user-123',
-        },
-        { onConflict: 'deck_id' }
-      )
-    })
-
-    it('throws on supabase error', async () => {
-      const chain = chainable({ data: null, error: { message: 'insert failed' } })
-      mockFrom.mockReturnValue(chain)
-
-      await expect(upsertHealthResult(sampleResult, 'user-123')).rejects.toThrow('Failed to upsert health result')
-    })
-  })
-
-  describe('getHealthResult', () => {
-    it('returns parsed health result when data exists', async () => {
-      const categories = [
-        { category: 'Ramp', status: 'green', actual: 11, min: 10, max: 12 },
-      ]
-      const chain = chainable({
-        data: {
-          deck_id: 1,
-          result_json: JSON.stringify(categories),
-          overall_status: 'green',
-          computed_at: '2025-01-15T10:30:00.000Z',
-        },
-        error: null,
-      })
-      mockFrom.mockReturnValue(chain)
-
-      const result = await getHealthResult(1)
-
-      expect(result).toEqual({
-        deckId: 1,
-        categories,
-        overallStatus: 'green',
-        computedAt: '2025-01-15T10:30:00.000Z',
-      })
-    })
-
-    it('returns null when no data exists', async () => {
-      const chain = chainable({ data: null, error: null })
-      mockFrom.mockReturnValue(chain)
-
-      const result = await getHealthResult(999)
-      expect(result).toBeNull()
-    })
-
-    it('throws on supabase error', async () => {
-      const chain = chainable({ data: null, error: { message: 'query failed' } })
-      mockFrom.mockReturnValue(chain)
-
-      await expect(getHealthResult(1)).rejects.toThrow('Failed to get health result')
-    })
   })
 
   describe('getHealthOverrides', () => {

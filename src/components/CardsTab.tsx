@@ -41,13 +41,6 @@ type SortBy = 'name' | 'type' | 'cmc'
 interface CardsTabProps {
   cards: DeckCard[]
   deckId: number
-  healthCategories?: Array<{
-    category: string
-    status: string
-    actual: number
-    min: number
-    max: number
-  }>
   scrollToCategory?: string | null
   onViewPicklist?: () => void
   /** Maximum copies per card allowed by the deck's format (null = no limit, 1 = singleton). Defaults to 1. */
@@ -359,7 +352,7 @@ export function CardsTab(props: CardsTabProps) {
   )
 }
 
-function CardsTabInner({ cards, deckId, healthCategories, scrollToCategory, onViewPicklist, maxCopies = 1, commanderName, showCommandZone = false, deckTarget }: CardsTabProps) {
+function CardsTabInner({ cards, deckId, scrollToCategory, onViewPicklist, maxCopies = 1, commanderName, showCommandZone = false, deckTarget }: CardsTabProps) {
   // ── Derived Data ─────────────────────────────────────────────────────────────
 
   const availableCategories = useDeckCategories(cards)
@@ -883,7 +876,6 @@ function CardsTabInner({ cards, deckId, healthCategories, scrollToCategory, onVi
                 deckId={deckId}
                 physicalCopyMap={physicalCopyMap}
                 availableCategories={availableCategories}
-                healthCategories={healthCategories}
                 maxCopies={maxCopies}
                 selectedIds={selectedCardIds}
                 onSelectionChange={handleSelectionChange}
@@ -915,7 +907,6 @@ function CardsTabInner({ cards, deckId, healthCategories, scrollToCategory, onVi
               <UnifiedListLayout
                 commanderSlots={commanderSlots}
                 groupedCards={groupedCards}
-                healthCategories={healthCategories}
                 availableCategories={availableCategories}
                 statusMap={statusMap}
                   lifecycleMap={lifecycleMap}
@@ -1069,7 +1060,6 @@ function MaybeboardSection({
 
 function UnifiedListLayout({
   groupedCards,
-  healthCategories,
   availableCategories,
   statusMap,
   lifecycleMap,
@@ -1082,7 +1072,6 @@ function UnifiedListLayout({
   commanderSlots,
 }: {
   groupedCards: [string, DeckCard[]][]
-  healthCategories?: CardsTabProps['healthCategories']
   availableCategories: string[]
   statusMap: Map<number, CardSlotStatus>
   lifecycleMap: Map<number, DeckCardLifecycle>
@@ -1097,9 +1086,6 @@ function UnifiedListLayout({
   return (
     <div className="space-y-2">
       {groupedCards.map(([groupName, groupCards]) => {
-        const health = healthCategories?.find(
-          (h) => h.category.toLowerCase() === groupName.toLowerCase()
-        )
         return (
           <Fragment key={groupName}>
           <CardGroupSection
@@ -1110,7 +1096,6 @@ function UnifiedListLayout({
             deckId={deckId}
             physicalCopyMap={physicalCopyMap}
             availableCategories={availableCategories}
-            health={health}
             onCategoryChange={onCategoryChange}
             maxCopies={maxCopies}
             selectedIds={selectedIds}
@@ -1133,7 +1118,6 @@ function UnifiedGroupsLayout({
   deckId,
   physicalCopyMap,
   availableCategories,
-  healthCategories,
   onCategoryChange,
   maxCopies,
   selectedIds,
@@ -1146,7 +1130,6 @@ function UnifiedGroupsLayout({
   deckId: number
   physicalCopyMap: Map<number, number | null>
   availableCategories: string[]
-  healthCategories?: CardsTabProps['healthCategories']
   onCategoryChange: (cardId: number, categories: StructuredCategories) => void
   maxCopies?: number | null
   selectedIds?: Set<number>
@@ -1174,9 +1157,6 @@ function UnifiedGroupsLayout({
       {columns.map((column, colIdx) => (
         <div key={colIdx} className="flex flex-col gap-3">
           {column.map(([groupName, groupCards]) => {
-            const health = healthCategories?.find(
-              (h) => h.category.toLowerCase() === groupName.toLowerCase()
-            )
             return (
               <Fragment key={groupName}>
               <CardGroupSection
@@ -1187,8 +1167,7 @@ function UnifiedGroupsLayout({
                 deckId={deckId}
                 physicalCopyMap={physicalCopyMap}
                 availableCategories={availableCategories}
-                health={health}
-                onCategoryChange={onCategoryChange}
+                    onCategoryChange={onCategoryChange}
                 maxCopies={maxCopies}
                 selectedIds={selectedIds}
                 onSelectionChange={onSelectionChange}

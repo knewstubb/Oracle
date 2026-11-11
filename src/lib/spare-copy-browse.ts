@@ -19,6 +19,8 @@
 // ---------------------------------------------------------------------------
 
 import { isBasicLand } from './basic-lands'
+import { gapDetailLine } from './gap-detail-line'
+import { isLandTypeLine, rolesForCard, ROLE_TEXT_NEEDLES, type Role } from './card-roles'
 import { parseColourLetters } from './command-zone'
 import { loadCommanderColours, shortByOneWarning, withinIdentity, type LookupClient } from './owned-copy-lookup'
 
@@ -37,7 +39,10 @@ export interface BrowseCard {
   mana_value: number | null
   spare_copies: number
   in_other_decks: BrowseHolding[]
-}
+  /** Scryfall printing id of one of the owner's own copies (spare copy preferred); null when unknown. */
+  printing_id?: string | null
+  /** One short sentence on what the card does for the asked-for role, when a role was asked for. */
+  detail_line?: string | null}
 
 export interface SpareBrowseResult {
   /** null = could not be determined; nothing is listed as fitting in that case */
@@ -54,15 +59,23 @@ export interface SpareBrowseResult {
   notes: string[]
 }
 
-async function paged(build: () => { range: (a: number, b: number) => PromiseLike<{ data: unknown; error: unknown }> }, what: string): Promise<Row[]> {
+/** Like `paged`, but asks for several pages at once (speculatively) so a big table costs one round trip, not one per page. */
+async function pagedParallel(build: () => { range: (a: number, b: number) => PromiseLike<{ data: unknown; error: unknown }> }, what: string, firstPages = 3): Promise<Row[]> {
   const out: Row[] = []
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await build().range(from, from + PAGE - 1)
-    if (error || !Array.isArray(data)) throw new Error(`Could not read ${what}`)
-    out.push(...(data as Row[]))
-    if (data.length < PAGE) break
+  for (let start = 0; ; start += firstPages * PAGE) {
+    const pages = await Promise.all(
+      Array.from({ length: firstPages }, async (_, i) => {
+        const from = start + i * PAGE
+        const { data, error } = await build().range(from, from + PAGE - 1)
+        if (error || !Array.isArray(data)) throw new Error(`Could not read ${what}`)
+        return data as Row[]
+      }),
+    )
+    for (const p of pages) {
+      out.push(...p)
+      if (p.length < PAGE) return out
+    }
   }
-  return out
 }
 
 async function simple(q: PromiseLike<{ data: unknown; error: unknown }>, what: string): Promise<Row[]> {
@@ -71,28 +84,44 @@ async function simple(q: PromiseLike<{ data: unknown; error: unknown }>, what: s
   return data as Row[]
 }
 
-type Matcher = (typeLine: string, oracleText: string) => boolean
+type Matcher = (typeLine: string, oracleText: string, name?: string) => boolean
 
 const TYPE_WORDS = ['creature', 'artifact', 'enchantment', 'instant', 'sorcery', 'land', 'planeswalker', 'battle']
+
+function roleFromKind(k: string): Role | null {
+  return k === 'draw' || k === 'card draw' ? 'draw'
+    : k === 'ramp' || k === 'mana' ? 'ramp'
+    : k === 'removal' || k === 'removal spell' ? 'removal'
+    : k === 'wipes' || k === 'wipe' || k === 'board wipe' ? 'wipes'
+    : null
+}
+
+/**
+ * What the database can narrow card data by before anything is sent to the app. It only ever removes cards the real
+ * filter would also remove (role: card text must contain a needle; lands: type line contains "land").
+ * null = no narrowing possible (type words, "any"): every owned card's data is fetched.
+ */
+type Prefilter = { or: string } | { typeLike: string } | null
+export function prefilterFor(kind: string | null | undefined): Prefilter {
+  const k = (kind ?? '').trim().toLowerCase()
+  const role = roleFromKind(k)
+  if (role) return { or: ROLE_TEXT_NEEDLES[role].map((n) => `oracle_text.ilike.*${n.replace(/[,()*]/g, '')}*`).join(',') }
+  if (k === 'lands' || k === 'land') return { typeLike: '%land%' }
+  return null
+}
 
 /** Pure: turn a type / role word ("creature", "draw", "ramp", "removal") into a matcher. Approximate for roles. */
 export function buildFilter(kind: string | null | undefined): { label: string; match: Matcher } {
   const k = (kind ?? '').trim().toLowerCase()
   if (!k || k === 'any' || k === 'all') return { label: 'any card', match: () => true }
-  if (k === 'draw' || k === 'card draw') {
-    return { label: 'draw (approximate, from card text)', match: (_t, o) => /\bdraws? (a|an|one|two|three|four|x|that many|\d+) cards?\b|\bdraw (a|two|three) cards?/i.test(o) }
+  // Roles use the one shared role function (same as the deck health counts), never their own text rules.
+  const role = roleFromKind(k)
+  if (role) {
+    return { label: `${role} (from card text)`, match: (t, o, n) => rolesForCard({ name: n ?? '', typeLine: t, oracleText: o }).includes(role) }
   }
-  if (k === 'ramp' || k === 'mana') {
-    return {
-      label: 'ramp (approximate, from card text)',
-      match: (t, o) => /add (\{|one mana|two mana|an amount)/i.test(o) || /search your library for (up to \w+ |a |an )?(basic |snow )?(land|forest|island|plains|swamp|mountain)/i.test(o) || (/\bland\b/i.test(t) && /put (a|up to \w+) (basic )?land cards? .* onto the battlefield/i.test(o)),
-    }
-  }
-  if (k === 'removal' || k === 'removal spell') {
-    return {
-      label: 'removal (approximate, from card text)',
-      match: (_t, o) => /(destroy|exile) (target|up to \w+ target|each|all)|deals? \d+ damage to (any target|target)|gets? -\d+\/-\d+|return target .* to its owner's hand/i.test(o),
-    }
+  // Lands: decided from the front-face type line, same as the deck health Lands count.
+  if (k === 'lands' || k === 'land') {
+    return { label: 'land', match: t => isLandTypeLine(t) }
   }
   if (TYPE_WORDS.includes(k.replace(/s$/, ''))) {
     const w = k.replace(/s$/, '')
@@ -111,15 +140,23 @@ export async function browseSpareCopies(
   const filter = buildFilter(args.kind)
   const notes: string[] = []
 
-  // The viewed deck must be this owner's
-  const deckRows = await simple(client.from('decks').select('id, name, colour_identity').eq('id', deckId).eq('user_id', userId), 'deck')
+  // Round 1: everything that does not depend on anything else, all at once (one round trip, not a chain).
+  //  - the viewed deck (must be this owner's)
+  //  - the commanders' colours
+  //  - the owner's cards, real copies and deck list
+  const [deckRows, commanderColours, cards, copies, userDecks] = await Promise.all([
+    simple(client.from('decks').select('id, name, colour_identity').eq('id', deckId).eq('user_id', userId), 'deck'),
+    loadCommanderColours(client, deckId).catch(() => null),
+    pagedParallel(() => client.from('user_cards').select('id, card_name, oracle_id').eq('user_id', userId).order('id'), 'owned cards'),
+    pagedParallel(() => client.from('user_copies').select('id, card_id, printing_id').eq('user_id', userId).eq('is_proxy', false).order('id'), 'owned copies', 5),
+    pagedParallel(() => client.from('decks').select('id, name').eq('user_id', userId).order('id'), 'decks', 1),
+  ])
   if (deckRows.length === 0) throw new Error('Deck not found')
 
   // Colour identity = ALL the commanders' colours together (partner, background...; never the companion).
   // Worked out from the commander cards; the stored deck value is only the fallback, because it can lag behind.
-  let identity: string[] | null = null
+  let identity: string[] | null = commanderColours
   let source: SpareBrowseResult['colour_source'] = 'unknown'
-  try { identity = await loadCommanderColours(client, deckId) } catch { identity = null }
   if (identity) {
     source = 'commander'
   } else {
@@ -140,35 +177,55 @@ export async function browseSpareCopies(
     return empty("The deck's colours could not be determined (no colour identity stored and no commander card data found). Nothing was listed as fitting; tell the owner this and do not guess.")
   }
 
-  // Owner's cards, real copies, and where each real copy is sleeved
-  const cards = await paged(() => client.from('user_cards').select('id, card_name, oracle_id').eq('user_id', userId).order('id'), 'owned cards')
-  const copies = await paged(() => client.from('user_copies').select('id, card_id').eq('user_id', userId).eq('is_proxy', false).order('id'), 'owned copies')
-  const userDecks = await paged(() => client.from('decks').select('id, name').eq('user_id', userId).order('id'), 'decks')
   const deckName = new Map(userDecks.map(d => [Number(d.id), String(d.name)]))
+  const copiesByCard = new Map<number, number[]>()
+  const printingByCopy = new Map<number, string>()
+  for (const c of copies) {
+    copiesByCard.set(Number(c.card_id), [...(copiesByCard.get(Number(c.card_id)) ?? []), Number(c.id)])
+    if (typeof c.printing_id === 'string' && c.printing_id) printingByCopy.set(Number(c.id), c.printing_id)
+  }
+
+  // Only cards the owner really has (not basics, not proxy-only) can be spare or held elsewhere.
+  const names = [...new Set(cards.filter(c => (copiesByCard.get(Number(c.id)) ?? []).length > 0).map(c => String(c.card_name)))].filter(n => !isBasicLand(n))
+
+  // Round 2, all at once:
+  //  - which deck holds each real copy (one query over the owner's decks, not one per deck)
+  //  - card data, narrowed IN THE DATABASE to cards that could have the role (and a plain list of which names are known at all)
+  const pre = prefilterFor(args.kind)
+  const REF_COLS = 'name, type_line, oracle_text, color_identity, mana_value, edhrec_rank'
+  const nameBatches: string[][] = []
+  for (let i = 0; i < names.length; i += NAME_BATCH) nameBatches.push(names.slice(i, i + NAME_BATCH))
+  const refData = nameBatches.map((batch) => {
+    let q = client.from('ref_cards').select(REF_COLS).in('name', batch)
+    if (pre && 'or' in pre) q = q.or(pre.or)
+    else if (pre) q = q.ilike('type_line', pre.typeLike)
+    return simple(q, 'card data')
+  })
+  const refKnown = pre ? nameBatches.map((batch) => simple(client.from('ref_cards').select('name').in('name', batch), 'card names')) : []
+  const [deckCardRows, refDataSets, refKnownSets] = await Promise.all([
+    userDecks.length > 0
+      ? pagedParallel(() => client.from('deck_cards').select('card_name, copy_id, deck_id, categories').in('deck_id', userDecks.map(d => Number(d.id))).order('id'), 'deck cards', 2)
+      : Promise.resolve([] as Row[]),
+    Promise.all(refData),
+    Promise.all(refKnown),
+  ])
+
   const copyToDecks = new Map<number, number[]>()
   const thisDeckNames = new Set<string>()
-  for (const d of userDecks) {
-    const rs = await paged(() => client.from('deck_cards').select('card_name, copy_id, deck_id, categories').eq('deck_id', d.id).order('id'), 'deck cards')
-    for (const r of rs) {
-      if (Number(d.id) === deckId && !(typeof r.categories === 'string' && r.categories.includes('Maybeboard'))) {
-        thisDeckNames.add(String(r.card_name).toLowerCase())
-      }
-      if (r.copy_id === null || r.copy_id === undefined) continue
-      const k = Number(r.copy_id)
-      copyToDecks.set(k, [...(copyToDecks.get(k) ?? []), Number(d.id)])
+  for (const r of deckCardRows) {
+    const did = Number(r.deck_id)
+    if (did === deckId && !(typeof r.categories === 'string' && r.categories.includes('Maybeboard'))) {
+      thisDeckNames.add(String(r.card_name).toLowerCase())
     }
+    if (r.copy_id === null || r.copy_id === undefined) continue
+    const k = Number(r.copy_id)
+    copyToDecks.set(k, [...(copyToDecks.get(k) ?? []), did])
   }
 
-  // Card data (type, text, colours) by name, same source the existing type search uses
-  const names = [...new Set(cards.map(c => String(c.card_name)))].filter(n => !isBasicLand(n))
   const ref = new Map<string, Row>()
-  for (let i = 0; i < names.length; i += NAME_BATCH) {
-    const rs = await simple(client.from('ref_cards').select('name, type_line, oracle_text, color_identity, mana_value, edhrec_rank').in('name', names.slice(i, i + NAME_BATCH)), 'card data')
-    for (const r of rs) ref.set(String(r.name).toLowerCase(), r)
-  }
-
-  const copiesByCard = new Map<number, number[]>()
-  for (const c of copies) copiesByCard.set(Number(c.card_id), [...(copiesByCard.get(Number(c.card_id)) ?? []), Number(c.id)])
+  const known = new Set<string>()
+  for (const rs of refDataSets) for (const r of rs) { ref.set(String(r.name).toLowerCase(), r); known.add(String(r.name).toLowerCase()) }
+  for (const rs of refKnownSets) for (const r of rs) known.add(String(r.name).toLowerCase())
 
   type Entry = BrowseCard & { rank: number }
   const spare: Entry[] = []
@@ -188,16 +245,17 @@ export async function browseSpareCopies(
     if (mine.length === 0) continue // proxies only or none: not a real copy
     if (thisDeckNames.has(name.toLowerCase())) continue
     const data = ref.get(name.toLowerCase())
-    if (!data) { unchecked++; continue }
+    if (!data) { if (!known.has(name.toLowerCase())) unchecked++; continue }
     if (!withinIdentity([...parseColourLetters(String(data.color_identity ?? ''))], identity)) continue
-    if (!filter.match(String(data.type_line ?? ''), String(data.oracle_text ?? ''))) continue
+    if (!filter.match(String(data.type_line ?? ''), String(data.oracle_text ?? ''), name)) continue
 
     let spareN = 0
     let inThis = 0
+    let spareCopyId: number | null = null
     const held = new Map<number, number>()
     for (const id of mine) {
       const ds = copyToDecks.get(id) ?? []
-      if (ds.length === 0) { spareN++; continue }
+      if (ds.length === 0) { spareN++; if (spareCopyId === null || (!printingByCopy.has(spareCopyId) && printingByCopy.has(id))) spareCopyId = id; continue }
       if (ds.includes(deckId)) { inThis++; continue }
       for (const d of new Set(ds)) held.set(d, (held.get(d) ?? 0) + 1)
     }
@@ -210,6 +268,8 @@ export async function browseSpareCopies(
       card_name: name, type_line: String(data.type_line ?? ''),
       mana_value: typeof data.mana_value === 'number' ? data.mana_value : null,
       spare_copies: spareN, in_other_decks: holdings,
+      printing_id: (spareCopyId !== null ? printingByCopy.get(spareCopyId) : undefined) ?? mine.map((id) => printingByCopy.get(id)).find(Boolean) ?? null,
+      detail_line: gapDetailLine(args.kind, String(data.type_line ?? ''), typeof data.oracle_text === 'string' ? data.oracle_text : null),
       rank: typeof data.edhrec_rank === 'number' ? data.edhrec_rank : Number.MAX_SAFE_INTEGER,
     }
     if (spareN > 0) spare.push(entry)
@@ -223,7 +283,7 @@ export async function browseSpareCopies(
   if (spare.length > limit) notes.push(`Showing ${limit} of ${spare.length} spare cards (most popular first). Ask with a narrower type or role to see others.`)
   if (other.length > limit) notes.push(`Showing ${limit} of ${other.length} cards held by other decks (most popular first).`)
   if (unchecked > 0) notes.push(`${unchecked} owned cards could not be matched to card data and were not checked.`)
-  if (filter.label.includes('approximate')) notes.push('Role filters read the card text and can miss or over-include; say so if the list looks thin.')
+  if (filter.label.includes('from card text')) notes.push('Role filters read the card text and can miss or over-include; say so if the list looks thin.')
   notes.push('This lists cards the owner already has. For Buy suggestions, call check_owned_copies on the candidates to get a Scryfall estimate or "no price".')
 
   return {

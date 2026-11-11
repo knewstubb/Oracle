@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest'
 vi.mock('./supabase', () => ({ createAdminClient: vi.fn(() => { throw new Error('no real DB in tests') }) }))
 vi.mock('./mcp-client', () => ({ getMcpClient: vi.fn() }))
 
-import { browseSpareCopies, buildFilter } from './spare-copy-browse'
+import { browseSpareCopies, buildFilter, prefilterFor } from './spare-copy-browse'
 import type { LookupClient } from './owned-copy-lookup'
 import { DECK_CHAT_CONTEXT, getToolDefinitions, getToolDefinitionsForContext } from './tool-registry'
 import { OWNED_COPY_RULES } from './deck-chat-prompt'
@@ -20,6 +20,8 @@ function mockClient(tables: Record<string, Row[]>) {
         select() { calls.push(`${table}.select`); return q },
         eq(col: string, v: unknown) { data = data.filter(r => r[col] === v); return q },
         in(col: string, vs: unknown[]) { data = data.filter(r => vs.includes(r[col])); return q },
+        or() { return q }, // the real database pre-filter only removes cards the app-side check would also remove
+        ilike() { return q },
         order() { return q },
         range(a: number, b: number) { return Promise.resolve({ data: data.slice(a, b + 1), error: null }) },
         then(res: (v: unknown) => unknown) { return Promise.resolve({ data, error: null }).then(res) },
@@ -151,6 +153,37 @@ describe('browseSpareCopies', () => {
     expect(r.notes.join(' ')).toContain('could not be determined')
   })
 
+  it('reads big collections across several pages (more than 1000 owned cards)', async () => {
+    const w = world()
+    const extraCards: Row[] = []
+    const extraCopies: Row[] = []
+    const extraRef: Row[] = []
+    for (let i = 0; i < 2500; i++) {
+      extraCards.push({ id: 1000 + i, user_id: 'u1', card_name: `Filler ${i}`, oracle_id: `f${i}` })
+      extraCopies.push({ id: 5000 + i, user_id: 'u1', card_id: 1000 + i, is_proxy: false })
+      extraRef.push(ref(`Filler ${i}`, 'R', 'Creature'))
+    }
+    // a draw card that sits past the first 2000 rows must still be found
+    extraRef[2400] = ref('Filler 2400', 'R', 'Sorcery', 'Draw three cards.', 3)
+    const r = await run({ ...w, user_cards: [...w.user_cards, ...extraCards], user_copies: [...w.user_copies, ...extraCopies], ref_cards: [...w.ref_cards, ...extraRef] }, 'draw')
+    expect(r.spare.map(c => c.card_name)).toContain('Filler 2400')
+    expect(r.total_spare).toBe(2)
+  })
+
+  it('narrows card data in the database for roles and lands, but not for plain types', () => {
+    expect(prefilterFor('draw')).toEqual({ or: expect.stringContaining('oracle_text.ilike.*draw*') })
+    expect(prefilterFor('ramp')).toEqual({ or: expect.stringContaining('treasure') })
+    expect(prefilterFor('lands')).toEqual({ typeLike: '%land%' })
+    expect(prefilterFor('creature')).toBeNull()
+    expect(prefilterFor(undefined)).toBeNull()
+  })
+
+  it('still counts owned cards with no card data as not checked', async () => {
+    const w = world()
+    const r = await run({ ...w, ref_cards: w.ref_cards.filter(c => c.name !== 'Spare Bear') }, 'draw')
+    expect(r.unchecked_cards).toBe(1)
+  })
+
   it('rejects a deck that is not the owner’s', async () => {
     await expect(browseSpareCopies(mockClient(world()).client, { userId: 'u2', deckId: 1 })).rejects.toThrow()
   })
@@ -166,8 +199,17 @@ describe('buildFilter', () => {
   it('ramp matches mana and land-fetch text', () => {
     const f = buildFilter('ramp').match
     expect(f('Artifact', '{T}: Add {C}{C}.')).toBe(true)
-    expect(f('Sorcery', 'Search your library for a basic land card')).toBe(true)
+    expect(f('Sorcery', 'Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.')).toBe(true)
+    // fetching a land to hand is not ramp (contract section 0.3)
+    expect(f('Sorcery', 'Search your library for a basic land card, reveal it, put it into your hand, then shuffle.')).toBe(false)
     expect(f('Creature', 'Flying')).toBe(false)
+  })
+
+  it('wipes and lands use the shared role function and the front-face type line', () => {
+    expect(buildFilter('wipes').match('Sorcery', 'Destroy all creatures.', 'Wrath of God')).toBe(true)
+    expect(buildFilter('wipes').match('Creature', 'Flying')).toBe(false)
+    expect(buildFilter('lands').match('Land', '')).toBe(true)
+    expect(buildFilter('lands').match('Sorcery // Land', '')).toBe(false)
   })
 })
 

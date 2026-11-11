@@ -132,11 +132,10 @@ async function resolveNames(client: LookupClient, names: string[]): Promise<Map<
 export async function loadCommanderColours(client: LookupClient, deckId: number): Promise<string[] | null> {
   // Every commander counts equally (partner, background...; never the companion). An old deck that only
   // has the commander's name set still works: that card is found by name.
-  const cardRows = await rows(
-    client.from('deck_cards').select('id, card_name, categories, is_commander, command_zone_role').eq('deck_id', deckId),
-    'commander'
-  )
-  const deck = await rows(client.from('decks').select('commander_name').eq('id', deckId), 'deck')
+  const [cardRows, deck] = await Promise.all([
+    rows(client.from('deck_cards').select('id, card_name, categories, is_commander, command_zone_role').eq('deck_id', deckId), 'commander'),
+    rows(client.from('decks').select('commander_name').eq('id', deckId), 'deck'),
+  ])
   const n = deck[0]?.commander_name
   const named = typeof n === 'string' && n ? n : null
   const names = [...new Set(findCommanderCards(cardRows as unknown as FlagRow[], named).map(r => String(r.card_name)))]

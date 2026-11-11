@@ -48,14 +48,6 @@ import { formatPrice } from '@/lib/collection-printing-utils'
 // Types
 // ---------------------------------------------------------------------------
 
-interface HealthCategory {
-  category: string
-  status: string
-  actual: number
-  min: number
-  max: number
-}
-
 export interface CardGroupSectionProps {
   groupName: string
   groupCards: DeckCard[]
@@ -65,8 +57,6 @@ export interface CardGroupSectionProps {
   physicalCopyMap: Map<number, number | null>
   /** Available categories for the tag editor */
   availableCategories?: string[]
-  /** Health category data for fill-bar indicators */
-  health?: HealthCategory
   /** Callback for category changes */
   onCategoryChange?: (cardId: number, categories: StructuredCategories) => void
   /** Whether the section starts collapsed */
@@ -93,7 +83,6 @@ export function CardGroupSection({
   deckId,
   physicalCopyMap,
   availableCategories = [],
-  health,
   onCategoryChange,
   defaultCollapsed = false,
   compact = false,
@@ -103,9 +92,6 @@ export function CardGroupSection({
 }: CardGroupSectionProps) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed)
   const count = groupCards.reduce((sum, c) => sum + (c.quantity || 1), 0)
-
-  const hasViolation = health && health.status !== 'ok'
-  const target = health ? health.max : undefined
 
   // Separate generic lands and group same-printing lands, other cards render individually
   const normalCards: DeckCard[] = []

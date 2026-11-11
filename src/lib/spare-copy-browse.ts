@@ -141,14 +141,19 @@ export async function browseSpareCopies(
   }
 
   // Owner's cards, real copies, and where each real copy is sleeved
-  const cards = await paged(() => client.from('user_cards').select('id, card_name, oracle_id').eq('user_id', userId).order('id'), 'owned cards')
-  const copies = await paged(() => client.from('user_copies').select('id, card_id').eq('user_id', userId).eq('is_proxy', false).order('id'), 'owned copies')
-  const userDecks = await paged(() => client.from('decks').select('id, name').eq('user_id', userId).order('id'), 'decks')
+  const [cards, copies, userDecks] = await Promise.all([
+    paged(() => client.from('user_cards').select('id, card_name, oracle_id').eq('user_id', userId).order('id'), 'owned cards'),
+    paged(() => client.from('user_copies').select('id, card_id').eq('user_id', userId).eq('is_proxy', false).order('id'), 'owned copies'),
+    paged(() => client.from('decks').select('id, name').eq('user_id', userId).order('id'), 'decks'),
+  ])
   const deckName = new Map(userDecks.map(d => [Number(d.id), String(d.name)]))
   const copyToDecks = new Map<number, number[]>()
   const thisDeckNames = new Set<string>()
-  for (const d of userDecks) {
-    const rs = await paged(() => client.from('deck_cards').select('card_name, copy_id, deck_id, categories').eq('deck_id', d.id).order('id'), 'deck cards')
+  const deckRowSets = await Promise.all(
+    userDecks.map((d) => paged(() => client.from('deck_cards').select('card_name, copy_id, deck_id, categories').eq('deck_id', d.id).order('id'), 'deck cards')),
+  )
+  for (const [i, d] of userDecks.entries()) {
+    const rs = deckRowSets[i]
     for (const r of rs) {
       if (Number(d.id) === deckId && !(typeof r.categories === 'string' && r.categories.includes('Maybeboard'))) {
         thisDeckNames.add(String(r.card_name).toLowerCase())
@@ -162,8 +167,11 @@ export async function browseSpareCopies(
   // Card data (type, text, colours) by name, same source the existing type search uses
   const names = [...new Set(cards.map(c => String(c.card_name)))].filter(n => !isBasicLand(n))
   const ref = new Map<string, Row>()
+  const refBatches: Promise<Row[]>[] = []
   for (let i = 0; i < names.length; i += NAME_BATCH) {
-    const rs = await simple(client.from('ref_cards').select('name, type_line, oracle_text, color_identity, mana_value, edhrec_rank').in('name', names.slice(i, i + NAME_BATCH)), 'card data')
+    refBatches.push(simple(client.from('ref_cards').select('name, type_line, oracle_text, color_identity, mana_value, edhrec_rank').in('name', names.slice(i, i + NAME_BATCH)), 'card data'))
+  }
+  for (const rs of await Promise.all(refBatches)) {
     for (const r of rs) ref.set(String(r.name).toLowerCase(), r)
   }
 

@@ -55,15 +55,24 @@ function CardRow({ card }: { card: GapCard }) {
 /** Gap detail for one role: spare owned cards first, then cards in another deck (deck name only). Suggest-only. */
 export function GapDetail({ deckId, role, onBack }: GapDetailProps) {
   const [showInDeck, setShowInDeck] = useState(false)
-  const { data, isLoading, isError, refetch } = useQuery<DeckHealthGap>({
+  const { data, isPending, isError, refetch } = useQuery<DeckHealthGap>({
     queryKey: [...deckKeys.health(deckId), 'gap', role],
     queryFn: async () => {
       const res = await fetch(`/api/decks/${deckId}/health/gap?role=${role}`)
       if (!res.ok) throw new Error('Failed to fetch gap detail')
-      return res.json()
+      const body = await res.json()
+      // A reply without the expected lists is an error, never a blank panel.
+      if (!body || !Array.isArray(body.spare) || !Array.isArray(body.inAnotherDeck) || !Array.isArray(body.inDeckCards)) {
+        throw new Error('Unexpected gap detail response')
+      }
+      return body as DeckHealthGap
     },
     staleTime: 60 * 1000,
+    // One quick retry only: the default (3 retries with waits) kept the panel on "loading" for a minute before any error showed.
+    retry: 1,
+    retryDelay: 500,
   })
+  const isLoading = isPending && !isError
 
   return (
     <div className="space-y-3">
@@ -74,9 +83,11 @@ export function GapDetail({ deckId, role, onBack }: GapDetailProps) {
 
       {isLoading && (
         <div role="status" className="space-y-2">
-          <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-12 w-full" />
-          <span className="sr-only">Looking through your cards…</span>
+          <p style={{ color: 'var(--text-primary)' }}>Looking through your cards…</p>
+          <p className="text-[length:var(--fs-sm)]" style={{ color: 'var(--text-secondary)' }}>
+            This can take a few seconds on a big collection.
+          </p>
+          <Skeleton className="h-12 w-full border" style={{ borderColor: 'var(--border-default)' }} />
         </div>
       )}
 

@@ -60,3 +60,26 @@ Edited:
 - Typecheck: only the known error in `docs/oracle/contracts/card-state-actions.examples.ts`.
 - Lint: 0 errors in changed files.
 - E2E: not run (no separate test account). Not checked in a browser.
+
+## Bug fix: empty gap detail (owner report)
+**Symptom:** clicking a Light role showed only the "Deck health" back link under the panel title.
+
+**Cause (most likely, from evidence; not seen in a browser):** three things combined.
+1. The gap request was slow. Run against a real 100-card deck's data, it took about 13.5 seconds, because it read the whole collection and every deck's cards one query after another.
+2. The only loading signal was a grey placeholder block. In dark mode that block is the same colour as the panel, so it is invisible. The words "Looking through your cards" were screen-reader only.
+3. A failed request was retried three times with growing waits (the app default), so a timeout showed no error for a minute or more.
+Result: a blank panel with only the back link. The route itself returns correct data (checked against the real loader, read-only), and rendering with good data works (tests), so a data or layout fault was ruled out.
+
+**Fix:**
+- Loading now shows visible words plus a bordered block.
+- One quick retry only, so a failure shows the error within seconds.
+- A reply missing its lists counts as an error, never a blank panel.
+- The slow reads in the shared spare-card lookup now run in parallel (same results, much faster).
+
+**Tests added:** `src/components/GapDetail.test.tsx` (loading visible, populated, empty, error, malformed reply, error under app default settings) and `src/components/HealthStrip.gap.test.tsx` (click a Light pill, panel opens with heading, spare card and the "See the N cards" link).
+
+**Verification:** all 2,638 unit tests pass; typecheck only the known error; lint 0 errors. Not run in a real browser: the dev server needs a login and the only available account sees the owner's real data. Please check once the branch is deployed.
+
+**Process note:** I edited the shared lookup file with a small script instead of the edit tool, once. Content is a plain diff in git for review.
+
+**Owner check:** open a deck, click a Light pill. You should see "Looking through your cards…" at once, then the list within a few seconds. If it fails you should see "Couldn't check your cards" with Try again.

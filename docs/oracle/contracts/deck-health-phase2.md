@@ -1,7 +1,7 @@
 # Contract: Deck health (Phase 2)
 
 Status: DRAFT for owner review. Nothing here is built, and no migration is applied.
-Author: Architect, 2026-11-11.
+Author: Architect, 2026-11-11. Amended 2026-11-11 with owner decisions Q1 (EDHREC average deck first) and Q2 (stale numbers wording); see `docs/oracle/reports/2026-11-11-architect-archidekt-typical-numbers.md`. Archidekt is NOT a source (its terms forbid automated requests).
 Inputs: approved brief `docs/oracle/briefs/daily-use-deck-advisor.md` (3, 4, 5, 9, 17, 18, 19), audit `docs/oracle/reports/2026-11-11-architect-daily-use-audit.md` (areas 3, 4, 9; 15a, 15b), approved design `docs/oracle/specs/whats-missing.md` + mockup + designer report.
 
 Tags: [Confirmed: path] = read in the code or queried read-only on 2026-11-11. [Approximate] = my estimate, needs checking.
@@ -53,19 +53,31 @@ export interface RoleTarget {
 
 export interface CommanderTargets {
   status: 'ok' | 'thin' | 'not_found'
-  source: 'edhrec' | 'general_guide'
-  sourceLabel: string      // "EDHREC, <deckSample> decks" | "General guide"
+  source: 'edhrec_average' | 'edhrec_estimate' | 'general_guide'
+  sourceLabel: string      // "EDHREC average deck, <deckSample> decks" | "EDHREC estimate, <deckSample> decks" | "General guide" | "General guide (couldn't reach EDHREC)"
   roles: RoleTarget[]      // empty when status != 'ok'
-  cardsUsed: number        // number of EDHREC non-land cards classified
+  cardsUsed: number        // non-land cards classified (average deck: its non-land cards; estimate: listed cards)
   deckSample: number | null
   coverage: number | null  // see 1.4
   typeCounts: TypeCount[]  // always filled when any source has them, see 1.6
   fetchedAt: string | null
-  stale: boolean           // served after a failed refresh
+  stale: boolean           // served after a failed refresh; label gets "may be out of date" appended, e.g. "EDHREC average deck, 46,230 decks, may be out of date"
 }
 ```
 
-### 1.4 Derivation (EDHREC, live)
+### 1.4 Derivation (EDHREC, live): source order
+
+Owner decision Q1: use the first source that qualifies. (A) EDHREC average deck, else (B) EDHREC estimate (the scale-up, steps 2 to 7 below), else (C) General guide. Archidekt is not used.
+
+**(A) Average deck.**
+- A1. Same slug rules as step 1 below. Fetch `https://json.edhrec.com/pages/average-decks/<slug>.json` (one request). [Confirmed by one probe, Atraxa, 2026-11-11: HTTP 200; `deck.cards` grouped by type as `[name, quantity]`; `container.json_dict.card.num_decks` = 46,230.] Everything else about this JSON beyond Atraxa is [Approximate] until the Task below is done.
+- A2. Flatten `deck.cards`, summing quantities; exclude the commander (`deck.commander`) and lands (front-face type line). Basics are lands.
+- A3. Join to `ref_cards` by name (exact, then front face) for text; run `rolesForCard`. Cards with no ref row are skipped and counted as missing.
+- A4. `typical[role]` = number of non-land cards (by quantity) having the role. **No scaling.** `coverage` is null. `deckSample` = `num_decks`.
+- A5. Qualifies only if: the list sums to 99 or 100 including the commander (basics and lands counted), `deckSample >= 50`, and at most 10% of non-land cards lack ref data. Otherwise fall to (B). This is EDHREC's built list of popular cards, not a true mean of decks; label it "EDHREC average deck", never "average of N decks".
+- A6. Bracket skew: `bracket_counts` is returned by the file but not used in Phase 2 (no bracket filter). Not designed; flagged for later.
+
+**(B) Estimate.** Steps 1 to 7 below, unchanged, label "EDHREC estimate, N decks", with the thin rules in 1.5.
 
 1. Resolve the slug from the **front face only** of the commander name (`sephiroth-fabled-soldier` returns 200; the full DFC joined name returned 403). [Confirmed by probe] Partner pairs: both `tymna-the-weaver-thrasios-triton-hero` and `thrasios-triton-hero-tymna-the-weaver` returned 200 on 2026-11-11, so the exact format is [Approximate]; try one fixed order (alphabetical by front-face slug) and treat 404 as `not_found`. Never guess a different commander.
 2. Fetch `https://json.edhrec.com/pages/commanders/<slug>.json` (one request per commander, existing client user agent).
@@ -77,15 +89,15 @@ export interface CommanderTargets {
    - `scale = nonLandSlots / listedSum`
    - `typical[role] = round(rawSum[role] × scale)`
    - `coverage = listedSum / nonLandSlots` (Atraxa about 0.62, scale about 1.6; typical becomes removal about 4, ramp about 11, wipes about 1 [Approximate]).
-7. This scaling is my extrapolation, not an EDHREC number. **Owner question Q1 decides it** (report). If the owner picks another option, only step 6 changes.
+7. This scaling is my extrapolation, not an EDHREC number. Under owner decision Q1 it is only the fallback (B), used when the average deck does not qualify.
 
-### 1.5 Thin-data rule
+### 1.5 Thin-data rule (applies to the estimate (B); the average deck (A) has its own qualify rule in A5)
 
 `status = 'thin'` if any of: `deckSample < 50`, classified non-land cards `< 60`, `coverage < 0.4` (the scale would exceed 2.5). `status = 'not_found'` on a 404. These starting values come from 6 probes and are [Approximate]. The Developer samples about 15 commanders (including 3 obscure ones) before slice 2 ships and reports the numbers. The mockup's "9" was only an example.
 
 Thin or not found means:
 - No role numbers from EDHREC, no buy ideas.
-- Role check uses the **general guide**: Ramp 10, Draw 10, Removal 6, Wipes 2 (the `min` of the existing `DEFAULT_THRESHOLDS`; this matches the mockup's "Average is 6" for removal). Label: "General guide".
+- Role check uses the **general guide** (only after both (A) and (B) fail): Ramp 10, Draw 10, Removal 6, Wipes 2 (the `min` of the existing `DEFAULT_THRESHOLDS`; this matches the mockup's "Average is 6" for removal). Label: "General guide".
 - Type counts (1.6) still shown if stored builds exist.
 - Never a made-up number: the guide numbers are labelled as the guide, never as "typical for <commander>".
 
@@ -105,7 +117,8 @@ create table public.ref_commander_role_targets (
   edhrec_slug        text primary key,
   commander_name     text        not null,
   status             text        not null check (status in ('ok','thin','not_found')),
-  roles              jsonb       not null default '[]'::jsonb, -- [{role,typical,cardsInRole,rawSum}]
+  source             text        not null default 'edhrec_estimate' check (source in ('edhrec_average','edhrec_estimate')), -- which derivation made roles
+  roles              jsonb       not null default '[]'::jsonb, -- [{role,typical,cardsInRole,rawSum}] (rawSum only for the estimate)
   cards              jsonb       not null default '[]'::jsonb, -- [{name,roles[],inclusion}] (non-land, deduped)
   cards_used         integer     not null default 0,
   deck_sample        integer,
@@ -129,7 +142,8 @@ Why a table, not a column: a column on `ref_commanders` would need a join on a n
 - Lazy only. No background job and no bulk fetching.
 - Refresh when: no row; `now − fetched_at` greater than 14 days (status ok) or 7 days (thin or not_found); or `classifier_version` differs from `CLASSIFIER_VERSION`.
 - Single-flight per slug in the process; at least 100 ms between EDHREC calls; one request per commander.
-- Network errors and non-404 failures are **not cached**. On a failed refresh: serve the stale row with `stale: true`, or if none exists, the general guide with source line "Couldn't reach EDHREC, using the general guide" (new wording: Designer to confirm, see Q2 in the report).
+- Network errors and non-404 failures are **not cached**. Owner decision Q2: on a failed refresh serve the last saved row with `stale: true`, and the source line gets "may be out of date" (e.g. "EDHREC average deck, 46,230 decks, may be out of date"); if no saved row exists, general guide with source line "General guide (couldn't reach EDHREC)". Exact wording is owner-approved; Designer only places it.
+- Cache both fetches: the table row records which source produced it (`source`). A refresh tries (A) first, then (B) only if (A) did not qualify; if both fail on the network, the stale rule applies.
 - `POST .../health/recheck` may refresh targets only if they are past expiry, and at most once per hour per slug.
 
 ## 2. Verdict rules
@@ -181,7 +195,7 @@ All routes use `requireAuth()`, filter `decks` by `.eq('id', deckId).eq('user_id
 export interface DeckHealthResponse {
   verdict: { headline: string; subline: string; usingGeneralGuide: boolean }
   strategy: { state: 'not_set'; text: string }
-  sourceLine: string                  // "EDHREC, 12,431 decks" | "General guide" | stale/unreachable wording
+  sourceLine: string                  // "EDHREC average deck, 12,431 decks" | "EDHREC estimate, N decks" | "General guide" | "... may be out of date" | "General guide (couldn't reach EDHREC)"
   checkState: 'full' | 'partial'
   unclassifiedCount: number
   roles: Array<{
@@ -189,7 +203,7 @@ export interface DeckHealthResponse {
     label: string                     // "Ramp" ...
     have: number
     typical: number                   // from targets or guide
-    targetSource: 'edhrec' | 'general_guide'
+    targetSource: 'edhrec_average' | 'edhrec_estimate' | 'general_guide'
     state: 'ok' | 'light'
     text: string                      // e.g. "6 of 8 (typical)"
   }>
@@ -263,7 +277,7 @@ Replaced or deleted (each in the slice that replaces it; process.md Gate 4):
 - Brief section 13 and process.md Gate 4: no live-data testing; separate test account.
 
 Conflicts and challenges:
-1. The spec and brief say "typical number". EDHREC only lists cards over about 5% inclusion, so an honest number needs scaling (1.4). Owner question Q1.
+1. The spec and brief say "typical number". EDHREC's top-card list only shows cards over about 5% inclusion, so the estimate needs scaling. Resolved by owner decision Q1: use EDHREC's average deck first (no scaling), the scaled estimate second, the general guide last (1.4). Archidekt rejected: its terms forbid automated requests.
 2. `ref_cards.default_category` already holds an AI role taxonomy, which the brief's card-text approach bypasses. Kept as a cross-check only.
 3. The spec says other-deck marker shows deck name only; the existing lookup `warning` says more. Not shown in Phase 2.
 4. The mockup says "Average is N" for the general guide. The guide is a rule of thumb, not an average; the wording should be "General guide" (Designer to confirm).
@@ -278,7 +292,7 @@ Separate test account rule: browser (E2E) and save-path tests run only against a
 
 Per slice:
 - **S1**: golden tests for `rolesForCard` (at least 40 real cards, including all mislabels in section 0.3, and a card with two roles, a land, a DFC, null text); verdict boundaries (7 of 8 ok; 6 of 8 light; typical 1 never light; over is ok); unclassified over 10% gives `partial`; route test: another user's deck returns 404 on health, recheck and overrides; error returns 500 not green; card text really reaches the classifier (spy asserts non-null text).
-- **S2**: EDHREC client test using a saved copy of the real JSON shape (integers at the top level, `cardlists`, no `inclusion`), including a 404 and a DFC name; scaling math; thin triggers one by one; cache: hit, expiry (14/7 days), `classifier_version` change, failed refresh serves stale, network error not cached; ok result never contains a number when status is thin.
+- **S2**: average-deck test using a saved real average-deck JSON (quantities summed, commander and lands excluded, no scaling applied); A5 qualify and fall-through to the estimate (99/100 total, sample below 50, over 10% missing ref data); source order A then B then guide; stale label "may be out of date"; no saved row plus failure gives "General guide (couldn't reach EDHREC)"; plus EDHREC client test using a saved copy of the real JSON shape (integers at the top level, `cardlists`, no `inclusion`), including a 404 and a DFC name; scaling math; thin triggers one by one; cache: hit, expiry (14/7 days), `classifier_version` change, failed refresh serves stale, network error not cached; ok result never contains a number when status is thin.
 - **S3**: integration test: for one deck, `roles[].have` equals the count of that role's cards in the deck listing, and `inDeckCount`; spare/other-deck lists use the same function; colour filter excludes off-colour spares; another user's cards never appear; other-deck marker has the deck name only.
 - **S4**: price null prints "Price unknown", never 0; est. suffix; buy ideas exclude owned, off-colour and in-deck cards; `buyDefaultOpen` true only when no owned option; thin gives none; unknown colours give none.
 - **S5**: tool returns the same numbers as the route for the same deck; tool is read-only and in `DECK_CHAT_ONLY_TOOLS`; `check_owned_copies` / `browse_spare_copies` regression tests still pass.
@@ -289,7 +303,9 @@ Each slice ships alone, is owner-reviewable, and ends with its old path deleted.
 
 **S1: Honest strip and verdict (smallest; no migration).** Route fixes (user filter, real card text), `card-roles.ts` with golden tests, four roles on the general guide, the Light rule, Deck health button and overview panel with "Strategy: Not set yet". No EDHREC. Owner check: open one of your real decks; pills are no longer all red; a deck with 6 removal against the guide of 6 says fine, 3 says Light; the panel says "General guide"; another account cannot see the deck. Fixes the all-red bug.
 
-**S2: Commander targets.** EDHREC client fix, derivation, cache table (**owner approves the migration first**), refresh rules, thin fallback with type counts. Needs the Q1 answer. Owner check: Atraxa shows "EDHREC, N decks" and numbers near my estimates; an unknown commander shows "General guide" and type averages, with no made-up numbers; the Developer's 15-commander sample table is in the report.
+**S2: Commander targets.** EDHREC client fix, derivation, cache table (**owner approves the migration first**), refresh rules, thin fallback with type counts. Q1 and Q2 are answered (1.4, 1.8). Includes the Developer task below. Owner check: Atraxa shows "EDHREC average deck, N decks"; an unknown commander shows "General guide" and type averages, with no made-up numbers; if EDHREC is unreachable the last saved numbers show "may be out of date", or "General guide (couldn't reach EDHREC)" when none are saved; the Developer's 15-commander sample table is in the report.
+
+**S2 Developer task (before relying on the average-deck source, report the table):** sample about 15 commanders: 5 popular, 5 mid, 5 obscure (including one partner pair, one double-faced front face, one with fewer than 100 listed decks). Read-only, one request per commander, 100 ms or more apart, existing user agent, saved fixtures only for tests. For each record: HTTP status, whether the average-deck file exists, card total with quantities (99 or 100?), whether basics and lands are included, `num_decks`, share of non-land cards missing from `ref_cards`, role counts from the average deck vs the estimate (B), and whether A5 qualified. Then tune A5's thresholds and the 1.5 thin rule from the table, and tell the Architect if the average deck turns out unusable (then Q1 falls back to the estimate and the owner is told).
 
 **S3: Gap detail (owned cards).** Click Light role → spare first, then in another deck with deck name; colour filter; "See the N cards already in this deck" matches the pill. Owner check: the count on the pill equals the cards listed; a card from another deck shows its deck name only; off-colour cards never appear.
 

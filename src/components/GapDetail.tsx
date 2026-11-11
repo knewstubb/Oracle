@@ -15,7 +15,8 @@ export interface GapDetailProps {
   onBack: () => void
 }
 
-const GAP_TIMEOUT_MS = 20_000
+/** Screen gives up after this long. Development gets longer: the first request also compiles the route. */
+const GAP_TIMEOUT_MS = process.env.NODE_ENV === 'development' ? 40_000 : 20_000
 
 const NOTHING_OWNED: Record<HealthRoleKey, string> = {
   ramp: "You don't own a card that adds ramp.",
@@ -55,22 +56,48 @@ function CardRow({ card }: { card: GapCard }) {
 }
 
 /** Gap detail for one role: spare owned cards first, then cards in another deck (deck name only). Suggest-only. */
+export class GapRequestError extends Error {
+  constructor(public reason: string) {
+    super(reason)
+  }
+}
+
+/** Short text for the small grey line under the error, so a failure can be told apart without opening developer tools. */
+export function gapErrorReason(err: unknown): string {
+  if (err instanceof GapRequestError) return err.reason
+  return 'unknown error'
+}
+
 export function GapDetail({ deckId, role, onBack }: GapDetailProps) {
   const [showInDeck, setShowInDeck] = useState(false)
-  const { data, isPending, isError, refetch } = useQuery<DeckHealthGap>({
+  const { data, error, isPending, isError, refetch } = useQuery<DeckHealthGap>({
     queryKey: [...deckKeys.health(deckId), 'gap', role],
     queryFn: async ({ signal }) => {
-      // Hard stop: never wait silently. After 20 seconds the request is cancelled and the error with Try again shows.
+      // Hard stop: never wait silently. After the limit the request is cancelled and the error with Try again shows.
       const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), GAP_TIMEOUT_MS)
+      let timedOut = false
+      const timer = setTimeout(() => {
+        timedOut = true
+        controller.abort()
+      }, GAP_TIMEOUT_MS)
       signal?.addEventListener('abort', () => controller.abort())
       try {
-        const res = await fetch(`/api/decks/${deckId}/health/gap?role=${role}`, { signal: controller.signal })
-        if (!res.ok) throw new Error('Failed to fetch gap detail')
-        const body = await res.json()
+        let res: Response
+        try {
+          res = await fetch(`/api/decks/${deckId}/health/gap?role=${role}`, { signal: controller.signal })
+        } catch {
+          throw new GapRequestError(timedOut ? 'timeout' : 'network error')
+        }
+        if (!res.ok) throw new GapRequestError(`server error ${res.status}`)
+        let body: Partial<DeckHealthGap> | null = null
+        try {
+          body = await res.json()
+        } catch {
+          throw new GapRequestError(timedOut ? 'timeout' : 'unreadable reply')
+        }
         // A reply without the expected lists is an error, never a blank panel.
         if (!body || !Array.isArray(body.spare) || !Array.isArray(body.inAnotherDeck) || !Array.isArray(body.inDeckCards)) {
-          throw new Error('Unexpected gap detail response')
+          throw new GapRequestError('unexpected reply')
         }
         return body as DeckHealthGap
       } finally {
@@ -107,6 +134,9 @@ export function GapDetail({ deckId, role, onBack }: GapDetailProps) {
             Couldn&apos;t check your cards.
           </p>
           <p style={{ color: 'var(--text-secondary)' }}>Your cards haven&apos;t changed.</p>
+          <p data-testid="gap-error-reason" className="text-[length:var(--fs-xs)]" style={{ color: 'var(--text-secondary)' }}>
+            Reason: {gapErrorReason(error)}
+          </p>
           <Button variant="outline" size="sm" onClick={() => void refetch()}>
             Try again
           </Button>

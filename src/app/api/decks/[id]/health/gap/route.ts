@@ -27,7 +27,13 @@ export async function GET(
   const role = parseGapRole(request.nextUrl.searchParams.get('role'))
   if (!role) return Response.json({ error: 'Invalid role' }, { status: 400 })
 
-  const result = await loadDeckGap(createAdminClient(), deckId, authResult.id, role)
-  if (!result.ok) return Response.json({ error: result.error }, { status: result.status })
+  const result = await (async () => loadDeckGap(createAdminClient(), deckId, authResult.id, role))().catch((err: unknown) => {
+    console.error(`[health/gap] deck ${deckId} role ${role}: unexpected failure:`, err)
+    return { ok: false as const, status: 500 as const, error: err instanceof Error ? err.message : 'Unexpected failure' }
+  })
+  if (!result.ok) {
+    console.error(`[health/gap] deck ${deckId} role ${role}: ${result.status} ${result.error}`)
+    return Response.json({ error: result.error }, { status: result.status })
+  }
   return Response.json(result.gap)
 }

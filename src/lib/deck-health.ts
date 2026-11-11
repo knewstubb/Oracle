@@ -137,29 +137,46 @@ export interface CountResult {
   mainDeckCount: number
 }
 
+/** What one deck row counts as. One place, so the pill counts and the "cards already in this deck" list cannot disagree. */
+export type CardKind = { kind: 'skip' } | { kind: 'land'; qty: number } | { kind: 'unclassified'; qty: number } | { kind: 'roles'; qty: number; roles: Role[] }
+
+export function classifyDeckCard(c: HealthDeckCard): CardKind {
+  if (!c.inMainDeck) return { kind: 'skip' }
+  const qty = c.quantity > 0 ? c.quantity : 1
+  // A land is decided by the front-face type line. With no type line at all, a basic land is still a land by name.
+  if (c.typeLine ? isLandTypeLine(c.typeLine) : isBasicLand(c.cardName)) return { kind: 'land', qty }
+  if (!hasClassifiableText(c)) return { kind: 'unclassified', qty }
+  return { kind: 'roles', qty, roles: rolesForCard({ name: c.cardName, typeLine: c.typeLine, oracleText: c.oracleText }) }
+}
+
+export interface InDeckCard {
+  name: string
+  quantity: number
+}
+
+/** The deck's own cards in one role (main deck only), by name with quantity. Their quantities add up to `have` for that role. */
+export function cardsInRole(cards: HealthDeckCard[], role: HealthRoleKey): InDeckCard[] {
+  const out: InDeckCard[] = []
+  for (const c of cards) {
+    const k = classifyDeckCard(c)
+    if (k.kind === 'land' && role === 'lands') out.push({ name: c.cardName, quantity: k.qty })
+    else if (k.kind === 'roles' && role !== 'lands' && k.roles.includes(role)) out.push({ name: c.cardName, quantity: k.qty })
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name))
+}
+
 export function countRoles(cards: HealthDeckCard[]): CountResult {
   const have: Record<HealthRoleKey, number> = { ramp: 0, draw: 0, removal: 0, wipes: 0, lands: 0 }
   let unclassified = 0
   let mainDeck = 0
 
   for (const c of cards) {
-    if (!c.inMainDeck) continue
-    const qty = c.quantity > 0 ? c.quantity : 1
-    mainDeck += qty
-
-    // A land is decided by the front-face type line. With no type line at all, a basic land is still a land by name.
-    if (c.typeLine ? isLandTypeLine(c.typeLine) : isBasicLand(c.cardName)) {
-      have.lands += qty
-      continue
-    }
-
-    if (!hasClassifiableText(c)) {
-      unclassified += qty
-      continue
-    }
-    for (const role of rolesForCard({ name: c.cardName, typeLine: c.typeLine, oracleText: c.oracleText })) {
-      have[role] += qty
-    }
+    const k = classifyDeckCard(c)
+    if (k.kind === 'skip') continue
+    mainDeck += k.qty
+    if (k.kind === 'land') have.lands += k.qty
+    else if (k.kind === 'unclassified') unclassified += k.qty
+    else for (const role of k.roles) have[role] += k.qty
   }
 
   return { have, unclassifiedCount: unclassified, mainDeckCount: mainDeck }

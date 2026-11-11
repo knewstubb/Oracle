@@ -5,7 +5,8 @@ import { Dialog as DialogPrimitive } from '@base-ui/react/dialog'
 import { Dialog, DialogPortal, DialogOverlay } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { StrategyRow } from '@/components/StrategyRow'
-import type { DeckHealthResponse, DeckHealthRole } from '@/lib/deck-health'
+import type { DeckHealthResponse, DeckHealthRole, HealthRoleKey } from '@/lib/deck-health'
+import { GapDetail } from '@/components/GapDetail'
 
 export interface DeckHealthPanelProps {
   open: boolean
@@ -14,6 +15,10 @@ export interface DeckHealthPanelProps {
   isLoading: boolean
   isError: boolean
   onRetry: () => void
+  deckId: number
+  /** The Light role whose gap detail is showing, or null for the overview. */
+  gapRole: HealthRoleKey | null
+  onGapRole: (role: HealthRoleKey | null) => void
 }
 
 function Meter({ role }: { role: DeckHealthRole }) {
@@ -39,11 +44,13 @@ function Meter({ role }: { role: DeckHealthRole }) {
   )
 }
 
-function RoleRow({ role }: { role: DeckHealthRole }) {
+function RoleRow({ role, onOpen }: { role: DeckHealthRole; onOpen: (role: HealthRoleKey) => void }) {
   const light = role.state === 'light'
   const short = Math.max(0, role.typical - role.have)
-  return (
-    <div className="rounded-lg border px-3 py-2.5" style={{ borderColor: light ? 'var(--signal-warning)' : 'var(--border-default)' }}>
+  const className = 'block w-full rounded-lg border px-3 py-2.5 text-left'
+  const style = { borderColor: light ? 'var(--signal-warning)' : 'var(--border-default)' }
+  const body = (
+    <>
       <div className="flex items-center justify-between gap-2">
         <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
           {role.label}
@@ -63,15 +70,31 @@ function RoleRow({ role }: { role: DeckHealthRole }) {
       <div className="text-[length:var(--fs-xs)]" style={{ color: 'var(--text-secondary)' }}>
         {role.targetSource === 'general_guide' ? 'General guide' : ''}
       </div>
+    </>
+  )
+  // A Light role opens its gap detail; a role on track is plain information.
+  return light ? (
+    <button
+      type="button"
+      onClick={() => onOpen(role.role)}
+      aria-label={`${role.label}: light, ${short} short. ${role.text} See cards that fill it.`}
+      className={`${className} min-h-11 cursor-pointer transition-colors hover:bg-[var(--bg-surface-hover)] focus-visible:outline-2 focus-visible:outline-white`}
+      style={style}
+    >
+      {body}
+    </button>
+  ) : (
+    <div className={className} style={style}>
+      {body}
     </div>
   )
 }
 
 /**
  * Deck health panel: right-hand drawer (420px) on wide screens, bottom sheet (86% high) below 700px.
- * Overview only in this slice: Strategy row, verdict card, counts by role. Gap detail comes in a later slice.
+ * Overview (Strategy row, verdict card, counts by role), or the gap detail of one Light role.
  */
-export function DeckHealthPanel({ open, onClose, data, isLoading, isError, onRetry }: DeckHealthPanelProps) {
+export function DeckHealthPanel({ open, onClose, data, isLoading, isError, onRetry, deckId, gapRole, onGapRole }: DeckHealthPanelProps) {
   const light = data?.verdict.headline !== 'Well covered'
 
   return (
@@ -94,13 +117,13 @@ export function DeckHealthPanel({ open, onClose, data, isLoading, isError, onRet
           </div>
 
           <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
-            {isLoading && (
+            {isLoading && !gapRole && (
               <p role="status" style={{ color: 'var(--text-secondary)' }}>
                 Checking deck health…
               </p>
             )}
 
-            {isError && !isLoading && (
+            {isError && !isLoading && !gapRole && (
               <div role="alert" className="space-y-2">
                 <p className="flex items-center gap-1.5" style={{ color: 'var(--signal-critical)' }}>
                   <AlertTriangle size={14} aria-hidden="true" />
@@ -113,7 +136,11 @@ export function DeckHealthPanel({ open, onClose, data, isLoading, isError, onRet
               </div>
             )}
 
-            {data && !isError && (
+            {gapRole && (
+              <GapDetail key={gapRole} deckId={deckId} role={gapRole} onBack={() => onGapRole(null)} />
+            )}
+
+            {data && !isError && !gapRole && (
               <>
                 <StrategyRow text={data.strategy.text} />
 
@@ -149,7 +176,7 @@ export function DeckHealthPanel({ open, onClose, data, isLoading, isError, onRet
                 </h3>
                 <div className="space-y-2">
                   {data.roles.map((r) => (
-                    <RoleRow key={r.role} role={r} />
+                    <RoleRow key={r.role} role={r} onOpen={onGapRole} />
                   ))}
                 </div>
               </>

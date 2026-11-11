@@ -9,7 +9,7 @@ import { HealthPill } from '@/components/HealthPill'
 import { DeckHealthButton } from '@/components/DeckHealthButton'
 import { DeckHealthPanel } from '@/components/DeckHealthPanel'
 import { deckKeys } from '@/hooks/useDeckQueryKeys'
-import type { DeckHealthResponse } from '@/lib/deck-health'
+import type { DeckHealthResponse, HealthRoleKey } from '@/lib/deck-health'
 
 export interface HealthStripProps {
   deckId: number
@@ -17,6 +17,12 @@ export interface HealthStripProps {
 
 export function HealthStrip({ deckId }: HealthStripProps) {
   const [panelOpen, setPanelOpen] = useState(false)
+  const [gapRole, setGapRole] = useState<HealthRoleKey | null>(null)
+
+  const openPanel = (role: HealthRoleKey | null) => {
+    setGapRole(role)
+    setPanelOpen(true)
+  }
 
   const { data, isLoading, isError, refetch } = useQuery<DeckHealthResponse>({
     queryKey: deckKeys.health(deckId),
@@ -64,7 +70,7 @@ export function HealthStrip({ deckId }: HealthStripProps) {
 
         {data && !isError && (
           <>
-            <DeckHealthButton state={anyLight ? 'light' : 'ok'} headline={data.verdict.headline} onClick={() => setPanelOpen(true)} />
+            <DeckHealthButton state={anyLight ? 'light' : 'ok'} headline={data.verdict.headline} onClick={() => openPanel(null)} />
             <div role="group" aria-label="Role counts" className="flex items-center gap-1">
               {data.roles.map((r) => (
                 <HealthPill
@@ -74,7 +80,7 @@ export function HealthStrip({ deckId }: HealthStripProps) {
                   typical={r.typical}
                   state={r.state}
                   isGeneralGuide={r.targetSource === 'general_guide'}
-                  onClick={() => setPanelOpen(true)}
+                  onClick={() => openPanel(r.state === 'light' ? r.role : null)}
                 />
               ))}
             </div>
@@ -89,6 +95,9 @@ export function HealthStrip({ deckId }: HealthStripProps) {
         isLoading={isLoading}
         isError={isError}
         onRetry={() => void refetch()}
+        deckId={deckId}
+        gapRole={gapRole}
+        onGapRole={setGapRole}
       />
     </div>
   )

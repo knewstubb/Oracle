@@ -166,8 +166,17 @@ describe('buildFilter', () => {
   it('ramp matches mana and land-fetch text', () => {
     const f = buildFilter('ramp').match
     expect(f('Artifact', '{T}: Add {C}{C}.')).toBe(true)
-    expect(f('Sorcery', 'Search your library for a basic land card')).toBe(true)
+    expect(f('Sorcery', 'Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.')).toBe(true)
+    // fetching a land to hand is not ramp (contract section 0.3)
+    expect(f('Sorcery', 'Search your library for a basic land card, reveal it, put it into your hand, then shuffle.')).toBe(false)
     expect(f('Creature', 'Flying')).toBe(false)
+  })
+
+  it('wipes and lands use the shared role function and the front-face type line', () => {
+    expect(buildFilter('wipes').match('Sorcery', 'Destroy all creatures.', 'Wrath of God')).toBe(true)
+    expect(buildFilter('wipes').match('Creature', 'Flying')).toBe(false)
+    expect(buildFilter('lands').match('Land', '')).toBe(true)
+    expect(buildFilter('lands').match('Sorcery // Land', '')).toBe(false)
   })
 })
 

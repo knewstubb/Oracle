@@ -19,6 +19,7 @@
 // ---------------------------------------------------------------------------
 
 import { isBasicLand } from './basic-lands'
+import { isLandTypeLine, rolesForCard, type Role } from './card-roles'
 import { parseColourLetters } from './command-zone'
 import { loadCommanderColours, shortByOneWarning, withinIdentity, type LookupClient } from './owned-copy-lookup'
 
@@ -71,7 +72,7 @@ async function simple(q: PromiseLike<{ data: unknown; error: unknown }>, what: s
   return data as Row[]
 }
 
-type Matcher = (typeLine: string, oracleText: string) => boolean
+type Matcher = (typeLine: string, oracleText: string, name?: string) => boolean
 
 const TYPE_WORDS = ['creature', 'artifact', 'enchantment', 'instant', 'sorcery', 'land', 'planeswalker', 'battle']
 
@@ -79,20 +80,19 @@ const TYPE_WORDS = ['creature', 'artifact', 'enchantment', 'instant', 'sorcery',
 export function buildFilter(kind: string | null | undefined): { label: string; match: Matcher } {
   const k = (kind ?? '').trim().toLowerCase()
   if (!k || k === 'any' || k === 'all') return { label: 'any card', match: () => true }
-  if (k === 'draw' || k === 'card draw') {
-    return { label: 'draw (approximate, from card text)', match: (_t, o) => /\bdraws? (a|an|one|two|three|four|x|that many|\d+) cards?\b|\bdraw (a|two|three) cards?/i.test(o) }
+  // Roles use the one shared role function (same as the deck health counts), never their own text rules.
+  const role: Role | null =
+    k === 'draw' || k === 'card draw' ? 'draw'
+    : k === 'ramp' || k === 'mana' ? 'ramp'
+    : k === 'removal' || k === 'removal spell' ? 'removal'
+    : k === 'wipes' || k === 'wipe' || k === 'board wipe' ? 'wipes'
+    : null
+  if (role) {
+    return { label: `${role} (from card text)`, match: (t, o, n) => rolesForCard({ name: n ?? '', typeLine: t, oracleText: o }).includes(role) }
   }
-  if (k === 'ramp' || k === 'mana') {
-    return {
-      label: 'ramp (approximate, from card text)',
-      match: (t, o) => /add (\{|one mana|two mana|an amount)/i.test(o) || /search your library for (up to \w+ |a |an )?(basic |snow )?(land|forest|island|plains|swamp|mountain)/i.test(o) || (/\bland\b/i.test(t) && /put (a|up to \w+) (basic )?land cards? .* onto the battlefield/i.test(o)),
-    }
-  }
-  if (k === 'removal' || k === 'removal spell') {
-    return {
-      label: 'removal (approximate, from card text)',
-      match: (_t, o) => /(destroy|exile) (target|up to \w+ target|each|all)|deals? \d+ damage to (any target|target)|gets? -\d+\/-\d+|return target .* to its owner's hand/i.test(o),
-    }
+  // Lands: decided from the front-face type line, same as the deck health Lands count.
+  if (k === 'lands' || k === 'land') {
+    return { label: 'land', match: t => isLandTypeLine(t) }
   }
   if (TYPE_WORDS.includes(k.replace(/s$/, ''))) {
     const w = k.replace(/s$/, '')
@@ -190,7 +190,7 @@ export async function browseSpareCopies(
     const data = ref.get(name.toLowerCase())
     if (!data) { unchecked++; continue }
     if (!withinIdentity([...parseColourLetters(String(data.color_identity ?? ''))], identity)) continue
-    if (!filter.match(String(data.type_line ?? ''), String(data.oracle_text ?? ''))) continue
+    if (!filter.match(String(data.type_line ?? ''), String(data.oracle_text ?? ''), name)) continue
 
     let spareN = 0
     let inThis = 0
@@ -223,7 +223,7 @@ export async function browseSpareCopies(
   if (spare.length > limit) notes.push(`Showing ${limit} of ${spare.length} spare cards (most popular first). Ask with a narrower type or role to see others.`)
   if (other.length > limit) notes.push(`Showing ${limit} of ${other.length} cards held by other decks (most popular first).`)
   if (unchecked > 0) notes.push(`${unchecked} owned cards could not be matched to card data and were not checked.`)
-  if (filter.label.includes('approximate')) notes.push('Role filters read the card text and can miss or over-include; say so if the list looks thin.')
+  if (filter.label.includes('from card text')) notes.push('Role filters read the card text and can miss or over-include; say so if the list looks thin.')
   notes.push('This lists cards the owner already has. For Buy suggestions, call check_owned_copies on the candidates to get a Scryfall estimate or "no price".')
 
   return {

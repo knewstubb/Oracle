@@ -72,7 +72,12 @@ export async function fetchRefTextByName(
   return { map, error: null }
 }
 
-export async function loadDeckHealth(supabase: HealthClient, deckId: number, userId: string): Promise<LoadHealthResult> {
+export type LoadCardsResult =
+  | { ok: true; cards: HealthDeckCard[] }
+  | { ok: false; status: 404 | 500; error: string }
+
+/** The deck's cards with real card text. The deck is looked up by id AND owner. */
+export async function loadHealthCards(supabase: HealthClient, deckId: number, userId: string): Promise<LoadCardsResult> {
   try {
     const { data: deck, error: deckErr } = await supabase
       .from('decks')
@@ -114,8 +119,14 @@ export async function loadDeckHealth(supabase: HealthClient, deckId: number, use
       }
     })
 
-    return { ok: true, health: buildDeckHealth(cards) }
+    return { ok: true, cards }
   } catch (err) {
     return { ok: false, status: 500, error: err instanceof Error ? err.message : 'Could not check deck health' }
   }
+}
+
+export async function loadDeckHealth(supabase: HealthClient, deckId: number, userId: string): Promise<LoadHealthResult> {
+  const loaded = await loadHealthCards(supabase, deckId, userId)
+  if (!loaded.ok) return loaded
+  return { ok: true, health: buildDeckHealth(loaded.cards) }
 }

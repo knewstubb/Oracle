@@ -643,12 +643,28 @@ export function OracleSidebar() {
       panelHost
     ) : null
 
+  // Closed: a small tab on the right edge, level with where the panel's top sits, that opens it.
+  const tab = !isOpen && panelHost ? createPortal(
+      <button
+        type="button"
+        data-testid="oracle-open-tab"
+        onClick={open}
+        aria-label="Open Oracle chat"
+        className="absolute right-0 top-3 z-30 flex flex-col items-center gap-1.5 rounded-l-lg border border-r-0 border-zinc-800/60 bg-[rgba(0,0,0,0.55)] px-1.5 py-2.5 text-zinc-300 shadow-[0_4px_12px_rgba(0,0,0,0.35)] backdrop-blur-sm transition-colors hover:bg-[rgba(0,0,0,0.75)] hover:text-white"
+      >
+        <MessageSquare className="h-4 w-4" />
+        <span className="text-[11px] font-medium [writing-mode:vertical-rl]">Oracle</span>
+      </button>,
+      panelHost
+    ) : null
+
   return (
     <>
       {/* Conversation: a right-hand side panel inside the page row (see MainContentWrapper), so the
           page narrows to make room. It sits above the footer, which spans the full width beneath.
           The message input is pinned at the bottom of the panel. */}
       {panel}
+      {tab}
     </>
   )
 }

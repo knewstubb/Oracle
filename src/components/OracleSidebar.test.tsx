@@ -60,6 +60,16 @@ describe('OracleSidebar (side panel with input at the bottom)', () => {
     expect(screen.getByTestId('app-footer')).toBeEmptyDOMElement()
   })
 
+  it('shows a right-edge tab when collapsed that opens the panel, and hides it when open', () => {
+    const { unmount } = renderChat()
+    fireEvent.click(screen.getByTestId('oracle-open-tab'))
+    expect(open).toHaveBeenCalled()
+    unmount()
+    isOpen = true
+    renderChat()
+    expect(screen.queryByTestId('oracle-open-tab')).toBeNull()
+  })
+
   it('puts the message input at the bottom of the panel, never in the footer', () => {
     isOpen = true
     renderChat()

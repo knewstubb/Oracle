@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, cleanup, act } from '@testing-library/react'
+import { render, screen, cleanup, act, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { GapDetail } from './GapDetail'
 import type { DeckHealthGap } from '@/lib/deck-health-gap'
@@ -105,6 +105,31 @@ describe('GapDetail', () => {
     expect(nameLine.lastElementChild).toBe(badge)
     expect(screen.getByText('Spare Draw').className).toContain('truncate')
     expect(row.querySelector('[data-testid="gap-line"]')).toHaveTextContent('Draws two cards.')
+  })
+
+  it('hover on the thumbnail shows the full card and leaving hides it; focus does the same; no image means no popover', async () => {
+    renderGap(() => json(gap()))
+    await screen.findByText('Spare Draw')
+    const thumb = screen.getByText('Spare Draw').closest('li')!.querySelector('[data-testid="gap-thumb"]') as HTMLElement
+    const portalImg = () => document.getElementById('card-hover-preview-img') as HTMLImageElement | null
+    const portal = () => document.getElementById('card-hover-preview-portal') as HTMLElement | null
+
+    fireEvent.mouseEnter(thumb, { clientX: 50, clientY: 50 })
+    expect(portalImg()!.src).toContain('/large/front/a/b/abcd1234-0000-0000-0000-000000000000.jpg')
+    fireEvent.mouseLeave(thumb)
+    expect(portal()!.style.opacity).toBe('0')
+
+    portalImg()!.src = ''
+    fireEvent.focus(thumb)
+    expect(portalImg()!.src).toContain('abcd1234-0000-0000-0000-000000000000')
+    fireEvent.blur(thumb)
+    expect(portal()!.style.opacity).toBe('0')
+
+    const noImg = screen.getByText('Held Draw').closest('li')!.querySelector('[data-testid="gap-thumb"]') as HTMLElement
+    expect(noImg.getAttribute('tabindex')).toBeNull()
+    portalImg()!.src = ''
+    fireEvent.mouseEnter(noImg, { clientX: 50, clientY: 50 })
+    expect(portalImg()!.getAttribute('src') ?? '').not.toContain('abcd1234')
   })
 
   it('row without an image: plain box, no broken image, still shows name, badge and keeps layout', async () => {

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CardImage } from '@/components/CardImage'
 import { MobileCardPreview } from '@/components/MobileCardPreview'
+import { useCardHoverPreview } from '@/components/CardHoverPreview'
 import { deckKeys } from '@/hooks/useDeckQueryKeys'
 import type { DeckHealthGap, GapCard } from '@/lib/deck-health-gap'
 import type { HealthRoleKey } from '@/lib/deck-health'
@@ -31,6 +32,13 @@ const NOTHING_OWNED: Record<HealthRoleKey, string> = {
 function CardRow({ card }: { card: GapCard }) {
   const spare = card.status === 'SPARE'
   const [previewOpen, setPreviewOpen] = useState(false)
+  // Existing hover preview: shows the full card beside the pointer, kept inside the window. It does nothing without an image.
+  const { triggerProps } = useCardHoverPreview({ scryfallId: card.printingId, cardName: card.name })
+  // Keyboard: focusing the thumbnail shows the same preview, placed beside the thumbnail.
+  const onThumbFocus = (e: React.FocusEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    triggerProps.onMouseEnter({ clientX: r.right, clientY: r.top } as React.MouseEvent)
+  }
   return (
     <li className="flex items-stretch gap-2.5 border-t py-2.5" style={{ borderColor: 'var(--border-default)' }}>
       {/* Thumbnail: as tall as the text block (top of the name to bottom of the detail line); lazy-loaded; plain box when no image is known. */}
@@ -39,6 +47,16 @@ function CardRow({ card }: { card: GapCard }) {
         className="relative w-[42px] min-h-[56px] shrink-0 self-stretch overflow-hidden rounded-[4px] border"
         style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-hover)' }}
         aria-hidden={card.printingId ? undefined : true}
+        {...(card.printingId
+          ? {
+              ...triggerProps,
+              tabIndex: 0,
+              role: 'img',
+              'aria-label': `Preview of ${card.name}`,
+              onFocus: onThumbFocus,
+              onBlur: triggerProps.onMouseLeave,
+            }
+          : {})}
       >
         {card.printingId ? (
           <CardImage scryfallId={card.printingId} alt={card.name} width={42} height={59} noPreview className="h-full w-full" />

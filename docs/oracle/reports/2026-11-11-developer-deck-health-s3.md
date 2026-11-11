@@ -177,3 +177,9 @@ Card rows in role detail now put the status badge ('Available' or amber 'In <dec
 3. A card with no picture shows a plain empty box and the row still lines up.
 4. Tap a card name: the card picture opens full size; close with the X or Escape.
 5. Spot-check the short lines read correctly for a few cards; tell me any that are wrong or odd.
+
+## Follow-up 6: hover preview on the thumbnail
+
+Hovering a row's thumbnail now shows the full card beside the pointer, using the existing `useCardHoverPreview` (it keeps the popover inside the window and hides on mouse leave). Keyboard: the thumbnail is focusable when it has an image; focusing it shows the same preview beside the thumbnail, and leaving (blur) hides it. No image: not focusable, no popover. Tap on the name still opens the existing card preview. Test added (hover show/hide, focus show/hide, no-image no popover). Typecheck: only the known error; lint clean for the changed files. E2E not run (no separate test account); not checked in a real browser.
+
+**Owner check steps:** open a role detail; hover a thumbnail (full card appears beside it, stays on screen near edges, disappears on leave); Tab to a thumbnail (same popover); a row with an empty box shows nothing on hover; tap a name still opens the card view.

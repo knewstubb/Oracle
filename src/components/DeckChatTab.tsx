@@ -3,6 +3,8 @@
 'use client'
 
 import { useRef, useCallback, useMemo, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { deckKeys } from '@/hooks/useDeckQueryKeys'
 import { useDeckChat } from '@/hooks/useDeckChat'
 import { ChatPanel, type ChatPanelHandle } from '@/components/brew-v2/ChatPanel'
 import { DeckCanvas } from '@/components/brew-v2/DeckCanvas'
@@ -110,6 +112,11 @@ function generateInitialPositions(cards: BrewDeckCard[]): Record<string, CanvasC
 
 export function DeckChatTab({ deckId, commanderName, cards }: DeckChatTabProps) {
   const { messages, sendMessage, isStreaming } = useDeckChat(deckId)
+  const queryClient = useQueryClient()
+  const handleDeckChanged = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: deckKeys.detail(String(deckId)) })
+    queryClient.invalidateQueries({ queryKey: deckKeys.cardStatuses(String(deckId)) })
+  }, [queryClient, deckId])
   const chatInputRef = useRef<HTMLInputElement>(null) as React.RefObject<HTMLInputElement>
   const chatHandleRef = useRef<ChatPanelHandle>(null)
   
@@ -194,6 +201,7 @@ export function DeckChatTab({ deckId, commanderName, cards }: DeckChatTabProps) 
       {/* Right side: Chat panel */}
       <ChatPanel
         messages={messages}
+        onDeckChanged={handleDeckChanged}
         onSend={sendMessage}
         inputRef={chatInputRef}
         handleRef={chatHandleRef}

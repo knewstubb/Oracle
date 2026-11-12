@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { SessionHistoryPanel } from '@/components/SessionHistoryPanel'
 import { autoBracketCardsSync } from '@/lib/auto-bracket-cards'
+import { ChatProposalCards, type ProposalGroup } from '@/components/ChatProposalCards'
 import { OVERLAY_BACKDROP } from '@/lib/overlay-classes'
 
 // ---------------------------------------------------------------------------
@@ -288,6 +289,12 @@ export function OracleSidebar() {
     }
   }, [activeContext, queryClient, router])
 
+  const handleDeckChanged = useCallback(() => {
+    if (activeContext.type !== 'deck' || !activeContext.deckId) return
+    queryClient.invalidateQueries({ queryKey: deckKeys.detail(String(activeContext.deckId)) })
+    queryClient.invalidateQueries({ queryKey: deckKeys.cardStatuses(String(activeContext.deckId)) })
+  }, [activeContext, queryClient])
+
   // ---------------------------------------------------------------------------
   // Auto-scroll and focus
   // ---------------------------------------------------------------------------
@@ -547,6 +554,7 @@ export function OracleSidebar() {
                   onStartDeck={handleStartDeck}
                   isExplorationContext={isExplorationContext}
                   onNavigate={handleNavigate}
+                  onDeckChanged={handleDeckChanged}
                   isStreaming={isStreaming && msg.role === 'assistant' && idx === arr.length - 1}
                 />
               ))
@@ -679,7 +687,9 @@ interface MessageBubbleProps {
     role: 'user' | 'assistant' | 'system'
     content: string
     navigatePrompt?: NavigatePrompt
+    proposals?: ProposalGroup
   }
+  onDeckChanged?: () => void
   cardLinkMode: CardLinkMode
   onCardAction?: (name: string) => void
   ownershipLookup?: OwnershipLookupFn
@@ -698,6 +708,7 @@ function MessageBubble({
   isExplorationContext,
   onNavigate,
   isStreaming,
+  onDeckChanged,
 }: MessageBubbleProps) {
   if (message.role === 'user') {
     return (
@@ -738,6 +749,9 @@ function MessageBubble({
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
           <span className="text-xs text-zinc-500">Done</span>
         </div>
+      )}
+      {!isStreaming && message.proposals && (
+        <ChatProposalCards group={message.proposals} onDeckChanged={onDeckChanged} />
       )}
       {commanderSuggestions.length > 0 && (
         <CommanderSuggestionRow 

@@ -3,6 +3,7 @@
 import { useRef, useEffect, useCallback, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { formatPrice } from '@/lib/collection-printing-utils'
+import { previewImageSources, nextPreviewSource, previewKey, shouldShowPreview } from '@/lib/card-preview-image'
 
 /**
  * CardHoverPreview — High-performance card image hover preview.
@@ -49,7 +50,12 @@ const DUAL_TOTAL_WIDTH = DUAL_IMG_WIDTH * 2 + DUAL_GAP
 // ---------------------------------------------------------------------------
 
 let portalContainer: HTMLDivElement | null = null
-let currentCardName: string | null = null // Track which card is shown to prevent stale images
+/**
+ * The single "requested key" token: `${cardName}|${scryfallId}` of the row the pointer is on right now,
+ * or null when no row is hovered. Visibility is derived from this token whenever an image completes
+ * or a row is (re-)entered, so no ordering of enter/leave/load events can strand the preview.
+ */
+let requestedKey: string | null = null
 const PORTAL_VERSION = 4 // Increment to force recreation after structural changes
 
 // Global store for ownership data per card (populated by ChatPanel, consumed by hover preview)
@@ -59,6 +65,62 @@ export const cardOwnershipData = new Map<string, {
   available?: number
   priceUsd?: number | null
 }>()
+
+/**
+ * Point the shared preview image at a card and make sure it can actually be seen.
+ *
+ * Two failure modes used to leave only the small ownership strip on screen (no card):
+ *  - an image that failed once stayed hidden (display: none) while a later hover on the same
+ *    URL showed the frame again, so only the info bar appeared;
+ *  - a printing the Scryfall image CDN does not have (404) never recovered.
+ * Now a failed image is retried through the Scryfall API image redirect once, and a hover on a
+ * previously failed image re-requests it instead of showing an empty frame.
+ */
+export function setPreviewImage(
+  img: HTMLImageElement,
+  container: HTMLElement,
+  scryfallId: string | null | undefined,
+  cardName: string,
+): void {
+  const sources = previewImageSources(scryfallId, cardName)
+  const key = previewKey(cardName, scryfallId)
+  requestedKey = key
+  img.dataset.key = key
+  img.alt = cardName
+
+  if (sources.length === 0) {
+    // Nothing to load: never show an empty frame.
+    img.dataset.failed = '1'
+    container.style.opacity = '0'
+    return
+  }
+
+  const url = sources[0]
+  if (img.dataset.want !== url || img.dataset.failed === '1') {
+    // A different (or previously failed) image: load it; onload shows it if this row is still wanted.
+    img.dataset.want = url
+    img.dataset.current = url
+    img.dataset.sources = JSON.stringify(sources)
+    img.dataset.loaded = ''
+    img.dataset.failed = ''
+    img.style.display = 'block'
+    container.style.opacity = '0'
+    img.src = url
+    return
+  }
+
+  // Same image as before. A cached/finished image fires no new load event, so decide now.
+  const loaded = img.dataset.loaded === '1' || (img.complete && img.naturalWidth > 0)
+  if (loaded) img.dataset.loaded = '1'
+  container.style.opacity = shouldShowPreview(requestedKey, img.dataset.key, loaded) ? '1' : '0'
+}
+
+/** Mark nothing as hovered and hide the preview. */
+function clearRequestedPreview(): void {
+  requestedKey = null
+  const container = document.getElementById('card-hover-preview-portal') as HTMLElement | null
+  if (container) container.style.opacity = '0'
+}
 
 function getPortalContainer(): HTMLDivElement {
   if (typeof document === 'undefined') {
@@ -111,16 +173,25 @@ function getPortalContainer(): HTMLDivElement {
       border-radius: 12px;
       display: block;
     `
-    img.onerror = () => { 
+    img.onerror = () => {
+      // Try the next source (CDN -> API by id -> API by name); when all fail, hide cleanly.
+      let sources: string[] = []
+      try { sources = JSON.parse(img.dataset.sources || '[]') } catch { /* none */ }
+      const next = nextPreviewSource(sources, img.dataset.current || img.dataset.want || '')
+      if (next) {
+        img.dataset.current = next
+        img.src = next
+        return
+      }
       img.style.display = 'none'
+      img.dataset.failed = '1'
+      img.dataset.loaded = ''
       portalContainer!.style.opacity = '0'
     }
-    img.onload = () => { 
+    img.onload = () => {
       img.style.display = 'block'
-      // Only show if we're still expecting this image
-      if (currentCardName && img.alt === currentCardName) {
-        portalContainer!.style.opacity = '1'
-      }
+      img.dataset.loaded = '1'
+      portalContainer!.style.opacity = shouldShowPreview(requestedKey, img.dataset.key, true) ? '1' : '0'
     }
     
     // Info bar for ownership/price
@@ -484,7 +555,7 @@ export function useCardHoverPreview({
 } {
   const isActiveRef = useRef(false)
   
-  const showPreview = useCallback((scryfallId: string, cardName: string, cursorX: number, cursorY: number) => {
+  const showPreview = useCallback((scryfallId: string | null, cardName: string, cursorX: number, cursorY: number) => {
     if (typeof document === 'undefined') return
     
     const container = getPortalContainer()
@@ -496,30 +567,12 @@ export function useCardHoverPreview({
       return
     }
     
-    // Build image URL
-    const a = scryfallId.charAt(0)
-    const b = scryfallId.charAt(1)
-    const url = `https://cards.scryfall.io/large/front/${a}/${b}/${scryfallId}.jpg`
-    
     // Calculate and apply position directly to DOM
     const { left, top } = calculatePosition(cursorX, cursorY, window.innerWidth, window.innerHeight)
     container.style.transform = `translate3d(${left}px, ${top}px, 0)`
     
-    // If switching to a different card, hide until new image loads
-    if (currentCardName !== cardName) {
-      container.style.opacity = '0'
-      currentCardName = cardName
-    }
-    
-    // Update image (only if changed)
-    if (img.src !== url) {
-      img.src = url
-      img.alt = cardName
-      // Image will show via onload handler once loaded
-    } else {
-      // Same image already loaded, show immediately
-      container.style.opacity = '1'
-    }
+    // Point the image at the card (retries a failed image; shown by onload)
+    setPreviewImage(img, container, scryfallId, cardName)
     
     // Update info bar with ownership data
     if (infoBar) {
@@ -567,21 +620,18 @@ export function useCardHoverPreview({
   const hidePreview = useCallback(() => {
     if (typeof document === 'undefined') return
     
-    const container = getPortalContainer()
-    container.style.opacity = '0'
+    clearRequestedPreview()
     isActiveRef.current = false
-    currentCardName = null
   }, [])
 
   const onMouseEnter = useCallback((e: React.MouseEvent) => {
-    if (!scryfallId) return
-    showPreview(scryfallId, cardName, e.clientX, e.clientY)
+    showPreview(scryfallId ?? null, cardName, e.clientX, e.clientY)
   }, [scryfallId, cardName, showPreview])
 
   const onMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!scryfallId || !isActiveRef.current) return
+    if (!isActiveRef.current) return
     updatePosition(e.clientX, e.clientY)
-  }, [scryfallId, updatePosition])
+  }, [updatePosition])
 
   const onMouseLeave = useCallback(() => {
     hidePreview()
@@ -796,27 +846,13 @@ export function CardHoverPreview({ visible, scryfallId, cardName, cursorX, curso
     const img = document.getElementById('card-hover-preview-img') as HTMLImageElement | null
     const infoBar = document.getElementById('card-hover-preview-info') as HTMLDivElement | null
     
-    if (visible && scryfallId) {
-      const a = scryfallId.charAt(0)
-      const b = scryfallId.charAt(1)
-      const url = `https://cards.scryfall.io/large/front/${a}/${b}/${scryfallId}.jpg`
-      
+    if (visible && img) {
       // Calculate position
       const { left, top } = calculatePosition(cursorX, cursorY, window.innerWidth, window.innerHeight)
       container.style.transform = `translate3d(${left}px, ${top}px, 0)`
       
-      // If switching to a different card, hide until new image loads
-      if (currentCardName !== cardName) {
-        container.style.opacity = '0'
-        currentCardName = cardName
-      }
-      
-      if (img && img.src !== url) {
-        img.src = url
-        img.alt = cardName
-      } else {
-        container.style.opacity = '1'
-      }
+      // Shared loader: retries, name fallback, shown only once loaded
+      setPreviewImage(img, container, scryfallId, cardName)
       
       // Update info bar with ownership data
       if (infoBar) {
@@ -852,8 +888,7 @@ export function CardHoverPreview({ visible, scryfallId, cardName, cursorX, curso
       
       hasInitRef.current = true
     } else if (hasInitRef.current) {
-      container.style.opacity = '0'
-      currentCardName = null
+      clearRequestedPreview()
     }
   }, [visible, scryfallId, cardName, cursorX, cursorY])
   
@@ -991,7 +1026,7 @@ export function usePreloadCardImages(cardNames: Set<string> | string[]): void {
  * @param cursorY - Mouse Y position
  */
 export function showCardPreview(
-  scryfallId: string,
+  scryfallId: string | null | undefined,
   cardName: string,
   cursorX: number,
   cursorY: number
@@ -1007,30 +1042,12 @@ export function showCardPreview(
     return
   }
   
-  // Build image URL
-  const a = scryfallId.charAt(0)
-  const b = scryfallId.charAt(1)
-  const url = `https://cards.scryfall.io/large/front/${a}/${b}/${scryfallId}.jpg`
-  
   // Calculate and apply position directly to DOM
   const { left, top } = calculatePosition(cursorX, cursorY, window.innerWidth, window.innerHeight)
   container.style.transform = `translate3d(${left}px, ${top}px, 0)`
   
-  // If switching to a different card, hide until new image loads
-  if (currentCardName !== cardName) {
-    container.style.opacity = '0'
-    currentCardName = cardName
-  }
-  
-  // Update image (only if changed)
-  if (img.src !== url) {
-    img.src = url
-    img.alt = cardName
-    // Image will show via onload handler once loaded
-  } else {
-    // Same image already loaded, show immediately
-    container.style.opacity = '1'
-  }
+  // Point the image at the card (retries a failed image; shown by onload)
+  setPreviewImage(img, container, scryfallId, cardName)
   
   // Hide info bar for collection view (no ownership context)
   if (infoBar) {
@@ -1060,7 +1077,5 @@ export function updateCardPreviewPosition(cursorX: number, cursorY: number): voi
 export function hideCardPreview(): void {
   if (typeof document === 'undefined') return
   
-  const container = getPortalContainer()
-  container.style.opacity = '0'
-  currentCardName = null
+  clearRequestedPreview()
 }

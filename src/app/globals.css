@@ -150,9 +150,17 @@
 @layer base {
   /* Scrollbars: transparent track and corner, subtle thumb, so no white bars on the dark UI.
      Applies everywhere (page, chat, deck health panel, dialogs). */
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  /* One rule, two engines. Browsers that understand scrollbar-color (Chrome 121+, Edge, Firefox)
+     use the standard properties; those make Chrome ignore the ::-webkit-scrollbar rules below.
+     Safari understands scrollbar-width but NOT scrollbar-color, and as soon as scrollbar-width is
+     set it also ignores ::-webkit-scrollbar, so it fell back to a light native track. Gating the
+     standard properties on scrollbar-color support leaves Safari on the ::-webkit-scrollbar rules. */
+  @supports (scrollbar-color: auto) {
+    html,
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+    }
   }
   *::-webkit-scrollbar,
   *::-webkit-scrollbar-track,

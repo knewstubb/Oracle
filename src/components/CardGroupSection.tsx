@@ -41,6 +41,7 @@ import type { StructuredCategories } from '@/lib/categoryUtils'
 import type { DeckCard } from '@/components/CardGrid'
 import type { CardSlotStatus, DeckCardLifecycle } from '@/lib/card-status'
 import { isBasicLand, isGenericSlot, isGenericSleeved, getBasicLandDefaultScryfallId } from '@/lib/basic-lands'
+import { parseLandCount } from '@/lib/generic-land-count'
 import { ManaCost } from '@/components/ManaCost'
 import { formatPrice } from '@/lib/collection-printing-utils'
 
@@ -736,7 +737,7 @@ function patchStatusCounts(queryClient: QueryClient, deckId: number, patch: Stat
   )
 }
 
-function GenericLandRow({ landName, count, deckId, cardIds, cards, selectedIds, onSelectionChange }: { 
+export function GenericLandRow({ landName, count, deckId, cardIds, cards, selectedIds, onSelectionChange }: { 
   landName: string
   count: number
   deckId: number
@@ -812,11 +813,34 @@ function GenericLandRow({ landName, count, deckId, cardIds, cards, selectedIds, 
     }, 350)
   }
 
-  const handleAdd = () => changeCount(1)
-  const handleRemove = () => changeCount(-1)
   const handleRemoveAll = () => {
     setMenuOpen(false)
     changeCount(-(countRef.current ?? count))
+  }
+
+  // Inline count edit: click the number, type a new one. Enter or leaving the box saves, Escape cancels.
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+  const cancelledRef = useRef(false)
+  const startEdit = () => {
+    cancelledRef.current = false
+    setDraft(String(shownCount))
+    setEditing(true)
+  }
+  const commitEdit = () => {
+    if (cancelledRef.current) return // already saved or cancelled (Enter then blur, Escape then blur)
+    cancelledRef.current = true
+    setEditing(false)
+    const target = parseLandCount(draft)
+    if (target === null) {
+      toast.error(`Enter a whole number, 0 or more, for ${landName}`)
+      return
+    }
+    changeCount(target - (countRef.current ?? count))
+  }
+  const cancelEdit = () => {
+    cancelledRef.current = true
+    setEditing(false)
   }
   const handleSleeved = async (next: boolean) => {
     setSleevedOverride(next)
@@ -857,49 +881,36 @@ function GenericLandRow({ landName, count, deckId, cardIds, cards, selectedIds, 
           aria-label={`Select ${landName}`}
         />
 
-        {/* Quantity stepper: always visible, updates instantly */}
-        <div className="flex shrink-0 items-center gap-1">
+        {/* Count: same column as the other rows; click it to type a new number */}
+        {editing ? (
+          <input
+            type="text"
+            inputMode="numeric"
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onFocus={(e) => e.currentTarget.select()}
+            onBlur={commitEdit}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); commitEdit() }
+              else if (e.key === 'Escape') { e.preventDefault(); cancelEdit() }
+            }}
+            aria-label={`Number of generic ${landName}`}
+            data-testid="generic-count-input"
+            className="-my-0.5 -ml-2 h-5 w-6 shrink-0 rounded border border-[var(--accent-primary)] bg-transparent px-0.5 text-right text-[length:var(--fs-xs)] tabular-nums text-foreground outline-none"
+          />
+        ) : (
           <button
             type="button"
-            onClick={handleRemove}
-            disabled={shownCount <= 0}
-            aria-label={`Remove one generic ${landName}`}
-            className="flex size-5 items-center justify-center rounded border border-[var(--border-default)] text-[length:var(--fs-xs)] text-foreground hover:bg-white/[0.05] disabled:opacity-40"
+            onClick={startEdit}
+            aria-label={`${shownCount} generic ${landName}. Click to change the number`}
+            title="Click to change the number"
+            data-testid="generic-count"
+            className="w-4 shrink-0 cursor-text rounded text-right text-[length:var(--fs-xs)] tabular-nums text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
           >
-            −
-          </button>
-          <span className="w-6 text-center text-[length:var(--fs-xs)] tabular-nums text-foreground" data-testid="generic-count">
             {shownCount}
-          </span>
-          <button
-            type="button"
-            onClick={handleAdd}
-            aria-label={`Add one generic ${landName}`}
-            className="flex size-5 items-center justify-center rounded border border-[var(--border-default)] text-[length:var(--fs-xs)] text-foreground hover:bg-white/[0.05]"
-          >
-            +
           </button>
-        </div>
-
-        {/* Art thumbnail: click to change art */}
-        <button
-          type="button"
-          onClick={() => setArtOpen(true)}
-          aria-label={`Change art for ${landName}`}
-          title="Change art"
-          className="shrink-0 overflow-hidden rounded border border-[var(--border-default)] hover:border-[var(--accent-primary)]"
-        >
-          {hoverArtId ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={`https://cards.scryfall.io/art_crop/front/${hoverArtId.charAt(0)}/${hoverArtId.charAt(1)}/${hoverArtId}.jpg`}
-              alt=""
-              className="h-6 w-9 object-cover"
-            />
-          ) : (
-            <span className="block h-6 w-9 bg-muted" />
-          )}
-        </button>
+        )}
 
         {/* Land name */}
         <span className="min-w-0 flex-1 truncate text-[length:var(--fs-sm)]" {...nameHover}>

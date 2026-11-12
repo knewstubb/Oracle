@@ -175,6 +175,9 @@ export async function POST(
             if (event.type === 'tool_status') {
               send(JSON.stringify({ type: 'tool_status', tool_name: event.tool_name, status: event.status }))
             }
+            if (event.type === 'add_proposals') {
+              send(JSON.stringify(event))
+            }
           },
         }
 

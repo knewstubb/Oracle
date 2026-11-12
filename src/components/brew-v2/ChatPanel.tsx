@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import type { ChatMessage, CommanderSummaryContext } from '@/lib/debrief-types'
 import { renderMessageContent, type CardLinkMode, type OwnershipStatus, type OwnershipLookupFn } from '@/lib/render-card-links'
+import { ChatProposalCards } from '@/components/ChatProposalCards'
 import { autoBracketCardsSync } from '@/lib/auto-bracket-cards'
 import { cardOwnershipData, usePreloadCardImages } from '@/components/CardHoverPreview'
 
@@ -34,6 +35,8 @@ interface OwnershipData {
 
 export interface ChatPanelProps {
   messages: ChatMessage[]
+  /** Called after a chat proposal is added or undone, so the deck view can refresh */
+  onDeckChanged?: () => void
   onSend: (text: string) => void
   inputRef: React.RefObject<HTMLInputElement>
   /** Optional ref to expose imperative control (prefill, focus) to the parent */
@@ -85,7 +88,7 @@ function formatToolName(name: string): string {
 // ChatPanel
 // ---------------------------------------------------------------------------
 
-export function ChatPanel({ messages, onSend, inputRef, handleRef, isStreaming, activeTools, cardLinkMode, onCardAction, onCardNameClick, onCardClick }: ChatPanelProps) {
+export function ChatPanel({ messages, onSend, inputRef, handleRef, isStreaming, activeTools, cardLinkMode, onCardAction, onCardNameClick, onCardClick, onDeckChanged }: ChatPanelProps) {
   const [width, setWidth] = useState(DEFAULT_WIDTH)
   const [inputValue, setInputValue] = useState('')
   const [ownershipCache, setOwnershipCache] = useState<Map<string, OwnershipStatus>>(new Map())
@@ -270,7 +273,7 @@ export function ChatPanel({ messages, onSend, inputRef, handleRef, isStreaming, 
         {messages
           .filter(msg => msg.role !== 'system' && !msg.content.startsWith('[SYSTEM CONTEXT'))
           .map((msg) => (
-          <MessageBubble key={msg.id} message={msg} cardLinkMode={resolvedMode} onCardAction={resolvedOnAction} onCardNameClick={onCardNameClick} ownershipLookup={resolvedMode === 'add' ? ownershipLookup : undefined} />
+          <MessageBubble key={msg.id} message={msg} cardLinkMode={resolvedMode} onCardAction={resolvedOnAction} onCardNameClick={onCardNameClick} ownershipLookup={resolvedMode === 'add' ? ownershipLookup : undefined} onDeckChanged={onDeckChanged} />
         ))}
         {/* Tool status indicator */}
         {isStreaming && runningTools.length > 0 && (
@@ -314,7 +317,7 @@ export function ChatPanel({ messages, onSend, inputRef, handleRef, isStreaming, 
 // MessageBubble
 // ---------------------------------------------------------------------------
 
-function MessageBubble({ message, cardLinkMode, onCardAction, onCardNameClick, ownershipLookup }: { message: ChatMessage; cardLinkMode: CardLinkMode; onCardAction?: (name: string) => void; onCardNameClick?: (name: string) => void; ownershipLookup?: OwnershipLookupFn }) {
+function MessageBubble({ message, cardLinkMode, onCardAction, onCardNameClick, ownershipLookup, onDeckChanged }: { onDeckChanged?: () => void; message: ChatMessage; cardLinkMode: CardLinkMode; onCardAction?: (name: string) => void; onCardNameClick?: (name: string) => void; ownershipLookup?: OwnershipLookupFn }) {
   // Render commander summary card if present
   if (message.commanderSummary) {
     return <CommanderSummaryCard summary={message.commanderSummary} />
@@ -335,6 +338,7 @@ function MessageBubble({ message, cardLinkMode, onCardAction, onCardNameClick, o
   return (
     <div className="text-[length:var(--fs-sm)] bg-[rgba(255,255,255,0.03)] border-l-2 border-[#378ADD] pl-2.5 py-1.5 pr-2 rounded-r-md text-[#d4d4d0] leading-relaxed">
       {renderMessageContent(processedContent, cardLinkMode, onCardAction, onCardNameClick, ownershipLookup)}
+      {message.proposals && <ChatProposalCards group={message.proposals} onDeckChanged={onDeckChanged} />}
       {message.cost !== undefined && message.cost > 0 && (
         <div className="text-[length:var(--fs-xs)] text-muted-foreground/50 mt-1">
           {message.cost < 0.01 ? `$${message.cost.toFixed(4)}` : `$${message.cost.toFixed(2)}`}

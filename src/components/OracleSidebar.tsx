@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { SessionHistoryPanel } from '@/components/SessionHistoryPanel'
 import { autoBracketCardsSync } from '@/lib/auto-bracket-cards'
+import { ChatProposalCards, type ProposalGroup } from '@/components/ChatProposalCards'
 import { OVERLAY_BACKDROP } from '@/lib/overlay-classes'
 
 // ---------------------------------------------------------------------------
@@ -269,15 +270,25 @@ export function OracleSidebar() {
         body: JSON.stringify({
           cardName,
           quantity: 1,
+          checked: true,
         }),
       })
 
       if (!res.ok) {
         const error = await res.json()
+        if (res.status === 409 && error?.blocked) {
+          // Same checks as a chat proposal: say why, change nothing.
+          toast.info(error.error || `${cardName} can't be added to this deck.`)
+          return
+        }
         throw new Error(error.error || 'Failed to add card')
       }
 
+      const added = await res.json().catch(() => ({}))
       toast.success(`Added ${cardName}`)
+      if (typeof added?.deckCardCount === 'number' && added.deckCardCount > 100) {
+        toast.warning(`Deck now has ${added.deckCardCount} cards.`)
+      }
       
       // Invalidate deck queries to refresh the UI
       queryClient.invalidateQueries({ queryKey: deckKeys.detail(String(activeContext.deckId)) })
@@ -287,6 +298,12 @@ export function OracleSidebar() {
       toast.error(err instanceof Error ? err.message : 'Failed to add card')
     }
   }, [activeContext, queryClient, router])
+
+  const handleDeckChanged = useCallback(() => {
+    if (activeContext.type !== 'deck' || !activeContext.deckId) return
+    queryClient.invalidateQueries({ queryKey: deckKeys.detail(String(activeContext.deckId)) })
+    queryClient.invalidateQueries({ queryKey: deckKeys.cardStatuses(String(activeContext.deckId)) })
+  }, [activeContext, queryClient])
 
   // ---------------------------------------------------------------------------
   // Auto-scroll and focus
@@ -547,6 +564,7 @@ export function OracleSidebar() {
                   onStartDeck={handleStartDeck}
                   isExplorationContext={isExplorationContext}
                   onNavigate={handleNavigate}
+                  onDeckChanged={handleDeckChanged}
                   isStreaming={isStreaming && msg.role === 'assistant' && idx === arr.length - 1}
                 />
               ))
@@ -679,7 +697,9 @@ interface MessageBubbleProps {
     role: 'user' | 'assistant' | 'system'
     content: string
     navigatePrompt?: NavigatePrompt
+    proposals?: ProposalGroup
   }
+  onDeckChanged?: () => void
   cardLinkMode: CardLinkMode
   onCardAction?: (name: string) => void
   ownershipLookup?: OwnershipLookupFn
@@ -698,6 +718,7 @@ function MessageBubble({
   isExplorationContext,
   onNavigate,
   isStreaming,
+  onDeckChanged,
 }: MessageBubbleProps) {
   if (message.role === 'user') {
     return (
@@ -738,6 +759,9 @@ function MessageBubble({
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
           <span className="text-xs text-zinc-500">Done</span>
         </div>
+      )}
+      {!isStreaming && message.proposals && (
+        <ChatProposalCards group={message.proposals} onDeckChanged={onDeckChanged} />
       )}
       {commanderSuggestions.length > 0 && (
         <CommanderSuggestionRow 

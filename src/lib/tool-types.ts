@@ -2,12 +2,14 @@
 // Brew AI Tools — Shared Type Definitions
 // ---------------------------------------------------------------------------
 
+import type { ProposalCard } from './chat-proposal-types'
+
 // ---------------------------------------------------------------------------
 // SSE Event Types
 // ---------------------------------------------------------------------------
 
 /** SSE event types for tool execution status */
-export type ToolStreamEventType = 'tool_status' | 'text_delta' | 'done' | 'error' | 'candidates' | 'add_cards' | 'remove_cards' | 'commander_summary'
+export type ToolStreamEventType = 'tool_status' | 'text_delta' | 'done' | 'error' | 'candidates' | 'add_cards' | 'remove_cards' | 'commander_summary' | 'add_proposals'
 
 /** Structured commander summary for display in brew chat */
 export interface CommanderSummary {
@@ -39,6 +41,10 @@ export interface ToolStreamEvent {
   cards?: Array<{ name: string; category: string }>
   /** Structured commander summary from present_commander_summary tool */
   summary?: CommanderSummary
+  /** add_proposals only (from propose_deck_cards): the deck and the checked suggestions for the owner's Add buttons */
+  deckId?: number
+  deckName?: string
+  proposals?: ProposalCard[]
 }
 
 // ---------------------------------------------------------------------------
@@ -49,6 +55,8 @@ export interface ToolStreamEvent {
 export interface ToolExecutionResult {
   content: string
   is_error: boolean
+  /** Events for the owner's page only. They are never put in the model's conversation. */
+  events?: ToolStreamEvent[]
 }
 
 // ---------------------------------------------------------------------------

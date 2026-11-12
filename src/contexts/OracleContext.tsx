@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import type { ProposalGroup } from '@/components/ChatProposalCards'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -45,6 +46,8 @@ export interface ChatMessage {
   content: string
   timestamp: number
   navigatePrompt?: NavigatePrompt
+  /** Checked card suggestions with Add buttons (nothing is added until the owner clicks) */
+  proposals?: ProposalGroup
 }
 
 interface OracleState {
@@ -491,6 +494,7 @@ export function OracleProvider({ children }: { children: ReactNode }) {
 
     let fullResponseText = ''
     let pendingNavigatePrompt: NavigatePrompt | null = null
+    let pendingProposals = null as ProposalGroup | null
 
     try {
       const res = await fetch('/api/oracle/chat', {
@@ -553,50 +557,18 @@ export function OracleProvider({ children }: { children: ReactNode }) {
                   commanderKey: parsed.commanderKey,
                   colorIdentity: parsed.colorIdentity,
                 }
+              } else if (parsed.type === 'add_proposals' && Array.isArray(parsed.proposals) && typeof parsed.deckId === 'number') {
+                // Held until streaming ends, then shown as Add buttons. Nothing is written here.
+                const more = parsed.proposals as ProposalGroup['proposals']
+                pendingProposals = pendingProposals && pendingProposals.deckId === parsed.deckId
+                  ? { ...pendingProposals, proposals: [...pendingProposals.proposals, ...more] }
+                  : { deckId: parsed.deckId, deckName: String(parsed.deckName ?? 'this deck'), proposals: more }
               } else if (parsed.type === 'action') {
                 if (parsed.invalidate) {
                   for (const key of parsed.invalidate) {
                     queryClient.invalidateQueries({ queryKey: [key] })
                   }
                 }
-              } else if (parsed.type === 'add_cards' && parsed.cards && activeContext.deckId) {
-                const cards = parsed.cards as Array<{ name: string; category: string }>
-                try {
-                  const response = await fetch(`/api/decks/${activeContext.deckId}/cards/batch`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      additions: cards.map((card) => ({
-                        name: card.name,
-                        category: card.category,
-                        quantity: 1,
-                      })),
-                    }),
-                  })
-                  if (!response.ok) {
-                    throw new Error(await response.text())
-                  }
-                } catch (cardErr) {
-                  console.error('[Oracle] Failed to apply added cards atomically:', cardErr)
-                }
-                queryClient.invalidateQueries({ queryKey: ['decks', activeContext.deckId] })
-                queryClient.invalidateQueries({ queryKey: ['decks', activeContext.deckId, 'card-statuses'] })
-              } else if (parsed.type === 'remove_cards' && parsed.cards && activeContext.deckId) {
-                const cards = parsed.cards as Array<{ name: string }>
-                try {
-                  const response = await fetch(`/api/decks/${activeContext.deckId}/cards/batch`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ removeCards: cards }),
-                  })
-                  if (!response.ok) {
-                    throw new Error(await response.text())
-                  }
-                } catch (cardErr) {
-                  console.error('[Oracle] Failed to apply removed cards atomically:', cardErr)
-                }
-                queryClient.invalidateQueries({ queryKey: ['decks', activeContext.deckId] })
-                queryClient.invalidateQueries({ queryKey: ['decks', activeContext.deckId, 'card-statuses'] })
               }
             } catch {
               // Ignore parse errors for incomplete chunks
@@ -616,6 +588,11 @@ export function OracleProvider({ children }: { children: ReactNode }) {
               : msg
           )
         )
+      }
+
+      if (pendingProposals) {
+        const group = pendingProposals
+        setMessages(prev => prev.map(msg => (msg.id === assistantMsgId ? { ...msg, proposals: group } : msg)))
       }
 
       // After streaming completes, generate session name if this is the first AI response

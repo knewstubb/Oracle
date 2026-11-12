@@ -55,13 +55,14 @@ describe('deck chat prompt', () => {
   const build = (editToolsEnabled: boolean) =>
     buildDeckChatPrompt('Rocco', 'Rocco', 'commander', 1, [{ name: 'Sol Ring', category: 'Ramp', quantity: 1 }], '', { editToolsEnabled })
 
-  it('is suggest-only by default wording', () => {
+  it('proposes cards by default wording (the chat cannot add, only the owner can)', () => {
     const p = build(false)
-    expect(p).toContain('SUGGESTIONS ONLY')
-    expect(p).toContain('NEVER say or imply that you added, removed')
+    expect(p).toContain('PROPOSING CARDS')
+    expect(p).toContain('You cannot add anything yourself')
+    expect(p).not.toContain('You cannot change the deck')
   })
 
   it('drops the suggest-only block when edit tools are on', () => {
-    expect(build(true)).not.toContain('SUGGESTIONS ONLY')
+    expect(build(true)).not.toContain('PROPOSING CARDS')
   })
 })

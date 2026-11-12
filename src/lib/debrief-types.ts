@@ -15,6 +15,8 @@ export interface ChatMessage {
   timestamp: number
   cost?: number
   commanderSummary?: CommanderSummaryContext
+  /** Checked card suggestions with Add buttons (deck chat) */
+  proposals?: import('@/components/ChatProposalCards').ProposalGroup
 }
 
 /** Structured commander summary that can be embedded as a message card. */

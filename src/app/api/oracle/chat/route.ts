@@ -472,9 +472,9 @@ export async function POST(request: NextRequest) {
 
         // Callback to emit tool SSE events during tool execution
         const onToolEvent = (event: ToolStreamEvent) => {
-          // Forward tool_status and add_cards/remove_cards events
+          // Forward tool_status and add_proposals events (chat edits only happen after the owner clicks Add)
           // (candidates events are brew-specific, keep filtering those)
-          if (event.type === 'tool_status' || event.type === 'add_cards' || event.type === 'remove_cards') {
+          if (event.type === 'tool_status' || event.type === 'add_proposals') {
             const sseData = JSON.stringify(event)
             controller.enqueue(encoder.encode(`data: ${sseData}\n\n`))
           }

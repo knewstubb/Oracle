@@ -270,15 +270,25 @@ export function OracleSidebar() {
         body: JSON.stringify({
           cardName,
           quantity: 1,
+          checked: true,
         }),
       })
 
       if (!res.ok) {
         const error = await res.json()
+        if (res.status === 409 && error?.blocked) {
+          // Same checks as a chat proposal: say why, change nothing.
+          toast.info(error.error || `${cardName} can't be added to this deck.`)
+          return
+        }
         throw new Error(error.error || 'Failed to add card')
       }
 
+      const added = await res.json().catch(() => ({}))
       toast.success(`Added ${cardName}`)
+      if (typeof added?.deckCardCount === 'number' && added.deckCardCount > 100) {
+        toast.warning(`Deck now has ${added.deckCardCount} cards.`)
+      }
       
       // Invalidate deck queries to refresh the UI
       queryClient.invalidateQueries({ queryKey: deckKeys.detail(String(activeContext.deckId)) })

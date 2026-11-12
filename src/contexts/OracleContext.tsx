@@ -569,44 +569,6 @@ export function OracleProvider({ children }: { children: ReactNode }) {
                     queryClient.invalidateQueries({ queryKey: [key] })
                   }
                 }
-              } else if (parsed.type === 'add_cards' && parsed.cards && activeContext.deckId) {
-                const cards = parsed.cards as Array<{ name: string; category: string }>
-                try {
-                  const response = await fetch(`/api/decks/${activeContext.deckId}/cards/batch`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      additions: cards.map((card) => ({
-                        name: card.name,
-                        category: card.category,
-                        quantity: 1,
-                      })),
-                    }),
-                  })
-                  if (!response.ok) {
-                    throw new Error(await response.text())
-                  }
-                } catch (cardErr) {
-                  console.error('[Oracle] Failed to apply added cards atomically:', cardErr)
-                }
-                queryClient.invalidateQueries({ queryKey: ['decks', activeContext.deckId] })
-                queryClient.invalidateQueries({ queryKey: ['decks', activeContext.deckId, 'card-statuses'] })
-              } else if (parsed.type === 'remove_cards' && parsed.cards && activeContext.deckId) {
-                const cards = parsed.cards as Array<{ name: string }>
-                try {
-                  const response = await fetch(`/api/decks/${activeContext.deckId}/cards/batch`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ removeCards: cards }),
-                  })
-                  if (!response.ok) {
-                    throw new Error(await response.text())
-                  }
-                } catch (cardErr) {
-                  console.error('[Oracle] Failed to apply removed cards atomically:', cardErr)
-                }
-                queryClient.invalidateQueries({ queryKey: ['decks', activeContext.deckId] })
-                queryClient.invalidateQueries({ queryKey: ['decks', activeContext.deckId, 'card-statuses'] })
               }
             } catch {
               // Ignore parse errors for incomplete chunks

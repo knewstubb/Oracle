@@ -6,13 +6,15 @@
  * Sets the category from the request body if provided, otherwise from card_definitions.default_category,
  * or derives from type_line as a fallback.
  *
- * Body: { cardName: string, quantity?: number, category?: string }
- * Response: { id: number, cardName: string }
+ * Body: { cardName: string, quantity?: number, category?: string, checked?: boolean }
+ *   checked: true (the chat "+") runs the same checks as a chat proposal; a block answers 409 with the reason.
+ * Response: { id: number, cardName: string, deckCardCount: number }
  */
 
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
+import { decideCard, loadCardFacts, loadDeckFacts, type CheckClient } from '@/lib/chat-proposal-check'
 import { getOwnedPrintingsByNames } from '@/lib/card-data'
 import { deriveDefaultCategory } from '@/lib/card-definition-resolver'
 import {
@@ -60,6 +62,18 @@ export async function POST(
 
   if (!deck || deck.user_id !== userId) {
     return Response.json({ error: 'Deck not found' }, { status: 404 })
+  }
+
+  // The small "+" in chat sends checked: true. It gets the same checks as a chat proposal (already in the deck,
+  // maybeboard, outside the deck's colours, not legal). Other callers are unchanged.
+  if (body.checked === true) {
+    const deckFacts = await loadDeckFacts(supabase as unknown as CheckClient, deckId, userId)
+    if (!deckFacts) return Response.json({ error: 'Deck not found' }, { status: 404 })
+    const facts = await loadCardFacts(supabase as unknown as CheckClient, [cardName])
+    const outcome = decideCard(cardName, facts.get(cardName) ?? null, deckFacts)
+    if (outcome.state === 'blocked') {
+      return Response.json({ error: outcome.blockText, blockReason: outcome.blockReason, blocked: true }, { status: 409 })
+    }
   }
 
   // Prefer a printing the owner already owns (D-003, D-038): a card added by
@@ -156,5 +170,5 @@ export async function POST(
     )
   }
 
-  return Response.json({ id: newCard.id, cardName: newCard.card_name })
+  return Response.json({ id: newCard.id, cardName: newCard.card_name, deckCardCount: newCount })
 }

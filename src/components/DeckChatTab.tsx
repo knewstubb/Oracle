@@ -3,6 +3,7 @@
 'use client'
 
 import { useRef, useCallback, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
 import { deckKeys } from '@/hooks/useDeckQueryKeys'
 import { useDeckChat } from '@/hooks/useDeckChat'
@@ -161,7 +162,7 @@ export function DeckChatTab({ deckId, commanderName, cards }: DeckChatTabProps) 
   const handleAddCard = useCallback(async (cardName: string) => {
     // Don't add duplicates (check current cards)
     if (brewCards.some(c => c.card_name === cardName)) {
-      console.log(`[DeckChatTab] Card already in deck: ${cardName}`)
+      toast.info(`${cardName} is already in this deck.`)
       return
     }
 
@@ -169,11 +170,12 @@ export function DeckChatTab({ deckId, commanderName, cards }: DeckChatTabProps) 
       const res = await fetch(`/api/decks/${deckId}/cards`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cardName }),
+        body: JSON.stringify({ cardName, checked: true }),
       })
 
       if (!res.ok) {
         const data = await res.json()
+        if (res.status === 409 && data?.blocked) toast.info(data.error)
         console.error(`[DeckChatTab] Failed to add card:`, data.error)
         return
       }

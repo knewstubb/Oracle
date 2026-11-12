@@ -645,6 +645,11 @@ Example: If color identity is "WBR" (Mardu):
   // Add tool guidance
   parts.push(ORACLE_TOOL_PROMPT)
 
+  // Outside a deck there is nowhere to add cards: say so, and never claim an add.
+  if (context.type !== 'deck') {
+    parts.push('=== ADDING CARDS ===\nYou cannot add cards from here. If the owner wants a card added, say: "Open a deck and I can add cards to it." Never say a card was added.')
+  }
+
   // Deck chat additions go last so they win over the general tool guidance above.
   if (options?.deckChat && context.type === 'deck') {
     parts.push(buildDeckChatAdditions(options.deckChat))

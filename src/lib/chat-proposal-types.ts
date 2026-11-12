@@ -36,7 +36,7 @@ export interface AddProposalsEvent {
 
 export interface ConfirmReply {
   added: Array<{ proposalId: string; deckCardId: number }>
-  skipped: Array<{ proposalId: string; blockReason: BlockReason; blockText: string }>
+  skipped: Array<{ proposalId: string; blockReason: BlockReason | 'used' | 'unknown'; blockText: string }>
   /** Cards in the main deck after the add (so the receipt can warn past 100). */
   deckCardCount?: number
 }

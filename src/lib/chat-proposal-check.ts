@@ -9,7 +9,7 @@ import type { BlockReason, ProposalState } from './chat-proposal-types'
 
 /** Minimal client shape (the admin Supabase client satisfies it). */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export interface CheckClient { from: (table: string) => any }
+export interface CheckClient { from: (table: string) => any; rpc?: (fn: string, args: Record<string, unknown>) => PromiseLike<{ data: unknown; error: unknown }> }
 
 /** Same exempt list as deck-legality.ts (D-032). */
 const BASIC_LANDS = new Set([

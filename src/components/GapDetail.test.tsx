@@ -125,6 +125,7 @@ describe('GapDetail', () => {
     expect(portal()!.style.opacity).toBe('0')
 
     portalImg()!.src = ''
+    portalImg()!.dataset.want = ''
     fireEvent.focus(thumb)
     expect(portalImg()!.src).toContain('abcd1234-0000-0000-0000-000000000000')
     fireEvent.blur(thumb)
@@ -133,6 +134,7 @@ describe('GapDetail', () => {
     const noImg = screen.getByText('Held Draw').closest('li')!.querySelector('[data-testid="gap-thumb"]') as HTMLElement
     expect(noImg.getAttribute('tabindex')).toBeNull()
     portalImg()!.src = ''
+    portalImg()!.dataset.want = ''
     fireEvent.mouseEnter(noImg, { clientX: 50, clientY: 50 })
     expect(portalImg()!.getAttribute('src') ?? '').not.toContain('abcd1234')
   })

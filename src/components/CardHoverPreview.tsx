@@ -60,6 +60,41 @@ export const cardOwnershipData = new Map<string, {
   priceUsd?: number | null
 }>()
 
+/**
+ * Point the shared preview image at a card and make sure it can actually be seen.
+ *
+ * Two failure modes used to leave only the small ownership strip on screen (no card):
+ *  - an image that failed once stayed hidden (display: none) while a later hover on the same
+ *    URL showed the frame again, so only the info bar appeared;
+ *  - a printing the Scryfall image CDN does not have (404) never recovered.
+ * Now a failed image is retried through the Scryfall API image redirect once, and a hover on a
+ * previously failed image re-requests it instead of showing an empty frame.
+ */
+export function setPreviewImage(
+  img: HTMLImageElement,
+  container: HTMLElement,
+  scryfallId: string,
+  cardName: string,
+): void {
+  const a = scryfallId.charAt(0)
+  const b = scryfallId.charAt(1)
+  const url = `https://cards.scryfall.io/large/front/${a}/${b}/${scryfallId}.jpg`
+  const fallback = `https://api.scryfall.com/cards/${scryfallId}?format=image&version=large`
+  const failed = img.style.display === 'none'
+  if (img.dataset.want !== url || failed) {
+    img.dataset.want = url
+    img.dataset.fallback = fallback
+    img.dataset.triedFallback = ''
+    img.style.display = 'block'
+    img.alt = cardName
+    container.style.opacity = '0'
+    img.src = url
+  } else {
+    img.alt = cardName
+    container.style.opacity = '1'
+  }
+}
+
 function getPortalContainer(): HTMLDivElement {
   if (typeof document === 'undefined') {
     throw new Error('Cannot create portal container on server')
@@ -112,6 +147,11 @@ function getPortalContainer(): HTMLDivElement {
       display: block;
     `
     img.onerror = () => { 
+      if (!img.dataset.triedFallback && img.dataset.fallback) {
+        img.dataset.triedFallback = '1'
+        img.src = img.dataset.fallback
+        return
+      }
       img.style.display = 'none'
       portalContainer!.style.opacity = '0'
     }
@@ -496,11 +536,6 @@ export function useCardHoverPreview({
       return
     }
     
-    // Build image URL
-    const a = scryfallId.charAt(0)
-    const b = scryfallId.charAt(1)
-    const url = `https://cards.scryfall.io/large/front/${a}/${b}/${scryfallId}.jpg`
-    
     // Calculate and apply position directly to DOM
     const { left, top } = calculatePosition(cursorX, cursorY, window.innerWidth, window.innerHeight)
     container.style.transform = `translate3d(${left}px, ${top}px, 0)`
@@ -511,15 +546,8 @@ export function useCardHoverPreview({
       currentCardName = cardName
     }
     
-    // Update image (only if changed)
-    if (img.src !== url) {
-      img.src = url
-      img.alt = cardName
-      // Image will show via onload handler once loaded
-    } else {
-      // Same image already loaded, show immediately
-      container.style.opacity = '1'
-    }
+    // Point the image at the card (retries a failed image; shown by onload)
+    setPreviewImage(img, container, scryfallId, cardName)
     
     // Update info bar with ownership data
     if (infoBar) {
@@ -1007,11 +1035,6 @@ export function showCardPreview(
     return
   }
   
-  // Build image URL
-  const a = scryfallId.charAt(0)
-  const b = scryfallId.charAt(1)
-  const url = `https://cards.scryfall.io/large/front/${a}/${b}/${scryfallId}.jpg`
-  
   // Calculate and apply position directly to DOM
   const { left, top } = calculatePosition(cursorX, cursorY, window.innerWidth, window.innerHeight)
   container.style.transform = `translate3d(${left}px, ${top}px, 0)`
@@ -1022,15 +1045,8 @@ export function showCardPreview(
     currentCardName = cardName
   }
   
-  // Update image (only if changed)
-  if (img.src !== url) {
-    img.src = url
-    img.alt = cardName
-    // Image will show via onload handler once loaded
-  } else {
-    // Same image already loaded, show immediately
-    container.style.opacity = '1'
-  }
+  // Point the image at the card (retries a failed image; shown by onload)
+  setPreviewImage(img, container, scryfallId, cardName)
   
   // Hide info bar for collection view (no ownership context)
   if (infoBar) {

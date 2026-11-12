@@ -1,14 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, Ban, ChevronLeft, ChevronRight, Circle, MessageCircle } from 'lucide-react'
+import { AlertTriangle, Ban, Check, ChevronLeft, ChevronRight, Circle, MessageCircle, Plus } from 'lucide-react'
+import { toast } from 'sonner'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CardImage } from '@/components/CardImage'
 import { MobileCardPreview } from '@/components/MobileCardPreview'
 import { useCardHoverPreview } from '@/components/CardHoverPreview'
-import { deckKeys } from '@/hooks/useDeckQueryKeys'
+import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
 import type { DeckHealthGap, GapCard } from '@/lib/deck-health-gap'
 import { formatPrice, type BuyIdea } from '@/lib/deck-health-buy'
 import type { HealthRoleKey } from '@/lib/deck-health'
@@ -32,11 +33,34 @@ const NOTHING_OWNED: Record<HealthRoleKey, string> = {
   lands: "You don't own a spare land that fits.",
 }
 
-function CardRow({ card }: { card: GapCard | BuyIdea }) {
+function CardRow({ card, deckId }: { card: GapCard | BuyIdea; deckId: number }) {
   const buy = !('status' in card)
   const spare = !buy && card.status === 'SPARE'
-  const spareCopies = 'spareCopies' in card ? card.spareCopies : 0
   const otherDeckName = 'otherDeckName' in card ? card.otherDeckName : null
+  const queryClient = useQueryClient()
+  // The one existing add path (the same POST the Add card search uses): it adds a planned slot by name and takes no copy
+  // from anywhere. After it succeeds the deck, the pill counts and this panel all refresh.
+  const add = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/decks/${deckId}/cards`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cardName: card.name }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(typeof err.error === 'string' && err.error ? err.error : `server error ${res.status}`)
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      toast.success(`Added ${card.name}`)
+      createDeckInvalidators(queryClient).invalidateDeck(deckId)
+    },
+    onError: (err: Error) => {
+      toast.error(`Couldn't add ${card.name}: ${err.message}`)
+    },
+  })
   const [previewOpen, setPreviewOpen] = useState(false)
   // Existing hover preview: shows the full card beside the pointer, kept inside the window. It does nothing without an image.
   const { triggerProps } = useCardHoverPreview({ scryfallId: card.printingId, cardName: card.name })
@@ -78,7 +102,6 @@ function CardRow({ card }: { card: GapCard | BuyIdea }) {
             style={{ color: 'var(--text-primary)' }}
           >
             {card.name}
-            {spareCopies > 1 ? <span className="font-normal" style={{ color: 'var(--text-secondary)' }}> ×{spareCopies}</span> : null}
           </button>
           {buy ? (
             <span data-testid="gap-price" className="shrink-0 text-[length:var(--fs-sm)] font-medium" style={{ color: 'var(--text-primary)' }}>
@@ -124,6 +147,32 @@ function CardRow({ card }: { card: GapCard | BuyIdea }) {
             Unowned
           </span>
         ) : null}
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          {add.isSuccess ? (
+            <span role="status" data-testid="gap-added" className="inline-flex items-center gap-1 text-[length:var(--fs-sm)]" style={{ color: 'var(--text-primary)' }}>
+              <Check size={12} aria-hidden="true" />
+              Added to deck
+              {otherDeckName ? <span style={{ color: 'var(--text-secondary)' }}> · the copy stays in {otherDeckName}</span> : null}
+            </span>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={add.isPending}
+              onClick={() => add.mutate()}
+              aria-label={`Add ${card.name} to deck`}
+              className="h-8 px-2.5 text-[length:var(--fs-sm)]"
+            >
+              <Plus aria-hidden="true" />
+              {add.isPending ? 'Adding…' : add.isError ? 'Try again' : 'Add to deck'}
+            </Button>
+          )}
+          {add.isError && (
+            <span role="alert" data-testid="gap-add-error" className="text-[length:var(--fs-sm)]" style={{ color: 'var(--signal-critical)' }}>
+              Couldn&apos;t add. {add.error.message}
+            </span>
+          )}
+        </div>
       </div>
       <MobileCardPreview cardName={card.name} scryfallId={card.printingId} isOpen={previewOpen} onClose={() => setPreviewOpen(false)} />
     </li>
@@ -277,14 +326,14 @@ export function GapDetail({ deckId, role, onBack, onChat }: GapDetailProps) {
           {data.spare.length > 0 && (
             <section aria-label="Spare">
               <h4 className="font-semibold" style={{ color: 'var(--text-primary)' }}>
-                Spare ({data.spareTotal})
+                Spare
               </h4>
               <p className="text-[length:var(--fs-sm)]" style={{ color: 'var(--text-secondary)' }}>
                 Free now.
               </p>
               <ul>
                 {data.spare.map((c) => (
-                  <CardRow key={c.name} card={c} />
+                  <CardRow key={c.name} card={c} deckId={deckId} />
                 ))}
               </ul>
             </section>
@@ -297,13 +346,14 @@ export function GapDetail({ deckId, role, onBack, onChat }: GapDetailProps) {
               </h4>
               <ul>
                 {data.inAnotherDeck.map((c) => (
-                  <CardRow key={c.name} card={c} />
+                  <CardRow key={c.name} card={c} deckId={deckId} />
                 ))}
               </ul>
             </section>
           )}
 
           <BuyIdeasGroup
+            deckId={deckId}
             ideas={data.buyIdeas ?? []}
             defaultOpen={Boolean(data.buyDefaultOpen)}
             reason={data.buyUnavailableReason ?? null}
@@ -315,7 +365,7 @@ export function GapDetail({ deckId, role, onBack, onChat }: GapDetailProps) {
 }
 
 /** Buy ideas: collapsed with a count when owned options exist, open when nothing owned fits. Suggest-only (no buy button). */
-function BuyIdeasGroup({ ideas, defaultOpen, reason }: { ideas: BuyIdea[]; defaultOpen: boolean; reason: DeckHealthGap['buyUnavailableReason'] }) {
+function BuyIdeasGroup({ ideas, defaultOpen, reason, deckId }: { ideas: BuyIdea[]; defaultOpen: boolean; reason: DeckHealthGap['buyUnavailableReason']; deckId: number }) {
   const [open, setOpen] = useState(defaultOpen)
   if (reason === 'thin_data') {
     return (
@@ -348,7 +398,7 @@ function BuyIdeasGroup({ ideas, defaultOpen, reason }: { ideas: BuyIdea[]; defau
       {open && (
         <ul>
           {ideas.map((c) => (
-            <CardRow key={c.name} card={c} />
+            <CardRow key={c.name} card={c} deckId={deckId} />
           ))}
         </ul>
       )}

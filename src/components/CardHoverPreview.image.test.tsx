@@ -46,9 +46,10 @@ describe('card hover preview image', () => {
     expect(portal().style.opacity).toBe('1')
   })
 
-  it('after both attempts fail the frame hides, and the next hover tries again instead of showing an empty frame', () => {
+  it('after all attempts fail the frame hides, and the next hover tries again instead of showing an empty frame', () => {
     render(<Thumb id={ID} />)
     fireEvent.mouseEnter(screen.getByTestId('thumb'), { clientX: 100, clientY: 100 })
+    img().dispatchEvent(new Event('error'))
     img().dispatchEvent(new Event('error'))
     img().dispatchEvent(new Event('error'))
     expect(img().style.display).toBe('none')
@@ -67,10 +68,31 @@ describe('card hover preview image', () => {
     expect(portal().style.opacity).toBe('1')
   })
 
-  it('does nothing for a card with no printing id', () => {
+  it('a card with no printing id is looked up by name instead of doing nothing', () => {
     render(<Thumb id={null} />)
-    const before = img()?.src ?? ''
     fireEvent.mouseEnter(screen.getByTestId('thumb'), { clientX: 100, clientY: 100 })
-    expect(img()?.src ?? '').toBe(before)
+    expect(img().src).toBe('https://api.scryfall.com/cards/named?exact=Spare%20Rock&format=image&version=large')
+    expect(portal().style.opacity).toBe('0') // never blank: waits for the image
+    img().dispatchEvent(new Event('load'))
+    expect(portal().style.opacity).toBe('1')
+  })
+
+  it('walks CDN, then API by id, then name, and hides cleanly when all fail', () => {
+    render(<Thumb id={ID} />)
+    fireEvent.mouseEnter(screen.getByTestId('thumb'), { clientX: 100, clientY: 100 })
+    img().dispatchEvent(new Event('error'))
+    img().dispatchEvent(new Event('error'))
+    expect(img().src).toContain('/cards/named?exact=Spare%20Rock')
+    img().dispatchEvent(new Event('error'))
+    expect(img().style.display).toBe('none')
+    expect(portal().style.opacity).toBe('0')
+  })
+
+  it('a late load after the pointer left does not pop the preview up', () => {
+    render(<Thumb id={ID} />)
+    fireEvent.mouseEnter(screen.getByTestId('thumb'), { clientX: 100, clientY: 100 })
+    fireEvent.mouseLeave(screen.getByTestId('thumb'))
+    img().dispatchEvent(new Event('load'))
+    expect(portal().style.opacity).toBe('0')
   })
 })

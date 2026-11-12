@@ -26,6 +26,7 @@ import { getFormatConfig } from '@/lib/format-config'
 import { exportDeckAsText } from '@/lib/deck-export'
 import { useOracle } from '@/contexts/OracleContext'
 import { toast } from 'sonner'
+import { useDeckHoverPreload } from '@/hooks/useDeckHoverPreload'
 import type { DeckCard } from '@/components/CardGrid'
 import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
 import { Crown } from 'lucide-react'
@@ -138,6 +139,9 @@ export default function DeckViewPage() {
       })
     }
   }, [data?.deck, setContext])
+
+  // Quietly preload hover-preview images in the background so the first hover is instant.
+  useDeckHoverPreload(deckId, data?.cards)
 
   // Fresh import: delayed refetch to pick up auto-assign results
   // Auto-assign runs fire-and-forget after import — this gives it time to complete

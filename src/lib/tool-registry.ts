@@ -21,6 +21,8 @@ import { createAdminClient } from './supabase'
 import { classifyDeckCardCopy, type DeckCardCopyStatus } from './deck-chat-facts'
 import { browseSpareCopies, MAX_BROWSE_LIMIT } from './spare-copy-browse'
 import { lookupOwnedCopies, MAX_LOOKUP_NAMES, type LookupClient } from './owned-copy-lookup'
+import { loadDeckHealthForChat, isHealthRole } from './deck-health-chat'
+import type { HealthClient } from './deck-health-server'
 
 // ---------------------------------------------------------------------------
 // Registry Core
@@ -29,14 +31,14 @@ import { lookupOwnedCopies, MAX_LOOKUP_NAMES, type LookupClient } from './owned-
 const registry = new Map<string, RegisteredTool>()
 
 // Tools that modify deck contents - should only be available in deck/workbench contexts
-const DECK_BUILDING_TOOLS = new Set([
+export const DECK_BUILDING_TOOLS: ReadonlySet<string> = new Set([
   'add_cards_to_deck',
   'remove_cards_from_deck',
   'update_deck_card',
 ])
 
 // Tools offered only in the deck chat
-const DECK_CHAT_ONLY_TOOLS = new Set(['check_owned_copies', 'browse_spare_copies'])
+export const DECK_CHAT_ONLY_TOOLS: ReadonlySet<string> = new Set(['check_owned_copies', 'browse_spare_copies', 'get_deck_health'])
 
 // Contexts where deck-building tools should NOT be available
 const EXPLORATION_CONTEXTS = new Set([
@@ -1074,7 +1076,7 @@ registry.set('browse_spare_copies', {
   definition: {
     name: 'browse_spare_copies',
     description:
-      `Read-only. Browses the owner's collection for cards that fit the viewed deck's colours, to replace a proxy or fill a gap. Lists SPARE real copies (sleeved in no deck, not proxies) first, then real copies held by other decks (each with a warning to show). Call this FIRST for replace-a-proxy / fill-a-gap questions, before suggesting anything to buy. Optional kind: a type (creature, artifact, enchantment, instant, sorcery, land, planeswalker) or a role (draw, ramp, removal). Capped (default 25 per group, max ${MAX_BROWSE_LIMIT}). Never changes anything.`,
+      `Read-only. Browses the owner's collection for cards that fit the viewed deck's colours, to replace a proxy or fill a gap. Lists SPARE real copies (sleeved in no deck, not proxies) first, then real copies held by other decks (each with a warning to show). Call this FIRST for replace-a-proxy / fill-a-gap questions, before suggesting anything to buy. Optional kind: a type (creature, artifact, enchantment, instant, sorcery, land, planeswalker) or a role (draw, ramp, removal, wipes). Capped (default 25 per group, max ${MAX_BROWSE_LIMIT}). Never changes anything.`,
     input_schema: {
       type: 'object',
       properties: {
@@ -1103,6 +1105,48 @@ registry.set('browse_spare_copies', {
       console.error('[browse_spare_copies] Error:', err)
       const msg = err instanceof Error ? err.message : 'browse failed'
       return { content: `Collection browse unavailable (${msg}). Say you could not browse what the owner has; do not guess.`, is_error: true }
+    }
+  },
+})
+
+registry.set('get_deck_health', {
+  definition: {
+    name: 'get_deck_health',
+    description:
+      'Read-only. Deck health for the viewed deck: how many ramp, draw, removal, wipes and lands it has against the commander\'s typical numbers, which roles are Light (2 or more short), the source of those numbers (sourceLine, for example "EDHREC average deck, 12,431 decks" or "General guide"), and a ready-made chatAnswer. These are the SAME numbers the Deck health panel shows. Call this for "what is my deck missing", "how is my deck health", "do I have enough removal". Optional role (ramp, draw, removal, wipes, lands) also returns that role\'s spare cards, cards in another deck (deck name only) and buy ideas with estimated prices. Say the sourceLine in your answer. For details on specific cards, use browse_spare_copies and check_owned_copies. It never changes anything.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        role: { type: 'string', enum: ['ramp', 'draw', 'removal', 'wipes', 'lands'], description: 'Optional role to look into' },
+      },
+    },
+  },
+  execute: async (input, context) => {
+    try {
+      const userId = context?.userId
+      if (!userId) {
+        return { content: 'Deck health requires authentication — userId not available', is_error: true }
+      }
+      if (!context?.deckId) {
+        return { content: 'No deck is being viewed, so there is no deck health to check.', is_error: true }
+      }
+      if (input.role !== undefined && input.role !== null && !isHealthRole(input.role)) {
+        return { content: 'Unknown role. Use ramp, draw, removal, wipes or lands.', is_error: true }
+      }
+      const outcome = await loadDeckHealthForChat(
+        createAdminClient() as unknown as HealthClient,
+        context.deckId,
+        userId,
+        isHealthRole(input.role) ? input.role : null,
+      )
+      if (!outcome.ok) {
+        return { content: `Deck health unavailable (${outcome.error}). Say you could not check the deck health; do not guess numbers.`, is_error: true }
+      }
+      return { content: JSON.stringify(outcome.result, null, 2), is_error: false }
+    } catch (err) {
+      console.error('[get_deck_health] Error:', err)
+      const msg = err instanceof Error ? err.message : 'health check failed'
+      return { content: `Deck health unavailable (${msg}). Say you could not check the deck health; do not guess numbers.`, is_error: true }
     }
   },
 })

@@ -738,6 +738,11 @@ export function useOracle() {
   return ctx
 }
 
+/** Like useOracle, but returns null outside the provider (for components that also render in isolation). */
+export function useOracleOptional() {
+  return useContext(OracleCtx)
+}
+
 /**
  * Hook for pages to set their Oracle context on mount.
  * Automatically cleans up to 'general' on unmount.

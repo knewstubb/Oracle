@@ -217,6 +217,6 @@ describe('check_owned_copies wiring', () => {
     expect(p.indexOf('2. In another deck')).toBeLessThan(p.indexOf('3. Buy'))
     expect(p).toMatch(/never hide or soften/i)
     expect(p).toMatch(/estimate/)
-    expect(p).toMatch(/Suggest only/)
+    expect(p).toMatch(/propose_deck_cards/)
   })
 })

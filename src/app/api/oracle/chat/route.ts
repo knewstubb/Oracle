@@ -474,7 +474,7 @@ export async function POST(request: NextRequest) {
         const onToolEvent = (event: ToolStreamEvent) => {
           // Forward tool_status and add_cards/remove_cards events
           // (candidates events are brew-specific, keep filtering those)
-          if (event.type === 'tool_status' || event.type === 'add_cards' || event.type === 'remove_cards') {
+          if (event.type === 'tool_status' || event.type === 'add_cards' || event.type === 'remove_cards' || event.type === 'add_proposals') {
             const sseData = JSON.stringify(event)
             controller.enqueue(encoder.encode(`data: ${sseData}\n\n`))
           }

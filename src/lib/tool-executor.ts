@@ -7,7 +7,7 @@
 // ---------------------------------------------------------------------------
 // Requirements: 6.1, 6.2, 6.4
 
-import { getToolDefinitions, getToolDefinitionsForContext, executeTool, isToolAllowedInContext, DECK_CHAT_CONTEXT } from './tool-registry'
+import { getToolDefinitions, getToolDefinitionsForContext, executeTool, isToolAllowedInContext, DECK_CHAT_CONTEXT, DECK_CHAT_ONLY_TOOLS } from './tool-registry'
 import type { ToolStreamEvent, ToolExecutionResult } from './tool-types'
 import type {
   ProviderAdapter,
@@ -232,7 +232,7 @@ export async function runToolLoop(options: ToolLoopOptions): Promise<ToolLoopRes
       let result: ToolExecutionResult
       try {
         // Deck chat: refuse a gated tool even if the model names it anyway.
-        if (contextType === DECK_CHAT_CONTEXT && !isToolAllowedInContext(call.name, contextType)) {
+        if ((contextType === DECK_CHAT_CONTEXT || DECK_CHAT_ONLY_TOOLS.has(call.name)) && !isToolAllowedInContext(call.name, contextType)) {
           throw new ToolNotAllowedError(call.name)
         }
         result = await Promise.race([
@@ -256,6 +256,9 @@ export async function runToolLoop(options: ToolLoopOptions): Promise<ToolLoopRes
         tool_name: call.name,
         status: result.is_error ? 'error' : 'complete',
       })
+
+      // Page-only events from a tool (for example Add buttons). The model only ever sees `content`.
+      for (const pageEvent of result.events ?? []) onToolEvent(pageEvent)
 
       // Emit structured data for display tools
       if (call.name === 'display_commander_candidates' && !result.is_error) {

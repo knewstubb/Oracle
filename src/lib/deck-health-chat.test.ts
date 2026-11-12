@@ -257,7 +257,8 @@ describe('chat wording rules', () => {
     expect(DECK_HEALTH_RULES).toMatch(/collaborator and instructor/)
     expect(DECK_HEALTH_RULES).toContain('browse_spare_copies')
     expect(DECK_HEALTH_RULES).toContain('check_owned_copies')
-    expect(DECK_HEALTH_RULES).toMatch(/Never offer to add/)
+    expect(DECK_HEALTH_RULES).toMatch(/propose_deck_cards/)
+    expect(DECK_HEALTH_RULES).not.toMatch(/Never offer to add/)
   })
 
   it('the button questions are plain words', () => {

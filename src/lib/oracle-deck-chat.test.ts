@@ -44,10 +44,11 @@ describe('oracle assistant prompt with a deck context', () => {
     expect(off).toContain('PROXIES AND GAPS')
     expect(off).toContain('Sol Ring')
   })
-  it('is suggest-only by default: no modify instructions, strict rules present', () => {
+  it('proposes cards by default: no modify instructions, strict rules present', () => {
     expect(off).not.toContain('=== MODIFYING THE DECK ===')
-    expect(off).toContain('SUGGESTIONS ONLY')
-    expect(off).toContain('NEVER say or imply that you added')
+    expect(off).toContain('PROPOSING CARDS')
+    expect(off).toContain('propose_deck_cards')
+    expect(off).toContain('Never say a card was added until the owner clicks Add')
   })
   it('has the owned-copy instruction in Spare, another deck, Buy order with warning', () => {
     expect(off).toContain('check_owned_copies')
@@ -59,7 +60,7 @@ describe('oracle assistant prompt with a deck context', () => {
   it('keeps the modify text (not deleted) when the setting is on, and drops suggest-only', () => {
     const on = buildOracleSystemPrompt(ctx, '', null, { deckChat: { editToolsEnabled: true, slotFacts: facts } })
     expect(on).toContain('=== MODIFYING THE DECK ===')
-    expect(on).not.toContain('SUGGESTIONS ONLY')
+    expect(on).not.toContain('PROPOSING CARDS')
   })
   it('is unchanged without deck chat options or outside a deck', () => {
     const plain = buildOracleSystemPrompt(ctx, '', null)

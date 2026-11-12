@@ -9,7 +9,10 @@ import type {
   RegisteredTool,
   AnthropicToolDefinition,
   ToolExecutionResult,
+  ToolStreamEvent,
 } from './tool-types'
+import { proposeDeckCards } from './chat-card-proposals'
+import type { CheckClient } from './chat-proposal-check'
 import type { OwnedCardInfo } from './card-repository'
 import { getMcpClient } from './mcp-client'
 import { getCardRepository } from './card-repository'
@@ -38,7 +41,7 @@ export const DECK_BUILDING_TOOLS: ReadonlySet<string> = new Set([
 ])
 
 // Tools offered only in the deck chat
-export const DECK_CHAT_ONLY_TOOLS: ReadonlySet<string> = new Set(['check_owned_copies', 'browse_spare_copies', 'get_deck_health'])
+export const DECK_CHAT_ONLY_TOOLS: ReadonlySet<string> = new Set(['check_owned_copies', 'browse_spare_copies', 'get_deck_health', 'propose_deck_cards'])
 
 // Contexts where deck-building tools should NOT be available
 const EXPLORATION_CONTEXTS = new Set([
@@ -1147,6 +1150,60 @@ registry.set('get_deck_health', {
       console.error('[get_deck_health] Error:', err)
       const msg = err instanceof Error ? err.message : 'health check failed'
       return { content: `Deck health unavailable (${msg}). Say you could not check the deck health; do not guess numbers.`, is_error: true }
+    }
+  },
+})
+
+// ---------------------------------------------------------------------------
+// Local Tool: propose_deck_cards (deck chat only). Read-only: it checks and records proposals.
+// The owner's Add click (a separate route the model cannot reach) is the only thing that changes a deck.
+// ---------------------------------------------------------------------------
+
+registry.set('propose_deck_cards', {
+  definition: {
+    name: 'propose_deck_cards',
+    description:
+      'Propose cards for the owner to add to the deck they are viewing. Use this whenever you recommend cards you want the owner to be able to add (up to 10 per call). The server checks every card (real card, not already in the deck, inside the deck colours, legal in Commander) and shows the owner an Add button for each ready card. This tool NEVER adds anything and you cannot confirm for the owner. Never say a card was added. Use the exact printed card name. The result tells you which cards are ready and why any are blocked; say the reason in plain words.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        cards: {
+          type: 'array',
+          maxItems: 10,
+          description: 'The cards to propose',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: 'Exact printed card name' },
+              category: { type: 'string', description: 'Optional deck category, for example Ramp, Removal, Draw' },
+              reason: { type: 'string', description: 'One short line on why this card fits the deck' },
+            },
+            required: ['name'],
+          },
+        },
+      },
+      required: ['cards'],
+    },
+  },
+  execute: async (input, context) => {
+    try {
+      const userId = context?.userId
+      if (!userId) return { content: 'Proposals require authentication — userId not available', is_error: true }
+      if (!context?.deckId) {
+        return { content: 'No deck is open, so there is nothing to add cards to. Tell the owner: "Open a deck and I can add cards to it." Suggest in words only.', is_error: true }
+      }
+      const cards = Array.isArray(input.cards)
+        ? (input.cards as Array<Record<string, unknown>>).map((c) => ({
+            name: typeof c?.name === 'string' ? c.name : '',
+            category: typeof c?.category === 'string' ? c.category : undefined,
+            reason: typeof c?.reason === 'string' ? c.reason : undefined,
+          }))
+        : []
+      const res = await proposeDeckCards(createAdminClient() as unknown as CheckClient, { userId, deckId: context.deckId, cards })
+      return { content: res.content, is_error: res.is_error, events: res.event ? [res.event as ToolStreamEvent] : undefined }
+    } catch (err) {
+      console.error('[propose_deck_cards] Error:', err)
+      return { content: 'Add buttons are not available right now. Suggest the cards in words only and do not offer to add them.', is_error: true }
     }
   },
 })

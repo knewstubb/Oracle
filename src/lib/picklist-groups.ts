@@ -25,7 +25,7 @@ export interface AvailableGroup {
   items: Array<{ card: PicklistCard; candidate: RankedCandidate }>
 }
 
-export interface ClaimedGroup {
+export interface NeedsMovingGroup {
   deckName: string
   deckStatus: string
   items: Array<{ card: PicklistCard; candidate: RankedCandidate }>
@@ -37,11 +37,11 @@ export interface UnownedItem {
 
 export function categorizeCards(cards: PicklistCard[], currentDeckId: number) {
   const available: AvailableGroup[] = []
-  const claimed: ClaimedGroup[] = []
+  const needsMoving: NeedsMovingGroup[] = []
   const unowned: UnownedItem[] = []
 
   const availableMap = new Map<string, AvailableGroup>()
-  const claimedMap = new Map<string, ClaimedGroup>()
+  const needsMovingMap = new Map<string, NeedsMovingGroup>()
   const seen = new Set<number>() // track which deckCardsIds we've already placed
 
   for (const card of cards) {
@@ -58,9 +58,7 @@ export function categorizeCards(cards: PicklistCard[], currentDeckId: number) {
     // Check for available (free in storage) candidates first
     const freeCandidate = candidates.find(c => !c.entry.assignedTo)
     if (freeCandidate && !seen.has(card.deckCardsId)) {
-      // Today's behaviour, kept on purpose in this step: the screen reads `storageLocationName`, which the candidates
-      // do not carry (they carry `locationName`), so every free copy lands under "Unsorted". Fixed in the regroup step.
-      const location = (freeCandidate.entry as unknown as { storageLocationName?: string }).storageLocationName || 'Unsorted'
+      const location = freeCandidate.entry.locationName || 'Unsorted'
       if (!availableMap.has(location)) {
         const group: AvailableGroup = { location, items: [] }
         availableMap.set(location, group)
@@ -72,16 +70,16 @@ export function categorizeCards(cards: PicklistCard[], currentDeckId: number) {
     }
 
     // Otherwise check for claimed (in another deck) candidates
-    const claimedCandidate = candidates.find(c => c.entry.assignedTo)
-    if (claimedCandidate && !seen.has(card.deckCardsId)) {
-      const assignment = claimedCandidate.entry.assignedTo!
+    const otherDeckCandidate = candidates.find(c => c.entry.assignedTo)
+    if (otherDeckCandidate && !seen.has(card.deckCardsId)) {
+      const assignment = otherDeckCandidate.entry.assignedTo!
       const key = String(assignment.deckId)
-      if (!claimedMap.has(key)) {
-        const group: ClaimedGroup = { deckName: assignment.deckName, deckStatus: assignment.deckStatus ?? '', items: [] }
-        claimedMap.set(key, group)
-        claimed.push(group)
+      if (!needsMovingMap.has(key)) {
+        const group: NeedsMovingGroup = { deckName: assignment.deckName, deckStatus: assignment.deckStatus ?? '', items: [] }
+        needsMovingMap.set(key, group)
+        needsMoving.push(group)
       }
-      claimedMap.get(key)!.items.push({ card, candidate: claimedCandidate })
+      needsMovingMap.get(key)!.items.push({ card, candidate: otherDeckCandidate })
       seen.add(card.deckCardsId)
       continue
     }
@@ -99,12 +97,12 @@ export function categorizeCards(cards: PicklistCard[], currentDeckId: number) {
   }
   available.sort((a, b) => a.location.localeCompare(b.location))
 
-  for (const group of claimed) {
+  for (const group of needsMoving) {
     group.items.sort((a, b) => a.card.cardName.localeCompare(b.card.cardName))
   }
-  claimed.sort((a, b) => a.deckName.localeCompare(b.deckName))
+  needsMoving.sort((a, b) => a.deckName.localeCompare(b.deckName))
 
   unowned.sort((a, b) => a.card.cardName.localeCompare(b.card.cardName))
 
-  return { available, claimed, unowned }
+  return { available, needsMoving, unowned }
 }

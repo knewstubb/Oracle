@@ -40,27 +40,31 @@ describe("categorizeCards: today's grouping", () => {
     const r = categorizeCards([card(1, 'Sol Ring', [cand({})])], DECK)
     expect(r.available).toHaveLength(1)
     expect(r.available[0].items.map((i) => i.card.cardName)).toEqual(['Sol Ring'])
-    expect(r.claimed).toEqual([])
+    expect(r.needsMoving).toEqual([])
     expect(r.unowned).toEqual([])
   })
 
-  it('KNOWN DEFECT: every Available card is grouped under "Unsorted", whatever box it is in (the screen reads a field the candidates do not have)', () => {
+  it('Available is grouped by the box the copy is in (before this step the screen put every card under "Unsorted": a field-name slip)', () => {
     const r = categorizeCards([card(1, 'A', [cand({ location: 'Box A' })]), card(2, 'B', [cand({ location: 'Binder' })])], DECK)
-    expect(r.available.map((g) => g.location)).toEqual(['Unsorted'])
-    expect(r.available[0].items).toHaveLength(2)
+    expect(r.available.map((g) => g.location)).toEqual(['Binder', 'Box A'])
   })
 
-  it('a card whose only copy sits in another deck is in the claimed group for that deck', () => {
+  it('a free copy with no box falls under "Unsorted"', () => {
+    const r = categorizeCards([card(1, 'A', [cand({ location: null })])], DECK)
+    expect(r.available.map((g) => g.location)).toEqual(['Unsorted'])
+  })
+
+  it('a card whose only copy sits in another deck is in the Needs moving group for that deck', () => {
     const r = categorizeCards([card(1, 'Cultivate', [cand({ tier: 3, deck: { id: 3, name: 'Prosper' } })])], DECK)
     expect(r.available).toEqual([])
-    expect(r.claimed).toHaveLength(1)
-    expect(r.claimed[0].deckName).toBe('Prosper')
-    expect(r.claimed[0].items[0].candidate.entry.physicalCopyId).toBe(1)
+    expect(r.needsMoving).toHaveLength(1)
+    expect(r.needsMoving[0].deckName).toBe('Prosper')
+    expect(r.needsMoving[0].items[0].candidate.entry.physicalCopyId).toBe(1)
   })
 
   it('a free copy wins over a copy in another deck', () => {
     const r = categorizeCards([card(1, 'Sol Ring', [cand({ copyId: 1, tier: 3, deck: { id: 3, name: 'Prosper' } }), cand({ copyId: 2 })])], DECK)
-    expect(r.claimed).toEqual([])
+    expect(r.needsMoving).toEqual([])
     expect(r.available[0].items[0].candidate.entry.physicalCopyId).toBe(2)
   })
 
@@ -78,7 +82,7 @@ describe("categorizeCards: today's grouping", () => {
   it('a copy already sitting in THIS deck is ignored', () => {
     const r = categorizeCards([card(1, 'Sol Ring', [cand({ tier: 3, deck: { id: DECK, name: 'This deck' } })])], DECK)
     expect(r.unowned).toHaveLength(1)
-    expect(r.claimed).toEqual([])
+    expect(r.needsMoving).toEqual([])
   })
 
   it('cards already sleeved or resolved are not listed', () => {
@@ -86,7 +90,7 @@ describe("categorizeCards: today's grouping", () => {
       card(1, 'A', [cand({})], { lifecycle: 'sleeved' }),
       card(2, 'B', [cand({})], { isResolved: true, copyId: 5 }),
     ], DECK)
-    expect(r).toEqual({ available: [], claimed: [], unowned: [] })
+    expect(r).toEqual({ available: [], needsMoving: [], unowned: [] })
   })
 
   it('a card needed twice appears once per slot', () => {
@@ -102,8 +106,8 @@ describe("categorizeCards: today's grouping", () => {
       card(4, 'Yak', []),
       card(5, 'Bat', []),
     ], DECK)
-    expect(r.claimed.map((g) => g.deckName)).toEqual(['Atraxa', 'Zurgo'])
-    expect(r.claimed[0].items.map((i) => i.card.cardName)).toEqual(['Apple', 'Mango'])
+    expect(r.needsMoving.map((g) => g.deckName)).toEqual(['Atraxa', 'Zurgo'])
+    expect(r.needsMoving[0].items.map((i) => i.card.cardName)).toEqual(['Apple', 'Mango'])
     expect(r.unowned.map((u) => u.card.cardName)).toEqual(['Bat', 'Yak'])
   })
 })

@@ -7,11 +7,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Loader2, Search, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { ConfirmationModal } from '@/components/ConfirmationModal'
+import { MoveHereControl } from '@/components/MoveHereControl'
+import { categorizeCards, type PicklistCard } from '@/lib/picklist-groups'
+import { toPrice, formatPrice } from '@/lib/deck-health-buy'
 import { CardHoverPreview, useCardHoverPreview } from '@/components/CardHoverPreview'
 import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
 import type { RankedCandidate } from '@/lib/allocation-candidates'
-import type { DeckCardLifecycle, CardSlotStatus } from '@/lib/card-status'
+
+export type { PicklistCard }
 
 // ---------------------------------------------------------------------------
 // Types
@@ -21,127 +24,25 @@ interface PicklistV2Props {
   deckId: number
 }
 
-export interface PicklistCard {
-  deckCardsId: number
-  cardName: string
-  lifecycle: DeckCardLifecycle
-  allocationStatus: CardSlotStatus | null
-  copyId: number | null
-  isResolved: boolean
-  // Compatibility fields retained for existing allocation controls.
-  physicalCopyId: number | null
-  ownershipStatus: string | null
-  candidates: RankedCandidate[]
-}
-
 interface PicklistResponse {
   deckName: string
   cards: PicklistCard[]
   progress: { resolved: number; total: number }
-}
-
-// ---------------------------------------------------------------------------
-// Grouping helpers
-// ---------------------------------------------------------------------------
-
-interface AvailableGroup {
-  location: string
-  items: Array<{ card: PicklistCard; candidate: RankedCandidate }>
-}
-
-interface ClaimedGroup {
-  deckName: string
-  deckStatus: string
-  items: Array<{ card: PicklistCard; candidate: RankedCandidate }>
-}
-
-interface UnownedItem {
-  card: PicklistCard
-}
-
-function categorizeCards(cards: PicklistCard[], currentDeckId: number) {
-  const available: AvailableGroup[] = []
-  const claimed: ClaimedGroup[] = []
-  const unowned: UnownedItem[] = []
-
-  const availableMap = new Map<string, AvailableGroup>()
-  const claimedMap = new Map<string, ClaimedGroup>()
-  const seen = new Set<number>() // track which deckCardsIds we've already placed
-
-  for (const card of cards) {
-    if (card.lifecycle === 'sleeved' || card.isResolved) continue
-
-    // Filter out candidates assigned to the current deck (self-reference)
-    const candidates = card.candidates.filter(c => !c.entry.assignedTo || c.entry.assignedTo.deckId !== currentDeckId)
-    if (candidates.length === 0 || candidates[0].tier === 5) {
-      // Unowned — no copies exist
-      unowned.push({ card })
-      continue
-    }
-
-    // Check for available (free in storage) candidates first
-    const freeCandidate = candidates.find(c => !c.entry.assignedTo)
-    if (freeCandidate && !seen.has(card.deckCardsId)) {
-      const location = freeCandidate.entry.storageLocationName || 'Unsorted'
-      if (!availableMap.has(location)) {
-        const group: AvailableGroup = { location, items: [] }
-        availableMap.set(location, group)
-        available.push(group)
-      }
-      availableMap.get(location)!.items.push({ card, candidate: freeCandidate })
-      seen.add(card.deckCardsId)
-      continue
-    }
-
-    // Otherwise check for claimed (in another deck) candidates
-    const claimedCandidate = candidates.find(c => c.entry.assignedTo)
-    if (claimedCandidate && !seen.has(card.deckCardsId)) {
-      const assignment = claimedCandidate.entry.assignedTo!
-      const key = String(assignment.deckId)
-      if (!claimedMap.has(key)) {
-        const group: ClaimedGroup = { deckName: assignment.deckName, deckStatus: assignment.deckStatus, items: [] }
-        claimedMap.set(key, group)
-        claimed.push(group)
-      }
-      claimedMap.get(key)!.items.push({ card, candidate: claimedCandidate })
-      seen.add(card.deckCardsId)
-      continue
-    }
-
-    // Fallback: unowned
-    if (!seen.has(card.deckCardsId)) {
-      unowned.push({ card })
-      seen.add(card.deckCardsId)
-    }
-  }
-
-  // Sort: items alphabetically within each group, groups alphabetically by location/deck name
-  for (const group of available) {
-    group.items.sort((a, b) => a.card.cardName.localeCompare(b.card.cardName))
-  }
-  available.sort((a, b) => a.location.localeCompare(b.location))
-
-  for (const group of claimed) {
-    group.items.sort((a, b) => a.card.cardName.localeCompare(b.card.cardName))
-  }
-  claimed.sort((a, b) => a.deckName.localeCompare(b.deckName))
-
-  unowned.sort((a, b) => a.card.cardName.localeCompare(b.card.cardName))
-
-  return { available, claimed, unowned }
+  groups?: { available: number; needsMoving: number; unowned: number }
+  unownedPrices?: Record<string, number | null>
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
+type GroupKey = 'available' | 'needsMoving' | 'unowned'
+
 export function PicklistV2({ deckId }: PicklistV2Props) {
   const queryClient = useQueryClient()
-  const [loadingRows, setLoadingRows] = useState<Set<number>>(new Set())
-  const [tier4Pending, setTier4Pending] = useState<{ card: PicklistCard; candidate: RankedCandidate } | null>(null)
-  const [tier4Loading, setTier4Loading] = useState(false)
+  const [collapsed, setCollapsed] = useState<Record<GroupKey, boolean>>({ available: false, needsMoving: false, unowned: false })
 
-  const { data: picklist, isLoading } = useQuery<PicklistResponse>({
+  const { data: picklist, isLoading, isError, refetch } = useQuery<PicklistResponse>({
     queryKey: deckKeys.picklist(deckId),
     queryFn: () => fetch(`/api/decks/${deckId}/picklist`).then(r => {
       if (!r.ok) throw new Error('Failed to load picklist')
@@ -150,31 +51,31 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
     staleTime: 30 * 1000,
   })
 
-  const { available, claimed, unowned } = useMemo(() => {
-    if (!picklist) return { available: [], claimed: [], unowned: [] }
+  const { available, needsMoving, unowned } = useMemo(() => {
+    if (!picklist) return { available: [], needsMoving: [], unowned: [] }
     const unresolvedCards = picklist.cards.filter(c => c.lifecycle === 'planned' && !c.isResolved)
     return categorizeCards(unresolvedCards, deckId)
-  }, [picklist])
+  }, [picklist, deckId])
 
   // Search state + filtered results
   const [searchQuery, setSearchQuery] = useState('')
 
-  const { filteredAvailable, filteredClaimed, filteredUnowned } = useMemo(() => {
+  const { filteredAvailable, filteredNeedsMoving, filteredUnowned } = useMemo(() => {
     if (!searchQuery.trim()) {
-      return { filteredAvailable: available, filteredClaimed: claimed, filteredUnowned: unowned }
+      return { filteredAvailable: available, filteredNeedsMoving: needsMoving, filteredUnowned: unowned }
     }
     const q = searchQuery.toLowerCase()
     const filteredAvailable = available
       .map(group => ({ ...group, items: group.items.filter(i => i.card.cardName.toLowerCase().includes(q)) }))
       .filter(group => group.items.length > 0)
-    const filteredClaimed = claimed
+    const filteredNeedsMoving = needsMoving
       .map(group => ({ ...group, items: group.items.filter(i => i.card.cardName.toLowerCase().includes(q)) }))
       .filter(group => group.items.length > 0)
     const filteredUnowned = unowned.filter(i => i.card.cardName.toLowerCase().includes(q))
-    return { filteredAvailable, filteredClaimed, filteredUnowned }
-  }, [available, claimed, unowned, searchQuery])
+    return { filteredAvailable, filteredNeedsMoving, filteredUnowned }
+  }, [available, needsMoving, unowned, searchQuery])
 
-  // Assign mutation (tier 1-3)
+  // "Placed it" mutation: the copy is free in a box, so it is assigned to this deck
   const assignMutation = useMutation({
     mutationFn: async (body: { deckCardsId: number; physicalCopyId: number; tier?: number }) => {
       const res = await fetch('/api/allocation/assign', {
@@ -185,26 +86,6 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
         throw new Error(err.error || 'Assignment failed')
-      }
-      return res.json()
-    },
-    onSuccess: () => {
-      const { invalidateCardState } = createDeckInvalidators(queryClient)
-      invalidateCardState(deckId)
-    },
-  })
-
-  // Claim from deck mutation (tier 4)
-  const claimMutation = useMutation({
-    mutationFn: async (body: { deckCardsId: number; physicalCopyId: number }) => {
-      const res = await fetch('/api/allocation/claim-from-deck', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || 'Sleeve failed')
       }
       return res.json()
     },
@@ -242,22 +123,15 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
     },
   })
 
-  const handleClaim = useCallback((card: PicklistCard, candidate: RankedCandidate) => {
-    if (candidate.entry.assignedTo) {
-      // Tier 4: confirm
-      if (candidate.entry.assignedTo.deckStatus === 'in_rotation') {
-        setTier4Pending({ card, candidate })
-        return
-      }
-      // Tier 3 (brewing): instant
-      claimMutation.mutate({ deckCardsId: card.deckCardsId, physicalCopyId: candidate.entry.physicalCopyId })
-      toast.success(`Sleeved ${card.cardName}`)
-    } else {
-      // Available: assign
-      assignMutation.mutate({ deckCardsId: card.deckCardsId, physicalCopyId: candidate.entry.physicalCopyId })
-      toast.success(`Assigned ${card.cardName}`)
-    }
-  }, [assignMutation, claimMutation])
+  const handlePlaced = useCallback((card: PicklistCard, candidate: RankedCandidate) => {
+    assignMutation.mutate(
+      { deckCardsId: card.deckCardsId, physicalCopyId: candidate.entry.physicalCopyId },
+      {
+        onSuccess: () => toast.success(`Placed ${card.cardName}`),
+        onError: (err) => toast.error(err instanceof Error ? err.message : 'Could not place that card'),
+      },
+    )
+  }, [assignMutation])
 
   const handleProxy = useCallback((card: PicklistCard) => {
     proxyMutation.mutate({ deckCardsId: card.deckCardsId, cardName: card.cardName })
@@ -266,8 +140,7 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        {/* Skeleton progress bar */}
+      <div className="space-y-4" aria-busy="true">
         <div className="rounded-lg border border-white/[0.08] px-4 py-3" style={{ backgroundColor: 'rgba(26,26,30,0.5)' }}>
           <div className="mb-2 flex items-center justify-between">
             <div className="h-4 w-32 animate-pulse rounded bg-white/[0.06]" />
@@ -275,31 +148,39 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
           </div>
           <div className="h-2 w-full animate-pulse rounded-full bg-white/[0.06]" />
         </div>
-        {/* Skeleton columns */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {[0, 1, 2].map((col) => (
-            <div key={col} className="space-y-3">
-              <div className="h-5 w-24 animate-pulse rounded bg-white/[0.06]" />
-              <div className="rounded-lg border border-white/[0.08] p-3 space-y-2" style={{ backgroundColor: 'rgba(26,26,30,0.5)' }}>
-                {[0, 1, 2, 3].map((row) => (
-                  <div key={row} className="flex items-center gap-2">
-                    <div className="h-8 w-6 animate-pulse rounded bg-white/[0.06]" />
-                    <div className="h-4 flex-1 animate-pulse rounded bg-white/[0.06]" />
-                    <div className="h-6 w-14 animate-pulse rounded bg-white/[0.06]" />
-                  </div>
-                ))}
+        {[0, 1, 2].map((g) => (
+          <div key={g} className="rounded-lg border border-white/[0.08] p-3 space-y-2" style={{ backgroundColor: 'rgba(26,26,30,0.5)' }}>
+            <div className="h-5 w-32 animate-pulse rounded bg-white/[0.06]" />
+            {[0, 1, 2].map((row) => (
+              <div key={row} className="flex items-center gap-2">
+                <div className="h-8 w-6 animate-pulse rounded bg-white/[0.06]" />
+                <div className="h-4 flex-1 animate-pulse rounded bg-white/[0.06]" />
+                <div className="h-6 w-14 animate-pulse rounded bg-white/[0.06]" />
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ))}
       </div>
     )
   }
 
-  const isPending = assignMutation.isPending || claimMutation.isPending || proxyMutation.isPending
+  if (isError || !picklist) {
+    return (
+      <div
+        role="alert"
+        className="flex min-h-[200px] flex-col items-center justify-center gap-3 rounded-lg text-center"
+        style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}
+      >
+        <p className="text-[length:var(--fs-md)] text-foreground">{"Couldn't load this deck's Picklist. Your cards haven't changed."}</p>
+        <Button size="sm" variant="outline" onClick={() => refetch()}>Try again</Button>
+      </div>
+    )
+  }
+
+  const isPending = assignMutation.isPending || proxyMutation.isPending
 
   // Empty deck — no cards at all
-  if (picklist && picklist.progress.total === 0) {
+  if (picklist.progress.total === 0) {
     return (
       <div
         className="flex min-h-[300px] flex-col items-center justify-center gap-4 rounded-lg text-center"
@@ -307,18 +188,26 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
       >
         <p className="text-[length:var(--fs-lg)] font-medium text-foreground">No cards in this deck yet</p>
         <p className="max-w-sm text-[length:var(--fs-sm)] text-muted-foreground">
-          Import cards from a URL or paste a list to start building your picklist.
+          Import cards from a URL or paste a list to start building your Picklist.
         </p>
       </div>
     )
   }
 
+  const countAvailable = available.reduce((n, g) => n + g.items.length, 0)
+  const countNeedsMoving = needsMoving.reduce((n, g) => n + g.items.length, 0)
+  const countUnowned = unowned.length
+  const prices = picklist.unownedPrices ?? {}
+  const toggle = (k: GroupKey) => setCollapsed((c) => ({ ...c, [k]: !c[k] }))
+
   return (
     <>
-      {/* Progress bar */}
-      {picklist && (
-        <PicklistProgress cards={picklist.cards} progress={picklist.progress} />
-      )}
+      {/* Progress: "N of M ready" */}
+      <PicklistProgress cards={picklist.cards} progress={picklist.progress} />
+      <p className="mb-4 text-[length:var(--fs-sm)] text-muted-foreground" data-testid="picklist-summary">
+        <span className="font-medium text-foreground">{picklist.progress.resolved} of {picklist.progress.total} ready</span>
+        {' · '}{countAvailable} available · {countNeedsMoving} need moving · {countUnowned} unowned
+      </p>
 
       {/* Search input */}
       <div className="relative mb-4 max-w-sm">
@@ -347,26 +236,21 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
         )}
       </div>
 
-      {/* Column headers */}
-      <div className="mb-4 hidden md:grid md:grid-cols-3 gap-4">
-        <h2 className="text-[length:var(--fs-md)] font-semibold text-foreground">In storage</h2>
-        <h2 className="text-[length:var(--fs-md)] font-semibold text-foreground">In decks</h2>
-        <h2 className="text-[length:var(--fs-md)] font-semibold text-foreground">Unowned</h2>
-      </div>
-
-      {/* Three columns (desktop) / stacked sections (mobile) */}
-      <div className="flex flex-col gap-6 md:grid md:grid-cols-3 md:gap-4 md:items-start">
-        {/* Available column */}
-        <div className="flex flex-col gap-3">
-          <h2 className="text-[length:var(--fs-md)] font-semibold text-foreground md:hidden">In storage</h2>
+      <div className="flex flex-col gap-6">
+        {/* Available */}
+        <PicklistGroup
+          testId="group-available"
+          title="Available"
+          count={countAvailable}
+          hint="In a box, ready to place in this deck"
+          collapsed={collapsed.available}
+          onToggle={() => toggle('available')}
+        >
           {filteredAvailable.length === 0 ? (
-            <EmptyColumn message="No cards in storage" />
+            <EmptyColumn message="Nothing here is waiting in a box." />
           ) : (
             filteredAvailable.map((group) => (
-              <GroupSection
-                key={group.location}
-                title={`${group.location.toUpperCase()} (${group.items.length})`}
-              >
+              <GroupSection key={group.location} title={`${group.location.toUpperCase()} (${group.items.length})`}>
                 {group.items.map(({ card, candidate }) => (
                   <CardRow
                     key={card.deckCardsId}
@@ -379,11 +263,12 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
                         size="xs"
                         variant="outline"
                         disabled={isPending}
-                        onClick={() => handleClaim(card, candidate)}
+                        onClick={() => handlePlaced(card, candidate)}
+                        aria-label={`Placed it: ${card.cardName}`}
                         className="hover:bg-[rgba(29,158,117,0.15)] hover:scale-105 transition-all"
                         style={{ color: 'rgba(29,158,117,0.7)', borderColor: 'rgba(29,158,117,0.5)' }}
                       >
-                        Sleeve
+                        Placed it
                       </Button>
                     }
                   />
@@ -391,15 +276,21 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
               </GroupSection>
             ))
           )}
-        </div>
+        </PicklistGroup>
 
-        {/* Claimed column */}
-        <div className="flex flex-col gap-3">
-          <h2 className="text-[length:var(--fs-md)] font-semibold text-foreground md:hidden">In decks</h2>
-          {filteredClaimed.length === 0 ? (
-            <EmptyColumn message="No cards in decks" />
+        {/* Needs moving */}
+        <PicklistGroup
+          testId="group-needs-moving"
+          title="Needs moving"
+          count={countNeedsMoving}
+          hint="Your copy is in another deck"
+          collapsed={collapsed.needsMoving}
+          onToggle={() => toggle('needsMoving')}
+        >
+          {filteredNeedsMoving.length === 0 ? (
+            <EmptyColumn message="Nothing needs to move from another deck." />
           ) : (
-            filteredClaimed.map((group) => (
+            filteredNeedsMoving.map((group) => (
               <GroupSection
                 key={group.deckName}
                 title={`${group.deckName.toUpperCase()} (${group.items.length})`}
@@ -412,29 +303,25 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
                     isProxy={candidate.entry.isProxy}
                     subtitle={candidate.entry.isProxy ? 'Proxy' : 'Original'}
                     scryfallPrintingId={candidate.entry.scryfallPrintingId}
-                    action={
-                      <Button
-                        size="xs"
-                        variant="outline"
-                        disabled={isPending}
-                        onClick={() => handleClaim(card, candidate)}
-                        className="hover:bg-[rgba(245,136,11,0.15)] hover:scale-105 transition-all" style={{ color: '#F5880B', borderColor: '#F5880B' }}
-                      >
-                        Sleeve
-                      </Button>
-                    }
+                    action={<MoveHereControl deckId={deckId} cardName={card.cardName} />}
                   />
                 ))}
               </GroupSection>
             ))
           )}
-        </div>
+        </PicklistGroup>
 
-        {/* Unowned column */}
-        <div className="flex flex-col gap-3">
-          <h2 className="text-[length:var(--fs-md)] font-semibold text-foreground md:hidden">Unowned</h2>
+        {/* Unowned */}
+        <PicklistGroup
+          testId="group-unowned"
+          title="Unowned"
+          count={countUnowned}
+          hint="You do not own these yet"
+          collapsed={collapsed.unowned}
+          onToggle={() => toggle('unowned')}
+        >
           {filteredUnowned.length === 0 ? (
-            <EmptyColumn message="Nothing unowned" />
+            <EmptyColumn message="You own everything this deck needs." />
           ) : (
             <GroupSection title={`UNOWNED (${filteredUnowned.length})`}>
               {filteredUnowned.map(({ card }) => (
@@ -442,7 +329,7 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
                   key={card.deckCardsId}
                   cardName={card.cardName}
                   isProxy={false}
-                  subtitle=""
+                  subtitle={formatPrice(toPrice(prices[card.cardName] ?? null))}
                   scryfallPrintingId={null}
                   action={
                     <Button
@@ -457,41 +344,40 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
                   }
                 />
               ))}
+              <p className="px-3 py-2 text-[length:var(--fs-xs)] text-muted-foreground">
+                <a
+                  href={`/decks/${deckId}?tab=cards`}
+                  className="underline underline-offset-2 hover:text-foreground"
+                >
+                  See buy ideas on the Cards tab
+                </a>
+              </p>
             </GroupSection>
           )}
-        </div>
+        </PicklistGroup>
       </div>
-
-      {/* Tier 4 confirmation modal */}
-      <ConfirmationModal
-        open={tier4Pending !== null}
-        onConfirm={async () => {
-          if (!tier4Pending) return
-          setTier4Loading(true)
-          try {
-            await claimMutation.mutateAsync({
-              deckCardsId: tier4Pending.card.deckCardsId,
-              physicalCopyId: tier4Pending.candidate.entry.physicalCopyId,
-            })
-            toast.success(`Sleeved ${tier4Pending.card.cardName}`)
-          } catch (err) {
-            toast.error(err instanceof Error ? err.message : 'Sleeve failed')
-          } finally {
-            setTier4Loading(false)
-            setTier4Pending(null)
-          }
-        }}
-        onCancel={() => setTier4Pending(null)}
-        title="Sleeve from Active deck?"
-        description={
-          tier4Pending
-            ? `This copy is currently in ${tier4Pending.candidate.entry.assignedTo?.deckName ?? 'another deck'}. Removing it will make that deck incomplete. Continue?`
-            : undefined
-        }
-        confirmLabel="Sleeve"
-        isLoading={tier4Loading}
-      />
     </>
+  )
+}
+
+function PicklistGroup({
+  testId, title, count, hint, collapsed, onToggle, children,
+}: {
+  testId: string; title: string; count: number; hint: string; collapsed: boolean; onToggle: () => void; children: React.ReactNode
+}) {
+  return (
+    <section data-testid={testId} aria-label={title} className="flex flex-col gap-3">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={!collapsed}
+        className="flex items-baseline gap-2 text-left"
+      >
+        <h2 className="text-[length:var(--fs-md)] font-semibold text-foreground">{title} ({count})</h2>
+        <span className="text-[length:var(--fs-xs)] text-muted-foreground">{hint}</span>
+      </button>
+      {!collapsed && children}
+    </section>
   )
 }
 

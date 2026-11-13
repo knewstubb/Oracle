@@ -14,7 +14,9 @@
  *     ownershipStatus: string | null,
  *     candidates: RankedCandidate[]
  *   }>,
- *   progress: { resolved: number, total: number }
+ *   progress: { resolved: number, total: number },
+ *   groups: { available: number, needsMoving: number, unowned: number },   (added, counts of rows in each Picklist group)
+ *   unownedPrices: Record<cardName, number | null>   (added; cheapest known price, null = price unknown)
  * }
  */
 import { NextRequest } from 'next/server'
@@ -23,6 +25,8 @@ import { createAdminClient } from '@/lib/supabase'
 import { getBatchRankedCandidates, type RankedCandidate } from '@/lib/allocation-candidates'
 import { computeDeckCardStatuses } from '@/lib/card-status'
 import { isGenericSlot, isGenericSleeved } from '@/lib/basic-lands'
+import { categorizeCards, type PicklistCard as GroupCard } from '@/lib/picklist-groups'
+import { lookupOwnedCopies, type LookupClient } from '@/lib/owned-copy-lookup'
 
 interface PicklistCard {
   id: number
@@ -147,9 +151,35 @@ export async function GET(
       }
     })
 
+  // Added fields for the Picklist screen: how many rows sit in each group, and a price for each unowned card.
+  const grouped = categorizeCards(
+    (responseCards as unknown as GroupCard[]).filter(c => c.lifecycle === 'planned' && !c.isResolved),
+    deckId,
+  )
+  const groups = {
+    available: grouped.available.reduce((n, g) => n + g.items.length, 0),
+    needsMoving: grouped.needsMoving.reduce((n, g) => n + g.items.length, 0),
+    unowned: grouped.unowned.length,
+  }
+  const unownedPrices: Record<string, number | null> = {}
+  const unownedNames = [...new Set(grouped.unowned.map(u => u.card.cardName))]
+  for (const n of unownedNames) unownedPrices[n] = null
+  if (unownedNames.length > 0) {
+    try {
+      const lookup = await lookupOwnedCopies(supabase as unknown as LookupClient, { userId, deckId, cardNames: unownedNames })
+      for (const r of lookup.results) {
+        if (r.requested_name in unownedPrices) unownedPrices[r.requested_name] = r.price?.usd ?? null
+      }
+    } catch (err) {
+      console.error('[picklist] Failed to look up prices:', err) // prices stay "unknown"
+    }
+  }
+
   return Response.json({
     deckName: deck.name,
     cards: responseCards,
     progress: { resolved, total },
+    groups,
+    unownedPrices,
   })
 }

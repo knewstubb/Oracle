@@ -8,6 +8,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { Check, Plus, Undo2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { MoveHereControl } from '@/components/MoveHereControl'
 import type { ConfirmReply, ProposalCard, UndoReply } from '@/lib/chat-proposal-types'
 
 export interface ProposalGroup {
@@ -206,6 +207,9 @@ export function ChatProposalCards({ group, onDeckChanged }: { group: ProposalGro
                 </div>
               </div>
               {soloUndo && <ReceiptLine receipt={batchReceipt!} />}
+              {(row.kind === 'added' || row.kind === 'undoing') && copyStillLine(p.ownershipLine) && (
+                <div className="mt-2"><MoveHereControl deckId={deckId} cardName={p.cardName} /></div>
+              )}
             </li>
           )
         })}

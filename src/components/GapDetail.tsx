@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { CardImage } from '@/components/CardImage'
 import { MobileCardPreview } from '@/components/MobileCardPreview'
 import { useCardHoverPreview } from '@/components/CardHoverPreview'
+import { MoveHereControl } from '@/components/MoveHereControl'
 import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
 import type { DeckHealthGap, GapCard } from '@/lib/deck-health-gap'
 import { formatPrice, type BuyIdea } from '@/lib/deck-health-buy'
@@ -33,7 +34,7 @@ const NOTHING_OWNED: Record<HealthRoleKey, string> = {
   lands: "You don't own a spare land that fits.",
 }
 
-function CardRow({ card, deckId }: { card: GapCard | BuyIdea; deckId: number }) {
+function CardRow({ card, deckId, addedInitially = false, onAdded }: { card: GapCard | BuyIdea; deckId: number; addedInitially?: boolean; onAdded?: (card: GapCard | BuyIdea) => void }) {
   const buy = !('status' in card)
   const spare = !buy && card.status === 'SPARE'
   const otherDeckName = 'otherDeckName' in card ? card.otherDeckName : null
@@ -55,6 +56,7 @@ function CardRow({ card, deckId }: { card: GapCard | BuyIdea; deckId: number }) 
     },
     onSuccess: () => {
       toast.success(`Added ${card.name}`)
+      onAdded?.(card)
       createDeckInvalidators(queryClient).invalidateDeck(deckId)
     },
     onError: (err: Error) => {
@@ -148,7 +150,7 @@ function CardRow({ card, deckId }: { card: GapCard | BuyIdea; deckId: number }) 
           </span>
         ) : null}
         <div className="mt-1.5 flex flex-wrap items-center gap-2">
-          {add.isSuccess ? (
+          {add.isSuccess || addedInitially ? (
             <span role="status" data-testid="gap-added" className="inline-flex items-center gap-1 text-[length:var(--fs-sm)]" style={{ color: 'var(--text-primary)' }}>
               <Check size={12} aria-hidden="true" />
               Added to deck
@@ -167,6 +169,7 @@ function CardRow({ card, deckId }: { card: GapCard | BuyIdea; deckId: number }) 
               {add.isPending ? 'Adding…' : add.isError ? 'Try again' : 'Add to deck'}
             </Button>
           )}
+          {(add.isSuccess || addedInitially) && otherDeckName ? <MoveHereControl deckId={deckId} cardName={card.name} /> : null}
           {add.isError && (
             <span role="alert" data-testid="gap-add-error" className="text-[length:var(--fs-sm)]" style={{ color: 'var(--signal-critical)' }}>
               Couldn&apos;t add. {add.error.message}
@@ -194,6 +197,7 @@ export function gapErrorReason(err: unknown): string {
 
 export function GapDetail({ deckId, role, onBack, onChat }: GapDetailProps) {
   const [showInDeck, setShowInDeck] = useState(false)
+  const [pinned, setPinned] = useState<Record<string, GapCard>>({})
   const { data, error, isPending, isError, refetch } = useQuery<DeckHealthGap>({
     queryKey: [...deckKeys.health(deckId), 'gap', role],
     queryFn: async ({ signal }) => {
@@ -339,15 +343,21 @@ export function GapDetail({ deckId, role, onBack, onChat }: GapDetailProps) {
             </section>
           )}
 
-          {data.inAnotherDeck.length > 0 && (
+          {(data.inAnotherDeck.length > 0 || Object.keys(pinned).length > 0) && (
             <section aria-label="In another deck">
               <h4 className="font-semibold" style={{ color: 'var(--text-primary)' }}>
                 In another deck ({data.inAnotherDeckTotal})
               </h4>
               <ul>
                 {data.inAnotherDeck.map((c) => (
-                  <CardRow key={c.name} card={c} deckId={deckId} />
+                  <CardRow key={c.name} card={c} deckId={deckId} onAdded={(card) => setPinned((p) => ({ ...p, [card.name]: card as GapCard }))} />
                 ))}
+                {/* A card just added leaves this list on the next refresh; keep its row so Move here stays reachable. */}
+                {Object.values(pinned)
+                  .filter((c) => !data.inAnotherDeck.some((x) => x.name === c.name))
+                  .map((c) => (
+                    <CardRow key={c.name} card={c} deckId={deckId} addedInitially />
+                  ))}
               </ul>
             </section>
           )}

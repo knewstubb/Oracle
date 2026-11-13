@@ -33,9 +33,10 @@ const gap = (over: Partial<DeckHealthGap> = {}): DeckHealthGap => ({
 
 const json = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), { status }))
 
-function setup(postImpl: () => Promise<Response>, body: DeckHealthGap = gap()) {
+function setup(postImpl: () => Promise<Response>, body: DeckHealthGap = gap(), moveHere?: unknown) {
   const fetchMock = vi.fn((url: string, init?: RequestInit) => {
     if (init?.method === 'POST') return postImpl()
+    if (moveHere && url.includes('/move-here')) return json(moveHere)
     return json(body)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -87,6 +88,15 @@ describe('GapDetail: Add to deck', () => {
     await screen.findByText('Held Draw')
     fireEvent.click(screen.getByRole('button', { name: 'Add Held Draw to deck' }))
     expect(await screen.findByTestId('gap-added')).toHaveTextContent('the copy stays in Korvold')
+  })
+
+  it('right after adding a card whose only copy is in another deck, Move here is offered (and stays after the list refreshes)', async () => {
+    const reply = { hasOpenSlot: true, copies: [{ copyId: 5, isProxy: false, deckId: 3, deckName: 'Korvold', deckState: 'assembling' }] }
+    setup(() => json({ id: 2 }, 201), gap(), reply)
+    await screen.findByText('Held Draw')
+    expect(screen.queryByRole('button', { name: /Move Held Draw here/ })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Add Held Draw to deck' }))
+    expect(await screen.findByRole('button', { name: 'Move Held Draw here from Korvold' })).toBeInTheDocument()
   })
 
   it('shows a clear error with Try again when the add fails, and a retry can succeed', async () => {

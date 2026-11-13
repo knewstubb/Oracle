@@ -2,6 +2,11 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import { ChatProposalCards, copyStillLine, receiptText, type ProposalGroup } from './ChatProposalCards'
 
+// Move here has its own tests; here it is a marker so these tests' ordered fetch stubs are not disturbed.
+vi.mock('@/components/MoveHereControl', () => ({
+  MoveHereControl: ({ cardName }: { cardName: string }) => <span data-testid="move-here-stub">{cardName}</span>,
+}))
+
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
@@ -55,6 +60,17 @@ describe('ChatProposalCards', () => {
     fireEvent.click(screen.getByText('Undo'))
     await screen.findByText('Removed again. Nothing else changed.')
     expect(fetchMock.mock.calls[1][0]).toBe('/api/decks/7/chat-proposals/undo')
+  })
+
+  it('offers Move here right after Add only when the copy sits in another deck', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(200, { added: [{ proposalId: 'p1', deckCardId: 1 }, { proposalId: 'p2', deckCardId: 2 }], skipped: [], deckCardCount: 40 })))
+    render(<ChatProposalCards group={group} />)
+    expect(screen.queryByTestId('move-here-stub')).toBeNull()
+    fireEvent.click(screen.getByText('Add all (2)'))
+    await screen.findAllByText('Added')
+    const stubs = screen.getAllByTestId('move-here-stub')
+    expect(stubs).toHaveLength(1)
+    expect(stubs[0]).toHaveTextContent('Sol Ring')
   })
 
   it('planned-slot wording when the card is not owned', async () => {

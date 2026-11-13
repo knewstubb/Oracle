@@ -247,6 +247,8 @@ export interface ManaBoxCollectionImportSummary {
   unlistedFinish?: number
   /** Copies stored with a foil or etched finish (proxies excluded). */
   foils?: number
+  /** Where the copies went (know-where-cards-are, import destination). Absent on older responses. */
+  placement?: import('./know-where-cards-are.types').ImportPlacementResult
 }
 
 /**

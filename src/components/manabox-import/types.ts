@@ -6,6 +6,7 @@ import type {
   ImportValueNotices,
 } from '../../../docs/oracle/contracts/import-row-editing.types'
 import { INITIAL_IMPORT_DEFAULTS } from '../../../docs/oracle/contracts/import-row-editing.types'
+import type { ImportDestination, ImportPlacementResult } from '../../../docs/oracle/contracts/know-where-cards-are.types'
 import { resolveRowCopies } from '@/lib/import-copies'
 import { isGenericBasic } from '@/lib/basic-lands'
 import type { ManaBoxSkippedToken, ManaBoxUnmatchedLine } from '../../../docs/oracle/contracts/manabox-import.types'
@@ -58,6 +59,8 @@ export type ImportStep =
       companion?: { name: string; scryfallId: string | null } | null
       /** The "Importing as" bar. Held here only; never saved. */
       defaults: ImportDefaults
+      /** Collection import only: where the whole import goes. Held here only, so it resets to Unsorted every import. */
+      destination?: ImportDestination
       /** "Ignore basic lands" switch in the Importing as bar. On by default. */
       ignoreBasics?: boolean
       /** Owner edits by row key then copy index. */
@@ -83,6 +86,8 @@ export type ImportStep =
         unlistedFinish?: number
         genericNotes?: string[]
         unmatched: ManaBoxUnmatchedLine[]
+        /** Collection import: where the copies went, straight from the server. */
+        placement?: ImportPlacementResult
         deckId?: number
       }
       deckName: string

@@ -14,6 +14,8 @@ import { ManaBoxFilePicker } from './ManaBoxFilePicker'
 import { ImportFileChip } from './ImportFileChip'
 import { ImportNotices, ImportValueNoticeLines, useHiddenNotes, countHiddenNotes } from './ImportNoticeLine'
 import { ImportDefaultsBar } from './ImportDefaultsBar'
+import { ImportDestinationPicker, destinationName, type DestinationPlaces } from './ImportDestinationPicker'
+import { fetchImportDestinations } from './destinations-client'
 import { countFinishNotices } from '@/lib/import-copies'
 import type { ImportCopyEdits, ImportDefaults } from '../../../docs/oracle/contracts/import-row-editing.types'
 import { ImportCardList } from './ImportCardList'
@@ -29,6 +31,7 @@ import { toast } from 'sonner'
 import { readImportResponse, estimateFileCards, copiesWord } from './import-stream'
 import type { ImportStep, RowFilter } from './types'
 import { INITIAL_DEFAULTS, computeTotals } from './types'
+import type { ImportDestination, ImportPlacementResult } from '../../../docs/oracle/contracts/know-where-cards-are.types'
 import type { ManaBoxPreviewResponse } from '../../../docs/oracle/contracts/manabox-import.types'
 
 export interface ManaBoxCollectionImportDialogProps {
@@ -50,6 +53,24 @@ export function ManaBoxCollectionImportDialog({
     if (!inReview) restoreNotes()
   }, [inReview, restoreNotes])
   const queryClient = useQueryClient()
+
+  // Places for the "Put these cards in" picker: loaded each time a review opens, so a new box shows up.
+  const [places, setPlaces] = useState<DestinationPlaces>({ status: 'loading' })
+  const [placesTry, setPlacesTry] = useState(0)
+  useEffect(() => {
+    if (!inReview) return
+    let cancelled = false
+    fetchImportDestinations()
+      .then((data) => {
+        if (!cancelled) setPlaces({ status: 'ready', data })
+      })
+      .catch(() => {
+        if (!cancelled) setPlaces({ status: 'error' })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [inReview, placesTry])
   const abortRef = useRef<AbortController | null>(null)
 
   const reset = useCallback(() => {
@@ -66,7 +87,8 @@ export function ManaBoxCollectionImportDialog({
   const hasEdits =
     step.status === 'review' &&
     (Object.keys(step.copyEdits).length > 0 ||
-      JSON.stringify(step.defaults) !== JSON.stringify(INITIAL_DEFAULTS))
+      JSON.stringify(step.defaults) !== JSON.stringify(INITIAL_DEFAULTS) ||
+      (step.destination !== undefined && step.destination.kind !== 'unsorted'))
 
   const [discardOpen, setDiscardOpen] = useState(false)
   const finished = step.status === 'done' || step.status === 'failed'
@@ -131,6 +153,7 @@ export function ManaBoxCollectionImportDialog({
         commander: null,
         defaults: INITIAL_DEFAULTS,
         copyEdits: {},
+        destination: { kind: 'unsorted' },
         openRowKeys: new Set(),
         filter: 'all',
         query: '',
@@ -161,6 +184,7 @@ export function ManaBoxCollectionImportDialog({
           fileName: step.file.name,
           defaults: step.defaults,
           copyEdits: step.copyEdits,
+          destination: step.destination ?? { kind: 'unsorted' },
         }),
       })
 
@@ -174,6 +198,7 @@ export function ManaBoxCollectionImportDialog({
         durationMs: number
         unlistedFinish?: number
         foils?: number
+        placement?: ImportPlacementResult
       }>(res, (event) => {
         setStep((prev) =>
           prev.status === 'importing'
@@ -201,6 +226,7 @@ export function ManaBoxCollectionImportDialog({
             (step.preview.notices?.unrecognisedFinish ?? 0),
           unlistedFinish: summary.unlistedFinish ?? 0,
           unmatched: summary.unmatched,
+          placement: summary.placement,
         },
         deckName: step.deckName,
         format: step.format,
@@ -209,6 +235,8 @@ export function ManaBoxCollectionImportDialog({
       toast.success(`Added ${copiesWord(summary.inserted)} to your collection`)
       queryClient.invalidateQueries({ queryKey: ['collection'] })
       queryClient.invalidateQueries({ queryKey: ['collection-rollup'] })
+      queryClient.invalidateQueries({ queryKey: ['storage'] })
+      queryClient.invalidateQueries({ queryKey: ['storage-locations'] })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       setStep({ status: 'failed', error: message, file: step.file, previousStatus: 'importing' })
@@ -219,6 +247,10 @@ export function ManaBoxCollectionImportDialog({
 
   const setDefaults = useCallback((defaults: ImportDefaults) => {
     setStep((prev) => (prev.status === 'review' ? { ...prev, defaults } : prev))
+  }, [])
+
+  const setDestination = useCallback((destination: ImportDestination) => {
+    setStep((prev) => (prev.status === 'review' ? { ...prev, destination } : prev))
   }, [])
 
   const setCopyEdits = useCallback((copyEdits: ImportCopyEdits) => {
@@ -297,6 +329,16 @@ export function ManaBoxCollectionImportDialog({
               onDismiss={notes.hide}
             />
             <ImportDefaultsBar defaults={step.defaults} onChange={setDefaults} />
+            <ImportDestinationPicker
+              value={step.destination ?? { kind: 'unsorted' }}
+              onChange={setDestination}
+              places={places}
+              onRetry={() => {
+                setPlaces({ status: 'loading' })
+                setPlacesTry((n) => n + 1)
+              }}
+              copyCount={step.preview.rows.reduce((sum, r) => sum + r.qty, 0)}
+            />
             <ImportValueNoticeLines
               unrecognised={
                 (step.preview.notices?.unrecognisedCondition ?? 0) +
@@ -367,6 +409,7 @@ export function ManaBoxCollectionImportDialog({
             unrecognisedValues={step.summary.unrecognisedValues}
             unlistedFinish={step.summary.unlistedFinish}
             unmatched={step.summary.unmatched}
+            placement={step.summary.placement}
             onViewCollection={() => handleClose(false)}
             onDismiss={() => handleClose(false)}
           />
@@ -384,6 +427,12 @@ export function ManaBoxCollectionImportDialog({
               onShowHidden={notes.restoreAll}
             />
             <div className="flex items-center gap-2">
+              {step.destination && step.destination.kind !== 'unsorted' && (
+                <span role="status" className="text-[length:var(--fs-xs)] text-muted-foreground max-sm:hidden">
+                  {step.preview.rows.reduce((sum, r) => sum + r.qty, 0)} copies · to{' '}
+                  {destinationName(step.destination, places.status === 'ready' ? places.data : null)}
+                </span>
+              )}
               <Button type="button" variant="outline" onClick={() => handleClose(false)}>
                 Cancel
               </Button>

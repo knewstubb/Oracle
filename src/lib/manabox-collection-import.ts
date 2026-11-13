@@ -28,6 +28,12 @@ import {
   validateImportInput,
   validateRowFinishes,
 } from '@/lib/import-copies'
+import {
+  applyStorageDestination,
+  destinationErrorFromDatabase,
+  resolveImportDestination,
+} from '@/lib/import-destination'
+import type { ImportDestination, ImportPlacementResult } from '../../docs/oracle/contracts/know-where-cards-are.types'
 import type {
   ImportCopyEdits,
   ImportDefaults,
@@ -45,6 +51,8 @@ export interface ManaBoxCollectionImportOptions {
   defaults: ImportDefaults
   /** Owner edits: rowKey -> copy index -> fields. Holds no database ids. */
   copyEdits?: ImportCopyEdits
+  /** One place for the whole import. Absent = Unsorted (today's behaviour). Shape-checked by the caller. */
+  destination?: ImportDestination
   /** Progress in copies: `resolving` while looking cards up, `writing` while saving. */
   onProgress?: (progress: { phase: 'resolving' | 'writing'; done: number; total: number }) => void
   /** Injectable resolver for tests. */
@@ -64,6 +72,14 @@ export async function executeManaBoxCollectionImport(
   const startTime = Date.now()
   const supabase = options.supabase ?? createAdminClient()
   const resolver = options.resolver ?? createSupabaseManaBoxResolver()
+
+  // Check the destination first: a place that is not the user's, or not allowed, refuses the whole import
+  // before any file work or any write.
+  const destination = await resolveImportDestination(
+    supabase as unknown as Parameters<typeof resolveImportDestination>[0],
+    options.userId,
+    options.destination ?? { kind: 'unsorted' }
+  )
 
   const resolution = await resolveCollectionRows(
     { fileName: options.fileName, csvContent: options.csvContent },
@@ -168,25 +184,33 @@ export async function executeManaBoxCollectionImport(
     }
   }
 
-  // 3. Insert atomically through the existing collection RPC.
+  // 3. Insert atomically through the existing collection RPC. A box or binder destination only sets the
+  // location on each row; the function re-checks it belongs to the user, all or nothing.
+  const writeRows = applyStorageDestination(copyRows, destination)
   let inserted = 0
-  options.onProgress?.({ phase: 'writing', done: 0, total: copyRows.length })
-  if (copyRows.length > 0) {
+  options.onProgress?.({ phase: 'writing', done: 0, total: writeRows.length })
+  if (writeRows.length > 0) {
     const { data, error } = await supabase.rpc('insert_user_copies', {
       p_user_id: options.userId,
-      p_rows: copyRows as unknown as Json,
+      p_rows: writeRows as unknown as Json,
     })
 
     if (error) {
-      throw new Error(`Atomic collection insert failed: ${error.message}`)
+      throw destinationErrorFromDatabase(error.message) ?? new Error(`Atomic collection insert failed: ${error.message}`)
     }
 
     inserted = assertAtomicRpcCount(
       assertAtomicRpcSuccess(data, 'Atomic collection insert'),
       'inserted_count',
       'Atomic collection insert',
-      copyRows.length
+      writeRows.length
     )
+  }
+
+  const placement: ImportPlacementResult = {
+    destination: { kind: destination.kind, id: destination.id, name: destination.name },
+    total: inserted,
+    placedInStorage: inserted,
   }
 
   return {
@@ -199,5 +223,6 @@ export async function executeManaBoxCollectionImport(
     durationMs: Date.now() - startTime,
     unlistedFinish: finishCheck.unlistedFinish,
     foils: countStoredFoils(copyRows as unknown as Array<{ finish: string; is_proxy?: boolean }>),
+    placement,
   }
 }

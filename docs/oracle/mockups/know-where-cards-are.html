@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oracle · Know where cards are (Phase 3 mockup)</title>
+<style>
+:root{
+  --bg-canvas:#131316;--bg-surface:#1A1A1E;--bg-hover:#212126;
+  --border-subtle:#262629;--border:#35353A;
+  --text:#E8E8EA;--text2:#9C9CA3;
+  --accent:#1D9E75;--warn:#EF9F27;--warn-bg:rgba(239,159,39,.15);
+  --unowned:#F0339E;--unowned-bg:rgba(240,51,158,.15);
+  --proxy:#4A93A0;
+  --hand:#9D8DF1;--hand-bg:rgba(157,141,241,.15);   /* NEW token: --status-in-hand */
+  --accent-bg:rgba(29,158,117,.15);
+  --fs-xs:11px;--fs-sm:12px;--fs-base:13px;--fs-md:14px;--fs-lg:16px;--fs-xl:20px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#0b0b0d;color:var(--text);font:var(--fs-md)/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+button,select{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid #fff;outline-offset:2px}
+svg.i{width:1.1em;height:1.1em;flex:none;vertical-align:-.2em;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ===== Mockup controls (not part of the app) ===== */
+.ctl{position:sticky;top:0;z-index:50;background:#000;border-bottom:1px solid var(--border);padding:10px 16px;display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center}
+.ctl h1{font-size:var(--fs-md);margin:0;font-weight:600}
+.ctl .grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.ctl .lbl{color:var(--text2);font-size:var(--fs-sm)}
+.seg{border:1px solid var(--border);background:var(--bg-surface);border-radius:6px;padding:6px 10px;font-size:var(--fs-sm);min-height:32px}
+.seg[aria-pressed=true]{background:var(--text);color:#111;border-color:var(--text)}
+.note{max-width:1160px;margin:12px auto 0;padding:0 16px;color:var(--text2);font-size:var(--fs-sm)}
+.note b{color:var(--text)}
+.stagewrap{padding:16px;display:flex;justify-content:center}
+
+/* ===== App frame (container queries decide laptop vs phone) ===== */
+.frame{container-type:inline-size;width:100%;max-width:1160px;height:720px;background:var(--bg-canvas);border:1px solid var(--border);border-radius:10px;overflow:hidden;position:relative;display:flex;flex-direction:column}
+.frame.phone{max-width:390px;height:800px;border-radius:28px;border-width:6px;border-color:#2a2a2e}
+.appbar{flex:none;display:flex;align-items:center;gap:6px;padding:8px 16px;border-bottom:1px solid var(--border-subtle);background:var(--bg-surface)}
+.brand{font-weight:600;margin-right:8px}
+.nav{display:flex;gap:2px;flex:1;overflow-x:auto}
+.nav span{padding:8px 10px;color:var(--text2);font-size:var(--fs-base);white-space:nowrap}
+.nav span.on{color:var(--text);border-bottom:2px solid var(--accent)}
+.chip-hand{display:none;align-items:center;gap:6px;border:1px solid var(--hand);background:var(--hand-bg);border-radius:8px;padding:6px 10px;min-height:44px;font-size:var(--fs-base);font-weight:600;color:var(--text);white-space:nowrap}
+.chip-hand.show{display:inline-flex}
+.chip-hand .i{color:var(--hand)}
+.main{flex:1;overflow:auto;padding:16px 24px;position:relative}
+.h1{font-size:var(--fs-xl);font-weight:600;margin:0}
+.sub{color:var(--text2);font-size:var(--fs-sm)}
+.crumb{color:var(--text2);font-size:var(--fs-sm)}
+
+/* ===== Badges (D-012: colour + icon + word) ===== */
+.badge{display:inline-flex;align-items:center;gap:5px;border-radius:6px;padding:2px 8px;font-size:var(--fs-sm);font-weight:500;color:var(--text);border:1px solid transparent;min-height:24px;white-space:nowrap}
+.badge.hand{background:var(--hand-bg)}.badge.hand .i{color:var(--hand)}
+.badge.missing{border-color:var(--warn);background:transparent}.badge.missing .i{color:var(--warn)}
+.badge.unowned{border-color:var(--unowned);background:transparent}.badge.unowned .i{color:var(--unowned)}
+.badge.done{background:var(--accent-bg)}.badge.done .i{color:var(--accent)}
+.badge.quiet{color:var(--text2)}
+.badge.proxy{border-color:var(--proxy)}.badge.proxy .i{color:var(--proxy)}
+.badge.lock{border-color:var(--warn)}.badge.lock .i{color:var(--warn)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--border);background:var(--bg-hover);border-radius:8px;padding:8px 14px;min-height:44px;font-size:var(--fs-base)}
+.btn:hover{border-color:var(--text2)}
+.btn.sm{min-height:32px;padding:4px 10px;font-size:var(--fs-sm)}
+.btn.primary{background:var(--accent-bg);border-color:var(--accent)}
+.btn:disabled,.btn[aria-disabled=true]{opacity:.5;cursor:not-allowed}
+.link{background:none;border:0;color:var(--text);text-decoration:underline;text-underline-offset:3px;padding:6px 4px;min-height:32px;font-size:var(--fs-sm)}
+.link.dim{color:var(--text2)}
+.tiles{display:grid;gap:10px}
+
+/* ===== Checklist ===== */
+.check{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px;align-items:start}
+.sticky{position:sticky;top:0}
+.progress{height:6px;border-radius:3px;background:var(--border-subtle);margin:8px 0 4px;overflow:hidden}
+.progress i{display:block;height:100%;background:var(--accent)}
+.stop{border:1px solid var(--border);background:var(--bg-surface);border-radius:10px;margin:12px 0;overflow:hidden}
+.stop>summary{list-style:none;display:flex;align-items:center;gap:10px;padding:10px 14px;min-height:48px;cursor:pointer}
+.stop>summary::-webkit-details-marker{display:none}
+.stop>summary .nm{font-weight:600;flex:1}
+.stop>summary .chev{transition:transform .15s;color:var(--text2)}
+.stop[open]>summary .chev{transform:rotate(90deg)}
+.stop.alldone>summary .nm::after{content:"";}
+.stopbody{border-top:1px solid var(--border-subtle)}
+.sec{display:flex;align-items:center;justify-content:space-between;padding:8px 14px 2px;color:var(--text2);font-size:var(--fs-sm);font-weight:600;text-transform:none}
+.row{display:flex;align-items:center;gap:10px;padding:8px 14px;border-top:1px solid var(--border-subtle);min-height:60px}
+.row .txt{flex:1;min-width:0}
+.row .nm{font-weight:500}
+.row .meta{color:var(--text2);font-size:var(--fs-sm);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.tick{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:112px;min-height:48px;border:1px solid var(--border);background:var(--bg-hover);border-radius:10px;padding:0 12px;font-weight:600;font-size:var(--fs-base)}
+.tick .box{width:20px;height:20px;border:2px solid var(--text2);border-radius:5px;display:inline-flex;align-items:center;justify-content:center}
+.tick[aria-pressed=true]{border-color:var(--accent);background:var(--accent-bg)}
+.tick[aria-pressed=true] .box{background:var(--accent);border-color:var(--accent);color:#0b0b0d}
+.tick[aria-disabled=true]{opacity:.45;cursor:not-allowed}
+.tick.busy{opacity:.7}
+.look{margin:0 14px 10px;border:1px solid var(--warn);border-radius:8px;background:var(--warn-bg);padding:10px 12px;font-size:var(--fs-base)}
+.look h4{margin:0 0 4px;font-size:var(--fs-base);display:flex;gap:6px;align-items:center}
+.look ol{margin:4px 0 8px;padding-left:20px}
+.look .acts{display:flex;gap:8px;flex-wrap:wrap}
+.hand{border:1px solid var(--hand);background:var(--bg-surface);border-radius:10px;overflow:hidden}
+.hand header{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--hand-bg);font-weight:600}
+.hand header .i{color:var(--hand)}
+.hand .row{min-height:56px;flex-wrap:wrap}.hand .row .txt{flex-basis:100%}.hand .row select{flex:1;min-width:0}
+.hand .empty{padding:14px;color:var(--text2);font-size:var(--fs-base)}
+.hand select{background:var(--bg-hover);border:1px solid var(--border);border-radius:8px;min-height:44px;padding:0 8px;max-width:100%}
+.toast{position:absolute;left:50%;transform:translateX(-50%);bottom:16px;background:#000;border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:var(--fs-base);display:none;z-index:30;max-width:90%}
+.toast.on{display:block}
+.handbar{display:none;flex:none;padding:8px 12px;background:var(--bg-surface);border-top:1px solid var(--hand);align-items:center;gap:10px}.handbar .grow{flex:1;min-width:0}
+
+/* ===== Import destination picker (screen 4b) ===== */
+.imp{max-width:640px;margin:0 auto;border:1px solid var(--border);background:var(--bg-surface);border-radius:12px;display:flex;flex-direction:column}
+.imphead{padding:14px 16px 6px;font-size:var(--fs-lg);font-weight:600}
+.impbody{padding:6px 16px 14px;display:flex;flex-direction:column;gap:10px}
+.impbar{border:1px solid var(--border-subtle);background:var(--bg-canvas);border-radius:8px;padding:8px 12px;font-size:var(--fs-base);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.impbar .u{text-decoration:underline;font-size:var(--fs-xs)}
+.pickrow{display:flex;flex-direction:column;gap:4px;position:relative}
+.pickrow label,.pickrow .lab{font-size:var(--fs-sm);color:var(--text2)}
+.trig{display:flex;align-items:center;gap:8px;width:100%;min-height:44px;padding:0 12px;border:1px solid var(--border);background:var(--bg-hover);border-radius:8px;text-align:left}
+.trig .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trig[aria-disabled=true]{opacity:.55;cursor:not-allowed}
+.pickpop{position:absolute;z-index:15;top:100%;left:0;right:0;margin-top:4px;background:#101013;border:1px solid var(--border);border-radius:10px;max-height:340px;display:flex;flex-direction:column;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.pickpop .srch{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--border-subtle)}
+.pickpop .srch input{flex:1;min-height:36px;background:none;border:0;color:var(--text);font:inherit;outline-offset:2px}
+.pickpop .lst{overflow:auto;padding:4px 0}
+.pgrp{padding:8px 12px 2px;font-size:var(--fs-xs);color:var(--text2);text-transform:none;letter-spacing:.02em}
+.popt{display:flex;align-items:center;gap:8px;width:100%;min-height:40px;padding:4px 12px;background:none;border:0;text-align:left}
+.popt:hover,.popt:focus-visible{background:var(--bg-hover)}
+.popt[aria-selected=true]{background:var(--accent-bg)}
+.popt .nm{flex:1;min-width:0}
+.popt .meta{color:var(--text2);font-size:var(--fs-sm);white-space:nowrap}
+.pscrim{display:none}
+.impnote{border:1px solid var(--accent);background:var(--accent-bg);border-radius:8px;padding:10px 12px;font-size:var(--fs-base)}
+.impnote ul{margin:6px 0 0;padding-left:18px}
+.impnote .pv{margin-top:8px;padding-top:8px;border-top:1px solid var(--border-subtle)}
+.impwarn{display:flex;gap:8px;align-items:flex-start;color:var(--text);font-size:var(--fs-sm);margin-top:8px}
+.impwarn .i{color:var(--warn)}
+.impfoot{display:flex;align-items:center;gap:10px;padding:12px 16px;border-top:1px solid var(--border-subtle);background:rgba(255,255,255,.03);border-radius:0 0 12px 12px;flex-wrap:wrap}
+.impfoot .grow{flex:1;min-width:140px;font-size:var(--fs-sm);color:var(--text2)}
+.impres{display:flex;flex-direction:column;gap:12px;padding:16px}
+.impres .big{display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px}
+.impres .tickc{width:52px;height:52px;border-radius:50%;background:var(--accent-bg);display:grid;place-items:center;color:var(--accent)}
+.impres .tickc .i{width:28px;height:28px}
+.wherebox{border:1px solid var(--border);border-radius:10px}
+.wherebox .wh{padding:10px 12px;border-bottom:1px solid var(--border-subtle);color:var(--text2);font-size:var(--fs-sm)}
+.wherebox .wl{padding:12px;font-size:var(--fs-md);font-weight:600}
+.wherebox .wn{padding:0 12px 12px}
+.wherebox ul{margin:6px 0 0;padding-left:18px;color:var(--text2);font-size:var(--fs-sm)}
+.impctl{max-width:640px;margin:0 auto 10px}
+@container (max-width:700px){
+  .main.screen-import{position:static}
+  .pickrow{position:static}
+  .pickpop{position:absolute;left:0;right:0;bottom:0;top:auto;margin:0;border-radius:16px 16px 0 0;max-height:78%;z-index:30}
+  .pscrim.on{display:block;position:absolute;inset:0;background:rgba(0,0,0,.45);z-index:29}
+  .popt{min-height:48px}
+  .pickpop .srch input{min-height:44px}
+  .impfoot .btn{flex:1}
+  .imp{border-radius:0;border-left:0;border-right:0}
+}
+/* ===== Overlay panel (right drawer on laptop, bottom sheet on phone) ===== */
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.4);display:none;z-index:20}
+.panel{position:absolute;top:0;right:0;bottom:0;width:400px;background:var(--bg-canvas);border-left:1px solid var(--border);display:none;flex-direction:column;box-shadow:-8px 0 24px rgba(0,0,0,.35);z-index:21}
+.panel.on,.scrim.on{display:flex}
+.scrim.on{display:block}
+.phead{display:flex;align-items:center;gap:8px;padding:8px 8px 8px 16px;border-bottom:1px solid var(--border-subtle)}
+.phead h3{margin:0;font-size:var(--fs-lg);flex:1}
+.iconbtn{background:none;border:0;border-radius:6px;min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center}
+.iconbtn:hover{background:var(--bg-hover)}
+.pbody{flex:1;overflow:auto;padding:16px}
+.grab{display:none;width:40px;height:4px;border-radius:2px;background:var(--border);margin:8px auto 0}
+
+/* ===== Deck, Missing, Unsorted ===== */
+.deckrow{display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--border-subtle);min-height:52px}
+.deckrow .txt{flex:1;min-width:0}
+.deckrow.short{background:var(--bg-surface)}
+.card{border:1px solid var(--border);background:var(--bg-surface);border-radius:10px}
+.cardhead{display:flex;align-items:center;gap:10px;padding:10px 14px;font-weight:600}
+.shortline{color:var(--text);font-size:var(--fs-sm)}
+.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--border-subtle);margin:8px 0}
+.tab{border:0;background:none;border-bottom:2px solid transparent;padding:8px 12px;color:var(--text2);min-height:44px;white-space:nowrap}
+.tab[aria-selected=true]{color:var(--text);border-bottom-color:var(--accent)}
+.sys{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
+.sys .tile{display:flex;gap:10px;align-items:center;border:1px solid var(--border);background:var(--bg-surface);border-radius:10px;padding:12px;min-height:64px;text-align:left}
+.sys .tile.attn{border-color:var(--hand)}
+.sys .tile.attnw{border-color:var(--warn)}
+.sys .tile b{display:block}
+.sys .tile span{color:var(--text2);font-size:var(--fs-sm)}
+.banner{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--border);background:var(--bg-surface);border-radius:10px;padding:12px 14px;margin:12px 0}
+.banner.accent{border-color:var(--accent)}
+.banner .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+select.dest{background:var(--bg-hover);border:1px solid var(--border);border-radius:8px;min-height:44px;padding:0 8px;max-width:190px}
+
+.toast button{background:none;border:0;color:var(--text);text-decoration:underline;margin-left:12px;min-height:44px;padding:0 6px}
+.toast{display:none;align-items:center}.toast.on{display:flex}
+.split{display:inline-flex}.split .btn:first-child{border-radius:8px 0 0 8px}.split .btn+.btn,.split select{border-radius:0 8px 8px 0;border-left:0;min-width:44px}
+.split select{background:var(--accent-bg);border:1px solid var(--accent);border-left:0;min-height:44px;color:var(--text);width:auto;max-width:150px;padding:0 6px}
+.mvwrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px;align-items:start}
+.mvrow{padding:10px 12px;border-top:1px solid var(--border-subtle)}
+.mvrow .top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.mvrow .txt{flex:1;min-width:180px}
+.mvrow .acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.mvnote{display:inline-block;background:var(--bg-hover);border:1px solid var(--border);border-radius:6px;padding:1px 8px;font-size:var(--fs-xs);color:var(--text2);margin-left:6px}
+@container (max-width:700px){.mvwrap{display:block}.mvrow .acts{width:100%}.mvrow .acts .btn.primary,.mvrow .split{flex:1}.mvrow .split .btn:first-child{flex:1}}
+/* ===== States gallery ===== */
+.gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.gal .cell{border:1px solid var(--border);background:var(--bg-surface);border-radius:10px;padding:12px}
+.gal .cell h4{margin:0 0 8px;font-size:var(--fs-sm);color:var(--text2);font-weight:600}
+.skel{display:block;height:48px;border-radius:8px;margin:6px 0;background:linear-gradient(90deg,var(--bg-surface),var(--bg-hover),var(--bg-surface));background-size:200% 100%;animation:sh 1.4s infinite}
+@keyframes sh{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.skel{animation:none}}
+.err{display:flex;gap:8px;align-items:flex-start;color:var(--text);font-size:var(--fs-base)}
+.err .i{color:var(--warn);margin-top:2px}
+
+/* ===== Chat proposals ===== */
+.chatwrap{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.chatcol h3{font-size:var(--fs-md);margin:0 0 4px}
+.chat{background:#101013;border:1px solid var(--border);border-radius:10px;padding:12px;width:100%}
+.chat p{margin:0 0 8px;font-size:var(--fs-base)}
+/* As built (approximation of the current look) */
+.cur li{list-style:none;border:1px solid rgba(63,63,70,.6);background:rgba(39,39,42,.4);border-radius:8px;padding:8px 12px;margin-bottom:8px;display:flex;gap:8px}
+.cur ul{margin:0;padding:0}
+.cur .n{font-size:14px;font-weight:500;color:#f4f4f5}.cur .r{font-size:12px;color:#a1a1aa}.cur .g{font-size:12px;color:#71717a}
+.cur .abtn{border:1px solid rgba(16,185,129,.3);background:rgba(16,185,129,.15);color:#34d399;border-radius:6px;padding:4px 8px;font-size:12px;font-weight:500;white-space:nowrap}
+.cur .nn{font-size:12px;color:#71717a;background:none;border:0;padding:0;text-align:right}
+.cur .col{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+/* Refined */
+.ref .gh{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px}
+.ref .gh b{font-size:var(--fs-base)}
+.prop{border:1px solid var(--border);background:var(--bg-surface);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.prop.blocked{background:transparent;border-color:var(--border-subtle)}
+.prop .top{display:flex;gap:10px;align-items:flex-start}
+.prop .nm{font-weight:600;font-size:var(--fs-md)}
+.prop .why{color:var(--text2);font-size:var(--fs-sm)}
+.prop .why.strong{color:var(--text)}
+.prop .own{margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:var(--fs-sm)}
+.prop .acts{display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap}
+.prop .acts .btn{min-height:44px}
+.receipt{border:1px solid var(--accent);background:var(--accent-bg);border-radius:10px;padding:10px 12px;font-size:var(--fs-base);margin-top:6px}
+
+.tick{white-space:nowrap}
+.wish{display:inline-flex;align-items:center;gap:8px;min-height:44px;font-size:var(--fs-sm);cursor:pointer}
+.wish input{width:20px;height:20px;accent-color:var(--unowned);margin:0}
+.plsum{position:sticky;top:-16px;z-index:5;background:var(--bg-canvas);padding:8px 0 6px;border-bottom:1px solid var(--border-subtle);margin-bottom:6px}
+.plsum .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.empty2{padding:12px 14px;color:var(--text2);font-size:var(--fs-base)}
+.mockstate{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0;padding:6px 8px;border:1px dashed var(--border);border-radius:8px}
+.mockstate .lbl{color:var(--text2);font-size:var(--fs-xs)}
+.foot{padding:10px 14px;border-top:1px solid var(--border-subtle);font-size:var(--fs-sm);color:var(--text2);display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.foot b{color:var(--text)}
+
+/* ===== Phone layout ===== */
+@container (max-width:700px){
+  .appbar{padding:6px 10px}
+  .main{padding:12px 12px 12px}
+  .check{display:block}
+  .sidehand{display:none}
+  .screen-check .handbar{display:flex}
+  .screen-check .chip-hand{display:none!important}
+  .panel{left:0;right:0;top:auto;bottom:0;width:auto;height:86%;border-left:0;border-top:1px solid var(--border);border-radius:16px 16px 0 0}
+  .grab{display:block}
+  .row{flex-wrap:wrap}
+  .row .txt{flex-basis:100%}
+  .row .tick{flex:1;min-width:0}
+  .row .cant{flex:1}
+  .sys{grid-template-columns:1fr}
+  .chatwrap{grid-template-columns:1fr}
+  .cur li{flex-direction:column}
+  .cur .col{flex-direction:row;align-items:center;justify-content:flex-start;gap:12px}
+  .nav span{padding:8px 6px}
+  .row .btn.primary{flex:1}
+  .row .tick{padding:0 6px;gap:6px}
+  .plsum{top:-12px}
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="hand" viewBox="0 0 24 24"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11M11 10V4.5a1.5 1.5 0 0 1 3 0V11M14 10V6a1.5 1.5 0 0 1 3 0v8a6 6 0 0 1-6 6h-1a6 6 0 0 1-5-2.7L3.5 14a1.5 1.5 0 0 1 2.4-1.7L8 14.5"/></symbol>
+    <symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5M8.5 8.5l5 5"/></symbol>
+    <symbol id="inbox" viewBox="0 0 24 24"><path d="M3 13l2.5-7.5A2 2 0 0 1 7.4 4h9.2a2 2 0 0 1 1.9 1.5L21 13v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 13h5l1 2h6l1-2h5"/></symbol>
+    <symbol id="check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+    <symbol id="lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="alert" viewBox="0 0 24 24"><path d="M12 4l9 16H3zM12 10v4M12 17v.5"/></symbol>
+    <symbol id="undo" viewBox="0 0 24 24"><path d="M9 7L4 12l5 5M4 12h10a6 6 0 0 1 0 12"/></symbol>
+    <symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="box" viewBox="0 0 24 24"><path d="M3 8l9-4 9 4-9 4zM3 8v8l9 4 9-4V8M12 12v8"/></symbol>
+    <symbol id="deck" viewBox="0 0 24 24"><rect x="6" y="3" width="13" height="17" rx="2"/><path d="M3 7v13a1 1 0 0 0 1 1h11"/></symbol>
+    <symbol id="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+    <symbol id="x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="comedy" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M9 10v.5M15 10v.5M9 15c1.5-1.5 4.5-1.5 6 0"/></symbol>
+    <symbol id="dnd" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M8 12h8"/></symbol>
+    <symbol id="ring" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/></symbol>
+  </defs>
+</svg>
+
+<div class="ctl">
+  <h1>Know where cards are · Phase 3 mockup</h1>
+  <div class="grp" role="group" aria-label="Device"><span class="lbl">Device</span>
+    <button class="seg" data-dev="laptop" aria-pressed="true">Laptop</button>
+    <button class="seg" data-dev="phone" aria-pressed="false">Phone</button>
+  </div>
+  <div class="grp" role="group" aria-label="Screen"><span class="lbl">Screen</span>
+    <button class="seg" data-scr="check" aria-pressed="true">1 Picklist · all decks</button>
+    <button class="seg" data-scr="plist" aria-pressed="false">1b Picklist · one deck</button>
+    <button class="seg" data-scr="hand" aria-pressed="false">2 In your hand</button>
+    <button class="seg" data-scr="missing" aria-pressed="false">3 Missing</button>
+    <button class="seg" data-scr="deck" aria-pressed="false">3b Deck short slot</button>
+    <button class="seg" data-scr="move" aria-pressed="false">3c Move here</button>
+    <button class="seg" data-scr="unsorted" aria-pressed="false">4 Unsorted + import</button>
+    <button class="seg" data-scr="import" aria-pressed="false">4b Import: where cards go</button>
+    <button class="seg" data-scr="states" aria-pressed="false">5 States</button>
+    <button class="seg" data-scr="chat" aria-pressed="false">6 Chat proposal cards</button>
+  </div>
+  <button class="seg" id="reset">Reset demo</button>
+</div>
+<p class="note"><b>Try it:</b> on screen 1, tick Found on a card from the Unsorted or Alphabetical box stop, then watch the "In your hand" count and the Korvold deck screen change. Try "Can't find it". Everything here is a demo; nothing is saved. Switch Device to see the one-handed phone layout. <b>Newest:</b> screen 4b is the import screen with its new "Put these cards in" picker; pick a deck, a binder or Unsorted, press Import cards, and read the result. <b>Earlier:</b> screen 1b is a deck's Picklist tab (Available, Needs moving, Unowned). Tick Found it or Placed it there and it appears on screen 1 and in the hand count; Move here needs no walk.</p>
+
+<div class="stagewrap">
+<div class="frame" id="frame">
+  <div class="appbar">
+    <span class="brand">Oracle</span>
+    <nav class="nav" aria-label="Main"><span>Decks</span><span>Collection</span><span class="on" id="navStorage">Storage</span><span id="navMoves">Picklist</span></nav>
+    <button class="chip-hand" id="chip" aria-haspopup="dialog"><svg class="i"><use href="#hand"/></svg><span id="chipTxt">In your hand · 0</span></button>
+  </div>
+  <div class="main" id="main" tabindex="-1"></div>
+  <div class="handbar" id="handbar"></div>
+  <div class="scrim" id="scrim"></div>
+  <aside class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="panelTitle">
+    <div class="grab"></div>
+    <div class="phead"><h3 id="panelTitle">In your hand</h3><button class="iconbtn" id="panelClose" aria-label="Close In your hand"><svg class="i"><use href="#x"/></svg></button></div>
+    <div class="pbody" id="panelBody"></div>
+  </aside>
+  <div class="toast" id="toast" role="status"></div>
+</div>
+</div>
+
+<script>
+const P={unsorted:{n:'Unsorted',t:'System place',ic:'inbox'},abox:{n:'Alphabetical box',t:'Box',ic:'box'},lbox:{n:'Lands box',t:'Box',ic:'box'},atraxa:{n:'Atraxa',t:'Deck',ic:'deck'},korvold:{n:'Korvold',t:'Deck',ic:'deck'},prosper:{n:'Prosper',t:'Deck',ic:'deck'}};
+const ORDER=['unsorted','abox','lbox','atraxa','korvold','prosper'];
+const DECKST={atraxa:'Playable',korvold:'Assembling',prosper:'Assembling'};
+const seed=()=>({
+ moves:[
+  {id:1,name:'Rhystic Study',from:'unsorted',to:'prosper',st:'todo'},
+  {id:2,name:'Command Tower',from:'unsorted',to:'lbox',st:'todo'},
+  {id:3,name:'Sol Ring',from:'abox',to:'korvold',st:'todo'},
+  {id:4,name:'Mind Stone',from:'abox',to:'korvold',st:'todo'},
+  {id:5,name:'Cultivate',from:'prosper',to:'korvold',st:'todo'},
+  {id:6,name:'Arcane Signet',from:'korvold',to:'prosper',st:'todo'},
+  {id:7,name:'Lightning Greaves',from:'korvold',to:'abox',st:'todo',back:true},
+ ],
+ missingBase:[{name:'Chromatic Lantern',last:'korvold',date:'3 Nov',deck:'korvold'}],
+ /* extra = cards Korvold needs that are not on the all-decks walk yet; they join it the moment a tick is made */
+ extra:[{id:8,name:'Farseek',from:'abox',to:'korvold',st:'todo'},{id:9,name:'Eternal Witness',from:'atraxa',to:'korvold',st:'todo'}],
+ unowned:[{id:'u1',name:'Skullclamp',price:1.2,wish:false},{id:'u2',name:"Gaea's Cradle",price:68,wish:true},{id:'u3',name:'Mana Vault',price:null,wish:false}],
+ imp:{dest:'unsorted',open:false,q:'',mode:'review',places:'ok',chk:'ok',showU:false,offerGone:false},
+ plState:'normal', plOpen:null, plWalk:new Set(),
+ openStops:null, handOpen:false, flash:null, mv:{A:{st:'todo',src:'Prosper'},B:{st:'todo',src:'Atraxa'},C:{st:'todo',src:'Prosper'},D:{st:'todo',src:'Prosper'}}
+});
+let S=seed(), dev='laptop', scr='check', pendingTick=null;
+const $=s=>document.querySelector(s);
+const ic=n=>`<svg class="i" aria-hidden="true"><use href="#${n}"/></svg>`;
+const handList=()=>S.moves.filter(m=>m.st==='hand');
+const missList=()=>[...S.missingBase.map(m=>({...m,base:true})),...S.moves.filter(m=>m.st==='missing').map(m=>({name:m.name,last:m.from,date:'today',deck:m.from,id:m.id}))];
+
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),3200)}
+function toastUndo(t,k,act){act=act||'undoMove';const e=$('#toast');e.innerHTML=`<span>${t}</span><button data-act="${act}" data-k="${k}" data-id="${k}">Undo</button>`;e.classList.add('on');clearTimeout(toast.t);const arm=()=>{clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),8000)};arm();e.onmouseenter=e.onfocusin=()=>clearTimeout(toast.t);e.onmouseleave=e.onfocusout=arm}
+
+/* ---------- shared pieces ---------- */
+function handBadge(){return `<span class="badge hand">${ic('hand')}In your hand</span>`}
+function handBody(){
+  const h=handList();
+  if(!h.length) return `<div class="hand"><header>${ic('hand')}In your hand · 0</header><div class="empty">You aren't carrying anything. When you tick <b>Found</b> on a card, it appears here until you place it.</div></div>`;
+  const opts=ORDER.map(k=>`<option value="${k}">${P[k].n}</option>`).join('');
+  return `<div class="hand" aria-label="Cards in your hand"><header>${ic('hand')}In your hand · ${h.length}</header>
+  <div class="sub" style="padding:6px 14px">Picked up from ${[...new Set(h.map(m=>P[m.from].n))].join(', ')}. Not in any deck or box in Oracle until placed.</div>
+  ${h.map(m=>`<div class="row"><div class="txt"><div class="nm">${m.name}</div><div class="meta">from ${P[m.from].n} → ${m.back?'put back in ':'for '}${P[m.to].n}</div></div>
+    <button class="btn primary" data-act="placeHand" data-id="${m.id}">${m.back?'Put back':'Placed it'}</button>
+    <label class="sr" for="pb${m.id}">Put ${m.name} somewhere else</label>
+    <select id="pb${m.id}" data-act="putElsewhere" data-id="${m.id}"><option value="">Put it somewhere else…</option>${opts}</select></div>`).join('')}
+  </div>`}
+function renderChip(){const n=handList().length;const c=$('#chip');c.classList.toggle('show',n>0);$('#chipTxt').textContent=`In your hand · ${n}`;c.setAttribute('aria-label',`In your hand: ${n} card${n===1?'':'s'}. Open.`)}
+function renderBar(){const n=handList().length;$('#handbar').innerHTML=`<div class="grow">${n?`<span class="badge hand">${ic('hand')}In your hand · ${n}</span>`:'<span class="sub">Nothing in your hand</span>'}</div><button class="btn" data-act="openHand">${n?'See cards':'Open'}</button>`}
+function renderPanel(){ $('#panelBody').innerHTML=handBody(); }
+
+/* ---------- screen 1: checklist ---------- */
+function checklist(){
+  const total=S.moves.length, done=S.moves.filter(m=>m.st==='placed').length, miss=S.moves.filter(m=>m.st==='missing').length;
+  if(!S.openStops){const first=ORDER.find(k=>stopDone(k)===false);S.openStops=new Set(first?[first]:[]);if(dev==='laptop')ORDER.forEach(k=>S.openStops.add(k))}
+  const stops=ORDER.filter(k=>S.moves.some(m=>m.from===k||m.to===k)).map(stopHtml).join('');
+  return `<div class="check"><div>
+    <div class="crumb">Storage › Picklist</div>
+    <h2 class="h1">Picklist · all decks</h2>
+    <div class="sub">Every deck's Available and Needs moving cards, in walking order. Ticks are shared with each deck's Picklist tab.</div>
+    <div class="sub">${done} of ${total} placed${miss?` · ${miss} missing`:''}. Ticks save straight away. <b style="color:var(--text)">Found</b> takes the card out of its deck in Oracle at once.</div>
+    <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${done}" aria-label="Moves placed"><i style="width:${total?done/total*100:0}%"></i></div>
+    ${stops}
+    <div class="sub" style="margin-top:8px">${S.unowned.length} unowned cards in Korvold aren't listed here: there is nothing to walk to. Each deck's Picklist tab shows them. Stops are ordered: Unsorted, boxes, then decks, each A to Z. Stop part-way any time: ticked moves stay done, the rest stay where Oracle last had them.</div>
+  </div>
+  <div class="sidehand sticky" id="handSide">${handBody()}</div></div>
+`;
+}
+function stopDone(k){const ms=S.moves.filter(m=>m.from===k||m.to===k);return ms.every(m=>m.st==='placed'||m.st==='missing'&&m.from===k||m.st==='hand'&&m.from===k&&false)}
+function stopDoneStrict(k){const takes=S.moves.filter(m=>m.from===k),puts=S.moves.filter(m=>m.to===k);return takes.every(m=>m.st!=='todo')&&puts.every(m=>m.st==='placed'||m.st==='missing')}
+function stopHtml(k){
+  const takes=S.moves.filter(m=>m.from===k&&!(m.back&&false)), puts=S.moves.filter(m=>m.to===k);
+  const total=takes.length+puts.length, dn=takes.filter(m=>m.st!=='todo').length+puts.filter(m=>m.st==='placed'||m.st==='missing').length;
+  const all=stopDoneStrict(k), open=S.openStops.has(k);
+  const tk=takes.filter(m=>m.st==='todo').length, pl=puts.filter(m=>m.st==='hand').length;
+  return `<details class="stop ${all?'alldone':''}" data-stop="${k}" ${open?'open':''}>
+    <summary>${ic(P[k].ic)}<span class="nm">${P[k].n}</span><span class="sub">${P[k].t}</span>${all?`<span class="badge done">${ic('check')}Done</span>`:`<span class="badge quiet">${dn} of ${total}</span>`}<span class="chev">${ic('chev')}</span></summary>
+    <div class="stopbody">
+    ${takes.length?`<div class="sec"><span>Take from here (${takes.length})</span>${tk>1?`<button class="link" data-act="foundAll" data-stop="${k}">Found all ${tk}</button>`:''}</div>${takes.map(takeRow).join('')}`:''}
+    ${puts.length?`<div class="sec"><span>${puts.every(m=>m.back)?'Put back here':'Put in here'} (${puts.length})</span>${pl>1?`<button class="link" data-act="placedAll" data-stop="${k}">Placed all ${pl}</button>`:''}</div>${puts.map(putRow).join('')}`:''}
+    </div></details>`;
+}
+function tickBtn(label,pressed,disabled,act,id,why){
+  return `<button class="tick" aria-pressed="${pressed}" ${disabled?'aria-disabled="true"':''} data-act="${act}" data-id="${id}" ${why?`aria-describedby="why${id}${act}"`:''}><span class="box">${pressed?ic('check'):''}</span>${label}</button>${why?`<span class="sr" id="why${id}${act}">${why}</span>`:''}`;
+}
+function takeRow(m){
+  const dest=m.back?`put back in ${P[m.to].n}`:`for ${P[m.to].n}`;
+  if(m.st==='missing') return `<div class="row"><div class="txt"><div class="nm">${m.name}</div><div class="meta"><span class="badge missing">${ic('search')}Missing</span>move paused</div></div></div>${lookPanel(m)}`;
+  return `<div class="row"><div class="txt"><div class="nm">${m.name}</div><div class="meta">${m.st==='todo'?`${dest}`:m.st==='hand'?handBadge()+` ${dest}`:`<span class="badge done">${ic('check')}Placed in ${P[m.to].n}</span>`}</div></div>
+    ${tickBtn('Found it',m.st!=='todo',m.st==='placed','found',m.id,m.st==='placed'?'Already placed. Untick Placed first.':'')}
+    ${m.st==='todo'?`<button class="link dim cant" data-act="cant" data-id="${m.id}">Can't find it</button>`:''}</div>`;
+}
+function putRow(m){
+  const picked=m.st==='hand'||m.st==='placed';
+  if(m.st==='missing') return `<div class="row"><div class="txt"><div class="nm">${m.name}</div><div class="meta"><span class="badge missing">${ic('search')}Missing</span>from ${P[m.from].n}. This slot stays planned.</div></div></div>`;
+  const meta=m.st==='todo'?`<span class="badge quiet">Not picked up yet</span>from ${P[m.from].n}`:m.st==='hand'?handBadge()+` from ${P[m.from].n}`:`<span class="badge done">${ic('check')}Placed</span>from ${P[m.from].n}`;
+  return `<div class="row"><div class="txt"><div class="nm">${m.name}</div><div class="meta">${meta}</div></div>
+    ${tickBtn(m.back?'Put back':'Placed it',m.st==='placed',m.st==='todo','placed',m.id,m.st==='todo'?'Pick it up first, at '+P[m.from].n:'')}</div>`;
+}
+function lookPanel(m){
+  const ideas=m.from==='korvold'?['Prosper (it was moved there recently)','Unsorted','Alphabetical box']:m.from==='abox'?['Unsorted','Lands box','Decks that play its colours']:['Alphabetical box','Decks that play its colours'];
+  return `<div class="look" role="group" aria-label="Where to look next for ${m.name}"><h4>${ic('search')}Where to look next</h4>
+   <div class="sub" style="color:var(--text)">Oracle had it in ${P[m.from].n}. Try, in this order:</div><ol>${ideas.map(i=>`<li>${i}</li>`).join('')}</ol>
+   <div class="acts"><button class="btn sm" data-act="foundThere" data-id="${m.id}">Found it somewhere</button><button class="btn sm" data-act="undoMissing" data-id="${m.id}">Actually, I have it</button></div>
+   <div class="sub" style="margin-top:6px">Stays Missing until you find it. It can't be put in a deck and doesn't count as spare.</div></div>`;
+}
+
+/* ---------- screen 3: Missing ---------- */
+function missingScreen(){
+  const ml=missList();
+  return `<div class="crumb">Storage › Missing</div><h2 class="h1">Missing</h2>
+  <div class="sub">Cards Oracle can't find. They stay here until you find them. They can't go in a deck and don't count as spare.</div>
+  ${sysTiles('missing')}
+  ${ml.length?ml.map(m=>`<div class="card" style="margin:12px 0"><div class="cardhead">${ic('search')}<span style="flex:1">${m.name}</span><span class="badge missing">${ic('search')}Missing</span></div>
+    <div class="row"><div class="txt"><div class="meta">Last in ${P[m.last].n} · flagged ${m.date}</div>
+    <div style="margin-top:6px"><b>Where to look next</b><ol style="margin:4px 0 0;padding-left:20px"><li>Prosper (it was moved there recently)</li><li>Unsorted</li><li>Alphabetical box</li></ol></div></div></div>
+    <div class="row" style="flex-wrap:wrap"><button class="btn sm" data-act="mFound" data-name="${m.name}" data-base="${m.base?1:0}" data-id="${m.id||''}">Found it</button><button class="btn sm" data-act="toast" data-msg="Opens Korvold, where this slot is short.">See ${P[m.deck].n}</button><span class="sub">Spare copy: none · <button class="link" data-act="toast" data-msg="Adds Make a proxy of Chromatic Lantern for Korvold.">Make a proxy</button></span></div></div>`).join(''):emptyMissing()}
+  <p class="sub">"Found it" asks where the card is now and puts it there in one step.</p>`;
+}
+function emptyMissing(){return `<div class="banner">${ic('check')}<div><b>Nothing is missing.</b><div class="sub">If you can't find a card while moving things, tick Can't find it on the Picklist and it will appear here.</div></div></div>`}
+function sysTiles(cur){
+  const h=handList().length, m=missList().length;
+  return `<div class="sys"><button class="tile ${h?'attn':''}" data-act="openHand">${ic('hand')}<div><b>In your hand</b><span>${h?h+' card'+(h>1?'s':''):'Nothing carried'}</span></div></button>
+  <button class="tile ${m?'attnw':''}" data-act="goMissing">${ic('search')}<div><b>Missing</b><span>${m?m+' card'+(m>1?'s':''):'Nothing missing'}</span></div></button>
+  <button class="tile" data-act="goUnsorted">${ic('inbox')}<div><b>Unsorted</b><span>12 cards</span></div></button></div>`;
+}
+
+/* ---------- screen 3b: deck ---------- */
+function deckScreen(){
+  const m=id=>S.moves.find(x=>x.id===id);
+  const slot=(name,mv,extra)=>{
+    let badge='<span class="badge quiet">'+ic('check')+'Original · in deck</span>';
+    let note='';
+    if(mv){
+      if(mv.from==='korvold'&&mv.st==='hand') badge=handBadge(),note='<div class="shortline">Short by 1 while it is in your hand. Place it to finish the move.</div>';
+      else if(mv.from==='korvold'&&mv.st==='missing') badge=`<span class="badge missing">${ic('search')}Missing</span>`;
+      else if(mv.from==='korvold'&&(mv.st==='placed')) badge=`<span class="badge quiet">Moved to ${P[mv.to].n}</span>`;
+      else if(mv.to==='korvold'&&mv.st==='hand') badge=handBadge(),note='<div class="shortline">In your hand now. Ticking Placed it fills this slot.</div>';
+      else if(mv.to==='korvold'&&mv.st==='todo') badge=`<span class="badge lock">${ic('lock')}Planned · in ${P[mv.from].n}</span>`;
+      else if(mv.to==='korvold'&&mv.st==='missing') badge=`<span class="badge missing">${ic('search')}Planned · Missing</span>`;
+      else if(mv.to==='korvold'&&mv.st==='placed') badge='<span class="badge quiet">'+ic('check')+'Original · in deck</span>';
+    }
+    return `<div class="deckrow"><div class="txt"><div class="nm">${name}</div>${note}</div>${badge}</div>`};
+  const lant=`<div class="deckrow short"><div class="txt"><div class="nm">Chromatic Lantern</div>
+    <div class="shortline"><b>Short by 1.</b> Your only copy is Missing.</div>
+    <details style="margin-top:6px"><summary class="link" style="list-style:none;cursor:pointer;display:inline-block">Where to look next ${ic('chev')}</summary>
+      <ol style="margin:4px 0 6px;padding-left:20px;font-size:var(--fs-sm)"><li>Prosper (it was moved there recently)</li><li>Unsorted</li><li>Alphabetical box</li></ol></details>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"><button class="btn sm" data-act="toast" data-msg="Oracle looked: you own no spare Chromatic Lantern.">Use a spare copy</button><button class="btn sm" data-act="toast" data-msg="Would make a proxy and sleeve it here (existing Proxy action).">Make a proxy</button><button class="btn sm" data-act="mFound" data-name="Chromatic Lantern" data-base="1">Found it</button></div></div>
+    <span class="badge missing">${ic('search')}Missing</span></div>`;
+  const missN=1+S.moves.filter(x=>x.from==='korvold'&&x.st==='missing').length, handN=S.moves.filter(x=>x.from==='korvold'&&x.st==='hand').length;
+  return `<div class="crumb">Decks › Korvold</div><h2 class="h1">Korvold, Fae-Cursed King</h2>
+  <div class="sub" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:4px 0">Assembling · 92/100 in deck <span class="badge missing">${ic('search')}${missN} short · Missing</span>${handN?`<span class="badge hand">${ic('hand')}${handN} in your hand</span>`:''}</div>
+  <div class="tabs" role="tablist"><button class="tab" role="tab" aria-selected="true">Cards</button><button class="tab" role="tab" aria-selected="false" data-act="goPlist">Picklist</button><button class="tab" role="tab" aria-selected="false">Deck health</button><button class="tab" role="tab" aria-selected="false">Chat</button></div>
+  <div class="card" style="overflow:hidden"><div class="cardhead">Artifacts</div>
+   ${lant}${slot('Arcane Signet',m(6))}${slot('Lightning Greaves',m(7))}${slot('Sol Ring',m(3))}${slot('Mind Stone',m(4))}${slot('Cultivate',m(5))}</div>
+  <p class="sub">A Missing card keeps its slot (it is not removed from the list). The deck stays <b style="color:var(--text)">Assembling</b>, not "Unowned cards", because you do own it. Open question for you: see spec section 11.</p>`;
+}
+
+/* ---------- screen 3c: Move here ---------- */
+const COPIES={C:[['Prosper','original','Assembling'],['Atraxa','original','Playable'],['Edgar Markov','proxy','Playable']]};
+function mvRow(k,name,note,extraTop){
+  const m=S.mv[k];
+  if(m.st==='done') return `<div class="mvrow"><div class="top"><div class="txt"><div class="nm">${name}</div><div class="sub">Moved from ${m.src}. <button class="link" data-act="undoMove" data-k="${k}" style="min-height:44px">Undo</button></div></div><span class="badge quiet">${ic('check')}Original · in deck</span></div></div>`;
+  const multi=k==='C';
+  const split=multi?`<span class="split"><button class="btn primary" data-act="moveHere" data-k="${k}">Move here</button><select aria-label="Choose which copy to move" data-act="chooseCopy" data-k="${k}">${COPIES.C.map(c=>`<option value="${c[0]}" ${c[0]===m.src?'selected':''}>${c[0]}${c[1]==='proxy'?' (proxy)':''} · ${c[2]}</option>`).join('')}</select></span>`
+   :`<button class="btn primary" data-act="moveHere" data-k="${k}">Move here</button>`;
+  return `<div class="mvrow"><div class="top"><div class="txt"><div class="nm">${name}${extraTop||''}</div><div class="sub" style="color:var(--text)">${note}</div></div><span class="badge lock">${ic('lock')}Planned · in ${m.src}</span></div>
+   <div class="acts" style="margin-top:6px">${split}<button class="btn" data-act="toast" data-msg="Added to the Picklist. Nothing moves in Oracle until you tick it.">Add to Picklist</button></div></div>`;
+}
+function moveScreen(){
+  const a=S.mv.A,b=S.mv.B,c=S.mv.C,d=S.mv.D;
+  const dn=Object.values(S.mv).filter(x=>x.st==='done');
+  const atraxaDone=Object.values(S.mv).some(x=>x.st==='done'&&x.src==='Atraxa');
+  return `<div class="crumb">Decks › Korvold</div><h2 class="h1">Move here</h2>
+  <div class="sub" style="margin-bottom:8px">A card Oracle shows in another deck gets a primary <b style="color:var(--text)">Move here</b>. One click, moved at once, short Undo. Try each row.</div>
+  <div class="mvwrap"><div><div class="card" style="overflow:hidden"><div class="cardhead">Korvold · Artifacts</div>
+   ${mvRow('A','Cultivate','Your copy is in Prosper. Prosper is an Assembling deck.')}
+   ${mvRow('B','Rhystic Study','Your copy is in Atraxa. Atraxa is Playable, so it will become Assembling.')}
+   ${mvRow('C','Smothering Tithe','You own 3 copies, all in decks. Oracle picked the copy in a deck that is not Playable first. Change it with the list.')}
+   ${mvRow('D','Lightning Greaves','Added just now as a planned slot. Your copy is in Prosper.',`<span class="mvnote">Added · Undo in chat</span>`)}
+  </div><p class="sub">Add to deck (planned slot only) is unchanged. When the only copy is in another deck, <b style="color:var(--text)">Move here</b> appears on that row straight after the add, and on the chat card.</p></div>
+  <div><div class="card"><div class="cardhead">What changed elsewhere</div>
+   <div class="mvrow"><b>Prosper</b><div class="sub">${a.st==='done'||c.st==='done'&&c.src==='Prosper'||d.st==='done'?'Short by '+Object.values(S.mv).filter(x=>x.st==='done'&&x.src==='Prosper').length+'. Slots are now Planned. No reminder is created.':'No change'}</div></div>
+   <div class="mvrow"><b>Atraxa</b><div class="sub">${atraxaDone?'Playable → <b style="color:var(--text)">Assembling</b>. Named in the Undo toast, no confirmation.':'Playable · no change'}</div></div></div>
+   <p class="sub">Oracle assumes you are physically moving the card. It does not remind you or add it to a list.</p></div></div>`;
+}
+
+/* ---------- screen 4: Unsorted ---------- */
+function unsortedScreen(){
+  const left=S.moves.filter(m=>m.from==='unsorted'&&m.st==='todo').length;
+  return `<div class="crumb">Storage › Unsorted</div><h2 class="h1">Unsorted</h2>
+  <div class="sub">New cards land here after an import, until you put them away.</div>
+  ${sysTiles('unsorted')}
+  <div class="banner accent">${ic('check')}<div><b>Import finished: 12 cards added to Unsorted.</b><div class="sub">9 fit a deck that has an empty slot for them. 3 have no deck yet and will go to a box.</div>
+   <div class="acts"><button class="btn primary" data-act="toChecklist">Add all 12 to the Picklist</button><button class="btn" data-act="toast" data-msg="Cards stay in Unsorted. Nothing is lost.">Later</button></div></div></div>
+  <div class="card" style="overflow:hidden"><div class="cardhead"><span style="flex:1">Imported 12 Nov · 12 cards</span><span class="sub">Newest first</span></div>
+   ${[['Rhystic Study','Prosper','New'],['Command Tower','Lands box','New'],['Smothering Tithe','Alphabetical box','New'],['Sol Ring (foil)','Korvold','New']].map(r=>`<div class="deckrow"><div class="txt"><div class="nm">${r[0]}</div><div class="sub">Suggested: ${r[1]}${r[1]==='Alphabetical box'||r[1]==='Lands box'?' (no deck needs it)':' (planned slot waiting)'}</div></div>
+    <label class="sr" for="d${r[0]}">Destination for ${r[0]}</label><select class="dest" id="d${r[0]}"><option>${r[1]}</option><option>Alphabetical box</option><option>Lands box</option><option>Valuable binder</option></select>
+    <button class="btn sm" data-act="toast" data-msg="Added to the Picklist.">Add to Picklist</button></div>`).join('')}
+   <div class="deckrow"><div class="txt sub">+ 8 more</div><button class="link" data-act="toast" data-msg="Shows the rest.">Show all</button></div></div>
+  <p class="sub" style="margin-top:8px">${left?`${left} cards from Unsorted are already on your Picklist.`:'Cards leave Unsorted when you tick Found it on the Picklist.'}</p>`;
+}
+
+/* ---------- screen 4b: import, where the cards go ---------- */
+const IMPTOTAL=8;
+const IMPPL={
+ unsorted:{n:'Unsorted',g:'u',ic:'inbox',m:'Default'},
+ abox:{n:'Alphabetical box',g:'b',ic:'box',m:'214 cards'},lbox:{n:'Lands box',g:'b',ic:'box',m:'96 cards'},
+ tbin:{n:'Trade binder',g:'b',ic:'box',m:'22 cards'},vbin:{n:'Valuable binder',g:'b',ic:'box',m:'38 cards'},
+ atraxa:{n:'Atraxa',g:'d',ic:'deck',m:'Playable · no open slots',fill:0,nw:6,uns:2,size:100},
+ edgar:{n:'Edgar Markov',g:'d',ic:'deck',m:'Assembling · 6 open slots',fill:2,nw:5,uns:1,size:90},
+ korvold:{n:'Korvold',g:'d',ic:'deck',m:'Assembling · 7 open slots',fill:5,nw:2,uns:1,size:100},
+ prosper:{n:'Prosper',g:'d',ic:'deck',m:'Assembling · 4 open slots',fill:3,nw:4,uns:1,size:97}
+};
+const IMPGROUPS=[['u','Unsorted'],['b','Boxes and binders'],['d','Decks']];
+const IMPUNS={korvold:['Sol Ring · Korvold already has it'],prosper:['Arcane Signet · Prosper already has it'],edgar:['Command Tower · Edgar Markov already has it'],atraxa:['Sol Ring · Atraxa already has it','Mind Stone · Atraxa already has it']};
+const impPl=(n,a,b)=>`${n} ${n===1?a:b}`;
+function impOpts(q){
+  q=(q||'').trim().toLowerCase();let any=false;
+  const html=IMPGROUPS.map(([g,label])=>{
+    const ks=Object.keys(IMPPL).filter(k=>IMPPL[k].g===g&&(!q||IMPPL[k].n.toLowerCase().includes(q)));
+    if(!ks.length)return '';any=true;
+    return `<div role="group" aria-label="${label}"><div class="pgrp">${label}</div>${ks.map(k=>`<button class="popt" role="option" data-act="impPick" data-v="${k}" aria-selected="${S.imp.dest===k}">${ic(IMPPL[k].ic)}<span class="nm">${IMPPL[k].n}</span><span class="meta">${IMPPL[k].m}</span>${S.imp.dest===k?ic('check'):''}</button>`).join('')}</div>`}).join('');
+  return any?html:`<div class="err" style="padding:12px" role="status">${ic('search')}<div><b>No place matches “${q.replace(/</g,'&lt;')}”.</b><div class="sub">Clear the search to see all ${Object.keys(IMPPL).length} places. Missing and In your hand aren't places you can import into.</div></div></div>`;
+}
+function impResultScreen(){
+  const d=S.imp.dest,p=IMPPL[d];let where='',sub='',offer=0,note='';
+  if(p.g==='d'){
+    const parts=[];if(p.fill)parts.push(`${p.fill} filled planned ${p.fill===1?'slot':'slots'}`);if(p.nw)parts.push(`${p.nw} added as new`);if(p.uns)parts.push(`${p.uns} sent to Unsorted`);
+    where=parts.join(', ');sub=`Where they went: ${p.n}`;offer=p.uns;
+    note=p.uns?`<div class="wn"><button class="link" data-act="impShowU" aria-expanded="${S.imp.showU}">${S.imp.showU?'Hide which':'Show which'} ${p.uns===1?'one':'ones'} went to Unsorted</button>${S.imp.showU?`<ul>${IMPUNS[d].map(x=>`<li>${x}</li>`).join('')}</ul>`:''}</div>`:'';
+  }else if(d==='unsorted'){where=`${IMPTOTAL} put in Unsorted`;sub='Where they went';offer=IMPTOTAL}
+  else{where=`${IMPTOTAL} put in ${p.n}`;sub='Where they went'}
+  const offerHtml=offer>0?`<div class="banner accent" style="margin:0">${ic('inbox')}<div><b>${offer===IMPTOTAL?`${offer} ${offer===1?'card is':'cards are'} in Unsorted.`:`${impPl(offer,'card is','cards are')} in Unsorted.`}</b><div class="sub">${d==='unsorted'?'Put them away by walking to them, or leave them for later.':'Only the cards sent to Unsorted are offered here. The rest are already in place.'}</div>
+    <div class="acts"><button class="btn primary" data-act="toast" data-msg="${offer===1?'1 move':offer+' moves'} added to the Picklist. Unsorted is the first stop.">${offer===1?'Add 1 to the Picklist':`Add all ${offer} to the Picklist`}</button><button class="btn" data-act="toast" data-msg="Cards stay in Unsorted. Nothing is lost.">Later</button></div></div></div>`
+    :`<div class="sub" style="text-align:center">Nothing was sent to Unsorted, so there is nothing to add to the Picklist.</div>`;
+  return `<div class="impctl"><div class="crumb">Collection › Import cards</div></div><div class="imp" aria-label="Import result"><div class="impres">
+   <div class="big" role="status"><span class="tickc">${ic('check')}</span><h2 style="margin:4px 0 0;font-size:var(--fs-xl);font-weight:600">${IMPTOTAL} copies added</h2><div class="sub">to your collection</div></div>
+   <div class="wherebox"><div class="wh">${sub}</div><div class="wl">${where}</div>${note}</div>
+   ${offerHtml}
+   <div class="impfoot" style="border:0;background:none;padding:0;justify-content:flex-end"><button class="btn" data-act="impBack">Close</button><button class="btn primary" data-act="toast" data-msg="Opens the collection.">View collection</button></div></div></div>`;
+}
+function importScreen(){
+  const I=S.imp;
+  const ctl=`<div class="mockstate impctl" role="group" aria-label="Mockup only: pretend state"><span class="lbl">Mockup only · places</span>${[['ok','Loaded'],['loading','Loading'],['error',"Couldn't load"],['none','Only Unsorted']].map(x=>`<button class="seg" data-act="impPlaces" data-v="${x[0]}" aria-pressed="${I.places===x[0]}">${x[1]}</button>`).join('')}<span class="lbl" style="margin-left:8px">Deck check</span>${[['ok','Loaded'],['loading','Checking'],['error',"Couldn't check"]].map(x=>`<button class="seg" data-act="impChk" data-v="${x[0]}" aria-pressed="${I.chk===x[0]}">${x[1]}</button>`).join('')}</div>`;
+  if(I.mode==='result')return ctl+impResultScreen();
+  if(I.places==='none'&&I.dest!=='unsorted')I.dest='unsorted';
+  const d=I.dest,p=IMPPL[d],isDeck=p.g==='d';
+  const many=Object.keys(IMPPL).length>8;
+  let picker;
+  if(I.places==='none')picker=`<div class="pickrow"><span class="lab">Put these cards in</span><div class="sub" style="font-size:var(--fs-base);color:var(--text)">${ic('inbox')} Unsorted <span class="sub">· You have no boxes, binders or decks yet to choose from.</span></div></div>`;
+  else if(I.places==='loading')picker=`<div class="pickrow"><span class="lab" id="impLab">Put these cards in</span><button class="trig" id="impTrig" aria-disabled="true" aria-labelledby="impLab" aria-busy="true"><span class="nm">Loading your places…</span></button><div class="sub" role="status">Cards go to Unsorted unless you choose a place.</div></div>`;
+  else{
+    const pop=I.open?`<div class="pscrim on" data-act="impClose"></div><div class="pickpop" role="dialog" aria-label="Choose where these cards go">${many?`<div class="srch">${ic('search')}<label class="sr" for="impQ">Search your places</label><input id="impQ" type="search" placeholder="Search boxes, binders and decks" value="${I.q.replace(/"/g,'&quot;')}" autocomplete="off"></div>`:''}<div class="lst" role="listbox" aria-label="Places" id="impList">${impOpts(I.q)}</div></div>`:'';
+    picker=`<div class="pickrow"><span class="lab" id="impLab">Put these cards in</span><button class="trig" id="impTrig" aria-haspopup="listbox" aria-expanded="${I.open}" aria-labelledby="impLab impVal" data-act="impOpen">${ic(p.ic)}<span class="nm" id="impVal">${p.n}${d==='unsorted'?' <span class="sub">· default</span>':''}</span><span class="sub">${I.places==='error'?'':p.m==='Default'?'':p.m}</span>${ic('chev')}</button>${pop}
+     ${I.places==='error'?`<div class="err" role="alert">${ic('alert')}<div><b>Couldn't load your boxes, binders and decks.</b><div class="sub">Cards will go to Unsorted. You can put them away later.</div><button class="btn sm" style="margin-top:6px" data-act="impPlaces" data-v="ok">Try again</button></div></div>`:''}</div>`;
+  }
+  let note='';
+  if(isDeck){
+    const warn=p.nw>0&&p.size+p.nw>100?`<div class="impwarn">${ic('alert')}<span>Adding ${p.nw} new ${p.nw===1?'slot':'slots'} takes ${p.n} to ${p.size+p.nw} cards. A Commander deck is 100.</span></div>`:'';
+    const pv=I.chk==='loading'?`<div class="pv" role="status"><span class="skel" style="height:18px"></span><span class="sub">Checking ${p.n}…</span></div>`
+      :I.chk==='error'?`<div class="pv err" role="alert">${ic('alert')}<div><b>Couldn't check ${p.n}.</b> <span class="sub">You can still import. The result will say exactly where each card went.</span> <button class="link" data-act="impChk" data-v="ok">Try again</button></div></div>`
+      :`<div class="pv" role="status"><b>From this file:</b> ${[p.fill?`${p.fill} would fill planned ${p.fill===1?'slot':'slots'}`:'',p.nw?`${p.nw} would be added as new`:'',p.uns?`${p.uns} would go to Unsorted`:''].filter(Boolean).join(' · ')}.${warn}</div>`;
+    note=`<div class="impnote"><b>Going into ${p.n}</b><ul><li>Each copy fills ${p.n}'s matching planned slot.</li><li>A card ${p.n} doesn't list is added as a new slot with the copy.</li><li>A card ${p.n} already has filled goes to Unsorted instead.</li></ul>${pv}</div>`;
+  }else if(d!=='unsorted')note=`<div class="sub">All ${IMPTOTAL} copies go straight into ${p.n}. Nothing is added to the Picklist.</div>`;
+  else if(I.places!=='none')note=`<div class="sub">They land in Unsorted. Put them away later from the Picklist.</div>`;
+  const dest=isDeck&&I.chk==='ok'?` · ${p.fill+p.nw} into ${p.n}${p.uns?`, ${p.uns} to Unsorted`:''}`:` · to ${p.n}`;
+  return ctl+`<div class="impctl"><div class="crumb">Collection › Import cards</div></div><div class="imp" role="group" aria-label="Import cards">
+   <div class="imphead">Import cards</div>
+   <div class="impbody">
+    <div class="impbar" role="group" aria-label="Import defaults"><span class="sub">Importing as:</span>Non-foil · Near Mint · English<button class="link u" data-act="toast" data-msg="Opens the existing finish, condition and language fields.">Change</button><span class="sub" style="margin-left:auto">Values in your file are used automatically where present.</span></div>
+    ${picker}${note}
+    <div class="card" style="overflow:hidden"><div class="cardhead" style="font-size:var(--fs-base)"><span style="flex:1">${IMPTOTAL} copies in this file</span><span class="sub">1 proxy · 1 foil</span></div>
+     ${['Sol Ring','Command Tower','Rhystic Study','Smothering Tithe','Arcane Signet'].map(n=>`<div class="deckrow" style="min-height:40px"><div class="txt">${n}</div><span class="sub">Near Mint</span></div>`).join('')}
+     <div class="deckrow" style="min-height:40px"><div class="txt sub">+ 3 more</div></div></div>
+   </div>
+   <div class="impfoot"><span class="grow" role="status">${IMPTOTAL} copies${dest}</span><button class="btn" data-act="toast" data-msg="Closes the import. Nothing was added.">Cancel</button><button class="btn primary" data-act="impImport">Import cards</button></div></div>`;
+}
+
+/* ---------- screen 5: states ---------- */
+function statesScreen(){
+  return `<h2 class="h1">States</h2><div class="sub" style="margin-bottom:10px">Every empty, loading and error state in this feature. Wording is final unless you change it.</div><div class="gal">
+  <div class="cell"><h4>All-decks Picklist · loading</h4><span class="skel"></span><span class="skel"></span><span class="skel"></span><div class="sub" role="status">Loading your moves…</div></div>
+  <div class="cell"><h4>All-decks Picklist · empty</h4><div class="err">${ic('check')}<div><b>Nothing to move.</b><div class="sub">Moves you add from a deck, or after an import, show up here.</div></div></div></div>
+  <div class="cell"><h4>All-decks Picklist · couldn't load</h4><div class="err">${ic('alert')}<div><b>Couldn't load your moves.</b><div class="sub">Your cards haven't changed.</div><button class="btn sm" style="margin-top:8px">Try again</button></div></div></div>
+  <div class="cell"><h4>All-decks Picklist · all done</h4><div class="err">${ic('check')}<div><b>All 7 moves done.</b><div class="sub">Nothing is in your hand and nothing is missing.</div><button class="btn sm" style="margin-top:8px">Clear the list</button></div></div></div>
+  <div class="cell"><h4>Tick · saving</h4><button class="tick busy" aria-pressed="true" aria-busy="true"><span class="box">${ic('check')}</span>Saving…</button><div class="sub" style="margin-top:6px">Button stays pressed and dims. Other rows stay usable.</div></div>
+  <div class="cell"><h4>Tick · couldn't save</h4><div class="err">${ic('alert')}<div><b>Couldn't save that. Sol Ring is still where Oracle had it.</b><div style="display:flex;gap:8px;margin-top:8px"><button class="btn sm">Try again</button></div><div class="sub" style="margin-top:6px">The tick un-ticks itself. No connection reads: "No connection. This tick isn't saved."</div></div></div></div>
+  <div class="cell"><h4>Move out of date</h4><div class="err">${ic('alert')}<div><b>Sol Ring isn't in Alphabetical box any more.</b><div class="sub">Oracle now has it in Prosper.</div><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn sm">Take it from Prosper instead</button><button class="btn sm">Remove from Picklist</button></div></div></div></div>
+  <div class="cell"><h4>In your hand · empty</h4>${(()=>{const s=S.moves;return `<div class="hand"><header>${ic('hand')}In your hand · 0</header><div class="empty">You aren't carrying anything. When you tick <b>Found</b> on a card, it appears here until you place it.</div></div>`})()}</div>
+  <div class="cell"><h4>In your hand · left over</h4><div class="hand"><header>${ic('hand')}In your hand · 2</header><div class="empty" style="color:var(--text)"><b>Still in your hand since yesterday.</b> Place them or put them back so Oracle matches the shelf.</div></div></div>
+  <div class="cell"><h4>Hand · couldn't place</h4><div class="err">${ic('alert')}<div><b>Couldn't place Sol Ring. It is still in your hand.</b><button class="btn sm" style="margin-top:8px">Try again</button></div></div></div>
+  <div class="cell"><h4>Missing · empty</h4>${emptyMissing()}</div>
+  <div class="cell"><h4>Unsorted · empty</h4><div class="err">${ic('inbox')}<div><b>Nothing in Unsorted.</b><div class="sub">New imports land here.</div></div></div></div>
+  <div class="cell"><h4>Unsorted · loading</h4><span class="skel"></span><span class="skel"></span><div class="sub" role="status">Loading Unsorted…</div></div>
+  <div class="cell"><h4>Import landed, list failed</h4><div class="err">${ic('alert')}<div><b>12 cards were added, but we couldn't open Unsorted.</b><div class="sub">Your cards are safe.</div><button class="btn sm" style="margin-top:8px">Try again</button></div></div></div>
+  <div class="cell"><h4>Missing · no look-next ideas</h4><div class="err">${ic('search')}<div><b>Where to look next</b><div class="sub">Oracle has no history for this card. Try Unsorted, then each box, then the decks that play its colours.</div></div></div></div>
+  <div class="cell"><h4>Deck · short, spare exists</h4><div class="err">${ic('search')}<div><b>Short by 1.</b> Your copy is Missing. <div class="sub">You have a spare Chromatic Lantern in Alphabetical box.</div><button class="btn sm" style="margin-top:8px">Use the spare copy</button></div></div></div>
+  <div class="cell"><h4>Deck Picklist · loading</h4><span class="skel" style="height:64px"></span><span class="skel"></span><span class="skel"></span><div class="sub" role="status">Loading your Picklist…</div><div class="sub">The summary never shows "0 of 0" while loading.</div></div>
+  <div class="cell"><h4>Deck Picklist · couldn't load</h4><div class="err">${ic('alert')}<div><b>Couldn't load this deck's Picklist.</b><div class="sub">Your cards haven't changed.</div><button class="btn sm" style="margin-top:8px">Try again</button></div></div></div>
+  <div class="cell"><h4>Deck Picklist · deck has no cards</h4><div class="err">${ic('deck')}<div><b>No cards in this deck yet.</b><div class="sub">Import cards from a URL or paste a list to start building your Picklist.</div></div></div></div>
+  <div class="cell"><h4>Deck Picklist · complete</h4><div class="err">${ic('check')}<div><b>Nothing left to pick.</b><div class="sub">Every card this deck needs is in it. 100 of 100 ready.</div></div></div></div>
+  <div class="cell"><h4>Deck Picklist · groups empty</h4><div class="sub">Available: "Nothing to pick up. Every card you own for this deck is already in it or in another deck."<br>Needs moving: "Nothing to move from other decks."<br>Unowned: "You own everything this deck needs."</div></div>
+  <div class="cell"><h4>Deck Picklist · search, no match</h4><div class="err">${ic('search')}<div><b>No cards match “sol”.</b><div class="sub">Clear the search to see all 8 cards left.</div></div></div></div>
+  <div class="cell"><h4>Unowned · prices unavailable</h4><div class="err">${ic('alert')}<div><b>Prices aren't available right now.</b><div class="sub">Your cards are listed without prices. To finish: price unknown.</div><button class="btn sm" style="margin-top:8px">Try again</button></div></div></div>
+  <div class="cell"><h4>Wishlist · couldn't save</h4><div class="err">${ic('alert')}<div><b>Couldn't save that. Mana Vault is not on your wishlist.</b><div class="sub">The box un-ticks itself. Offline: "No connection. This isn't saved."</div></div></div></div>
+  <div class="cell"><h4>Needs moving · out of date</h4><div class="err">${ic('alert')}<div><b>Cultivate is no longer in Prosper.</b><div class="sub">The row refreshes to show where it is now.</div></div></div></div>
+  <div class="cell"><h4>Import place · couldn't load places</h4><div class="err">${ic('alert')}<div><b>Couldn't load your boxes, binders and decks.</b><div class="sub">Cards will go to Unsorted. You can put them away later.</div><button class="btn sm" style="margin-top:6px">Try again</button></div></div></div>
+  <div class="cell"><h4>Import place · search, no match</h4><div class="err">${ic('search')}<div><b>No place matches “vault”.</b><div class="sub">Clear the search to see all 9 places. Missing and In your hand aren't places you can import into.</div></div></div></div>
+  <div class="cell"><h4>Import place · no boxes or decks yet</h4><div class="sub">The picker is not shown. The row reads "Put these cards in: Unsorted · You have no boxes, binders or decks yet to choose from."</div></div>
+  <div class="cell"><h4>Import place · couldn't check the deck</h4><div class="err">${ic('alert')}<div><b>Couldn't check Korvold.</b><div class="sub">You can still import. The result will say exactly where each card went.</div><button class="btn sm" style="margin-top:6px">Try again</button></div></div></div>
+  <div class="cell"><h4>Import place · deck would grow past its size</h4><div class="err">${ic('alert')}<div><b>Adding 4 new slots takes Prosper to 101 cards.</b><div class="sub">A Commander deck is 100. Warns only; the import still goes ahead.</div></div></div></div>
+  <div class="cell"><h4>Import · place was removed before saving</h4><div class="err">${ic('alert')}<div><b>Valuable binder no longer exists. 8 copies went to Unsorted instead.</b><div class="sub">Nothing was lost. Open Unsorted to put them away.</div><button class="btn sm" style="margin-top:6px">Open Unsorted</button></div></div></div>
+  <div class="cell"><h4>Import · some copies couldn't be placed</h4><div class="err">${ic('alert')}<div><b>7 of 8 went into Korvold. 1 couldn't be placed and went to Unsorted.</b><div class="sub">Result reads: 4 filled planned slots, 2 added as new, 2 sent to Unsorted. Nothing is lost.</div></div></div></div>
+  <div class="cell"><h4>Import · everything sent to Unsorted</h4><div class="err">${ic('inbox')}<div><b>Korvold already had all 8. 8 sent to Unsorted.</b><div class="sub">Result reads: 8 sent to Unsorted. The Picklist offer covers all 8.</div></div></div></div>
+  </div>`;
+}
+
+/* ---------- screen 6: chat proposals ---------- */
+function chatScreen(){
+  return `<h2 class="h1">Chat proposal cards</h2><div class="sub" style="margin-bottom:10px">Left: as built by the Developer. Right: refined. Refinements only; behaviour and wording of the contract are unchanged except where marked "changed".</div>
+  <div class="chatwrap"><div class="chatcol cur"><h3>As built</h3><div class="chat"><p>Here are three ideas for Korvold:</p><ul>
+   <li><div style="flex:1"><div class="n">Sol Ring</div><div class="r">Fast mana for a commander that wants to go wide early.</div><div class="g">Goes in: Ramp</div><div class="r" style="margin-top:2px">You own it, it's in Prosper. Adding it makes a planned slot here and leaves the card in Prosper.</div></div><div class="col"><button class="abtn">+ Add to Korvold, Fae-Cursed King</button><button class="nn">Not now</button></div></li>
+   <li><div style="flex:1"><div class="n">Cyclonic Rift</div><div class="r">Not in these colours.</div><div class="r" style="color:#fbbf24">Outside this deck's colours.</div></div></li>
+   <li><div style="flex:1"><div class="n">Skullclamp</div><div class="g">Goes in: Draw</div><div class="r">You don't own this.</div></div><div class="col"><button class="abtn">+ Add to Korvold, Fae-Cursed King</button><button class="nn">Not now</button></div></li></ul></div></div>
+  <div class="chatcol ref"><h3>Refined</h3><div class="chat" id="refchat"></div></div></div>`;
+}
+let prop={a:'ready',b:'ready',c:'ready',hidden:false};
+function renderRef(){
+  const own=(k)=>({a:`<span class="badge lock">${ic('lock')}In Prosper</span><span>Adding makes a planned slot here. Your copy stays in Prosper.</span>`,c:`<span class="badge unowned">${ic('dnd')}Unowned</span><span>You don't own this. It goes in as a planned slot.</span>`}[k]);
+  const card=(k,name,why,cat)=>{
+    const st=prop[k];
+    if(st==='added') return `<div class="prop"><div class="top"><div style="flex:1"><div class="nm">${name}</div><div class="why">Added to Korvold.</div></div><span class="badge done">${ic('check')}Added</span></div><div class="acts"><button class="btn sm" data-act="pUndo" data-k="${k}">${ic('undo')}Undo</button>${k==='a'?(prop.moved?`<span class="badge done">${ic('check')}Moved from Prosper</span>`:`<button class="btn primary" data-act="pMove">Move here</button>`):''}</div>${k==='a'&&!prop.moved?`<div class="why" style="margin-top:4px">Your copy is in Prosper. Move here takes it from there now.</div>`:''}</div>`;
+    return `<div class="prop"><div class="top"><div style="flex:1"><div class="nm">${name}</div><div class="why strong">${why}</div><div class="why">Goes in: ${cat}</div></div></div><div class="own">${own(k)}</div>
+      <div class="acts"><button class="btn primary" data-act="pAdd" data-k="${k}" aria-label="Add ${name} to Korvold">${ic('plus')}${st==='sending'?'Adding…':'Add'}</button><button class="btn" data-act="pHide" data-k="${k}">Not now</button></div></div>`};
+  const ready=['a','c'].filter(k=>prop[k]==='ready').length;
+  if(prop.hidden) {$('#refchat').innerHTML=`<p>Here are three ideas for Korvold:</p><div class="sub">3 suggestions hidden. <button class="link" data-act="pShow">Show again</button></div>`;return}
+  $('#refchat').innerHTML=`<p>Here are three ideas for Korvold:</p>
+  <div class="ref"><div class="gh"><b>Suggestions for Korvold</b><span class="sub">Nothing changes until you tap Add</span></div>
+  ${ready>1?`<div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap"><button class="btn primary" data-act="pAll">${ic('plus')}Add all ${ready}</button><button class="btn" data-act="pHideAll">Not now</button></div>`:''}
+  ${card('a','Sol Ring','Fast mana for a commander that wants to go wide early.','Ramp')}
+  ${card('c','Skullclamp','Turns your small creatures into cards.','Draw')}
+  <div class="prop blocked"><div class="top"><div style="flex:1"><div class="nm" style="font-weight:500">Cyclonic Rift</div><div class="err" style="margin-top:4px;font-size:var(--fs-sm)">${ic('alert')}<span>Can't add: outside this deck's colours.</span></div></div></div></div>
+  ${(prop.a==='added'||prop.c==='added')?`<div class="receipt" role="status">${prop.a==='added'&&prop.c==='added'?'Added 2 of 2 to Korvold. They are planned slots; no copy was moved.':'Added to Korvold as a planned slot. No copy was moved.'}<div class="sub" style="color:var(--text)">Undo works for 24 hours.</div></div>`:''}
+  </div>`;
+}
+
+/* ---------- screen 1b: Picklist for one deck ---------- */
+const BASE_READY=92, DECK_SIZE=100;
+const plAll=()=>[...S.moves.filter(m=>m.to==='korvold'),...S.extra];
+const plItem=id=>plAll().find(m=>m.id==id);
+const plPromote=m=>{const i=S.extra.indexOf(m);if(i>=0){S.extra.splice(i,1);S.moves.push(m);S.openStops=null}};
+const plLeft=()=>S.moves.filter(m=>m.from==='korvold'&&m.st!=='todo').length;
+const money=n=>'$'+n.toFixed(2);
+function plRow(m,kind){
+  const from=P[m.from].n, isAv=kind==='av';
+  const done=m.st==='placed', walking=S.plWalk.has(m.id)||m.st==='hand'||(done&&!m.via);
+  let meta;
+  if(m.st==='missing') meta=`<span class="badge missing">${ic('search')}Missing</span>Oracle had it in ${from}. Where to look next is on the all-decks Picklist.`;
+  else if(done) meta=m.via?`<span class="badge quiet">${ic('check')}In deck</span>Moved from ${from}. <button class="link" data-act="plundo" data-id="${m.id}" style="min-height:44px">Undo</button>`:`<span class="badge done">${ic('check')}Placed</span>from ${from}`;
+  else if(m.st==='hand') meta=handBadge()+` from ${from}`;
+  else if(isAv) meta=`<span class="badge quiet">Available</span>free in ${from}`;
+  else meta=`<span class="badge lock">${ic('lock')}Planned · in ${from}</span>${DECKST[m.from]==='Playable'?`${from} is Playable, so it will become Assembling.`:`${from} is ${DECKST[m.from]}.`}`;
+  let acts='';
+  if(m.st==='missing') acts='';
+  else if(done&&m.via) acts='';
+  else if(isAv) acts=tickBtn('Found it',m.st!=='todo',m.st==='placed','plfound',m.id,m.st==='placed'?'Already placed. Untick Placed it first.':'')+tickBtn('Placed it',m.st==='placed',false,'plplaced',m.id)+(m.st==='todo'?`<button class="link dim cant" data-act="plcant" data-id="${m.id}">Can't find it</button>`:'');
+  else {
+    acts=(m.st==='todo'?`<button class="btn primary" data-act="plmove" data-id="${m.id}" aria-label="Move ${m.name} here from ${from}">Move here</button>`:'')
+      +(walking?tickBtn('Found it',m.st!=='todo',m.st==='placed','plfound',m.id,m.st==='placed'?'Already placed. Untick Placed it first.':'')+tickBtn('Placed it',m.st==='placed',m.st==='todo','plplaced',m.id,m.st==='todo'?'Pick it up first, at '+from:''):`<button class="link dim" data-act="plwalk" data-id="${m.id}">Walk it instead</button>`);
+  }
+  return `<div class="row"><div class="txt"><div class="nm">${m.name}</div><div class="meta">${meta}</div></div>${acts}</div>`;
+}
+function plSecs(items,kind){
+  const keys=[...new Set(items.map(m=>m.from))].sort((a,b)=>ORDER.indexOf(a)-ORDER.indexOf(b));
+  return keys.map(k=>{const it=items.filter(m=>m.from===k);
+    return `<div class="sec"><span>${kind==='nm'?'From ':''}${P[k].n}${kind==='nm'?' · '+DECKST[k]:''} (${it.length})</span></div>${it.map(m=>plRow(m,kind)).join('')}`}).join('');
+}
+function plGroup(key,icon,title,sub,items,leftN,body,emptyTxt,foot){
+  const open=S.plOpen?S.plOpen.has(key):(dev==='laptop'||leftN>0&&key==='av');
+  const badge=!items.length?`<span class="badge quiet">None</span>`:leftN?`<span class="badge quiet">${leftN} left</span>`:`<span class="badge done">${ic('check')}Done</span>`;
+  return `<details class="stop" data-g="${key}" ${open?'open':''}><summary>${ic(icon)}<span class="nm">${title}</span><span class="sub">${sub}</span>${badge}<span class="chev">${ic('chev')}</span></summary>
+  <div class="stopbody">${items.length?body:`<div class="empty2">${emptyTxt}</div>`}${foot||''}</div></details>`;
+}
+function deckPicklist(){
+  const v=S.plState;
+  const tabs=`<div class="crumb">Decks › Korvold</div><h2 class="h1">Korvold, Fae-Cursed King</h2>
+  <div class="tabs" role="tablist"><button class="tab" role="tab" aria-selected="false">Cards</button><button class="tab" role="tab" aria-selected="true">Picklist</button><button class="tab" role="tab" aria-selected="false">Deck health</button><button class="tab" role="tab" aria-selected="false">Chat</button></div>
+  <div class="mockstate" role="group" aria-label="Mockup only: pretend state"><span class="lbl">Mockup only · show state</span>${[['normal','Normal'],['loading','Loading'],['error',"Couldn't load"],['complete','Complete']].map(x=>`<button class="seg" data-act="plstate" data-v="${x[0]}" aria-pressed="${v===x[0]}">${x[1]}</button>`).join('')}</div>`;
+  if(v==='loading') return tabs+`<div role="status" class="sub" style="margin:8px 0">Loading your Picklist…</div><span class="skel" style="height:64px"></span><span class="skel"></span><span class="skel"></span><span class="skel"></span>`;
+  if(v==='error') return tabs+`<div class="banner">${ic('alert')}<div><b>Couldn't load this deck's Picklist.</b><div class="sub">Your cards haven't changed.</div><div class="acts"><button class="btn" data-act="plstate" data-v="normal">Try again</button></div></div></div>`;
+  const done=v==='complete';
+  const items=done?[]:plAll(), av=items.filter(m=>P[m.from].t!=='Deck'), nm=items.filter(m=>P[m.from].t==='Deck');
+  const un=done?[]:S.unowned;
+  const avL=av.filter(m=>m.st!=='placed').length, nmL=nm.filter(m=>m.st!=='placed').length;
+  const ready=done?DECK_SIZE:BASE_READY-plLeft()+items.filter(m=>m.st==='placed').length;
+  const cap=DECK_SIZE-un.length, lh=plLeft();
+  const offWalk=items.filter(m=>S.extra.includes(m)&&m.st!=='placed').length;
+  const wishN=un.filter(u=>u.wish).length;
+  const priced=un.filter(u=>u.price!=null), total=priced.reduce((a,u)=>a+u.price,0), unp=un.length-priced.length;
+  const sum=`<div class="plsum"><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><b style="font-size:var(--fs-lg)">${ready} of ${DECK_SIZE} ready</b><span class="sub">${done?'Every card is in the deck.':`${avL} available · ${nmL} need moving · ${un.length} unowned`}</span></div>
+   <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="${DECK_SIZE}" aria-valuenow="${ready}" aria-label="Cards ready in this deck"><i style="width:${ready}%"></i></div>
+   ${done?`<div class="sub" style="color:var(--text)"><b>Nothing left to pick.</b> Every card this deck needs is in it.</div>`:`<div class="sub">${un.length?`Walking and moving can get this deck to ${cap} of ${DECK_SIZE}. ${un.length===1?'The last card needs':'The last '+un.length+' need'} buying.`:`Ready means the card is in the deck (provisional word: In deck).`}${lh?` Short by ${lh} while cards are in your hand.`:''}</div>
+   <div class="chips">${offWalk?`<button class="btn sm" data-act="plwalkall">Add all ${offWalk} to the all-decks Picklist</button>`:`<span class="badge done">${ic('check')}Available and Needs moving are on the all-decks Picklist</span>`}</div>`}</div>`;
+  const avG=plGroup('av','box','Available','Owned, free in a box or Unsorted. Pick and place.',av,avL,plSecs(av,'av'),'Nothing to pick up. Every card you own for this deck is already in it or in another deck.');
+  const nmG=plGroup('nm','deck','Needs moving','Owned, but the copy is in another deck.',nm,nmL,plSecs(nm,'nm'),'Nothing to move from other decks.');
+  const unBody=un.map(u=>`<div class="row"><div class="txt"><div class="nm">${u.name}</div><div class="meta"><span class="badge unowned">${ic('dnd')}Unowned</span>${u.price==null?'Price unknown':money(u.price)}</div></div>
+    <label class="wish"><input type="checkbox" data-act="plwish" data-id="${u.id}" ${u.wish?'checked':''}>On my wishlist</label><button class="btn sm" data-act="toast" data-msg="Would make a proxy of ${u.name} and put it in the deck (existing Proxy action).">Make a proxy</button></div>`).join('');
+  const unFoot=`<div class="foot"><span><b>To finish: about ${money(total)}</b>${unp?` · ${unp} card${unp>1?'s':''} unpriced`:''}</span><span>${wishN} of ${un.length} on your wishlist</span><button class="link" data-act="toast" data-msg="Opens What's missing for Korvold, which lists buy ideas.">See buy ideas</button></div><div class="foot">Bought it? Import it and choose Korvold under "Put these cards in": it fills the slot straight away. <button class="link" data-act="impFromDeck">Import cards for Korvold</button></div>`;
+  const unG=plGroup('un','dnd','Unowned','Not owned. Needs buying (or a proxy).',un,un.length,unBody,'You own everything this deck needs.',un.length?unFoot:'');
+  return tabs+sum+avG+nmG+unG+`<p class="sub" style="margin-top:8px">Order: Available, then Needs moving, then Unowned. Cards you tick here also show on the all-decks Picklist, in walking order.</p>`;
+}
+
+/* ---------- screen 2 overlay + routing ---------- */
+const screens={import:importScreen,plist:deckPicklist,move:moveScreen,check:checklist,missing:missingScreen,deck:deckScreen,unsorted:unsortedScreen,states:statesScreen,chat:chatScreen,hand:deckScreen};
+function render(keepScroll){
+  const main=$('#main');const st=main.scrollTop;
+  $('#frame').classList.toggle('phone',dev==='phone');
+  main.className='main screen-'+(scr==='hand'?'deck':scr);
+  $('#frame').className='frame'+(dev==='phone'?' phone':'')+' screen-'+(scr==='hand'?'deck':scr);
+  main.innerHTML=screens[scr]();
+  if(scr==='chat')renderRef();
+  renderChip();renderPanel();renderBar();
+  if(keepScroll)main.scrollTop=st;
+  document.querySelectorAll('[data-dev]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.dev===dev));
+  document.querySelectorAll('[data-scr]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.scr===scr));
+  $('#navStorage').className=['missing','unsorted'].includes(scr)?'on':'';$('#navMoves').className=(scr==='check'||scr==='plist')?'on':'';
+}
+function openHand(){renderPanel();$('#panel').classList.add('on');$('#scrim').classList.add('on');$('#panelClose').focus()}
+function closeHand(){$('#panel').classList.remove('on');$('#scrim').classList.remove('on')}
+$('#chip').onclick=openHand;$('#panelClose').onclick=closeHand;$('#scrim').onclick=closeHand;
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeHand()});
+document.querySelectorAll('[data-dev]').forEach(b=>b.onclick=()=>{dev=b.dataset.dev;S.openStops=null;S.plOpen=null;render()});
+document.querySelectorAll('[data-scr]').forEach(b=>b.onclick=()=>{scr=b.dataset.scr;closeHand();render();if(scr==='hand'){openHand()}});
+$('#reset').onclick=()=>{S=seed();prop={a:'ready',b:'ready',c:'ready',hidden:false};closeHand();render()};
+
+const byId=id=>S.moves.find(m=>m.id==id);
+document.addEventListener('toggle',e=>{const d=e.target.closest&&e.target.closest('details.stop');if(d&&d.dataset.g){S.plOpen=S.plOpen||new Set();d.open?S.plOpen.add(d.dataset.g):S.plOpen.delete(d.dataset.g);return}if(d&&S.openStops&&d.dataset.stop){d.open?S.openStops.add(d.dataset.stop):S.openStops.delete(d.dataset.stop)}},true);
+document.addEventListener('input',e=>{if(e.target.id==='impQ'){S.imp.q=e.target.value;$('#impList').innerHTML=impOpts(S.imp.q)}});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&S.imp.open&&scr==='import'){S.imp.open=false;render(true);const x=$('#impTrig');x&&x.focus();return}
+  const pop=e.target.closest&&e.target.closest('.pickpop');if(!pop||(e.key!=='ArrowDown'&&e.key!=='ArrowUp'))return;
+  e.preventDefault();const items=[...pop.querySelectorAll('.popt')];const i=items.indexOf(document.activeElement);
+  const inp=pop.querySelector('input');
+  if(e.key==='ArrowDown'){(items[Math.min(items.length-1,i+1)]||{}).focus&&items[Math.min(items.length-1,i+1)].focus()}
+  else if(i<=0&&inp){inp.focus()}else if(i>0){items[i-1].focus()}
+});
+document.addEventListener('click',e=>{if(!(S.imp.open&&scr==='import'))return;if(e.target.closest('.pickrow')&&!e.target.closest('[data-act=impClose]'))return;if(e.target.closest('[data-act]')&&e.target.closest('[data-act]').dataset.act==='impClose')return;S.imp.open=false;render(true)},true);
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-act]');if(!t)return;
+  const a=t.dataset.act,m=byId(t.dataset.id);
+  if(t.getAttribute('aria-disabled')==='true'){toast(t.dataset.act==='placed'?'Pick it up first.':'Untick Placed first.');return}
+  const act={
+   found(){ if(m.st==='todo'){m.st='hand';toast(`${m.name} is in your hand. Oracle now shows ${P[m.from].n} short by one.`)} else if(m.st==='hand'){m.st='todo';toast(`${m.name} is back where Oracle had it.`)} },
+   placed(){ if(m.st==='hand'){m.st='placed';toast(`${m.name} placed in ${P[m.to].n}.`)} else if(m.st==='placed'){m.st='hand';toast(`${m.name} is in your hand again.`)} },
+   placeHand(){m.st='placed';toast(`${m.name} placed in ${P[m.to].n}.`)},
+   putElsewhere(){},
+   foundAll(){S.moves.filter(x=>x.from===t.dataset.stop&&x.st==='todo').forEach(x=>x.st='hand');toast('All picked up. They are in your hand.')},
+   placedAll(){S.moves.filter(x=>x.to===t.dataset.stop&&x.st==='hand').forEach(x=>x.st='placed');toast('All placed.')},
+   cant(){m.st='missing';toast(`${m.name} is flagged Missing. Oracle will keep asking until it turns up.`)},
+   undoMissing(){m.st='hand';toast(`${m.name} is in your hand.`)},
+   foundThere(){m.st='hand';toast(`${m.name} found. It is in your hand; the move carries on.`)},
+   mFound(){ if(t.dataset.base==='1'){S.missingBase=S.missingBase.filter(x=>x.name!==t.dataset.name);toast(`${t.dataset.name} found. Where is it now? (Asks for a place, then puts it there.)`)} else {byId(t.dataset.id).st='hand';toast('Found. It is in your hand.')} },
+   openHand(){openHand();return 'skip'},
+   goMissing(){scr='missing'},goUnsorted(){scr='unsorted'},
+   toChecklist(){scr='check';S.openStops=null;toast('12 moves added. Unsorted is the first stop.')},
+   goPlist(){scr='plist'},
+   plstate(){S.plState=t.dataset.v},
+   impOpen(){S.imp.open=!S.imp.open;S.imp.q='';setTimeout(()=>{const q=$('#impQ')||$('.popt[aria-selected=true]');if(q&&dev==='laptop')q.focus()},0)},
+   impClose(){S.imp.open=false;setTimeout(()=>{const x=$('#impTrig');x&&x.focus()},0)},
+   impPick(){S.imp.dest=t.dataset.v;S.imp.open=false;S.imp.q='';setTimeout(()=>{const x=$('#impTrig');x&&x.focus()},0)},
+   impPlaces(){S.imp.places=t.dataset.v;S.imp.open=false},
+   impChk(){S.imp.chk=t.dataset.v},
+   impImport(){S.imp.mode='result';S.imp.showU=false},
+   impBack(){S.imp.mode='review'},
+   impShowU(){S.imp.showU=!S.imp.showU},
+   impFromDeck(){S.imp.dest='korvold';S.imp.mode='review';S.imp.open=false;scr='import';toast('Korvold is already chosen as the place.')},
+   plfound(){const x=plItem(t.dataset.id);plPromote(x);if(x.st==='todo'){x.st='hand';toast(`${x.name} is in your hand. It is on the all-decks Picklist too.`)}else if(x.st==='hand'){x.st='todo';toast(`${x.name} is back where Oracle had it.`)}},
+   plplaced(){const x=plItem(t.dataset.id);plPromote(x);if(x.st==='placed'){x.st='hand';toast(`${x.name} is in your hand again.`)}else{x.st='placed';toast(`${x.name} placed in Korvold. 1 more is ready.`)}},
+   plcant(){const x=plItem(t.dataset.id);plPromote(x);x.st='missing';toast(`${x.name} is flagged Missing. This slot stays planned.`)},
+   plmove(){const x=plItem(t.dataset.id);x.st='placed';x.via=x.from;toastUndo(`Moved from ${P[x.from].n}.${DECKST[x.from]==='Playable'?' '+P[x.from].n+' is now Assembling.':''}`,x.id,'plundo');render(true);return 'skip'},
+   plundo(){const x=plItem(t.dataset.id);x.st='todo';x.via=null;$('#toast').classList.remove('on');toast('Moved back. Nothing else changed.')},
+   plwalk(){S.plWalk.add(+t.dataset.id)},
+   plwalkall(){S.extra.slice().forEach(x=>{if(x.st!=='placed')plPromote(x)});toast('Added to the all-decks Picklist. Open screen 1 to see them in walking order.')},
+   plwish(){const u=S.unowned.find(x=>x.id===t.dataset.id);u.wish=!u.wish;toast(u.wish?`${u.name} is on your wishlist.`:`${u.name} is off your wishlist.`)},
+   toast(){toast(t.dataset.msg);return 'skip'},
+   moveHere(){const k=t.dataset.k;S.mv[k].st='done';const src=S.mv[k].src;toastUndo(`Moved from ${src}.${(src==='Atraxa'||src==='Edgar Markov')?' '+src+' is now Assembling.':''}`,k);render(true);return 'skip'},
+   undoMove(){const k=t.dataset.k;if(k!=='chat')S.mv[k].st='todo';$('#toast').classList.remove('on');toast('Moved back. Nothing else changed.');if(scr==='chat'){prop.moved=false;renderRef();return 'skip'}},
+   pMove(){prop.moved=true;toastUndo('Moved from Prosper.','chat');renderRef();return 'skip'},
+   pAdd(){prop[t.dataset.k]='added'},pUndo(){prop[t.dataset.k]='ready'},pAll(){prop.a='added';prop.c='added'},pHide(){prop[t.dataset.k]='hidden'; if(prop.a==='hidden'&&prop.c==='hidden')prop.hidden=true},pHideAll(){prop.hidden=true},pShow(){prop.hidden=false;prop.a=prop.c='ready'}
+  }[a];
+  if(!act)return;
+  const r=act();if(r==='skip')return;
+  if(a==='pAdd'||a==='pUndo'||a==='pAll'||a==='pHide'||a==='pHideAll'||a==='pShow'){renderRef();return}
+  render(true);
+  if($('#panel').classList.contains('on'))renderPanel();
+});
+document.addEventListener('change',e=>{const cc=e.target.closest('select[data-act=chooseCopy]');if(cc){S.mv[cc.dataset.k].src=cc.value;render(true);return}
+  const s=e.target.closest('select[data-act=putElsewhere]');if(!s||!s.value)return;const m=byId(s.dataset.id);m.st='placed';m.to=s.value;toast(`${m.name} put in ${P[s.value].n}. Removed from the Picklist.`);render(true);renderPanel()});
+render();
+</script>
+</body>
+</html>

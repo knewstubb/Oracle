@@ -18,6 +18,7 @@
 
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
+import { buildPriceUpdate, type ScryfallCollectionCard } from '@/lib/price-parsing'
 
 const SCRYFALL_COLLECTION_URL = 'https://api.scryfall.com/cards/collection'
 const SCRYFALL_BATCH_SIZE = 75 // Scryfall collection endpoint max
@@ -27,56 +28,9 @@ const RATE_LIMIT_MS = 100
 // Types
 // ---------------------------------------------------------------------------
 
-interface ScryfallPriceInfo {
-  usd?: string | null
-  usd_foil?: string | null
-}
-
-interface ScryfallCollectionCard {
-  id: string
-  prices?: ScryfallPriceInfo | null
-}
-
 interface ScryfallCollectionResponse {
   data?: ScryfallCollectionCard[]
   not_found?: unknown[]
-}
-
-export interface PriceUpdate {
-  price_usd?: number
-  price_usd_foil?: number
-}
-
-// ---------------------------------------------------------------------------
-// Pure price parsing (unit-tested)
-// ---------------------------------------------------------------------------
-
-/**
- * Parses a Scryfall USD price string into a positive, finite number.
- * Returns null for a missing, non-numeric, zero or negative value. A null
- * result must never be written to a price column (D-042).
- */
-export function parsePositiveUsd(value: string | null | undefined): number | null {
-  if (value == null) return null
-  const amount = Number.parseFloat(value)
-  if (!Number.isFinite(amount) || amount <= 0) return null
-  return amount
-}
-
-/**
- * Builds the `ref_printings` update for one Scryfall card. Normal and foil
- * prices live in separate columns and are never mixed. Returns null when the
- * card has no usable price at all.
- */
-export function buildPriceUpdate(card: ScryfallCollectionCard): PriceUpdate | null {
-  const normal = parsePositiveUsd(card.prices?.usd)
-  const foil = parsePositiveUsd(card.prices?.usd_foil)
-
-  const update: PriceUpdate = {}
-  if (normal !== null) update.price_usd = normal
-  if (foil !== null) update.price_usd_foil = foil
-
-  return Object.keys(update).length > 0 ? update : null
 }
 
 // ---------------------------------------------------------------------------

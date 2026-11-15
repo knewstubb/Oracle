@@ -6,6 +6,7 @@
 import {
   additionalOriginalsNeeded, assemblyEligibility, classifyRetry, computeReadiness,
   headlineAvailability, isGenericBasicSlot, placementConflict, refreshKeys, resolveIdentity,
+// @ts-expect-error TS5097: the .ts extension is needed to run this file under Node type stripping (see header)
 } from './card-state-actions.types.ts'
 import type {
   ActionSuccess, AdvisorAvailability, AffectedRefs, CandidateFacts, IdentityResolution, OperationReceipt,

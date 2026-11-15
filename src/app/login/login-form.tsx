@@ -3,10 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@/lib/supabase'
+import { safeNextPath } from '@/lib/safe-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
-export function LoginForm() {
+export function LoginForm({ next }: { next?: string } = {}) {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -30,7 +31,7 @@ export function LoginForm() {
         return
       }
 
-      router.push('/')
+      router.push(safeNextPath(next))
       router.refresh()
     } catch {
       setError('Invalid email or password')

@@ -63,7 +63,8 @@ vi.mock('@/lib/supabase', () => ({
   }),
 }))
 
-import { POST, parsePositiveUsd, buildPriceUpdate } from './route'
+import { POST } from './route'
+import { parsePositiveUsd, buildPriceUpdate } from '@/lib/price-parsing'
 
 // ---------------------------------------------------------------------------
 // Pure helpers

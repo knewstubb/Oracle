@@ -11,6 +11,8 @@ export async function PATCH(
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
 
+  const userId = authResult.id
+
   const { id } = await params
   const deckId = parseInt(id, 10)
   if (isNaN(deckId)) {
@@ -44,6 +46,7 @@ export async function PATCH(
     .from('decks')
     .select('id, name, status')
     .eq('id', deckId)
+    .eq('user_id', userId)
     .maybeSingle()
 
   if (fetchErr) {
@@ -60,6 +63,7 @@ export async function PATCH(
     .from('decks')
     .update({ status })
     .eq('id', deckId)
+    .eq('user_id', userId)
     .select('id, name, status')
     .single()
 

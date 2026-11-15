@@ -9,6 +9,8 @@ export async function GET(
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
 
+  const userId = authResult.id
+
   const { id } = await params
   const deckId = parseInt(id, 10)
   if (isNaN(deckId) || deckId <= 0) {
@@ -26,10 +28,26 @@ export async function GET(
   }
 
   const supabase = createAdminClient()
+
+  const { data: deck, error: deckErr } = await supabase
+    .from('decks')
+    .select('id')
+    .eq('id', deckId)
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (deckErr) {
+    return Response.json({ error: 'Failed to fetch notes' }, { status: 500 })
+  }
+  if (!deck) {
+    return Response.json({ error: 'Deck not found' }, { status: 404 })
+  }
+
   let query = supabase
     .from('deck_notes')
     .select('id, deck_id, content, created_at')
     .eq('deck_id', deckId)
+    .eq('user_id', userId)
     .order('created_at', { ascending: false })
 
   if (limit) {

@@ -5,6 +5,7 @@ export async function GET() {
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
 
+  const userId = authResult.id
   const supabase = createAdminClient()
 
   try {
@@ -12,6 +13,7 @@ export async function GET() {
     const { count: totalCards, error: countErr } = await supabase
       .from('user_copies')
       .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
 
     if (countErr) throw countErr
 
@@ -19,6 +21,7 @@ export async function GET() {
     const { count: uniqueNames, error: uniqueErr } = await supabase
       .from('user_cards')
       .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
 
     if (uniqueErr) throw uniqueErr
 

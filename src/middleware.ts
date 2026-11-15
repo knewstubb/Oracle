@@ -1,11 +1,16 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { attemptLocalAutoLogin, getLocalAutoLoginCredentials } from '@/lib/local-auto-login'
+import { isConnectorPublicPath } from '@/lib/connector/public-paths'
+import { safeNextPath } from '@/lib/safe-next'
 
 const PUBLIC_ROUTES = ['/login', '/auth/callback', '/api/cards/search', '/api/cards/autocomplete']
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // Claude connector: exact-match public paths, before any cookie/session work (the route checks its own token)
+  if (isConnectorPublicPath(pathname)) return NextResponse.next()
 
   // Local-only opt-in auto sign-in (null unless dev + both env vars set)
   const autoLogin = getLocalAutoLoginCredentials()
@@ -57,6 +62,8 @@ export async function middleware(request: NextRequest) {
 
     // Page routes redirect to login
     const loginUrl = new URL('/login', request.url)
+    const back = safeNextPath(pathname + request.nextUrl.search)
+    if (back !== '/') loginUrl.searchParams.set('next', back)
     return NextResponse.redirect(loginUrl)
   }
 

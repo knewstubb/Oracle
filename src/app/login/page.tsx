@@ -1,6 +1,7 @@
 import { LoginForm } from './login-form'
 
-export default function LoginPage() {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
+  const { next } = await searchParams
   return (
     <div className="flex min-h-full items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-6">
@@ -12,7 +13,7 @@ export default function LoginPage() {
             Sign in to access your collection and decks
           </p>
         </div>
-        <LoginForm />
+        <LoginForm next={next} />
       </div>
     </div>
   )

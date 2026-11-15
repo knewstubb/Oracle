@@ -5,6 +5,8 @@ import { Check, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { ManaBoxUnmatchedLine } from '../../../docs/oracle/contracts/manabox-import.types'
+import type { ImportPlacementResult } from '../../../docs/oracle/contracts/know-where-cards-are.types'
+import { ImportWhereTheyWent } from './ImportWhereTheyWent'
 import type { ImportKind } from './types'
 import { unmatchedReasonText } from './types'
 import {
@@ -32,6 +34,8 @@ export interface ImportResultProps {
   /** Plain-language notes about generic basics (e.g. "Unsleeved wins"). */
   genericNotes?: string[]
   unmatched: ManaBoxUnmatchedLine[]
+  /** Collection import: where the copies went (server-reported). */
+  placement?: ImportPlacementResult
   deckId?: number
   onOpenDeck?: () => void
   onViewCollection?: () => void
@@ -53,6 +57,7 @@ export function ImportResult({
   unlistedFinish = 0,
   genericNotes = [],
   unmatched,
+  placement,
   deckId,
   onOpenDeck,
   onViewCollection,
@@ -95,6 +100,8 @@ export function ImportResult({
             <h3 className="text-[length:var(--fs-xl,20px)] font-medium">{headline}</h3>
             <p className="text-muted-foreground">{sub}</p>
           </div>
+
+          {kind === 'collection' && <ImportWhereTheyWent placement={placement} />}
 
           {genericNotes.length > 0 && (
             <ul aria-label="Generic basics notes" className="flex flex-col gap-1 text-[length:var(--fs-sm)] text-muted-foreground">

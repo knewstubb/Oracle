@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oracle · Claude connector (Gate 3 mockup)</title>
+<style>
+:root{
+  --bg-canvas:#131316;--bg-surface:#1A1A1E;--bg-hover:#212126;
+  --border-subtle:#262629;--border:#35353A;
+  --text:#E8E8EA;--text2:#9C9CA3;
+  --accent:#1D9E75;--warn:#EF9F27;--warn-bg:rgba(239,159,39,.15);
+  --unowned:#F0339E;--crit:#E5484D;--crit-bg:rgba(229,72,77,.14);--ok-bg:rgba(29,158,117,.16);
+  --fs-xs:11px;--fs-sm:12px;--fs-base:13px;--fs-md:14px;--fs-lg:16px;--fs-xl:20px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#0b0b0d;color:var(--text);font:var(--fs-md)/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+button,a.btn{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid #fff;outline-offset:2px}
+h2,h3,h4,p{margin:0}
+/* ===== mockup chrome (not part of the app) ===== */
+.nav{position:sticky;top:0;z-index:50;background:#000;border-bottom:1px solid var(--border);padding:10px 16px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:var(--fs-sm)}
+.nav b{font-size:var(--fs-md)}
+.nav a{color:var(--text);text-underline-offset:3px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px 80px}
+.sec{margin-top:44px}
+.sec>h2{font-size:var(--fs-xl);font-weight:600;border-bottom:1px solid var(--border);padding-bottom:6px}
+.sec>.why{color:var(--text2);font-size:var(--fs-sm);margin:6px 0 14px;max-width:820px}
+.state{margin:22px 0}
+.label{display:inline-block;background:#fff;color:#111;font-weight:700;font-size:var(--fs-xs);letter-spacing:.04em;text-transform:uppercase;padding:3px 8px;border-radius:4px;margin-bottom:8px}
+.annot{color:var(--text2);font-size:var(--fs-sm);margin:6px 0 0;max-width:820px}
+.row2{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start}
+/* ===== app frame ===== */
+.frame{background:var(--bg-canvas);border:1px solid var(--border);border-radius:10px;overflow:hidden;max-width:880px}
+.frame.phone{width:390px;max-width:100%;border:6px solid #2a2a2e;border-radius:28px}
+.hdr{padding:14px 20px 0;border-bottom:1px solid var(--border-subtle)}
+.crumb{color:var(--text2);font-size:var(--fs-sm)}
+.hdr h3{font-size:var(--fs-xl);font-weight:600;margin:2px 0 8px}
+.tabs{display:flex;gap:4px;overflow-x:auto}
+.tab{background:none;border:0;border-bottom:2px solid transparent;padding:8px 12px;color:var(--text2);white-space:nowrap;min-height:44px;display:inline-flex;gap:6px;align-items:center}
+.tab[aria-selected=true]{color:var(--text);border-bottom-color:var(--accent)}
+.count{background:var(--warn-bg);color:var(--text);border:1px solid var(--warn);border-radius:10px;padding:0 7px;font-size:var(--fs-xs);font-weight:600}
+.body{padding:16px 20px}
+.phone .hdr,.phone .body{padding-left:14px;padding-right:14px}
+.card{background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px}
+.card h4{font-size:var(--fs-lg);font-weight:600;margin-bottom:4px}
+.muted{color:var(--text2);font-size:var(--fs-sm)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--border);background:var(--bg-hover);border-radius:8px;padding:10px 14px;min-height:44px;font-size:var(--fs-base);text-decoration:none}
+.btn:hover{border-color:var(--text2)}
+.btn.primary{background:var(--text);color:#111;border-color:var(--text);font-weight:600}
+.btn.danger{border-color:var(--crit)}
+.btn[disabled],.btn[aria-disabled=true]{opacity:.5;cursor:not-allowed}
+.btn.block{width:100%}
+.linkbtn{background:none;border:0;color:var(--text);text-decoration:underline;text-underline-offset:3px;min-height:44px;padding:0 6px}
+.badge{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-size:var(--fs-sm);font-weight:500;white-space:nowrap}
+.badge.on{background:var(--ok-bg);border-color:var(--accent)}
+.badge.off{background:transparent;color:var(--text2)}
+.badge.warn{border-color:var(--warn);background:var(--warn-bg)}
+.badge.bad{border-color:var(--crit);background:var(--crit-bg)}
+.banner{display:flex;gap:10px;border-radius:8px;padding:10px 12px;font-size:var(--fs-base);margin-bottom:12px;border:1px solid var(--border);background:var(--bg-surface)}
+.banner.warn{border-color:var(--warn);background:var(--warn-bg)}
+.banner.bad{border-color:var(--crit);background:var(--crit-bg)}
+.banner.ok{border-color:var(--accent);background:var(--ok-bg)}
+.ico{font-weight:700;width:18px;flex:none;text-align:center}
+/* switch */
+.switchrow{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.switch{display:inline-flex;align-items:center;gap:10px;background:none;border:0;padding:0;min-height:44px}
+.track{width:48px;height:28px;border-radius:14px;background:#3a3a40;border:1px solid var(--border);position:relative;flex:none}
+.track::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s}
+.switch[aria-checked=true] .track{background:var(--accent)}
+.switch[aria-checked=true] .track::after{left:23px}
+@media (prefers-reduced-motion:reduce){.track::after{transition:none}}
+/* change list */
+.chg{border:1px solid var(--border);background:var(--bg-surface);border-radius:10px;padding:12px 14px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.chg .what{flex:1;min-width:220px}
+.chg .what b{font-weight:600}
+.chg .when{color:var(--text2);font-size:var(--fs-sm);margin-top:2px}
+.chg .why{font-size:var(--fs-sm);margin-top:6px;padding:6px 8px;border-radius:6px;background:var(--crit-bg);border:1px solid var(--crit)}
+.chg.undone .what{opacity:.7}
+.chg .act{flex:none}
+.grp{color:var(--text2);font-size:var(--fs-sm);margin:14px 0 6px;font-weight:600}
+.skel{height:64px;border-radius:10px;margin-bottom:10px;background:linear-gradient(90deg,var(--bg-surface),var(--bg-hover),var(--bg-surface));background-size:200% 100%;animation:sh 1.4s infinite}
+@keyframes sh{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.skel{animation:none}}
+/* deck effect */
+.fx{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+.phone .fx{grid-template-columns:1fr}
+.fx>div{border:1px solid var(--border);border-radius:8px;padding:10px;background:var(--bg-canvas)}
+.fx .d{font-weight:600}
+.fx .ba{font-size:var(--fs-sm);color:var(--text2)}
+.fx .ba b{color:var(--text)}
+.sm{max-height:132px;overflow:auto;font-size:var(--fs-sm);border:1px solid var(--border-subtle);border-radius:6px;padding:6px 8px;margin:8px 0;background:var(--bg-canvas)}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap}
+.phone .btnrow .btn{flex:1}
+/* scrolling lists / panels */
+.cando{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.phone .cando{grid-template-columns:1fr}
+.cando ul{margin:6px 0 0;padding-left:0;list-style:none;font-size:var(--fs-base)}
+.cando li{padding:3px 0;display:flex;gap:8px}
+.cando .yes .ico{color:var(--accent)}
+.cando .no .ico{color:var(--crit)}
+.steps{margin:8px 0 0;padding-left:20px;font-size:var(--fs-base)}
+.steps li{margin:4px 0}
+.guide details{border:1px solid var(--border);border-radius:8px;background:var(--bg-surface);margin-bottom:8px}
+.guide summary{padding:12px 14px;min-height:44px;cursor:pointer;font-weight:600}
+.guide .in{padding:0 14px 12px}
+.addr{font-family:ui-monospace,Menlo,monospace;background:var(--bg-canvas);border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:var(--fs-sm);word-break:break-all;display:block;margin:6px 0}
+/* sign-in */
+.signin{max-width:380px;margin:20px auto;text-align:center}
+.signin .card{text-align:left}
+.signin label{display:block;font-size:var(--fs-sm);color:var(--text2);margin:10px 0 4px}
+.signin input{width:100%;min-height:44px;background:var(--bg-canvas);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:0 10px;font:inherit}
+/* deck plan rows */
+.plan{border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--bg-surface)}
+.plan .ph{padding:8px 12px;font-weight:600;font-size:var(--fs-sm);color:var(--text2);border-bottom:1px solid var(--border-subtle);background:#17171a}
+.slot{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-bottom:1px solid var(--border-subtle);flex-wrap:wrap}
+.slot:last-child{border-bottom:0}
+.slot .nm{flex:1;min-width:140px;font-weight:500}
+.slot .sub{display:block;color:var(--text2);font-size:var(--fs-sm);font-weight:400;margin-top:2px}
+.slot .bd{display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+.pb{display:inline-flex;align-items:center;gap:5px;border-radius:6px;padding:2px 8px;font-size:var(--fs-sm);white-space:nowrap}
+.pb.sleeved{background:transparent;color:var(--text2)}       /* quiet filled Original (D-014) */
+.pb.avail{border:1px solid var(--text2)}                       /* outline, Available */
+.pb.unavail{border:1px solid var(--warn)}                      /* outline, Unavailable (existing) */
+.pb .sub{font-size:var(--fs-sm)}
+.reason{font-size:var(--fs-sm);color:var(--text2);padding-left:2px}
+.hist{font-size:var(--fs-sm);color:var(--text2);margin-top:4px}
+.flag{outline:2px solid #fff;outline-offset:3px;border-radius:6px}
+</style>
+</head>
+<body>
+<nav class="nav" aria-label="Mockup sections">
+  <b>Claude connector · mockup</b>
+  <a href="#s1">1 Connect &amp; login</a>
+  <a href="#s2">2 Recent changes</a>
+  <a href="#s3">3 Pending approvals</a>
+  <a href="#s4">4 Moved card in old deck</a>
+  <a href="#s5">5 What Claude can / can't do</a>
+</nav>
+<div class="wrap">
+<p class="annot" style="margin-top:14px">Mockup only. Every labelled box below is one screen state. Buttons you can press: the on/off switch, Undo, Approve, Decline, the setup guide. Dark theme and tokens match the existing Oracle mockups. Words match <i>vocabulary</i>: Sleeved = a real copy is in the slot; Unsleeved = the card is wanted but no copy is in it yet.</p>
+
+<!-- ================= 1 ================= -->
+<section class="sec" id="s1">
+<h2>1 · Connecting Claude and logging in</h2>
+<p class="why">Home: Settings → Claude connector (new). Three tabs: Connection, Recent changes, Setup guide. The off-switch sits inside the connection card it controls (D-015).</p>
+
+<div class="state"><span class="label">1a · Connector active</span>
+<div class="frame">
+ <div class="hdr"><div class="crumb">Settings</div><h3>Claude connector</h3>
+  <div class="tabs" role="tablist"><button class="tab" role="tab" aria-selected="true">Connection</button><button class="tab" role="tab" aria-selected="false">Recent changes <span class="count">2 waiting</span></button><button class="tab" role="tab" aria-selected="false">Setup guide</button></div></div>
+ <div class="body" id="conn-body">
+  <div class="card" id="conn-card">
+   <div class="switchrow">
+    <h4 style="flex:1;min-width:180px">Let Claude use Oracle</h4>
+    <span class="badge on" id="conn-badge"><span aria-hidden="true">●</span> Active</span>
+    <button class="switch" id="conn-switch" role="switch" aria-checked="true" aria-labelledby="sw-lbl"><span class="track" aria-hidden="true"></span><span id="sw-lbl">On</span></button>
+   </div>
+   <p class="muted" id="conn-text" style="margin-top:6px">Claude is connected as <b style="color:var(--text)">brad@example.com</b>. Last used today, 10:42, from Claude on the phone.</p>
+   <p class="muted" style="margin-top:6px">Switching off cuts Claude's access straight away. Nothing Claude already did is lost, and you can still undo it here.</p>
+  </div>
+  <div class="banner" id="off-note" hidden><span class="ico" aria-hidden="true">■</span><div><b>Claude can no longer reach Oracle.</b> Any Claude chat that asks now gets "not connected". To use it again, switch this back on and reconnect from Claude.</div></div>
+  <div class="card"><h4>Where it's connected</h4>
+   <p class="muted">Claude on the web · Claude on the phone · Claude Code</p>
+   <p class="muted" style="margin-top:6px">Claude only ever sees your decks and your collection.</p></div>
+  <div class="annot">Press the switch: it changes to Off and shows the confirmation line instantly, with no "are you sure" step. Turning off is the safe direction, and turning on again is one tap. <em>(Spec §3.1)</em></div>
+ </div>
+</div></div>
+
+<div class="state"><span class="label">1b · Connector off (inactive)</span>
+<div class="frame"><div class="hdr"><div class="crumb">Settings</div><h3>Claude connector</h3></div>
+ <div class="body"><div class="card">
+  <div class="switchrow"><h4 style="flex:1;min-width:180px">Let Claude use Oracle</h4>
+   <span class="badge off"><span aria-hidden="true">○</span> Off</span>
+   <button class="switch" role="switch" aria-checked="false"><span class="track" aria-hidden="true"></span><span>Off</span></button></div>
+  <p class="muted" style="margin-top:6px">Claude can't see or change anything in Oracle. Past changes by Claude stay in Recent changes for 7 days so you can still undo them.</p>
+  <p style="margin-top:10px"><button class="btn">Open the setup guide</button></p>
+ </div></div></div></div>
+
+<div class="state"><span class="label">1c · Oracle sign-in, shown when Claude first connects</span>
+<div class="frame"><div class="body"><div class="signin">
+ <h3 style="font-size:var(--fs-xl)">Oracle</h3>
+ <p class="muted" style="margin:4px 0 12px">Sign in to let Claude connect</p>
+ <div class="card">
+  <h4>Claude is asking to connect</h4>
+  <p class="muted">If you say yes, Claude will be able to:</p>
+  <ul style="margin:8px 0;padding-left:18px;font-size:var(--fs-base)"><li>Read your decks and collection</li><li>Make small changes you can undo</li><li>Ask you first before big changes or moving a card between decks</li></ul>
+  <p class="muted">It will never be able to delete a deck or take a card out of your collection.</p>
+  <label for="em">Email</label><input id="em" value="brad@example.com">
+  <label for="pw">Password</label><input id="pw" type="password" value="••••••••••">
+  <p style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" style="flex:1">Sign in and allow</button><button class="btn" style="flex:1">Cancel</button></p>
+ </div>
+ <p class="muted">Didn't start this? Close this page. Nothing is shared until you sign in.</p>
+</div></div></div>
+<p class="annot">This is Oracle's normal sign-in plus one plain statement of what is being allowed. Someone without the owner's login gets no further than this page (S8).</p></div>
+
+<div class="state"><span class="label">1d · Login expired — "please reconnect" (in Oracle)</span>
+<div class="frame"><div class="hdr"><div class="crumb">Settings</div><h3>Claude connector</h3></div>
+ <div class="body">
+  <div class="banner bad" role="alert"><span class="ico" aria-hidden="true">!</span><div><b>Claude's sign-in has expired.</b> Claude can't reach Oracle until you reconnect. Nothing was changed while it was signed out.</div></div>
+  <div class="card"><div class="switchrow"><h4 style="flex:1;min-width:180px">Let Claude use Oracle</h4><span class="badge bad"><span aria-hidden="true">!</span> Needs reconnecting</span></div>
+   <p class="muted" style="margin-top:6px">Last worked: 9 Nov, 18:05.</p>
+   <p style="margin-top:10px"><button class="btn primary">Show me how to reconnect</button></p></div>
+ </div></div>
+<p class="annot">What Claude says in its own chat (words Oracle sends back so Claude relays them): <b>"Oracle says your sign-in has expired. Please reconnect Oracle in Claude's connector settings, then ask again."</b> It never answers "you have no decks".</p></div>
+
+<div class="state"><span class="label">1e · Setup guide (plain words)</span>
+<div class="frame"><div class="hdr"><div class="crumb">Settings · Claude connector</div><h3>Set up Claude</h3></div>
+ <div class="body guide">
+  <div class="banner"><span class="ico" aria-hidden="true">i</span><div><b>Start on the web or desktop.</b> The phone app can't add a new connector yet; once you add it on the web or desktop it shows up on your phone.</div></div>
+  <p class="muted" style="margin-bottom:8px">Your connector address (copy it):</p>
+  <code class="addr">https://oracle.example.com/connector</code>
+  <p style="margin:6px 0 12px"><button class="btn">Copy address</button></p>
+  <details open><summary>Claude on the web</summary><div class="in"><ol class="steps"><li>Open Claude and go to <b>Settings → Connectors</b>.</li><li>Choose <b>Add custom connector</b>, paste the address above and save.</li><li>Choose <b>Connect</b>. Oracle's sign-in opens. Sign in and press <b>Sign in and allow</b>.</li><li>Back in a Claude chat, ask "What's in my Korvold deck?"</li></ol></div></details>
+  <details><summary>Claude on the desktop</summary><div class="in"><ol class="steps"><li>Open Claude desktop and go to <b>Settings → Connectors</b>.</li><li>Add the custom connector with the address above.</li><li>Sign in to Oracle when asked.</li></ol></div></details>
+  <details><summary>Claude on the phone</summary><div class="in"><ol class="steps"><li>First add Oracle on the web or desktop (steps above).</li><li>Open the Claude app on your phone. Oracle appears in the connectors list.</li><li>Switch it on for the chat you are in, then ask your question.</li></ol></div></details>
+  <details><summary>Claude Code</summary><div class="in"><ol class="steps"><li>In your terminal, run the command below. Replace the name if you like.</li><code class="addr">claude mcp add --transport http oracle https://oracle.example.com/connector</code><li>Start Claude Code, choose <b>/mcp</b>, pick Oracle and sign in.</li></ol></div></details>
+  <p class="muted" style="margin-top:10px">Claude's menus change from time to time. If a step looks different, look for "connectors" in Claude's settings.</p>
+ </div></div></div>
+</section>
+
+<!-- ================= 2 ================= -->
+<section class="sec" id="s2">
+<h2>2 · Recent changes by Claude</h2>
+<p class="why">Tab inside Settings → Claude connector. Also reachable from the "2 waiting" chip anywhere in the app. Newest first, grouped by day. Shows the last 7 days. Each row says in plain words what changed, which deck and card, when, and offers Undo.</p>
+
+<div class="state"><span class="label">2a · List with Undo (press Undo to see the undone state)</span>
+<div class="frame"><div class="hdr"><div class="crumb">Settings · Claude connector</div><h3>Recent changes by Claude</h3>
+  <div class="tabs"><button class="tab" aria-selected="false">Connection</button><button class="tab" aria-selected="true">Recent changes <span class="count">2 waiting</span></button><button class="tab" aria-selected="false">Setup guide</button></div></div>
+ <div class="body">
+  <p class="muted" style="margin-bottom:6px">Showing the last 7 days. Older changes are kept in Oracle's record but can't be undone here.</p>
+  <div class="banner warn"><span class="ico" aria-hidden="true">⏸</span><div><b>2 changes are waiting for your yes.</b> <button class="linkbtn" style="min-height:24px">Review them</button></div></div>
+  <div class="grp">Today</div>
+  <div class="chg" id="c1"><div class="what"><b>Added Swords to Plowshares to Rocco.</b> It is on the list, Unsleeved. No copy was moved.<div class="when">Today, 10:42 · Claude on the phone</div></div><div class="act"><button class="btn" data-undo="c1">Undo</button></div></div>
+  <div class="chg" id="c2"><div class="what"><b>Took Rhystic Study out of Rocco's main list.</b> The copy went back to storage; it is still in your collection.<div class="when">Today, 10:44 · Claude on the phone</div></div><div class="act"><button class="btn" data-undo="c2">Undo</button></div></div>
+  <div class="grp">Yesterday</div>
+  <div class="chg" id="c3"><div class="what"><b>Marked your Mana Crypt in Prosper as an Original</b> (it was a Proxy).<div class="when">15 Nov, 21:10 · Claude on the web</div></div><div class="act"><button class="btn" data-undo="c3">Undo</button></div></div>
+  <div class="chg" id="c4"><div class="what"><b>Added Sol Ring to your collection</b> (1 copy, in Unsorted).<div class="when">15 Nov, 21:02 · Claude on the web</div></div><div class="act"><button class="btn" data-undo="c4">Undo</button></div></div>
+  <p class="annot" style="margin-top:8px">Undoing "Added Sol Ring to your collection" removes the copy Claude added. This is the only removal from the collection anywhere, it is done by you and only for a copy Claude just added. <em>See Open question 3 in the report.</em></p>
+ </div></div></div>
+
+<div class="state"><span class="label">2b · Undo refused — the deck changed since</span>
+<div class="frame"><div class="body">
+  <div class="chg"><div class="what"><b>Added Cyclonic Rift to Prosper.</b><div class="when">13 Nov, 19:30 · Claude on Claude Code</div>
+   <div class="why" role="alert"><b>Can't undo this one.</b> You have changed Prosper since: Cyclonic Rift was sleeved with a copy on 14 Nov. Undoing it now could break the deck. You can take it out by hand on the deck page.</div></div>
+   <div class="act"><button class="btn" aria-disabled="true">Undo</button><div style="margin-top:4px"><button class="linkbtn" style="min-height:44px">Open Prosper</button></div></div></div>
+ </div></div>
+<p class="annot">The Undo button stays visible but is marked unavailable (not hidden), and the reason is always on the row, never only in a tooltip.</p></div>
+
+<div class="state"><span class="label">2c · After pressing Undo (undone state)</span>
+<div class="frame"><div class="body">
+  <div class="chg undone"><div class="what"><b>Added Swords to Plowshares to Rocco.</b> <span class="badge">✓ Undone, 10:51</span><div class="when">Today, 10:42 · Claude on the phone. Rocco is as it was before.</div></div><div class="act"><button class="btn" aria-disabled="true">Undone</button></div></div>
+  <p class="annot">The row stays in the list (greyed, with an "Undone" tag and time) so the record is honest. A toast confirms: "Undone. Swords to Plowshares is off Rocco's list."</p>
+ </div></div></div>
+
+<div class="row2">
+<div class="state"><span class="label">2d · Empty (loaded fine, nothing to show)</span>
+<div class="frame" style="width:420px;max-width:100%"><div class="body"><div class="card" style="text-align:center;padding:26px 14px"><h4>Claude hasn't changed anything in the last 7 days</h4><p class="muted" style="margin-top:6px">When Claude adds, removes or moves a card, it will show up here with an Undo button.</p></div></div></div></div>
+
+<div class="state"><span class="label">2e · Couldn't load (never shown as "none")</span>
+<div class="frame" style="width:420px;max-width:100%"><div class="body"><div class="banner bad" role="alert"><span class="ico" aria-hidden="true">!</span><div><b>We couldn't load Claude's recent changes.</b> This doesn't mean there are none. <p style="margin-top:8px"><button class="btn">Try again</button></p></div></div></div></div></div>
+
+<div class="state"><span class="label">2f · Loading</span>
+<div class="frame" style="width:420px;max-width:100%"><div class="body" aria-busy="true"><p class="muted" style="margin-bottom:8px">Loading Claude's recent changes…</p><div class="skel"></div><div class="skel"></div></div></div></div>
+</div>
+</section>
+
+<!-- ================= 3 ================= -->
+<section class="sec" id="s3">
+<h2>3 · Pending approvals</h2>
+<p class="why">Top of Recent changes. Two kinds of change wait here: a big edit (above about 10 cards in one go) and a card moved between decks. Claude cannot approve them, and this holds even if the Claude app is set to "Allow always". Approve and Decline sit inside each pending card (D-015).</p>
+
+<div class="state"><span class="label">3a · Laptop — waiting list (press Approve / Decline)</span>
+<div class="frame"><div class="hdr"><div class="crumb">Settings · Claude connector</div><h3>Recent changes by Claude</h3></div>
+ <div class="body">
+  <div class="banner"><span class="ico" aria-hidden="true">🔒</span><div><b>Only you can approve these.</b> Claude can ask, but it can't say yes for you. That's true even if Claude's own "ask me first" prompts are switched off. Nothing below has happened yet.</div></div>
+  <h4 style="margin:4px 0 8px;font-size:var(--fs-lg)">Waiting for your yes <span class="count">2</span></h4>
+
+  <div class="card" id="p1">
+   <span class="badge warn">⏸ Moving a card · waiting</span>
+   <h4 style="margin-top:8px">Move Sol Ring from Prosper to Korvold?</h4>
+   <p class="muted">Asked by Claude on the phone · today, 10:50 · waits until you answer</p>
+   <div class="fx">
+    <div><div class="d">Prosper (loses a card)</div><div class="ba">Sleeved <b>84 → 83</b> of 100<br>Sol Ring stays on the list, Unsleeved, shown as "In Korvold"<br>Status stays <b>Assembling</b></div></div>
+    <div><div class="d">Korvold (gains a card)</div><div class="ba">Sleeved <b>99 → 100</b> of 100<br>Sol Ring's slot gets the copy<br>Status <b>Assembling → Playable</b></div></div>
+   </div>
+   <p class="muted">Nothing is lost or duplicated. The copy exists once and is in one deck.</p>
+   <div class="btnrow" style="margin-top:10px"><button class="btn primary" data-ap="p1">Approve move</button><button class="btn danger" data-dc="p1">Decline</button></div>
+  </div>
+
+  <div class="card" id="p2">
+   <span class="badge warn">⏸ Big edit · waiting</span>
+   <h4 style="margin-top:8px">Cut 15 cards from Rocco?</h4>
+   <p class="muted">Asked by Claude on the web · today, 10:48 · waits until you answer. Over 10 cards needs your yes.</p>
+   <div class="sm" tabindex="0" role="region" aria-label="The 15 cards to cut">Arcane Denial · Counterspell · Mana Leak · Remand · Memory Lapse · Negate · Essence Scatter · Cancel · Dissolve · Syncopate · Miscalculation · Force Spike · Spell Pierce · Daze · Mystic Confluence</div>
+   <p class="muted">Rocco goes from <b style="color:var(--text)">100 → 85</b> cards. The copies go back to storage, not deleted. Sleeved <b style="color:var(--text)">92 → 77</b>.</p>
+   <div class="btnrow" style="margin-top:10px"><button class="btn primary" data-ap="p2">Approve all 15</button><button class="btn danger" data-dc="p2">Decline</button></div>
+  </div>
+  <div id="p-result" class="muted" role="status" aria-live="polite"></div>
+  <p class="annot">Approve applies the change and moves it into the list above as a normal row with Undo. Decline discards it; Claude is told "the owner said no". An unanswered request expires after 24 hours and is shown as "Expired, nothing changed".</p>
+ </div></div></div>
+
+<div class="row2">
+<div class="state"><span class="label">3b · Phone width (390px)</span>
+<div class="frame phone"><div class="hdr"><div class="crumb">Claude connector</div><h3>Waiting for your yes</h3></div>
+ <div class="body">
+  <div class="banner"><span class="ico" aria-hidden="true">🔒</span><div>Only you can approve these. Claude can't, even with its prompts off.</div></div>
+  <div class="card"><span class="badge warn">⏸ Moving a card</span>
+   <h4 style="margin-top:8px;font-size:var(--fs-md)">Move Sol Ring from Prosper to Korvold?</h4>
+   <p class="muted">Today, 10:50</p>
+   <div class="fx"><div><div class="d">Prosper</div><div class="ba">Sleeved <b>84 → 83</b><br>Sol Ring stays wanted, "In Korvold"</div></div><div><div class="d">Korvold</div><div class="ba">Sleeved <b>99 → 100</b><br>Assembling → <b>Playable</b></div></div></div>
+   <div class="btnrow"><button class="btn primary">Approve move</button><button class="btn danger">Decline</button></div></div>
+  <div class="card"><span class="badge warn">⏸ Big edit</span>
+   <h4 style="margin-top:8px;font-size:var(--fs-md)">Cut 15 cards from Rocco?</h4>
+   <p class="muted">Rocco 100 → 85. Copies go back to storage.</p>
+   <p style="margin:6px 0"><button class="linkbtn">See the 15 cards</button></p>
+   <div class="btnrow"><button class="btn primary">Approve all 15</button><button class="btn danger">Decline</button></div></div>
+ </div></div>
+ <p class="annot" style="width:390px;max-width:100%">Buttons are full-width halves, 44px tall, stacked cards, no horizontal scroll. The deck effects stack: losing deck first.</p></div>
+
+<div>
+<div class="state"><span class="label">3c · Approved / declined / expired / couldn't apply</span>
+<div class="frame" style="width:440px;max-width:100%"><div class="body">
+ <div class="chg undone"><div class="what"><span class="badge on">✓ Approved, 10:55</span> <b>Moved Sol Ring from Prosper to Korvold.</b><div class="when">Now in the list with Undo.</div></div></div>
+ <div class="chg undone"><div class="what"><span class="badge">✕ Declined, 10:56</span> <b>Cut 15 cards from Rocco.</b><div class="when">Nothing changed. Claude was told no.</div></div></div>
+ <div class="chg undone"><div class="what"><span class="badge">⌛ Expired</span> <b>Move Path to Exile from Rocco to Prosper.</b><div class="when">Nobody answered within 24 hours. Nothing changed.</div></div></div>
+ <div class="chg"><div class="what"><span class="badge bad">! Couldn't apply</span> <b>Move Sol Ring to Korvold.</b><div class="why">Korvold's slot was filled by another card after Claude asked. Nothing was moved. Ask Claude again.</div></div></div>
+</div></div></div>
+
+<div class="state"><span class="label">3d · Pending chip (visible anywhere in Oracle)</span>
+<div class="frame" style="width:440px;max-width:100%"><div class="hdr" style="padding-bottom:12px;display:flex;gap:10px;align-items:center;justify-content:space-between"><b>Prosper</b><button class="btn" style="min-height:44px"><span class="count">2</span> Claude is waiting for your yes</button></div></div>
+<p class="annot" style="width:440px;max-width:100%">Quiet unless something is waiting (D-014). Opens the waiting list. Appears only while something is pending.</p></div>
+</div>
+</div>
+</section>
+
+<!-- ================= 4 ================= -->
+<section class="sec" id="s4">
+<h2>4 · Card moved: how it looks in the ORIGINAL deck's plan</h2>
+<p class="why">No new kind of slot. A moved card's slot in the old deck simply goes back to <b>Unsleeved</b> (a wanted card with no copy in it) and uses the existing <b>Unavailable · In Korvold</b> badge. The only addition is one quiet history line, so the owner can tell "Claude moved it" from "it was never here".</p>
+<div class="state"><span class="label">4 · Prosper's Cards tab — three kinds of row side by side</span>
+<div class="frame"><div class="hdr"><div class="crumb">Prosper · Cards</div><h3>Prosper, Tainted Pact</h3></div>
+ <div class="body">
+  <div class="plan" style="margin-bottom:12px"><div class="ph">Sleeved (83)</div>
+   <div class="slot"><span class="nm">Arcane Signet <span class="sub">A · normal placed card</span></span><span class="bd"><span class="pb sleeved"><span aria-hidden="true">✓</span> Original</span></span></div></div>
+  <div class="plan"><div class="ph">Unsleeved (17)</div>
+   <div class="slot"><span class="nm">Swords to Plowshares <span class="sub">B · normal planned card</span></span><span class="bd"><span class="pb avail"><span aria-hidden="true">○</span> Available</span></span></div>
+   <div class="slot flag"><span class="nm">Sol Ring <span class="sub">C · moved card: still wanted, now located elsewhere</span>
+      <span class="hist">Was sleeved here. Claude moved this copy to Korvold on 16 Nov, 10:55 (you approved it).</span></span>
+     <span class="bd"><span class="pb unavail"><span aria-hidden="true">🔒</span> Unavailable</span><span class="reason">In Korvold</span>
+      <button class="linkbtn" style="min-height:44px;padding:0">Open Korvold</button></span></div>
+   <div class="slot"><span class="nm">Mana Crypt <span class="sub">D · ordinary Unavailable card, never sleeved here (no history line)</span></span><span class="bd"><span class="pb unavail"><span aria-hidden="true">🔒</span> Unavailable</span><span class="reason">In 2 decks</span></span></div>
+  </div>
+  <div class="cando" style="margin-top:14px">
+   <div class="card"><h4 style="font-size:var(--fs-base)">How C differs</h4><ul style="padding-left:18px;margin:6px 0 0;font-size:var(--fs-sm)"><li><b>vs A (placed):</b> A has a filled "Original" badge and sits under Sleeved. C is outline, under Unsleeved, with a lock and "In Korvold".</li><li><b>vs B (planned):</b> B says Available (a free copy exists). C says Unavailable with the deck named, and offers Move from Korvold.</li><li><b>vs D:</b> the only difference is C's history line.</li></ul></div>
+   <div class="card"><h4 style="font-size:var(--fs-base)">What the owner can do on C</h4><p class="muted" style="margin-top:6px">Open Korvold; or use the existing <b>Move from Korvold</b> action to bring it back (one more move, which Claude can only ask for). Deck count stays 100; only Sleeved drops to 83.</p></div>
+  </div>
+  <p class="annot">The white outline marks row C for review only; it isn't part of the app.</p>
+ </div></div></div>
+</section>
+
+<!-- ================= 5 ================= -->
+<section class="sec" id="s5">
+<h2>5 · What Claude can and can't do</h2>
+<p class="why">A short panel at the bottom of the Connection tab (and linked from the sign-in screen). It is the only place the limits are spelled out. Note what is <b>missing</b> from every screen above: there is no "remove from collection" action in Claude's changes, in pending approvals or in the deck views it touches.</p>
+<div class="state"><span class="label">5 · Panel</span>
+<div class="frame"><div class="body"><div class="card">
+ <h4>What Claude can and can't do</h4>
+ <div class="cando" style="margin-top:8px">
+  <div class="yes"><b>Claude can</b><ul>
+   <li><span class="ico" aria-hidden="true">✓</span>Read your decks, collection and where each card is</li>
+   <li><span class="ico" aria-hidden="true">✓</span>Add and take cards off a deck list (the copy goes back to storage, never deleted)</li>
+   <li><span class="ico" aria-hidden="true">✓</span>Move a card to or from a maybeboard</li>
+   <li><span class="ico" aria-hidden="true">✓</span>Add a card to your collection</li>
+   <li><span class="ico" aria-hidden="true">✓</span>Mark a copy Original or Proxy</li>
+   <li><span class="ico" aria-hidden="true">✓</span>Make small changes straight away. You can undo them here for 7 days</li></ul></div>
+  <div class="no"><b>Claude can't</b><ul>
+   <li><span class="ico" aria-hidden="true">✕</span>Take any card out of your collection</li>
+   <li><span class="ico" aria-hidden="true">✕</span>Delete or empty a deck</li>
+   <li><span class="ico" aria-hidden="true">✕</span>Clear or replace your collection</li>
+   <li><span class="ico" aria-hidden="true">✕</span>Do big edits (over about 10 cards) or move a card between decks without your yes here</li>
+   <li><span class="ico" aria-hidden="true">✕</span>Approve its own waiting changes</li>
+   <li><span class="ico" aria-hidden="true">✕</span>See anyone else's data</li></ul></div>
+ </div>
+ <p class="muted" style="margin-top:10px">These limits are enforced by Oracle, not by Claude's own prompts, so they hold even if Claude is set to never ask.</p>
+</div></div></div></div>
+</section>
+</div>
+
+<script>
+// Mockup-only interactions
+const sw=document.getElementById('conn-switch');
+sw.addEventListener('click',()=>{
+  const on=sw.getAttribute('aria-checked')!=='true';
+  sw.setAttribute('aria-checked',on);
+  sw.querySelector('#sw-lbl').textContent=on?'On':'Off';
+  const b=document.getElementById('conn-badge');
+  b.className='badge '+(on?'on':'off');b.innerHTML=on?'<span aria-hidden="true">●</span> Active':'<span aria-hidden="true">○</span> Off';
+  document.getElementById('off-note').hidden=on;
+});
+document.querySelectorAll('[data-undo]').forEach(btn=>btn.addEventListener('click',()=>{
+  const r=document.getElementById(btn.dataset.undo);
+  r.classList.add('undone');
+  const t=r.querySelector('.what b');
+  t.insertAdjacentHTML('afterend',' <span class="badge">✓ Undone</span>');
+  btn.textContent='Undone';btn.setAttribute('aria-disabled','true');
+}));
+function resolve(id,msg){
+  const c=document.getElementById(id);
+  c.style.opacity=.55;c.querySelectorAll('button').forEach(b=>b.setAttribute('aria-disabled','true'));
+  document.getElementById('p-result').textContent=msg;
+}
+document.querySelectorAll('[data-ap]').forEach(b=>b.addEventListener('click',()=>resolve(b.dataset.ap,'Approved. The change has been made and is now in the list with Undo.')));
+document.querySelectorAll('[data-dc]').forEach(b=>b.addEventListener('click',()=>resolve(b.dataset.dc,'Declined. Nothing changed. Claude was told no.')));
+</script>
+</body>
+</html>

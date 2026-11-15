@@ -3,6 +3,12 @@ import { executeInstanceLevelImport, type ImportProgress } from '@/lib/import-en
 import { executeManaBoxCollectionImport } from '@/lib/manabox-collection-import'
 import { requireAuth } from '@/lib/auth'
 import { ImportValidationError } from '@/lib/import-copies'
+import {
+  ImportDestinationError,
+  parseImportDestination,
+  parseImportDestinationField,
+} from '@/lib/import-destination'
+import type { ImportDestination } from '../../../../../docs/oracle/contracts/know-where-cards-are.types'
 import type {
   ImportCopyEdits,
   ImportDefaults,
@@ -79,6 +85,7 @@ function streamManaBoxImport(args: {
   userId: string
   defaults: ImportDefaults | undefined
   copyEdits: ImportCopyEdits | undefined
+  destination: ImportDestination
 }): Response {
   let closed = false
   const stream = new ReadableStream<Uint8Array>({
@@ -100,6 +107,8 @@ function streamManaBoxImport(args: {
         .catch((err: unknown) => {
           if (err instanceof ImportValidationError) {
             send({ type: 'error', message: 'Invalid import request', problems: err.problems })
+          } else if (err instanceof ImportDestinationError) {
+            send({ type: 'error', message: err.message })
           } else {
             const message = err instanceof Error ? err.message : String(err)
             send({ type: 'error', message: `Import failed: ${message}` })
@@ -163,6 +172,7 @@ export async function POST(request: NextRequest) {
     let fileName = 'collection.csv'
     let defaults: ImportDefaults | undefined
     let copyEdits: ImportCopyEdits | undefined
+    let destination: ImportDestination = { kind: 'unsorted' }
 
     if (manaboxContentType.includes('multipart/form-data')) {
       const formData = await request.formData()
@@ -180,6 +190,11 @@ export async function POST(request: NextRequest) {
       } catch {
         return NextResponse.json({ error: 'Invalid defaults or edits' }, { status: 400 })
       }
+      try {
+        destination = parseImportDestinationField(formData.get('destination'))
+      } catch (err) {
+        return NextResponse.json({ error: (err as Error).message }, { status: 400 })
+      }
     } else {
       try {
         const body = (await request.json()) as {
@@ -187,13 +202,18 @@ export async function POST(request: NextRequest) {
           fileName?: string
           defaults?: ImportDefaults
           copyEdits?: ImportCopyEdits
+          destination?: unknown
         }
+        destination = parseImportDestination(body.destination)
         csvContent = body.csvContent ?? ''
         if (body.fileName) fileName = body.fileName
         // `userId` in the body, if any, is ignored: the session decides who owns the copies.
         defaults = body.defaults
         copyEdits = body.copyEdits
-      } catch {
+      } catch (err) {
+        if (err instanceof ImportDestinationError) {
+          return NextResponse.json({ error: err.message }, { status: 400 })
+        }
         return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
       }
     }
@@ -203,7 +223,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (searchParams.get('stream') === '1') {
-      return streamManaBoxImport({ csvContent, fileName, userId, defaults, copyEdits })
+      return streamManaBoxImport({ csvContent, fileName, userId, defaults, copyEdits, destination })
     }
 
     try {
@@ -213,9 +233,13 @@ export async function POST(request: NextRequest) {
         userId,
         defaults: defaults as ImportDefaults,
         copyEdits,
+        destination,
       })
       return NextResponse.json(summary)
     } catch (err) {
+      if (err instanceof ImportDestinationError) {
+        return NextResponse.json({ error: err.message }, { status: err.status })
+      }
       if (err instanceof ImportValidationError) {
         return NextResponse.json(
           { error: 'Invalid import request', problems: err.problems },

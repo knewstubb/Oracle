@@ -5,6 +5,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ManaBoxCollectionImportDialog } from './ManaBoxCollectionImportDialog'
 
 const toastSuccess = vi.hoisted(() => vi.fn())
+vi.mock('./destinations-client', () => ({
+  fetchImportDestinations: vi.fn().mockResolvedValue({ unsorted: { locationId: 1 }, storage: [], decks: [] }),
+}))
 vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: vi.fn() } }))
 
 vi.mock('./use-printing-languages', () => ({
@@ -327,5 +330,68 @@ describe('ManaBoxCollectionImportDialog', () => {
     fireEvent.click(screen.getByText('Sol Ring'))
     expect(screen.getByRole('button', { name: 'Edit Sol Ring' })).toBeInTheDocument()
     expect(row()).toBeTruthy()
+  })
+
+  describe('Put these cards in', () => {
+    const PLACES = {
+      unsorted: { locationId: 1 },
+      storage: [{ locationId: 5, name: 'Valuable binder', copyCount: 3 }],
+      decks: [],
+    }
+
+    async function reviewWithPlaces() {
+      const { fetchImportDestinations } = await import('./destinations-client')
+      vi.mocked(fetchImportDestinations).mockResolvedValue(PLACES)
+      return previewThenReview()
+    }
+
+    it('starts at Unsorted and sends it when nothing is changed', async () => {
+      await reviewWithPlaces()
+      expect(await screen.findByRole('combobox', { name: /Put these cards in/ })).toHaveTextContent('Unsorted')
+      vi.mocked(global.fetch).mockResolvedValueOnce(
+        new Response(JSON.stringify({ inserted: 4, skipped: 0, removed: 0, sourceTag: 'manabox', errors: [], unmatched: [], durationMs: 1 }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Import cards' }))
+      await waitFor(() => expect(screen.getByText(/copies added/)).toBeInTheDocument())
+      const call = vi.mocked(fetch).mock.calls.find(([url]) => String(url).includes('mode=manabox'))
+      expect(JSON.parse(call![1]!.body as string).destination).toEqual({ kind: 'unsorted' })
+    })
+
+    it('sends a chosen binder, shows where they went, and counts the change as unsaved', async () => {
+      const { user, onOpenChange } = await reviewWithPlaces()
+      const picker = await screen.findByRole('combobox', { name: /Put these cards in/ })
+      await waitFor(() => expect(picker).not.toBeDisabled())
+      fireEvent.click(picker)
+      fireEvent.click(screen.getByRole('option', { name: /Valuable binder/ }))
+      expect(screen.getByText(/4 copies · to Valuable binder/)).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: /close/i }))
+      expect(await screen.findByText('Discard edits?')).toBeInTheDocument()
+      expect(onOpenChange).not.toHaveBeenCalledWith(false)
+      await user.click(screen.getByRole('button', { name: 'Keep editing' }))
+
+      vi.mocked(global.fetch).mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            inserted: 4,
+            skipped: 0,
+            removed: 0,
+            sourceTag: 'manabox',
+            errors: [],
+            unmatched: [],
+            durationMs: 1,
+            placement: { destination: { kind: 'storage', id: 5, name: 'Valuable binder' }, total: 4, placedInStorage: 4 },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Import cards' }))
+      await waitFor(() => expect(screen.getByText('4 put in Valuable binder')).toBeInTheDocument())
+      const call = vi.mocked(fetch).mock.calls.find(([url]) => String(url).includes('mode=manabox'))
+      expect(JSON.parse(call![1]!.body as string).destination).toEqual({ kind: 'storage', locationId: 5 })
+    })
   })
 })

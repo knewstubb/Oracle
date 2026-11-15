@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
       .from('brew_sessions')
       .select('id, assessment_cache_json')
       .eq('id', sessionId)
+      .eq('user_id', authResult.id)
       .single()
 
     if (fetchErr) {
@@ -160,6 +161,7 @@ export async function POST(request: NextRequest) {
       .from('brew_sessions')
       .update({ assessment_cache_json: serializeCache(cache), updated_at: new Date().toISOString() })
       .eq('id', sessionId)
+      .eq('user_id', authResult.id)
 
     return Response.json({ assessment, cached: false })
   } catch (err) {

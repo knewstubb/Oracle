@@ -92,6 +92,7 @@ export async function GET(request: NextRequest) {
       .from('brew_sessions')
       .select('id, deck_id, conversation_json, decision_log_json, skeleton_json, status, commander_name, colour_identity, path_type, model_id, updated_at, created_at')
       .eq('id', id)
+      .eq('user_id', authResult.id)
       .maybeSingle()
 
     if (error) {
@@ -152,13 +153,19 @@ export async function PATCH(request: NextRequest) {
     if (commanderName) updateFields.commander_name = commanderName
     if (colourIdentity) updateFields.colour_identity = colourIdentity
 
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from('brew_sessions')
       .update(updateFields)
       .eq('id', sessionId)
+      .eq('user_id', authResult.id)
+      .select('id')
 
     if (error) {
       return Response.json({ error: error.message }, { status: 500 })
+    }
+
+    if (!updated || updated.length === 0) {
+      return Response.json({ error: 'Session not found' }, { status: 404 })
     }
 
     return Response.json({ success: true })

@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
       .from('brew_sessions')
       .select('*')
       .eq('id', sessionId)
+      .eq('user_id', authResult.id)
       .single()
 
     if (fetchErr || !session) {
@@ -123,6 +124,7 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       })
       .eq('id', sessionId)
+      .eq('user_id', authResult.id)
 
     return Response.json(result)
   } catch (err) {

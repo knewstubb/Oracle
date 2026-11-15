@@ -61,6 +61,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       .from('brew_sessions')
       .select('*')
       .eq('id', sessionId)
+      .eq('user_id', userId)
       .single()
 
     if (fetchErr || !session) {
@@ -207,6 +208,7 @@ export async function POST(request: NextRequest): Promise<Response> {
                 updated_at: new Date().toISOString(),
               })
               .eq('id', sessionId)
+              .eq('user_id', userId)
           } else {
             // No brief yet — just store the updated conversation
             await supabase
@@ -216,6 +218,7 @@ export async function POST(request: NextRequest): Promise<Response> {
                 updated_at: new Date().toISOString(),
               })
               .eq('id', sessionId)
+              .eq('user_id', userId)
           }
 
           // Emit done signal

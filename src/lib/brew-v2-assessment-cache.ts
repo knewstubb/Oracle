@@ -103,6 +103,7 @@ export function deserializeCache(
  * Returns the deserialized Map ready for in-memory use.
  */
 export async function loadAssessmentCache(
+  userId: string,
   sessionId: number
 ): Promise<Map<string, CardAssessment>> {
   const supabase = createAdminClient()
@@ -110,6 +111,7 @@ export async function loadAssessmentCache(
     .from('brew_sessions')
     .select('assessment_cache_json')
     .eq('id', sessionId)
+    .eq('user_id', userId)
     .maybeSingle()
 
   if (error) {
@@ -128,6 +130,7 @@ export async function loadAssessmentCache(
  * Serializes the Map to JSON and updates the assessment_cache_json column.
  */
 export async function persistAssessmentCache(
+  userId: string,
   sessionId: number,
   cache: Map<string, CardAssessment>
 ): Promise<void> {
@@ -139,6 +142,7 @@ export async function persistAssessmentCache(
       updated_at: new Date().toISOString(),
     })
     .eq('id', sessionId)
+    .eq('user_id', userId)
 
   if (error) {
     throw new Error(`Failed to persist assessment cache for session ${sessionId}: ${error.message}`)
@@ -150,11 +154,12 @@ export async function persistAssessmentCache(
  * Convenience function combining in-memory cache update with Supabase write.
  */
 export async function cacheAndPersistAssessment(
+  userId: string,
   sessionId: number,
   cache: Map<string, CardAssessment>,
   cardName: string,
   assessment: CardAssessment
 ): Promise<void> {
   cache.set(cardName, assessment)
-  await persistAssessmentCache(sessionId, cache)
+  await persistAssessmentCache(userId, sessionId, cache)
 }

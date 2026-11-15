@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
       const { data: session } = await supabase
         .from('brew_sessions')
         .select('*')
+        .eq('user_id', authResult.id)
         .not('status', 'in', '("complete","abandoned")')
         .order('updated_at', { ascending: false })
         .limit(1)
@@ -43,6 +44,7 @@ export async function GET(request: NextRequest) {
         .from('brew_sessions')
         .select('*')
         .eq('id', sessionId)
+        .eq('user_id', authResult.id)
         .single()
 
       if (fetchErr || !session) {

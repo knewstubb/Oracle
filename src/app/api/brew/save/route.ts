@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
       .from('brew_sessions')
       .select('id, deck_id, status, commander_name, colour_identity, decision_log_json')
       .eq('id', sessionId)
+      .eq('user_id', userId)
       .single()
 
     if (fetchErr || !session) {
@@ -117,6 +118,7 @@ export async function POST(request: NextRequest) {
         .from('brew_sessions')
         .update({ decision_log_json: logJson, updated_at: new Date().toISOString() })
         .eq('id', sessionId)
+        .eq('user_id', userId)
 
       return Response.json({ success: true })
     }
@@ -203,6 +205,7 @@ export async function POST(request: NextRequest) {
           .from('brew_sessions')
           .update({ status: newSessionStatus, updated_at: new Date().toISOString() })
           .eq('id', sessionId)
+          .eq('user_id', userId)
       } catch (txErr) {
         const message = txErr instanceof Error ? txErr.message : 'Transaction failed'
         return Response.json(

@@ -383,21 +383,30 @@ export async function POST(request: NextRequest): Promise<Response> {
     const supabase = createAdminClient()
     let sessionStatus = 'exploring'
     let commanderName: string | null = null
+    let sessionNotOwned = false
     try {
       const { data: sessionRow } = await supabase
         .from('brew_sessions')
         .select('status, commander_name')
         .eq('id', sessionId)
-        .single()
+        .eq('user_id', authResult.id)
+        .maybeSingle()
+      if (sessionId && !sessionRow) sessionNotOwned = true
       if (sessionRow?.status) sessionStatus = sessionRow.status
       if (sessionRow?.commander_name) commanderName = sessionRow.commander_name
 
-      await supabase
-        .from('brew_sessions')
-        .update({ model_id: modelConfig.id })
-        .eq('id', sessionId)
+      if (sessionRow) {
+        await supabase
+          .from('brew_sessions')
+          .update({ model_id: modelConfig.id })
+          .eq('id', sessionId)
+          .eq('user_id', authResult.id)
+      }
     } catch {
       // Non-critical — session update failure shouldn't block the chat
+    }
+    if (sessionNotOwned) {
+      return Response.json({ error: 'Session not found' }, { status: 404 })
     }
 
     // --- Fetch user preferences for player context ---
@@ -574,6 +583,7 @@ export async function POST(request: NextRequest): Promise<Response> {
                       .from('brew_sessions')
                       .select('decision_log_json')
                       .eq('id', sessionId)
+                      .eq('user_id', authResult.id)
                       .single()
                     if (sessionRow) {
                       const log = JSON.parse(sessionRow.decision_log_json || '{}')
@@ -595,6 +605,7 @@ export async function POST(request: NextRequest): Promise<Response> {
                         .from('brew_sessions')
                         .update({ decision_log_json: JSON.stringify(log), updated_at: new Date().toISOString() })
                         .eq('id', sessionId)
+                        .eq('user_id', authResult.id)
                     }
                   } catch {
                     // DB persist failure — non-critical, client still got the events

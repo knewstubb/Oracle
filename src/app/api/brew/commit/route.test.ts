@@ -23,8 +23,8 @@ vi.mock('@/lib/supabase', () => ({
     from: (table: string) => {
       if (table === 'brew_sessions') {
         return {
-          select: () => ({ eq: () => ({ single: mocks.sessionSelect }) }),
-          update: () => ({ eq: mocks.sessionUpdate }),
+          select: () => ({ eq: () => ({ eq: () => ({ single: mocks.sessionSelect }) }) }),
+          update: () => ({ eq: () => ({ eq: mocks.sessionUpdate }) }),
         }
       }
       if (table === 'ref_printings') {

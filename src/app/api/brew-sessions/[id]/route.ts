@@ -41,6 +41,7 @@ export async function DELETE(
     .from('brew_sessions')
     .delete()
     .eq('id', sessionId)
+    .eq('user_id', authResult.id)
 
   if (deleteErr) {
     return Response.json({ error: deleteErr.message }, { status: 500 })

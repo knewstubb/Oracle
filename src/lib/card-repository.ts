@@ -454,6 +454,8 @@ class SupabaseCardRepository implements CardRepository {
   }
 
   async getDeckContext(sessionId: number): Promise<DeckContextResult | null> {
+    // Brew sessions are private: without a signed-in owner there is nothing to return
+    if (!this.userId) return null
     const supabase = createAdminClient()
 
     // Fetch the brew session
@@ -461,6 +463,7 @@ class SupabaseCardRepository implements CardRepository {
       .from('brew_sessions')
       .select('*')
       .eq('id', sessionId)
+      .eq('user_id', this.userId)
       .single()
 
     if (sessionError || !session) return null
@@ -560,12 +563,14 @@ class SupabaseCardRepository implements CardRepository {
   async getDecisionLog(
     sessionId: number
   ): Promise<Record<string, unknown> | null> {
+    if (!this.userId) return null
     const supabase = createAdminClient()
 
     const { data: session, error } = await supabase
       .from('brew_sessions')
       .select('*')
       .eq('id', sessionId)
+      .eq('user_id', this.userId)
       .single()
 
     if (error || !session?.decision_log_json) return null

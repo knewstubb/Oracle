@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
       .from('brew_sessions')
       .select('skeleton_json')
       .eq('id', sessionId)
+      .eq('user_id', authResult.id)
       .single()
 
     if (fetchErr || !row) {
@@ -75,6 +76,7 @@ export async function POST(request: NextRequest) {
       .from('brew_sessions')
       .update({ skeleton_json: JSON.stringify(skeleton), updated_at: new Date().toISOString() })
       .eq('id', sessionId)
+      .eq('user_id', authResult.id)
 
     if (updateErr) throw new Error(updateErr.message)
 

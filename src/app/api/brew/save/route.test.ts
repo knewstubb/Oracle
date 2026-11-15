@@ -25,11 +25,11 @@ vi.mock('@/lib/supabase', () => ({
         return {
           select: () => ({
             eq: () => ({
-              single: mockSessionSelect,
+              eq: () => ({ single: mockSessionSelect }),
             }),
           }),
           update: () => ({
-            eq: mockSessionUpdate,
+            eq: () => ({ eq: mockSessionUpdate }),
           }),
         }
       }

@@ -96,6 +96,7 @@ export async function POST(request: NextRequest) {
       .from('brew_sessions')
       .select('id, decision_log_json')
       .eq('id', sessionId)
+      .eq('user_id', authResult.id)
       .single()
 
     if (fetchErr || !session) {
@@ -186,6 +187,7 @@ export async function POST(request: NextRequest) {
       .from('brew_sessions')
       .update({ decision_log_json: JSON.stringify(existingLog), updated_at: new Date().toISOString() })
       .eq('id', sessionId)
+      .eq('user_id', authResult.id)
 
     // --- Return extracted entries with section assignments ---
     return Response.json({ entries: categorizedEntries })

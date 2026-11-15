@@ -134,6 +134,7 @@ export async function POST(request: NextRequest) {
       .from('brew_sessions')
       .update({ conversation_json: JSON.stringify(initialConversation) })
       .eq('id', sessionId)
+      .eq('user_id', userId)
 
     return Response.json({ sessionId, firstMessage })
   } catch (err) {

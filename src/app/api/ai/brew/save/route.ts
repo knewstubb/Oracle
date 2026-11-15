@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
       .from('brew_sessions')
       .select('*')
       .eq('id', sessionId)
+      .eq('user_id', userId)
       .single()
 
     if (fetchErr || !session) {
@@ -84,6 +85,7 @@ export async function POST(request: NextRequest) {
       .from('brew_sessions')
       .update({ status: 'saving', updated_at: new Date().toISOString() })
       .eq('id', sessionId)
+      .eq('user_id', userId)
 
     // --- Create deck + deck_cards ---
     let deckId: number
@@ -135,12 +137,14 @@ export async function POST(request: NextRequest) {
         .from('brew_sessions')
         .update({ deck_id: deckId })
         .eq('id', sessionId)
+        .eq('user_id', userId)
     } catch (txErr) {
       // Rollback: keep session in 'refining' so user can retry
       await supabase
         .from('brew_sessions')
         .update({ status: 'refining', updated_at: new Date().toISOString() })
         .eq('id', sessionId)
+        .eq('user_id', userId)
 
       const message = txErr instanceof Error ? txErr.message : 'Transaction failed'
       return Response.json(
@@ -178,6 +182,7 @@ export async function POST(request: NextRequest) {
       .from('brew_sessions')
       .update({ status: 'complete', updated_at: new Date().toISOString() })
       .eq('id', sessionId)
+      .eq('user_id', userId)
 
     return Response.json({ deckId: deckId! })
   } catch (err) {

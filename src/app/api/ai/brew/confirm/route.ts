@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
       .from('brew_sessions')
       .select('*')
       .eq('id', sessionId)
+      .eq('user_id', authResult.id)
       .single()
 
     if (fetchErr || !session) {
@@ -53,6 +54,7 @@ export async function POST(request: NextRequest) {
       .from('brew_sessions')
       .update({ status: 'generating', updated_at: new Date().toISOString() })
       .eq('id', sessionId)
+      .eq('user_id', authResult.id)
 
     return Response.json({ success: true })
   } catch (err) {

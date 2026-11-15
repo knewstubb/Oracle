@@ -13,10 +13,18 @@ import { NextRequest } from 'next/server'
 
 const mockGetBrewSession = vi.fn()
 const mockUpdateBrewSession = vi.fn()
+const ownerIdsSeen: string[] = []
 
+// The first argument is the signed-in user id; record it, then hand the rest to the mocks.
 vi.mock('@/lib/brew-v2-session', () => ({
-  getBrewSession: (...args: unknown[]) => mockGetBrewSession(...args),
-  updateBrewSession: (...args: unknown[]) => mockUpdateBrewSession(...args),
+  getBrewSession: (userId: string, ...args: unknown[]) => {
+    ownerIdsSeen.push(userId)
+    return mockGetBrewSession(...args)
+  },
+  updateBrewSession: (userId: string, ...args: unknown[]) => {
+    ownerIdsSeen.push(userId)
+    return mockUpdateBrewSession(...args)
+  },
 }))
 
 import { PATCH } from './route'

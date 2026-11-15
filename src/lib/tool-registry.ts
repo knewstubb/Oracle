@@ -1512,9 +1512,13 @@ registry.set('deck_context', {
       required: ['session_id'],
     },
   },
-  execute: async (input) => {
+  execute: async (input, context) => {
     try {
-      const repo = getCardRepository()
+      const userId = context?.userId
+      if (!userId) {
+        return { content: 'Deck context requires authentication — userId not available', is_error: true }
+      }
+      const repo = getCardRepository(userId)
       const sessionId = input.session_id as number
 
       // Try building-phase deck context first

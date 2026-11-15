@@ -138,6 +138,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       .from('brew_sessions')
       .select('id, status, commander_name, colour_identity, decision_log_json')
       .eq('id', sessionId)
+      .eq('user_id', authResult.id)
       .single()
 
     if (fetchErr || !session) {
@@ -303,6 +304,7 @@ export async function POST(request: NextRequest): Promise<Response> {
             .from('brew_sessions')
             .update({ skeleton_json: JSON.stringify(skeleton), updated_at: new Date().toISOString() })
             .eq('id', sessionId)
+            .eq('user_id', authResult.id)
 
           // --- Emit complete event with parsed cards ---
           controller.enqueue(

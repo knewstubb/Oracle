@@ -123,7 +123,7 @@ export async function PATCH(
     }
 
     // --- Verify session exists ---
-    const session = await getBrewSession(sessionId)
+    const session = await getBrewSession(authResult.id, sessionId)
     if (!session) {
       return Response.json(
         { error: 'Session not found' },
@@ -148,7 +148,7 @@ export async function PATCH(
 
     // --- Persist ---
     const updatedAt = new Date().toISOString()
-    await updateBrewSession(sessionId, {
+    await updateBrewSession(authResult.id, sessionId, {
       ...updatePayload,
       updated_at: updatedAt,
     })

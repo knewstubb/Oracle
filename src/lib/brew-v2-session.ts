@@ -203,12 +203,13 @@ export async function createBrewSession(userId: string): Promise<number> {
  * Retrieves a brew session by ID.
  * Returns null if the session does not exist.
  */
-export async function getBrewSession(sessionId: number): Promise<BrewSessionRow | null> {
+export async function getBrewSession(userId: string, sessionId: number): Promise<BrewSessionRow | null> {
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('brew_sessions')
     .select('*')
     .eq('id', sessionId)
+    .eq('user_id', userId)
     .maybeSingle()
 
   if (error) {
@@ -223,6 +224,7 @@ export async function getBrewSession(sessionId: number): Promise<BrewSessionRow 
  * Returns null if the session does not exist.
  */
 export async function getBrewSessionFields<T extends string>(
+  userId: string,
   sessionId: number,
   fields: T
 ): Promise<Record<string, unknown> | null> {
@@ -231,6 +233,7 @@ export async function getBrewSessionFields<T extends string>(
     .from('brew_sessions')
     .select(fields)
     .eq('id', sessionId)
+    .eq('user_id', userId)
     .maybeSingle()
 
   if (error) {
@@ -245,6 +248,7 @@ export async function getBrewSessionFields<T extends string>(
  * Automatically updates the `updated_at` timestamp.
  */
 export async function updateBrewSession(
+  userId: string,
   sessionId: number,
   fields: Partial<Omit<BrewSessionRow, 'id' | 'created_at' | 'user_id'>>
 ): Promise<void> {
@@ -255,6 +259,7 @@ export async function updateBrewSession(
     .from('brew_sessions')
     .update(updatePayload)
     .eq('id', sessionId)
+    .eq('user_id', userId)
 
   if (error) {
     throw new Error(`Failed to update brew session ${sessionId}: ${error.message}`)
@@ -266,14 +271,15 @@ export async function updateBrewSession(
  * Only sessions with deletable statuses ('exploring', 'abandoned') should be deleted.
  * Throws if the session is not in a deletable state.
  */
-export async function deleteBrewSession(sessionId: number): Promise<void> {
+export async function deleteBrewSession(userId: string, sessionId: number): Promise<void> {
   const supabase = createAdminClient()
 
-  // Verify session exists and check status
+  // Verify session exists, belongs to this user, and check status
   const { data: session, error: fetchErr } = await supabase
     .from('brew_sessions')
     .select('id, status')
     .eq('id', sessionId)
+    .eq('user_id', userId)
     .maybeSingle()
 
   if (fetchErr) {
@@ -288,6 +294,7 @@ export async function deleteBrewSession(sessionId: number): Promise<void> {
     .from('brew_sessions')
     .delete()
     .eq('id', sessionId)
+    .eq('user_id', userId)
 
   if (deleteErr) {
     throw new Error(`Failed to delete brew session ${sessionId}: ${deleteErr.message}`)
@@ -299,6 +306,7 @@ export async function deleteBrewSession(sessionId: number): Promise<void> {
  * Returns sessions ordered by updated_at DESC (most recent first).
  */
 export async function listBrewSessions(
+  userId: string,
   statusFilter?: string[]
 ): Promise<Pick<BrewSessionRow, 'id' | 'status' | 'commander_name' | 'colour_identity' | 'updated_at'>[]> {
   const supabase = createAdminClient()
@@ -306,6 +314,7 @@ export async function listBrewSessions(
   let query = supabase
     .from('brew_sessions')
     .select('id, status, commander_name, colour_identity, updated_at')
+    .eq('user_id', userId)
     .order('updated_at', { ascending: false })
 
   if (statusFilter && statusFilter.length > 0) {
@@ -327,10 +336,11 @@ export async function listBrewSessions(
  * persisting decision log changes.
  */
 export async function persistDecisionLog(
+  userId: string,
   sessionId: number,
   decisionLog: DecisionLog
 ): Promise<void> {
-  await updateBrewSession(sessionId, {
+  await updateBrewSession(userId, sessionId, {
     decision_log_json: JSON.stringify(decisionLog),
   })
 }
@@ -340,13 +350,14 @@ export async function persistDecisionLog(
  * Used when the user commits a commander during the exploration phase.
  */
 export async function persistCommanderCommit(
+  userId: string,
   sessionId: number,
   commanderName: string,
   colourIdentity: string,
   pathType: 'commander' | 'concept',
   decisionLog: DecisionLog
 ): Promise<void> {
-  await updateBrewSession(sessionId, {
+  await updateBrewSession(userId, sessionId, {
     status: 'building',
     commander_name: commanderName,
     colour_identity: colourIdentity,

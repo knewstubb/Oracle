@@ -23,14 +23,14 @@ export const ROLE_ORDER: readonly Role[] = ['ramp', 'draw', 'removal', 'wipes']
  * A golden test (card-roles.test.ts) checks this over every saved fixture card. Add a needle when a rule changes.
  */
 export const ROLE_TEXT_NEEDLES: Record<Role, readonly string[]> = {
-  ramp: ['add', 'treasure', 'search your library', 'additional land', 'onto the battlefield'],
+  ramp: ['add', 'treasure', 'search your library', 'additional land', 'onto the battlefield', 'less'],
   draw: ['draw'],
   removal: ['destroy', 'exile', 'damage', '/-', '/\u2212', '/\u2013', 'to its owner', 'sacrifices', 'owner of target'],
   wipes: ['destroy all', 'exile all', 'overload', '/-', '/\u2212', '/\u2013', 'damage to each', 'return all', 'return each'],
 }
 
 /** Bump on any rule change; invalidates cached targets (used from slice 2). */
-export const CLASSIFIER_VERSION = 1
+export const CLASSIFIER_VERSION = 2
 
 export interface RoleCardInput {
   name: string
@@ -79,6 +79,27 @@ const EXTRA_LAND_DROP = /you may play an additional land/
 const ADDS_MANA = /\badd (?:\{[^}]+\}|one mana|two mana|three mana|an amount|x mana|that much|mana)/
 const MAKES_TREASURE = /create (?:a|an|two|three|four|x|\d+|that many)(?: tapped)? treasure/
 
+/**
+ * Cost reducers for a whole kind of spell: "Blue spells you cast cost {1} less", "Artifact spells you cast cost {1} less",
+ * "Creature spells of the chosen type cost {2} less". Only counted on permanents (the caller skips instants and sorceries).
+ * Not matched, on purpose: "This spell costs {2} less" (one card), "Equip abilities cost {1} less" and "Abilities you
+ * activate cost {1} less" (abilities, not spells), and anything that makes spells cost MORE.
+ */
+const COST_REDUCER_YOU_CAST = /\bspells? you cast\b[^.\n]*?\bcosts? (?:\{[^}]+\})+ less/
+const COST_REDUCER_CHOSEN_TYPE = /\bspells? of the chosen (?:type|color|colour)\b[^.\n]*?\bcosts? (?:\{[^}]+\})+ less/
+
+/**
+ * Judged per line. Skipped as too narrow: "The first artifact spell you cast each turn costs {1} less" (once a turn)
+ * and effects locked behind a late condition ("Max speed - Spells you cast cost {1} less").
+ */
+function hasCostReducer(text: string): boolean {
+  for (const line of text.split('\n')) {
+    if (/^max speed\b/.test(line) || /\bthe first\b[^.]*\beach turn\b/.test(line)) continue
+    if (COST_REDUCER_YOU_CAST.test(line) || COST_REDUCER_CHOSEN_TYPE.test(line)) return true
+  }
+  return false
+}
+
 function isRamp(text: string, typeLine: string): boolean {
   if (FETCH_LAND_TO_BATTLEFIELD.test(text)) return true
   if (LAND_FROM_HAND_TO_BATTLEFIELD.test(text)) return true
@@ -88,6 +109,7 @@ function isRamp(text: string, typeLine: string): boolean {
   // (Dark Ritual, Mana Drain's delayed mana) are not ramp.
   const oneShot = /\b(?:instant|sorcery)\b/i.test(typeLine)
   if (!oneShot && ADDS_MANA.test(text)) return true
+  if (!oneShot && hasCostReducer(text)) return true
   return false
 }
 

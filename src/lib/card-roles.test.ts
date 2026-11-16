@@ -164,7 +164,35 @@ describe('rolesForCard: edge cases', () => {
   })
 
   it('exposes a classifier version', () => {
-    expect(CLASSIFIER_VERSION).toBe(1)
+    expect(CLASSIFIER_VERSION).toBe(2)
+  })
+
+  describe('cost reducers count as ramp', () => {
+    const r = (name: string, typeLine: string, oracleText: string) => rolesForCard({ name, typeLine, oracleText })
+    it('counts reducers for a whole kind of spell', () => {
+      expect(r('Sapphire Medallion', 'Artifact', 'Blue spells you cast cost {1} less to cast.')).toEqual(['ramp'])
+      expect(r('Etherium Sculptor', 'Artifact Creature — Vedalken Artificer', 'Artifact spells you cast cost {1} less to cast.')).toEqual(['ramp'])
+      expect(
+        r("Urza's Incubator", 'Artifact', "As Urza's Incubator enters the battlefield, choose a creature type.\nCreature spells of the chosen type cost {2} less to cast."),
+      ).toEqual(['ramp'])
+      expect(r('Goblin Electromancer', 'Creature — Goblin Wizard', 'Instant and sorcery spells you cast cost {U}{R} less to cast.')).toEqual(['ramp'])
+    })
+    it('does not count narrow or opposite effects', () => {
+      expect(r('Affinity card', 'Artifact Creature', 'This spell costs {2} less to cast if you control a land.')).toEqual([])
+      expect(r('Training Grounds', 'Enchantment', 'Activated abilities you activate cost {2} less to activate.')).toEqual([])
+      expect(r('Puresteel Paladin', 'Creature', 'Equip abilities you activate cost {1} less to activate.')).toEqual([])
+      expect(r('Thalia', 'Creature', 'Noncreature spells cost {1} more to cast.')).toEqual([])
+      expect(r('Artificer Class', 'Enchantment — Class', 'The first artifact spell you cast each turn costs {1} less to cast.')).toEqual([])
+      expect(r('Racers Scoreboard', 'Artifact', 'Max speed — Spells you cast cost {1} less to cast.')).toEqual([])
+      expect(r('Instant reducer', 'Instant', 'Spells you cast this turn cost {1} less to cast.')).toEqual([])
+    })
+    it('lands stay excluded', () => {
+      expect(r('Reducer land', 'Land', 'Spells you cast cost {1} less to cast.')).toEqual([])
+      expect(r('Seat of the Synod', 'Artifact Land', '{T}: Add {U}.')).toEqual([])
+    })
+    it('Basalt Monolith is ramp', () => {
+      expect(r('Basalt Monolith', 'Artifact', "Basalt Monolith doesn't untap during your untap step.\n{T}: Add {C}{C}{C}.\n{3}: Untap Basalt Monolith.")).toEqual(['ramp'])
+    })
   })
 
   it('the database pre-filter needles never miss a card that has the role (all saved fixtures)', () => {

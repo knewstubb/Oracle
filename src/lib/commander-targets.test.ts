@@ -32,12 +32,12 @@ const NOW = new Date('2026-11-11T12:00:00Z')
 const roleMap = (roles: Array<{ role: string; typical: number }>) => Object.fromEntries(roles.map((r) => [r.role, r.typical]))
 
 describe('(A) average deck', () => {
-  it('counts roles straight from the deck, no scaling (Mendicant Core: 12/13/3/1, 34 lands)', () => {
+  it('counts roles straight from the deck, no scaling (Mendicant Core: 16/13/3/1, 34 lands)', () => {
     const d = deriveFromAverageDeck(mendicantAvg(), ref)
     expect(d.qualifies).toBe(true)
     expect(d.total).toBe(100)
     expect(d.landCount).toBe(34)
-    expect(roleMap(d.roles)).toEqual({ ramp: 12, draw: 13, removal: 3, wipes: 1 })
+    expect(roleMap(d.roles)).toEqual({ ramp: 16, draw: 13, removal: 3, wipes: 1 })
     // No scaling: the typical number is the count of cards in that role.
     for (const r of d.roles) expect(r.typical).toBe(r.cardsInRole)
   })
@@ -103,13 +103,13 @@ describe('(B) estimate', () => {
     expect(e.scale).toBeCloseTo(65 / e.listedSum, 10)
     expect(e.coverage).toBeCloseTo(e.listedSum / 65, 10)
     for (const r of e.roles) expect(r.typical).toBe(Math.round(e.rawSums[r.role] * e.scale!))
-    expect(roleMap(e.roles)).toEqual({ ramp: 13, draw: 12, removal: 2, wipes: 1 })
+    expect(roleMap(e.roles)).toEqual({ ramp: 14, draw: 12, removal: 2, wipes: 1 })
   })
 
   it('works on the double-faced commander (Sephiroth)', () => {
     const e = deriveEstimate(sephPage(), ref)
     expect(e.status).toBe('ok')
-    expect(roleMap(e.roles)).toEqual({ ramp: 11, draw: 10, removal: 5, wipes: 2 })
+    expect(roleMap(e.roles)).toEqual({ ramp: 12, draw: 10, removal: 5, wipes: 2 })
   })
 
   it('uses the stored builds land average only when EDHREC gives none', () => {
@@ -167,7 +167,7 @@ describe('rows, freshness and labels', () => {
     expect(t.source).toBe('edhrec_average')
     expect(t.sourceLabel).toBe('EDHREC average deck, 17,659 decks')
     expect(t.landsTypical).toBe(34)
-    expect(roleMap(t.roles)).toEqual({ ramp: 12, draw: 13, removal: 3, wipes: 1 })
+    expect(roleMap(t.roles)).toEqual({ ramp: 16, draw: 13, removal: 3, wipes: 1 })
     expect(t.typeCountsLabel).toBe('EDHREC averages, 17,659 decks')
   })
 

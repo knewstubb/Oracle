@@ -10,7 +10,6 @@ vi.mock('./api', async (orig) => {
 import * as api from './api'
 import { PendingChip } from './PendingChip'
 import { MovedSlotNote, useMovedSlots } from './MovedSlotNote'
-import { SetupGuideTab } from './SetupGuideTab'
 
 const wrap = (ui: React.ReactNode) => {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -56,12 +55,5 @@ describe('MovedSlotNote', () => {
     }
     wrap(<Probe />)
     expect(await screen.findByText('has')).toBeInTheDocument()
-  })
-})
-
-describe('SetupGuideTab', () => {
-  it('is a stub that says it is coming next', () => {
-    render(<SetupGuideTab />)
-    expect(screen.getByRole('heading', { name: /coming next/ })).toBeInTheDocument()
   })
 })

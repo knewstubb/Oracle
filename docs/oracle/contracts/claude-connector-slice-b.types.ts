@@ -12,7 +12,7 @@ export const AI_LIMITS = {
 } as const; // must equal SQL _ai_limits() (test)
 
 export const CONNECTOR_WRITE_TOOLS = [
-  'add_cards_to_deck', 'remove_cards_from_deck', 'set_card_zone', 'add_card_to_collection',
+  'add_cards_to_deck', 'remove_cards_from_deck', 'set_card_zone', 'set_card_category', 'add_card_to_collection',
   'sleeve_free_copy', 'make_slot_original', 'create_proxy_for_slot', 'request_card_move', 'undo_change',
 ] as const;
 export const CONNECTOR_READ_TOOLS_B = ['get_change_status', 'list_recent_changes'] as const;
@@ -24,14 +24,14 @@ export const BLOCKED_TOOL_NAMES = [
 
 export type ChangeAction =
   | 'deck_add' | 'deck_remove' | 'deck_zone' | 'sleeve_copy'
-  | 'make_original' | 'create_proxy' | 'collection_add' | 'copy_move';
+  | 'make_original' | 'create_proxy' | 'collection_add' | 'copy_move' | 'deck_category';
 export type PendingReason = 'over_ten' | 'recent_total' | 'busy' | 'card_move';
 export type PendingStatus = 'waiting' | 'approved' | 'declined' | 'expired' | 'cancelled' | 'failed';
 export const OWNER_ONLY_UNDO: readonly ChangeAction[] = ['collection_add', 'create_proxy', 'copy_move'];
 
 export type DeckCounts = { size: number; sleeved: number; unsleeved_generics: number };
 export type PendingPreview = {
-  cards: { name: string; quantity: number; is_proxy?: boolean }[];
+  cards: { name: string; quantity: number; is_proxy?: boolean; from?: string[]; to?: string[] }[];
   decks: { deck_id: number; name: string; role: 'changes' | 'gains' | 'loses'; before: DeckCounts; after: DeckCounts }[];
 };
 
@@ -53,6 +53,7 @@ export type ChangeLogRow = {
   approved_by_owner: boolean; created_at: string; undoable_until: string;
   undone_at: string | null; undone_by: 'owner' | 'claude' | null;
   owner_only: boolean; undo_blocker: UndoRefusal | null;
+  categories_from?: string[] | null; categories_to?: string[] | null; // kind 'deck_category' only
 };
 export type MovedSlot = {
   slot_id: number; card_name: string; moved_to_deck_id: number | null; moved_to_deck_name: string;

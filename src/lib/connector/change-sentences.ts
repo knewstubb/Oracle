@@ -20,6 +20,8 @@ export function clockTime(iso: string | null | undefined): string {
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many)
 
+const listWords = (l: string[] | null | undefined) => (l && l.length ? l.join(', ') : 'no category')
+
 export interface GroupSentence {
   summary: string
   consequence: string | null
@@ -67,6 +69,12 @@ export function describeGroup(rows: ChangeLogRow[]): GroupSentence {
         summary: `Moved ${card} from ${deck} to ${to}. You approved this${at ? ` at ${at}` : ''}.`,
         consequence: `${deck} still has the slot, now empty and planned.`,
       }
+    }
+    case 'deck_category': {
+      const r = first as ChangeLogRow
+      return many
+        ? { summary: `Claude changed the categories of ${n} cards in ${deck}.`, consequence: null }
+        : { summary: `Claude changed the categories of ${card} in ${deck} from ${listWords(r.categories_from)} to ${listWords(r.categories_to)}.`, consequence: null }
     }
     default:
       return { summary: `Changed ${card}.`, consequence: null }
@@ -149,6 +157,8 @@ export function staleText(f: FailureReason): string {
       return `A card on the list is gone`
     case 'copy_missing':
       return `The copy of ${card} is marked missing`
+    case 'slot_in_maybeboard':
+      return `${card} was moved to the maybeboard`
     case 'connection_ended':
       return `Claude's connection was switched off`
     default:
@@ -170,6 +180,8 @@ export function pendingTitle(p: Pick<PendingRow, 'action' | 'card_count' | 'deck
       return `Cut ${n} ${cardWord} from ${deck}?`
     case 'deck_zone':
       return `Move ${n} ${cardWord} in ${deck}?`
+    case 'deck_category':
+      return `Change the categories of ${n} ${cardWord} in ${deck}?`
     default:
       return `Change ${n} ${cardWord} in ${deck}?`
   }
@@ -253,6 +265,12 @@ export function editErrorMessage(code: string, d: Record<string, unknown>): stri
       return 'No change with that id in the owner\'s record. Nothing was changed.'
     case 'pending_not_found':
       return 'No request with that id from this connection.'
+    case 'category_reserved':
+      return `The category ${typeof d.category === 'string' ? `"${d.category}" ` : ''}is reserved${card !== 'that card' ? ` (on ${card})` : ''}. "Maybeboard" is changed with set_card_zone, and "Commander" is only for a commander. Nothing was changed.`
+    case 'slot_in_maybeboard':
+      return `${card} is on the Maybeboard of ${deck}, so its categories can't be changed here. Nothing was changed.`
+    case 'nothing_to_change':
+      return `Every card named already has exactly those categories${deck !== 'that deck' ? ` in ${deck}` : ''}. Nothing was changed.`
     case 'invalid_request':
       return `Something in the request is not valid${typeof d.field === 'string' ? ` (${d.field})` : ''}. Nothing was changed.`
     default:

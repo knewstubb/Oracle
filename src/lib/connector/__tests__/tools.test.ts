@@ -161,8 +161,15 @@ describe('list_decks', () => {
     expect(r.total).toBe(2)
     expect(r.items.map((d) => d.sleevedCount)).toEqual([2, 1])
     allScoped(queries)
-    expect(queries[0].filters).toContainEqual({ op: 'eq', args: ['is_active', true] })
+    expect(queries[0].filters).not.toContainEqual({ op: 'eq', args: ['is_active', true] })
+    expect((r.items as any[])[0]).toMatchObject({ activeNote: 'marked active by you', readiness: 'Draft' })
   })
+  it('unflagged decks are listed and described as not marked active by you', async () => {
+    const { db, queries } = mockDb((q) => (q.table === 'decks' ? { data: [{ ...deckRow(1), is_active: false }], count: 1 } : { data: [] }))
+    const r = (await listDecks({ db, userId: U }, listDecksInput.parse({ include_inactive: false }))) as any
+    expect(queries[0].filters).not.toContainEqual({ op: 'eq', args: ['is_active', true] })
+    expect(r.items[0]).toMatchObject({ activeNote: 'not marked active by you', readiness: 'Draft' })
+    expect(JSON.stringify(r)).not.toMatch(/inactive|archived/i)  })
   it('zero decks is explicit; a database error is not empty', async () => {
     const ok = await listDecks({ db: mockDb(() => ({ data: [], count: 0 })).db, userId: U }, listDecksInput.parse({}))
     expect(ok).toMatchObject({ ok: true, total: 0 })

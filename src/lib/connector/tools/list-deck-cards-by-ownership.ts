@@ -104,7 +104,6 @@ export async function listDeckCardsByOwnership(ctx: ToolContext, input: z.infer<
     const deckRows = await fetchAll<{ id: number; name: string; is_active: boolean }>(() => {
       let q = ctx.db.select('decks', 'id, name, is_active').eq('user_id', ctx.userId)
       if (input.deck_id !== undefined) q = q.eq('id', input.deck_id)
-      else q = q.eq('is_active', true)
       return q.order('id', { ascending: true })
     })
     if (input.deck_id !== undefined && deckRows.length === 0) return notFound()

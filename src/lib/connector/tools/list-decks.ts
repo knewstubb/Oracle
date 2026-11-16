@@ -4,10 +4,12 @@ import { DECKS_PAGE_MAX, fitRows } from '../limits'
 import type { BracketInfo } from '../../../../docs/oracle/contracts/connector-card-facts-and-deck-health.types'
 import { loadStrategyBrackets, resolveBracket } from './bracket'
 import { countByDeck, type OwnershipSlotRow } from './list-deck-cards-by-ownership'
+import { computeDeckReadiness } from '../../deck-readiness'
+import { getFormatConfig } from '../../format-config'
 import { fetchAllIn, LookupFailed, lookupFailed, must, pageNote, rows, tooLarge, type ToolContext, type ToolOutput } from './common'
 
 export const listDecksInput = z.strictObject({
-  include_inactive: z.boolean().optional().describe('Also list inactive (archived) decks. Default false.'),
+  include_inactive: z.boolean().optional().describe('Kept for compatibility; has no effect. All of your decks are always listed, whether or not you marked them active.'),
   limit: z.number().int().min(1).max(DECKS_PAGE_MAX).optional().describe('Decks per page, 1-50. Default 50.'),
   offset: z.number().int().min(0).optional().describe('Decks to skip, for paging.'),
 })
@@ -24,7 +26,7 @@ export type DeckRow = {
   is_active: boolean
 }
 
-export function toDeckSummary(d: DeckRow, sleevedCount: number, counts?: { original: number; proxy: number; notOwned: number }, strategyBracket?: number | null): DeckSummary & { bracketInfo: BracketInfo } {
+export function toDeckSummary(d: DeckRow, sleevedCount: number, counts?: { original: number; proxy: number; notOwned: number }, strategyBracket?: number | null, readiness?: DeckSummary['readiness']): DeckSummary & { bracketInfo: BracketInfo } {
   const bracketInfo = resolveBracket(strategyBracket, d.bracket)
   return {
     deckId: d.id,
@@ -37,6 +39,8 @@ export function toDeckSummary(d: DeckRow, sleevedCount: number, counts?: { origi
     cardCount: d.card_count ?? 0,
     sleevedCount,
     isActive: d.is_active,
+    activeNote: d.is_active ? 'marked active by you' : 'not marked active by you',
+    ...(readiness ? { readiness } : {}),
     ...(counts ? { ownershipCounts: counts } : {}),
   }
 }
@@ -46,7 +50,6 @@ export async function listDecks(ctx: ToolContext, input: z.infer<typeof listDeck
   const offset = input.offset ?? 0
   try {
     let q = ctx.db.select('decks', DECK_COLUMNS, { count: 'exact' }).eq('user_id', ctx.userId)
-    if (!input.include_inactive) q = q.eq('is_active', true)
     const r = await must(q.order('name', { ascending: true }).range(offset, offset + limit - 1))
     if (typeof r.count !== 'number') throw new LookupFailed()
     const total = r.count
@@ -57,11 +60,16 @@ export async function listDecks(ctx: ToolContext, input: z.infer<typeof listDeck
     const perDeck = new Map<number, number>()
     for (const s of sleeved) perDeck.set(s.deck_id, (perDeck.get(s.deck_id) ?? 0) + 1)
     const slots = decks.length
-      ? await fetchAllIn<OwnershipSlotRow>(ctx, 'deck_cards', 'id, deck_id, card_name, quantity, categories, ownership_status, is_generic', 'deck_id', decks.map((d) => d.id))
+      ? await fetchAllIn<OwnershipSlotRow & { copy_id?: number | null; generic_sleeved?: boolean | null }>(ctx, 'deck_cards', 'id, deck_id, card_name, quantity, categories, ownership_status, is_generic, copy_id, generic_sleeved', 'deck_id', decks.map((d) => d.id))
       : []
     const counts = countByDeck(slots)
     const strategy = await loadStrategyBrackets(ctx, decks.map((d) => d.id))
-    const items = decks.map((d) => toDeckSummary(d, perDeck.get(d.id) ?? 0, counts.get(d.id) ?? { original: 0, proxy: 0, notOwned: 0 }, strategy.get(d.id)))
+    const WORD = { draft: 'Draft', assembling: 'Assembling', playable: 'Playable' } as const
+    const items = decks.map((d) => {
+      const main = slots.filter((s) => s.deck_id === d.id && !(s.categories ?? '').includes('Maybeboard'))
+      const readiness = WORD[computeDeckReadiness(main, getFormatConfig(d.format).deckSize).state]
+      return toDeckSummary(d, perDeck.get(d.id) ?? 0, counts.get(d.id) ?? { original: 0, proxy: 0, notOwned: 0 }, strategy.get(d.id), readiness)
+    })
     const fit = fitRows(items, (kept) => {
       const meta = pageNote(total, offset, kept.length, kept.length < items.length)
       return { ok: true as const, items: kept, total, returned: kept.length, offset, truncated: meta.truncated, ...(meta.note ? { note: meta.note } : {}) }

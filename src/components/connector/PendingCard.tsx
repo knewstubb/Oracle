@@ -146,6 +146,7 @@ export function PendingCard({ item, busy = null, onApprove, onDecline, onDismiss
             {(collapsed ? cards.slice(0, 8) : cards).map((c, i) => (
               <li key={`${c.name}-${i}`}>
                 {c.quantity > 1 ? `${c.quantity} × ` : ''}{c.name}{c.is_proxy ? ' (Proxy)' : ''}
+                {c.to ? `: ${c.from?.length ? c.from.join(', ') : 'no category'} → ${c.to.join(', ')}` : ''}
               </li>
             ))}
           </ul>

@@ -25,7 +25,16 @@ export const addCardsInput = z.strictObject({
       z.strictObject({
         name: z.string().trim().min(1).max(200).describe('Card name.'),
         quantity: z.number().int().min(1).max(AI_LIMITS.max_request).optional().describe('How many slots to add. Default 1.'),
-        category: z.string().trim().min(1).max(60).optional().describe('Deck category to file the card under. Default "Other".'),
+        category: z
+          .string()
+          .trim()
+          .min(1)
+          .max(60)
+          .refine((c) => c.toLowerCase() !== 'maybeboard', {
+            message: 'The category "Maybeboard" is reserved. To put cards on the Maybeboard use set_card_zone. Nothing was changed.',
+          })
+          .optional()
+          .describe('Deck category to file the card under. Default "Other". "Maybeboard" is not allowed here; use set_card_zone.'),
       }),
     )
     .min(1)
@@ -39,6 +48,25 @@ export const setZoneInput = z.strictObject({
   deck_id: deckId,
   slots: z.array(slotRef).min(1).max(AI_LIMITS.max_request),
   to: z.enum(['main', 'maybeboard']).describe('Where the cards should be.'),
+  dry_run: dryRun,
+})
+
+export const setCategoryInput = z.strictObject({
+  deck_id: deckId,
+  slots: z
+    .array(
+      z.strictObject({
+        slot_id: z.number().int().positive().describe('The slotId of the card in get_deck.'),
+        name: z.string().trim().min(1).max(200).describe('The card name in that slot (checked so the wrong card is never touched).'),
+        categories: z
+          .array(z.string().trim().min(1).max(60))
+          .min(1)
+          .max(5)
+          .describe('1 to 5 category names for this card; replaces its whole list. Order is kept; the first is the group it shows under. Any free text; new names are fine. Oracle matches letter case to categories the deck already uses.'),
+      }),
+    )
+    .min(1)
+    .max(AI_LIMITS.max_request),
   dry_run: dryRun,
 })
 
@@ -158,6 +186,20 @@ export const removeCardsFromDeck = (ctx: EditContext, input: z.infer<typeof remo
 
 export const setCardZone = (ctx: EditContext, input: z.infer<typeof setZoneInput>) =>
   submit(ctx, 'deck_zone', { deck_id: input.deck_id, to: input.to, slots: input.slots.map((s) => ({ id: s.slot_id, card_name: s.name })) }, input.dry_run)
+
+/** The tool only sends names as written (trimmed by zod). Matching to the deck's spelling happens in the database; its report is surfaced as warnings. */
+export async function setCardCategory(ctx: EditContext, input: z.infer<typeof setCategoryInput>): Promise<ToolOutput> {
+  const payload = { deck_id: input.deck_id, slots: input.slots.map((s) => ({ id: s.slot_id, card_name: s.name, categories: s.categories })) }
+  const r = await ctx.gateway.submit({ userId: ctx.userId, connectionId: ctx.connectionId, action: 'deck_category', payload, dryRun: !!input.dry_run })
+  if (!r.ok) return fail(r)
+  const plan = (r.data as { plan?: { matched?: { card: string; sent: string; used: string }[]; changes?: unknown[]; skipped?: unknown[] } }).plan
+  const warnings = (plan?.matched ?? []).map((m) => `Stored '${m.sent}' as '${m.used}' on ${m.card}, which this deck already uses.`)
+  const out = shapeOutcome(r.data, { warnings })
+  if (plan && (input.dry_run || r.data.outcome === 'pending') && out.ok !== false) {
+    return { ...out, ...(plan.changes ? { changes: plan.changes } : {}), ...(plan.skipped?.length ? { skipped: plan.skipped } : {}) }
+  }
+  return out
+}
 
 export async function addCardToCollection(ctx: EditContext, input: z.infer<typeof addToCollectionInput>): Promise<ToolOutput> {
   const res = await resolveNames(ctx, [input.name], input.printing_id)

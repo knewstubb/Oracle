@@ -16,6 +16,7 @@ export const CONNECTOR_WRITE_TOOLS = [
   'add_cards_to_deck',
   'remove_cards_from_deck',
   'set_card_zone',
+  'set_card_category',
   'add_card_to_collection',
   'sleeve_free_copy',
   'make_slot_original',

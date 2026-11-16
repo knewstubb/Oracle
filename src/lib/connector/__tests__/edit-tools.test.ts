@@ -180,3 +180,70 @@ describe('cookie guard', () => {
     expect(await guardOwnerRequest(req('GET'), deps({ getUserId: async () => null }))).toMatchObject({ ok: false, status: 401 })
   })
 })
+
+describe('set_card_category', () => {
+  const slot = (categories: string[]) => ({ slot_id: 7, name: 'Sol Ring', categories })
+  it('sends names trimmed but otherwise as written (no case change, no matching), mapping slot_id to id', async () => {
+    const g = gw()
+    const r = await runTool(ctx(g), 'set_card_category', { deck_id: 3, slots: [slot(['  ramp ', 'Good Stuff'])] })
+    expect(r.isError).toBeFalsy()
+    expect(g.submit).toHaveBeenCalledWith({
+      userId: U, connectionId: 'conn-1', action: 'deck_category', dryRun: false,
+      payload: { deck_id: 3, slots: [{ id: 7, card_name: 'Sol Ring', categories: ['ramp', 'Good Stuff'] }] },
+    })
+  })
+  it('rejects 0 or 6 categories, empty and over-60 names, extra user id, and 61 slots', async () => {
+    const g = gw()
+    const bad: unknown[] = [
+      { deck_id: 1, slots: [slot([])] },
+      { deck_id: 1, slots: [slot(['a', 'b', 'c', 'd', 'e', 'f'])] },
+      { deck_id: 1, slots: [slot(['   '])] },
+      { deck_id: 1, slots: [slot(['x'.repeat(61)])] },
+      { deck_id: 1, slots: [slot(['a'])], user_id: 'o' },
+      { deck_id: 1, slots: Array.from({ length: 61 }, (_, i) => ({ slot_id: i + 1, name: 'C', categories: ['a'] })) },
+    ]
+    for (const a of bad) expect((await runTool(ctx(g), 'set_card_category', a as Record<string, unknown>)).isError).toBe(true)
+    expect(g.submit).not.toHaveBeenCalled()
+    expect((await runTool(ctx(g), 'set_card_category', { deck_id: 1, slots: [slot(['a', 'b', 'c', 'd', 'e'])] })).isError).toBeFalsy()
+  })
+  it('a dry run surfaces the database respellings as warnings, with changes and skipped', async () => {
+    const plan = { matched: [{ card: 'Sol Ring', sent: 'ramp', used: 'Ramp' }], changes: [{ slot_id: 7, card_name: 'Sol Ring', from: [], to: ['Ramp'] }], skipped: [] }
+    const g = gw({ submit: async () => ({ ok: true, data: { success: true, outcome: 'would_apply', reason: null, plan } }) })
+    const r = await runTool(ctx(g), 'set_card_category', { deck_id: 3, dry_run: true, slots: [slot(['ramp'])] })
+    expect(r.structuredContent).toMatchObject({ ok: true, status: 'would_apply', changes: plan.changes })
+    expect((r.structuredContent as { warnings: string[] }).warnings).toEqual(["Stored 'ramp' as 'Ramp' on Sol Ring, which this deck already uses."])
+  })
+  it('over ten is reported as pending approval', async () => {
+    const g = gw({ submit: async () => ({ ok: true, data: { success: true, outcome: 'pending', pending_id: G, expires_at: 'x', reason: 'over_ten' } }) })
+    const r = await runTool(ctx(g), 'set_card_category', { deck_id: 3, slots: [slot(['a'])] })
+    expect(r.structuredContent).toMatchObject({ status: 'pending_approval', pending_id: G })
+  })
+  it.each(['category_reserved', 'slot_in_maybeboard', 'nothing_to_change'])('database refusal %s comes back by code with "Nothing was changed"', async (code) => {
+    const g = gw({ submit: async () => ({ ok: false, code, detail: { card: 'Sol Ring', deck: 'Korvold', category: 'Maybeboard' } }) })
+    const r = await runTool(ctx(g), 'set_card_category', { deck_id: 3, slots: [slot(['a'])] })
+    expect(r.isError).toBe(true)
+    expect(r.structuredContent).toMatchObject({ error: { code } })
+    expect(JSON.stringify(r.structuredContent)).toMatch(/Nothing was changed/)
+    expect(JSON.stringify(r.structuredContent)).not.toMatch(/could not make that change/)
+  })
+  it('sentences: one card, several cards, pending, ungrouped from-empty', () => {
+    const row2 = (o: Partial<ChangeLogRow>) => row({ kind: 'deck_category', categories_from: ['Ramp'], categories_to: ['Ramp', 'Good Stuff'], ...o })
+    expect(groupChanges([row2({})])[0].summary).toBe('Claude changed the categories of Sol Ring in Korvold from Ramp to Ramp, Good Stuff.')
+    expect(groupChanges([row2({ categories_from: null })])[0].summary).toContain('from no category to')
+    expect(groupChanges([row2({}), row2({ id: 'r2', card_name: 'Island' })])[0].summary).toBe('Claude changed the categories of 2 cards in Korvold.')
+  })
+})
+
+describe('add_cards_to_deck refuses Maybeboard as a category', () => {
+  it.each(['Maybeboard', 'maybeboard', ' Maybeboard ', 'MAYBEBOARD'])('refuses %j and submits nothing', async (category) => {
+    const g = gw()
+    const r = await runTool(ctx(g), 'add_cards_to_deck', { deck_id: 1, cards: [{ name: 'Sol Ring', category }] })
+    expect(r.isError).toBe(true)
+    expect(JSON.stringify(r.structuredContent ?? r)).toMatch(/set_card_zone/)
+    expect(g.submit).not.toHaveBeenCalled()
+  })
+  it('still accepts a normal category', async () => {
+    const g = gw()
+    expect((await runTool(ctx(g), 'add_cards_to_deck', { deck_id: 1, cards: [{ name: 'Sol Ring', category: 'Ramp' }] })).isError).toBeFalsy()
+  })
+})

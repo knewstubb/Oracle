@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { StorageLocationSelect } from '@/components/collection/StorageLocationSelect'
 import { DeckPickerPopover, type ValidDeck } from '@/components/DeckPickerPopover'
 import { cn } from '@/lib/utils'
+import { AddToPicklistProvider, AddAllBar, AddOneButton } from '@/components/AddToPicklist'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -42,6 +43,13 @@ const PAGE_SIZE = 100
 // ---------------------------------------------------------------------------
 
 export default function StorageDetailPage() {
+  const params = useParams()
+  const isUnsorted = (params.locationId as string) === 'unsorted'
+  // Add to Picklist exists on Unsorted only for now (owner decision 2026-11-16).
+  return isUnsorted ? <AddToPicklistProvider><StorageDetail /></AddToPicklistProvider> : <StorageDetail />
+}
+
+function StorageDetail() {
   const params = useParams()
   const locationId = params.locationId as string
   const isUnsorted = locationId === 'unsorted'
@@ -188,6 +196,10 @@ export default function StorageDetailPage() {
           </div>
         )}
 
+        {isUnsorted && !isLoading && data && (
+          <AddAllBar cards={data.copies.map((c) => ({ copyId: c.physicalCopyId, cardName: c.cardName }))} />
+        )}
+
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto">
           {isLoading ? (
@@ -292,6 +304,8 @@ export default function StorageDetailPage() {
                       </span>
                     )}
                   </div>
+
+                  {isUnsorted && <AddOneButton card={{ copyId: copy.physicalCopyId, cardName: copy.cardName }} />}
 
                   {/* Action: Assign to deck */}
                   <StorageCopyAssignButton

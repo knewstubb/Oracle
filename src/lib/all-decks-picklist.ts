@@ -3,7 +3,7 @@
  * Contract: know-where-cards-are.md (GET /api/picklist) and spec section 4 / 20.5. Pure; the route does the reading.
  *
  * Stops: take from boxes (Unsorted first, then A to Z), take from decks (A to Z), place in decks and boxes (A to Z).
- * A card is "on the walk" only when it has a saved step. Unowned cards never appear (spec 20.5, Q15).
+ * A card is "on the walk" only when it has a saved step. Unowned cards never appear as rows (spec 20.5, Q15); only a count per deck.
  */
 
 export interface WalkItem {
@@ -43,11 +43,14 @@ export interface AllDecksPicklist {
   takeFromDecks: WalkStop[]
   placeIn: WalkStop[]
   counts: { total: number; found: number; placed: number; missing: number; open: number }
+  /** Per deck, how many planned cards the owner does not own at all (a COUNT only; the cards are never listed here). */
+  unownedByDeck: UnownedDeckCount[]
 }
+export interface UnownedDeckCount { deckId: number; deckName: string; count: number }
 
 const byName = (a: WalkStop, b: WalkStop) => a.placeName.localeCompare(b.placeName)
 
-export function buildAllDecksPicklist(items: readonly WalkItem[], names: WalkNames): AllDecksPicklist {
+export function buildAllDecksPicklist(items: readonly WalkItem[], names: WalkNames, unownedByDeck: readonly UnownedDeckCount[] = []): AllDecksPicklist {
   const deckName = (id: number | null) => (id === null ? null : names.decks.get(id) ?? 'a deck')
   const loc = (id: number | null) => (id === null ? null : names.locations.get(id) ?? { name: 'a box', isUnsorted: false })
   const boxes = new Map<string, WalkStop>()
@@ -88,10 +91,10 @@ export function buildAllDecksPicklist(items: readonly WalkItem[], names: WalkNam
     for (const s of list) s.rows.sort((a, b) => a.cardName.localeCompare(b.cardName) || a.itemId - b.itemId)
     return list.sort((a, b) => (unsortedFirst && a.isUnsorted !== b.isUnsorted ? (a.isUnsorted ? -1 : 1) : byName(a, b)))
   }
-  return { takeFromBoxes: sort(boxes, true), takeFromDecks: sort(decks, false), placeIn: sort(places, false), counts }
+  return { takeFromBoxes: sort(boxes, true), takeFromDecks: sort(decks, false), placeIn: sort(places, false), counts, unownedByDeck: [...unownedByDeck].filter((u) => u.count > 0).sort((a, b) => a.deckName.localeCompare(b.deckName)) }
 }
 
-/** "n of N placed" and the one-line footnote about unowned cards. */
+/** The one-line footnote about unowned cards (owner decision 2026-11-16: a count only, never a list). */
 export function unownedFootnote(count: number, deckName: string): string | null {
   if (count <= 0) return null
   return `${count} unowned card${count === 1 ? '' : 's'} in ${deckName} ${count === 1 ? "isn't" : "aren't"} listed here. Open the deck's Picklist.`

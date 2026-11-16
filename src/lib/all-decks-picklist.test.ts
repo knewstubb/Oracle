@@ -35,6 +35,14 @@ describe('buildAllDecksPicklist', () => {
   })
 })
 
+describe('unowned counts', () => {
+  it('passes counts through, drops zeros and sorts by deck name', () => {
+    const r = buildAllDecksPicklist([], names, [{ deckId: 2, deckName: 'Prosper', count: 1 }, { deckId: 1, deckName: 'Korvold', count: 4 }, { deckId: 3, deckName: 'Atraxa', count: 0 }])
+    expect(r.unownedByDeck.map((u) => `${u.deckName}:${u.count}`)).toEqual(['Korvold:4', 'Prosper:1'])
+  })
+  it('defaults to none', () => { expect(buildAllDecksPicklist([], names).unownedByDeck).toEqual([]) })
+})
+
 describe('unownedFootnote', () => {
   it('words singular and plural, and hides at zero', () => {
     expect(unownedFootnote(0, 'Korvold')).toBeNull()

@@ -152,7 +152,8 @@ export interface AllDecksPicklistResponse {
   takeFromBoxes: Array<{ place: PlaceRef; placeName: string; rows: PicklistRow[] }>
   takeFromDecks: Array<{ place: PlaceRef; placeName: string; rows: PicklistRow[] }>
   placeInDecks: Array<{ place: PlaceRef; placeName: string; rows: PicklistRow[] }>
-  unowned: PicklistRow[]
+  /** Changed 2026-11-16 (owner "Agree", spec wins): unowned cards are NEVER listed here; only a count per deck for the footnote. Was `unowned: PicklistRow[]`. */
+  unownedByDeck: Array<{ deckId: number; deckName: string; count: number }>
   counts: Checklist['counts']
 }
 

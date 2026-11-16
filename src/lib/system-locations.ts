@@ -7,7 +7,7 @@ import { fetchStorageCopies } from '@/lib/storage/copies'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 export type SystemLocationsResponseWithDestinations = Omit<SystemLocationsResponse, 'inHand' | 'missing'> & {
-  missing: { count: number; cards: Array<SystemLocationsResponse['missing']['cards'][number] & { lastSeenName: string | null; lookNext: Array<{ label: string; deckId: number | null }> }> }
+  missing: { count: number; cards: Array<SystemLocationsResponse['missing']['cards'][number] & { lastSeenName: string | null; lookNext: Array<{ label: string; deckId: number | null; locationId: number | null }>; stepId: number | null }> }
   inHand: { count: number; cards: Array<SystemLocationsResponse['inHand']['cards'][number] & { destination: InHandDestination | null }> }
 }
 type Place = SystemLocationsResponse['missing']['cards'][number]['lastSeen']
@@ -29,6 +29,7 @@ interface ItemRow {
   to_deck_id?: number | null
   to_deck_card_id?: number | null
   to_location_id?: number | null
+  looked_in?: Array<{ kind: 'deck' | 'location'; id: number }> | null
 }
 
 const nameOf = (r: CopyRow): string => (Array.isArray(r.user_cards) ? r.user_cards[0]?.card_name : r.user_cards?.card_name) ?? 'Unknown card'
@@ -40,6 +41,10 @@ export type InHandDestination =
 
 const openItem = (items: readonly ItemRow[] | undefined): ItemRow | undefined =>
   [...(items ?? [])].filter((i) => i.state === 'found').sort((a, b) => b.id - a.id)[0]
+
+/** The saved step that put a card on Missing (the latest one in that state), or undefined when there is none. */
+export const missingItem = (items: readonly ItemRow[] | undefined): ItemRow | undefined =>
+  [...(items ?? [])].filter((i) => i.state === 'missing').sort((a, b) => b.id - a.id)[0]
 
 /** Where a Missing card was last seen: the place its latest saved step took it from (null when there is no record). */
 export function lastSeenFrom(items: readonly ItemRow[]): Place {
@@ -66,7 +71,7 @@ export async function loadSystemLocations(client: SupabaseClient, userId: string
   if (ids.length > 0) {
     const { data, error: itemErr } = await db
       .from('move_items')
-      .select('id, state, copy_id, from_deck_id, from_location_id, to_deck_id, to_deck_card_id, to_location_id')
+      .select('id, state, copy_id, from_deck_id, from_location_id, to_deck_id, to_deck_card_id, to_location_id, looked_in')
       .eq('user_id', userId)
       .in('copy_id', ids)
     if (itemErr) throw new Error(`saved steps lookup failed: ${itemErr.message}`)
@@ -119,23 +124,32 @@ export async function loadSystemLocations(client: SupabaseClient, userId: string
       decksByCard.set(d.card_name, list)
     }
   }
-  const missing = rows.filter((r) => r.missing).map((r) => ({
+  const { data: unsortedRow } = await db
+    .from('user_locations').select('id').eq('user_id', userId).eq('is_default', true).eq('type', 'storage').maybeSingle()
+  const unsortedId = (unsortedRow as { id: number } | null)?.id ?? null
+  const missing = rows.filter((r) => r.missing).map((r) => {
+    const step = missingItem(itemsByCopy.get(r.id))
+    const checked = step?.looked_in ?? []
+    const next = [
+      ...(decksByCard.get(nameOf(r)) ?? []).map((d) => ({ label: d.name, deckId: d.deckId as number | null, locationId: null as number | null })),
+      { label: 'Unsorted', deckId: null as number | null, locationId: unsortedId },
+    ].filter((n) => !checked.some((c) => (n.deckId !== null ? c.kind === 'deck' && c.id === n.deckId : n.locationId !== null && c.kind === 'location' && c.id === n.locationId)))
+    return {
     copyId: r.id,
     cardName: nameOf(r),
     isProxy: r.is_proxy,
     since: r.missing_since ?? '',
     lastSeen: lastSeenFrom(itemsByCopy.get(r.id) ?? []),
     lastSeenName: placeName(lastSeenFrom(itemsByCopy.get(r.id) ?? [])),
-    lookNext: [...(decksByCard.get(nameOf(r)) ?? []).map((d) => ({ label: d.name, deckId: d.deckId as number | null })), { label: 'Unsorted', deckId: null as number | null }],
-  }))
+    lookNext: next,
+    stepId: step?.id ?? null,
+  }})
 
-  const { data: unsortedRow } = await db
-    .from('user_locations').select('id').eq('user_id', userId).eq('is_default', true).eq('type', 'storage').maybeSingle()
   const unsortedCount = (await fetchStorageCopies(client, userId, null)).length
 
   return {
     inHand: { count: inHand.length, cards: inHand },
     missing: { count: missing.length, cards: missing },
-    unsorted: { count: unsortedCount, locationId: (unsortedRow as { id: number } | null)?.id ?? 0 },
+    unsorted: { count: unsortedCount, locationId: unsortedId ?? 0 },
   }
 }

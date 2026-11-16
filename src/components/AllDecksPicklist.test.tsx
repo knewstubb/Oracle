@@ -17,7 +17,7 @@ const full = {
 }
 function mount(data: unknown, o: { ok?: boolean; tick?: { status: number; json: unknown } } = {}) {
   const f = vi.fn((url: string, _i?: RequestInit) =>
-    String(url).startsWith('/api/picklist/')
+    String(url).startsWith('/api/picklist/') || String(url).startsWith('/api/moves/')
       ? Promise.resolve(new Response(JSON.stringify(o.tick?.json ?? {}), { status: o.tick?.status ?? 200 }))
       : Promise.resolve(new Response(JSON.stringify(data), { status: o.ok === false ? 500 : 200 })))
   vi.stubGlobal('fetch', f)
@@ -57,5 +57,38 @@ describe('AllDecksPicklist', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Placed it: Cultivate' })).toBeTruthy())
     fireEvent.click(screen.getByRole('button', { name: 'Placed it: Cultivate' }))
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Cultivate has already moved on.'))
+  })
+  it('shows the unowned footnote as a count per deck, never as a list', async () => {
+    mount({ ...full, unownedByDeck: [{ deckId: 1, deckName: 'Korvold', count: 3 }] })
+    await waitFor(() => expect(screen.getByTestId('unowned-footnote')).toBeTruthy())
+    expect(screen.getByTestId('unowned-footnote').textContent).toBe("3 unowned cards in Korvold aren't listed here. Open the deck's Picklist.")
+  })
+  it('shows no footnote when nothing is unowned', async () => {
+    mount({ ...full, unownedByDeck: [] })
+    await waitFor(() => expect(screen.getByText('Picklist · all decks')).toBeTruthy())
+    expect(screen.queryByTestId('unowned-footnote')).toBeNull()
+  })
+  it('Undo on a picked-up card names the state it showed and says where it went', async () => {
+    const f = mount(full, { tick: { status: 200, json: { state: 'to_find' } } })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Undo: Cultivate' })).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'Undo: Cultivate' }))
+    await waitFor(() => expect(f.mock.calls.some((c) => c[0] === '/api/moves/items/2/undo')).toBe(true))
+    expect(JSON.parse(f.mock.calls.find((x) => x[0] === '/api/moves/items/2/undo')![1]!.body as string)).toMatchObject({ expectedState: 'found' })
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Cultivate is back where it was.'))
+  })
+  it('Undo that is refused shows the plain message', async () => {
+    mount(full, { tick: { status: 409, json: { error: 'moved_since', message: 'Cultivate has been moved since then.' } } })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Undo: Cultivate' })).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'Undo: Cultivate' }))
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Cultivate has been moved since then.'))
+  })
+  it('Cancel step is offered only on a waiting step and posts that step', async () => {
+    const f = mount(full)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Cancel step: Sol Ring' })).toBeTruthy())
+    expect(screen.queryByRole('button', { name: 'Cancel step: Cultivate' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Undo: Sol Ring' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel step: Sol Ring' }))
+    await waitFor(() => expect(f.mock.calls.some((c) => c[0] === '/api/moves/items/1/cancel')).toBe(true))
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Sol Ring is off the Picklist. Nothing moved.'))
   })
 })

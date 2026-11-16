@@ -6,7 +6,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { usePageHeader } from '@/contexts/PageHeaderContext'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { AllDecksPicklist as Data, WalkRow, WalkStop } from '@/lib/all-decks-picklist'
+import { undoToastText } from '@/lib/move-routines'
+import { unownedFootnote, type AllDecksPicklist as Data, type WalkRow, type WalkStop } from '@/lib/all-decks-picklist'
 
 const KEY = ['picklist', 'all-decks']
 type Action = 'found' | 'placed' | 'cant-find'
@@ -44,6 +45,37 @@ export function AllDecksPicklist() {
     },
     onError: (e: Error) => { toast.error(e.message); setAnnounce(e.message) },
   })
+  const refresh = () => {
+    void qc.invalidateQueries({ queryKey: KEY })
+    void qc.invalidateQueries({ queryKey: ['locations', 'system'] })
+  }
+  const undo = useMutation({
+    mutationFn: async (row: WalkRow) => {
+      const res = await fetch(`/api/moves/items/${row.itemId}/undo`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expectedState: row.state, cardName: row.cardName }) })
+      const json = (await res.json().catch(() => ({}))) as { message?: string; state?: 'found' | 'to_find' }
+      if (!res.ok) throw new Error(json.message || `Couldn't undo that. ${row.cardName} is still where Oracle had it.`)
+      return { row, state: json.state ?? 'to_find' }
+    },
+    onSuccess: ({ row, state }) => {
+      const text = undoToastText(row.cardName, row.state as 'placed' | 'found' | 'missing', state)
+      toast.success(text); setAnnounce(text); refresh()
+    },
+    onError: (e: Error) => { toast.error(e.message); setAnnounce(e.message) },
+  })
+  const cancel = useMutation({
+    mutationFn: async (row: WalkRow) => {
+      const res = await fetch(`/api/moves/items/${row.itemId}/cancel`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cardName: row.cardName }) })
+      const json = (await res.json().catch(() => ({}))) as { message?: string }
+      if (!res.ok) throw new Error(json.message || `Couldn't cancel that step. ${row.cardName} is still on the Picklist.`)
+      return row
+    },
+    onSuccess: (row) => {
+      const text = `${row.cardName} is off the Picklist. Nothing moved.`
+      toast.success(text); setAnnounce(text); refresh()
+    },
+    onError: (e: Error) => { toast.error(e.message); setAnnounce(e.message) },
+  })
+  const rowActions: RowActions = { tick: tick.mutate, undo: undo.mutate, cancel: cancel.mutate, busy: tick.isPending || undo.isPending || cancel.isPending }
   usePageHeader({ title: 'Picklist', subtitle: 'All decks' })
 
   const stops = (data?.takeFromBoxes.length ?? 0) + (data?.takeFromDecks.length ?? 0) + (data?.placeIn.length ?? 0)
@@ -74,9 +106,14 @@ export function AllDecksPicklist() {
           ) : c!.total > 0 && placed === c!.total ? (
             <p className="mt-6 font-medium">All done. Everything on the Picklist is placed.</p>
           ) : null}
-          <Section title="Take from boxes" stops={data.takeFromBoxes} tick={tick.mutate} busy={tick.isPending} />
-          <Section title="Take from decks" stops={data.takeFromDecks} tick={tick.mutate} busy={tick.isPending} />
-          <Section title="Place in decks and boxes" stops={data.placeIn} tick={tick.mutate} busy={tick.isPending} />
+          <Section title="Take from boxes" stops={data.takeFromBoxes} actions={rowActions} />
+          <Section title="Take from decks" stops={data.takeFromDecks} actions={rowActions} />
+          <Section title="Place in decks and boxes" stops={data.placeIn} actions={rowActions} />
+          {(data.unownedByDeck ?? []).length > 0 && (
+            <div className="mt-6 space-y-1 text-[length:var(--fs-sm)] text-muted-foreground" data-testid="unowned-footnote">
+              {data.unownedByDeck.map((u) => <p key={u.deckId}>{unownedFootnote(u.count, u.deckName)}</p>)}
+            </div>
+          )}
         </>
       )}
       <p className="sr-only" role="status" aria-live="polite" data-testid="all-decks-announce">{announce}</p>
@@ -84,7 +121,15 @@ export function AllDecksPicklist() {
   )
 }
 
-function Section({ title, stops, tick, busy }: { title: string; stops: WalkStop[]; tick: (v: { action: Action; row: WalkRow }) => void; busy: boolean }) {
+interface RowActions {
+  tick: (v: { action: Action; row: WalkRow }) => void
+  undo: (row: WalkRow) => void
+  cancel: (row: WalkRow) => void
+  busy: boolean
+}
+
+function Section({ title, stops, actions }: { title: string; stops: WalkStop[]; actions: RowActions }) {
+  const { tick, undo, cancel, busy } = actions
   if (stops.length === 0) return null
   const btn = 'min-h-12 rounded-md border border-[var(--border-default)] px-3 text-[length:var(--fs-sm)] md:min-h-11'
   return (
@@ -106,10 +151,14 @@ function Section({ title, stops, tick, busy }: { title: string; stops: WalkStop[
                   <>
                     <button type="button" className={btn} disabled={busy} aria-label={`Found it: ${r.cardName}`} onClick={() => tick({ action: 'found', row: r })}>Found it</button>
                     <button type="button" className="min-h-11 text-[length:var(--fs-sm)] underline" disabled={busy} aria-label={`Can't find it: ${r.cardName}`} onClick={() => tick({ action: 'cant-find', row: r })}>Can&apos;t find it</button>
+                    <button type="button" className="min-h-11 text-[length:var(--fs-sm)] text-muted-foreground underline" disabled={busy} aria-label={`Cancel step: ${r.cardName}`} onClick={() => cancel(r)}>Cancel step</button>
                   </>
                 )}
                 {r.copyId !== null && r.state === 'found' && (
                   <button type="button" className={btn} disabled={busy} aria-label={`Placed it: ${r.cardName}`} onClick={() => tick({ action: 'placed', row: r })}>Placed it</button>
+                )}
+                {r.state !== 'to_find' && (
+                  <button type="button" className="min-h-11 text-[length:var(--fs-sm)] text-muted-foreground underline" disabled={busy} aria-label={`Undo: ${r.cardName}`} onClick={() => undo(r)}>Undo</button>
                 )}
               </li>
             ))}

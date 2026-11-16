@@ -1,10 +1,10 @@
 // Shared helpers for read-only connector tools. Every query a tool builds carries .eq('user_id', ctx.userId).
-import type { ConnectorErrorBody } from '../errors'
+import type { ConnectorErrorBody, EditErrorBody } from '../errors'
 import { errorBody, MESSAGES } from '../errors'
 import type { QueryResult, ReadQuery, ToolContext } from '../user-client'
 
 export type { ToolContext }
-export type ToolOutput = ({ ok: true } & Record<string, unknown>) | ConnectorErrorBody
+export type ToolOutput = ({ ok: true } & Record<string, unknown>) | ConnectorErrorBody | EditErrorBody
 
 export class LookupFailed extends Error {}
 

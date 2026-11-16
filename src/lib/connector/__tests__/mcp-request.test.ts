@@ -48,7 +48,7 @@ describe('touchConnection', () => {
 function deps(over: Partial<McpDeps> = {}): McpDeps {
   return {
     verify: vi.fn(async () => ({ ok: true as const, userId: 'user-1', clientId: 'cl' })),
-    check: vi.fn(async () => ({ status: 'active' as const, connectionId: 'c1' })),
+    check: vi.fn(async () => ({ status: 'active' as const, connectionId: 'c1', clientName: 'Claude' })),
     touch: vi.fn(async () => {}),
     makeDb: vi.fn(() => ({ select: () => { throw new Error('db must not be used') } })),
     ...over,

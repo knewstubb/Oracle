@@ -16,6 +16,16 @@ export function errorBody(code: ConnectorErrorCode, message: string, retryable =
   return { ok: false, error: { code, message, retryable } }
 }
 
+/** Slice B: edit tools report specific snake_case codes (e.g. tool_not_allowed, slot_sleeved). Same envelope as slice A. */
+export interface EditErrorBody {
+  ok: false
+  error: { code: string; message: string; retryable: boolean }
+}
+
+export function editError(code: string, message: string, retryable = false): EditErrorBody {
+  return { ok: false, error: { code, message, retryable } }
+}
+
 export function siteUrl(): string {
   const raw =
     process.env.NEXT_PUBLIC_SITE_URL ??

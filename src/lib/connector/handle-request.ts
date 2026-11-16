@@ -6,6 +6,8 @@ import { MAX_REQUEST_BYTES } from './limits'
 import { createConnectorServer } from './server'
 import { createUserScopedClient, type ReadOnlyDb } from './user-client'
 import { verifyConnectorToken } from './verify-token'
+import { createGateway } from './write-gateway'
+import type { Gateway } from './write-types'
 
 export const ALLOWED_ORIGINS = ['https://claude.ai', 'https://claude.com']
 
@@ -14,6 +16,7 @@ export interface McpDeps {
   check: typeof checkConnection
   touch: typeof touchConnection
   makeDb: (token: string) => ReadOnlyDb
+  gateway?: () => Gateway
 }
 
 const defaultDeps: McpDeps = { verify: verifyConnectorToken, check: checkConnection, touch: touchConnection, makeDb: createUserScopedClient }
@@ -63,7 +66,14 @@ export async function handleMcpRequest(req: Request, deps: McpDeps = defaultDeps
 
   // 6. User-scoped client: the only client tool code ever receives
   const db = deps.makeDb(token)
-  const server = createConnectorServer({ db, userId: v.userId })
+  const server = createConnectorServer({
+    db,
+    userId: v.userId,
+    connectionId: c.connectionId,
+    clientId: v.clientId,
+    clientName: c.clientName,
+    gateway: (deps.gateway ?? createGateway)(),
+  })
   const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true })
   await server.connect(transport)
   try {

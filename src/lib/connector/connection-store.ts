@@ -3,7 +3,7 @@
 import { createAdminClient } from '@/lib/supabase'
 
 export type ConnectionCheck =
-  | { status: 'active'; connectionId: string }
+  | { status: 'active'; connectionId: string; clientName: string }
   | { status: 'revoked' }
   | { status: 'error' }
 
@@ -19,14 +19,14 @@ function table(admin: Admin) {
 export async function checkConnection(userId: string, clientId: string, admin?: Admin): Promise<ConnectionCheck> {
   try {
     const { data, error } = await table(admin ?? createAdminClient())
-      .select('id')
+      .select('id, client_name')
       .eq('user_id', userId)
       .eq('client_id', clientId)
       .is('revoked_at', null)
       .limit(1)
     if (error) return { status: 'error' }
     const row = Array.isArray(data) ? data[0] : null
-    return row?.id ? { status: 'active', connectionId: row.id as string } : { status: 'revoked' }
+    return row?.id ? { status: 'active', connectionId: row.id as string, clientName: typeof row.client_name === 'string' && row.client_name ? row.client_name : 'Claude' } : { status: 'revoked' }
   } catch {
     return { status: 'error' }
   }

@@ -2,6 +2,7 @@
 // Built from the anon key plus the caller's own token, so row-level security applies. It exposes `select` only:
 // no insert, update, upsert, delete or rpc.
 import { createClient } from '@supabase/supabase-js'
+import type { Gateway } from './write-types'
 
 export interface QueryResult {
   data: unknown
@@ -41,4 +42,12 @@ export function createUserScopedClient(token: string): ReadOnlyDb {
 export interface ToolContext {
   db: ReadOnlyDb
   userId: string // the verified `sub`. The only source of a user id.
+}
+
+/** Slice B: what an edit tool receives. All of it comes from the verified token and the per-request connection check. */
+export interface EditContext extends ToolContext {
+  connectionId: string
+  clientId: string
+  clientName: string
+  gateway: Gateway
 }

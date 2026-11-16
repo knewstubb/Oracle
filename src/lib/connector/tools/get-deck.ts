@@ -1,6 +1,9 @@
 import { z } from 'zod'
 import type { DeckCardView } from '../../../../docs/oracle/contracts/claude-connector-slice-a.types'
+import type { WithFacts } from '../../../../docs/oracle/contracts/connector-card-facts-and-deck-health.types'
 import { DECK_CARDS_PAGE_MAX, fitRows, cutText } from '../limits'
+import { fetchCardFacts, factsFor } from './card-facts'
+import { loadStrategyBrackets } from './bracket'
 import { DECK_COLUMNS, toDeckSummary, type DeckRow } from './list-decks'
 import { fetchAll, fetchAllIn, LookupFailed, lookupFailed, must, notFound, pageNote, rows, tooLarge, type ToolContext, type ToolOutput } from './common'
 
@@ -9,6 +12,7 @@ export const getDeckInput = z.strictObject({
   limit: z.number().int().min(1).max(DECK_CARDS_PAGE_MAX).optional().describe('Cards per page, 1-150. Default 150.'),
   offset: z.number().int().min(0).optional().describe('Cards to skip, for paging.'),
   include_maybeboard: z.boolean().optional().describe('List maybeboard cards too. Default false (only counted).'),
+  include_rules_text: z.boolean().optional().describe('Add each card\'s rules text (cut at 300 characters). Default false so a big deck fits one answer; type, cost, colours and legality are always included.'),
 })
 
 type DeckCardRow = {
@@ -67,9 +71,13 @@ export async function getDeck(ctx: ToolContext, input: z.infer<typeof getDeckInp
     const copyById = new Map(copies.map((c) => [c.id, c]))
     const sleevedCount = all.filter((r) => r.copy_id != null).length
 
-    const items: DeckCardView[] = page.map((r) => {
+    const withRules = input.include_rules_text ?? false
+    const facts = await fetchCardFacts(ctx, page.map((r) => r.card_name), { includeRulesText: withRules })
+
+    const items: (DeckCardView & WithFacts)[] = page.map((r) => {
       const copy = r.copy_id != null ? copyById.get(r.copy_id) : undefined
       return {
+        facts: factsFor(facts, r.card_name, withRules),
         slotId: r.id,
         name: r.card_name,
         quantity: r.quantity ?? 1,
@@ -81,7 +89,8 @@ export async function getDeck(ctx: ToolContext, input: z.infer<typeof getDeckInp
         finish: copy?.finish ?? r.requested_finish,
       }
     })
-    const deck = toDeckSummary(deckRow, sleevedCount)
+    const strategy = await loadStrategyBrackets(ctx, [input.deck_id])
+    const deck = toDeckSummary(deckRow, sleevedCount, undefined, strategy.get(input.deck_id))
     const fit = fitRows(items, (kept) => {
       const meta = pageNote(total, offset, kept.length, kept.length < items.length)
       return {

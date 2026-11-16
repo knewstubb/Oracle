@@ -1,5 +1,7 @@
 import { z } from 'zod'
 import type { CollectionCard, CopyView } from '../../../../docs/oracle/contracts/claude-connector-slice-a.types'
+import type { WithFacts } from '../../../../docs/oracle/contracts/connector-card-facts-and-deck-health.types'
+import { fetchCardFacts, factsFor } from './card-facts'
 import { COPIES_PER_CARD_MAX, SEARCH_PAGE_MAX, fitRows } from '../limits'
 import { fetchAll, fetchAllIn, escapeLike, LookupFailed, lookupFailed, must, pageNote, rows, tooLarge, type ToolContext, type ToolOutput } from './common'
 
@@ -38,11 +40,15 @@ async function copyViews(ctx: ToolContext, copies: CopyRow[]): Promise<Map<numbe
   return out
 }
 
-function cardView(card: CardRow, views: CopyView[]): CollectionCard {
+type CardWithFacts = CollectionCard & WithFacts
+
+function cardView(card: CardRow, views: CopyView[], facts: WithFacts['facts']): CardWithFacts {
   return {
     oracleId: card.oracle_id,
     name: card.card_name,
-    typeLine: card.type_line,
+    // The saved type is empty for cards imported without one; the card library's type is the better source.
+    typeLine: card.type_line || facts.typeLine,
+    facts,
     copyCount: views.length,
     copies: views.slice(0, COPIES_PER_CARD_MAX),
     copiesTruncated: views.length > COPIES_PER_CARD_MAX,
@@ -96,8 +102,10 @@ export async function searchCollection(ctx: ToolContext, input: z.infer<typeof s
       cards = matches.slice(offset, offset + limit)
     }
 
-    const items = cards.map((c) => cardView(c.card, c.views))
-    const build = (kept: CollectionCard[]) => {
+    // One batched facts lookup for the page (rules text always on for search results).
+    const facts = await fetchCardFacts(ctx, cards.map((c) => c.card.card_name), { includeRulesText: true })
+    const items = cards.map((c) => cardView(c.card, c.views, factsFor(facts, c.card.card_name, true)))
+    const build = (kept: CardWithFacts[]) => {
       const meta = pageNote(total, offset, kept.length, kept.length < items.length)
       const note = [meta.note, scanNote].filter(Boolean).join(' ') || undefined
       return { ok: true as const, items: kept, total, returned: kept.length, offset, truncated: meta.truncated || !!scanNote, ...(note ? { note } : {}) }

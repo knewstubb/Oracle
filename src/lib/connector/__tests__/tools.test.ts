@@ -3,7 +3,6 @@ import { getCollectionSummary } from '../tools/get-collection-summary'
 import { searchCollection, searchCollectionInput } from '../tools/search-collection'
 import { listDecks, listDecksInput } from '../tools/list-decks'
 import { getDeck, getDeckInput } from '../tools/get-deck'
-import { getDeckHealth } from '../tools/get-deck-health'
 import { runTool } from '../server'
 import { MAX_RESPONSE_BYTES, byteLength, cutText } from '../limits'
 import { hasEq, mockDb, rangeOf, type RecordedQuery } from './mock-db'
@@ -12,7 +11,11 @@ const U = 'user-1'
 const err = { message: 'db down' }
 
 function allScoped(queries: RecordedQuery[]) {
-  for (const q of queries) expect(hasEq(q, 'user_id', U), `${q.table} query must carry user_id`).toBe(true)
+  // Card library tables (ref_*) are shared reference data with no owner column; every other query must carry the user id.
+  for (const q of queries) {
+    if (q.table.startsWith('ref_')) continue
+    expect(hasEq(q, 'user_id', U), `${q.table} query must carry user_id`).toBe(true)
+  }
 }
 
 describe('get_collection_summary', () => {
@@ -156,8 +159,9 @@ describe('get_deck', () => {
     const many = Array.from({ length: 200 }, (_, i) => dc(i + 1, '["Land"]'))
     const { db } = mockDb((q) => (q.table === 'decks' ? { data: [deckRow(1)] } : q.table === 'deck_cards' ? { data: many.slice(0, 200) } : { data: [] }))
     const r = (await getDeck({ db, userId: U }, getDeckInput.parse({ deck_id: 1 }))) as never as { mainboard: { returned: number; total: number; truncated: boolean; note: string } }
-    expect(r.mainboard).toMatchObject({ returned: 150, total: 200, truncated: true })
-    expect(r.mainboard.note).toMatch(/offset 150/)
+    expect(r.mainboard).toMatchObject({ total: 200, truncated: true })
+    expect(r.mainboard.returned).toBeLessThanOrEqual(150) // facts make rows bigger, so the 40 KB cap can cut a page short; it says so
+    expect(r.mainboard.note).toMatch(/offset \d+/)
   })
   it('database error is LOOKUP_FAILED', async () => {
     const r = await getDeck({ db: mockDb(() => ({ error: err })).db, userId: U }, getDeckInput.parse({ deck_id: 1 }))
@@ -165,39 +169,7 @@ describe('get_deck', () => {
   })
 })
 
-describe('get_deck_health', () => {
-  const when = new Date('2026-11-16T00:00:00Z')
-  it('returns the cached row', async () => {
-    const { db, queries } = mockDb((q) => (q.table === 'decks' ? { data: [{ id: 1 }] } : { data: [{ deck_id: 1, overall_status: 'ok', computed_at: '2026-11-15T00:00:00Z', result_json: '{"a":1}' }] }))
-    const r = await getDeckHealth({ db, userId: U }, { deck_id: 1 }, when)
-    expect(r).toMatchObject({ ok: true, status: 'computed', overallStatus: 'ok', stale: false, result: { a: 1 } })
-    allScoped(queries)
-  })
-  it('flags a week-old result as stale', async () => {
-    const { db } = mockDb((q) => (q.table === 'decks' ? { data: [{ id: 1 }] } : { data: [{ deck_id: 1, overall_status: 'ok', computed_at: '2026-11-01T00:00:00Z', result_json: '{}' }] }))
-    expect(await getDeckHealth({ db, userId: U }, { deck_id: 1 }, when)).toMatchObject({ stale: true })
-  })
-  it('no row -> not_computed in plain words, not healthy', async () => {
-    const { db } = mockDb((q) => (q.table === 'decks' ? { data: [{ id: 1 }] } : { data: [] }))
-    const r = (await getDeckHealth({ db, userId: U }, { deck_id: 1 })) as never as { status: string; overallStatus: null; note: string }
-    expect(r).toMatchObject({ ok: true, status: 'not_computed', overallStatus: null })
-    expect(r.note).toMatch(/No health check/)
-  })
-  it('other user\'s deck is NOT_FOUND', async () => {
-    const { db } = mockDb(() => ({ data: [] }))
-    expect(await getDeckHealth({ db, userId: U }, { deck_id: 5 })).toMatchObject({ ok: false, error: { code: 'NOT_FOUND' } })
-  })
-  it('trims an oversized result to the 20 KB limit', async () => {
-    const big = JSON.stringify({ x: 'y'.repeat(30_000) })
-    const { db } = mockDb((q) => (q.table === 'decks' ? { data: [{ id: 1 }] } : { data: [{ deck_id: 1, overall_status: 'ok', computed_at: '2026-11-15T00:00:00Z', result_json: big }] }))
-    const r = (await getDeckHealth({ db, userId: U }, { deck_id: 1 }, when)) as never as { result: unknown; note: string }
-    expect(r.result).toBeNull()
-    expect(r.note).toMatch(/too large/)
-  })
-  it('database error is LOOKUP_FAILED', async () => {
-    expect(await getDeckHealth({ db: mockDb(() => ({ error: err })).db, userId: U }, { deck_id: 1 })).toMatchObject({ ok: false, error: { code: 'LOOKUP_FAILED' } })
-  })
-})
+// get_deck_health tests live in deck-health-live.test.ts (CC-06d replaced the saved-only tool).
 
 describe('runTool input handling', () => {
   const ctx = { db: mockDb(() => ({ data: [], count: 0 })).db, userId: U, connectionId: 'c1', clientId: 'cl', clientName: 'Claude', gateway: {} as never }

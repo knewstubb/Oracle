@@ -1,59 +1,40 @@
 import { z } from 'zod'
+import type { DeckHealthToolResult } from '../../../../docs/oracle/contracts/connector-card-facts-and-deck-health.types'
 import { MAX_HEALTH_RESULT_BYTES, byteLength } from '../limits'
-import { LookupFailed, lookupFailed, must, notFound, rows, type ToolContext, type ToolOutput } from './common'
+import { editError } from '../errors'
+import type { TargetsProvider } from '../../deck-health-server'
+import { connectorTargetsProvider, loadConnectorDeckHealth } from '../deck-health-loader'
+import { notFound, type ToolContext, type ToolOutput } from './common'
 
 export const getDeckHealthInput = z.strictObject({
   deck_id: z.number().int().positive().describe('The deck id from list_decks.'),
 })
 
-const STALE_MS = 7 * 24 * 60 * 60 * 1000
+const FAILED = 'The deck health check could not be completed. This is not the same as healthy. Try again in a moment.'
 
-/** Cached result only. This tool never computes a check, and never writes. */
-export async function getDeckHealth(ctx: ToolContext, input: z.infer<typeof getDeckHealthInput>, now: Date = new Date()): Promise<ToolOutput> {
-  try {
-    const dr = await must(ctx.db.select('decks', 'id').eq('user_id', ctx.userId).eq('id', input.deck_id).limit(1))
-    if (rows<{ id: number }>(dr).length === 0) return notFound()
-
-    const hr = await must(
-      ctx.db.select('deck_health', 'deck_id, overall_status, computed_at, result_json').eq('user_id', ctx.userId).eq('deck_id', input.deck_id).limit(1),
-    )
-    const row = rows<{ deck_id: number; overall_status: string; computed_at: string; result_json: string }>(hr)[0]
-    if (!row) {
-      return {
-        ok: true,
-        deckId: input.deck_id,
-        status: 'not_computed',
-        overallStatus: null,
-        computedAt: null,
-        stale: false,
-        result: null,
-        note: 'No health check has been run for this deck yet. This is not the same as healthy.',
-      }
-    }
-    let result: unknown = null
-    let note: string | undefined
-    try {
-      result = JSON.parse(row.result_json)
-    } catch {
-      note = 'The saved health details could not be read.'
-    }
-    if (result !== null && byteLength(result) > MAX_HEALTH_RESULT_BYTES) {
-      result = null
-      note = 'The saved health details were too large to include; only the overall status is shown.'
-    }
-    const computedMs = Date.parse(row.computed_at)
-    return {
-      ok: true,
-      deckId: input.deck_id,
-      status: 'computed',
-      overallStatus: row.overall_status,
-      computedAt: row.computed_at,
-      stale: Number.isNaN(computedMs) ? true : now.getTime() - computedMs > STALE_MS,
-      result,
-      ...(note ? { note } : {}),
-    }
-  } catch (e) {
-    if (e instanceof LookupFailed) return lookupFailed()
-    throw e
+/**
+ * Runs the same Deck health check as the Deck health screen, on every call. Read-only: nothing is saved, including the
+ * shared commander-numbers cache. A failure is a real error, never a passing result (D-030).
+ */
+export async function getDeckHealth(
+  ctx: ToolContext,
+  input: z.infer<typeof getDeckHealthInput>,
+  targets: TargetsProvider = connectorTargetsProvider,
+  now: () => Date = () => new Date(),
+): Promise<ToolOutput> {
+  const started = Date.now()
+  const r = await loadConnectorDeckHealth(ctx, input.deck_id, targets)
+  if (!r.ok) return r.status === 404 ? notFound() : editError('HEALTH_FAILED', FAILED, true)
+  console.info(`[connector] deck health for deck ${input.deck_id} computed in ${Date.now() - started} ms`)
+  if (byteLength(r.health) > MAX_HEALTH_RESULT_BYTES) return editError('HEALTH_FAILED', 'The deck health result was too large to return.', false)
+  const result: Extract<DeckHealthToolResult, { ok: true }> = {
+    ok: true,
+    deckId: input.deck_id,
+    status: 'computed_now',
+    computedAt: now().toISOString(),
+    health: r.health,
+    // Said out loud when the commander's typical numbers are older or are the general guide.
+    ...(/out of date|couldn't reach|General guide/i.test(r.health.sourceLine) ? { note: r.health.sourceLine } : {}),
   }
+  return result as unknown as ToolOutput
 }

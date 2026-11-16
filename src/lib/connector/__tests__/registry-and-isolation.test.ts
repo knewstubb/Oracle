@@ -19,9 +19,22 @@ const EDIT = { readOnlyHint: false, destructiveHint: false, idempotentHint: fals
 describe('registered tools', () => {
   it('are exactly the slice A readers plus the slice B list, in order', () => {
     expect(CONNECTOR_TOOLS.map((t) => t.name)).toEqual([
-      'get_collection_summary', 'search_collection', 'list_decks', 'get_deck', 'get_deck_health',
+      'get_collection_summary', 'search_collection', 'list_decks', 'get_deck', 'get_deck_health', 'list_deck_cards_by_ownership',
       ...CONNECTOR_WRITE_TOOLS, ...CONNECTOR_READ_TOOLS_B,
     ])
+  })
+  it('descriptions match CC-06: facts, estimate wording, live health, bracket owner', () => {
+    const d = (n: string) => CONNECTOR_TOOLS.find((t) => t.name === n)!.description
+    expect(d('search_collection')).toMatch(/facts/i)
+    expect(d('search_collection')).toMatch(/estimate/i)
+    expect(d('search_collection')).toMatch(/not free/i)
+    expect(d('get_deck')).toMatch(/include_rules_text/)
+    expect(d('get_deck')).toMatch(/estimate/i)
+    expect(d('get_deck_health')).toMatch(/fresh on every call/i)
+    expect(d('get_deck_health')).toMatch(/saves nothing/i)
+    expect(d('get_deck_health')).not.toMatch(/last saved|never runs a new check/i)
+    expect(d('list_decks')).toMatch(/Deck strategy screen/)
+    expect(d('list_deck_cards_by_ownership')).toMatch(/facts/i)
   })
   it('readers are read-only; writers are not; destructiveHint only where the contract says', () => {
     for (const t of CONNECTOR_TOOLS) {
@@ -58,6 +71,12 @@ describe('service-role isolation and read-only wrapper', () => {
     for (const f of walk(path.join(ROOT, 'tools'))) {
       const src = readFileSync(f, 'utf8')
       expect(src, f).not.toMatch(/connection-store|write-gateway|\.(insert|update|upsert|delete|rpc)\(/)
+    }
+  })
+  it('the health loader and the card library view never write', () => {
+    for (const f of ['deck-health-loader.ts', 'read-only-ref-client.ts', path.join('tools', 'card-facts.ts'), path.join('tools', 'bracket.ts')]) {
+      const src = readFileSync(path.join(ROOT, f), 'utf8')
+      expect(src, f).not.toMatch(/\.(insert|update|upsert|delete|rpc)\(|createAdminClient|SERVICE_ROLE/)
     }
   })
   it('the db wrapper type exposes select only', () => {

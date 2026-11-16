@@ -10,7 +10,7 @@
 
 import { isMainListCard } from './commander-card-actions'
 import { buildDeckHealth, type DeckHealthResponse, type HealthDeckCard } from './deck-health'
-import { fetchRefTextByName, type RefClient } from './ref-card-text'
+import { fetchRefTextByName, type RefClient, type RefRow } from './ref-card-text'
 import { getCommanderTargets } from './commander-targets-server'
 import type { CommanderTargets } from './commander-targets'
 
@@ -30,6 +30,27 @@ interface DeckCardRow {
 }
 
 export { fetchRefTextByName } from './ref-card-text'
+
+/** Pure: the deck's rows plus the card text map become the cards the health check reads. Shared by the app and the Claude connector so both give one answer. */
+export function healthCardsFromRows(deckRows: DeckCardRow[], map: Map<string, RefRow>): HealthDeckCard[] {
+  return deckRows.map((r) => {
+    const ref = map.get(r.card_name)
+    return {
+      cardName: r.card_name,
+      quantity: r.quantity ?? 1,
+      typeLine: ref?.type_line ?? null,
+      oracleText: ref?.oracle_text ?? null,
+      inMainDeck:
+        !r.is_commander &&
+        isMainListCard({
+          id: 0,
+          card_name: r.card_name,
+          categories: r.categories,
+          command_zone_role: r.command_zone_role,
+        }),
+    }
+  })
+}
 
 export type LoadCardsResult =
   | { ok: true; cards: HealthDeckCard[]; commanderNames: string[] }
@@ -83,23 +104,7 @@ export async function loadHealthCards(supabase: HealthClient, deckId: number, us
     )
     if (refErr) return { ok: false, status: 500, error: refErr }
 
-    const cards: HealthDeckCard[] = deckRows.map((r) => {
-      const ref = map.get(r.card_name)
-      return {
-        cardName: r.card_name,
-        quantity: r.quantity ?? 1,
-        typeLine: ref?.type_line ?? null,
-        oracleText: ref?.oracle_text ?? null,
-        inMainDeck:
-          !r.is_commander &&
-          isMainListCard({
-            id: 0,
-            card_name: r.card_name,
-            categories: r.categories,
-            command_zone_role: r.command_zone_role,
-          }),
-      }
-    })
+    const cards = healthCardsFromRows(deckRows, map)
 
     return { ok: true, cards, commanderNames: commanderNamesFor(deckRows, (deck as { commander_name?: string | null }).commander_name) }
   } catch (err) {

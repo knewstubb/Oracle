@@ -253,7 +253,7 @@ Collected from the code on 2026-10-11. Tags: [Confirmed] = read in source; [Appr
 - Archidekt collection import groups by name, foil/nonfoil only — [Approximate: src/app/api/onboarding/collection-stream/route.ts]
 - CSV identity resolution order and finishes — [Approximate: src/lib/identity-resolver.ts, src/lib/csv-import.ts]; add/replace modes — [Approximate: src/app/api/collection/import/route.ts]
 - Deck import options "I have this deck built" / "This is theorycrafted" / add-cards — [Confirmed: src/components/DeckImportButton.tsx]; modes — [Approximate: src/lib/deck-import.ts, reconcile_built_deck]
-- Reimport warning text — [Confirmed: src/app/api/decks/[id]/reimport/route.ts]; reimport refuses to delete a sleeved slot ("assigned_row_in_diff") — [Confirmed: supabase/migrations/20260912150000_atomic_collection_movements.sql apply_deck_cards_diff]
+- Reimport warning text — [Confirmed: src/app/api/decks/[id]/reimport/route.ts]; reimport refuses to delete an in-deck slot ("assigned_row_in_diff") — [Confirmed: supabase/migrations/20260912150000_atomic_collection_movements.sql apply_deck_cards_diff]
 - Archidekt push dormant — [Confirmed: src/app/api/decks/[id]/push/route.ts]
 - Import reconciliation states, alternate printing, wishlist, finalize — [Approximate: src/components/reconciliation/ConflictCard.tsx, ReconciliationSummary.tsx, WishlistCheckbox.tsx, src/app/api/onboarding/finalize/route.ts]; legacy conflicts API — [Approximate: src/app/api/onboarding/conflicts/**]
 - Slot chip labels and "Planned ·" prefix — [Confirmed: src/components/CardSlotBadge.tsx]

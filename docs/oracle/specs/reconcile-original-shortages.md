@@ -11,15 +11,15 @@ Context: [How Oracle manages cards today](card-management-system-overview.md).
 
 The owner plays many decks with proxies standing in for cards he owns too few originals of. He wants one place that answers: **"Which cards am I relying on proxies (or empty slots) for, and how many more originals would cover every deck?"** Today's Reconcile page cannot answer that. It ignores slots filled by a proxy, so a deck that is fully Playable on proxies disappears; and it hides cards with no original owned at all, which are exactly the cards he is most reliant on proxies for [Confirmed: src/lib/reconcile-overuse.ts — `ownershipStatus === 'proxy'` slots are skipped; cards with `originalsOwned < 1` are dropped]. It also says "Active / Brew" per deck, a distinction D-029 removes.
 
-Example: Sol Ring is in Korvold, Prosper and Atraxa. He owns one original and has sleeved two proxies. All three decks are Playable, yet he is two originals short. Today that card does not appear.
+Example: Sol Ring is in Korvold, Prosper and Atraxa. He owns one original and has two proxies in decks. All three decks are Playable, yet he is two originals short. Today that card does not appear.
 
 ## 2. Principles
 
 | Principle | How it shows up |
 |---|---|
-| **Match between system and the real world** (Nielsen #2) | Counts use the owner's own nouns: *originals owned*, *proxies sleeved*, *more originals needed*. No "overused", "demand" or "supply". |
+| **Match between system and the real world** (Nielsen #2) | Counts use the owner's own nouns: *originals owned*, *proxies in decks*, *more originals needed*. No "overused", "demand" or "supply". |
 | **Recognition rather than recall** (Nielsen #6) | Each row states all four facts that justify the number, so the owner never has to work out why a card is short. The arithmetic is visible: *needed in decks 3 − originals owned 1 = 2 more*. |
-| **Quiet default, loud exception** (D-014) | Only the headline "N more originals needed" and Proxy copies carry colour. Originals sleeved are neutral text. |
+| **Quiet default, loud exception** (D-014) | Only the headline "N more originals needed" and Proxy copies carry colour. Originals in decks are neutral text. |
 | **Progressive disclosure** | Card-level answer first (left column); per-deck evidence second (right column). Copy-by-copy detail is an optional expansion (choice I-6). |
 | **Object–action mapping** (D-015) | Deck links sit on each deck row; filters sit in the sidebar they filter; sort sits above the list it sorts. |
 | **Informational, never corrective** (D-027) | Nothing on the page changes deck lists, assignments or readiness. The page shows no deck readiness badges. |
@@ -28,16 +28,16 @@ Example: Sol Ring is in Korvold, Prosper and Atraxa. He owns one original and ha
 
 These restate D-027 / D-037 as the page will present them. **T-37 implements the calculation.**
 
-- **Needed in decks** = every main-deck slot for the card across **all** decks (D-029), whatever fills it: an original, a proxy, or nothing (Unsleeved). Maybeboard does not count (D-005). Generic basic lands never count (D-032); specifically tracked basic-land printings do.
-- **Originals owned** = every original copy of the card, **any printing** (D-037 card-level matching — confirm, choice I-9), whether sleeved in a deck or in storage. Proxies never count.
+- **Needed in decks** = every main-deck slot for the card across **all** decks (D-029), whatever fills it: an original, a proxy, or nothing (Planned). Maybeboard does not count (D-005). Generic basic lands never count (D-032); specifically tracked basic-land printings do.
+- **Originals owned** = every original copy of the card, **any printing** (D-037 card-level matching — confirm, choice I-9), whether in a deck or in storage. Proxies never count.
 - **More originals needed** = needed in decks − originals owned. A card appears only when this is 1 or more.
-- **Proxies sleeved** = slots across these decks filled by a proxy copy. Informational; it does not change the number needed.
-- **Spare proxies** (proxies in storage) are not "proxies sleeved". Shown only as a secondary note when present.
-- A card with **no original owned** appears whenever any deck slot needs it (D-037 example: Mana Crypt sleeved as a proxy in one deck, no original → 1 more needed). On this page, say "No original owned", **not** "Unowned": under D-025 Unowned means neither an original nor a proxy is owned, and many of these cards have proxies.
+- **Proxies in decks** = slots across these decks filled by a proxy copy. Informational; it does not change the number needed.
+- **Spare proxies** (proxies in storage) are not "proxies in decks". Shown only as a secondary note when present.
+- A card with **no original owned** appears whenever any deck slot needs it (D-037 example: Mana Crypt as a proxy in one deck, no original → 1 more needed). On this page, say "No original owned", **not** "Unowned": under D-025 Unowned means neither an original nor a proxy is owned, and many of these cards have proxies.
 
 Worked examples (all appear in the mockup):
 
-| Card | Needed in decks | Originals owned | Proxies sleeved | Unsleeved | More needed | Note shown |
+| Card | Needed in decks | Originals owned | Proxies in decks | Planned | More needed | Note shown |
 |---|---|---|---|---|---|---|
 | Sol Ring | 3 | 1 (in Korvold) | 2 | 0 | **2** | — |
 | Mana Crypt | 1 | 0 | 1 | 0 | **1** | No original owned |
@@ -57,13 +57,13 @@ Desktop (≥1024px): the current two-column shell is kept — 300px sticky sideb
 │ count as originals.                                                    │
 ├──────────────┬─────────────────────────────────────────────────────────┤
 │ Sidebar      │ Summary strip:  8 more originals · 6 cards · 8 proxies │
-│  All short.. │ sleeved · 2 cards with no original                      │
+│  All short.. │ in decks · 2 cards with no original                     │
 │  No original │ [Search cards…]                       Sort [Most needed]│
 │  ─ Decks ─   │ ┌ card row ───────────────────────────────────────────┐ │
 │  Atraxa  2   │ │ [img] Sol Ring          │ Atraxa      1 × Proxy  ↗ │ │
 │  Korvold 4   │ │ ⚠ 2 more originals      │ Korvold     1 × Original ↗│ │
 │  ...         │ │ Needed 3 · Owned 1 ·    │ Prosper     1 × Proxy  ↗ │ │
-│              │ │ Proxies sleeved 2       │                          │ │
+│              │ │ Proxies in decks 2      │                          │ │
 │              │ └─────────────────────────────────────────────────────┘ │
 └──────────────┴─────────────────────────────────────────────────────────┘
 ```
@@ -80,10 +80,10 @@ Below 1024px the sidebar becomes a horizontally scrollable row of filter chips a
 | `NavItem` | Reuse unchanged | `selected`, `onClick`, `icon`, `title`, `subtitle`, `count` | existing button [Confirmed: src/components/reconciliation/ReconciliationNav.tsx] |
 | `ShortageCardRow` (rename of `OverusedCardRow`) | Revise | `card: ShortageCard`, `focusDeckId?: number` | `Card`-style surface; `Badge`; `useCardHoverPreview` |
 | `ShortfallBadge` (new) | Headline "N more originals needed" | `count` | shadcn `Badge` + `AlertTriangle` icon |
-| `CardFactsList` (new) | Needed / Owned / Proxies sleeved line | `needed`, `originalsOwned`, `originalsInStorage`, `proxiesSleeved`, `spareProxies` | `<dl>` |
+| `CardFactsList` (new) | Needed / Owned / Proxies in decks line | `needed`, `originalsOwned`, `originalsInStorage`, `proxiesSleeved`, `spareProxies` | `<dl>` |
 | `NoOriginalTag` (new) | "No original owned" | — | shadcn `Badge variant="outline"` + `CircleSlash` icon |
 | `ShortageDeckRow` (new, extracted) | One row per deck using the card | `deck: ShortageDeckEntry`, `isFocus`, `isOther` | `<li>` with Next `Link` |
-| `CopyTypeChip` (new, shared candidate) | "Original" / "Proxy" / "Unsleeved" with quantity | `kind: 'original' \| 'proxy' \| 'unsleeved'`, `count` | shadcn `Badge` + icon; intended to be reused by pick list (T-25) |
+| `CopyTypeChip` (new, shared candidate) | "Original" / "Proxy" / "Planned" with quantity | `kind: 'original' \| 'proxy' \| 'unsleeved'`, `count` | shadcn `Badge` + icon; intended to be reused by pick list (T-25) |
 | `ReplaceHint` (new) | "1 original in storage could replace a proxy." | `count` | text + `Info` icon |
 | `ShortageSkeleton` (revise) | Loading shape | — | shadcn `Skeleton` |
 
@@ -108,9 +108,9 @@ Removed: the dashed-border "Also wanted by" deck chip (dashed borders are reserv
 |---|---|
 | Short, some originals owned | `ShortfallBadge` (amber + icon + words). Facts line in secondary text. |
 | Short, **no original owned** | Same badge, plus `NoOriginalTag` (neutral outline + icon). "Originals owned" reads "None". Not called Unowned (D-025). |
-| Original free in storage while a proxy is sleeved | `ReplaceHint` under the facts (choice I-1 decides if it becomes an action). |
-| Spare proxy in storage | Facts line adds "· 1 spare proxy" in secondary text. Never added to "Proxies sleeved". |
-| Shortage only from Unsleeved slots (no proxies) | Proxies sleeved shows "0"; deck rows show the Unsleeved chip. |
+| Original free in storage while a proxy is in a deck | `ReplaceHint` under the facts (choice I-1 decides if it becomes an action). |
+| Spare proxy in storage | Facts line adds "· 1 spare proxy" in secondary text. Never added to "Proxies in decks". |
+| Shortage only from Planned slots (no proxies) | Proxies in decks shows "0"; deck rows show the Planned chip. |
 | Multiple copies in one deck (e.g. Casual deck with 4×) | Deck row chips show quantities: "2 × Original", "2 × Proxy". |
 | Card image missing | Grey 63×88 placeholder (current behaviour); name still visible. |
 | Long card or deck name | Truncate with ellipsis; full name in `title` and in the accessible name. |
@@ -135,7 +135,7 @@ There are no drag interactions, candidates or committed objects on this page (D-
 | 1 | Choose a filter | click NavItem | Tab to it, Enter/Space | List filters; header and count update; focus stays on the item; live region announces "Showing 4 cards for Korvold". |
 | 2 | Filter "No original owned" | click | Enter/Space | Only cards with 0 originals. (Choice I-5.) |
 | 3 | Search | type in field | type; **Esc** clears | Filters by card name, case-insensitive, as you type (150 ms debounce). Combines with the sidebar filter. |
-| 4 | Sort | open Select, pick | Tab, Space/Enter to open, ↑/↓, Enter | Reorders. Options: Most originals needed (default), Most proxies sleeved, Card name A–Z. Ties break by name. (Choice I-4.) |
+| 4 | Sort | open Select, pick | Tab, Space/Enter to open, ↑/↓, Enter | Reorders. Options: Most originals needed (default), Most proxies in decks, Card name A–Z. Ties break by name. (Choice I-4.) |
 | 5 | Open a deck | click deck name on a deck row | Tab to link, Enter | Navigates to `/decks/[id]` in the same tab (choice I-2). Back returns to Reconcile with filter, search and sort kept (held in the URL query). |
 | 6 | Card preview | hover thumbnail | focus the card name (it becomes focusable) | Existing large card preview [Confirmed: src/components/CardHoverPreview]. Esc closes. |
 | 7 | Expand copy details (only if I-6 = include) | click "Show copies" | Enter/Space on the button (`aria-expanded`) | Lists each original and proxy with printing, finish and where it is (deck or storage location). |
@@ -154,10 +154,10 @@ There is **no T-28 contract file** in the repository to cite; per `status.md`, D
 | Grouping key ("same card") | `oracleId` | **new** — current grouping is by `cardName`; D-003 says canonical card = `oracle_id`. `deck_cards` has no `oracle_id` [Confirmed: src/types/supabase.ts], so T-37 must resolve it (Architect to confirm how). |
 | Needed in decks | `slotsWanting` | exists — **rule changes**: include proxy-filled slots |
 | Originals owned | `originalsOwned` | exists — **rule changes**: count any printing; include copies formerly marked Missing (D-028: they now behave as ordinary owned copies; today the query filters `missing = false`) |
-| Originals in storage | `originalsInStorage` | **new** (originals not sleeved in any main-deck slot) |
+| Originals in storage | `originalsInStorage` | **new** (originals not in any main-deck slot) |
 | More originals needed | `overBy` | exists — **rule changes**: keep cards with `originalsOwned = 0` |
-| Proxies sleeved (card total) | `proxiesSleeved` | **new** |
-| Spare proxies | `spareProxies` | **new** (proxy copies not sleeved anywhere) |
+| Proxies in decks (card total) | `proxiesSleeved` | **new** |
+| Spare proxies | `spareProxies` | **new** (proxy copies not in any deck) |
 | No original owned tag | derived `originalsOwned === 0` | — |
 | Replace hint count | derived `min(originalsInStorage, proxiesSleeved)` | — |
 | Deck row: name, link | `decks[].deckId`, `decks[].deckName` | exists |
@@ -175,22 +175,22 @@ Proxy detection for a slot should come from the assigned copy (`user_copies.is_p
 |---|---|
 | Page title | Reconcile *(choice I-7)* |
 | Page subtitle | Cards your decks need more originals of than you own. Proxies don't count as originals. |
-| Summary strip | **{n}** more originals needed · {c} cards · {p} proxies sleeved · {z} with no original owned *(omit any part that is 0, except the first)* |
+| Summary strip | **{n}** more originals needed · {c} cards · {p} proxies in decks · {z} with no original owned *(omit any part that is 0, except the first)* |
 | Sidebar: all | **All shortages** — "Every card you're short of" |
 | Sidebar: no original | **No original owned** — "Only played as proxies or empty slots" |
 | Sidebar: decks heading | Decks |
-| Sidebar: deck subtitle | {p} proxies sleeved *(or "No proxies sleeved")* |
+| Sidebar: deck subtitle | {p} proxies in decks *(or "No proxies in decks")* |
 | List header (all) | All shortages *(no subtitle; the totals line below covers it)* |
 | List header (no original) | No original owned — "{c} cards · {n} more originals needed" |
 | List header (deck) | {Deck name} — "{c} short cards in this deck. Counts cover all decks." |
 | Search placeholder | Search cards |
-| Sort label / options | Sort · Most originals needed · Most proxies sleeved · Card name A–Z |
+| Sort label / options | Sort · Most originals needed · Most proxies in decks · Card name A–Z |
 | Shortfall badge | {n} more original needed / {n} more originals needed |
-| Facts line | Needed in decks {d} · Originals owned {o} *(or "None")* · Proxies sleeved {p} |
+| Facts line | Needed in decks {d} · Originals owned {o} *(or "None")* · Proxies in decks {p} |
 | Facts addition | ({s} in storage) after originals owned, when s > 0 · "· {x} spare proxy/proxies" when x > 0 |
 | No original tag | No original owned |
 | Replace hint | {k} original in storage could replace a proxy. / {k} originals in storage could replace proxies. |
-| Deck row chips | {q} × Original · {q} × Proxy · {q} × Unsleeved *(the "{q} ×" is omitted when q = 1)* |
+| Deck row chips | {q} × Original · {q} × Proxy · {q} × Planned *(the "{q} ×" is omitted when q = 1)* |
 | Deck row focus label | This deck |
 | Deck link accessible name | Open {deck name} |
 | Empty (success) | **No original shortages.** You own enough originals for every card in your decks. |
@@ -219,7 +219,7 @@ Contrast (WCAG 2.1, on `--bg-surface` #1A1A1E unless stated):
 
 No new colours are introduced; all are existing tokens [Confirmed: src/styles/tokens.css].
 
-**D-012 (colour plus label/icon):** every state carries words: shortfall badge = amber + ⚠ icon + "2 more originals needed"; Proxy chip = proxy-colour border + mask icon + "Proxy"; Original chip = neutral + "Original"; Unsleeved chip = neutral + empty-circle icon + "Unsleeved"; no original = outline + ⊘ icon + "No original owned". Greyscale test: all states remain distinguishable by text.
+**D-012 (colour plus label/icon):** every state carries words: shortfall badge = amber + ⚠ icon + "2 more originals needed"; Proxy chip = proxy-colour border + mask icon + "Proxy"; Original chip = neutral + "Original"; Planned chip = neutral + empty-circle icon + "Planned"; no original = outline + ⊘ icon + "No original owned". Greyscale test: all states remain distinguishable by text.
 **D-013:** amber (`--signal-warning`) and proxy teal are existing status tokens. Proxy teal (#4A93A0) sits near mana blue (#6BA5C4); the label and icon carry the meaning, so it cannot be misread as colour identity (noted under Challenges in the report, not changed here).
 **D-014:** Original chips and the facts line are neutral; only the shortfall badge and Proxy chips carry colour.
 **D-015:** No dashed borders. Deck links live on their deck row; filters in the sidebar; sort above the list.
@@ -241,15 +241,15 @@ Each has a recommendation; the mockup shows the recommended option, with toggles
 |---|---|---|---|
 | I-1 | Should a row let you act, or only inform? | **Inform only**, with links to the decks. The "original in storage could replace a proxy" note tells you; you swap it on the deck. | (b) Add a **Swap in original** button on the deck row using a proxy when an original is in storage — explicit, one click, still never automatic. (c) Add a **Buy** link with a Scryfall estimate price (D-035). |
 | I-2 | Where does a deck link open? | **Same tab**, Back returns with your filters kept. | New tab. |
-| I-3 | When you pick a deck, which cards show? | **Every short card that deck uses**, with that deck's row marked "This deck" — e.g. Korvold shows Sol Ring even though Korvold holds the original, because the shortage involves it. | Only cards that deck is filling with a proxy or leaving Unsleeved. |
-| I-4 | Default order? | **Most originals needed** first. | Most proxies sleeved; Card name A–Z. |
+| I-3 | When you pick a deck, which cards show? | **Every short card that deck uses**, with that deck's row marked "This deck" — e.g. Korvold shows Sol Ring even though Korvold holds the original, because the shortage involves it. | Only cards that deck is filling with a proxy or leaving Planned. |
+| I-4 | Default order? | **Most originals needed** first. | Most proxies in decks; Card name A–Z. |
 | I-5 | A "No original owned" filter in the sidebar? | **Yes.** | No — rely on the tag in each row. |
 | I-6 | Show copy-by-copy detail (printing, finish, where each copy is)? | **Not in this version**; the facts line already says how many originals are in storage. | Add a "Show copies" expander per card (needs extra data). |
 | I-7 | Page name? | **Keep "Reconcile"**, so the menu doesn't change. | Rename to "Original shortages". |
 | I-8 | Search by card name? | **Yes.** | No. |
 | I-9 | Does **any** original printing count? (D-037 asks for this confirmation.) | **Yes** — a Revised Sol Ring covers a deck that lists the Commander Masters Sol Ring. | Only the exact printing the deck lists counts, so a deck wanting a Borderless Sol Ring stays short even if you own a different Sol Ring original. |
-| I-10 | Totals strip at the top? | **Yes** — e.g. "8 more originals needed · 6 cards · 8 proxies sleeved". | No. |
-| I-11 | Show spare proxies (in storage, unused)? | **Yes, as a small note** — never counted as sleeved. | Hide them. |
+| I-10 | Totals strip at the top? | **Yes** — e.g. "8 more originals needed · 6 cards · 8 proxies in decks". | No. |
+| I-11 | Show spare proxies (in storage, unused)? | **Yes, as a small note** — never counted as in decks. | Hide them. |
 
 ## 12. Open questions
 

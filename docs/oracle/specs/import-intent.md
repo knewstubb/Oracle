@@ -127,7 +127,7 @@ Defaults: I bought it → New copy · Original. I built it → From collection i
 
 **Planned decks** have no dropdowns and no Type column. One plain, non-editable **Status** column reads Owned or Unowned (owned in any printing), or Basic land for generic basics. The bulk bar hides the Card origin and Type toggles.
 
-**Generic land.** Only generic basic rows (basics, Wastes, snow basics with no printing named) have a Card origin dropdown: **Generic land** ("Any basic, in deck, not tracked") or **Unowned** ("No copy"). Generic land is the default (except planned, which shows Basic land status). It is never offered on other cards. Maybeboard rows read "Not added or sleeved".
+**Generic land.** Only generic basic rows (basics, Wastes, snow basics with no printing named) have a Card origin dropdown: **Generic land** ("Any basic, in deck, not tracked") or **Unowned** ("No copy"). Generic land is the default (except planned, which shows Basic land status). It is never offered on other cards. Maybeboard rows read "Not added or in the deck".
 
 **Bulk bar** (several rows selected) keeps the segmented toggles, labelled Card origin: No copy / From collection / New copy, and Type: Original / Proxy.
 

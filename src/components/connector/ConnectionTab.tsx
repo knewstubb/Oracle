@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { connectorKeys, fetchConnectionStatus, switchConnection, type ConnectionStatus } from './api'
+import { connectorKeys, enableConnection, fetchConnectionStatus, switchConnection, type ConnectionStatus } from './api'
 import { formatDateTime } from './format'
 
 const CAN = [
@@ -81,6 +81,7 @@ export function ConnectionTab({ onShowGuide }: { onShowGuide?: () => void }) {
   const [switchFailed, setSwitchFailed] = useState(false)
   const [justOff, setJustOff] = useState(false)
   const [needReconnect, setNeedReconnect] = useState(false)
+  const [enableFailed, setEnableFailed] = useState(false)
   const data: ConnectionStatus | undefined = status.data
 
   const loading = status.isPending
@@ -91,8 +92,26 @@ export function ConnectionTab({ onShowGuide }: { onShowGuide?: () => void }) {
   async function onToggle(next: boolean) {
     if (!data) return
     if (next) {
-      // There is no route to re-enable an ended link; turning on means reconnecting from Claude.
-      setNeedReconnect(true)
+      setEnableFailed(false)
+      // Nothing to switch on: Claude never connected, or its saved sign-in already ended while the link was on.
+      if (!data.connectionId || data.state === 'expired') {
+        setNeedReconnect(true)
+        return
+      }
+      setSwitching(true)
+      const out = await enableConnection(data.connectionId)
+      setSwitching(false)
+      if (out.ok) {
+        setJustOff(false)
+        setNeedReconnect(false)
+        setSwitchFailed(false)
+        toast('Claude is switched on.')
+        await qc.invalidateQueries({ queryKey: connectorKeys.status })
+      } else if (out.needsReconnect) {
+        setNeedReconnect(true) // Claude's side signed out: moves to the needs-reconnecting state
+      } else {
+        setEnableFailed(true)
+      }
       return
     }
     if (!data.connectionId) return
@@ -102,6 +121,7 @@ export function ConnectionTab({ onShowGuide }: { onShowGuide?: () => void }) {
     setSwitching(false)
     if (out.ok) {
       setJustOff(true)
+      setNeedReconnect(false)
       toast('Claude is switched off.')
       qc.invalidateQueries({ queryKey: connectorKeys.status })
       qc.invalidateQueries({ queryKey: connectorKeys.pending })
@@ -115,7 +135,7 @@ export function ConnectionTab({ onShowGuide }: { onShowGuide?: () => void }) {
     ? { icon: <Circle className="size-3" aria-hidden="true" />, text: 'Checking…' }
     : errored
       ? { icon: <CircleAlert className="size-3" aria-hidden="true" />, text: "Can't check" }
-      : state === 'expired'
+      : state === 'expired' || (needReconnect && !isOn)
         ? { icon: <CircleAlert className="size-3" aria-hidden="true" />, text: 'Needs reconnecting' }
         : isOn
           ? { icon: <Circle className="size-3 fill-current" aria-hidden="true" />, text: 'Active' }
@@ -181,21 +201,16 @@ export function ConnectionTab({ onShowGuide }: { onShowGuide?: () => void }) {
           We couldn&apos;t switch Claude off. Try again. If it keeps failing, change your Oracle password.
         </Banner>
       )}
-      {justOff && (
+      {justOff && !needReconnect && (
         <Banner tone="info" role="status">
           Claude can no longer reach Oracle. Any Claude chat that asks now gets &quot;not connected&quot;. To use it again, switch this back on
           and reconnect from Claude. Anything waiting for your yes was cancelled.
         </Banner>
       )}
-      {needReconnect && !justOff && (
-        <Banner tone="info" role="status">
-          <p>To use Claude again, reconnect Oracle from Claude&apos;s connector settings.</p>
-          {onShowGuide && (
-            <Button type="button" variant="outline" className="mt-2 min-h-[44px]" onClick={onShowGuide}>Show me how to reconnect</Button>
-          )}
-        </Banner>
+      {enableFailed && (
+        <Banner tone="bad" role="alert">We couldn&apos;t switch Claude on. Try again.</Banner>
       )}
-      {state === 'expired' && (
+      {(state === 'expired' || needReconnect) && !isOn && (
         <Banner tone="bad" role="alert">
           <p><b>Claude&apos;s sign-in has expired.</b> Claude can&apos;t reach Oracle until you reconnect. Nothing was changed while it was signed out.</p>
           {onShowGuide && (
@@ -206,7 +221,7 @@ export function ConnectionTab({ onShowGuide }: { onShowGuide?: () => void }) {
 
       <CapabilitiesPanel />
 
-      {!loading && !errored && data?.clientName && (
+      {!loading && !errored && state === 'active' && data?.clientName && (
         <section aria-labelledby="where-h" className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
           <h3 id="where-h" className="text-[length:var(--fs-lg)] font-medium text-[var(--text-primary)]">Where it&apos;s connected</h3>
           <p className="mt-1 text-[length:var(--fs-sm)] text-[var(--text-secondary)]">

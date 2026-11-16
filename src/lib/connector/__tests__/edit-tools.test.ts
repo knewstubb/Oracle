@@ -18,7 +18,7 @@ function gw(over: Partial<Record<keyof Gateway, unknown>> = {}): Gateway {
     resolveCard: async (n: string) => ({ card: { oracleId: 'o-' + n, scryfallId: 's-' + n, name: n, setCode: 'cmm' } }),
     submit: vi.fn(async () => ({ ok: true, data: { success: true, outcome: 'applied', group_id: G, count: 1 } })),
     getPending: fail, listRecent: fail, undoAsClaude: fail, undoAsOwner: fail, listPending: fail, pendingCount: fail,
-    approve: fail, decline: fail, movedSlots: fail, revoke: fail, activeConnection: fail,
+    approve: fail, decline: fail, movedSlots: fail, revoke: fail, activeConnection: fail, latestConnection: fail, grantAlive: fail, reenable: fail,
   }
   return { ...base, ...over } as unknown as Gateway
 }

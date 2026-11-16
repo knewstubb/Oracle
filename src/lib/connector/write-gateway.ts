@@ -3,7 +3,7 @@
 // side); the RPCs are granted to service_role only and re-check ownership of every row they touch.
 import { createAdminClient } from '@/lib/supabase'
 import { lookupByName, lookupByScryfallId } from '@/lib/card-lookup'
-import type { RevokeRpcResult, ChangeAction, ChangeLogRow, Gateway, GatewayResult, MovedSlot, PendingRow, SubmitOutcome, UndoResult } from './write-types'
+import type { ConnectionRow, ReenableRpcResult, RevokeRpcResult, ChangeAction, ChangeLogRow, Gateway, GatewayResult, MovedSlot, PendingRow, SubmitOutcome, UndoResult } from './write-types'
 
 type Admin = ReturnType<typeof createAdminClient>
 
@@ -87,6 +87,26 @@ export function createGateway(adminOverride?: Admin): Gateway {
     movedSlots: (userId, deckId) => rpc<MovedSlot[]>(admin(), 'ai_moved_slots', { p_user_id: userId, p_deck_id: deckId }),
 
     revoke: (userId, connectionId) => rpc<RevokeRpcResult>(admin(), 'revoke_connector_connection', { p_user_id: userId, p_connection_id: connectionId }),
+
+    grantAlive: (userId, clientId) => rpc<boolean>(admin(), 'connector_grant_alive', { p_user_id: userId, p_client_id: clientId }),
+
+    reenable: (userId, connectionId) => rpc<ReenableRpcResult>(admin(), 'reenable_connector_connection', { p_user_id: userId, p_connection_id: connectionId }),
+
+    async latestConnection(userId) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data, error } = await (admin() as any)
+          .from('connector_connections')
+          .select('id, client_id, client_name, created_at, last_used_at, revoked_at')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+        if (error) return { ok: false, code: 'rpc_failed', detail: {} }
+        return { ok: true, data: (Array.isArray(data) && data[0] ? data[0] : null) as ConnectionRow | null }
+      } catch {
+        return { ok: false, code: 'rpc_failed', detail: {} }
+      }
+    },
 
     async activeConnection(userId) {
       try {

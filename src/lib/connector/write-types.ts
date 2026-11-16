@@ -50,6 +50,8 @@ export type ApproveResult =
   | { success: false; outcome: 'expired' | 'declined' | 'cancelled' | 'failed' | 'approved'; reason?: { code?: string; card?: string; deck?: string; on?: string | null } }
 
 export type DeclineResult = { success: boolean; outcome: string }
+export type ReenableRpcResult = { success: boolean; error?: 'not_found' | 'needs_reconnect'; already_on?: boolean }
+export type ConnectionRow = { id: string; client_id: string; client_name: string | null; created_at: string; last_used_at: string | null; revoked_at: string | null }
 export type RevokeRpcResult = { success: boolean; client_id: string | null; cancelled_pending: number }
 
 export interface ResolvedCard {
@@ -76,5 +78,10 @@ export interface Gateway {
   decline(userId: string, pendingId: string): Promise<GatewayResult<DeclineResult>>
   movedSlots(userId: string, deckId: number): Promise<GatewayResult<MovedSlot[]>>
   revoke(userId: string, connectionId: string): Promise<GatewayResult<RevokeRpcResult>>
+  /** Newest connection row, switched off or not. Null when Claude was never connected. */
+  latestConnection(userId: string): Promise<GatewayResult<ConnectionRow | null>>
+  /** Is Claude's saved sign-in for this app still good (not revoked, a live session exists)? */
+  grantAlive(userId: string, clientId: string): Promise<GatewayResult<boolean>>
+  reenable(userId: string, connectionId: string): Promise<GatewayResult<ReenableRpcResult>>
   activeConnection(userId: string): Promise<GatewayResult<{ id: string; client_name: string | null; created_at: string; last_used_at: string | null } | null>>
 }

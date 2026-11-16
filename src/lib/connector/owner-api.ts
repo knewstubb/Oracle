@@ -2,7 +2,7 @@
 // Every function takes the user id from the cookie session (never from the request) and returns { status, body }.
 import { groupChanges } from './change-groups'
 import { movedSlotSentence, pendingEndedText, pendingSummary, pendingTitle, staleText, undoRefusalText } from './change-sentences'
-import type { ApiFailure, ChangesResponse, DecideResponse, MovedSlotsResponse, PendingCountResponse, PendingItemView, PendingResponse, StatusResponse, UndoResponse } from './api-types'
+import type { ApiFailure, ChangesResponse, DecideResponse, EnableResponse, MovedSlotsResponse, PendingCountResponse, PendingItemView, PendingResponse, StatusResponse, UndoResponse } from './api-types'
 import type { Gateway, GatewayFailure, PendingRow } from './write-types'
 
 export interface Reply<T = unknown> {
@@ -108,8 +108,29 @@ export async function movedSlots(g: Gateway, userId: string, deckIdRaw: string |
   return { status: 200, body: { ok: true, moved: r.data.map((m) => ({ ...m, sentence: movedSlotSentence(m) })) } }
 }
 
+// A row created in the last 2 minutes is still being signed in (the row is written at the Allow step, the session a moment later).
+const SIGN_IN_GRACE_MS = 120_000
+
 export async function connectionStatus(g: Gateway, userId: string, email: string | null): Promise<Reply<StatusResponse>> {
-  const r = await g.activeConnection(userId)
+  const r = await g.latestConnection(userId)
   if (!r.ok) return dbFail(r)
-  return { status: 200, body: { ok: true, connected: !!r.data, connection: r.data, email } }
+  const row = r.data
+  if (!row) return { status: 200, body: { ok: true, connected: false, state: 'off', can_reenable: false, connection: null, email } }
+  const connection = { id: row.id, client_name: row.client_name, created_at: row.created_at, last_used_at: row.last_used_at }
+  const alive = await g.grantAlive(userId, row.client_id)
+  // Never guess: if the sign-in check fails, the whole status fails (the screen shows "can't check", not Off or Expired).
+  if (!alive.ok) return dbFail(alive)
+  if (row.revoked_at) return { status: 200, body: { ok: true, connected: false, state: 'off', can_reenable: alive.data, connection, email } }
+  const fresh = Date.now() - new Date(row.created_at).getTime() < SIGN_IN_GRACE_MS
+  const state = alive.data || fresh ? 'active' : 'expired'
+  return { status: 200, body: { ok: true, connected: state === 'active', state, can_reenable: false, connection, email } }
+}
+
+export async function enableConnection(g: Gateway, userId: string, connectionId: unknown): Promise<Reply<EnableResponse>> {
+  if (!isUuid(connectionId)) return { status: 400, body: { ok: false, error: 'connectionId is required.', code: 'invalid_request' } }
+  const r = await g.reenable(userId, connectionId)
+  if (!r.ok) return dbFail(r)
+  if (r.data.success) return { status: 200, body: { ok: true, state: 'active' } }
+  if (r.data.error === 'not_found') return { status: 404, body: { ok: false, error: 'That connection is not in your Oracle any more.', code: 'connection_not_found' } }
+  return { status: 409, body: { ok: false, needs_reconnect: true, error: "Claude's sign-in has ended, so it needs to be reconnected from Claude.", code: 'needs_reconnect' } }
 }

@@ -111,13 +111,13 @@ export async function fetchMovedSlots(deckId: number): Promise<(MovedSlot & { se
 export async function fetchConnectionStatus(): Promise<ConnectionStatus> {
   const b = await request<{
     connected?: boolean
+    state?: 'active' | 'off' | 'expired'
     connection?: { id: string; client_name: string | null; last_used_at: string | null } | null
     email?: string | null
   }>('/api/connector/status')
   if (typeof b?.connected !== 'boolean') throw new ApiError('Unexpected answer', 200, b)
   return {
-    // The status route only reports an active link; "off" is what it says when nothing is active.
-    state: b.connected ? 'active' : 'off',
+    state: b.state === 'active' || b.state === 'off' || b.state === 'expired' ? b.state : b.connected ? 'active' : 'off',
     connectionId: b.connection?.id ?? null,
     email: b.email ?? null,
     lastUsedAt: b.connection?.last_used_at ?? null,
@@ -171,5 +171,22 @@ export async function switchConnection(connectionId: string): Promise<{ ok: true
     return { ok: true, warning: body?.warning }
   } catch {
     return { ok: false }
+  }
+}
+
+export type EnableOutcome = { ok: true } | { ok: false; needsReconnect: true } | { ok: false; needsReconnect: false }
+
+/** Switch back on. `needsReconnect` means Claude's saved sign-in has ended, so it must be reconnected from Claude. */
+export async function enableConnection(connectionId: string): Promise<EnableOutcome> {
+  try {
+    await request<{ ok: true }>('/api/connector/enable', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ connectionId }),
+    })
+    return { ok: true }
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 409) return { ok: false, needsReconnect: true }
+    return { ok: false, needsReconnect: false }
   }
 }

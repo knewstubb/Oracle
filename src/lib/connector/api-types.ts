@@ -82,6 +82,12 @@ export interface MovedSlotsResponse {
 export interface StatusResponse {
   ok: true
   connected: boolean
+  /** active = on and Claude's sign-in is good; off = owner switched it off (or never connected); expired = row is on but Claude's saved sign-in is gone. */
+  state: 'active' | 'off' | 'expired'
+  /** Off only: Claude's saved sign-in is still good, so switching on works without reconnecting. */
+  can_reenable: boolean
   connection: { id: string; client_name: string | null; created_at: string; last_used_at: string | null } | null
   email: string | null
 }
+
+export type EnableResponse = { ok: true; state: 'active' } | { ok: false; needs_reconnect: true; error: string; code: 'needs_reconnect' }

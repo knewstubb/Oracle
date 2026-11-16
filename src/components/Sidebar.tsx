@@ -78,6 +78,7 @@ const navItems: NavItem[] = [
   { label: 'Card Management', icon: CardManagementIcon, href: '/allocation' },
   { label: 'Reconcile', icon: CardManagementIcon, href: '/reconcile' },
   { label: 'Collection', icon: CollectionIcon, href: '/collection' },
+  { label: 'Picklist', icon: StorageIcon, href: '/picklist' },
   { label: 'Binders', icon: StorageIcon, href: '/storage' },
   { label: 'Explore', icon: BrewIcon, href: '/explore' },
   { label: 'Settings', icon: SettingsIcon, href: '/settings' },

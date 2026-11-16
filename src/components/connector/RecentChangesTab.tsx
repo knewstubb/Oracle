@@ -104,10 +104,7 @@ export function RecentChangesTab() {
     const trigger = document.activeElement
     setBusyPending((b) => ({ ...b, [item.id]: action }))
     const out = await decidePending(item.id, action)
-    setBusyPending((b) => {
-      const { [item.id]: _gone, ...rest } = b
-      return rest
-    })
+    setBusyPending((b) => Object.fromEntries(Object.entries(b).filter(([k]) => k !== item.id)))
     if (out.ok) {
       if (action === 'approve') {
         const msg = `Approved. ${out.summary ?? item.summary ?? item.title ?? 'The change was applied.'}`

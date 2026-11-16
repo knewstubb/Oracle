@@ -6,7 +6,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Switch } from '@/components/ui/switch'
 import { connectorKeys, fetchConnectionStatus, switchConnection, type ConnectionStatus } from './api'
 import { formatDateTime } from './format'
 
@@ -134,15 +133,28 @@ export function ConnectionTab({ onShowGuide }: { onShowGuide?: () => void }) {
             {badge.icon}
             {badge.text}
           </span>
-          <label className="ml-auto flex min-h-[44px] min-w-[44px] cursor-pointer items-center gap-2 text-[length:var(--fs-sm)] text-[var(--text-primary)]">
-            <span>Let Claude use Oracle</span>
-            <Switch
-              aria-label="Let Claude use Oracle"
-              checked={isOn}
-              disabled={loading || errored || switching}
-              onCheckedChange={onToggle}
-            />
-          </label>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={isOn}
+            aria-label="Let Claude use Oracle"
+            disabled={loading || errored || switching}
+            onClick={() => onToggle(!isOn)}
+            className="ml-auto inline-flex min-h-[44px] items-center gap-3 rounded-lg px-2 text-[length:var(--fs-sm)] text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-white disabled:opacity-50"
+          >
+            <span aria-hidden="true">Let Claude use Oracle</span>
+            <span
+              aria-hidden="true"
+              className="relative inline-block h-6 w-11 rounded-full border border-[var(--border-default)] transition-colors motion-reduce:transition-none"
+              style={{ backgroundColor: isOn ? 'var(--accent-primary)' : 'transparent' }}
+            >
+              <span
+                className="absolute top-0.5 size-5 rounded-full bg-[var(--text-primary)] transition-all motion-reduce:transition-none"
+                style={{ left: isOn ? '1.25rem' : '0.125rem' }}
+              />
+            </span>
+            <span className="text-[length:var(--fs-xs)] text-[var(--text-secondary)]" aria-hidden="true">{isOn ? 'On' : 'Off'}</span>
+          </button>
         </div>
 
         {loading && <Skeleton className="mt-3 h-4 w-2/3" />}

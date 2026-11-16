@@ -145,9 +145,11 @@ export async function decidePending(id: string, action: 'approve' | 'decline'): 
     })
     return { ok: true, summary: body?.summary }
   } catch (e) {
-    const b = e instanceof ApiError ? (e.body as { reason?: string; error?: string; code?: string } | null) : null
+    const b = e instanceof ApiError ? (e.body as { error?: unknown } | null) : null
     const stale = e instanceof ApiError && e.status === 409
-    return { ok: false, reason: b?.reason ?? b?.error ?? null, stale }
+    // The server's `error` is a plain-words sentence; `reason` is a machine object and is never shown.
+    const sentence = typeof b?.error === 'string' ? b.error.replace(/\.$/, '') : null
+    return { ok: false, reason: sentence, stale }
   }
 }
 

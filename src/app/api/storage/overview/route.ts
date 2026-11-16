@@ -6,6 +6,7 @@
  */
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
+import { countCopiesInLocation, fetchStorageCopies } from '@/lib/storage/copies'
 
 export async function GET() {
   const authResult = await requireAuth()
@@ -26,41 +27,18 @@ export async function GET() {
     return Response.json({ error: locErr.message }, { status: 500 })
   }
 
-  // Count copies per storage location
-  const { data: counts, error: countErr } = await supabase
-    .from('user_copies')
-    .select('location_id')
-    .eq('user_id', userId)
-    .not('location_id', 'is', null)
-
-  if (countErr) {
-    return Response.json({ error: countErr.message }, { status: 500 })
+  let countMap: Map<number, number>
+  let unsortedCount: number
+  try {
+    const list = locations ?? []
+    const counts = await Promise.all(
+      list.map((loc) => countCopiesInLocation(supabase, userId, loc.id))
+    )
+    countMap = new Map(list.map((loc, i) => [loc.id, counts[i]]))
+    unsortedCount = (await fetchStorageCopies(supabase, userId, null)).length
+  } catch (e) {
+    return Response.json({ error: (e as Error).message }, { status: 500 })
   }
-
-  // Build count map (only count storage locations, not deck locations)
-  const storageLocationIds = new Set((locations ?? []).map((loc) => loc.id))
-  const countMap = new Map<number, number>()
-  for (const row of counts ?? []) {
-    if (row.location_id && storageLocationIds.has(row.location_id)) {
-      countMap.set(row.location_id, (countMap.get(row.location_id) || 0) + 1)
-    }
-  }
-
-  // Count unsorted: null location_id AND not assigned to any deck
-  const { data: allCopies, error: allErr } = await supabase
-    .from('user_copies')
-    .select('id, location_id, deck_cards!deck_cards_copy_id_fkey(id)')
-    .eq('user_id', userId)
-    .is('location_id', null)
-
-  if (allErr) {
-    return Response.json({ error: allErr.message }, { status: 500 })
-  }
-
-  // Unsorted = null location AND no deck assignment
-  const unsortedCount = (allCopies ?? []).filter(
-    (copy) => !copy.deck_cards || copy.deck_cards.length === 0
-  ).length
 
   const result = {
     locations: (locations ?? []).map((loc) => ({

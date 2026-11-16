@@ -70,6 +70,7 @@ export async function getDeck(ctx: ToolContext, input: z.infer<typeof getDeckInp
     const items: DeckCardView[] = page.map((r) => {
       const copy = r.copy_id != null ? copyById.get(r.copy_id) : undefined
       return {
+        slotId: r.id,
         name: r.card_name,
         quantity: r.quantity ?? 1,
         categories: parseCategories(r.categories).map((c) => cutText(c) ?? c),

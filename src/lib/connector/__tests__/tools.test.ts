@@ -200,7 +200,7 @@ describe('get_deck_health', () => {
 })
 
 describe('runTool input handling', () => {
-  const ctx = { db: mockDb(() => ({ data: [], count: 0 })).db, userId: U }
+  const ctx = { db: mockDb(() => ({ data: [], count: 0 })).db, userId: U, connectionId: 'c1', clientId: 'cl', clientName: 'Claude', gateway: {} as never }
   it.each(['user_id', 'userId'])('a %s argument is INVALID_INPUT, not ignored', async (key) => {
     for (const name of ['get_collection_summary', 'search_collection', 'list_decks']) {
       const r = await runTool(ctx, name, { [key]: 'other' })

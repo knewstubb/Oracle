@@ -1,3 +1,7 @@
+'use client'
+
+import { PendingChip } from '@/components/connector/PendingChip'
+
 interface PageHeaderProps {
   title: string
   subtitle?: React.ReactNode
@@ -6,8 +10,8 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
   return (
-    <header className="flex items-center gap-3 px-5 py-3.5 border-b border-[var(--border-subtle)]">
-      <div>
+    <header className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 sm:px-5 py-3.5 border-b border-[var(--border-subtle)]">
+      <div className="min-w-0">
         <h1 className="text-[length:var(--fs-3xl)] font-[number:var(--font-medium)] tracking-tight text-[var(--text-primary)]">
           {title}
         </h1>
@@ -17,8 +21,9 @@ export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
           </p>
         )}
       </div>
+      <div className="ml-auto max-w-full min-w-0"><PendingChip /></div>
       {actions && (
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex items-center gap-2">
           {actions}
         </div>
       )}

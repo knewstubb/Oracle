@@ -77,6 +77,7 @@ export interface DeckSummary {
 }
 
 export interface DeckCardView {
+  slotId: number // deck_cards.id; lets a write tool target this exact slot (slice B, additive)
   name: string
   quantity: number
   categories: string[] // contains "Maybeboard" for maybeboard cards

@@ -15,7 +15,7 @@ function fakeAdmin(result: { data?: unknown; error?: unknown } | 'throw') {
 describe('checkConnection', () => {
   it('active row -> active', async () => {
     const { admin, calls } = fakeAdmin({ data: [{ id: 'c1' }] })
-    expect(await checkConnection('u', 'cl', admin)).toEqual({ status: 'active', connectionId: 'c1' })
+    expect(await checkConnection('u', 'cl', admin)).toEqual({ status: 'active', connectionId: 'c1', clientName: 'Claude' })
     expect(calls).toContainEqual({ op: 'eq', args: ['user_id', 'u'] })
     expect(calls).toContainEqual({ op: 'eq', args: ['client_id', 'cl'] })
     expect(calls).toContainEqual({ op: 'is', args: ['revoked_at', null] })
@@ -48,7 +48,7 @@ describe('touchConnection', () => {
 function deps(over: Partial<McpDeps> = {}): McpDeps {
   return {
     verify: vi.fn(async () => ({ ok: true as const, userId: 'user-1', clientId: 'cl' })),
-    check: vi.fn(async () => ({ status: 'active' as const, connectionId: 'c1' })),
+    check: vi.fn(async () => ({ status: 'active' as const, connectionId: 'c1', clientName: 'Claude' })),
     touch: vi.fn(async () => {}),
     makeDb: vi.fn(() => ({ select: () => { throw new Error('db must not be used') } })),
     ...over,
@@ -131,6 +131,8 @@ describe('handleMcpRequest', () => {
   })
   it('unknown tool name is refused', async () => {
     const res = await handleMcpRequest(rpc('tools/call', { name: 'delete_deck', arguments: {} }), deps())
-    expect((await res.json()).result.structuredContent.error.code).toBe('INVALID_INPUT')
+    expect((await res.json()).result.structuredContent.error.code).toBe('tool_not_allowed')
+    const res2 = await handleMcpRequest(rpc('tools/call', { name: 'nothing_here', arguments: {} }), deps())
+    expect((await res2.json()).result.structuredContent.error.code).toBe('INVALID_INPUT')
   })
 })

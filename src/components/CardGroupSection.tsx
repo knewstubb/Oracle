@@ -32,6 +32,7 @@ import { PrintingPicker } from '@/components/PrintingPicker'
 import { GenericArtPicker } from '@/components/GenericArtPicker'
 import { StatusChipPopover } from '@/components/StatusChipPopover'
 import { CardSlotBadge } from '@/components/CardSlotBadge'
+import { MovedSlotNote, useMovedSlots } from '@/components/connector/MovedSlotNote'
 import { CategoryTagEditor } from '@/components/CategoryTagEditor'
 import { MobileCardPreview } from '@/components/MobileCardPreview'
 import { parseCategoriesCapped } from '@/lib/categoryUtils'
@@ -271,6 +272,7 @@ function UnifiedCardRow({
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false)
   const queryClient = useQueryClient()
   const isMobile = useIsMobile()
+  const movedSlot = useMovedSlots(deckId).get(card.id)
 
   const { triggerProps } = useCardHoverPreview({
     scryfallId: card.scryfall_id,
@@ -485,6 +487,9 @@ function UnifiedCardRow({
         </div>
       )}
     </div>
+
+    {/* Moved by Claude: planned slot stays, with the history line (CC-04b) */}
+    {movedSlot && <MovedSlotNote slot={movedSlot} />}
 
     {/* Delete confirmation dialog */}
     <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

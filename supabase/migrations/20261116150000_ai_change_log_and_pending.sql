@@ -1,8 +1,8 @@
--- DRAFT FOR OWNER APPROVAL. NOT APPLIED. Do not run until the owner approves. Task CC-04b (slice B, safe edits with undo).
+-- APPLIED to live 2026-11-16 (owner approved; additive only). Task CC-04b (slice B, safe edits with undo).
 -- Contract: docs/oracle/contracts/claude-connector-slice-b.md (sections 4 and 5).
 -- ADDITIVE ONLY: two new tables, no change to any existing table. Reversible: rollback file
--- supabase/drafts/20261116140000_ai_change_log_and_pending.rollback.sql (drops the two empty-at-first tables).
--- Depends on: 20261116130000_connector_connections (applied). Apply BEFORE 20261116140100_ai_connector_edit_rpcs.draft.sql.
+-- supabase/drafts/20261116150000_ai_change_log_and_pending.rollback.sql (drops the two empty-at-first tables).
+-- Depends on: 20261116130000_connector_connections (applied). Apply BEFORE 20261116150100_ai_connector_edit_rpcs.sql.
 --
 -- ai_change_log     = the append-only "made by AI" record: one row per slot / copy that changed. A request that changes
 --                     several cards shares one group_id (one Undo, all or nothing). Holds enough "before" and "after" to
@@ -134,5 +134,5 @@ REVOKE ALL ON FUNCTION public._ai_change_log_guard() FROM PUBLIC, anon, authenti
 
 COMMIT;
 
--- ROLLBACK: see 20261116140000_ai_change_log_and_pending.rollback.sql. It drops the two tables and the guard function.
+-- ROLLBACK: see 20261116150000_ai_change_log_and_pending.rollback.sql. It drops the two tables and the guard function.
 -- WARNING: this destroys the "made by AI" history and any waiting requests. Do it only if the feature is being removed.

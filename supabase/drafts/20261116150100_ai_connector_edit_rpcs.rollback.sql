@@ -1,5 +1,5 @@
--- ROLLBACK for 20261116140100_ai_connector_edit_rpcs.draft.sql. NOT APPLIED. Drops only functions created by that draft.
--- Run this BEFORE the tables rollback (20261116140000...rollback.sql), because these functions refer to those tables.
+-- ROLLBACK for 20261116150100_ai_connector_edit_rpcs.sql. NOT APPLIED. Drops only functions created by that draft.
+-- Run this BEFORE the tables rollback (20261116150000...rollback.sql), because these functions refer to those tables.
 BEGIN;
 DROP FUNCTION IF EXISTS public.ai_moved_slots(uuid, integer);
 DROP FUNCTION IF EXISTS public.ai_undo_group(uuid, uuid, text, uuid);

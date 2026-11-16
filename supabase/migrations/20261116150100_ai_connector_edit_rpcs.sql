@@ -1,9 +1,9 @@
--- DRAFT FOR OWNER APPROVAL. NOT APPLIED. Do not run until the owner approves. Task CC-04b (slice B, safe edits with undo).
+-- APPLIED to live 2026-11-16 (owner approved; additive only). Task CC-04b (slice B, safe edits with undo).
 -- Contract: docs/oracle/contracts/claude-connector-slice-b.md (sections 3, 4, 5, 6).
--- Depends on: 20261116140000_ai_change_log_and_pending.draft.sql (the two tables) and the existing functions
+-- Depends on: 20261116150000_ai_change_log_and_pending.sql (the two tables) and the existing functions
 --   remove_deck_card_with_release, unassign_copy_to_storage, replace_proxy_with_original, add_proxy_to_slot, insert_user_copies,
 --   _ensure_default_storage_location_id (all live, service_role-only).
--- ADDITIVE ONLY: new functions only. No existing function or table is changed. Rollback: ...140100_ai_connector_edit_rpcs.rollback.sql.
+-- ADDITIVE ONLY: new functions only. No existing function or table is changed. Rollback: ...150100_ai_connector_edit_rpcs.rollback.sql.
 --
 -- EVERY function here is SECURITY DEFINER, SET search_path = public, takes p_user_id as its FIRST argument, and is executable by
 -- service_role ONLY. The value comes from the verified token (connector path) or the cookie session (owner path), never from a

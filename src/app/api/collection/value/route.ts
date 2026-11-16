@@ -17,6 +17,8 @@ import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 
+const PRICE_LOOKUP_CHUNK = 100
+
 export async function GET(request: NextRequest) {
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
@@ -62,13 +64,18 @@ export async function GET(request: NextRequest) {
 
     // Fetch prices from ref_printings
     const priceMap = new Map<string, number>()
-    if (printingIds.length > 0) {
-      const { data: printings } = await supabase
+    // Chunked: one .in() with ~1000 ids exceeds the request URL limit and fails.
+    const uniqueIds = [...new Set(printingIds)]
+    for (let i = 0; i < uniqueIds.length; i += PRICE_LOOKUP_CHUNK) {
+      const { data: printings, error: priceError } = await supabase
         .from('ref_printings')
         .select('scryfall_id, price_usd')
-        .in('scryfall_id', printingIds)
+        .in('scryfall_id', uniqueIds.slice(i, i + PRICE_LOOKUP_CHUNK))
         .not('price_usd', 'is', null)
 
+      if (priceError) {
+        return Response.json({ error: priceError.message }, { status: 500 })
+      }
       for (const p of printings ?? []) {
         if (p.price_usd) priceMap.set(p.scryfall_id, p.price_usd)
       }

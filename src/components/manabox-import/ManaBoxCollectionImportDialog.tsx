@@ -24,7 +24,7 @@ import { ImportTitleIcon } from './ImportTitleIcon'
 import { ImportWorking } from './ImportWorking'
 import { ImportDiscardDialog } from './ImportDiscardDialog'
 import { decideCollectionClose } from './import-close-guard'
-import { EMPTY_FILE_MESSAGE, UNREADABLE_FILE_MESSAGE, processingDetail } from './import-copy'
+import { EMPTY_FILE_MESSAGE, TOO_SLOW_MESSAGE, UNREADABLE_FILE_MESSAGE, processingDetail } from './import-copy'
 import { ImportResult } from './ImportResult'
 import { IMPORT_MODAL_CLASS, IMPORT_STAGE_CLASS } from './import-labels'
 import { toast } from 'sonner'
@@ -131,7 +131,15 @@ export function ManaBoxCollectionImportDialog({
         body: JSON.stringify({ csvContent: text, fileName: file.name }),
       })
 
-      if (!res.ok) throw new Error('Preview failed')
+      if (!res.ok) {
+        if (res.status === 504 || res.status === 408) {
+          if (controller.signal.aborted) return
+          setError(TOO_SLOW_MESSAGE)
+          setStep({ status: 'idle' })
+          return
+        }
+        throw new Error('Preview failed')
+      }
 
       const preview: ManaBoxPreviewResponse = await res.json()
       if (controller.signal.aborted) return

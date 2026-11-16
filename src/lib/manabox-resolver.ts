@@ -116,6 +116,31 @@ export function createSupabaseManaBoxResolver(options: { userId?: string } = {})
   }
 
   return {
+    async prefetchByScryfallIds(scryfallIds: string[]): Promise<void> {
+      const wanted = [...new Set(scryfallIds.map((id) => id.trim()).filter((id) => id && !byScryfallId.has(id)))]
+      const BATCH = 100
+      const batches: string[][] = []
+      for (let i = 0; i < wanted.length; i += BATCH) batches.push(wanted.slice(i, i + BATCH))
+      const PARALLEL = 4
+      for (let i = 0; i < batches.length; i += PARALLEL) {
+        await Promise.all(
+          batches.slice(i, i + PARALLEL).map(async (ids) => {
+            const { data, error } = await supabase
+              .from('ref_printings')
+              .select(PRINTING_COLUMNS)
+              .in('scryfall_id', ids)
+            // A failed batch is left uncached; the single lookup retries it and reports any real error.
+            if (error) return
+            const found = new Map((data ?? []).map((r) => [(r as unknown as PrintingRow).scryfall_id, r as unknown as PrintingRow]))
+            for (const id of ids) {
+              const row = found.get(id)
+              byScryfallId.set(id, row ? toFacts(row) : null)
+            }
+          })
+        )
+      }
+    },
+
     async resolveByName(name: string, opts?: { setCode?: string }): Promise<ManaBoxCardFacts | null> {
       const set = opts?.setCode ? normalizeSetCode(opts.setCode) : ''
       const key = `${nameLookupVariants(name).exact.toLowerCase()}|${set}`

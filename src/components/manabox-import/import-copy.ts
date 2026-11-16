@@ -13,6 +13,9 @@ export const EMPTY_FILE_MESSAGE =
 export const UNREADABLE_FILE_MESSAGE =
   "We couldn't read that file. Export it again and retry."
 
+export const TOO_SLOW_MESSAGE =
+  'This file took too long to check. Try again, or split it into smaller files.'
+
 export function exportHelpText(kind: StageKind): string {
   return kind === 'deck'
     ? 'Export the deck from your deck app or site as CSV or text.'

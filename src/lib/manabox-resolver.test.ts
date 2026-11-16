@@ -155,3 +155,14 @@ describe('createSupabaseManaBoxResolver().resolveBySetCollector', () => {
     expect((await createSupabaseManaBoxResolver().resolveBySetCollector!('sld', '12a'))?.scryfallId).toBe('lettered')
   })
 })
+
+describe('createSupabaseManaBoxResolver().prefetchByScryfallIds', () => {
+  it('resolves many ids in batched queries and caches unknown ids as not found', async () => {
+    const r = createSupabaseManaBoxResolver()
+    await r.prefetchByScryfallIds!(['jaya', 'fire-1', 'nope', ' jaya '])
+    state.log = []
+    expect((await r.resolveByScryfallId('jaya'))?.scryfallId).toBe('jaya')
+    expect(await r.resolveByScryfallId('nope')).toBeNull()
+    expect(state.log).toEqual([])
+  })
+})

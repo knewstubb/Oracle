@@ -116,6 +116,8 @@ export interface ManaBoxCardFacts {
  */
 export interface ManaBoxResolver {
   resolveByScryfallId(scryfallId: string): Promise<ManaBoxCardFacts | null>
+  /** Optional: look up many Scryfall ids in a few batched queries so later single lookups hit the cache. */
+  prefetchByScryfallIds?(scryfallIds: string[]): Promise<void>
   resolveBySetCollector(
     setCode: string,
     collectorNumber: string
@@ -695,6 +697,7 @@ export async function resolveCollectionRows(
   const skippedTokens: ManaBoxSkippedToken[] = []
 
   const candidates: ResolvedManaBoxCandidate[] = []
+  await resolver.prefetchByScryfallIds?.(records.map((r) => r.row.scryfallId))
   const totalCopies = records.reduce((sum, record) => sum + (record.row.quantity || 0), 0)
   let resolvedCopies = 0
   for (const record of records) {
@@ -731,6 +734,7 @@ export async function resolveDeckRows(
     notes.push(...warnings)
     totalLines = records.length + badRows.length
     unmatched.push(...badRows)
+    await resolver.prefetchByScryfallIds?.(records.map((r) => r.row.scryfallId))
     for (const record of records) {
       const candidate = await resolveCsvRecord(record, resolver, unmatched, skippedTokens)
       if (candidate) candidates.push(candidate)

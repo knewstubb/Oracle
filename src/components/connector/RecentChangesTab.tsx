@@ -47,7 +47,7 @@ function SkeletonRows({ label }: { label: string }) {
   )
 }
 
-type UndoState = { status: ChangeStatus; busy?: boolean; refusal?: UndoRefusal | null; undoneAt?: string }
+type UndoState = { status: ChangeStatus; busy?: boolean; refusal?: UndoRefusal | null; refusalText?: string | null; undoneAt?: string }
 
 export function RecentChangesTab() {
   const qc = useQueryClient()
@@ -92,7 +92,7 @@ export function RecentChangesTab() {
       qc.invalidateQueries({ queryKey: connectorKeys.changes })
       focusNext(trigger)
     } else if ('refused' in out) {
-      setUndoState((s) => ({ ...s, [g.groupId]: { status: 'refused', refusal: out.refused } }))
+      setUndoState((s) => ({ ...s, [g.groupId]: { status: 'refused', refusal: out.refused, refusalText: out.text ?? null } }))
       setAnnounce("Can't undo this one. Nothing was changed.")
     } else {
       setUndoState((s) => ({ ...s, [g.groupId]: { status: 'failed' } }))
@@ -233,7 +233,8 @@ export function RecentChangesTab() {
                       busy={local?.busy}
                       undoneAt={local?.undoneAt ?? first.undone_at}
                       refusal={local?.refusal ?? blocker}
-                      cards={g.rows.length > 1 ? g.rows.map((r) => r.card_name) : undefined}
+                      refusalText={local?.refusal ? (local.refusalText ?? null) : first.refusal_text}
+                      cards={first.cards ?? (g.rows.length > 1 ? g.rows.map((r) => r.card_name) : undefined)}
                       onUndo={() => doUndo(g)}
                     />
                   )

@@ -12,7 +12,14 @@ import type {
 
 export type { ChangeLogRow, DeckCounts, MovedSlot, PendingPreview, PendingReason, PendingStatus, UndoRefusal }
 
-export type ChangeRowData = ChangeLogRow & { summary?: string | null; consequence?: string | null }
+/** One element of the changes route = one request (a group). Mirrors ChangeGroupView in src/lib/connector/api-types.ts. */
+export type ChangeRowData = ChangeLogRow & {
+  summary?: string | null
+  consequence?: string | null
+  card_count?: number
+  cards?: string[]
+  refusal_text?: string | null
+}
 
 export interface PendingItem {
   id: string
@@ -97,8 +104,8 @@ export async function fetchPendingCount(): Promise<number> {
   return n
 }
 
-export async function fetchMovedSlots(deckId: number): Promise<MovedSlot[]> {
-  return list<MovedSlot>(await request(`/api/connector/moved-slots?deckId=${deckId}`), 'slots', 'moved', 'data')
+export async function fetchMovedSlots(deckId: number): Promise<(MovedSlot & { sentence?: string })[]> {
+  return list<MovedSlot & { sentence?: string }>(await request(`/api/connector/moved-slots?deckId=${deckId}`), 'slots', 'moved', 'data')
 }
 
 export async function fetchConnectionStatus(): Promise<ConnectionStatus> {
@@ -118,20 +125,20 @@ export async function fetchConnectionStatus(): Promise<ConnectionStatus> {
   }
 }
 
-export type UndoOutcome = { ok: true; undone: number } | { ok: false; refused: UndoRefusal } | { ok: false; failed: true }
+export type UndoOutcome = { ok: true; undone: number } | { ok: false; refused: UndoRefusal; text?: string } | { ok: false; failed: true }
 
 export async function undoGroup(groupId: string): Promise<UndoOutcome> {
   try {
-    const body = await request<{ success?: boolean; undone?: number; refused?: UndoRefusal }>(
+    const body = await request<{ success?: boolean; undone?: number; refused?: UndoRefusal; error?: string }>(
       `/api/connector/changes/${encodeURIComponent(groupId)}/undo`,
       { method: 'POST' },
     )
-    if (body?.success === false && body.refused) return { ok: false, refused: body.refused }
+    if (body?.success === false && body.refused) return { ok: false, refused: body.refused, text: body.error }
     return { ok: true, undone: body?.undone ?? 0 }
   } catch (e) {
     // A refusal may come back as a 4xx with the reason in the body.
-    const refused = e instanceof ApiError ? (e.body as { refused?: UndoRefusal } | null)?.refused : undefined
-    if (refused) return { ok: false, refused }
+    const eb = e instanceof ApiError ? (e.body as { refused?: UndoRefusal; error?: string } | null) : null
+    if (eb?.refused) return { ok: false, refused: eb.refused, text: eb.error }
     return { ok: false, failed: true }
   }
 }
@@ -148,7 +155,8 @@ export async function decidePending(id: string, action: 'approve' | 'decline'): 
     const b = e instanceof ApiError ? (e.body as { error?: unknown } | null) : null
     const stale = e instanceof ApiError && e.status === 409
     // The server's `error` is a plain-words sentence; `reason` is a machine object and is never shown.
-    const sentence = typeof b?.error === 'string' ? b.error.replace(/\.$/, '') : null
+    const raw = (e instanceof ApiError ? (e.body as { reason?: unknown } | null)?.reason : null) ?? b?.error
+    const sentence = typeof raw === 'string' ? raw.replace(/\.$/, '') : null
     return { ok: false, reason: sentence, stale }
   }
 }

@@ -69,7 +69,7 @@ function Ended({ item }: { item: PendingItem }) {
     return (
       <p className="flex items-start gap-2 text-[length:var(--fs-sm)] text-[var(--text-secondary)]">
         <Ban className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-        <span>Cancelled: {item.cancel_reason === 'switched_off' ? 'Claude was switched off' : (item.cancel_reason ?? 'no longer needed')}. Nothing changed.</span>
+        <span>Cancelled: {item.cancel_reason === 'switched_off' || !item.cancel_reason ? 'Claude was switched off' : item.cancel_reason}. Nothing changed.</span>
       </p>
     )
   if (item.status === 'declined')

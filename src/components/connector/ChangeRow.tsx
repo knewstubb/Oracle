@@ -21,6 +21,8 @@ export interface ChangeRowProps {
   busy?: boolean
   undoneAt?: string | null
   refusal?: UndoRefusal | null
+  /** Server-written reason (same wording as when Undo is pressed). Preferred over the client's fallback. */
+  refusalText?: string | null
   /** Several cards in one request: shown as a disclosure. */
   cards?: string[]
   onUndo: () => void
@@ -47,7 +49,7 @@ export function refusalWhat(r: UndoRefusal): string {
 }
 
 export function ChangeRow({
-  summary, consequence, deckName, deckId, cardName, at, client, status, busy = false, undoneAt, refusal, cards, onUndo, actionRef,
+  summary, consequence, deckName, deckId, cardName, at, client, status, busy = false, undoneAt, refusal, refusalText, cards, onUndo, actionRef,
 }: ChangeRowProps) {
   const [open, setOpen] = useState(false)
   const whyId = useId()
@@ -93,13 +95,15 @@ export function ChangeRow({
             )}
           </div>
         )}
-        {refused && refusal && (
+        {refused && (refusal || refusalText) && (
           <div id={whyId} className="mt-2 rounded-lg border border-[var(--signal-critical)] p-2 text-[length:var(--fs-sm)] text-[var(--text-primary)]">
-            {refusal.code === 'owner_only' || refusal.code === 'window_closed' ? (
-              <p><b>Can&apos;t undo this one.</b> {refusalWhat(refusal)}.</p>
+            {refusalText ? (
+              <p><b>Can&apos;t undo this one.</b> {refusalText}</p>
+            ) : refusal?.code === 'owner_only' || refusal?.code === 'window_closed' ? (
+              <p><b>Can&apos;t undo this one.</b> {refusal ? refusalWhat(refusal) : ''}.</p>
             ) : (
               <p>
-                <b>Can&apos;t undo this one.</b> You have changed {refusal.deck ?? deckName ?? 'the deck'} since: {refusalWhat(refusal)}.
+                <b>Can&apos;t undo this one.</b> You have changed {refusal?.deck ?? deckName ?? 'the deck'} since: {refusal ? refusalWhat(refusal) : ''}.
                 Undoing it now could break the deck. You can take it out by hand on the deck page.
               </p>
             )}

@@ -212,6 +212,13 @@ describe('RecentChangesTab', () => {
     expect(screen.getByRole('button', { name: /^Undo/ })).toHaveAttribute('aria-disabled', 'true')
   })
 
+  it('prefers the server-written refusal text when the list loads', async () => {
+    vi.mocked(api.fetchChanges).mockResolvedValue([row({ undo_blocker: { code: 'slot_sleeved' }, refusal_text: 'Cyclonic Rift was sleeved with a copy on 14 Nov.' })])
+    vi.mocked(api.fetchPending).mockResolvedValue([])
+    setup()
+    expect(await screen.findByText(/Cyclonic Rift was sleeved with a copy on 14 Nov\./)).toBeInTheDocument()
+  })
+
   it('a technical failure says nothing changed and never says undone', async () => {
     vi.mocked(api.fetchChanges).mockResolvedValue([row()])
     vi.mocked(api.fetchPending).mockResolvedValue([])

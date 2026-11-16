@@ -35,6 +35,16 @@ export default function StoragePage() {
   })
 
   // Set page header at layout level
+  const { data: system } = useQuery<{ inHand: { count: number }; missing: { count: number } }>({
+    queryKey: ['locations', 'system'],
+    queryFn: async () => {
+      const res = await fetch('/api/locations/system')
+      if (!res.ok) throw new Error('Failed to load system places')
+      return res.json()
+    },
+    staleTime: 30 * 1000,
+  })
+
   usePageHeader({
     title: 'Binders',
     subtitle: 'Your card binders',
@@ -94,6 +104,28 @@ export default function StoragePage() {
                   <span className="text-[length:var(--fs-sm)] text-muted-foreground">
                     {data?.unsortedCount ?? 0} card{(data?.unsortedCount ?? 0) !== 1 ? 's' : ''}
                   </span>
+                </div>
+              </Link>
+
+              {/* System places: not storage, so they are kept apart from the boxes */}
+              <Link
+                href="/storage/in-hand"
+                className="flex flex-col justify-between rounded-xl border border-[var(--border-default)] bg-card p-4 transition-all hover:-translate-y-0.5 hover:shadow-md"
+              >
+                <span className="text-[length:var(--fs-sm)] text-[var(--status-in-hand,#9D8DF1)]" aria-hidden="true">✋</span>
+                <div className="mt-auto pt-6">
+                  <span className="block text-[length:var(--fs-md)] font-medium text-foreground">In your hand</span>
+                  <span className="text-[length:var(--fs-sm)] text-muted-foreground">{system?.inHand.count ?? 0} card{(system?.inHand.count ?? 0) !== 1 ? 's' : ''}</span>
+                </div>
+              </Link>
+              <Link
+                href="/storage/missing"
+                className="flex flex-col justify-between rounded-xl border border-[var(--border-default)] bg-card p-4 transition-all hover:-translate-y-0.5 hover:shadow-md"
+              >
+                <span className="text-[length:var(--fs-sm)] text-amber-300" aria-hidden="true">⚠</span>
+                <div className="mt-auto pt-6">
+                  <span className="block text-[length:var(--fs-md)] font-medium text-foreground">Missing</span>
+                  <span className="text-[length:var(--fs-sm)] text-muted-foreground">{system?.missing.count ?? 0} card{(system?.missing.count ?? 0) !== 1 ? 's' : ''}</span>
                 </div>
               </Link>
 

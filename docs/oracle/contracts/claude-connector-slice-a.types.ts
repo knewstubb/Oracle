@@ -74,6 +74,8 @@ export interface DeckSummary {
   cardCount: number
   sleevedCount: number // deck_cards rows with a physical copy attached
   isActive: boolean
+  /** Added by the ownership extension (list_decks only). Main-deck cards by quantity; maybeboard and generic slots are not counted. */
+  ownershipCounts?: { original: number; proxy: number; notOwned: number }
 }
 
 export interface DeckCardView {
@@ -103,4 +105,57 @@ export interface DeckHealthView {
   computedAt: string | null // ISO
   stale: boolean // computedAt older than 7 days, or deck changed after it (when knowable)
   result: unknown | null // parsed deck_health.result_json, trimmed to the byte cap
+}
+
+/**
+ * Ownership extension: list_deck_cards_by_ownership. Prices are Scryfall estimates in USD (D-035, D-040), never zero when unknown.
+ * Two figures, always labelled: "current value" (what the collection counts today: proxies and unowned cards are $0)
+ * and "value if bought" (the market estimate of each proxy or unowned card, times quantity). Collection value elsewhere is unchanged.
+ */
+export type OwnershipFilter = 'proxy' | 'not_owned' | 'both'
+
+export interface OwnershipPriceSource {
+  source: string // plain words: where the price comes from
+  currency: 'USD'
+  basis: string // how a price was chosen; says it is an estimate
+  unknownMeans: string // what a null price means: no price known, NOT free
+  currentValueMeans: string // why current value is $0 for these cards
+  stale: boolean // price data older than 48 hours (or never refreshed)
+}
+
+export interface OwnershipCardView {
+  deckId: number
+  deckName: string
+  slotId: number // deck_cards.id
+  name: string
+  quantity: number
+  state: 'proxy' | 'not_owned'
+  unitPriceUsd: number | null // null = no known price (never 0)
+  currentValueUsd: number // always 0: proxies and unowned cards add nothing to collection value
+  valueIfBoughtUsd: number | null // unitPriceUsd * quantity; null when the price is unknown
+}
+
+export interface OwnershipDeckTotals {
+  deckId: number
+  deckName: string
+  proxy: number // cards by quantity
+  notOwned: number
+  matching: number // cards that match the filter, by quantity
+  currentValueUsd: number // always 0 for matching cards
+  valueIfBoughtUsd: number // sum of known prices for matching cards
+  unpricedCards: number // matching cards with no known price (not included in valueIfBoughtUsd)
+}
+
+export interface OwnershipByDeckResult {
+  ok: true
+  filter: OwnershipFilter
+  priceSource: OwnershipPriceSource
+  totals: { proxy: number; notOwned: number; matching: number; currentValueUsd: number; valueIfBoughtUsd: number; unpricedCards: number }
+  decks: OwnershipDeckTotals[] // decks with at least one matching card, most matching first (then name). Always complete, never paged.
+  items: OwnershipCardView[] // same deck order as `decks`, then card name; this is the paged part
+  total: number // matching card rows (exact)
+  returned: number
+  offset: number
+  truncated: boolean
+  note?: string
 }

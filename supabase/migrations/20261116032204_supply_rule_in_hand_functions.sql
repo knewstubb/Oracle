@@ -1,6 +1,6 @@
 -- Phase 3 Picklist, slice S0 (supply rule): older stored routines must not count a copy that is In your hand as free.
 --
--- STATUS: DRAFT, NOT APPLIED. Needs owner approval before it moves to supabase/migrations and is applied.
+-- STATUS: APPLIED 2026-11-16 to hosted project udocxsyzzvrceiuupprj (owner approved). 10 functions patched.
 -- Additive: it only re-creates existing functions with one extra condition; no table or column changes, no data touched.
 --
 -- Contract: docs/oracle/contracts/know-where-cards-are.md section 6 ("the latest definition of each must be taken from

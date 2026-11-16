@@ -1,7 +1,8 @@
 -- Phase 3 Picklist, slice 2: Found it / Placed it / Can't find it with saved ticks.
 --
--- STATUS: DRAFT, NOT APPLIED, NOT RUN ANYWHERE (no local Postgres or test account was available; the SQL has not even
--- been syntax-checked by a server). Needs Architect review and owner approval before it moves to supabase/migrations.
+-- STATUS: DRAFT, NOT APPLIED. Architect-reviewed 2026-11-16 (see the review notes at the bottom). Needs a plain-language
+-- owner go-ahead before it moves to supabase/migrations. Checked by reading against the live schema, triggers and the
+-- existing placement routines; its syntax parses cleanly (offline Postgres parser) but it has not been executed anywhere, so the first run should be on a throwaway copy.
 -- Additive: new functions only. No table or column change (move_items and the in_hand / missing columns are already live).
 -- Contract: docs/oracle/contracts/know-where-cards-are.md sections 4 (B1 to B3), 5, 6, 7.
 --
@@ -25,22 +26,34 @@ CREATE OR REPLACE FUNCTION public.picklist_tick(
 ) RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path TO 'public'
+SET search_path TO 'public', 'pg_temp'
 AS $function$
 DECLARE
   v_copy record;
   v_item record;
   v_slot record;
   v_to_kind text := p_to ->> 'kind';
-  v_to_deck_id integer := NULLIF(p_to ->> 'deckId', '')::integer;
-  v_to_slot_id integer := NULLIF(p_to ->> 'deckCardId', '')::integer;
-  v_to_location_id integer := NULLIF(p_to ->> 'locationId', '')::integer;
+  v_to_deck_id integer;
+  v_to_slot_id integer;
+  v_to_location_id integer;
   v_from_slot_id integer;
   v_from_deck_id integer;
   v_target_slot_id integer;
   v_card_name text;
   v_short_decks jsonb := '[]'::jsonb;
 BEGIN
+  IF p_user_id IS NULL OR p_copy_id IS NULL OR p_to IS NULL OR jsonb_typeof(p_to) <> 'object' THEN
+    RAISE EXCEPTION 'target_not_found' USING ERRCODE = 'P0001';
+  END IF;
+  -- Review fix: a non-numeric id used to crash with a raw cast error; now it is a normal target_not_found.
+  IF (p_to ->> 'deckId') IS NOT NULL AND (p_to ->> 'deckId') !~ '^[0-9]{1,9}$'
+     OR (p_to ->> 'deckCardId') IS NOT NULL AND (p_to ->> 'deckCardId') !~ '^[0-9]{1,9}$'
+     OR (p_to ->> 'locationId') IS NOT NULL AND (p_to ->> 'locationId') !~ '^[0-9]{1,9}$' THEN
+    RAISE EXCEPTION 'target_not_found' USING ERRCODE = 'P0001';
+  END IF;
+  v_to_deck_id := NULLIF(p_to ->> 'deckId', '')::integer;
+  v_to_slot_id := NULLIF(p_to ->> 'deckCardId', '')::integer;
+  v_to_location_id := NULLIF(p_to ->> 'locationId', '')::integer;
   IF p_action NOT IN ('found', 'placed', 'cant_find') THEN
     RAISE EXCEPTION 'wrong_state' USING ERRCODE = 'P0001';
   END IF;
@@ -62,6 +75,11 @@ BEGIN
   IF v_to_kind = 'deck' THEN
     PERFORM 1 FROM decks d WHERE d.id = v_to_deck_id AND d.user_id = p_user_id;
     IF NOT FOUND THEN RAISE EXCEPTION 'target_not_found' USING ERRCODE = 'P0001'; END IF;
+    -- Review fix: the planned slot must be in that deck and belong to this user; it was stored unchecked before.
+    IF v_to_slot_id IS NOT NULL THEN
+      PERFORM 1 FROM deck_cards dc WHERE dc.id = v_to_slot_id AND dc.deck_id = v_to_deck_id AND dc.user_id = p_user_id;
+      IF NOT FOUND THEN RAISE EXCEPTION 'target_not_found' USING ERRCODE = 'P0001'; END IF;
+    END IF;
   ELSIF v_to_kind = 'location' THEN
     PERFORM 1 FROM user_locations l WHERE l.id = v_to_location_id AND l.user_id = p_user_id AND l.type = 'storage';
     IF NOT FOUND THEN RAISE EXCEPTION 'target_not_found' USING ERRCODE = 'P0001'; END IF;
@@ -75,6 +93,11 @@ BEGIN
   WHERE dc.copy_id = p_copy_id AND dc.user_id = p_user_id
   LIMIT 1
   FOR UPDATE OF dc;
+
+  -- Review fix: a repeated "Can't find it" (copy already Missing, no open item) is a harmless repeat, not an error.
+  IF p_action = 'cant_find' AND v_copy.missing THEN
+    RETURN jsonb_build_object('success', true, 'state', 'missing', 'unchanged', true);
+  END IF;
 
   -- The open item for this copy, or a new one (the unique open-item index prevents two lists claiming one copy).
   SELECT * INTO v_item
@@ -133,10 +156,6 @@ BEGIN
 
   -- ---- Can't find it -----------------------------------------------------------------------------
   IF p_action = 'cant_find' THEN
-    IF v_item.state = 'missing' THEN
-      RETURN jsonb_build_object('success', true, 'item_id', v_item.id, 'state', 'missing', 'unchanged', true);
-    END IF;
-
     SELECT COALESCE(jsonb_agg(jsonb_build_object('deckId', d.id, 'deckName', d.name, 'cardName', dc.card_name)), '[]'::jsonb)
     INTO v_short_decks
     FROM deck_cards dc JOIN decks d ON d.id = dc.deck_id
@@ -155,9 +174,7 @@ BEGIN
   END IF;
 
   -- ---- Placed it ---------------------------------------------------------------------------------
-  IF v_item.state = 'placed' THEN
-    RETURN jsonb_build_object('success', true, 'item_id', v_item.id, 'state', 'placed', 'unchanged', true);
-  END IF;
+  -- (Only open items are loaded, so a repeat of Placed on a copy that is no longer in hand is refused as not_in_hand.)
   IF v_item.state <> 'found' OR NOT v_copy.in_hand THEN RAISE EXCEPTION 'not_in_hand' USING ERRCODE = 'P0001'; END IF;
 
   IF v_to_kind = 'deck' THEN
@@ -185,7 +202,6 @@ BEGIN
         placement_source = 'manual'
     WHERE id = v_target_slot_id;
     -- The identity trigger (trg_validate_deck_card_copy_identity) rolls this whole tick back if the card does not match.
-    UPDATE user_copies SET location_id = NULL WHERE id = p_copy_id;
   ELSE
     UPDATE user_copies SET location_id = v_to_location_id, in_hand = false WHERE id = p_copy_id;
   END IF;
@@ -207,3 +223,17 @@ REVOKE ALL ON FUNCTION public.picklist_tick(uuid, text, integer, jsonb) FROM PUB
 GRANT EXECUTE ON FUNCTION public.picklist_tick(uuid, text, integer, jsonb) TO service_role;
 
 -- Rollback: DROP FUNCTION public.picklist_tick(uuid, text, integer, jsonb);
+
+-- ARCHITECT REVIEW NOTES (2026-11-16), changes made to the first draft:
+--  1. Bad input: non-numeric ids, null user/copy/target now give target_not_found instead of a raw database error.
+--  2. The planned slot (deckCardId) is checked to belong to this user and this deck before it is stored on the item.
+--  3. Repeating "Can't find it" on a copy that is already Missing now returns "unchanged"; the old "unchanged" branches for
+--     missing/placed could never run (only open items are loaded) and were removed. Repeating "Placed it" is refused
+--     as not_in_hand, which is correct (the copy is no longer in hand).
+--  4. search_path now also pins pg_temp last; one redundant location update on placing into a deck was removed.
+--  5. Checked and left as is: every lookup and write is scoped by p_user_id (a copy, deck, slot or box belonging to
+--     another user reads as copy_not_found / target_not_found, with no hint it exists); execute is granted to the service
+--     role only, so the app route must pass the signed-in user's id, never a client-supplied one; one transaction, so
+--     any refusal (including the card-identity guard) undoes the whole tick; same per-copy lock as every other routine.
+--  6. Known limits (not bugs): when the planned slot is taken the routine fills another empty slot for the same card name,
+--     and the identity guard will refuse it (whole tick rolled back) if that slot wants a different printing.

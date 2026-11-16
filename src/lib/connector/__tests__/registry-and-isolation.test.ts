@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { CONNECTOR_TOOLS, toJsonSchema } from '../tools'
+import { CONNECTOR_READ_TOOLS_B, CONNECTOR_WRITE_TOOLS, DESTRUCTIVE_HINT_TOOLS, isBlockedToolName } from '../edit-config'
 
 const ROOT = path.resolve(__dirname, '..')
 
@@ -12,11 +13,27 @@ function walk(dir: string): string[] {
   })
 }
 
+const READ = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+const EDIT = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
+
 describe('registered tools', () => {
-  it('are exactly the five read-only tools, all readOnlyHint', () => {
-    expect(CONNECTOR_TOOLS.map((t) => t.name)).toEqual(['get_collection_summary', 'search_collection', 'list_decks', 'get_deck', 'get_deck_health'])
+  it('are exactly the slice A readers plus the slice B list, in order', () => {
+    expect(CONNECTOR_TOOLS.map((t) => t.name)).toEqual([
+      'get_collection_summary', 'search_collection', 'list_decks', 'get_deck', 'get_deck_health',
+      ...CONNECTOR_WRITE_TOOLS, ...CONNECTOR_READ_TOOLS_B,
+    ])
+  })
+  it('readers are read-only; writers are not; destructiveHint only where the contract says', () => {
     for (const t of CONNECTOR_TOOLS) {
-      expect(t.annotations).toEqual({ readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false })
+      const isWriter = (CONNECTOR_WRITE_TOOLS as readonly string[]).includes(t.name)
+      if (!isWriter) expect(t.annotations, t.name).toEqual(READ)
+      else expect(t.annotations, t.name).toEqual((DESTRUCTIVE_HINT_TOOLS as readonly string[]).includes(t.name) ? { ...EDIT, destructiveHint: true } : EDIT)
+    }
+  })
+  it('no registered name is blocked, and no description claims it can delete from the collection', () => {
+    for (const t of CONNECTOR_TOOLS) {
+      expect(isBlockedToolName(t.name), t.name).toBe(false)
+      expect(t.description, t.name).not.toMatch(/delete (a|the) (card|copy|collection)/i)
     }
   })
   it('every input schema is strict (unknown keys rejected) and none takes a user id', () => {
@@ -30,9 +47,9 @@ describe('registered tools', () => {
 
 describe('service-role isolation and read-only wrapper', () => {
   const files = walk(ROOT).filter((f) => f.endsWith('.ts'))
-  it('only connection-store imports createAdminClient or reads the service key', () => {
+  it('only connection-store and write-gateway import createAdminClient or read the service key', () => {
     for (const f of files) {
-      if (path.basename(f) === 'connection-store.ts') continue
+      if (['connection-store.ts', 'write-gateway.ts'].includes(path.basename(f))) continue
       const src = readFileSync(f, 'utf8')
       expect(src, f).not.toMatch(/createAdminClient|SUPABASE_SERVICE_ROLE_KEY/)
     }
@@ -40,7 +57,7 @@ describe('service-role isolation and read-only wrapper', () => {
   it('tool modules never import the connection store or write/rpc methods', () => {
     for (const f of walk(path.join(ROOT, 'tools'))) {
       const src = readFileSync(f, 'utf8')
-      expect(src, f).not.toMatch(/connection-store|\.(insert|update|upsert|delete|rpc)\(/)
+      expect(src, f).not.toMatch(/connection-store|write-gateway|\.(insert|update|upsert|delete|rpc)\(/)
     }
   })
   it('the db wrapper type exposes select only', () => {

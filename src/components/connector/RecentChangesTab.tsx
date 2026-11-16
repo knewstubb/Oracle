@@ -168,7 +168,7 @@ export function RecentChangesTab() {
           <div className="flex items-start gap-2 rounded-lg border border-[var(--border-default)] p-3 text-[length:var(--fs-sm)] text-[var(--text-primary)]">
             <Lock className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <p>
-              <b>Only you can approve these.</b> Claude can ask, but it can&apos;t say yes for you. That&apos;s true even if Claude&apos;s own
+              <b>Only you can approve these.</b>{' '}Claude can ask, but it can&apos;t say yes for you. That&apos;s true even if Claude&apos;s own
               &quot;ask me first&quot; prompts are switched off. Nothing below has happened yet.
             </p>
           </div>

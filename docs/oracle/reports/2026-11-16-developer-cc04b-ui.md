@@ -55,3 +55,15 @@ There is now a "Claude connector" page under Settings with three tabs. Connectio
 - `npx next build --webpack`: compiles, then stops at the same `api-types.ts` type error. Not green until the server Developer fixes it; my files introduce no errors.
 - `npx eslint src/components/connector src/app/settings`: no errors, no warnings in my files.
 - Unverified: nothing has run against the real routes (they did not exist when I finished: `src/app/api/connector` only has `revoke`), so the wire adapters are tested with mocked responses only. Not checked in a browser at 360px, with a screen reader, or for real contrast ratios. Tester should run those once routes land.
+
+## Addendum 2026-11-16: fixes for the four tester defects
+Status: DONE
+
+1. Cancelled card showed the reason twice: `cancelReasonText` in `format.ts` strips a repeated "Cancelled" and "Nothing changed"; the card now reads "Cancelled: You switched the connection off. Nothing changed." once. [Confirmed: src/components/connector/PendingCard.tsx]
+2. Expiry time: new `formatWhen` in `format.ts` says "tomorrow 2:03 pm", "yesterday …" or a date when not today. Used for the "Disappears if nobody answers by" line. I left `formatClock` as a plain clock because the change rows already sit under day headings.
+3. Missing space: explicit `{' '}` after "Only you can approve these." in `RecentChangesTab.tsx`; the test checks the joined text.
+4. Header at 360px: `PageHeader` now wraps (title block can shrink, chip drops under the title when tight) and the chip may shrink and wrap its text. `PageHeader` has no icon buttons of its own; the icon buttons in the top bar (`TopNav.tsx`) already carry names (Search, Toggle Oracle assistant, Open menu, Settings, User menu), so I changed nothing there. I could not identify the three unnamed buttons; not seen in a browser by me. Tester should recheck at 360px.
+
+Changed: `PendingCard.tsx`, `PendingChip.tsx`, `PageHeader.tsx`, `format.ts`, `RecentChangesTab.tsx`, `RecentChangesTab.test.tsx`, new `format.test.ts`.
+
+Verification: `npx vitest --run` 271 files passed, 3181 passed, 46 skipped. `npx next build --webpack` succeeded.

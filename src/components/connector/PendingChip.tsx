@@ -19,11 +19,11 @@ export function PendingChip() {
     <Link
       href="/settings/claude-connector?tab=changes#waiting"
       data-testid="pending-chip"
-      className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-3 text-[length:var(--fs-sm)] text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
+      className="inline-flex min-h-[44px] max-w-full items-center gap-1.5 rounded-full border px-3 py-1 text-[length:var(--fs-sm)] text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
       style={{ borderColor: 'var(--signal-warning, #EF9F27)', backgroundColor: 'rgba(239, 159, 39, 0.15)' }}
     >
-      <Pause className="size-3.5" aria-hidden="true" />
-      <span>{data} Claude is waiting for your yes</span>
+      <Pause className="size-3.5 shrink-0" aria-hidden="true" />
+      <span className="min-w-0">{data} Claude is waiting for your yes</span>
     </Link>
   )
 }

@@ -108,6 +108,7 @@ describe('RecentChangesTab', () => {
     const applied = screen.getByRole('heading', { name: 'Changes Claude made' })
     expect(heading.compareDocumentPosition(applied) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.getByText(/Only you can approve these/)).toBeInTheDocument()
+    expect(screen.getByText(/Only you can approve these/).parentElement?.textContent).toContain('approve these. Claude can ask')
     const [move, big] = screen.getAllByTestId('pending-card')
     expect(within(move).getByText('Move Sol Ring from Prosper to Korvold?')).toBeInTheDocument()
     // losing deck first
@@ -158,12 +159,14 @@ describe('RecentChangesTab', () => {
     vi.mocked(api.fetchChanges).mockResolvedValue([])
     vi.mocked(api.fetchPending).mockResolvedValue([
       moveItem({ id: 'a', status: 'expired' }),
-      moveItem({ id: 'b', status: 'cancelled', cancel_reason: 'switched_off' }),
+      moveItem({ id: 'b', status: 'cancelled', cancel_reason: 'Cancelled. You switched the connection off. Nothing changed.' }),
       moveItem({ id: 'c', status: 'failed', failure_reason: 'Sol Ring is no longer in Prosper' }),
     ])
     setup()
     expect(await screen.findByText('Expired. Nobody answered within 24 hours. Nothing changed.')).toBeInTheDocument()
-    expect(screen.getByText(/Cancelled: Claude was switched off/)).toBeInTheDocument()
+    const cancelled = screen.getByText(/^Cancelled: /)
+    expect(cancelled).toHaveTextContent('Cancelled: You switched the connection off. Nothing changed.')
+    expect(cancelled.textContent).not.toMatch(/Nothing changed\.\./)
     expect(screen.getByText(/Couldn't apply. Sol Ring is no longer in Prosper. Nothing was moved/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Approve move' })).toBeNull()
   })

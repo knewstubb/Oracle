@@ -33,3 +33,31 @@ export function dayLabel(iso: string, now: Date = new Date()): string {
   if (dayKey(iso) === dayKey(y.toISOString())) return 'Yesterday'
   return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
 }
+
+/** Clock time, with "tomorrow", "yesterday" or the date when it is not today. */
+export function formatWhen(iso: string | null | undefined, now: Date = new Date()): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const key = dayKey(iso)
+  const shift = (n: number) => {
+    const x = new Date(now)
+    x.setDate(x.getDate() + n)
+    return dayKey(x.toISOString())
+  }
+  if (key === dayKey(now.toISOString())) return formatClock(iso)
+  if (key === shift(1)) return `tomorrow ${formatClock(iso)}`
+  if (key === shift(-1)) return `yesterday ${formatClock(iso)}`
+  return `${formatDate(iso)}, ${formatClock(iso)}`
+}
+
+/** One plain reason for a cancelled request, without a repeated "Cancelled" or "Nothing changed". */
+export function cancelReasonText(reason: string | null | undefined): string {
+  const r = (reason ?? '')
+    .replace(/^\s*cancelled\s*[.:]?\s*/i, '')
+    .replace(/\s*nothing changed\.?\s*$/i, '')
+    .replace(/[.\s]+$/, '')
+    .trim()
+  if (!r || r === 'switched_off') return 'Claude was switched off'
+  return r
+}

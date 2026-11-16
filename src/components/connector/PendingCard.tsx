@@ -5,7 +5,7 @@ import { Ban, Clock, Loader2, Pause, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { computeDeckReadiness } from '@/lib/deck-readiness'
 import type { DeckCounts, PendingItem } from './api'
-import { formatClock } from './format'
+import { cancelReasonText, formatClock, formatWhen } from './format'
 
 const REQUIRED_SIZE = 100 // Commander size; same default the deck state badge assumes
 
@@ -69,7 +69,7 @@ function Ended({ item }: { item: PendingItem }) {
     return (
       <p className="flex items-start gap-2 text-[length:var(--fs-sm)] text-[var(--text-secondary)]">
         <Ban className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-        <span>Cancelled: {item.cancel_reason === 'switched_off' || !item.cancel_reason ? 'Claude was switched off' : item.cancel_reason}. Nothing changed.</span>
+        <span>Cancelled: {cancelReasonText(item.cancel_reason)}. Nothing changed.</span>
       </p>
     )
   if (item.status === 'declined')
@@ -180,7 +180,7 @@ export function PendingCard({ item, busy = null, onApprove, onDecline, onDismiss
           <Ended item={item} />
         ) : (
           <p className="text-[length:var(--fs-xs)] text-[var(--text-secondary)]">
-            Disappears if nobody answers by {formatClock(item.expires_at)}.
+            Disappears if nobody answers by {formatWhen(item.expires_at)}.
           </p>
         )}
       </div>

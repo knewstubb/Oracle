@@ -35,6 +35,8 @@ interface LocationDetail {
 
 type ViewMode = 'list' | 'grid'
 
+const PAGE_SIZE = 100
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
@@ -46,6 +48,7 @@ export default function StorageDetailPage() {
 
   const [searchQuery, setSearchQuery] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('list')
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
   const { data, isLoading } = useQuery<LocationDetail>({
     queryKey: ['storage', 'location', locationId],
@@ -71,6 +74,24 @@ export default function StorageDetailPage() {
         c.setName.toLowerCase().includes(query)
     )
   }, [data?.copies, searchQuery])
+
+  const visibleCopies = useMemo(
+    () => filteredCopies.slice(0, visibleCount),
+    [filteredCopies, visibleCount]
+  )
+  const remaining = filteredCopies.length - visibleCopies.length
+  const showMore = remaining > 0 && (
+    <div className="flex justify-center p-4">
+      <button
+        type="button"
+        onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}
+        className="rounded-lg px-4 py-2 text-[length:var(--fs-sm)] text-foreground hover:bg-[rgba(255,255,255,0.05)]"
+        style={{ border: '1px solid var(--border-emphasis)' }}
+      >
+        Show more ({Math.min(PAGE_SIZE, remaining)} of {remaining} remaining)
+      </button>
+    </div>
+  )
 
   // Set page header at layout level
   usePageHeader({
@@ -104,7 +125,10 @@ export default function StorageDetailPage() {
                   type="search"
                   placeholder="Search cards…"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value)
+                    setVisibleCount(PAGE_SIZE)
+                  }}
                   className="pl-8"
                   aria-label="Search cards in this location"
                 />
@@ -183,7 +207,7 @@ export default function StorageDetailPage() {
           ) : viewMode === 'grid' ? (
             /* ─── Grid View ─────────────────────────────────────── */
             <div className="grid grid-cols-6 gap-3 p-4">
-              {filteredCopies.map((copy) => (
+              {visibleCopies.map((copy) => (
                 <div
                   key={copy.physicalCopyId}
                   className="group/tile relative aspect-[5/7] overflow-hidden rounded-lg"
@@ -228,11 +252,12 @@ export default function StorageDetailPage() {
                   </div>
                 </div>
               ))}
+              {showMore && <div className="col-span-6">{showMore}</div>}
             </div>
           ) : (
             /* ─── List View ─────────────────────────────────────── */
             <div className="flex flex-col divide-y divide-[rgba(255,255,255,0.04)]">
-              {filteredCopies.map((copy) => (
+              {visibleCopies.map((copy) => (
                 <div
                   key={copy.physicalCopyId}
                   className="flex items-center gap-3 px-4 py-3"
@@ -275,6 +300,7 @@ export default function StorageDetailPage() {
                   />
                 </div>
               ))}
+              {showMore}
             </div>
           )}
         </div>
@@ -289,6 +315,7 @@ export default function StorageDetailPage() {
 
 function StorageCopyAssignButton({ cardName, physicalCopyId }: { cardName: string; physicalCopyId: number }) {
   const queryClient = useQueryClient()
+  const [opened, setOpened] = useState(false)
 
   const { data: validDecks, isLoading } = useQuery<ValidDeck[]>({
     queryKey: ['valid-decks', cardName],
@@ -298,6 +325,7 @@ function StorageCopyAssignButton({ cardName, physicalCopyId }: { cardName: strin
       return res.json()
     },
     staleTime: 60 * 1000,
+    enabled: opened,
   })
 
   const assignMutation = useMutation({
@@ -340,6 +368,7 @@ function StorageCopyAssignButton({ cardName, physicalCopyId }: { cardName: strin
     <DeckPickerPopover
       validDecks={validDecks ?? []}
       isLoading={isLoading}
+      onOpenChange={(o) => { if (o) setOpened(true) }}
       onSelect={(deck) => assignMutation.mutate(deck.deckId)}
       disabled={assignMutation.isPending}
       label="Assign"

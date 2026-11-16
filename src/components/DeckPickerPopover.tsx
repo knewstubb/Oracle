@@ -28,6 +28,8 @@ interface DeckPickerPopoverProps {
   label?: string
   /** Trigger button variant */
   variant?: 'outline' | 'default'
+  /** Called when the popover opens or closes (e.g. to fetch decks on demand) */
+  onOpenChange?: (open: boolean) => void
   children?: React.ReactNode
 }
 
@@ -49,6 +51,7 @@ export function DeckPickerPopover({
   disabled = false,
   label = 'Assign',
   variant = 'outline',
+  onOpenChange,
   children,
 }: DeckPickerPopoverProps) {
   const [open, setOpen] = useState(false)
@@ -59,7 +62,13 @@ export function DeckPickerPopover({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        onOpenChange?.(next)
+      }}
+    >
       <PopoverTrigger
         render={
           isValidElement(children) ? (

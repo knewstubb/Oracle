@@ -1,8 +1,6 @@
 -- Phase 3 Picklist, slice 2: Found it / Placed it / Can't find it with saved ticks.
 --
--- STATUS: DRAFT, NOT APPLIED. Architect-reviewed 2026-11-16 (see the review notes at the bottom). Needs a plain-language
--- owner go-ahead before it moves to supabase/migrations. Checked by reading against the live schema, triggers and the
--- existing placement routines; its syntax parses cleanly (offline Postgres parser) but it has not been executed anywhere, so the first run should be on a throwaway copy.
+-- STATUS: APPLIED to hosted project The Oracle on 2026-11-16 (owner approved), version 20261116032532. Smoke-tested in a rolled-back transaction.
 -- Additive: new functions only. No table or column change (move_items and the in_hand / missing columns are already live).
 -- Contract: docs/oracle/contracts/know-where-cards-are.md sections 4 (B1 to B3), 5, 6, 7.
 --

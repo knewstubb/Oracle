@@ -9,6 +9,8 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { MoveHereControl } from '@/components/MoveHereControl'
 import { categorizeCards, type PicklistCard } from '@/lib/picklist-groups'
+import { excludeSlotsWithOpenItems, itemGroup, type DeckMoveItem } from '@/lib/picklist-move-items'
+import { tickToastText, type PicklistTickAction, type TickResult } from '@/lib/picklist-ticks'
 import { toPrice, formatPrice } from '@/lib/deck-health-buy'
 import { CardHoverPreview, useCardHoverPreview } from '@/components/CardHoverPreview'
 import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
@@ -28,8 +30,17 @@ interface PicklistResponse {
   deckName: string
   cards: PicklistCard[]
   progress: { resolved: number; total: number }
-  groups?: { available: number; needsMoving: number; unowned: number }
+  groups?: { available: number; needsMoving: number; unowned: number; inHand?: number; missing?: number }
   unownedPrices?: Record<string, number | null>
+  /** Saved Found it / Can't find it steps for this deck's slots (In your hand, Missing). */
+  moveItems?: DeckMoveItem[]
+}
+
+interface TickVars {
+  action: PicklistTickAction
+  copyId: number
+  cardName: string
+  to: { kind: 'deck'; deckId: number; deckCardId?: number }
 }
 
 // ---------------------------------------------------------------------------
@@ -53,9 +64,17 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
 
   const { available, needsMoving, unowned } = useMemo(() => {
     if (!picklist) return { available: [], needsMoving: [], unowned: [] }
-    const unresolvedCards = picklist.cards.filter(c => c.lifecycle === 'planned' && !c.isResolved)
+    // Slots with a saved step (In your hand / Missing) are shown as their own rows, not regrouped.
+    const unresolvedCards = excludeSlotsWithOpenItems(
+      picklist.cards.filter(c => c.lifecycle === 'planned' && !c.isResolved),
+      picklist.moveItems ?? [],
+    )
     return categorizeCards(unresolvedCards, deckId)
   }, [picklist, deckId])
+
+  const moveItems = useMemo(() => picklist?.moveItems ?? [], [picklist])
+  const [announce, setAnnounce] = useState('')
+  const [walking, setWalking] = useState<Record<number, boolean>>({})
 
   // Search state + filtered results
   const [searchQuery, setSearchQuery] = useState('')
@@ -92,6 +111,39 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
     onSuccess: () => {
       const { invalidateCardState } = createDeckInvalidators(queryClient)
       invalidateCardState(deckId)
+    },
+  })
+
+  // Found it / Placed it / Can't find it: one saved step per click. Not optimistic: the row only changes once the
+  // step is saved, and a refusal leaves the row exactly as it was with a plain message.
+  const tickMutation = useMutation({
+    mutationFn: async (vars: TickVars): Promise<TickResult> => {
+      const segment = vars.action === 'cant_find' ? 'cant-find' : vars.action
+      const res = await fetch(`/api/picklist/${segment}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ copyId: vars.copyId, to: vars.to, cardName: vars.cardName }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.message || `Couldn't save that. ${vars.cardName} is still where Oracle had it.`)
+      return json as TickResult
+    },
+    onSuccess: (result, vars) => {
+      const text = tickToastText(vars.action, vars.cardName, result, 'this deck')
+      toast.success(text)
+      setAnnounce(text)
+      const { invalidateCardState, invalidateDeck } = createDeckInvalidators(queryClient)
+      invalidateCardState(deckId)
+      invalidateDeck(deckId)
+      for (const d of [...result.sourceDeckNowShort, ...result.decksNowShort]) invalidateDeck(d.deckId)
+      queryClient.invalidateQueries({ queryKey: ['picklist'] })
+      queryClient.invalidateQueries({ queryKey: ['locations', 'system'] })
+      queryClient.invalidateQueries({ queryKey: ['storage'] })
+    },
+    onError: (err) => {
+      const text = err instanceof Error ? err.message : "Couldn't save that."
+      toast.error(text)
+      setAnnounce(text)
     },
   })
 
@@ -132,6 +184,10 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
       },
     )
   }, [assignMutation])
+
+  const tick = useCallback((action: PicklistTickAction, card: { deckCardsId: number; cardName: string }, copyId: number) => {
+    tickMutation.mutate({ action, copyId, cardName: card.cardName, to: { kind: 'deck', deckId, deckCardId: card.deckCardsId } })
+  }, [tickMutation, deckId])
 
   const handleProxy = useCallback((card: PicklistCard) => {
     proxyMutation.mutate({ deckCardsId: card.deckCardsId, cardName: card.cardName })
@@ -177,7 +233,7 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
     )
   }
 
-  const isPending = assignMutation.isPending || proxyMutation.isPending
+  const isPending = assignMutation.isPending || proxyMutation.isPending || tickMutation.isPending
 
   // Empty deck — no cards at all
   if (picklist.progress.total === 0) {
@@ -197,6 +253,14 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
   const countAvailable = available.reduce((n, g) => n + g.items.length, 0)
   const countNeedsMoving = needsMoving.reduce((n, g) => n + g.items.length, 0)
   const countUnowned = unowned.length
+  const handItems = moveItems.filter(i => i.state === 'found')
+  const missingItems = moveItems.filter(i => i.state === 'missing')
+  const q = searchQuery.trim().toLowerCase()
+  const itemsFor = (g: 'available' | 'needsMoving') =>
+    moveItems.filter(i => itemGroup(i) === g && (!q || i.cardName.toLowerCase().includes(q)))
+  const availableItems = itemsFor('available')
+  const needsMovingItems = itemsFor('needsMoving')
+  const busyCopyId = tickMutation.isPending ? tickMutation.variables?.copyId : null
   const prices = picklist.unownedPrices ?? {}
   const toggle = (k: GroupKey) => setCollapsed((c) => ({ ...c, [k]: !c[k] }))
 
@@ -207,7 +271,13 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
       <p className="mb-4 text-[length:var(--fs-sm)] text-muted-foreground" data-testid="picklist-summary">
         <span className="font-medium text-foreground">{picklist.progress.resolved} of {picklist.progress.total} ready</span>
         {' · '}{countAvailable} available · {countNeedsMoving} need moving · {countUnowned} unowned
+        {handItems.length > 0 && ` · ${handItems.length} in your hand`}
+        {missingItems.length > 0 && ` · ${missingItems.length} missing`}
       </p>
+      <p className="mb-3 text-[length:var(--fs-xs)] text-muted-foreground">
+        Ticks save straight away. Found takes the card out of its deck in Oracle at once.
+      </p>
+      <p role="status" aria-live="polite" className="sr-only" data-testid="picklist-announce">{announce}</p>
 
       {/* Search input */}
       <div className="relative mb-4 max-w-sm">
@@ -246,7 +316,10 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
           collapsed={collapsed.available}
           onToggle={() => toggle('available')}
         >
-          {filteredAvailable.length === 0 ? (
+          {availableItems.length > 0 && (
+            <ItemSection items={availableItems} deckId={deckId} busyCopyId={busyCopyId} onTick={tick} />
+          )}
+          {filteredAvailable.length === 0 && availableItems.length === 0 ? (
             <EmptyColumn message="Nothing here is waiting in a box." />
           ) : (
             filteredAvailable.map((group) => (
@@ -259,17 +332,37 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
                     subtitle={candidate.entry.isProxy ? 'Proxy' : 'Original'}
                     scryfallPrintingId={candidate.entry.scryfallPrintingId}
                     action={
-                      <Button
-                        size="xs"
-                        variant="outline"
-                        disabled={isPending}
-                        onClick={() => handlePlaced(card, candidate)}
-                        aria-label={`Placed it: ${card.cardName}`}
-                        className="hover:bg-[rgba(29,158,117,0.15)] hover:scale-105 transition-all"
-                        style={{ color: 'rgba(29,158,117,0.7)', borderColor: 'rgba(29,158,117,0.5)' }}
-                      >
-                        Placed it
-                      </Button>
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          disabled={isPending}
+                          onClick={() => tick('found', card, candidate.entry.physicalCopyId)}
+                          aria-label={`Found it: ${card.cardName}`}
+                        >
+                          {busyCopyId === candidate.entry.physicalCopyId ? 'Saving…' : 'Found it'}
+                        </Button>
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          disabled={isPending}
+                          onClick={() => handlePlaced(card, candidate)}
+                          aria-label={`Placed it: ${card.cardName}`}
+                          className="hover:bg-[rgba(29,158,117,0.15)] hover:scale-105 transition-all"
+                          style={{ color: 'rgba(29,158,117,0.7)', borderColor: 'rgba(29,158,117,0.5)' }}
+                        >
+                          Placed it
+                        </Button>
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          onClick={() => tick('cant_find', card, candidate.entry.physicalCopyId)}
+                          aria-label={`Can't find it: ${card.cardName}`}
+                          className="text-[length:var(--fs-xs)] text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:opacity-50"
+                        >
+                          Can&apos;t find it
+                        </button>
+                      </div>
                     }
                   />
                 ))}
@@ -287,7 +380,10 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
           collapsed={collapsed.needsMoving}
           onToggle={() => toggle('needsMoving')}
         >
-          {filteredNeedsMoving.length === 0 ? (
+          {needsMovingItems.length > 0 && (
+            <ItemSection items={needsMovingItems} deckId={deckId} busyCopyId={busyCopyId} onTick={tick} />
+          )}
+          {filteredNeedsMoving.length === 0 && needsMovingItems.length === 0 ? (
             <EmptyColumn message="Nothing needs to move from another deck." />
           ) : (
             filteredNeedsMoving.map((group) => (
@@ -303,7 +399,42 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
                     isProxy={candidate.entry.isProxy}
                     subtitle={candidate.entry.isProxy ? 'Proxy' : 'Original'}
                     scryfallPrintingId={candidate.entry.scryfallPrintingId}
-                    action={<MoveHereControl deckId={deckId} cardName={card.cardName} />}
+                    action={
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <MoveHereControl deckId={deckId} cardName={card.cardName} />
+                        {walking[card.deckCardsId] ? (
+                          <>
+                            <Button
+                              size="xs"
+                              variant="outline"
+                              disabled={isPending}
+                              onClick={() => tick('found', card, candidate.entry.physicalCopyId)}
+                              aria-label={`Found it: ${card.cardName}`}
+                            >
+                              {busyCopyId === candidate.entry.physicalCopyId ? 'Saving…' : 'Found it'}
+                            </Button>
+                            <Button
+                              size="xs"
+                              variant="outline"
+                              disabled
+                              aria-disabled="true"
+                              aria-label={`Placed it: ${card.cardName}`}
+                              title={`Pick it up first, at ${group.deckName}`}
+                            >
+                              Placed it
+                            </Button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setWalking((w) => ({ ...w, [card.deckCardsId]: true }))}
+                            className="text-[length:var(--fs-xs)] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                          >
+                            Walk it instead
+                          </button>
+                        )}
+                      </div>
+                    }
                   />
                 ))}
               </GroupSection>
@@ -414,12 +545,16 @@ function CardRow({
   subtitle,
   scryfallPrintingId,
   action,
+  badge,
+  note,
 }: {
   cardName: string
   isProxy: boolean
   subtitle: string
   scryfallPrintingId: string | null
   action: React.ReactNode
+  badge?: React.ReactNode
+  note?: string
 }) {
   const { triggerProps, previewProps } = useCardHoverPreview({
     scryfallId: scryfallPrintingId,
@@ -452,8 +587,10 @@ function CardRow({
             {isProxy ? 'comedy_mask' : 'circle'}
           </span>
           {subtitle || (isProxy ? 'Proxy' : 'Original')}
+          {note && <span className="ml-2 text-muted-foreground/70">· {note}</span>}
         </span>
       </div>
+      {badge}
 
       {/* Action */}
       {action}
@@ -461,6 +598,106 @@ function CardRow({
       {/* Card preview — above/below row */}
       <CardHoverPreview {...previewProps} />
     </div>
+  )
+}
+
+/** In your hand and Missing rows: the saved steps for this deck's slots. */
+function ItemSection({
+  items, deckId, busyCopyId, onTick,
+}: {
+  items: DeckMoveItem[]
+  deckId: number
+  busyCopyId: number | null | undefined
+  onTick: (action: PicklistTickAction, card: { deckCardsId: number; cardName: string }, copyId: number) => void
+}) {
+  const hand = items.filter((i) => i.state === 'found')
+  const missing = items.filter((i) => i.state === 'missing')
+  return (
+    <>
+      {hand.length > 0 && (
+        <GroupSection title={`IN YOUR HAND (${hand.length})`} subtitle="Short by 1 while it is in your hand">
+          {hand.map((item) => {
+            const card = { deckCardsId: item.deckCardsId ?? 0, cardName: item.cardName }
+            const busy = busyCopyId === item.copyId
+            return (
+              <CardRow
+                key={item.itemId}
+                cardName={item.cardName}
+                isProxy={item.isProxy}
+                subtitle={item.isProxy ? 'Proxy' : 'Original'}
+                scryfallPrintingId={null}
+                badge={<StateBadge kind="in_hand" />}
+                note={item.from ? `From ${item.from.name}` : undefined}
+                action={
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      disabled={busyCopyId != null || item.deckCardsId === null}
+                      onClick={() => onTick('placed', card, item.copyId)}
+                      aria-label={`Placed it: ${item.cardName}`}
+                      className="hover:bg-[rgba(29,158,117,0.15)] transition-all"
+                      style={{ color: 'rgba(29,158,117,0.7)', borderColor: 'rgba(29,158,117,0.5)' }}
+                    >
+                      {busy ? 'Saving…' : 'Placed it'}
+                    </Button>
+                    <button
+                      type="button"
+                      disabled={busyCopyId != null}
+                      onClick={() => onTick('cant_find', card, item.copyId)}
+                      aria-label={`Can't find it: ${item.cardName}`}
+                      className="text-[length:var(--fs-xs)] text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:opacity-50"
+                    >
+                      Can&apos;t find it
+                    </button>
+                  </div>
+                }
+              />
+            )
+          })}
+        </GroupSection>
+      )}
+      {missing.length > 0 && (
+        <GroupSection title={`MISSING (${missing.length})`} subtitle="This slot stays planned">
+          {missing.map((item) => (
+            <CardRow
+              key={item.itemId}
+              cardName={item.cardName}
+              isProxy={item.isProxy}
+              subtitle="Short by 1. Your only copy is Missing."
+              scryfallPrintingId={null}
+              badge={<StateBadge kind="missing" />}
+              note={item.from ? `Oracle had it in ${item.from.name}` : undefined}
+              action={
+                <a
+                  href="/storage/missing"
+                  className="text-[length:var(--fs-xs)] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                >
+                  Where to look next
+                </a>
+              }
+            />
+          ))}
+        </GroupSection>
+      )}
+    </>
+  )
+}
+
+/** Colour plus icon plus words (D-012). In your hand is violet, Missing is amber. */
+function StateBadge({ kind }: { kind: 'in_hand' | 'missing' }) {
+  const hand = kind === 'in_hand'
+  const colour = hand ? 'var(--status-in-hand, #9D8DF1)' : 'var(--signal-warning, #F5A524)'
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[length:var(--fs-xs)] text-foreground"
+      style={{ borderColor: colour, backgroundColor: hand ? 'rgba(157,141,241,0.15)' : 'transparent' }}
+    >
+      <span className="material-symbols-outlined" style={{ fontSize: '12px', color: colour }} aria-hidden="true">
+        {hand ? 'back_hand' : 'search_off'}
+      </span>
+      {hand ? 'In your hand' : 'Missing'}
+    </span>
   )
 }
 

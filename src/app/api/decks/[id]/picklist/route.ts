@@ -15,8 +15,9 @@
  *     candidates: RankedCandidate[]
  *   }>,
  *   progress: { resolved: number, total: number },
- *   groups: { available: number, needsMoving: number, unowned: number },   (added, counts of rows in each Picklist group)
+ *   groups: { available, needsMoving, unowned, inHand, missing },   (added, counts of rows in each Picklist group)
  *   unownedPrices: Record<cardName, number | null>   (added; cheapest known price, null = price unknown)
+ *   moveItems: DeckMoveItem[]   (added; saved Found it / Can't find it steps for this deck's slots: In your hand or Missing)
  * }
  */
 import { NextRequest } from 'next/server'
@@ -26,6 +27,7 @@ import { getBatchRankedCandidates, type RankedCandidate } from '@/lib/allocation
 import { computeDeckCardStatuses } from '@/lib/card-status'
 import { isGenericSlot, isGenericSleeved } from '@/lib/basic-lands'
 import { categorizeCards, type PicklistCard as GroupCard } from '@/lib/picklist-groups'
+import { excludeSlotsWithOpenItems, loadDeckMoveItems, type DeckMoveItem } from '@/lib/picklist-move-items'
 import { lookupOwnedCopies, type LookupClient } from '@/lib/owned-copy-lookup'
 
 interface PicklistCard {
@@ -152,14 +154,27 @@ export async function GET(
     })
 
   // Added fields for the Picklist screen: how many rows sit in each group, and a price for each unowned card.
+  // Saved steps (In your hand / Missing) for this deck's slots. A failed read is logged and the list still loads
+  // (those slots then show in their normal group); it is never shown as "no steps" on purpose-built UI (D-030).
+  let moveItems: DeckMoveItem[] = []
+  try {
+    moveItems = await loadDeckMoveItems(supabase, userId, deckId)
+  } catch (err) {
+    console.error('[picklist] Failed to load saved steps:', err)
+  }
   const grouped = categorizeCards(
-    (responseCards as unknown as GroupCard[]).filter(c => c.lifecycle === 'planned' && !c.isResolved),
+    excludeSlotsWithOpenItems(
+      (responseCards as unknown as GroupCard[]).filter(c => c.lifecycle === 'planned' && !c.isResolved),
+      moveItems,
+    ),
     deckId,
   )
   const groups = {
     available: grouped.available.reduce((n, g) => n + g.items.length, 0),
     needsMoving: grouped.needsMoving.reduce((n, g) => n + g.items.length, 0),
     unowned: grouped.unowned.length,
+    inHand: moveItems.filter(i => i.state === 'found').length,
+    missing: moveItems.filter(i => i.state === 'missing').length,
   }
   const unownedPrices: Record<string, number | null> = {}
   const unownedNames = [...new Set(grouped.unowned.map(u => u.card.cardName))]
@@ -181,5 +196,6 @@ export async function GET(
     progress: { resolved, total },
     groups,
     unownedPrices,
+    moveItems,
   })
 }

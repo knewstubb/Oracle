@@ -10,7 +10,7 @@ The connector's rules are now in the official record, and the connector is close
 - docs/oracle/decisions.md — D-034a added after D-034
 - AGENTS.md — rollup line corrected
 - docs/oracle/specs/vocabulary.md — Claude connector words table
-- docs/oracle/status.md — CC-04, CC-05 DONE; CC-10 follow-up added (only these rows committed; other agents' unsaved edits to this file left alone)
+- docs/oracle/status.md — CC-04, CC-05 DONE; CC-12 follow-up added (only these rows committed; other agents' unsaved edits to this file left alone)
 - docs/oracle/drafts-gate5-claude-connector.md — marked applied
 - this report
 

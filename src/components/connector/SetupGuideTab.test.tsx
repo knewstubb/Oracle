@@ -24,7 +24,7 @@ describe('connectorAddress', () => {
 describe('SetupGuideTab', () => {
   it('shows the top notice, footer and the four sections with the web one open', () => {
     render(<SetupGuideTab />)
-    expect(screen.getByRole('note')).toHaveTextContent("Start on the web or desktop. The phone app can't add a new connector yet")
+    expect(screen.getByRole('note')).toHaveTextContent("Adding a connector from the phone app is still in beta, so it's easiest to start on the web or desktop")
     expect(screen.getByText(/look for "connectors" in Claude's settings/)).toBeInTheDocument()
     const web = screen.getByRole('button', { name: 'Claude on the web' })
     expect(web).toHaveAttribute('aria-expanded', 'true')

@@ -51,7 +51,7 @@ export function SetupGuideTab() {
       <div role="note" className="flex items-start gap-2 rounded-lg border border-[var(--border-default)] p-3 text-[length:var(--fs-sm)] text-[var(--text-primary)]">
         <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
         <p>
-          Start on the web or desktop. The phone app can&apos;t add a new connector yet; once you add it on the web or desktop it shows up on your phone.
+          Adding a connector from the phone app is still in beta, so it&apos;s easiest to start on the web or desktop. Once it&apos;s added, it shows up on your phone.
         </p>
       </div>
 

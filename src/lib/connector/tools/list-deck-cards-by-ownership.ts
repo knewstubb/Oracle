@@ -13,7 +13,7 @@ import { parseCategories } from './get-deck'
 
 export const listByOwnershipInput = z.strictObject({
   state: z.enum(['proxy', 'not_owned', 'both']).optional().describe('Which cards: proxy, not_owned, or both. Default both.'),
-  deck_id: z.number().int().positive().optional().describe('Only this deck (id from list_decks). Default: all active decks.'),
+  deck_id: z.number().int().positive().optional().describe('Only this deck (id from list_decks). Default: all of your decks.'),
   limit: z.number().int().min(1).max(DECK_CARDS_PAGE_MAX).optional().describe('Cards per page, 1-150. Default 150.'),
   offset: z.number().int().min(0).optional().describe('Cards to skip, for paging.'),
 })

@@ -73,7 +73,11 @@ export interface DeckSummary {
   bracket: string | null
   cardCount: number
   sleevedCount: number // deck_cards rows with a physical copy attached
-  isActive: boolean
+  isActive: boolean // a manual flag the owner may never set; do NOT read false as archived
+  /** 'marked active by you' or 'not marked active by you'. Present this wording, never 'inactive'. */
+  activeNote?: string
+  /** Computed from sleeved cards: Draft / Assembling / Playable. */
+  readiness?: 'Draft' | 'Assembling' | 'Playable'
   /** Added by the ownership extension (list_decks only). Main-deck cards by quantity; maybeboard and generic slots are not counted. */
   ownershipCounts?: { original: number; proxy: number; notOwned: number }
 }

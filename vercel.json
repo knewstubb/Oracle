@@ -3,10 +3,6 @@
     {
       "path": "/api/cron/refresh-prices",
       "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/cron/sync-scryfall",
-      "schedule": "0 10 * * *"
     }
   ]
 }

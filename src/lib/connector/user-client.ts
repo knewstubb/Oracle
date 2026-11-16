@@ -18,6 +18,10 @@ export interface ReadQuery extends PromiseLike<QueryResult> {
   is(column: string, value: null): ReadQuery
   not(column: string, op: string, value: unknown): ReadQuery
   order(column: string, opts?: { ascending?: boolean }): ReadQuery
+  gte(column: string, value: number): ReadQuery
+  lte(column: string, value: number): ReadQuery
+  contains(column: string, values: unknown[]): ReadQuery // list column has ALL of these
+  overlaps(column: string, values: unknown[]): ReadQuery // list column has ANY of these
   range(from: number, to: number): ReadQuery
   limit(n: number): ReadQuery
 }

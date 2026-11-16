@@ -5,7 +5,10 @@ import { listDecks, listDecksInput } from '../tools/list-decks'
 import { getDeck, getDeckInput } from '../tools/get-deck'
 import { runTool } from '../server'
 import { MAX_RESPONSE_BYTES, byteLength, cutText } from '../limits'
-import { hasEq, mockDb, rangeOf, type RecordedQuery } from './mock-db'
+import { hasEq, mockDb, type RecordedQuery } from './mock-db'
+import { copyRow, resetIds, viewDb, type LibCard } from './view-db'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 
 const U = 'user-1'
 const err = { message: 'db down' }
@@ -33,78 +36,118 @@ describe('get_collection_summary', () => {
   })
 })
 
-const card = (i: number) => ({ id: i, oracle_id: `o${i}`, card_name: `Card ${i}`, type_line: 'Artifact' })
+const lib = (name: string, extra: Partial<LibCard> = {}): LibCard => ({ name, type_line: 'Artifact', oracle_text: 'x', mana_value: 1, color_identity: '', ...extra })
+type Res = { ok: true; items: { oracleId: string; name: string; kind: string; copyCount: number; copies: { printingId: string; finish: string; location: Record<string, unknown> }[]; copiesTruncated: boolean }[]; total: number; totalCopies: number; returned: number; truncated: boolean; note?: string }
+const run = (db: never, input: object = {}) => searchCollection({ db, userId: U }, searchCollectionInput.parse(input)) as never as Promise<Res>
 
-describe('search_collection', () => {
-  it('happy path labels printing and finish separately and says where copies are', async () => {
-    const { db, queries } = mockDb((q) => {
-      if (q.table === 'user_cards') return { data: [card(1)], count: 1 }
-      if (q.table === 'user_copies') return { data: [
-        { id: 11, card_id: 1, printing_id: 'sf-1', finish: 'foil', is_proxy: false, missing: false, location_id: null },
-        { id: 12, card_id: 1, printing_id: 'sf-2', finish: 'normal', is_proxy: true, missing: false, location_id: 5 },
-      ] }
-      if (q.table === 'deck_cards') return { data: [{ copy_id: 11, deck_id: 7 }] }
-      if (q.table === 'decks') return { data: [{ id: 7, name: 'Korvold' }] }
-      if (q.table === 'user_locations') return { data: [{ id: 5, name: 'Binder A' }] }
-      return {}
-    })
-    const r = (await searchCollection({ db, userId: U }, searchCollectionInput.parse({}))) as never as { items: { oracleId: string; copyCount: number; copies: { printingId: string; finish: string; location: unknown }[] }[]; total: number }
+describe('search_collection (CC-07 S1: reads the view)', () => {
+  it('labels printing and finish separately and says where copies are, including In your hand and Missing', async () => {
+    resetIds()
+    const sol = lib('Sol Ring')
+    const { db, queries } = viewDb([
+      copyRow(sol, { deck: 'Korvold' }), copyRow(sol, { box: 'Binder A' }), copyRow(sol, { hand: true }), copyRow(sol, { missing: true }),
+    ], { library: [sol] })
+    const r = await run(db as never)
     expect(r.total).toBe(1)
-    expect(r.items[0].oracleId).toBe('o1')
-    expect(r.items[0].copyCount).toBe(2)
-    expect(r.items[0].copies[0]).toMatchObject({ printingId: 'sf-1', finish: 'foil', location: { kind: 'deck', deckId: 7, deckName: 'Korvold' } })
-    expect(r.items[0].copies[1].location).toEqual({ kind: 'storage', name: 'Binder A' })
+    expect(r.totalCopies).toBe(4)
+    expect(r.items[0].oracleId).toBe('o-Sol Ring')
+    expect(r.items[0].copies.map((c) => c.location)).toEqual([
+      { kind: 'deck', deckId: 1, deckName: 'Korvold' }, { kind: 'storage', name: 'Binder A' }, { kind: 'in_hand' }, { kind: 'missing' },
+    ])
+    expect(r.items[0].copies[0]).toMatchObject({ printingId: 'sf-Sol Ring', finish: 'normal' })
     allScoped(queries)
   })
+  it('a card with originals and proxies is two rows with the right counts, original first', async () => {
+    resetIds()
+    const sol = lib('Sol Ring')
+    const { db } = viewDb([copyRow(sol, { proxy: true, box: 'A' }), copyRow(sol, { box: 'A' }), copyRow(sol, { box: 'A' })], { library: [sol] })
+    const r = await run(db as never)
+    expect(r.total).toBe(2)
+    expect(r.totalCopies).toBe(3)
+    expect(r.items.map((i) => [i.kind, i.copyCount])).toEqual([['original', 2], ['proxy', 1]])
+  })
+  it('only_free leaves out copies in decks, In your hand and Missing (the app-wide supply rule)', async () => {
+    resetIds()
+    const a = lib('Alpha'), b = lib('Beta'), c = lib('Gamma'), d = lib('Delta')
+    const { db } = viewDb([copyRow(a, { deck: 'D' }), copyRow(b, { hand: true }), copyRow(c, { missing: true }), copyRow(d, { box: 'X' }), copyRow(d, { deck: 'D' })], { library: [a, b, c, d] })
+    const r = await run(db as never, { only_free: true })
+    expect(r.items.map((i) => i.name)).toEqual(['Delta'])
+    expect(r.totalCopies).toBe(1)
+  })
+  it('proxy switches: include_proxies=false and only_proxies; both together is INVALID_INPUT', async () => {
+    resetIds()
+    const sol = lib('Sol Ring')
+    const { db } = viewDb([copyRow(sol, { box: 'A' }), copyRow(sol, { proxy: true, box: 'A' })], { library: [sol] })
+    expect((await run(db as never, { include_proxies: false })).items.map((i) => i.kind)).toEqual(['original'])
+    expect((await run(db as never, { only_proxies: true })).items.map((i) => i.kind)).toEqual(['proxy'])
+    expect(() => searchCollectionInput.parse({ only_proxies: true, include_proxies: false })).toThrow()
+  })
+  it('stays exact past the old 3,000-card ceiling (3,500 cards, 3,600 copies)', async () => {
+    resetIds()
+    const rows = Array.from({ length: 3500 }, (_, i) => copyRow(lib(`Card ${String(i).padStart(4, '0')}`), { box: 'A' }))
+    for (let i = 0; i < 100; i++) rows.push(copyRow(lib('Card 0000'), { box: 'A' }))
+    const { db } = viewDb(rows, { library: [] })
+    const r = await run(db as never, { only_free: true, offset: 3490 })
+    expect(r.total).toBe(3500)
+    expect(r.totalCopies).toBe(3600)
+    expect(r.returned).toBe(10)
+    expect(r.note ?? '').not.toMatch(/first 3000/)
+  })
   it('empty is explicit total 0, distinct from a database error', async () => {
-    const empty = mockDb(() => ({ data: [], count: 0 }))
-    expect(await searchCollection({ db: empty.db, userId: U }, searchCollectionInput.parse({ query: 'zzz' }))).toMatchObject({ ok: true, total: 0, returned: 0, truncated: false })
+    const empty = viewDb([])
+    expect(await run(empty.db as never, { query: 'zzz' })).toMatchObject({ ok: true, total: 0, totalCopies: 0, returned: 0, truncated: false })
     const bad = mockDb(() => ({ error: err }))
     expect(await searchCollection({ db: bad.db, userId: U }, searchCollectionInput.parse({}))).toMatchObject({ ok: false, error: { code: 'LOOKUP_FAILED' } })
   })
+  it('a failure on any later read is LOOKUP_FAILED, not a short list', async () => {
+    resetIds()
+    const sol = lib('Sol Ring')
+    // The second read of the view (page detail) fails.
+    let n = 0
+    const base = viewDb([copyRow(sol, { box: 'A' })], { library: [sol], onView: () => { n++ } })
+    const db = { select: (t: string, c: string, o?: never) => (t === 'connector_collection_copies' && n >= 1 ? mockDb(() => ({ error: err })).db.select(t, c, o) : base.db.select(t, c, o)) }
+    expect(await searchCollection({ db: db as never, userId: U }, searchCollectionInput.parse({}))).toMatchObject({ ok: false, error: { code: 'LOOKUP_FAILED' } })
+  })
   it('escapes LIKE wildcards in the query', async () => {
-    const { db, queries } = mockDb(() => ({ data: [], count: 0 }))
-    await searchCollection({ db, userId: U }, searchCollectionInput.parse({ query: '50%_off\\' }))
+    const { db, queries } = viewDb([])
+    await run(db as never, { query: '50%_off\\' })
     const like = queries[0].filters.find((f) => f.op === 'ilike')!
     expect(like.args).toEqual(['card_name', '%50\\%\\_off\\\\%'])
   })
   it('page cap is 25 and offset is applied', async () => {
     expect(() => searchCollectionInput.parse({ limit: 26 })).toThrow()
-    const { db, queries } = mockDb(() => ({ data: [], count: 0 }))
-    await searchCollection({ db, userId: U }, searchCollectionInput.parse({ offset: 50 }))
-    expect(rangeOf(queries[0])).toEqual([50, 74])
+    resetIds()
+    const rows = Array.from({ length: 60 }, (_, i) => copyRow(lib(`C ${String(i).padStart(2, '0')}`), { box: 'A' }))
+    const { db } = viewDb(rows)
+    const r = await run(db as never, { offset: 50 })
+    expect(r.items.map((i) => i.name)[0]).toBe('C 50')
+    expect(r.returned).toBe(10)
+    const p1 = await run(db as never, {})
+    expect(p1.returned).toBe(25)
+    expect(p1.note).toMatch(/Showing 25 of 60.*offset 25/)
   })
-  it('caps copies at 20 per card but keeps the exact count', async () => {
-    const copies = Array.from({ length: 30 }, (_, i) => ({ id: i + 1, card_id: 1, printing_id: 'p', finish: 'normal', is_proxy: false, missing: false, location_id: null }))
-    const { db } = mockDb((q) => (q.table === 'user_cards' ? { data: [card(1)], count: 1 } : q.table === 'user_copies' ? { data: copies } : { data: [] }))
-    const r = (await searchCollection({ db, userId: U }, searchCollectionInput.parse({}))) as never as { items: { copyCount: number; copies: unknown[]; copiesTruncated: boolean }[] }
+  it('caps copies at 20 per row but keeps the exact count', async () => {
+    resetIds()
+    const sol = lib('Sol Ring')
+    const { db } = viewDb(Array.from({ length: 30 }, () => copyRow(sol, { box: 'A' })), { library: [sol] })
+    const r = await run(db as never)
     expect(r.items[0]).toMatchObject({ copyCount: 30, copiesTruncated: true })
     expect(r.items[0].copies).toHaveLength(20)
   })
-  it('only_free drops cards whose copies are all in decks', async () => {
-    const { db } = mockDb((q) => {
-      if (q.table === 'user_cards') return { data: [card(1), card(2)], count: 2 }
-      if (q.table === 'user_copies') return { data: [
-        { id: 11, card_id: 1, printing_id: 'a', finish: 'normal', is_proxy: false, missing: false, location_id: null },
-        { id: 21, card_id: 2, printing_id: 'b', finish: 'normal', is_proxy: false, missing: false, location_id: null },
-      ] }
-      if (q.table === 'deck_cards') return { data: [{ copy_id: 11, deck_id: 7 }] }
-      if (q.table === 'decks') return { data: [{ id: 7, name: 'D' }] }
-      return { data: [] }
-    })
-    const r = (await searchCollection({ db, userId: U }, searchCollectionInput.parse({ only_free: true }))) as never as { items: { oracleId: string }[]; total: number }
-    expect(r.items.map((i) => i.oracleId)).toEqual(['o2'])
-    expect(r.total).toBe(1)
-  })
   it('40 KB cap shortens, sets truncated and says so', async () => {
-    const cards = Array.from({ length: 25 }, (_, i) => ({ ...card(i + 1), card_name: 'N'.repeat(100), type_line: 'T'.repeat(250) }))
-    const copies = cards.flatMap((c) => Array.from({ length: 20 }, (_, j) => ({ id: c.id * 100 + j, card_id: c.id, printing_id: 'p'.repeat(36), finish: 'normal', is_proxy: false, missing: false, location_id: null })))
-    const { db } = mockDb((q) => (q.table === 'user_cards' ? { data: cards, count: 25 } : q.table === 'user_copies' ? { data: copies } : { data: [] }))
-    const r = (await searchCollection({ db, userId: U }, searchCollectionInput.parse({}))) as never as { returned: number; truncated: boolean; note: string }
+    resetIds()
+    const libs = Array.from({ length: 25 }, (_, i) => lib(`${'N'.repeat(100)}${i}`, { type_line: 'T'.repeat(250), oracle_text: 'w'.repeat(900) }))
+    const rows = libs.flatMap((l) => Array.from({ length: 20 }, () => copyRow(l, { box: 'A'.repeat(60) })))
+    const { db } = viewDb(rows, { library: libs })
+    const r = await run(db as never)
     expect(byteLength(r)).toBeLessThanOrEqual(MAX_RESPONSE_BYTES)
     expect(r.returned).toBeLessThan(25)
     expect(r.truncated).toBe(true)
     expect(r.note).toMatch(/Showing \d+ of 25/)
+  })
+  it('the old scan code is gone', () => {
+    const src = readFileSync(path.resolve(__dirname, '../tools/search-collection.ts'), 'utf8')
+    expect(src).not.toMatch(/SCAN_CAP|first \$\{?3000|copyViews/)
   })
 })
 

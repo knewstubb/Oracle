@@ -17,7 +17,7 @@ export function mockDb(resolve: Resolver): { db: ReadOnlyDb; queries: RecordedQu
       const rec: RecordedQuery = { table, columns, opts, filters: [] }
       queries.push(rec)
       const chain: Record<string, unknown> = {}
-      for (const op of ['eq', 'in', 'ilike', 'is', 'not', 'order', 'range', 'limit']) {
+      for (const op of ['eq', 'in', 'ilike', 'is', 'not', 'order', 'range', 'limit', 'gte', 'lte', 'contains', 'overlaps']) {
         chain[op] = (...args: unknown[]) => {
           rec.filters.push({ op, args })
           return chain

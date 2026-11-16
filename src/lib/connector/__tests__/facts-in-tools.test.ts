@@ -4,59 +4,63 @@ import { getDeck, getDeckInput } from '../tools/get-deck'
 import { listDeckCardsByOwnership, listByOwnershipInput } from '../tools/list-deck-cards-by-ownership'
 import { byteLength, MAX_RESPONSE_BYTES } from '../limits'
 import { mockDb, type RecordedQuery } from './mock-db'
+import { copyRow, resetIds, viewDb } from './view-db'
 
 const U = 'user-1'
+
 const inList = (q: RecordedQuery) => (q.filters.find((f) => f.op === 'in')?.args[1] as string[]) ?? []
 
 const LIB: Record<string, Record<string, unknown>> = {
   'Sol Ring': { name: 'Sol Ring', type_line: 'Artifact', oracle_text: 'Tap: Add {C}{C}.', mana_cost: '{1}', mana_value: 1, color_identity: '', commander_legal: true },
 }
 
-function searchDb(cards: { id: number; oracle_id: string; card_name: string; type_line: string | null }[]) {
-  return mockDb((q) => {
-    if (q.table === 'user_cards') return { data: cards, count: cards.length }
-    if (q.table === 'ref_cards') return { data: inList(q).filter((n) => LIB[n]).map((n) => LIB[n]) }
-    if (q.table === 'ref_printings') return { data: inList(q).includes('Sol Ring') && q.columns !== 'name' ? [{ name: 'Sol Ring', price_usd: 1.5, digital: false, updated_at: '2026-11-15T00:00:00Z' }] : [] }
-    return { data: [] }
-  })
+const solRing = { name: 'Sol Ring', type_line: 'Artifact', oracle_text: 'Tap: Add {C}{C}.', mana_cost: '{1}', mana_value: 1, color_identity: '', commander_legal: true }
+
+function searchDb(names: string[]) {
+  resetIds()
+  const rows = names.map((n) => copyRow(LIB[n] ? (LIB[n] as never) : null, { name: n, box: 'Unsorted' }))
+  const base = viewDb(rows, { library: [...Object.values(LIB) as never[], solRing] })
+  // The facts code also reads ref_printings for prices.
+  const inner = base.db
+  return {
+    queries: base.queries,
+    db: {
+      select: (t: string, c: string, o?: never) =>
+        t === 'ref_printings'
+          ? (mockDb((q) => ({ data: (q.filters.find((f) => f.op === 'in')?.args[1] as string[] | undefined)?.includes('Sol Ring') && q.columns !== 'name' ? [{ name: 'Sol Ring', price_usd: 1.5, digital: false, updated_at: '2026-11-15T00:00:00Z' }] : [] })).db.select(t, c, o))
+          : inner.select(t, c, o),
+    },
+  }
 }
 
 type Found = { items: { name: string; typeLine: string | null; facts: Record<string, unknown> }[]; truncated: boolean; note?: string }
 
 describe('search_collection facts (CC-06b)', () => {
   it('Sol Ring shows type, cost, colours, legality, rules text and the estimate label', async () => {
-    const { db } = searchDb([{ id: 1, oracle_id: 'o1', card_name: 'Sol Ring', type_line: 'Artifact' }])
-    const r = (await searchCollection({ db, userId: U }, searchCollectionInput.parse({ query: 'Sol Ring' }))) as never as Found
+    const { db } = searchDb(['Sol Ring'])
+    const r = (await searchCollection({ db: db as never, userId: U }, searchCollectionInput.parse({ query: 'Sol Ring' }))) as never as Found
     expect(r.items[0].facts).toMatchObject({
       available: true, typeLine: 'Artifact', manaCost: '{1}', manaValue: 1, colorIdentity: '', rulesText: 'Tap: Add {C}{C}.',
       legality: 'legal', price: { usd: 1.5, label: 'Estimate from Scryfall' },
     })
   })
 
-  it('a card whose saved type is empty now shows the library type', async () => {
-    const { db } = searchDb([{ id: 1, oracle_id: 'o1', card_name: 'Sol Ring', type_line: null }])
-    const r = (await searchCollection({ db, userId: U }, searchCollectionInput.parse({}))) as never as Found
+  it('the row type comes from the card library facts', async () => {
+    const { db } = searchDb(['Sol Ring'])
+    const r = (await searchCollection({ db: db as never, userId: U }, searchCollectionInput.parse({}))) as never as Found
     expect(r.items[0].typeLine).toBe('Artifact')
   })
 
-  it('a saved type is kept as is', async () => {
-    const { db } = searchDb([{ id: 1, oracle_id: 'o1', card_name: 'Sol Ring', type_line: 'Saved Type' }])
-    const r = (await searchCollection({ db, userId: U }, searchCollectionInput.parse({}))) as never as Found
-    expect(r.items[0].typeLine).toBe('Saved Type')
-    expect(r.items[0].facts.typeLine).toBe('Artifact')
-  })
-
   it('a name not in the library says facts unavailable', async () => {
-    const { db } = searchDb([{ id: 1, oracle_id: 'o1', card_name: 'Mystery Card', type_line: null }])
-    const r = (await searchCollection({ db, userId: U }, searchCollectionInput.parse({}))) as never as Found
+    const { db } = searchDb(['Mystery Card'])
+    const r = (await searchCollection({ db: db as never, userId: U }, searchCollectionInput.parse({}))) as never as Found
     expect(r.items[0].facts).toMatchObject({ available: false, typeLine: null, legality: 'unknown', price: { usd: null } })
     expect(r.items[0].typeLine).toBeNull()
   })
 
   it('one batched facts lookup per page, not one per card', async () => {
-    const cards = Array.from({ length: 25 }, (_, i) => ({ id: i + 1, oracle_id: `o${i}`, card_name: i === 0 ? 'Sol Ring' : `Card ${i}`, type_line: 'X' }))
-    const { db, queries } = searchDb(cards)
-    await searchCollection({ db, userId: U }, searchCollectionInput.parse({}))
+    const { db, queries } = searchDb(['Sol Ring', ...Array.from({ length: 24 }, (_, i) => `Card ${i}`)])
+    await searchCollection({ db: db as never, userId: U }, searchCollectionInput.parse({}))
     expect(queries.filter((q) => q.table === 'ref_cards' && q.filters.some((f) => f.op === 'in')).length).toBe(1)
   })
 
@@ -64,9 +68,8 @@ describe('search_collection facts (CC-06b)', () => {
     const long = 'w'.repeat(300)
     const names = Array.from({ length: 25 }, (_, i) => `Big Card ${i}`)
     for (const n of names) LIB[n] = { name: n, type_line: 'Legendary Creature — Something Long', oracle_text: long.repeat(3), mana_cost: '{W}{U}{B}{R}{G}', mana_value: 5, color_identity: 'WUBRG', commander_legal: true }
-    const cards = names.map((n, i) => ({ id: i + 1, oracle_id: `o${i}`, card_name: n, type_line: 'T'.repeat(250) }))
-    const { db } = searchDb(cards)
-    const r = (await searchCollection({ db, userId: U }, searchCollectionInput.parse({}))) as never as Found
+    const { db } = searchDb(names)
+    const r = (await searchCollection({ db: db as never, userId: U }, searchCollectionInput.parse({}))) as never as Found
     expect(byteLength(r)).toBeLessThanOrEqual(MAX_RESPONSE_BYTES)
     if (r.items.length < 25) {
       expect(r.truncated).toBe(true)
@@ -75,11 +78,8 @@ describe('search_collection facts (CC-06b)', () => {
   })
 
   it('a facts lookup failure is a real error, not "unavailable"', async () => {
-    const { db } = mockDb((q) => {
-      if (q.table === 'user_cards') return { data: [{ id: 1, oracle_id: 'o1', card_name: 'Sol Ring', type_line: null }], count: 1 }
-      if (q.table === 'ref_cards') return { error: { message: 'down' } }
-      return { data: [] }
-    })
+    resetIds()
+    const { db } = viewDb([copyRow(solRing as never, { box: 'B' })], { library: [solRing as never], failTable: 'ref_cards' })
     expect(await searchCollection({ db, userId: U }, searchCollectionInput.parse({}))).toMatchObject({ ok: false, error: { code: 'LOOKUP_FAILED' } })
   })
 })

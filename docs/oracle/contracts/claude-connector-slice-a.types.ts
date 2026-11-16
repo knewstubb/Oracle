@@ -40,7 +40,7 @@ export interface CopyView {
   printingId: string | null // scryfall_id of the printing (NOT oracle_id)
   finish: string | null // normal | foil | etched; its own attribute, not part of printingId
   isProxy: boolean
-  location: { kind: 'deck'; deckId: number; deckName: string } | { kind: 'storage'; name: string | null } | { kind: 'unknown' }
+  location: { kind: 'deck'; deckId: number; deckName: string } | { kind: 'storage'; name: string | null } | { kind: 'in_hand' } | { kind: 'missing' } | { kind: 'unknown' }
   missing: boolean
 }
 

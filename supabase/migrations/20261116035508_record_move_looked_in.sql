@@ -1,4 +1,4 @@
--- DRAFT (Architect, 2026-11-16). NOT APPLIED. The owner must approve this routine in plain words before anything is applied.
+-- APPLIED to hosted project udocxsyzzvrceiuupprj 2026-11-16 (owner approved). Drafted by Architect.
 -- Phase 3 Picklist: "I checked here" (priority 3).
 -- Contract: docs/oracle/contracts/know-where-cards-are.md section 4 (B3), section 5, section 14.
 -- Additive: one new function. Writes only the existing looked_in list on a waiting step. Reversible: DROP FUNCTION.

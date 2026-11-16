@@ -1,4 +1,4 @@
--- DRAFT (Architect, 2026-11-16). NOT APPLIED. The owner must approve this routine in plain words before anything is applied.
+-- APPLIED to hosted project udocxsyzzvrceiuupprj 2026-11-16 (owner approved). Drafted by Architect.
 -- Phase 3 Picklist: "Add to Picklist" / "Add all" (priority 1).
 -- Contract: docs/oracle/contracts/know-where-cards-are.md section 5 (routes table) and section 14 (this batch).
 -- Additive: one new function. No table or column change. Reversible: DROP FUNCTION (the rows it made stay as plain history).

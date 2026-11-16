@@ -1,4 +1,4 @@
--- DRAFT (Architect, 2026-11-16). NOT APPLIED. The owner must approve this routine in plain words before anything is applied.
+-- APPLIED to hosted project udocxsyzzvrceiuupprj 2026-11-16 (owner approved). Drafted by Architect.
 -- Phase 3 Picklist: "Undo" for a tick (priority 4).
 -- Contract: docs/oracle/contracts/know-where-cards-are.md section 7 (Undo of the latest tick), section 5, section 14.
 -- Additive: one new function. Reversible: DROP FUNCTION.

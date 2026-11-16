@@ -31,7 +31,7 @@ A Magic: The Gathering Commander/EDH collection and deck manager. Replaces Archi
 - `user_cards` — one row per card identity the user owns (D-001)
 - `user_copies` — one row per physical card owned; proxies are rows with `is_proxy = true` (D-001)
 - `deck_cards` — a card's membership in a deck; the maybeboard is a separate `deck_cards` relation
-- `get_collection_rollup` RPC is live and confirmed working
+- Collection totals are computed by the app from `user_cards` and `user_copies`; the old `get_collection_rollup` function was unused and was removed on 2026-11-16 (CC-03b).
 
 ## Identifier rules (these have caused real bugs)
 - `scryfall_id` identifies a specific printing. `oracle_id` identifies the canonical card across all printings. Never use one where the other is meant.

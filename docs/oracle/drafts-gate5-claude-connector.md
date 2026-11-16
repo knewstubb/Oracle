@@ -1,6 +1,5 @@
 # DRAFT: Gate 5 close-out for the Claude connector (CC-05)
-Status: **DRAFT, awaiting owner approval. decisions.md, AGENTS.md and vocabulary.md have NOT been edited.** Written by Gene, 2026-11-17.
-On approval Gene applies the text below word for word, then marks CC-04 and CC-05 DONE.
+Status: **APPLIED 2026-11-17 (superseded by the records).** Owner approved; sections 1-3 are now in decisions.md (D-034a), AGENTS.md and specs/vocabulary.md. Section 4 (click-through) is still the one open owner step. Written by Gene, 2026-11-17.
 
 ## 1. D-034 amendment (new entry for decisions.md, placed after D-034)
 

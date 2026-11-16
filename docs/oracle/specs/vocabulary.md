@@ -85,6 +85,18 @@ Show one headline, choosing the first that is true: **Available → Alt availabl
 | Remove | Remove from deck | Take the card off the list; any copy returns to storage (D-039). Never deletes a collection copy. |
 | Break down | Break down | Return every copy in the deck to storage; the list is kept. |
 
+### Claude connector words (added at Gate 5, owner-approved 2026-11-17)
+
+| Word | Meaning |
+|---|---|
+| **Connector** | The plug-in that lets a Claude app use Oracle's data. Switched on or off in Oracle. |
+| **Made by AI** | A change recorded as coming from Claude (or Oracle's chat), so it can be listed and undone. |
+| **Recent changes** | The screen listing what Claude changed, with Undo for 7 days. |
+| **Pending** | A big edit or card move waiting for the owner's yes in Oracle; expires after 24 hours. |
+| **Needs reconnecting** | The connector was switched off (which signs Claude out on purpose); switching it back on needs Claude to sign in again. |
+| **Wanted, now elsewhere** | A deck slot whose card was moved to another deck; the plan keeps it and shows where it is now. |
+| **Not marked active by you** | What Claude says about a deck whose manual Active flag is off (the default). Claude also gives the deck's readiness. |
+
 ---
 
 ## 4. Retired words

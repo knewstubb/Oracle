@@ -11,10 +11,10 @@
 import type { ImportDestination } from '../../docs/oracle/contracts/know-where-cards-are.types'
 
 /**
- * Deck destination (slice I2) is built but stays off until the all-or-nothing database function
- * `insert_user_copies_to_deck` is approved and applied (draft: supabase/drafts). Flip to true only after that.
+ * Deck destination (slice I2) is on: the all-or-nothing database function `insert_user_copies_to_deck`
+ * was applied 2026-11-16 (migration 20261116062746).
  */
-export const DECK_DESTINATION_ENABLED = false
+export const DECK_DESTINATION_ENABLED = true
 
 /** A destination the server refuses. Nothing has been written when this is thrown. */
 export class ImportDestinationError extends Error {

@@ -1,8 +1,6 @@
--- DRAFT. NOT APPLIED. Not in supabase/migrations on purpose, so no tool applies it by accident.
+-- APPLIED 2026-11-16 to project udocxsyzzvrceiuupprj as version 20261116062746 (owner approved 2026-11-16).
 -- REVIEWED version of insert_user_copies_to_deck.draft.sql (Architect review, 2026-11-13).
--- Proposed migration filename once the owner approves:  supabase/migrations/20261113120000_insert_user_copies_to_deck.sql
--- (later than the latest repo migration 20261113100100; independent of the in-hand/missing migrations,
---  which it works with: new copies are never in hand or missing.)
+-- Smoke-tested first inside a rolled-back transaction (3 real cards, then 500 rows in about 0.4 s).
 -- Reversible: DROP FUNCTION public.insert_user_copies_to_deck(uuid, integer, jsonb, integer);
 -- Additive only: creates one function. No table, column, trigger or policy changes.
 --

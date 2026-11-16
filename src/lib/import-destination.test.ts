@@ -113,8 +113,8 @@ describe('resolveImportDestination', () => {
     })
   })
 
-  it('a deck destination is refused while deck import is switched off', async () => {
-    await expect(resolveImportDestination(client, 'me', { kind: 'deck', deckId: 1 })).rejects.toMatchObject({ status: 503 })
+  it('a deck that is not the user\'s (or is gone) is refused as not found', async () => {
+    await expect(resolveImportDestination(client, 'me', { kind: 'deck', deckId: 1 })).rejects.toMatchObject({ status: 404 })
   })
 })
 
@@ -216,7 +216,6 @@ describe('collection import with a destination', () => {
     ['another user box', { kind: 'storage', locationId: 9 }],
     ['a deck-type location row', { kind: 'storage', locationId: 6 }],
     ['a deleted box', { kind: 'storage', locationId: 404 }],
-    ['a deck (off until approved)', { kind: 'deck', deckId: 1 }],
   ] as const)('refuses %s and writes nothing', async (_label, destination) => {
     const { client, writes } = importClient()
     await expect(

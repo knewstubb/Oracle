@@ -192,6 +192,14 @@ export interface ImportPlacementResult {
   /** Capped list for the result screen; cardName is display only (D-003). */
   details?: Array<{ cardName: string; outcome: 'filled' | 'added' | 'unsorted'; reason?: ImportUnsortedReason }>
   proxies?: number
+  /**
+   * Exactly the saved copies from THIS import that ended up in Unsorted (user_copies.id, never a card identity).
+   * Unsorted destination: every copy of the import. Deck destination: the copies whose outcome is 'unsorted'.
+   * Box or binder destination: empty array (nothing is in Unsorted). Length always equals the Unsorted count
+   * (total for unsorted, sentToUnsorted for deck, 0 for storage). Feeds "Add all" on the result screen
+   * (POST /api/moves/lists), which therefore never offers older Unsorted cards. Not capped (unlike details).
+   */
+  unsortedCopyIds?: number[]
   /** Copies whose finish differs from what an existing slot asked for (still placed). */
   finishDiffers?: number
   deckStatusAfter?: 'unowned' | 'assembling' | 'playable' | 'draft'

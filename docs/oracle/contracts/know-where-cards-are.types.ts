@@ -206,3 +206,66 @@ export interface ImportPlacementResult {
   }
 }
 
+
+// ---------------------------------------------------------------------------------------------------------
+// Section 14 (2026-11-16, DRAFT routines, not applied): create_move_list, resolve_missing_copy,
+// record_move_looked_in, undo_move_tick, cancel_move_item. Every routine takes the signed-in user's id first;
+// the route supplies it, never the browser.
+// ---------------------------------------------------------------------------------------------------------
+
+/** Extra refusal codes used by the section 14 routines (in addition to the existing MoveError codes). */
+export type MoveRoutineError =
+  | 'item_not_found' | 'moved_since' | 'bad_input' | 'too_many_items' | 'copy_already_assigned'
+  | 'copy_not_found' | 'target_not_found' | 'wrong_state' | 'no_open_slot' | 'slot_claimed_elsewhere'
+  | 'copy_already_in_open_item' | 'card_identity_mismatch'
+
+/** create_move_list: 1 to 500 items. `to` is the planned destination; no card moves. */
+export interface CreateMoveListRequest {
+  items: Array<{ copyId: number; to: PlaceRef }>
+}
+
+export type CreateMoveListSkipReason =
+  | 'bad_item' | 'duplicate_in_request' | 'copy_not_found' | 'copy_missing' | 'target_not_found'
+  | 'already_in_this_deck' | 'already_there' | 'no_open_slot' | 'copy_already_in_open_item'
+
+export interface CreateMoveListResponse {
+  success: true
+  /** Null when nothing new was saved. */
+  list_id: string | null
+  created: Array<{ itemId: number; copyId: number; state: 'to_find' | 'found' }>
+  /** Already waiting with the same destination; nothing changed. */
+  unchanged: Array<{ itemId: number; copyId: number; state: 'to_find' | 'found'; listId: string }>
+  skipped: Array<{ index: number; copyId: number | null; reason: CreateMoveListSkipReason }>
+}
+
+/** resolve_missing_copy (Turned up / Found it on the Missing page). */
+export type TurnedUpTarget =
+  | { kind: 'in_hand' }
+  | { kind: 'location'; locationId: number }
+  | { kind: 'deck'; deckId: number; deckCardId?: number }
+
+export interface TurnedUpResponse {
+  success: true
+  /** true when the copy was already off the Missing list (a repeat). */
+  unchanged: boolean
+  state: 'in_hand' | 'in_box' | 'in_deck' | 'not_missing'
+  location_id?: number
+  filled_deck_card_id?: number
+  deck_id?: number
+}
+
+/** record_move_looked_in. `id` is a decks.id or a user_locations.id depending on kind. Only valid on a Missing step. */
+export interface LookedHereRequest { place: { kind: 'deck' | 'location'; id: number } }
+export interface LookedHereResponse {
+  success: true
+  item_id: number
+  unchanged: boolean
+  looked_in: Array<{ kind: 'deck' | 'location'; id: number }>
+}
+
+/** undo_move_tick: `expectedState` is the state the screen was showing. */
+export interface UndoTickRequest { expectedState: 'placed' | 'found' | 'missing' }
+export interface UndoTickResponse { success: true; item_id: number; state: 'found' | 'to_find'; unchanged: boolean }
+
+/** cancel_move_item: only a step still in to_find. */
+export interface CancelStepResponse { success: true; item_id: number; state: 'cancelled'; unchanged: boolean }

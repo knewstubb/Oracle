@@ -177,7 +177,9 @@ export function ImportDestinationPicker({ value, onChange, places, onRetry, copy
   const triggerHint = places.status === 'ready' && current ? current.hint : ''
 
   const note =
-    value.kind === 'storage'
+    value.kind === 'deck'
+      ? `Going into ${destinationName(value, data)}. Each copy fills a matching planned slot. A card the deck doesn't list is added as a new slot. A card it already has filled goes to Unsorted. Cards outside its colours are still added, with a warning after.`
+      : value.kind === 'storage'
       ? `All ${copyCount} ${copyCount === 1 ? 'copy goes' : 'copies go'} straight into ${destinationName(value, data)}. Nothing is added to the Picklist.`
       : places.status === 'loading'
         ? 'Cards go to Unsorted unless you choose a place.'

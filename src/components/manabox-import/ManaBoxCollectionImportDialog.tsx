@@ -176,9 +176,10 @@ export function ManaBoxCollectionImportDialog({
 
   const handleImport = useCallback(async () => {
     if (step.status !== 'review' || savingRef.current) return
-    savingRef.current = true
     const rows = step.preview.rows
     if (rows.length === 0) return
+    // Lock first: a second click (or Enter) in the same instant must not start a second save.
+    savingRef.current = true
 
     const totalCopies = rows.reduce((sum, r) => sum + r.qty, 0)
     setStep({ ...step, status: 'importing', cancellable: false, processed: 0, total: totalCopies, phase: 'resolving' })

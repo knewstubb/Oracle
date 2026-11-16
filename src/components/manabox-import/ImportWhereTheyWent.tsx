@@ -1,7 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { whereTheyWent, reasonText } from '@/lib/import-placement-text'
+import { TriangleAlert } from 'lucide-react'
+import { whereTheyWent, reasonText, deckWarningLines } from '@/lib/import-placement-text'
+import { statusWord } from '@/lib/import-destinations-list'
 import type { ImportPlacementResult } from '../../../docs/oracle/contracts/know-where-cards-are.types'
 
 const CAP = 10
@@ -11,6 +13,7 @@ export function ImportWhereTheyWent({ placement }: { placement: ImportPlacementR
   const [showWhich, setShowWhich] = useState(false)
   const [showAll, setShowAll] = useState(false)
   const info = whereTheyWent(placement)
+  const warnings = deckWarningLines(placement)
   if (!info || !placement) return null
 
   const unsorted = (placement.details ?? []).filter((d) => d.outcome === 'unsorted')
@@ -20,6 +23,21 @@ export function ImportWhereTheyWent({ placement }: { placement: ImportPlacementR
     <section aria-label="Where they went" className="rounded-[10px] border border-[var(--border-subtle)] px-3 py-2 text-[length:var(--fs-sm)]">
       <h4 className="text-[length:var(--fs-xs)] text-muted-foreground">{info.heading}</h4>
       <p className="mt-0.5">{info.line}</p>
+      {placement.destination.kind === 'deck' && placement.deckStatusAfter && (
+        <p className="mt-0.5 text-[length:var(--fs-xs)] text-muted-foreground">
+          {placement.destination.name} is now {statusWord(placement.deckStatusAfter)}.
+        </p>
+      )}
+      {warnings.length > 0 && (
+        <ul role="status" className="mt-1.5 flex flex-col gap-1">
+          {warnings.map((line) => (
+            <li key={line} className="flex items-start gap-1.5 text-[length:var(--fs-xs)]">
+              <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-[var(--signal-warning)]" aria-hidden="true" />
+              <span>{line}</span>
+            </li>
+          ))}
+        </ul>
+      )}
       {placement.destination.kind === 'deck' && unsorted.length > 0 && (
         <div className="mt-1.5">
           <button

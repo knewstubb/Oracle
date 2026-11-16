@@ -33,6 +33,16 @@ import {
   destinationErrorFromDatabase,
   resolveImportDestination,
 } from '@/lib/import-destination'
+import { loadCardFacts, loadDeckFacts, type CheckClient } from '@/lib/chat-proposal-check'
+import { destinationDeckStatus, type DestinationSlotRow } from '@/lib/import-destinations-list'
+import { getFormatConfig } from '@/lib/format-config'
+import {
+  buildDeckPlacement,
+  computeDeckWarnings,
+  parseDeckRpcAnswer,
+  toDeckRpcRows,
+  type DeckRowMeta,
+} from '@/lib/import-deck-result'
 import type { ImportDestination, ImportPlacementResult } from '../../docs/oracle/contracts/know-where-cards-are.types'
 import type {
   ImportCopyEdits,
@@ -151,6 +161,7 @@ export async function executeManaBoxCollectionImport(
 
   // 2. One copy row per physical copy, each carrying its own source line's price and date.
   const copyRows: Array<{ [key: string]: Json | undefined }> = []
+  const copyMetas: DeckRowMeta[] = []
   for (const { row, resolved } of resolvedByRow) {
     const cardId = cardIdByOracle.get(row.oracleId)
     if (!cardId) {
@@ -168,6 +179,7 @@ export async function executeManaBoxCollectionImport(
           acquiredAt: line?.acquiredAt,
         }) as unknown as { [key: string]: Json | undefined }
       )
+      copyMetas.push({ cardName: row.cardName, scryfallId: row.scryfallId, setCode: row.setCode, isBasicLand: row.isBasicLand })
     }
   }
 
@@ -188,8 +200,22 @@ export async function executeManaBoxCollectionImport(
   // location on each row; the function re-checks it belongs to the user, all or nothing.
   const writeRows = applyStorageDestination(copyRows, destination)
   let inserted = 0
+  let placement: ImportPlacementResult | undefined
   options.onProgress?.({ phase: 'writing', done: 0, total: writeRows.length })
-  if (writeRows.length > 0) {
+  if (destination.kind === 'deck' && destination.id !== null) {
+    // Deck destination: one database function saves the copies and places each one, all or nothing.
+    if (writeRows.length > 0) {
+      placement = await importIntoDeck({
+        supabase,
+        userId: options.userId,
+        deckId: destination.id,
+        deckName: destination.name,
+        rows: writeRows,
+        metas: copyMetas,
+      })
+      inserted = placement.total
+    }
+  } else if (writeRows.length > 0) {
     const { data, error } = await supabase.rpc('insert_user_copies', {
       p_user_id: options.userId,
       p_rows: writeRows as unknown as Json,
@@ -207,10 +233,12 @@ export async function executeManaBoxCollectionImport(
     )
   }
 
-  const placement: ImportPlacementResult = {
-    destination: { kind: destination.kind, id: destination.id, name: destination.name },
-    total: inserted,
-    placedInStorage: inserted,
+  if (!placement) {
+    placement = {
+      destination: { kind: destination.kind, id: destination.id, name: destination.name },
+      total: inserted,
+      placedInStorage: inserted,
+    }
   }
 
   return {
@@ -225,4 +253,73 @@ export async function executeManaBoxCollectionImport(
     foils: countStoredFoils(copyRows as unknown as Array<{ finish: string; is_proxy?: boolean }>),
     placement,
   }
+}
+
+/** Saves and places every copy in one database call, then reads back what it needs to warn the owner. */
+async function importIntoDeck(args: {
+  supabase: CollectionImportClient
+  userId: string
+  deckId: number
+  deckName: string
+  rows: Array<{ [key: string]: Json | undefined }>
+  metas: DeckRowMeta[]
+}): Promise<ImportPlacementResult> {
+  const { supabase, userId, deckId, rows, metas } = args
+  const { data: deckRow, error: deckErr } = await supabase
+    .from('decks')
+    .select('format')
+    .eq('id', deckId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (deckErr) throw new Error(`Could not read the deck: ${deckErr.message}`)
+  const format = (deckRow as { format: string | null } | null)?.format ?? null
+
+  const { data, error } = await supabase.rpc('insert_user_copies_to_deck' as never, {
+    p_user_id: userId,
+    p_deck_id: deckId,
+    p_rows: toDeckRpcRows(rows, metas) as unknown as Json,
+    p_max_copies: getFormatConfig(format).maxCopies ?? 1,
+  } as never)
+  if (error) {
+    throw destinationErrorFromDatabase(error.message) ?? new Error(`Atomic deck import failed: ${error.message}`)
+  }
+
+  const answer = parseDeckRpcAnswer(data, rows.length)
+  const names = metas.map((m) => m.cardName)
+  const placement = buildDeckPlacement({ deckId, deckName: args.deckName, answer, names })
+
+  // The copies are saved and placed. Anything below only adds information, so a failure here becomes
+  // "could not check" on the result, never a failed import (D-030).
+  const addedNames = answer.outcomes.filter((o) => o.kind === 'added').map((o) => names[o.index])
+  try {
+    const checkClient = supabase as unknown as CheckClient
+    const [facts, cardFacts, slots] = await Promise.all([
+      loadDeckFacts(checkClient, deckId, userId),
+      addedNames.length > 0 ? loadCardFacts(checkClient, addedNames) : Promise.resolve(new Map()),
+      supabase
+        .from('deck_cards')
+        .select('copy_id, is_generic, generic_sleeved, categories')
+        .eq('deck_id', deckId)
+        .eq('user_id', userId),
+    ])
+    placement.warnings = computeDeckWarnings({
+      deckFormat: format,
+      deckColours: facts?.deckColours ?? null,
+      addedNames,
+      cardFacts: facts ? new Map([...cardFacts].map(([k, v]) => [k, { colours: v.colours, commanderLegal: v.commanderLegal }])) : null,
+      mainCountAfter: facts?.mainCount ?? null,
+    })
+    if (!slots.error && slots.data) {
+      placement.deckStatusAfter = destinationDeckStatus(slots.data as DestinationSlotRow[], format)
+    }
+  } catch {
+    placement.warnings = computeDeckWarnings({
+      deckFormat: format,
+      deckColours: null,
+      addedNames,
+      cardFacts: null,
+      mainCountAfter: null,
+    })
+  }
+  return placement
 }

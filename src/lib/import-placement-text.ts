@@ -45,3 +45,27 @@ const REASON_TEXT: Record<ImportUnsortedReason, (deck: string) => string> = {
 export function reasonText(reason: ImportUnsortedReason, deckName: string): string {
   return REASON_TEXT[reason](deckName)
 }
+
+/**
+ * Warning lines under "Where they went" for a deck import. Warn only: the cards were still added.
+ * A check that could not run says so, it is never shown as "no warnings".
+ */
+export function deckWarningLines(p: ImportPlacementResult | undefined): string[] {
+  const w = p?.warnings
+  if (!p || p.destination.kind !== 'deck' || !w) return []
+  const deck = p.destination.name
+  const lines: string[] = []
+  if (w.outsideColours.length > 0) {
+    lines.push(`Added anyway, but outside ${deck}'s colours: ${w.outsideColours.join(', ')}.`)
+  }
+  if (w.notLegal.length > 0) {
+    lines.push(`Added anyway, but not legal in this format: ${w.notLegal.join(', ')}.`)
+  }
+  if (w.overTarget && w.targetCount !== null) {
+    lines.push(`${deck} now lists ${w.mainCountAfter} cards, ${w.mainCountAfter - w.targetCount} more than ${w.targetCount}.`)
+  }
+  if (w.checksUnavailable) {
+    lines.push(`Could not check colours or legality for ${deck}. The cards were added.`)
+  }
+  return lines
+}

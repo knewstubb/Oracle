@@ -146,6 +146,8 @@ export async function fetchEnrichedSupply(
       )
     `)
     .eq('user_id', userId)
+    .eq('missing', false)
+    .eq('in_hand', false)
     .in('card_id', cardIds)
 
   if (copyErr) throw new Error(`Failed to fetch collection copies for "${cardName}": ${copyErr.message}`)
@@ -271,6 +273,8 @@ export async function fetchBatchEnrichedSupply(
         )
       `)
       .eq('user_id', userId)
+      .eq('missing', false)
+      .eq('in_hand', false)
       .in('card_id', batch)
 
     if (error) throw new Error(`Batch collection fetch failed: ${error.message}`)

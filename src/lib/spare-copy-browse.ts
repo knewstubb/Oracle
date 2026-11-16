@@ -148,7 +148,7 @@ export async function browseSpareCopies(
     simple(client.from('decks').select('id, name, colour_identity').eq('id', deckId).eq('user_id', userId), 'deck'),
     loadCommanderColours(client, deckId).catch(() => null),
     pagedParallel(() => client.from('user_cards').select('id, card_name, oracle_id').eq('user_id', userId).order('id'), 'owned cards'),
-    pagedParallel(() => client.from('user_copies').select('id, card_id, printing_id').eq('user_id', userId).eq('is_proxy', false).order('id'), 'owned copies', 5),
+    pagedParallel(() => client.from('user_copies').select('id, card_id, printing_id').eq('user_id', userId).eq('is_proxy', false).eq('missing', false).eq('in_hand', false).order('id'), 'owned copies', 5),
     pagedParallel(() => client.from('decks').select('id, name').eq('user_id', userId).order('id'), 'decks', 1),
   ])
   if (deckRows.length === 0) throw new Error('Deck not found')

@@ -305,6 +305,8 @@ export async function loadSupplyPool(userId: string): Promise<SupplyPool> {
           )
         `)
         .eq('user_id', userId)
+        .eq('missing', false)
+        .eq('in_hand', false)
         .range(from, to)
   )
 

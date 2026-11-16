@@ -5,7 +5,7 @@
  * another deck?" Nothing here writes. No copy ids (user_copies.id) ever leave this module:
  * copies are only counted into groups.
  *
- * A copy is FREE when it is not marked missing and no deck slot points at it.
+ * A copy is FREE when it is not marked missing or in hand and no deck slot points at it.
  * A copy is HELD when a deck slot of the owner's points at it (the group names the deck).
  * Copies marked missing appear in neither.
  */
@@ -191,6 +191,7 @@ export async function loadOwnershipFacts(
           .select('id, card_id, printing_id, finish, is_proxy')
           .eq('user_id', userId)
           .eq('missing', false)
+          .eq('in_hand', false)
           .in('card_id', ids)
           .order('id')
           .range(from, to)

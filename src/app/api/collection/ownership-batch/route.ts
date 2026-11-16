@@ -104,6 +104,8 @@ export async function POST(request: NextRequest) {
         .from('user_copies')
         .select('id, card_id, is_proxy')
         .eq('user_id', userId)
+        .eq('missing', false)
+        .eq('in_hand', false)
         .in('card_id', cardIds)
       
       if (copyError) {

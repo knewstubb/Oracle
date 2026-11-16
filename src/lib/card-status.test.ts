@@ -26,6 +26,11 @@ function mockSupabaseChain(data: unknown[] | null, error: unknown = null) {
   return chain
 }
 
+/** The supply filter adds .eq('missing', false).eq('in_hand', false): eq stays chainable. */
+function selfEq<T extends object>(inner: T): T & { eq: () => unknown } {
+  return { ...inner, eq: () => selfEq(inner) }
+}
+
 describe('classifySlotStatus', () => {
   it('returns "original" for resolved non-proxy copy', () => {
     expect(classifySlotStatus(42, false)).toBe('original')
@@ -90,14 +95,14 @@ describe('computeUnresolvedStatuses', () => {
       if (table === 'user_copies') {
         return {
           select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue(selfEq({
               in: vi.fn().mockResolvedValue({
                 data: [
                   { card_id: 1, printing_id: 'abc', deck_cards: [] }, // free copy (no deck link)
                 ],
                 error: null,
               }),
-            }),
+            })),
           }),
         }
       }
@@ -125,7 +130,7 @@ describe('computeUnresolvedStatuses', () => {
       if (table === 'user_copies') {
         return {
           select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue(selfEq({
               in: vi.fn().mockResolvedValue({
                 data: [
                   { card_id: 1, printing_id: 'abc', deck_cards: [{ id: 99 }] }, // held by another deck
@@ -133,7 +138,7 @@ describe('computeUnresolvedStatuses', () => {
                 ],
                 error: null,
               }),
-            }),
+            })),
           }),
         }
       }
@@ -161,7 +166,7 @@ describe('computeUnresolvedStatuses', () => {
       if (table === 'user_copies') {
         return {
           select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue(selfEq({
               in: vi.fn().mockResolvedValue({
                 data: [
                   { card_id: 1, printing_id: 'abc', deck_cards: [{ id: 99 }] }, // held
@@ -170,7 +175,7 @@ describe('computeUnresolvedStatuses', () => {
                 ],
                 error: null,
               }),
-            }),
+            })),
           }),
         }
       }
@@ -198,12 +203,12 @@ describe('computeUnresolvedStatuses', () => {
       if (table === 'user_copies') {
         return {
           select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue(selfEq({
               in: vi.fn().mockResolvedValue({
                 data: [],
                 error: null,
               }),
-            }),
+            })),
           }),
         }
       }
@@ -231,14 +236,14 @@ describe('computeUnresolvedStatuses', () => {
       if (table === 'user_copies') {
         return {
           select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue(selfEq({
               in: vi.fn().mockResolvedValue({
                 data: [
                   { card_id: 1, printing_id: 'abc', deck_cards: [{ id: 50 }] },
                 ],
                 error: null,
               }),
-            }),
+            })),
           }),
         }
       }
@@ -270,7 +275,7 @@ describe('computeUnresolvedStatuses', () => {
       if (table === 'user_copies') {
         return {
           select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue(selfEq({
               in: vi.fn().mockResolvedValue({
                 data: [
                   { card_id: 1, printing_id: 'abc', deck_cards: [] }, // free
@@ -278,7 +283,7 @@ describe('computeUnresolvedStatuses', () => {
                 ],
                 error: null,
               }),
-            }),
+            })),
           }),
         }
       }
@@ -333,12 +338,12 @@ describe('computeUnresolvedStatuses', () => {
       if (table === 'user_copies') {
         return {
           select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue(selfEq({
               in: vi.fn().mockResolvedValue({
                 data: null,
                 error: { message: 'database offline' },
               }),
-            }),
+            })),
           }),
         }
       }

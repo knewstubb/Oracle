@@ -55,7 +55,10 @@ export async function fetchStorageCopies(
         'id, printing_id, finish, is_proxy, condition, user_cards!user_copies_card_id_fkey(card_name), deck_cards!deck_cards_copy_id_fkey(id)'
       )
       .eq('user_id', userId)
-    q = locationId === null ? q.is('location_id', null) : q.eq('location_id', locationId)
+    // Unsorted is real storage only: a copy that is Missing or In your hand has no location but is not in Unsorted.
+    q = locationId === null
+      ? q.is('location_id', null).eq('missing', false).eq('in_hand', false)
+      : q.eq('location_id', locationId)
     const { data, error } = await q
       .order('id', { ascending: true })
       .range(offset, offset + PAGE_SIZE - 1)

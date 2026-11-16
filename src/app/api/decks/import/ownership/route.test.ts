@@ -14,7 +14,7 @@ function fakeClient() {
       let range: [number, number] | null = null
       const run = () => {
         let rows = (tables[table] ?? []).filter(
-          (r) => eqs.every(([k, v]) => r[k] === v) && ins.every(([k, vs]) => vs.includes(r[k]))
+          (r) => eqs.every(([k, v]) => (r[k] ?? (k === 'missing' || k === 'in_hand' ? false : undefined)) === v) && ins.every(([k, vs]) => vs.includes(r[k]))
         )
         if (range) rows = rows.slice(range[0], range[1] + 1)
         return { data: rows, error: null }

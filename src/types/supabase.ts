@@ -2022,7 +2022,9 @@ export type Database = {
           is_proxy: boolean
           language: string | null
           location_id: number | null
+          in_hand: boolean
           missing: boolean
+          missing_since: string | null
           printing_id: string | null
           proxy_for_card_id: number | null
           purchase_price: number | null
@@ -2041,7 +2043,9 @@ export type Database = {
           is_proxy?: boolean
           language?: string | null
           location_id?: number | null
+          in_hand?: boolean
           missing?: boolean
+          missing_since?: string | null
           printing_id?: string | null
           proxy_for_card_id?: number | null
           purchase_price?: number | null
@@ -2060,7 +2064,9 @@ export type Database = {
           is_proxy?: boolean
           language?: string | null
           location_id?: number | null
+          in_hand?: boolean
           missing?: boolean
+          missing_since?: string | null
           printing_id?: string | null
           proxy_for_card_id?: number | null
           purchase_price?: number | null

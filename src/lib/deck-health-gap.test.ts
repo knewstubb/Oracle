@@ -18,7 +18,7 @@ function fakeDb(tables: Record<string, Row[]>, failTable?: string): HealthClient
       const result = () => (table === failTable ? { data: null, error: { message: 'boom' } } : { data, error: null })
       const q: Record<string, unknown> = {
         select: () => q,
-        eq: (col: string, v: unknown) => { data = data.filter((r) => r[col] === v); return q },
+        eq: (col: string, v: unknown) => { data = data.filter((r) => (r[col] ?? (col === 'missing' || col === 'in_hand' ? false : undefined)) === v); return q },
         in: (col: string, vs: unknown[]) => { data = data.filter((r) => vs.includes(r[col])); return q },
         ilike: (col: string, pattern: string) => {
           const lower = pattern.toLowerCase()

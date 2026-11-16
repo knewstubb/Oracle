@@ -160,6 +160,8 @@ export async function computeUnresolvedStatuses(
       .from('user_copies')
       .select('card_id, printing_id, deck_cards!deck_cards_copy_id_fkey(id)')
       .eq('user_id', userId)
+      .eq('missing', false)
+      .eq('in_hand', false)
       .in('card_id', batch)
 
     if (pcError) {

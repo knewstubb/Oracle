@@ -84,6 +84,8 @@ export async function GET(request: NextRequest) {
       .from('user_copies')
       .select('card_id, user_cards!user_copies_card_id_fkey ( card_name, type_line )')
       .eq('is_proxy', false)
+      .eq('missing', false)
+      .eq('in_hand', false)
 
     if (collErr) throw collErr
 

@@ -209,7 +209,7 @@ export async function lookupOwnedCopies(
   const realCopies: Array<{ id: number; oracleId: string }> = []
   for (const part of chunks([...cardIdToOracle.keys()])) {
     const rs = await rows(
-      client.from('user_copies').select('id, card_id').eq('user_id', userId).eq('is_proxy', false).in('card_id', part),
+      client.from('user_copies').select('id, card_id').eq('user_id', userId).eq('is_proxy', false).eq('missing', false).eq('in_hand', false).in('card_id', part),
       'owned copies'
     )
     for (const r of rs) realCopies.push({ id: Number(r.id), oracleId: cardIdToOracle.get(Number(r.card_id)) as string })

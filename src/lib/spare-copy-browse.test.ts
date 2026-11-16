@@ -18,7 +18,7 @@ function mockClient(tables: Record<string, Row[]>) {
       let data = [...(tables[table] ?? [])]
       const q = {
         select() { calls.push(`${table}.select`); return q },
-        eq(col: string, v: unknown) { data = data.filter(r => r[col] === v); return q },
+        eq(col: string, v: unknown) { data = data.filter(r => (r[col] ?? (col === 'missing' || col === 'in_hand' ? false : undefined)) === v); return q },
         in(col: string, vs: unknown[]) { data = data.filter(r => vs.includes(r[col])); return q },
         or() { return q }, // the real database pre-filter only removes cards the app-side check would also remove
         ilike() { return q },
@@ -117,6 +117,16 @@ describe('browseSpareCopies', () => {
     const c = r.spare.find(x => x.card_name === 'Held Elsewhere')
     expect(c?.spare_copies).toBe(1)
     expect(c?.in_other_decks[0].deck_name).toBe('Korvold')
+  })
+
+  it('a copy that is In your hand or Missing is never spare', async () => {
+    const t = world()
+    t.user_copies = t.user_copies.map(c => (c.id === 20 ? { ...c, in_hand: true } : c.id === 27 ? { ...c, missing: true } : c))
+    const r = await run(t)
+    const names = [...r.spare, ...r.in_another_deck].map(c => c.card_name)
+    expect(names).not.toContain('Spare Bear')
+    expect(names).not.toContain('Spare Draw')
+    expect(names).toContain('Planned Only')
   })
 
   it('filters by type and by role', async () => {

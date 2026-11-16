@@ -151,6 +151,8 @@ export async function fetchOveruse(userId: string): Promise<OveruseResult> {
           .select('id, card_id')
           .eq('user_id', userId)
           .eq('is_proxy', false)
+          .eq('missing', false)
+          .eq('in_hand', false)
           .order('id')
           .range(from, to),
       'copies'

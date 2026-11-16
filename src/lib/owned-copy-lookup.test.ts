@@ -18,7 +18,7 @@ function mockClient(tables: Record<string, Row[]>) {
       let data = [...(tables[table] ?? [])]
       const q = {
         select() { calls.push(`${table}.select`); return q },
-        eq(col: string, v: unknown) { data = data.filter(r => r[col] === v); return q },
+        eq(col: string, v: unknown) { data = data.filter(r => (r[col] ?? (col === 'missing' || col === 'in_hand' ? false : undefined)) === v); return q },
         in(col: string, vs: unknown[]) { data = data.filter(r => vs.includes(r[col])); return q },
         ilike(col: string, pat: string) {
           const prefix = pat.replace(/%$/, '').toLowerCase()

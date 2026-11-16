@@ -58,10 +58,10 @@ describe('search_collection facts (CC-06b)', () => {
     expect(r.items[0].typeLine).toBeNull()
   })
 
-  it('one batched facts lookup per page, not one per card', async () => {
+  it('batched lookups per page (one for facts, one for roles), not one per card', async () => {
     const { db, queries } = searchDb(['Sol Ring', ...Array.from({ length: 24 }, (_, i) => `Card ${i}`)])
     await searchCollection({ db: db as never, userId: U }, searchCollectionInput.parse({}))
-    expect(queries.filter((q) => q.table === 'ref_cards' && q.filters.some((f) => f.op === 'in')).length).toBe(1)
+    expect(queries.filter((q) => q.table === 'ref_cards' && q.filters.some((f) => f.op === 'in')).length).toBe(2)
   })
 
   it('a 25-card page of full facts stays under the size cap or says more remain', async () => {

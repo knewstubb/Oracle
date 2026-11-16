@@ -21,8 +21,8 @@ interface StateButtonGroupProps {
 }
 
 const STATE_COPY: Record<InstanceState, { label: string; tone: PillToggleTone }> = {
-  planned: { label: 'Unsleeved', tone: 'amber' },
-  sleeved: { label: 'Sleeved', tone: 'teal' },
+  planned: { label: 'Planned', tone: 'amber' },
+  sleeved: { label: 'In deck', tone: 'teal' },
   proxy: { label: 'Proxy', tone: 'blue' },
 }
 

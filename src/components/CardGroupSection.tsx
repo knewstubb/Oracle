@@ -936,13 +936,13 @@ export function GenericLandRow({ landName, count, deckId, cardIds, cards, select
           type="button"
           onClick={() => handleSleeved(!sleeved)}
           aria-pressed={!sleeved}
-          aria-label={`${landName} generics are ${sleeved ? 'sleeved' : 'unsleeved'}. Click to mark ${sleeved ? 'unsleeved' : 'sleeved'}`}
+          aria-label={`${landName} generics are ${sleeved ? 'in deck' : 'planned'}. Click to mark ${sleeved ? 'planned' : 'in deck'}`}
           className="inline-flex items-center gap-1 shrink-0 rounded-full px-2 py-0.5 text-[length:var(--fs-xs)] font-medium disabled:opacity-40"
           style={sleeved
             ? { color: 'var(--signal-success)', backgroundColor: 'rgba(29, 158, 117, 0.12)' }
             : { color: 'var(--signal-warning, #EF9F27)', backgroundColor: 'rgba(239, 159, 39, 0.14)' }}
         >
-          {sleeved ? 'Sleeved' : '◇ Unsleeved'}
+          {sleeved ? 'In deck' : '◇ Planned'}
         </button>
 
         {/* Kebab menu with quantity picker */}

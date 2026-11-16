@@ -509,7 +509,7 @@ const TYPE_STYLE: Record<string, { label: string; selected: string }> = {
       "bg-[rgba(74,147,160,0.18)] shadow-[inset_0_0_0_1px_var(--status-proxy)] text-foreground",
   },
   unsleeved: {
-    label: "Unsleeved",
+    label: "Planned",
     selected: "shadow-[inset_0_0_0_1px_var(--text-secondary)] text-foreground",
   },
 };
@@ -757,7 +757,7 @@ export function ImportRowEditor({
           data-tag="unsleeved"
           className="inline-flex h-[18px] items-center rounded-full border border-[var(--signal-warning)] px-1.5 text-[length:var(--fs-xs)] text-[var(--signal-warning)]"
         >
-          ◇ Unsleeved
+          ◇ Planned
         </span>
       )}
     </>
@@ -1031,8 +1031,8 @@ function CopyLine({
             <TypeToggle
               value={copy.type === "unsleeved" ? "unsleeved" : "original"}
               options={["original", "unsleeved"]}
-              labels={{ original: "Sleeved" }}
-              label={`Generic ${row.cardName} sleeving`}
+              labels={{ original: "In deck" }}
+              label={`Generic ${row.cardName} in deck or planned`}
               onChange={(type) => onChange({ type })}
             />
           )}

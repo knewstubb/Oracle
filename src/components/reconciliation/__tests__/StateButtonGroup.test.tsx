@@ -12,8 +12,8 @@ describe('StateButtonGroup', () => {
         aria-label="Sol Ring state"
       />
     )
-    expect(screen.getByRole('radio', { name: 'Unsleeved' })).toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: 'Sleeved' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Planned' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'In deck' })).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: 'Proxy' })).toBeInTheDocument()
   })
 
@@ -26,8 +26,8 @@ describe('StateButtonGroup', () => {
         aria-label="Sol Ring state"
       />
     )
-    expect(screen.getByRole('radio', { name: 'Sleeved' })).toHaveAttribute('aria-checked', 'true')
-    expect(screen.getByRole('radio', { name: 'Unsleeved' })).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByRole('radio', { name: 'In deck' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('radio', { name: 'Planned' })).toHaveAttribute('aria-checked', 'false')
   })
 
   it('calls onChange when a new option is clicked', () => {
@@ -55,12 +55,12 @@ describe('StateButtonGroup', () => {
         aria-label="Sol Ring state"
       />
     )
-    expect(screen.getByRole('radio', { name: 'Sleeved' })).toBeDisabled()
-    expect(screen.getByRole('radio', { name: 'Sleeved' })).toHaveAttribute(
+    expect(screen.getByRole('radio', { name: 'In deck' })).toBeDisabled()
+    expect(screen.getByRole('radio', { name: 'In deck' })).toHaveAttribute(
       'title',
       'All owned copies are already sleeved'
     )
-    expect(screen.getByRole('radio', { name: 'Unsleeved' })).not.toBeDisabled()
+    expect(screen.getByRole('radio', { name: 'Planned' })).not.toBeDisabled()
   })
 
   it('exposes an accessible group label', () => {

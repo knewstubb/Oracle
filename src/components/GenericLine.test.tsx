@@ -134,9 +134,9 @@ describe('generic line on the deck page', () => {
     vi.unstubAllGlobals()
   })
 
-  it('shows Unsleeved when any row of the line is unsleeved', () => {
+  it('shows Planned when any row of the line is unsleeved', () => {
     renderSection([island(1), island(2, { generic_sleeved: false })])
-    expect(screen.getByRole('button', { name: /generics are unsleeved/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /generics are planned/ })).toBeInTheDocument()
   })
 })
 

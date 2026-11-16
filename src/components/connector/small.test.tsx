@@ -45,7 +45,7 @@ describe('MovedSlotNote', () => {
     expect(screen.getByText('Unavailable')).toBeInTheDocument()
     expect(screen.getByText('In Korvold')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Open Korvold' })).toHaveAttribute('href', '/decks/9')
-    expect(screen.getByText(/Was sleeved here\. Claude moved this copy to Korvold on .*\(you approved it\)\./)).toBeInTheDocument()
+    expect(screen.getByText(/Was in this deck\. Claude moved this copy to Korvold on .*\(you approved it\)\./)).toBeInTheDocument()
   })
   it('useMovedSlots keys by slot id and tolerates a failed lookup', async () => {
     vi.mocked(api.fetchMovedSlots).mockResolvedValue([slot])

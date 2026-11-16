@@ -28,6 +28,6 @@ describe('moved-card state in the original deck', () => {
     expect(await screen.findByText('In Korvold')).toBeInTheDocument()
     expect(screen.getAllByTestId('moved-slot-note')).toHaveLength(1)
     expect(screen.getByRole('link', { name: 'Open Korvold' })).toHaveAttribute('href', '/decks/9')
-    expect(screen.getByText(/Was sleeved here\. Claude moved this copy to Korvold/)).toBeInTheDocument()
+    expect(screen.getByText(/Was in this deck\. Claude moved this copy to Korvold/)).toBeInTheDocument()
   })
 })

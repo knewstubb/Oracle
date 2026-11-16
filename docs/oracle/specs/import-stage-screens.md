@@ -40,8 +40,8 @@ Centred group: title ("Adding to your collection…" / "Creating your deck…") 
 
 ### 4.4 Result
 Centred column, max 460 px, scrolls inside the body if tall. Footer: **Close** (outline), **View collection** / **Open deck** (primary).
-1. **Hero:** 52 px green circle with a check; headline "148 copies added"; line "to your collection". Deck: "Strix draft imported" / "66 cards added and sleeved".
-2. **Breakdown** (bordered list; only when at least one of proxies, foils or tokens is non-zero): Originals · Proxies (blue ◆) · Foil (★, "included in the counts above") · Tokens skipped. Each row is hidden when 0, except Originals. Deck adds "Unsleeved" and "Basics" rows by the same rule (not mocked).
+1. **Hero:** 52 px green circle with a check; headline "148 copies added"; line "to your collection". Deck: "Strix draft imported" / "66 cards added to the deck".
+2. **Breakdown** (bordered list; only when at least one of proxies, foils or tokens is non-zero): Originals · Proxies (blue ◆) · Foil (★, "included in the counts above") · Tokens skipped. Each row is hidden when 0, except Originals. Deck adds "Planned" and "Basics" rows by the same rule (not mocked).
 3. **When the breakdown would be empty,** one line "All originals." replaces it.
 4. **Needs a look** (only when present): one amber-outline notice per kind (value not recognised; finish Scryfall doesn't list), then the unmatched-cards notice with up to three raw lines, each with the reason, and a header button **Copy unmatched lines**. More than three lines: "Show all 12" expands in place.
 - States to review: 4a success clean · 4b success with breakdown · 4c success with notices and unmatched.
@@ -75,7 +75,7 @@ Derived: Originals = `inserted − proxies` (collection). For decks, Originals =
 - Errors: "That isn't a ManaBox .csv file. Choose the file you exported from ManaBox." · "This file has no cards. Check you exported the right list from ManaBox, then try again." · "We couldn't read that file. Export it from ManaBox again and retry."
 - Processing: "Reading your file…" · "Matching 148 cards to Scryfall. This usually takes a few seconds." (no card count known: "Matching your cards to Scryfall.")
 - Importing: "Adding to your collection…" / "Creating your deck…" · "87 of 148 copies" · "Keep this window open until it finishes." · "Cancel import".
-- Result: "148 copies added" / "1 copy added" · "to your collection" · "Strix draft imported" · "66 cards added and sleeved" · "All originals." · rows "Originals", "Proxies", "Foil — included in the counts above", "Tokens skipped" · "Needs a look" · "3 values in your file weren't recognised, so your defaults were used." · "2 copies have a finish Scryfall doesn't list for that printing. They were kept as in your file." · "3 cards couldn't be matched, so they weren't added." · "Copy unmatched lines" · buttons "Close", "View collection", "Open deck".
+- Result: "148 copies added" / "1 copy added" · "to your collection" · "Strix draft imported" · "66 cards added to the deck" · "All originals." · rows "Originals", "Proxies", "Foil — included in the counts above", "Tokens skipped" · "Needs a look" · "3 values in your file weren't recognised, so your defaults were used." · "2 copies have a finish Scryfall doesn't list for that printing. They were kept as in your file." · "3 cards couldn't be matched, so they weren't added." · "Copy unmatched lines" · buttons "Close", "View collection", "Open deck".
 
 ## 8. Accessibility
 Contrast on `#1A1A1E`: secondary text ≈ 6.5:1; green `#1D9E75` ≈ 5.1:1 (check icon, progress, drag-over border); proxy blue `#4A93A0` ≈ 5.0:1; amber `#EF9F27` and red `#E24B4A` are used for icon and border only, with body text in primary/secondary colour. Known existing issue: white text on the green primary button is ≈ 3.4:1 (below AA for 13 px); same as every primary button in the app, flagged not changed. D-012: success = icon + headline; warnings = triangle icon + text; proxy = ◆ + word; drag-over = icon and text change, not colour only. Dashed border meets the 3:1 non-text rule only in the drag-over state; the empty zone is also identified by its icon, text and button, so it isn't relied on.
@@ -86,4 +86,4 @@ Contrast on `#1A1A1E`: secondary text ≈ 6.5:1; green `#1D9E75` ≈ 5.1:1 (chec
 3. **Clean result** shows "All originals." Should it also say "Non-foil" when no foils?
 4. **Processing** has no real progress bar because only a card count is known. Is an indeterminate spinner acceptable?
 5. **Unmatched lines:** three shown, then "Show all". Is three right?
-6. Result for decks: `Originals` maths with Unsleeved (see §6) needs Architect confirmation.
+6. Result for decks: `Originals` maths with Planned (see §6) needs Architect confirmation.

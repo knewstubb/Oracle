@@ -361,7 +361,7 @@ describe('Review list: generic basics and maybeboard', () => {
 
   it('maybeboard rows say they are not added or sleeved', async () => {
     await open('built', NOT_OWNED, MAYBE)
-    expect(await screen.findByText('Not added or sleeved')).toBeInTheDocument()
+    expect(await screen.findByText('Not added or in the deck')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Card origin for Arcane Signet' })).toBeNull()
   })
 })

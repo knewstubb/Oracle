@@ -119,9 +119,9 @@ All-or-nothing per `group_id`; window 7 days (`window_closed` after); a refusal 
 
 | Kind | Undo does | Refuses when | Who |
 |---|---|---|---|
-| `deck_add` | delete the planned slot | slot now sleeved or edited (`slot_sleeved`, `slot_edited`) | Claude or owner |
+| `deck_add` | delete the planned slot | slot now in deck or edited (`slot_sleeved`, `slot_edited`) | Claude or owner |
 | `deck_remove` | re-insert slot from snapshot; re-attach the copy if still in the storage place it was released to | card back on list; copy elsewhere/moved/missing; deck gone | Claude or owner |
-| `deck_zone` | restore categories; re-attach copy | slot edited or sleeved; copy elsewhere | Claude or owner |
+| `deck_zone` | restore categories; re-attach copy | slot edited or in deck; copy elsewhere | Claude or owner |
 | `sleeve_copy` | copy back to its previous storage place | copy moved or slot changed (`copy_moved`) | Claude or owner |
 | `make_original` | swap proxy back in | proxy moved (`proxy_moved`) | Claude or owner |
 | `create_proxy` | detach and delete that one proxy copy | slot or copy changed | **owner only** (new) |

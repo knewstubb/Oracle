@@ -11,7 +11,7 @@ The owner will let a Claude app change Oracle from a phone, away from the comput
 - **User control and freedom (Nielsen 3):** Undo on every change; Approve/Decline on every pending one; one-tap off-switch.
 - **Object-action mapping (D-015):** the switch is inside the connection card, Undo inside its row, Approve/Decline inside the pending card.
 - **Quiet default, loud exception (D-014):** the pending chip only appears when something waits; applied changes are plain rows.
-- **Reuse, don't invent:** the moved-card state is an existing Unsleeved slot (section 8).
+- **Reuse, don't invent:** the moved-card state is an existing Planned slot (section 8).
 
 ## 3. Where it lives
 New page **Settings → Claude connector** with three tabs: **Connection**, **Recent changes**, **Setup guide**. A small chip "N Claude is waiting for your yes" shows in the app header only while something is pending, and opens Recent changes. Phone: tabs scroll horizontally; the chip sits in the header. Deep link from the chip must work on phone.
@@ -41,7 +41,7 @@ Order: pending section (section 5) first, then applied changes newest first grou
 Copy per kind of change:
 | Change | Sentence |
 |---|---|
-| Add to deck | "Added {card} to {deck}. It is on the list, Unsleeved. No copy was moved." |
+| Add to deck | "Added {card} to {deck}. It is on the list, Planned. No copy was moved." |
 | Remove from deck | "Took {card} out of {deck}'s main list. The copy went back to storage; it is still in your collection." |
 | Move to/from maybeboard | "Moved {card} to {deck}'s maybeboard. The copy went back to storage." |
 | Original/Proxy | "Marked your {card} in {deck} as an {Original/Proxy} (it was a {Proxy/Original})." |
@@ -64,8 +64,8 @@ Copy per kind of change:
 Section at top of Recent changes titled "Waiting for your yes" with count. Banner above: "Only you can approve these. Claude can ask, but it can't say yes for you. That's true even if Claude's own 'ask me first' prompts are switched off. Nothing below has happened yet."
 
 Two kinds (`PendingCard`, shadcn `Card` + `Badge` + `Button`):
-1. **Moving a card** (badge "⏸ Moving a card · waiting"): title "Move {card} from {A} to {B}?". Two side-by-side boxes (stacked on phone, losing deck first): deck name with "(loses a card)" / "(gains a card)", Sleeved count before → after, what happens to the slot, deck status before → after (reusing Assembling/Playable wording; computed by the existing readiness calculation). Line "Nothing is lost or duplicated. The copy exists once and is in one deck."
-2. **Big edit** (badge "⏸ Big edit · waiting"): title "{Cut/Add/Change} {n} cards {from/to} {deck}?", scrollable card list, deck size before → after and Sleeved before → after, "The copies go back to storage, not deleted." when removing.
+1. **Moving a card** (badge "⏸ Moving a card · waiting"): title "Move {card} from {A} to {B}?". Two side-by-side boxes (stacked on phone, losing deck first): deck name with "(loses a card)" / "(gains a card)", In deck count before → after, what happens to the slot, deck status before → after (reusing Assembling/Playable wording; computed by the existing readiness calculation). Line "Nothing is lost or duplicated. The copy exists once and is in one deck."
+2. **Big edit** (badge "⏸ Big edit · waiting"): title "{Cut/Add/Change} {n} cards {from/to} {deck}?", scrollable card list, deck size before → after and In deck before → after, "The copies go back to storage, not deleted." when removing.
 
 Buttons: primary "Approve move" / "Approve all {n}", secondary danger-outlined "Decline". Approve applies at once; the card then appears in the applied list with Undo (and a toast "Approved. {summary}"). Decline discards; Claude is told "the owner said no".
 - **Already stale at approval** (deck changed since Claude asked): approve is refused, card shows "Couldn't apply. {specific reason}. Nothing was moved. Ask Claude again." and the buttons become "Dismiss".
@@ -86,13 +86,13 @@ Pointer: tap tab, switch, Undo, Approve, Decline, disclosure, accordion, copy.
 Keyboard: Tab order is page tabs → connection card (switch) → panel; in lists each row's button in DOM order (newest first), pending cards before applied rows. Switch toggles on Space/Enter. Tabs follow arrow-key navigation. Accordion Enter/Space. No drag anywhere in this feature, so no drag equivalent is needed.
 After Undo/Approve/Decline, focus moves to the next row's action (or the list heading when none remain); a polite live region announces the result. Toasts use `role="status"`; errors use `role="alert"`.
 
-## 8. How the moved card reuses planned/placed slots (owner words: Sleeved / Unsleeved, D-025)
-The audit's reading (brief section 0, "How rules 9 and 10 sit") is used as is: on a cross-deck move the copy attaches to the destination slot and the source slot goes back to a planned (Unsleeved) slot. In the original deck's Cards tab the slot:
-- sits under **Unsleeved**, with the existing outline badge **🔒 Unavailable** and reason line **In {deck}** [Confirmed vocabulary: `docs/oracle/specs/vocabulary.md` section 3.2, Unavailable = owned, every copy in another deck];
+## 8. How the moved card reuses planned/placed slots (owner words: In deck / Planned, D-025; renamed from Sleeved / Unsleeved on 2026-11-17)
+The audit's reading (brief section 0, "How rules 9 and 10 sit") is used as is: on a cross-deck move the copy attaches to the destination slot and the source slot goes back to a planned slot. In the original deck's Cards tab the slot:
+- sits under **Planned**, with the existing outline badge **🔒 Unavailable** and reason line **In {deck}** [Confirmed vocabulary: `docs/oracle/specs/vocabulary.md` section 3.2, Unavailable = owned, every copy in another deck];
 - gets a link "Open {deck}" (the existing "Move from {deck}" action is already in its menu, D-033);
-- gets **one added quiet line** of history, only when Claude moved it: "Was sleeved here. Claude moved this copy to {deck} on {date}, {time} (you approved it)." This is a note on an existing state, not a new slot or badge. If the Architect's contract shows `reassign_to_deck` does not leave the source slot planned (brief marks this [Approximate]), the contract must fix that; the design does not change.
-Compared with a normal placed card: filled quiet "✓ Original" badge under **Sleeved**. Compared with a normal planned card: outline "○ Available" (a free copy exists). A planned card that is Unavailable for another reason looks identical but has no history line.
-Deck counts: list size unchanged; Sleeved count drops by one.
+- gets **one added quiet line** of history, only when Claude moved it: "Was in this deck. Claude moved this copy to {deck} on {date}, {time} (you approved it)." This is a note on an existing state, not a new slot or badge. If the Architect's contract shows `reassign_to_deck` does not leave the source slot planned (brief marks this [Approximate]), the contract must fix that; the design does not change.
+Compared with a normal placed card: filled quiet "✓ Original" badge under **In deck**. Compared with a normal planned card: outline "○ Available" (a free copy exists). A planned card that is Unavailable for another reason looks identical but has no history line.
+Deck counts: list size unchanged; In deck count drops by one.
 
 Data needed (Architect to confirm, not provided by an existing contract): a way to know a slot lost its copy to a Claude-approved move (log row id, time) and the destination deck name.
 
@@ -102,7 +102,7 @@ Data needed (Architect to confirm, not provided by an existing contract): a way 
 | Connector active / last used / client | connector status, last-used time, client name | new, Architect |
 | Change rows | `ai_change_log`: action, deck, card, copy, summary text, created_at, undone_at, group id, client | audit section 2 (proposed) |
 | Undo refused reason | reason string from undo function | audit section 2 |
-| Pending items | pending change: kind, decks, before/after Sleeved counts, deck status before/after, card list, expires_at | audit section 7 |
+| Pending items | pending change: kind, decks, before/after In deck counts, deck status before/after, card list, expires_at | audit section 7 |
 | Deck status before/after | existing readiness calculation | `computeDeckReadiness` per audit |
 | Moved-card history line | change-log row for that slot | as above |
 Plain-words sentences are generated server-side (one place) so the app and Claude say the same thing.

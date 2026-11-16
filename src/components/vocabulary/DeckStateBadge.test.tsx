@@ -15,7 +15,7 @@ describe('DeckStateBadge', () => {
     render(<DeckStateBadge state="assembling" sleeved={87} required={100} />)
     expect(screen.getByText(/Assembling/)).toBeInTheDocument()
     expect(
-      screen.getByLabelText('Assembling · 87/100 sleeved')
+      screen.getByLabelText('Assembling · 87/100 in deck')
     ).toBeInTheDocument()
   })
 
@@ -72,6 +72,6 @@ describe('DeckStateBadge', () => {
 
   it('uses Casual-style count when required is null', () => {
     render(<DeckStateBadge state="assembling" sleeved={40} required={null} />)
-    expect(screen.getByText(/40 sleeved/)).toBeInTheDocument()
+    expect(screen.getByText(/40 in deck/)).toBeInTheDocument()
   })
 })

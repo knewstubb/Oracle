@@ -1,5 +1,5 @@
-# Brief: Filterable collection search for Claude (Gate 1 DRAFT)
-Author: Gene, drafted 2026-11-16 from Claude's feedback. Status: **DRAFT, awaiting owner approval. NOT approved. Nothing is built.** Depends on: `connector-card-facts-and-deck-health.md` (type and colour facts must exist first).
+# Brief: Filterable collection search for Claude (Gate 1 READY FOR OWNER APPROVAL)
+Author: Gene, drafted 2026-11-16 from Claude's feedback. Status: **APPROVED by owner 2026-11-16, with all listed defaults. Nothing is built; next step is the Architect audit (after step 1).** Order set by owner 2026-11-16: step 2 of 3. Depends on: `connector-card-facts-and-deck-health.md` (type and colour facts must exist first).
 
 ## 1. What this is, in plain words
 Claude can search the collection by name, and filter by free or proxy only, but must flip through pages (about 113 calls for the whole collection) to find, say, every green ramp creature you own. This lets Claude ask for exactly what it wants, and get a summary count first.
@@ -26,11 +26,11 @@ In: read-only search and summary. Out: changing cards, game logging, wishlist (p
 1. Type, colour, mana value and location filters on the existing search.
 2. Summary (group counts) view.
 
-## 7. Open questions for the owner (behaviour)
-1. **Function tags.** Do you want "ramp / draw / removal" searchable now? Recommended: not yet; Deck health already sorts cards into these roles per deck, so ask about a deck instead.
-2. **What counts as "free".** Today free means not sleeved in any deck. Should cards marked In your hand or Missing be left out of "free"? Recommended: yes, same as the rest of the app.
-3. **Proxies in results.** Show originals and proxies as separate rows (recommended) or one row with counts?
-4. **Wishlist.** Should Claude be able to see your wishlist too, or leave that for later? Recommended: later.
+## 7. Defaults applied (owner has not answered; Gene's recommendations, approve or change)
+1. **Function tags (ramp / draw / removal): DEFAULT = not yet.** Ask about a deck instead; Deck health already sorts cards into roles.
+2. **What counts as "free": DEFAULT = leave out cards marked In your hand or Missing**, same as the rest of the app.
+3. **Proxies in results: DEFAULT = originals and proxies as separate rows.**
+4. **Wishlist: DEFAULT = include only if the Architect audit finds it cheap and read-only; otherwise later.** Owner priority is maximum data for Claude, so cheap extras are welcome; the Architect reports the cost before anything is built.
 
 ## 8. Risks
 Colour and type search needs the card facts from the first brief; without them filters would silently miss cards. Slice order must hold.

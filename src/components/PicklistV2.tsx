@@ -742,7 +742,7 @@ interface ProgressCounts {
 /** The deck-status line for unsleeved generics; null when every generic is sleeved. */
 export function shortGenericsText(names: readonly string[] | undefined): string | null {
   if (!names || names.length === 0) return null
-  return `Short: ${names.join(', ')} generics unsleeved`
+  return `Short: ${names.join(', ')} generics planned`
 }
 
 export function PicklistProgress({ cards, progress, counts: propCounts, action }: { 
@@ -818,7 +818,7 @@ export function PicklistProgress({ cards, progress, counts: propCounts, action }
       {/* Count label + legend */}
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <span className="text-[length:var(--fs-sm)] font-medium text-foreground">
-          {counts.total + genericSleeved + genericUnsleeved}/100 slots · {physicalCopies + genericSleeved} sleeved
+          {counts.total + genericSleeved + genericUnsleeved}/100 slots · {physicalCopies + genericSleeved} in deck
         </span>
         <div className="flex flex-wrap items-center gap-2 md:gap-3 text-[length:var(--fs-xs)] text-muted-foreground">
           {shortText && (

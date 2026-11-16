@@ -58,7 +58,7 @@ export function ImportSummary({ rows, kind, defaults, copyEdits, unmatchedCount 
       {showExtras && totals.proxies > 0 && <span aria-hidden="true"> · </span>}
       {showExtras && totals.proxies > 0 && plural(totals.proxies, 'proxy', 'proxies')}
       {showExtras && totals.unsleeved > 0 && <span aria-hidden="true"> · </span>}
-      {showExtras && totals.unsleeved > 0 && `${totals.unsleeved} unsleeved`}
+      {showExtras && totals.unsleeved > 0 && `${totals.unsleeved} planned`}
       {showExtras && totals.foil > 0 && <span aria-hidden="true"> · </span>}
       {showExtras && totals.foil > 0 && `${totals.foil} foil`}
     </span>

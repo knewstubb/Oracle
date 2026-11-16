@@ -26,12 +26,12 @@ describe('SlotBadge', () => {
     it('renders Original with check icon for original state', () => {
       render(<SlotBadge state="original" />)
       expect(screen.getByText('Original')).toBeInTheDocument()
-      expect(screen.getByLabelText('Sleeved, original')).toBeInTheDocument()
+      expect(screen.getByLabelText('In deck, original')).toBeInTheDocument()
     })
 
     it('renders Proxy with comedy_mask icon and proxy token', () => {
       render(<SlotBadge state="proxy" />)
-      const badge = screen.getByLabelText('Sleeved, proxy')
+      const badge = screen.getByLabelText('In deck, proxy')
       expect(screen.getByText('Proxy')).toBeInTheDocument()
       expect(badge.parentElement).toHaveAttribute(
         'style',
@@ -46,12 +46,12 @@ describe('SlotBadge', () => {
     it('renders Basic with landscape icon for basic state', () => {
       render(<SlotBadge state="basic" />)
       expect(screen.getByText('Basic')).toBeInTheDocument()
-      expect(screen.getByLabelText('Sleeved, basic')).toBeInTheDocument()
+      expect(screen.getByLabelText('In deck, basic')).toBeInTheDocument()
     })
 
     it('renders Available as outline badge', () => {
       render(<SlotBadge state="available" />)
-      const badge = screen.getByLabelText('Unsleeved, available')
+      const badge = screen.getByLabelText('Planned, available')
       expect(screen.getByText('Available')).toBeInTheDocument()
       expect(badge.parentElement).toHaveAttribute(
         'style',
@@ -62,12 +62,12 @@ describe('SlotBadge', () => {
     it('renders Alt available with swap_horiz icon', () => {
       render(<SlotBadge state="alt_available" />)
       expect(screen.getByText('Alt available')).toBeInTheDocument()
-      expect(screen.getByLabelText('Unsleeved, alt available')).toBeInTheDocument()
+      expect(screen.getByLabelText('Planned, alt available')).toBeInTheDocument()
     })
 
     it('renders Proxy available as loud outline badge', () => {
       render(<SlotBadge state="proxy_available" />)
-      const badge = screen.getByLabelText('Unsleeved, proxy available')
+      const badge = screen.getByLabelText('Planned, proxy available')
       expect(screen.getByText('Proxy available')).toBeInTheDocument()
       expect(badge.parentElement).toHaveAttribute(
         'style',
@@ -84,13 +84,13 @@ describe('SlotBadge', () => {
       expect(screen.getByText('Unavailable')).toBeInTheDocument()
       expect(screen.getByText('In Korvold')).toBeInTheDocument()
       expect(
-        screen.getByLabelText('Unsleeved, unavailable, In Korvold')
+        screen.getByLabelText('Planned, unavailable, In Korvold')
       ).toBeInTheDocument()
     })
 
     it('renders Unowned with do_not_disturb_on icon', () => {
       render(<SlotBadge state="unowned" />)
-      const badge = screen.getByLabelText('Unsleeved, unowned')
+      const badge = screen.getByLabelText('Planned, unowned')
       expect(screen.getByText('Unowned')).toBeInTheDocument()
       expect(badge.parentElement).toHaveAttribute(
         'style',
@@ -105,7 +105,7 @@ describe('SlotBadge', () => {
     it('renders Checking… with spinner', () => {
       render(<SlotBadge state="checking" />)
       expect(screen.getByText('Checking…')).toBeInTheDocument()
-      expect(screen.getByLabelText('Unsleeved, checking…')).toBeInTheDocument()
+      expect(screen.getByLabelText('Planned, checking…')).toBeInTheDocument()
       expect(document.querySelector('svg')).toBeInTheDocument()
     })
 
@@ -127,7 +127,7 @@ describe('SlotBadge', () => {
   describe('icon variant', () => {
     it('renders a circular icon for original state', () => {
       render(<SlotBadge state="original" variant="icon" />)
-      expect(screen.getByLabelText('Sleeved, original')).toBeInTheDocument()
+      expect(screen.getByLabelText('In deck, original')).toBeInTheDocument()
     })
 
     it('renders tooltip content with reason for icon variant', () => {
@@ -139,7 +139,7 @@ describe('SlotBadge', () => {
 
     it('supports md size', () => {
       render(<SlotBadge state="proxy" variant="icon" size="md" />)
-      const badge = screen.getByLabelText('Sleeved, proxy')
+      const badge = screen.getByLabelText('In deck, proxy')
       expect(badge).toHaveStyle({ width: '24px', height: '24px' })
     })
   })

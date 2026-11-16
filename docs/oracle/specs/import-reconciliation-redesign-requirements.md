@@ -39,7 +39,7 @@ Each tab shows a count of unresolved conflicts. A conflict is counted per printi
 
 - Only decks with conflicts are shown. Decks with zero conflicts are hidden entirely.
 - Expanding a deck shows only its conflicted cards.
-- Each conflicted card shows the deck it belongs to and supports the same Planned / Sleeved / Proxy buttons and alternate-printing dropdown as the owned/unowned tabs.
+- Each conflicted card shows the deck it belongs to and supports the same Planned / In deck / Proxy buttons and alternate-printing dropdown as the owned/unowned tabs.
 - Alternate printing selection applies to that one deck-card instance.
 
 ### 4. Owned cards: state model
@@ -49,15 +49,15 @@ For each owned printing in conflict, the Owned tab groups all instances of that 
 For each **instance**, the user selects a state:
 
 - **Planned** (default for every instance) — the instance stays as a planned slot. It is not assigned to a physical copy.
-- **Sleeved** — the instance is assigned to a physical copy in the user's collection. This can be an original or an existing proxy.
+- **In deck** — the instance is assigned to a physical copy in the user's collection. This can be an original or an existing proxy.
 - **Proxy** — a proxy copy is used. If a free proxy copy already exists, it is used. Otherwise a new proxy copy is added to the collection.
 
 Controls:
-- Use **buttons** for Planned / Sleeved / Proxy per instance, not a dropdown.
+- Use **buttons** for Planned / In deck / Proxy per instance, not a dropdown.
 - A separate **dropdown** appears only when an alternate printing is available for that instance.
-- A user cannot sleeve more copies than they own. The Sleeved option becomes disabled for other instances once all owned copies are allocated.
-- If one instance sleeves a printing, other instances of that printing show as **Planned (used elsewhere)**.
-- If an instance is not manually sleeved, it remains Planned.
+- A user cannot put more copies in decks than they own. The In deck option becomes disabled for other instances once all owned copies are allocated.
+- If one instance is set to In deck for a printing, other instances of that printing show as **Planned (used elsewhere)**.
+- If an instance is not manually set to In deck, it remains Planned.
 - **Already claimed** state is shown in amber.
 
 ### 5. Unowned cards
@@ -79,7 +79,7 @@ If the user owns a different printing of the same card that is available, show a
 
 - Applies per instance (one deck-card).
 - Removes that instance from conflicts involving the original printing.
-- If the selected alternate printing is already sleeved in another deck, the UI shows it as an option, not a warning. The action is not blocked.
+- If the selected alternate printing is already in a deck elsewhere, the UI shows it as an option, not a warning. The action is not blocked.
 
 Alternate printing is available for owned cards in all three tabs. Unowned cards can only select an existing proxy.
 
@@ -92,7 +92,7 @@ Alternate printing is available for owned cards in all three tabs. Unowned cards
 
 ## Resolved design questions
 
-- Sub-state label for a Planned printing whose copies are already sleeved elsewhere: **"Planned (used elsewhere)"**.
+- Sub-state label for a Planned printing whose copies are already in decks elsewhere: **"Planned (used elsewhere)"**.
 - Tab counts: **per conflict printing**, not per instance.
 - Alternate-printing selector: **inline dropdown**.
 - Wishlist deck relationship: **tags** (can be added later).
@@ -102,7 +102,7 @@ Alternate printing is available for owned cards in all three tabs. Unowned cards
 
 ## Open questions for the designer
 
-- What iconography should accompany Planned / Sleeved / Proxy / Already claimed / Resolved states while meeting accessibility needs (D-012–D-014)?
+- What iconography should accompany Planned / In deck / Proxy / Already claimed / Resolved states while meeting accessibility needs (D-012–D-014)?
 - How should the deck-name reference be shown in the Owned and Unowned tabs?
 - How should the alternate-printing dropdown be labelled and positioned relative to the state buttons?
 

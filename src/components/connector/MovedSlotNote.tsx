@@ -19,7 +19,7 @@ export function useMovedSlots(deckId: number): Map<number, Moved> {
   return new Map((data ?? []).map((m) => [m.slot_id, m]))
 }
 
-/** The moved-card state under the slot: Unsleeved, Unavailable, "In {deck}", Open link, one history line. */
+/** The moved-card state under the slot: Planned, Unavailable, "In {deck}", Open link, one history line. */
 export function MovedSlotNote({ slot }: { slot: Moved }) {
   return (
     <div className="flex flex-col gap-1 px-3 pb-2 pl-9" data-testid="moved-slot-note">
@@ -36,7 +36,7 @@ export function MovedSlotNote({ slot }: { slot: Moved }) {
       </div>
       <p className="text-[length:var(--fs-xs)] text-[var(--text-secondary)]">
         {slot.sentence ??
-          `Was sleeved here. ${slot.client_name || 'Claude'} moved this copy to ${slot.moved_to_deck_name} on ${formatDate(slot.at)}, ${formatClock(slot.at)}${slot.approved_by_owner ? ' (you approved it)' : ''}.`}
+          `Was in this deck. ${slot.client_name || 'Claude'} moved this copy to ${slot.moved_to_deck_name} on ${formatDate(slot.at)}, ${formatClock(slot.at)}${slot.approved_by_owner ? ' (you approved it)' : ''}.`}
       </p>
     </div>
   )

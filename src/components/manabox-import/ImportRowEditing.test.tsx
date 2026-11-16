@@ -171,7 +171,7 @@ describe('collapsed tags, Edit/Done and apply-to-all (test 19)', () => {
     render(<Harness kind="deck" />)
     openRow('Sol Ring')
     const line = screen.getByRole('group', { name: 'Copy 1 of 1' })
-    fireEvent.click(within(line).getByRole('button', { name: 'Unsleeved' }))
+    fireEvent.click(within(line).getByRole('button', { name: 'Planned' }))
     const after = screen.getByRole('group', { name: 'Copy 1 of 1' })
     expect(within(after).getByLabelText(/Copy 1 finish/)).toBeInTheDocument()
     expect(within(after).queryByLabelText(/Copy 1 language/)).toBeNull()

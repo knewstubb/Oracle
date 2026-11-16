@@ -419,7 +419,7 @@ describe('deckBreakdown / breakdownLine', () => {
   it('the line under the list omits zeros; the maybeboard has its own line', () => {
     expect(breakdownLine(deckBreakdown(plans), 'all')).toBe('3 from collection · 1 new · 3 not in deck · 1 taken from other decks · 1 short')
     expect(breakdownLine({ collection: 0, new: 2, notInDeck: 0, shared: 0, short: 0 }, 'all')).toBe('2 new')
-    expect(breakdownLine(deckBreakdown(plans), 'maybeboard')).toBe('Maybeboard cards are not added to your collection or sleeved.')
+    expect(breakdownLine(deckBreakdown(plans), 'maybeboard')).toBe('Maybeboard cards are not added to your collection or put in the deck.')
   })
 })
 

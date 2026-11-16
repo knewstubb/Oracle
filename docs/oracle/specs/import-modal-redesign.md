@@ -45,7 +45,7 @@ Not changed: Back/Cancel behaviour, sort and search, bulk bar, "make all like co
 |---|---|
 | Rows, copies, source decks | import intent view (`docs/oracle/contracts/import-intent.*`), Gate 2 audit `2026-11-03-architect-scan-wins-audit.md` |
 | Original/Proxy of existing copy | `user_copies.is_proxy` (D-001) |
-| Source deck shortage after move | source deck's `deck_cards` slot becoming Unsleeved (audit) |
+| Source deck shortage after move | source deck's `deck_cards` slot becoming Planned (audit) |
 | Partner/Background/Companion eligibility | `docs/oracle/contracts/command-zone-roles.md` |
 | Duplicate deck name | existing decks list; Developer to confirm a read exists |
 | Language on Unowned | **HELD BACK** (§10.5), not built |

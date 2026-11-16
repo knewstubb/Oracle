@@ -1,5 +1,5 @@
-# Brief: Game logging and playgroup (Gate 1 DRAFT)
-Author: Gene, drafted 2026-11-16. Status: **DRAFT, awaiting owner approval. NOT approved. Nothing is built.** Owner said YES on 2026-11-16 to Claude being able to log games in Oracle. Related: roadmap item O-004 (post-game debrief), parked until after M3. This brief would pull the logging part forward; owner to confirm.
+# Brief: Game logging and playgroup (Gate 1 DRAFT, answers recorded; step 3 of 3)
+Author: Gene, drafted 2026-11-16. Status: **APPROVED by owner 2026-11-16, sequenced LAST (step 3 of 3, after briefs 1 and 2). Power level = ONE number for the whole table (owner confirmed). Nothing is built.** Owner said YES on 2026-11-16 to Claude being able to log games in Oracle. Related: roadmap item O-004 (post-game debrief), parked until after M3. Owner CONFIRMED 2026-11-16 pulling the logging part forward from parked O-004, but it goes LAST: after card facts and deck health (CC-06), then collection search (CC-07).
 
 ## 1. What this is, in plain words
 After a game, you tell Claude "I played Korvold, won, turn 9" and Oracle saves it. Oracle also remembers who you play with, so decks and games can be looked at in context ("how has Prosper done against Sam's group?").
@@ -28,17 +28,21 @@ In: game records, playgroup people, viewing and editing them, undo for Claude-ma
 2. Claude can log, read and undo games.
 3. Oracle screens: a game history list on each deck, and a Playgroup page. Needs Designer mockup and owner approval before build.
 
-## 7. Open questions for the owner (behaviour). Please answer before approval
-1. **What is in a game record?** Recommended minimum: date, your deck, result (won / lost / draw), number of players, free-text notes. Anything else? Options to add: turn the game ended, how it ended (combo, combat...), the opponents' decks and commanders, which player won if not you, game length, "would play again".
-2. **Result when you are not the winner.** Is it enough to say "lost", or do you want to record who won?
-3. **Who can log?** Recommended: you, and Claude on your behalf (with the same undo as other Claude edits, 7 days). Could other people in your playgroup ever add or see games? (Affects a future public version; recommended: no, owner only for now.)
-4. **Does Claude need approval?** Recommended: one game goes straight in with undo, like small deck edits. Alternative: every logged game waits for your yes. Which?
-5. **Editing and deleting.** Can Claude fix a wrong entry? Can Claude delete one? Recommended: Claude can edit its own entries and undo them; only you can delete games.
-6. **Pods and power level.** Do you want each game to record the pod (the group of players that night) and its power level or bracket? If yes: is the power level one number for the table (e.g. bracket 3), or each player's deck? Recommended: pod = list of people from your playgroup; one agreed table bracket (optional).
-7. **Opponent decks.** Free-text names ("Sam's Atraxa") or a saved list per person that you maintain? Recommended: free text at first, saved list later.
-8. **Playgroup people.** What should Oracle know about each person: just a name, or also usual decks, bracket they like, notes? Recommended: name, usual decks, notes.
-9. **Past games.** Will you want to enter old games in bulk, or only start from now? (Bulk would need an import.)
-10. **Debrief (O-004).** Should this brief include a short "how did it go" prompt, or just record facts? Recommended: record facts only; leave analysis for later.
+## 7. Owner answers and defaults
+**Answered by owner 2026-11-16:**
+1. **Game record = Gene's suggestion:** date, your deck, result (won / lost / draw), number of players, free-text notes.
+2. **Claude-logged games go straight in, with undo** (7 days, like small deck edits). No per-game approval.
+3. **Claude can fix and undo its own entries; only the owner can delete games.**
+4. **Record the pod and the power level** (specifics below).
+5. **Opponents' decks are free text for now** (e.g. "Sam's Atraxa"); a saved list per person comes later.
+
+**DEFAULTS (owner has not answered; Gene's recommendations, approve or change):**
+- **Pod and power level: DEFAULT = pod is a list of people from your playgroup; ONE agreed power level or bracket for the whole table, optional.** (Owner has not yet said "one number per table or per deck". Per-deck numbers would be a later addition.) CONFIRMED by owner 2026-11-16: one number for the whole table.
+- **Who won when it was not you: DEFAULT = not recorded**; "lost" is enough (the record stays as answer 1).
+- **Who can log or see: DEFAULT = you and Claude on your behalf; owner only, nobody else in the playgroup.**
+- **Playgroup people: DEFAULT = name, usual decks, notes.**
+- **Past games: DEFAULT = start from now; no bulk import.**
+- **Debrief (O-004): DEFAULT = facts only; no "how did it go" prompt or analysis.**
 
 ## 8. Risks
 - Privacy: playgroup names are other people's data. Kept private to your account; not shared.
@@ -46,6 +50,6 @@ In: game records, playgroup people, viewing and editing them, undo for Claude-ma
 - Claude entering a wrong deck or result. Mitigation: undo, plus Claude repeats back what it logged.
 
 ## 9. Next gates
-Owner answers section 7 and approves, then Architect contract (new stored data, owner gate), Designer mockup (owner gate), Developer, Tester, Scribe.
+Owner confirms the pod and power-level default and approves, then Architect contract (new stored data, owner gate), Designer mockup (owner gate), Developer, Tester, Scribe.
 
 For Brad (plain words): this proposes a way to record games you play, with Claude able to log them, and asks you to decide what a game record holds.

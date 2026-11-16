@@ -6,12 +6,12 @@ After importing decks from Archidekt, users are left with a list of card slots t
 
 ## 2. Purpose
 
-This spec defines the redesigned reconciliation screen users see after importing decks from Archidekt (and, eventually, other sources). It replaces the previous action model with a state model and reorganises the UI into three tabs. The smallest unit of user action is a single **deck-card instance** — one card slot in one deck. The UI groups those instances by printing so the user can see the whole picture at once, but every decision — sleeve, proxy, alternate printing — applies to one instance only.
+This spec defines the redesigned reconciliation screen users see after importing decks from Archidekt (and, eventually, other sources). It replaces the previous action model with a state model and reorganises the UI into three tabs. The smallest unit of user action is a single **deck-card instance** — one card slot in one deck. The UI groups those instances by printing so the user can see the whole picture at once, but every decision — in deck, proxy, alternate printing — applies to one instance only.
 
 ## 3. Design principles
 
-- **State should be visible at a glance.** Every card instance clearly shows whether it is Planned, Sleeved, Proxy, or Already Claimed.
-- **The deck-card instance is the unit of action.** Sleeve / proxy / alternate-printing choices apply to one slot, not to every deck that wants the same printing.
+- **State should be visible at a glance.** Every card instance clearly shows whether it is Planned, In deck, Proxy, or Already Claimed.
+- **The deck-card instance is the unit of action.** In deck / proxy / alternate-printing choices apply to one slot, not to every deck that wants the same printing.
 - **The conflict printing is the grouping.** Counts and row headers are per printing so a card in three decks does not feel like three separate problems.
 - **Prevent impossible states.** The UI disables options that would sleeve more copies than the user owns and explains why.
 - **Quiet default, loud exception.** Planned is visually quiet; Proxy and conflicts carry more weight, per D-014.
@@ -85,12 +85,12 @@ For each **deck-card instance** (one claim inside the row), the user selects one
 | State | What it means | Visual treatment |
 |-------|---------------|------------------|
 | **Planned** (default) | The slot stays planned. No physical copy is assigned. | Quiet grey outline dot + label "Planned". |
-| **Sleeved** | The slot is assigned to a real physical copy from the collection. | Teal filled dot/check + label "Sleeved". |
+| **In deck** | The slot is assigned to a real physical copy from the collection. | Teal filled dot/check + label "In deck". |
 | **Proxy** | The slot uses a proxy copy. Reuses an existing proxy if one is free; otherwise adds a new proxy copy. | Blue proxy-mask icon + label "Proxy". |
 
 ### 8.1 Already claimed
 
-When one deck sleeves a card and another deck also wants that same printing, the overflow instances cannot be Sleeved because all owned copies are gone. Those instances remain selectable, but the UI shows an automatic descriptor:
+When one deck sleeves a card and another deck also wants that same printing, the overflow instances cannot be In deck because all owned copies are gone. Those instances remain selectable, but the UI shows an automatic descriptor:
 
 - **Label:** `Already claimed`
 - **Colour:** amber (`--signal-warning`)
@@ -100,9 +100,9 @@ When one deck sleeves a card and another deck also wants that same printing, the
 
 ### 8.2 Over-allocation protection
 
-- The **Sleeved** button for an instance becomes disabled once the printing's owned copies are fully allocated to other instances.
-- If a user hovers a disabled Sleeved button, a tooltip explains: "All owned copies are already sleeved. Choose Proxy, Planned, or use an alternate printing."
-- There is no tie-breaker: the UI simply prevents more instances from being Sleeved than owned copies exist.
+- The **In deck** button for an instance becomes disabled once the printing's owned copies are fully allocated to other instances.
+- If a user hovers a disabled In deck button, a tooltip explains: "All owned copies are already in decks. Choose Proxy, Planned, or use an alternate printing."
+- There is no tie-breaker: the UI simply prevents more instances from being In deck than owned copies exist.
 - Disabled buttons keep visible focus styles and readable labels for accessibility.
 
 ### 8.3 Row resolution
@@ -137,10 +137,10 @@ Every row in all three tabs uses the same card-shaped container, with one inner 
 │ [thumb]  Card name                                          [Resolved]      │
 │          Set code · collector number · finish                               │
 │                                                                             │
-│  [deck tag] ──────────────────────────────────  [Planned][Sleeved][Proxy] [printing ▾] [☑ Wishlist] │
-│  [deck tag] ──────────────────────────────────  [Planned][Sleeved][Proxy] [printing ▾]             │
+│  [deck tag] ──────────────────────────────────  [Planned][In deck][Proxy] [printing ▾] [☑ Wishlist] │
+│  [deck tag] ──────────────────────────────────  [Planned][In deck][Proxy] [printing ▾]             │
 │                                                                             │
-│  ⚠ All owned copies are already sleeved in other decks.                     │
+│  ⚠ All owned copies are already in other decks.                                │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -182,7 +182,7 @@ Only owned cards can use alternate printings. Unowned cards can only select an e
 ### Conflict behaviour
 
 - Switching to an alternate printing removes the instance from any conflict involving the original printing.
-- If the selected alternate printing is already fully allocated elsewhere, the **Sleeved** option for this instance is disabled, just like any other over-allocated printing.
+- If the selected alternate printing is already fully allocated elsewhere, the **In deck** option for this instance is disabled, just like any other over-allocated printing.
 - Alternate printing is **optional and never blocking**. The user can finish with alternate-printing over-allocation, choose a different printing, or leave the instance Planned / Proxy.
 
 ## 13. State colours and iconography
@@ -192,8 +192,8 @@ All states use a colour plus an icon/label, never colour alone.
 | State | Colour | Icon | Notes |
 |-------|--------|------|-------|
 | Planned | `--text-secondary` (#9C9CA3) | Hollow circle | Quiet default. |
-| Already claimed | `--signal-warning` (#EF9F27) | Warning triangle or chain | Overflow on a sleeved printing. |
-| Sleeved | `--signal-success` (#1D9E75) | Filled circle or check | Owned physical copy in use. |
+| Already claimed | `--signal-warning` (#EF9F27) | Warning triangle or chain | Overflow on an in-deck printing. |
+| In deck | `--signal-success` (#1D9E75) | Filled circle or check | Owned physical copy in use. |
 | Proxy | `--status-proxy` (#489ADE) | Comedy-mask / proxy icon | Distinct from mana blue (D-013). |
 | Resolved printing | `--signal-success` at lower saturation | Checkmark | Row background gains a faint green tint; text remains readable. |
 | Unowned | `--status-unowned` (#F0339E) | Cross or empty diamond | Used for the unowned tab header and wishlist indicators, not as a state selector option. |
@@ -271,9 +271,9 @@ Exact strings used in the UI:
 | Deck lifecycle badges | "Brew", "Active" |
 | Empty state (all resolved) | "All imported cards are reconciled." |
 | Empty state (no decks) | existing onboarding empty state |
-| State buttons | "Planned", "Sleeved", "Proxy" |
+| State buttons | "Planned", "In deck", "Proxy" |
 | Already claimed label | "Already claimed" |
-| Disabled Sleeved tooltip | "All owned copies are already sleeved. Choose Proxy, Planned, or use an alternate printing." |
+| Disabled In deck tooltip | "All owned copies are already in decks. Choose Proxy, Planned, or use an alternate printing." |
 | Alternate printing select | Displays the currently selected printing as "{set code} · {collector number} · {finish}". Opening it lists available owned printings. |
 | Wishlist checkbox label | "Wishlist" |
 | Finish bar summary | "{n} unresolved conflict printings across all tabs" |
@@ -291,7 +291,7 @@ Exact strings used in the UI:
 
 ## 22. Open questions resolved by owner feedback
 
-- **Already-claimed tie-breaker:** There is no tie-breaker. The UI prevents more instances from being Sleeved than owned copies allow, so a tie never occurs.
+- **Already-claimed tie-breaker:** There is no tie-breaker. The UI prevents more instances from being In deck than owned copies allow, so a tie never occurs.
 - **Resolved-row persistence before reload:** Resolved printings remain visible in the Decks tab until the screen is refreshed or reloaded.
 
 ## 23. Notes for implementation

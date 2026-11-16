@@ -86,7 +86,7 @@ function formatCount(
   const count = required !== null ? `${sleeved}/${required}` : `${sleeved}`
 
   if (state === 'assembling') {
-    return `${count} sleeved`
+    return `${count} in deck`
   }
 
   return count

@@ -152,8 +152,8 @@ const STATE_CONFIG: Record<SlotBadgeState, StateConfig> = {
 function accessibleLabel(state: SlotBadgeState, reason?: string): string {
   const placement =
     state === 'original' || state === 'proxy' || state === 'basic'
-      ? 'Sleeved'
-      : 'Unsleeved'
+      ? 'In deck'
+      : 'Planned'
 
   const config = STATE_CONFIG[state]
   const parts = [placement, config.word.toLowerCase()]

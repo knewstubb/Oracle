@@ -12,7 +12,7 @@ Import has been rebuilt six-plus times. The newest version (the ManaBox review s
 ## 2. KEEP (and why)
 | Keep | Why |
 |---|---|
-| The new ManaBox review screen for collection and deck files | The one importer you approved. Per-card Original / Proxy / Unsleeved, row editing, generic basics. |
+| The new ManaBox review screen for collection and deck files | The one importer you approved. Per-card Original / Proxy / Planned, row editing, generic basics. |
 | "Replace my whole collection" (server side only) | Safe all-or-nothing function. No screen reaches it, on purpose (add-only rule). Q4: no new Start fresh flow; Settings "Clear All Data" stays. |
 | "Sleeve free copies into this deck" (server side only) | Already written; no button. May be reused by the intent design (Q1); on hold until that design exists. |
 | The "keep what's valid, pull free copies, report shortages" deck step | Same idea, reused if a deck is re-imported. Stays until the new Sleeve step exists. |
@@ -44,7 +44,7 @@ Import has been rebuilt six-plus times. The newest version (the ManaBox review s
 |---|---|---|---|---|
 | D-020 | Import runs no automatic allocation | Link-import "built" mode and onboarding "Active" do sleeve automatically; owner Q1 = yes (sleeving owned cards on import, three intents) | **Wording on hold:** will be rewritten by the intent design (I bought it / I built it / I'm planning it). | **Yes**, with the design |
 | D-047 | "Existing owned copies are never pulled in automatically" | Contradicted by Q1 (I built it pulls owned copies; copies can move between decks) | **On hold**, same as D-020. "I bought it" (incl. precons) stays as is. | **Yes**, with the design |
-| D-031 | Deck import asks Sleeved/Unsleeved; applies to onboarding too | Replaced by D-047's per-card choice; onboarding never changed | Mark **superseded by D-047**. | Quick OK |
+| D-031 | Deck import asks In deck/Planned; applies to onboarding too | Replaced by D-047's per-card choice; onboarding never changed | Mark **superseded by D-047**. | Quick OK |
 | D-044 | ManaBox is the route for initial collection and decks | Says nothing about the Archidekt/Moxfield importer that still exists | Add (Q2 answered): "Pasted deck links (Archidekt/Moxfield) are an input to the same review as files, with the same intent choices. The separate onboarding importer is retired." | **Yes** (confirm wording) |
 | D-050 | Collection import only adds, never replaces | Contract text elsewhere says replace "remains" | Keep. **Q4: no Start fresh flow, so no wording change** (Settings "Clear All Data" is the reset). | No |
 | D-052 | Commander picker opens after import | Replaced by commander chosen on the review header | Mark **superseded by the commander selector spec**. | Quick OK |
@@ -81,7 +81,7 @@ Add a one-line "SUPERSEDED by …" banner at the top; do not delete the files (h
 Each slice is committed separately. If a slice's check fails, revert that slice only.
 
 ### 6a. Slice P1: fix the Precon tab (owner decisions 2026-10-23)
-**Decided:** (1) fix, not delete. (2) A chosen precon is **"I bought it"**: all 100 cards are added as **new Originals**, even if you already own them (Q5). You can still change any card to Proxy or Unsleeved in the review. (3) Printings: **exactly what the dataset lists, always** (Q6, confirmed).
+**Decided:** (1) fix, not delete. (2) A chosen precon is **"I bought it"**: all 100 cards are added as **new Originals**, even if you already own them (Q5). You can still change any card to Proxy or Planned in the review. (3) Printings: **exactly what the dataset lists, always** (Q6, confirmed).
 **What is built (smallest set):**
 1. The sync stores each precon's full card list (one new column; commander flagged; foil flag kept). The useless Archidekt *search* link is dropped. **Database change: drafted by Architect, applied only after your approval.**
 2. A small read-only list of precons (search by name / commander / set) and a way to fetch one precon's cards.
@@ -94,7 +94,7 @@ Each slice is committed separately. If a slice's check fails, revert that slice 
 - **Yes, through the file path, not as a pre-built object.** The review is built by `/api/decks/import/preview`, which accepts only ManaBox CSV or text content and looks the cards up itself (`buildDeckPreview` in `src/lib/manabox-import.ts`). There is no route that accepts an already-resolved list.
 - **CSV carries everything asked for:** Scryfall ID, Set code, Collector number, Foil (normal / foil / etched → nonfoil / foil / etched) and Quantity. Resolution prefers the Scryfall ID, then set + collector number (`resolveBySetCollector`). So the cleanest build is: `/api/precons/<id>` returns the list; the tab turns it into a ManaBox-style CSV string and sends it through the existing preview call, with no new review logic.
 - **Text format carries no finish** (`<qty> <name> (<set>) <number>` only), so CSV must be used to keep foils.
-- **Gaps (small):** (a) the CSV has no "commander" column, so the commander must be preselected by name after the preview [Approximate: confirm how `ReviewCommanderSelect` takes an initial value]; (b) the review's per-copy default type: confirm "Original" is the default (the contract says each copy is Original / Proxy / Unsleeved) and set it explicitly for precons; (c) cards the lookup can't match (new sets not yet in our reference data) show up as unmatched, which the review already handles; (d) the dataset gives a mtgjson id, not a Scryfall id, so we resolve by set + collector number (needs set-code normalisation, which `normalizeSetCode` in `manabox-resolver.ts` exists for).
+- **Gaps (small):** (a) the CSV has no "commander" column, so the commander must be preselected by name after the preview [Approximate: confirm how `ReviewCommanderSelect` takes an initial value]; (b) the review's per-copy default type: confirm "Original" is the default (the contract says each copy is Original / Proxy / Planned) and set it explicitly for precons; (c) cards the lookup can't match (new sets not yet in our reference data) show up as unmatched, which the review already handles; (d) the dataset gives a mtgjson id, not a Scryfall id, so we resolve by set + collector number (needs set-code normalisation, which `normalizeSetCode` in `manabox-resolver.ts` exists for).
 - **Not tested end to end**; nothing was run. Tester verifies in the preview step, then on the test account for saving.
 
 ## 7. Questions
@@ -106,7 +106,7 @@ Each slice is committed separately. If a slice's check fails, revert that slice 
 - **Q6 = always exact printings as the dataset lists them.** No swap offered for precons on the Precon tab by default.
 
 - **Q2 = option a.** The intent choices apply to any import method, including a pasted link. Links stay and feed the same review as files. The onboarding importer (Brew/Active switch, separate conflict screen, home-page link) and the old three-choice screen retire after that (slices 6, 7).
-- **"Copy already in another deck" = answered by the Designer's revision.** The review shows which decks the card is currently in, so you confirm which deck is missing it. If you skip that, the card is added sleeved and the affected decklist shows an accounting-error alert. (Recorded as the answer; this replaces my "Moves from Deck A" question, which is removed.) This still needs the Architect contract and D-020/D-047 rewording with the intent design.
+- **"Copy already in another deck" = answered by the Designer's revision.** The review shows which decks the card is currently in, so you confirm which deck is missing it. If you skip that, the card is added as in deck and the affected decklist shows an accounting-error alert. (Recorded as the answer; this replaces my "Moves from Deck A" question, which is removed.) This still needs the Architect contract and D-020/D-047 rewording with the intent design.
 
 ### Still open
 None in this brief. Remaining work is design/contract (intent design), then the approvals listed in section 4 and the database change for P1.

@@ -90,8 +90,8 @@ describe('computeDeckReadiness', () => {
 
 describe('shortGenericsText', () => {
   it('names each basic', () => {
-    expect(shortGenericsText(['Island'])).toBe('Short: Island generics unsleeved')
-    expect(shortGenericsText(['Island', 'Swamp'])).toBe('Short: Island, Swamp generics unsleeved')
+    expect(shortGenericsText(['Island'])).toBe('Short: Island generics planned')
+    expect(shortGenericsText(['Island', 'Swamp'])).toBe('Short: Island, Swamp generics planned')
     expect(shortGenericsText([])).toBeNull()
   })
 })

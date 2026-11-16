@@ -517,7 +517,7 @@ export async function importManaBoxDeck(
       unlistedFinish: finishCheck.unlistedFinish,
       genericNotes: [
         ...mixedGenericTypes.map(
-          (name) => `Some ${name} lines were Unsleeved, so all ${name} generics in this deck are Unsleeved.`
+          (name) => `Some ${name} lines were Planned, so all ${name} generics in this deck are Planned.`
         ),
         ...zoneNotes,
       ],
@@ -566,7 +566,7 @@ export async function importManaBoxDeck(
     unlistedFinish: finishCheck.unlistedFinish,
     genericNotes: [
       ...mixedGenericTypes.map(
-        (name) => `Some ${name} lines were Unsleeved, so all ${name} generics in this deck are Unsleeved.`
+        (name) => `Some ${name} lines were Planned, so all ${name} generics in this deck are Planned.`
       ),
       ...zoneNotes,
     ],

@@ -42,9 +42,9 @@ export const INTENT_QUESTION = "What's this deck?"
 export const INTENT_CHOOSE_ERROR = 'Choose one to continue.'
 
 export const INTENT_OPTIONS: { value: ImportIntent; label: string; description: string; heading: string }[] = [
-  { value: 'purchased', label: 'I bought it', description: "A deck you've just bought, such as a precon. Every card is added to your collection and sleeved.", heading: 'Import purchased deck' },
-  { value: 'built', label: 'I built it', description: 'The deck is already sleeved from cards you own.', heading: 'Import built deck' },
-  { value: 'planned', label: "I'm planning it", description: 'Just a list. Nothing is added or sleeved, and no other deck is touched.', heading: 'Import planned deck' },
+  { value: 'purchased', label: 'I bought it', description: "A deck you've just bought, such as a precon. Every card is added to your collection and put in the deck.", heading: 'Import purchased deck' },
+  { value: 'built', label: 'I built it', description: 'The deck is already built from cards you own.', heading: 'Import built deck' },
+  { value: 'planned', label: "I'm planning it", description: 'Just a list. Nothing is added or put in the deck, and no other deck is touched.', heading: 'Import planned deck' },
 ]
 
 /** Dialog heading: "Import deck" until an intent is chosen. */
@@ -93,7 +93,7 @@ export function intentNotes(s?: {
   }
   if (s.needsALook.length > 0) {
     const names = [...new Set(s.needsALook.map((n) => n.cardName))]
-    notes.push(`Needs a look (saved Unsleeved): ${names.join(', ')}.`)
+    notes.push(`Needs a look (saved as Planned): ${names.join(', ')}.`)
   }
   return notes
 }
@@ -122,11 +122,11 @@ export const NOT_OWNED_TITLE = 'Not owned: tick Add'
 export const NO_FREE_COPY_TITLE = 'No free copy: tick Add'
 export const MOVE_FROM = 'copy will be moved from'
 export const MOVE_SKIP = 'Skip'
-export const MOVE_SKIP_TITLE = 'Adds a new sleeved copy here; the other deck shows an alert on this card.'
+export const MOVE_SKIP_TITLE = 'Adds a new copy to this deck; the other deck shows an alert on this card.'
 export const PRINTING_ADD = 'Add this printing'
 export const PRINTING_USE = (printing: string) => `Use my ${printing}`
 export const printingNeedsChoice = (owned: string, listed: string) =>
-  `you own it as ${owned}; this deck lists ${listed}. It can't be sleeved until you choose.`
+  `you own it as ${owned}; this deck lists ${listed}. It can't go in the deck until you choose.`
 export const printingLabel = (p: { setCode: string; collectorNumber: string }) =>
   `${p.setCode.toUpperCase()} ${p.collectorNumber}`
 /** Purchased decks with an unticked Add can't be saved yet (owned-copy saving comes in a later slice). */
@@ -151,7 +151,7 @@ export const TYPE_OPTION_TEXT = {
   original: { label: 'Original', description: 'The real card' },
   proxy: { label: 'Proxy', description: 'A stand-in copy' },
 } as const
-export const GENERIC_ORIGIN_TEXT = { label: 'Generic land', description: 'Any basic, sleeved, not tracked' } as const
+export const GENERIC_ORIGIN_TEXT = { label: 'Generic land', description: 'Any basic, in deck, not tracked' } as const
 export const STATUS_OWNED = 'Owned'
 export const STATUS_UNOWNED = 'Unowned'
 export const STATUS_BASIC = 'Basic land'
@@ -164,7 +164,7 @@ export const NO_COLLECTION_TITLE = 'None left in your collection'
 export const NO_ORIGINAL_TITLE = 'No original in your collection'
 export const NO_PROXY_TITLE = 'No proxy in your collection'
 export const PICK_SOURCE_FIRST_TITLE = 'Choose a card origin first'
-export const MAYBEBOARD_NOT_ADDED = 'Not added or sleeved'
+export const MAYBEBOARD_NOT_ADDED = 'Not added or in the deck'
 /** Purchased decks with a non-New copy can't be saved by the old path. */
 export const INTENT_SAVE_PENDING_NOT_NEW =
   'Saving cards from your collection is coming soon. Set every card to New copy to import now.'

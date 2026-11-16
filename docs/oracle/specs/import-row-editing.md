@@ -61,7 +61,7 @@ Copy model: each copy stores type, finish, condition, language. A value **not se
 | Disabled | 45% opacity, not-allowed cursor |
 | Loading / empty / error | unchanged from `manabox-import.md` (no new states; rows never load individually) |
 | Unowned / over-allocated | not applicable on import |
-| Deck import | the Original/Proxy toggle gains a third "Unsleeved" option per D-047 (open question 5) |
+| Deck import | the Original/Proxy toggle gains a third "Planned" option per D-047 (open question 5) |
 
 ## 6. Interactions
 Pointer: Edit toggles; segmented control sets type; selects change values; icon button on copy 1 applies it to all copies; header checkbox selects all.
@@ -86,7 +86,7 @@ Writes the per-copy fields on `user_copies`: `is_proxy`, `finish` (`nonfoil|foil
 Contrast against `#1A1A1E`, using existing tokens: secondary text `#9C9CA3` ≈ 6.5:1; proxy blue `#4A93A0` ≈ 5.0:1; app green `#1D9E75` ≈ 5.1:1 (all ≥ 4.5:1). Tertiary text `#6E6E76` (set code, copy numbers) ≈ 3.5:1 — acceptable only for non-essential repeats, and the set code is also in the row's accessible name; Developer should use secondary for the set code if the owner wants strict AA. D-012: Proxy = blue + ◆ + word; Foil = ★ + word; selected type = fill + ring + word. No state is colour alone. Every select and icon button has an accessible name; the expanded copy lines are `role=group` labelled "Copy 2 of 3"; Edit uses `aria-expanded`.
 
 ## 10. Conflicts with locked decisions
-1. **Replaces the Original/Proxy/Unsleeved control and inline stepper** from `manabox-import.md` rev 6 (D-045, D-047, D-053 remain true; only where they are set moves to the expanded row and bulk bar). Quick whole-row Proxy is now Tick → Proxy in the header.
+1. **Replaces the Original/Proxy/Planned control and inline stepper** from `manabox-import.md` rev 6 (D-045, D-047, D-053 remain true; only where they are set moves to the expanded row and bulk bar). Quick whole-row Proxy is now Tick → Proxy in the header.
 2. **D-051** splits rows by language, but per-copy language implies one row can hold several. Proposed: rows still split by language *as imported from the file*; the owner's own change to one copy keeps it in its row.
 
 ## 11. Open questions
@@ -95,5 +95,5 @@ Answered by owner: bulk shows "Mixed"; owner edits override file values; the lis
 1. Does the shortcut icon (⇊) read clearly enough on copy 1, or should it be a tooltip-only text button?
 3. Changing the defaults after editing: only untouched copies follow. Confirm.
 4. Should Edit remember open rows after filtering/searching? (Proposed: yes.)
-5. Deck imports: Unsleeved as a third type in each copy line. Confirm.
+5. Deck imports: Planned as a third type in each copy line. Confirm.
 6. What finish do proxies store (default finish, or non-foil)? Architect.

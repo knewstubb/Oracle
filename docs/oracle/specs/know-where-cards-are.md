@@ -53,7 +53,7 @@ A move therefore appears twice, once at its source stop (where he finds it) and 
 | Tick | Oracle changes immediately | Row afterwards |
 |---|---|---|
 | **Found it** | The card leaves its source (deck slot or box) and becomes *In your hand*. The source deck now shows it as short by one while it is in hand. | Source row: Found it pressed, badge *In your hand*, text "for Korvold". Destination row: Placed it becomes available. |
-| **Placed it** | The card goes to the destination. A deck slot becomes in deck (original or proxy, as the copy is; wording provisional, see section 19); a box simply holds it. | Both rows show a quiet green *Placed* badge; stop progress updates. |
+| **Placed it** | The card goes to the destination. A deck slot becomes in deck (original or proxy, as the copy is; wording decided, see section 19); a box simply holds it. | Both rows show a quiet green *Placed* badge; stop progress updates. |
 | Un-tick **Placed** | Card returns to *In your hand*. | |
 | Un-tick **Found** (only if not placed) | Card returns to where Oracle had it, if that slot is still free. If not, the out-of-date state (section 8) explains. | |
 | **Can't find it** | See section 6. | |
@@ -311,7 +311,7 @@ Mockup: screen "3c Move here" (laptop and phone), plus the chat card in screen 6
 When a card's chosen copy is in **another deck**, its row in this deck shows a primary **Move here**. One click moves that copy into this deck at once, in Oracle only. There is no In your hand step, no Picklist entry and no confirmation dialog. Clicking it means the card is physically being moved now, so Oracle creates **no reminder, list or nagging** about it.
 
 ### 19.2 Placement on a deck row
-- Row text: "Your copy is in Prosper." with the quiet badge **Planned · in Prosper** (provisional wording, 19.7).
+- Row text: "Your copy is in Prosper." with the quiet badge **Planned · in Prosper** (wording decided, 19.7).
 - Right end of the row: primary **Move here** (accent, no icon), then a small text button **Add to Picklist**. Move here is always the leftmost, largest action.
 - **Add to deck** (planned slot only) is unchanged. If the only copy is in another deck, Move here appears on that row straight after the add, and in the chat receipt (R-card "Added", section 13).
 - Phone: the row stacks. Move here is a full-width 44 px button under the text; Add to Picklist sits below it as a text link.
@@ -336,8 +336,8 @@ If the only copies are In your hand or Missing, Move here is not shown; the In y
 ### 19.7 Wording changes (owner decision)
 - Tab **Sleeve List** becomes **Picklist** (the per-deck tab and the move checklist are merged; section 20).
 - Button **Sleeve** becomes **Placed it**.
-- Labels **Sleeved / Unsleeved**: the owner has not chosen. Recommendation, provisional and used in the mockup: **In deck** and **Planned**. Alternatives to weigh: "Placed / Not placed".
-- Screens affected (existing app, for Gene and the Architect): the deck page tab; the picklist confirm dialog and its failure message; the status chip popover button, confirm and failure message; the collection card detail confirm; the reconciliation choice buttons, conflict cards and summary; the overused cards row; the deck cards tab, group sections and grid; the slot and deck state badges; every ManaBox import screen (row editor, card list, summary, result, deck import, collection import); the onboarding page. `vocabulary.md` (D-025) also needs Gene's update. This spec and the mockup use the provisional words everywhere.
+- Labels **Sleeved / Unsleeved** become **In deck** and **Planned** (decided: In deck / Planned, owner, 2026-11-17; "Placed / Not placed" was the rejected alternative).
+- Screens affected (existing app, for Gene and the Architect): the deck page tab; the picklist confirm dialog and its failure message; the status chip popover button, confirm and failure message; the collection card detail confirm; the reconciliation choice buttons, conflict cards and summary; the overused cards row; the deck cards tab, group sections and grid; the slot and deck state badges; every ManaBox import screen (row editor, card list, summary, result, deck import, collection import); the onboarding page. `vocabulary.md` (D-025) also needs Gene's update. This spec and the mockup use the decided words everywhere.
 
 ### 19.8 Components
 `MoveHereButton` (props: `card`, `copy`, `fromDeck`, `onMove`, `busy`), `CopyChooser` (split-button menu / phone sheet, `copies`, `selected`), `UndoToast` (`message`, `onUndo`, `durationMs`), `MovedNote` (inline Undo). All built on shadcn `Button`, `DropdownMenu`, `Sheet`, `Sonner`/toast already in the app [Approximate].
@@ -351,7 +351,7 @@ Deck health "other decks" rows and the chat Added receipt show the same Move her
 ### 19.11 Additional open questions
 - **Q8.** Moving out of a Playable deck: toast names the change, no dialog (recommended, matches one click) or keep a confirm for Playable only (safer, slower).
 - **Q9.** Default copy when several exist: non-Playable decks first, originals before proxies, then A to Z (recommended).
-- **Q10.** Labels for Sleeved/Unsleeved (19.7).
+- **Q10.** Labels for Sleeved/Unsleeved (19.7). Decided: In deck / Planned (owner, 2026-11-17).
 
 ---
 
@@ -362,7 +362,7 @@ The **Picklist** is the one place that says what to pick, move or buy. The per-d
 - **Per deck** (tab **Picklist**): everything needed to complete that deck. Mockup screen 1b.
 - **All decks** (section 4): the combined Picklist in walking order. Mockup screen 1.
 
-Words: tab **Picklist**; button **Sleeve** becomes **Placed it**; **Found it** stays; **In deck** / **Planned** stay provisional (Q10). "Move checklist" is retired.
+Words: tab **Picklist**; button **Sleeve** becomes **Placed it**; **Found it** stays; **In deck** / **Planned** are decided (owner, 2026-11-17; was Q10). "Move checklist" is retired.
 
 ### 20.2 Per-deck layout and order
 Top to bottom:
@@ -374,7 +374,7 @@ Top to bottom:
 Order rationale: easiest with no side effects first, then actions that affect another deck, then the ones that cost money. It follows the left-to-right order of the existing three columns. Groups are stacked and collapsible at every width (replaces the existing three columns; Q11). Each group header has an icon, name, one-line description and a badge ("n left", Done, None). On phone only the first group with work is open.
 
 ### 20.3 Progress: "N of M ready"
-All three groups are required to finish the deck, so progress counts all of them. **Ready** means the card is in the deck (provisional label In deck). A card still Planned, in your hand or Missing is not ready. M is the deck size. The summary never shows "0 of 0" while loading. Q12 and Q16.
+All three groups are required to finish the deck, so progress counts all of them. **Ready** means the card is in the deck (label In deck, decided). A card still Planned, in your hand or Missing is not ready. M is the deck size. The summary never shows "0 of 0" while loading. Q12 and Q16.
 
 ### 20.4 Rows and actions per group
 **Available.** Name, badge, "free in {place}". Rows are grouped by place in walking order. Ticks **Found it** then **Placed it**. Placed it is enabled without Found it and records both steps (Q13). Quiet link **Can't find it**; the card stays in its group with the Missing badge and the look-next prompt (section 6).

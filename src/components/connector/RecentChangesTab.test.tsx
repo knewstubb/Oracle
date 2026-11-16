@@ -19,7 +19,7 @@ const row = (over: Partial<api.ChangeRowData> = {}): api.ChangeRowData => ({
   card_name: 'Swords to Plowshares', oracle_id: null, printing_id: null,
   approved_by_owner: false, created_at: now, undoable_until: now, undone_at: null, undone_by: null,
   owner_only: false, undo_blocker: null,
-  summary: 'Added Swords to Plowshares to Rocco. It is on the list, Unsleeved. No copy was moved.',
+  summary: 'Added Swords to Plowshares to Rocco. It is on the list, Planned. No copy was moved.',
   ...over,
 })
 const counts = (size: number, sleeved: number) => ({ size, sleeved, unsleeved_generics: 0 })

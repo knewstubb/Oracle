@@ -75,7 +75,7 @@ describe('basic lands are editable (Round 11)', () => {
     expect(screen.queryByLabelText('Copy 2 finish')).toBeNull()
     fireEvent.change(screen.getByLabelText('Copy 1 finish'), { target: { value: 'foil' } })
     expect(onChangeAllCopies).toHaveBeenCalledWith([0, 1], { finish: 'foil' })
-    fireEvent.click(screen.getByRole('button', { name: 'Unsleeved' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Planned' }))
     expect(onChangeAllCopies).toHaveBeenCalledWith([0, 1], { type: 'unsleeved' })
     expect(screen.getByRole('button', { name: /art/i })).toBeInTheDocument()
   })

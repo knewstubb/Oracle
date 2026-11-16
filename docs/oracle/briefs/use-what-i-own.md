@@ -47,9 +47,9 @@ This moves a slice of Phase 8 ahead of Phases 3 to 7. Recommendation: finish onl
 **Problem:** decks get scanned out of order. A card is physically in deck B now, but Oracle still has it in deck A. Importing B today cannot save that card.
 
 **Owner decision: the scan wins, with a check screen.**
-- When a deck is imported and a card is already sleeved in another deck, the card moves to the scanned deck. The other deck then shows that card as short by one until it is scanned.
+- When a deck is imported and a card is already in another deck, the card moves to the scanned deck. The other deck then shows that card as short by one until it is scanned.
 - Before saving, the import lists "N cards moved from other decks". The owner can untick any card.
-- **If a move is unticked (owner-approved 2026-11-03):** leave that card in the scanned deck as unsleeved/short; keep the physical copy in its current deck. Do not create another copy.
+- **If a move is unticked (owner-approved 2026-11-03):** leave that card in the scanned deck as planned/short; keep the physical copy in its current deck. Do not create another copy.
 - **Several copies in several decks:** if the owner has, for example, two Sol Rings and both are in other decks (Korvold and Prosper), the check screen asks which deck to pull each copy from. The owner picks per card. Where only one deck has a copy, it is chosen automatically.
 - Nothing is deleted. The deck that loses a card keeps it as a planned card and is marked short.
 

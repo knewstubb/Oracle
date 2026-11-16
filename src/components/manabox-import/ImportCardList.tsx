@@ -34,7 +34,7 @@ import { filterChipCounts } from './filter-counts'
 const FILTER_OPTIONS: { value: RowFilter; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'proxy', label: 'Proxies' },
-  { value: 'unsleeved', label: 'Unsleeved' },
+  { value: 'unsleeved', label: 'Planned' },
 ]
 
 export interface ImportCardListProps {
@@ -225,7 +225,7 @@ export function ImportCardList({
     : filter === 'proxy'
       ? 'No proxies'
       : filter === 'unsleeved'
-        ? 'No unsleeved cards'
+        ? 'No planned cards'
         : filter === 'basic'
           ? 'No basics'
           : filter === 'deck'

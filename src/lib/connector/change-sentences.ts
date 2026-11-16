@@ -37,8 +37,8 @@ export function describeGroup(rows: ChangeLogRow[]): GroupSentence {
   switch (first.kind) {
     case 'deck_add':
       return many
-        ? { summary: `Added ${n} cards to ${deck}.`, consequence: 'They are on the list, Unsleeved. No copies were moved.' }
-        : { summary: `Added ${card} to ${deck}.`, consequence: 'It is on the list, Unsleeved. No copy was moved.' }
+        ? { summary: `Added ${n} cards to ${deck}.`, consequence: 'They are on the list, Planned. No copies were moved.' }
+        : { summary: `Added ${card} to ${deck}.`, consequence: 'It is on the list, Planned. No copy was moved.' }
     case 'deck_remove':
       return many
         ? { summary: `Cut ${n} cards from ${deck}.`, consequence: 'Any copies went back to storage; they are still in your collection.' }
@@ -51,8 +51,8 @@ export function describeGroup(rows: ChangeLogRow[]): GroupSentence {
           : { summary: `Moved ${card} to ${deck}'s maybeboard.`, consequence: 'The copy went back to storage.' }
       }
       return many
-        ? { summary: `Moved ${n} cards from ${deck}'s maybeboard to its main list.`, consequence: 'They are on the list, Unsleeved.' }
-        : { summary: `Moved ${card} from ${deck}'s maybeboard to its main list.`, consequence: 'It is on the list, Unsleeved.' }
+        ? { summary: `Moved ${n} cards from ${deck}'s maybeboard to its main list.`, consequence: 'They are on the list, Planned.' }
+        : { summary: `Moved ${card} from ${deck}'s maybeboard to its main list.`, consequence: 'It is on the list, Planned.' }
     }
     case 'make_original':
       return { summary: `Marked your ${card} in ${deck} as an Original (it was a Proxy).`, consequence: 'The proxy went back to storage.' }

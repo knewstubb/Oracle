@@ -99,10 +99,10 @@ export function OverusedCardRow({ card, focusDeckId }: OverusedCardRowProps) {
                 }
               >
                 {allSleeved
-                  ? 'Sleeved'
+                  ? 'In deck'
                   : deck.sleeved > 0
-                    ? `${deck.sleeved} of ${deck.slots} sleeved`
-                    : 'Unsleeved'}
+                    ? `${deck.sleeved} of ${deck.slots} in deck`
+                    : 'Planned'}
               </span>
             </div>
           )

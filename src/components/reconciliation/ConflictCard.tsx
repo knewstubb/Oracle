@@ -130,7 +130,7 @@ function InstanceRow({
           onChange={(state) => onStateChange(instance, state)}
           disabled={disabled}
           isOptionDisabled={(option) => option === 'sleeved' && !instance.canSleeve}
-          disabledReason="All owned copies are already sleeved. Choose Proxy, Unsleeved, or use an alternate printing."
+          disabledReason="All owned copies are already in decks. Choose Proxy, Planned, or use an alternate printing."
           aria-label={`${printing.cardName} state for ${instance.deckName}`}
         />
 

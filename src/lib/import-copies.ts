@@ -553,7 +553,7 @@ export function summariseRowTags(
   if (proxies > 0) tags.push({ kind: 'type', label: 'Proxy', count: proxies, all: proxies === total })
   const unsleeved = resolved.filter((c) => c.type === 'unsleeved').length
   if (unsleeved > 0) {
-    tags.push({ kind: 'type', label: 'Unsleeved', count: unsleeved, all: unsleeved === total })
+    tags.push({ kind: 'type', label: 'Planned', count: unsleeved, all: unsleeved === total })
   }
 
   const finishPool = resolved.filter((c) => c.type !== 'proxy')

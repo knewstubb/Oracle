@@ -74,7 +74,7 @@ function EmptyState({ onFinish }: { onFinish: () => void }) {
         All imported cards are reconciled.
       </p>
       <p className="max-w-sm text-[length:var(--fs-sm)] text-[var(--text-secondary)]">
-        Every slot fits within your collection or has been marked Proxy/Unsleeved.
+        Every slot fits within your collection or has been marked Proxy/Planned.
       </p>
       <Button onClick={onFinish}>Allocate Cards</Button>
     </div>
@@ -197,10 +197,10 @@ export function ReconciliationSummary({
       applyView(data.view)
       toast.success(
         state === 'planned'
-          ? 'Marked as Unsleeved'
+          ? 'Marked as Planned'
           : state === 'proxy'
             ? 'Marked as Proxy'
-            : 'Marked as Sleeved'
+            : 'Marked as In deck'
       )
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update allocation')
@@ -231,7 +231,7 @@ export function ReconciliationSummary({
       const data: { view: ReconciliationView; demoted?: boolean } = await res.json()
       applyView(data.view)
       if (data.demoted) {
-        toast.success('Alternate printing selected; state set to Unsleeved because the copy is allocated elsewhere')
+        toast.success('Alternate printing selected; state set to Planned because the copy is allocated elsewhere')
       } else {
         toast.success('Alternate printing selected')
       }
@@ -301,11 +301,11 @@ export function ReconciliationSummary({
 
       const parts: string[] = []
       const sleeved = data.finalizedCount ?? 0
-      if (sleeved > 0) parts.push(`sleeved ${sleeved.toLocaleString()}`)
+      if (sleeved > 0) parts.push(`${sleeved.toLocaleString()} in deck`)
       const proxied = data.proxiedCount ?? 0
       if (proxied > 0) parts.push(`added ${proxied.toLocaleString()} proxy copies`)
       const released = data.releasedCount ?? 0
-      if (released > 0) parts.push(`kept ${released.toLocaleString()} slot(s) unsleeved`)
+      if (released > 0) parts.push(`kept ${released.toLocaleString()} slot(s) planned`)
       if (parts.length === 0) parts.push('nothing to assign')
       toast.success(parts.join(' · '))
       onFinish()
@@ -376,7 +376,7 @@ export function ReconciliationSummary({
     activeSelection === 'owned'
       ? 'Cards in your collection that more than one deck wants, or that are in a different printing.'
       : activeSelection === 'unowned'
-        ? 'Cards that are not in your collection. Choose Proxy or leave them Unsleeved.'
+        ? 'Cards that are not in your collection. Choose Proxy or leave them Planned.'
         : 'Cards in this deck that need a decision.'
 
   const disabled = mutatingClaimId !== null

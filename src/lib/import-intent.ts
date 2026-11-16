@@ -760,7 +760,7 @@ export function deckBreakdown(plans: CopyPlan[]): DeckBreakdown {
 
 /** The line under the list: the selected chip's copies by card source. */
 export function breakdownLine(b: DeckBreakdown, filter: string): string {
-  if (filter === 'maybeboard') return 'Maybeboard cards are not added to your collection or sleeved.'
+  if (filter === 'maybeboard') return 'Maybeboard cards are not added to your collection or put in the deck.'
   const parts = (
     [
       [b.collection, 'from collection'],

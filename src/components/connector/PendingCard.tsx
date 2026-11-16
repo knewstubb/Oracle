@@ -44,7 +44,7 @@ function DeckBox({ deck }: { deck: PendingItem['preview']['decks'][number] }) {
           <dd>{deck.before.size} → {deck.after.size}</dd>
         </div>
         <div className="flex gap-1">
-          <dt>Sleeved:</dt>
+          <dt>In deck:</dt>
           <dd>{deck.before.sleeved} → {deck.after.sleeved}</dd>
         </div>
         <div className="flex gap-1">

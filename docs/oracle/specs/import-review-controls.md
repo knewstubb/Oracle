@@ -67,7 +67,7 @@ The deck result no longer asks for a commander. It shows a quiet grey line: **"N
 | 2+ unmatched | one-line summary; View expands |
 | Dismissed | note gone; footer shows "Show hidden notes (n)" |
 | Row hover / focus / expanded | grey surface; green focus ring on caret; caret flips |
-| Deck vs collection | deck: All, Proxies, Unsleeved, Basics chips; collection: All, Proxies |
+| Deck vs collection | deck: All, Proxies, Planned, Basics chips; collection: All, Proxies |
 
 ## 10. Copy
 "Sort" · "Name A–Z" · "Import order" · "Find card" · "3 rows not matched · they won't be imported" · "1 row not matched" · "View" / "Hide" · "Copy" / "Copied" · "Copy all" · "Dismiss not matched note" · "Show hidden notes (2)" · "No cards match. Clear the filter or search." · "Import cards" · "Import deck" · "No commander yet. Choose one on the deck page."

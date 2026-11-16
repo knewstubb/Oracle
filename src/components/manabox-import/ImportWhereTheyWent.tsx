@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { TriangleAlert } from 'lucide-react'
 import { whereTheyWent, reasonText, deckWarningLines } from '@/lib/import-placement-text'
+import { AddToPicklistProvider, AddAllBar } from '@/components/AddToPicklist'
 import { statusWord } from '@/lib/import-destinations-list'
 import type { ImportPlacementResult } from '../../../docs/oracle/contracts/know-where-cards-are.types'
 
@@ -17,6 +18,10 @@ export function ImportWhereTheyWent({ placement }: { placement: ImportPlacementR
   if (!info || !placement) return null
 
   const unsorted = (placement.details ?? []).filter((d) => d.outcome === 'unsorted')
+  // Only the copies this import put in Unsorted (never older Unsorted cards).
+  const ids = placement.unsortedCopyIds ?? []
+  const names = placement.unsortedCardNames ?? []
+  const addable = ids.map((copyId, i) => ({ copyId, cardName: names[i] ?? 'That card' }))
   const shown = showAll ? unsorted : unsorted.slice(0, CAP)
 
   return (
@@ -68,6 +73,13 @@ export function ImportWhereTheyWent({ placement }: { placement: ImportPlacementR
             </ul>
           )}
         </div>
+      )}
+      {addable.length > 0 && (
+        <AddToPicklistProvider>
+          <div className="mt-2 rounded-md border border-[var(--border-subtle)]">
+            <AddAllBar cards={addable} />
+          </div>
+        </AddToPicklistProvider>
       )}
     </section>
   )

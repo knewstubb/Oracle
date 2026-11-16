@@ -6,9 +6,9 @@ import type { ImportPlacementResult } from '../../docs/oracle/contracts/know-whe
 const answer = (filled: number, added: number, unsorted: Array<[number, string]>) => ({
   success: true,
   outcomes: [
-    ...Array.from({ length: filled }, (_, i) => ({ index: i, kind: 'filled', reason: null })),
-    ...Array.from({ length: added }, (_, i) => ({ index: filled + i, kind: 'added', reason: null })),
-    ...unsorted.map(([index, reason]) => ({ index, kind: 'unsorted', reason })),
+    ...Array.from({ length: filled }, (_, i) => ({ index: i, copy_id: 100 + i, kind: 'filled', reason: null })),
+    ...Array.from({ length: added }, (_, i) => ({ index: filled + i, copy_id: 100 + filled + i, kind: 'added', reason: null })),
+    ...unsorted.map(([index, reason]) => ({ index, copy_id: 100 + index, kind: 'unsorted', reason })),
   ],
   counts: { filled, added, unsorted: unsorted.length, proxies_placed: 1 },
 })
@@ -30,6 +30,11 @@ describe('parseDeckRpcAnswer', () => {
   it('throws when the counts do not add up, so nothing is silently dropped', () => {
     expect(() => parseDeckRpcAnswer(answer(2, 1, []), 4)).toThrow(/do not add up/)
   })
+  it('throws when a copy id is missing', () => {
+    const a = answer(1, 0, [])
+    delete (a.outcomes[0] as { copy_id?: number }).copy_id
+    expect(() => parseDeckRpcAnswer(a, 1)).toThrow(/copy ids/)
+  })
   it('throws on an empty or failed answer', () => {
     expect(() => parseDeckRpcAnswer(null, 1)).toThrow()
     expect(() => parseDeckRpcAnswer({ success: false }, 1)).toThrow()
@@ -47,6 +52,12 @@ describe('buildDeckPlacement', () => {
     ])
     expect(p.unsortedReasons).toMatchObject({ duplicate: 1, in_maybeboard: 1, basic_land: 0, could_not_place: 0 })
     expect(p.proxies).toBe(1)
+    expect(p.unsortedCopyIds).toEqual([103, 104])
+    expect(p.unsortedCardNames).toEqual(['D', 'E'])
+  })
+  it('has an empty list when nothing went to Unsorted', () => {
+    const p = buildDeckPlacement({ deckId: 3, deckName: 'K', answer: parseDeckRpcAnswer(answer(2, 1, []), 3), names: ['A', 'B', 'C'] })
+    expect(p.unsortedCopyIds).toEqual([])
   })
 })
 

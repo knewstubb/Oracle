@@ -5,7 +5,7 @@
  * Owner decision 2026-11-16: one simple destination dropdown (a box or a deck). Nothing is moved; a waiting step is saved
  * per card so the all-decks Picklist fills. Cards that cannot be added are named with a plain reason.
  */
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { usePlaceOptions, type PlaceOption } from '@/components/PicklistPlaces'
@@ -27,6 +27,8 @@ export function AddToPicklistProvider({ children }: { children: React.ReactNode 
   const qc = useQueryClient()
   const places = usePlaceOptions()
   const [value, setValue] = useState('')
+  // Stops a fast double click from sending the same list twice before the button has greyed out.
+  const sending = useRef(false)
   const mutation = useMutation({
     mutationFn: async (cards: AddableCard[]) => {
       const opt = (places.data ?? []).find((o) => o.value === value)
@@ -54,9 +56,15 @@ export function AddToPicklistProvider({ children }: { children: React.ReactNode 
       void qc.invalidateQueries({ queryKey: ['picklist', 'all-decks'] })
     },
     onError: (e: Error) => toast.error(e.message),
+    onSettled: () => { sending.current = false },
   })
+  const add = (c: AddableCard[]) => {
+    if (sending.current) return
+    sending.current = true
+    mutation.mutate(c)
+  }
   return (
-    <AddCtx.Provider value={{ places: places.data ?? [], loadingPlaces: places.isLoading, value, setValue, pending: mutation.isPending, add: (c) => mutation.mutate(c) }}>
+    <AddCtx.Provider value={{ places: places.data ?? [], loadingPlaces: places.isLoading, value, setValue, pending: mutation.isPending, add }}>
       {children}
     </AddCtx.Provider>
   )

@@ -200,6 +200,8 @@ export interface ImportPlacementResult {
    * (POST /api/moves/lists), which therefore never offers older Unsorted cards. Not capped (unlike details).
    */
   unsortedCopyIds?: number[]
+  /** Display names, same order and length as unsortedCopyIds, so skipped cards can be named (not capped). Added by the Developer 2026-11-17, needs Architect confirmation. */
+  unsortedCardNames?: string[]
   /** Copies whose finish differs from what an existing slot asked for (still placed). */
   finishDiffers?: number
   deckStatusAfter?: 'unowned' | 'assembling' | 'playable' | 'draft'

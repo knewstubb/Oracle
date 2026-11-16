@@ -17,7 +17,7 @@
 import { countStoredFoils } from '@/lib/import-result'
 import { createAdminClient } from '@/lib/supabase'
 import type { Json } from '@/types/supabase'
-import { assertAtomicRpcSuccess, assertAtomicRpcCount } from '@/lib/atomic-rpc'
+import { assertAtomicRpcSuccess, assertAtomicRpcCount, assertAtomicRpcIdList } from '@/lib/atomic-rpc'
 import { createSupabaseManaBoxResolver } from '@/lib/manabox-resolver'
 import { resolveCollectionRows, combineResolvedRows, type ManaBoxResolver } from '@/lib/manabox-import'
 import {
@@ -201,6 +201,7 @@ export async function executeManaBoxCollectionImport(
   const writeRows = applyStorageDestination(copyRows, destination)
   let inserted = 0
   let placement: ImportPlacementResult | undefined
+  let insertedIds: number[] = []
   options.onProgress?.({ phase: 'writing', done: 0, total: writeRows.length })
   if (destination.kind === 'deck' && destination.id !== null) {
     // Deck destination: one database function saves the copies and places each one, all or nothing.
@@ -225,12 +226,12 @@ export async function executeManaBoxCollectionImport(
       throw destinationErrorFromDatabase(error.message) ?? new Error(`Atomic collection insert failed: ${error.message}`)
     }
 
-    inserted = assertAtomicRpcCount(
-      assertAtomicRpcSuccess(data, 'Atomic collection insert'),
-      'inserted_count',
-      'Atomic collection insert',
-      writeRows.length
-    )
+    const answer = assertAtomicRpcSuccess(data, 'Atomic collection insert')
+    inserted = assertAtomicRpcCount(answer, 'inserted_count', 'Atomic collection insert', writeRows.length)
+    // Unsorted destination only: these exact copies feed "Add all" on the result screen.
+    if (destination.kind === 'unsorted') {
+      insertedIds = assertAtomicRpcIdList(answer, 'inserted_ids', 'Atomic collection insert', writeRows.length)
+    }
   }
 
   if (!placement) {
@@ -238,6 +239,9 @@ export async function executeManaBoxCollectionImport(
       destination: { kind: destination.kind, id: destination.id, name: destination.name },
       total: inserted,
       placedInStorage: inserted,
+      // Unsorted: every copy of this import (names in file order). Box or binder: nothing is in Unsorted.
+      unsortedCopyIds: insertedIds,
+      unsortedCardNames: insertedIds.length > 0 ? copyMetas.map((m) => m.cardName) : [],
     }
   }
 

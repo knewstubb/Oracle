@@ -39,6 +39,8 @@ const REASONS: Record<string, ImportUnsortedReason> = {
 
 interface RpcOutcome {
   index: number
+  /** user_copies.id of the saved copy (Add all on the result screen needs it). */
+  copy_id: number
   kind: 'filled' | 'added' | 'unsorted'
   reason?: string | null
 }
@@ -53,6 +55,9 @@ export function parseDeckRpcAnswer(data: unknown, expectedTotal: number): DeckRp
   const d = data as { success?: boolean; outcomes?: RpcOutcome[]; counts?: DeckRpcAnswer['counts'] } | null
   if (!d || d.success !== true || !Array.isArray(d.outcomes) || !d.counts) {
     throw new Error('Deck import returned an unexpected answer')
+  }
+  if (d.outcomes.some((o) => !o || typeof o.copy_id !== 'number' || !Number.isInteger(o.copy_id))) {
+    throw new Error('Deck import did not report the saved copy ids')
   }
   const { filled, added, unsorted } = d.counts
   if (filled + added + unsorted !== expectedTotal || d.outcomes.length !== expectedTotal) {
@@ -73,9 +78,15 @@ export function buildDeckPlacement(args: {
   const { answer, names } = args
   const unsortedReasons: Record<ImportUnsortedReason, number> = { duplicate: 0, in_maybeboard: 0, basic_land: 0, could_not_place: 0 }
   const details: NonNullable<ImportPlacementResult['details']> = []
+  const unsortedCopyIds: number[] = []
+  const unsortedCardNames: string[] = []
   for (const o of answer.outcomes) {
     const reason = o.kind === 'unsorted' ? (REASONS[o.reason ?? ''] ?? 'could_not_place') : undefined
     if (reason) unsortedReasons[reason]++
+    if (o.kind === 'unsorted') {
+      unsortedCopyIds.push(o.copy_id)
+      unsortedCardNames.push(names[o.index] ?? 'Unknown card')
+    }
     // Only the copies that went to Unsorted need naming on the screen; the list is capped.
     if (o.kind === 'unsorted' && details.length < DETAIL_CAP) {
       details.push({ cardName: names[o.index] ?? 'Unknown card', outcome: 'unsorted', reason })
@@ -90,6 +101,8 @@ export function buildDeckPlacement(args: {
     unsortedReasons,
     details,
     proxies: answer.counts.proxies_placed,
+    unsortedCopyIds,
+    unsortedCardNames,
   }
 }
 

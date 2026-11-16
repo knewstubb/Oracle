@@ -76,9 +76,9 @@ describe('collection import into a deck', () => {
       rpcAnswer: {
         success: true, deck_id: 7, inserted_ids: [1, 2, 3],
         outcomes: [
-          { index: 0, kind: 'filled', reason: null },
-          { index: 1, kind: 'unsorted', reason: 'already_filled' },
-          { index: 2, kind: 'added', reason: null },
+          { index: 0, copy_id: 1, kind: 'filled', reason: null },
+          { index: 1, copy_id: 2, kind: 'unsorted', reason: 'already_filled' },
+          { index: 2, copy_id: 3, kind: 'added', reason: null },
         ],
         counts: { filled: 1, added: 1, unsorted: 1, proxies_placed: 0 },
       },
@@ -92,6 +92,7 @@ describe('collection import into a deck', () => {
     const p = summary.placement!
     expect(p.filledSlots! + p.addedAsNew! + p.sentToUnsorted!).toBe(3)
     expect(p.details).toEqual([{ cardName: 'Sol Ring', outcome: 'unsorted', reason: 'duplicate' }])
+    expect(p.unsortedCopyIds).toEqual([2])
     // Deck colours are unknown in this fake (no commander), so the check says so rather than "no warnings".
     expect(p.warnings?.checksUnavailable).toBe(true)
   })

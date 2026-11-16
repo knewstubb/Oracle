@@ -70,7 +70,7 @@ function fakeClient(printings: Array<Record<string, unknown>> = [], takenDeckIns
     },
     async rpc(name: string, args: Calls['rpc'][number]['args']) {
       calls.rpc.push({ name, args })
-      return { data: { success: true, inserted_count: args.p_rows.length }, error: null }
+      return { data: { success: true, inserted_count: args.p_rows.length, inserted_ids: args.p_rows.map((_, i) => i + 1) }, error: null }
     },
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -145,8 +145,9 @@ describe('collection write (tests 14, 16, 17)', () => {
   it('gives each user only their own rows', async () => {
     const a = fakeClient()
     const b = fakeClient()
+    let r0: Awaited<ReturnType<typeof executeManaBoxCollectionImport>> | undefined
     for (const [who, c] of [['user-a', a], ['user-b', b]] as const) {
-      await executeManaBoxCollectionImport({
+      const r = await executeManaBoxCollectionImport({
         csvContent: CSV,
         fileName: 'x.csv',
         userId: who,
@@ -154,8 +155,11 @@ describe('collection write (tests 14, 16, 17)', () => {
         resolver,
         supabase: c.client,
       })
+      if (who === 'user-a') r0 = r
     }
     expect(a.calls.rpc[0].args.p_user_id).toBe('user-a')
+    expect(r0?.placement?.unsortedCopyIds).toHaveLength(r0?.inserted ?? -1)
+    expect(r0?.placement?.unsortedCopyIds?.length).toBeGreaterThan(0)
     expect(b.calls.rpc[0].args.p_user_id).toBe('user-b')
   })
 })

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { DeckCardView } from '../../../../docs/oracle/contracts/claude-connector-slice-a.types'
-import type { WithFacts } from '../../../../docs/oracle/contracts/connector-card-facts-and-deck-health.types'
+import type { CardFacts } from '../../../../docs/oracle/contracts/connector-card-facts-and-deck-health.types'
 import { DECK_CARDS_PAGE_MAX, fitRows, cutText } from '../limits'
 import { fetchCardFacts, factsFor } from './card-facts'
 import { loadStrategyBrackets } from './bracket'
@@ -26,6 +26,14 @@ type DeckCardRow = {
   copy_id: number | null
   scryfall_id: string | null
   requested_finish: string | null
+}
+
+/** Deck rows carry slimmer facts than search results: no price (the ownership tool has prices), so a 100-card deck fits one answer. */
+export type DeckRowFacts = Omit<CardFacts, 'price'>
+
+export function slimFacts(f: CardFacts): DeckRowFacts {
+  const { price: _price, ...rest } = f // eslint-disable-line @typescript-eslint/no-unused-vars
+  return rest
 }
 
 export function parseCategories(raw: string | null): string[] {
@@ -72,12 +80,12 @@ export async function getDeck(ctx: ToolContext, input: z.infer<typeof getDeckInp
     const sleevedCount = all.filter((r) => r.copy_id != null).length
 
     const withRules = input.include_rules_text ?? false
-    const facts = await fetchCardFacts(ctx, page.map((r) => r.card_name), { includeRulesText: withRules })
+    const facts = await fetchCardFacts(ctx, page.map((r) => r.card_name), { includeRulesText: withRules, prices: new Map() }) // prices are not shown on deck rows
 
-    const items: (DeckCardView & WithFacts)[] = page.map((r) => {
+    const items: (DeckCardView & { facts: DeckRowFacts })[] = page.map((r) => {
       const copy = r.copy_id != null ? copyById.get(r.copy_id) : undefined
       return {
-        facts: factsFor(facts, r.card_name, withRules),
+        facts: slimFacts(factsFor(facts, r.card_name, withRules)),
         slotId: r.id,
         name: r.card_name,
         quantity: r.quantity ?? 1,

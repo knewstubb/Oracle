@@ -58,3 +58,11 @@ Claude now sees card facts (type, cost, colours, rules text, Commander legality,
 - Connector suite: 167 passed, 4 skipped (the live-only file).
 - No example request against the real endpoint (no token); behaviour shown by tests with a faked database.
 - No migrations, no stored-data changes, nothing committed.
+
+## Follow-up (2026-11-17): the two owner-approved changes
+- **Slow live deck health: done.** The live check now waits at most 8 seconds for a commander's typical numbers. On timeout it answers with the general guide, labelled "General guide (EDHREC took too long, so this is not this commander's average)", and the note field repeats that label so Claude says it out loud. It never reads as the commander's own average and never passes or fails silently. Nothing is saved (the connector still has no write path to the shared cache); a late EDHREC answer is simply dropped. Applies to any slow numbers lookup; saved fresh numbers return instantly so are unaffected. [Confirmed: src/lib/connector/deck-health-loader.ts]
+- **Large decks: done.** Deck rows from the deck lookup no longer carry a price (type, cost, colours and legality stay; rules text still opt-in on decks, always on search). A 100-card deck now returns whole in one call, not truncated, under the 40 KB cap (test asserts all 100 returned). Prices remain on search results and the ownership tool. [Confirmed: src/lib/connector/tools/get-deck.ts]
+- Tool descriptions updated to match (get_deck, get_deck_health). The unrelated "Planned slots" wording change another agent has in that file was left unstaged.
+- New tests: slow numbers fall back with the label and a note and no writes; in-time numbers used normally; limit is 8000 ms; 100-card deck whole with no price.
+- Verification: connector tests 236 passed, 4 skipped (live-only). eslint on all touched files clean. Project-wide lint still shows 3 older errors in list-decks.ts and tools.test.ts (not touched here). Not tested live (no account sign-in).
+- Open: S1 to S3 live scenarios and the two-account check remain for the Tester; confirm the real first-check time for a never-checked commander is now bounded at about 8 s plus card-library reads.

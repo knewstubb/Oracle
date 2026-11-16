@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest'
 import { getDeckHealth } from '../tools/get-deck-health'
 import { loadDeckHealth } from '../../deck-health-server'
 import { guideTargets, GUIDE_LABEL } from '../../commander-targets'
+import { GUIDE_TIMEOUT_LABEL, HEALTH_TARGETS_TIMEOUT_MS } from '../deck-health-loader'
 import { readOnlyRefClient } from '../read-only-ref-client'
 import { hasEq, mockDb, type RecordedQuery } from './mock-db'
 
@@ -124,6 +125,33 @@ describe('get_deck_health, live (CC-06d)', () => {
       if (q.table.startsWith('ref_')) continue
       expect(hasEq(q, 'user_id', U), q.table).toBe(true)
     }
+  })
+})
+
+describe('get_deck_health, slow commander numbers (CC-06 follow-up)', () => {
+  it('gives up after the time limit and answers with a clearly labelled general guide, saving nothing', async () => {
+    const { db, queries } = connectorDb()
+    const never = () => new Promise<never>(() => {}) // EDHREC never answers
+    const r = (await getDeckHealth({ db, userId: U }, { deck_id: 1 }, never, undefined, 20)) as any
+    expect(r.ok).toBe(true)
+    expect(r.status).toBe('computed_now')
+    expect(r.health.sourceLine).toBe(GUIDE_TIMEOUT_LABEL)
+    expect(r.health.sourceLine).toMatch(/General guide/)
+    expect(r.health.sourceLine).toMatch(/not this commander's average/)
+    expect(r.health.sourceLine).not.toMatch(/EDHREC average deck/)
+    expect(r.note).toBe(GUIDE_TIMEOUT_LABEL) // said out loud to Claude, not silent
+    expect(queries.every((q) => !['insert', 'upsert', 'update', 'delete'].includes((q as any).op ?? ''))).toBe(true)
+  })
+
+  it('a provider that answers in time is used as normal', async () => {
+    const { db } = connectorDb()
+    const quick = async () => guideTargets('EDHREC average deck, 500 decks')
+    const r = (await getDeckHealth({ db, userId: U }, { deck_id: 1 }, quick, undefined, 1000)) as any
+    expect(r.health.sourceLine).toBe('EDHREC average deck, 500 decks')
+  })
+
+  it('the time limit is about 8 seconds', () => {
+    expect(HEALTH_TARGETS_TIMEOUT_MS).toBe(8000)
   })
 })
 

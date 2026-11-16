@@ -118,7 +118,7 @@ describe('get_deck facts (CC-06c)', () => {
     expect(on.mainboard.items[0].facts.rulesText).toBeTruthy()
   })
 
-  it('a realistic 100-card deck stays under the cap; if facts push it over, the page is shortened and says so', async () => {
+  it('a realistic 100-card deck comes back whole in one call, under the cap', async () => {
     const names = Array.from({ length: 100 }, (_, i) => `Eternal Witness of Things ${i}`)
     const lib = Object.fromEntries(names.map((n) => [n, { name: n, type_line: 'Legendary Creature — Elf Druid', oracle_text: 'x'.repeat(500), mana_cost: '{2}{G}{G}', mana_value: 4, color_identity: 'G', commander_legal: true }]))
     const { db, queries } = mockDb((q) => {
@@ -129,10 +129,11 @@ describe('get_deck facts (CC-06c)', () => {
     })
     const r = (await getDeck({ db, userId: U }, getDeckInput.parse({ deck_id: 1 }))) as never as { mainboard: { returned: number; truncated: boolean; note?: string } }
     expect(byteLength(r)).toBeLessThanOrEqual(MAX_RESPONSE_BYTES)
-    if (r.mainboard.returned < 100) {
-      expect(r.mainboard.truncated).toBe(true)
-      expect(r.mainboard.note).toMatch(/offset \d+/)
-    }
+    // Slim deck facts: the whole 100-card deck comes back in one call, with no truncation and no per-card price.
+    expect(r.mainboard.returned).toBe(100)
+    expect(r.mainboard.truncated).toBe(false)
+    expect(r.mainboard.note).toBeUndefined()
+    expect(JSON.stringify(r)).not.toContain('"price"')
     for (const q of queries.filter((x) => !x.table.startsWith('ref_'))) expect(q.filters.some((f) => f.op === 'eq' && f.args[0] === 'user_id' && f.args[1] === U), q.table).toBe(true)
   })
 

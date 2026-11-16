@@ -21,9 +21,10 @@ export async function getDeckHealth(
   input: z.infer<typeof getDeckHealthInput>,
   targets: TargetsProvider = connectorTargetsProvider,
   now: () => Date = () => new Date(),
+  timeoutMs?: number,
 ): Promise<ToolOutput> {
   const started = Date.now()
-  const r = await loadConnectorDeckHealth(ctx, input.deck_id, targets)
+  const r = await loadConnectorDeckHealth(ctx, input.deck_id, targets, timeoutMs)
   if (!r.ok) return r.status === 404 ? notFound() : editError('HEALTH_FAILED', FAILED, true)
   console.info(`[connector] deck health for deck ${input.deck_id} computed in ${Date.now() - started} ms`)
   if (byteLength(r.health) > MAX_HEALTH_RESULT_BYTES) return editError('HEALTH_FAILED', 'The deck health result was too large to return.', false)

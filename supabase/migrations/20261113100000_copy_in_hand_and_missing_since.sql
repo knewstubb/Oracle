@@ -1,4 +1,4 @@
--- DRAFT — NOT APPLIED. Pending owner approval of the stored-data change (brief section 18, phase 3).
+-- APPLIED 2026-11-16 to hosted project The Oracle (owner approved in chat).
 -- Contract: docs/oracle/contracts/know-where-cards-are.md (sections 2 and 3)
 --
 -- WHAT THIS DOES

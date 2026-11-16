@@ -1,4 +1,4 @@
--- DRAFT FOR OWNER APPROVAL. NOT APPLIED. Do not run until the owner approves.
+-- APPLIED 2026-11-16 to hosted project The Oracle (owner approved in chat).
 -- Contract: docs/oracle/contracts/know-where-cards-are.md (sections 3.2 and 5). Build slice 3 or later.
 -- Depends on: 20261113100000_copy_in_hand_and_missing_since.sql (separate file, separate approval).
 --

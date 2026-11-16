@@ -107,7 +107,7 @@ describe('PicklistV2 (Picklist tab)', () => {
 
 describe('PicklistV2 saved ticks (Found it / Placed it / Can\'t find it)', () => {
   function setupWithTicks(body: unknown, tickResponse: { status: number; json: unknown } = { status: 200, json: { itemId: 1, state: 'found', unchanged: false, sourceDeckNowShort: [], decksNowShort: [], filledDeckCardId: null } }) {
-    const fetchMock = vi.fn((url: string) =>
+    const fetchMock = vi.fn((url: string, _init?: RequestInit) =>
       String(url).startsWith('/api/picklist/')
         ? Promise.resolve(new Response(JSON.stringify(tickResponse.json), { status: tickResponse.status }))
         : Promise.resolve(new Response(JSON.stringify(body), { status: 200 })),

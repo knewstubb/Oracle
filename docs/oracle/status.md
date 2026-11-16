@@ -261,4 +261,13 @@ Phase 1 (quick wins) skipped. **Phase 2 Deck health: mockup APPROVED 2026-11-11*
 | CC-04 | Gate 4 build in slices (a) read-only and sign-in, (b) two-account separation test, (c) safe edits with undo, pending approvals and card-move rule, no collection deletes, (d) switch-off and setup guide | Developer, Tester | TODO | CC-03, CC-03a |
 | CC-05 | Gate 5 close-out; record D-034 amendment (owner approval) | Gene | TODO | CC-04 |
 
+### Claude connector follow-ups — PROPOSED 2026-11-16 (draft briefs, awaiting owner approval; nothing started)
+From Claude's feedback (`reports/2026-11-16-gene-claude-feedback-compare.md`). Owner said YES to Claude logging games.
+| ID | Task | Owner role | Status | Depends on |
+|---|---|---|---|---|
+| CC-06 | Card facts on every connector card (type, cost, colours, rules text, legality, estimated price) and connector deck health that runs the in-app check. Brief `briefs/connector-card-facts-and-deck-health.md` | Architect audit, then Developer | PROPOSED, brief awaiting owner approval (4 behaviour questions) | CC-04b |
+| CC-07 | Filterable collection search and summary counts. Brief `briefs/connector-collection-search.md` | Architect audit, then Developer | PROPOSED, brief awaiting owner approval (4 behaviour questions) | CC-06 |
+| CC-08 | Game logging and playgroup (new stored data; needs owner-approved migration and Designer mockup). Brief `briefs/game-logging-and-playgroup.md`; overlaps parked O-004 | Architect, Designer, Developer | PROPOSED, brief awaiting owner approval (10 behaviour questions) | CC-04b |
+| CC-09 | Check why deck brackets are empty and whether to prompt the owner to set them | Developer (read-only check) | PROPOSED, folded into CC-06 question 3 | none |
+
 **Pending correction (2026-11-16, owner to approve):** decisions.md and AGENTS.md say get_collection_rollup is live and confirmed working; it is not (points at tables that no longer exist, unused by the app). Not edited.

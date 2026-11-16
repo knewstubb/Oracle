@@ -220,7 +220,7 @@ export type MoveRoutineError =
   | 'copy_already_in_open_item' | 'card_identity_mismatch'
 
 /** create_move_list: 1 to 500 items. `to` is the planned destination; no card moves. */
-export interface CreateMoveListRequest {
+export interface CreateMoveListInput {
   items: Array<{ copyId: number; to: PlaceRef }>
 }
 
@@ -228,7 +228,7 @@ export type CreateMoveListSkipReason =
   | 'bad_item' | 'duplicate_in_request' | 'copy_not_found' | 'copy_missing' | 'target_not_found'
   | 'already_in_this_deck' | 'already_there' | 'no_open_slot' | 'copy_already_in_open_item'
 
-export interface CreateMoveListResponse {
+export interface CreateMoveListResult {
   success: true
   /** Null when nothing new was saved. */
   list_id: string | null

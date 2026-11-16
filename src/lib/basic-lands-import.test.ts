@@ -96,7 +96,7 @@ function fakeClient() {
     },
     async rpc(name: string, args: { p_rows: Array<Record<string, unknown>> }) {
       rpc.push({ name, rows: args.p_rows })
-      return { data: { success: true, inserted_count: args.p_rows.length }, error: null }
+      return { data: { success: true, inserted_count: args.p_rows.length, inserted_ids: args.p_rows.map((_, i) => i + 1) }, error: null }
     },
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

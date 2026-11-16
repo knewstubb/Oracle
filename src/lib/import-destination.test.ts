@@ -179,7 +179,7 @@ function importClient(opts: { rpcError?: string } = {}) {
     async rpc(_name: string, args: { p_rows: Array<Record<string, unknown>> }) {
       writes.rpcs.push(args)
       if (opts.rpcError) return { data: null, error: { message: opts.rpcError } }
-      return { data: { success: true, inserted_count: args.p_rows.length }, error: null }
+      return { data: { success: true, inserted_count: args.p_rows.length, inserted_ids: args.p_rows.map((_, i) => i + 1) }, error: null }
     },
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -193,10 +193,11 @@ describe('collection import with a destination', () => {
     const { client, writes } = importClient()
     const summary = await executeManaBoxCollectionImport({ ...base, supabase: client })
     expect(writes.rpcs[0].p_rows.map((r) => r.location_id)).toEqual([null, null, null])
-    expect(summary.placement).toEqual({
+    expect(summary.placement).toMatchObject({
       destination: { kind: 'unsorted', id: null, name: 'Unsorted' },
       total: 3,
       placedInStorage: 3,
+      unsortedCopyIds: [1, 2, 3],
     })
   })
 

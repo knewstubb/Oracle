@@ -1,3 +1,7 @@
+'use client'
+
+import { PendingChip } from '@/components/connector/PendingChip'
+
 interface PageHeaderProps {
   title: string
   subtitle?: React.ReactNode
@@ -17,8 +21,9 @@ export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
           </p>
         )}
       </div>
+      <div className="ml-auto"><PendingChip /></div>
       {actions && (
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex items-center gap-2">
           {actions}
         </div>
       )}

@@ -48,6 +48,19 @@ export default function SettingsPage() {
       <div className="space-y-8">
         <CardDataSection />
 
+        <section className="rounded-lg border border-[var(--border-default)] p-6">
+          <h2 className="text-[length:var(--fs-lg)] font-medium">Claude connector</h2>
+          <p className="mt-1 text-[length:var(--fs-sm)] text-muted-foreground">
+            See what Claude changed, undo it, and say yes or no to big changes.
+          </p>
+          <Link
+            href="/settings/claude-connector"
+            className="mt-3 inline-flex min-h-[44px] items-center rounded-lg border border-[var(--border-default)] px-3 text-[length:var(--fs-sm)] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
+          >
+            Open Claude connector
+          </Link>
+        </section>
+
         {/* Dev Tools */}
         <section className="rounded-lg border border-destructive/30 p-6">
           <h2 className="text-[length:var(--fs-lg)] font-medium text-destructive">

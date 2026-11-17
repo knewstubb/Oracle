@@ -332,7 +332,7 @@ export function CollectionToolbar({
 
       {/* ─── Bottom Row: Color Identity Filter + Status Filter ── */}
       {/* Horizontally scrollable on mobile */}
-      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+      <div className="-mx-4 -my-1 overflow-x-auto px-4 py-1 sm:-mx-1 sm:px-1">
         <div className="flex w-max items-center gap-3 sm:w-auto">
         <ColorIdentityFilter
           selectedColors={selectedColors}

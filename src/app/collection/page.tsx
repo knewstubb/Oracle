@@ -327,7 +327,7 @@ export default function CollectionPage() {
             {/* Spinner over the table while a filter/search/sort answer is loading */}
             {hasActiveData && (isPrintingView ? printingIsFetching : isFetching) && (
               <div
-                className="pointer-events-none absolute inset-0 z-10 flex items-start justify-center pt-24"
+                className="absolute inset-0 z-10 flex items-center justify-center bg-black/60"
                 role="status"
                 aria-label="Updating results"
               >

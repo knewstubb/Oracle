@@ -28,6 +28,8 @@ export interface DeckTileProps {
   commanderScryfallId: string
   colourIdentity: string[]
   cardCount?: number
+  /** Cards physically in the deck. Undefined until the details request answers. */
+  sleevedCount?: number
   deckType?: string | null
   format?: string | null
   healthStatus?: Array<HealthPipStatus>
@@ -100,6 +102,7 @@ export function DeckTile({
   commanderScryfallId,
   colourIdentity,
   cardCount,
+  sleevedCount,
   format,
   isActive,
   completeness,
@@ -121,25 +124,11 @@ export function DeckTile({
   const validation = cardCount !== undefined ? validateDeckCount(cardCount, format) : null
   const required = validation?.required ?? 100
   
-  // For active decks that are ready (green), show the full card count
-  // For active decks not ready, show resolved count to indicate progress
-  // For brews, show slots filled
-  let displayCount: number
-  if (isActive) {
-    if (readiness === 'green' || readiness === 'overcount') {
-      // Deck is ready — show full card count
-      displayCount = cardCount ?? 0
-    } else if (completeness) {
-      // Deck needs work — show how many are resolved
-      displayCount = completeness.resolved
-    } else {
-      displayCount = cardCount ?? 0
-    }
-  } else {
-    displayCount = cardCount ?? 0
-  }
-  const countText = `${displayCount}/${required} ${isActive ? 'cards' : 'slots'}`
-  
+  // "55/100 (14 sleeved)": cards on the list, target size, cards physically in the deck.
+  // Formats with no target size read "55 cards". The bracket fills in once the details arrive.
+  const listed = cardCount ?? 0
+  const countText = required > 0 ? `${listed}/${required}` : `${listed} cards`
+  const sleevedText = sleevedCount !== undefined ? ` (${sleevedCount} sleeved)` : ''
   // Icon color matches border for Active decks, muted for others
   const iconColor = isActive 
     ? BORDER_COLORS[readiness] 
@@ -294,8 +283,8 @@ export function DeckTile({
           </p>
 
           {/* Card count — neutral color */}
-          <p className="mt-2 text-[12px] text-[#808080] leading-[15px]">
-            {countText}
+          <p className="mt-2 truncate whitespace-nowrap text-[12px] text-[#808080] leading-[15px]">
+            {countText}{sleevedText}
           </p>
         </div>
 

@@ -61,9 +61,40 @@ describe('DeckTile', () => {
     expect(screen.getByText('Muldrotha, the Gravetide')).toBeInTheDocument()
   })
 
-  it('renders card count as slots for an inactive deck', () => {
-    renderWithProviders(<DeckTile {...defaultProps} />)
-    expect(screen.getByText('100/100 slots')).toBeInTheDocument()
+  it('shows the list count against the target before the sleeved count arrives', () => {
+    renderWithProviders(<DeckTile {...defaultProps} cardCount={55} />)
+    expect(screen.getByText('55/100')).toBeInTheDocument()
+  })
+
+  it('shows "55/100 (14 sleeved)" for a Commander deck', () => {
+    renderWithProviders(<DeckTile {...defaultProps} format="commander" cardCount={55} sleevedCount={14} />)
+    expect(screen.getByText('55/100 (14 sleeved)')).toBeInTheDocument()
+  })
+
+  it('shows "(0 sleeved)" when nothing is sleeved', () => {
+    renderWithProviders(<DeckTile {...defaultProps} cardCount={55} sleevedCount={0} />)
+    expect(screen.getByText('55/100 (0 sleeved)')).toBeInTheDocument()
+  })
+
+  it('uses the format target size', () => {
+    renderWithProviders(<DeckTile {...defaultProps} format="standard" cardCount={50} sleevedCount={3} />)
+    expect(screen.getByText('50/60 (3 sleeved)')).toBeInTheDocument()
+  })
+
+  it('reads "N cards (M sleeved)" when the format has no target size', () => {
+    renderWithProviders(<DeckTile {...defaultProps} format="casual" cardCount={40} sleevedCount={7} />)
+    expect(screen.getByText('40 cards (7 sleeved)')).toBeInTheDocument()
+  })
+
+  it('adds the sleeved count in place when the details arrive later', () => {
+    const { rerender } = renderWithProviders(<DeckTile {...defaultProps} cardCount={55} />)
+    const line = screen.getByText('55/100')
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <DeckTile {...defaultProps} cardCount={55} sleevedCount={14} />
+      </QueryClientProvider>
+    )
+    expect(screen.getByText('55/100 (14 sleeved)')).toBe(line)
   })
 
   it('renders colour identity bars with correct aria-label', () => {

@@ -1,4 +1,5 @@
 import type { createAdminClient } from '@/lib/supabase'
+import { countsAsSleeved } from '@/lib/basic-lands'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -7,6 +8,8 @@ export interface DeckCardRow {
   card_name: string
   copy_id: number | null
   categories: string | null
+  is_generic?: boolean | null
+  generic_sleeved?: boolean | null
 }
 
 // The database returns at most 1,000 rows per read.
@@ -24,7 +27,7 @@ export async function fetchAllDeckCardRows(
   const page = (from: number) =>
     supabase
       .from('deck_cards')
-      .select('deck_id, card_name, copy_id, categories')
+      .select('deck_id, card_name, copy_id, categories, is_generic, generic_sleeved')
       .eq('user_id', userId)
       .order('id')
       .range(from, from + ROW_CAP - 1)
@@ -142,6 +145,20 @@ export function computeUnresolvedCounts(
     else if (status === 'available' || status === 'alternate') c.availableCount += 1
     else if (status === 'claimed') c.claimedCount += 1
     else c.unownedCount += 1
+  }
+  return counts
+}
+
+/**
+ * Per deck: how many countable cards are physically in the deck. The same rule as
+ * the deck page header: a real copy (original or proxy) counts, and so does a
+ * generic basic that is marked sleeved. Decks with no countable cards are absent.
+ */
+export function computeSleevedCounts(rows: DeckCardRow[]): Record<number, number> {
+  const counts: Record<number, number> = {}
+  for (const card of rows) {
+    if (!isCountableCard(card.categories) || !countsAsSleeved(card)) continue
+    counts[card.deck_id] = (counts[card.deck_id] ?? 0) + 1
   }
   return counts
 }

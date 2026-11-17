@@ -26,6 +26,7 @@ interface Deck {
   is_active: boolean
   completeness?: { resolved: number; total: number; availableCount?: number; claimedCount?: number; unownedCount?: number } | null
   conflictCount?: number
+  sleevedCount?: number
   format?: string | null
   pipDistribution?: Record<string, number> | null
   hasBrew?: boolean  // Has an active brew session
@@ -46,6 +47,7 @@ interface DecksResponse {
 
 interface DeckDetailsResponse {
   pips: Record<string, Record<string, number>>
+  sleeved?: Record<string, number>
   unresolved: Record<string, { availableCount: number; claimedCount: number; unownedCount: number; failed: boolean }>
 }
 
@@ -103,9 +105,12 @@ export default function DashboardPage() {
     () => data?.decks.map(d => {
       const pips = detailsData?.pips?.[d.id]
       const unresolved = detailsData?.unresolved?.[d.id]
-      if (!pips && !unresolved) return d
+      // Once the details have arrived, a deck missing from `sleeved` has none sleeved.
+      const sleevedCount = detailsData?.sleeved ? (detailsData.sleeved[d.id] ?? 0) : undefined
+      if (!pips && !unresolved && sleevedCount === undefined) return d
       return {
         ...d,
+        ...(sleevedCount !== undefined ? { sleevedCount } : {}),
         ...(pips ? { pipDistribution: pips } : {}),
         ...(unresolved && d.completeness ? { completeness: { ...d.completeness, ...unresolved } } : {}),
       }
@@ -317,6 +322,7 @@ function DecksSection({ decks, folders }: { decks: Deck[]; folders: DeckFolder[]
           commanderScryfallId={deck.commander_scryfall_id}
           colourIdentity={parseColourIdentity(deck.colour_identity)}
           cardCount={deck.card_count}
+          sleevedCount={deck.sleevedCount}
           isActive={deck.is_active}
           completeness={deck.completeness}
           conflictCount={deck.conflictCount}

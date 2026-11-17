@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth'
 import { computeUnresolvedStatuses } from '@/lib/card-status'
 import {
   computePipDistribution,
+  computeSleevedCounts,
   computeUnresolvedCounts,
   fetchAllDeckCardRows,
   fetchManaCosts,
@@ -38,5 +39,6 @@ export async function GET() {
   return Response.json({
     pips: computePipDistribution(rows, manaCostMap),
     unresolved: computeUnresolvedCounts(rows, statusMap),
+    sleeved: computeSleevedCounts(rows),
   })
 }

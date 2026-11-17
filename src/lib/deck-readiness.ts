@@ -1,6 +1,6 @@
 import { countsAsSleeved } from '@/lib/basic-lands'
 /**
- * Automatic deck status: Draft (none sleeved), Assembling (some sleeved), Playable (list meets the
+ * Automatic deck status: Brewing (none sleeved), Assembling (some sleeved), Playable (list meets the
  * format target and every card is sleeved). Pass only countable rows (not Maybeboard / Sideboard).
  * "Sleeved" is the same rule as the deck page header and the tile's "(N sleeved)" count.
  */
@@ -17,7 +17,7 @@ export interface DeckReadiness {
   /** Cards that are physically sleeved (real copy, or a Sleeved generic). */
   sleeved: number
   unsleevedGenerics: number
-  state: 'draft' | 'assembling' | 'playable'
+  state: 'brewing' | 'assembling' | 'playable'
 }
 
 export function computeDeckReadiness(
@@ -32,7 +32,7 @@ export function computeDeckReadiness(
     if (countsAsSleeved(slot)) sleeved++
   }
   const size = slots.length
-  // Draft: nothing sleeved. Playable: every counted card sleeved and the list meets the format target.
+  // Brewing: nothing sleeved. Playable: every counted card sleeved and the list meets the format target.
   // Commander (exact 100): 99 or 101 sleeved cards are never Playable.
   let meetsTarget: boolean
   if (required === null || countRule === null) meetsTarget = size > 0
@@ -42,6 +42,6 @@ export function computeDeckReadiness(
     size,
     sleeved,
     unsleevedGenerics,
-    state: sleeved === 0 ? 'draft' : sleeved === size && meetsTarget ? 'playable' : 'assembling',
+    state: sleeved === 0 ? 'brewing' : sleeved === size && meetsTarget ? 'playable' : 'assembling',
   }
 }

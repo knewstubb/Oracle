@@ -79,9 +79,9 @@ for (const count of [99, 101]) {
   const slots = commanderDeck(1, 1000)
   if (count === 99) slots.pop()
   else slots.push({ ...sol, copyId: 5000 })
-  equal(`A9 ${count} cards`, computeReadiness(known(slots), 'commander').state, 'draft')
+  equal(`A9 ${count} cards`, computeReadiness(known(slots), 'commander').state, 'brewing')
 }
-equal('A10 verified no commander', computeReadiness(known(commanderDeck(1, 1000).map(s => ({ ...s, isCommander: false }))), 'commander').state, 'draft')
+equal('A10 verified no commander', computeReadiness(known(commanderDeck(1, 1000).map(s => ({ ...s, isCommander: false }))), 'commander').state, 'brewing')
 const generic: SlotFacts = { ...sol, cardName: 'Island', requestedPrintingId: null, quantity: 36 }
 const basicDeck = [...commanderDeck(1, 1000).slice(0, 64), generic]
 const basicReadiness = computeReadiness(known(basicDeck), 'commander')
@@ -90,7 +90,7 @@ equal('A11 64 tracked + 36 generic', basicReadiness.kind === 'known'
   : basicReadiness.issue, ['playable', 100, 100, 36])
 equal('A11 no physical generic assignment', [isGenericBasicSlot(generic), generic.copyId], [true, null])
 equal('P/G-M4 A12 separate Maybeboard release', computeReadiness(known(basicDeck.map((s, i) =>
-  i === 1 ? { ...s, relation: 'optional', copyId: null } : s)), 'commander').state, 'draft')
+  i === 1 ? { ...s, relation: 'optional', copyId: null } : s)), 'commander').state, 'brewing')
 equal('A15 alternate original', headline([{ ...original, printingId: 'printing-Y' }]), 'alt_available')
 equal('A16 proxy-heavy shortages', [shortage(0), shortage(1), shortage(2)], [2, 1, 0])
 equal('A20 Casual unknown', computeReadiness(known([]), 'casual').state, null)

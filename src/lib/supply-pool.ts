@@ -332,7 +332,7 @@ export async function loadSupplyPool(userId: string): Promise<SupplyPool> {
         deckCardsId: dc.id,
         deckId: dc.deck_id,
         deckName: deck?.name ?? `Deck ${dc.deck_id}`,
-        deckStatus: deckStatuses[dc.deck_id] ?? 'draft',
+        deckStatus: deckStatuses[dc.deck_id] ?? 'brewing',
       }
     }
 

@@ -1218,7 +1218,7 @@ registry.set('list_user_decks', {
   definition: {
     name: 'list_user_decks',
     description:
-      'List all the user\'s decks with basic info. Returns deck name, commander, card count, and the deck\'s automatic status (Draft: no cards sleeved, Assembling: some sleeved, Playable: a full list with every card sleeved) for each deck. The status updates by itself; the user does not set it. Use this when the user asks about their decks, wants to compare them, or is viewing the deck list page.',
+      'List all the user\'s decks with basic info. Returns deck name, commander, card count, and the deck\'s automatic status (Brewing: no cards sleeved, Assembling: some sleeved, Playable: a full list with every card sleeved) for each deck. The status updates by itself; the user does not set it. Use this when the user asks about their decks, wants to compare them, or is viewing the deck list page.',
     input_schema: {
       type: 'object',
       properties: {
@@ -1257,7 +1257,7 @@ registry.set('list_user_decks', {
         commander: deck.commander_name || 'No commander set',
         color_identity: deck.colour_identity || 'Colorless',
         card_count: deck.card_count ?? 0,
-        status: deckStatusLabel(statuses[deck.id] ?? 'draft'),
+        status: deckStatusLabel(statuses[deck.id] ?? 'brewing'),
         last_updated: deck.last_synced_at,
       }))
       return { content: JSON.stringify(deckList, null, 2), is_error: false }

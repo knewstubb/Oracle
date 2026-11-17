@@ -20,7 +20,7 @@ export interface CopyAssignment {
   deckCardsId: number
   deckId: number
   deckName: string
-  /** Automatic deck status: 'draft' | 'assembling' | 'playable' */
+  /** Automatic deck status: 'brewing' | 'assembling' | 'playable' */
   deckStatus?: string
   isActive?: boolean
 }

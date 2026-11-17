@@ -22,7 +22,7 @@ interface Deck {
   colour_identity: string
   card_count: number
   deck_type: string | null
-  status: 'draft' | 'assembling' | 'playable' // Automatic, from the sleeved cards
+  status: 'brewing' | 'assembling' | 'playable' // Automatic, from the sleeved cards
   conflictCount?: number
   sleevedCount?: number
   format?: string | null
@@ -73,7 +73,7 @@ const DECK_GRID_COLUMNS = 'repeat(auto-fill, minmax(min(100%, 200px), 1fr))'
 type DeckGroupBy = 'none' | 'status'
 const DECK_GROUP_KEY = 'oracle:decks:groupBy'
 /** Section order when grouped by status. */
-const STATUS_SECTION_ORDER = ['playable', 'assembling', 'draft'] as const
+const STATUS_SECTION_ORDER = ['playable', 'assembling', 'brewing'] as const
 
 function readGroupBy(): DeckGroupBy {
   if (typeof window === 'undefined') return 'none'
@@ -433,7 +433,7 @@ function DecksSection({ decks, folders }: { decks: Deck[]; folders: DeckFolder[]
         )}
       </div>
 
-      {/* One A to Z grid, or one section per status (Playable, Assembling, Draft) */}
+      {/* One A to Z grid, or one section per status (Playable, Assembling, Brewing) */}
       {total > 0 && groupBy === 'none' && renderDeckGrid(filteredDecks)}
       {total > 0 && groupBy === 'status' && (
         <div className="space-y-6">

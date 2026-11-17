@@ -83,7 +83,7 @@
   --state-basic: var(--text-secondary);
   --state-owned: var(--text-secondary);
 
-  --state-draft: var(--text-secondary);
+  --state-brewing: var(--text-secondary);
   --state-assembling: var(--text-secondary);
   --state-playable: var(--text-primary);
   --state-checking: var(--text-secondary);

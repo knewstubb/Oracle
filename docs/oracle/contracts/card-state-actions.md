@@ -27,7 +27,7 @@ A disagreement blocks handoff; neither prose nor types silently overrides the ot
 
 | [A] Rule | Authority |
 |---|---|
-| Three readiness labels; Commander exactly 100 including selected commander(s); optional rows excluded; no manual Draft override or new legality gate | D-002 |
+| Three readiness labels; Commander exactly 100 including selected commander(s); optional rows excluded; no manual Brewing override or new legality gate | D-002 |
 | Canonical versus printing identity; independent finish; exact physical copy retained | D-003, D-004, D-021 |
 | Separate optional membership, releasing copies on Maybeboard move | D-005, D-018 |
 | Five availability labels and preference; explicit Sleeve/Move; no silent theft, printing switch, copy deletion or half-move | D-025, D-033, Plan 1 B1-B3 |
@@ -75,7 +75,7 @@ Owner-facing text must use only the right-hand column.
 | `CardSlotStatus 'claimed'` | **Unavailable** | Always give the reason and source deck(s). |
 | `CardSlotStatus 'unowned'` | **Unowned** | Only when the lookup succeeded and there is neither an original nor a proxy (§3.4). |
 | `user_copies.missing = true` | *(no label)* | D-028 retires this from the owner-facing product. See §12. |
-| `decks.status` (legacy brew/boxed) | *(none)* | Replaced by the derived Draft / Assembling / Playable (§5). |
+| `decks.status` (legacy brew/boxed) | *(none)* | Replaced by the derived Brewing / Assembling / Playable (§5). |
 | Verified separate optional `deck_cards` membership | **Maybeboard** | Imported Maybeboard and Sideboard map here (D-005, D-018); categories alone are not authoritative (§2.1). |
 
 ---
@@ -319,7 +319,7 @@ sleeved   = Σ over required of:
               copy_id IS NOT NULL    → 1
               otherwise              → 0
 complete  = sizeRuleSatisfied(format, cardCount) AND commanderRuleSatisfied
-state     = !complete           → Draft
+state     = !complete           → Brewing
             sleeved < cardCount → Assembling
             otherwise           → Playable
 ```
@@ -330,9 +330,9 @@ state     = !complete           → Draft
   created through `decks/create` and import set `is_commander` rows; decks with
   only `commander_name` have not been audited.] If the two representations disagree
   or commander facts were not fetched, return `commander_unverified`; do not erase
-  a legacy selection or confidently call it Draft. An explicitly verified lack
-  of a selected commander is Draft. Paired commanders each count in the 100.
-- There is no manual Draft override and no legality gate. Colour identity,
+  a legacy selection or confidently call it Brewing. An explicitly verified lack
+  of a selected commander is Brewing. Paired commanders each count in the 100.
+- There is no manual Brewing override and no legality gate. Colour identity,
   singleton and banned-card checks stay in the separate legality information.
 
 ### 5.3 Size rule per format
@@ -640,7 +640,7 @@ additionalOriginalsNeeded = max(0, requiredSlots − originalsUsable)
 - Proxies, whether free or sleeved, never reduce `additionalOriginalsNeeded`.
 - A row appears only when `additionalOriginalsNeeded > 0`.
 - **[P Q1]** No interim all-deck default. Global shortage publication is gated
-  until the owner chooses which decks count, including Draft/folder-organised
+  until the owner chooses which decks count, including Brewing/folder-organised
   retired decks. Examples explicitly scope Korvold/Prosper; they do not establish
   a global policy. Folders have user-chosen names/IDs, no reserved "retired" name.
 - **[P Q1 matching]** For a limited scope, recommend counting free originals and
@@ -801,7 +801,7 @@ Proposed action "Make generic" on a required basic-land slot:
 | G-D2 | Converting existing tracked or copy-holding basic slots to generic (§13). |
 | G-D3 | Splitting tracked rows that have quantity > 1 (§2.2). |
 | G-O1 | Casual format completeness rule (§5.3). |
-| Q1 | Do decks in a retired folder, or Draft decks, count toward original shortages? |
+| Q1 | Do decks in a retired folder, or Brewing decks, count toward original shortages? |
 | Q4 | Should import's "free" rule (storage-only) align with the broader rule in §2.5? This belongs to the import spec. |
 | Visual | Pick-list and shortage visuals (UX), and the O-006 milestone markers. |
 
@@ -812,7 +812,7 @@ about locks, indexes, identifiers or relation storage.
 
 | Gate | Recommendation and visible alternative | Trade-off / concrete example |
 |---|---|---|
-| Q1 shortage scope/matching | Recommend explicitly chosen decks and any suitable original printing; alternatively all decks, including Draft and folder-organised retired decks. | Korvold and Prosper need two Sol Rings; a third retired list should not silently change "1 more" to "2 more". A copy held outside the chosen set is shown separately, not presumed movable. |
+| Q1 shortage scope/matching | Recommend explicitly chosen decks and any suitable original printing; alternatively all decks, including Brewing and folder-organised retired decks. | Korvold and Prosper need two Sol Rings; a third retired list should not silently change "1 more" to "2 more". A copy held outside the chosen set is shown separately, not presumed movable. |
 | G-D1 formerly excluded copies | Recommend keep excluded until located; alternatively restore reviewed copies with the owner confirming a location or explicitly accepting "location not recorded". | A flagged Sol Ring cannot suddenly appear available in Binder A. No deletion option in this work. |
 | G-M3 new proxy details | Recommend use the requested printing where present, otherwise require an explicit printing; use a clearly shown nonfoil proxy finish. Alternative: always choose printing/finish explicitly. | Creating a Sol Ring proxy never silently switches artwork; explicit selection costs an extra choice. |
 | G-D2/G-D3 basic/quantity conversion | Recommend preserve existing tracking and defer conversion; alternatively approve a per-deck preview that preserves totals and shows copies released/split. | Making 12 tracked Forests generic must not lose or invisibly reserve their real copies. Choosing a printing for 12 generic Forests needs 12 tracked slots. |
@@ -895,10 +895,10 @@ conditional on the G-M4/G-M5 representation/transaction implementation gate.
 | A6 | Sleeve that free proxy | Korvold **Playable**. The proxy count is still 1. |
 | A7 | Break down Prosper | Prosper's list is unchanged and its original returns to default storage. Prosper is **Assembling**. The collection still has 1 original + 1 proxy. |
 | A8 | Proxy repeated with the same operation ID and payload | One creation receipt, `outcome: replayed`, no write. A different operation that filled the slot is a conflict, never replay. |
-| A9 | Commander deck with 99 or 101 required cards, all Sleeved | **Draft**. |
-| A10 | 100 required cards, all Sleeved, no `is_commander` row | **Draft**. |
+| A9 | Commander deck with 99 or 101 required cards, all Sleeved | **Brewing**. |
+| A10 | 100 required cards, all Sleeved, no `is_commander` row | **Brewing**. |
 | A11 | Commander deck: 64 tracked Sleeved cards (including the commander) + 36 generic basics = 100 | **Playable**. No copies exist for the basics. The pick list has 0 outstanding rows. The basics are absent from shortages. |
-| A12 | Same deck; move one tracked Sleeved card to Maybeboard | Its copy is freed to storage. Required count becomes 99, so **Draft**. The Maybeboard entry remains. |
+| A12 | Same deck; move one tracked Sleeved card to Maybeboard | Its copy is freed to storage. Required count becomes 99, so **Brewing**. The Maybeboard entry remains. |
 | A13 | Copy lookup fails for one row | That row shows an error. It is never Unowned. `dataState: 'partial'`. |
 | A14 | The deck rows fail to load | Error body; no readiness is shown, and never Playable. |
 | A15 | Slot requests printing X. Free originals: Y only | **Alt available**. Sleeving Y is an explicit choice, and the slot's requested printing is unchanged. |

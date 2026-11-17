@@ -26,7 +26,7 @@ interface InstanceRow {
   isProxy: boolean
   assignedDeckName: string | null
   assignedDeckId: number | null
-  /** Automatic status of the deck holding this copy: 'draft' | 'assembling' | 'playable' */
+  /** Automatic status of the deck holding this copy: 'brewing' | 'assembling' | 'playable' */
   assignedDeckStatus: string | null
   locationId: number | null
   locationName: string | null
@@ -186,7 +186,7 @@ export async function GET(
         isProxy: Boolean(pc.is_proxy),
         assignedDeckName: assignment?.deckName ?? null,
         assignedDeckId: assignment?.deckId ?? null,
-        assignedDeckStatus: assignment ? (deckStatuses[assignment.deckId] ?? 'draft') : null,
+        assignedDeckStatus: assignment ? (deckStatuses[assignment.deckId] ?? 'brewing') : null,
         locationId: pc.location_id ?? null,
         locationName: pc.location_id
           ? (locationMap.get(pc.location_id) ?? null)

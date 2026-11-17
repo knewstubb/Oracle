@@ -5,10 +5,10 @@ import userEvent from '@testing-library/user-event'
 import { DeckStateBadge } from './DeckStateBadge'
 
 describe('DeckStateBadge', () => {
-  it('renders Draft with count suffix', () => {
-    render(<DeckStateBadge state="draft" sleeved={82} required={100} />)
-    expect(screen.getByText(/Draft/)).toBeInTheDocument()
-    expect(screen.getByLabelText('Draft · 82/100')).toBeInTheDocument()
+  it('renders Brewing with count suffix', () => {
+    render(<DeckStateBadge state="brewing" sleeved={82} required={100} />)
+    expect(screen.getByText(/Brewing/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Brewing · 82/100')).toBeInTheDocument()
   })
 
   it('renders Assembling with "sleeved" suffix', () => {

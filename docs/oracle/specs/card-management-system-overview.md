@@ -41,7 +41,7 @@ Oracle tracks four things:
 | Empty slot, every copy is in other decks | "Planned · In decks" / "Claimed" | **Unavailable** (with which deck has it) |
 | Empty slot, a free proxy exists | *(no label)* | **Proxy available** |
 | Card not owned at all | "Unowned" | **Unowned** |
-| Deck state | Active / inactive; Brewing sessions; green/amber/red health tiers | **Draft / Assembling / Playable** |
+| Deck state | Active / inactive; Brewing sessions; green/amber/red health tiers | **Brewing / Assembling / Playable** |
 | Lost copy | "Missing" | *(removed — D-028)* |
 
 ---
@@ -223,7 +223,7 @@ Don't confuse it with **import reconciliation** (3.5), which is a one-off step d
 
 | Agreed | Today | Task |
 |---|---|---|
-| Draft / Assembling / Playable deck states (D-002) | Active / inactive, Brewing, colour health tiers | not yet scheduled for screens (contract T-28 in review) |
+| Brewing / Assembling / Playable deck states (D-002) | Active / inactive, Brewing, colour health tiers | not yet scheduled for screens (contract T-28 in review) |
 | In deck / Planned and Available / Unavailable / Alt available / Proxy available / Unowned (D-025) | "Planned · …", "In decks", "Alternate"; no "Proxy available" | T-25 / T-26 |
 | Import asks In deck / Planned (D-031) | Onboarding: Brew / Active; deck dialog: three options | T-25 |
 | Proxy records the printing the slot asks for (D-038) | Proxy from a deck slot takes the first printing found. Onboarding's Finish already matches the printing. | T-28 follow-up |

@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
       }))
 
     const statuses = await fetchDeckStatuses(supabase, userId, validDecks.map((d) => d.deckId))
-    return Response.json(validDecks.map((d) => ({ ...d, deckStatus: statuses[d.deckId] ?? 'draft' })))
+    return Response.json(validDecks.map((d) => ({ ...d, deckStatus: statuses[d.deckId] ?? 'brewing' })))
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     return Response.json({ error: message }, { status: 500 })

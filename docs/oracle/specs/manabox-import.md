@@ -47,7 +47,7 @@ Brad needs three things:
 - **Visibility of system status, honestly (Nielsen #1, D-030):** skipped tokens and unmatched lines are always named.
 - **Object–action mapping (D-015):** the choice sits on each row. Bulk actions appear in the list header only while rows are selected.
 - **Colour marks the choice (D-014, D-053):** a selected Original is the app green (the state we want a card in), a selected Proxy is blue with the mask icon, and Planned is a grey outline with no fill (vocabulary §3). The unmatched line is the only amber element.
-- **Consistency (D-043):** state words come from the locked vocabulary: Original, Proxy, In deck, Planned, Basic, Draft, Foil.
+- **Consistency (D-043):** state words come from the locked vocabulary: Original, Proxy, In deck, Planned, Basic, Brewing, Foil.
 
 ## 3. Flow
 
@@ -61,7 +61,7 @@ Brad needs three things:
 | 4 | Done | **Commander format:** no done dialog; go to step 5. **Other formats:** outcome list · **Open deck**. | Outcome list · **View collection**. |
 | 5 | Deck page + commander picker | The new deck opens with the **commander picker already open** (D-052) and a one-line import result under the header. | — |
 
-**Why the commander is chosen on the deck page (D-046, D-052):** the file doesn't name the commander. Choosing on the deck page puts it next to the "Draft · 99/100" state it changes. The picker opens immediately, so it is the next thing you do. Escape or clicking away closes it, and **Choose commander** stays in the header for later.
+**Why the commander is chosen on the deck page (D-046, D-052):** the file doesn't name the commander. Choosing on the deck page puts it next to the "Brewing · 99/100" state it changes. The picker opens immediately, so it is the next thing you do. Escape or clicking away closes it, and **Choose commander** stays in the header for later.
 
 ## 4. Component inventory
 

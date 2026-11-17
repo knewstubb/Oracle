@@ -30,7 +30,7 @@ export type SlotRelation = 'required' | 'optional'
 export type PlacementSource = 'manual' | 'ai' | 'import'
 
 /** D-002. Unknown data is not a fourth owner-facing readiness state. */
-export type ReadinessState = 'draft' | 'assembling' | 'playable'
+export type ReadinessState = 'brewing' | 'assembling' | 'playable'
 
 export type Issue =
   | 'loading' | 'lookup_failed' | 'partial_data' | 'stale_data'
@@ -643,7 +643,7 @@ export function computeReadiness(
     sizeRule.rule === 'exact' ? requiredCards === target : requiredCards >= target
   const complete = sizeOk && (format !== 'commander' || commanderSelected)
   const state: ReadinessState = !complete
-    ? 'draft'
+    ? 'brewing'
     : sleevedCards < requiredCards
       ? 'assembling'
       : 'playable'

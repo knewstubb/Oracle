@@ -17,7 +17,7 @@ export type HealthPipStatus = 'ok' | 'warn' | 'crit'
 /** Thin dark outline around the corner badges so they stand out from any commander art. */
 const BADGE_OUTLINE = '0 0 0 1px rgba(0, 0, 0, 0.85)'
 
-export type DeckStatus = 'draft' | 'assembling' | 'playable'
+export type DeckStatus = 'brewing' | 'assembling' | 'playable'
 
 export interface DeckFolder {
   id: number
@@ -60,13 +60,13 @@ const COLOUR_ORDER = ['W', 'U', 'B', 'R', 'G']
 
 // Status badge: icon, colour and label (icon plus word, never colour alone: D-012)
 export const STATUS_BADGE: Record<DeckStatus, { label: string; colour: string }> = {
-  draft: { label: 'Draft', colour: '#8F51D5' },
+  brewing: { label: 'Brewing', colour: '#8F51D5' },
   assembling: { label: 'Assembling', colour: 'var(--signal-warning)' },
   playable: { label: 'Playable', colour: 'var(--accent-primary)' },
 }
 
 export function StatusIcon({ status }: { status: DeckStatus }) {
-  if (status === 'draft') return <FlaskConical className="size-3.5 text-black" strokeWidth={2.5} />
+  if (status === 'brewing') return <FlaskConical className="size-3.5 text-black" strokeWidth={2.5} />
   if (status === 'assembling') return <Construction className="size-3.5 text-black" strokeWidth={2.5} />
   return <Check className="size-4 text-black" strokeWidth={3} />
 }

@@ -111,7 +111,7 @@ export interface MoveHereResponse {
   targetDeckCardId: number
   /** The source keeps its planned slot and is now short by one (toast says so). */
   sourceDeckNowShort: true
-  sourceDeckStatusAfter: 'draft' | 'assembling' | 'playable'
+  sourceDeckStatusAfter: 'brewing' | 'assembling' | 'playable'
   /** Body for POST /api/allocation/undo; valid while the source slot is still empty. */
   undo: { deckCardsId: number; physicalCopyId: number; restoreTo: { deckCardsId: number } }
 }
@@ -173,7 +173,7 @@ export type ImportDestination =
 export interface DestinationsResponse {
   unsorted: { locationId: number }
   storage: Array<{ locationId: number; name: string; copyCount: number }>
-  decks: Array<{ deckId: number; name: string; format: string | null; emptySlots: number; status: 'unowned' | 'assembling' | 'playable' | 'draft' }>
+  decks: Array<{ deckId: number; name: string; format: string | null; emptySlots: number; status: 'unowned' | 'assembling' | 'playable' | 'brewing' }>
 }
 
 export type ImportUnsortedReason = 'duplicate' | 'in_maybeboard' | 'basic_land' | 'could_not_place'
@@ -204,7 +204,7 @@ export interface ImportPlacementResult {
   unsortedCardNames?: string[]
   /** Copies whose finish differs from what an existing slot asked for (still placed). */
   finishDiffers?: number
-  deckStatusAfter?: 'unowned' | 'assembling' | 'playable' | 'draft'
+  deckStatusAfter?: 'unowned' | 'assembling' | 'playable' | 'brewing'
   warnings?: {
     /** Names of newly added cards outside the commander colours or not legal. Warn only (Q9). */
     outsideColours: string[]

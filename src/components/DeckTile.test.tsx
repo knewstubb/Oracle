@@ -143,10 +143,10 @@ describe('DeckTile', () => {
     expect(screen.queryByRole('img', { name: /White|Blue|Black|Red|Green/ })).not.toBeInTheDocument()
   })
 
-  it('shows the Draft badge (purple flask) with its label and tooltip', () => {
-    renderWithProviders(<DeckTile {...defaultProps} status="draft" />)
-    const badge = screen.getByLabelText('Draft')
-    expect(badge).toHaveAttribute('title', 'Draft')
+  it('shows the Brewing badge (purple flask) with its label and tooltip', () => {
+    renderWithProviders(<DeckTile {...defaultProps} status="brewing" />)
+    const badge = screen.getByLabelText('Brewing')
+    expect(badge).toHaveAttribute('title', 'Brewing')
     expect(badge.querySelector('svg')).toHaveClass('lucide-flask-conical')
     expect(badge).toHaveStyle({ backgroundColor: '#8F51D5' })
   })
@@ -166,13 +166,13 @@ describe('DeckTile', () => {
   })
   it('shows exactly one status badge', () => {
     renderWithProviders(<DeckTile {...defaultProps} status="assembling" />)
-    expect(screen.queryByLabelText('Draft')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Brewing')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Playable')).not.toBeInTheDocument()
   })
   it('dims the tile unless it is Playable', () => {
-    const draft = renderWithProviders(<DeckTile {...defaultProps} status="draft" />)
-    expect(draft.container.querySelector('a')!.className).toContain('opacity-80')
-    draft.unmount()
+    const brewing = renderWithProviders(<DeckTile {...defaultProps} status="brewing" />)
+    expect(brewing.container.querySelector('a')!.className).toContain('opacity-80')
+    brewing.unmount()
     const ready = renderWithProviders(<DeckTile {...defaultProps} status="playable" />)
     expect(ready.container.querySelector('a')!.className).not.toContain('opacity-80')
   })

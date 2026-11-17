@@ -5,7 +5,7 @@ const c = (over: Partial<MoveHereCopy>): MoveHereCopy => ({ copyId: 1, isProxy: 
 
 describe('orderMoveHereCopies (default pick, spec 19.6)', () => {
   it('puts copies in non-Playable decks before copies in Playable decks', () => {
-    const out = orderMoveHereCopies([c({ copyId: 1, deckName: 'Atraxa', deckState: 'playable' }), c({ copyId: 2, deckName: 'Zurgo', deckState: 'draft' })])
+    const out = orderMoveHereCopies([c({ copyId: 1, deckName: 'Atraxa', deckState: 'playable' }), c({ copyId: 2, deckName: 'Zurgo', deckState: 'brewing' })])
     expect(out.map((x) => x.copyId)).toEqual([2, 1])
   })
   it('puts originals before proxies inside the same state', () => {

@@ -42,10 +42,10 @@ Every fact a card or deck can show. **Word** is the exact visible text (sentence
 | | Basic | A generic basic land; counts as In deck automatically (D-032). | `--text-secondary` | `landscape` | Quiet · filled | Basic-land rows in a deck; never in the pick list |
 | **Ownership outside a deck** (search, suggestions with no target deck) | Owned ×N | You own N copies (originals + proxies) in any printing. | `--text-secondary` | `check` | Quiet | Card search, commander search, Brew suggestions |
 | | Unowned | You own none. | `--status-unowned` | `do_not_disturb_on` | Loud | Same |
-| **Deck status** (automatic; see 3.4) | Draft | None of the deck's cards is In deck (sleeved). An empty list is Draft. | `#8F51D5` purple (tile badge) | `FlaskConical` (flask) | Quiet | Deck tile (round badge, label "Draft"), deck pickers, Import picker. With count, e.g. "Draft · 0/100" |
+| **Deck status** (automatic; see 3.4) | Brewing | None of the deck's cards is In deck (sleeved). An empty list is Brewing. | `#8F51D5` purple (tile badge) | `FlaskConical` (flask) | Quiet | Deck tile (round badge, label "Brewing"), deck pickers, Import picker. With count, e.g. "Brewing · 0/100" |
 | | Assembling | Some, but not all, of the deck's cards are In deck. Also: a full list with every card In deck but more or fewer than the format's size (for Commander, 99 or 101 cards is Assembling, never Playable). | `--signal-warning` amber `#EF9F27` | `Construction` | Quiet | Same, e.g. "Assembling · 87/100" |
 | | Playable | A Commander deck with exactly 100 cards (commander included) and every one In deck (originals and/or proxies; generic basics marked sleeved count). Other formats: see 3.4. | `--accent-primary` green | `Check` (tick) | Quiet-positive | Same, e.g. "Playable · 6 proxies" when proxies are used |
-| | *(Casual rule)* | A Casual deck has no size rule: Draft when none is In deck, Playable when it has cards and every card is In deck, otherwise Assembling. | as above | as above | — | Count reads "40 cards (M sleeved)" (no "/target") |
+| | *(Casual rule)* | A Casual deck has no size rule: Brewing when none is In deck, Playable when it has cards and every card is In deck, otherwise Assembling. | as above | as above | — | Count reads "40 cards (M sleeved)" (no "/target") |
 | **Checking** (any fact above) | Checking… | We're still working it out. Not an answer. | `--text-secondary` | spinner (scoped) or skeleton | Quiet | Anywhere a badge, count or deck state is loading (§5) |
 | | Couldn't check | The lookup failed. We don't know — this is *not* Unowned, empty, or Playable. | `--signal-critical` (icon only; words in `--text-primary`) | `error` | Loud | Replaces the badge/state it couldn't compute; always offers **Try again** |
 | | Out of date | Showing the last result we had; a refresh failed or data changed since. | `--signal-warning` (icon only) | `history` | Loud-ish | Small notice beside the stale area: "Last checked 10:42" + **Refresh** |
@@ -79,11 +79,11 @@ Show one headline, choosing the first that is true: **Available → Alt availabl
 A deck's status is worked out from its cards every time they change. Nobody sets it by hand, and there is no Active / Inactive switch anywhere (the Decks page, the deck page and Claude included).
 
 - **Counted cards:** the deck's list without the Maybeboard and Sideboard. "In deck" (sleeved) means the card has an assigned copy (original or proxy) or is a generic basic marked sleeved. This is the same rule as the deck page header and the tile's "(N sleeved)", so the three never disagree.
-- **Draft:** none of the counted cards is In deck.
+- **Brewing:** none of the counted cards is In deck.
 - **Assembling:** some, but not all, are In deck, or all are In deck but the list is not the right size.
 - **Playable:** a Commander deck with exactly 100 counted cards (commander included), all 100 In deck. 101 cards, all In deck, is Assembling. 99 cards, all In deck, is Assembling.
-- **Other formats (open for owner confirmation):** Playable when every counted card is In deck and the list meets the format's size: exactly the target where the format has an exact size, at least the target where it has a minimum (60 for Standard, Modern and the like), and any list with at least one card for formats with no target (Casual). Draft and Assembling work as above.
-- **Tile badge (top-right, round, same size for all three):** Draft = purple flask (`#8F51D5`); Assembling = construction icon on amber (`--signal-warning`); Playable = green tick (`--accent-primary`). Each badge has an accessible label and a tooltip with the word ("Draft", "Assembling", "Playable"); icon plus word, never colour alone (D-012).
+- **Other formats (open for owner confirmation):** Playable when every counted card is In deck and the list meets the format's size: exactly the target where the format has an exact size, at least the target where it has a minimum (60 for Standard, Modern and the like), and any list with at least one card for formats with no target (Casual). Brewing and Assembling work as above.
+- **Tile badge (top-right, round, same size for all three):** Brewing = purple flask (`#8F51D5`); Assembling = construction icon on amber (`--signal-warning`); Playable = green tick (`--accent-primary`). Each badge has an accessible label and a tooltip with the word ("Brewing", "Assembling", "Playable"); icon plus word, never colour alone (D-012).
 - **Tile text:** unchanged, "N/target (M sleeved)".
 - **Order on the Decks page:** A to Z (owner question open: Playable first?).
 
@@ -109,7 +109,7 @@ A deck's status is worked out from its cards every time they change. Nobody sets
 | **Pending** | A big edit or card move waiting for the owner's yes in Oracle; expires after 24 hours. |
 | **Needs reconnecting** | The connector was switched off (which signs Claude out on purpose); switching it back on needs Claude to sign in again. |
 | **Wanted, now elsewhere** | A deck slot whose card was moved to another deck; the plan keeps it and shows where it is now. |
-| **Draft / Assembling / Playable** (deck status) | What Claude says about a deck's status. It is automatic, never set by hand, so Claude never says "active", "inactive" or "not marked active by you". Claude also gives the deck's In deck (sleeved) count, the same number as the Decks page tile. |
+| **Brewing / Assembling / Playable** (deck status) | What Claude says about a deck's status. It is automatic, never set by hand, so Claude never says "active", "inactive" or "not marked active by you". Claude also gives the deck's In deck (sleeved) count, the same number as the Decks page tile. |
 
 ---
 
@@ -124,8 +124,8 @@ These must disappear from everything Brad can see (labels, headings, tooltips, t
 | **Claimed** / **Claim** / "Already claimed" / "In decks" (as a status) / "claim per card" | All copies are in other decks; or the act of taking one | State: **Unavailable** + reason "In Korvold". Action: **Move from Korvold**. Import result "12 claimed" → "12 in deck". |
 | **Reassign** / "Reassigned" | Moving a copy to another deck | **Move to [deck]** / toast "Moved Sol Ring to Prosper" |
 | **Considering** | (Proposed once, never shipped — 0 uses in `src/`) | Must not be introduced. Use **Planned**. Undecided cards belong in the **Maybeboard** (D-005). |
-| **Brewing** / **Brew** as a deck status | A deck still being worked on | **Draft** or **Assembling** per D-002. "Brew" survives only as the name of the Brew Canvas feature/mode, never as a deck state. |
-| **Active / Inactive** (toggle, tile, header, "N Active decks", "Sleeve from Active deck?") | A manual flag for decks you play (removed) | Automatic **Draft / Assembling / Playable**. No manual toggle. Moving a copy out of another deck never asks for confirmation by deck status. |
+| **Brewing / In rotation** (the old manual deck lifecycle, `decks.status`) | A deck still being worked on, or a deck you play (removed) | The automatic **Brewing** status now means only one thing: none of the deck's cards is In deck. It replaced the word Draft on 2026-11-18, because a draft means a card draft in Magic. "Brew" also survives as the name of the Brew Canvas feature/mode and the activity of building a deck. |
+| **Active / Inactive** (toggle, tile, header, "N Active decks", "Sleeve from Active deck?") | A manual flag for decks you play (removed) | Automatic **Brewing / Assembling / Playable**. No manual toggle. Moving a copy out of another deck never asks for confirmation by deck status. |
 | **Green / amber / red health** as a deck status ("Ready to play", "Needs attention", "Missing cards" dot) | Tile colour showing readiness | Readiness badge with icon + word + count. The category checks on the deck page (Ramp, Draw … ok/warn/critical) are a separate analysis, not a deck status; they keep icons and words. |
 | **Missing** (copy state, "Mark missing", "Missing cards") | Lost copies | Gone (D-028). Previously missing copies behave as ordinary owned copies. "Missing cards" on a tile → the readiness word. |
 | **Graveyard** (deck status) | Retired decks | Gone (D-029). No fourth state. "Graveyard" as the MTG zone (themes, tags, "Graveyard value" prompt) stays — that's game vocabulary. |
@@ -158,7 +158,7 @@ Never use a full-page spinner once any primary content can be shown. Pick-list c
 | Badge loading | Checking… (SR: "Checking availability of Sol Ring") |
 | Badge failed | Couldn't check · **Try again** — tooltip: "We couldn't check your copies of Sol Ring. Nothing has changed." |
 | Section failed (e.g. pick list, card statuses) | "Couldn't check availability for this deck. Your cards and sleeves haven't changed." **Try again** |
-| Deck tile/header failed | Couldn't check (in place of Draft/Assembling/Playable); count shows "—/100" |
+| Deck tile/header failed | Couldn't check (in place of Brewing/Assembling/Playable); count shows "—/100" |
 | Stale | "Last checked 10:42" **Refresh**. If a refresh failed: "Couldn't refresh — showing results from 10:42." **Try again** |
 | Count unknown | "—" with accessible name "Unknown" (never 0) |
 | Price unknown | "Price unknown" (detail) / "—" (column, tooltip "Price unknown") / totals "$412.50 · 3 cards unpriced" |
@@ -183,7 +183,7 @@ T-26 owns the full API; this is the minimum this spec needs. All build on shadcn
 | Component | Props (minimum) | shadcn base | Replaces |
 |---|---|---|---|
 | `SlotBadge` | `state: 'original'|'proxy'|'available'|'alt_available'|'proxy_available'|'unavailable'|'unowned'|'basic'|'checking'|'failed'`, `reason?`, `variant: 'badge'|'icon'`, `onRetry?` | `Badge`, `Tooltip` | `CardSlotBadge`, `OwnershipBadge`, `ProxyBadge`, `MobileStatusDot`, brew-v2 dots, `GenericLandBadge` |
-| `DeckStateBadge` | `state: 'draft'|'assembling'|'playable'|'checking'|'failed'`, `sleeved`, `required|null`, `proxyCount`, `checkedAt?` | `Badge` | DeckTile dot/flask, `ActiveToggle`, `StatusBadge` |
+| `DeckStateBadge` | `state: 'brewing'|'assembling'|'playable'|'checking'|'failed'`, `sleeved`, `required|null`, `proxyCount`, `checkedAt?` | `Badge` | DeckTile dot/flask, `ActiveToggle`, `StatusBadge` |
 | `FinishTag` | `finish: 'nonfoil'|'foil'|'etched'`, `showNonfoil?` | `Badge` | ad-hoc "Foil" spans |
 | `PriceText` | `amount: number|null`, `estimate?`, `dense?` | — | `formatPrice` call sites |
 | `CheckNotice` | `kind: 'failed'|'stale'`, `checkedAt?`, `onRetry` | `Button` | ad-hoc "Failed to …"/"Unable to …" text |
@@ -206,7 +206,7 @@ T-26 owns the full API; this is the minimum this spec needs. All build on shadcn
 | Available / Alt available / Unavailable / Unowned | `CardSlotStatus` `available` / `alternate` / `claimed` / `unowned` [Confirmed: src/lib/card-status.ts] | Lookups return `unowned` on error (T-46 U1/U2); must return an explicit failure. |
 | Unavailable reason | `holders[].deckName`, `isProxy` [Confirmed: src/app/api/decks/[id]/card-actions/[cardName]/route.ts] | Not in the batch status call used for badges. |
 | **Proxy available** | none | **Needed:** per planned slot, whether a free owned proxy exists (T-28 supply contract). Blocked for build until it exists. |
-| **Draft / Assembling / Playable** | inputs exist (card count, format rules in `src/lib/format-config.ts`, commander, completeness resolved/total on deck tiles [Confirmed: src/components/DeckTile.tsx]) | **Needed:** `readiness`, `sleevedCount`, `requiredCount|null` (null for Casual), `proxyCount`, and a failure signal (T-28 / Phase 6). |
+| **Brewing / Assembling / Playable** | inputs exist (card count, format rules in `src/lib/format-config.ts`, commander, completeness resolved/total on deck tiles [Confirmed: src/components/DeckTile.tsx]) | **Needed:** `readiness`, `sleevedCount`, `requiredCount|null` (null for Casual), `proxyCount`, and a failure signal (T-28 / Phase 6). |
 | Checking / Couldn't check / Out of date | client query state (loading, error, last-updated time) | Server routes must surface failure instead of defaults. |
 | Finish | `user_copies.finish`, `deck_cards.requested_finish` [Confirmed: src/types/supabase.ts] | Several screens still read the deprecated `isFoil` boolean, which turns Etched into "Foil" (T-46 F3). |
 | Price | `price_usd`, `price_usd_foil` (null = unknown) [Confirmed: src/types/supabase.ts]; `formatPrice(null)` → "—" [Confirmed: src/lib/collection-printing-utils.ts] | Deck total treats null as $0 [Confirmed: src/app/decks/[id]/page.tsx:199]. |
@@ -247,7 +247,7 @@ Read-only grep of `src/` on 2026-10-12 (branch base `31b3b53`). Tests are listed
 ### V1 — Deck tiles on the Decks page · **medium** · depends on V0 + readiness data (Question 2)
 | File | Shows today | Agreed |
 |---|---|---|
-| `src/components/DeckTile.tsx` | Corner dot green/amber/red with the **same check icon for all three** (colour alone, D-012); green = brand green (D-013); purple flask `#8F51D5` for Draft (done 2026-11-18: three badges, see 3.4); "cards" vs "slots"; aria "Ready to play / Needs attention / Missing cards"; **no completeness data → green** (D-030) | `DeckStateBadge`: Draft · 82/100 / Assembling · 87/100 in deck / Playable; Couldn't check on failure; no glow |
+| `src/components/DeckTile.tsx` | Corner dot green/amber/red with the **same check icon for all three** (colour alone, D-012); green = brand green (D-013); purple flask `#8F51D5` for Brewing (done 2026-11-18: three badges, see 3.4); "cards" vs "slots"; aria "Ready to play / Needs attention / Missing cards"; **no completeness data → green** (D-030) | `DeckStateBadge`: Brewing · 82/100 / Assembling · 87/100 in deck / Playable; Couldn't check on failure; no glow |
 | `src/app/page.tsx` | Header "N Active decks"; Active decks sorted first | Done 2026-11-18: no Active subtitle; one list, A to Z |
 | `src/app/loading.tsx` | Square-card skeleton grid for the Decks page | Deck-tile-shaped skeleton |
 
@@ -344,7 +344,7 @@ Already clean: "Considering" (0 uses), "Card Kingdom" (comment only, T-47), "Mis
 ## 11. Questions for Brad
 
 1. **Should an in-deck card's badge just say "Original" or "Proxy"?** Recommend yes — the solid badge already means "in the deck", and the list is grouped under "In deck" and "Planned". Example: Sol Ring in the deck as a proxy shows **Proxy**, not "In deck · Proxy". Alternative: always show both words — clearer for a newcomer, but twice the text on every row.
-2. **(Answered 2026-11-18: tiles show the automatic Draft / Assembling / Playable badges, see 3.4. Still open: should Playable decks sort first?)** Original question: until the app can work out Draft / Assembling / Playable, what should deck tiles show? Recommend removing Active/Inactive and the coloured dot now and showing only "87/100 in deck"; the state word arrives with the deck-lists phase. Example: Korvold's tile reads "Korvold · 87/100 in deck" with no badge. Alternative: keep Active/Inactive until then — familiar, but Phase 3's check would still find the old words. Also: once states exist, should Playable decks sort first, then Assembling, then Draft? Recommend yes.
+2. **(Answered 2026-11-18: tiles show the automatic Brewing / Assembling / Playable badges, see 3.4. Still open: should Playable decks sort first?)** Original question: until the app can work out Brewing / Assembling / Playable, what should deck tiles show? Recommend removing Active/Inactive and the coloured dot now and showing only "87/100 in deck"; the state word arrives with the deck-lists phase. Example: Korvold's tile reads "Korvold · 87/100 in deck" with no badge. Alternative: keep Active/Inactive until then — familiar, but Phase 3's check would still find the old words. Also: once states exist, should Playable decks sort first, then Assembling, then Brewing? Recommend yes.
 3. **(Answered 2026-11-18: three distinct badge colours, purple, amber and green, each with its own icon and label.)** Original question: should Playable decks stand out, or should only problems stand out? Recommend keeping all three deck states calm (neutral grey, different icons) and saving colour for things you must act on, like an Unowned card or a failed check. Example: a Playable deck shows a quiet tick; a deck whose check failed shows a red alert icon. Alternative: give Playable a colour — easier to scan, but every colour near green reads as mana.
 4. **Does the teal Proxy colour ever look like "blue card" to you?** Recommend keeping the existing teal, always with the mask icon, because it is the only teal-ish status and the mask makes it unmistakable. Example: in a blue Teferi deck, proxy rows show teal mask badges next to blue mana symbols. If they blur together, the alternative is to show proxies in neutral grey with the mask icon only.
 5. **Should normal (nonfoil) cards show no finish label in busy lists?** Recommend yes: only Foil and Etched get a small tag; the word "Nonfoil" appears in detail panels and finish columns. Example: a deck list row reads "Sol Ring · Foil" for the foil copy and just "Sol Ring" for the normal one.

@@ -23,7 +23,7 @@ interface CopiesReply {
 type Moved = MoveHereResponse & { sourceWasPlayable?: boolean }
 
 function copyLabel(c: MoveHereCopy): string {
-  const state = c.deckState === 'playable' ? 'Playable' : c.deckState === 'assembling' ? 'Assembling' : 'Draft'
+  const state = c.deckState === 'playable' ? 'Playable' : c.deckState === 'assembling' ? 'Assembling' : 'Brewing'
   return `${c.deckName}${c.isProxy ? ' (proxy)' : ''} · ${state}`
 }
 

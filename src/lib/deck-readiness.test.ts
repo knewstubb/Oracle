@@ -14,9 +14,9 @@ function status(slots: Parameters<typeof computeDeckReadiness>[0], format = 'com
 }
 
 describe('automatic deck status: Commander', () => {
-  it('an empty list and a 100-card list with nothing sleeved are Draft', () => {
-    expect(status([])).toBe('draft')
-    expect(status(planned(100))).toBe('draft')
+  it('an empty list and a 100-card list with nothing sleeved are Brewing', () => {
+    expect(status([])).toBe('brewing')
+    expect(status(planned(100))).toBe('brewing')
   })
   it('14 of 100 sleeved is Assembling', () => {
     expect(status([...sleeved(14), ...planned(86)])).toBe('assembling')
@@ -36,7 +36,7 @@ describe('automatic deck status: Commander', () => {
   it('generic basics marked sleeved count; marked unsleeved do not', () => {
     expect(status([...sleeved(64), ...generics(36, true)])).toBe('playable')
     expect(status([...sleeved(64), ...generics(36, false)])).toBe('assembling')
-    expect(status(generics(100, false))).toBe('draft')
+    expect(status(generics(100, false))).toBe('brewing')
   })
   it('a proxy copy counts as sleeved (it is a copy assigned to the slot)', () => {
     expect(status(sleeved(100))).toBe('playable')
@@ -55,17 +55,17 @@ describe('automatic deck status: Commander', () => {
 })
 
 describe('automatic deck status: other formats (open point for the owner)', () => {
-  it('Standard (minimum 60): 60 and 61 all sleeved are Playable, 59 is Assembling, none sleeved is Draft', () => {
+  it('Standard (minimum 60): 60 and 61 all sleeved are Playable, 59 is Assembling, none sleeved is Brewing', () => {
     expect(status(sleeved(60), 'standard')).toBe('playable')
     expect(status(sleeved(61), 'standard')).toBe('playable')
     expect(status(sleeved(59), 'standard')).toBe('assembling')
-    expect(status(planned(60), 'standard')).toBe('draft')
+    expect(status(planned(60), 'standard')).toBe('brewing')
   })
-  it('Casual (no target): all sleeved is Playable, none sleeved is Draft, empty is Draft', () => {
+  it('Casual (no target): all sleeved is Playable, none sleeved is Brewing, empty is Brewing', () => {
     expect(status(sleeved(7), 'casual')).toBe('playable')
     expect(status([...sleeved(3), ...planned(2)], 'casual')).toBe('assembling')
-    expect(status(planned(5), 'casual')).toBe('draft')
-    expect(status([], 'casual')).toBe('draft')
+    expect(status(planned(5), 'casual')).toBe('brewing')
+    expect(status([], 'casual')).toBe('brewing')
   })
 })
 

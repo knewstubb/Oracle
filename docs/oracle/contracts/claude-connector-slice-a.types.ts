@@ -71,8 +71,8 @@ export interface DeckSummary {
   /** Commander colours as letters in WUBRG order, for example "R" or "WU". null when the deck has no colours set. */
   colourIdentity: string | null
   format: string | null
-  /** Automatic status, never set by hand: Draft (no cards sleeved), Assembling (some sleeved), Playable (a full list, every card sleeved). */
-  status: 'Draft' | 'Assembling' | 'Playable'
+  /** Automatic status, never set by hand: Brewing (no cards sleeved), Assembling (some sleeved), Playable (a full list, every card sleeved). */
+  status: 'Brewing' | 'Assembling' | 'Playable'
   bracket: string | null
   cardCount: number
   /** Cards in the deck: a real copy (original or proxy) or a generic basic marked sleeved; maybeboard and sideboard excluded. Same count as the Decks page tile. */

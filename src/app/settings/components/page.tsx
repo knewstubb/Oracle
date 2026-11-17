@@ -775,7 +775,7 @@ function CardsSection() {
         <div>
           <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-2">Brewing</h3>
           <p className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)] mb-4">
-            No cards sleeved yet. Purple flask badge. Deck is Draft.
+            No cards sleeved yet. Purple flask badge. Deck is Brewing.
           </p>
           <div className="flex flex-wrap gap-4">
             <DeckTile
@@ -785,7 +785,7 @@ function CardsSection() {
               commanderScryfallId={SAMPLE_COMMANDERS.chulane}
               colourIdentity={['W', 'U', 'G']}
               cardCount={85}
-              status="draft"
+              status="brewing"
               format="commander"
               pipDistribution={{ W: 20, U: 25, G: 35 }}
             />
@@ -796,7 +796,7 @@ function CardsSection() {
               commanderScryfallId={SAMPLE_COMMANDERS.golos}
               colourIdentity={['W', 'U', 'B', 'R', 'G']}
               cardCount={72}
-              status="draft"
+              status="brewing"
               format="commander"
               pipDistribution={{ W: 10, U: 15, B: 15, R: 15, G: 25 }}
             />

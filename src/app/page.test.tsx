@@ -357,7 +357,7 @@ describe('deleting a deck', () => {
 
 describe('grouping decks by status', () => {
   const KEY = 'oracle:decks:groupBy'
-  type S = 'draft' | 'assembling' | 'playable'
+  type S = 'brewing' | 'assembling' | 'playable'
   const withStatus = (id: number, name: string, status: S, folder_id: number | null = null) => ({
     ...makeDeck(id, name, `Commander ${id}`, `abc${String(id).padStart(5, '0')}-0000-0000-0000-000000000000`, 'B'),
     status,
@@ -365,11 +365,11 @@ describe('grouping decks by status', () => {
   })
   // API order is A to Z by name
   const decks = [
-    withStatus(1, 'Alpha', 'draft'),
+    withStatus(1, 'Alpha', 'brewing'),
     withStatus(2, 'Bravo', 'playable', 7),
     withStatus(3, 'Charlie', 'assembling'),
     withStatus(4, 'Delta', 'playable'),
-    withStatus(5, 'Echo', 'draft', 7),
+    withStatus(5, 'Echo', 'brewing', 7),
   ]
   function mockList(list: unknown[], folders: unknown[] = []) {
     mockFetch.mockImplementation((url: string) => {
@@ -392,13 +392,13 @@ describe('grouping decks by status', () => {
     expect(hrefs(container)).toEqual(['/decks/1', '/decks/2', '/decks/3', '/decks/4', '/decks/5'])
   })
 
-  it('shows sections Playable, Assembling, Draft with counts, decks A to Z inside', async () => {
+  it('shows sections Playable, Assembling, Brewing with counts, decks A to Z inside', async () => {
     mockList(decks)
     const { container } = render(<DashboardPage />, { wrapper: createWrapper() })
     await waitFor(() => expect(container.querySelectorAll('a[href^="/decks/"]')).toHaveLength(5))
     fireEvent.change(group(), { target: { value: 'status' } })
-    expect(sectionLabels(container)).toEqual(['Playable', 'Assembling', 'Draft'])
-    expect(sectionButtons()).toEqual(['Playable (2)', 'Assembling (1)', 'Draft (2)'])
+    expect(sectionLabels(container)).toEqual(['Playable', 'Assembling', 'Brewing'])
+    expect(sectionButtons()).toEqual(['Playable (2)', 'Assembling (1)', 'Brewing (2)'])
     const sections = Array.from(container.querySelectorAll('section'))
     expect(hrefs(sections[0])).toEqual(['/decks/2', '/decks/4'])
     expect(hrefs(sections[1])).toEqual(['/decks/3'])
@@ -408,11 +408,11 @@ describe('grouping decks by status', () => {
   })
 
   it('hides empty sections', async () => {
-    mockList([withStatus(1, 'Alpha', 'draft'), withStatus(2, 'Bravo', 'playable')])
+    mockList([withStatus(1, 'Alpha', 'brewing'), withStatus(2, 'Bravo', 'playable')])
     const { container } = render(<DashboardPage />, { wrapper: createWrapper() })
     await waitFor(() => expect(container.querySelectorAll('a[href^="/decks/"]')).toHaveLength(2))
     fireEvent.change(group(), { target: { value: 'status' } })
-    expect(sectionLabels(container)).toEqual(['Playable', 'Draft'])
+    expect(sectionLabels(container)).toEqual(['Playable', 'Brewing'])
   })
 
   it('remembers the choice between visits and when switching back', async () => {
@@ -425,7 +425,7 @@ describe('grouping decks by status', () => {
     const second = render(<DashboardPage />, { wrapper: createWrapper() })
     await waitFor(() => expect(second.container.querySelectorAll('a[href^="/decks/"]')).toHaveLength(5))
     expect(group().value).toBe('status')
-    expect(sectionLabels(second.container)).toEqual(['Playable', 'Assembling', 'Draft'])
+    expect(sectionLabels(second.container)).toEqual(['Playable', 'Assembling', 'Brewing'])
     fireEvent.change(group(), { target: { value: 'none' } })
     expect(localStorageMock.setItem).toHaveBeenLastCalledWith(KEY, 'none')
   })
@@ -436,13 +436,13 @@ describe('grouping decks by status', () => {
     await waitFor(() => expect(container.querySelectorAll('a[href^="/decks/"]')).toHaveLength(5))
     fireEvent.change(group(), { target: { value: 'status' } })
     fireEvent.click(screen.getByRole('button', { name: /Pod/ }))
-    expect(sectionLabels(container)).toEqual(['Playable', 'Draft'])
-    expect(sectionButtons()).toEqual(['Playable (1)', 'Draft (1)'])
+    expect(sectionLabels(container)).toEqual(['Playable', 'Brewing'])
+    expect(sectionButtons()).toEqual(['Playable (1)', 'Brewing (1)'])
     expect(hrefs(container)).toEqual(['/decks/2', '/decks/5'])
   })
 
   it('a deleted deck leaves its section at once and an emptied section disappears', async () => {
-    const list = [withStatus(1, 'Alpha', 'draft'), withStatus(2, 'Bravo', 'playable'), withStatus(3, 'Charlie', 'playable')]
+    const list = [withStatus(1, 'Alpha', 'brewing'), withStatus(2, 'Bravo', 'playable'), withStatus(3, 'Charlie', 'playable')]
     mockFetch.mockImplementation((url: string, init?: { method?: string }) => {
       if (init?.method === 'DELETE') return new Promise(() => {})
       if (url === '/api/decks/details') return new Promise(() => {})
@@ -459,7 +459,7 @@ describe('grouping decks by status', () => {
     }
     await del(2)
     await waitFor(() => expect(container.querySelector('a[href="/decks/2"]')).toBeNull())
-    expect(sectionButtons()).toEqual(['Playable (1)', 'Draft (1)'])
+    expect(sectionButtons()).toEqual(['Playable (1)', 'Brewing (1)'])
     await del(1)
     await waitFor(() => expect(container.querySelector('a[href="/decks/1"]')).toBeNull())
     expect(sectionLabels(container)).toEqual(['Playable'])
@@ -471,11 +471,11 @@ describe('grouping decks by status', () => {
     const { container } = render(<DashboardPage />, { wrapper: createWrapper(queryClient) })
     await waitFor(() => expect(container.querySelectorAll('a[href^="/decks/"]')).toHaveLength(5))
     fireEvent.change(group(), { target: { value: 'status' } })
-    fireEvent.click(screen.getByRole('button', { name: /Draft \(2\)/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Brewing \(2\)/ }))
     expect(container.querySelectorAll('a[href^="/decks/"]')).toHaveLength(3)
     await act(async () => { await queryClient.invalidateQueries({ queryKey: ['decks'], exact: true }) })
     expect(group().value).toBe('status')
-    expect(sectionButtons()).toEqual(['Playable (2)', 'Assembling (1)', 'Draft (2)'])
+    expect(sectionButtons()).toEqual(['Playable (2)', 'Assembling (1)', 'Brewing (2)'])
     expect(container.querySelectorAll('a[href^="/decks/"]')).toHaveLength(3)
   })
 
@@ -494,6 +494,6 @@ describe('grouping decks by status', () => {
       resolveDetails({ ok: true, json: () => Promise.resolve({ pips: { 1: { W: 3 } }, sleeved: { 2: 100 }, unresolved: {} }) })
     })
     expect(hrefs(container)).toEqual(before)
-    expect(sectionButtons()).toEqual(['Playable (2)', 'Assembling (1)', 'Draft (2)'])
+    expect(sectionButtons()).toEqual(['Playable (2)', 'Assembling (1)', 'Brewing (2)'])
   })
 })

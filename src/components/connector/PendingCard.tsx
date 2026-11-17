@@ -9,9 +9,9 @@ import { cancelReasonText, formatClock, formatWhen } from './format'
 
 const REQUIRED_SIZE = 100 // Commander size; same default the deck state badge assumes
 
-const STATE_WORD = { draft: 'Draft', assembling: 'Assembling', playable: 'Playable' } as const
+const STATE_WORD = { brewing: 'Brewing', assembling: 'Assembling', playable: 'Playable' } as const
 
-/** Deck status wording (Draft / Assembling / Playable) from counts, via the existing readiness calculation. */
+/** Deck status wording (Brewing / Assembling / Playable) from counts, via the existing readiness calculation. */
 export function deckStateWord(c: DeckCounts): string {
   const slots = [
     ...Array.from({ length: c.sleeved }, () => ({ copy_id: 1 })),

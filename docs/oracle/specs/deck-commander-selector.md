@@ -3,7 +3,7 @@
 Mockup: `docs/oracle/mockups/deck-commander-selector.html`. **Owner correction (rev 2):** the selector lives on the **import review screen** (where cards are marked Original/Proxy, before importing), next to the deck name. The same control can be reused on the deck page later. Replaces the commander step that used to sit inside the deck import (see `import-review-controls.md`).
 
 ## 1. The problem
-A deck imported from ManaBox has no commander, so it stays Draft (D-002) until one is set. The import no longer asks, and the only existing control is a "Choose commander" button on the deck page that disappears once a commander is set. Partner and Background pairs can't be expressed.
+A deck imported from ManaBox has no commander, so it stays Brewing (D-002) until one is set. The import no longer asks, and the only existing control is a "Choose commander" button on the deck page that disappears once a commander is set. Partner and Background pairs can't be expressed.
 
 ## 2. Principle
 - Controls sit beside what they act on (D-015): the commander control goes beside the deck name, not among page actions.
@@ -57,6 +57,6 @@ Icon + text for the no-commander state (D-012); contrast as earlier specs (secon
 
 ## 10. Open questions
 1. Should the import be blocked until a commander is chosen? Proposed: no, optional.
-2. Should the deck show a reason it's Draft ("Needs a commander") elsewhere? Not designed.
+2. Should the deck show a reason it's Brewing ("Needs a commander") elsewhere? Not designed.
 3. Partner/Background storage (Architect, blocks build).
 4. Should "Search all cards" add a non-deck card to the deck, as today's picker does?

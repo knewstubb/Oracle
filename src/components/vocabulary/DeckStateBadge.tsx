@@ -10,7 +10,7 @@ import { MaterialSymbol } from './MaterialSymbol'
 // Types
 // ---------------------------------------------------------------------------
 
-export type DeckState = 'draft' | 'assembling' | 'playable' | 'checking' | 'failed'
+export type DeckState = 'brewing' | 'assembling' | 'playable' | 'checking' | 'failed'
 
 export interface DeckStateBadgeProps {
   state: DeckState
@@ -37,11 +37,11 @@ type StateConfig = {
 }
 
 const STATE_CONFIG: Record<DeckState, StateConfig> = {
-  draft: {
-    word: 'Draft',
+  brewing: {
+    word: 'Brewing',
     icon: 'edit_note',
     iconFilled: false,
-    token: 'var(--state-draft)',
+    token: 'var(--state-brewing)',
   },
   assembling: {
     word: 'Assembling',

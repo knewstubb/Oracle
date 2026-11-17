@@ -31,7 +31,7 @@ export function destinationDeckStatus(slots: readonly DestinationSlotRow[], form
   const main = slots.filter((s) => isCountableCard(s.categories))
   const target = deckTargetFor(format)
   const readiness = computeDeckReadiness(main, target.deckSize, target.countRule)
-  if (readiness.state === 'draft') return 'draft'
+  if (readiness.state === 'brewing') return 'brewing'
   const tracked = main.filter((s) => !s.is_generic)
   if (tracked.length > 0 && tracked.every((s) => s.copy_id === null)) return 'unowned'
   return readiness.state
@@ -41,7 +41,7 @@ const STATUS_WORDS: Record<DestinationDeckStatus, string> = {
   unowned: 'Unowned',
   assembling: 'Assembling',
   playable: 'Playable',
-  draft: 'Draft',
+  brewing: 'Brewing',
 }
 
 export function statusWord(status: DestinationDeckStatus): string {

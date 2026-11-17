@@ -166,11 +166,11 @@ describe('list_decks', () => {
     allScoped(queries)
     expect(queries[0].filters).not.toContainEqual({ op: 'eq', args: ['is_active', true] })
   })
-  it('status is automatic: Commander 0 sleeved is Draft, 14 of 100 is Assembling, 100 of 100 is Playable, 101 is Assembling', async () => {
+  it('status is automatic: Commander 0 sleeved is Brewing, 14 of 100 is Assembling, 100 of 100 is Playable, 101 is Assembling', async () => {
     const decks = [1, 2, 3, 4].map(deckRow)
     const { db } = mockDb((q) => (q.table === 'decks' ? { data: decks, count: 4 } : { data: [...listRows(1, 0, 100), ...listRows(2, 14, 100), ...listRows(3, 100, 100), ...listRows(4, 101, 101)] }))
     const r = (await listDecks({ db, userId: U }, listDecksInput.parse({}))) as never as { items: { status: string; sleevedCount: number }[] }
-    expect(r.items.map((d) => d.status)).toEqual(['Draft', 'Assembling', 'Playable', 'Assembling'])
+    expect(r.items.map((d) => d.status)).toEqual(['Brewing', 'Assembling', 'Playable', 'Assembling'])
     expect(r.items.map((d) => d.sleevedCount)).toEqual([0, 14, 100, 101])
   })
   it('maybeboard and sideboard cards with a copy change neither the sleeved count nor the status', async () => {
@@ -194,7 +194,7 @@ describe('list_decks', () => {
   it('the answer never says a deck is active, inactive, archived or "marked active"', async () => {
     const { db } = mockDb((q) => (q.table === 'decks' ? { data: [deckRow(1)], count: 1 } : { data: [] }))
     const r = (await listDecks({ db, userId: U }, listDecksInput.parse({ include_inactive: false }))) as never as { items: Record<string, unknown>[] }
-    expect(r.items[0]).toMatchObject({ status: 'Draft', sleevedCount: 0 })
+    expect(r.items[0]).toMatchObject({ status: 'Brewing', sleevedCount: 0 })
     expect(r.items[0]).not.toHaveProperty('isActive')
     expect(r.items[0]).not.toHaveProperty('activeNote')
     expect(JSON.stringify(r)).not.toMatch(/inactive|archived|marked active|not marked/i)

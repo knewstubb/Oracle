@@ -9,7 +9,8 @@ const desc = (name: string) => CONNECTOR_TOOLS.find((t) => t.name === name)!.des
 describe('connector wording: automatic deck status', () => {
   it('list_decks and get_deck say the status is automatic and name the three states', () => {
     for (const name of ['list_decks', 'get_deck']) {
-      expect(desc(name)).toMatch(/Draft/)
+      expect(desc(name)).toMatch(/Brewing/)
+      expect(desc(name)).not.toMatch(/Draft/)
       expect(desc(name)).toMatch(/Assembling/)
       expect(desc(name)).toMatch(/Playable/)
     }

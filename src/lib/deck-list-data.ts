@@ -165,8 +165,8 @@ export function computeSleevedCounts(rows: DeckCardRow[]): Record<number, number
   return counts
 }
 
-export type AutoDeckStatus = 'draft' | 'assembling' | 'playable'
-/** Automatic status per deck from its rows and format. Decks with no rows are Draft. */
+export type AutoDeckStatus = 'brewing' | 'assembling' | 'playable'
+/** Automatic status per deck from its rows and format. Decks with no rows are Brewing. */
 export function computeDeckStatuses(
   rows: DeckCardRow[],
   formats: ReadonlyMap<number, string | null>

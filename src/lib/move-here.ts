@@ -3,7 +3,7 @@
  * Spec: docs/oracle/specs/know-where-cards-are.md section 19.
  */
 
-export type MoveHereDeckState = 'draft' | 'assembling' | 'playable'
+export type MoveHereDeckState = 'brewing' | 'assembling' | 'playable'
 
 /** One copy that could be moved here: it sits in a deck other than the target. */
 export interface MoveHereCopy {

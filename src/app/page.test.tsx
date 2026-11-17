@@ -300,6 +300,17 @@ describe('deleting a deck', () => {
     expect(message).toContain('boom')
   })
 
+  it('shows the deck tiles without waiting for the colour pips', async () => {
+    const decks = makeDecks(3)
+    mockFetch.mockImplementation((url: string) => {
+      if (url === '/api/decks/details') return new Promise(() => {}) // never answers
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ decks, folders: [], hasCollection: false }) })
+    })
+    const { container } = render(<DashboardPage />, { wrapper: createWrapper() })
+    await waitFor(() => expect(container.querySelectorAll('a[href^="/decks/"]')).toHaveLength(3))
+    expect(mockFetch).toHaveBeenCalledWith('/api/decks/details')
+  })
+
   it('a list fetch already in flight does not bring the deleted deck back', async () => {
     const decks = makeDecks(3)
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
@@ -319,7 +330,7 @@ describe('deleting a deck', () => {
           json: () => Promise.resolve({ decks: decks.filter((d) => d.id !== 2), folders: [], hasCollection: false }),
         })
       }
-      if (slow) {
+      if (slow && url === '/api/decks') {
         slowCalls += 1
         return staleList.promise
       }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import { AlertCircle, RefreshCw } from 'lucide-react'
@@ -44,6 +44,11 @@ interface DecksResponse {
   hasCollection: boolean
 }
 
+interface DeckDetailsResponse {
+  pips: Record<string, Record<string, number>>
+  unresolved: Record<string, { availableCount: number; claimedCount: number; unownedCount: number; failed: boolean }>
+}
+
 function parseColourIdentity(ci: string | null | undefined): string[] {
   if (!ci) return []
   return ci.split(',').flatMap(s => s.trim().length === 1 ? [s.trim()] : s.trim().split(''))
@@ -81,7 +86,32 @@ export default function DashboardPage() {
     refetchOnWindowFocus: false, // Don't refetch on tab switch
   })
 
-  const decks = data?.decks
+  // Colour pips and the available/claimed/unowned counts arrive after the
+  // tiles: they need the slowest lookups, so they load separately and fill in.
+  const { data: detailsData } = useQuery<DeckDetailsResponse>({
+    queryKey: ['decks', 'details'],
+    queryFn: () => fetch('/api/decks/details').then(r => {
+      if (!r.ok) throw new Error('Failed to load deck details')
+      return r.json()
+    }),
+    enabled: data !== undefined,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  })
+  const decks = useMemo(
+    () => data?.decks.map(d => {
+      const pips = detailsData?.pips?.[d.id]
+      const unresolved = detailsData?.unresolved?.[d.id]
+      if (!pips && !unresolved) return d
+      return {
+        ...d,
+        ...(pips ? { pipDistribution: pips } : {}),
+        ...(unresolved && d.completeness ? { completeness: { ...d.completeness, ...unresolved } } : {}),
+      }
+    }),
+    [data, detailsData]
+  )
   const folders = data?.folders ?? []
   const hasCollection = data?.hasCollection ?? false
 

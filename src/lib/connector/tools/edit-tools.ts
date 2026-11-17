@@ -36,7 +36,7 @@ export const addCardsInput = z.strictObject({
             message: 'The category "Maybeboard" is reserved. To put cards on the Maybeboard use set_card_zone. Nothing was changed.',
           })
           .optional()
-          .describe('Deck category to file the card under. Default "Other". "Maybeboard" is not allowed here; use set_card_zone.'),
+          .describe('Role category for this card, for example Ramp, Card Draw, Removal, Board Wipes, Lands. Reuse the category names the deck already shows in get_deck. Send one for every card; only a card sent without one is filed under "Other". "Maybeboard" is not allowed here; use set_card_zone.'),
       }),
     )
     .min(1)

@@ -141,6 +141,7 @@ describe('edit tools', () => {
     expect(d('add_cards_to_deck')).toMatch(/120/)
     expect(d('add_cards_to_deck')).toMatch(/ONE call/)
     expect(d('add_cards_to_deck')).not.toMatch(/Up to 10 /)
+    expect(d('add_cards_to_deck')).toMatch(/role category.*Ramp, Card Draw, Removal, Board Wipes, Lands.*reuse the category names the deck already shows in get_deck/)
     expect(d('sleeve_free_copy')).toMatch(/free copies only/i)
     expect(d('request_card_move')).toMatch(/straight through/)
     expect(d('request_card_move')).toMatch(/only the owner can undo/i)
@@ -306,6 +307,14 @@ describe('add_cards_to_deck refuses Maybeboard as a category', () => {
   })
 })
 
+describe('CC-22 card categories', () => {
+  it('stores the category passed for each card as given, and Other when none is passed', async () => {
+    const g = gw()
+    await runTool(ctx(g), 'add_cards_to_deck', { deck_id: 1, cards: [{ name: 'Sol Ring', category: 'Ramp' }, { name: 'Rhystic Study', category: 'Card Draw' }, { name: 'Forest' }] })
+    const items = (g.submit as ReturnType<typeof vi.fn>).mock.calls[0][0].payload.items
+    expect(items.map((i: { categories: string }) => i.categories)).toEqual(['["Ramp"]', '["Card Draw"]', '["Other"]'])
+  })
+})
 describe('CC-21 deck colours', () => {
   const LIB: Record<string, string> = { 'Lightning Bolt': 'R', 'Doom Blade': 'B', 'Sol Ring': '', 'Izzet Charm': 'UR' }
   const colourCtx = (deckColours: string | null | undefined, g = gw()) => {

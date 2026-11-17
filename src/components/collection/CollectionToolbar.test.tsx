@@ -225,6 +225,20 @@ describe('CollectionToolbar', () => {
   })
 
   describe('Color identity filter', () => {
+    it('colourless replaces any chosen colours', () => {
+      const onColorsChange = vi.fn()
+      renderToolbar({ selectedColors: ['R', 'G'], onColorsChange })
+      fireEvent.click(screen.getByLabelText('Colorless'))
+      expect(onColorsChange).toHaveBeenCalledWith(['C'])
+    })
+
+    it('choosing a colour clears colourless', () => {
+      const onColorsChange = vi.fn()
+      renderToolbar({ selectedColors: ['C'], onColorsChange })
+      fireEvent.click(screen.getByLabelText('Red'))
+      expect(onColorsChange).toHaveBeenCalledWith(['R'])
+    })
+
     it('renders WUBRG + Colorless buttons', () => {
       renderToolbar()
       expect(screen.getByLabelText('White')).toBeInTheDocument()

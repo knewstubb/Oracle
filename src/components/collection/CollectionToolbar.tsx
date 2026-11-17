@@ -401,8 +401,11 @@ function ColorIdentityFilter({
     (color: string) => {
       if (selectedColors.includes(color)) {
         onColorsChange(selectedColors.filter((c) => c !== color))
+      } else if (color === 'C') {
+        // Colourless stands alone: a card cannot be colourless and coloured at once.
+        onColorsChange(['C'])
       } else {
-        onColorsChange([...selectedColors, color])
+        onColorsChange([...selectedColors.filter((c) => c !== 'C'), color])
       }
     },
     [selectedColors, onColorsChange]

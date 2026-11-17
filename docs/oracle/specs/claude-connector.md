@@ -47,7 +47,7 @@ Copy per kind of change:
 | Original/Proxy | "Marked your {card} in {deck} as an {Original/Proxy} (it was a {Proxy/Original})." |
 | Add to collection | "Added {card} to your collection ({n} copy, in Unsorted)." |
 | Sleeve a free copy | "Put a free copy of {card} into {deck}." |
-| Move between decks (approved) | "Moved {card} from {A} to {B}. You approved this at {time}." |
+| Move between decks | "Moved {card} from {A} to {B} at {time}." (CC-13: no approval; owner-only Undo for 7 days). Old moves you approved keep: "Moved {card} from {A} to {B} (you approved this at {time})." |
 | Several cards, one request | one row: "Cut 15 cards from {deck}." plus "See the 15 cards" disclosure |
 
 **States**
@@ -119,3 +119,10 @@ See the report (three questions). Decisions I made that need confirmation: pendi
 
 ## 12. Deleted or replaced when this ships
 Nothing visible is replaced. The 24-hour limit on `chat_card_proposals` Undo does not apply to this list (separate log, audit section 2).
+
+
+## CC-13 update (2026-11-17)
+Up to 120 cards in one request go straight through (121 to 200 wait for the owner; over 200 refused); 500 changes an hour; moves between decks go straight through with 7-day Undo that only the owner can use. A whole deck build is one request, so it has one Undo, and the toast after a multi-card Undo reads "Undone. {n} changes reversed." Setup guide and the can/can't lists say the same.
+
+## CC-18a update (2026-11-17)
+Claude can make a read-only buying list of what the decks are missing, with Scryfall price estimates (not shop prices; no Card Kingdom). The Claude can list says so; the Claude can't list says it cannot buy cards or keep a wishlist yet (the wishlist, CC-18b, needs its own screen first). Contract: `contracts/claude-connector-cc18-buying-list.md`.

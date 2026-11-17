@@ -19,7 +19,7 @@ const EDIT = { readOnlyHint: false, destructiveHint: false, idempotentHint: fals
 describe('registered tools', () => {
   it('are exactly the slice A readers plus the slice B list, in order', () => {
     expect(CONNECTOR_TOOLS.map((t) => t.name)).toEqual([
-      'get_collection_summary', 'search_collection', 'list_decks', 'get_deck', 'get_deck_health', 'list_deck_cards_by_ownership',
+      'get_collection_summary', 'search_collection', 'list_decks', 'get_deck', 'get_deck_health', 'list_deck_cards_by_ownership', 'get_buying_list',
       ...CONNECTOR_WRITE_TOOLS, ...CONNECTOR_READ_TOOLS_B,
     ])
   })
@@ -35,6 +35,17 @@ describe('registered tools', () => {
     expect(d('get_deck_health')).not.toMatch(/last saved|never runs a new check/i)
     expect(d('list_decks')).toMatch(/Deck strategy screen/)
     expect(d('list_deck_cards_by_ownership')).toMatch(/facts/i)
+    expect(d('get_buying_list')).toMatch(/estimate/i)
+    expect(d('get_buying_list')).toMatch(/not free/i)
+    expect(d('get_buying_list')).toMatch(/Card Kingdom/)
+  })
+  it('get_buying_list tells Claude an empty unowned list must offer the proxy upgrade list (CC-19)', () => {
+    const d = CONNECTOR_TOOLS.find((t) => t.name === 'get_buying_list')!.description
+    expect(d).toMatch(/totals\.notOwnedCopies is 0/)
+    expect(d).toMatch(/never answer only that there is nothing/i)
+    expect(d).toMatch(/if include_proxies was not set, call again with include_proxies true/i)
+    expect(d).toMatch(/totals\.proxyUpgradeCopies is above 0/)
+    expect(d).toMatch(/offer the upgrade list/i)
   })
   it('readers are read-only; writers are not; destructiveHint only where the contract says', () => {
     for (const t of CONNECTOR_TOOLS) {

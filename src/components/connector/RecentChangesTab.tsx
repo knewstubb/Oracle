@@ -86,7 +86,7 @@ export function RecentChangesTab() {
     const out = await undoMutation.mutateAsync(g)
     if (out.ok) {
       setUndoState((s) => ({ ...s, [g.groupId]: { status: 'undone', undoneAt: new Date().toISOString() } }))
-      const msg = `Undone. ${first.card_name} is off ${first.deck_name ?? 'the deck'}'s list.`
+      const msg = g.rows.length > 1 ? `Undone. ${g.rows.length} changes reversed.` : `Undone. ${first.card_name} is off ${first.deck_name ?? 'the deck'}'s list.`
       toast(msg)
       setAnnounce(`Undone. ${first.deck_name ?? 'The deck'} is as it was before.`)
       qc.invalidateQueries({ queryKey: connectorKeys.changes })

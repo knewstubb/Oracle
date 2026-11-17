@@ -1,5 +1,6 @@
 // Plain-words sentences for Claude's changes (spec docs/oracle/specs/claude-connector.md sections 4 and 5). Pure
 // functions of the log / pending rows: no network, no hidden clock. The UI shows these strings and never writes its own.
+import { AI_LIMITS } from './edit-config'
 import type { ChangeLogRow, MovedSlot, PendingRow, UndoRefusal } from './write-types'
 
 const TZ = 'Pacific/Auckland'
@@ -66,7 +67,7 @@ export function describeGroup(rows: ChangeLogRow[]): GroupSentence {
       const to = first.other_deck_name ?? 'another deck'
       const at = clockTime(first.created_at)
       return {
-        summary: `Moved ${card} from ${deck} to ${to}. You approved this${at ? ` at ${at}` : ''}.`,
+        summary: `Moved ${card} from ${deck} to ${to}${first.approved_by_owner ? ' (you approved this' : ''}${first.approved_by_owner && at ? ` at ${at}` : ''}${first.approved_by_owner ? ')' : at ? ` at ${at}` : ''}.`,
         consequence: `${deck} still has the slot, now empty and planned.`,
       }
     }
@@ -130,7 +131,7 @@ export function undoRefusalText(r: UndoRefusal): string {
     case 'source_slot_filled':
       return `Can't undo this one. ${card}'s old slot in ${deck} has a copy now${w}.`
     case 'group_too_big':
-      return `Claude can only undo changes of 10 cards or fewer. Use Undo in Oracle.`
+      return `Claude can only undo changes of ${AI_LIMITS.claude_undo_max} cards or fewer. Use Undo in Oracle.`
     default:
       return `Can't undo this one. Something changed since. Nothing was changed.`
   }
@@ -231,9 +232,9 @@ export function editErrorMessage(code: string, d: Record<string, unknown>): stri
     case 'duplicate_slot':
       return 'The same slot was listed twice. Nothing was changed.'
     case 'too_many_cards':
-      return `That is more than 60 cards in one request. Send a smaller request. Nothing was changed.`
+      return `That is more than ${AI_LIMITS.max_request} cards in one request. Send a smaller request. Nothing was changed.`
     case 'too_many_waiting':
-      return 'There are already 20 requests waiting for the owner. Nothing was changed. Ask the owner to answer those first.'
+      return `There are already ${AI_LIMITS.max_waiting} requests waiting for the owner. Nothing was changed. Ask the owner to answer those first.`
     case 'commander_slot':
     case 'commander_copy':
       return `${card} is a commander. Changing commanders is not allowed here. Nothing was changed.`

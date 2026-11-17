@@ -2,14 +2,15 @@
 // SQL function _ai_limits() and to the contract's types file.
 
 export const AI_LIMITS = {
-  direct_max: 10,
+  direct_max: 120,
   split_window_minutes: 30,
-  hourly_max: 40,
+  split_max: 200,
+  hourly_max: 500,
   undo_days: 7,
   pending_hours: 24,
   max_waiting: 20,
-  max_request: 60,
-  claude_undo_max: 10,
+  max_request: 200,
+  claude_undo_max: 200,
 } as const
 
 export const CONNECTOR_WRITE_TOOLS = [

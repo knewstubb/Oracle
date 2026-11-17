@@ -109,6 +109,10 @@ export function SetupGuideTab() {
         </AccordionItem>
       </Accordion>
 
+      <p className="text-[length:var(--fs-sm)] text-[var(--text-primary)]">
+        Claude can build a whole deck in one request. Each request has a single Undo in Recent changes, for 7 days, however many cards it holds. Requests over 120 cards wait for your yes.
+      </p>
+
       <p className="text-[length:var(--fs-sm)] text-[var(--text-secondary)]">
         Claude&apos;s menus change from time to time. If a step looks different, look for &quot;connectors&quot; in Claude&apos;s settings.
       </p>

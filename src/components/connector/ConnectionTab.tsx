@@ -13,17 +13,19 @@ const CAN = [
   'Read your decks, collection and where each card is',
   'Add and take cards off a deck list (the copy goes back to storage, never deleted)',
   'Move a card to or from a maybeboard',
+  'Make a buying list of what your decks are missing, with price estimates (Scryfall, not shop prices; it only reads, nothing is bought or changed)',
   'Add a card to your collection',
   'Mark a copy Original or Proxy',
-  'Make small changes straight away. You can undo them here for 7 days',
+  'Change up to 120 cards in one request and move cards between decks straight away. You can undo each request here for 7 days, in one click',
 ]
 const CANT = [
   'Take any card out of your collection',
   'Delete or empty a deck',
   'Clear or replace your collection',
-  'Do big edits (over about 10 cards) or move a card between decks without your yes here',
+  'Do edits over 120 cards in one request without your yes here (over 200 is refused)',
   "Approve its own waiting changes",
   "See anyone else's data",
+  'Buy cards for you, or keep a wishlist (not built yet)',
 ]
 
 export function CapabilitiesPanel() {

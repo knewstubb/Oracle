@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { runTool } from '../server'
 import { mockDb } from './mock-db'
@@ -25,11 +25,31 @@ function gw(over: Partial<Record<keyof Gateway, unknown>> = {}): Gateway {
 const ctx = (gateway: Gateway, db = mockDb(() => ({ data: [] })).db) => ({ db, userId: U, connectionId: 'conn-1', clientId: 'cl', clientName: 'Claude', gateway })
 
 describe('limits match the database', () => {
-  it('AI_LIMITS equals _ai_limits() in the migration', () => {
-    const sql = readFileSync(path.resolve(__dirname, '../../../../supabase/migrations/20261116150100_ai_connector_edit_rpcs.sql'), 'utf8')
-    const body = /_ai_limits\(\)[\s\S]*?jsonb_build_object\(([\s\S]*?)\n\s*\)\n\$\$/.exec(sql)![1]
+  const limitsIn = (sql: string) => {
+    const defs = [...sql.matchAll(/_ai_limits\(\)[\s\S]*?jsonb_build_object\(([\s\S]*?)\n\s*\)\n\$\$/g)]
+    if (!defs.length) return null
     const found: Record<string, number> = {}
-    for (const m of body.matchAll(/'([a-z_]+)'\s*,\s*(\d+)/g)) found[m[1]] = Number(m[2])
+    for (const m of defs[defs.length - 1][1].matchAll(/'([a-z_]+)'\s*,\s*(\d+)/g)) found[m[1]] = Number(m[2])
+    return found
+  }
+  it('AI_LIMITS equals the LAST _ai_limits() definition in supabase/migrations', () => {
+    const dir = path.resolve(__dirname, '../../../../supabase/migrations')
+    let last: Record<string, number> | null = null
+    for (const f of readdirSync(dir).filter((n) => n.endsWith('.sql') && !n.includes('rollback')).sort()) {
+      const l = limitsIn(readFileSync(path.join(dir, f), 'utf8'))
+      if (l) last = l
+    }
+    // Until the CC-13 migration (supabase/drafts) is applied, the migrations still hold the old values; the draft is the next definition.
+    const draftPath = path.resolve(__dirname, '../../../../supabase/drafts/20261117100000_cc13_loosen_limits.draft.sql')
+    const draft = existsSync(draftPath) ? limitsIn(readFileSync(draftPath, 'utf8')) : null
+    // Applied: the last migration must match. Not applied yet: the draft must match.
+    expect(last && JSON.stringify(last) === JSON.stringify(AI_LIMITS) ? last : draft).toEqual(AI_LIMITS)
+  })
+  it('AI_LIMITS equals the CC-13 contract types', () => {
+    const src = readFileSync(path.resolve(__dirname, '../../../../docs/oracle/contracts/claude-connector-cc13-amendment.types.ts'), 'utf8')
+    const body = /export const AI_LIMITS = \{([\s\S]*?)\}/.exec(src)![1]
+    const found: Record<string, number> = {}
+    for (const m of body.matchAll(/([a-z_]+):\s*(\d+)/g)) found[m[1]] = Number(m[2])
     expect(found).toEqual(AI_LIMITS)
   })
 })
@@ -60,9 +80,23 @@ describe('edit tools', () => {
     expect(r.structuredContent).toMatchObject({ error: { code: 'tool_not_allowed' } })
     expect(g.submit).not.toHaveBeenCalled()
   })
-  it('more than 60 cards in one request is rejected before anything is looked up', async () => {
+  it('a 120-card deck build goes to the database as ONE request (one group, one Undo)', async () => {
     const g = gw()
-    const cards = Array.from({ length: 61 }, (_, i) => ({ name: 'C' + i }))
+    const cards = Array.from({ length: 120 }, (_, i) => ({ name: 'C' + i }))
+    const r = await runTool(ctx(g), 'add_cards_to_deck', { deck_id: 1, cards })
+    expect(r.isError).toBeFalsy()
+    expect(g.submit).toHaveBeenCalledTimes(1)
+    expect((g.submit as unknown as { mock: { calls: { payload: { items: unknown[] } }[][] } }).mock.calls[0][0].payload.items).toHaveLength(120)
+  })
+  it('a 100-card deck given as card names with quantities is one request', async () => {
+    const g = gw()
+    const r = await runTool(ctx(g), 'add_cards_to_deck', { deck_id: 1, cards: [{ name: 'Forest', quantity: 36 }, { name: 'Sol Ring' }] })
+    expect(r.isError).toBeFalsy()
+    expect(g.submit).toHaveBeenCalledTimes(1)
+  })
+  it('more than 200 cards in one request is rejected before anything is looked up', async () => {
+    const g = gw()
+    const cards = Array.from({ length: 201 }, (_, i) => ({ name: 'C' + i }))
     const r = await runTool(ctx(g), 'add_cards_to_deck', { deck_id: 1, cards })
     expect(r.isError).toBe(true)
     expect(g.submit).not.toHaveBeenCalled()
@@ -89,10 +123,34 @@ describe('edit tools', () => {
     const g = gw({ submit: vi.fn(async () => ({ ok: true, data: { success: true, outcome: 'pending', pending_id: G, expires_at: 'x', reason: 'card_move' } })) })
     const db = mockDb((q) => ({ data: q.table === 'user_copies' ? [{ id: 9, card_id: 4 }] : q.table === 'user_cards' ? [{ card_name: 'Sol Ring' }] : [{ id: 77, deck_id: 5 }] })).db
     const ok = await runTool(ctx(g, db), 'request_card_move', { copy_id: 9, name: 'sol ring', to_deck_id: 6 })
-    expect(ok.structuredContent).toMatchObject({ status: 'pending_approval' })
+    expect(ok.structuredContent).toMatchObject({ status: 'pending_approval' }) // an old-style waiting row still reads fine
     expect(g.submit).toHaveBeenCalledWith(expect.objectContaining({ action: 'copy_move', payload: { copy_id: 9, to_deck_id: 6, expected_source_deck_id: 5, expected_source_slot_id: 77 } }))
     const bad = await runTool(ctx(g, db), 'request_card_move', { copy_id: 9, name: 'Island', to_deck_id: 6 })
     expect(bad.structuredContent).toMatchObject({ error: { code: 'wrong_card' } })
+  })
+  it('request_card_move goes straight through when the database applies it', async () => {
+    const g = gw({ submit: vi.fn(async () => ({ ok: true, data: { success: true, outcome: 'applied', group_id: G, count: 1 } })) })
+    const db = mockDb((q) => ({ data: q.table === 'user_copies' ? [{ id: 9, card_id: 4 }] : q.table === 'user_cards' ? [{ card_name: 'Sol Ring' }] : [{ id: 77, deck_id: 5 }] })).db
+    const r = await runTool(ctx(g, db), 'request_card_move', { copy_id: 9, name: 'Sol Ring', to_deck_id: 6 })
+    expect(r.isError).toBeFalsy()
+    expect(JSON.stringify(r.structuredContent)).not.toMatch(/pending_approval/)
+  })
+  it('tool text: one-request deck builds, 120 limit, free copies only, moves undone by owner', async () => {
+    const { CONNECTOR_TOOLS: TOOLS } = await import('../tools')
+    const d = (n: string) => (TOOLS as unknown as { name: string; description: string }[]).find((t) => t.name === n)!.description
+    expect(d('add_cards_to_deck')).toMatch(/120/)
+    expect(d('add_cards_to_deck')).toMatch(/ONE call/)
+    expect(d('add_cards_to_deck')).not.toMatch(/Up to 10 /)
+    expect(d('sleeve_free_copy')).toMatch(/free copies only/i)
+    expect(d('request_card_move')).toMatch(/straight through/)
+    expect(d('request_card_move')).toMatch(/only the owner can undo/i)
+    expect(d('undo_change')).toMatch(/200/)
+  })
+  it('a move that was not approved by the owner says Claude moved it, with no "you approved"', async () => {
+    const { describeGroup } = await import('../change-sentences')
+    const mv = row({ kind: 'copy_move', other_deck_name: 'Korvold', deck_name: 'Prosper' })
+    expect(describeGroup([mv]).summary).not.toMatch(/approved/)
+    expect(describeGroup([{ ...mv, approved_by_owner: true }]).summary).toMatch(/you approved this/)
   })
   it('undo_change uses the Claude path and reports a refusal in words', async () => {
     const g = gw({ undoAsClaude: vi.fn(async () => ({ ok: true, data: { success: false, refused: { code: 'owner_only' } } })) })
@@ -192,7 +250,7 @@ describe('set_card_category', () => {
       payload: { deck_id: 3, slots: [{ id: 7, card_name: 'Sol Ring', categories: ['ramp', 'Good Stuff'] }] },
     })
   })
-  it('rejects 0 or 6 categories, empty and over-60 names, extra user id, and 61 slots', async () => {
+  it('rejects 0 or 6 categories, empty and over-60 names, extra user id, and 201 slots', async () => {
     const g = gw()
     const bad: unknown[] = [
       { deck_id: 1, slots: [slot([])] },
@@ -200,7 +258,7 @@ describe('set_card_category', () => {
       { deck_id: 1, slots: [slot(['   '])] },
       { deck_id: 1, slots: [slot(['x'.repeat(61)])] },
       { deck_id: 1, slots: [slot(['a'])], user_id: 'o' },
-      { deck_id: 1, slots: Array.from({ length: 61 }, (_, i) => ({ slot_id: i + 1, name: 'C', categories: ['a'] })) },
+      { deck_id: 1, slots: Array.from({ length: 201 }, (_, i) => ({ slot_id: i + 1, name: 'C', categories: ['a'] })) },
     ]
     for (const a of bad) expect((await runTool(ctx(g), 'set_card_category', a as Record<string, unknown>)).isError).toBe(true)
     expect(g.submit).not.toHaveBeenCalled()

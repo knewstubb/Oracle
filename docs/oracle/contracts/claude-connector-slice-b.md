@@ -3,6 +3,8 @@
 Status: DRAFT for owner approval. Author: Architect. Branch `cc04b-edits`. Builds on `docs/oracle/contracts/claude-connector-slice-a.md` (merged, read-only) and `src/lib/connector/**`.
 Tags: `[Confirmed: path]` = read in the code or migrations. `[Approximate]` = not verified.
 
+> **Amended by CC-13 (draft, pending owner-approved migration):** limits in section 4 (10 cards, 40 an hour, 60 per request, undo 10), the rule "any cross-deck move waits" (sections 0, 1, 3.1, 4) and the Claude undo cap (section 6) are replaced by `docs/oracle/contracts/claude-connector-cc13-amendment.md`. Until that is applied, this file is current.
+
 ## 0. Plain words (for Brad)
 
 - Claude can make **small** changes by itself (up to about 10 cards) and every one has an **Undo** for 7 days.

@@ -2,12 +2,13 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { formatPrice } from '@/lib/collection-printing-utils'
 import { cn } from '@/lib/utils'
 import { useCollectionRollup } from '@/hooks/useCollectionRollup'
 import { useCollectionPrintings } from '@/hooks/useCollectionPrintings'
 import { CollectionImportButton } from '@/components/collection/CollectionImportButton'
 import { CollectionExportButton } from '@/components/collection/CollectionExportButton'
-import { CollectionValueBanner } from '@/components/collection/CollectionValueBanner'
 import {
   CollectionToolbar,
   getPersistedViewMode,
@@ -218,6 +219,14 @@ export default function CollectionPage() {
   const showPagination = !isPrintingView && totalPages > 1
   const showPrintingPagination = isPrintingView && printingTotalPages > 1
 
+  // Collection value shown in the page subtitle (replaces the old value banner)
+  const { data: valueData } = useQuery<{ totalMarketValue?: number }>({
+    queryKey: ['collection-value'],
+    queryFn: () => fetch('/api/collection/value').then((r) => r.json()),
+    staleTime: 5 * 60 * 1000,
+  })
+  const collectionValue =
+    typeof valueData?.totalMarketValue === 'number' ? valueData.totalMarketValue : null
   // Set page header at layout level
   usePageHeader({
     title: 'Collection',
@@ -225,10 +234,10 @@ export default function CollectionPage() {
       <>
         {ownedCount === null ? 'Loading...' : `${ownedCount.toLocaleString()} owned`}
         {includeProxies && proxyCount > 0 && ` · ${proxyCount} proxies`}
-        {activeLastPriceRefresh && ' · Prices cached'}
+        {collectionValue !== null && ` · ${formatPrice(collectionValue)} value`}
       </>
     ),
-    subtitleKey: `${ownedCount}-${proxyCount}-${includeProxies}-${!!activeLastPriceRefresh}`,
+    subtitleKey: `${ownedCount}-${proxyCount}-${includeProxies}-${collectionValue}`,
     actions: (
       <>
         <CollectionExportButton />
@@ -241,8 +250,6 @@ export default function CollectionPage() {
     <div className="flex h-full flex-col bg-[var(--bg-canvas)]">
       {/* Max-width container: 1520px centered, fluid below */}
       <div className="mx-auto flex h-full w-full max-w-[var(--content-max-width)] flex-col">
-      {/* ─── Collection Value Banner ─────────────────────────────── */}
-      <CollectionValueBanner />
 
       {/* ─── Tab Navigation ──────────────────────────────────────── */}
       {/* ─── Browsing View ───────────────────────────────────────── */}

@@ -5,6 +5,12 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { OracleProvider } from '@/contexts/OracleContext'
 import { PageHeaderProvider } from '@/contexts/PageHeaderContext'
 import { useState } from 'react'
+import { useRefreshOnTabReturn } from '@/hooks/useRefreshOnTabReturn'
+
+function RefreshOnTabReturn() {
+  useRefreshOnTabReturn()
+  return null
+}
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -23,6 +29,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <RefreshOnTabReturn />
       <TooltipProvider>
         <OracleProvider>
           <PageHeaderProvider>

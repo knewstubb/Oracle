@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, cleanup, waitFor, fireEvent, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { InHandPage, MissingPage } from './SystemPlacePages'
 import { toast } from 'sonner'
@@ -63,6 +63,38 @@ describe('In your hand page', () => {
   })
 })
 
+describe('In your hand page (instant Placed)', () => {
+  function slow() {
+    let answer: (r: Response | Error) => void = () => undefined
+    const f = vi.fn((url: string) => String(url).startsWith('/api/picklist/')
+      ? new Promise<Response>((resolve, reject) => { answer = (r) => (r instanceof Error ? reject(r) : resolve(r)) })
+      : Promise.resolve(new Response(JSON.stringify(String(url) === '/api/import/destinations' ? { storage: [], decks: [] } : withData), { status: 200 })))
+    vi.stubGlobal('fetch', f)
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><InHandPage /></QueryClientProvider>)
+    return { f, answer: (r: Response | Error) => act(async () => { answer(r) }) }
+  }
+  it('Placed removes the card from the list at once; a double click sends one save', async () => {
+    const { f } = slow()
+    await waitFor(() => expect(screen.getByText('Going to Prosper')).toBeTruthy())
+    const b = screen.getByRole('button', { name: 'Placed: Cultivate' })
+    fireEvent.click(b)
+    fireEvent.click(b)
+    expect(screen.queryByText('Going to Prosper')).toBeNull()
+    expect(f.mock.calls.filter((c) => c[0] === '/api/picklist/placed')).toHaveLength(1)
+  })
+  it('puts the card back with the plain message on a refusal and on a network failure', async () => {
+    const { answer } = slow()
+    await waitFor(() => expect(screen.getByText('Going to Prosper')).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'Placed: Cultivate' }))
+    await answer(new Response(JSON.stringify({ message: 'Cultivate has already moved on.' }), { status: 409 }))
+    expect(toast.error).toHaveBeenCalledWith('Cultivate has already moved on.')
+    expect(screen.getByText('Going to Prosper')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Placed: Cultivate' }))
+    await answer(new TypeError('Failed to fetch'))
+    expect(toast.error).toHaveBeenCalledWith("Couldn't save that. Cultivate is still where Oracle had it.")
+    expect(screen.getByText('Going to Prosper')).toBeTruthy()
+  })
+})
 describe('Missing page', () => {
   it('shows the empty message', async () => {
     mount(<MissingPage />, empty)

@@ -13,8 +13,11 @@ import { usePageHeader } from '@/contexts/PageHeaderContext'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { SystemLocationsResponseWithDestinations as Data } from '@/lib/system-locations'
 import { usePlaceOptions, type PlaceOption } from '@/components/PicklistPlaces'
+import { sendTick } from '@/lib/picklist-tick-client'
+import { usePendingSaves } from '@/hooks/usePendingSaves'
 
 const KEY = ['locations', 'system']
+const failureFallback = "Couldn't save that. The card is still where Oracle had it."
 
 async function failureMessage(res: Response): Promise<string> {
   const j = (await res.json().catch(() => ({}))) as { message?: string }
@@ -60,16 +63,26 @@ export function InHandPage() {
   const qc = useQueryClient()
   const { data, isLoading, isError, refetch } = useSystem()
   const places = useOtherPlaces()
-  const place = useMutation({
-    mutationFn: async (v: { copyId: number; cardName: string; to: Option['to'] }) => {
-      const res = await fetch('/api/picklist/placed', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(v) })
-      if (!res.ok) throw new Error(await failureMessage(res))
-      return v
-    },
-    onSuccess: (v) => { toast.success(`${v.cardName} placed.`); void qc.invalidateQueries({ queryKey: KEY }) },
-    onError: (e: Error) => toast.error(e.message),
-  })
-  const cards = data?.inHand.cards ?? []
+  // Placed: the card leaves the list at once and the save runs in the background. A refusal or a network failure
+  // puts it back with the plain message. One save per card at a time.
+  const pending = usePendingSaves<number>()
+  const place = async (v: { copyId: number; cardName: string; to: Option['to'] }) => {
+    const token = pending.start(v.copyId, v.copyId)
+    if (token === null) return
+    try {
+      await sendTick('placed', v)
+    } catch (e) {
+      pending.fail(v.copyId, token)
+      toast.error(e instanceof Error ? e.message : failureFallback)
+      return
+    }
+    pending.saved(v.copyId)
+    toast.success(`${v.cardName} placed.`)
+    await qc.invalidateQueries({ queryKey: KEY })
+    pending.clear(v.copyId, token)
+  }
+  const hidden = new Set(pending.values)
+  const cards = (data?.inHand.cards ?? []).filter((c) => !hidden.has(c.copyId))
   return (
     <Shell title="In your hand" subtitle="Cards you've picked up and haven't put down yet">
       {isLoading ? <Loading /> : isError ? <LoadError retry={() => void refetch()} /> : cards.length === 0 ? (
@@ -88,9 +101,8 @@ export function InHandPage() {
                 <button
                   type="button"
                   className="min-h-12 rounded-md bg-[var(--accent-primary)] px-4 text-[length:var(--fs-sm)] font-medium text-white md:min-h-11"
-                  disabled={place.isPending}
                   aria-label={`Placed: ${c.cardName}`}
-                  onClick={() => place.mutate({
+                  onClick={() => void place({
                     copyId: c.copyId, cardName: c.cardName,
                     to: c.destination!.kind === 'deck'
                       ? { kind: 'deck', deckId: c.destination!.deckId, ...(c.destination!.deckCardId ? { deckCardId: c.destination!.deckCardId } : {}) } as Option['to']
@@ -102,10 +114,9 @@ export function InHandPage() {
                 aria-label={`Put ${c.cardName} somewhere else`}
                 className="min-h-12 rounded-md border border-[var(--border-default)] bg-card px-2 text-[length:var(--fs-sm)] md:min-h-11"
                 value=""
-                disabled={place.isPending}
                 onChange={(e) => {
                   const opt = (places.data ?? []).find((o) => o.value === e.target.value)
-                  if (opt) place.mutate({ copyId: c.copyId, cardName: c.cardName, to: opt.to })
+                  if (opt) void place({ copyId: c.copyId, cardName: c.cardName, to: opt.to })
                 }}
               >
                 <option value="">Put it somewhere else…</option>

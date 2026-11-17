@@ -99,3 +99,59 @@ export function unownedFootnote(count: number, deckName: string): string | null 
   if (count <= 0) return null
   return `${count} unowned card${count === 1 ? '' : 's'} in ${deckName} ${count === 1 ? "isn't" : "aren't"} listed here. Open the deck's Picklist.`
 }
+
+/** A change shown at once on the all-decks Picklist, before the save answers. */
+export interface WalkOptimistic { itemId: number; state: WalkItem['state'] }
+
+/**
+ * The all-decks view with some rows already in their new state. The row leaves its old stop and joins the stop the
+ * server will put it in (picked-up and placed rows sit under the place they are going to, others under where they
+ * are taken from). Safe to apply on data that already has the saved result. Pure.
+ */
+export function applyWalkOptimistic(data: AllDecksPicklist, changes: readonly WalkOptimistic[]): AllDecksPicklist {
+  if (changes.length === 0) return data
+  const byItem = new Map(changes.map((c) => [c.itemId, c.state]))
+  const moved: WalkRow[] = []
+  const counts = { ...data.counts }
+  const bucket = (st: WalkItem['state']) => (st === 'to_find' ? 'open' : st) as 'open' | 'found' | 'placed' | 'missing'
+  const strip = (stops: WalkStop[]) => stops
+    .map((s) => ({
+      ...s,
+      rows: s.rows.filter((r) => {
+        const next = byItem.get(r.itemId)
+        if (next === undefined) return true
+        if (next !== r.state) {
+          counts[bucket(r.state)] -= 1
+          counts[bucket(next)] += 1
+        }
+        moved.push({ ...r, state: next })
+        return false
+      }),
+    }))
+    .filter((s) => s.rows.length > 0)
+  const boxes = strip(data.takeFromBoxes)
+  const decks = strip(data.takeFromDecks)
+  const places = strip(data.placeIn)
+  const addTo = (list: WalkStop[], key: string, placeName: string, row: WalkRow) => {
+    const stop = list.find((s) => s.key === key)
+    if (stop) stop.rows.push(row)
+    else list.push({ key, placeName, isUnsorted: false, rows: [row] })
+  }
+  for (const row of moved) {
+    if (row.state === 'found' || row.state === 'placed') {
+      addTo(places, row.toDeckId !== null ? `d${row.toDeckId}` : `l${row.toLocationId}`, row.toName, row)
+    } else {
+      const name = row.fromName ?? 'Unknown place'
+      const home = decks.find((s) => s.placeName === name) ?? boxes.find((s) => s.placeName === name)
+      if (home) home.rows.push(row)
+      else addTo(boxes, row.fromName === null ? 'none' : `opt-${name}`, name, row)
+    }
+  }
+  for (const list of [boxes, decks, places]) {
+    for (const s of list) s.rows.sort((a, b) => a.cardName.localeCompare(b.cardName) || a.itemId - b.itemId)
+  }
+  decks.sort(byName)
+  places.sort(byName)
+  boxes.sort((a, b) => (a.isUnsorted !== b.isUnsorted ? (a.isUnsorted ? -1 : 1) : byName(a, b)))
+  return { ...data, takeFromBoxes: boxes, takeFromDecks: decks, placeIn: places, counts }
+}

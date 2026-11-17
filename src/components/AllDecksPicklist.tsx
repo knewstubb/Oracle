@@ -1,13 +1,15 @@
 'use client'
 
 /** "Picklist · all decks". Spec: docs/oracle/specs/know-where-cards-are.md sections 4 and 20.5. Ticks save at once. */
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { usePageHeader } from '@/contexts/PageHeaderContext'
 import { Skeleton } from '@/components/ui/skeleton'
 import { undoToastText } from '@/lib/move-routines'
-import { unownedFootnote, type AllDecksPicklist as Data, type WalkRow, type WalkStop } from '@/lib/all-decks-picklist'
+import { sendTick } from '@/lib/picklist-tick-client'
+import { usePendingSaves } from '@/hooks/usePendingSaves'
+import { applyWalkOptimistic, unownedFootnote, type AllDecksPicklist as Data, type WalkOptimistic, type WalkRow, type WalkStop } from '@/lib/all-decks-picklist'
 
 const KEY = ['picklist', 'all-decks']
 type Action = 'found' | 'placed' | 'cant-find'
@@ -22,7 +24,7 @@ function toBody(row: WalkRow) {
 export function AllDecksPicklist() {
   const qc = useQueryClient()
   const [announce, setAnnounce] = useState('')
-  const { data, isLoading, isError, refetch } = useQuery<Data>({
+  const { data: serverData, isLoading, isError, refetch } = useQuery<Data>({
     queryKey: KEY,
     queryFn: async () => {
       const res = await fetch('/api/picklist')
@@ -30,38 +32,57 @@ export function AllDecksPicklist() {
       return res.json()
     },
   })
-  const tick = useMutation({
-    mutationFn: async (v: { action: Action; row: WalkRow }) => {
-      const res = await fetch(`/api/picklist/${v.action}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(toBody(v.row)) })
-      const json = (await res.json().catch(() => ({}))) as { message?: string }
-      if (!res.ok) throw new Error(json.message || `Couldn't save that. ${v.row.cardName} is still where Oracle had it.`)
-      return v
-    },
-    onSuccess: (v) => {
-      const text = v.action === 'found' ? `${v.row.cardName} is in your hand.` : v.action === 'placed' ? `${v.row.cardName} placed.` : `${v.row.cardName} marked Missing.`
-      toast.success(text); setAnnounce(text)
-      void qc.invalidateQueries({ queryKey: KEY })
-      void qc.invalidateQueries({ queryKey: ['locations', 'system'] })
-    },
-    onError: (e: Error) => { toast.error(e.message); setAnnounce(e.message) },
-  })
+  // Ticks and Undo show their result at once. A refusal or a network failure puts the row back with the plain
+  // message. One save per row at a time; a re-read of the Picklist cannot undo a save that is still running.
+  const pending = usePendingSaves<WalkOptimistic>()
+  const data = useMemo(() => (serverData ? applyWalkOptimistic(serverData, pending.values) : serverData), [serverData, pending.values])
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: KEY })
     void qc.invalidateQueries({ queryKey: ['locations', 'system'] })
   }
-  const undo = useMutation({
-    mutationFn: async (row: WalkRow) => {
-      const res = await fetch(`/api/moves/items/${row.itemId}/undo`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expectedState: row.state, cardName: row.cardName }) })
+  const settle = async (itemId: number, token: number) => {
+    // Keep the new state until the Picklist has been re-read, then hand over to the server's answer.
+    void qc.invalidateQueries({ queryKey: ['locations', 'system'] })
+    await qc.invalidateQueries({ queryKey: KEY })
+    pending.clear(itemId, token)
+  }
+  const failed = (itemId: number, token: number, e: unknown) => {
+    pending.fail(itemId, token)
+    const text = e instanceof Error ? e.message : "Couldn't save that."
+    toast.error(text); setAnnounce(text)
+  }
+  const tick = async (v: { action: Action; row: WalkRow }) => {
+    const { row } = v
+    const state: WalkOptimistic['state'] = v.action === 'found' ? 'found' : v.action === 'placed' ? 'placed' : 'missing'
+    const token = pending.start(row.itemId, { itemId: row.itemId, state })
+    if (token === null) return
+    try {
+      await sendTick(v.action === 'cant-find' ? 'cant_find' : v.action, toBody(row) as { copyId: number; cardName: string; to: unknown })
+    } catch (e) { failed(row.itemId, token, e); return }
+    pending.saved(row.itemId)
+    const text = v.action === 'found' ? `${row.cardName} is in your hand.` : v.action === 'placed' ? `${row.cardName} placed.` : `${row.cardName} marked Missing.`
+    toast.success(text); setAnnounce(text)
+    await settle(row.itemId, token)
+  }
+  const undo = async (row: WalkRow) => {
+    const optimistic: WalkOptimistic['state'] = row.state === 'placed' ? 'found' : 'to_find'
+    const token = pending.start(row.itemId, { itemId: row.itemId, state: optimistic })
+    if (token === null) return
+    let state: 'found' | 'to_find'
+    try {
+      let res: Response
+      try {
+        res = await fetch(`/api/moves/items/${row.itemId}/undo`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expectedState: row.state, cardName: row.cardName }) })
+      } catch { throw new Error(`Couldn't undo that. ${row.cardName} is still where Oracle had it.`) }
       const json = (await res.json().catch(() => ({}))) as { message?: string; state?: 'found' | 'to_find' }
       if (!res.ok) throw new Error(json.message || `Couldn't undo that. ${row.cardName} is still where Oracle had it.`)
-      return { row, state: json.state ?? 'to_find' }
-    },
-    onSuccess: ({ row, state }) => {
-      const text = undoToastText(row.cardName, row.state as 'placed' | 'found' | 'missing', state)
-      toast.success(text); setAnnounce(text); refresh()
-    },
-    onError: (e: Error) => { toast.error(e.message); setAnnounce(e.message) },
-  })
+      state = json.state ?? 'to_find'
+    } catch (e) { failed(row.itemId, token, e); return }
+    pending.saved(row.itemId)
+    const text = undoToastText(row.cardName, row.state as 'placed' | 'found' | 'missing', state)
+    toast.success(text); setAnnounce(text)
+    await settle(row.itemId, token)
+  }
   const cancel = useMutation({
     mutationFn: async (row: WalkRow) => {
       const res = await fetch(`/api/moves/items/${row.itemId}/cancel`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cardName: row.cardName }) })
@@ -75,7 +96,7 @@ export function AllDecksPicklist() {
     },
     onError: (e: Error) => { toast.error(e.message); setAnnounce(e.message) },
   })
-  const rowActions: RowActions = { tick: tick.mutate, undo: undo.mutate, cancel: cancel.mutate, busy: tick.isPending || undo.isPending || cancel.isPending }
+  const rowActions: RowActions = { tick, undo, cancel: cancel.mutate, busy: cancel.isPending, isSaving: pending.isSaving }
   usePageHeader({ title: 'Picklist', subtitle: 'All decks' })
 
   const stops = (data?.takeFromBoxes.length ?? 0) + (data?.takeFromDecks.length ?? 0) + (data?.placeIn.length ?? 0)
@@ -126,10 +147,11 @@ interface RowActions {
   undo: (row: WalkRow) => void
   cancel: (row: WalkRow) => void
   busy: boolean
+  isSaving: (itemId: number) => boolean
 }
 
 function Section({ title, stops, actions }: { title: string; stops: WalkStop[]; actions: RowActions }) {
-  const { tick, undo, cancel, busy } = actions
+  const { tick, undo, cancel, isSaving } = actions
   if (stops.length === 0) return null
   const btn = 'min-h-12 rounded-md border border-[var(--border-default)] px-3 text-[length:var(--fs-sm)] md:min-h-11'
   return (
@@ -139,7 +161,9 @@ function Section({ title, stops, actions }: { title: string; stops: WalkStop[]; 
         <div key={s.key} className="mt-3" data-testid={`stop-${s.placeName}`}>
           <div className="font-medium">{s.placeName}</div>
           <ul className="mt-1 space-y-2">
-            {s.rows.map((r) => (
+            {s.rows.map((r) => {
+              const busy = actions.busy || isSaving(r.itemId)
+              return (
               <li key={r.itemId} className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--border-default)] p-3">
                 <div className="min-w-0 flex-1">
                   <div className={r.state === 'placed' ? 'font-medium line-through opacity-60' : 'font-medium'}>{r.cardName}{r.isProxy ? ' (proxy)' : ''}</div>
@@ -161,7 +185,8 @@ function Section({ title, stops, actions }: { title: string; stops: WalkStop[]; 
                   <button type="button" className="min-h-11 text-[length:var(--fs-sm)] text-muted-foreground underline" disabled={busy} aria-label={`Undo: ${r.cardName}`} onClick={() => undo(r)}>Undo</button>
                 )}
               </li>
-            ))}
+              )
+            })}
           </ul>
         </div>
       ))}

@@ -10,7 +10,10 @@ import { Button } from '@/components/ui/button'
 import { MoveHereControl } from '@/components/MoveHereControl'
 import { categorizeCards, type PicklistCard } from '@/lib/picklist-groups'
 import { excludeSlotsWithOpenItems, itemGroup, type DeckMoveItem } from '@/lib/picklist-move-items'
-import { tickToastText, type PicklistTickAction, type TickResult } from '@/lib/picklist-ticks'
+import { tickToastText, type PicklistTickAction } from '@/lib/picklist-ticks'
+import { sendTick } from '@/lib/picklist-tick-client'
+import { applyOptimisticTicks, type OptimisticTick } from '@/lib/picklist-optimistic'
+import { usePendingSaves } from '@/hooks/usePendingSaves'
 import { toPrice, formatPrice } from '@/lib/deck-health-buy'
 import { CardHoverPreview, useCardHoverPreview } from '@/components/CardHoverPreview'
 import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
@@ -36,12 +39,9 @@ interface PicklistResponse {
   moveItems?: DeckMoveItem[]
 }
 
-interface TickVars {
-  action: PicklistTickAction
-  copyId: number
-  cardName: string
-  to: { kind: 'deck'; deckId: number; deckCardId?: number }
-}
+/** What a row knows about its own copy; the optimistic In your hand row is built from it. */
+interface TickMeta { isProxy: boolean; from: DeckMoveItem['from'] }
+type TickFn = (action: PicklistTickAction, card: { deckCardsId: number; cardName: string }, copyId: number, meta: TickMeta) => void
 
 // ---------------------------------------------------------------------------
 // Component
@@ -53,7 +53,7 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
   const queryClient = useQueryClient()
   const [collapsed, setCollapsed] = useState<Record<GroupKey, boolean>>({ available: false, needsMoving: false, unowned: false })
 
-  const { data: picklist, isLoading, isError, refetch } = useQuery<PicklistResponse>({
+  const { data: serverPicklist, isLoading, isError, refetch } = useQuery<PicklistResponse>({
     queryKey: deckKeys.picklist(deckId),
     queryFn: () => fetch(`/api/decks/${deckId}/picklist`).then(r => {
       if (!r.ok) throw new Error('Failed to load picklist')
@@ -62,6 +62,12 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
     staleTime: 30 * 1000,
   })
 
+  // Clicks show their result at once (pending), on top of whatever the server last said. A re-read cannot undo them.
+  const pending = usePendingSaves<OptimisticTick>()
+  const picklist = useMemo(
+    () => (serverPicklist ? applyOptimisticTicks(serverPicklist, pending.values) : serverPicklist),
+    [serverPicklist, pending.values],
+  )
   const { available, needsMoving, unowned } = useMemo(() => {
     if (!picklist) return { available: [], needsMoving: [], unowned: [] }
     // Slots with a saved step (In your hand / Missing) are shown as their own rows, not regrouped.
@@ -94,58 +100,34 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
     return { filteredAvailable, filteredNeedsMoving, filteredUnowned }
   }, [available, needsMoving, unowned, searchQuery])
 
-  // "Placed it" mutation: the copy is free in a box, so it is assigned to this deck
-  const assignMutation = useMutation({
-    mutationFn: async (body: { deckCardsId: number; physicalCopyId: number; tier?: number }) => {
-      const res = await fetch('/api/allocation/assign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || 'Assignment failed')
-      }
-      return res.json()
-    },
-    onSuccess: () => {
-      const { invalidateCardState } = createDeckInvalidators(queryClient)
-      invalidateCardState(deckId)
-    },
-  })
-
-  // Found it / Placed it / Can't find it: one saved step per click. Not optimistic: the row only changes once the
-  // step is saved, and a refusal leaves the row exactly as it was with a plain message.
-  const tickMutation = useMutation({
-    mutationFn: async (vars: TickVars): Promise<TickResult> => {
-      const segment = vars.action === 'cant_find' ? 'cant-find' : vars.action
-      const res = await fetch(`/api/picklist/${segment}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ copyId: vars.copyId, to: vars.to, cardName: vars.cardName }),
-      })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json.message || `Couldn't save that. ${vars.cardName} is still where Oracle had it.`)
-      return json as TickResult
-    },
-    onSuccess: (result, vars) => {
-      const text = tickToastText(vars.action, vars.cardName, result, 'this deck')
-      toast.success(text)
-      setAnnounce(text)
-      const { invalidateCardState, invalidateDeck } = createDeckInvalidators(queryClient)
-      invalidateCardState(deckId)
-      invalidateDeck(deckId)
-      for (const d of [...result.sourceDeckNowShort, ...result.decksNowShort]) invalidateDeck(d.deckId)
-      queryClient.invalidateQueries({ queryKey: ['picklist'] })
-      queryClient.invalidateQueries({ queryKey: ['locations', 'system'] })
-      queryClient.invalidateQueries({ queryKey: ['storage'] })
-    },
-    onError: (err) => {
+  // Picked / Placed / Can't find it: the row moves at once and the save runs in the background. When the server
+  // refuses (or cannot be reached) the row goes back where it was and the plain message is shown. Only one save per
+  // copy at a time, so a double click sends one request.
+  const runSave = useCallback(async <R,>(
+    opt: OptimisticTick,
+    save: () => Promise<R>,
+    onSaved: (result: R) => string,
+  ) => {
+    const token = pending.start(opt.copyId, opt)
+    if (token === null) return
+    let result: R
+    try {
+      result = await save()
+    } catch (err) {
+      pending.fail(opt.copyId, token)
       const text = err instanceof Error ? err.message : "Couldn't save that."
       toast.error(text)
       setAnnounce(text)
-    },
-  })
+      return
+    }
+    pending.saved(opt.copyId)
+    const text = onSaved(result)
+    toast.success(text)
+    setAnnounce(text)
+    // Keep the new state on screen until the Picklist has been re-read, then hand over to the server's answer.
+    await queryClient.invalidateQueries({ queryKey: deckKeys.picklist(deckId) })
+    pending.clear(opt.copyId, token)
+  }, [pending, queryClient, deckId])
 
   // Proxy mutation
   const proxyMutation = useMutation({
@@ -176,19 +158,47 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
   })
 
   const handlePlaced = useCallback((card: PicklistCard, candidate: RankedCandidate) => {
-    assignMutation.mutate(
-      { deckCardsId: card.deckCardsId, physicalCopyId: candidate.entry.physicalCopyId },
-      {
-        onSuccess: () => toast.success(`Placed ${card.cardName}`),
-        onError: (err) => toast.error(err instanceof Error ? err.message : 'Could not place that card'),
+    void runSave(
+      { action: 'placed', copyId: candidate.entry.physicalCopyId, deckCardsId: card.deckCardsId, cardName: card.cardName, isProxy: candidate.entry.isProxy, from: null },
+      async () => {
+        let res: Response
+        try {
+          res = await fetch('/api/allocation/assign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deckCardsId: card.deckCardsId, physicalCopyId: candidate.entry.physicalCopyId }),
+          })
+        } catch {
+          throw new Error('Could not place that card')
+        }
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(err.error || 'Could not place that card')
+        }
+        return res.json().catch(() => ({}))
+      },
+      () => {
+        createDeckInvalidators(queryClient).invalidateCardState(deckId)
+        return `Placed ${card.cardName}`
       },
     )
-  }, [assignMutation])
-
-  const tick = useCallback((action: PicklistTickAction, card: { deckCardsId: number; cardName: string }, copyId: number) => {
-    tickMutation.mutate({ action, copyId, cardName: card.cardName, to: { kind: 'deck', deckId, deckCardId: card.deckCardsId } })
-  }, [tickMutation, deckId])
-
+  }, [runSave, queryClient, deckId])
+  const tick: TickFn = useCallback((action, card, copyId, meta) => {
+    void runSave(
+      { action, copyId, deckCardsId: card.deckCardsId, cardName: card.cardName, isProxy: meta.isProxy, from: meta.from },
+      () => sendTick(action, { copyId, cardName: card.cardName, to: { kind: 'deck', deckId, deckCardId: card.deckCardsId } }),
+      (result) => {
+        const { invalidateCardState, invalidateDeck } = createDeckInvalidators(queryClient)
+        invalidateCardState(deckId)
+        invalidateDeck(deckId)
+        for (const d of [...result.sourceDeckNowShort, ...result.decksNowShort]) invalidateDeck(d.deckId)
+        queryClient.invalidateQueries({ queryKey: ['picklist'] })
+        queryClient.invalidateQueries({ queryKey: ['locations', 'system'] })
+        queryClient.invalidateQueries({ queryKey: ['storage'] })
+        return tickToastText(action, card.cardName, result, 'this deck')
+      },
+    )
+  }, [runSave, queryClient, deckId])
   const handleProxy = useCallback((card: PicklistCard) => {
     proxyMutation.mutate({ deckCardsId: card.deckCardsId, cardName: card.cardName })
     toast.success(`Adding proxy for ${card.cardName}`)
@@ -233,7 +243,7 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
     )
   }
 
-  const isPending = assignMutation.isPending || proxyMutation.isPending || tickMutation.isPending
+  const isPending = proxyMutation.isPending
 
   // Empty deck — no cards at all
   if (picklist.progress.total === 0) {
@@ -260,7 +270,7 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
     moveItems.filter(i => itemGroup(i) === g && (!q || i.cardName.toLowerCase().includes(q)))
   const availableItems = itemsFor('available')
   const needsMovingItems = itemsFor('needsMoving')
-  const busyCopyId = tickMutation.isPending ? tickMutation.variables?.copyId : null
+  const isSaving = pending.isSaving
   const prices = picklist.unownedPrices ?? {}
   const toggle = (k: GroupKey) => setCollapsed((c) => ({ ...c, [k]: !c[k] }))
 
@@ -317,7 +327,7 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
           onToggle={() => toggle('available')}
         >
           {availableItems.length > 0 && (
-            <ItemSection items={availableItems} deckId={deckId} busyCopyId={busyCopyId} onTick={tick} />
+            <ItemSection items={availableItems} deckId={deckId} isSaving={isSaving} onTick={tick} />
           )}
           {filteredAvailable.length === 0 && availableItems.length === 0 ? (
             <EmptyColumn message="Nothing here is waiting in a box." />
@@ -337,10 +347,10 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
                           size="xs"
                           variant="outline"
                           disabled={isPending}
-                          onClick={() => tick('found', card, candidate.entry.physicalCopyId)}
+                          onClick={() => tick('found', card, candidate.entry.physicalCopyId, { isProxy: candidate.entry.isProxy, from: { kind: 'box', name: group.location } })}
                           aria-label={`Picked: ${card.cardName}`}
                         >
-                          {busyCopyId === candidate.entry.physicalCopyId ? 'Saving…' : 'Picked'}
+                          Picked
                         </Button>
                         <Button
                           size="xs"
@@ -356,7 +366,7 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
                         <button
                           type="button"
                           disabled={isPending}
-                          onClick={() => tick('cant_find', card, candidate.entry.physicalCopyId)}
+                          onClick={() => tick('cant_find', card, candidate.entry.physicalCopyId, { isProxy: candidate.entry.isProxy, from: { kind: 'box', name: group.location } })}
                           aria-label={`Can't find it: ${card.cardName}`}
                           className="text-[length:var(--fs-xs)] text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:opacity-50"
                         >
@@ -381,7 +391,7 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
           onToggle={() => toggle('needsMoving')}
         >
           {needsMovingItems.length > 0 && (
-            <ItemSection items={needsMovingItems} deckId={deckId} busyCopyId={busyCopyId} onTick={tick} />
+            <ItemSection items={needsMovingItems} deckId={deckId} isSaving={isSaving} onTick={tick} />
           )}
           {filteredNeedsMoving.length === 0 && needsMovingItems.length === 0 ? (
             <EmptyColumn message="Nothing needs to move from another deck." />
@@ -408,10 +418,10 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
                               size="xs"
                               variant="outline"
                               disabled={isPending}
-                              onClick={() => tick('found', card, candidate.entry.physicalCopyId)}
+                              onClick={() => tick('found', card, candidate.entry.physicalCopyId, { isProxy: candidate.entry.isProxy, from: { kind: 'deck', deckId: candidate.entry.assignedTo?.deckId ?? 0, name: group.deckName } })}
                               aria-label={`Picked: ${card.cardName}`}
                             >
-                              {busyCopyId === candidate.entry.physicalCopyId ? 'Saving…' : 'Picked'}
+                              Picked
                             </Button>
                             <Button
                               size="xs"
@@ -603,12 +613,12 @@ function CardRow({
 
 /** In your hand and Missing rows: the saved steps for this deck's slots. */
 function ItemSection({
-  items, deckId, busyCopyId, onTick,
+  items, deckId, isSaving, onTick,
 }: {
   items: DeckMoveItem[]
   deckId: number
-  busyCopyId: number | null | undefined
-  onTick: (action: PicklistTickAction, card: { deckCardsId: number; cardName: string }, copyId: number) => void
+  isSaving: (copyId: number) => boolean
+  onTick: TickFn
 }) {
   const hand = items.filter((i) => i.state === 'found')
   const missing = items.filter((i) => i.state === 'missing')
@@ -618,7 +628,8 @@ function ItemSection({
         <GroupSection title={`IN YOUR HAND (${hand.length})`} subtitle="Short by 1 while it is in your hand">
           {hand.map((item) => {
             const card = { deckCardsId: item.deckCardsId ?? 0, cardName: item.cardName }
-            const busy = busyCopyId === item.copyId
+            const busy = isSaving(item.copyId)
+            const meta = { isProxy: item.isProxy, from: item.from }
             return (
               <CardRow
                 key={item.itemId}
@@ -627,24 +638,24 @@ function ItemSection({
                 subtitle={item.isProxy ? 'Proxy' : 'Original'}
                 scryfallPrintingId={null}
                 badge={<StateBadge kind="in_hand" />}
-                note={item.from ? `From ${item.from.name}` : undefined}
+                note={[item.from ? `From ${item.from.name}` : null, busy ? 'Saving…' : null].filter(Boolean).join(' · ') || undefined}
                 action={
                   <div className="flex flex-wrap items-center justify-end gap-2">
                     <Button
                       size="xs"
                       variant="outline"
-                      disabled={busyCopyId != null || item.deckCardsId === null}
-                      onClick={() => onTick('placed', card, item.copyId)}
+                      disabled={busy || item.deckCardsId === null}
+                      onClick={() => onTick('placed', card, item.copyId, meta)}
                       aria-label={`Placed: ${item.cardName}`}
                       className="hover:bg-[rgba(29,158,117,0.15)] transition-all"
                       style={{ color: 'rgba(29,158,117,0.7)', borderColor: 'rgba(29,158,117,0.5)' }}
                     >
-                      {busy ? 'Saving…' : 'Placed'}
+                      Placed
                     </Button>
                     <button
                       type="button"
-                      disabled={busyCopyId != null}
-                      onClick={() => onTick('cant_find', card, item.copyId)}
+                      disabled={busy}
+                      onClick={() => onTick('cant_find', card, item.copyId, meta)}
                       aria-label={`Can't find it: ${item.cardName}`}
                       className="text-[length:var(--fs-xs)] text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:opacity-50"
                     >

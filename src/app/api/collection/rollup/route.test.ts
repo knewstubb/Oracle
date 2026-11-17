@@ -8,6 +8,7 @@ import { NextRequest } from 'next/server'
 type MockResponse = { data?: unknown; error?: unknown; count?: number | null }
 
 let queues: Record<string, MockResponse[]>
+let orCalls: Array<{ table: string; expr: string }>
 let deferredTables: Record<string, { promise: Promise<MockResponse>; onStart: () => void }>
 
 function nextResponse(table: string): MockResponse {
@@ -29,6 +30,10 @@ function createQueryMock(table: string) {
     in: () => chain,
     ilike: () => chain,
     not: () => chain,
+    or: (expr: string) => {
+      orCalls.push({ table, expr })
+      return chain
+    },
     order: () => chain,
     range: () => chain,
   }
@@ -66,6 +71,7 @@ vi.mock('@/lib/price-store', () => ({
 }))
 
 import { GET } from './route'
+import { clearFactlessCopyCache } from '@/lib/collection-colour-filter'
 
 function callGET(params: Record<string, string> = {}) {
   const url = new URL('http://localhost:3000/api/collection/rollup')
@@ -76,6 +82,8 @@ function callGET(params: Record<string, string> = {}) {
 describe('GET /api/collection/rollup — B1 price-freshness read', () => {
   beforeEach(() => {
     queues = {}
+    orCalls = []
+    clearFactlessCopyCache()
     deferredTables = {}
     mockAuthResult = { id: 'user-123' }
     mockGetLastRefreshTimestamp.mockReset()
@@ -261,5 +269,27 @@ describe('GET /api/collection/rollup — B1 price-freshness read', () => {
     // isPriceDataStale is never reached because Promise.all rejects first.
     expect(mockGetLastRefreshTimestamp).toHaveBeenCalledTimes(1)
     expect(mockIsPriceDataStale).not.toHaveBeenCalled()
+  })
+
+  it.each(['exact', 'includes'])('%s + colourless (grid view): lists the colourless cards from the card library view', async (mode) => {
+    queue('connector_collection_copies', { data: [], error: null }) // copies the view cannot judge: none
+    queue('connector_collection_copies', {
+      data: [{ card_id: 7, card_name: 'Sol Ring' }, { card_id: 7, card_name: 'Sol Ring' }],
+      count: 2,
+      error: null,
+    })
+    queue('user_cards', {
+      data: [{ id: 7, card_name: 'Sol Ring', oracle_id: 'o-7', color_identity: '', type_line: null }],
+      error: null,
+    })
+    queue('user_copies', { data: [{ id: 1, card_id: 7, printing_id: null, finish: 'nonfoil' }], error: null })
+    const res = await callGET({ colors: 'C', colorMode: mode })
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.totalCount).toBe(1) // two copies, one card
+    expect(body.rows.map((r: { cardName: string }) => r.cardName)).toEqual(['Sol Ring'])
+    expect(orCalls.find((c) => c.table === 'connector_collection_copies')?.expr).toBe(
+      'and(facts_available.eq.true,is_colourless.eq.true)'
+    )
   })
 })

@@ -50,12 +50,14 @@ export function useCollectionPrintings(params: CollectionPrintingsParams = {}): 
     search = '',
     sort = 'cardName',
     sortDir = 'asc',
-    colors = [],
+    colors: colorsParam = [],
     colorMode = 'includes',
     includeProxies = false,
     enabled = true,
   } = params
 
+  // Same colours in any click order are the same request (and the same cache entry)
+  const colors = [...colorsParam].sort()
   // Build query string
   const queryString = new URLSearchParams({
     page: String(page),
@@ -69,8 +71,9 @@ export function useCollectionPrintings(params: CollectionPrintingsParams = {}): 
 
   return useQuery<CollectionPrintingsResponse>({
     queryKey: ['collection', 'printings', page, pageSize, search, sort, sortDir, colors.join(','), colorMode, includeProxies],
-    queryFn: async () => {
-      const res = await fetch(`/api/collection/printings?${queryString}`)
+    queryFn: async ({ signal }) => {
+      // signal: a request that is no longer wanted (the filter changed again) is cancelled
+      const res = await fetch(`/api/collection/printings?${queryString}`, { signal })
       if (!res.ok) {
         throw new Error('Failed to load collection data')
       }

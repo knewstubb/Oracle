@@ -7,6 +7,13 @@ import {
   type RawPhysicalCopy,
   type PrintingRowResponse,
 } from '@/lib/collection-printing-utils'
+import {
+  asViewClient,
+  colourOrExpression,
+  matchesColourFilter,
+  matchingFactlessCopyIds,
+  parseColourFilter,
+} from '@/lib/collection-colour-filter'
 import { NextRequest } from 'next/server'
 
 /**
@@ -116,110 +123,47 @@ export async function GET(request: NextRequest) {
 
   try {
     const offset = (page - 1) * pageSize
-    const lastPriceRefresh = await getLastRefreshTimestamp()
-    const priceStale = await isPriceDataStale(lastPriceRefresh)
-
     // ══════════════════════════════════════════════════════════════════════════
-    // OPTIMIZED PATH: cardName sort without color filter
-    // Strategy: Use parallel batch queries to minimize round-trips.
-    // We fetch ALL copies (filtered) in parallel batches, sort in memory, then paginate.
+    // FAST PATH: cardName sort (the default), with or without search, colour filter and proxies.
+    // The database filters, sorts and counts, and only one page of copies ever leaves it. Colour comes from
+    // the connector_collection_copies view (colourless = no colours, see collection-colour-filter.ts).
     // ══════════════════════════════════════════════════════════════════════════
-    if (sort === 'cardName' && colors.length === 0) {
-      // Step 1: Get total count and ALL card_ids with copies in ONE query using count
-      // Then fetch copies in PARALLEL batches
-      
-      // First, get the count of copies to know how many batches we need
-      let countQuery = supabase
-        .from('user_copies')
-        .select('id', { count: 'exact', head: true })
+    if (sort === 'cardName') {
+      const colourFilter = parseColourFilter(colors, colorMode)
+      // The freshness read does not depend on the page, so it starts now and runs alongside the rest.
+      const refreshPromise = getLastRefreshTimestamp()
+      const extraCopyIds = colourFilter ? await matchingFactlessCopyIds(supabase, userId, colourFilter) : []
+      let pageQuery = asViewClient(supabase)
+        .from('connector_collection_copies')
+        .select('copy_id, card_id, printing_id, finish, is_proxy, card_name', { count: 'exact' })
         .eq('user_id', userId)
-      
-      if (!includeProxies) {
-        countQuery = countQuery.eq('is_proxy', false)
-      }
+      if (!includeProxies) pageQuery = pageQuery.eq('is_proxy', false)
+      if (search) pageQuery = pageQuery.ilike('card_name', `%${escapeLike(search)}%`)
+      if (colourFilter) pageQuery = pageQuery.or(colourOrExpression(colourFilter, extraCopyIds))
+      pageQuery = pageQuery
+        .order('card_name', { ascending: sortDir === 'asc' })
+        .order('copy_id', { ascending: true })
+        .range(offset, offset + pageSize - 1)
 
-      const { count: totalCopies } = await countQuery
-      
-      if (!totalCopies || totalCopies === 0) {
-        return Response.json({
-          rows: [],
-          totalCount: 0,
-          page,
-          pageSize,
-          lastPriceRefresh,
-          isPriceStale: priceStale,
-        } as CollectionPrintingsResponse)
-      }
-
-      // Step 2: Fetch ALL copies in PARALLEL batches (much faster than sequential)
-      const PAGE_SIZE_BATCH = 1000
-      const numBatches = Math.ceil(totalCopies / PAGE_SIZE_BATCH)
-      
-      const batchPromises = Array.from({ length: numBatches }, (_, i) => {
-        let batchQuery = supabase
-          .from('user_copies')
-          .select(`
-            id,
-            card_id,
-            printing_id,
-            finish,
-            is_proxy,
-            created_at,
-            user_cards!user_copies_card_id_fkey (
-              card_name
-            )
-          `)
-          .eq('user_id', userId)
-          .range(i * PAGE_SIZE_BATCH, (i + 1) * PAGE_SIZE_BATCH - 1)
-        
-        if (!includeProxies) {
-          batchQuery = batchQuery.eq('is_proxy', false)
-        }
-
-        return batchQuery
-      })
-
-      const batchResults = await Promise.all(batchPromises)
-      
-      // Combine all copies
-      let allCopiesRaw: UserCopyWithCardName[] = []
-      for (const { data } of batchResults) {
-        if (data) allCopiesRaw.push(...data)
-      }
-
-      // Apply search filter if present (filter by card_name from joined data)
-      if (search) {
-        const searchLower = search.toLowerCase()
-        allCopiesRaw = allCopiesRaw.filter(row => {
-          const cardName = row.user_cards?.card_name || ''
-          return cardName.toLowerCase().includes(searchLower)
-        })
-      }
-
-      // Normalize and sort ALL copies by card_name
-      const allCopies = allCopiesRaw.map((row) => {
-        const card = row.user_cards
-        return {
-          id: row.id,
-          card_id: row.card_id,
-          printing_id: row.printing_id,
-          finish: row.finish as 'nonfoil' | 'foil' | 'etched',
-          is_proxy: row.is_proxy,
-          created_at: row.created_at,
-          card_name: card?.card_name || '',
-        }
-      })
-
-      // Sort ALL copies by card_name
-      allCopies.sort((a, b) => {
-        const cmp = a.card_name.toLowerCase().localeCompare(b.card_name.toLowerCase())
-        return sortDir === 'asc' ? cmp : -cmp
-      })
-
-      const totalCount = allCopies.length
-
-      // Paginate
-      const pageCopies = allCopies.slice(offset, offset + pageSize)
+      const [lastPriceRefresh, pageResult] = await Promise.all([refreshPromise, pageQuery])
+      const priceStale = await isPriceDataStale(lastPriceRefresh)
+      if (pageResult.error) throw pageResult.error
+      const totalCount = pageResult.count ?? 0
+      const pageCopies = ((pageResult.data ?? []) as Array<{
+        copy_id: number
+        card_id: number
+        printing_id: string | null
+        finish: string | null
+        is_proxy: boolean
+        card_name: string | null
+      }>).map((row) => ({
+        id: row.copy_id,
+        card_id: row.card_id,
+        printing_id: row.printing_id,
+        finish: row.finish as 'nonfoil' | 'foil' | 'etched',
+        is_proxy: row.is_proxy,
+        card_name: row.card_name || '',
+      }))
 
       if (pageCopies.length === 0) {
         return Response.json({
@@ -232,11 +176,10 @@ export async function GET(request: NextRequest) {
         } as CollectionPrintingsResponse)
       }
 
-      // Fetch printing info and deck usage for this page only
+      // Printing info, deck usage and "added" dates for this page only, all at once.
       const printingIds = [...new Set(pageCopies.map(c => c.printing_id).filter(Boolean) as string[])]
       const pageCopyIds = pageCopies.map(c => c.id)
-
-      const [scryfallRows, deckUsageRaw] = await Promise.all([
+      const [scryfallRows, deckUsageRaw, addedRows] = await Promise.all([
         printingIds.length > 0
           ? supabase
               .from('ref_printings')
@@ -244,32 +187,37 @@ export async function GET(request: NextRequest) {
               .in('scryfall_id', printingIds)
               .then(({ data }) => data || [])
           : Promise.resolve([]),
-        pageCopyIds.length > 0
-          ? supabase
-              .from('deck_cards')
-              .select(`
-                copy_id,
-                deck_id,
-                card_name,
-                ownership_status,
-                decks!deck_cards_deck_id_fkey ( name, is_active )
-              `)
-              .eq('user_id', userId)
-              .not('copy_id', 'is', null)
-              .in('copy_id', pageCopyIds)
-              .then(({ data }) => data || [])
-          : Promise.resolve([]),
+        supabase
+          .from('deck_cards')
+          .select(`
+            copy_id,
+            deck_id,
+            card_name,
+            ownership_status,
+            decks!deck_cards_deck_id_fkey ( name, is_active )
+          `)
+          .eq('user_id', userId)
+          .not('copy_id', 'is', null)
+          .in('copy_id', pageCopyIds)
+          .then(({ data }) => data || []),
+        supabase
+          .from('user_copies')
+          .select('id, created_at')
+          .eq('user_id', userId)
+          .in('id', pageCopyIds)
+          .then(({ data }) => data || []),
       ])
+      const createdById = new Map<number, string | null>(addedRows.map((r) => [r.id, r.created_at]))
 
-      // Build lookup maps
       const scryfallMap = buildScryfallMap(scryfallRows)
       const deckUsageMap = buildDeckUsageMap(deckUsageRaw)
-
-      // Build raw copies for grouping
-      const rawCopies = buildRawCopies(pageCopies, scryfallMap, deckUsageMap)
+      const rawCopies = buildRawCopies(
+        pageCopies.map((c) => ({ ...c, created_at: createdById.get(c.id) ?? null })),
+        scryfallMap,
+        deckUsageMap
+      )
       const rows = groupPhysicalCopiesToPrintingRows(rawCopies)
 
-      // Compute allocation state
       for (const row of rows) {
         row.originalQty = row.isProxy ? 0 : row.quantity
         row.proxyQty = row.isProxy ? row.quantity : 0
@@ -287,6 +235,9 @@ export async function GET(request: NextRequest) {
         isPriceStale: priceStale,
       } as CollectionPrintingsResponse)
     }
+
+    const lastPriceRefresh = await getLastRefreshTimestamp()
+    const priceStale = await isPriceDataStale(lastPriceRefresh)
 
     // ──── FALLBACK PATH: Other sorts or color filters ────────────────
     // For price/rarity/setCode sorts or color filters, we need ref_printings data
@@ -411,20 +362,11 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Apply color filter
-    if (colors.length > 0) {
-      const selectedColors = colors.map((col) => col.toUpperCase())
-      enrichedCopies = enrichedCopies.filter((c) => {
-        const cardSet = new Set(c.colorIdentity.map((col) => col.toUpperCase()))
-
-        if (colorMode === 'exact') {
-          if (cardSet.size !== selectedColors.length) return false
-          return selectedColors.every((color) => cardSet.has(color))
-        }
-        return selectedColors.every((color) => cardSet.has(color))
-      })
+    // Apply color filter (same rule as the fast path: colourless = no colours)
+    const colourFilter = parseColourFilter(colors, colorMode)
+    if (colourFilter) {
+      enrichedCopies = enrichedCopies.filter((c) => matchesColourFilter(c.colorIdentity, colourFilter))
     }
-
     const pageTotalCount = enrichedCopies.length
 
     if (pageTotalCount === 0) {
@@ -562,6 +504,10 @@ export async function GET(request: NextRequest) {
 // ---------------------------------------------------------------------------
 // Helper functions
 // ---------------------------------------------------------------------------
+/** Makes % _ and \\ in what the user typed match themselves in an ilike pattern. */
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, (ch) => `\\${ch}`)
+}
 
 function buildScryfallMap(scryfallRows: ScryfallPrintingRow[]) {
   const map = new Map<string, {

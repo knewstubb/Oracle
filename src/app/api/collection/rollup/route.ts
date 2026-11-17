@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase'
 import { getLastRefreshTimestamp, isPriceDataStale } from '@/lib/price-store'
 import { requireAuth } from '@/lib/auth'
+import { asViewClient, colourOrExpression, matchingFactlessCopyIds, parseColourFilter } from '@/lib/collection-colour-filter'
 import { NextRequest } from 'next/server'
 
 /**
@@ -134,29 +135,93 @@ export async function GET(request: NextRequest) {
       if (search) {
         q = q.ilike('card_name', `%${search}%`)
       }
-      if (colors.length > 0 && (colorMode === 'includes' || colorMode === 'exact')) {
-        for (const color of colors) {
-          q = q.ilike('color_identity', `%${color}%`)
-        }
-      }
       return q as T
     }
 
-    // Step 1a: Get total count
-    // We can't use !inner join for counting (it inflates count for 1:many).
-    // Instead, query cards with search/color filters and check existence
-    // of collection via a simple count on cards that have copies.
-    // Since cards.user_id matches collection.user_id for this app
-    // (single-user), we just count filtered cards directly.
-    let countQuery = supabase
-      .from('user_cards')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
+    type PageCard = {
+      id: number
+      card_name: string
+      oracle_id: string
+      color_identity: string | null
+      type_line: string | null
+    }
+    const sortColumn = sort === 'cardName' ? 'card_name' : 'card_name'
+    const ascending = sortDir === 'asc'
+    const offset = (page - 1) * pageSize
+    const colourFilter = parseColourFilter(colors, colorMode)
 
-    countQuery = applyFilters(countQuery)
-    const { count: totalCount, error: countErr } = await countQuery
+    let totalCount: number
+    let cards: PageCard[]
 
-    if (countErr) throw countErr
+    if (!colourFilter) {
+      // No colour filter: count and page are independent, so they run together.
+      let countQuery = supabase
+        .from('user_cards')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+      countQuery = applyFilters(countQuery)
+      let dataQuery = supabase
+        .from('user_cards')
+        .select('id, card_name, oracle_id, color_identity, type_line')
+        .eq('user_id', userId)
+      dataQuery = applyFilters(dataQuery)
+      dataQuery = dataQuery.order(sortColumn, { ascending }).range(offset, offset + pageSize - 1)
+      const [countRes, pageRes] = await Promise.all([countQuery, dataQuery])
+      if (countRes.error) throw countRes.error
+      if (pageRes.error) throw pageRes.error
+      totalCount = countRes.count ?? 0
+      cards = (pageRes.data || []) as PageCard[]
+    } else {
+      // Colour filter. user_cards.color_identity is empty for every card, so colour comes from the
+      // connector_collection_copies view (see collection-colour-filter.ts). One row per copy, so the
+      // matching cards are listed in name order, de-duplicated, then paged here.
+      const extraCopyIds = await matchingFactlessCopyIds(supabase, userId, colourFilter)
+      const view = asViewClient(supabase)
+      const matchQuery = () => {
+        let q = view
+          .from('connector_collection_copies')
+          .select('card_id, card_name', { count: 'exact' })
+          .eq('user_id', userId)
+          .eq('is_proxy', isProxyFilter)
+        if (search) q = q.ilike('card_name', `%${search}%`)
+        return q
+          .or(colourOrExpression(colourFilter, extraCopyIds))
+          .order('card_name', { ascending })
+          .order('card_id', { ascending: true })
+      }
+      type Match = { card_id: number; card_name: string }
+      const BATCH = 1000
+      const first = await matchQuery().range(0, BATCH - 1)
+      if (first.error) throw first.error
+      const matches: Match[] = [...((first.data ?? []) as Match[])]
+      const copyTotal = first.count ?? matches.length
+      if (copyTotal > BATCH) {
+        const rest = await Promise.all(
+          Array.from({ length: Math.ceil(copyTotal / BATCH) - 1 }, (_, i) =>
+            matchQuery().range((i + 1) * BATCH, (i + 2) * BATCH - 1)
+          )
+        )
+        for (const r of rest) {
+          if (r.error) throw r.error
+          matches.push(...((r.data ?? []) as Match[]))
+        }
+      }
+      const cardIds = [...new Set(matches.map((m) => m.card_id))]
+      totalCount = cardIds.length
+      const pageIds = cardIds.slice(offset, offset + pageSize)
+      if (pageIds.length === 0) {
+        cards = []
+      } else {
+        const { data, error } = await supabase
+          .from('user_cards')
+          .select('id, card_name, oracle_id, color_identity, type_line')
+          .eq('user_id', userId)
+          .in('id', pageIds)
+        if (error) throw error
+        const byId = new Map((data || []).map((c) => [c.id, c as PageCard]))
+        cards = pageIds.map((id) => byId.get(id)).filter((c): c is PageCard => !!c)
+      }
+    }
 
     if (totalCount === 0) {
       const lastPriceRefresh = await getLastRefreshTimestamp()
@@ -170,31 +235,6 @@ export async function GET(request: NextRequest) {
         isPriceStale: priceStale,
       } as CollectionRollupResponse)
     }
-
-    // Step 1b: Get the page of cards
-    const sortColumn = sort === 'cardName' ? 'card_name' : 'card_name'
-    const ascending = sortDir === 'asc'
-    const offset = (page - 1) * pageSize
-
-    let dataQuery = supabase
-      .from('user_cards')
-      .select('id, card_name, oracle_id, color_identity, type_line')
-      .eq('user_id', userId)
-
-    dataQuery = applyFilters(dataQuery)
-    dataQuery = dataQuery.order(sortColumn, { ascending }).range(offset, offset + pageSize - 1)
-
-    const { data: pageCards, error: cardsErr } = await dataQuery
-
-    if (cardsErr) throw cardsErr
-
-    const cards = (pageCards || []) as Array<{
-      id: number
-      card_name: string
-      oracle_id: string
-      color_identity: string | null
-      type_line: string | null
-    }>
 
     if (cards.length === 0) {
       const lastPriceRefresh = await getLastRefreshTimestamp()

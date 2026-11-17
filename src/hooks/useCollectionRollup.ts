@@ -88,11 +88,13 @@ export function useCollectionRollup(params: CollectionRollupParams = {}) {
     search = '',
     sort = 'cardName',
     sortDir = 'asc',
-    colors = [],
+    colors: colorsParam = [],
     colorMode = 'includes',
     enabled = true,
   } = params
 
+  // Same colours in any click order are the same request (and the same cache entry)
+  const colors = [...colorsParam].sort()
   // Build query string
   const queryString = new URLSearchParams({
     tab,
@@ -107,8 +109,9 @@ export function useCollectionRollup(params: CollectionRollupParams = {}) {
   // Main rollup query — keyed by all filter/pagination params
   const rollupQuery = useQuery<CollectionRollupResponse>({
     queryKey: ['collection', 'rollup', tab, page, pageSize, search, sort, sortDir, colors.join(','), colorMode],
-    queryFn: async () => {
-      const res = await fetch(`/api/collection/rollup?${queryString}`)
+    queryFn: async ({ signal }) => {
+      // signal: a request that is no longer wanted (the filter changed again) is cancelled
+      const res = await fetch(`/api/collection/rollup?${queryString}`, { signal })
       if (!res.ok) {
         throw new Error('Failed to load collection data')
       }

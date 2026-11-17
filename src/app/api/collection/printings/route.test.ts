@@ -8,6 +8,7 @@ import { NextRequest } from 'next/server'
 type MockResponse = { data?: unknown; error?: unknown; count?: number | null }
 
 let queues: Record<string, MockResponse[]>
+let orCalls: Array<{ table: string; expr: string }>
 
 function nextResponse(table: string): MockResponse {
   const q = queues[table]
@@ -28,7 +29,10 @@ function createQueryMock(table: string) {
     in: () => chain,
     ilike: () => chain,
     not: () => chain,
-    or: () => chain,
+    or: (expr: string) => {
+      orCalls.push({ table, expr })
+      return chain
+    },
     order: () => chain,
     range: () => chain,
   }
@@ -61,6 +65,7 @@ vi.mock('@/lib/price-store', () => ({
 }))
 
 import { GET } from './route'
+import { clearFactlessCopyCache } from '@/lib/collection-colour-filter'
 
 function callGET(params: Record<string, string> = {}) {
   const url = new URL('http://localhost:3000/api/collection/printings')
@@ -71,6 +76,8 @@ function callGET(params: Record<string, string> = {}) {
 describe('GET /api/collection/printings — B1 price-freshness read', () => {
   beforeEach(() => {
     queues = {}
+    orCalls = []
+    clearFactlessCopyCache()
     mockAuthResult = { id: 'user-123' }
     mockGetLastRefreshTimestamp.mockReset()
     mockIsPriceDataStale.mockReset()
@@ -80,7 +87,7 @@ describe('GET /api/collection/printings — B1 price-freshness read', () => {
   })
 
   it('no-copies branch (optimized path, totalCopies 0): one timestamp read', async () => {
-    queue('user_copies', { count: 0, error: null }) // count query in optimized path
+    queue('connector_collection_copies', { data: [], count: 0, error: null }) // page query in the fast path
 
     const res = await callGET() // default sort=cardName, no colors -> optimized path
     expect(res.status).toBe(200)
@@ -98,21 +105,7 @@ describe('GET /api/collection/printings — B1 price-freshness read', () => {
   })
 
   it('searched-empty branch (optimized path, filtered to zero rows): one timestamp read', async () => {
-    queue('user_copies', { count: 1, error: null }) // count query — nonzero so batch fetch proceeds
-    queue('user_copies', {
-      data: [
-        {
-          id: 1,
-          card_id: 10,
-          printing_id: 'p-1',
-          finish: 'nonfoil',
-          is_proxy: false,
-          created_at: '2026-01-01T00:00:00.000Z',
-          user_cards: { card_name: 'Sol Ring' },
-        },
-      ],
-      error: null,
-    }) // batch fetch — search filter below removes this row
+    queue('connector_collection_copies', { data: [], count: 0, error: null }) // the database finds no match for the search
 
     const res = await callGET({ search: 'Nonexistent Card' })
     expect(res.status).toBe(200)
@@ -129,24 +122,17 @@ describe('GET /api/collection/printings — B1 price-freshness read', () => {
   })
 
   it('normal fast branch (optimized path with matching data): one timestamp read', async () => {
-    queue('user_copies', { count: 1, error: null }) // count query
-    queue('user_copies', {
+    queue('connector_collection_copies', {
       data: [
-        {
-          id: 1,
-          card_id: 10,
-          printing_id: 'p-1',
-          finish: 'nonfoil',
-          is_proxy: false,
-          created_at: '2026-01-01T00:00:00.000Z',
-          user_cards: { card_name: 'Sol Ring' },
-        },
+        { copy_id: 1, card_id: 10, printing_id: 'p-1', finish: 'nonfoil', is_proxy: false, card_name: 'Sol Ring' },
       ],
+      count: 1,
       error: null,
-    }) // batch fetch
+    }) // the page of copies
     queue('ref_printings', { data: [], error: null })
     queue('deck_cards', { data: [], error: null })
 
+    queue('user_copies', { data: [{ id: 1, created_at: '2026-01-01T00:00:00.000Z' }], error: null })
     const res = await callGET()
     expect(res.status).toBe(200)
     const body = await res.json()
@@ -193,7 +179,7 @@ describe('GET /api/collection/printings — B1 price-freshness read', () => {
   it('null metadata and stale=true propagate unchanged through the envelope', async () => {
     mockGetLastRefreshTimestamp.mockResolvedValue(null)
     mockIsPriceDataStale.mockResolvedValue(true)
-    queue('user_copies', { count: 0, error: null })
+    queue('connector_collection_copies', { data: [], count: 0, error: null })
 
     const res = await callGET()
     const body = await res.json()
@@ -224,5 +210,36 @@ describe('GET /api/collection/printings — B1 price-freshness read', () => {
 
     // The single shared freshness read still ran before this later failure.
     expect(mockGetLastRefreshTimestamp).toHaveBeenCalledTimes(1)
+  })
+
+  describe('colour filter (colourless is stored as an empty colour list, not as the letter C)', () => {
+    const solRing = { copy_id: 1, card_id: 10, printing_id: 'p-1', finish: 'nonfoil', is_proxy: false, card_name: 'Sol Ring' }
+
+    async function runColours(colorMode: string, colors: string) {
+      queue('connector_collection_copies', { data: [], error: null }) // copies the view cannot judge: none
+      queue('connector_collection_copies', { data: [solRing], count: 1, error: null })
+      queue('ref_printings', { data: [], error: null })
+      queue('deck_cards', { data: [], error: null })
+      queue('user_copies', { data: [{ id: 1, created_at: '2026-01-01T00:00:00.000Z' }], error: null })
+      const res = await callGET({ colors, colorMode })
+      return { res, body: await res.json() }
+    }
+
+    it.each(['exact', 'includes'])('%s + colourless: asks the database for colourless copies and returns them', async (mode) => {
+      const { res, body } = await runColours(mode, 'C')
+      expect(res.status).toBe(200)
+      expect(body.totalCount).toBe(1)
+      expect(body.rows[0].cardName).toBe('Sol Ring')
+      const main = orCalls.find((c) => c.table === 'connector_collection_copies')
+      expect(main?.expr).toContain('is_colourless.eq.true')
+      expect(main?.expr).not.toContain('has_')
+    })
+
+    it('Exact + green + colourless: mono-green OR colourless', async () => {
+      await runColours('exact', 'G,C')
+      const expr = orCalls.find((c) => c.table === 'connector_collection_copies')?.expr ?? ''
+      expect(expr).toContain('and(facts_available.eq.true,has_w.eq.false,has_u.eq.false,has_b.eq.false,has_r.eq.false,has_g.eq.true)')
+      expect(expr).toContain('is_colourless.eq.true')
+    })
   })
 })

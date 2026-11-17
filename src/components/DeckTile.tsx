@@ -14,6 +14,9 @@ import { useDeleteDeck } from '@/hooks/useDeleteDeck'
 
 export type HealthPipStatus = 'ok' | 'warn' | 'crit'
 /** Automatic deck status (see docs/oracle/specs/vocabulary.md, Deck status). */
+/** Thin dark outline around the corner badges so they stand out from any commander art. */
+const BADGE_OUTLINE = '0 0 0 1px rgba(0, 0, 0, 0.85)'
+
 export type DeckStatus = 'draft' | 'assembling' | 'playable'
 
 export interface DeckFolder {
@@ -192,7 +195,7 @@ export function DeckTile({
         {status && badge && (
           <div
             className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-full"
-            style={{ backgroundColor: badge.colour }}
+            style={{ backgroundColor: badge.colour, boxShadow: BADGE_OUTLINE }}
             role="img"
             aria-label={badge.label}
             title={badge.label}
@@ -206,7 +209,7 @@ export function DeckTile({
         {conflictCount != null && conflictCount > 0 && (
           <div
             className="absolute top-2 left-2 flex min-w-6 items-center justify-center rounded-full px-1.5 py-0.5"
-            style={{ backgroundColor: 'var(--signal-warning)' }}
+            style={{ backgroundColor: 'var(--signal-warning)', boxShadow: BADGE_OUTLINE }}
             title={`${conflictCount} card${conflictCount === 1 ? '' : 's'} need${conflictCount === 1 ? 's' : ''} a copy you don't have`}
             aria-label={`${conflictCount} unresolved ${conflictCount === 1 ? 'conflict' : 'conflicts'}`}
           >

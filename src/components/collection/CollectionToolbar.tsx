@@ -372,10 +372,10 @@ function ManaIcon({ color, isSelected }: { color: string; isSelected: boolean })
     <img
       src={svgUrl}
       alt={color}
-      width={24}
-      height={24}
+      width={20}
+      height={20}
       className={cn(
-        'rounded-full transition-opacity',
+        'size-5 rounded-full transition-opacity',
         isSelected ? 'opacity-100' : 'opacity-25 group-hover:opacity-75'
       )}
     />

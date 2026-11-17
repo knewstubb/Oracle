@@ -471,6 +471,15 @@ function PopoverBody({
   }
 
   // ─── Unowned ────────────────────────────────────────────────────────
+  if (status === 'in_hand') {
+    return (
+      <div className="flex flex-col gap-2 p-3">
+        <p className="text-[length:var(--fs-sm)] text-muted-foreground">
+          In your hand. Mark it Placed on the Picklist when it&apos;s in the deck.
+        </p>
+      </div>
+    )
+  }
   if (status === 'unowned') {
     return (
       <div className="flex flex-col gap-2 p-3">

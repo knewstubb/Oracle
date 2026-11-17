@@ -691,6 +691,7 @@ function MobileStatusDot({ status }: { status: CardSlotStatus }) {
   const config: Record<CardSlotStatus, { color: string; label: string; filled: 'full' | 'half' | 'empty' }> = {
     original: { color: 'var(--signal-success)', label: 'Original', filled: 'full' },
     proxy: { color: 'var(--signal-info)', label: 'Proxy', filled: 'full' },
+    in_hand: { color: '#9D8DF1', label: 'Planned · In your hand', filled: 'half' },
     available: { color: 'var(--signal-success)', label: 'Planned · Available', filled: 'half' },
     alternate: { color: 'var(--text-secondary)', label: 'Planned · Alternate', filled: 'half' },
     claimed: { color: 'var(--signal-warning)', label: 'Planned · Claimed', filled: 'half' },

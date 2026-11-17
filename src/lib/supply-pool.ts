@@ -230,7 +230,7 @@ const PAGE_SIZE = 1000
  * Generic paginated fetch using `.range(from, to)` to handle the PostgREST
  * hard max_rows=1000 limit. Loops until fewer than PAGE_SIZE rows are returned.
  */
-async function fetchAllRows<T>(
+export async function fetchAllRows<T>(
   queryFn: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>
 ): Promise<T[]> {
   const allRows: T[] = []

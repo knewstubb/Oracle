@@ -223,10 +223,11 @@ function groupByStatus(
   statusMap: Map<number, CardSlotStatus>
 ): [string, DeckCard[]][] {
   const groups: Record<string, DeckCard[]> = {}
-  const statusOrder = ['original', 'proxy', 'available', 'alternate', 'claimed', 'unowned', 'generic_land']
+  const statusOrder = ['original', 'proxy', 'in_hand', 'available', 'alternate', 'claimed', 'unowned', 'generic_land']
   const labels: Record<string, string> = {
     original: 'Original',
     proxy: 'Proxy',
+    in_hand: 'Planned · In your hand',
     available: 'Planned · Available',
     alternate: 'Planned · Alternate',
     claimed: 'Planned · In decks',
@@ -1326,7 +1327,7 @@ function GridView({
               const cardStatus = statusMap.get(card.id) ?? 'available'
               const cardLifecycle = lifecycleMap.get(card.id) ?? (cardStatus === 'original' || cardStatus === 'proxy' ? 'sleeved' : 'planned')
               const statusLabels: Record<string, string> = {
-                original: 'Original', proxy: 'Proxy', available: 'Planned · Available', alternate: 'Planned · Alternate',
+                original: 'Original', proxy: 'Proxy', in_hand: 'Planned · In your hand', available: 'Planned · Available', alternate: 'Planned · Alternate',
                 claimed: 'Planned · In Decks', unowned: 'Planned · Unowned', generic_land: '',
               }
               const statusLabel = statusLabels[cardStatus] || ''
@@ -1342,6 +1343,8 @@ function GridView({
                     return { border: '2.5px solid var(--signal-warning)', boxShadow: 'inset 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 12px rgba(239, 159, 39, 0.6), 0 0 4px rgba(239, 159, 39, 0.3)' }
                   case 'claimed':
                     return { border: '2.5px solid #F5880B', boxShadow: 'inset 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 12px rgba(245, 136, 11, 0.6), 0 0 4px rgba(245, 136, 11, 0.3)' }
+                  case 'in_hand':
+                    return { border: '2.5px solid #9D8DF1', boxShadow: 'inset 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 12px rgba(157, 141, 241, 0.6), 0 0 4px rgba(157, 141, 241, 0.3)' }
                   case 'unowned':
                     return { border: '2.5px solid var(--status-unowned)', boxShadow: 'inset 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 12px rgba(240, 51, 158, 0.6), 0 0 4px rgba(240, 51, 158, 0.3)' }
                   default:

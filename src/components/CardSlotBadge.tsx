@@ -40,6 +40,13 @@ const STATUS_CONFIG: Record<
     icon: 'comedy_mask',
     filled: true,
   },
+  in_hand: {
+    label: 'In your hand',
+    color: '#9D8DF1',
+    bg: 'rgba(157, 141, 241, 0.15)',
+    icon: 'back_hand',
+    filled: false,
+  },
   available: {
     label: 'Available',
     color: '#1D9E75',
@@ -243,6 +250,7 @@ export function CardSlotBadge({ status, lifecycle, heldBy, variant = 'badge', si
     // Claimed & Unowned: dark tinted fill + 0.5px colored border + colored icon
     const fillColor = status === 'claimed' ? '#3d2a15' 
                     : status === 'unowned' ? '#3d1830'
+                    : status === 'in_hand' ? '#2a2540'
                     : '#1a1a1a'
     
     return (
@@ -317,6 +325,8 @@ export function getSlotTileBorderStyle(status: CardSlotStatus): React.CSSPropert
     case 'claimed':
       return { border: `2.5px solid ${config.color}` }
     case 'unowned':
+      return { border: `2.5px solid ${config.color}` }
+    case 'in_hand':
       return { border: `2.5px solid ${config.color}` }
     case 'failed':
       return { border: `2.5px solid ${config.color}` }

@@ -103,6 +103,7 @@ export async function GET(
     original: countableStatuses.filter(s => s.allocationStatus === 'original').length,
     proxy: countableStatuses.filter(s => s.allocationStatus === 'proxy').length,
     available: countableStatuses.filter(s => s.allocationStatus === 'available' || s.allocationStatus === 'alternate').length,
+    in_hand: countableStatuses.filter(s => s.allocationStatus === 'in_hand').length,
     claimed: countableStatuses.filter(s => s.allocationStatus === 'claimed').length,
     unowned: countableStatuses.filter(s => s.allocationStatus === 'unowned').length,
     generic_land: genericStatuses.length,

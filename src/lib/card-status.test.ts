@@ -361,8 +361,8 @@ describe('computeDeckCardStatuses', () => {
     const mockFrom = vi.fn()
     vi.mocked(createAdminClient).mockReturnValue({ from: mockFrom } as unknown as AdminClient)
 
-    // Default: no user_copies found (all unresolved → unowned)
-    mockFrom.mockImplementation(() => ({
+    // Default: no user_copies found (all unresolved → unowned) and no Picked steps
+    mockFrom.mockImplementation((table: string) => table === 'move_items' ? mockSupabaseChain([]) : ({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
           in: vi.fn().mockResolvedValue({ data: [], error: null }),
@@ -454,5 +454,58 @@ describe('computeDeckCardStatuses', () => {
     expect(result[0].status).toBe('failed')
     expect(result[0].allocationStatus).toBe('failed')
     expect(result[0].lifecycle).toBe('planned')
+  })
+
+  describe('Picked cards (In your hand)', () => {
+    /**
+     * Chainable query mock. Supply lookups ask for in_hand = false (the picked copy is excluded there, so the card
+     * would read Unowned); the Picked lookup asks for in_hand = true.
+     */
+    function mockTables(o: { steps: unknown[] | null; stepsError?: unknown; handCopies?: unknown[] }) {
+      vi.mocked(createAdminClient).mockReturnValue({
+        from: (table: string) => {
+          const flags: Record<string, unknown> = {}
+          const chain: Record<string, unknown> = {}
+          for (const m of ['select', 'in']) chain[m] = () => chain
+          chain.eq = (col: string, val: unknown) => { flags[col] = val; return chain }
+          chain.then = (resolve: (v: unknown) => unknown) => {
+            if (table === 'user_cards') return resolve({ data: [{ id: 7, card_name: 'Sol Ring' }], error: null })
+            if (table === 'move_items') return resolve({ data: o.steps, error: o.stepsError ?? null })
+            if (table === 'user_copies' && flags.in_hand === true) return resolve({ data: o.handCopies ?? [], error: null })
+            return resolve({ data: [], error: null }) // supply: the only copy is in hand, so none is counted
+          }
+          return chain
+        },
+      } as unknown as AdminClient)
+    }
+    const slot = [{ id: 1, card_name: 'Sol Ring', copy_id: null, is_proxy: null }]
+
+    it('shows a Picked card as in_hand, not unowned', async () => {
+      mockTables({ steps: [{ to_deck_card_id: 1, copy_id: 55 }], handCopies: [{ id: 55 }] })
+      const result = await computeDeckCardStatuses(slot, 'user-1')
+      expect(result[0].allocationStatus).toBe('in_hand')
+      expect(result[0].status).toBe('in_hand')
+      expect(result[0].lifecycle).toBe('planned')
+    })
+    it('still reports unowned when nothing was Picked for the slot', async () => {
+      mockTables({ steps: [] })
+      const result = await computeDeckCardStatuses(slot, 'user-1')
+      expect(result[0].allocationStatus).toBe('unowned')
+    })
+    it('ignores a stale Picked step whose copy is no longer in hand', async () => {
+      mockTables({ steps: [{ to_deck_card_id: 1, copy_id: 55 }], handCopies: [] })
+      const result = await computeDeckCardStatuses(slot, 'user-1')
+      expect(result[0].allocationStatus).toBe('unowned')
+    })
+    it('says "failed" rather than guessing Unowned when the Picked check cannot be read', async () => {
+      mockTables({ steps: null, stepsError: { message: 'timeout' } })
+      const result = await computeDeckCardStatuses(slot, 'user-1')
+      expect(result[0].allocationStatus).toBe('failed')
+    })
+    it('keeps in-hand copies out of the free supply for other slots', async () => {
+      mockTables({ steps: [{ to_deck_card_id: 1, copy_id: 55 }], handCopies: [{ id: 55 }] })
+      const names = await computeUnresolvedStatuses(['Sol Ring'], 'user-1')
+      expect(names.get('Sol Ring')).toBe('unowned')
+    })
   })
 })

@@ -8,12 +8,33 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock('@/contexts/PageHeaderContext', () => ({ usePageHeader: () => undefined }))
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
-const row = (o: object) => ({ itemId: 1, state: 'to_find', copyId: 5, cardName: 'Sol Ring', isProxy: false, fromName: 'Box A', toName: 'Korvold', toDeckId: 1, toDeckCardId: 9, toLocationId: null, ...o })
+const row = (o: { itemId?: number | null; [k: string]: unknown }) => {
+  const itemId = o.itemId === undefined ? 1 : o.itemId
+  return { itemId, key: itemId === null ? `s${o.toDeckCardId ?? 9}` : `i${itemId}`, state: 'to_find', copyId: 5, cardName: 'Sol Ring', isProxy: false, fromName: 'Box A', toName: 'Korvold', toDeckId: 1, toDeckCardId: 9, toLocationId: null, blockedBy: null, ...o }
+}
 const full = {
   takeFromBoxes: [{ key: 'l1', placeName: 'Box A', isUnsorted: false, rows: [row({})] }],
   takeFromDecks: [],
   placeIn: [{ key: 'd1', placeName: 'Korvold', isUnsorted: false, rows: [row({ itemId: 2, state: 'found', cardName: 'Cultivate', copyId: 6, toDeckCardId: 10 })] }],
-  counts: { total: 3, found: 1, placed: 1, missing: 0, open: 1 },
+  unowned: [],
+  counts: { total: 3, found: 1, placed: 1, missing: 0, open: 1, unowned: 0 },
+  decks: [{ deckId: 1, deckName: 'Korvold', placed: 1, total: 3 }],
+}
+/** Planned cards with no step yet: one in storage, one in another deck, one contested, one unowned. */
+const derived = {
+  takeFromBoxes: [{ key: 'l1', placeName: 'Unsorted', isUnsorted: true, rows: [
+    row({ itemId: null, copyId: 51, cardName: 'Sol Ring', fromName: 'Unsorted', toName: 'TEST A', toDeckId: 3, toDeckCardId: 101 }),
+    row({ itemId: null, copyId: 51, cardName: 'Sol Ring', fromName: 'Unsorted', toName: 'TEST B', toDeckId: 4, toDeckCardId: 201, blockedBy: 'TEST A' }),
+  ] }],
+  takeFromDecks: [{ key: 'd1', placeName: 'Korvold', isUnsorted: false, rows: [
+    row({ itemId: null, copyId: 52, cardName: 'Cultivate', fromName: 'Korvold', toName: 'TEST A', toDeckId: 3, toDeckCardId: 102 }),
+  ] }],
+  placeIn: [],
+  unowned: [{ key: 'd4', placeName: 'TEST B', isUnsorted: false, rows: [
+    row({ itemId: null, copyId: null, cardName: 'Black Lotus', fromName: null, toName: 'TEST B', toDeckId: 4, toDeckCardId: 202 }),
+  ] }],
+  counts: { total: 4, found: 0, placed: 0, missing: 0, open: 3, unowned: 1 },
+  decks: [{ deckId: 3, deckName: 'TEST A', placed: 0, total: 2 }, { deckId: 4, deckName: 'TEST B', placed: 0, total: 2 }],
 }
 function mount(data: unknown, o: { ok?: boolean; tick?: { status: number; json: unknown } } = {}) {
   const f = vi.fn((url: string, _i?: RequestInit) =>
@@ -26,23 +47,26 @@ function mount(data: unknown, o: { ok?: boolean; tick?: { status: number; json: 
 }
 
 describe('AllDecksPicklist', () => {
-  it('shows the title, n of N placed and the help line', async () => {
+  it('shows the title, N of M cards placed and the help line', async () => {
     mount(full)
     await waitFor(() => expect(screen.getByText('Picklist · all decks')).toBeTruthy())
-    expect(screen.getByTestId('all-decks-summary').textContent).toContain('1 of 3 placed')
+    expect(screen.getByTestId('all-decks-summary').textContent).toContain('1 of 3 cards placed')
+    expect(screen.getByTestId('deck-progress').textContent).toContain('Korvold: 1 of 3 cards placed')
     expect(screen.getByText(/Ticks save straight away/)).toBeTruthy()
   })
   it('shows the empty message', async () => {
-    mount({ takeFromBoxes: [], takeFromDecks: [], placeIn: [], counts: { total: 0, found: 0, placed: 0, missing: 0, open: 0 } })
-    await waitFor(() => expect(screen.getByText(/Nothing to move/)).toBeTruthy())
+    mount({ takeFromBoxes: [], takeFromDecks: [], placeIn: [], unowned: [], decks: [], counts: { total: 0, found: 0, placed: 0, missing: 0, open: 0, unowned: 0 } })
+    await waitFor(() => expect(screen.getByText(/Nothing to pick/)).toBeTruthy())
+    expect(screen.queryByText(/Add cards to the Picklist/)).toBeNull()
   })
   it('shows the all-done state', async () => {
     mount({ takeFromBoxes: [], takeFromDecks: [], placeIn: [{ key: 'd1', placeName: 'Korvold', isUnsorted: false, rows: [row({ state: 'placed' })] }], counts: { total: 1, found: 0, placed: 1, missing: 0, open: 0 } })
     await waitFor(() => expect(screen.getByText(/All done/)).toBeTruthy())
   })
-  it('shows an error with Try again', async () => {
+  it('shows an error with Try again, never the empty message (D-030)', async () => {
     mount({}, { ok: false })
     await waitFor(() => expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy())
+    expect(screen.queryByText(/Nothing to pick/)).toBeNull()
   })
   it('Found it posts that exact copy and slot', async () => {
     const f = mount(full)
@@ -58,15 +82,39 @@ describe('AllDecksPicklist', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Placed: Cultivate' }))
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Cultivate has already moved on.'))
   })
-  it('shows the unowned footnote as a count per deck, never as a list', async () => {
-    mount({ ...full, unownedByDeck: [{ deckId: 1, deckName: 'Korvold', count: 3 }] })
-    await waitFor(() => expect(screen.getByTestId('unowned-footnote')).toBeTruthy())
-    expect(screen.getByTestId('unowned-footnote').textContent).toBe("3 unowned cards in Korvold aren't listed here. Open the deck's Picklist.")
+  it('lists every planned card under Storage, Another deck and Unowned, with per-deck counts', async () => {
+    mount(derived)
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Storage' })).toBeTruthy())
+    expect(screen.getByRole('region', { name: 'Another deck' }).textContent).toContain('Cultivate')
+    const unowned = screen.getByRole('region', { name: 'Unowned' })
+    expect(unowned.textContent).toContain('Black Lotus')
+    expect(unowned.textContent).toContain('not in your collection')
+    expect(screen.queryByRole('button', { name: 'Picked: Black Lotus' })).toBeNull()
+    expect(screen.getByTestId('all-decks-summary').textContent).toContain('0 of 4 cards placed')
+    expect(screen.getByTestId('deck-progress').textContent).toContain('TEST A: 0 of 2 cards placed')
+    expect(screen.getByTestId('deck-progress').textContent).toContain('TEST B: 0 of 2 cards placed')
   })
-  it('shows no footnote when nothing is unowned', async () => {
-    mount({ ...full, unownedByDeck: [] })
-    await waitFor(() => expect(screen.getByText('Picklist · all decks')).toBeTruthy())
-    expect(screen.queryByTestId('unowned-footnote')).toBeNull()
+  it('a planned row has Picked and Can\'t find it, but no Cancel step or Undo (there is no step yet)', async () => {
+    mount(derived)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Picked: Cultivate' })).toBeTruthy())
+    expect(screen.getByRole('button', { name: "Can't find it: Cultivate" })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Cancel step: Cultivate' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Undo: Cultivate' })).toBeNull()
+  })
+  it('Picked on a planned row posts that copy and slot, and shows it in your hand at once', async () => {
+    const f = mount(derived)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Picked: Cultivate' })).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'Picked: Cultivate' }))
+    expect(screen.getByText('In your hand · going to TEST A')).toBeTruthy()
+    await waitFor(() => expect(f.mock.calls.some((c) => c[0] === '/api/picklist/found')).toBe(true))
+    const c = f.mock.calls.find((x) => x[0] === '/api/picklist/found')!
+    expect(JSON.parse(c[1]!.body as string)).toMatchObject({ copyId: 52, to: { kind: 'deck', deckId: 3, deckCardId: 102 } })
+  })
+  it('a row whose only copy is going to another deck has no ticks and says where the copy is going', async () => {
+    mount(derived)
+    await waitFor(() => expect(screen.getByTestId('blocked-s201')).toBeTruthy())
+    expect(screen.getByTestId('blocked-s201').textContent).toContain('already going to TEST A')
+    expect(screen.getAllByRole('button', { name: 'Picked: Sol Ring' })).toHaveLength(1)
   })
   it('Undo on a picked-up card names the state it showed and says where it went', async () => {
     const f = mount(full, { tick: { status: 200, json: { state: 'to_find' } } })
@@ -142,7 +190,7 @@ describe('AllDecksPicklist instant ticks (optimistic)', () => {
     fireEvent.click(b)
     fireEvent.click(b)
     expect(screen.getByText('Placed in Korvold')).toBeTruthy()
-    expect(screen.getByTestId('all-decks-summary').textContent).toContain('2 of 3 placed')
+    expect(screen.getByTestId('all-decks-summary').textContent).toContain('2 of 3 cards placed')
     expect(f.mock.calls.filter((c) => c[0] === '/api/picklist/placed')).toHaveLength(1)
   })
 

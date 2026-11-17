@@ -124,6 +124,8 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
     const text = onSaved(result)
     toast.success(text)
     setAnnounce(text)
+    // The deck's status chips change too (a Picked card shows In your hand there).
+    void queryClient.invalidateQueries({ queryKey: deckKeys.cardStatuses(deckId) })
     // Keep the new state on screen until the Picklist has been re-read, then hand over to the server's answer.
     await queryClient.invalidateQueries({ queryKey: deckKeys.picklist(deckId) })
     pending.clear(opt.copyId, token)

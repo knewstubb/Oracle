@@ -1,18 +1,35 @@
 /**
  * GET /api/picklist[?deckIds=1,2,3] — the all-decks Picklist in walking order.
- * Contract: docs/oracle/contracts/know-where-cards-are.md. Read only. The steps are the same saved steps (move_items) that
- * the deck Picklists tick, so a tick in either view shows in both. Unowned cards are not listed; a count per deck is
- * returned for the footnote.
+ * Contract: docs/oracle/contracts/know-where-cards-are.md. Read only.
+ *
+ * Rows are every planned card of every deck (or of `deckIds`), derived the same way the deck's own Picklist
+ * (GET /api/decks/[id]/picklist) derives them: deck_cards with no copy, not generic basics, with ranked candidate
+ * copies. The saved steps (move_items) that ticks create are merged in and take precedence for their slot, so a tick
+ * in either view shows in both. Unowned cards are listed in their own section.
+ *
+ * Every read is paged past the 1000-row limit. Any failed read returns 500 so the page shows an error, never
+ * "Nothing to pick" (D-030).
  */
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
-import { buildAllDecksPicklist, type UnownedDeckCount, type WalkItem } from '@/lib/all-decks-picklist'
+import { buildAllDecksPicklist, type PlannedSlot, type WalkItem } from '@/lib/all-decks-picklist'
 import { getBatchRankedCandidates, type RankedCandidate } from '@/lib/allocation-candidates'
-import { categorizeCards, type PicklistCard } from '@/lib/picklist-groups'
 import { isGenericSlot } from '@/lib/basic-lands'
+import { fetchAllRows } from '@/lib/supply-pool'
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- new tables are not in the generated types yet */
+
+const IN_CHUNK = 150
+/** Card names per candidate lookup, so each copies read stays well under the row limit. */
+const NAME_CHUNK = 200
+
+function chunks<T>(list: readonly T[], size: number): T[][] {
+  const out: T[][] = []
+  for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size))
+  return out
+}
+
 export async function GET(request: NextRequest) {
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
@@ -26,80 +43,64 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    let q = db
-      .from('move_items')
-      .select('id, state, copy_id, card_name, from_deck_id, from_location_id, to_deck_id, to_deck_card_id, to_location_id')
-      .eq('user_id', userId)
-      .in('state', ['to_find', 'found', 'placed', 'missing'])
-    if (deckFilter) q = q.or(`to_deck_id.in.(${deckFilter.join(',')}),from_deck_id.in.(${deckFilter.join(',')})`)
-    const { data: rows, error } = await q
-    if (error) throw new Error(error.message)
-    const raws = (rows ?? []) as Array<Record<string, any>>
+    const [deckRows, locRows, stepRows] = await Promise.all([
+      fetchAllRows<{ id: number; name: string }>((a, b) => db.from('decks').select('id, name').eq('user_id', userId).order('id').range(a, b)),
+      fetchAllRows<{ id: number; name: string; is_default: boolean }>((a, b) =>
+        db.from('user_locations').select('id, name, is_default').eq('user_id', userId).order('id').range(a, b)),
+      fetchAllRows<Record<string, any>>((a, b) => {
+        let q = db
+          .from('move_items')
+          .select('id, state, copy_id, card_name, from_deck_id, from_location_id, to_deck_id, to_deck_card_id, to_location_id')
+          .eq('user_id', userId)
+          .in('state', ['to_find', 'found', 'placed', 'missing'])
+        if (deckFilter) q = q.or(`to_deck_id.in.(${deckFilter.join(',')}),from_deck_id.in.(${deckFilter.join(',')})`)
+        return q.order('id').range(a, b)
+      }),
+    ])
 
-    const copyIds = [...new Set(raws.map((r) => r.copy_id).filter((v) => v !== null))] as number[]
+    const decks = new Map<number, string>(deckRows.map((d) => [d.id, d.name]))
+    const locations = new Map<number, { name: string; isUnsorted: boolean }>(locRows.map((l) => [l.id, { name: l.name, isUnsorted: l.is_default }]))
+    const plannedDeckIds = deckRows.map((d) => d.id).filter((id) => !deckFilter || deckFilter.includes(id))
+
+    // Planned slots: no copy, not a generic basic (D-032). Same test as the deck's own Picklist.
+    const slotRows: Array<Record<string, any>> = []
+    for (const ids of chunks(plannedDeckIds, IN_CHUNK)) {
+      slotRows.push(...(await fetchAllRows<Record<string, any>>((a, b) =>
+        db.from('deck_cards')
+          .select('id, deck_id, card_name, scryfall_id, is_generic, generic_sleeved, copy_id')
+          .in('deck_id', ids)
+          .is('copy_id', null)
+          .order('id')
+          .range(a, b))))
+    }
+    const planned = slotRows.filter((c) => c.copy_id === null && !isGenericSlot(c as never))
+
+    // Candidates for every planned card name. A failure here fails the load: no candidates would read as Unowned.
+    const candidates = new Map<string, RankedCandidate[]>()
+    for (const names of chunks([...new Set(planned.map((c) => c.card_name as string))], NAME_CHUNK)) {
+      for (const [k, v] of await getBatchRankedCandidates(names, userId)) candidates.set(k, v)
+    }
+    const slots: PlannedSlot[] = planned.map((c) => ({
+      deckId: c.deck_id, deckCardId: c.id, cardName: c.card_name, candidates: candidates.get(c.card_name) ?? [],
+    }))
+
+    // Proxy flag for the steps' copies.
+    const copyIds = [...new Set(stepRows.map((r) => r.copy_id).filter((v) => v !== null))] as number[]
     const proxy = new Map<number, boolean>()
-    if (copyIds.length > 0) {
-      const { data } = await db.from('user_copies').select('id, is_proxy').eq('user_id', userId).in('id', copyIds)
+    for (const ids of chunks(copyIds, IN_CHUNK)) {
+      const { data, error } = await db.from('user_copies').select('id, is_proxy').eq('user_id', userId).in('id', ids)
+      if (error) throw new Error(error.message)
       for (const c of (data ?? []) as Array<{ id: number; is_proxy: boolean }>) proxy.set(c.id, c.is_proxy)
     }
-    const items: WalkItem[] = raws.map((r) => ({
+    const items: WalkItem[] = stepRows.map((r) => ({
       id: r.id, state: r.state, copyId: r.copy_id, cardName: r.card_name, isProxy: proxy.get(r.copy_id) ?? false,
       fromDeckId: r.from_deck_id, fromLocationId: r.from_location_id,
       toDeckId: r.to_deck_id, toDeckCardId: r.to_deck_card_id, toLocationId: r.to_location_id,
     }))
 
-    const deckIds = [...new Set(raws.flatMap((r) => [r.from_deck_id, r.to_deck_id]).filter((v) => v !== null))] as number[]
-    const locIds = [...new Set(raws.flatMap((r) => [r.from_location_id, r.to_location_id]).filter((v) => v !== null))] as number[]
-    const decks = new Map<number, string>()
-    const locations = new Map<number, { name: string; isUnsorted: boolean }>()
-    if (deckIds.length > 0) {
-      const { data } = await db.from('decks').select('id, name').eq('user_id', userId).in('id', deckIds)
-      for (const d of (data ?? []) as Array<{ id: number; name: string }>) decks.set(d.id, d.name)
-    }
-    if (locIds.length > 0) {
-      const { data } = await db.from('user_locations').select('id, name, is_default').eq('user_id', userId).in('id', locIds)
-      for (const l of (data ?? []) as Array<{ id: number; name: string; is_default: boolean }>) locations.set(l.id, { name: l.name, isUnsorted: l.is_default })
-    }
-
-    // Footnote counts only. A failure here is logged and the walk still loads (the footnote is simply left out).
-    let unowned: UnownedDeckCount[] = []
-    try {
-      unowned = await countUnownedByDeck(db, userId, [...new Set([...deckIds, ...(deckFilter ?? [])])], decks, raws)
-    } catch (err) {
-      console.error('[picklist all decks] unowned counts', err)
-    }
-
-    return Response.json(buildAllDecksPicklist(items, { decks, locations }, unowned))
+    return Response.json(buildAllDecksPicklist(items, { decks, locations }, slots))
   } catch (err) {
     console.error('[picklist all decks]', err)
     return Response.json({ error: 'load_failed', message: "Couldn't load the Picklist. Try again." }, { status: 500 })
   }
-}
-
-/** Planned cards with no owned copy anywhere, per deck on the walk. Same test the deck's own Picklist uses. */
-async function countUnownedByDeck(
-  db: any, userId: string, deckIds: number[], knownNames: Map<number, string>, steps: Array<Record<string, any>>,
-): Promise<UnownedDeckCount[]> {
-  if (deckIds.length === 0) return []
-  const { data: deckRows } = await db.from('decks').select('id, name').eq('user_id', userId).in('id', deckIds)
-  for (const d of (deckRows ?? []) as Array<{ id: number; name: string }>) knownNames.set(d.id, d.name)
-  const { data: cardRows, error } = await db
-    .from('deck_cards')
-    .select('id, deck_id, card_name, scryfall_id, is_generic, generic_sleeved, copy_id')
-    .in('deck_id', deckIds)
-    .is('copy_id', null)
-  if (error) throw new Error(error.message)
-  const slotsWithSteps = new Set(steps.map((s) => s.to_deck_card_id).filter((v) => v !== null))
-  const planned = ((cardRows ?? []) as Array<Record<string, any>>).filter((c) => !isGenericSlot(c as never) && !slotsWithSteps.has(c.id))
-  const names = [...new Set(planned.map((c) => c.card_name as string))]
-  const candidates = names.length > 0 ? await getBatchRankedCandidates(names, userId) : new Map<string, RankedCandidate[]>()
-  const out: UnownedDeckCount[] = []
-  for (const deckId of deckIds) {
-    const cards: PicklistCard[] = planned.filter((c) => c.deck_id === deckId).map((c) => ({
-      deckCardsId: c.id, cardName: c.card_name, lifecycle: 'planned', allocationStatus: null, copyId: null, isResolved: false,
-      physicalCopyId: null, ownershipStatus: null, candidates: candidates.get(c.card_name) ?? [],
-    }))
-    out.push({ deckId, deckName: knownNames.get(deckId) ?? 'a deck', count: categorizeCards(cards, deckId).unowned.length })
-  }
-  return out
 }

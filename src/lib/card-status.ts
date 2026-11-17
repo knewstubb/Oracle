@@ -10,6 +10,7 @@
  * - proxy: resolved with a proxy copy
  *
  * Unresolved states (no copy assigned):
+ * - in_hand: the owner has Picked a copy for this slot (saved step 'found'); it is In your hand, not yet Placed
  * - available: free copy exists in storage matching the preferred printing
  * - alternate: free copy exists in storage but different printing than preferred
  * - claimed: copies exist but ALL are held by other decks
@@ -29,7 +30,7 @@ import { isGenericSlot, isGenericSleeved } from '@/lib/basic-lands'
 // Types
 // ---------------------------------------------------------------------------
 
-export type CardSlotStatus = 'original' | 'proxy' | 'available' | 'alternate' | 'claimed' | 'unowned' | 'generic_land' | 'failed'
+export type CardSlotStatus = 'original' | 'proxy' | 'in_hand' | 'available' | 'alternate' | 'claimed' | 'unowned' | 'generic_land' | 'failed'
 export type DeckCardLifecycle = 'planned' | 'sleeved'
 export type AllocationStatus = CardSlotStatus
 
@@ -236,6 +237,48 @@ export async function computeUnresolvedStatuses(
 }
 
 // ---------------------------------------------------------------------------
+// In your hand: planned slots whose copy has been Picked
+// ---------------------------------------------------------------------------
+
+/**
+ * Of these planned slots, which have a Picked copy (saved step 'found' whose copy is still In your hand).
+ * Supply lookups exclude in-hand copies on purpose (they are not free for anyone else), so a Picked card
+ * would read as Unowned; this lookup is how the slot it was picked for still shows In your hand.
+ * Throws on a failed read so callers never guess (D-030).
+ */
+export async function loadInHandSlotIds(userId: string, deckCardIds: number[]): Promise<Set<number>> {
+  const out = new Set<number>()
+  if (deckCardIds.length === 0) return out
+  // move_items is not in the generated types yet.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = createAdminClient() as any
+  const CHUNK = 300
+  for (let offset = 0; offset < deckCardIds.length; offset += CHUNK) {
+    const batch = deckCardIds.slice(offset, offset + CHUNK)
+    const { data: steps, error } = await supabase
+      .from('move_items')
+      .select('to_deck_card_id, copy_id')
+      .eq('user_id', userId)
+      .eq('state', 'found')
+      .in('to_deck_card_id', batch)
+    if (error) throw new Error(`in-hand steps lookup failed: ${error.message}`)
+    const rows = ((steps ?? []) as Array<{ to_deck_card_id: number | null; copy_id: number | null }>)
+      .filter(r => r.to_deck_card_id !== null && r.copy_id !== null)
+    if (rows.length === 0) continue
+    const { data: copies, error: copyErr } = await supabase
+      .from('user_copies')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('in_hand', true)
+      .in('id', rows.map(r => r.copy_id as number))
+    if (copyErr) throw new Error(`in-hand copies lookup failed: ${copyErr.message}`)
+    const inHand = new Set(((copies ?? []) as Array<{ id: number }>).map(c => c.id))
+    for (const r of rows) if (inHand.has(r.copy_id as number)) out.add(r.to_deck_card_id as number)
+  }
+  return out
+}
+
+// ---------------------------------------------------------------------------
 // Full deck status computation (convenience function for APIs)
 // ---------------------------------------------------------------------------
 
@@ -304,10 +347,26 @@ export async function computeDeckCardStatuses(
 
   const statusMap = await computeUnresolvedStatuses(unresolvedNames, userId, preferredPrintings)
 
+  // A slot whose copy was Picked is In your hand, whatever the free supply says.
+  let inHandSlots = new Set<number>()
+  let inHandFailed = false
+  if (unresolvedCards.length > 0) {
+    try {
+      inHandSlots = await loadInHandSlotIds(userId, unresolvedCards.map(c => c.id))
+    } catch (err) {
+      console.error('[card-status] Failed to check Picked cards:', err)
+      inHandFailed = true
+    }
+  }
+
   const unresolvedWithStatus: CardSlotWithStatus[] = unresolvedCards.map(card => {
     // A missing entry here means the batch lookup did not run for this card;
     // treat that as a failure rather than guessing "unowned".
-    const allocationStatus = statusMap.get(card.card_name) ?? 'failed'
+    const fromSupply = statusMap.get(card.card_name) ?? 'failed'
+    // If the Picked-cards check failed, a card that looks Unowned/In decks may really be In your hand: say we could not check.
+    const allocationStatus: AllocationStatus = inHandSlots.has(card.id)
+      ? 'in_hand'
+      : inHandFailed && (fromSupply === 'unowned' || fromSupply === 'claimed') ? 'failed' : fromSupply
     return {
       deckCardsId: card.id,
       cardName: card.card_name,

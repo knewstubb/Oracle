@@ -10,6 +10,8 @@ import { AI_LIMITS } from '../edit-config'
 import type { EditContext } from '../user-client'
 import type { ChangeAction, GatewayFailure, ResolvedCard, SubmitOutcome } from '../write-types'
 import { LookupFailed, must, rows, type ToolOutput } from './common'
+import { fetchCardFacts, factsFor } from './card-facts'
+import { coloursOutside, normaliseColours } from './deck-colours'
 
 const dryRun = z.boolean().optional().describe('If true, only check and describe what would happen. Nothing is changed.')
 const deckId = z.number().int().positive().describe('The deck id from list_decks.')
@@ -164,6 +166,27 @@ async function resolveNames(ctx: EditContext, names: string[], printingId?: stri
   return { ok: true, cards, warnings }
 }
 
+/** CC-21: warn (never refuse) about added cards outside the deck's colours. Any lookup problem only skips the check. */
+async function colourCheck(ctx: EditContext, deckId: number, names: string[]): Promise<{ warnings: string[]; note?: string }> {
+  try {
+    const deck = rows<{ colour_identity: string | null }>(await must(ctx.db.select('decks', 'colour_identity').eq('user_id', ctx.userId).eq('id', deckId).limit(1)))[0]
+    if (!deck) return { warnings: [] }
+    const deckColours = normaliseColours(deck.colour_identity)
+    if (!deckColours) return { warnings: [], note: 'This deck has no colours set, so the cards were not checked against its colours.' }
+    const facts = await fetchCardFacts(ctx, names, { includeRulesText: false, prices: new Map() })
+    const warnings: string[] = []
+    for (const n of [...new Set(names)]) {
+      const f = factsFor(facts, n, false)
+      const outside = f.available ? coloursOutside(f.colorIdentity, deckColours) : ''
+      if (outside) warnings.push(`"${n}" (${normaliseColours(f.colorIdentity)}) is outside this deck's colours (${deckColours}). It was still added.`)
+    }
+    return { warnings }
+  } catch (e) {
+    if (e instanceof LookupFailed) return { warnings: [], note: 'Card colours could not be checked just now. The cards were still added.' }
+    throw e
+  }
+}
+
 export async function addCardsToDeck(ctx: EditContext, input: z.infer<typeof addCardsInput>): Promise<ToolOutput> {
   const res = await resolveNames(ctx, input.cards.map((c) => c.name))
   if (!res.ok) return res.out
@@ -178,7 +201,9 @@ export async function addCardsToDeck(ctx: EditContext, input: z.infer<typeof add
       categories: JSON.stringify([c.category ?? 'Other']),
     }
   })
-  return submit(ctx, 'deck_add', { deck_id: input.deck_id, items }, input.dry_run, res.warnings)
+  const colours = await colourCheck(ctx, input.deck_id, items.map((i) => i.card_name))
+  const out = await submit(ctx, 'deck_add', { deck_id: input.deck_id, items }, input.dry_run, [...res.warnings, ...colours.warnings])
+  return colours.note && out.ok !== false ? { ...out, colour_check: colours.note } : out
 }
 
 export const removeCardsFromDeck = (ctx: EditContext, input: z.infer<typeof removeCardsInput>) =>

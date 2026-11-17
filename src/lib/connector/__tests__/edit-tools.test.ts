@@ -305,3 +305,57 @@ describe('add_cards_to_deck refuses Maybeboard as a category', () => {
     expect((await runTool(ctx(g), 'add_cards_to_deck', { deck_id: 1, cards: [{ name: 'Sol Ring', category: 'Ramp' }] })).isError).toBeFalsy()
   })
 })
+
+describe('CC-21 deck colours', () => {
+  const LIB: Record<string, string> = { 'Lightning Bolt': 'R', 'Doom Blade': 'B', 'Sol Ring': '', 'Izzet Charm': 'UR' }
+  const colourCtx = (deckColours: string | null | undefined, g = gw()) => {
+    const { db } = mockDb((q) => {
+      if (q.table === 'decks') return { data: deckColours === undefined ? [] : [{ colour_identity: deckColours }] }
+      if (q.table === 'ref_cards') {
+        const names = (q.filters.find((f) => f.op === 'in')?.args[1] as string[] | undefined) ?? []
+        return { data: names.filter((n) => n in LIB).map((n) => ({ name: n, type_line: 'x', oracle_text: null, mana_cost: null, mana_value: 1, color_identity: LIB[n], commander_legal: true })) }
+      }
+      return { data: [] }
+    })
+    return ctx(g, db)
+  }
+  const add = (c: ReturnType<typeof colourCtx>, names: string[]) => runTool(c, 'add_cards_to_deck', { deck_id: 1, cards: names.map((name) => ({ name })) }).then((r) => r.structuredContent as Record<string, unknown>)
+  it('mono-red deck given a black card: still added, with a warning naming the card', async () => {
+    const g = gw()
+    const r = await add(colourCtx('R', g), ['Doom Blade'])
+    expect(r.ok).toBe(true)
+    expect(g.submit).toHaveBeenCalledTimes(1)
+    expect((g.submit as ReturnType<typeof vi.fn>).mock.calls[0][0].payload.items).toHaveLength(1)
+    expect(r.warnings).toEqual([expect.stringContaining('"Doom Blade" (B) is outside this deck\'s colours (R)')])
+  })
+  it('in-colour and colourless cards give no warning', async () => {
+    const r = await add(colourCtx('R'), ['Lightning Bolt', 'Sol Ring'])
+    expect(r.ok).toBe(true)
+    expect(r.warnings).toBeUndefined()
+    expect(r.colour_check).toBeUndefined()
+  })
+  it('a card partly outside the colours warns once, in a stored "R,W" style deck too', async () => {
+    const r = await add(colourCtx('R,W'), ['Izzet Charm', 'Lightning Bolt'])
+    expect(r.warnings).toEqual([expect.stringContaining('"Izzet Charm" (UR) is outside this deck\'s colours (WR)')])
+  })
+  it('a deck with no colours set: added, no warning, and the result says colours were not checked', async () => {
+    for (const none of [null, '']) {
+      const r = await add(colourCtx(none), ['Doom Blade'])
+      expect(r.ok).toBe(true)
+      expect(r.warnings).toBeUndefined()
+      expect(r.colour_check).toMatch(/no colours set/)
+    }
+  })
+  it('list_decks and get_deck show the colours in one format', async () => {
+    const deck = { id: 1, name: 'D', commander_name: 'C', colour_identity: 'U,W', format: 'commander', status: 'built', bracket: null, card_count: 0, is_active: true }
+    const none = { ...deck, id: 2, colour_identity: null }
+    const { db } = mockDb((q) => {
+      if (q.table === 'decks') return { data: q.filters.some((f) => f.op === 'eq' && f.args[0] === 'id') ? [deck] : [deck, none], count: 2 }
+      return { data: [] }
+    })
+    const list = (await runTool(ctx(gw(), db), 'list_decks', {})).structuredContent as unknown as { items: { colourIdentity: string | null }[] }
+    expect(list.items.map((d) => d.colourIdentity)).toEqual(['WU', null])
+    const one = (await runTool(ctx(gw(), db), 'get_deck', { deck_id: 1 })).structuredContent as unknown as { deck: { colourIdentity: string | null } }
+    expect(one.deck.colourIdentity).toBe('WU')
+  })
+})

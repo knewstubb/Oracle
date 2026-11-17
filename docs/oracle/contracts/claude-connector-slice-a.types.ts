@@ -68,6 +68,8 @@ export interface DeckSummary {
   deckId: number
   name: string
   commanderName: string | null
+  /** Commander colours as letters in WUBRG order, for example "R" or "WU". null when the deck has no colours set. */
+  colourIdentity: string | null
   format: string | null
   status: string | null
   bracket: string | null

@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { DeckSummary } from '../../../../docs/oracle/contracts/claude-connector-slice-a.types'
 import { DECKS_PAGE_MAX, fitRows } from '../limits'
 import type { BracketInfo } from '../../../../docs/oracle/contracts/connector-card-facts-and-deck-health.types'
+import { normaliseColours } from './deck-colours'
 import { loadStrategyBrackets, resolveBracket } from './bracket'
 import { countByDeck, type OwnershipSlotRow } from './list-deck-cards-by-ownership'
 import { computeDeckReadiness } from '../../deck-readiness'
@@ -14,11 +15,12 @@ export const listDecksInput = z.strictObject({
   offset: z.number().int().min(0).optional().describe('Decks to skip, for paging.'),
 })
 
-export const DECK_COLUMNS = 'id, name, commander_name, format, status, bracket, card_count, is_active'
+export const DECK_COLUMNS = 'id, name, commander_name, colour_identity, format, status, bracket, card_count, is_active'
 export type DeckRow = {
   id: number
   name: string
   commander_name: string | null
+  colour_identity?: string | null
   format: string | null
   status: string | null
   bracket: string | null
@@ -32,6 +34,7 @@ export function toDeckSummary(d: DeckRow, sleevedCount: number, counts?: { origi
     deckId: d.id,
     name: d.name,
     commanderName: d.commander_name,
+    colourIdentity: normaliseColours(d.colour_identity), // for example "R" or "WU"; null when the deck has no colours set
     format: d.format,
     status: d.status,
     bracket: bracketInfo.value === null ? d.bracket : String(bracketInfo.value), // old field kept for compatibility, same value as text

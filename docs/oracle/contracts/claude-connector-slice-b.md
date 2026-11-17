@@ -46,7 +46,7 @@ Exact names. Every write tool: strict zod object, **no user id argument**, optio
 |---|---|---|---|
 | `get_change_status` | `pending_id` | read-only | status of one of Claude's own requests |
 | `list_recent_changes` | none | read-only | last 7 days, with who undid what |
-| `add_cards_to_deck` | `deck_id`, `cards:[{name, quantity?, category?}]`, `dry_run?` | non-destructive | adds planned slots (`deck_add`) |
+| `add_cards_to_deck` | `deck_id`, `cards:[{name, quantity?, category?}]`, `dry_run?` | non-destructive | adds planned slots (`deck_add`); CC-21: a card outside the deck's colours is still added and named in `warnings`; a deck with no colours set returns a `colour_check` note instead |
 | `remove_cards_from_deck` | `deck_id`, `slots:[{slot_id, name}]`, `dry_run?` | **destructiveHint** | removes slots, releases copies to storage (`deck_remove`). Never touches the collection |
 | `set_card_zone` | `deck_id`, `slots:[{slot_id,name}]`, `to:'main'\|'maybeboard'`, `dry_run?` | non-destructive | `deck_zone`. To maybeboard releases the copy (D-005, D-039) |
 | `add_card_to_collection` | `name`, `finish?`, `printing_id?` | non-destructive | exactly one copy per call (`collection_add`). Direct always; counts toward the hourly cap only |

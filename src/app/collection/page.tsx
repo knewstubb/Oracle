@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { formatPrice } from '@/lib/collection-printing-utils'
 import { cn } from '@/lib/utils'
@@ -323,7 +323,17 @@ export default function CollectionPage() {
           </div>
 
           {/* ─── Main Content: Loading / Error / Empty / Data ──── */}
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+            {/* Spinner over the table while a filter/search/sort answer is loading */}
+            {hasActiveData && (isPrintingView ? printingIsFetching : isFetching) && (
+              <div
+                className="pointer-events-none absolute inset-0 z-10 flex items-start justify-center pt-24"
+                role="status"
+                aria-label="Updating results"
+              >
+                <Loader2 className="size-8 animate-spin text-[var(--ring)]" aria-hidden="true" />
+              </div>
+            )}
             {activeError ? (
               <ErrorState onRetry={() => window.location.reload()} />
             ) : !viewResolved || (isPrintingView ? (printingLoading && printingRows.length === 0) : (isLoading && rows.length === 0)) ? (

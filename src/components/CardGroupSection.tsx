@@ -346,11 +346,11 @@ function UnifiedCardRow({
     <>
       <div
         role="listitem"
-        className="group flex items-center gap-2 px-3 py-1.5 sm:py-1.5 transition-colors hover:bg-white/[0.03] border-b border-[rgba(255,255,255,0.04)] last:border-b-0"
+        className="group relative flex items-center gap-2 px-3 py-1.5 sm:py-1.5 transition-colors hover:bg-white/[0.03] border-b border-[rgba(255,255,255,0.04)] last:border-b-0"
         onContextMenu={handleContextMenu}
     >
       {/* Drag handle — hidden on mobile, visible on hover on desktop */}
-      <GripVertical className="hidden sm:block size-3 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-40 transition-opacity cursor-grab" aria-hidden="true" />
+      <GripVertical className="hidden sm:block absolute left-0.5 size-3 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-40 transition-opacity cursor-grab" aria-hidden="true" />
 
       {/* Checkbox — hidden on mobile for cleaner compact view */}
       <input
@@ -387,12 +387,9 @@ function UnifiedCardRow({
       )}
 
       {/* Mana cost pips — hidden on mobile for compact view */}
-      <span className="hidden sm:flex shrink-0 justify-end" style={{ width: 80 }}>
+      <span className="hidden sm:flex shrink-0 justify-end">
         <ManaCost cost={card.mana_cost} />
       </span>
-
-      {/* Gap between pips and price — hidden on mobile */}
-      <span className="hidden sm:block shrink-0 w-3" aria-hidden="true" />
 
       {/* Price — hidden on mobile */}
       {compact ? (

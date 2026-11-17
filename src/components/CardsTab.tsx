@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useState, useMemo, useEffect, useCallback } from 'react'
+import { Fragment, useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Search, List, LayoutGrid, Columns3, ChevronDown, ChevronRight, Sparkles, Loader2, Check, X, Trash2, Tags } from 'lucide-react'
 import { toast } from 'sonner'
@@ -1111,6 +1111,10 @@ function UnifiedListLayout({
 
 // ─── Unified Groups Layout (3-column masonry, uses CardGroupSection) ─────────
 
+// Narrowest a category section may get before the layout drops a column (px)
+const MIN_SECTION_WIDTH = 390
+const SECTION_GAP = 16
+
 function UnifiedGroupsLayout({
   groupedCards,
   statusMap,
@@ -1136,10 +1140,27 @@ function UnifiedGroupsLayout({
   onSelectionChange?: (cardId: number, selected: boolean) => void
   commanderSlots?: React.ReactNode
 }) {
-  // Distribute groups across 3 columns using a greedy shortest-column algorithm
+  // Column count follows the available width so sections never get narrower than MIN_SECTION_WIDTH
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [columnCount, setColumnCount] = useState(3)
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const update = () => {
+      const n = Math.floor((el.clientWidth + SECTION_GAP) / (MIN_SECTION_WIDTH + SECTION_GAP))
+      setColumnCount(Math.max(1, Math.min(3, n)))
+    }
+    update()
+    if (typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  // Distribute groups across columns using a greedy shortest-column algorithm
   const columns = useMemo(() => {
-    const cols: [string, DeckCard[]][][] = [[], [], []]
-    const heights = [0, 0, 0]
+    const cols: [string, DeckCard[]][][] = Array.from({ length: columnCount }, () => [])
+    const heights: number[] = Array(columnCount).fill(0)
 
     for (const group of groupedCards) {
       const [, cards] = group
@@ -1150,10 +1171,10 @@ function UnifiedGroupsLayout({
     }
 
     return cols
-  }, [groupedCards])
+  }, [groupedCards, columnCount])
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+    <div ref={containerRef} className="grid gap-4" style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}>
       {columns.map((column, colIdx) => (
         <div key={colIdx} className="flex flex-col gap-3">
           {column.map(([groupName, groupCards]) => {

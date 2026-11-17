@@ -409,7 +409,7 @@ function ColorIdentityFilter({
   )
 
   return (
-    <div className="flex items-center gap-1.5" role="group" aria-label="Color identity filter">
+    <div className="flex items-center gap-0" role="group" aria-label="Color identity filter">
       {/* Color buttons */}
       {COLOR_OPTIONS.map((color) => {
         const isSelected = selectedColors.includes(color.value)

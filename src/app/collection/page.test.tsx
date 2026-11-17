@@ -694,6 +694,42 @@ describe('F2: single search pause and atomic query/page transitions', () => {
     expect(printingCalls().some((c) => c.searchParams.get('colors') === 'W' && c.searchParams.get('page') === '2')).toBe(false)
   })
 
+  it.each([
+    ['grid', rollupCalls],
+    ['list', printingCalls],
+  ] as const)('Exact / Includes toggle with a colour selected re-queries with the new mode and shows its answer (%s view)', async (view, calls) => {
+    const answer = (call: FetchCall) => (call.searchParams.get('colorMode') === 'includes' ? 777 : 477)
+    const makeRows = (n: number) => Array.from({ length: n }, (_, i) => i)
+    rollupHandler = (call) =>
+      Promise.resolve(jsonResponse(rollupEnvelope([rollupRow('Elvish Mystic', 1)], 1, answer(call))))
+    printingsHandler = (call) =>
+      Promise.resolve(jsonResponse(printingEnvelope(makeRows(1).map(() => printingRow('Elvish Mystic', 1)), 1, answer(call))))
+    localStorageMock.setItem('oracle:collection:viewMode', view)
+    renderPage()
+    await waitFor(() => expect(calls().length).toBeGreaterThan(0))
+    fireEvent.click(screen.getByRole('button', { name: 'Green' }))
+    await waitFor(() => expect(document.body.textContent).toMatch(/of 477 /))
+    const exactCall = calls().find((c) => c.searchParams.get('colors') === 'G')
+    expect(exactCall?.searchParams.get('colorMode')).toBe('exact')
+    // Switch to Includes: the toggle shows it, a new request carries it, and the count follows.
+    fireEvent.click(screen.getByRole('radio', { name: 'Includes' }))
+    expect(screen.getByRole('radio', { name: 'Includes' }).getAttribute('aria-checked')).toBe('true')
+    expect(screen.getByRole('radio', { name: 'Exact' }).getAttribute('aria-checked')).toBe('false')
+    await waitFor(() =>
+      expect(calls().some((c) => c.searchParams.get('colors') === 'G' && c.searchParams.get('colorMode') === 'includes')).toBe(true)
+    )
+    await waitFor(() => expect(document.body.textContent).toMatch(/of 777 /))
+    // Back to Exact: answer returns to the Exact count.
+    fireEvent.click(screen.getByRole('radio', { name: 'Exact' }))
+    await waitFor(() => expect(document.body.textContent).toMatch(/of 477 /))
+    // A refresh when the tab returns must not replace the answer for the mode on screen.
+    fireEvent.click(screen.getByRole('radio', { name: 'Includes' }))
+    await waitFor(() => expect(document.body.textContent).toMatch(/of 777 /))
+    act(() => { window.dispatchEvent(new Event('focus')) })
+    await flushMicrotasks()
+    await waitFor(() => expect(document.body.textContent).toMatch(/of 777 /))
+    expect(screen.getByRole('radio', { name: 'Includes' }).getAttribute('aria-checked')).toBe('true')
+  })
   it('C27-F2-03: a colour filter change while a search is pending uses the last committed search, immediately, at page 1', async () => {
     rollupHandler = paginatedRollupHandler(3)
     localStorageMock.setItem('oracle:collection:viewMode', 'grid')

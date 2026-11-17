@@ -1,9 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
+import { toast } from 'sonner'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import DashboardPage from './page'
 import { OracleProvider } from '@/contexts/OracleContext'
 import { PageHeaderProvider, usePageHeaderContext } from '@/contexts/PageHeaderContext'
+
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 // Mock next/image
 vi.mock('next/image', () => ({
@@ -50,13 +53,14 @@ function HeaderTitleProbe() {
   return <span data-testid="page-header-title">{config?.title ?? ''}</span>
 }
 
-function createWrapper() {
-  const queryClient = new QueryClient({
+function createWrapper(
+  queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
       mutations: { retry: false },
     },
   })
+) {
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
@@ -230,5 +234,111 @@ describe('DashboardPage', () => {
     await waitFor(() => {
       expect(screen.getByRole('img', { name: 'White, Blue, Black' })).toBeInTheDocument()
     })
+  })
+})
+
+describe('deleting a deck', () => {
+  function deferred<T>() {
+    let resolve!: (v: T) => void
+    const promise = new Promise<T>((r) => { resolve = r })
+    return { promise, resolve }
+  }
+  const tile = (container: HTMLElement, id: number) => container.querySelector(`a[href="/decks/${id}"]`)
+
+  async function deleteDeckViaMenu(container: HTMLElement, id: number) {
+    fireEvent.contextMenu(tile(container, id)!)
+    fireEvent.click(await screen.findByText('Delete deck'))
+    expect(await screen.findByText('Delete deck?')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+  }
+
+  it('removes the deck from the list at once, before the server answers', async () => {
+    const decks = makeDecks(3)
+    const del = deferred<{ ok: boolean; json: () => Promise<unknown> }>()
+    let listGets = 0
+    mockFetch.mockImplementation((url: string, init?: { method?: string }) => {
+      if (init?.method === 'DELETE') return del.promise
+      listGets += 1
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ decks, folders: [], hasCollection: false }) })
+    })
+    const { container } = render(<DashboardPage />, { wrapper: createWrapper() })
+    await waitFor(() => expect(container.querySelectorAll('a[href^="/decks/"]')).toHaveLength(3))
+    const getsBefore = listGets
+
+    await deleteDeckViaMenu(container, 2)
+
+    await waitFor(() => expect(tile(container, 2)).toBeNull())
+    expect(tile(container, 1)).not.toBeNull()
+    expect(tile(container, 3)).not.toBeNull()
+    expect(listGets).toBe(getsBefore)
+    expect(toast.success).not.toHaveBeenCalled()
+
+    await act(async () => { del.resolve({ ok: true, json: () => Promise.resolve({ success: true }) }) })
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Deleted "Deck 2"'))
+  })
+
+  it('puts the deck back in its place and shows an error when the delete fails', async () => {
+    const decks = makeDecks(3)
+    const del = deferred<{ ok: boolean; json: () => Promise<unknown> }>()
+    mockFetch.mockImplementation((url: string, init?: { method?: string }) => {
+      if (init?.method === 'DELETE') return del.promise
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ decks, folders: [], hasCollection: false }) })
+    })
+    const { container } = render(<DashboardPage />, { wrapper: createWrapper() })
+    await waitFor(() => expect(container.querySelectorAll('a[href^="/decks/"]')).toHaveLength(3))
+
+    await deleteDeckViaMenu(container, 2)
+    await waitFor(() => expect(tile(container, 2)).toBeNull())
+
+    await act(async () => { del.resolve({ ok: false, json: () => Promise.resolve({ error: 'boom' }) }) })
+
+    await waitFor(() => expect(tile(container, 2)).not.toBeNull())
+    const hrefs = Array.from(container.querySelectorAll('a[href^="/decks/"]')).map((a) => a.getAttribute('href'))
+    expect(hrefs).toEqual(['/decks/1', '/decks/2', '/decks/3'])
+    const message = vi.mocked(toast.error).mock.calls[0][0] as string
+    expect(message).toContain('Deck 2')
+    expect(message).toContain('boom')
+  })
+
+  it('a list fetch already in flight does not bring the deleted deck back', async () => {
+    const decks = makeDecks(3)
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    const staleList = deferred<{ ok: boolean; json: () => Promise<unknown> }>()
+    let slow = false
+    let deleted = false
+    let slowCalls = 0
+    mockFetch.mockImplementation((url: string, init?: { method?: string }) => {
+      if (init?.method === 'DELETE') {
+        deleted = true
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true }) })
+      }
+      if (deleted) {
+        // The server no longer has the deck once the delete went through
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ decks: decks.filter((d) => d.id !== 2), folders: [], hasCollection: false }),
+        })
+      }
+      if (slow) {
+        slowCalls += 1
+        return staleList.promise
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ decks, folders: [], hasCollection: false }) })
+    })
+    const { container } = render(<DashboardPage />, { wrapper: createWrapper(queryClient) })
+    await waitFor(() => expect(container.querySelectorAll('a[href^="/decks/"]')).toHaveLength(3))
+
+    slow = true
+    act(() => { void queryClient.refetchQueries({ queryKey: ['decks'] }) })
+    await waitFor(() => expect(slowCalls).toBe(1))
+
+    await deleteDeckViaMenu(container, 2)
+    await waitFor(() => expect(tile(container, 2)).toBeNull())
+
+    await act(async () => {
+      staleList.resolve({ ok: true, json: () => Promise.resolve({ decks, folders: [], hasCollection: false }) })
+    })
+    await waitFor(() => expect(toast.success).toHaveBeenCalled())
+    expect(tile(container, 2)).toBeNull()
   })
 })

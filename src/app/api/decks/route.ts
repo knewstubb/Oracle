@@ -262,7 +262,10 @@ async function fetchManaCosts(
   cardNames: string[]
 ): Promise<Map<string, string>> {
   const manaCostMap = new Map<string, string>()
-  const PAGE_SIZE = 1000
+  // Card names travel in the request URL. One request with ~670 names (~17 KB
+  // URL) stalls ~10 s and then fails, so keep each request small and run the
+  // batches in parallel.
+  const PAGE_SIZE = 150
 
   // Parallel batch fetches for large card lists
   const batches: string[][] = []

@@ -2,9 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Trash2, Loader2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { useDeleteDeck } from '@/hooks/useDeleteDeck'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -24,27 +23,8 @@ interface DeleteDeckButtonProps {
 export function DeleteDeckButton({ deckId, deckName }: DeleteDeckButtonProps) {
   const [open, setOpen] = useState(false)
   const router = useRouter()
-  const queryClient = useQueryClient()
 
-  const deleteMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch(`/api/decks/${deckId}`, { method: 'DELETE' })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({ error: 'Delete failed' }))
-        throw new Error(body.error ?? 'Failed to delete deck')
-      }
-      return res.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['decks'] })
-      toast.success(`Deleted "${deckName}"`)
-      setOpen(false)
-      router.push('/')
-    },
-    onError: (err: Error) => {
-      toast.error(err.message)
-    },
-  })
+  const deleteMutation = useDeleteDeck({ id: deckId, name: deckName })
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!deleteMutation.isPending) setOpen(isOpen) }}>
@@ -78,7 +58,14 @@ export function DeleteDeckButton({ deckId, deckName }: DeleteDeckButtonProps) {
           </Button>
           <Button
             variant="destructive"
-            onClick={() => deleteMutation.mutate()}
+            onClick={() =>
+              deleteMutation.mutate(undefined, {
+                onSuccess: () => {
+                  setOpen(false)
+                  router.push('/')
+                },
+              })
+            }
             disabled={deleteMutation.isPending}
           >
             {deleteMutation.isPending && (

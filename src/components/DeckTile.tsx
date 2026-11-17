@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button'
 import { validateDeckCount } from '@/lib/format-config'
 import { cn } from '@/lib/utils'
+import { useDeleteDeck } from '@/hooks/useDeleteDeck'
 
 export type HealthPipStatus = 'ok' | 'warn' | 'crit'
 export type ReadinessTier = 'green' | 'amber' | 'red' | 'overcount'
@@ -156,23 +157,7 @@ export function DeckTile({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const queryClient = useQueryClient()
 
-  const deleteMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch(`/api/decks/${id}`, { method: 'DELETE' })
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Failed to delete deck')
-      }
-      return res.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['decks'] })
-      toast.success(`Deleted ${name}`)
-      setDeleteDialogOpen(false)
-    },
-    onError: (err: Error) => toast.error(err.message),
-  })
-
+  const deleteMutation = useDeleteDeck({ id, name })
   const moveMutation = useMutation({
     mutationFn: async (targetFolderId: number | null) => {
       const res = await fetch(`/api/decks/${id}/folder`, {
@@ -445,10 +430,12 @@ export function DeckTile({
           </DialogClose>
           <Button
             variant="destructive"
-            onClick={() => deleteMutation.mutate()}
-            disabled={deleteMutation.isPending}
+            onClick={() => {
+              deleteMutation.mutate()
+              setDeleteDialogOpen(false)
+            }}
           >
-            {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+            Delete
           </Button>
         </DialogFooter>
       </DialogContent>

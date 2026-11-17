@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const h = vi.hoisted(() => ({
   statusMap: new Map<string, 'available' | 'alternate' | 'claimed' | 'unowned' | 'failed'>(),
   conflictCounts: { decks: [] as { deckId: number; count: number }[] },
+  deckCards: [{ deck_id: 1, card_name: 'Sol Ring', copy_id: null, categories: null }] as unknown[],
+  manaBatchSizes: [] as number[],
 }))
 
 vi.mock('@/lib/auth', () => ({
@@ -49,9 +51,7 @@ vi.mock('@/lib/supabase', () => ({
             eq: () => ({
               then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
                 resolve({
-                  data: [
-                    { deck_id: 1, card_name: 'Sol Ring', copy_id: null, categories: null },
-                  ],
+                  data: h.deckCards,
                   error: null,
                 }),
             }),
@@ -85,10 +85,13 @@ vi.mock('@/lib/supabase', () => ({
       if (table === 'ref_cards') {
         return {
           select: () => ({
-            in: () => ({
-              then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
-                resolve({ data: [], error: null }),
-            }),
+            in: (_column: string, names: string[]) => {
+              h.manaBatchSizes.push(names.length)
+              return {
+                then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
+                  resolve({ data: [], error: null }),
+              }
+            },
           }),
         }
       }
@@ -108,7 +111,20 @@ describe('GET /api/decks', () => {
   beforeEach(() => {
     h.statusMap = new Map()
     h.conflictCounts = { decks: [] }
+    h.deckCards = [{ deck_id: 1, card_name: 'Sol Ring', copy_id: null, categories: null }]
+    h.manaBatchSizes = []
     vi.clearAllMocks()
+  })
+
+  it('looks up mana costs in small batches so a big deck list does not stall', async () => {
+    h.deckCards = Array.from({ length: 400 }, (_, i) => ({
+      deck_id: 1, card_name: `Card ${i}`, copy_id: 1, categories: null,
+    }))
+    const response = await GET()
+    expect(response.status).toBe(200)
+    expect(h.manaBatchSizes.length).toBeGreaterThan(1)
+    expect(Math.max(...h.manaBatchSizes)).toBeLessThanOrEqual(150)
+    expect(h.manaBatchSizes.reduce((a, b) => a + b, 0)).toBe(400)
   })
 
   it('returns deck list with completeness', async () => {

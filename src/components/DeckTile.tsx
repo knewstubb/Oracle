@@ -172,7 +172,7 @@ export function DeckTile({
         )}
         style={{
           backgroundColor: '#1A1A1A',
-          border: isPlayable ? '1px solid var(--accent-primary)' : '1px solid rgba(255, 255, 255, 0.1)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
         }}
         onContextMenu={handleContextMenu}
       >

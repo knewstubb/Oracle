@@ -41,7 +41,7 @@ describe('In your hand page', () => {
   it('lists a card with its destination and Placed it posts that exact slot', async () => {
     const f = mount(<InHandPage />, withData)
     await waitFor(() => expect(screen.getByText('Going to Prosper')).toBeTruthy())
-    fireEvent.click(screen.getByRole('button', { name: 'Placed it: Cultivate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Placed: Cultivate' }))
     await waitFor(() => expect(f.mock.calls.some((c) => c[0] === '/api/picklist/placed')).toBe(true))
     const call = f.mock.calls.find((c) => c[0] === '/api/picklist/placed')!
     expect(JSON.parse(call[1]!.body as string)).toMatchObject({ copyId: 5, to: { kind: 'deck', deckId: 3, deckCardId: 8 } })
@@ -58,7 +58,7 @@ describe('In your hand page', () => {
   it('a refusal shows the plain message', async () => {
     mount(<InHandPage />, withData, { tick: { status: 409, json: { error: 'wrong_state', message: 'Cultivate has already moved on.' } } })
     await waitFor(() => expect(screen.getByText('Going to Prosper')).toBeTruthy())
-    fireEvent.click(screen.getByRole('button', { name: 'Placed it: Cultivate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Placed: Cultivate' }))
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Cultivate has already moved on.'))
   })
 })

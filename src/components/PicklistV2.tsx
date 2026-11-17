@@ -338,20 +338,20 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
                           variant="outline"
                           disabled={isPending}
                           onClick={() => tick('found', card, candidate.entry.physicalCopyId)}
-                          aria-label={`Found it: ${card.cardName}`}
+                          aria-label={`Picked: ${card.cardName}`}
                         >
-                          {busyCopyId === candidate.entry.physicalCopyId ? 'Saving…' : 'Found it'}
+                          {busyCopyId === candidate.entry.physicalCopyId ? 'Saving…' : 'Picked'}
                         </Button>
                         <Button
                           size="xs"
                           variant="outline"
                           disabled={isPending}
                           onClick={() => handlePlaced(card, candidate)}
-                          aria-label={`Placed it: ${card.cardName}`}
+                          aria-label={`Placed: ${card.cardName}`}
                           className="hover:bg-[rgba(29,158,117,0.15)] hover:scale-105 transition-all"
                           style={{ color: 'rgba(29,158,117,0.7)', borderColor: 'rgba(29,158,117,0.5)' }}
                         >
-                          Placed it
+                          Placed
                         </Button>
                         <button
                           type="button"
@@ -409,19 +409,19 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
                               variant="outline"
                               disabled={isPending}
                               onClick={() => tick('found', card, candidate.entry.physicalCopyId)}
-                              aria-label={`Found it: ${card.cardName}`}
+                              aria-label={`Picked: ${card.cardName}`}
                             >
-                              {busyCopyId === candidate.entry.physicalCopyId ? 'Saving…' : 'Found it'}
+                              {busyCopyId === candidate.entry.physicalCopyId ? 'Saving…' : 'Picked'}
                             </Button>
                             <Button
                               size="xs"
                               variant="outline"
                               disabled
                               aria-disabled="true"
-                              aria-label={`Placed it: ${card.cardName}`}
+                              aria-label={`Placed: ${card.cardName}`}
                               title={`Pick it up first, at ${group.deckName}`}
                             >
-                              Placed it
+                              Placed
                             </Button>
                           </>
                         ) : (
@@ -635,11 +635,11 @@ function ItemSection({
                       variant="outline"
                       disabled={busyCopyId != null || item.deckCardsId === null}
                       onClick={() => onTick('placed', card, item.copyId)}
-                      aria-label={`Placed it: ${item.cardName}`}
+                      aria-label={`Placed: ${item.cardName}`}
                       className="hover:bg-[rgba(29,158,117,0.15)] transition-all"
                       style={{ color: 'rgba(29,158,117,0.7)', borderColor: 'rgba(29,158,117,0.5)' }}
                     >
-                      {busy ? 'Saving…' : 'Placed it'}
+                      {busy ? 'Saving…' : 'Placed'}
                     </Button>
                     <button
                       type="button"

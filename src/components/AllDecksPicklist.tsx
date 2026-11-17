@@ -149,13 +149,13 @@ function Section({ title, stops, actions }: { title: string; stops: WalkStop[]; 
                 </div>
                 {r.copyId !== null && r.state === 'to_find' && (
                   <>
-                    <button type="button" className={btn} disabled={busy} aria-label={`Found it: ${r.cardName}`} onClick={() => tick({ action: 'found', row: r })}>Found it</button>
+                    <button type="button" className={btn} disabled={busy} aria-label={`Picked: ${r.cardName}`} onClick={() => tick({ action: 'found', row: r })}>Picked</button>
                     <button type="button" className="min-h-11 text-[length:var(--fs-sm)] underline" disabled={busy} aria-label={`Can't find it: ${r.cardName}`} onClick={() => tick({ action: 'cant-find', row: r })}>Can&apos;t find it</button>
                     <button type="button" className="min-h-11 text-[length:var(--fs-sm)] text-muted-foreground underline" disabled={busy} aria-label={`Cancel step: ${r.cardName}`} onClick={() => cancel(r)}>Cancel step</button>
                   </>
                 )}
                 {r.copyId !== null && r.state === 'found' && (
-                  <button type="button" className={btn} disabled={busy} aria-label={`Placed it: ${r.cardName}`} onClick={() => tick({ action: 'placed', row: r })}>Placed it</button>
+                  <button type="button" className={btn} disabled={busy} aria-label={`Placed: ${r.cardName}`} onClick={() => tick({ action: 'placed', row: r })}>Placed</button>
                 )}
                 {r.state !== 'to_find' && (
                   <button type="button" className="min-h-11 text-[length:var(--fs-sm)] text-muted-foreground underline" disabled={busy} aria-label={`Undo: ${r.cardName}`} onClick={() => undo(r)}>Undo</button>

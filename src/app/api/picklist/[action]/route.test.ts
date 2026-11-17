@@ -48,7 +48,7 @@ describe('POST /api/picklist/[action]', () => {
   it.each([
     ['no_open_slot', 409, /no open slot/],
     ['copy_missing', 409, /Missing/],
-    ['not_in_hand', 409, /Found it first/],
+    ['not_in_hand', 409, /Picked first/],
     ['copy_not_found', 404, /Couldn't find/],
     ['target_not_found', 404, /no longer exists/],
   ])('turns the refusal %s into a plain message and leaves everything unchanged', async (code, status, text) => {

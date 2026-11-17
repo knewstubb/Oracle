@@ -103,7 +103,7 @@ export function tickErrorMessage(code: TickErrorCode | string, cardName: string)
     case 'already_in_this_deck':
       return `${cardName} is already in this deck.`
     case 'not_in_hand':
-      return `${cardName} isn't in your hand. Tick Found it first.`
+      return `${cardName} isn't in your hand. Tick Picked first.`
     case 'copy_already_in_open_item':
       return `${cardName} is already on a Picklist step.`
     default:

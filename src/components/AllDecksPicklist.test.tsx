@@ -46,16 +46,16 @@ describe('AllDecksPicklist', () => {
   })
   it('Found it posts that exact copy and slot', async () => {
     const f = mount(full)
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Found it: Sol Ring' })).toBeTruthy())
-    fireEvent.click(screen.getByRole('button', { name: 'Found it: Sol Ring' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Picked: Sol Ring' })).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'Picked: Sol Ring' }))
     await waitFor(() => expect(f.mock.calls.some((c) => c[0] === '/api/picklist/found')).toBe(true))
     const c = f.mock.calls.find((x) => x[0] === '/api/picklist/found')!
     expect(JSON.parse(c[1]!.body as string)).toMatchObject({ copyId: 5, to: { kind: 'deck', deckId: 1, deckCardId: 9 } })
   })
   it('Placed it on a picked-up card, and a refusal shows the plain message', async () => {
     mount(full, { tick: { status: 409, json: { error: 'wrong_state', message: 'Cultivate has already moved on.' } } })
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Placed it: Cultivate' })).toBeTruthy())
-    fireEvent.click(screen.getByRole('button', { name: 'Placed it: Cultivate' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Placed: Cultivate' })).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'Placed: Cultivate' }))
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Cultivate has already moved on.'))
   })
   it('shows the unowned footnote as a count per deck, never as a list', async () => {

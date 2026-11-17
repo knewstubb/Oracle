@@ -89,14 +89,14 @@ export function InHandPage() {
                   type="button"
                   className="min-h-12 rounded-md bg-[var(--accent-primary)] px-4 text-[length:var(--fs-sm)] font-medium text-white md:min-h-11"
                   disabled={place.isPending}
-                  aria-label={`Placed it: ${c.cardName}`}
+                  aria-label={`Placed: ${c.cardName}`}
                   onClick={() => place.mutate({
                     copyId: c.copyId, cardName: c.cardName,
                     to: c.destination!.kind === 'deck'
                       ? { kind: 'deck', deckId: c.destination!.deckId, ...(c.destination!.deckCardId ? { deckCardId: c.destination!.deckCardId } : {}) } as Option['to']
                       : { kind: 'location', locationId: c.destination!.locationId },
                   })}
-                >Placed it</button>
+                >Placed</button>
               )}
               <select
                 aria-label={`Put ${c.cardName} somewhere else`}

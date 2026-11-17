@@ -62,7 +62,7 @@ describe('PicklistV2 (Picklist tab)', () => {
     expect(screen.getByTestId('picklist-summary').textContent).toContain('1 of 4 ready')
     expect(screen.getByTestId('picklist-summary').textContent).toContain('1 available · 1 need moving · 1 unowned')
     const available = within(screen.getByTestId('group-available'))
-    expect(available.getByRole('button', { name: /Placed it: Sol Ring/ })).toBeTruthy()
+    expect(available.getByRole('button', { name: /Placed: Sol Ring/ })).toBeTruthy()
     expect(available.getByText('BOX A (1)')).toBeTruthy()
     expect(screen.queryByText('Sleeve')).toBeNull()
   })
@@ -125,7 +125,7 @@ describe('PicklistV2 saved ticks (Found it / Placed it / Can\'t find it)', () =>
   it('Found it saves one step for that exact copy and slot, and announces it', async () => {
     const fetchMock = setupWithTicks(full, { status: 200, json: { itemId: 1, state: 'found', unchanged: false, sourceDeckNowShort: [{ deckId: 3, deckName: 'Prosper', cardName: 'Sol Ring' }], decksNowShort: [], filledDeckCardId: null } })
     await waitFor(() => expect(screen.getByTestId('group-available')).toBeTruthy())
-    fireEvent.click(within(screen.getByTestId('group-available')).getByRole('button', { name: 'Found it: Sol Ring' }))
+    fireEvent.click(within(screen.getByTestId('group-available')).getByRole('button', { name: 'Picked: Sol Ring' }))
     await waitFor(() => expect(screen.getByTestId('picklist-announce').textContent).toContain('Sol Ring is in your hand. Prosper is now short by one.'))
     const tickCall = fetchMock.mock.calls.find((c) => String(c[0]) === '/api/picklist/found')!
     expect(JSON.parse((tickCall[1] as RequestInit).body as string)).toEqual({
@@ -143,9 +143,9 @@ describe('PicklistV2 saved ticks (Found it / Placed it / Can\'t find it)', () =>
   it('a refused tick shows the plain message and leaves the row where it was', async () => {
     setupWithTicks(full, { status: 409, json: { error: 'copy_missing', message: 'Sol Ring is marked Missing, so it can\'t be picked up or placed.' } })
     await waitFor(() => expect(screen.getByTestId('group-available')).toBeTruthy())
-    fireEvent.click(within(screen.getByTestId('group-available')).getByRole('button', { name: 'Found it: Sol Ring' }))
+    fireEvent.click(within(screen.getByTestId('group-available')).getByRole('button', { name: 'Picked: Sol Ring' }))
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('marked Missing')))
-    expect(within(screen.getByTestId('group-available')).getByRole('button', { name: 'Found it: Sol Ring' })).toBeTruthy()
+    expect(within(screen.getByTestId('group-available')).getByRole('button', { name: 'Picked: Sol Ring' })).toBeTruthy()
   })
 
   it('shows a picked-up card as In your hand in the group it came from, with Placed it, and not as its old row', async () => {
@@ -154,7 +154,7 @@ describe('PicklistV2 saved ticks (Found it / Placed it / Can\'t find it)', () =>
     const needs = within(screen.getByTestId('group-needs-moving'))
     expect(needs.getByText('In your hand')).toBeTruthy()
     expect(needs.getByText(/From Prosper/)).toBeTruthy()
-    expect(needs.getByRole('button', { name: 'Placed it: Cultivate' })).toBeTruthy()
+    expect(needs.getByRole('button', { name: 'Placed: Cultivate' })).toBeTruthy()
     expect(needs.queryByText(/Move here \(stub\) Cultivate/)).toBeNull() // the slot is no longer a plain row
     expect(screen.getByTestId('picklist-summary').textContent).toContain('1 in your hand')
   })
@@ -162,7 +162,7 @@ describe('PicklistV2 saved ticks (Found it / Placed it / Can\'t find it)', () =>
   it('Placed it on a hand row targets that deck and slot', async () => {
     const fetchMock = setupWithTicks({ ...full, moveItems: [handItem] }, { status: 200, json: { itemId: 11, state: 'placed', unchanged: false, sourceDeckNowShort: [], decksNowShort: [], filledDeckCardId: 2 } })
     await waitFor(() => expect(screen.getByTestId('group-needs-moving')).toBeTruthy())
-    fireEvent.click(screen.getByRole('button', { name: 'Placed it: Cultivate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Placed: Cultivate' }))
     await waitFor(() => expect(fetchMock.mock.calls.some((c) => String(c[0]) === '/api/picklist/placed')).toBe(true))
     const call = fetchMock.mock.calls.find((c) => String(c[0]) === '/api/picklist/placed')!
     expect(JSON.parse((call[1] as RequestInit).body as string)).toMatchObject({ copyId: 21, to: { kind: 'deck', deckId: 7, deckCardId: 2 } })
@@ -182,7 +182,7 @@ describe('PicklistV2 saved ticks (Found it / Placed it / Can\'t find it)', () =>
     await waitFor(() => expect(screen.getByTestId('group-needs-moving')).toBeTruthy())
     const needs = within(screen.getByTestId('group-needs-moving'))
     fireEvent.click(needs.getByRole('button', { name: 'Walk it instead' }))
-    expect(needs.getByRole('button', { name: 'Found it: Cultivate' })).toBeTruthy()
-    expect((needs.getByRole('button', { name: 'Placed it: Cultivate' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(needs.getByRole('button', { name: 'Picked: Cultivate' })).toBeTruthy()
+    expect((needs.getByRole('button', { name: 'Placed: Cultivate' }) as HTMLButtonElement).disabled).toBe(true)
   })
 })

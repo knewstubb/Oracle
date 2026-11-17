@@ -4,7 +4,7 @@ import type { CardFacts } from '../../../../docs/oracle/contracts/connector-card
 import { DECK_CARDS_PAGE_MAX, fitRows, cutText } from '../limits'
 import { fetchCardFacts, factsFor } from './card-facts'
 import { loadStrategyBrackets } from './bracket'
-import { DECK_COLUMNS, toDeckSummary, type DeckRow } from './list-decks'
+import { DECK_COLUMNS, deckStatusAndSleeved, toDeckSummary, type DeckRow } from './list-decks'
 import { fetchAll, fetchAllIn, LookupFailed, lookupFailed, must, notFound, pageNote, rows, tooLarge, type ToolContext, type ToolOutput } from './common'
 
 export const getDeckInput = z.strictObject({
@@ -23,6 +23,7 @@ type DeckCardRow = {
   is_commander: boolean | null
   ownership_status: string | null
   is_generic: boolean
+  generic_sleeved: boolean | null
   copy_id: number | null
   scryfall_id: string | null
   requested_finish: string | null
@@ -63,7 +64,7 @@ export async function getDeck(ctx: ToolContext, input: z.infer<typeof getDeckInp
 
     const all = await fetchAll<DeckCardRow>(() =>
       ctx.db
-        .select('deck_cards', 'id, card_name, quantity, categories, is_commander, ownership_status, is_generic, copy_id, scryfall_id, requested_finish')
+        .select('deck_cards', 'id, card_name, quantity, categories, is_commander, ownership_status, is_generic, generic_sleeved, copy_id, scryfall_id, requested_finish')
         .eq('user_id', ctx.userId)
         .eq('deck_id', input.deck_id)
         .order('id', { ascending: true }),
@@ -77,7 +78,7 @@ export async function getDeck(ctx: ToolContext, input: z.infer<typeof getDeckInp
     const copyIds = page.map((r) => r.copy_id).filter((x): x is number => x != null)
     const copies = copyIds.length ? await fetchAllIn<{ id: number; printing_id: string | null; finish: string | null }>(ctx, 'user_copies', 'id, printing_id, finish', 'id', copyIds) : []
     const copyById = new Map(copies.map((c) => [c.id, c]))
-    const sleevedCount = all.filter((r) => r.copy_id != null).length
+    const { status, sleevedCount } = deckStatusAndSleeved(deckRow.format, all)
 
     const withRules = input.include_rules_text ?? false
     const facts = await fetchCardFacts(ctx, page.map((r) => r.card_name), { includeRulesText: withRules, prices: new Map() }) // prices are not shown on deck rows
@@ -98,7 +99,7 @@ export async function getDeck(ctx: ToolContext, input: z.infer<typeof getDeckInp
       }
     })
     const strategy = await loadStrategyBrackets(ctx, [input.deck_id])
-    const deck = toDeckSummary(deckRow, sleevedCount, undefined, strategy.get(input.deck_id))
+    const deck = toDeckSummary(deckRow, sleevedCount, status, undefined, strategy.get(input.deck_id))
     const fit = fitRows(items, (kept) => {
       const meta = pageNote(total, offset, kept.length, kept.length < items.length)
       return {

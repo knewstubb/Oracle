@@ -1,5 +1,7 @@
 import type { createAdminClient } from '@/lib/supabase'
 import { countsAsSleeved } from '@/lib/basic-lands'
+import { computeDeckReadiness } from '@/lib/deck-readiness'
+import { deckTargetFor } from '@/lib/format-config'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -161,4 +163,43 @@ export function computeSleevedCounts(rows: DeckCardRow[]): Record<number, number
     counts[card.deck_id] = (counts[card.deck_id] ?? 0) + 1
   }
   return counts
+}
+
+export type AutoDeckStatus = 'draft' | 'assembling' | 'playable'
+/** Automatic status per deck from its rows and format. Decks with no rows are Draft. */
+export function computeDeckStatuses(
+  rows: DeckCardRow[],
+  formats: ReadonlyMap<number, string | null>
+): Record<number, AutoDeckStatus> {
+  const byDeck = new Map<number, DeckCardRow[]>()
+  for (const row of rows) {
+    if (!formats.has(row.deck_id) || !isCountableCard(row.categories)) continue
+    const list = byDeck.get(row.deck_id) ?? []
+    list.push(row)
+    byDeck.set(row.deck_id, list)
+  }
+  const out: Record<number, AutoDeckStatus> = {}
+  for (const [deckId, format] of formats) {
+    const target = deckTargetFor(format)
+    out[deckId] = computeDeckReadiness(byDeck.get(deckId) ?? [], target.deckSize, target.countRule).state
+  }
+  return out
+}
+/**
+ * Status word source for screens that show a deck's status next to its name.
+ * Reads the deck formats and the user's deck rows, then applies the shared rule.
+ */
+export async function fetchDeckStatuses(
+  supabase: AdminClient,
+  userId: string,
+  deckIds: number[]
+): Promise<Record<number, AutoDeckStatus>> {
+  if (deckIds.length === 0) return {}
+  const { data, error } = await supabase.from('decks').select('id, format').eq('user_id', userId).in('id', deckIds)
+  if (error) throw new Error(`deck format lookup failed: ${error.message}`)
+  const formats = new Map<number, string | null>()
+  for (const d of (data ?? []) as Array<{ id: number; format: string | null }>) formats.set(d.id, d.format)
+  const { rows, error: rowsError } = await fetchAllDeckCardRows(supabase, userId)
+  if (rowsError) throw new Error(`deck card lookup failed: ${rowsError}`)
+  return computeDeckStatuses(rows, formats)
 }

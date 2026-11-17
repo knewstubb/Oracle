@@ -24,13 +24,11 @@ vi.mock('@/lib/supabase', () => ({
           select: () => ({
             eq: () => ({
               order: () => ({
-                order: () => ({
-                  then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
-                    resolve({
-                      data: [{ id: 1, name: 'Korvold', commander_name: 'Korvold, Fae-Cursed King', folder_id: null }],
-                      error: null,
-                    }),
-                }),
+                then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
+                  resolve({
+                    data: [{ id: 1, name: 'Korvold', commander_name: 'Korvold, Fae-Cursed King', format: 'commander', folder_id: null }],
+                    error: null,
+                  }),
               }),
             }),
           }),

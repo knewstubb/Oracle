@@ -375,12 +375,12 @@ describe('Integration: Archidekt URL → preview → theorycrafted import', () =
     // Deck row upserted
     const deckUpserts = tracker.getOps('decks', 'upsert')
     expect(deckUpserts).toHaveLength(1)
+    expect(deckUpserts[0].data).not.toHaveProperty('is_active') // status is automatic
     expect(deckUpserts[0].data).toEqual(
       expect.objectContaining({
         id: 12345678,
         name: 'Korvold Treasures',
         commander_name: 'Korvold, Fae-Cursed King',
-        is_active: false,
         source_url: ARCHIDEKT_URL,
         source_platform: 'archidekt',
         user_id: TEST_USER_ID,
@@ -443,7 +443,6 @@ describe('Integration: Moxfield URL → preview → new_cards import', () => {
     expect(deckUpserts[0].data).toEqual(
       expect.objectContaining({
         name: 'Atraxa Superfriends',
-        is_active: true,
         source_url: MOXFIELD_URL,
         source_platform: 'moxfield',
         user_id: TEST_USER_ID,

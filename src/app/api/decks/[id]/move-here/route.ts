@@ -22,10 +22,11 @@ import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { assertAtomicRpcId, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 import { computeDeckReadiness } from '@/lib/deck-readiness'
+import { isCountableCard } from '@/lib/deck-list-data'
+import { deckTargetFor } from '@/lib/format-config'
 import { movableCopies, moveHereErrorMessage, type MoveHereCopy } from '@/lib/move-here'
 import type { MoveHereBody, MoveHereResponse } from '../../../../../../docs/oracle/contracts/know-where-cards-are.types'
 
-const DECK_SIZE = 100 // Commander
 
 type Admin = ReturnType<typeof createAdminClient>
 
@@ -40,10 +41,11 @@ async function deckSlots(supabase: Admin, deckIds: number[]): Promise<Map<number
   if (deckIds.length === 0) return out
   const { data, error } = await supabase
     .from('deck_cards')
-    .select('deck_id, copy_id, is_generic, generic_sleeved')
+    .select('deck_id, copy_id, is_generic, generic_sleeved, categories')
     .in('deck_id', deckIds)
   if (error) throw new Error(`deck lookup failed: ${error.message}`)
-  for (const row of (data ?? []) as Array<SlotRow & { deck_id: number }>) {
+  for (const row of (data ?? []) as Array<SlotRow & { deck_id: number; categories?: string | null }>) {
+    if (!isCountableCard(row.categories)) continue // Maybeboard and Sideboard are not part of the deck
     const list = out.get(row.deck_id) ?? []
     list.push(row)
     out.set(row.deck_id, list)
@@ -51,6 +53,18 @@ async function deckSlots(supabase: Admin, deckIds: number[]): Promise<Map<number
   return out
 }
 
+async function deckFormats(supabase: Admin, deckIds: number[]): Promise<Map<number, string | null>> {
+  const out = new Map<number, string | null>()
+  if (deckIds.length === 0) return out
+  const { data, error } = await supabase.from('decks').select('id, format').in('id', deckIds)
+  if (error) throw new Error(`deck format lookup failed: ${error.message}`)
+  for (const row of (data ?? []) as Array<{ id: number; format: string | null }>) out.set(row.id, row.format)
+  return out
+}
+function stateFor(slots: SlotRow[], format: string | null | undefined) {
+  const target = deckTargetFor(format)
+  return computeDeckReadiness(slots, target.deckSize, target.countRule).state
+}
 function fail(code: string, cardName: string, status: number, sourceDeckName?: string) {
   return Response.json({ error: code, message: moveHereErrorMessage(code, cardName, sourceDeckName) }, { status })
 }
@@ -110,10 +124,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       inDecks.push({ copyId: row.id, isProxy: row.is_proxy, deckId: dc.deck_id, deckName: dc.decks?.name ?? `Deck ${dc.deck_id}` })
     }
 
-    const slots = await deckSlots(supabase, [...new Set(inDecks.map((c) => c.deckId))])
+    const sourceIds = [...new Set(inDecks.map((c) => c.deckId))]
+    const slots = await deckSlots(supabase, sourceIds)
+    const formats = await deckFormats(supabase, sourceIds)
     const withState: MoveHereCopy[] = inDecks.map((c) => ({
       ...c,
-      deckState: computeDeckReadiness(slots.get(c.deckId) ?? [], DECK_SIZE).state,
+      deckState: stateFor(slots.get(c.deckId) ?? [], formats.get(c.deckId)),
     }))
     return Response.json({ hasOpenSlot, copies: movableCopies(withState, deckId) })
   } catch (err) {
@@ -164,7 +180,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const sourceDeckName = current.decks?.name ?? `Deck ${current.deck_id}`
 
     const before = (await deckSlots(supabase, [current.deck_id])).get(current.deck_id) ?? []
-    const sourceWasPlayable = computeDeckReadiness(before, DECK_SIZE).state === 'playable'
+    const sourceFormat = (await deckFormats(supabase, [current.deck_id])).get(current.deck_id)
+    const sourceWasPlayable = stateFor(before, sourceFormat) === 'playable'
 
     const { data, error: rpcErr } = await supabase.rpc('reassign_to_deck', {
       p_copy_id: copyId,
@@ -199,7 +216,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const after = (await deckSlots(supabase, [current.deck_id])).get(current.deck_id) ?? []
-    const sourceDeckStatusAfter = computeDeckReadiness(after, DECK_SIZE).state
+    const sourceDeckStatusAfter = stateFor(after, sourceFormat)
 
     const response: MoveHereResponse & { sourceWasPlayable: boolean } = {
       copyId,

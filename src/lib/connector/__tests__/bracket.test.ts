@@ -7,7 +7,7 @@ import { CONNECTOR_TOOLS } from '../tools'
 import { hasEq, mockDb } from './mock-db'
 
 const U = 'user-1'
-const deck = (id: number, bracket: string | null) => ({ id, name: `Deck ${id}`, commander_name: 'C', format: 'commander', status: 'active', bracket, card_count: 99, is_active: true })
+const deck = (id: number, bracket: string | null) => ({ id, name: `Deck ${id}`, commander_name: 'C', format: 'commander', bracket, card_count: 99 })
 
 describe('bracket rules (CC-06e)', () => {
   it('parses only whole numbers 1 to 4', () => {

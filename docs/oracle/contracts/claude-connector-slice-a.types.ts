@@ -71,15 +71,12 @@ export interface DeckSummary {
   /** Commander colours as letters in WUBRG order, for example "R" or "WU". null when the deck has no colours set. */
   colourIdentity: string | null
   format: string | null
-  status: string | null
+  /** Automatic status, never set by hand: Draft (no cards sleeved), Assembling (some sleeved), Playable (a full list, every card sleeved). */
+  status: 'Draft' | 'Assembling' | 'Playable'
   bracket: string | null
   cardCount: number
-  sleevedCount: number // deck_cards rows with a physical copy attached
-  isActive: boolean // a manual flag the owner may never set; do NOT read false as archived
-  /** 'marked active by you' or 'not marked active by you'. Present this wording, never 'inactive'. */
-  activeNote?: string
-  /** Computed from sleeved cards: Draft / Assembling / Playable. */
-  readiness?: 'Draft' | 'Assembling' | 'Playable'
+  /** Cards in the deck: a real copy (original or proxy) or a generic basic marked sleeved; maybeboard and sideboard excluded. Same count as the Decks page tile. */
+  sleevedCount: number
   /** Added by the ownership extension (list_decks only). Main-deck cards by quantity; maybeboard and generic slots are not counted. */
   ownershipCounts?: { original: number; proxy: number; notOwned: number }
 }

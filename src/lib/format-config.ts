@@ -172,6 +172,15 @@ export function getFormatConfig(format: string | null | undefined): FormatDefini
   return FORMAT_DEFINITIONS[format as DeckFormat] ?? FORMAT_DEFINITIONS.commander
 }
 
+/** The deck size target and rule for a format (used for the automatic deck status). */
+export function deckTargetFor(format: string | null | undefined): {
+  deckSize: number | null
+  countRule: 'exact' | 'minimum' | null
+} {
+  const { deckSize, countRule } = getFormatConfig(format)
+  return { deckSize, countRule }
+}
+
 /** Get the display label for a deck size target */
 export function getDeckSizeLabel(format: string | null | undefined): string {
   const config = getFormatConfig(format)

@@ -8,6 +8,7 @@ import { CardHoverPreview, showCardPreview, updateCardPreviewPosition, hideCardP
 import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { LocationPickerModal } from '@/components/LocationPickerModal'
 import { DeckPickerPopover, type ValidDeck } from '@/components/DeckPickerPopover'
+import { deckStatusColour, deckStatusLabel } from '@/lib/deck-status-label'
 import { StorageLocationSelect } from '@/components/collection/StorageLocationSelect'
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
@@ -457,17 +458,8 @@ function ShortDeckRow({ shortDeck, oracleId, cardName, assignedInstances }: Shor
   }
 
   const handleReassignFrom = (instance: InstanceRow) => {
-    // Brew → Tier 3 → execute immediately
-    if (instance.assignedDeckStatus === 'brewing') {
-      assignMutation.mutate(instance.physicalCopyId)
-    } else {
-      // Boxed → Tier 4 → show confirmation modal
-      setConfirmReassign({
-        physicalCopyId: instance.physicalCopyId,
-        sourceDeckName: instance.assignedDeckName ?? 'Unknown deck',
-      })
-      setShowReassignDropdown(false)
-    }
+    // Every deck is treated the same: the copy moves at once (no confirmation by deck status).
+    assignMutation.mutate(instance.physicalCopyId)
   }
 
   const handleConfirmReassign = async () => {
@@ -599,11 +591,11 @@ function ShortDeckRow({ shortDeck, oracleId, cardName, assignedInstances }: Shor
                 <span
                   className="rounded-full px-1 py-0.5 text-[length:10px] font-medium leading-none"
                   style={{
-                    background: `${getStatusColor(instance.assignedDeckStatus ?? 'brewing')}20`,
-                    color: getStatusColor(instance.assignedDeckStatus ?? 'brewing'),
+                    background: `${deckStatusColour(instance.assignedDeckStatus)}20`,
+                    color: deckStatusColour(instance.assignedDeckStatus),
                   }}
                 >
-                  {instance.assignedDeckStatus ?? 'brewing'}
+                  {deckStatusLabel(instance.assignedDeckStatus)}
                 </span>
               </button>
             ))}
@@ -988,13 +980,6 @@ function getAssignmentLabel(instance: InstanceRow): string {
   return 'Unassigned'
 }
 
-function getStatusColor(status: string): string {
-  switch (status) {
-    case 'brewing': return '#60A5FA' // blue
-    case 'in_rotation': return '#34D399' // green
-    default: return '#9CA3AF'
-  }
-}
 
 /* ─── Loading / Error / Empty States ────────────────────────────────── */
 

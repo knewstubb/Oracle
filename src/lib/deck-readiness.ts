@@ -1,8 +1,8 @@
+import { countsAsSleeved } from '@/lib/basic-lands'
 /**
- * Deck readiness from sleeved counts (D-002, generic-basic-lands §3A).
- *
- * A generic basic counts toward the deck SIZE whatever its state, but toward "sleeved N/100" only
- * while Sleeved. A complete list with any Unsleeved generic is Assembling, not Playable.
+ * Automatic deck status: Draft (none sleeved), Assembling (some sleeved), Playable (list meets the
+ * format target and every card is sleeved). Pass only countable rows (not Maybeboard / Sideboard).
+ * "Sleeved" is the same rule as the deck page header and the tile's "(N sleeved)" count.
  */
 
 export interface ReadinessSlot {
@@ -20,24 +20,28 @@ export interface DeckReadiness {
   state: 'draft' | 'assembling' | 'playable'
 }
 
-export function computeDeckReadiness(slots: readonly ReadinessSlot[], required: number | null): DeckReadiness {
+export function computeDeckReadiness(
+  slots: readonly ReadinessSlot[],
+  required: number | null,
+  countRule: 'exact' | 'minimum' | null = 'exact'
+): DeckReadiness {
   let sleeved = 0
   let unsleevedGenerics = 0
   for (const slot of slots) {
-    if (slot.is_generic) {
-      if (slot.generic_sleeved === false) unsleevedGenerics++
-      else sleeved++
-    } else if (slot.copy_id != null) {
-      sleeved++
-    }
+    if (slot.is_generic && slot.generic_sleeved === false) unsleevedGenerics++
+    if (countsAsSleeved(slot)) sleeved++
   }
   const size = slots.length
-  const complete = required === null ? size > 0 : size >= required
-  const allSleeved = sleeved === size
+  // Draft: nothing sleeved. Playable: every counted card sleeved and the list meets the format target.
+  // Commander (exact 100): 99 or 101 sleeved cards are never Playable.
+  let meetsTarget: boolean
+  if (required === null || countRule === null) meetsTarget = size > 0
+  else if (countRule === 'exact') meetsTarget = size === required
+  else meetsTarget = size >= required
   return {
     size,
     sleeved,
     unsleevedGenerics,
-    state: !complete ? 'draft' : allSleeved ? 'playable' : 'assembling',
+    state: sleeved === 0 ? 'draft' : sleeved === size && meetsTarget ? 'playable' : 'assembling',
   }
 }

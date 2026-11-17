@@ -62,7 +62,6 @@ export async function POST(request: NextRequest) {
       id: deckId,
       name: name.trim(),
       format,
-      is_active: false, // New decks start as inactive (still being built)
       commander_name: commanderName ?? null,
       commander_scryfall_id: commanderScryfallId ?? null,
       colour_identity: colourIdentity ?? null,

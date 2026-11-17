@@ -151,25 +151,54 @@ describe('search_collection (CC-07 S1: reads the view)', () => {
   })
 })
 
-const deckRow = (i: number) => ({ id: i, name: `Deck ${i}`, commander_name: 'C', format: 'commander', status: 'active', bracket: '3', card_count: 100, is_active: true })
+const deckRow = (i: number) => ({ id: i, name: `Deck ${i}`, commander_name: 'C', format: 'commander', bracket: '3', card_count: 100 })
+const listRows = (deckId: number, sleeved: number, total: number, extra: object[] = []) =>
+  [...Array.from({ length: total }, (_, i) => ({ id: deckId * 1000 + i, deck_id: deckId, card_name: `C${i}`, quantity: 1, categories: '["Creature"]', ownership_status: 'original', is_generic: false, copy_id: i < sleeved ? i + 1 : null, generic_sleeved: null })), ...extra]
 
 describe('list_decks', () => {
-  it('lists decks with sleeved counts; scoped; page cap 50', async () => {
+  it('lists decks with sleeved counts and the automatic status; scoped; page cap 50', async () => {
     expect(() => listDecksInput.parse({ limit: 51 })).toThrow()
-    const { db, queries } = mockDb((q) => (q.table === 'decks' ? { data: [deckRow(1), deckRow(2)], count: 2 } : { data: [{ deck_id: 1 }, { deck_id: 1 }, { deck_id: 2 }] }))
-    const r = (await listDecks({ db, userId: U }, listDecksInput.parse({}))) as never as { items: { deckId: number; sleevedCount: number }[]; total: number }
+    const { db, queries } = mockDb((q) => (q.table === 'decks' ? { data: [deckRow(1), deckRow(2)], count: 2 } : { data: [...listRows(1, 2, 2), ...listRows(2, 1, 1)] }))
+    const r = (await listDecks({ db, userId: U }, listDecksInput.parse({}))) as never as { items: { deckId: number; sleevedCount: number; status: string }[]; total: number }
     expect(r.total).toBe(2)
     expect(r.items.map((d) => d.sleevedCount)).toEqual([2, 1])
+    expect(r.items.map((d) => d.status)).toEqual(['Assembling', 'Assembling'])
     allScoped(queries)
     expect(queries[0].filters).not.toContainEqual({ op: 'eq', args: ['is_active', true] })
-    expect((r.items as any[])[0]).toMatchObject({ activeNote: 'marked active by you', readiness: 'Draft' })
   })
-  it('unflagged decks are listed and described as not marked active by you', async () => {
-    const { db, queries } = mockDb((q) => (q.table === 'decks' ? { data: [{ ...deckRow(1), is_active: false }], count: 1 } : { data: [] }))
-    const r = (await listDecks({ db, userId: U }, listDecksInput.parse({ include_inactive: false }))) as any
-    expect(queries[0].filters).not.toContainEqual({ op: 'eq', args: ['is_active', true] })
-    expect(r.items[0]).toMatchObject({ activeNote: 'not marked active by you', readiness: 'Draft' })
-    expect(JSON.stringify(r)).not.toMatch(/inactive|archived/i)  })
+  it('status is automatic: Commander 0 sleeved is Draft, 14 of 100 is Assembling, 100 of 100 is Playable, 101 is Assembling', async () => {
+    const decks = [1, 2, 3, 4].map(deckRow)
+    const { db } = mockDb((q) => (q.table === 'decks' ? { data: decks, count: 4 } : { data: [...listRows(1, 0, 100), ...listRows(2, 14, 100), ...listRows(3, 100, 100), ...listRows(4, 101, 101)] }))
+    const r = (await listDecks({ db, userId: U }, listDecksInput.parse({}))) as never as { items: { status: string; sleevedCount: number }[] }
+    expect(r.items.map((d) => d.status)).toEqual(['Draft', 'Assembling', 'Playable', 'Assembling'])
+    expect(r.items.map((d) => d.sleevedCount)).toEqual([0, 14, 100, 101])
+  })
+  it('maybeboard and sideboard cards with a copy change neither the sleeved count nor the status', async () => {
+    const extra = [
+      { id: 9001, deck_id: 1, card_name: 'M', quantity: 1, categories: '["Maybeboard"]', ownership_status: 'original', is_generic: false, copy_id: 777, generic_sleeved: null },
+      { id: 9002, deck_id: 1, card_name: 'S', quantity: 1, categories: '["Sideboard"]', ownership_status: 'original', is_generic: false, copy_id: 778, generic_sleeved: null },
+    ]
+    const { db } = mockDb((q) => (q.table === 'decks' ? { data: [deckRow(1)], count: 1 } : { data: listRows(1, 100, 100, extra) }))
+    const r = (await listDecks({ db, userId: U }, listDecksInput.parse({}))) as never as { items: { status: string; sleevedCount: number }[] }
+    expect(r.items[0]).toMatchObject({ status: 'Playable', sleevedCount: 100 })
+  })
+  it('generic basics marked sleeved count; marked unsleeved do not', async () => {
+    const generics = (sleeved: boolean) => Array.from({ length: 36 }, (_, i) => ({ id: 5000 + i, deck_id: 1, card_name: 'Island', quantity: 1, categories: '["Land"]', ownership_status: null, is_generic: true, copy_id: null, generic_sleeved: sleeved }))
+    const run = async (sleeved: boolean) => {
+      const { db } = mockDb((q) => (q.table === 'decks' ? { data: [deckRow(1)], count: 1 } : { data: [...listRows(1, 64, 64), ...generics(sleeved)] }))
+      return (await listDecks({ db, userId: U }, listDecksInput.parse({}))) as never as { items: { status: string; sleevedCount: number }[] }
+    }
+    expect((await run(true)).items[0]).toMatchObject({ status: 'Playable', sleevedCount: 100 })
+    expect((await run(false)).items[0]).toMatchObject({ status: 'Assembling', sleevedCount: 64 })
+  })
+  it('the answer never says a deck is active, inactive, archived or "marked active"', async () => {
+    const { db } = mockDb((q) => (q.table === 'decks' ? { data: [deckRow(1)], count: 1 } : { data: [] }))
+    const r = (await listDecks({ db, userId: U }, listDecksInput.parse({ include_inactive: false }))) as never as { items: Record<string, unknown>[] }
+    expect(r.items[0]).toMatchObject({ status: 'Draft', sleevedCount: 0 })
+    expect(r.items[0]).not.toHaveProperty('isActive')
+    expect(r.items[0]).not.toHaveProperty('activeNote')
+    expect(JSON.stringify(r)).not.toMatch(/inactive|archived|marked active|not marked/i)
+  })
   it('zero decks is explicit; a database error is not empty', async () => {
     const ok = await listDecks({ db: mockDb(() => ({ data: [], count: 0 })).db, userId: U }, listDecksInput.parse({}))
     expect(ok).toMatchObject({ ok: true, total: 0 })
@@ -178,7 +207,7 @@ describe('list_decks', () => {
   })
 })
 
-const dc = (i: number, cat: string | null, copy: number | null = null) => ({ id: i, card_name: `K${i}`, quantity: 1, categories: cat, is_commander: false, ownership_status: 'original', is_generic: false, copy_id: copy, scryfall_id: `sf${i}`, requested_finish: null })
+const dc = (i: number, cat: string | null, copy: number | null = null) => ({ id: i, card_name: `K${i}`, quantity: 1, categories: cat, is_commander: false, ownership_status: 'original', is_generic: false, generic_sleeved: null, copy_id: copy, scryfall_id: `sf${i}`, requested_finish: null })
 
 describe('get_deck', () => {
   it('returns mainboard, counts maybeboard separately, scoped', async () => {
@@ -188,11 +217,12 @@ describe('get_deck', () => {
       if (q.table === 'user_copies') return { data: [{ id: 9, printing_id: 'real', finish: 'foil' }] }
       return { data: [] }
     })
-    const r = (await getDeck({ db, userId: U }, getDeckInput.parse({ deck_id: 3 }))) as never as { mainboard: { items: { name: string; sleeved: boolean; printingId: string; finish: string }[]; total: number }; maybeboardCount: number; deck: { sleevedCount: number } }
+    const r = (await getDeck({ db, userId: U }, getDeckInput.parse({ deck_id: 3 }))) as never as { mainboard: { items: { name: string; sleeved: boolean; printingId: string; finish: string }[]; total: number }; maybeboardCount: number; deck: { sleevedCount: number; status: string } }
     expect(r.mainboard.items.map((i) => i.name)).toEqual(['K1', 'K3'])
     expect(r.maybeboardCount).toBe(1)
     expect(r.mainboard.items[0]).toMatchObject({ sleeved: true, printingId: 'real', finish: 'foil' })
-    expect(r.deck.sleevedCount).toBe(1)
+    expect(r.deck.sleevedCount).toBe(1) // the maybeboard row is not counted
+    expect(r.deck.status).toBe('Assembling')
     allScoped(queries)
     const withMaybe = (await getDeck({ db, userId: U }, getDeckInput.parse({ deck_id: 3, include_maybeboard: true }))) as never as { mainboard: { total: number } }
     expect(withMaybe.mainboard.total).toBe(3)

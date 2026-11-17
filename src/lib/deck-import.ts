@@ -280,12 +280,10 @@ async function reconcileBuiltDeck(
 export async function importDeckTheorycrafted(
   deck: NormalizedDeck,
   userId: string,
-  options?: { format?: string; isActive?: boolean }
+  options?: { format?: string; /** Ignored: deck status is automatic. Kept so import callers need no change. */ isActive?: boolean }
 ): Promise<ImportResult> {
   const supabase = createAdminClient()
   const deckId = generateDeckId(deck)
-  // Theorycrafted mode defaults to inactive (user is still working on it)
-  const isActive = options?.isActive ?? false
   const deckFormat = options?.format || 'commander'
 
   // 1. Upsert deck row
@@ -300,7 +298,6 @@ export async function importDeckTheorycrafted(
         commander_scryfall_id: deck.commander?.scryfallId ?? null,
         colour_identity: deck.colourIdentity,
         card_count: deck.cardCount,
-        is_active: isActive,
         format: deckFormat,
         source_url: deck.sourceUrl,
         source_platform: deck.platform,
@@ -384,12 +381,10 @@ export async function importDeckTheorycrafted(
 export async function importDeckBuilt(
   deck: NormalizedDeck,
   userId: string,
-  options?: { format?: string; isActive?: boolean }
+  options?: { format?: string; /** Ignored: deck status is automatic. Kept so import callers need no change. */ isActive?: boolean }
 ): Promise<ImportResult> {
   const supabase = createAdminClient()
   const deckId = generateDeckId(deck)
-  // Built decks default to active since the user has the physical deck ready.
-  const isActive = options?.isActive ?? true
   const deckFormat = options?.format || 'commander'
 
   const { error: deckErr } = await supabase
@@ -402,7 +397,6 @@ export async function importDeckBuilt(
         commander_scryfall_id: deck.commander?.scryfallId ?? null,
         colour_identity: deck.colourIdentity,
         card_count: deck.cardCount,
-        is_active: isActive,
         format: deckFormat,
         source_url: deck.sourceUrl,
         source_platform: deck.platform,
@@ -468,12 +462,11 @@ export async function importDeckBuilt(
 export async function importDeckNewCards(
   deck: NormalizedDeck,
   userId: string,
-  options?: { format?: string; isActive?: boolean }
+  options?: { format?: string; /** Ignored: deck status is automatic. Kept so import callers need no change. */ isActive?: boolean }
 ): Promise<ImportResult> {
   const supabase = createAdminClient()
   const deckId = generateDeckId(deck)
   // New cards mode — cards are new to collection, default to active since user has physical cards
-  const isActive = options?.isActive ?? true
   const deckFormat = options?.format || 'commander'
 
   // 1. Upsert deck row
@@ -487,7 +480,6 @@ export async function importDeckNewCards(
         commander_scryfall_id: deck.commander?.scryfallId ?? null,
         colour_identity: deck.colourIdentity,
         card_count: deck.cardCount,
-        is_active: isActive,
         format: deckFormat,
         source_url: deck.sourceUrl,
         source_platform: deck.platform,

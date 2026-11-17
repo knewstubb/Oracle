@@ -639,7 +639,7 @@ function CardsSection() {
         <div>
           <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-2">Ready (Green)</h3>
           <p className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)] mb-4">
-            All slots resolved. Green border, check icon. Deck is ready to play.
+            Every card sleeved. Green tick badge. Deck is Playable.
           </p>
           <div className="flex flex-wrap gap-4">
             <DeckTile
@@ -649,8 +649,7 @@ function CardsSection() {
               commanderScryfallId={SAMPLE_COMMANDERS.korvold}
               colourIdentity={['B', 'R', 'G']}
               cardCount={100}
-              isActive={true}
-              completeness={{ resolved: 100, total: 100, unownedCount: 0 }}
+              status="playable"
               format="commander"
               pipDistribution={{ B: 30, R: 25, G: 25 }}
             />
@@ -661,8 +660,7 @@ function CardsSection() {
               commanderScryfallId={SAMPLE_COMMANDERS.muldrotha}
               colourIdentity={['U', 'B', 'G']}
               cardCount={100}
-              isActive={true}
-              completeness={{ resolved: 100, total: 100, unownedCount: 0 }}
+              status="playable"
               format="commander"
               pipDistribution={{ U: 25, B: 35, G: 20 }}
             />
@@ -675,8 +673,7 @@ function CardsSection() {
         <div>
           <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-2">Needs Sleeve (Amber)</h3>
           <p className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)] mb-4">
-            Some slots unresolved but cards are available in storage. Amber border, book icon.
-            User needs to sleeve cards from binder/storage.
+            Some cards sleeved, some not. Construction badge (amber). Deck is Assembling.
           </p>
           <div className="flex flex-wrap gap-4">
             <DeckTile
@@ -686,8 +683,7 @@ function CardsSection() {
               commanderScryfallId={SAMPLE_COMMANDERS.kenrith}
               colourIdentity={['W', 'U', 'B', 'R', 'G']}
               cardCount={100}
-              isActive={true}
-              completeness={{ resolved: 95, total: 100, availableCount: 5, unownedCount: 0 }}
+              status="assembling"
               format="commander"
               pipDistribution={{ W: 15, U: 15, B: 15, R: 15, G: 20 }}
             />
@@ -698,8 +694,7 @@ function CardsSection() {
               commanderScryfallId={SAMPLE_COMMANDERS.krenko}
               colourIdentity={['R']}
               cardCount={100}
-              isActive={true}
-              completeness={{ resolved: 97, total: 100, availableCount: 3, unownedCount: 0 }}
+              status="assembling"
               format="commander"
               pipDistribution={{ R: 80 }}
             />
@@ -712,8 +707,7 @@ function CardsSection() {
         <div>
           <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-2">Overcount (Amber)</h3>
           <p className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)] mb-4">
-            Deck has more than 100 cards. Amber border, hash icon.
-            User needs to cut cards.
+            Deck has more than 100 cards: never Playable, stays Assembling.
           </p>
           <div className="flex flex-wrap gap-4">
             <DeckTile
@@ -723,8 +717,7 @@ function CardsSection() {
               commanderScryfallId={SAMPLE_COMMANDERS.omnath}
               colourIdentity={['W', 'U', 'R', 'G']}
               cardCount={103}
-              isActive={true}
-              completeness={{ resolved: 100, total: 100, unownedCount: 0 }}
+              status="assembling"
               format="commander"
               pipDistribution={{ W: 10, U: 15, R: 25, G: 30 }}
             />
@@ -735,8 +728,7 @@ function CardsSection() {
               commanderScryfallId={SAMPLE_COMMANDERS.breya}
               colourIdentity={['W', 'U', 'B', 'R']}
               cardCount={105}
-              isActive={true}
-              completeness={{ resolved: 100, total: 100, unownedCount: 0 }}
+              status="assembling"
               format="commander"
               pipDistribution={{ W: 10, U: 30, B: 20, R: 20 }}
             />
@@ -749,8 +741,7 @@ function CardsSection() {
         <div>
           <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-2">Unowned (Red)</h3>
           <p className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)] mb-4">
-            Some slots have no matching card in collection (unowned). Red border, ban icon.
-            User needs to acquire cards.
+            Some cards sleeved, some not. Construction badge (amber). Deck is Assembling.
           </p>
           <div className="flex flex-wrap gap-4">
             <DeckTile
@@ -760,8 +751,7 @@ function CardsSection() {
               commanderScryfallId={SAMPLE_COMMANDERS.yarok}
               colourIdentity={['U', 'B', 'G']}
               cardCount={100}
-              isActive={true}
-              completeness={{ resolved: 98, total: 100, availableCount: 0, unownedCount: 2 }}
+              status="assembling"
               format="commander"
               pipDistribution={{ U: 25, B: 30, G: 25 }}
             />
@@ -772,8 +762,7 @@ function CardsSection() {
               commanderScryfallId={SAMPLE_COMMANDERS.teysa}
               colourIdentity={['W', 'B']}
               cardCount={100}
-              isActive={true}
-              completeness={{ resolved: 90, total: 100, availableCount: 0, unownedCount: 10 }}
+              status="assembling"
               format="commander"
               pipDistribution={{ W: 30, B: 50 }}
             />
@@ -786,8 +775,7 @@ function CardsSection() {
         <div>
           <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-2">Brewing</h3>
           <p className="text-[length:var(--fs-xs)] text-[var(--text-tertiary)] mb-4">
-            Deck is in progress, not yet committed. Purple border, flask icon.
-            No allocation tracking.
+            No cards sleeved yet. Purple flask badge. Deck is Draft.
           </p>
           <div className="flex flex-wrap gap-4">
             <DeckTile
@@ -797,7 +785,7 @@ function CardsSection() {
               commanderScryfallId={SAMPLE_COMMANDERS.chulane}
               colourIdentity={['W', 'U', 'G']}
               cardCount={85}
-              isActive={false}
+              status="draft"
               format="commander"
               pipDistribution={{ W: 20, U: 25, G: 35 }}
             />
@@ -808,7 +796,7 @@ function CardsSection() {
               commanderScryfallId={SAMPLE_COMMANDERS.golos}
               colourIdentity={['W', 'U', 'B', 'R', 'G']}
               cardCount={72}
-              isActive={false}
+              status="draft"
               format="commander"
               pipDistribution={{ W: 10, U: 15, B: 15, R: 15, G: 25 }}
             />

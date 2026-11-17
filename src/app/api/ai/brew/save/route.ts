@@ -102,7 +102,6 @@ export async function POST(request: NextRequest) {
           commander_name: skeleton.commanderName,
           colour_identity: skeleton.colourIdentity.join(','),
           user_id: userId,
-          is_active: false, // New brew decks start inactive
         })
         .select('id')
         .single()

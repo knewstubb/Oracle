@@ -21,6 +21,8 @@ import { getCommanderStaples, formatEDHRECResponse } from './edhrec-client'
 import { validateCommander, formatCommanderValidation, searchCards, formatSearchResults } from './scryfall-client'
 import { findCombosForCard, formatComboResults } from './spellbook-client'
 import { createAdminClient } from './supabase'
+import { fetchDeckStatuses } from './deck-list-data'
+import { deckStatusLabel } from './deck-status-label'
 import { classifyDeckCardCopy, type DeckCardCopyStatus } from './deck-chat-facts'
 import { browseSpareCopies, MAX_BROWSE_LIMIT } from './spare-copy-browse'
 import { lookupOwnedCopies, MAX_LOOKUP_NAMES, type LookupClient } from './owned-copy-lookup'
@@ -1216,55 +1218,38 @@ registry.set('list_user_decks', {
   definition: {
     name: 'list_user_decks',
     description:
-      'List all the user\'s Commander decks with basic info. Returns deck name, commander, card count, and active status for each deck. Use this when the user asks about their decks, wants to compare them, or is viewing the deck list page.',
+      'List all the user\'s decks with basic info. Returns deck name, commander, card count, and the deck\'s automatic status (Draft: no cards sleeved, Assembling: some sleeved, Playable: a full list with every card sleeved) for each deck. The status updates by itself; the user does not set it. Use this when the user asks about their decks, wants to compare them, or is viewing the deck list page.',
     input_schema: {
       type: 'object',
       properties: {
         include_inactive: {
           type: 'boolean',
-          description: 'Whether to include inactive/archived decks. Default is false (only active decks).',
+          description: 'Kept for compatibility; has no effect. All decks are always listed.',
         },
       },
     },
   },
-  execute: async (input, context) => {
+  execute: async (_input, context) => {
     try {
       const userId = context?.userId
       if (!userId) {
         return { content: 'Deck list requires authentication — userId not available', is_error: true }
       }
-      
-      const includeInactive = (input?.include_inactive as boolean) || false
       const supabase = createAdminClient()
-      
       // Query decks - the table has commander_name and card_count directly
-      let query = supabase
+      const { data: decks, error } = await supabase
         .from('decks')
-        .select('id, name, commander_name, colour_identity, card_count, is_active, last_synced_at')
+        .select('id, name, commander_name, colour_identity, card_count, last_synced_at')
         .eq('user_id', userId)
-        .order('is_active', { ascending: false })
         .order('last_synced_at', { ascending: false, nullsFirst: false })
-      
-      if (!includeInactive) {
-        query = query.eq('is_active', true)
-      }
-      
-      const { data: decks, error } = await query
-      
       if (error) {
         console.error('[list_user_decks] Query error:', error)
         throw new Error(`Failed to fetch decks: ${error.message}`)
       }
-      
       if (!decks || decks.length === 0) {
-        return {
-          content: includeInactive 
-            ? 'You don\'t have any decks yet.'
-            : 'You don\'t have any active decks. Try asking with include_inactive: true to see archived decks.',
-          is_error: false,
-        }
+        return { content: 'You don\'t have any decks yet.', is_error: false }
       }
-      
+      const statuses = await fetchDeckStatuses(supabase, userId, decks.map(d => d.id))
       // Format output
       const deckList = decks.map(deck => ({
         id: deck.id,
@@ -1272,10 +1257,9 @@ registry.set('list_user_decks', {
         commander: deck.commander_name || 'No commander set',
         color_identity: deck.colour_identity || 'Colorless',
         card_count: deck.card_count ?? 0,
-        is_active: deck.is_active,
+        status: deckStatusLabel(statuses[deck.id] ?? 'draft'),
         last_updated: deck.last_synced_at,
       }))
-      
       return { content: JSON.stringify(deckList, null, 2), is_error: false }
     } catch (err) {
       console.error('[list_user_decks] Error:', err)
@@ -1284,7 +1268,6 @@ registry.set('list_user_decks', {
     }
   },
 })
-
 // ---------------------------------------------------------------------------
 // Local Tool: get_deck_cards
 // ---------------------------------------------------------------------------

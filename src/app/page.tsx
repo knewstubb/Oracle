@@ -22,9 +22,7 @@ interface Deck {
   colour_identity: string
   card_count: number
   deck_type: string | null
-  status: 'brewing' | 'in_rotation' // Legacy, being phased out
-  is_active: boolean
-  completeness?: { resolved: number; total: number; availableCount?: number; claimedCount?: number; unownedCount?: number } | null
+  status: 'draft' | 'assembling' | 'playable' // Automatic, from the sleeved cards
   conflictCount?: number
   sleevedCount?: number
   format?: string | null
@@ -104,15 +102,13 @@ export default function DashboardPage() {
   const decks = useMemo(
     () => data?.decks.map(d => {
       const pips = detailsData?.pips?.[d.id]
-      const unresolved = detailsData?.unresolved?.[d.id]
       // Once the details have arrived, a deck missing from `sleeved` has none sleeved.
       const sleevedCount = detailsData?.sleeved ? (detailsData.sleeved[d.id] ?? 0) : undefined
-      if (!pips && !unresolved && sleevedCount === undefined) return d
+      if (!pips && sleevedCount === undefined) return d
       return {
         ...d,
         ...(sleevedCount !== undefined ? { sleevedCount } : {}),
         ...(pips ? { pipDistribution: pips } : {}),
-        ...(unresolved && d.completeness ? { completeness: { ...d.completeness, ...unresolved } } : {}),
       }
     }),
     [data, detailsData]
@@ -121,7 +117,6 @@ export default function DashboardPage() {
   const hasCollection = data?.hasCollection ?? false
 
   const total = decks?.length ?? 0
-  const activeCount = decks?.filter(d => d.is_active).length ?? 0
 
   // Don't show empty state until we've actually loaded data once
   // This prevents flashing empty state on refetch
@@ -130,11 +125,6 @@ export default function DashboardPage() {
   // Set page header at layout level
   usePageHeader({
     title: 'Decks',
-    subtitle: activeCount > 0 ? (
-      <span>
-        {activeCount} Active {activeCount === 1 ? 'deck' : 'decks'}
-      </span>
-    ) : undefined,
     actions: (
       <>
         <DeckImportButton />
@@ -295,8 +285,6 @@ function DecksSection({ decks, folders }: { decks: Deck[]; folders: DeckFolder[]
     ? decks.filter(d => d.folder_id === selectedFolderId)
     : decks
 
-  const filteredActive = filteredDecks.filter(d => d.is_active)
-  const filteredInactive = filteredDecks.filter(d => !d.is_active)
 
   const total = filteredDecks.length
 
@@ -323,8 +311,7 @@ function DecksSection({ decks, folders }: { decks: Deck[]; folders: DeckFolder[]
           colourIdentity={parseColourIdentity(deck.colour_identity)}
           cardCount={deck.card_count}
           sleevedCount={deck.sleevedCount}
-          isActive={deck.is_active}
-          completeness={deck.completeness}
+          status={deck.status}
           conflictCount={deck.conflictCount}
           format={deck.format}
           pipDistribution={deck.pipDistribution ?? undefined}
@@ -399,7 +386,7 @@ function DecksSection({ decks, folders }: { decks: Deck[]; folders: DeckFolder[]
       </div>
 
       {/* All decks in one grid — Active decks are sorted first by the API */}
-      {total > 0 && renderDeckGrid([...filteredActive, ...filteredInactive])}
+      {total > 0 && renderDeckGrid(filteredDecks)}
       
       {total === 0 && selectedFolderId !== null && (
         <p className="text-[length:var(--fs-sm)] text-muted-foreground">

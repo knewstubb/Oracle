@@ -86,8 +86,7 @@ export function OverusedCardRow({ card, focusDeckId }: OverusedCardRowProps) {
                   {deck.deckName}
                 </span>
                 <span className="text-[length:var(--fs-xs)] text-[var(--text-secondary)]">
-                  {deck.isActive ? 'Active' : 'Brew'}
-                  {deck.slots > 1 && ` · ${deck.slots} copies`}
+                  {deck.slots > 1 && `${deck.slots} copies`}
                 </span>
               </div>
               <span

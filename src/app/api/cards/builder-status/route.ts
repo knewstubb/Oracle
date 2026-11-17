@@ -18,7 +18,6 @@ export interface BuilderStatusResult {
   heldBy: {
     deckId: number
     deckName: string
-    isActive: boolean
   } | null
 }
 
@@ -66,7 +65,6 @@ export async function GET(request: NextRequest) {
             heldBy = {
               deckId: assignedCopy.assignedTo.deckId,
               deckName: assignedCopy.assignedTo.deckName,
-              isActive: assignedCopy.assignedTo.isActive ?? true,
             }
           }
         } catch {

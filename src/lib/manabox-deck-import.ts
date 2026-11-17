@@ -309,7 +309,6 @@ export async function importManaBoxDeck(
     commander_id: null,
     colour_identity: options.deck.colourIdentity,
     card_count: cards.filter((c) => !isMaybe(c)).reduce((sum, c) => sum + c.quantity, 0),
-    is_active: false,
     format: deckFormat,
     source_url: '',
     source_platform: 'manabox',

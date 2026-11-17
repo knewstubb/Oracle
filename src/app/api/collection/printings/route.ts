@@ -84,7 +84,7 @@ interface DeckUsageRow {
   deck_id: number
   card_name: string
   ownership_status: string | null
-  decks: { name: string; is_active: boolean } | null
+  decks: { name: string } | null
 }
 
 // ---------------------------------------------------------------------------
@@ -194,7 +194,7 @@ export async function GET(request: NextRequest) {
             deck_id,
             card_name,
             ownership_status,
-            decks!deck_cards_deck_id_fkey ( name, is_active )
+            decks!deck_cards_deck_id_fkey ( name )
           `)
           .eq('user_id', userId)
           .not('copy_id', 'is', null)
@@ -421,7 +421,7 @@ export async function GET(request: NextRequest) {
             deck_id,
             card_name,
             ownership_status,
-            decks!deck_cards_deck_id_fkey ( name, is_active )
+            decks!deck_cards_deck_id_fkey ( name )
           `)
           .eq('user_id', userId)
           .not('copy_id', 'is', null)

@@ -101,8 +101,8 @@ export async function listDeckCardsByOwnership(ctx: ToolContext, input: z.infer<
   const limit = input.limit ?? DECK_CARDS_PAGE_MAX
   const offset = input.offset ?? 0
   try {
-    const deckRows = await fetchAll<{ id: number; name: string; is_active: boolean }>(() => {
-      let q = ctx.db.select('decks', 'id, name, is_active').eq('user_id', ctx.userId)
+    const deckRows = await fetchAll<{ id: number; name: string }>(() => {
+      let q = ctx.db.select('decks', 'id, name').eq('user_id', ctx.userId)
       if (input.deck_id !== undefined) q = q.eq('id', input.deck_id)
       return q.order('id', { ascending: true })
     })

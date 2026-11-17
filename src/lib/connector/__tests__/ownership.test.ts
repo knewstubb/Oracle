@@ -8,7 +8,7 @@ import { hasEq, mockDb, type RecordedQuery } from './mock-db'
 const U = 'user-1'
 const fresh = new Date().toISOString()
 const slot = (id: number, deck: number, name: string, status: string, extra: Record<string, unknown> = {}) => ({ id, deck_id: deck, card_name: name, quantity: 1, categories: null, ownership_status: status, is_generic: false, ...extra })
-const decks = [{ id: 1, name: 'Korvold', is_active: true }, { id: 2, name: 'Prosper', is_active: true }]
+const decks = [{ id: 1, name: 'Korvold' }, { id: 2, name: 'Prosper' }]
 const slots = [
   slot(1, 1, 'Sol Ring', 'proxy'),
   slot(2, 2, 'Mana Crypt', 'proxy', { quantity: 2 }),
@@ -85,7 +85,7 @@ describe('list_deck_cards_by_ownership', () => {
 
 describe('list_decks ownership counts', () => {
   it('adds original/proxy/notOwned per deck by quantity, main deck and non-generic only', async () => {
-    const dr = { id: 1, name: 'D', commander_name: null, format: null, status: null, bracket: null, card_count: 3, is_active: true }
+    const dr = { id: 1, name: 'D', commander_name: null, format: null, bracket: null, card_count: 3 }
     const rowsX = [slot(1, 1, 'A', 'original', { quantity: 2 }), slot(2, 1, 'B', 'proxy'), slot(3, 1, 'C', 'not_owned'), slot(4, 1, 'M', 'proxy', { categories: '["Maybeboard"]' }), slot(5, 1, 'G', 'original', { is_generic: true })]
     const { db } = mockDb((q) => (q.table === 'decks' ? { data: [dr], count: 1 } : { data: rowsX }))
     const r = (await listDecks({ db, userId: U }, listDecksInput.parse({}))) as any

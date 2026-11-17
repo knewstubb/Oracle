@@ -95,7 +95,6 @@ export default function ReconcilePage() {
                       selected={selection === `deck:${deck.deckId}`}
                       onClick={() => setSelection(`deck:${deck.deckId}`)}
                       title={deck.deckName}
-                      subtitle={deck.isActive ? 'Active' : 'Brew'}
                       count={deck.count}
                     />
                   ))}

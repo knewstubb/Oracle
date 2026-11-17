@@ -4,7 +4,8 @@
  */
 
 import { computeDeckReadiness } from '@/lib/deck-readiness'
-import { getFormatConfig } from '@/lib/format-config'
+import { isCountableCard } from '@/lib/deck-list-data'
+import { deckTargetFor } from '@/lib/format-config'
 import type { DestinationsResponse } from '../../docs/oracle/contracts/know-where-cards-are.types'
 
 export interface DestinationSlotRow {
@@ -25,10 +26,11 @@ export function countEmptySlots(slots: readonly DestinationSlotRow[]): number {
   return slots.filter((s) => !isMaybeboardCategories(s.categories) && !s.is_generic && s.copy_id === null).length
 }
 
-/** Readiness word for the picker hint. Maybeboard rows are not part of the deck. */
+/** Status word for the picker hint. Maybeboard and Sideboard rows are not part of the deck. */
 export function destinationDeckStatus(slots: readonly DestinationSlotRow[], format: string | null): DestinationDeckStatus {
-  const main = slots.filter((s) => !isMaybeboardCategories(s.categories))
-  const readiness = computeDeckReadiness(main, getFormatConfig(format).deckSize)
+  const main = slots.filter((s) => isCountableCard(s.categories))
+  const target = deckTargetFor(format)
+  const readiness = computeDeckReadiness(main, target.deckSize, target.countRule)
   if (readiness.state === 'draft') return 'draft'
   const tracked = main.filter((s) => !s.is_generic)
   if (tracked.length > 0 && tracked.every((s) => s.copy_id === null)) return 'unowned'

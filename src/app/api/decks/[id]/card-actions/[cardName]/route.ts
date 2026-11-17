@@ -38,7 +38,6 @@ export interface CardActionContext {
   holders: Array<{
     deckId: number
     deckName: string
-    isActive: boolean
     physicalCopyId: number
     scryfallPrintingId: string | null
     condition: string | null
@@ -50,7 +49,6 @@ export interface CardActionContext {
   validDecks: Array<{
     deckId: number
     deckName: string
-    isActive: boolean
   }>
 }
 
@@ -97,7 +95,6 @@ export async function GET(
         holders.push({
           deckId: entry.assignedTo.deckId,
           deckName: entry.assignedTo.deckName,
-          isActive: entry.assignedTo.isActive ?? true,
           physicalCopyId: entry.physicalCopyId,
           scryfallPrintingId: entry.printingId,
           condition: entry.condition,
@@ -167,7 +164,7 @@ export async function GET(
     // Fetch all decks for valid-deck list (all decks claim equally now)
     const { data: allDecks } = await supabase
       .from('decks')
-      .select('id, name, is_active, colour_identity')
+      .select('id, name, colour_identity')
       .eq('user_id', userId)
       .neq('id', deckId) // Exclude the current deck
 
@@ -183,7 +180,6 @@ export async function GET(
       .map((deck) => ({
         deckId: deck.id,
         deckName: deck.name,
-        isActive: deck.is_active ?? true,
       }))
 
     // Determine current status for context

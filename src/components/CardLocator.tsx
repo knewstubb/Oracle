@@ -14,7 +14,6 @@ import { X, Loader2, MapPin, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { CardSlotBadge } from '@/components/CardSlotBadge'
 import { cn } from '@/lib/utils'
 import type { CardSlotStatus } from '@/lib/card-status'
@@ -24,7 +23,6 @@ interface CardLocation {
   deckId: number
   deckName: string
   commanderName: string
-  isActive: boolean
   quantity: number
   status: string
   hasPhysicalCopy: boolean
@@ -283,11 +281,6 @@ export function CardLocator() {
                         <span className="truncate text-[length:var(--fs-md)] font-medium">
                           {loc.deckName}
                         </span>
-                        {!loc.isActive && (
-                          <Badge variant="outline" className="text-[length:var(--fs-xs)]">
-                            Inactive
-                          </Badge>
-                        )}
                       </div>
                       <p className="truncate text-[length:var(--fs-sm)] text-muted-foreground">
                         {loc.commanderName}

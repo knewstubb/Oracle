@@ -4,6 +4,7 @@ import { useState, isValidElement } from 'react'
 import { Loader2 } from 'lucide-react'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
+import { deckStatusColour, deckStatusLabel } from '@/lib/deck-status-label'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -119,15 +120,11 @@ export function DeckPickerPopover({
                 <span
                   className="shrink-0 ml-2 rounded-full px-1.5 py-0.5 text-[length:10px] font-medium leading-none"
                   style={{
-                    background: deck.deckStatus === 'brewing'
-                      ? 'rgba(59,130,246,0.15)'
-                      : 'rgba(34,197,94,0.15)',
-                    color: deck.deckStatus === 'brewing'
-                      ? 'rgb(96,165,250)'
-                      : 'rgb(74,222,128)',
+                    background: `${deckStatusColour(deck.deckStatus)}26`,
+                    color: deckStatusColour(deck.deckStatus),
                   }}
                 >
-                  {deck.deckStatus}
+                  {deckStatusLabel(deck.deckStatus)}
                 </span>
               </button>
             ))}

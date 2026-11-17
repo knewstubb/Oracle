@@ -18,6 +18,7 @@ import { toPrice, formatPrice } from '@/lib/deck-health-buy'
 import { CardHoverPreview, useCardHoverPreview } from '@/components/CardHoverPreview'
 import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
 import type { RankedCandidate } from '@/lib/allocation-candidates'
+import { deckStatusLabel } from '@/lib/deck-status-label'
 
 export type { PicklistCard }
 
@@ -726,11 +727,7 @@ function EmptyColumn({ message }: { message: string }) {
 }
 
 function formatDeckStatus(status: string): string {
-  switch (status) {
-    case 'brewing': return 'Brewing'
-    case 'in_rotation': return 'Active'
-    default: return 'Active'
-  }
+  return deckStatusLabel(status)
 }
 
 // ---------------------------------------------------------------------------

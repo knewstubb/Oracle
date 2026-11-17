@@ -126,7 +126,6 @@ export function ReconciliationNav({
             selected={selected === `deck:${deck.deckId}`}
             onClick={() => onSelect(`deck:${deck.deckId}`)}
             title={deck.deckName}
-            subtitle={deck.isActive ? 'Active' : 'Brew'}
             count={deck.unresolved}
           />
         ))}

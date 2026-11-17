@@ -83,8 +83,8 @@ describe('computeDeckReadiness', () => {
     expect(r).toMatchObject({ size: 100, sleeved: 64, unsleevedGenerics: 36, state: 'assembling' })
   })
 
-  it('an incomplete deck is a draft', () => {
-    expect(computeDeckReadiness([...copy(10)], 100).state).toBe('draft')
+  it('a short list with some cards sleeved is Assembling', () => {
+    expect(computeDeckReadiness([...copy(10)], 100).state).toBe('assembling')
   })
 })
 

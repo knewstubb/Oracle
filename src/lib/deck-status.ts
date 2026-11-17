@@ -32,7 +32,7 @@ export function isValidStatus(value: string): value is DeckStatus {
 // ---------------------------------------------------------------------------
 
 /** 
- * @deprecated The status endpoint is being phased out. Use PATCH /api/decks/[id]/active instead.
+ * @deprecated The status endpoint is being phased out. Deck status is now automatic (see computeDeckReadiness).
  * Request body for PATCH /api/decks/[id]/status 
  */
 export interface StatusUpdateRequest {
@@ -40,7 +40,7 @@ export interface StatusUpdateRequest {
 }
 
 /** 
- * @deprecated The status endpoint is being phased out. Use PATCH /api/decks/[id]/active instead.
+ * @deprecated The status endpoint is being phased out. Deck status is now automatic (see computeDeckReadiness).
  * Response body for PATCH /api/decks/[id]/status 
  */
 export interface StatusUpdateResponse {

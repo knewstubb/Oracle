@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, Hash, BookOpen, Ban, Trash2, FlaskConical, FolderInput } from 'lucide-react'
+import { Check, Construction, Trash2, FlaskConical, FolderInput } from 'lucide-react'
 import { toast } from 'sonner'
 import { CardImage } from '@/components/CardImage'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog'
@@ -13,7 +13,8 @@ import { cn } from '@/lib/utils'
 import { useDeleteDeck } from '@/hooks/useDeleteDeck'
 
 export type HealthPipStatus = 'ok' | 'warn' | 'crit'
-export type ReadinessTier = 'green' | 'amber' | 'red' | 'overcount'
+/** Automatic deck status (see docs/oracle/specs/vocabulary.md, Deck status). */
+export type DeckStatus = 'draft' | 'assembling' | 'playable'
 
 export interface DeckFolder {
   id: number
@@ -34,8 +35,8 @@ export interface DeckTileProps {
   format?: string | null
   healthStatus?: Array<HealthPipStatus>
   proxyCount?: number
-  isActive?: boolean
-  completeness?: { resolved: number; total: number; availableCount?: number; claimedCount?: number; unownedCount?: number } | null
+  /** Automatic status from the sleeved cards. Undefined renders no badge. */
+  status?: DeckStatus
   /** Unresolved import conflicts left standing after "Go to Decks" (amber badge). */
   conflictCount?: number
   pipDistribution?: Record<string, number>
@@ -54,45 +55,17 @@ const COLOUR_BAR_MAP: Record<string, { hex: string; label: string }> = {
 
 const COLOUR_ORDER = ['W', 'U', 'B', 'R', 'G']
 
-// Border colors by readiness tier
-const BORDER_COLORS: Record<ReadinessTier, string> = {
-  green: 'var(--accent-primary)',      // #1D9E75
-  amber: 'var(--signal-warning)',      // #EF9F27
-  red: 'var(--signal-critical)',       // #E24B4A
-  overcount: 'var(--signal-warning)',  // amber for >100 cards
+// Status badge: icon, colour and label (icon plus word, never colour alone: D-012)
+const STATUS_BADGE: Record<DeckStatus, { label: string; colour: string }> = {
+  draft: { label: 'Draft', colour: '#8F51D5' },
+  assembling: { label: 'Assembling', colour: 'var(--signal-warning)' },
+  playable: { label: 'Playable', colour: 'var(--accent-primary)' },
 }
 
-// Status icons for the count row
-function getStatusIcon(tier: ReadinessTier, isActive?: boolean) {
-  if (!isActive) return <BookOpen className="size-4" />
-  
-  switch (tier) {
-    case 'green': return <Check className="size-4" />
-    case 'amber': return <BookOpen className="size-4" />
-    case 'red': return <Ban className="size-4" />
-    case 'overcount': return <Hash className="size-4" />
-  }
-}
-
-function getReadinessTier(
-  isActive: boolean | undefined,
-  completeness: DeckTileProps['completeness'],
-  cardCount: number | undefined,
-  format: string | null | undefined
-): ReadinessTier {
-  // Check for overcount first
-  if (cardCount !== undefined) {
-    const validation = validateDeckCount(cardCount, format)
-    if (validation.required > 0 && cardCount > validation.required) {
-      return 'overcount'
-    }
-  }
-  
-  // Check allocation completeness — applies to all decks now
-  if (!completeness) return 'green'
-  if (completeness.resolved === completeness.total) return 'green'
-  if ((completeness.unownedCount ?? 0) > 0) return 'red'
-  return 'amber'
+function StatusIcon({ status }: { status: DeckStatus }) {
+  if (status === 'draft') return <FlaskConical className="size-3.5 text-black" strokeWidth={2.5} />
+  if (status === 'assembling') return <Construction className="size-3.5 text-black" strokeWidth={2.5} />
+  return <Check className="size-4 text-black" strokeWidth={3} />
 }
 
 export function DeckTile({
@@ -104,8 +77,7 @@ export function DeckTile({
   cardCount,
   sleevedCount,
   format,
-  isActive,
-  completeness,
+  status,
   conflictCount,
   pipDistribution,
   hasBrew,
@@ -115,11 +87,9 @@ export function DeckTile({
   const sorted = COLOUR_ORDER.filter((c) => colourIdentity.includes(c))
   const colourLabel = sorted.map((c) => COLOUR_BAR_MAP[c]?.label).filter(Boolean).join(', ')
   
-  const readiness = getReadinessTier(isActive, completeness, cardCount, format)
-  
-  // Border color: Active decks get tier-based color, others get none
-  const borderColor = isActive ? BORDER_COLORS[readiness] : undefined
-  
+  const isPlayable = status === 'playable'
+  const badge = status ? STATUS_BADGE[status] : null
+
   // Card count display
   const validation = cardCount !== undefined ? validateDeckCount(cardCount, format) : null
   const required = validation?.required ?? 100
@@ -129,18 +99,6 @@ export function DeckTile({
   const listed = cardCount ?? 0
   const countText = required > 0 ? `${listed}/${required}` : `${listed} cards`
   const sleevedText = sleevedCount !== undefined ? ` (${sleevedCount} sleeved)` : ''
-  // Icon color matches border for Active decks, muted for others
-  const iconColor = isActive 
-    ? BORDER_COLORS[readiness] 
-    : 'var(--text-muted)'
-
-  // Outer glow for warning (amber) and alert (red) states - subtle
-  const glowStyle = isActive && (readiness === 'amber' || readiness === 'overcount')
-    ? { boxShadow: '0 0 8px 1px rgba(239, 159, 39, 0.25)' }
-    : isActive && readiness === 'red'
-      ? { boxShadow: '0 0 8px 1px rgba(226, 75, 74, 0.25)' }
-      : {}
-
   // Context menu and delete state
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -209,11 +167,11 @@ export function DeckTile({
           'hover:-translate-y-1 hover:[box-shadow:0px_4px_8px_3px_rgba(0,0,0,0.4),0px_1px_3px_rgba(0,0,0,0.5)]',
           'motion-reduce:transition-none motion-reduce:hover:translate-y-0',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-          !isActive && 'opacity-80',
+          !isPlayable && 'opacity-80',
         )}
         style={{
           backgroundColor: '#1A1A1A',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
+          border: isPlayable ? '1px solid var(--accent-primary)' : '1px solid rgba(255, 255, 255, 0.1)',
         }}
         onContextMenu={handleContextMenu}
       >
@@ -229,28 +187,18 @@ export function DeckTile({
           className="h-full w-full object-cover brightness-[0.7] transition-all duration-200 ease-out group-hover:brightness-100 group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
         />
         
-        {/* Active deck status badge — top right corner */}
-        {isActive && (
-          <div 
-            className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-full"
-            style={{ backgroundColor: BORDER_COLORS[readiness] }}
-            aria-label={readiness === 'green' ? 'Ready to play' : readiness === 'amber' ? 'Needs attention' : 'Missing cards'}
-          >
-            <Check className="size-4 text-black" strokeWidth={3} />
-          </div>
-        )}
-        
-        {/* Inactive deck badge — brew flask */}
-        {!isActive && (
+        {/* Automatic deck status badge: top right corner */}
+        {status && badge && (
           <div
             className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-full"
-            style={{ backgroundColor: '#8F51D5' }}
-            aria-label="Deck in progress"
+            style={{ backgroundColor: badge.colour }}
+            role="img"
+            aria-label={badge.label}
+            title={badge.label}
           >
-            <FlaskConical className="size-3.5 text-black" strokeWidth={2.5} />
+            <StatusIcon status={status} />
           </div>
         )}
-
         {/* Unresolved import conflicts — top-left (top-right holds the status badge).
             Set when the user finished an import with conflicts left unresolved:
             the deck still asserts real copies that do not exist. */}

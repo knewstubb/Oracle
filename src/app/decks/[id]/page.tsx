@@ -11,7 +11,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { findCommanderCards } from '@/lib/commander-card-flag'
 import { PersistentHeader } from '@/components/PersistentHeader'
 import { LegalityBanner } from '@/components/LegalityBanner'
-import { ActiveToggle } from '@/components/ActiveToggle'
 import { DeleteDeckButton } from '@/components/DeleteDeckButton'
 import { HealthStrip } from '@/components/HealthStrip'
 import { CardsTab } from '@/components/CardsTab'
@@ -45,8 +44,6 @@ interface Deck {
   deck_type: string | null
   precon_url: string | null
   bracket: string | null
-  status: 'brewing' | 'in_rotation' // Legacy, being phased out
-  is_active: boolean
   last_synced_at: string | null
   raw_json: string | null
   format: string | null
@@ -290,7 +287,6 @@ export default function DeckViewPage() {
               <span className="hidden sm:inline">Export</span>
             </Button>
             <VersionHistoryPanel deckId={deck.id} deckName={deck.name} />
-            <ActiveToggle deckId={deck.id} isActive={deck.is_active} />
             <DeleteDeckButton deckId={deck.id} deckName={deck.name} />
           </>
         }

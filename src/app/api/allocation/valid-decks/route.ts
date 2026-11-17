@@ -5,12 +5,13 @@
  * Used by storage detail "Assign" buttons and InstanceDetailPanel "Reassign" actions
  * where we don't have a specific deckId context.
  *
- * Returns: Array<{ deckId, deckName, isActive }>
+ * Returns: Array<{ deckId, deckName, deckStatus }>
  */
 import { parseColourLetters } from '@/lib/command-zone'
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
+import { fetchDeckStatuses } from '@/lib/deck-list-data'
 
 export async function GET(request: NextRequest) {
   const authResult = await requireAuth()
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
     // Fetch all decks (all decks claim cards equally now)
     const { data: allDecks } = await supabase
       .from('decks')
-      .select('id, name, is_active, colour_identity, format')
+      .select('id, name, colour_identity, format')
       .eq('user_id', userId)
 
     // Filter to decks whose commander CI is a superset of the card's CI
@@ -55,10 +56,10 @@ export async function GET(request: NextRequest) {
       .map((deck) => ({
         deckId: deck.id,
         deckName: deck.name,
-        isActive: deck.is_active ?? true,
       }))
 
-    return Response.json(validDecks)
+    const statuses = await fetchDeckStatuses(supabase, userId, validDecks.map((d) => d.deckId))
+    return Response.json(validDecks.map((d) => ({ ...d, deckStatus: statuses[d.deckId] ?? 'draft' })))
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     return Response.json({ error: message }, { status: 500 })

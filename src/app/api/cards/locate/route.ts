@@ -29,7 +29,6 @@ interface LocatedDeck {
   id: number
   name: string
   commander_name: string | null
-  is_active: boolean
 }
 
 export async function GET(request: NextRequest) {
@@ -103,8 +102,7 @@ export async function GET(request: NextRequest) {
       decks!deck_cards_deck_id_fkey(
         id,
         name,
-        commander_name,
-        is_active
+        commander_name
       )
     `)
     .eq('user_id', userId)
@@ -120,7 +118,6 @@ export async function GET(request: NextRequest) {
     deckId: number
     deckName: string
     commanderName: string | null
-    isActive: boolean
     quantity: number
     statuses: string[]
     copyIds: (number | null)[]
@@ -140,7 +137,6 @@ export async function GET(request: NextRequest) {
         deckId: deck.id,
         deckName: deck.name,
         commanderName: deck.commander_name,
-        isActive: deck.is_active,
         quantity: dc.quantity || 1,
         statuses: [dc.ownership_status || 'original'],
         copyIds: [dc.copy_id],
@@ -170,18 +166,14 @@ export async function GET(request: NextRequest) {
       deckId: loc.deckId,
       deckName: loc.deckName,
       commanderName: loc.commanderName,
-      isActive: loc.isActive,
       quantity: loc.quantity,
       status: primaryStatus,
       hasPhysicalCopy: loc.copyIds.some(id => id !== null),
     }
   })
 
-  // Sort: active decks first, then by deck name
-  locations.sort((a, b) => {
-    if (a.isActive !== b.isActive) return a.isActive ? -1 : 1
-    return a.deckName.localeCompare(b.deckName)
-  })
+  // Sort by deck name
+  locations.sort((a, b) => a.deckName.localeCompare(b.deckName))
 
   return NextResponse.json({
     query,

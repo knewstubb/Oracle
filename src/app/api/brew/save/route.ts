@@ -124,8 +124,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (mode === 'draft' || mode === 'active') {
-      // draft = inactive deck (is_active: false), active = active deck (is_active: true)
-      const isActive = mode === 'active'
+      // Both modes save the deck; its status (Draft / Assembling / Playable) is automatic.
 
       try {
         // Deck should already exist (created with session), but handle legacy sessions
@@ -143,7 +142,6 @@ export async function POST(request: NextRequest) {
           .from('decks')
           .update({ 
             name: deckName!.trim(), 
-            is_active: isActive, 
             card_count: deckCards!.length,
             commander_name: session.commander_name,
             commander_scryfall_id: commanderScryfallId ?? null,

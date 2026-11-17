@@ -444,11 +444,8 @@ function PopoverBody({
             isProxy={holder.isProxy}
             primaryLabel="Sleeve"
             onPrimary={() => {
-              if (holder.deckStatus === 'brewing') {
-                claimMutation.mutate(holder.physicalCopyId)
-              } else {
-                onTier4Confirm(holder.deckName, holder.physicalCopyId)
-              }
+              // Every deck is treated the same: the copy moves at once.
+              claimMutation.mutate(holder.physicalCopyId)
             }}
             isPending={isPending}
           />

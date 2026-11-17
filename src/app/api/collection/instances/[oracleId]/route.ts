@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
+import { fetchDeckStatuses } from '@/lib/deck-list-data'
 
 /**
  * GET /api/collection/instances/[oracleId]
@@ -25,7 +26,8 @@ interface InstanceRow {
   isProxy: boolean
   assignedDeckName: string | null
   assignedDeckId: number | null
-  assignedDeckIsActive: boolean | null
+  /** Automatic status of the deck holding this copy: 'draft' | 'assembling' | 'playable' */
+  assignedDeckStatus: string | null
   locationId: number | null
   locationName: string | null
   /** @deprecated Use locationId */
@@ -38,7 +40,6 @@ interface ShortDeckEntry {
   deckCardsId: number
   deckId: number
   deckName: string
-  isActive: boolean
 }
 
 interface InstancePanelResponse {
@@ -117,14 +118,14 @@ export async function GET(
       }
     }
 
-    // 4. Get deck assignments for these collection copies (including deck_id and is_active)
+    // 4. Get deck assignments for these collection copies (including deck_id)
     const copyIds = collectionCopies.map((pc) => pc.id)
-    const deckAssignmentMap: Map<number, { deckName: string; deckId: number; isActive: boolean }> = new Map()
+    const deckAssignmentMap: Map<number, { deckName: string; deckId: number }> = new Map()
 
     if (copyIds.length > 0) {
       const { data: deckCards } = await supabase
         .from('deck_cards')
-        .select('copy_id, deck_id, decks!deck_cards_deck_id_fkey!inner(name, is_active)')
+        .select('copy_id, deck_id, decks!deck_cards_deck_id_fkey!inner(name)')
         .in('copy_id', copyIds)
         .not('copy_id', 'is', null)
 
@@ -134,13 +135,13 @@ export async function GET(
             deckAssignmentMap.set(dc.copy_id, {
               deckName: dc.decks.name,
               deckId: dc.deck_id,
-              isActive: dc.decks.is_active ?? true,
             })
           }
         }
       }
     }
 
+    const deckStatuses = await fetchDeckStatuses(supabase, authResult.id, [...new Set([...deckAssignmentMap.values()].map((a) => a.deckId))])
     // 5. Get printing/set info via printing_id from ref_printings table
     const printingIds = [...new Set(
       collectionCopies
@@ -185,7 +186,7 @@ export async function GET(
         isProxy: Boolean(pc.is_proxy),
         assignedDeckName: assignment?.deckName ?? null,
         assignedDeckId: assignment?.deckId ?? null,
-        assignedDeckIsActive: assignment?.isActive ?? null,
+        assignedDeckStatus: assignment ? (deckStatuses[assignment.deckId] ?? 'draft') : null,
         locationId: pc.location_id ?? null,
         locationName: pc.location_id
           ? (locationMap.get(pc.location_id) ?? null)
@@ -233,7 +234,7 @@ export async function GET(
     if (shortfall > 0) {
       const { data: unresolvedDeckCards } = await supabase
         .from('deck_cards')
-        .select('id, deck_id, decks!deck_cards_deck_id_fkey(name, is_active)')
+        .select('id, deck_id, decks!deck_cards_deck_id_fkey(name)')
         .eq('card_name', cardDef.card_name)
         .eq('user_id', authResult.id)
         .is('copy_id', null)
@@ -244,7 +245,6 @@ export async function GET(
             deckCardsId: dc.id,
             deckId: dc.deck_id,
             deckName: dc.decks?.name ?? `Deck ${dc.deck_id}`,
-            isActive: dc.decks?.is_active ?? true,
           })
         }
       }

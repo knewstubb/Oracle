@@ -14,6 +14,7 @@ import { classifyTier, scoreCandidate } from '@/lib/allocation-candidates'
 import { createAdminClient } from '@/lib/supabase'
 import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 import { isBasicLand } from '@/lib/basic-lands'
+import { fetchDeckStatuses } from '@/lib/deck-list-data'
 import type { PlacementSource } from '@/types/placement-source'
 
 // ---------------------------------------------------------------------------
@@ -58,7 +59,7 @@ interface SupplyCopyRow {
   deck_cards: Array<{
     id: number
     deck_id: number
-    decks: { name: string; is_active: boolean } | null
+    decks: { name: string } | null
   }> | null
 }
 
@@ -301,7 +302,7 @@ export async function loadSupplyPool(userId: string): Promise<SupplyPool> {
           deck_cards!deck_cards_copy_id_fkey(
             id,
             deck_id,
-            decks!deck_cards_deck_id_fkey(name, is_active)
+            decks!deck_cards_deck_id_fkey(name)
           )
         `)
         .eq('user_id', userId)
@@ -310,6 +311,9 @@ export async function loadSupplyPool(userId: string): Promise<SupplyPool> {
         .range(from, to)
   )
 
+  // Automatic deck status for every deck that holds one of these copies
+  const holderDeckIds = [...new Set(copies.flatMap((c) => (c.deck_cards ?? []).map((dc) => dc.deck_id)))]
+  const deckStatuses = await fetchDeckStatuses(supabase, userId, holderDeckIds)
   // Step 3: Map each collection copy to an EnrichedSupplyEntry and group by card_name
   const grouped = new Map<string, EnrichedSupplyEntry[]>()
 
@@ -328,7 +332,7 @@ export async function loadSupplyPool(userId: string): Promise<SupplyPool> {
         deckCardsId: dc.id,
         deckId: dc.deck_id,
         deckName: deck?.name ?? `Deck ${dc.deck_id}`,
-        deckStatus: deck?.is_active ? 'in_rotation' : 'brewing',
+        deckStatus: deckStatuses[dc.deck_id] ?? 'draft',
       }
     }
 

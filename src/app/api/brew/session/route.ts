@@ -30,7 +30,6 @@ export async function POST(request: NextRequest) {
         .insert({
           id: oracleId,
           name: placeholderName,
-          is_active: false,
           card_count: 0,
           user_id: userId,
         })

@@ -135,21 +135,41 @@ describe('DeckTile', () => {
     expect(screen.queryByRole('img', { name: /White|Blue|Black|Red|Green/ })).not.toBeInTheDocument()
   })
 
-  it('applies opacity when inactive', () => {
-    const { container } = renderWithProviders(<DeckTile {...defaultProps} isActive={false} />)
-    const link = container.querySelector('a')!
-    expect(link.className).toContain('opacity-80')
+  it('shows the Draft badge (purple flask) with its label and tooltip', () => {
+    renderWithProviders(<DeckTile {...defaultProps} status="draft" />)
+    const badge = screen.getByLabelText('Draft')
+    expect(badge).toHaveAttribute('title', 'Draft')
+    expect(badge.querySelector('svg')).toHaveClass('lucide-flask-conical')
+    expect(badge).toHaveStyle({ backgroundColor: '#8F51D5' })
   })
-
-  it('shows the "Ready to play" status badge when active and ready', () => {
-    renderWithProviders(
-      <DeckTile {...defaultProps} isActive={true} completeness={{ resolved: 100, total: 100 }} />
-    )
-    expect(screen.getByLabelText('Ready to play')).toBeInTheDocument()
+  it('shows the Assembling badge (construction icon, amber) with its label and tooltip', () => {
+    renderWithProviders(<DeckTile {...defaultProps} status="assembling" />)
+    const badge = screen.getByLabelText('Assembling')
+    expect(badge).toHaveAttribute('title', 'Assembling')
+    expect(badge.querySelector('svg')).toHaveClass('lucide-construction')
+    expect(badge.style.backgroundColor).toBe('var(--signal-warning)')
   })
-
-  it('shows the "Deck in progress" badge when inactive', () => {
-    renderWithProviders(<DeckTile {...defaultProps} isActive={false} />)
-    expect(screen.getByLabelText('Deck in progress')).toBeInTheDocument()
+  it('shows the Playable badge (green tick) with its label and tooltip', () => {
+    renderWithProviders(<DeckTile {...defaultProps} status="playable" />)
+    const badge = screen.getByLabelText('Playable')
+    expect(badge).toHaveAttribute('title', 'Playable')
+    expect(badge.querySelector('svg')).toHaveClass('lucide-check')
+    expect(badge.style.backgroundColor).toBe('var(--accent-primary)')
+  })
+  it('shows exactly one status badge', () => {
+    renderWithProviders(<DeckTile {...defaultProps} status="assembling" />)
+    expect(screen.queryByLabelText('Draft')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Playable')).not.toBeInTheDocument()
+  })
+  it('dims the tile unless it is Playable', () => {
+    const draft = renderWithProviders(<DeckTile {...defaultProps} status="draft" />)
+    expect(draft.container.querySelector('a')!.className).toContain('opacity-80')
+    draft.unmount()
+    const ready = renderWithProviders(<DeckTile {...defaultProps} status="playable" />)
+    expect(ready.container.querySelector('a')!.className).not.toContain('opacity-80')
+  })
+  it('keeps the count text next to the badge', () => {
+    renderWithProviders(<DeckTile {...defaultProps} status="assembling" cardCount={55} sleevedCount={14} />)
+    expect(screen.getByText('55/100 (14 sleeved)')).toBeInTheDocument()
   })
 })

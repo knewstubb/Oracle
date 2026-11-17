@@ -1,7 +1,9 @@
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
 import { isBasicLand } from '@/lib/basic-lands'
-import { fetchAllDeckCardRows, isCountableCard } from '@/lib/deck-list-data'
+import { fetchAllDeckCardRows, isCountableCard, type DeckCardRow } from '@/lib/deck-list-data'
+import { computeDeckReadiness } from '@/lib/deck-readiness'
+import { deckTargetFor } from '@/lib/format-config'
 
 export interface DeckFolder {
   id: number
@@ -18,8 +20,7 @@ export interface DeckRow {
   card_count: number | null
   last_synced_at: string | null
   deck_type: string | null
-  status: 'brewing' | 'in_rotation' // Legacy, being phased out
-  is_active: boolean
+  format: string | null
   folder_id: number | null
   folder: DeckFolder | null
 }
@@ -47,9 +48,8 @@ export async function GET() {
     // 1. Fetch decks
     supabase
       .from('decks')
-      .select('id, name, commander_name, commander_scryfall_id, colour_identity, card_count, last_synced_at, deck_type, status, is_active, folder_id')
+      .select('id, name, commander_name, commander_scryfall_id, colour_identity, card_count, last_synced_at, deck_type, format, folder_id')
       .eq('user_id', userId)
-      .order('is_active', { ascending: false })
       .order('name'),
     
     // 2. Fetch folders
@@ -113,6 +113,7 @@ export async function GET() {
   // /api/decks/details, which fills it in after the tiles are on screen.
   const completenessMap: Record<number, { resolved: number; total: number }> = {}
   const computedCardCounts: Record<number, number> = {}
+  const countableRows = new Map<number, DeckCardRow[]>()
 
   for (const card of allDeckCards) {
     // Only process cards that belong to fetched decks (filter for user's decks)
@@ -128,6 +129,9 @@ export async function GET() {
     completenessMap[card.deck_id].total += 1
     computedCardCounts[card.deck_id] = (computedCardCounts[card.deck_id] ?? 0) + 1
 
+    const list = countableRows.get(card.deck_id) ?? []
+    list.push(card)
+    countableRows.set(card.deck_id, list)
     if (card.copy_id != null) completenessMap[card.deck_id].resolved += 1
   }
 
@@ -143,8 +147,14 @@ export async function GET() {
     conflictCountsMap.set(entry.deckId, entry.count)
   }
 
+  // Automatic status from the same rows the sleeved count uses (no extra query).
+  const statusFor = (deck: { id: number; format: string | null }) => {
+    const target = deckTargetFor(deck.format)
+    return computeDeckReadiness(countableRows.get(deck.id) ?? [], target.deckSize, target.countRule).state
+  }
   const decksWithCompleteness = decks.map((deck) => ({
     ...deck,
+    status: statusFor(deck),
     card_count: computedCardCounts[deck.id] ?? deck.card_count ?? 0,
     completeness: completenessMap[deck.id] ?? null,
     folder: deck.folder_id ? folderMap.get(deck.folder_id) ?? null : null,

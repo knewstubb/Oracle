@@ -1,7 +1,10 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { CONNECTOR_TOOLS, toJsonSchema } from '../tools'
+import { runTool } from '../server'
+import { mockDb } from './mock-db'
+import type { Gateway } from '../write-types'
 import { CONNECTOR_READ_TOOLS_B, CONNECTOR_WRITE_TOOLS, DESTRUCTIVE_HINT_TOOLS, isBlockedToolName } from '../edit-config'
 
 const ROOT = path.resolve(__dirname, '..')
@@ -107,5 +110,42 @@ describe('service-role isolation and read-only wrapper', () => {
     const block = /export interface ReadOnlyDb \{([\s\S]*?)\n\}/.exec(src)![1]
     expect(block).toMatch(/select\(/)
     expect(block).not.toMatch(/insert|update|upsert|delete|rpc|from\(/)
+  })
+})
+
+describe('CC-15 deck tools: owner A cannot reach owner B\'s deck', () => {
+  const A = 'owner-a'
+  const B_DECK = 900
+  // Stand-in for the database: B's deck exists, but only for user B. Any call as A finds nothing.
+  const setDeckSetup = vi.fn(async (a: { userId: string; deckId: number }) =>
+    a.userId === 'owner-b' && a.deckId === B_DECK
+      ? { ok: true as const, data: { success: true, outcome: 'applied', group_id: 'g', count: 1, changed: {} } }
+      : { ok: false as const, code: 'deck_not_found', detail: {} })
+  const createDeck = vi.fn()
+  const submit = vi.fn()
+  const gateway = { setDeckSetup, createDeck, submit, resolveCard: async (n: string) => ({ card: { oracleId: 'o', scryfallId: 's', name: n, setCode: 'x' } }) } as unknown as Gateway
+  // Owner B's data is present in the read database, as it would be in the shared tables.
+  const db = mockDb((q) => ({ data: q.table === 'decks' ? [{ id: B_DECK, user_id: 'owner-b', name: 'B deck' }] : [] })).db
+  const ctx = { db, userId: A, connectionId: 'conn-a', clientId: 'cl', clientName: 'Claude', gateway }
+
+  it('set_deck_setup on B\'s deck id returns not-found, sends only A\'s user id, and changes nothing', async () => {
+    const r = await runTool(ctx, 'set_deck_setup', { deck_id: B_DECK, bracket: 2, strategy_notes: 'mine now' })
+    expect(r.structuredContent).toMatchObject({ error: { code: 'deck_not_found' } })
+    expect(JSON.stringify(r.structuredContent)).toMatch(/Nothing was changed/)
+    expect(setDeckSetup).toHaveBeenCalledTimes(1)
+    expect(setDeckSetup.mock.calls[0][0]).toMatchObject({ userId: A, deckId: B_DECK })
+    expect(submit).not.toHaveBeenCalled()
+    expect(createDeck).not.toHaveBeenCalled()
+  })
+  it('a user id or deck owner in the input is rejected before any database call', async () => {
+    setDeckSetup.mockClear()
+    const r = await runTool(ctx, 'set_deck_setup', { deck_id: B_DECK, bracket: 2, user_id: 'owner-b' })
+    expect(r.isError).toBe(true)
+    expect(setDeckSetup).not.toHaveBeenCalled()
+  })
+  it('create_deck always sends the signed-in owner, never one from the input', async () => {
+    createDeck.mockResolvedValueOnce({ ok: true, data: { success: true, outcome: 'applied', group_id: 'g', deck_id: 1, count: 1 } })
+    await runTool(ctx, 'create_deck', { name: 'X', format: 'pauper' })
+    expect(createDeck.mock.calls[0][0]).toMatchObject({ userId: A, connectionId: 'conn-a' })
   })
 })

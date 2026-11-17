@@ -56,13 +56,13 @@ const COLOUR_BAR_MAP: Record<string, { hex: string; label: string }> = {
 const COLOUR_ORDER = ['W', 'U', 'B', 'R', 'G']
 
 // Status badge: icon, colour and label (icon plus word, never colour alone: D-012)
-const STATUS_BADGE: Record<DeckStatus, { label: string; colour: string }> = {
+export const STATUS_BADGE: Record<DeckStatus, { label: string; colour: string }> = {
   draft: { label: 'Draft', colour: '#8F51D5' },
   assembling: { label: 'Assembling', colour: 'var(--signal-warning)' },
   playable: { label: 'Playable', colour: 'var(--accent-primary)' },
 }
 
-function StatusIcon({ status }: { status: DeckStatus }) {
+export function StatusIcon({ status }: { status: DeckStatus }) {
   if (status === 'draft') return <FlaskConical className="size-3.5 text-black" strokeWidth={2.5} />
   if (status === 'assembling') return <Construction className="size-3.5 text-black" strokeWidth={2.5} />
   return <Check className="size-4 text-black" strokeWidth={3} />

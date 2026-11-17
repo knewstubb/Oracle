@@ -3,12 +3,12 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
-import { AlertCircle, RefreshCw } from 'lucide-react'
+import { AlertCircle, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DeckImportButton } from '@/components/DeckImportButton'
 import { NewDeckModal } from '@/components/NewDeckModal'
-import { DeckTile } from '@/components/DeckTile'
+import { DeckTile, StatusIcon, STATUS_BADGE } from '@/components/DeckTile'
 import { FolderChip, NewFolderChip } from '@/components/FolderChip'
 import { CreateFolderModal } from '@/components/CreateFolderModal'
 import { useOracleContext } from '@/contexts/OracleContext'
@@ -68,6 +68,21 @@ function parseColourIdentity(ci: string | null | undefined): string[] {
  * with fewer decks the empty tracks simply stay empty.
  */
 const DECK_GRID_COLUMNS = 'repeat(auto-fill, minmax(min(100%, 200px), 1fr))'
+
+/** How the deck list is grouped. Remembered between visits. */
+type DeckGroupBy = 'none' | 'status'
+const DECK_GROUP_KEY = 'oracle:decks:groupBy'
+/** Section order when grouped by status. */
+const STATUS_SECTION_ORDER = ['playable', 'assembling', 'draft'] as const
+
+function readGroupBy(): DeckGroupBy {
+  if (typeof window === 'undefined') return 'none'
+  try {
+    return localStorage.getItem(DECK_GROUP_KEY) === 'status' ? 'status' : 'none'
+  } catch {
+    return 'none'
+  }
+}
 
 export default function DashboardPage() {
   // Set Oracle context for this page
@@ -279,6 +294,24 @@ export default function DashboardPage() {
 function DecksSection({ decks, folders }: { decks: Deck[]; folders: DeckFolder[] }) {
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null)
   const [createFolderOpen, setCreateFolderOpen] = useState(false)
+  const [groupBy, setGroupBy] = useState<DeckGroupBy>(readGroupBy)
+  const [collapsedStatuses, setCollapsedStatuses] = useState<Set<string>>(new Set())
+
+  const changeGroupBy = (value: DeckGroupBy) => {
+    setGroupBy(value)
+    try {
+      localStorage.setItem(DECK_GROUP_KEY, value)
+    } catch {
+      // localStorage unavailable: the choice just isn't remembered
+    }
+  }
+  const toggleStatusSection = (status: string) =>
+    setCollapsedStatuses(prev => {
+      const next = new Set(prev)
+      if (next.has(status)) next.delete(status)
+      else next.add(status)
+      return next
+    })
 
   // Filter decks by selected folder
   const filteredDecks = selectedFolderId !== null
@@ -369,11 +402,26 @@ function DecksSection({ decks, folders }: { decks: Deck[]; folders: DeckFolder[]
 
       {/* Decks header */}
       <div className="mb-4">
-        <h2 className="mb-3 text-[length:var(--fs-xs)] font-medium uppercase tracking-wider text-muted-foreground">
-          {selectedFolderId !== null 
-            ? folders.find(f => f.id === selectedFolderId)?.name ?? 'Folder'
-            : 'All Decks'}
-        </h2>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-[length:var(--fs-xs)] font-medium uppercase tracking-wider text-muted-foreground">
+            {selectedFolderId !== null
+              ? folders.find(f => f.id === selectedFolderId)?.name ?? 'Folder'
+              : 'All Decks'}
+          </h2>
+          <select
+            value={groupBy}
+            onChange={(e) => changeGroupBy(e.target.value as DeckGroupBy)}
+            className="h-8 rounded-lg border px-2 text-[length:var(--fs-sm)] font-medium text-muted-foreground"
+            style={{
+              backgroundColor: 'var(--bg-card)',
+              borderColor: 'var(--border-emphasis)',
+            }}
+            aria-label="Group by"
+          >
+            <option value="none">Group: None</option>
+            <option value="status">Group: Status</option>
+          </select>
+        </div>
         {selectedFolderId !== null && (
           <button
             type="button"
@@ -385,8 +433,47 @@ function DecksSection({ decks, folders }: { decks: Deck[]; folders: DeckFolder[]
         )}
       </div>
 
-      {/* All decks in one grid — Active decks are sorted first by the API */}
-      {total > 0 && renderDeckGrid(filteredDecks)}
+      {/* One A to Z grid, or one section per status (Playable, Assembling, Draft) */}
+      {total > 0 && groupBy === 'none' && renderDeckGrid(filteredDecks)}
+      {total > 0 && groupBy === 'status' && (
+        <div className="space-y-6">
+          {STATUS_SECTION_ORDER.map((status) => {
+            const sectionDecks = filteredDecks.filter(d => d.status === status)
+            if (sectionDecks.length === 0) return null
+            const badge = STATUS_BADGE[status]
+            const collapsed = collapsedStatuses.has(status)
+            return (
+              <section key={status} aria-label={badge.label}>
+                <button
+                  type="button"
+                  onClick={() => toggleStatusSection(status)}
+                  className="mb-3 flex w-full items-center gap-2 border-b px-1 py-2 text-left hover:opacity-80"
+                  style={{ borderColor: collapsed ? 'transparent' : 'var(--border-default)' }}
+                  aria-expanded={!collapsed}
+                >
+                  <span
+                    className="flex size-6 shrink-0 items-center justify-center rounded-full"
+                    style={{ backgroundColor: badge.colour }}
+                    aria-hidden="true"
+                  >
+                    <StatusIcon status={status} />
+                  </span>
+                  <span className="text-[length:var(--fs-sm)] font-medium uppercase tracking-wide text-muted-foreground">
+                    {badge.label} ({sectionDecks.length})
+                  </span>
+                  <span className="flex-1" />
+                  {collapsed ? (
+                    <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  ) : (
+                    <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  )}
+                </button>
+                {!collapsed && renderDeckGrid(sectionDecks)}
+              </section>
+            )
+          })}
+        </div>
+      )}
       
       {total === 0 && selectedFolderId !== null && (
         <p className="text-[length:var(--fs-sm)] text-muted-foreground">

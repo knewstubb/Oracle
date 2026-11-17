@@ -26,39 +26,24 @@ export interface PrintingListViewProps {
 
 /* ─── Column Widths ─────────────────────────────────────────────────── */
 
-// Group 1: Checkbox + Qty + Name (FLEX, inner gap-6 = 24px)
-// Group 2: Rarity + Set (FLEX, inner gap-6 = 24px)
-// Finish: 40px standalone
-// Group 3: Cost + Type (288px fixed, inner gap-12 = 48px)
-// Group 4: Price + Added (176px fixed, inner gap-12 = 48px)
+// Name has priority: group 1 keeps a minimum width (NAME_GROUP) and takes 3x the
+// spare space; every other column shrinks, truncates or hides first.
+// Group 1: Checkbox + Qty + Name (flex-[3], min width, inner gap-4)
+// Group 2: Rarity + Set (flex-1, shrinks and truncates)
+// Type: 120px, hidden below xl
+// Group 3: Price + Added (Added hidden below lg)
 // Actions: 40px standalone
-// Outer gap between groups: gap-10 = 40px
-
+// Outer gap between groups: gap-6 = 24px
 const COL = {
-  // Group 1
   checkbox: 'w-6',      // 24px
   qty: 'w-6',           // 24px
-  // name is flex-1
-  
-  // Group 2
   rarity: 'w-10',       // 40px
-  // setName is flex-1
-  
-  // Standalone
-  finish: 'w-10',       // 40px
-  
-  // Group 3 (288px total: 120 + 48gap + 120)
-  colors: 'w-[120px]',  // 120px — mana cost
   type: 'w-[120px]',    // 120px
-  
-  // Group 4 (176px total: 48 + 48gap + 80)
   price: 'w-12',        // 48px
   added: 'w-20',        // 80px
-  
-  // Standalone
   actions: 'w-10',      // 40px
 } as const
-
+const NAME_GROUP = 'min-w-[260px]' // checkbox 24 + qty 24 + gaps 32 + name >= 180
 /* ─── SortableHeader ────────────────────────────────────────────────── */
 
 function SortableHeader({
@@ -158,67 +143,6 @@ function shortType(typeLine: string | null): string {
   return mainType.split(' ')[0] || '—'
 }
 
-/* ─── Mana Cost Pips (using mana-font) ──────────────────────────────── */
-
-/**
- * Parse a mana cost string like "{2}{W}{U}" into individual symbol codes.
- */
-function parseManaCost(cost: string): string[] {
-  const symbols: string[] = []
-  const regex = /\{([^}]+)\}/g
-  let match: RegExpExecArray | null
-
-  while ((match = regex.exec(cost)) !== null) {
-    symbols.push(match[1])
-  }
-
-  return symbols
-}
-
-/**
- * Convert a mana symbol code to the mana-font CSS class.
- */
-function symbolToClass(symbol: string): string {
-  const s = symbol.toLowerCase()
-
-  // Hybrid mana: {W/U} → ms-wu, {2/W} → ms-2w
-  if (s.includes('/')) {
-    const parts = s.split('/')
-    // Phyrexian: {W/P} → ms-wp
-    if (parts[1] === 'p') {
-      return `ms ms-${parts[0]}p ms-cost`
-    }
-    return `ms ms-${parts.join('')} ms-cost`
-  }
-
-  // Standard symbols
-  return `ms ms-${s} ms-cost`
-}
-
-function ManaCostPips({ cost }: { cost: string | null }) {
-  if (!cost) {
-    return <span style={{ color: 'rgba(255,255,255,0.2)' }}>—</span>
-  }
-
-  const symbols = parseManaCost(cost)
-  if (symbols.length === 0) {
-    return <span style={{ color: 'rgba(255,255,255,0.2)' }}>—</span>
-  }
-
-  return (
-    <span className="inline-flex items-center gap-px">
-      {symbols.map((symbol, i) => (
-        <i
-          key={i}
-          className={symbolToClass(symbol)}
-          style={{ fontSize: '12px' }}
-          aria-hidden="true"
-        />
-      ))}
-    </span>
-  )
-}
-
 /* ─── PrintingListView ──────────────────────────────────────────────── */
 
 export function PrintingListView({
@@ -276,7 +200,7 @@ export function PrintingListView({
       <div
         className={cn(
           "flex items-center px-4 py-2",
-          isMobile ? "gap-3" : "gap-10"
+          isMobile ? "gap-3" : "gap-6"
         )}
         style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '0.5px solid rgba(255,255,255,0.07)' }}
       >
@@ -291,7 +215,7 @@ export function PrintingListView({
           /* Desktop header: full layout */
           <>
             {/* Group 1: Checkbox + Qty + Name (FLEX) */}
-            <div className="flex flex-1 items-center gap-6">
+            <div className={cn('flex flex-[3] items-center gap-4', NAME_GROUP)}>
               <div className={cn(COL.checkbox, 'shrink-0 flex items-center justify-center')}>
                 <input type="checkbox" className="size-3.5 rounded border-[rgba(255,255,255,0.1)] bg-transparent opacity-30 checked:opacity-100 hover:opacity-60 transition-opacity accent-[var(--accent-primary)]" aria-label="Select all" />
               </div>
@@ -300,26 +224,22 @@ export function PrintingListView({
             </div>
 
             {/* Group 2: Rarity + Set (FLEX) */}
-            <div className="flex flex-1 items-center gap-6">
+            <div className="flex min-w-0 flex-1 items-center gap-4">
               <SortableHeader label="Rarity" field="rarity" align="center" className={COL.rarity} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
               <SortableHeader label="Set" field="setCode" align="left" className="flex-1 min-w-0" shrink={false} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
             </div>
 
-            {/* Finish (standalone 40px) */}
-            <SortableHeader label="Finish" field={null} align="center" className={COL.finish} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
-
-            {/* Group 3: Cost + Type (288px fixed) */}
-            <div className="flex w-[288px] shrink-0 items-center gap-12">
-              <SortableHeader label="Cost" field={null} align="right" className={COL.colors} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
+            {/* Type (hidden below xl) */}
+            <div className="hidden w-[120px] shrink-0 xl:block">
               <SortableHeader label="Type" field={null} align="left" className={COL.type} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
             </div>
-
-            {/* Group 4: Price + Added (176px fixed) */}
-            <div className="flex w-[176px] shrink-0 items-center gap-12">
+            {/* Group 3: Price + Added (Added hidden below lg) */}
+            <div className="flex shrink-0 items-center gap-6">
               <SortableHeader label="Price" field="price" align="right" className={COL.price} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
-              <SortableHeader label="Added" field={null} align="left" className={COL.added} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
+              <div className="hidden w-20 shrink-0 lg:block">
+                <SortableHeader label="Added" field={null} align="left" className={COL.added} sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
+              </div>
             </div>
-
             {/* Actions (standalone 40px) */}
             <div className={cn(COL.actions, 'shrink-0')} aria-hidden="true" />
           </>
@@ -388,7 +308,7 @@ export function PrintingListView({
                 <div
                   key={`${row.id}-${row.isFoil}-${row.isProxy}`}
                   className={cn(
-                    'group absolute left-0 flex w-full items-center gap-10 px-4 transition-colors hover:bg-[rgba(255,255,255,0.02)]',
+                    'group absolute left-0 flex w-full items-center gap-6 px-4 transition-colors hover:bg-[rgba(255,255,255,0.02)]',
                     row.isProxy && 'opacity-60'
                   )}
                   style={{
@@ -399,7 +319,7 @@ export function PrintingListView({
                   }}
                 >
                   {/* Group 1: Checkbox + Qty + Name (FLEX) */}
-                  <div className="flex flex-1 items-center gap-6 min-w-0">
+                  <div className={cn('flex flex-[3] items-center gap-4', NAME_GROUP)}>
                     <span className={cn(COL.checkbox, 'shrink-0 flex items-center justify-center')}>
                       <input type="checkbox" className="size-3.5 rounded border-[rgba(255,255,255,0.1)] bg-transparent opacity-30 checked:opacity-100 hover:opacity-60 transition-opacity accent-[var(--accent-primary)]" aria-label={`Select ${row.cardName}`} />
                     </span>
@@ -428,7 +348,7 @@ export function PrintingListView({
                   </div>
 
                   {/* Group 2: Rarity + Set (FLEX) */}
-                  <div className="flex flex-1 items-center gap-6 min-w-0">
+                  <div className="flex min-w-0 flex-1 items-center gap-4">
                     <span className={cn(COL.rarity, 'shrink-0 flex items-center justify-center')}>
                       {row.setCode && (
                         <i
@@ -444,43 +364,29 @@ export function PrintingListView({
                     </span>
                   </div>
 
-                  {/* Finish (standalone 40px) */}
-                  <span className={cn(COL.finish, 'shrink-0 flex items-center justify-center text-[length:var(--fs-sm)]')} style={{ color: 'rgba(255,255,255,0.4)' }}>
-                    {row.isFoil ? 'Foil' : ''}
+                  {/* Type (hidden below xl) */}
+                  <span
+                    className={cn(COL.type, 'hidden shrink-0 truncate text-[length:var(--fs-base)] xl:block')}
+                    style={{ color: 'rgba(255,255,255,0.4)' }}
+                    title={row.typeLine || undefined}
+                  >
+                    {shortType(row.typeLine)}
                   </span>
-
-                  {/* Group 3: Cost + Type (288px fixed) */}
-                  <div className="flex w-[288px] shrink-0 items-center gap-12">
-                    <span className={cn(COL.colors, 'shrink-0 flex justify-end')}>
-                      <ManaCostPips cost={row.manaCost} />
-                    </span>
-
-                    <span
-                      className={cn(COL.type, 'shrink-0 truncate text-[length:var(--fs-base)]')}
-                      style={{ color: 'rgba(255,255,255,0.4)' }}
-                      title={row.typeLine || undefined}
-                    >
-                      {shortType(row.typeLine)}
-                    </span>
-                  </div>
-
-                  {/* Group 4: Price + Added (176px fixed) */}
-                  <div className="flex w-[176px] shrink-0 items-center gap-12">
+                  {/* Group 3: Price + Added (Added hidden below lg) */}
+                  <div className="flex shrink-0 items-center gap-6">
                     <span
                       className={cn(COL.price, 'shrink-0 text-right text-[length:var(--fs-base)] tabular-nums')}
                       style={{ color: row.price === null ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.5)' }}
                     >
                       {formatPrice(row.price)}
                     </span>
-
                     <span
-                      className={cn(COL.added, 'shrink-0 text-[length:var(--fs-sm)]')}
+                      className={cn(COL.added, 'hidden shrink-0 text-[length:var(--fs-sm)] lg:block')}
                       style={{ color: 'rgba(255,255,255,0.35)' }}
                     >
                       {formatShortDate(row.addedAt)}
                     </span>
                   </div>
-
                   {/* Actions (standalone 40px) */}
                   <span className={cn(COL.actions, 'shrink-0 flex items-center justify-end')}>
                     <button

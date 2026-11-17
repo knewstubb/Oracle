@@ -1,0 +1,38 @@
+== cluster: PostgreSQL 17.12 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.4.1.1), 64-bit port 55433 (throwaway, deleted at end)
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/docs/oracle/reports/evidence/cc15-db/00_base.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261116130000_connector_connections.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261116150000_ai_change_log_and_pending.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261116150100_ai_connector_edit_rpcs.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261116150200_ai_undo_blocker_make_original_fix.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261116150300_ai_list_recent_changes_zone_to.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261116190000_ai_deck_category.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261117100000_cc13_loosen_limits.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261023170100_set_deck_command_zone.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/docs/oracle/reports/evidence/cc15-db/01_seed.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/drafts/20261117200000_cc15a_new_change_kinds.draft.sql
+== 1. DB-B as written, 20261117120000 NOT applied: it must refuse to install
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/drafts/20261117200100_cc15b_deck_create_setup.draft.sql:31: ERROR:  apply 20261117120000_ai_change_log_allow_deck_delete first
+DB-B installed? false
+== 2. Same file with only the dependency check removed (to show what the check protects against)
+-- apply /tmp/cc15b_nodep.sql
+-- owner Undo of the empty created deck, without 20261117120000:
+                     undo_result                      
+------------------------------------------------------
+ {"ok": false, "err": "ai_change_log_is_append_only"}
+(1 row)
+
+                     state                     
+-----------------------------------------------
+ deck still exists after the failed Undo: true
+(1 row)
+
+-- deleting the same deck by hand, without 20261117120000 (the owner original complaint):
+                  hand_delete_result                  
+------------------------------------------------------
+ {"ok": false, "err": "ai_change_log_is_append_only"}
+(1 row)
+
+== 3. Now apply 20261117120000 and retry the same Undo
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261117120000_ai_change_log_allow_deck_delete.sql
+Undo now: {"undone": 1, "success": true}
+deck exists: false

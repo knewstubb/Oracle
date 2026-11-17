@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { runTool } from '../server'
 import { mockDb } from './mock-db'
-import { AI_LIMITS } from '../edit-config'
+import { AI_LIMITS, AI_LIMITS_NEW } from '../edit-config'
 import { guardOwnerRequest } from '../cookie-guard'
 import * as api from '../owner-api'
 import { groupChanges } from '../change-groups'
@@ -26,7 +26,7 @@ const ctx = (gateway: Gateway, db = mockDb(() => ({ data: [] })).db) => ({ db, u
 
 describe('limits match the database', () => {
   const limitsIn = (sql: string) => {
-    const defs = [...sql.matchAll(/_ai_limits\(\)[\s\S]*?jsonb_build_object\(([\s\S]*?)\n\s*\)\n\$\$/g)]
+    const defs = [...sql.matchAll(/FUNCTION public\._ai_limits\(\)[\s\S]*?jsonb_build_object\(([\s\S]*?)\n\s*\)\n\$\$/g)]
     if (!defs.length) return null
     const found: Record<string, number> = {}
     for (const m of defs[defs.length - 1][1].matchAll(/'([a-z_]+)'\s*,\s*(\d+)/g)) found[m[1]] = Number(m[2])
@@ -44,6 +44,25 @@ describe('limits match the database', () => {
     const draft = existsSync(draftPath) ? limitsIn(readFileSync(draftPath, 'utf8')) : null
     // Applied: the last migration must match. Not applied yet: the draft must match.
     expect(last && JSON.stringify(last) === JSON.stringify(AI_LIMITS) ? last : draft).toEqual(AI_LIMITS)
+  })
+  it('AI_LIMITS_NEW equals the LAST _ai_limits_new() definition (migrations, else the cc15a draft)', () => {
+    const limitsNewIn = (sql: string) => {
+      const defs = [...sql.matchAll(/FUNCTION public\._ai_limits_new\(\)[\s\S]*?jsonb_build_object\(([\s\S]*?)\n\s*\)\n\$\$/g)]
+      if (!defs.length) return null
+      const found: Record<string, number> = {}
+      for (const m of defs[defs.length - 1][1].matchAll(/'([a-z_]+)'\s*,\s*(\d+)/g)) found[m[1]] = Number(m[2])
+      return found
+    }
+    const root = path.resolve(__dirname, '../../../../supabase')
+    let last: Record<string, number> | null = null
+    for (const f of readdirSync(path.join(root, 'migrations')).filter((n) => n.endsWith('.sql') && !n.includes('rollback')).sort()) {
+      const l = limitsNewIn(readFileSync(path.join(root, 'migrations', f), 'utf8'))
+      if (l) last = l
+    }
+    const draftPath = path.join(root, 'drafts/20261117200000_cc15a_new_change_kinds.draft.sql')
+    const draft = existsSync(draftPath) ? limitsNewIn(readFileSync(draftPath, 'utf8')) : null
+    // Applied: the last migration must match. Not applied yet: the draft must match.
+    expect(last ?? draft).toEqual(AI_LIMITS_NEW)
   })
   it('AI_LIMITS equals the CC-13 contract types', () => {
     const src = readFileSync(path.resolve(__dirname, '../../../../docs/oracle/contracts/claude-connector-cc13-amendment.types.ts'), 'utf8')

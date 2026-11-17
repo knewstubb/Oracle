@@ -1,0 +1,232 @@
+== cluster: PostgreSQL 17.12 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.4.1.1), 64-bit port 55433 (throwaway, deleted at end)
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/docs/oracle/reports/evidence/cc15-db/00_base.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261116130000_connector_connections.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261116150000_ai_change_log_and_pending.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261116150100_ai_connector_edit_rpcs.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261116150200_ai_undo_blocker_make_original_fix.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261116150300_ai_list_recent_changes_zone_to.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261116190000_ai_deck_category.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261117100000_cc13_loosen_limits.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261023170100_set_deck_command_zone.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/docs/oracle/reports/evidence/cc15-db/01_seed.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261117120000_ai_change_log_allow_deck_delete.sql
+== before DB-A: old kinds through the live functions
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/drafts/20261117200000_cc15a_new_change_kinds.draft.sql
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== second apply must refuse
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/drafts/20261117200000_cc15a_new_change_kinds.draft.sql:32: ERROR:  cc15a already applied
+(psql exit shown above as ERROR line = refused)
+ chk 
+-----
+ 
+(1 row)
+
+== rollback with a new-kind row present must refuse
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/drafts/20261117200000_cc15a_new_change_kinds.rollback.sql:17: ERROR:  cannot roll back: ai_change_log has rows of a cc15 kind
+ chk 
+-----
+ 
+(1 row)
+
+== rollback (no new-kind rows)
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/drafts/20261117200000_cc15a_new_change_kinds.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== re-apply after rollback
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/drafts/20261117200000_cc15a_new_change_kinds.draft.sql
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+
+"######## RESULTS (DB-A) ########"
+                                                             name                                                              | result |                                                                                                                                                    detail                                                                                                                                                    
+-------------------------------------------------------------------------------------------------------------------------------+--------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ A00 limits before DB-A are the CC-13 numbers                                                                                  | PASS   | {"split_max": 200, "undo_days": 7, "direct_max": 120, "hourly_max": 500, "max_request": 200, "max_waiting": 20, "pending_hours": 24, "claude_undo_max": 200, "split_window_minutes": 30}
+ A01 old kinds applied before DB-A                                                                                             | PASS   | 3
+ A02 _ai_limits_new() has the five numbers                                                                                     | PASS   | {"box_move_max": 200, "boxes_created_per_hour": 10, "decks_created_open_max": 25, "decks_created_per_hour": 10, "strategy_notes_max_chars": 4000}
+ A03 _ai_limits() unchanged by DB-A                                                                                            | PASS   | 
+ A04 constraint accepts deck_create, deck_setup, box_create, box_move                                                          | PASS   | 
+ A05 constraint rejects an invented kind                                                                                       | PASS   | {"ok": false, "err": "new row for relation \"ai_change_log\" violates check constraint \"ai_change_log_kind_check\""}
+ A06 old kinds still allowed (deck_category)                                                                                   | PASS   | 
+ A07 owner-only: deck_create, box_create, box_move yes; deck_setup, deck_category, deck_add no                                 | PASS   | 
+ A10 old kind: Claude undoes its deck_category group (made before DB-A) through the front door                                 | PASS   | {"undone": 1, "success": true}
+ A10b the category is back to what it was (NULL)                                                                               | PASS   | ["Ramp"]
+ A11 old kind: owner undoes the deck_add group (2 cards) through the front door                                                | PASS   | {"undone": 2, "success": true}
+ A11b undoing it twice is refused as before                                                                                    | PASS   | {"refused": {"code": "already_undone"}, "success": false}
+ A12 old kind: add after DB-A applies                                                                                          | PASS   | {"plan": {"n": 1, "cards": [{"name": "Command Tower", "quantity": 1}], "action": "deck_add", "deck_id": 100, "preview": {"cards": [{"name": "Command Tower", "quantity": 1}], "decks": [{"name": "Manual", "role": "changes", "after": {"size": 1, "sleeved": 0, "unsleeved_generics": 0}, "before": {"size"
+ A13 old kind: zone change after DB-A applies                                                                                  | PASS   | {"plan": {"n": 1, "cards": [{"name": "Command Tower", "quantity": 1, "was_sleeved": false}], "action": "deck_zone", "deck_id": 100, "preview": {"cards": [{"name": "Command Tower", "quantity": 1, "was_sleeved": false}], "decks": [{"name": "Manual", "role": "changes", "after": {"size": 1, "sleeved": 0
+ A14 old kind: Claude undoes the zone change                                                                                   | PASS   | {"undone": 1, "success": true}
+ A15 old kind: remove after DB-A applies, slot gone                                                                            | PASS   | {"plan": {"n": 1, "cards": [{"name": "Command Tower", "quantity": 1, "was_sleeved": false}], "action": "deck_remove", "deck_id": 100, "preview": {"cards": [{"name": "Command Tower", "quantity": 1, "was_sleeved": false}], "decks": [{"name": "Manual", "role": "changes", "after": {"size": 0, "sleeved":
+ A16 old kind: Claude undoes the remove, slot back                                                                             | PASS   | {"undone": 1, "success": true}
+ A17 Recent changes still lists old kinds with their blocker field                                                             | PASS   | 11
+ A20 Claude undo of an inserted deck_create row returns owner_only                                                             | PASS   | {"refused": {"code": "owner_only"}, "success": false}
+ A21 Claude undo of box_move / box_create returns owner_only                                                                   | PASS   | 
+ A22 Claude undo with a switched-off connection is refused (connection_revoked)                                                | PASS   | 
+ A23 invalid actor refused                                                                                                     | PASS   | 
+ A24 second user cannot reach user 1 rows through Undo (owner actor, new kind): change_not_found or helper refusal not success | PASS   | {"ok": false, "err": "change_not_found"}
+ A25 Recent changes lists the new kinds as owner-only (deck_create, box_*); blocker is NULL until DB-B                         | PASS   | 
+ A26 privileges: new functions not executable by anon/authenticated, front door executable by service_role                     | PASS   | 
+ A30 running DB-A twice refuses                                                                                                | PASS   | still one _ai_undo_group_prev
+ A31 rollback refuses while a new-kind row exists                                                                              | PASS   | still applied
+ A32 rollback: old names back                                                                                                  | PASS   | 
+ A33 rollback: owner-only list is the three old kinds                                                                          | PASS   | 
+ A34 rollback: constraint rejects a new kind again                                                                             | PASS   | 
+ A35 rollback: old kinds still add and undo (Claude)                                                                           | PASS   | {"undone": 1, "success": true}
+ A36 re-apply works                                                                                                            | PASS   | 
+ A37 re-apply: constraint accepts the four names                                                                               | PASS   | 
+(33 rows)
+
+ passed | failed 
+--------+--------
+     33 |      0
+(1 row)
+

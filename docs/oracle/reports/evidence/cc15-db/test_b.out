@@ -1,0 +1,140 @@
+== cluster: PostgreSQL 17.12 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.4.1.1), 64-bit port 55433 (throwaway, deleted at end)
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/docs/oracle/reports/evidence/cc15-db/00_base.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261116130000_connector_connections.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261116150000_ai_change_log_and_pending.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261116150100_ai_connector_edit_rpcs.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261116150200_ai_undo_blocker_make_original_fix.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261116150300_ai_list_recent_changes_zone_to.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261116190000_ai_deck_category.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261117100000_cc13_loosen_limits.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261023170100_set_deck_command_zone.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/docs/oracle/reports/evidence/cc15-db/01_seed.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/migrations/20261117120000_ai_change_log_allow_deck_delete.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/drafts/20261117200000_cc15a_new_change_kinds.draft.sql
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/drafts/20261117200100_cc15b_deck_create_setup.draft.sql
+== DB-B twice must refuse
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/drafts/20261117200100_cc15b_deck_create_setup.draft.sql:31: ERROR:  cc15b already applied
+== two sessions, same name in different letter case, at the same moment
+
+
+== DB-B rollback with deck_create rows present must refuse
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/drafts/20261117200100_cc15b_deck_create_setup.rollback.sql:14: ERROR:  cannot roll back: ai_change_log has deck_create / deck_setup rows
+
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/drafts/20261117200100_cc15b_deck_create_setup.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+-- apply /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/cc-15/supabase/drafts/20261117200100_cc15b_deck_create_setup.draft.sql
+ chk 
+-----
+ 
+(1 row)
+
+
+"######## RESULTS (DB-B) ########"
+                                                                   name                                                                   | result |                                                                              detail                                                                              
+------------------------------------------------------------------------------------------------------------------------------------------+--------+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ B01 create: success, outcome applied, group id and deck id returned                                                                      | PASS   | {"ok": true, "res": {"count": 1, "deck_id": 629757557, "outcome": "applied", "success": true, "group_id": "0540e70b-02ce-46d6-8f70-811b9b440aea"}}
+ B01a deck row: not active, format commander, card_count 1, commander + colours stored, owned by user 1                                   | PASS   | {"id": 629757557, "name": "TEST C", "format": "commander", "status": "active", "bracket": null, "user_id": "00000000-0000-0000-0000-000000000001", "allocate": t
+ B01b exactly one card row: the commander, Planned (no copy), same shape as the manual route (no categories)                              | PASS   | {"id": 1, "tags": null, "copy_id": null, "deck_id": 629757557, "user_id": "00000000-0000-0000-0000-000000000001", "quantity": 1, "set_code": null, "card_name": 
+ B01c log row: one deck_create, deck name snapshot, commander slot id, oracle id, not approved-by-owner                                   | PASS   | {"id": "7b6a2de6-5d21-4a67-a8c4-adff22d1396c", "kind": "deck_create", "after": {"name": "TEST C", "format": "commander", "commander": "Korvold, Fae-Cursed King"
+ B01d no strategy row is created by create                                                                                                | PASS   | 
+ B02 Commander format without a commander is refused                                                                                      | PASS   | {"ok": false, "err": "commander_required"}
+ B03 duplicate name in different letter case refused                                                                                      | PASS   | {"ok": false, "err": "deck_name_taken"}
+ B03b a hand-made deck name is protected the same way                                                                                     | PASS   | 
+ B03c the other user may use the same name (names are per user)                                                                           | PASS   | 
+ B04 non-Commander format: no commander needed; empty deck, card_count 0, no card rows                                                    | PASS   | {"ok": true, "res": {"count": 1, "deck_id": 1151310645, "outcome": "applied", "success": true, "group_id": "3f91a237-1e29-407d-918c-a3b23b37f1c4"}}
+ B05 blank name, 101-character name, blank format refused                                                                                 | PASS   | 
+ B05b the name is trimmed                                                                                                                 | PASS   | {"ok": true, "res": {"count": 1, "deck_id": 1501381007, "outcome": "applied", "success": true, "group_id": "254e7205-0e1a-47c0-8868-848f81e13a20"}}
+ B06 connection switched off: refused, nothing created                                                                                    | PASS   | 
+ B07 another user's connection id is refused                                                                                              | PASS   | 
+ B08 the 11th deck within an hour is refused                                                                                              | PASS   | {"ok": false, "err": "too_many_decks_this_hour"}
+ B09-setup user 1 has exactly 25 open empty decks, fewer than 10 made in the last hour                                                    | PASS   | 25
+ B09 the 26th open empty deck is refused                                                                                                  | PASS   | {"ok": false, "err": "too_many_empty_decks"}
+ B09b once one of those decks has a card on it, it no longer counts: a new deck is allowed again                                          | PASS   | {"ok": true, "res": {"count": 1, "deck_id": 2111477749, "outcome": "applied", "success": true, "group_id": "31d5a9bd-8ef3-47fc-991c-066182811c6d"}}
+ B09c ...and then the cap holds again                                                                                                     | PASS   | {"ok": false, "err": "too_many_empty_decks"}
+ B09d a deck deleted by hand (works: 20261117120000) keeps its log row with no deck, and frees a slot                                     | PASS   | {"ok": true, "res": {"count": 1, "deck_id": 1984815526, "outcome": "applied", "success": true, "group_id": "305af64b-0f6f-4662-91dc-62127b7709f2"}}
+ B20 set bracket 3: applied; strategy row has bracket 3, notes still empty                                                                | PASS   | {"ok": true, "res": {"count": 1, "changed": {"bracket": 3}, "outcome": "applied", "success": true, "group_id": "f297f30c-c253-4c96-813f-d258d8dfa211"}}
+ B20a log row holds only the changed key (before bracket null, after bracket 3), kind deck_setup, not owner-approved                      | PASS   | {"bracket": null} -> {"bracket": 3}
+ B20b budget, budget mode, table context, win condition, frustration are untouched                                                        | PASS   | 
+ B21 brackets 1, 2, 4 accepted and null clears (values read back 1, 2, 4, then empty)                                                     | PASS   | {"ok": true, "res": {"count": 1, "changed": {"bracket": null}, "outcome": "applied", "success": true, "group_id": "f7430cd4-9f79-4d5e-b683-30a2816a6c86"}}
+ B21a bracket 5, 0, 2.5, "3" (text) refused                                                                                               | PASS   | 
+ B22 notes of 4000 characters accepted                                                                                                    | PASS   | {"ok": true, "res": {"count": 1, "changed": {"strategy_notes": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ B22a notes of 4001 characters refused; non-text notes refused; the saved notes are unchanged                                             | PASS   | 
+ B23 notes + bracket in one call: one group, one log row; only changed keys logged when one value equals the old one                      | PASS   | {"ok": true, "res": {"count": 1, "changed": {"bracket": 3, "strategy_notes": "Treasure and sacrifice."}, "outcome": "applied", "success": true, "group_id": "525
+ B23a bracket unchanged (3 -> 3): only the notes are logged and written                                                                   | PASS   | 
+ B24 no change: outcome no_change, count 0, no log row, no group                                                                          | PASS   | {"ok": true, "res": {"count": 0, "outcome": "no_change", "success": true}}
+ B25 empty patch, unknown key only, null patch, text patch refused                                                                        | PASS   | 
+ B25a unknown keys next to a valid one are ignored (budget not written)                                                                   | PASS   | 
+ B26 commander swap: Atraxa added as a Planned slot (no copy) and made the commander; Korvold stays in the deck as an ordinary card       | PASS   | {"ok": true, "res": {"count": 1, "changed": {"commander": "Atraxa, Praetors' Voice", "commander_slot_id": 3, "commander_slot_added": true}, "outcome": "applied"
+ B26a log: commander_slot_added true; before holds the old slot                                                                           | PASS   | 
+ B27 same commander again: no_change, no new slot                                                                                         | PASS   | {"ok": true, "res": {"count": 0, "outcome": "no_change", "success": true}}
+ B28 swap back to a card already in the deck: no new slot, flag says nothing was added                                                    | PASS   | {"ok": true, "res": {"count": 1, "changed": {"commander": "Korvold, Fae-Cursed King", "commander_slot_id": 1, "commander_slot_added": false}, "outcome": "applie
+ B28a undoing the older swap (B26) after a later change is refused changed_since, nothing changes                                         | PASS   | {"ok": true, "res": {"refused": {"code": "changed_since", "deck": "TEST C"}, "success": false}}
+ B29 swapping the primary commander keeps the partner and the companion roles                                                             | PASS   | {"ok": true, "res": {"count": 1, "changed": {"commander": "Kenrith", "commander_slot_id": 7, "commander_slot_added": false}, "outcome": "applied", "success": tr
+ B30 Claude undoes a bracket setup: bracket back to its old value, log row marked undone by claude                                        | PASS   | {"ok": true, "res": {"undone": 1, "success": true}}
+ B31 the owner undoes a setup too                                                                                                         | PASS   | {"ok": true, "res": {"undone": 1, "success": true}}
+ B31a a second undo of the same setup: already_undone                                                                                     | PASS   | 
+ B32 owner edited the same field after: Undo refused with changed_since, owner value kept                                                 | PASS   | 
+ B32a recent changes shows that blocker                                                                                                   | PASS   | 
+ B33 owner edited a different field: Undo still works and keeps the owner's notes                                                         | PASS   | {"ok": true, "res": {"undone": 1, "success": true}}
+ B34 undo of a commander swap: Korvold is the commander again, the slot Claude added is removed, deck commander name restored             | PASS   | {"ok": true, "res": {"undone": 1, "success": true}}
+ B35 old commander slot gone since: Undo refused changed_since (no database error)                                                        | PASS   | {"ok": true, "res": {"refused": {"code": "changed_since", "deck": "Swap deck"}, "success": false}}
+ B36 setup older than 7 days: too_old                                                                                                     | PASS   | 
+ B37 Claude cannot undo with a switched-off connection                                                                                    | PASS   | 
+ B38 setup refused for a switched-off connection, and for a deck that does not exist                                                      | PASS   | 
+ B40 Claude cannot undo a deck creation: owner_only, deck untouched                                                                       | PASS   | {"ok": true, "res": {"refused": {"code": "owner_only"}, "success": false}}
+ B40a owner_only is also what Recent changes says for that row, and the blocker is empty (Undo button available)                          | PASS   | 
+ B41 owner undoes the creation of the empty deck: success, undone 1                                                                       | PASS   | {"ok": true, "res": {"undone": 1, "success": true}}
+ B41a deck, its commander row and its strategy row are gone                                                                               | PASS   | 
+ B41b the log row stays: name snapshot kept, deck reference cleared, marked undone by owner                                               | PASS   | {"id": "58935e5c-3a0e-44c2-ba2b-e16c511f67f3", "kind": "deck_create", "copy_id": null, "deck_id": null, "user_id": "00000000-0000-0000-0000-000000000001", "grou
+ B41c the setup log row of that deck also stays (name snapshot, no deck)                                                                  | PASS   | 
+ B41d a second Undo: already_undone                                                                                                       | PASS   | 
+ B41e other decks untouched (the hand-made deck 100 and TEST C still exist)                                                               | PASS   | 
+ B42 empty deck: the blocker is empty                                                                                                     | PASS   | 
+ B42a Claude adds a card to its deck (normal edit path)                                                                                   | PASS   | 
+ B42b once a card is on the deck: refused deck_not_empty, deck and card still there                                                       | PASS   | {"ok": true, "res": {"refused": {"code": "deck_not_empty", "deck": "Has card"}, "success": false}}
+ B42c Recent changes shows that reason                                                                                                    | PASS   | 
+ B42d removing the card first (Undo of the add) makes the deck undoable again                                                             | PASS   | {"ok": true, "res": {"undone": 1, "success": true}}
+ B43a a copy sleeved into the commander slot: deck_in_use                                                                                 | PASS   | 
+ B43b a Picklist step points at the deck: deck_in_use                                                                                     | PASS   | 
+ B43c the deck was put in a folder: deck_in_use                                                                                           | PASS   | 
+ B43d a saved version exists: deck_in_use                                                                                                 | PASS   | 
+ B43e Recent changes shows deck_in_use for all four                                                                                       | PASS   | 
+ B44 creation older than 7 days: too_old, deck stays                                                                                      | PASS   | 
+ B45 a Claude-made deck can be deleted by hand (no append-only error); log rows stay with name snapshot and no deck                       | PASS   | 
+ B45a Undo of the creation after that: deck_gone (no error), and the blocker says so                                                      | PASS   | 
+ B45b Undo of the setup of that deck: deck_gone                                                                                           | PASS   | 
+ B46 Recent changes lists deck_create and deck_setup rows                                                                                 | PASS   | 
+ B46a no row of Recent changes carries before/after (unchanged shape)                                                                     | PASS   | 
+ I01 user 2 setup on user 1's deck: deck_not_found                                                                                        | PASS   | {"ok": false, "err": "deck_not_found"}
+ I02 user 2 commander swap on user 1's deck: deck_not_found                                                                               | PASS   | 
+ I03 user 2 Undo (owner and Claude) of user 1's setup group: change_not_found, nothing changes                                            | PASS   | 
+ I04 user 2 Undo (owner and Claude) of user 1's deck_create group: refused or not found, deck survives                                    | PASS   | {"ok": false, "err": "change_not_found"}
+ I05 user 2 cannot create a deck through user 1's connection, nor use user 1's id                                                         | PASS   | 
+ I06 user 2 Recent changes shows none of user 1's rows                                                                                    | PASS   | 
+ I07 after all of user 2's attempts, user 1's decks, strategy rows, cards and log rows are byte-for-byte unchanged                        | PASS   | 
+ I08 as a signed-in user 2 (RLS): sees only own log rows, none of user 1's                                                                | PASS   | 10 own rows, 0 of user 1
+ I09 signed-in users cannot call the writers, Undo, helpers or write the log                                                              | PASS   | permission denied for function ai_create_deck | permission denied for function ai_set_deck_setup | permission denied for function ai_undo_group | permission den
+ I10 the anonymous role can do neither                                                                                                    | PASS   | permission denied for function ai_create_deck | permission denied for table ai_change_log
+ I11 service role can run the writers (granted)                                                                                           | PASS   | 
+ B10 parallel create with the same name (different case) while the first is still open: the second waits, then is refused deck_name_taken | PASS   | 
+ B10a exactly one deck called Race exists                                                                                                 | PASS   | 
+ B50 DB-B rollback refuses while deck_create rows exist                                                                                   | PASS   | 
+ B51 DB-B rollback: the five functions are gone, blocker is the empty stub, DB-A still in place                                           | PASS   | 
+ B52 after DB-B rollback, the DB-A numbers are still there                                                                                | PASS   | 
+ B53 re-apply after rollback: create, setup and owner Undo of an empty created deck all work again                                        | PASS   | {"ok": true, "res": {"undone": 1, "success": true}}
+(90 rows)
+
+ passed | failed 
+--------+--------
+     90 |      0
+(1 row)
+

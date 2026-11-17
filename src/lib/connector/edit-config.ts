@@ -13,6 +13,15 @@ export const AI_LIMITS = {
   claude_undo_max: 200,
 } as const
 
+// CC-15 numbers for deck creation and setup. A test keeps these equal to the SQL function _ai_limits_new().
+export const AI_LIMITS_NEW = {
+  decks_created_per_hour: 10,
+  decks_created_open_max: 25,
+  boxes_created_per_hour: 10,
+  box_move_max: 200,
+  strategy_notes_max_chars: 4000,
+} as const
+
 export const CONNECTOR_WRITE_TOOLS = [
   'add_cards_to_deck',
   'remove_cards_from_deck',

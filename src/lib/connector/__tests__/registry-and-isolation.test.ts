@@ -23,6 +23,18 @@ describe('registered tools', () => {
       ...CONNECTOR_WRITE_TOOLS, ...CONNECTOR_READ_TOOLS_B,
     ])
   })
+  it('CC-15: the tool list is the old list plus exactly create_deck and set_deck_setup, and Claude still has no delete tool', () => {
+    const names = CONNECTOR_TOOLS.map((t) => t.name)
+    expect(names).toEqual([
+      'get_collection_summary', 'search_collection', 'list_decks', 'get_deck', 'get_deck_health', 'list_deck_cards_by_ownership', 'get_buying_list',
+      'add_cards_to_deck', 'remove_cards_from_deck', 'set_card_zone', 'set_card_category', 'create_deck', 'set_deck_setup', 'add_card_to_collection',
+      'sleeve_free_copy', 'make_slot_original', 'create_proxy_for_slot', 'request_card_move', 'undo_change', 'get_change_status', 'list_recent_changes',
+    ])
+    expect(names.filter((n) => /delete|remove_deck|drop|clear/.test(n))).toEqual([])
+    expect(isBlockedToolName('delete_deck')).toBe(true)
+    expect(DESTRUCTIVE_HINT_TOOLS).toHaveLength(2)
+    expect(CONNECTOR_TOOLS.filter((t) => t.annotations.destructiveHint).map((t) => t.name)).toEqual(['remove_cards_from_deck', 'undo_change'])
+  })
   it('descriptions match CC-06: facts, estimate wording, live health, bracket owner', () => {
     const d = (n: string) => CONNECTOR_TOOLS.find((t) => t.name === n)!.description
     expect(d('search_collection')).toMatch(/facts/i)

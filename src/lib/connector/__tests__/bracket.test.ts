@@ -20,7 +20,7 @@ describe('bracket rules (CC-06e)', () => {
     expect(resolveBracket(2, '4')).toEqual({ value: 2, source: 'deck_strategy' })
     expect(resolveBracket(null, '4')).toEqual({ value: 4, source: 'deck_row' })
     expect(resolveBracket(null, 'nonsense')).toEqual({ value: null, source: 'not_set', whyEmpty: BRACKET_WHY_EMPTY })
-    expect(BRACKET_WHY_EMPTY).toMatch(/Claude cannot set them/)
+    expect(BRACKET_WHY_EMPTY).toMatch(/set_deck_setup/)
   })
 })
 
@@ -46,10 +46,11 @@ describe('brackets in the tools', () => {
     expect(r.deck.bracketInfo).toEqual({ value: 2, source: 'deck_row' })
   })
 
-  it('no tool can set a bracket', () => {
+  it('CC-15: only set_deck_setup can set a bracket, and no other tool takes a bracket input', () => {
     for (const t of CONNECTOR_TOOLS) {
       expect(t.name).not.toMatch(/bracket/i)
-      expect(Object.keys((t.inputSchema as any).shape ?? {}).some((k) => /bracket/i.test(k)), t.name).toBe(false)
+      const hasKey = Object.keys((t.inputSchema as any)._zod?.def?.shape ?? (t.inputSchema as any).shape ?? {}).some((k) => /bracket/i.test(k))
+      expect(hasKey, t.name).toBe(t.name === 'set_deck_setup')
     }
   })
 })

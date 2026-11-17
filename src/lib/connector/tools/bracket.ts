@@ -1,10 +1,10 @@
 // CC-06e: where a deck's bracket comes from. The Deck strategy screen saves to deck_strategy.bracket (1 to 4);
-// the deck row's own bracket text is the older place. Read only: no tool can set a bracket.
+// the deck row's own bracket text is the older place. Claude can set a bracket with set_deck_setup; the readers here only read it.
 import type { BracketInfo } from '../../../../docs/oracle/contracts/connector-card-facts-and-deck-health.types'
 import { fetchAllIn, type ToolContext } from './common'
 
 export const BRACKET_WHY_EMPTY: NonNullable<BracketInfo['whyEmpty']> =
-  'Brackets are set by the owner on the Deck strategy screen in Oracle. Claude cannot set them. This deck has none set yet.'
+  'Brackets are set by the owner on the Deck strategy screen in Oracle. Claude can set one with set_deck_setup. This deck has none set yet.'
 
 /** A bracket is a whole number 1 to 4. Anything else (empty, "Bracket 3", "7") is not a value. */
 export function parseBracket(raw: unknown): number | null {

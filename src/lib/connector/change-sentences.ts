@@ -1,6 +1,6 @@
 // Plain-words sentences for Claude's changes (spec docs/oracle/specs/claude-connector.md sections 4 and 5). Pure
 // functions of the log / pending rows: no network, no hidden clock. The UI shows these strings and never writes its own.
-import { AI_LIMITS } from './edit-config'
+import { AI_LIMITS, AI_LIMITS_NEW } from './edit-config'
 import type { ChangeLogRow, MovedSlot, PendingRow, UndoRefusal } from './write-types'
 
 const TZ = 'Pacific/Auckland'
@@ -77,6 +77,13 @@ export function describeGroup(rows: ChangeLogRow[]): GroupSentence {
         ? { summary: `Claude changed the categories of ${n} cards in ${deck}.`, consequence: null }
         : { summary: `Claude changed the categories of ${card} in ${deck} from ${listWords(r.categories_from)} to ${listWords(r.categories_to)}.`, consequence: null }
     }
+    case 'deck_create':
+      return {
+        summary: card && card !== first.deck_name ? `Claude created the deck ${deck} with ${card} as commander.` : `Claude created the deck ${deck}.`,
+        consequence: 'The deck is empty. Undo removes it, but only while it has no cards.',
+      }
+    case 'deck_setup':
+      return { summary: `Claude changed the setup of ${deck} (commander, bracket or strategy notes).`, consequence: null }
     default:
       return { summary: `Changed ${card}.`, consequence: null }
   }
@@ -110,6 +117,14 @@ export function undoRefusalText(r: UndoRefusal): string {
       return `Can't undo this one. ${card} in ${deck} was changed${w}.${tail}`
     case 'deck_gone':
       return `Can't undo this one. ${deck} no longer exists.`
+    case 'too_old':
+      return `Can't undo this one. It is older than 7 days.`
+    case 'deck_not_empty':
+      return `Can't remove ${deck}: it has a card on it now. Remove the card first or delete the deck by hand.`
+    case 'deck_in_use':
+      return `Can't remove ${deck}: it is in use now (a copy is attached, it has a Picklist or it is in a folder). Delete the deck by hand if you want it gone.`
+    case 'changed_since':
+      return `Can't undo this one. ${deck}'s setup was changed${w} after Claude set it.`
     case 'card_back_on_list':
       return `Can't undo this one. ${card} is on ${deck}'s list again${w}.`
     case 'copy_gone':
@@ -272,6 +287,31 @@ export function editErrorMessage(code: string, d: Record<string, unknown>): stri
       return `${card} is on the Maybeboard of ${deck}, so its categories can't be changed here. Nothing was changed.`
     case 'nothing_to_change':
       return `Every card named already has exactly those categories${deck !== 'that deck' ? ` in ${deck}` : ''}. Nothing was changed.`
+    case 'bad_deck_name':
+      return 'A deck name must be 1 to 100 characters. Nothing was changed.'
+    case 'bad_format':
+      return 'That format is not one Oracle knows. Nothing was changed.'
+    case 'commander_required':
+      return 'A Commander deck needs a commander. Nothing was changed.'
+    case 'deck_name_taken':
+      return `The owner already has a deck called "${typeof d.name === 'string' ? d.name : 'that'}" (names are compared ignoring capital letters). Nothing was changed. Pick another name.`
+    case 'too_many_decks_this_hour':
+      return `Claude has already created ${AI_LIMITS_NEW.decks_created_per_hour} decks in the last hour. Nothing was changed. Try again later.`
+    case 'too_many_empty_decks':
+      return `There are already ${AI_LIMITS_NEW.decks_created_open_max} empty decks that Claude created. Nothing was changed. Ask the owner to use or delete some first.`
+    case 'could_not_allocate_deck_id':
+      return 'Oracle could not make the deck just now. Nothing was changed. Try again.'
+    case 'nothing_to_set':
+      return 'Nothing to set: send a commander, strategy notes or a bracket. Nothing was changed.'
+    case 'bad_bracket':
+      return 'A bracket is a whole number from 1 to 4, or null to clear it. Nothing was changed.'
+    case 'bad_notes':
+      return 'Strategy notes must be text. Nothing was changed.'
+    case 'notes_too_long':
+      return `Strategy notes can be at most ${AI_LIMITS_NEW.strategy_notes_max_chars} characters. Nothing was changed.`
+    case 'card_not_in_deck':
+    case 'duplicate_card':
+      return `The commander could not be set on that deck${card !== 'that card' ? ` (${card})` : ''}. Nothing was changed.`
     case 'invalid_request':
       return `Something in the request is not valid${typeof d.field === 'string' ? ` (${d.field})` : ''}. Nothing was changed.`
     default:

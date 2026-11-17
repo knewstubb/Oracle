@@ -387,3 +387,138 @@ describe('CC-21 deck colours', () => {
     expect(one.deck.colourIdentity).toBe('WU')
   })
 })
+
+describe('CC-15 create_deck and set_deck_setup', () => {
+  const created = { ok: true, data: { success: true, outcome: 'applied', group_id: G, deck_id: 42, count: 1 } }
+  const korvold = 'Korvold, Fae-Cursed King'
+  const factsDb = mockDb((q) => ({ data: q.table === 'ref_cards' ? [{ name: korvold, type_line: 'Legendary Creature', oracle_text: '', mana_cost: '{B}{R}{G}', mana_value: 3, color_identity: 'BRG', commander_legal: true }] : [] })).db
+  it('creates a deck: ids and colours of the commander go to the database, user id from the token', async () => {
+    const g = gw({ createDeck: vi.fn(async () => created) })
+    const r = await runTool(ctx(g, factsDb), 'create_deck', { name: 'TEST C', format: 'commander', commander: { name: korvold } })
+    expect(r.isError).toBeFalsy()
+    expect(g.createDeck).toHaveBeenCalledWith({
+      userId: U, connectionId: 'conn-1', name: 'TEST C', format: 'commander',
+      commander: { card_name: korvold, scryfall_id: 's-' + korvold, oracle_id: 'o-' + korvold, colour_identity: 'BRG' },
+    })
+    expect(r.structuredContent).toMatchObject({ ok: true, status: 'applied', deck_id: 42, group_id: G })
+  })
+  it('a Commander deck without a commander is refused before the database is called', async () => {
+    const g = gw({ createDeck: vi.fn() })
+    const r = await runTool(ctx(g), 'create_deck', { name: 'TEST C', format: 'commander' })
+    expect(r.structuredContent).toMatchObject({ error: { code: 'commander_required' } })
+    expect(g.createDeck).not.toHaveBeenCalled()
+  })
+  it('a non-Commander deck needs no commander', async () => {
+    const g = gw({ createDeck: vi.fn(async () => created) })
+    const r = await runTool(ctx(g), 'create_deck', { name: 'Pauper fun', format: 'pauper' })
+    expect(r.isError).toBeFalsy()
+    expect(g.createDeck).toHaveBeenCalledWith(expect.objectContaining({ commander: null }))
+  })
+  it.each(['user_id', 'userId', 'connection_id'])('create_deck rejects an extra %s argument', async (key) => {
+    const g = gw({ createDeck: vi.fn() })
+    const r = await runTool(ctx(g), 'create_deck', { name: 'x', format: 'pauper', [key]: 'other' })
+    expect(r.isError).toBe(true)
+    expect(g.createDeck).not.toHaveBeenCalled()
+  })
+  it('a duplicate name is refused in plain words with "Nothing was changed"', async () => {
+    const g = gw({ createDeck: async () => ({ ok: false, code: 'deck_name_taken', detail: { name: 'TEST C' } }) })
+    const r = await runTool(ctx(g), 'create_deck', { name: 'test c', format: 'pauper' })
+    expect(r.structuredContent).toMatchObject({ error: { code: 'deck_name_taken' } })
+    expect(JSON.stringify(r.structuredContent)).toMatch(/TEST C.*Nothing was changed/)
+  })
+  it('an unknown commander name refuses the request', async () => {
+    const g = gw({ createDeck: vi.fn(), resolveCard: async () => ({ card: null, error: false }) })
+    const r = await runTool(ctx(g), 'create_deck', { name: 'x', format: 'commander', commander: { name: 'Nope' } })
+    expect(r.structuredContent).toMatchObject({ error: { code: 'card_not_found' } })
+    expect(g.createDeck).not.toHaveBeenCalled()
+  })
+  it('sets bracket and notes in one call, sending only the keys given', async () => {
+    const g = gw({ setDeckSetup: vi.fn(async () => ({ ok: true, data: { success: true, outcome: 'applied', group_id: G, count: 1, changed: { bracket: 3 } } })) })
+    const r = await runTool(ctx(g), 'set_deck_setup', { deck_id: 7, bracket: 3, strategy_notes: 'Aristocrats.' })
+    expect(r.isError).toBeFalsy()
+    expect(g.setDeckSetup).toHaveBeenCalledWith({ userId: U, connectionId: 'conn-1', deckId: 7, patch: { bracket: 3, strategy_notes: 'Aristocrats.' } })
+    expect(r.structuredContent).toMatchObject({ status: 'applied', group_id: G })
+  })
+  it('bracket null clears it and is sent as null', async () => {
+    const g = gw({ setDeckSetup: vi.fn(async () => ({ ok: true, data: { success: true, outcome: 'no_change', count: 0 } })) })
+    const r = await runTool(ctx(g), 'set_deck_setup', { deck_id: 7, bracket: null })
+    expect(g.setDeckSetup).toHaveBeenCalledWith(expect.objectContaining({ patch: { bracket: null } }))
+    expect(r.structuredContent).toMatchObject({ status: 'no_change' })
+    expect(JSON.stringify(r.structuredContent)).toMatch(/Nothing was changed/)
+  })
+  it('a commander in the setup is resolved to ids', async () => {
+    const g = gw({ setDeckSetup: vi.fn(async () => ({ ok: true, data: { success: true, outcome: 'applied', group_id: G, count: 1, changed: {} } })) })
+    await runTool(ctx(g), 'set_deck_setup', { deck_id: 7, commander: { name: 'Prosper' } })
+    expect(g.setDeckSetup).toHaveBeenCalledWith(expect.objectContaining({ patch: { commander: { card_name: 'Prosper', scryfall_id: 's-Prosper', oracle_id: 'o-Prosper' } } }))
+  })
+  it.each([
+    ['bracket 5', { deck_id: 1, bracket: 5 }],
+    ['bracket 0', { deck_id: 1, bracket: 0 }],
+    ['notes over 4000', { deck_id: 1, strategy_notes: 'x'.repeat(AI_LIMITS_NEW.strategy_notes_max_chars + 1) }],
+    ['no fields', { deck_id: 1 }],
+    ['user_id', { deck_id: 1, bracket: 2, user_id: 'other' }],
+  ])('set_deck_setup rejects %s and never reaches the database', async (_n, input) => {
+    const g = gw({ setDeckSetup: vi.fn() })
+    const r = await runTool(ctx(g), 'set_deck_setup', input)
+    expect(r.isError).toBe(true)
+    expect(g.setDeckSetup).not.toHaveBeenCalled()
+  })
+  it('notes of exactly 4000 characters are accepted', async () => {
+    const g = gw({ setDeckSetup: vi.fn(async () => ({ ok: true, data: { success: true, outcome: 'applied', group_id: G, count: 1, changed: {} } })) })
+    const r = await runTool(ctx(g), 'set_deck_setup', { deck_id: 1, strategy_notes: 'x'.repeat(AI_LIMITS_NEW.strategy_notes_max_chars) })
+    expect(r.isError).toBeFalsy()
+  })
+  it('Claude can undo a setup change through undo_change', async () => {
+    const g = gw({ undoAsClaude: vi.fn(async () => ({ ok: true, data: { success: true, undone: 1 } })) })
+    const r = await runTool(ctx(g), 'undo_change', { group_id: G })
+    expect(g.undoAsClaude).toHaveBeenCalledWith(U, 'conn-1', G)
+    expect(r.structuredContent).toMatchObject({ status: 'undone' })
+  })
+  it('Claude undoing a deck creation is refused as owner-only', async () => {
+    const g = gw({ undoAsClaude: async () => ({ ok: true, data: { success: false, refused: { code: 'owner_only' } } }) })
+    const r = await runTool(ctx(g), 'undo_change', { group_id: G })
+    expect(r.structuredContent).toMatchObject({ error: { code: 'undo_refused' } })
+    expect(JSON.stringify(r.structuredContent)).toMatch(/Only you can undo.*Nothing was changed/)
+  })
+  it('the owner removes an empty created deck through Undo', async () => {
+    const g = gw({ undoAsOwner: vi.fn(async () => ({ ok: true, data: { success: true, undone: 1 } })) })
+    const r = await api.undoChange(g, U, G)
+    expect(g.undoAsOwner).toHaveBeenCalledWith(U, G)
+    expect(r.status).toBe(200)
+  })
+  it('the owner is refused in plain words once a card is on the deck', async () => {
+    const g = gw({ undoAsOwner: async () => ({ ok: true, data: { success: false, refused: { code: 'deck_not_empty', deck: 'TEST C' } } }) })
+    const r = await api.undoChange(g, U, G)
+    expect(r.status).toBe(409)
+    expect(r.body).toMatchObject({ code: 'undo_refused', refused: { code: 'deck_not_empty' }, error: "Can't remove TEST C: it has a card on it now. Remove the card first or delete the deck by hand. Nothing was changed." })
+  })
+  it('Claude is refused the same way, ending "Nothing was changed."', async () => {
+    const g = gw({ undoAsClaude: async () => ({ ok: true, data: { success: false, refused: { code: 'deck_not_empty', deck: 'TEST C' } } }) })
+    const r = await runTool(ctx(g), 'undo_change', { group_id: G })
+    expect(JSON.stringify(r.structuredContent)).toMatch(/Can't remove TEST C: it has a card on it now.*Nothing was changed\./)
+  })
+  it.each(['deck_in_use', 'deck_gone', 'changed_since', 'too_old'])('refusal %s has its own plain sentence', async (code) => {
+    const { undoRefusalText } = await import('../change-sentences')
+    const t = undoRefusalText({ code, deck: 'TEST C' })
+    expect(t).not.toMatch(/Something changed since/)
+    expect(t).toMatch(/Can't/)
+  })
+  it('Recent changes sentences for the two new kinds', async () => {
+    const { describeGroup } = await import('../change-sentences')
+    expect(describeGroup([row({ kind: 'deck_create', deck_name: 'TEST C', card_name: 'Prosper, Tome-Bound' })]).summary).toBe('Claude created the deck TEST C with Prosper, Tome-Bound as commander.')
+    expect(describeGroup([row({ kind: 'deck_create', deck_name: 'TEST C', card_name: 'TEST C' })]).summary).toBe('Claude created the deck TEST C.')
+    expect(describeGroup([row({ kind: 'deck_setup', deck_name: 'TEST C' })]).summary).toMatch(/^Claude changed the setup of TEST C/)
+    const v = groupChanges([row({ kind: 'deck_create', owner_only: true, undo_blocker: { code: 'deck_not_empty', deck: 'TEST C' }, deck_name: 'TEST C', card_name: 'TEST C' })])
+    expect(v[0]).toMatchObject({ owner_only: true, refusal_text: expect.stringMatching(/Can't remove TEST C/) })
+  })
+  it('tool text: new tools say what they do and that Claude cannot delete', async () => {
+    const { CONNECTOR_TOOLS: TOOLS } = await import('../tools')
+    const d = (n: string) => (TOOLS as unknown as { name: string; description: string }[]).find((t) => t.name === n)!.description
+    expect(d('create_deck')).toMatch(/Claude cannot delete a deck/)
+    expect(d('create_deck')).toMatch(/commander/)
+    expect(d('set_deck_setup')).toMatch(/bracket/)
+    expect(d('undo_change')).toMatch(/deck creation/)
+    expect(d('list_decks')).not.toMatch(/Claude cannot\)/)
+    expect(d('get_deck')).not.toMatch(/Claude cannot set it/)
+  })
+})

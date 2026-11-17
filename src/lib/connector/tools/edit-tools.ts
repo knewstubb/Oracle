@@ -6,7 +6,8 @@ import { z } from 'zod'
 import { editError } from '../errors'
 import { editErrorMessage, describeGroup, pendingEndedText, undoRefusalText } from '../change-sentences'
 import { groupChanges } from '../change-groups'
-import { AI_LIMITS } from '../edit-config'
+import { AI_LIMITS, AI_LIMITS_NEW } from '../edit-config'
+import { FORMAT_DEFINITIONS, type DeckFormat } from '../../format-config'
 import type { EditContext } from '../user-client'
 import type { ChangeAction, GatewayFailure, ResolvedCard, SubmitOutcome } from '../write-types'
 import { LookupFailed, must, rows, type ToolOutput } from './common'
@@ -107,6 +108,26 @@ export const requestMoveInput = z.strictObject({
   to_deck_id: deckId,
   dry_run: dryRun,
 })
+
+const FORMATS = Object.keys(FORMAT_DEFINITIONS) as [DeckFormat, ...DeckFormat[]]
+const commanderRef = z.strictObject({ name: z.string().trim().min(1).max(200).describe('The commander card name.') })
+
+export const createDeckInput = z.strictObject({
+  name: z.string().trim().min(1).max(100).describe('The new deck name (1 to 100 characters). Must not match another deck name, ignoring capital letters.'),
+  format: z.enum(FORMATS).describe('The deck format. A commander deck needs a commander.'),
+  commander: commanderRef.optional().describe('Required when format is commander.'),
+})
+
+export const setDeckSetupInput = z
+  .strictObject({
+    deck_id: deckId,
+    commander: commanderRef.optional().describe('Make this card the deck\'s commander (added as a Planned slot if it is not on the deck).'),
+    strategy_notes: z.string().max(AI_LIMITS_NEW.strategy_notes_max_chars).optional().describe(`Strategy notes for the Deck strategy screen, at most ${AI_LIMITS_NEW.strategy_notes_max_chars} characters. Replaces the old notes.`),
+    bracket: z.number().int().min(1).max(4).nullable().optional().describe('Commander bracket 1 to 4, or null to clear it.'),
+  })
+  .refine((v) => v.commander !== undefined || v.strategy_notes !== undefined || v.bracket !== undefined, {
+    message: 'Send at least one of commander, strategy_notes or bracket. Nothing was changed.',
+  })
 
 export const undoInput = z.strictObject({ group_id: z.uuid().describe('The group_id from an earlier result or list_recent_changes.') })
 export const changeStatusInput = z.strictObject({ pending_id: z.uuid().describe('The pending_id from an earlier result.') })
@@ -258,6 +279,69 @@ export async function requestCardMove(ctx: EditContext, input: z.infer<typeof re
   }
 }
 
+/** The commander's ids and colours, looked up here so the database never matches names. Colours use the same letters the manual create route stores. */
+async function resolveCommander(ctx: EditContext, name: string): Promise<{ ok: true; card: { card_name: string; scryfall_id: string; oracle_id: string; colour_identity: string }; warnings: string[] } | { ok: false; out: ToolOutput }> {
+  const res = await resolveNames(ctx, [name])
+  if (!res.ok) return res
+  const card = res.cards.get(name.trim())!
+  try {
+    const facts = await fetchCardFacts(ctx, [card.name], { includeRulesText: false, prices: new Map() })
+    const f = factsFor(facts, card.name, false)
+    return { ok: true, card: { card_name: card.name, scryfall_id: card.scryfallId, oracle_id: card.oracleId, colour_identity: (f.available ? normaliseColours(f.colorIdentity) : null) ?? '' }, warnings: res.warnings }
+  } catch (e) {
+    if (e instanceof LookupFailed) return { ok: false, out: editError('lookup_failed', 'Oracle could not look up card details just now. Nothing was changed. Try again.', true) }
+    throw e
+  }
+}
+
+export async function createDeck(ctx: EditContext, input: z.infer<typeof createDeckInput>): Promise<ToolOutput> {
+  if (input.format === 'commander' && !input.commander) return editError('commander_required', editErrorMessage('commander_required', {}))
+  let commander = null
+  let warnings: string[] = []
+  if (input.commander) {
+    const c = await resolveCommander(ctx, input.commander.name)
+    if (!c.ok) return c.out
+    commander = c.card
+    warnings = c.warnings
+  }
+  const r = await ctx.gateway.createDeck({ userId: ctx.userId, connectionId: ctx.connectionId, name: input.name, format: input.format, commander })
+  if (!r.ok) return fail(r)
+  return {
+    ok: true,
+    status: 'applied',
+    group_id: r.data.group_id,
+    deck_id: r.data.deck_id,
+    count: r.data.count,
+    message: 'The deck was created, empty. Add cards with add_cards_to_deck. Only the owner can undo this, in Oracle, while the deck has no cards; Claude cannot delete a deck.',
+    ...(warnings.length ? { warnings } : {}),
+  }
+}
+
+export async function setDeckSetup(ctx: EditContext, input: z.infer<typeof setDeckSetupInput>): Promise<ToolOutput> {
+  const patch: Record<string, unknown> = {}
+  let warnings: string[] = []
+  if (input.commander) {
+    const c = await resolveCommander(ctx, input.commander.name)
+    if (!c.ok) return c.out
+    patch.commander = { card_name: c.card.card_name, scryfall_id: c.card.scryfall_id, oracle_id: c.card.oracle_id }
+    warnings = c.warnings
+  }
+  if (input.strategy_notes !== undefined) patch.strategy_notes = input.strategy_notes
+  if (input.bracket !== undefined) patch.bracket = input.bracket
+  const r = await ctx.gateway.setDeckSetup({ userId: ctx.userId, connectionId: ctx.connectionId, deckId: input.deck_id, patch })
+  if (!r.ok) return fail(r)
+  if (r.data.outcome === 'no_change') return { ok: true, status: 'no_change', count: 0, message: 'Everything sent was already set that way. Nothing was changed.' }
+  return {
+    ok: true,
+    status: 'applied',
+    group_id: r.data.group_id,
+    count: r.data.count,
+    changed: r.data.changed,
+    message: 'Done. Claude or the owner can undo this for 7 days, unless the same thing is changed by hand first.',
+    ...(warnings.length ? { warnings } : {}),
+  }
+}
+
 export async function undoChange(ctx: EditContext, input: z.infer<typeof undoInput>): Promise<ToolOutput> {
   const r = await ctx.gateway.undoAsClaude(ctx.userId, ctx.connectionId, input.group_id)
   if (!r.ok) return fail(r)
@@ -299,7 +383,7 @@ export async function listRecentChanges(ctx: EditContext): Promise<ToolOutput> {
       claude_can_undo: !g.undone_at && !g.owner_only && !g.undo_blocker && g.card_count <= AI_LIMITS.claude_undo_max,
       ...(g.refusal_text && !g.undone_at ? { undo_blocked: g.refusal_text } : {}),
     })),
-    note: 'Last 7 days. Adds to the collection, proxies and card moves can only be undone by the owner.',
+    note: 'Last 7 days. Adds to the collection, proxies, card moves and deck creation can only be undone by the owner.',
   }
 }
 

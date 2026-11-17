@@ -25,6 +25,8 @@ export const BLOCKED_TOOL_NAMES = [
 export type ChangeAction =
   | 'deck_add' | 'deck_remove' | 'deck_zone' | 'sleeve_copy'
   | 'make_original' | 'create_proxy' | 'collection_add' | 'copy_move' | 'deck_category';
+/** Kinds that can appear in the log: the submit actions plus the CC-15 deck kinds (written by their own functions, never by submit). */
+export type ChangeKind = ChangeAction | 'deck_create' | 'deck_setup';
 export type PendingReason = 'over_ten' | 'recent_total' | 'busy' | 'card_move';
 export type PendingStatus = 'waiting' | 'approved' | 'declined' | 'expired' | 'cancelled' | 'failed';
 export const OWNER_ONLY_UNDO: readonly ChangeAction[] = ['collection_add', 'create_proxy', 'copy_move'];
@@ -47,7 +49,7 @@ export type UndoRefusal = {
 export type UndoResult = { success: true; undone: number } | { success: false; refused: UndoRefusal };
 
 export type ChangeLogRow = {
-  id: string; group_id: string; kind: ChangeAction; client_name: string;
+  id: string; group_id: string; kind: ChangeKind; client_name: string;
   deck_id: number | null; deck_name: string | null; other_deck_id: number | null; other_deck_name: string | null;
   card_name: string; oracle_id: string | null; printing_id: string | null;
   approved_by_owner: boolean; created_at: string; undoable_until: string;

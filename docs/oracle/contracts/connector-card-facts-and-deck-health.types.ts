@@ -54,5 +54,5 @@ export interface BracketInfo {
   /** Where the number came from. */
   source: 'deck_strategy' | 'deck_row' | 'not_set'
   /** Present only when value is null. Plain words for Claude to repeat. */
-  whyEmpty?: 'Brackets are set by the owner on the Deck strategy screen in Oracle. Claude cannot set them. This deck has none set yet.'
+  whyEmpty?: 'Brackets are set by the owner on the Deck strategy screen in Oracle. Claude can set one with set_deck_setup. This deck has none set yet.'
 }

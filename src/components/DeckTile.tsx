@@ -98,7 +98,8 @@ export function DeckTile({
   // Formats with no target size read "55 cards". The bracket fills in once the details arrive.
   const listed = cardCount ?? 0
   const countText = required > 0 ? `${listed}/${required}` : `${listed} cards`
-  const sleevedText = sleevedCount !== undefined ? ` (${sleevedCount} sleeved)` : ''
+  // A Playable deck is fully sleeved, so the bracket is dropped and the count shows in green.
+  const sleevedText = !isPlayable && sleevedCount !== undefined ? ` (${sleevedCount} sleeved)` : ''
   // Context menu and delete state
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -230,8 +231,11 @@ export function DeckTile({
             {commanderName}
           </p>
 
-          {/* Card count — neutral color */}
-          <p className="mt-2 truncate whitespace-nowrap text-[12px] text-[#808080] leading-[15px]">
+          {/* Card count: neutral grey, green when the deck is Playable */}
+          <p
+            className="mt-2 truncate whitespace-nowrap text-[12px] leading-[15px]"
+            style={{ color: isPlayable ? 'var(--accent-primary)' : '#808080' }}
+          >
             {countText}{sleevedText}
           </p>
         </div>

@@ -71,6 +71,14 @@ describe('DeckTile', () => {
     expect(screen.getByText('55/100 (14 sleeved)')).toBeInTheDocument()
   })
 
+  it('a Playable deck shows just the count, in green, with no sleeved bracket', () => {
+    renderWithProviders(<DeckTile {...defaultProps} format="commander" cardCount={100} sleevedCount={100} status="playable" />)
+    const count = screen.getByText('100/100')
+    expect(count).toBeInTheDocument()
+    expect(count).toHaveStyle({ color: 'var(--accent-primary)' })
+    expect(screen.queryByText(/sleeved/)).not.toBeInTheDocument()
+  })
+
   it('shows "(0 sleeved)" when nothing is sleeved', () => {
     renderWithProviders(<DeckTile {...defaultProps} cardCount={55} sleevedCount={0} />)
     expect(screen.getByText('55/100 (0 sleeved)')).toBeInTheDocument()

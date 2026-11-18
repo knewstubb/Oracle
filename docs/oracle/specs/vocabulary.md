@@ -378,3 +378,23 @@ Source: the Magic Comprehensive Rules (section 205) as understood from the owner
 - Readiness (`readiness`, `sleevedCount`, `requiredCount`, `proxyCount`) and proxy supply are needed before V1, V4 and the Proxy available badge can be built honestly (T-28 / Phase 6). Should Phase 3 compute an interim readiness from existing counts, or ship Question 2's count-only tile?
 - V9 (import) overlaps Phase 5 and V8 (collection) overlaps Phase 4. Do them now with words only, or fold into those phases?
 - Retire T-46 Batch 2 and the `StatusChipPopover` half of Batch 9 in favour of V2/V3/V5/V6, so each file has one owner.
+
+---
+## 13. PROPOSED additions, awaiting owner approval (added 2026-11-19, planning round)
+**Nothing in this section is approved or in force.** It is a proposal only, from the 2026-11-19 owner direction; the owner decides. No other section of this file was changed. Source: `briefs/card-tags-and-deck-slot-why.md`, `specs/deck-rail-strategy-tags.md`.
+
+Three new words, each used in one place:
+
+| Word | Proposed meaning | Where it appears | Status |
+|---|---|---|---|
+| **Tag** | What a card does in any deck. Global (same in every deck), read-only, one list shared by all cards with the same oracle id. Example: Sol Ring has the Tag "ramp"; Warren Soultrader has "sacrifice outlet", "token generator" and "ramp". Two layers: broad Tags and mechanic Tags. | Read-only chips on card details (at most five shown), the Tag filter in collection search and in Claude's collection search | Proposed, awaiting owner approval |
+| **Category** | The owner's own grouping of cards inside one deck list. Exists today; meaning unchanged. | Deck list columns, "Group: Category" | Proposed to record here; awaiting owner approval |
+| **Why** | One line (optional) saying why this card is in this deck. Per card slot in one deck, free text. Claude may fill an empty Why; changing a Why the owner wrote goes through History with Undo. | Card details inside a deck | Proposed, awaiting owner approval |
+
+Proposed retirements, in **new** documents only (older documents keep their wording until the owner approves otherwise):
+- **role** (use Tag).
+- **job** (the Card jobs idea is dropped in the proposal).
+- **strategy point** (dropped in the proposal; the free-text box is called Strategy).
+
+Also proposed for the new Strategy window (not new vocabulary rows, listed so they are decided together): bracket names 1 Exhibition, 2 Core, 3 Upgraded, 4 Optimized, 5 cEDH; "Target bracket" for the bracket the owner sets.
+

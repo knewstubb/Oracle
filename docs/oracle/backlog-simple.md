@@ -1,6 +1,6 @@
 # Oracle backlog — simple view
 
-Updated 19 November 2026 (items added under Better advice and card information, and Deck library and deck pages).
+Updated 19 November 2026 (planning round: briefs and designs drafted for the deck page, Strategy window, card Tags and Claude change reason; all awaiting owner approval).
 
 Unfinished work only, grouped by what you would see in the app. This is a summary, not a new priority order or approval to start work. Completed work and technical history are left out.
 
@@ -37,10 +37,10 @@ Unfinished work only, grouped by what you would see in the app. This is a summar
 - Review the icons on deck tiles.
 - Audit and refine the deck header.
 - Move the deck header into a sidebar.
-- Deck page with a left side panel (name, commander, strategy block, card count, Deck health, mana curve) replacing the header, slot bar and health footer; left rail chosen 2026-11-19. (New 2026-11-19.)
-- One strategy modal (bracket, one-line summary, strategy text, playgroup), opened from the panel; proposed in place of the three-layer Strategy tab. (New 2026-11-19.)
-- Pause the in-app AI chat by hiding it; the code stays so it can come back. (New 2026-11-19.)
-- Store a one-line reason with each Claude change and show it in History. (New 2026-11-19.)
+- **DV-01** Deck page with a left side panel (name, commander, strategy block, card count, Deck health, mana curve) replacing the header, slot bar and health footer; left rail chosen 2026-11-19. Brief and design drafted, awaiting your approval. Not built.
+- **DV-02** One Strategy window (target bracket, one-line summary, strategy text, playgroup), opened from the panel; proposed in place of the three-layer Strategy tab (the card-roles plan, CC-26, would be partly superseded only if you approve). Brief and design drafted, awaiting your approval. Not built.
+- **DV-03** Pause the in-app AI chat by hiding it; the code stays so it can come back. Scoped as a small job, awaiting your approval (one question: pause the new-deck brewing chat too). Not built.
+- **DV-04** Store a one-line reason with each Claude change and show it in History. Brief drafted, awaiting your approval; needs a stored-data change you approve first. Not built.
 - Put Deck health beside the slot-usage bar and remove the footer it replaces.
 - Audit Workbench, Analysis and the other deck pages.
 - Make decks open faster.
@@ -57,9 +57,9 @@ The header, sidebar, Deck health and deck-page reviews should be considered toge
 
 ## Better advice and card information
 
-- Rethink card roles: ramp, draw, removal and the other jobs a card can do.
+- **RQ-12** Card Tags (was "card roles"): ramp, card draw, removal and mechanic tags such as sacrifice outlet, shown read-only on cards and usable as a search filter. Folds in RQ-01 and RQ-10; modifiers (RQ-03) stay later. Brief and design drafted, awaiting your approval. Not built.
 - Distinguish one-use effects from repeatable effects and account for their cost.
-- Let a card have a deck-specific job, a reason for inclusion and a "keep this card" preference.
+- Let a card in a deck carry a one-line Why and a "Keep" flag (a job per card is dropped). Part of the RQ-12 brief, awaiting your approval.
 - Account for commanders changing a card's role; for example, Urza makes artifacts into mana sources.
 - Allow a reference or "secret" commander; for example, use Norin's suggestions for a Rocco deck built around Norin.
 - Finish each deck's strategy, win conditions and bracket, and check that advice uses them.

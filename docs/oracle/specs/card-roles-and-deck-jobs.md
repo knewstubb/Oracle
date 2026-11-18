@@ -10,6 +10,7 @@ What changed from version 2 (owner decisions of 2026-11-18, round 3):
 - **D-b, the Strategy tab is one tab in three layers**: Build, Your strategy, Card jobs (section 8). The separate "Commander guide" section is gone. The Build layer holds the EDHREC build picker, its guide, its typical numbers and the category manager.
 - **D-c, "rules" is now "strategy points"** everywhere. The free-text "strategy notes" box is now **Notes**. Remaining uses of the word "rules" in this spec are all about something else ("rules text" on cards, the allocation terminology rule, the Light rule, binder rules).
 - **D-d, health numbers**: the picked build's typical numbers first, then the commander's all-builds average, then the common guide where there is no number (brief 7d item 1, **Answered** 2026-11-18: Agree), then the deck's strategy points and jobs adjust the counts; every number names its source (section 10).
+- **D-060, Claude sets and maintains health targets from the deck's strategy** (owner-approved 2026-11-18). Health targets are no longer something the owner approves one by one. Claude sets each number from the deck's strategy and keeps it up to date, with a visible reason per number and Undo. The owner may override a number; Claude then leaves it alone until it is handed back. The fallback order where no strategy exists yet is unchanged: the build's numbers, the commander's all-builds average, the common guide. Category stays separate from jobs and strategy (sections 10.1, 10.3, 10.4, 13.4).
 Earlier changes, still in force: **Q6** (broad health groups), **Q8** (Claude's proposals apply at once, up to 120 cards, one-click undo of a batch).
 
 ---
@@ -425,7 +426,7 @@ On a phone, Review opens the Card jobs list filtered to Proposed; job rows are s
 - **Empty (no jobs yet):** "No jobs set. A job says why a card is in this deck, for example Engine or Payoff. It is separate from a category, which is where the card sits in your list. **Set a job in the card window** or **Ask Claude to propose jobs**."
 
 #### Deck health
-- Full description in section 10. In the tab it shows: the source line, the four groups with have, target, **where the target came from**, and a Light marker, the Plan and win conditions line, **How these roll up**, a click-through list of cards per group, the change notice, and **Chat about this** (the existing question to the deck chat, sent at once, because it only asks a question).
+- Full description in section 10. In the tab it shows: the source line, the four groups with have, target, **where the target came from** (Set by you, Set by Claude with its reason and an Undo, or a fallback source), and a Light marker, the Plan and win conditions line, **How these roll up**, a click-through list of cards per group, the change notice, and **Chat about this** (the existing question to the deck chat, sent at once, because it only asks a question).
 
 ### 8.7 States of the whole tab
 
@@ -507,7 +508,8 @@ A strategy point is made and managed in the Your strategy layer of the Strategy 
 ### 10.1 The idea
 Health speaks the common deckbuilding language: lands, ramp, card advantage, **interaction**. Interaction is targeted removal, board wipes, counterspells and similar, counted together against one number. Fine-grained universal roles feed these broad groups. Each group has a **count** (what the deck has) and a **target** (what it is judged against). They come from different places, and **the screen always says where**:
 
-- **The target comes from, in order:** (1) the picked build's typical numbers, shown as "**from the Aggro build**"; (2) where there is no build, or the build has no number for that group, the commander's all-builds EDHREC average, shown as "**from the all-builds average for Mendicant Core**" (**Answered** 2026-11-18, brief 7d item 1: Agree); (3) where that has no number either, the common guide, shown as "**common guide**".
+- **Claude sets the targets from the deck's strategy (D-060).** The strategy (what the commander enables, the aim, the win conditions) decides how much of each group the deck needs. An Urza deck needs little ramp because the deck makes its own; a Hearthhull deck needs many lands because it is landfall. Claude sets each number itself, keeps it up to date when the strategy changes, and shows a short reason next to it. The owner is not asked to approve numbers.
+- **The target comes from, in order:** (0) **your own number**, if you typed over it, shown as "**Set by you**" (Claude leaves it alone until you hand it back); (0b) **Claude's number from the deck's strategy**, shown as "**Set by Claude**" with its reason; then the fallback order for a group with neither, used where the deck has no strategy yet or Claude has not set that group: (1) the picked build's typical numbers, shown as "**from the Aggro build**"; (2) where there is no build, or the build has no number for that group, the commander's all-builds EDHREC average, shown as "**from the all-builds average for Mendicant Core**" (**Answered** 2026-11-18, brief 7d item 1: Agree); (3) where that has no number either, the common guide, shown as "**common guide**".
 - **The count comes from** each card's universal role (or from its card text where no role is set yet), and is then **adjusted by your strategy points and jobs**, shown as "**adjusted by your strategy point**" (or "adjusted by your jobs") with the number of cards moved.
 
 [Confirmed in the app: health today picks its numbers in this order: the commander's EDHREC average deck, else an EDHREC estimate, else a general guide, and it does not look at the picked build.] [**Answered 2026-11-18, brief 7d item 1: Agree.** A deck with no build, or a build with no number for a group, keeps today's first two sources (the commander's all-builds EDHREC average, then the estimate) before the common guide, worded "from the all-builds average for Myrkul". The target order is build, all-builds average, common guide.]
@@ -534,19 +536,24 @@ How the count works:
 - A build picked later moves the targets, and the change notice says so (10.4). The count does not change.
 
 ### 10.3 How the build, jobs and strategy points refine the groups
-- **The build** sets the targets (see 10.1).
+- **The deck's strategy sets the targets, through Claude (D-060).** Where there is no strategy yet, the build sets them, then the all-builds average, then the common guide (see 10.1).
 - A strategy point or job can say "counts as Ramp / Card advantage / Interaction" for chosen cards (adds them to that group once), or "does not count" (removes them from a group they would otherwise feed). These change the **count**, never the target. The reason shows on the card ("Counts as") and in the group's card list.
 - Jobs feed the **Plan and win conditions** group. Until at least one job is set, that line reads "Not counted until jobs are set."
-- A deck-specific target ("my stax deck wants 14 interaction") is later.
+- A deck-specific target ("my stax deck wants 14 interaction") is what Claude now sets from the strategy; you can override it (10.4).
+- **Category stays separate.** A category never sets, moves or overrides a target, and a target never changes a category (D-060, D-a).
 - Once-per-turn cost reducers (a Sapphire Medallion type) count as Ramp.
 
 ### 10.4 What the section shows
-- **Source line**, one of four:
+- **Source line**, one of five:
+  - Claude has set the targets from the strategy: "Targets are set by Claude from this deck's strategy. Each number says why. You can change any number; Claude then leaves it alone until you hand it back."
   - Nothing set, no build: "Using the common guide. No build is picked, and no roles, jobs or strategy points are set for this deck yet. Counts come from each card's universal role, or from its card text where no role exists."
   - Build picked, nothing else set: "Targets are from the Aggro build where it has a number, and the common guide where it has none. No jobs or strategy points are set yet."
   - Some set: "Using what's set for this deck: 6 jobs, 1 strategy point. Targets are from the Aggro build and the common guide."
   - With proposals: add "(2 are still Proposed by Claude.)"
-- **A row per group, with its sources:** "Ramp: 11 · target 10 · common guide · 3 added by your strategy point". The target source is one of "from the Aggro build" or "common guide". The count note is one of "all from card roles", "7 from roles, 2 from card text (no role set yet)", "adjusted by your strategy point (+3)" or "adjusted by your jobs". The **Light** marker shows where it applies (icon and word, not colour alone).
+- **Each target set by Claude shows its reason and an Undo.** Example: "Ramp: 6 · target 4 · Set by Claude · "Little ramp needed: Urza makes its own mana from artifacts." **Undo** **Change**". Undo puts back the number that was there before (the fallback number or your earlier number) and stays available from Recent changes for 7 days, as every Claude change (D-034a, D-063). A whole update after a strategy change is one batch with one Undo all.
+- **Overriding a number.** **Change** lets you type your own number. The row then reads "Ramp: 6 · target 8 · **Set by you**" with the line "Claude will leave this number alone." and a **Hand back to Claude** button. Pressing it removes your override; Claude then sets the number again from the strategy (and says why). Claude never overwrites a number you set. If the strategy changes and Claude would have moved an overridden number, the notice says "Claude left Ramp (set by you) alone. It would suggest 5." with **Hand back to Claude**; this is information, not an approval step.
+- **No approval step.** Nothing waits for you to approve a health number. A change by Claude is already applied, labelled, and undoable.
+- **A row per group, with its sources:** "Ramp: 11 · target 10 · common guide · 3 added by your strategy point". The target source is one of "Set by you", "Set by Claude" (with its reason), "from the Aggro build", "from the all-builds average for Mendicant Core" or "common guide". The count note is one of "all from card roles", "7 from roles, 2 from card text (no role set yet)", "adjusted by your strategy point (+3)" or "adjusted by your jobs". The **Light** marker shows where it applies (icon and word, not colour alone).
 - **Click a group to see its cards.** Each card shows its reason, using the Counts as wording, and a tag: **Role**, **Strategy point**, **Job**, **Card text** or **Proposed**. Clicking a card opens its card window. The list is grouped by the universal role that put it there, so you see "Targeted removal 7 · Board wipe 2 · Counterspell 0 · Hand disruption 0".
 - **How these roll up** (a small expandable table, the one in 10.2 with this deck's counts and each group's target source filled in):
 
@@ -563,11 +570,11 @@ Interaction      Targeted removal 7
 Not counted in health: Fixing, Card selection, Tutor, Protection,
 Recursion, Graveyard hate, Stax/tax
 ```
-- **Change notice.** When a deck's numbers change, the section shows a notice until you dismiss it, and lists the cards or targets that moved. Health numbers never move silently. Causes: a role, job or strategy point was set, accepted, dismissed or undone ("Ramp changed from 8 to 11 because of 1 new strategy point"); or a build was picked or changed ("Interaction target changed from 10 to 7 because you picked the Aggro build"). **See what changed**.
+- **Change notice.** When a deck's numbers change, the section shows a notice until you dismiss it, and lists the cards or targets that moved. Health numbers never move silently. Causes: Claude updated a target because the strategy changed ("Claude lowered Ramp from 10 to 4 because the strategy now says the deck makes its own mana. **Undo**"); you overrode or handed back a target; a role, job or strategy point was set, accepted, dismissed or undone ("Ramp changed from 8 to 11 because of 1 new strategy point"); or a build was picked or changed ("Interaction target changed from 10 to 7 because you picked the Aggro build"). **See what changed**.
 - **Unknown stays unknown.** Cards with no card data are counted in a line "5 cards couldn't be checked" (existing behaviour).
 
 ### 10.5 When data can't be loaded
-Follows `vocabulary.md` section 5. The section shows "Couldn't check deck health. Your cards and settings haven't changed. **Try again**" and never a zero. If roles loaded but jobs or strategy points did not: "Showing counts from roles only. Couldn't load this deck's strategy points and jobs. **Try again**."
+Follows `vocabulary.md` section 5. If Claude's targets can't be loaded, the section shows the fallback numbers and says "Couldn't load the targets Claude set. Showing the build, average or common guide numbers. **Try again**"; it never shows a zero. The section shows "Couldn't check deck health. Your cards and settings haven't changed. **Try again**" and never a zero. If roles loaded but jobs or strategy points did not: "Showing counts from roles only. Couldn't load this deck's strategy points and jobs. **Try again**."
 
 ### 10.6 Sources and what is not confirmed
 - Today's app guide for decks with no typical numbers (ramp 10, draw 10, removal 6, wipes 2, lands 36) is in the app. Where it came from is not recorded. These are the common-guide numbers used when no build gives one; they still need a source check.
@@ -669,6 +676,12 @@ Today: 100 cards. State A (no build). Health, common guide: Lands 36 of 36, Ramp
 - Health: "Using what's set for this deck: 3 jobs, 1 strategy point. Targets are from the common guide." The Interaction row stays "4 · target 10 · common guide · all from card roles and card text" because nothing set here affects it. The opening of the group shows "Targeted removal 2 · Board wipe 2".
 - The commander is not counted in health; Rocco's window says "Not counted. The commander isn't part of these counts."
 
+### 13.4 Health targets from the strategy: Urza and Hearthhull (D-060; *illustrative*)
+The three test decks above have no strategy text yet, so their health uses the fallback order. Once a deck has a strategy, Claude sets the targets from it. Two examples from the owner's own words:
+- **An Urza deck.** Strategy: "Urza turns every artifact into mana, so the deck makes its own ramp." Claude sets **Ramp 4** (reason: "Little ramp needed: Urza makes its own mana from artifacts."), leaves Lands and Card advantage on the fallback numbers, and the health section shows "Ramp: 6 · target 4 · Set by Claude". You do nothing. If you disagree, you press **Change**, type 7, and the row reads "target 7 · Set by you. Claude will leave this number alone." Later the strategy changes; Claude updates the other numbers and the notice says "Claude left Ramp (set by you) alone. It would set 5." You press **Hand back to Claude** and the row reads "target 5 · Set by Claude" with a new reason.
+- **A Hearthhull deck.** Strategy: "Landfall: play many lands and trigger payoffs." Claude sets **Lands 40** (reason: "Landfall deck: more land drops mean more triggers.") and a high Ramp for extra land drops. Pressing **Undo** on the Lands row returns it to the number it had before (for example "36, common guide").
+- **A deck with no strategy yet.** Nothing is set by Claude. The rows read "from the Aggro build", "from the all-builds average for Myrkul" or "common guide", exactly as in 13.0 to 13.3.
+A category called "Ramp" in the deck list does not move any of these numbers.
 ## 14. Edge cases
 
 - **A card in several decks:** universal roles are the same in each; category, job, reason and strategy points differ. Opening Sol Ring in Arti-facts shows the Arti-facts job and a line: "Job and strategy points are for Arti-facts only."
@@ -695,7 +708,7 @@ Today: 100 cards. State A (no build). Health, common guide: Lands 36 of 36, Ramp
 
 ## 15. What was decided, and what stays the same
 
-**Decided by the owner (2026-11-18, round 3), built into this version:** D-a keep Category and Job as two things, told apart by hints, with a Group by switch and no job clutter; D-b one Strategy tab in three layers (Build, Your strategy, Card jobs); D-c "rules" is now "strategy points" and the strategy notes box is Notes; D-d health numbers come from the build first, then the common guide, then are adjusted by strategy points and jobs, with the source named on screen.
+**Decided by the owner (2026-11-18, round 3), built into this version:** D-a keep Category and Job as two things, told apart by hints, with a Group by switch and no job clutter; D-b one Strategy tab in three layers (Build, Your strategy, Card jobs); D-c "rules" is now "strategy points" and the strategy notes box is Notes; D-d health numbers come from the build first, then the common guide, then are adjusted by strategy points and jobs, with the source named on screen. **Amended by D-060 (owner-approved 2026-11-18): Claude sets and maintains the targets from the deck's strategy, with a reason per number, Undo, and an owner override that Claude leaves alone until handed back; D-d's order is the fallback where no strategy exists yet.**
 
 **Decided by the owner earlier (2026-11-18), still built into this spec:** Q1 the 13 roles; Q2 several roles per card; Q3 categories and roles are separate and can both be Ramp; Q4 seven starting jobs, own names allowed, one job per card plus a why; Q5 strategy points and jobs are one family, strategy points belong to the deck; Q6 health uses broad groups with common numbers, refined by jobs and strategy points; Q7 Claude proposes roles for the three test decks first; Q8 Claude's proposals apply at once up to 120 cards, Undo for a whole batch; Q9 the window opens on clicking the name, computer and phone; Q10 build order window, roles, Claude proposing roles, jobs, strategy points, health last.
 
@@ -719,7 +732,7 @@ The brief's sections 7c and 7d list the owner choices; these are the behaviour d
 
 1. **ANSWERED 2026-11-18: Agree.** **New, from D-d: a deck with no build picked.** Should health keep today's first two sources (the commander's all-builds EDHREC average, then the estimate) before the common guide? (brief 7d-1) Recommendation: yes, labelled "from the all-builds average". The owner agreed; the spec now follows it. It changes only the targets shown for decks with no build.
 2. **ANSWERED 2026-11-18: Agree.** **New, from D-b: Notes.** The free-text box becomes Notes in Your strategy, and the dated list moves under it as "Earlier notes". (brief 7d-2) Recommendation: yes.
-3. **Which number is the health target when the commander has typical numbers?** *Answered by D-d: the build first, then the common guide.* (brief 7c-1)
+3. **Which number is the health target when the commander has typical numbers?** *Answered by D-d: the build first, then the common guide. Amended by D-060: Claude's number from the strategy comes first, then your override sits above it, and the build is the fallback.* (brief 7c-1)
 4. **Do Claude's proposals count in health at once?** (brief 7c-2) Recommendation: yes, labelled; Undo removes them.
 5. **Interaction membership:** includes Hand disruption and Counterspell, excludes Graveyard hate and Stax/tax. (brief 7c-3) Recommendation: as in 10.2.
 6. **The Strategy tab on a phone** (brief 7c-4). Recommendation: yes.

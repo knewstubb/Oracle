@@ -640,6 +640,23 @@ table.hr td.n{text-align:right;font-variant-numeric:tabular-nums}
   </div>
 </section>
 
+<!-- ================= HEALTH TARGETS SET BY CLAUDE (D-060) ================= -->
+<section class="state" id="t7" aria-label="Deck health: targets set by Claude from the strategy">
+  <p class="cap"><b>Deck health · Targets set by Claude from the strategy (D-060).</b> <b>Illustrative:</b> an Urza deck whose strategy says the deck makes its own mana. Claude set the numbers itself. Nothing waits for your approval. Each number shows why, can be undone, and can be overridden. The earlier states on this page show decks before Claude has set targets, so they use the fallback sources.</p>
+  <div class="tabp">
+    <div class="band"><h3>Deck health <span class="lab" style="text-transform:none">reads all three layers</span></h3>
+      <div class="notice">Claude updated 2 targets because the strategy changed: Ramp 10 to 4, Lands 36 to 35. Claude left Card advantage (set by you) alone; it would set 12. <button class="link">Undo</button> <button class="link">Hand Card advantage back to Claude</button></div>
+      <p class="nt" style="margin:0 0 8px">Targets are set by Claude from this deck's strategy. Each number says why. You can change any number; Claude then leaves it alone until you hand it back.</p>
+      <table class="hr"><thead><tr><th>Group</th><th>Have</th><th>Target</th><th>Target from</th><th></th><th>Where the count comes from</th></tr></thead><tbody>
+        <tr><td><b>Lands</b></td><td class="n">35</td><td class="n">35</td><td class="src"><span class="chip outline"><svg class="i"><use href="#bot"/></svg>Set by Claude</span><br>"Artifact deck with cheap mana: a little under the common 36."</td><td><button class="btn sm">Undo</button> <button class="btn sm">Change</button></td><td class="src">all from land type</td></tr>
+        <tr><td><b>Ramp</b></td><td class="n">6</td><td class="n">4</td><td class="src"><span class="chip outline"><svg class="i"><use href="#bot"/></svg>Set by Claude</span><br>"Little ramp needed: Urza turns every artifact into mana."</td><td><button class="btn sm">Undo</button> <button class="btn sm">Change</button></td><td class="src">all from card roles</td></tr>
+        <tr><td><b>Card advantage</b></td><td class="n">9</td><td class="n">10</td><td class="src"><span class="chip filled">Set by you</span><br>Claude will leave this number alone.</td><td><button class="btn sm">Hand back to Claude</button></td><td class="src">all from card roles</td></tr>
+        <tr><td><b>Interaction</b></td><td class="n">8</td><td class="n">10</td><td class="src">common guide (no strategy number yet)</td><td></td><td class="src">6 targeted removal + 2 board wipe</td></tr>
+      </tbody></table>
+      <div class="row"><button class="btn sm">How these roll up</button><button class="btn sm">Chat about this</button></div></div>
+  </div>
+  <p class="cap" style="margin-top:12px"><b>Categories stay separate.</b> A category called "Ramp" in the deck list does not move any of these targets, and changing a target does not change any category.</p>
+</section>
 <!-- ================= STRATEGY E-H ================= -->
 <section class="state" id="t5" aria-label="Strategy tab states E to H and phone">
   <p class="cap"><b>Strategy tab · States E (loading), F (one section can't load), G (offline), H (held above 120 cards), and the phone layout.</b></p>

@@ -225,10 +225,21 @@ export type ProposalsBar = {
 // ---------------------------------------------------------------------------------------------------------------
 // Deck health (computed on read, never stored). Replaces the four-role response when slice 7 ships.
 // ---------------------------------------------------------------------------------------------------------------
-export type TargetSource = 'build' | 'all_builds_average' | 'edhrec_estimate' | 'common_guide';
+// D-060: 'owner' (your override) and 'claude_strategy' (Claude's number from the deck's strategy) sit above the fallback order.
+export type TargetSource = 'owner' | 'claude_strategy' | 'build' | 'all_builds_average' | 'edhrec_estimate' | 'common_guide';
+/** Proposed storage row for DB-5 (not drafted). A group with set_by 'owner' is never written by Claude. */
+export type DeckHealthTargetRow = {
+  deck_id: number; user_id: string; group: HealthGroup; target: number;
+  reason: string | null;            // required when set_by = 'claude'
+  set_by: 'claude' | 'owner'; previous: number | null; batch_id: string | null; updated_at: string;
+};
 export type CountReason = { card: string; oracle_id: string | null; quantity: number; tag: 'role' | 'strategy_point' | 'job' | 'card_text' | 'proposed'; role?: RoleSlug; point_id?: number };
 export type HealthGroupResult = {
   group: HealthGroup; label: string; have: number; target: number; target_source: TargetSource; target_source_label: string; light: boolean;
+  target_reason: string | null;                      // Claude's short reason, shown next to the number (D-060)
+  target_set_by: 'claude' | 'owner' | null;           // null for the fallback sources
+  target_undoable: boolean;                           // true when Claude set it and a previous value exists
+  claude_would_set: number | null;                    // set when an owner override stops Claude from updating
   from_roles: number; from_card_text: number; adjusted_by_points: number; proposed_by_claude: number; cards: CountReason[];
 };
 export type DeckHealthV2 =

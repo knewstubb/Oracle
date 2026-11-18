@@ -24,6 +24,7 @@ import { isBasicLand, isGenericSlot, isGenericSleeved, getBasicLandDefaultScryfa
 import { AddCardSearch } from '@/components/AddCardSearch'
 import { DeckImportButton } from '@/components/DeckImportButton'
 import { CardGroupSection } from '@/components/CardGroupSection'
+import { CardWindowProvider } from '@/components/CardWindow'
 import { CardSlotBadge } from '@/components/CardSlotBadge'
 import { isCompanion } from '@/lib/command-zone'
 import { CommandZoneSlots } from '@/components/CommandZoneSlots'
@@ -625,6 +626,14 @@ function CardsTabInner({ cards, deckId, scrollToCategory, onViewPicklist, maxCop
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
+    <CardWindowProvider
+      deckId={deckId}
+      cards={cards}
+      statusMap={statusMap}
+      lifecycleMap={lifecycleMap}
+      availableCategories={availableCategories}
+      onSaveCategories={(cardId, categories) => categoryMutation.mutateAsync({ cardId, categories })}
+    >
     <div className="flex h-full flex-col">
       {/* ─── Toolbar ──────────────────────────────────────────────────── */}
       <div className="shrink-0 border-b px-4 py-3" style={{ borderColor: 'var(--border-default)' }}>
@@ -942,6 +951,7 @@ function CardsTabInner({ cards, deckId, scrollToCategory, onViewPicklist, maxCop
         </div>
       </div>
     </div>
+    </CardWindowProvider>
   )
 }
 

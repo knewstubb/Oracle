@@ -20,7 +20,7 @@
 import { useState, useCallback, useMemo, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { applyStatusPatch, type StatusPatch } from '@/lib/generic-status-patch'
-import { ChevronDown, ChevronRight, Tags, MoreVertical, Trash2, GripVertical, Sparkles, Check, AlertCircle, Crown, Pencil } from 'lucide-react'
+import { ChevronDown, ChevronRight, Tags, MoreVertical, Trash2, GripVertical, Sparkles, Check, AlertCircle, Crown, Pencil, Info } from 'lucide-react'
 import { useCommanderActions } from '@/hooks/useCommanderActions'
 import { actionLabel } from '@/lib/commander-card-actions'
 import { toast } from 'sonner'
@@ -35,6 +35,7 @@ import { CardSlotBadge } from '@/components/CardSlotBadge'
 import { MovedSlotNote, useMovedSlots } from '@/components/connector/MovedSlotNote'
 import { CategoryTagEditor } from '@/components/CategoryTagEditor'
 import { MobileCardPreview } from '@/components/MobileCardPreview'
+import { useCardWindow } from '@/components/CardWindow'
 import { parseCategoriesCapped } from '@/lib/categoryUtils'
 import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -272,6 +273,7 @@ function UnifiedCardRow({
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false)
   const queryClient = useQueryClient()
   const isMobile = useIsMobile()
+  const cardWindow = useCardWindow()
   const movedSlot = useMovedSlots(deckId).get(card.id)
 
   const { triggerProps } = useCardHoverPreview({
@@ -335,11 +337,12 @@ function UnifiedCardRow({
     setDeleteDialogOpen(true)
   }
 
-  // On mobile, tap opens preview; on desktop, use hover
-  const handleCardNameClick = () => {
-    if (isMobile) {
-      setMobilePreviewOpen(true)
-    }
+  // Click or tap on the name opens the card window (hover preview stays on computer).
+  // Without a card window above the list, a phone tap still opens the picture as before.
+  const openCardDetails = () => {
+    hideCardPreview()
+    if (cardWindow) cardWindow.open(card.id, card.card_name)
+    else if (isMobile) setMobilePreviewOpen(true)
   }
 
   return (
@@ -366,13 +369,16 @@ function UnifiedCardRow({
         {card.quantity || 1}
       </span>
 
-      {/* Card name — on mobile: tap to preview; on desktop: hover preview */}
-      <span
-        className="min-w-0 flex-1 truncate text-[length:var(--fs-sm)] cursor-default sm:cursor-default"
-        {...(isMobile ? { onClick: handleCardNameClick } : triggerProps)}
+      {/* Card name — click or tap opens the card window; on desktop the hover preview stays */}
+      <button
+        type="button"
+        data-testid="card-name-button"
+        className="min-w-0 flex-1 truncate text-left text-[length:var(--fs-sm)] cursor-pointer hover:underline focus-visible:underline max-sm:min-h-11"
+        onClick={openCardDetails}
+        {...(isMobile ? {} : triggerProps)}
       >
         {card.card_name}
-      </span>
+      </button>
 
       {/* Set icon (with rarity colour) + set name — desktop only, hidden on mobile */}
       {!compact && (
@@ -454,6 +460,7 @@ function UnifiedCardRow({
           onCategoryChange={onCategoryChange}
           card={card}
           onEditInstance={() => setEditInstanceOpen(true)}
+          onOpenDetails={cardWindow ? openCardDetails : undefined}
         />
       )}
 
@@ -464,6 +471,16 @@ function UnifiedCardRow({
           style={{ top: contextMenuPos.y, left: contextMenuPos.x }}
           onMouseLeave={() => setContextMenuPos(null)}
         >
+          {cardWindow && (
+            <button
+              type="button"
+              onClick={() => { setContextMenuPos(null); openCardDetails() }}
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-[length:var(--fs-xs)] text-foreground transition-colors hover:bg-white/[0.05]"
+            >
+              <Info className="size-3" />
+              Card details
+            </button>
+          )}
           <button
             type="button"
             onClick={() => { setContextMenuPos(null); setEditInstanceOpen(true) }}
@@ -1009,6 +1026,8 @@ interface CardRowKebabProps {
   card?: DeckCard
   /** Opens the edit-card-instance dialog */
   onEditInstance?: () => void
+  /** Opens the card window ("Card details") */
+  onOpenDetails?: () => void
 }
 
 function CardRowKebab({
@@ -1021,6 +1040,7 @@ function CardRowKebab({
   onCategoryChange,
   card,
   onEditInstance,
+  onOpenDetails,
 }: CardRowKebabProps) {
   const [open, setOpen] = useState(false)
   const commanderActions = useCommanderActions()
@@ -1239,6 +1259,16 @@ function CardRowKebab({
               {actionLabel(action)}
             </button>
           ))}
+          {onOpenDetails && (
+            <button
+              type="button"
+              onClick={() => { setOpen(false); onOpenDetails() }}
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-[length:var(--fs-xs)] text-foreground transition-colors hover:bg-white/[0.05]"
+            >
+              <Info className="size-3" />
+              Card details
+            </button>
+          )}
           {onEditInstance && (
             <button
               type="button"

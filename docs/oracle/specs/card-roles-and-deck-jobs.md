@@ -11,6 +11,7 @@ What changed from version 2 (owner decisions of 2026-11-18, round 3):
 - **D-c, "rules" is now "strategy points"** everywhere. The free-text "strategy notes" box is now **Notes**. Remaining uses of the word "rules" in this spec are all about something else ("rules text" on cards, the allocation terminology rule, the Light rule, binder rules).
 - **D-d, health numbers**: the picked build's typical numbers first, then the commander's all-builds average, then the common guide where there is no number (brief 7d item 1, **Answered** 2026-11-18: Agree), then the deck's strategy points and jobs adjust the counts; every number names its source (section 10).
 - **D-060, Claude sets and maintains health targets from the deck's strategy** (owner-approved 2026-11-18). Health targets are no longer something the owner approves one by one. Claude sets each number from the deck's strategy and keeps it up to date, with a visible reason per number and Undo. The owner may override a number; Claude then leaves it alone until it is handed back. The fallback order where no strategy exists yet is unchanged: the build's numbers, the commander's all-builds average, the common guide. Category stays separate from jobs and strategy (sections 10.1, 10.3, 10.4, 13.4).
+- **Deck strategy items (design round, 2026-11-18, contract `contracts/deck-strategy.md`; owner to confirm the open points there).** Your strategy becomes a short list of separate items (Aim, What the commander enables, Win condition, Play it like) next to the strategy points, each "Set by you" or "Proposed by Claude" (8.6). A job can say which item it serves, shown as a "Serves" line in the card window (6.3a). Claude's proposals are unconfirmed until you accept them and show the cards they are based on. Bracket is required. The health section says when your strategy changed after Claude set the numbers (10.4). Section 10.3 no longer says a job can change a count (owner decision: it never does).
 Earlier changes, still in force: **Q6** (broad health groups), **Q8** (Claude's proposals apply at once, up to 120 cards, one-click undo of a batch).
 
 ---
@@ -108,7 +109,7 @@ Computer (about 720 px wide)                    Phone (full-height sheet)
 +----------------------------------------+
 ```
 
-Order of sections, top to bottom: picture and name with the placement badge; **Universal roles**; **Category** (hint: where it sits in the list); **Job** (hint: why it is in the deck); **Why it is here**; **Strategy points that apply**; **Counts as**. A line at the bottom shows the save state ("Saving…", "Saved", or the error in section 11). A small link under Deck job reads "See all jobs on the Strategy tab".
+Order of sections, top to bottom: picture and name with the placement badge; **Universal roles**; **Category** (hint: where it sits in the list); **Job** (hint: why it is in the deck) with its **Serves** line (6.3a); **Why it is here**; **Strategy points that apply**; **Counts as**. A line at the bottom shows the save state ("Saving…", "Saved", or the error in section 11). A small link under Deck job reads "See all jobs on the Strategy tab".
 
 ### 5.1 How "who decided" is shown
 
@@ -152,6 +153,13 @@ Section note: "Roles are the same in every deck. Your own category names below d
 - **Clear job** returns the card to "No job set". Not every card needs a job (lands often have none).
 - The list is a draft you and Claude refine together. Nothing in the window treats the seven as final.
 
+### 6.3a Serves (which part of the strategy this job is for)
+- **Shown only when the card has a job and a link exists.** One quiet line directly under the Job field: **"Serves: Urza makes mana from artifacts"** (the item's sentence, cut at about 60 characters with the full text on hover or tap). With a job and no link, nothing is shown, not even a prompt, except a small text button **Link to strategy** that appears only when the deck has at least one strategy item or strategy point. With no job there is no Serves line and no button.
+- **Who set it** uses the usual labels: "Set by you" (filled) or "Proposed by Claude" (outline robot icon) with Accept, Change, Dismiss. An unconfirmed link reads "Serves (proposed, not confirmed): …".
+- **Change** opens a small picker listing this deck's items (by kind: Aim, What the commander enables, Win condition, Play it like) and its strategy points, plus **No link**. Choosing one saves at once; "Saved" and the 10-second Undo as everywhere else. A link points at exactly one item or point.
+- **A link never changes a count.** The Counts as section does not mention it, and the hint under the line says "This explains the job. It doesn't change any health count."
+- If the item or point it served is later removed, the line disappears and nothing else changes.
+- Phone: the line wraps to two lines; the picker is a full-width sheet.
 ### 6.4 Why it is here
 
 - A single text box, up to 200 characters. Placeholder: "One sentence on what this card does for this deck."
@@ -308,7 +316,8 @@ Reason for the order: general to specific, with what needs your attention (propo
 | `StrategySummaryLine` | Deck status badge (Brewing, Assembling or Playable, as on the deck header), bracket, "Build: Aggro for Myrkul" (or "No build yet"), and counts "7 jobs set · 1 strategy point · 12 to look at". Each count is a link to its section. | `Badge` |
 | `ProposalsBar` | Latest batches with count to look at, **Review**, **Accept all**, **Undo all**; "Show older batches". | `Button`, `Badge` |
 | `BuildLayer` | Wraps the existing `CommanderOverview`, the build picker, `StrategyGuide` and the category manager, plus the "No build yet" state and the **Link commander** step. | existing components |
-| `YourStrategyLayer` | The existing Deck Intent fields as text with Edit, then `StrategyPointsList`, then Notes. | existing form |
+| `YourStrategyLayer` | The strategy items list (`StrategyItemsList`: Aim, What the commander enables, Win conditions, Play it like), the remaining Deck Intent fields as text with Edit, then `StrategyPointsList`, then Notes. | existing form, `Badge`, `Button` |
+| `ServesLine` and `ServesPicker` | The "Serves: …" line under the Job field and its small picker (6.3a). | `Badge`, `dropdown-menu` |
 | `StrategyPointsList` and `StrategyPointEditorDialog` | The list and the add/edit window (section 9). | `Button`, `dropdown-menu`, `dialog`, `Textarea`, `input`, `command` (card search) |
 | `CardJobsLayer` | Job rows with counts; each expands to a card list. Filter chips. | `accordion`, `Badge`, `pill-toggle` |
 | `GroupBySwitch` | "Group by: Category / Job" on the deck list (6.8). | `pill-toggle` |
@@ -408,14 +417,22 @@ On a phone, Review opens the Card jobs list filtered to Proposed; job rows are s
 
 #### Layer 2: Your strategy
 - **Header:** "Your strategy", the reminder "Refines the build", **Edit**.
-- **Fields:** same fields and same save as today. The read view shows each field's text or "Not set": Win condition, Bracket, Budget, Playgroup, Frustrations, Format. **Edit** opens today's form.
+- **Strategy items (new).** A short list, at most 7, in this order, each one sentence. Group headings: **Aim** (one), **What the commander enables** (up to 3), **Win conditions** (up to 3), **Play it like** (optional, one: a reference commander such as "Norin the Wary"; read only for now, nothing is looked up from it). Each row shows the sentence, its label, and **Edit** / **Remove** for yours.
+  - **Set by you:** filled label. **Proposed by Claude:** outline robot label, the text "Unconfirmed: Claude is assuming this", Accept, Change, Dismiss, and **"Based on:"** up to five card names (each opens the card window). Claude's reason (one line) sits under it. A proposal is already in use by Claude as an assumption, never as something you said. Example row: *Commander enables: Urza turns every artifact into mana. (Proposed by Claude · Unconfirmed · Based on Urza, Lord High Artificer; Sol Ring; Mind Stone)*.
+  - **Claude's new wording for your item** shows under your item as "Claude suggests this wording instead" with Accept, Change, Dismiss. Your item stays as it is until you accept.
+  - **An item names no cards.** Cards are linked only through strategy points (below) and through a card's "Serves" line (6.3a).
+  - **Add item** (a small form: kind picker, one sentence up to 300 characters, **Save item**); a kind that is full is greyed with the reason ("3 of 3 used"). The deck's 8th item is refused: "This deck already has 7 strategy items. Remove or merge one first."
+  - **Ask Claude** fills the chat with: "Please read [deck] and propose the Aim, what the commander enables and the win conditions as short items. Mark each as an assumption and tell me which cards you based it on. If the bracket isn't set, ask me first. Don't change anything I set myself."
+  - **Empty:** "No strategy items yet. An item is one sentence about how this deck works, for example 'Urza turns every artifact into mana.' **Add item** or **Ask Claude**."
+  - **Your written win condition** is now the first Win condition item, "Set by you" (it was copied; the old text is kept but no longer shown). If it was too long to copy (over 300 characters) it shows as a read-only line "Too long to copy. Split it into items." with **Add item**.
+- **Bracket and the rest of the fields:** the read view shows each remaining field's text or "Not set": **Bracket (required, shown first)**, Playgroup, Budget, Frustrations, Format. An empty bracket shows "Not set. Claude will ask you." **Edit** opens today's form without the win condition box (it moved into the items).
 - **Strategy points:** header "Strategy points", count, **Add strategy point**, **Ask Claude** (strategy points prompt).
   - **Each row:** the sentence, who set it ("Set by you" or "Proposed by Claude" with Accept, Change, Dismiss), "Covers N cards" (click to expand the card list; each card opens the card window), "Counts as Ramp / Card advantage / Interaction" or "Counts as: nothing extra (explains the card, changes no count)", **Edit**, **Remove**.
   - **Copy to my other decks with this commander:** a disabled text line under the list, "Coming later". No button. (Q5.)
   - Strategy points belong to this deck, not the commander (Q5). The editor is section 9.
-- **Notes:** the free-text box formerly called "strategy notes", now **Notes**: "Anything else about how you want to play this deck." Under it, **Earlier notes** (today's dated notes list, unchanged). On failure to load the dated list: "Couldn't load earlier notes. **Try again**."
-- **Empty:** "Say how this deck wins and what table it is for. Claude reads this when it advises you. **Edit**".
-
+- **A question, not a cut list:** when cards have no job, no link and no strategy point, one quiet line under the lists: "These 9 cards serve nothing yet. **Show them**." It is a question for you. Nothing is flagged, stored or cut because of it, and it is separate from any pet-card marking.
+- **Notes:** the free-text box formerly called "strategy notes", now **Notes**: "Anything else about how you want to play this deck." Claude can add a dated paragraph at the end ("Claude, 2026-11-18: …") but never replaces your text. Under it, **Earlier notes** (today's dated notes list, unchanged). On failure to load the dated list: "Couldn't load earlier notes. **Try again**."
+- **Empty (whole layer):** "Say how this deck wins and what table it is for. Claude reads this when it advises you. **Edit** or **Ask Claude**".
 #### Layer 3: Card jobs
 - **Header:** "Card jobs", the reminder "Refines your strategy", total jobs set, a line "N proposed by Claude · M set by you", **Ask Claude to propose** (menu, 8.8), and a filter: **All, Proposed by Claude, Set by you, No job set**.
 - **Overview rows:** one per job (the seven starting jobs plus any of your own names used in this deck), each with the card count, a simple bar (decorative; the number is the information), and a mix label "6 proposed · 2 yours". A last row **No job set** with its count and the quiet note "Fine for lands and filler. Not every card needs a job."
@@ -483,6 +500,9 @@ No contract exists yet; the Architect writes it from these needs. **No stored da
 | Health targets and their source words | The picked build's averages first (lands, ramp, card draw, removal, wipes), else the common guide numbers in section 10.2. |
 | Deck list "Group by" | Each card's category (existing) and job (new). |
 | Deck jobs | Per card in this deck: job, reason, who proposed it (you or Claude), whether it is still to look at, which batch it came from. |
+| Strategy items | Per item: kind, sentence, reason, who set it, unconfirmed or confirmed, up to five "based on" cards, which item it would replace, still to look at, batch. |
+| Serves line | Per card in this deck: the linked item or strategy point (its sentence), who set it, whether it is still to look at. Shown only with a job. |
+| Strategy changed notice | The newest update time of the deck's strategy fields, items and strategy points against the newest update time of a number Claude set. Nothing extra is stored. |
 | Deck strategy points | Per strategy point: sentence, covers (type or card list), "counts as" group or none, who proposed it, still to look at, batch. |
 | Claude's proposals bar | Batches from the change log (time, what, how many, how many still to look at), and whether Undo is still allowed. |
 | Deck health | Universal roles per card, the roll-up table (section 10), jobs and strategy points, and the picked build's averages (else the common guide numbers). |
@@ -537,7 +557,7 @@ How the count works:
 
 ### 10.3 How the build, jobs and strategy points refine the groups
 - **The deck's strategy sets the targets, through Claude (D-060).** Where there is no strategy yet, the build sets them, then the all-builds average, then the common guide (see 10.1).
-- A strategy point or job can say "counts as Ramp / Card advantage / Interaction" for chosen cards (adds them to that group once), or "does not count" (removes them from a group they would otherwise feed). These change the **count**, never the target. The reason shows on the card ("Counts as") and in the group's card list.
+- A strategy point (never a job; owner decision 2026-11-18) can say "counts as Ramp / Card advantage / Interaction" for chosen cards (adds them to that group once), or "does not count" (removes them from a group they would otherwise feed). These change the **count**, never the target. The reason shows on the card ("Counts as") and in the group's card list.
 - Jobs feed the **Plan and win conditions** group. Until at least one job is set, that line reads "Not counted until jobs are set."
 - A deck-specific target ("my stax deck wants 14 interaction") is what Claude now sets from the strategy; you can override it (10.4).
 - **Category stays separate.** A category never sets, moves or overrides a target, and a target never changes a category (D-060, D-a).
@@ -570,6 +590,8 @@ Interaction      Targeted removal 7
 Not counted in health: Fixing, Card selection, Tutor, Protection,
 Recursion, Graveyard hate, Stax/tax
 ```
+- **Strategy changed after Claude set the numbers.** When you change anything in Your strategy (an item, a strategy point, the written fields or Notes) after the newest number Claude set, a quiet line appears above the rows: **"You changed your strategy after Claude set these numbers (Aim, 2 days ago). Ask Claude to refresh them."** with the button **Ask Claude to refresh** (fills the deck chat; you press Send). It disappears when Claude sets a number again. It is worked out from update times; nothing is stored for it. If Claude has set no numbers yet but a strategy exists: "Claude hasn't set targets for this strategy yet. **Ask Claude**." Removing an item does not trigger the line (there is no update time to compare); the line never says it will. Not shown when every number is yours (overridden).
+- **Bracket first.** If the deck has no bracket, the source line adds "No bracket set. Claude will ask you which one before it sets numbers. **Set bracket**." Targets are set from the bracket plus the strategy; the build, the all-builds average and the common guide are the fallback until then. **(New order; owner to confirm.)**
 - **Change notice.** When a deck's numbers change, the section shows a notice until you dismiss it, and lists the cards or targets that moved. Health numbers never move silently. Causes: Claude updated a target because the strategy changed ("Claude lowered Ramp from 10 to 4 because the strategy now says the deck makes its own mana. **Undo**"); you overrode or handed back a target; a role, job or strategy point was set, accepted, dismissed or undone ("Ramp changed from 8 to 11 because of 1 new strategy point"); or a build was picked or changed ("Interaction target changed from 10 to 7 because you picked the Aggro build"). **See what changed**.
 - **Unknown stays unknown.** Cards with no card data are counted in a line "5 cards couldn't be checked" (existing behaviour).
 
@@ -682,6 +704,13 @@ The three test decks above have no strategy text yet, so their health uses the f
 - **A Hearthhull deck.** Strategy: "Landfall: play many lands and trigger payoffs." Claude sets **Lands 40** (reason: "Landfall deck: more land drops mean more triggers.") and a high Ramp for extra land drops. Pressing **Undo** on the Lands row returns it to the number it had before (for example "36, common guide").
 - **A deck with no strategy yet.** Nothing is set by Claude. The rows read "from the Aggro build", "from the all-builds average for Myrkul" or "common guide", exactly as in 13.0 to 13.3.
 A category called "Ramp" in the deck list does not move any of these numbers.
+### 13.5 Strategy items on Yedora, Rocco's Secret Sauce and Murky Business (*illustrative wording*)
+The same item kinds, the same strategy points and the same optional "Serves" link fit all three, with no new field and no special case. Table in `contracts/deck-strategy.md` section 20.
+- **Murky Business (Myrkul).** What the commander enables: "Myrkul turns creatures into non-creature enchantments" (Proposed by Claude · Unconfirmed · Based on Devoted Druid, Cinderhaze Wretch). The strategy point from 13.2 stays a strategy point. Devoted Druid's card window: Job Engine, **Serves: Myrkul turns creatures into non-creature enchantments**.
+- **Rocco's Secret Sauce.** Aim: "Win with a Norin the Wary engine." Play it like: "Norin the Wary" (read only). What the commander enables: "Rocco only fetches Norin." Norin's job Engine serves the Aim; Rocco's job Commander support serves the second line.
+- **Yedora the Explorer.** The owner's corrected strategy text was not available to the Designer or Architect; it is entered the same way (Aim, What the commander enables, Win condition). Nothing about this deck needs a different item kind.
+- Bracket is empty on all three: the Strategy tab shows "Not set. Claude will ask you." and Claude asks before it sets any number.
+
 ## 14. Edge cases
 
 - **A card in several decks:** universal roles are the same in each; category, job, reason and strategy points differ. Opening Sol Ring in Arti-facts shows the Arti-facts job and a line: "Job and strategy points are for Arti-facts only."

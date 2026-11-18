@@ -41,7 +41,7 @@ The panel replaces the deck header, the slot-usage bar and the Deck health foote
 ## 5. Out of scope (owner direction 2026-11-19, binding)
 - Any build, migration or hosted write in this round.
 - Moving the EDHREC build picker, its guide or the category manager.
-- The CC-26 card-purpose layer, strategy points and their editor, the proposals bar and batch Accept / Undo-all, Ask Claude / Propose buttons, the Group by switch, Claude-set health targets and the broad health roll-up. All dropped.
+- The CC-26 per-card purpose layer and its editors, the proposals bar and batch Accept / Undo-all, Ask Claude / Propose buttons, the Group by switch, Claude-set health targets and the broad health roll-up. All dropped.
 - Changing Deck health groups or target sources. RC-01 stays separate.
 - **Blocking, filtering or refusing suggestions because of bracket. Never.** The warning informs; it restricts nothing, and no line in the window or the panel may suggest otherwise.
 - The mana base maths (RQ-13), the bracket check itself (RQ-14) and filling in all decks (RQ-07): later briefs.

@@ -5,14 +5,14 @@
  *
  * Opens from a card name or the card menu ("Card details") in a deck's card list. It opens at once from the data
  * already on the page (picture, name, status, category). Only the roles lookup loads after, on its own, so one slow
- * or failed section never blocks the rest. Roles are read-only for now (they come from the card text, the same way
- * Deck health reads them); jobs and strategy points arrive in later slices.
+ * or failed section never blocks the rest. Roles can be added and removed (slice 2); where nothing is stored they
+ * still come from the card text, the same way Deck health reads them. Jobs and strategy points arrive in later slices.
  *
  * The window is hosted above the card list (CardWindowProvider) because changing a category moves the card to
  * another group, which unmounts the row that opened it.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -20,7 +20,11 @@ import { CardImage } from '@/components/CardImage'
 import { CardSlotBadge } from '@/components/CardSlotBadge'
 import { CategoryTagEditor } from '@/components/CategoryTagEditor'
 import { parseCategoriesCapped, type StructuredCategories } from '@/lib/categoryUtils'
-import { WINDOW_ROLE_LABELS, type CardWindowLookup } from '@/lib/card-window-roles'
+import type { CardWindowLookup } from '@/lib/card-window-roles'
+import {
+  ROLE_SLUG_LABELS, ROLE_SOURCE_LABELS, mergeWindowRoles, undoActionFor,
+  type OwnerRoleAction, type RoleSlug,
+} from '@/lib/card-window-stored-roles'
 import type { DeckCard } from '@/components/CardGrid'
 import type { CardSlotStatus, DeckCardLifecycle } from '@/lib/card-status'
 
@@ -264,7 +268,7 @@ function CardWindow({ deckId, cardId, card, lastName, status, lifecycle, availab
 }
 
 // ---------------------------------------------------------------------------
-// Roles (read-only for now): loads after the window is open, on its own
+// Roles (editable since slice 2): loads after the window is open, on its own
 // ---------------------------------------------------------------------------
 /** One lookup for the roles and the type groups: both sections use the same query key, so it runs once. */
 function useCardWindowLookup(deckId: number, cardId: number) {
@@ -279,38 +283,155 @@ function useCardWindowLookup(deckId: number, cardId: number) {
     retry: 1,
   })
 }
+type RoleEdit = { kind: 'saving' } | { kind: 'saved'; undo: { role: RoleSlug; action: OwnerRoleAction } | null } | { kind: 'error'; attempt: { role: RoleSlug; action: OwnerRoleAction } }
+
 function RolesSection({ deckId, cardId, cardName }: { deckId: number; cardId: number; cardName: string }) {
   const query = useCardWindowLookup(deckId, cardId)
+  const queryClient = useQueryClient()
+  const [edit, setEdit] = useState<RoleEdit | null>(null)
   const data = query.data
+
+  // The Undo offer lasts 10 seconds; "Saved" stays.
+  useEffect(() => {
+    if (edit?.kind !== 'saved' || !edit.undo) return
+    const t = setTimeout(() => setEdit((e) => (e?.kind === 'saved' ? { kind: 'saved', undo: null } : e)), UNDO_WINDOW_MS)
+    return () => clearTimeout(t)
+  }, [edit])
+
+  const save = async (role: RoleSlug, action: OwnerRoleAction, isUndo = false) => {
+    setEdit({ kind: 'saving' })
+    try {
+      const res = await fetch(`/api/decks/${deckId}/cards/${cardId}/roles`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role, action }),
+      })
+      if (!res.ok) throw new Error('save failed')
+      const body = (await res.json()) as { previous: { owner_effect: 'add' | 'remove' | null } }
+      await queryClient.invalidateQueries({ queryKey: ['card-window-roles', deckId, cardId] })
+      setEdit({ kind: 'saved', undo: isUndo ? null : { role, action: undoActionFor(body.previous) } })
+    } catch {
+      setEdit({ kind: 'error', attempt: { role, action } })
+    }
+  }
+
+  const stored = data?.stored
+  const canEdit = stored?.status === 'ok'
+  const view = data ? mergeWindowRoles(stored, data) : null
+  const busy = edit?.kind === 'saving'
   return (
     <section aria-labelledby="cw-roles">
-      <h3 id="cw-roles" className="text-[length:var(--fs-xs)] font-medium uppercase tracking-wide text-muted-foreground">Roles (read-only for now)</h3>
-      <p className="text-[length:var(--fs-xs)] text-muted-foreground">Worked out from the card text. Setting roles comes next.</p>
+      <h3 id="cw-roles" className="text-[length:var(--fs-xs)] font-medium uppercase tracking-wide text-muted-foreground">Universal roles</h3>
+      <p className="text-[length:var(--fs-xs)] text-muted-foreground">Roles are the same in every deck. Your own category names below don&apos;t change them.</p>
       <div className="mt-2 text-[length:var(--fs-sm)]">
         {query.isPending ? (
           <div role="status">
             <span className="sr-only">Checking roles for {cardName}</span>
             <Skeleton className="h-6 w-40" />
           </div>
-        ) : query.isError || !data ? (
+        ) : query.isError || !data || !view ? (
           <p>
             Couldn&apos;t load roles for {cardName}. Nothing has changed.
             <Button variant="link" size="sm" className="ml-2 max-sm:h-11" onClick={() => void query.refetch()}>Try again</Button>
           </p>
-        ) : data.kind === 'no_data' ? (
-          <p>No card data yet, so no role was worked out.</p>
-        ) : data.kind === 'land' ? (
-          <p>Lands have no roles.</p>
-        ) : data.roles.length === 0 ? (
-          <p>No role found. Many cards, such as a plain creature, don&apos;t have one.</p>
         ) : (
-          <ul className="flex flex-wrap gap-1.5" aria-label="Roles worked out from the card text">
-            {data.roles.map((r) => (
-              <li key={r} data-testid="card-window-role" className="rounded-full border border-dashed border-[var(--border-emphasis)] px-2 py-0.5">
-                {WINDOW_ROLE_LABELS[r]}
-              </li>
-            ))}
-          </ul>
+          <div className="flex flex-col gap-2">
+            {stored?.status === 'error' && (
+              <p data-testid="card-window-roles-stored-error">
+                Couldn&apos;t load your saved roles, so roles can&apos;t be changed right now. Only what was worked out from the card text is shown.
+                <Button variant="link" size="sm" className="ml-2 max-sm:h-11" onClick={() => void query.refetch()}>Try again</Button>
+              </p>
+            )}
+            {stored?.status === 'no_identity' && (
+              <p data-testid="card-window-roles-no-identity">This card can&apos;t be matched to a card identity yet, so its roles can&apos;t be changed.</p>
+            )}
+            {view.chips.length === 0 ? (
+              <p>
+                {data.kind === 'land' ? 'Lands have no roles.'
+                  : data.kind === 'no_data' ? 'No card data yet, so no role was worked out.'
+                  : 'No role found. Many cards, such as a plain creature, don\'t have one.'}
+              </p>
+            ) : (
+              <ul className="flex flex-wrap gap-2" aria-label="Roles">
+                {view.chips.map((c) => (
+                  <li
+                    key={c.role}
+                    data-testid="card-window-role"
+                    data-source={c.source}
+                    className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 ${c.source === 'owner' || c.source === 'baseline' ? 'border-[var(--border-emphasis)]' : 'border-dashed border-[var(--border-emphasis)]'}`}
+                  >
+                    <span>{c.label}</span>
+                    <span className="text-[length:var(--fs-xs)] text-muted-foreground">{ROLE_SOURCE_LABELS[c.source]}</span>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        className="rounded px-1 text-muted-foreground hover:text-foreground disabled:opacity-50 max-sm:min-h-11 max-sm:min-w-11"
+                        aria-label={`Remove ${c.label}`}
+                        disabled={busy}
+                        onClick={() => void save(c.role, c.removeAction)}
+                      >
+                        <span aria-hidden="true">✕</span>
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {canEdit && view.removed.length > 0 && (
+              <ul className="flex flex-col gap-1" aria-label="Roles you removed">
+                {view.removed.map((r) => (
+                  <li key={r} data-testid="card-window-role-removed">
+                    You removed: {ROLE_SLUG_LABELS[r]}.
+                    <Button variant="link" size="sm" className="ml-1 max-sm:h-11" disabled={busy} onClick={() => void save(r, 'clear')}>
+                      Restore<span className="sr-only"> {ROLE_SLUG_LABELS[r]}</span>
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {canEdit && view.addable.length > 0 && (
+              <label className="flex items-center gap-2">
+                <span className="text-muted-foreground">Add role</span>
+                <select
+                  value=""
+                  disabled={busy}
+                  onChange={(e) => { if (e.target.value) void save(e.target.value as RoleSlug, 'add') }}
+                  className="h-7 rounded-md border border-input bg-background px-2 text-[length:var(--fs-sm)] max-sm:h-11"
+                  aria-label="Add role"
+                >
+                  <option value="">Choose a role…</option>
+                  {view.addable.map((r) => <option key={r} value={r}>{ROLE_SLUG_LABELS[r]}</option>)}
+                </select>
+              </label>
+            )}
+            {view.chips.some((c) => c.source === 'baseline') && (
+              <p className="text-[length:var(--fs-xs)] text-muted-foreground">Standard roles come from Oracle.</p>
+            )}
+            {view.chips.some((c) => c.source === 'text') && (
+              <p className="text-[length:var(--fs-xs)] text-muted-foreground">Worked out from card text: nothing is set for these yet, so Oracle read the rules text and guessed.</p>
+            )}
+            <div className="min-h-5" role="status" aria-live="polite" data-testid="card-window-roles-save">
+              {edit?.kind === 'saving' && <span>Saving…</span>}
+              {edit?.kind === 'saved' && (
+                <span>
+                  Saved
+                  {edit.undo && (
+                    <Button variant="link" size="sm" className="ml-2 max-sm:h-11" onClick={() => void save(edit.undo!.role, edit.undo!.action, true)}>
+                      Undo
+                    </Button>
+                  )}
+                </span>
+              )}
+              {edit?.kind === 'error' && (
+                <span>
+                  Couldn&apos;t save the role. Nothing was changed.
+                  <Button variant="link" size="sm" className="ml-2 max-sm:h-11" onClick={() => void save(edit.attempt.role, edit.attempt.action)}>
+                    Try again
+                  </Button>
+                </span>
+              )}
+            </div>
+          </div>
         )}
       </div>
     </section>

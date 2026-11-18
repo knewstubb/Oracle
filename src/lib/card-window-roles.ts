@@ -8,6 +8,7 @@
  */
 import { ROLE_ORDER, hasClassifiableText, isLandTypeLine, rolesForCard, type Role } from './card-roles'
 import { isBasicLandCard } from './basic-lands'
+import type { StoredRoles } from './card-window-stored-roles'
 import { allCardTypes, parseTypeLine } from './type-line'
 
 export type CardWindowRoles =
@@ -31,7 +32,7 @@ export interface CardWindowTypes {
   subtypes: string[]
 }
 /** What the roles route sends: the roles result plus the parsed type line from the same single lookup. */
-export type CardWindowLookup = CardWindowRoles & { types?: CardWindowTypes }
+export type CardWindowLookup = CardWindowRoles & { types?: CardWindowTypes; stored?: StoredRoles }
 const unique = (xs: string[]) => [...new Set(xs)]
 export function cardWindowTypes(typeLine: string | null | undefined): CardWindowTypes {
   const parsed = parseTypeLine(typeLine)

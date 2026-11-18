@@ -98,7 +98,7 @@ function renderHarness(props: Partial<React.ComponentProps<typeof Harness>> = {}
 }
 
 describe('card window', () => {
-  it('opens from a click on the card name and shows category and today\'s roles read-only', async () => {
+  it('opens from a click on the card name and shows category and the card\'s roles', async () => {
     renderHarness()
     expect(screen.queryByTestId('card-window')).not.toBeInTheDocument()
     fireEvent.click(screen.getAllByTestId('card-name-button')[0])
@@ -106,9 +106,11 @@ describe('card window', () => {
     expect(within(win).getByRole('heading', { name: 'Category' })).toBeInTheDocument()
     expect(within(win).getByText('Category: where it sits in the list')).toBeInTheDocument()
     expect(within(win).getByTestId('card-window-category')).toHaveTextContent('Ramp')
-    expect(within(win).getByRole('heading', { name: 'Roles (read-only for now)' })).toBeInTheDocument()
-    expect(within(win).getByText(/Setting roles comes next/)).toBeInTheDocument()
-    expect(await within(win).findByTestId('card-window-role')).toHaveTextContent('Ramp')
+    expect(within(win).getByRole('heading', { name: 'Universal roles' })).toBeInTheDocument()
+    expect(within(win).getByText(/Roles are the same in every deck/)).toBeInTheDocument()
+    const chip = await within(win).findByTestId('card-window-role')
+    expect(chip).toHaveTextContent('Ramp')
+    expect(chip).toHaveTextContent('Worked out from card text')
     expect(within(win).getByText('Jobs and strategy points are coming')).toBeInTheDocument()
     // nothing for later slices
     expect(within(win).queryByText(/Proposed by Claude/)).not.toBeInTheDocument()
@@ -210,6 +212,100 @@ describe('card window', () => {
     await screen.findByTestId('card-window-card-types')
     const calls = (fetch as unknown as { mock: { calls: [string][] } }).mock.calls.filter((c) => String(c[0]).includes('/roles'))
     expect(calls).toHaveLength(1)
+  })
+  describe('editing universal roles', () => {
+    const store = (rows: unknown[], status = 'ok') => ({ status, oracleId: 'aaaaaaaa-0000-4000-8000-000000000001', rows })
+    const row = (o: Record<string, unknown>) => ({ role: 'ramp', in_baseline: false, owner_effect: null, claude_effect: null, claude_state: null, effective: false, effective_from: null, beside: false, ...o })
+    let puts: Array<{ role: string; action: string }>
+    let putStatus: number
+    beforeEach(() => {
+      puts = []
+      putStatus = 200
+      const base = (global.fetch as unknown as (u: string, i?: RequestInit) => Promise<unknown>)
+      vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+        if (String(url).includes('/roles') && init?.method === 'PUT') {
+          const b = JSON.parse(String(init.body))
+          puts.push(b)
+          return { ok: putStatus === 200, status: putStatus, json: async () => ({ previous: { owner_effect: null }, current: { owner_effect: b.action === 'clear' ? null : b.action } }) }
+        }
+        return base(url, init)
+      }))
+    })
+    const open = async () => {
+      renderHarness()
+      fireEvent.click(screen.getAllByTestId('card-name-button')[0])
+      return screen.findByTestId('card-window')
+    }
+    it('labels a shared role Standard and your own add Set by you', async () => {
+      rolesResponse = { ok: true, body: { kind: 'roles', roles: [], stored: store([
+        row({ role: 'ramp', in_baseline: true, effective: true, effective_from: 'baseline' }),
+        row({ role: 'tutor', owner_effect: 'add', effective: true, effective_from: 'owner' }),
+      ]) } }
+      const win = await open()
+      await within(win).findAllByTestId('card-window-role')
+      const chips = within(win).getAllByTestId('card-window-role')
+      expect(chips.map((c) => c.getAttribute('data-source'))).toEqual(['baseline', 'owner'])
+      expect(chips[0]).toHaveTextContent('Standard')
+      expect(chips[1]).toHaveTextContent('Set by you')
+      expect(within(win).getByText('Standard roles come from Oracle.')).toBeInTheDocument()
+    })
+    it('adds a role from the list and saves it', async () => {
+      rolesResponse = { ok: true, body: { kind: 'roles', roles: [], stored: store([]) } }
+      const win = await open()
+      const user = userEvent.setup()
+      await user.selectOptions(await within(win).findByRole('combobox', { name: 'Add role' }), 'tutor')
+      await waitFor(() => expect(puts).toEqual([{ role: 'tutor', action: 'add' }]))
+      expect(await within(win).findByText(/Saved/)).toBeInTheDocument()
+    })
+    it('removing a shared role saves a remove, shows "You removed", and Restore clears it', async () => {
+      rolesResponse = { ok: true, body: { kind: 'roles', roles: [], stored: store([row({ role: 'ramp', in_baseline: true, effective: true, effective_from: 'baseline' })]) } }
+      const win = await open()
+      const user = userEvent.setup()
+      await user.click(await within(win).findByRole('button', { name: 'Remove Ramp' }))
+      await waitFor(() => expect(puts).toEqual([{ role: 'ramp', action: 'remove' }]))
+      rolesResponse = { ok: true, body: { kind: 'roles', roles: [], stored: store([row({ role: 'ramp', in_baseline: true, owner_effect: 'remove' })]) } }
+      await user.click(await within(win).findByRole('button', { name: 'Undo' }))
+      await waitFor(() => expect(puts[1]).toEqual({ role: 'ramp', action: 'clear' }))
+    })
+    it('shows "You removed" with Restore for a role you removed', async () => {
+      rolesResponse = { ok: true, body: { kind: 'roles', roles: ['ramp'], stored: store([row({ role: 'ramp', owner_effect: 'remove' })]) } }
+      const win = await open()
+      expect(await within(win).findByTestId('card-window-role-removed')).toHaveTextContent('You removed: Ramp.')
+      expect(within(win).queryByTestId('card-window-role')).not.toBeInTheDocument()
+      await userEvent.setup().click(within(win).getByRole('button', { name: /Restore/ }))
+      await waitFor(() => expect(puts).toEqual([{ role: 'ramp', action: 'clear' }]))
+    })
+    it('keeps the text-read role beside a role you added, and removing a text-read role saves a remove', async () => {
+      rolesResponse = { ok: true, body: { kind: 'roles', roles: ['ramp'], stored: store([row({ role: 'tutor', owner_effect: 'add', effective: true, effective_from: 'owner' })]) } }
+      const win = await open()
+      await within(win).findAllByTestId('card-window-role')
+      expect(within(win).getAllByTestId('card-window-role').map((c) => c.getAttribute('data-source'))).toEqual(['text', 'owner'])
+      await userEvent.setup().click(within(win).getByRole('button', { name: 'Remove Ramp' }))
+      await waitFor(() => expect(puts).toEqual([{ role: 'ramp', action: 'remove' }]))
+    })
+    it('says so and keeps the chip when a save fails', async () => {
+      putStatus = 500
+      rolesResponse = { ok: true, body: { kind: 'roles', roles: [], stored: store([row({ role: 'ramp', in_baseline: true, effective: true, effective_from: 'baseline' })]) } }
+      const win = await open()
+      await userEvent.setup().click(await within(win).findByRole('button', { name: 'Remove Ramp' }))
+      expect(await within(win).findByText(/Couldn't save the role\. Nothing was changed\./)).toBeInTheDocument()
+      expect(within(win).getByTestId('card-window-role')).toHaveTextContent('Ramp')
+    })
+    it('is read-only when stored roles could not be read, and when the card has no identity', async () => {
+      rolesResponse = { ok: true, body: { kind: 'roles', roles: ['ramp'], stored: { status: 'error' } } }
+      const first = renderHarness()
+      fireEvent.click(screen.getAllByTestId('card-name-button')[0])
+      const win = await screen.findByTestId('card-window')
+      expect(await within(win).findByTestId('card-window-roles-stored-error')).toBeInTheDocument()
+      expect(within(win).getByTestId('card-window-role')).toHaveTextContent('Worked out from card text')
+      expect(within(win).queryByRole('button', { name: 'Remove Ramp' })).not.toBeInTheDocument()
+      expect(within(win).queryByRole('combobox', { name: 'Add role' })).not.toBeInTheDocument()
+      first.unmount()
+      rolesResponse = { ok: true, body: { kind: 'roles', roles: ['ramp'], stored: { status: 'no_identity' } } }
+      renderHarness()
+      fireEvent.click(screen.getAllByTestId('card-name-button')[0])
+      expect(await screen.findByTestId('card-window-roles-no-identity')).toBeInTheDocument()
+    })
   })
   it('a click on the checkbox, quantity or status chip does not open it', async () => {
     renderHarness()

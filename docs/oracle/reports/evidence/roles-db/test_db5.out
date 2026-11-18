@@ -209,14 +209,14 @@
 (1 row)
 
 == Rollback: refuses while rows or log rows exist
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118120400_roles_db5_health_targets.rollback.sql:18: ERROR:  cannot roll back: ai_change_log or ai_pending_changes has health_target rows
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118120100_roles_db2_change_kinds.rollback.sql:17: ERROR:  roll back roles_db5, roles_db4 and roles_db3 first
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120400_roles_db5_health_targets.rollback.sql:19: ERROR:  cannot roll back: ai_change_log or ai_pending_changes has health_target rows
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120100_roles_db2_change_kinds.rollback.sql:17: ERROR:  roll back roles_db5, roles_db4 and roles_db3 first
  chk 
 -----
  
 (1 row)
 
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118120400_roles_db5_health_targets.rollback.sql:18: ERROR:  cannot roll back: deck_health_targets holds rows (set oracle.rollback_allow_data_loss = 'yes' in this session to delete them)
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120400_roles_db5_health_targets.rollback.sql:19: ERROR:  cannot roll back: deck_health_targets holds rows (set oracle.rollback_allow_data_loss = 'yes' in this session to delete them)
  chk 
 -----
  

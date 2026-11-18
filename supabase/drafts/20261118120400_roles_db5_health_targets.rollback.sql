@@ -9,6 +9,7 @@ DO $$
 BEGIN
   IF to_regclass('public.deck_health_targets') IS NULL THEN RAISE EXCEPTION 'roles_db5 is not applied'; END IF;
   IF to_regprocedure('public._ai_plan_pre_roles(uuid,text,jsonb)') IS NULL THEN RAISE EXCEPTION 'roles_db2 is not applied; nothing to restore the front doors into'; END IF;
+  IF to_regprocedure('public._ai_plan_pre_strategy(uuid,text,jsonb)') IS NOT NULL THEN RAISE EXCEPTION 'roll back roles_db6 first (its front doors sit on top of DB-5''s)'; END IF;
   IF EXISTS (SELECT 1 FROM public.ai_change_log WHERE kind = 'health_target') OR EXISTS (SELECT 1 FROM public.ai_pending_changes WHERE action = 'health_target') THEN
     RAISE EXCEPTION 'cannot roll back: ai_change_log or ai_pending_changes has health_target rows';
   END IF;

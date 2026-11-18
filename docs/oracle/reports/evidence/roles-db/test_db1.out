@@ -265,14 +265,14 @@
 (1 row)
 
 == second apply must refuse
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118120000_roles_db1_card_roles.draft.sql:36: ERROR:  roles_db1 already applied (a roles table exists)
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120000_roles_db1_card_roles.draft.sql:36: ERROR:  roles_db1 already applied (a roles table exists)
  chk 
 -----
  
 (1 row)
 
 == rollback with rows present must refuse
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118120000_roles_db1_card_roles.rollback.sql:18: ERROR:  cannot roll back: the role tables hold rows (set oracle.rollback_allow_data_loss = 'yes' in this session to delete them)
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120000_roles_db1_card_roles.rollback.sql:18: ERROR:  cannot roll back: the role tables hold rows (set oracle.rollback_allow_data_loss = 'yes' in this session to delete them)
  chk 
 -----
  

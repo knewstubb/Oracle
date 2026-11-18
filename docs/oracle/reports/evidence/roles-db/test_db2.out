@@ -460,21 +460,21 @@
 
 
 == second apply must refuse
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118120100_roles_db2_change_kinds.draft.sql:36: ERROR:  roles_db2 already applied (_ai_plan_pre_roles exists)
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120100_roles_db2_change_kinds.draft.sql:36: ERROR:  roles_db2 already applied (_ai_plan_pre_roles exists)
  chk 
 -----
  
 (1 row)
 
 == rollback while card_label rows exist must refuse
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118120100_roles_db2_change_kinds.rollback.sql:17: ERROR:  cannot roll back: ai_change_log or ai_pending_changes has rows of a roles kind
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120100_roles_db2_change_kinds.rollback.sql:17: ERROR:  cannot roll back: ai_change_log or ai_pending_changes has rows of a roles kind
  chk 
 -----
  
 (1 row)
 
 == clear the new-kind history by hand (test only), then rollback
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118120100_roles_db2_change_kinds.rollback.sql:17: ERROR:  cannot roll back: ai_change_log or ai_pending_changes has rows of a roles kind
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120100_roles_db2_change_kinds.rollback.sql:17: ERROR:  cannot roll back: ai_change_log or ai_pending_changes has rows of a roles kind
  chk 
 -----
  
@@ -565,7 +565,7 @@ psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118
  43 | E2-60 120 cards apply at once: outcome applied, 120 log rows, 120 cards proposed                                                                                                                                                | PASS   | {"ok": true, "res": {"plan": {"n": 120, "cards": [{"job": null, "name": "Big 1", "roles": [{"role": "ramp", "effect": "add", "result": "prop
  44 | E2-61 81 more cards for the same deck within 30 minutes (120 + 81 > 200) wait for the owner: recent_total                                                                                                                       | PASS   | {"ok": true, "res": {"plan": {"n": 81, "cards": [{"job": null, "name": "Big 121", "roles": [{"role": "ramp", "effect": "add", "result": "pro
  45 | E2-62 121 cards do not apply: they wait as over_ten, one waiting request with card_count 121, nothing written yet                                                                                                               | PASS   | {"ok": true, "res": {"plan": {"n": 121, "cards": [{"job": null, "name": "Bgb 1", "roles": [{"role": "ramp", "effect": "add", "result": "prop
- 46 | E2-63 approving applies all 121 (owner approved), one group, 121 log rows marked approved_by_owner, pending marked approved                                                                                                     | PASS   | {"ok": true, "res": {"count": 121, "outcome": "approved", "success": true, "group_id": "6d4d593d-87e6-4745-8cc4-7f73f07b3ea4"}}
+ 46 | E2-63 approving applies all 121 (owner approved), one group, 121 log rows marked approved_by_owner, pending marked approved                                                                                                     | PASS   | {"ok": true, "res": {"count": 121, "outcome": "approved", "success": true, "group_id": "64e653aa-81c1-4fff-a842-e89528c4bebe"}}
  47 | E2-64 Claude cannot undo a batch the owner approved: owner_only, nothing changes                                                                                                                                                | PASS   | {"ok": true, "res": {"refused": {"code": "owner_only"}, "success": false}}
  48 | E2-65 201 cards in one request are refused outright (too_many_cards), 200 wait                                                                                                                                                  | PASS   | {"ok": false, "err": "too_many_cards", "detail": "{\"max\": 200}"}
  49 | E2-66 approving a held request whose card has since gone is refused (failed, slot_not_found), and nothing is written                                                                                                            | PASS   | {"ok": true, "res": {"reason": {"card": "Bgc 7", "code": "slot_not_found", "deck": "Big Bgc"}, "outcome": "failed", "success": false}}

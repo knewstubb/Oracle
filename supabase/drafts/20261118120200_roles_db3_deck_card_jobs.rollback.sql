@@ -7,6 +7,7 @@ BEGIN;
 DO $$
 BEGIN
   IF to_regclass('public.deck_card_jobs') IS NULL THEN RAISE EXCEPTION 'roles_db3 is not applied'; END IF;
+  IF to_regclass('public.deck_job_serves') IS NOT NULL THEN RAISE EXCEPTION 'roll back roles_db6 first (job links need jobs)'; END IF;
   IF to_regprocedure('public._ai_limits_roles()') IS NULL THEN RAISE EXCEPTION 'roles_db2 is not applied; nothing to restore the stubs into'; END IF;
   IF EXISTS (SELECT 1 FROM public.ai_change_log WHERE kind = 'card_label' AND jsonb_typeof(after->'job') = 'object')
      OR EXISTS (SELECT 1 FROM public.ai_pending_changes WHERE action = 'card_label' AND jsonb_path_exists(payload, '$.cards[*].job')) THEN

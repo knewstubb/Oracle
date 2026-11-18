@@ -12,12 +12,13 @@
 -- apply 20261117200000_cc15a_new_change_kinds.sql
 -- apply 20261117200100_cc15b_deck_create_setup.sql
 -- apply 01_seed.sql
-== apply 1, 2, 3, 4
+== apply 1, 2, 3, 4, 5, 6
 -- apply 20261118120000_roles_db1_card_roles.draft.sql
 -- apply 20261118120100_roles_db2_change_kinds.draft.sql
 -- apply 20261118120200_roles_db3_deck_card_jobs.draft.sql
 -- apply 20261118120300_roles_db4_strategy_points.draft.sql
 -- apply 20261118120400_roles_db5_health_targets.draft.sql
+-- apply 20261118140000_roles_db6_deck_strategy.draft.sql
  mkdeck 
 --------
  
@@ -53,15 +54,23 @@
  
 (1 row)
 
-== rollbacks out of order must refuse
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118120000_roles_db1_card_roles.rollback.sql:18: ERROR:  roll back roles_db2 first
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118120100_roles_db2_change_kinds.rollback.sql:17: ERROR:  roll back roles_db5, roles_db4 and roles_db3 first
  chk 
 -----
  
 (1 row)
 
-== roll back 4, 3, 2, 1 (tables empty after the Undo; the log rows of the new kinds are cleared by hand first, test only)
+== rollbacks out of order must refuse
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120000_roles_db1_card_roles.rollback.sql:18: ERROR:  roll back roles_db2 first
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120100_roles_db2_change_kinds.rollback.sql:17: ERROR:  roll back roles_db5, roles_db4 and roles_db3 first
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120200_roles_db3_deck_card_jobs.rollback.sql:19: ERROR:  roll back roles_db6 first (job links need jobs)
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120400_roles_db5_health_targets.rollback.sql:19: ERROR:  roll back roles_db6 first (its front doors sit on top of DB-5's)
+ chk 
+-----
+ 
+(1 row)
+
+== roll back 6, 5, 4, 3, 2, 1 (tables empty after the Undo; the log rows of the new kinds are cleared by hand first, test only)
+-- apply 20261118140000_roles_db6_deck_strategy.rollback.sql
 -- apply 20261118120400_roles_db5_health_targets.rollback.sql
 -- apply 20261118120300_roles_db4_strategy_points.rollback.sql
 -- apply 20261118120200_roles_db3_deck_card_jobs.rollback.sql
@@ -82,12 +91,13 @@ psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118
  
 (1 row)
 
-== the other legal order: 1, 2, 4, 3
+== the other legal order: 1, 2, 4, 3, 5, 6
 -- apply 20261118120000_roles_db1_card_roles.draft.sql
 -- apply 20261118120100_roles_db2_change_kinds.draft.sql
 -- apply 20261118120300_roles_db4_strategy_points.draft.sql
 -- apply 20261118120200_roles_db3_deck_card_jobs.draft.sql
 -- apply 20261118120400_roles_db5_health_targets.draft.sql
+-- apply 20261118140000_roles_db6_deck_strategy.draft.sql
  age 
 -----
  
@@ -103,9 +113,9 @@ psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118
  
 (1 row)
 
-                                  und                                  
------------------------------------------------------------------------
- {"ok": true, "res": {"undone": 1, "success": true, "left_alone": []}}
+ chk 
+-----
+ 
 (1 row)
 
                                   und                                  
@@ -113,7 +123,13 @@ psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118
  {"ok": true, "res": {"undone": 1, "success": true, "left_alone": []}}
 (1 row)
 
-== roll back 3, 4, 2, 1
+                                  und                                  
+-----------------------------------------------------------------------
+ {"ok": true, "res": {"undone": 1, "success": true, "left_alone": []}}
+(1 row)
+
+== roll back 6, 5, 3, 4, 2, 1
+-- apply 20261118140000_roles_db6_deck_strategy.rollback.sql
 -- apply 20261118120400_roles_db5_health_targets.rollback.sql
 -- apply 20261118120200_roles_db3_deck_card_jobs.rollback.sql
 -- apply 20261118120300_roles_db4_strategy_points.rollback.sql
@@ -124,12 +140,13 @@ psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118
  
 (1 row)
 
-== and all four can be applied again after a full rollback
+== and all six can be applied again after a full rollback
 -- apply 20261118120000_roles_db1_card_roles.draft.sql
 -- apply 20261118120100_roles_db2_change_kinds.draft.sql
 -- apply 20261118120200_roles_db3_deck_card_jobs.draft.sql
 -- apply 20261118120300_roles_db4_strategy_points.draft.sql
 -- apply 20261118120400_roles_db5_health_targets.draft.sql
+-- apply 20261118140000_roles_db6_deck_strategy.draft.sql
  chk 
 -----
  
@@ -139,24 +156,26 @@ psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118
 ######## RESULTS ########
  n  |                                                                            name                                                                            | result |                                                                    detail                                                                    
 ----+------------------------------------------------------------------------------------------------------------------------------------------------------------+--------+----------------------------------------------------------------------------------------------------------------------------------------------
-  1 | C-01 all four applied: 3 new tables with row security, 2 shared/personal role tables                                                                       | PASS   | 
+  1 | C-01 all six applied: every new table has row security (not forced)                                                                                        | PASS   | 
   2 | C-02 a role+job request and a strategy point request both apply, in separate groups, one log row per card / point                                          | PASS   | 
   3 | C-03 Recent changes lists both kinds with their sentence data                                                                                              | PASS   | 
   4 | C-04 Claude undoes each batch in one go; every row it wrote is gone                                                                                        | PASS   | 
   5 | C-05 old kinds still work with everything in place (add + Claude undo)                                                                                     | PASS   | 
   6 | C-06 all five applied: a health target request applies, is one batch with one log row per group, and Claude undoes it in one go (the table is empty again) | PASS   | {"ok": true, "res": {"plan": {"n": 2, "action": "health_target", "changes": [{"group": "ramp", "reason": "Chain test", "target": 4, "previou
-  7 | C-10 DB-1 and DB-2 cannot be rolled back while later changes are applied                                                                                   | PASS   | 
-  8 | C-11 all four rolled back in reverse: the database fingerprint equals the one taken before DB-1 (every function, grant, constraint, table, trigger)        | PASS   | 8797325131d8a83a9c6de0822dc1a46d vs 8797325131d8a83a9c6de0822dc1a46d
-  9 | C-12 none of the new tables or functions is left                                                                                                           | PASS   | 
- 10 | C-13 the old connector works after the full rollback (add and Claude undo; old kinds only)                                                                 | PASS   | 
- 11 | C-20 applied as 1, 2, 4, 3: role+job and strategy point requests both work                                                                                 | PASS   | 
- 12 | C-23 applied as 1, 2, 4, 3, 5: a health target request works too                                                                                           | PASS   | 
- 13 | C-21 rolled back as 3, 4, 2, 1: the fingerprint again equals the one before DB-1                                                                           | PASS   | 
- 14 | C-22 re-applied after a full rollback: a role+job request applies                                                                                          | PASS   | 
-(14 rows)
+  7 | C-07 all six applied: an items request applies as one batch and Claude undoes it in one go (the table is empty again)                                      | PASS   | {"ok": true, "res": {"plan": {"n": 2, "cards": [{"kind": "aim", "reason": null, "result": "proposed", "statement": "Chain test aim.", "repla
+  8 | C-10 DB-1, DB-2, DB-3 and DB-5 cannot be rolled back while DB-6 (or any later change) is applied                                                           | PASS   | 
+  9 | C-11 all six rolled back in reverse: the database fingerprint equals the one taken before DB-1 (every function, grant, constraint, table, trigger)         | PASS   | 8797325131d8a83a9c6de0822dc1a46d vs 8797325131d8a83a9c6de0822dc1a46d
+ 10 | C-12 none of the new tables or functions is left                                                                                                           | PASS   | 
+ 11 | C-13 the old connector works after the full rollback (add and Claude undo; old kinds only)                                                                 | PASS   | 
+ 12 | C-20 applied as 1, 2, 4, 3: role+job and strategy point requests both work                                                                                 | PASS   | 
+ 13 | C-23 applied as 1, 2, 4, 3, 5: a health target request works too                                                                                           | PASS   | 
+ 14 | C-24 applied as 1, 2, 4, 3, 5, 6: an items request works too                                                                                               | PASS   | 
+ 15 | C-21 rolled back as 6, 5, 3, 4, 2, 1: the fingerprint again equals the one before DB-1                                                                     | PASS   | 
+ 16 | C-22 re-applied after a full rollback: a role+job request applies                                                                                          | PASS   | 
+(16 rows)
 
  passed | failed 
 --------+--------
-     14 |      0
+     16 |      0
 (1 row)
 

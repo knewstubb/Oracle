@@ -42,12 +42,17 @@ Yedora the Explorer, Rocco's Secret Sauce and Murky Business all use the same fo
 - Numbering to be assigned by Gene.
 
 ## Changed files
-- docs/oracle/contracts/deck-strategy.md — new contract: tables, who writes what, deck brief, tools, Notes rule, undo and 120 limit, identifiers, DB-6 specification, test plan, open points, three-deck table.
+- docs/oracle/contracts/deck-strategy.md — new contract; updated to match the built SQL (file names, evidence cards, delete and accept-all behaviour, copy marker, guard lines in DB-3 and DB-5 rollbacks).
 - docs/oracle/contracts/deck-strategy.types.ts — new types matching the contract.
 - docs/oracle/contracts/card-roles-and-deck-jobs.md — one pointer line to DB-6 in section 11.
-- docs/oracle/specs/card-roles-and-deck-jobs.md — Your strategy layer rewritten (8.6), Serves line (new 6.3a and layout line), staleness and bracket lines (10.4), component and data rows, worked example 13.5, "or job" removed from 10.3 (owner decision), header note.
+- docs/oracle/specs/card-roles-and-deck-jobs.md — Your strategy layer (8.6), Serves line (6.3a), staleness and bracket lines, worked example 13.5.
+- supabase/drafts/20261118140000_roles_db6_deck_strategy.draft.sql and .rollback.sql — DB-6 (not applied).
+- supabase/drafts/20261118140100_roles_db6b_copy_win_conditions.draft.sql and .rollback.sql — optional insert-only copy of written win conditions (not applied).
+- supabase/drafts/20261118120400_roles_db5_health_targets.rollback.sql, ...120200_roles_db3_deck_card_jobs.rollback.sql — one guard line each: refuse while DB-6 is applied. Restore text unchanged.
+- docs/oracle/reports/evidence/roles-db/test_db6.sh (new), test_chain.sh (DB-6 added), and refreshed .out files.
+- docs/oracle/mockups/card-roles-and-deck-jobs.html — version 4: strategy items (empty, Claude proposed, accepted and stale), Serves line states and picker, bracket-first prompt; older strategy tab states no longer show the Win condition field.
+- docs/oracle/reports/2026-11-18-db6-approval-pack.md — owner approval pack.
 - docs/oracle/reports/2026-11-18-architect-deck-strategy-design.md — this report.
-
 ## New decisions made (need owner confirmation)
 - Win condition copied into an item; old text kept untouched (question 1).
 - 7-item cap and per-kind caps (question 2).
@@ -58,7 +63,7 @@ Yedora the Explorer, Rocco's Secret Sauce and Murky Business all use the same fo
 
 ## Assumptions
 - The five drafts DB-1 to DB-5 are the base. Their files say "not applied"; the task says applied. DB-6 checks the objects exist and refuses otherwise, so either way is safe. [Approximate: live state not checked]
-- Whether the existing save routine sets the deck strategy's update time on every Notes change is not confirmed [Approximate]; a test is listed. If it does not, the staleness notice would miss Claude's Notes additions.
+- Confirmed by test F6-105: a Notes change through the connector moves the deck strategy update time, so the staleness notice sees Claude's Notes additions. The owner's route was not run (no app code this round).
 - "Bracket empty on all 21 decks" is taken from the owner's review; the test plan says 19 locked decks, none with a bracket. [Approximate]
 - Corrected strategy text for Yedora, Rocco and Murky Business was not found in the repo; example wording is illustrative.
 - The roles change in question 6 is outside DB-6 and not specified beyond direction.
@@ -66,7 +71,7 @@ Yedora the Explorer, Rocco's Secret Sauce and Murky Business all use the same fo
 ## Challenges to locked decisions
 - D-060 — "Claude updates them itself when the strategy changes", but the connector only acts inside a conversation, so numbers cannot move on their own. Same finding as the earlier report. Suggested change: say "Claude refreshes when asked, and Oracle tells the owner when the strategy changed after the numbers" (the notice in this design).
 - D-060 fallback wording — the bracket-first order (question 5) amends it; proposed, not applied.
-- Flag, not a challenge: the DB-5 rollback draft restores the earlier front doors by replacing them, so it would undo DB-6's if run while DB-6 is applied. It needs one guard line, and DB-6 must be rolled back first. I did not edit the DB-5 draft.
+- Flag, resolved in the build: the DB-5 rollback restores the earlier front doors by replacing them, so it would have undone DB-6's. DB-6 uses the rename technique (no DB-2 or DB-5 body rewritten) and the DB-5 and DB-3 rollback files each got one guard line (refuse while DB-6 is applied). DB-6 must be rolled back first. This edits two unapplied rollback drafts; owner or Gene to confirm that is acceptable.
 
 ## Open questions
 - Owner's answers to questions 1 to 9.
@@ -74,6 +79,9 @@ Yedora the Explorer, Rocco's Secret Sauce and Murky Business all use the same fo
 - Does the old `deck_cards.dead_weight_flag` matter to the owner? Nothing in this design reads or writes it.
 
 ## Verification
-- Read the earlier report, brief, roles contract, spec sections 5, 6, 8, 9, 10, 13, the DB-3, DB-4, DB-5 drafts, `set_deck_setup`, `get_deck`, the strategy and notes routes, vocabulary, process and AGENTS.md.
-- No database contacted; no code, decisions.md or status.md edited; card window, roles and Picklist code untouched.
-- Documents only: no tests were run. The SQL is specified, not written; the next step drafts and rehearses it on a throwaway database.
+Throwaway local Postgres 17 (built and deleted by `evidence/roles-db/run.sh`; the hosted database was never contacted):
+- `./run.sh test_db6` — 111 PASS, 0 FAIL (tables, constraints, Claude proposals, beside wording, caps and the 7 limit, a two-session race, owner functions, links, undo, 7-day window, 120/121/201 and approval of a held request, staleness, old kinds through the new front doors, row security and grants for a second user and anon, win condition copy, rollback refusals, exact rollback, re-apply, full-stack rollback).
+- `./run.sh test_chain` — 16 PASS, 0 FAIL (all six in two legal orders, out-of-order rollbacks refused, reverse rollback restores the exact earlier state, re-apply).
+- `./run.sh test_db1` 51, `test_db2` 84, `test_db3` 56, `test_db4` 52, `test_db5` 44: all PASS, 0 FAIL (unchanged by DB-6 and the two guard lines).
+- Mockup: HTML parsed with no unclosed tags; state K screenshotted in a browser and read. Not tested against the running app (no app code exists yet).
+- decisions.md, status.md, card window code, roles code and Picklist components not touched.

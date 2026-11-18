@@ -1,0 +1,775 @@
+== cluster: PostgreSQL 17.12 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.4.1.1), 64-bit port 55434 (throwaway, deleted at end)
+-- apply 00_base.sql
+-- apply 20261116130000_connector_connections.sql
+-- apply 20261116150000_ai_change_log_and_pending.sql
+-- apply 20261116150100_ai_connector_edit_rpcs.sql
+-- apply 20261116150200_ai_undo_blocker_make_original_fix.sql
+-- apply 20261116150300_ai_list_recent_changes_zone_to.sql
+-- apply 20261116190000_ai_deck_category.sql
+-- apply 20261117100000_cc13_loosen_limits.sql
+-- apply 20261023170100_set_deck_command_zone.sql
+-- apply 20261117120000_ai_change_log_allow_deck_delete.sql
+-- apply 20261117200000_cc15a_new_change_kinds.sql
+-- apply 20261117200100_cc15b_deck_create_setup.sql
+-- apply 01_seed.sql
+-- apply 20261118120000_roles_db1_card_roles.draft.sql
+-- apply 20261118120100_roles_db2_change_kinds.draft.sql
+-- apply 20261118120200_roles_db3_deck_card_jobs.draft.sql
+-- apply 20261118120300_roles_db4_strategy_points.draft.sql
+-- apply 20261118120400_roles_db5_health_targets.draft.sql
+== before DB-6: refused, and a wrong base is refused
+ chk 
+-----
+ 
+(1 row)
+
+== DB-6 on a wrong base (DB-5 rolled back) is refused
+-- apply 20261118120400_roles_db5_health_targets.rollback.sql
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118140000_roles_db6_deck_strategy.draft.sql:41: ERROR:  apply roles_db5 first
+ chk 
+-----
+ 
+(1 row)
+
+-- apply 20261118120400_roles_db5_health_targets.draft.sql
+== apply DB-6
+-- apply 20261118140000_roles_db6_deck_strategy.draft.sql
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== Claude proposes items (strategy first, Urza / Arti-facts example)
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== The owner decides; Claude never overwrites the owner's item
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== Owner saves, caps and the 7-item limit
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== Two sessions at once cannot both pass the cap
+ chk 
+-----
+ 
+(1 row)
+
+== Deleting an item
+ chk 
+-----
+ 
+(1 row)
+
+== Jobs and links
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== More link behaviour: points, the owner's link, beside, clear, jobs that go away
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== Undo of links, the 7-day window, owner undo with left-alone
+ age 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ expire 
+--------
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== Limits: 120 links apply, 121 wait, 201 refused; approving a held request
+ age 
+-----
+ 
+(1 row)
+
+ mkdeck 
+--------
+ 
+(1 row)
+
+ mkdeck 
+--------
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== Strategy changed since Claude set the numbers
+ age 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== Old kinds still run through the new front doors
+ age 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== Row security and who may call what
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== The one-time copy of written win conditions (DB-6b)
+-- apply 20261118140100_roles_db6b_copy_win_conditions.draft.sql
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118140100_roles_db6b_copy_win_conditions.draft.sql:41: NOTICE:  win condition copy: 3 decks copied, 1 skipped as too long (over 300 characters), 1 skipped because the deck is full, 2 have no written win condition
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+-- apply 20261118140100_roles_db6b_copy_win_conditions.draft.sql
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118140100_roles_db6b_copy_win_conditions.draft.sql:41: NOTICE:  win condition copy: 0 decks copied, 1 skipped as too long (over 300 characters), 1 skipped because the deck is full, 2 have no written win condition
+ chk 
+-----
+ 
+(1 row)
+
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118140100_roles_db6b_copy_win_conditions.rollback.sql:16: ERROR:  cannot roll back: a copied win condition was changed since the copy
+ chk 
+-----
+ 
+(1 row)
+
+-- apply 20261118140100_roles_db6b_copy_win_conditions.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+== Rollback: refuses while rows or log rows exist; later drafts refuse while DB-6 is applied
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118140000_roles_db6_deck_strategy.rollback.sql:21: ERROR:  cannot roll back: ai_change_log or ai_pending_changes has strategy_item or job_link rows
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120400_roles_db5_health_targets.rollback.sql:19: ERROR:  roll back roles_db6 first (its front doors sit on top of DB-5's)
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120300_roles_db4_strategy_points.rollback.sql:17: ERROR:  cannot roll back: ai_change_log or ai_pending_changes has strategy_point rows
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120200_roles_db3_deck_card_jobs.rollback.sql:19: ERROR:  roll back roles_db6 first (job links need jobs)
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120100_roles_db2_change_kinds.rollback.sql:17: ERROR:  roll back roles_db5, roles_db4 and roles_db3 first
+ chk 
+-----
+ 
+(1 row)
+
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118140000_roles_db6_deck_strategy.rollback.sql:21: ERROR:  cannot roll back: ai_change_log or ai_pending_changes has strategy_item or job_link rows
+ chk 
+-----
+ 
+(1 row)
+
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118140000_roles_db6_deck_strategy.rollback.sql:21: ERROR:  cannot roll back: deck_strategy_items or deck_job_serves holds rows (set oracle.rollback_allow_data_loss = 'yes' in this session to delete them)
+ chk 
+-----
+ 
+(1 row)
+
+== rollback with the explicit data-loss setting
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ age 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== re-apply, use, and roll back with empty tables (no override needed)
+-- apply 20261118140000_roles_db6_deck_strategy.draft.sql
+ chk 
+-----
+ 
+(1 row)
+
+-- apply 20261118140000_roles_db6_deck_strategy.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+== and the whole stack rolls back to the state before DB-1
+ chk 
+-----
+ 
+(1 row)
+
+
+######## RESULTS ########
+  n  |                                                                                                                                    name                                                                                                                                     | result |                                                                    detail                                                                    
+-----+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------+----------------------------------------------------------------------------------------------------------------------------------------------
+   1 | F6-00 before DB-6 an items request and a links request are refused and write nothing                                                                                                                                                                                        | PASS   | 
+   2 | F6-00b DB-6 refuses to apply without DB-5 and creates nothing                                                                                                                                                                                                               | PASS   | 
+   3 | F6-01 both tables exist with row security (not forced); the new functions exist; the four fronts exist and so do their *_pre_strategy originals                                                                                                                             | PASS   | 
+   4 | F6-01b the DB-5 front doors are only renamed: their text still mentions health_target and the DB-2 handoff (_pre_roles), and DB-6 fronts hand over to _pre_strategy                                                                                                         | PASS   | 
+   5 | F6-02 the allow-lists accept the two new names, still accept every old one, and reject an invented one                                                                                                                                                                      | PASS   | 
+   6 | F6-03 limits function equals the numbers in the types file                                                                                                                                                                                                                  | PASS   | {"aim_max": 1, "based_on_max": 5, "reason_max_chars": 200, "win_condition_max": 3, "items_per_deck_max": 7, "commander_enables_max": 3, "ite
+   7 | F6-04 item constraints: kind from the list; statement 1 to 300 and trimmed; owner row accepted; Claude row not accepted; owner row carries no batch, replacement or evidence; evidence 1 to 5; not its own replacement                                                      | PASS   | 
+   8 | F6-05 link constraints: exactly one target; owner row accepted; one owner row and one Claude row per card; an item of another deck is refused (same-deck key); deleting a deck, an item or a point removes its links                                                        | PASS   | 
+   9 | F6-06 link constraints in action                                                                                                                                                                                                                                            | PASS   | 
+  10 | F6-07 deleting an item removes its links                                                                                                                                                                                                                                    | PASS   | 
+  11 | F6-10 a dry run says would_apply, shows 3 changes and writes nothing                                                                                                                                                                                                        | PASS   | {"ok": true, "res": {"plan": {"n": 3, "cards": [{"kind": "aim", "reason": "Urza makes artifacts tap for mana.", "result": "proposed", "state
+  12 | F6-11 a request applies at once: 3 Claude rows waiting, one batch, evidence stored as oracle ids, one log row per item named by kind, none counted as the owner's                                                                                                           | PASS   | {"ok": true, "res": {"plan": {"n": 3, "cards": [{"kind": "aim", "reason": "Urza makes artifacts tap for mana.", "result": "proposed", "state
+  13 | F6-12 the same request again changes nothing (nothing_to_change) and writes nothing                                                                                                                                                                                         | PASS   | 
+  14 | F6-13 Recent changes lists the batch with 3 rows and no blocker                                                                                                                                                                                                             | PASS   | 
+  15 | F6-14 refusals write nothing: unknown kind, empty, 301 characters, blank reason is fine but 201 is not, 8 items, 6 evidence cards, evidence from a slot with the wrong name, a card of another deck, a made-up replaces_id, no deck, user 2's deck, switched-off connection | PASS   | 
+  16 | F6-15 a second Aim from Claude is skipped as kind_full (the other item in the same request still applies)                                                                                                                                                                   | PASS   | {"ok": true, "res": {"plan": {"n": 1, "cards": [{"kind": "commander_enables", "reason": null, "result": "proposed", "statement": "Urza makes
+  17 | F6-20 Accept turns the Claude item into the owner's, same id, no batch, no evidence, state accepted; the returned previous row is the Claude one                                                                                                                            | PASS   | {"current": {"id": 18, "kind": "aim", "state": "accepted", "reason": "Urza makes artifacts tap for mana.", "deck_id": 100, "user_id": "00000
+  18 | F6-21 Claude cannot undo the first batch any more (one item is the owner's now): changed_since, and nothing at all changed (all or nothing)                                                                                                                                 | PASS   | {"ok": true, "res": {"refused": {"card": "Aim: Turn artifacts into mana and cast one huge spell.", "code": "changed_since", "deck": "Manual"
+  19 | F6-22 Claude's new wording for the owner's Aim is a second row BESIDE it; the owner's row is byte for byte unchanged and still in force                                                                                                                                     | PASS   | {"ok": true, "res": {"plan": {"n": 1, "cards": [{"kind": "aim", "reason": "Shorter.", "result": "beside_yours", "statement": "Cast one huge 
+  20 | F6-23 a second proposal for the same item rewrites the same beside row (still one), the log keeps the earlier wording, and the owner's row is still unchanged                                                                                                               | PASS   | {"ok": true, "res": {"plan": {"n": 1, "cards": [{"kind": "aim", "reason": null, "result": "beside_yours", "statement": "Cast one huge spell 
+  21 | F6-24 Claude undoes the rewording: the earlier beside wording is back                                                                                                                                                                                                       | PASS   | {"ok": true, "res": {"undone": 1, "success": true, "left_alone": []}}
+  22 | F6-25 wording identical to the owner's is skipped (nothing_to_change); a replaces_id of a beside row or of another kind is refused (bad_replaces)                                                                                                                           | PASS   | 
+  23 | F6-26 Accept on the beside row writes the new wording into the owner's item (same id) and removes the beside row                                                                                                                                                            | PASS   | {"current": {"id": 18, "kind": "aim", "state": "accepted", "reason": "Shorter.", "deck_id": 100, "user_id": "00000000-0000-0000-0000-0000000
+  24 | F6-27 Claude may rewrite its OWN waiting item in place (same id, rewrote_own); the earlier wording is in the log; Undo puts it back                                                                                                                                         | PASS   | {"ok": true, "res": {"plan": {"n": 1, "cards": [{"kind": "commander_enables", "reason": null, "result": "rewrote_own", "statement": "Urza tu
+  25 | F6-28 Undo of the rewrite restores the earlier wording                                                                                                                                                                                                                      | PASS   | {"ok": true, "res": {"undone": 1, "success": true, "left_alone": []}}
+  26 | F6-29 Dismiss keeps the row as dismissed (the memory); Claude proposing the same sentence again is skipped as previously_dismissed; a different sentence is accepted                                                                                                        | PASS   | 
+  27 | F6-30 owner create trims and stores an owner row; owner edit of a Claude item makes it the owner's (batch, evidence cleared); both return previous for the 10-second Undo                                                                                                   | PASS   | 
+  28 | F6-31 owner refusals: same sentence (item_exists), kind change, wrong deck, missing item, bad kind, bad statement                                                                                                                                                           | PASS   | 
+  29 | F6-32 Aim 1, What the commander enables 3, Win condition 3: a 4th Win condition and a 2nd Aim are refused for the owner (kind_full); a replacement does not count                                                                                                           | PASS   | 
+  30 | F6-33 one Play it like line per deck (second refused); the Claude proposal for a second one is skipped as kind_full                                                                                                                                                         | PASS   | 
+  31 | F6-34 the deck has 7 items now: the owner's 8th is refused (deck_items_full) even though the kind has room; Claude's is skipped as deck_items_full                                                                                                                          | PASS   | 
+  32 | F6-35 Claude's item beyond 7 is skipped with why deck_items_full and nothing is written                                                                                                                                                                                     | PASS   | {"ok": false, "err": "nothing_to_change", "detail": "{\"deck\": \"Manual\", \"skipped\": [{\"why\": \"deck_items_full\", \"kind\": \"command
+  33 | F6-36 at 7 items a Claude rewording still goes beside the owner's item (it does not count toward the 7)                                                                                                                                                                     | PASS   | {"ok": true, "res": {"plan": {"n": 1, "cards": [{"kind": "win_condition", "reason": null, "result": "beside_yours", "statement": "Claude wou
+  34 | F6-37 Accept-all accepts waiting Claude items but leaves a rewording beside an owner item for its own decision                                                                                                                                                              | PASS   | {"accepted": 2, "left_beside": 1}
+  35 | F6-38 accept-all needs a scope; user 2 cannot use user 1's deck                                                                                                                                                                                                             | PASS   | 
+  36 | F6-39 two sessions saving an Aim for the same deck at once: the second waits for the first and is then refused (kind_full); exactly one Aim exists                                                                                                                          | PASS   | kind_full
+  37 | F6-40 owner delete removes the item, returns it, and the Claude rewording that sat beside it is kept as dismissed (so no kind goes over its limit)                                                                                                                          | PASS   | {"deleted": {"id": 20, "kind": "win_condition", "state": "accepted", "reason": null, "deck_id": 100, "user_id": "00000000-0000-0000-0000-000
+  38 | F6-50 setup: Card 2 and Card 3 have owner jobs, Card 4 a waiting Claude job, Card 6 "no job on purpose", Card 5 nothing                                                                                                                                                     | PASS   | {"ok": true, "res": {"plan": {"n": 1, "cards": [{"job": {"name": "Enabler", "reason": "Makes mana", "result": "proposed"}, "name": "Card 4",
+  39 | F6-51 a links dry run says would_apply with 3 changes and writes nothing                                                                                                                                                                                                    | PASS   | {"ok": true, "res": {"plan": {"n": 3, "cards": [{"result": "proposed", "serves": {"id": 18, "kind": "item"}, "slot_id": 2, "card_name": "Car
+  40 | F6-52 links apply at once: 3 Claude rows waiting in one batch with one log row per card (oracle id and printing recorded); Card 5 (no job) and Card 6 (no job on purpose) are skipped as no_job                                                                             | PASS   | {"ok": true, "res": {"plan": {"n": 3, "cards": [{"result": "proposed", "serves": {"id": 18, "kind": "item"}, "slot_id": 2, "card_name": "Car
+  41 | F6-53 the same links again are unchanged (nothing_to_change); only a no-job card gives nothing_to_change too                                                                                                                                                                | PASS   | 
+  42 | F6-54a link refusal: both targets writes nothing                                                                                                                                                                                                                            | PASS   | 
+  43 | F6-54b link refusal: neither target writes nothing                                                                                                                                                                                                                          | PASS   | 
+  44 | F6-54c link refusal: made-up item writes nothing                                                                                                                                                                                                                            | PASS   | 
+  45 | F6-54d link refusal: made-up point writes nothing                                                                                                                                                                                                                           | PASS   | 
+  46 | F6-54e link refusal: dismissed item writes nothing                                                                                                                                                                                                                          | PASS   | 
+  47 | F6-54f link refusal: beside row writes nothing                                                                                                                                                                                                                              | PASS   | 
+  48 | F6-54g link refusal: repeated card writes nothing                                                                                                                                                                                                                           | PASS   | 
+  49 | F6-54h link refusal: wrong name writes nothing                                                                                                                                                                                                                              | PASS   | 
+  50 | F6-54i link refusal: user 2 writes nothing                                                                                                                                                                                                                                  | PASS   | 
+  51 | F6-54j link refusal: switched-off connection writes nothing                                                                                                                                                                                                                 | PASS   | 
+  52 | F6-54k none of those refusals wrote anything                                                                                                                                                                                                                                | PASS   | 
+  53 | F6-60 a link to a strategy POINT works; Claude rewriting its own waiting link keeps the earlier target in the log                                                                                                                                                           | PASS   | {"ok": true, "res": {"plan": {"n": 1, "cards": [{"result": "proposed", "serves": {"id": 1, "kind": "point"}, "slot_id": 4, "card_name": "Car
+  54 | F6-61 Undo of the rewrite points the link back at the Aim                                                                                                                                                                                                                   | PASS   | {"ok": true, "res": {"undone": 1, "success": true, "left_alone": []}}
+  55 | F6-62 the owner sets Card 2's link; the waiting Claude link (to the Aim) stays beside it; the effective link is the owner's                                                                                                                                                 | PASS   | {"current": {"id": 14, "state": "accepted", "deck_id": 100, "user_id": "00000000-0000-0000-0000-000000000001", "batch_id": null, "proposer":
+  56 | F6-63 Claude proposing exactly what the owner chose is unchanged (nothing written)                                                                                                                                                                                          | PASS   | {"ok": false, "err": "nothing_to_change", "detail": "{\"deck\": \"Manual\", \"skipped\": [{\"why\": \"unchanged\", \"slot_id\": 2, \"card_na
+  57 | F6-64 a different link for a card the owner already linked is written beside the owner's (beside_yours); the owner row is untouched                                                                                                                                         | PASS   | {"ok": true, "res": {"plan": {"n": 1, "cards": [{"result": "beside_yours", "serves": {"id": 1, "kind": "point"}, "slot_id": 2, "card_name": 
+  58 | F6-65 clear removes the owner's link and sets the waiting Claude link to dismissed, so the card really has no link; Claude proposing the dismissed target again is skipped                                                                                                  | PASS   | {"current": null, "previous": {"id": 14, "state": "accepted", "deck_id": 100, "user_id": "00000000-0000-0000-0000-000000000001", "batch_id":
+  59 | F6-66 Accept turns Card 3's Claude link into the owner's                                                                                                                                                                                                                    | PASS   | {"current": {"id": 12, "state": "accepted", "deck_id": 100, "user_id": "00000000-0000-0000-0000-000000000001", "batch_id": null, "proposer":
+  60 | F6-67 Dismiss keeps Card 4's link row as dismissed; deciding with nothing waiting is no_proposal; a bad decision is refused                                                                                                                                                 | PASS   | 
+  61 | F6-68 owner link refusals: no job (Card 5), a card not in the deck, a made-up item, a dismissed item, bad action, bad target, another user                                                                                                                                  | PASS   | 
+  62 | F6-69 when a card's job is cleared its link is not shown (no effective link) and a new link is refused; when the job comes back the link comes back                                                                                                                         | PASS   | 
+  63 | F6-70 the link is back with the job                                                                                                                                                                                                                                         | PASS   | 
+  64 | F6-71 the reader works for the owner of the deck only                                                                                                                                                                                                                       | PASS   | 
+  65 | F6-72 deleting an item removes the links that pointed at it and returns them (for the 10-second Undo)                                                                                                                                                                       | PASS   | {"deleted": {"id": 19, "kind": "commander_enables", "state": "accepted", "reason": null, "deck_id": 100, "user_id": "00000000-0000-0000-0000
+  66 | F6-80 Claude cannot undo the batch (Card 8's link was dismissed by the owner): changed_since and nothing changes                                                                                                                                                            | PASS   | {"ok": true, "res": {"refused": {"card": "Card 8", "code": "changed_since", "deck": "Manual", "what": "link"}, "success": false}}
+  67 | F6-81 the owner's undo restores Card 7 (link gone) and lists Card 8 as left alone                                                                                                                                                                                           | PASS   | {"ok": true, "res": {"undone": 1, "success": true, "left_alone": [{"card": "Card 8", "deck": "Manual", "what": "link"}]}}
+  68 | F6-82 undoing again: nothing is left for the owner to restore (nothing_to_undo; Card 8 is still the owner's), and Claude still cannot undo the batch (changed_since)                                                                                                        | PASS   | 
+  69 | F6-83 after 7 days Undo is closed for Claude and the owner (window_closed)                                                                                                                                                                                                  | PASS   | 
+  70 | F6-84 Claude undoes an items batch in one go: both rows are gone, both log rows marked undone by claude                                                                                                                                                                     | PASS   | {"ok": true, "res": {"undone": 2, "success": true, "left_alone": []}}
+  71 | F6-85 user 2 cannot undo or see user 1's batch                                                                                                                                                                                                                              | PASS   | 
+  72 | F6-90 120 links apply at once: 120 rows, 120 log rows, one batch                                                                                                                                                                                                            | PASS   | {"ok": true, "res": {"plan": {"n": 120, "cards": [{"result": "proposed", "serves": {"id": 33, "kind": "item"}, "slot_id": 17, "card_name": "
+  73 | F6-91 121 links wait for the owner as over_ten and write nothing yet                                                                                                                                                                                                        | PASS   | {"ok": true, "res": {"plan": {"n": 121, "cards": [{"result": "proposed", "serves": {"id": 34, "kind": "item"}, "slot_id": 147, "card_name": 
+  74 | F6-92 201 links are refused outright (too_many_cards)                                                                                                                                                                                                                       | PASS   | 
+  75 | F6-93 approving the held request applies the 121 links, marked approved by the owner, and Claude cannot undo an approved batch (owner_only)                                                                                                                                 | PASS   | {"ok": true, "res": {"count": 121, "outcome": "approved", "success": true, "group_id": "d1b3081a-cf13-4324-bcb3-aacb51fe24c4"}}
+  76 | F6-94 rows the owner approved do not count toward the 30-minute total, so a small follow-up request for the same deck applies at once                                                                                                                                       | PASS   | {"ok": true, "res": {"plan": {"n": 4, "cards": [{"result": "proposed", "serves": {"id": 34, "kind": "item"}, "slot_id": 268, "card_name": "H
+  77 | F6-96 deleting a deck removes its items and its links (cascade)                                                                                                                                                                                                             | PASS   | 
+  78 | F6-100 no Claude numbers yet: claude_set_at is null and stale is false even though the deck has strategy                                                                                                                                                                    | PASS   | {"stale": false, "claude_set_at": null, "strategy_changed_at": "2026-11-19T10:36:20.122903+13:00"}
+  79 | F6-101 targets set after the last strategy change: not stale                                                                                                                                                                                                                | PASS   | {"stale": false, "claude_set_at": "2026-11-19T10:36:23.385357+13:00", "strategy_changed_at": "2026-11-19T10:36:23.238689+13:00"}
+  80 | F6-102 the owner edits an item after Claude set the numbers: stale                                                                                                                                                                                                          | PASS   | {"stale": true, "claude_set_at": "2026-11-19T10:36:23.385357+13:00", "strategy_changed_at": "2026-11-19T10:36:23.38778+13:00"}
+  81 | F6-103 Claude sets the numbers again: stale is cleared                                                                                                                                                                                                                      | PASS   | {"stale": false, "claude_set_at": "2026-11-19T10:36:23.388804+13:00", "strategy_changed_at": "2026-11-19T10:36:23.38778+13:00"}
+  82 | F6-104 dismissing a row or deleting an item does not mark the numbers stale (documented limit: a delete leaves no update time)                                                                                                                                              | PASS   | {"stale": false, "claude_set_at": "2026-11-19T10:36:23.388804+13:00", "strategy_changed_at": "2026-11-19T10:36:23.38778+13:00"}
+  83 | F6-105 a Notes change through the connector moves deck_strategy.updated_at and marks the numbers stale                                                                                                                                                                      | PASS   | {"stale": true, "claude_set_at": "2026-11-19T10:36:23.388804+13:00", "strategy_changed_at": "2026-11-19T10:36:23.391279+13:00"}{"count": 1, 
+  84 | F6-106 an owner-only override is not a Claude number: claude_set_at stays null and stale false                                                                                                                                                                              | PASS   | {"stale": false, "claude_set_at": null, "strategy_changed_at": "2026-11-19T10:36:20.122903+13:00"}
+  85 | F6-107 the readers are read-only and refuse another user                                                                                                                                                                                                                    | PASS   | 
+  86 | F6-110 deck_add applies and Claude undoes it                                                                                                                                                                                                                                | PASS   | {"ok": true, "res": {"undone": 1, "success": true}}
+  87 | F6-111 card_label (role + job) applies and Claude undoes it                                                                                                                                                                                                                 | PASS   | {"ok": true, "res": {"undone": 1, "success": true, "left_alone": []}}
+  88 | F6-112 strategy_point applies and Claude undoes it                                                                                                                                                                                                                          | PASS   | {"ok": true, "res": {"undone": 1, "success": true, "left_alone": []}}
+  89 | F6-113 health_target applies and Claude undoes it                                                                                                                                                                                                                           | PASS   | {"ok": true, "res": {"undone": 1, "success": true, "left_alone": []}}
+  90 | F6-114 deck_category applies                                                                                                                                                                                                                                                | PASS   | {"ok": true, "res": {"plan": {"n": 1, "cards": [{"to": ["Mana Rocks"], "from": ["Other"], "name": "Card 1", "quantity": 1}], "action": "deck
+  91 | F6-115 the append-only guard still blocks any change to an item or link log row (before, after, card, kind)                                                                                                                                                                 | PASS   | 
+  92 | F6-120 signed-in user 2 sees only their own rows in both tables                                                                                                                                                                                                             | PASS   | 
+  93 | F6-121 signed-in users cannot insert, update, delete or call any DB-6 function (also not the four front doors)                                                                                                                                                              | PASS   | permission denied for table deck_strategy_items | permission denied for function owner_save_strategy_item | permission denied for function _
+  94 | F6-122 with write access wrongly granted, user 2 still changes 0 of user 1's rows and cannot plant one for them (row security)                                                                                                                                              | PASS   | {"ok": true, "res": 0}{"ok": true, "res": 0}new row violates row-level security policy for table "deck_strategy_items"new row violates row-l
+  95 | F6-123 the anonymous role cannot read either table                                                                                                                                                                                                                          | PASS   | 
+  96 | F6-124 service-role-only grants: no function of DB-6 (new or renamed or the four fronts) is executable by PUBLIC, anon or signed-in users                                                                                                                                   | PASS   | 
+  97 | F6-140 the copy made 3 Win condition items marked "Set by you" (owner, accepted): 701 trimmed, 704 multi-line as one item, user 2's deck for user 2                                                                                                                         | PASS   | 
+  98 | F6-141 skipped, not cut: the 301-character text (702), the blank one (703) and the deck that already has 3 Win conditions (400)                                                                                                                                             | PASS   | 
+  99 | F6-142 the old written win condition is untouched: every deck_strategy row is byte for byte the same                                                                                                                                                                        | PASS   | 
+ 100 | F6-143 running the copy a second time makes no second copy                                                                                                                                                                                                                  | PASS   | 
+ 101 | F6-144 the copy's rollback refuses while a copied item was changed since (nothing removed)                                                                                                                                                                                  | PASS   | 
+ 102 | F6-145 the copy's rollback deletes only the unedited copies (701 and user 2's); the one the owner edited stays; the old text is still identical                                                                                                                             | PASS   | 
+ 103 | F6-150 DB-6 cannot be rolled back while item or link log rows exist; DB-5, DB-4, DB-3 and DB-2 cannot be rolled back while DB-6 is applied (nothing was removed)                                                                                                            | PASS   | 
+ 104 | F6-151 with the log cleared but a pending request still waiting or held, DB-6 still cannot be rolled back                                                                                                                                                                   | PASS   | 
+ 105 | F6-152 DB-6 cannot be rolled back while the tables hold rows, even with the log cleared                                                                                                                                                                                     | PASS   | 
+ 106 | F6-153 rollback with the override: both tables, all new and renamed functions and the new names in the allow-lists are gone                                                                                                                                                 | PASS   | 
+ 107 | F6-154 rollback restores the DB-5 state EXACTLY: every function (text and grants), constraint, table and trigger fingerprint equals the one taken after DB-5, including the four front doors                                                                                | PASS   | aec1f5758ffcef6c5ed5f459fe35c79b
+ 108 | F6-155 after the rollback an items request is refused again and writes nothing; role, job, point and health requests still work                                                                                                                                             | PASS   | 
+ 109 | F6-156 re-apply works, an items request applies, and Claude can undo it                                                                                                                                                                                                     | PASS   | 
+ 110 | F6-157 rollback with empty tables needs no override and again restores the exact DB-5 state                                                                                                                                                                                 | PASS   | 
+ 111 | F6-158 DB-5 to DB-1 rolled back after DB-6: the fingerprint equals the one taken before DB-1 (the live state)                                                                                                                                                               | PASS   | 
+(111 rows)
+
+ passed | failed 
+--------+--------
+    111 |      0
+(1 row)
+

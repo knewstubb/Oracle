@@ -37,6 +37,7 @@ export interface SearchCollectionInput {
   mana_value_max?: number // integer 0-20
   location?: string // a deck name, box/binder name, or the words "In your hand" / "Missing" (case-insensitive, exact)
   only_free?: boolean // CHANGED: copies in no deck AND not In your hand AND not Missing (was: not in any deck)
+  include_trade?: boolean // CC-25 (draft): true = also count copies in places the owner marked Trade. Default: they are left out, unless `location` names the place. Has no effect until the CC-25 database draft is applied.
   include_proxies?: boolean // unchanged; default true
   only_proxies?: boolean // NEW; cannot be combined with include_proxies=false
   text?: string // CC-14: 1-100 chars, at most 8 words; searched in rules text (either face). Needs card facts.
@@ -95,6 +96,7 @@ export interface CollectionSummaryInput {
   mana_value_max?: number
   location?: string
   only_free?: boolean
+  include_trade?: boolean // CC-25, same meaning as search
   include_proxies?: boolean
   only_proxies?: boolean
   text?: string // CC-14, same meaning as search

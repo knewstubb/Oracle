@@ -70,7 +70,7 @@ export function resetIds() {
 /** Build a view row the way the real view would, from a library card and where the copy is. */
 export function copyRow(
   lib: LibCard | null,
-  opts: { name?: string; user?: string; proxy?: boolean; deck?: string | null; box?: string | null; hand?: boolean; missing?: boolean; id?: number } = {},
+  opts: { name?: string; user?: string; proxy?: boolean; deck?: string | null; box?: string | null; hand?: boolean; missing?: boolean; id?: number; boxId?: number } = {},
 ): ViewRow {
   const name = opts.name ?? lib?.name ?? 'Unknown'
   if (!cardIds.has(name)) cardIds.set(name, nextCard++)
@@ -98,7 +98,7 @@ export function copyRow(
     place_kind: missing ? 'missing' : hand ? 'in_hand' : deck ? 'deck' : box ? 'storage' : 'unplaced',
     deck_id: deck ? 1 : null,
     deck_name: deck,
-    location_id: box ? 5 : null,
+    location_id: box ? (opts.boxId ?? 5) : null,
     storage_name: box,
     is_free: !missing && !hand && !deck,
     facts_available: !!lib,
@@ -183,6 +183,10 @@ export interface ViewDbOptions {
   library?: LibCard[]
   /** Make a table fail: any query on it returns an error. */
   failTable?: string
+  /** CC-25: the owner's Trade places (answer to the user_locations read). */
+  tradePlaces?: { id: number; name: string }[]
+  /** CC-25: make the user_locations read fail with this message (for example the missing column before the draft is applied). */
+  locationsError?: string
   /** Called for every query on the view (after filtering), to inspect or count. */
   onView?: (q: RecordedQuery, matched: number) => void
 }
@@ -196,6 +200,7 @@ export function viewDb(view: ViewRow[], opts: ViewDbOptions = {}) {
       opts.onView?.(q, r.total)
       return { data: r.rows }
     }
+    if (q.table === 'user_locations') return opts.locationsError ? { error: { message: opts.locationsError } } : { data: opts.tradePlaces ?? [] }
     if (q.table === 'ref_cards') {
       const inF = q.filters.find((f) => f.op === 'in')
       const names = inF ? (inF.args[1] as string[]) : []

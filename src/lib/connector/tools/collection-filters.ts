@@ -35,6 +35,7 @@ export const filterFields = {
   mana_value_max: z.number().int().min(0).max(20).optional().describe('Highest mana value, inclusive.'),
   location: z.string().trim().min(1).max(100).optional().describe('A deck name, a box or binder name, or the words "In your hand" or "Missing" (not case sensitive, whole name).'),
   only_free: z.boolean().optional().describe('Only copies that are free: in no deck, not In your hand, and not Missing.'),
+  include_trade: z.boolean().optional().describe('Copies in places the owner marked as Trade places (for example a trade binder) are left out by default, because they are not meant for decks. true = count them too. Naming such a place in location also includes it.'),
   include_proxies: z.boolean().optional().describe('Include proxy copies. Default true.'),
   only_proxies: z.boolean().optional().describe('Only proxy copies. Cannot be combined with include_proxies=false.'),
   text: z.string().trim().min(1).max(100).optional().describe('Words in the card\'s rules text, either face (not case sensitive, partial words count: "counter" finds "counters"). Real rules text says "put" not "puts" and "this creature" not the card\'s name, so search for the stable words ("+1/+1 counter") rather than a sentence. Up to 8 words. Needs card facts.'),

@@ -20,6 +20,7 @@ export interface NarrowRow {
   primary_type?: string | null
   colour_letters?: string | null
   place_kind?: string
+  location_id?: number | null
   deck_name?: string | null
   storage_name?: string | null
   t_creature?: boolean

@@ -6,7 +6,7 @@
 // Any failed read is LookupFailed (D-030): never a short list, never "none".
 import { CLASSIFIER_VERSION, hasClassifiableText, rolesForCard, type Role } from '../../card-roles'
 import { matchesRulesText } from './rules-text-match'
-import { fetchAll, LookupFailed, type ToolContext } from './common'
+import { fetchAll, LookupFailed, rows as resultRows, type ToolContext } from './common'
 import { parseTypeLine, hasCardType, hasSupertype, type ParsedTypeLine } from '../../type-line'
 import { applyPushdown, factFilterNames, norm, type CollectionFilters } from './collection-filters'
 import { NARROW_COLS, readMatchingCopies, scopedView, type NarrowRow } from './collection-view'
@@ -45,10 +45,38 @@ export interface MatchResult {
 }
 
 
-function columnsFor(f: CollectionFilters, extra: string[] = []): string {
+/** CC-25: a place the owner marked as a Trade place. Needs the CC-25 database draft; until it is applied there are none. */
+export interface TradePlace {
+  id: number
+  name: string
+}
+/**
+ * The owner's Trade places. Safe before the CC-25 draft is applied: the database then says the column is missing,
+ * and that one error means "no Trade places". Any other error is LookupFailed (D-030), never a quiet "none".
+ */
+export async function loadTradePlaces(ctx: ToolContext): Promise<TradePlace[]> {
+  let r
+  try {
+    r = await ctx.db.select('user_locations', 'id, name').eq('user_id', ctx.userId).eq('is_trade', true).order('id', { ascending: true })
+  } catch {
+    throw new LookupFailed()
+  }
+  if (r.error) {
+    if (/is_trade/.test(r.error.message)) return []
+    throw new LookupFailed()
+  }
+  return resultRows<TradePlace>(r)
+}
+/** Copies that sit in a Trade place (only storage places can be Trade places). */
+function inTradePlace(r: Pick<NarrowRow, 'place_kind' | 'location_id'>, ids: Set<number>): boolean {
+  return r.place_kind === 'storage' && r.location_id != null && ids.has(r.location_id)
+}
+
+function columnsFor(f: CollectionFilters, extra: string[] = [], leaveOutTrade = false): string {
   const cols = new Set(NARROW_COLS.split(', '))
   if (f.types || f.legendary != null || f.basic != null || f.snow != null) cols.add('type_line')
   if (f.location) for (const c of ['place_kind', 'deck_name', 'storage_name']) cols.add(c)
+  if (leaveOutTrade) for (const c of ['place_kind', 'location_id']) cols.add(c)
   for (const c of extra) cols.add(c)
   return [...cols].join(', ')
 }
@@ -62,8 +90,9 @@ export function matchesLocation(r: Pick<NarrowRow, 'place_kind' | 'deck_name' | 
   return false
 }
 
-function appFilter(rows: NarrowRow[], f: CollectionFilters, withFacts = true): NarrowRow[] {
+function appFilter(rows: NarrowRow[], f: CollectionFilters, withFacts = true, tradeIds?: Set<number>): NarrowRow[] {
   let out = rows
+  if (tradeIds && tradeIds.size > 0) out = out.filter((r) => !inTradePlace(r, tradeIds))
   if (withFacts && (f.types || f.legendary != null || f.basic != null || f.snow != null)) {
     const parsed = new Map<string | null | undefined, ParsedTypeLine>()
     const parse = (t: string | null | undefined) => {
@@ -129,9 +158,22 @@ function hasWantedRoles(info: RoleInfo | undefined, wanted: Role[], mode: 'any' 
 const distinct = (rows: NarrowRow[]) => new Set(rows.map((r) => r.card_id)).size
 
 export async function findMatchingCopies(ctx: ToolContext, f: CollectionFilters, opts: MatchOptions = {}): Promise<MatchResult> {
-  const cols = columnsFor(f, opts.extraCols)
+  // CC-25: Trade places are left out unless the caller asks for them or names a place (then the caller knows what they want).
+  const checkTrade = !f.include_trade && !f.location
+  const cols = columnsFor(f, opts.extraCols, checkTrade)
   const notes: string[] = []
-  let rows = appFilter(await readMatchingCopies(ctx, cols, (q) => applyPushdown(q, f)), f)
+  const read = await readMatchingCopies(ctx, cols, (q) => applyPushdown(q, f))
+  const tradePlaces = checkTrade ? await loadTradePlaces(ctx) : []
+  const tradeIds = new Set(tradePlaces.map((p) => p.id))
+  let rows = appFilter(read, f, true, tradeIds)
+  if (tradeIds.size > 0) {
+    // Say what was left out, using the same facts-free check on the copies that passed the database filters.
+    const left = appFilter(read, f, true).filter((r) => inTradePlace(r, tradeIds))
+    if (left.length > 0) {
+      const names = tradePlaces.map((p) => p.name).join(', ')
+      notes.push(`${left.length} cop${left.length === 1 ? 'y' : 'ies'} in your Trade place${tradePlaces.length === 1 ? '' : 's'} (${names}) ${left.length === 1 ? 'was' : 'were'} left out. Send include_trade true to count ${left.length === 1 ? 'it' : 'them'}, or name the place in location.`)
+    }
+  }
   let knownPlaces: string[] | undefined
 
   if (f.location && rows.length === 0) {
@@ -162,7 +204,7 @@ export async function findMatchingCopies(ctx: ToolContext, f: CollectionFilters,
   let coverage: Coverage | undefined
   if (used.length > 0) {
     // Cards that pass every filter that does not need facts, but have none: they can never match the fact filters.
-    const noFacts = appFilter(await readMatchingCopies(ctx, cols, (q) => applyPushdown(q, f, false).eq('facts_available', false)), f, false)
+    const noFacts = appFilter(await readMatchingCopies(ctx, cols, (q) => applyPushdown(q, f, false).eq('facts_available', false)), f, false, tradeIds)
     const cardsWithoutFacts = distinct(noFacts)
     const list = used.length > 1 ? `${used.slice(0, -1).join(', ')} and ${used[used.length - 1]}` : used[0]
     const parts = [`${cardsWithoutFacts} owned card${cardsWithoutFacts === 1 ? ' has' : 's have'} no card facts yet`]

@@ -54,7 +54,9 @@ describe('supply readers carry the filter', () => {
     // one filter pair per user_copies read in the file (storage/copies.ts counts boxes, which cannot hold them)
     const reads = (src.match(/\.from\('user_copies'\)/g) ?? []).length
     const filters = (src.match(/\.eq\('in_hand', false\)/g) ?? []).length
-    if (!file.endsWith('storage/copies.ts')) expect(filters).toBeGreaterThanOrEqual(reads)
+    // a read that asks for the copies that ARE in hand (to show a slot as In your hand) is deliberate, not a supply read
+    const inHandReads = (src.match(/\.eq\('in_hand', true\)/g) ?? []).length
+    if (!file.endsWith('storage/copies.ts')) expect(filters + inHandReads).toBeGreaterThanOrEqual(reads)
   })
 
   it('no other file filters on one marker without the other', () => {

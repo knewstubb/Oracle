@@ -1,6 +1,6 @@
 # Oracle backlog — simple view
 
-Updated 17 November 2026.
+Updated 19 November 2026 (items added under Better advice and card information, and Deck library and deck pages).
 
 Unfinished work only, grouped by what you would see in the app. This is a summary, not a new priority order or approval to start work. Completed work and technical history are left out.
 
@@ -37,6 +37,10 @@ Unfinished work only, grouped by what you would see in the app. This is a summar
 - Review the icons on deck tiles.
 - Audit and refine the deck header.
 - Move the deck header into a sidebar.
+- Deck page with a left side panel (name, commander, strategy block, card count, Deck health, mana curve) replacing the header, slot bar and health footer; left rail chosen 2026-11-19. (New 2026-11-19.)
+- One strategy modal (bracket, one-line summary, strategy text, playgroup), opened from the panel; proposed in place of the three-layer Strategy tab. (New 2026-11-19.)
+- Pause the in-app AI chat by hiding it; the code stays so it can come back. (New 2026-11-19.)
+- Store a one-line reason with each Claude change and show it in History. (New 2026-11-19.)
 - Put Deck health beside the slot-usage bar and remove the footer it replaces.
 - Audit Workbench, Analysis and the other deck pages.
 - Make decks open faster.
@@ -63,6 +67,8 @@ The header, sidebar, Deck health and deck-page reviews should be considered toge
 - Improve matching between what cards produce and what a deck needs.
 - Compare suggestions using three real decks and the actual collection.
 - Add Commander Spellbook combo notes and fix the known combo-lookup issues.
+- Add mana base maths to Deck health: land count including double-faced lands, colour balance, and the chance of too few or too many lands. (New 2026-11-19.)
+- Compare the bracket a deck's cards imply (Game Changers and known combos) with the bracket you set, and flag a mismatch. (New 2026-11-19.)
 
 ## More Claude improvements
 

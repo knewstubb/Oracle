@@ -1,0 +1,104 @@
+# Oracle backlog — simple view
+
+Updated 17 November 2026.
+
+Unfinished work only, grouped by what you would see in the app. This is a summary, not a new priority order or approval to start work. Completed work and technical history are left out.
+
+## Approved work being progressed
+
+- **Bigger Claude edits:** build or change a whole deck, move cards and undo the whole request in one click. Partly built; the stored-data change is still awaiting approval.
+- **Create decks through Claude:** choose a name, commander, format, strategy and bracket. Built and live 2026-11-18; real-chat check still to do.
+- **Import decks through Claude:** paste a decklist or give it a Moxfield/Archidekt link. Approved; planning underway.
+- **Manage storage and Picklists through Claude:** create boxes, move copies and tick off cards. Approved; planning underway.
+- **Buying list and wishlist:** see what a deck needs and estimated prices, and keep a wishlist. Buying list built but not tried through Claude; wishlist not built.
+
+## Test and finish recent work
+
+- Try the recent Picklist, storage, import, collection and Claude changes in the app.
+- Check card printing, finish, proxy and price details on real cards.
+- Try Claude's search, Deck health and card-category editing.
+- Fix the outstanding automatic-check failures.
+- Save the remaining change records and reports, then clean up finished working copies.
+- Recheck the ramp count for Stax on Stax.
+- Finish the change from "Sleeved / Unsleeved" to "In deck / Planned"; decide whether the action should say "Put in deck".
+- Make Claude's deck-status labels match the app.
+
+## Collection
+
+- Switch between locations using a row above the list, with fixed **All cards** and **Proxies** options.
+- Show where each card's copies are located.
+- Click a card to open an editing window for its key details.
+- Edit card quantities; decide whether this applies to the collection, decks or both.
+
+## Deck library and deck pages
+
+- Drag decks to reorder them and remember the order.
+- Click a deck name to rename it.
+- Review the icons on deck tiles.
+- Audit and refine the deck header.
+- Move the deck header into a sidebar.
+- Put Deck health beside the slot-usage bar and remove the footer it replaces.
+- Audit Workbench, Analysis and the other deck pages.
+- Make decks open faster.
+- Fix status icons briefly appearing as text when a new deck loads.
+- Add sideboard support; agree how it differs from Maybeboard.
+
+The header, sidebar, Deck health and deck-page reviews should be considered together rather than redesigned separately.
+
+## Consistency across the app
+
+- Standardise buttons.
+- Audit the Tools menu.
+- Finish consistent labels, badges, filters and loading/error displays.
+
+## Better advice and card information
+
+- Rethink card roles: ramp, draw, removal and the other jobs a card can do.
+- Distinguish one-use effects from repeatable effects and account for their cost.
+- Let a card have a deck-specific job, a reason for inclusion and a "keep this card" preference.
+- Account for commanders changing a card's role; for example, Urza makes artifacts into mana sources.
+- Allow a reference or "secret" commander; for example, use Norin's suggestions for a Rocco deck built around Norin.
+- Finish each deck's strategy, win conditions and bracket, and check that advice uses them.
+- Load EDHREC suggestions for the owner's commanders and deck styles.
+- Improve matching between what cards produce and what a deck needs.
+- Compare suggestions using three real decks and the actual collection.
+- Add Commander Spellbook combo notes and fix the known combo-lookup issues.
+
+## More Claude improvements
+
+- Improve search by card text, Legendary status, subtype and mana value. (Approved 2026-11-18; build started.)
+- Show commander colours consistently (done), improve sorting and allow locations to be excluded (now a separate item: a trade binder type).
+- Fill in missing card information, including checks for two-faced cards. (Approved 2026-11-18; build started.)
+- Check decks with unexpected card counts and missing brackets.
+- Warn when two decks plan the same card and you own fewer copies than the decks plan (new 2026-11-18).
+- Add a trade binder location type that Claude leaves out of suggestions by default (new 2026-11-18).
+- Add category management, including renaming, merging and suggested categories.
+- Add per-deck notes and a decision log.
+- Add strategy advice using EDHREC and combo information.
+- Log games and playgroups. Approved, but scheduled after the earlier card-information and category work.
+
+## Parked or needing a fresh check
+
+These are retained from older plans, not a claim that the problems still occur.
+
+- Finish the broader collection/loading review and check that filters really change results.
+- Check the collection value banner and adding a proxy for an unowned card.
+- Recheck collection imports that have no Scryfall ID column.
+- Finish the original-copy shortage view, including shortages currently covered by proxies.
+- Make "Break down deck" available on screen and finish the remaining card-movement work.
+- Finish controls for generic basic lands and the remaining deck-state work.
+- Revisit the older in-app advisor design, suggestions and Undo work alongside what now exists.
+- Check standalone Moxfield importing.
+- Brew Canvas and other later conveniences, including a mana-curve slider.
+- Prepare for other users only when sharing becomes a priority.
+- Revisit backups and recovery when the core app is working.
+
+Vector-based recommendations remain parked; the trial is closed.
+
+## About this view
+
+Based on the detailed backlog as recorded on 17 November 2026, not a fresh audit of the app. Older entries sometimes conflict with newer updates; those are kept as "needing a fresh check" rather than marked as current bugs. No priorities or locked decisions have changed.
+
+The detailed record remains here:
+
+`docs/oracle/status.md`

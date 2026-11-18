@@ -234,9 +234,9 @@ describe('type-line alignment: supertypes and all card types', () => {
     expect(names(await run(db as never, { types: ['creature'] }))).toContain('Golem')
     expect(names(await run(db as never, { types: ['sorcery'] }))).toEqual(['Eldrazi Spawner'])
   })
-  it("'Instant // Land' matches land (either face); a subtype that contains a type word does not", async () => {
+  it("'Instant // Land' does not match land (front face only); a subtype that contains a type word does not", async () => {
     const { db } = tlWorld()
-    expect(names(await run(db as never, { types: ['land'] }))).toEqual(['Forest', 'Snow-Covered Swamp', 'Spell Land', 'Wastes'])
+    expect(names(await run(db as never, { types: ['land'] }))).toEqual(['Forest', 'Snow-Covered Swamp', 'Wastes'])
   })
   it('accepts all 15 types and rejects an unknown one', () => {
     expect(() => searchCollectionInput.parse({ types: ['conspiracy', 'dungeon', 'phenomenon', 'plane', 'scheme', 'vanguard', 'kindred'] })).not.toThrow()

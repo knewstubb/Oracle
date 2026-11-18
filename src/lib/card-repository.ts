@@ -351,7 +351,7 @@ class SupabaseCardRepository implements CardRepository {
       // Match the keyword as a whole card type, supertype or subtype (never part of a word)
       const parsedType = parseTypeLine(ref.type_line)
       const wordMatches = (w: string) =>
-        hasCardType(parsedType, w, 'any') || hasSupertype(parsedType, w, 'any') || hasSubtype(parsedType, w, 'any')
+        hasCardType(parsedType, w, 'front') || hasSupertype(parsedType, w, 'front') || hasSubtype(parsedType, w, 'front')
       if (!typeKeywordLower.split(/\s+/).filter(Boolean).every(wordMatches)) continue
       
       // Check color identity if filter provided

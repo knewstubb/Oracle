@@ -51,9 +51,9 @@ describe('filters', () => {
     ['Sol Ring', box], ['Skullclamp', box], ['Jace, the Mind Sculptor', box], ['Forest', box], ['Murderous Rider // Swift End', box],
   ]
 
-  it('types: ANY of them, either face counts', async () => {
+  it('types: ANY of them, front face only', async () => {
     const { db } = setup(spec)
-    expect(names(await run(db as never, { types: ['instant'] }))).toEqual(['Lightning Helix', 'Murderous Rider // Swift End'])
+    expect(names(await run(db as never, { types: ['instant'] }))).toEqual(['Lightning Helix'])
     expect(names(await run(db as never, { types: ['planeswalker', 'land'] }))).toEqual(['Forest', 'Jace, the Mind Sculptor'])
   })
   it('colours: within (default) includes colourless; exact is mono only; includes allows more', async () => {

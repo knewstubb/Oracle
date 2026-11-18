@@ -100,11 +100,11 @@ function appFilter(rows: NarrowRow[], f: CollectionFilters, withFacts = true, tr
       if (!p) parsed.set(t, (p = parseTypeLine(t)))
       return p
     }
-    // Exact decision from the parsed type line, either face. A row without facts never matches.
+    // Exact decision from the parsed type line (card types: front face; Legendary, Basic, Snow: either face). A row without facts never matches.
     out = out.filter((r) => {
       if (!r.facts_available) return false
       const p = parse(r.type_line)
-      if (f.types && !f.types.some((t) => hasCardType(p, t, 'any'))) return false
+      if (f.types && !f.types.some((t) => hasCardType(p, t, 'front'))) return false
       if (f.legendary != null && hasSupertype(p, 'Legendary', 'any') !== f.legendary) return false
       if (f.basic != null && hasSupertype(p, 'Basic', 'any') !== f.basic) return false
       if (f.snow != null && hasSupertype(p, 'Snow', 'any') !== f.snow) return false

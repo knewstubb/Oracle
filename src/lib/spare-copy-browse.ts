@@ -126,8 +126,8 @@ export function buildFilter(kind: string | null | undefined): { label: string; m
   }
   if (TYPE_WORDS.includes(k.replace(/s$/, ''))) {
     const w = k.replace(/s$/, '')
-    // The card TYPE, read from the type line (either face, as before), never a subtype that happens to contain the word.
-    return { label: w, match: t => hasCardType(parseTypeLine(t), w, 'any') }
+    // The card TYPE, read from the type line (front face only), never a subtype that happens to contain the word.
+    return { label: w, match: t => hasCardType(parseTypeLine(t), w, 'front') }
   }
   // Free text: a card type, a supertype, or a subtype the user actually typed (whole word). Never a part of a word.
   const singular = k.replace(/s$/, '')
@@ -135,7 +135,7 @@ export function buildFilter(kind: string | null | undefined): { label: string; m
     label: k,
     match: (t) => {
       const parsed = parseTypeLine(t)
-      return [k, singular].some((w) => hasCardType(parsed, w, 'any') || hasSupertype(parsed, w, 'any') || hasSubtype(parsed, w, 'any'))
+      return [k, singular].some((w) => hasCardType(parsed, w, 'front') || hasSupertype(parsed, w, 'front') || hasSubtype(parsed, w, 'front'))
     },
   }
 }

@@ -174,7 +174,7 @@ export function classifyCard(card: CardData): ScoringCategory[] {
   }
 
   // Counterspell: type_line contains "Instant" AND oracle_text contains "counter target"
-  if (hasCardType(parseTypeLine(card.typeLine), 'Instant', 'any') && oracleText.includes('counter target')) {
+  if (hasCardType(parseTypeLine(card.typeLine), 'Instant', 'front') && oracleText.includes('counter target')) {
     categories.push('counterspell')
   }
 
@@ -344,7 +344,7 @@ function findWinCondition(cards: CardData[], keyCards: KeyCard[]): string {
   if (nonCommander) return nonCommander.cardName
 
   // Last resort: any non-land card
-  const nonLand = cards.find((c) => !hasCardType(parseTypeLine(c.typeLine), 'Land', 'any') && !c.isCommander)
+  const nonLand = cards.find((c) => !hasCardType(parseTypeLine(c.typeLine), 'Land', 'front') && !c.isCommander)
   return nonLand ? nonLand.cardName : cards[0]?.cardName ?? 'unknown'
 }
 
@@ -585,7 +585,7 @@ function countCommanderProtection(cards: CardData[]): number {
 
     // Counterspells (instants that can counter removal)
     const isCounterspell =
-      hasCardType(parseTypeLine(card.typeLine), 'Instant', 'any') && text.includes('counter target')
+      hasCardType(parseTypeLine(card.typeLine), 'Instant', 'front') && text.includes('counter target')
 
     return grantsProtection || isCounterspell
   }).length
@@ -597,7 +597,7 @@ function countCommanderProtection(cards: CardData[]): number {
 function countArtifacts(cards: CardData[]): number {
   return cards.filter((card) => {
     const parsed = parseTypeLine(card.typeLine)
-    return hasCardType(parsed, 'Artifact', 'any') && !hasCardType(parsed, 'Land', 'any')
+    return hasCardType(parsed, 'Artifact', 'front') && !hasCardType(parsed, 'Land', 'front')
   }).length
 }
 
@@ -609,7 +609,7 @@ function countArtifactRecursion(cards: CardData[]): number {
     const text = card.oracleText.toLowerCase()
     return (
       (text.includes('return') && text.includes('artifact') && text.includes('graveyard')) ||
-      (text.includes('return') && text.includes('from your graveyard') && hasCardType(parseTypeLine(card.typeLine), 'Artifact', 'any'))
+      (text.includes('return') && text.includes('from your graveyard') && hasCardType(parseTypeLine(card.typeLine), 'Artifact', 'front'))
     )
   }).length
 }

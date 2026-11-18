@@ -1,5 +1,6 @@
 // rating-engine.ts — Pure scoring logic for deck ratings computation.
 // No database dependencies; this module is imported by the compute script and tests.
+import { hasCardType, parseTypeLine } from './type-line'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -137,7 +138,6 @@ const MANA_SYMBOL_PATTERN = /\{[WUBRGC]\}/
 export function classifyCard(card: CardData): ScoringCategory[] {
   const categories: ScoringCategory[] = []
   const oracleText = card.oracleText.toLowerCase()
-  const typeLine = card.typeLine.toLowerCase()
 
   // Parse the JSON categories array from deck_cards
   let parsedCategories: string[] = []
@@ -174,7 +174,7 @@ export function classifyCard(card: CardData): ScoringCategory[] {
   }
 
   // Counterspell: type_line contains "Instant" AND oracle_text contains "counter target"
-  if (typeLine.includes('instant') && oracleText.includes('counter target')) {
+  if (hasCardType(parseTypeLine(card.typeLine), 'Instant', 'any') && oracleText.includes('counter target')) {
     categories.push('counterspell')
   }
 
@@ -344,7 +344,7 @@ function findWinCondition(cards: CardData[], keyCards: KeyCard[]): string {
   if (nonCommander) return nonCommander.cardName
 
   // Last resort: any non-land card
-  const nonLand = cards.find((c) => !c.typeLine.toLowerCase().includes('land') && !c.isCommander)
+  const nonLand = cards.find((c) => !hasCardType(parseTypeLine(c.typeLine), 'Land', 'any') && !c.isCommander)
   return nonLand ? nonLand.cardName : cards[0]?.cardName ?? 'unknown'
 }
 
@@ -576,7 +576,6 @@ function countGraveyardProtection(cards: CardData[]): number {
 function countCommanderProtection(cards: CardData[]): number {
   return cards.filter((card) => {
     const text = card.oracleText.toLowerCase()
-    const typeLine = card.typeLine.toLowerCase()
 
     // Protection-granting cards (hexproof, indestructible, shroud)
     const grantsProtection =
@@ -586,7 +585,7 @@ function countCommanderProtection(cards: CardData[]): number {
 
     // Counterspells (instants that can counter removal)
     const isCounterspell =
-      typeLine.includes('instant') && text.includes('counter target')
+      hasCardType(parseTypeLine(card.typeLine), 'Instant', 'any') && text.includes('counter target')
 
     return grantsProtection || isCounterspell
   }).length
@@ -597,8 +596,8 @@ function countCommanderProtection(cards: CardData[]): number {
  */
 function countArtifacts(cards: CardData[]): number {
   return cards.filter((card) => {
-    const typeLine = card.typeLine.toLowerCase()
-    return typeLine.includes('artifact') && !typeLine.includes('land')
+    const parsed = parseTypeLine(card.typeLine)
+    return hasCardType(parsed, 'Artifact', 'any') && !hasCardType(parsed, 'Land', 'any')
   }).length
 }
 
@@ -610,7 +609,7 @@ function countArtifactRecursion(cards: CardData[]): number {
     const text = card.oracleText.toLowerCase()
     return (
       (text.includes('return') && text.includes('artifact') && text.includes('graveyard')) ||
-      (text.includes('return') && text.includes('from your graveyard') && card.typeLine.toLowerCase().includes('artifact'))
+      (text.includes('return') && text.includes('from your graveyard') && hasCardType(parseTypeLine(card.typeLine), 'Artifact', 'any'))
     )
   }).length
 }

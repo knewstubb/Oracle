@@ -68,3 +68,8 @@ Earlier FEATs: see `git diff --stat main..HEAD` (parser in src/lib/type-line.ts 
 - `npm run typecheck`: only the 4 pre-existing errors in src/components/AddToPicklist.test.tsx (Picklist, out of scope, untouched).
 - `npm run lint`: 2 errors and 278 warnings, identical to the baseline before this work (none in new files).
 - `git diff --stat main..HEAD`: no change to docs/oracle/decisions.md, docs/oracle/status.md, Picklist components, the Decks list page, or any applied supabase/migrations file.
+
+## Review round 2 addendum
+- Now routed through `src/lib/type-line.ts`: rating-engine (Instant, Land, Artifact checks; an Artifact Land now counts as a land, not a non-land artifact), ref-card-backfill (Legendary, Creature, Vehicle/Spacecraft subtypes), compute-deck-ratings and detect-dead-weight (Land), generate-all-commanders (Time Lord, Doctor, Background subtypes), manabox-import (Token read from the parser's unknown words, since Token is not in the card-type list).
+- Remaining `ilike('%word%')` prefilters, each followed by an exact parser check: collection-filters (appFilter in collection-query.ts), rollup/route.ts (hasSupertype Basic, line 213), printings/route.ts (hasSupertype Basic on the page, line 375; the prefilter pages the result because "basic" appears only as a supertype), spare-copy-browse typeLike (`match` using hasCardType, supertype or subtype).
+- Verification: typecheck shows only the 4 existing AddToPicklist.test.tsx errors (same on the previous commit; Picklist is out of scope). Lint shows the 2 existing errors (storage link, list-decks prefer-const), same as before. `vitest --run`: 3816 passed, 46 skipped.

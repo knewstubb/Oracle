@@ -8,6 +8,7 @@
  *  - mana_cost: top level, or the faces' costs joined " // ".
  */
 
+import { hasCardType, hasSubtype, hasSupertype, parseTypeLine } from './type-line'
 export interface ScryfallFace {
   name?: string
   oracle_id?: string
@@ -132,11 +133,12 @@ export function mapScryfallToRefCard(card: ScryfallCard, expectedOracleId?: stri
   const faceTypes = card.card_faces && card.card_faces.length > 0
     ? card.card_faces.map(f => f.type_line ?? '')
     : topType.split(FACE_SEP)
-  const isLegendary = faceTypes.some(t => t.includes('Legendary')) || topType.includes('Legendary')
+  const isLegendary = faceTypes.some(t => hasSupertype(parseTypeLine(t), 'Legendary', 'front')) || hasSupertype(parseTypeLine(topType), 'Legendary', 'any')
   const frontType = frontTypeLine(card)
-  const isCreature = frontType.includes('Creature')
-  const frontLegendary = frontType.includes('Legendary')
-  const vehicleLike = /Vehicle|Spacecraft/.test(frontType)
+  const frontParsed = parseTypeLine(frontType)
+  const isCreature = hasCardType(frontParsed, 'Creature', 'front')
+  const frontLegendary = hasSupertype(frontParsed, 'Legendary', 'front')
+  const vehicleLike = hasSubtype(frontParsed, 'Vehicle', 'front') || hasSubtype(frontParsed, 'Spacecraft', 'front')
 
   // Approximation of Scryfall is:commander (same intent as scripts/backfill-can-be-commander.ts).
   const canBeCommander =

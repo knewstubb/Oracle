@@ -19,6 +19,7 @@ import { resolve } from 'path';
 // Load env
 config({ path: resolve(__dirname, '../.env.local') });
 
+import { hasSubtype, parseTypeLine } from '../src/lib/type-line';
 import { 
   slugify,
   setSupabaseClient 
@@ -88,7 +89,7 @@ function detectKeyword(oracleText: string | null, typeLine: string): {
   partnerWith?: string;
 } {
   const text = (oracleText ?? '').toLowerCase();
-  const type = typeLine.toLowerCase();
+  const parsedType = parseTypeLine(typeLine);
   
   // Partner with X (must check before generic Partner)
   const partnerWithMatch = text.match(/partner with ([^(]+)/i);
@@ -108,7 +109,7 @@ function detectKeyword(oracleText: string | null, typeLine: string): {
   
   // Check if card is a Doctor (has "Doctor" creature type - "Time Lord, Doctor" or similar)
   // Must check type_line, not oracle_text
-  if (type.includes('time lord') && type.includes('doctor')) {
+  if (hasSubtype(parsedType, 'Time Lord', 'front') && hasSubtype(parsedType, 'Doctor', 'front')) {
     return { keyword: 'doctor' };
   }
   
@@ -123,7 +124,7 @@ function detectKeyword(oracleText: string | null, typeLine: string): {
   }
   
   // Background type - check type line
-  if (type.includes('background')) {
+  if (hasSubtype(parsedType, 'Background', 'front')) {
     return { keyword: 'background' };
   }
   

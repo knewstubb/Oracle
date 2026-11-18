@@ -10,6 +10,7 @@
 
 import * as path from 'path'
 import Database from 'better-sqlite3'
+import { hasCardType, parseTypeLine } from '../src/lib/type-line'
 import {
   type CardData,
   type ContributingCards,
@@ -151,7 +152,7 @@ function extractComboCards(deckId: number): string[] {
  * Check if a card is a land based on type line or categories.
  */
 function isLand(typeLine: string, categories: string): boolean {
-  if (typeLine.toLowerCase().includes('land')) return true
+  if (hasCardType(parseTypeLine(typeLine), 'Land', 'any')) return true
   try {
     const parsed = JSON.parse(categories)
     if (Array.isArray(parsed)) {

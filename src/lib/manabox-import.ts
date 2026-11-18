@@ -36,6 +36,7 @@ import {
   readCsv,
   type CsvColumnMap,
 } from '@/lib/import-csv'
+import { parseTypeLine } from '@/lib/type-line'
 import { normaliseQuotes, parseListText } from '@/lib/import-text-parser'
 import { fileCommandZone, limitCompanions, retagCompanions } from '@/lib/import-command-zone'
 import type {
@@ -393,7 +394,7 @@ export function parseManaBoxText(content: string): ManaBoxTextParseResult {
 export function isTokenCard(facts: Pick<ManaBoxCardFacts, 'layout' | 'typeLine'>): boolean {
   const layout = (facts.layout ?? '').toLowerCase()
   if (layout === 'token' || layout === 'double_faced_token') return true
-  return (facts.typeLine ?? '').includes('Token')
+  return parseTypeLine(facts.typeLine).faces.some((f) => f.unknown.includes('Token'))
 }
 
 // ---------------------------------------------------------------------------

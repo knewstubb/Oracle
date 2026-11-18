@@ -22,6 +22,7 @@
 
 import * as path from 'path'
 import Database from 'better-sqlite3'
+import { hasCardType, parseTypeLine } from '../src/lib/type-line'
 import { ConcurrencyLimiter } from '../src/lib/concurrency-limiter'
 import { getMcpClient, closeMcpClient } from '../src/lib/mcp-client'
 import {
@@ -206,7 +207,7 @@ interface ComboRow {
  * Check if a card is a land based on type_line or categories.
  */
 function isLand(typeLine: string | null, categories: string | null): boolean {
-  if (typeLine && typeLine.toLowerCase().includes('land')) return true
+  if (typeLine && hasCardType(parseTypeLine(typeLine), 'Land', 'any')) return true
   if (categories) {
     try {
       const parsed = JSON.parse(categories)

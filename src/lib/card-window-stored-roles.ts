@@ -127,7 +127,18 @@ export function mergeWindowRoles(stored: StoredRoles | undefined, standIn: CardW
   return { chips, removed, addable: ROLE_SLUGS.filter((s) => !shown.has(s)) }
 }
 
-/** The action that puts a role back the way the database function reported it was ("previous"), for the 10-second Undo. */
-export function undoActionFor(previous: { owner_effect: 'add' | 'remove' | null } | null | undefined): OwnerRoleAction {
-  return previous?.owner_effect ?? 'clear'
+/**
+ * What the stored roles look like right after the owner's click, worked out on screen so the window can update at
+ * once while the save runs. The saved answer replaces it as soon as it is read back.
+ */
+export function applyOwnerAction(stored: StoredRoles | undefined, role: RoleSlug, action: OwnerRoleAction): StoredRoles | undefined {
+  if (stored?.status !== 'ok') return stored
+  const blank: StoredRoleRow = { role, in_baseline: false, owner_effect: null, claude_effect: null, claude_state: null, effective: false, effective_from: null, beside: false }
+  const old = stored.rows.find((r) => r.role === role) ?? blank
+  const owner_effect = action === 'clear' ? null : action
+  const effective = owner_effect === 'add' || (owner_effect === null && old.in_baseline)
+  const effective_from: StoredRoleRow['effective_from'] = !effective ? null : owner_effect === 'add' && !old.in_baseline ? 'owner' : 'baseline'
+  const next: StoredRoleRow = { ...old, owner_effect, effective, effective_from, beside: false }
+  const rows = stored.rows.some((r) => r.role === role) ? stored.rows.map((r) => (r.role === role ? next : r)) : [...stored.rows, next]
+  return { ...stored, rows }
 }

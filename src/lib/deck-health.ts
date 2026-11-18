@@ -192,8 +192,10 @@ export function countDeckTypes(cards: HealthDeckCard[]): Record<TypeCount['type'
     if (!c.inMainDeck) continue
     const qty = c.quantity > 0 ? c.quantity : 1
     const line = c.typeLine ?? (isBasicLandCard({ name: c.cardName }) ? 'Basic Land' : '')
-    // Front face only; a card adds to every card type it has (Artifact Creature counts as both).
-    const types = allCardTypes({ faces: [frontFace(parseTypeLine(line))] }).map((t) => t.toLowerCase())
+    // Front face only; a card adds to every card type it has (Artifact Creature counts as both),
+    // except that Land takes priority: an Artifact Land counts as a land only, like the deck page's Group: Type.
+    const all = allCardTypes({ faces: [frontFace(parseTypeLine(line))] }).map((t) => t.toLowerCase())
+    const types = all.includes('land') ? ['land'] : all
     for (const t of Object.keys(out) as Array<TypeCount['type']>) if (types.includes(t)) out[t] += qty
   }
   return out

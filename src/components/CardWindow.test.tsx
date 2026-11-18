@@ -31,7 +31,9 @@ const SIGNET = {
 
 let rolesResponse: { ok: boolean; body: unknown } = { ok: true, body: { kind: 'roles', roles: ['ramp'] } }
 
+let solCategories = '["Ramp"]'
 beforeEach(() => {
+  solCategories = '["Ramp"]'
   rolesResponse = { ok: true, body: { kind: 'roles', roles: ['ramp'] } }
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
     if (String(url).includes('/roles')) {
@@ -48,7 +50,7 @@ afterEach(() => {
 
 /** A small stand-in for the Cards tab: live cards in state, grouped by main category, one save path. */
 function Harness({ onSave, failSave = false }: { onSave: (id: number, c: StructuredCategories) => void; failSave?: boolean }) {
-  const [cards, setCards] = useState<DeckCard[]>([SOL, SIGNET])
+  const [cards, setCards] = useState<DeckCard[]>([{ ...SOL, categories: solCategories } as DeckCard, SIGNET])
   const statusMap = new Map<number, CardSlotStatus>([[1, 'original'], [2, 'available']])
   const lifecycleMap = new Map<number, DeckCardLifecycle>([[1, 'sleeved'], [2, 'planned']])
   const groups = new Map<string, DeckCard[]>()
@@ -104,7 +106,7 @@ describe('card window', () => {
     fireEvent.click(screen.getAllByTestId('card-name-button')[0])
     const win = await screen.findByTestId('card-window')
     expect(within(win).getByRole('heading', { name: 'Category' })).toBeInTheDocument()
-    expect(within(win).getByText('Category: where it sits in the list')).toBeInTheDocument()
+    expect(within(win).getByText('Where it sits in the list')).toBeInTheDocument()
     expect(within(win).getByTestId('card-window-category')).toHaveTextContent('Ramp')
     expect(within(win).getByRole('heading', { name: 'Universal roles' })).toBeInTheDocument()
     expect(within(win).getByText(/Roles are the same in every deck/)).toBeInTheDocument()
@@ -125,6 +127,21 @@ describe('card window', () => {
     await user.click(screen.getAllByRole('button', { name: 'More actions' })[0])
     await user.click(screen.getByRole('button', { name: 'Card details' }))
     expect(await screen.findByTestId('card-window')).toBeInTheDocument()
+  })
+
+  it('shows one category, with no primary or secondary wording, and keeps stored extra categories', async () => {
+    const user = userEvent.setup()
+    solCategories = '["Ramp","Artifact"]' // Sol Ring with a stored second category
+    const { onSave } = renderHarness()
+    await user.click(screen.getAllByTestId('card-name-button')[0])
+    const win = await screen.findByTestId('card-window')
+    expect(within(win).getAllByTestId('card-window-category')).toHaveLength(1)
+    expect(within(win).getByTestId('card-window-category')).toHaveTextContent(/^Ramp$/)
+    await user.click(within(win).getByRole('button', { name: 'Edit' }))
+    expect(within(win).queryByText(/primary|secondary|additional|\(main\)|Main:/i)).not.toBeInTheDocument()
+    expect(within(win).queryByRole('textbox')).not.toBeInTheDocument()
+    await user.selectOptions(within(win).getByRole('combobox', { name: 'Category' }), 'Draw')
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(1, { primary_category: 'Draw', additional_categories: ['Artifact'] }))
   })
 
   it('closes with Escape', async () => {
@@ -150,7 +167,7 @@ describe('card window', () => {
     await user.click(screen.getAllByTestId('card-name-button')[0]) // Sol Ring is first in the Ramp group
     const win = await screen.findByTestId('card-window')
     await user.click(within(win).getByRole('button', { name: 'Edit' }))
-    await user.selectOptions(within(win).getByRole('combobox', { name: 'Main category' }), 'Draw')
+    await user.selectOptions(within(win).getByRole('combobox', { name: 'Category' }), 'Draw')
     await waitFor(() => expect(onSave).toHaveBeenCalledWith(1, { primary_category: 'Draw', additional_categories: [] }))
     // the window shows the new category and "Saved"; the list now has a Draw group
     await waitFor(() => expect(within(win).getByTestId('card-window-category')).toHaveTextContent('Draw'))
@@ -167,7 +184,7 @@ describe('card window', () => {
     await user.click(screen.getAllByTestId('card-name-button')[0])
     const win = await screen.findByTestId('card-window')
     await user.click(within(win).getByRole('button', { name: 'Edit' }))
-    await user.selectOptions(within(win).getByRole('combobox', { name: 'Main category' }), 'Draw')
+    await user.selectOptions(within(win).getByRole('combobox', { name: 'Category' }), 'Draw')
     expect(await within(win).findByText(/Couldn't save the category\. Nothing was changed\./)).toBeInTheDocument()
     expect(within(win).getByTestId('card-window-category')).toHaveTextContent('Ramp')
   })
@@ -261,10 +278,14 @@ describe('card window', () => {
       rolesResponse = { ok: true, body: { kind: 'roles', roles: [], stored: store([row({ role: 'ramp', in_baseline: true, effective: true, effective_from: 'baseline' })]) } }
       const win = await open()
       const user = userEvent.setup()
-      await user.click(await within(win).findByRole('button', { name: 'Remove Ramp' }))
-      await waitFor(() => expect(puts).toEqual([{ role: 'ramp', action: 'remove' }]))
+      const removeBtn = await within(win).findByRole('button', { name: 'Remove Ramp' })
+      // what the server will say when the screen reads the saved answer back
       rolesResponse = { ok: true, body: { kind: 'roles', roles: [], stored: store([row({ role: 'ramp', in_baseline: true, owner_effect: 'remove' })]) } }
-      await user.click(await within(win).findByRole('button', { name: 'Undo' }))
+      await user.click(removeBtn)
+      await waitFor(() => expect(puts).toEqual([{ role: 'ramp', action: 'remove' }]))
+      expect(await within(win).findByTestId('card-window-role-removed')).toHaveTextContent('You removed: Ramp.')
+      expect(within(win).queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument()
+      await user.click(within(win).getByRole('button', { name: /Restore/ }))
       await waitFor(() => expect(puts[1]).toEqual({ role: 'ramp', action: 'clear' }))
     })
     it('shows "You removed" with Restore for a role you removed', async () => {
@@ -283,12 +304,43 @@ describe('card window', () => {
       await userEvent.setup().click(within(win).getByRole('button', { name: 'Remove Ramp' }))
       await waitFor(() => expect(puts).toEqual([{ role: 'ramp', action: 'remove' }]))
     })
+    it('updates the screen before the save finishes (add and remove)', async () => {
+      let release: () => void = () => {}
+      const base = (global.fetch as unknown as (u: string, i?: RequestInit) => Promise<unknown>)
+      vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+        if (String(url).includes('/roles') && init?.method === 'PUT') {
+          await new Promise<void>((r) => { release = r })
+          return { ok: true, status: 200, json: async () => ({ previous: { owner_effect: null }, current: { owner_effect: 'add' } }) }
+        }
+        return base(url, init)
+      }))
+      rolesResponse = { ok: true, body: { kind: 'roles', roles: [], stored: store([row({ role: 'ramp', in_baseline: true, effective: true, effective_from: 'baseline' })]) } }
+      const win = await open()
+      const user = userEvent.setup()
+      await user.click(await within(win).findByRole('button', { name: 'Remove Ramp' }))
+      // the save has not finished, yet the chip is already gone and the removal is shown
+      expect(within(win).queryByTestId('card-window-role')).not.toBeInTheDocument()
+      expect(within(win).getByTestId('card-window-role-removed')).toHaveTextContent('You removed: Ramp.')
+      await user.selectOptions(within(win).getByRole('combobox', { name: 'Add role' }), 'tutor')
+      expect(within(win).getByTestId('card-window-role')).toHaveTextContent('Tutor')
+      expect(within(win).getByTestId('card-window-role')).toHaveTextContent('Set by you')
+      release()
+    })
+    it('puts the screen back and says so when a save fails', async () => {
+      putStatus = 500
+      rolesResponse = { ok: true, body: { kind: 'roles', roles: [], stored: store([row({ role: 'ramp', in_baseline: true, effective: true, effective_from: 'baseline' })]) } }
+      const win = await open()
+      await userEvent.setup().click(await within(win).findByRole('button', { name: 'Remove Ramp' }))
+      expect(await within(win).findByText(/Couldn't save that change, so it was put back\./)).toBeInTheDocument()
+      expect(within(win).getByTestId('card-window-role')).toHaveTextContent('Ramp')
+      expect(within(win).queryByTestId('card-window-role-removed')).not.toBeInTheDocument()
+    })
     it('says so and keeps the chip when a save fails', async () => {
       putStatus = 500
       rolesResponse = { ok: true, body: { kind: 'roles', roles: [], stored: store([row({ role: 'ramp', in_baseline: true, effective: true, effective_from: 'baseline' })]) } }
       const win = await open()
       await userEvent.setup().click(await within(win).findByRole('button', { name: 'Remove Ramp' }))
-      expect(await within(win).findByText(/Couldn't save the role\. Nothing was changed\./)).toBeInTheDocument()
+      expect(await within(win).findByText(/Couldn't save that change, so it was put back\./)).toBeInTheDocument()
       expect(within(win).getByTestId('card-window-role')).toHaveTextContent('Ramp')
     })
     it('is read-only when stored roles could not be read, and when the card has no identity', async () => {

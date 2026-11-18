@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { roleState, composeHealthCopy, buildDeckHealth, countRoles, GENERAL_GUIDE, type HealthDeckCard } from './deck-health'
+import { countDeckTypes, roleState, composeHealthCopy, buildDeckHealth, countRoles, GENERAL_GUIDE, type HealthDeckCard } from './deck-health'
 import { loadDeckHealth, commanderNamesFor, type HealthClient, type TargetsProvider } from './deck-health-server'
 import { guideTargets, type CommanderTargets } from './commander-targets'
 
@@ -271,5 +271,21 @@ describe('buildDeckHealth with commander targets', () => {
 
   it('EDHREC unreachable with nothing saved: says so in the source line', () => {
     expect(buildDeckHealth([], guideTargets("General guide (couldn't reach EDHREC)")).sourceLine).toBe("General guide (couldn't reach EDHREC)")
+  })
+})
+
+describe('countDeckTypes: Land takes priority', () => {
+  const card = (cardName: string, typeLine: string | null, quantity = 1): HealthDeckCard => ({ cardName, quantity, typeLine, oracleText: null, inMainDeck: true })
+  it('counts an Artifact Land as a land only, and still counts an Artifact Creature as both', () => {
+    const t = countDeckTypes([
+      card('Darksteel Citadel', 'Artifact, Land —'),
+      card('Seat of the Synod', 'Artifact Land'),
+      card('Snowy Thing', 'Snow Artifact Land'),
+      card('Sol Ring', 'Artifact —'),
+      card('Steel Hellkite', 'Artifact Creature — Dragon'),
+    ])
+    expect(t.land).toBe(3)
+    expect(t.artifact).toBe(2)
+    expect(t.creature).toBe(1)
   })
 })

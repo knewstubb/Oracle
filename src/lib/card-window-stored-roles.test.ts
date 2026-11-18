@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { ROLE_SLUGS as CONTRACT_SLUGS } from '../../docs/oracle/contracts/card-roles-and-deck-jobs.types'
-import { ROLE_SLUGS, ROLE_SLUG_LABELS, TEXT_ROLE_TO_SLUG, mergeWindowRoles, undoActionFor, type StoredRoleRow } from './card-window-stored-roles'
+import { ROLE_SLUGS, ROLE_SLUG_LABELS, TEXT_ROLE_TO_SLUG, mergeWindowRoles, applyOwnerAction, type StoredRoleRow } from './card-window-stored-roles'
 
 const row = (o: Partial<StoredRoleRow>): StoredRoleRow => ({
   role: 'ramp', in_baseline: false, owner_effect: null, claude_effect: null, claude_state: null, effective: false, effective_from: null, beside: false, ...o,
@@ -60,11 +60,30 @@ describe('mergeWindowRoles', () => {
   })
 })
 
-describe('undoActionFor', () => {
-  it('replays what was there before', () => {
-    expect(undoActionFor({ owner_effect: null })).toBe('clear')
-    expect(undoActionFor({ owner_effect: 'add' })).toBe('add')
-    expect(undoActionFor({ owner_effect: 'remove' })).toBe('remove')
-    expect(undoActionFor(undefined)).toBe('clear')
+describe('applyOwnerAction (the on-screen result of a click, before the save is read back)', () => {
+  const view = (rows: StoredRoleRow[], textRoles: Array<'ramp' | 'draw'> = []) => {
+    return (role: Parameters<typeof applyOwnerAction>[1], action: Parameters<typeof applyOwnerAction>[2]) =>
+      mergeWindowRoles(applyOwnerAction(ok(rows), role, action), { kind: 'roles', roles: textRoles })
+  }
+  it('adding a role shows it as Set by you', () => {
+    const v = view([])('tutor', 'add')
+    expect(v.chips.map((c) => [c.role, c.source])).toEqual([['tutor', 'owner']])
+  })
+  it('removing a shared role moves it to "You removed"; clearing puts it back as Standard', () => {
+    const shared = row({ role: 'ramp', in_baseline: true, effective: true, effective_from: 'baseline' })
+    const gone = view([shared])('ramp', 'remove')
+    expect(gone.chips).toEqual([])
+    expect(gone.removed).toEqual(['ramp'])
+    const back = mergeWindowRoles(applyOwnerAction(applyOwnerAction(ok([shared]), 'ramp', 'remove'), 'ramp', 'clear'), { kind: 'roles', roles: [] })
+    expect(back.chips.map((c) => [c.role, c.source])).toEqual([['ramp', 'baseline']])
+  })
+  it('removing a text-read role hides it, clearing your own add removes it', () => {
+    expect(view([], ['ramp'])('ramp', 'remove').removed).toEqual(['ramp'])
+    const added = row({ role: 'tutor', owner_effect: 'add', effective: true, effective_from: 'owner' })
+    expect(view([added])('tutor', 'clear').chips).toEqual([])
+  })
+  it('does not change a read-only answer', () => {
+    expect(applyOwnerAction({ status: 'error' }, 'ramp', 'add')).toEqual({ status: 'error' })
+    expect(applyOwnerAction(undefined, 'ramp', 'add')).toBeUndefined()
   })
 })

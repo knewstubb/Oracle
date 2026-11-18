@@ -18,11 +18,10 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CardImage } from '@/components/CardImage'
 import { CardSlotBadge } from '@/components/CardSlotBadge'
-import { CategoryTagEditor } from '@/components/CategoryTagEditor'
 import { parseCategoriesCapped, type StructuredCategories } from '@/lib/categoryUtils'
 import type { CardWindowLookup } from '@/lib/card-window-roles'
 import {
-  ROLE_SLUG_LABELS, ROLE_SOURCE_LABELS, mergeWindowRoles, undoActionFor,
+  ROLE_SLUG_LABELS, ROLE_SOURCE_LABELS, applyOwnerAction, mergeWindowRoles,
   type OwnerRoleAction, type RoleSlug,
 } from '@/lib/card-window-stored-roles'
 import type { DeckCard } from '@/components/CardGrid'
@@ -108,7 +107,6 @@ function CardWindow({ deckId, cardId, card, lastName, status, lifecycle, availab
   const [save, setSave] = useState<SaveState>({ kind: 'idle' })
 
   const parsed = parseCategoriesCapped(card?.categories ?? '')
-  const categoryList = [parsed.primary_category, ...parsed.additional_categories]
 
   const commit = useCallback(
     async (next: StructuredCategories, previous: StructuredCategories) => {
@@ -183,41 +181,29 @@ function CardWindow({ deckId, cardId, card, lastName, status, lifecycle, availab
               {/* Category */}
               <section aria-labelledby="cw-category">
                 <h3 id="cw-category" className="text-[length:var(--fs-xs)] font-medium uppercase tracking-wide text-muted-foreground">Category</h3>
-                <p className="text-[length:var(--fs-xs)] text-muted-foreground">Category: where it sits in the list</p>
+                <p className="text-[length:var(--fs-xs)] text-muted-foreground">Where it sits in the list</p>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  {categoryList.map((c, i) => (
-                    <span
-                      key={`${c}-${i}`}
-                      data-testid="card-window-category"
-                      className="rounded-full border border-[var(--border-default)] px-2 py-0.5 text-[length:var(--fs-sm)]"
-                    >
-                      {c}{i === 0 && categoryList.length > 1 ? ' (main)' : ''}
-                    </span>
-                  ))}
+                  <span
+                    data-testid="card-window-category"
+                    className="rounded-full border border-[var(--border-default)] px-2 py-0.5 text-[length:var(--fs-sm)]"
+                  >
+                    {parsed.primary_category}
+                  </span>
                   <Button variant="outline" size="sm" className="max-sm:h-11" onClick={() => setEditing((v) => !v)} aria-expanded={editing}>
                     {editing ? 'Done' : 'Edit'}
                   </Button>
                 </div>
                 {editing && (
-                  <div className="mt-3 flex flex-col gap-2 rounded-lg border border-[var(--border-default)] p-3">
-                    <label className="flex items-center gap-2 text-[length:var(--fs-sm)]">
-                      <span className="w-16 shrink-0 text-muted-foreground">Main:</span>
-                      <select
-                        value={parsed.primary_category}
-                        onChange={(e) => changePrimary(e.target.value)}
-                        className="h-7 flex-1 rounded-md border border-input bg-background px-2 text-[length:var(--fs-sm)] max-sm:h-11"
-                        aria-label="Main category"
-                      >
-                        {primaryOptions.map((c) => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </label>
-                    <CategoryTagEditor
-                      primaryCategory={parsed.primary_category}
-                      additionalCategories={parsed.additional_categories}
-                      availableCategories={availableCategories}
-                      onChange={(updated) => void commit(updated, parsed)}
+                  <div className="mt-3 rounded-lg border border-[var(--border-default)] p-3">
+                    <select
+                      value={parsed.primary_category}
+                      onChange={(e) => changePrimary(e.target.value)}
                       disabled={save.kind === 'saving'}
-                    />
+                      className="h-7 w-full rounded-md border border-input bg-background px-2 text-[length:var(--fs-sm)] max-sm:h-11"
+                      aria-label="Category"
+                    >
+                      {primaryOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
                   </div>
                 )}
                 <p className="mt-2 text-[length:var(--fs-xs)] text-muted-foreground">
@@ -283,23 +269,24 @@ function useCardWindowLookup(deckId: number, cardId: number) {
     retry: 1,
   })
 }
-type RoleEdit = { kind: 'saving' } | { kind: 'saved'; undo: { role: RoleSlug; action: OwnerRoleAction } | null } | { kind: 'error'; attempt: { role: RoleSlug; action: OwnerRoleAction } }
+type RoleEdit = { kind: 'saved' } | { kind: 'error'; attempt: { role: RoleSlug; action: OwnerRoleAction } }
 
 function RolesSection({ deckId, cardId, cardName }: { deckId: number; cardId: number; cardName: string }) {
   const query = useCardWindowLookup(deckId, cardId)
   const queryClient = useQueryClient()
   const [edit, setEdit] = useState<RoleEdit | null>(null)
+  const pending = useRef(0)
   const data = query.data
+  const queryKey = ['card-window-roles', deckId, cardId]
 
-  // The Undo offer lasts 10 seconds; "Saved" stays.
-  useEffect(() => {
-    if (edit?.kind !== 'saved' || !edit.undo) return
-    const t = setTimeout(() => setEdit((e) => (e?.kind === 'saved' ? { kind: 'saved', undo: null } : e)), UNDO_WINDOW_MS)
-    return () => clearTimeout(t)
-  }, [edit])
-
-  const save = async (role: RoleSlug, action: OwnerRoleAction, isUndo = false) => {
-    setEdit({ kind: 'saving' })
+  // The screen changes at once; the save runs in the background. If it fails, the screen goes back and says so.
+  const save = async (role: RoleSlug, action: OwnerRoleAction) => {
+    await queryClient.cancelQueries({ queryKey })
+    const before = queryClient.getQueryData<CardWindowLookup>(queryKey)
+    if (before) queryClient.setQueryData<CardWindowLookup>(queryKey, { ...before, stored: applyOwnerAction(before.stored, role, action) })
+    setEdit(null)
+    pending.current += 1
+    let failed = false
     try {
       const res = await fetch(`/api/decks/${deckId}/cards/${cardId}/roles`, {
         method: 'PUT',
@@ -307,18 +294,19 @@ function RolesSection({ deckId, cardId, cardName }: { deckId: number; cardId: nu
         body: JSON.stringify({ role, action }),
       })
       if (!res.ok) throw new Error('save failed')
-      const body = (await res.json()) as { previous: { owner_effect: 'add' | 'remove' | null } }
-      await queryClient.invalidateQueries({ queryKey: ['card-window-roles', deckId, cardId] })
-      setEdit({ kind: 'saved', undo: isUndo ? null : { role, action: undoActionFor(body.previous) } })
     } catch {
-      setEdit({ kind: 'error', attempt: { role, action } })
+      failed = true
+      if (before) queryClient.setQueryData<CardWindowLookup>(queryKey, before)
     }
+    pending.current -= 1
+    setEdit(failed ? { kind: 'error', attempt: { role, action } } : (e) => (e?.kind === 'error' ? e : { kind: 'saved' }))
+    // Read the saved answer back once the last save is done, so the screen matches what is stored.
+    if (pending.current === 0) void queryClient.invalidateQueries({ queryKey })
   }
 
   const stored = data?.stored
   const canEdit = stored?.status === 'ok'
   const view = data ? mergeWindowRoles(stored, data) : null
-  const busy = edit?.kind === 'saving'
   return (
     <section aria-labelledby="cw-roles">
       <h3 id="cw-roles" className="text-[length:var(--fs-xs)] font-medium uppercase tracking-wide text-muted-foreground">Universal roles</h3>
@@ -367,7 +355,7 @@ function RolesSection({ deckId, cardId, cardName }: { deckId: number; cardId: nu
                         type="button"
                         className="rounded px-1 text-muted-foreground hover:text-foreground disabled:opacity-50 max-sm:min-h-11 max-sm:min-w-11"
                         aria-label={`Remove ${c.label}`}
-                        disabled={busy}
+                       
                         onClick={() => void save(c.role, c.removeAction)}
                       >
                         <span aria-hidden="true">✕</span>
@@ -382,7 +370,7 @@ function RolesSection({ deckId, cardId, cardName }: { deckId: number; cardId: nu
                 {view.removed.map((r) => (
                   <li key={r} data-testid="card-window-role-removed">
                     You removed: {ROLE_SLUG_LABELS[r]}.
-                    <Button variant="link" size="sm" className="ml-1 max-sm:h-11" disabled={busy} onClick={() => void save(r, 'clear')}>
+                    <Button variant="link" size="sm" className="ml-1 max-sm:h-11" onClick={() => void save(r, 'clear')}>
                       Restore<span className="sr-only"> {ROLE_SLUG_LABELS[r]}</span>
                     </Button>
                   </li>
@@ -394,7 +382,7 @@ function RolesSection({ deckId, cardId, cardName }: { deckId: number; cardId: nu
                 <span className="text-muted-foreground">Add role</span>
                 <select
                   value=""
-                  disabled={busy}
+                 
                   onChange={(e) => { if (e.target.value) void save(e.target.value as RoleSlug, 'add') }}
                   className="h-7 rounded-md border border-input bg-background px-2 text-[length:var(--fs-sm)] max-sm:h-11"
                   aria-label="Add role"
@@ -411,20 +399,10 @@ function RolesSection({ deckId, cardId, cardName }: { deckId: number; cardId: nu
               <p className="text-[length:var(--fs-xs)] text-muted-foreground">Worked out from card text: nothing is set for these yet, so Oracle read the rules text and guessed.</p>
             )}
             <div className="min-h-5" role="status" aria-live="polite" data-testid="card-window-roles-save">
-              {edit?.kind === 'saving' && <span>Saving…</span>}
-              {edit?.kind === 'saved' && (
-                <span>
-                  Saved
-                  {edit.undo && (
-                    <Button variant="link" size="sm" className="ml-2 max-sm:h-11" onClick={() => void save(edit.undo!.role, edit.undo!.action, true)}>
-                      Undo
-                    </Button>
-                  )}
-                </span>
-              )}
+              {edit?.kind === 'saved' && <span>Saved</span>}
               {edit?.kind === 'error' && (
                 <span>
-                  Couldn&apos;t save the role. Nothing was changed.
+                  Couldn&apos;t save that change, so it was put back.
                   <Button variant="link" size="sm" className="ml-2 max-sm:h-11" onClick={() => void save(edit.attempt.role, edit.attempt.action)}>
                     Try again
                   </Button>

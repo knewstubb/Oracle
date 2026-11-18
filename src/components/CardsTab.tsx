@@ -166,7 +166,7 @@ function getPriceBracket(price: number | null | undefined): string {
 
 // ─── Sort Comparators ────────────────────────────────────────────────────────
 
-function sortCards(cards: DeckCard[], sortBy: SortBy): DeckCard[] {
+export function sortCards(cards: DeckCard[], sortBy: SortBy): DeckCard[] {
   return [...cards].sort((a, b) => {
     switch (sortBy) {
       case 'name':
@@ -204,7 +204,7 @@ function typeGroupRank(type: string): number {
   const i = TYPE_GROUP_ORDER.indexOf(type)
   return i === -1 ? 99 : i
 }
-function groupByType(cards: DeckCard[]): [string, DeckCard[]][] {
+export function groupByType(cards: DeckCard[]): [string, DeckCard[]][] {
   const groups: Record<string, DeckCard[]> = {}
   for (const card of cards) {
     const type = getCardTypeGroup(card)

@@ -101,24 +101,15 @@ export async function POST(
     }
   }
 
-  // Try to get default_category from ref_cards (global reference table)
-  // default_category is JSONB: { primary: string, secondary: string[], confidence: string, notes?: string }
+  // Starting category: one rule by card type (src/lib/type-line.ts). The old
+  // stored default_category guess (for example "Ramp") is no longer used.
   let categories: string | null = null
   if (cardName) {
     const { data: cardMeta } = await supabase
       .from('ref_cards')
-      .select('default_category, type_line')
+      .select('type_line')
       .eq('name', cardName)
       .maybeSingle()
-    
-    if (cardMeta?.default_category) {
-      // Extract primary category from JSONB structure
-      const categoryData = cardMeta.default_category as { primary?: string; secondary?: string[] } | null
-      if (categoryData?.primary) {
-        categories = JSON.stringify([categoryData.primary])
-      }
-    }
-
     // When the owned-printing path skipped the Scryfall lookup, use the
     // reference type line so category derivation still works.
     if (!typeLine && cardMeta?.type_line) {
@@ -126,7 +117,7 @@ export async function POST(
     }
   }
   
-  // Fallback: derive from type_line if no stored default
+  // Derive from the type line (front face for double-faced cards)
   if (!categories && typeLine) {
     const derived = deriveDefaultCategory(typeLine)
     categories = JSON.stringify([derived])

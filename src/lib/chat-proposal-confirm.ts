@@ -59,12 +59,11 @@ async function setStatus(client: CheckClient, ids: string[], userId: string, dec
   await client.from('chat_card_proposals').update(patch).in('id', ids).eq('user_id', userId).eq('deck_id', deckId).eq('status', onlyFrom)
 }
 
-/** The category written on the slot: the proposal's, else the card's default, else derived from its type line. */
+/** The category written on the slot: the proposal's, else derived from the card's type line (the old stored default guess is not used). */
 async function resolveCategories(client: CheckClient, cardName: string, proposed: string | null): Promise<string | null> {
   if (proposed) return JSON.stringify([proposed])
-  const { data } = await client.from('ref_cards').select('default_category, type_line').eq('name', cardName).limit(1)
-  const meta = Array.isArray(data) ? (data[0] as { default_category?: { primary?: string } | null; type_line?: string } | undefined) : undefined
-  if (meta?.default_category?.primary) return JSON.stringify([meta.default_category.primary])
+  const { data } = await client.from('ref_cards').select('type_line').eq('name', cardName).limit(1)
+  const meta = Array.isArray(data) ? (data[0] as { type_line?: string } | undefined) : undefined
   if (meta?.type_line) return JSON.stringify([deriveDefaultCategory(meta.type_line)])
   return null
 }

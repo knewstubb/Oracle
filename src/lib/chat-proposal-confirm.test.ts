@@ -140,7 +140,7 @@ beforeEach(() => {
 })
 
 describe('confirm', () => {
-  it('adds exactly one planned slot: quantity 1, no copy assigned, in the default category', async () => {
+  it('adds exactly one planned slot: quantity 1, no copy assigned, in the category of its type', async () => {
     const db = makeDb(tables())
     const before = db.tables.deck_cards.length
     const out = await confirm(db, [P1])
@@ -149,7 +149,7 @@ describe('confirm', () => {
     expect(out.reply.added).toHaveLength(1)
     expect(db.tables.deck_cards).toHaveLength(before + 1)
     const slot = db.tables.deck_cards.find((c) => c.id === out.reply.added[0].deckCardId)!
-    expect(slot).toMatchObject({ card_name: 'Cultivate', quantity: 1, copy_id: null, ownership_status: null, deck_id: 7, categories: '["Ramp"]', scryfall_id: 'sf-cult' })
+    expect(slot).toMatchObject({ card_name: 'Cultivate', quantity: 1, copy_id: null, ownership_status: null, deck_id: 7, categories: '["Sorcery"]', scryfall_id: 'sf-cult' })
     expect(db.tables.chat_card_proposals.find((p) => p.id === P1)).toMatchObject({ status: 'added', created_deck_card_id: slot.id })
     expect(out.reply.deckCardCount).toBe(2)
   })

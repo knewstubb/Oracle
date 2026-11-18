@@ -15,6 +15,7 @@ import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
 import { getOwnedPrintingsByNames } from '@/lib/card-data'
+import { defaultCategoryForTypeLine } from '@/lib/type-line'
 import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 
 interface AdditionInput {
@@ -119,7 +120,7 @@ export async function POST(
 
       const cardMetaResult = await supabase
         .from('ref_cards')
-        .select('default_category, type_line')
+        .select('type_line')
         .eq('name', name)
         .maybeSingle()
 
@@ -129,6 +130,7 @@ export async function POST(
 
       // Only resolve the default printing by name when the owner owns none.
       let defaultPrintingId: string | null = null
+      let printingTypeLine: string | null = null
       if (!ownedPrintingId) {
         const printingResult = await supabase
           .from('ref_printings')
@@ -142,15 +144,15 @@ export async function POST(
           throw new Error(`Failed to resolve printing for ${name}: ${printingResult.error.message}`)
         }
         defaultPrintingId = printingResult.data?.scryfall_id ?? null
+        printingTypeLine = printingResult.data?.type_line ?? null
       }
 
       let categories: string | null = explicitCategory
         ? JSON.stringify([explicitCategory])
         : null
-      if (!categories && cardMetaResult.data?.default_category) {
-        const category = cardMetaResult.data.default_category as { primary?: string }
-        if (category.primary) categories = JSON.stringify([category.primary])
-      }
+      // Starting category by card type (shared rule in src/lib/type-line.ts)
+      const typeLine = cardMetaResult.data?.type_line ?? printingTypeLine
+      if (!categories && typeLine) categories = JSON.stringify([defaultCategoryForTypeLine(typeLine)])
 
       const quantity = addition.quantity ?? 1
       if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100) {

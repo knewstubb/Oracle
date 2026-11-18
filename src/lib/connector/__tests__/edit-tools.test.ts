@@ -341,11 +341,17 @@ describe('add_cards_to_deck refuses Maybeboard as a category', () => {
 })
 
 describe('CC-22 card categories', () => {
-  it('stores the category passed for each card as given, and Other when none is passed', async () => {
+  it('stores the category passed as given, and files a card sent without one by its type (Other when its type is unknown)', async () => {
     const g = gw()
-    await runTool(ctx(g), 'add_cards_to_deck', { deck_id: 1, cards: [{ name: 'Sol Ring', category: 'Ramp' }, { name: 'Rhystic Study', category: 'Card Draw' }, { name: 'Forest' }] })
+    const TYPES: Record<string, string> = { Forest: 'Basic Land — Forest', 'Mox Opal': 'Legendary Artifact' }
+    const { db } = mockDb((q) => {
+      if (q.table !== 'ref_cards') return { data: [] }
+      const names = (q.filters.find((f) => f.op === 'in')?.args[1] as string[] | undefined) ?? []
+      return { data: names.filter((n) => n in TYPES).map((n) => ({ name: n, type_line: TYPES[n], oracle_text: null, mana_cost: null, mana_value: 0, color_identity: '', commander_legal: true })) }
+    })
+    await runTool(ctx(g, db), 'add_cards_to_deck', { deck_id: 1, cards: [{ name: 'Sol Ring', category: 'Ramp' }, { name: 'Rhystic Study', category: 'Card Draw' }, { name: 'Forest' }, { name: 'Mox Opal' }, { name: 'Unknown Card' }] })
     const items = (g.submit as ReturnType<typeof vi.fn>).mock.calls[0][0].payload.items
-    expect(items.map((i: { categories: string }) => i.categories)).toEqual(['["Ramp"]', '["Card Draw"]', '["Other"]'])
+    expect(items.map((i: { categories: string }) => i.categories)).toEqual(['["Ramp"]', '["Card Draw"]', '["Land"]', '["Artifact"]', '["Other"]'])
   })
 })
 describe('CC-21 deck colours', () => {

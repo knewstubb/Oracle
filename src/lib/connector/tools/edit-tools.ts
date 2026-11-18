@@ -14,6 +14,7 @@ import { LookupFailed, must, rows, type ToolOutput } from './common'
 import { fetchCardFacts, factsFor } from './card-facts'
 import { coloursOutside, normaliseColours } from './deck-colours'
 import { getOwnedPrintingsByNames } from '../../card-data'
+import { defaultCategoryForTypeLine } from '../../type-line'
 
 const dryRun = z.boolean().optional().describe('If true, only check and describe what would happen. Nothing is changed.')
 const deckId = z.number().int().positive().describe('The deck id from list_decks.')
@@ -225,10 +226,21 @@ async function ownedPrintingsFor(ctx: EditContext, names: string[]): Promise<Map
   } catch { /* keep the default printing */ }
   return out
 }
+/** Type lines for cards sent without a category, so they start in their type's category (shared rule). A lookup problem leaves them under "Other", as before. */
+async function startingTypeLines(ctx: EditContext, names: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  if (names.length === 0) return out
+  try {
+    const facts = await fetchCardFacts(ctx, names, { includeRulesText: false, prices: new Map() })
+    for (const [name, f] of facts) if (f.available && f.typeLine) out.set(name.toLowerCase(), f.typeLine)
+  } catch { /* keep "Other" */ }
+  return out
+}
 export async function addCardsToDeck(ctx: EditContext, input: z.infer<typeof addCardsInput>): Promise<ToolOutput> {
   const res = await resolveNames(ctx, input.cards.map((c) => c.name))
   if (!res.ok) return res.out
   const ownedPrintings = await ownedPrintingsFor(ctx, [...res.cards.values()].map((c) => c.name))
+  const typeLines = await startingTypeLines(ctx, input.cards.filter((c) => !c.category).map((c) => c.name))
   const items = input.cards.map((c) => {
     const card = res.cards.get(c.name.trim())!
     const mine = ownedPrintings.get(card.name)
@@ -238,7 +250,7 @@ export async function addCardsToDeck(ctx: EditContext, input: z.infer<typeof add
       set_code: mine?.setCode ?? card.setCode,
       oracle_id: card.oracleId,
       quantity: c.quantity ?? 1,
-      categories: JSON.stringify([c.category ?? 'Other']),
+      categories: JSON.stringify([c.category ?? defaultCategoryForTypeLine(typeLines.get(card.name.toLowerCase()) ?? typeLines.get(c.name.trim().toLowerCase()))]),
     }
   })
   const colours = await colourCheck(ctx, input.deck_id, items.map((i) => i.card_name))

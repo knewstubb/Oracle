@@ -16,6 +16,11 @@ describe('connector wording: automatic deck status', () => {
     }
     expect(desc('list_decks')).toMatch(/automatic/i)
   })
+  it('list_decks counts cards as original, proxy or unowned, and does not make Unowned a deck status', () => {
+    expect(desc('list_decks')).toMatch(/original, proxy or unowned/)
+    expect(desc('list_decks')).not.toMatch(/proxy or not owned/)
+    expect(desc('list_decks')).toMatch(/not a deck status/)
+  })
   it('no tool description or input text talks about marking a deck active or inactive', () => {
     for (const t of CONNECTOR_TOOLS) {
       expect(t.description, t.name).not.toMatch(/marked active|not marked active|inactive|starts inactive/i)

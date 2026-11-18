@@ -60,7 +60,7 @@ export async function listDecks(ctx: ToolContext, input: z.infer<typeof listDeck
   const limit = input.limit ?? DECKS_PAGE_MAX
   const offset = input.offset ?? 0
   try {
-    let q = ctx.db.select('decks', DECK_COLUMNS, { count: 'exact' }).eq('user_id', ctx.userId)
+    const q = ctx.db.select('decks', DECK_COLUMNS, { count: 'exact' }).eq('user_id', ctx.userId)
     const r = await must(q.order('name', { ascending: true }).range(offset, offset + limit - 1))
     if (typeof r.count !== 'number') throw new LookupFailed()
     const total = r.count

@@ -1,4 +1,4 @@
--- DRAFT. NOT APPLIED. Needs owner approval AND 20261117200000_cc15a_new_change_kinds applied first. Author: Architect, CC-15, 2026-11-17.
+-- APPLIED to live 2026-11-17 by the owner (SQL editor). Needs owner approval AND 20261117200000_cc15a_new_change_kinds applied first. Author: Architect, CC-15, 2026-11-17.
 -- Report: docs/oracle/reports/2026-11-17-architect-cc15-18-claude-primary.md  (DB-B)
 -- Not run against any database. Written from migration files, not a live schema; column defaults of `decks` (status etc.) and the
 -- unique key of deck_strategy (deck_id; the app upserts onConflict deck_id) are [Approximate]. Throwaway run is the gate.

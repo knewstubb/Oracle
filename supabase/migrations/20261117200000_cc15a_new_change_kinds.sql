@@ -1,4 +1,4 @@
--- DRAFT. NOT APPLIED. Needs owner approval; apply on a throwaway branch first. Author: Architect, CC-15 to CC-18 audit, 2026-11-17.
+-- APPLIED to live 2026-11-17 by the owner (SQL editor). Needs owner approval; apply on a throwaway branch first. Author: Architect, CC-15 to CC-18 audit, 2026-11-17.
 -- Report: docs/oracle/reports/2026-11-17-architect-cc15-18-claude-primary.md  (this is DB-A, the small foundation step)
 -- Depends on: 20261116150000, 150100, 150200, 150300, 190000 (applied) AND 20261117100000 cc13_loosen_limits (drafted; apply it FIRST).
 -- Not run against any database. Function bodies below were written from the migration files, not a live schema: the Tester's

@@ -17,6 +17,7 @@
 -- apply 20261118120100_roles_db2_change_kinds.draft.sql
 -- apply 20261118120200_roles_db3_deck_card_jobs.draft.sql
 -- apply 20261118120300_roles_db4_strategy_points.draft.sql
+-- apply 20261118120400_roles_db5_health_targets.draft.sql
  mkdeck 
 --------
  
@@ -47,15 +48,21 @@
  
 (1 row)
 
+ chk 
+-----
+ 
+(1 row)
+
 == rollbacks out of order must refuse
 psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118120000_roles_db1_card_roles.rollback.sql:18: ERROR:  roll back roles_db2 first
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118120100_roles_db2_change_kinds.rollback.sql:17: ERROR:  roll back roles_db3 and roles_db4 first
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118120100_roles_db2_change_kinds.rollback.sql:17: ERROR:  roll back roles_db5, roles_db4 and roles_db3 first
  chk 
 -----
  
 (1 row)
 
 == roll back 4, 3, 2, 1 (tables empty after the Undo; the log rows of the new kinds are cleared by hand first, test only)
+-- apply 20261118120400_roles_db5_health_targets.rollback.sql
 -- apply 20261118120300_roles_db4_strategy_points.rollback.sql
 -- apply 20261118120200_roles_db3_deck_card_jobs.rollback.sql
 -- apply 20261118120100_roles_db2_change_kinds.rollback.sql
@@ -80,7 +87,13 @@ psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118
 -- apply 20261118120100_roles_db2_change_kinds.draft.sql
 -- apply 20261118120300_roles_db4_strategy_points.draft.sql
 -- apply 20261118120200_roles_db3_deck_card_jobs.draft.sql
+-- apply 20261118120400_roles_db5_health_targets.draft.sql
  age 
+-----
+ 
+(1 row)
+
+ chk 
 -----
  
 (1 row)
@@ -101,6 +114,7 @@ psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118
 (1 row)
 
 == roll back 3, 4, 2, 1
+-- apply 20261118120400_roles_db5_health_targets.rollback.sql
 -- apply 20261118120200_roles_db3_deck_card_jobs.rollback.sql
 -- apply 20261118120300_roles_db4_strategy_points.rollback.sql
 -- apply 20261118120100_roles_db2_change_kinds.rollback.sql
@@ -115,6 +129,7 @@ psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118
 -- apply 20261118120100_roles_db2_change_kinds.draft.sql
 -- apply 20261118120200_roles_db3_deck_card_jobs.draft.sql
 -- apply 20261118120300_roles_db4_strategy_points.draft.sql
+-- apply 20261118120400_roles_db5_health_targets.draft.sql
  chk 
 -----
  
@@ -122,24 +137,26 @@ psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118
 
 
 ######## RESULTS ########
- n  |                                                                        name                                                                         | result |                                detail                                
-----+-----------------------------------------------------------------------------------------------------------------------------------------------------+--------+----------------------------------------------------------------------
-  1 | C-01 all four applied: 3 new tables with row security, 2 shared/personal role tables                                                                | PASS   | 
-  2 | C-02 a role+job request and a strategy point request both apply, in separate groups, one log row per card / point                                   | PASS   | 
-  3 | C-03 Recent changes lists both kinds with their sentence data                                                                                       | PASS   | 
-  4 | C-04 Claude undoes each batch in one go; every row it wrote is gone                                                                                 | PASS   | 
-  5 | C-05 old kinds still work with everything in place (add + Claude undo)                                                                              | PASS   | 
-  6 | C-10 DB-1 and DB-2 cannot be rolled back while later changes are applied                                                                            | PASS   | 
-  7 | C-11 all four rolled back in reverse: the database fingerprint equals the one taken before DB-1 (every function, grant, constraint, table, trigger) | PASS   | 8797325131d8a83a9c6de0822dc1a46d vs 8797325131d8a83a9c6de0822dc1a46d
-  8 | C-12 none of the new tables or functions is left                                                                                                    | PASS   | 
-  9 | C-13 the old connector works after the full rollback (add and Claude undo; old kinds only)                                                          | PASS   | 
- 10 | C-20 applied as 1, 2, 4, 3: role+job and strategy point requests both work                                                                          | PASS   | 
- 11 | C-21 rolled back as 3, 4, 2, 1: the fingerprint again equals the one before DB-1                                                                    | PASS   | 
- 12 | C-22 re-applied after a full rollback: a role+job request applies                                                                                   | PASS   | 
-(12 rows)
+ n  |                                                                            name                                                                            | result |                                                                    detail                                                                    
+----+------------------------------------------------------------------------------------------------------------------------------------------------------------+--------+----------------------------------------------------------------------------------------------------------------------------------------------
+  1 | C-01 all four applied: 3 new tables with row security, 2 shared/personal role tables                                                                       | PASS   | 
+  2 | C-02 a role+job request and a strategy point request both apply, in separate groups, one log row per card / point                                          | PASS   | 
+  3 | C-03 Recent changes lists both kinds with their sentence data                                                                                              | PASS   | 
+  4 | C-04 Claude undoes each batch in one go; every row it wrote is gone                                                                                        | PASS   | 
+  5 | C-05 old kinds still work with everything in place (add + Claude undo)                                                                                     | PASS   | 
+  6 | C-06 all five applied: a health target request applies, is one batch with one log row per group, and Claude undoes it in one go (the table is empty again) | PASS   | {"ok": true, "res": {"plan": {"n": 2, "action": "health_target", "changes": [{"group": "ramp", "reason": "Chain test", "target": 4, "previou
+  7 | C-10 DB-1 and DB-2 cannot be rolled back while later changes are applied                                                                                   | PASS   | 
+  8 | C-11 all four rolled back in reverse: the database fingerprint equals the one taken before DB-1 (every function, grant, constraint, table, trigger)        | PASS   | 8797325131d8a83a9c6de0822dc1a46d vs 8797325131d8a83a9c6de0822dc1a46d
+  9 | C-12 none of the new tables or functions is left                                                                                                           | PASS   | 
+ 10 | C-13 the old connector works after the full rollback (add and Claude undo; old kinds only)                                                                 | PASS   | 
+ 11 | C-20 applied as 1, 2, 4, 3: role+job and strategy point requests both work                                                                                 | PASS   | 
+ 12 | C-23 applied as 1, 2, 4, 3, 5: a health target request works too                                                                                           | PASS   | 
+ 13 | C-21 rolled back as 3, 4, 2, 1: the fingerprint again equals the one before DB-1                                                                           | PASS   | 
+ 14 | C-22 re-applied after a full rollback: a role+job request applies                                                                                          | PASS   | 
+(14 rows)
 
  passed | failed 
 --------+--------
-     12 |      0
+     14 |      0
 (1 row)
 

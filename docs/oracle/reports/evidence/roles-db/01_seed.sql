@@ -95,7 +95,7 @@ $$;
 CREATE FUNCTION t.snap() RETURNS text LANGUAGE plpgsql AS $$
 DECLARE v text := ''; r text; h text;
 BEGIN
-  FOREACH r IN ARRAY ARRAY['user_card_roles','ai_change_log','ai_pending_changes','deck_card_jobs','deck_strategy_points','ref_card_roles','deck_cards','decks'] LOOP
+  FOREACH r IN ARRAY ARRAY['user_card_roles','ai_change_log','ai_pending_changes','deck_card_jobs','deck_strategy_points','deck_health_targets','ref_card_roles','deck_cards','decks'] LOOP
     IF to_regclass('public.' || r) IS NOT NULL THEN
       EXECUTE format('SELECT COALESCE(md5(string_agg(to_jsonb(x)::text, %L ORDER BY to_jsonb(x)::text)), %L) FROM public.%I x', '|', '', r) INTO h; v := v || h;
     END IF;

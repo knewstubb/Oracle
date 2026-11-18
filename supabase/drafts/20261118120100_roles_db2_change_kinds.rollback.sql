@@ -9,7 +9,7 @@ BEGIN
   IF to_regprocedure('public._ai_plan_pre_roles(uuid,text,jsonb)') IS NULL OR to_regprocedure('public._ai_undo_group_pre_roles(uuid,uuid,text,uuid)') IS NULL THEN
     RAISE EXCEPTION 'roles_db2 is not applied (the _pre_roles functions are missing)';
   END IF;
-  IF to_regclass('public.deck_card_jobs') IS NOT NULL OR to_regclass('public.deck_strategy_points') IS NOT NULL THEN RAISE EXCEPTION 'roll back roles_db3 and roles_db4 first'; END IF;
+  IF to_regclass('public.deck_card_jobs') IS NOT NULL OR to_regclass('public.deck_strategy_points') IS NOT NULL OR to_regclass('public.deck_health_targets') IS NOT NULL THEN RAISE EXCEPTION 'roll back roles_db5, roles_db4 and roles_db3 first'; END IF;
   IF EXISTS (SELECT 1 FROM public.ai_change_log WHERE kind IN ('card_label', 'strategy_point'))
      OR EXISTS (SELECT 1 FROM public.ai_pending_changes WHERE action IN ('card_label', 'strategy_point')) THEN
     RAISE EXCEPTION 'cannot roll back: ai_change_log or ai_pending_changes has rows of a roles kind';

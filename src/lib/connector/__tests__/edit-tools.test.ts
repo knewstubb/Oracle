@@ -9,6 +9,8 @@ import * as api from '../owner-api'
 import { groupChanges } from '../change-groups'
 import type { ChangeLogRow, Gateway } from '../write-types'
 
+const ownedMock = vi.hoisted(() => ({ owned: new Map<string, string>() }))
+vi.mock('../../card-data', () => ({ getOwnedPrintingsByNames: async () => ownedMock.owned }))
 const U = 'user-1'
 const G = '11111111-2222-4333-8444-555555555555'
 
@@ -82,6 +84,18 @@ describe('edit tools', () => {
       userId: U, connectionId: 'conn-1', action: 'deck_add', dryRun: false,
       payload: { deck_id: 3, items: [{ card_name: 'Sol Ring', scryfall_id: 's-Sol Ring', set_code: 'cmm', oracle_id: 'o-Sol Ring', quantity: 1, categories: '["Other"]' }] },
     })
+  })
+  it('adds the printing the owner owns, with its set code, instead of the default printing', async () => {
+    ownedMock.owned = new Map([['Sol Ring', 's-owned']])
+    try {
+      const g = gw()
+      const db = mockDb((q) => (q.table === 'ref_printings' ? { data: [{ scryfall_id: 's-owned', set_code: 'ltc' }] } : { data: [] })).db
+      const r = await runTool(ctx(g, db), 'add_cards_to_deck', { deck_id: 3, cards: [{ name: 'Sol Ring' }, { name: 'Cultivate' }] })
+      expect(r.isError).toBeFalsy()
+      const items = (g.submit as unknown as { mock: { calls: Array<[{ payload: { items: Array<Record<string, unknown>> } }]> } }).mock.calls[0][0].payload.items
+      expect(items[0]).toMatchObject({ card_name: 'Sol Ring', scryfall_id: 's-owned', set_code: 'ltc' })
+      expect(items[1]).toMatchObject({ card_name: 'Cultivate', scryfall_id: 's-Cultivate', set_code: 'cmm' })
+    } finally { ownedMock.owned = new Map() }
   })
   it.each(['user_id', 'userId', 'connection_id'])('an extra %s argument is rejected and nothing is submitted', async (key) => {
     const g = gw()

@@ -13,6 +13,7 @@ import type { ChangeAction, GatewayFailure, ResolvedCard, SubmitOutcome } from '
 import { LookupFailed, must, rows, type ToolOutput } from './common'
 import { fetchCardFacts, factsFor } from './card-facts'
 import { coloursOutside, normaliseColours } from './deck-colours'
+import { getOwnedPrintingsByNames } from '../../card-data'
 
 const dryRun = z.boolean().optional().describe('If true, only check and describe what would happen. Nothing is changed.')
 const deckId = z.number().int().positive().describe('The deck id from list_decks.')
@@ -208,15 +209,33 @@ async function colourCheck(ctx: EditContext, deckId: number, names: string[]): P
   }
 }
 
+/** The printing the owner owns for each card name (with its set code), else nothing. Any problem falls back to the default printing. */
+async function ownedPrintingsFor(ctx: EditContext, names: string[]): Promise<Map<string, { scryfallId: string; setCode: string }>> {
+  const out = new Map<string, { scryfallId: string; setCode: string }>()
+  try {
+    const owned = await getOwnedPrintingsByNames(names, ctx.userId)
+    if (owned.size === 0) return out
+    const ids = [...new Set(owned.values())]
+    const found = rows<{ scryfall_id: string; set_code: string | null }>(await must(ctx.db.select('ref_printings', 'scryfall_id, set_code').in('scryfall_id', ids)))
+    const setById = new Map(found.map((r) => [r.scryfall_id, r.set_code]))
+    for (const [name, id] of owned) {
+      const setCode = setById.get(id)
+      if (setCode) out.set(name, { scryfallId: id, setCode })
+    }
+  } catch { /* keep the default printing */ }
+  return out
+}
 export async function addCardsToDeck(ctx: EditContext, input: z.infer<typeof addCardsInput>): Promise<ToolOutput> {
   const res = await resolveNames(ctx, input.cards.map((c) => c.name))
   if (!res.ok) return res.out
+  const ownedPrintings = await ownedPrintingsFor(ctx, [...res.cards.values()].map((c) => c.name))
   const items = input.cards.map((c) => {
     const card = res.cards.get(c.name.trim())!
+    const mine = ownedPrintings.get(card.name)
     return {
       card_name: card.name,
-      scryfall_id: card.scryfallId,
-      set_code: card.setCode,
+      scryfall_id: mine?.scryfallId ?? card.scryfallId,
+      set_code: mine?.setCode ?? card.setCode,
       oracle_id: card.oracleId,
       quantity: c.quantity ?? 1,
       categories: JSON.stringify([c.category ?? 'Other']),

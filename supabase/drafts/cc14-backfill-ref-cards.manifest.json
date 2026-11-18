@@ -1,0 +1,768 @@
+{
+  "generatedAt": "2026-11-18T01:07:45.215Z",
+  "mode": "apply",
+  "inserted": [
+    "Academic Ascent",
+    "Adventurous Eater // Have a Bite",
+    "Afterthought Sentry",
+    "Arcane Amphisbaena",
+    "Bestial Incursion",
+    "Blazing Firesinger // Seething Song",
+    "Blessed Ghoul",
+    "Bloomvine Regent // Claim Territory",
+    "Boggart Trawler // Boggart Bog",
+    "Campus Crier",
+    "Cast Away Doubt",
+    "Cheerful Osteomancer // Raise Dead",
+    "Chief Warg's Company",
+    "Command the Stage",
+    "Commit // Memory",
+    "Disciple of Freyalise // Garden of Freyalise",
+    "Dollmaker's Shop // Porcelain Gallery",
+    "Dusk // Dawn",
+    "Eardrum Rattler",
+    "Edgar, Ancient Bloodlord",
+    "Edgar, Moonlit Sovereign",
+    "Eiganjo Dynastorian // Replenish",
+    "Elite Interceptor // Rejoinder",
+    "Emeritus of Ideation // Ancestral Recall",
+    "Emeritus of Truce // Swords to Plowshares",
+    "Emeritus of Woe // Demonic Tutor",
+    "Encouraging Aviator // Jump",
+    "Fatehold Chronologist // Peer Review",
+    "Fell Horseman // Deathly Ride",
+    "Fell the Profane // Fell Mire",
+    "Feral Deathgorger // Dusk Sight",
+    "Ferocity of the Hunt",
+    "Flickering Hound",
+    "Foulmire Knight // Profane Insight",
+    "Gideon the Oathless",
+    "Gideon's Memorial",
+    "Glassworks // Shattered Yard",
+    "Goblin Glasswright // Craft with Pride",
+    "Grasping Shadows // Shadows' Lair",
+    "Growing Rites of Itlimoc // Itlimoc, Cradle of the Sun",
+    "Head of the Hunt",
+    "Heartstring Puller",
+    "Hengegate Pathway // Mistgate Pathway",
+    "Honorbound Page // Forum's Favor",
+    "Hydroelectric Specimen // Hydroelectric Laboratory",
+    "Idol of the Deep King // Sovereign's Macuahuitl",
+    "Jade Seedstones // Jadeheart Attendant",
+    "Konstrari Annex",
+    "Landscape Painter // Vibrant Idea",
+    "Lantern Bearer // Lanterns' Lift",
+    "Legion Leadership // Legion Stronghold",
+    "Living Library",
+    "Maelstrom Artisan // Rocket Volley",
+    "Malakir Rebirth // Malakir Mire",
+    "Monster Manual // Zoological Study",
+    "Multiply by Zero",
+    "Murderous Rider // Swift End",
+    "Murmuring Volume",
+    "Part in Friendship",
+    "Poppet Stitcher // Poppet Factory",
+    "Protege's Awakening",
+    "Prudent Fateseer // Peer Review",
+    "Quill-Blade Laureate // Twofold Intent",
+    "Rank Rat",
+    "Recursive Recruitment",
+    "Runescale Stormbrood // Chilling Screech",
+    "Sagu Wildling // Roost Seek",
+    "Scathing Shadelock // Venomous Words",
+    "Seasoned Cryomancer",
+    "Silence the Echo",
+    "Skycoach Conductor // All Aboard",
+    "Spellbook Seeker // Careful Study",
+    "Sphinx of False Conclusions",
+    "Spiritcall Enthusiast // Scrollboost",
+    "Stensian Sanguinist // Exsanguinate",
+    "Stingerquill Annex",
+    "Stormshriek Feral // Flush Out",
+    "Studious First-Year // Rampant Growth",
+    "Sundering Eruption // Volcanic Fissure",
+    "Sureshot Sower",
+    "Surgical Precision",
+    "Tether Technician",
+    "The Everflowing Well // The Myriad Pools",
+    "Theoretical Necromancer",
+    "Thousand Moons Smithy // Barracks of the Thousand",
+    "Tlincalli Hunter // Retrieve Prey",
+    "Twisted Fates",
+    "Undulating Witness",
+    "Unflinching Hortimancer",
+    "Verdant Kraken",
+    "Visage of Dread // Dread Osseosaur",
+    "Walk-In Closet // Forgotten Cellar",
+    "Waterlogged Teachings // Inundated Archive",
+    "Wax // Wane",
+    "Way of the Paradox",
+    "Whirlwing Stormbrood // Dynamic Soar",
+    "Yoshimaru, Beloved Companion",
+    "Yoshimaru, Scrappy Stray",
+    "Yuriko, Blade of the Mighty",
+    "Yuriko, Hope from the Shadows"
+  ],
+  "updated": [
+    {
+      "name": "Aang, at the Crossroads // Aang, Destined Savior",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Avatar Ally // Legendary Creature — Avatar Ally"
+    },
+    {
+      "name": "Aang, Swift Savior // Aang and La, Ocean's Fury",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Avatar Ally // Legendary Creature — Avatar Spirit Ally"
+    },
+    {
+      "name": "Abigale, Poet Laureate // Heroic Stanza",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Bird Bard // Sorcery"
+    },
+    {
+      "name": "Aclazotz, Deepest Betrayal // Temple of the Dead",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Bat God // Land"
+    },
+    {
+      "name": "Ajani, Nacatl Pariah // Ajani, Nacatl Avenger",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Cat Warrior // Legendary Planeswalker — Ajani"
+    },
+    {
+      "name": "Alrund, God of the Cosmos // Hakka, Whispering Raven",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — God // Legendary Creature — Bird"
+    },
+    {
+      "name": "Arcee, Sharpshooter // Arcee, Acrobatic Coupe",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Artifact Creature — Robot // Legendary Artifact — Vehicle"
+    },
+    {
+      "name": "Archangel Avacyn // Avacyn, the Purifier",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Angel // Legendary Creature — Angel"
+    },
+    {
+      "name": "Ashling, Rekindled // Ashling, Rimebound",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Elemental Sorcerer // Legendary Creature — Elemental Wizard"
+    },
+    {
+      "name": "Avatar Aang // Aang, Master of Elements",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Avatar Ally // Legendary Creature — Avatar Ally"
+    },
+    {
+      "name": "Ayara, Widow of the Realm // Ayara, Furnace Queen",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Elf Noble // Legendary Creature — Phyrexian Elf Noble"
+    },
+    {
+      "name": "Beluna Grandsquall // Seek Thrills",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Giant Noble // Instant — Adventure"
+    },
+    {
+      "name": "Birgi, God of Storytelling // Harnfel, Horn of Bounty",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — God // Legendary Artifact"
+    },
+    {
+      "name": "Blaster, Combat DJ // Blaster, Morale Booster",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Artifact Creature — Robot // Legendary Artifact"
+    },
+    {
+      "name": "Blex, Vexing Pest // Search for Blex",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Pest // Sorcery"
+    },
+    {
+      "name": "Blitzwing, Cruel Tormentor // Blitzwing, Adaptive Assailant",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Artifact Creature — Robot // Legendary Artifact — Vehicle"
+    },
+    {
+      "name": "Brigid, Clachan's Heart // Brigid, Doun's Mind",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Kithkin Warrior // Legendary Creature — Kithkin Soldier"
+    },
+    {
+      "name": "Bruce Banner // The Incredible Hulk",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Scientist Hero // Legendary Creature — Gamma Berserker Hero"
+    },
+    {
+      "name": "Casal, Lurkwood Pathfinder // Casal, Pathbreaker Owlbear",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Tiefling Druid // Legendary Creature — Bird Bear"
+    },
+    {
+      "name": "Cecil, Dark Knight // Cecil, Redeemed Paladin",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Knight // Legendary Creature — Human Knight"
+    },
+    {
+      "name": "Chandra, Fire of Kaladesh // Chandra, Roaring Flame",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Shaman // Legendary Planeswalker — Chandra"
+    },
+    {
+      "name": "Clive, Ifrit's Dominant // Ifrit, Warden of Inferno",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Noble Warrior // Legendary Enchantment Creature — Saga Demon"
+    },
+    {
+      "name": "Cosima, God of the Voyage // The Omenkeel",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — God // Legendary Artifact — Vehicle"
+    },
+    {
+      "name": "Cyclonus, the Saboteur // Cyclonus, Cybertronian Fighter",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Artifact Creature — Robot // Legendary Artifact — Vehicle"
+    },
+    {
+      "name": "Dennick, Pious Apprentice // Dennick, Pious Apparition",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Soldier // Legendary Creature — Spirit Soldier"
+    },
+    {
+      "name": "Dion, Bahamut's Dominant // Bahamut, Warden of Light",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Noble Knight // Legendary Enchantment Creature — Saga Dragon"
+    },
+    {
+      "name": "Dorothea, Vengeful Victim // Dorothea's Retribution",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Spirit // Enchantment — Aura"
+    },
+    {
+      "name": "Eddie Brock // Venom, Lethal Protector",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Hero Villain // Legendary Creature — Symbiote Hero Villain"
+    },
+    {
+      "name": "Edgar, Charmed Groom // Edgar Markov's Coffin",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Vampire Noble // Legendary Artifact"
+    },
+    {
+      "name": "Egon, God of Death // Throne of Death",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — God // Legendary Artifact"
+    },
+    {
+      "name": "Eirdu, Carrier of Dawn // Isilu, Carrier of Twilight",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Elemental God // Legendary Creature — Elemental God"
+    },
+    {
+      "name": "Elesh Norn // The Argent Etchings",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Phyrexian Praetor // Enchantment — Saga"
+    },
+    {
+      "name": "Emet-Selch, Unsundered // Hades, Sorcerer of Eld",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Elder Wizard // Legendary Creature — Avatar"
+    },
+    {
+      "name": "Esika, God of the Tree // The Prismatic Bridge",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — God // Legendary Enchantment"
+    },
+    {
+      "name": "Etali, Primal Conqueror // Etali, Primal Sickness",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Elder Dinosaur // Legendary Creature — Phyrexian Elder Dinosaur"
+    },
+    {
+      "name": "Exdeath, Void Warlock // Neo Exdeath, Dimension's End",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Spirit Warlock // Legendary Creature — Spirit Avatar"
+    },
+    {
+      "name": "Extus, Oriq Overlord // Awaken the Blood Avatar",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Warlock // Sorcery"
+    },
+    {
+      "name": "Flamewar, Brash Veteran // Flamewar, Streetwise Operative",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Artifact Creature — Robot // Legendary Artifact — Vehicle"
+    },
+    {
+      "name": "Garland, Knight of Cornelia // Chaos, the Endless",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Knight // Legendary Creature — Demon"
+    },
+    {
+      "name": "Goldbug, Humanity's Ally // Goldbug, Scrappy Scout",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Artifact Creature — Robot // Legendary Artifact — Vehicle"
+    },
+    {
+      "name": "Grist, Voracious Larva // Grist, the Plague Swarm",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Insect // Legendary Planeswalker — Grist"
+    },
+    {
+      "name": "Grub, Storied Matriarch // Grub, Notorious Auntie",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Goblin Warlock // Legendary Creature — Goblin Warrior"
+    },
+    {
+      "name": "Gwen Stacy // Ghost-Spider",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Performer Hero // Legendary Creature — Spider Human Hero"
+    },
+    {
+      "name": "Halvar, God of Battle // Sword of the Realms",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — God // Legendary Artifact — Equipment"
+    },
+    {
+      "name": "Heliod, the Radiant Dawn // Heliod, the Warped Eclipse",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Enchantment Creature — God // Legendary Enchantment Creature — Phyrexian God"
+    },
+    {
+      "name": "Henrika Domnathi // Henrika, Infernal Seer",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Vampire // Legendary Creature — Vampire"
+    },
+    {
+      "name": "Hildibrand Manderville // Gentleman's Rise",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Detective // Instant — Adventure"
+    },
+    {
+      "name": "Homura, Human Ascendant // Homura's Essence",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Monk // Legendary Enchantment"
+    },
+    {
+      "name": "Huatli, Poet of Unity // Roar of the Fifth People",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Warrior Bard // Enchantment — Saga"
+    },
+    {
+      "name": "Jace, Vryn's Prodigy // Jace, Telepath Unbound",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Wizard // Legendary Planeswalker — Jace"
+    },
+    {
+      "name": "Jacob Hauken, Inspector // Hauken's Insight",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Advisor // Legendary Enchantment"
+    },
+    {
+      "name": "Jadzi, Oracle of Arcavios // Journey to the Oracle",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Wizard // Sorcery"
+    },
+    {
+      "name": "Jadzi, Steward of Fate // Oracle's Gift",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Wizard // Sorcery"
+    },
+    {
+      "name": "James, Wandering Dad // Follow Him",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Scientist // Instant — Adventure"
+    },
+    {
+      "name": "Jecht, Reluctant Guardian // Braska's Final Aeon",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Warrior // Legendary Enchantment Creature — Saga Nightmare"
+    },
+    {
+      "name": "Jennifer Walters // The Sensational She-Hulk",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Advisor Hero // Legendary Creature — Gamma Hero"
+    },
+    {
+      "name": "Jerren, Corrupted Bishop // Ormendahl, the Corrupter",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Cleric // Legendary Creature — Demon"
+    },
+    {
+      "name": "Jetfire, Ingenious Scientist // Jetfire, Air Guardian",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Artifact Creature — Robot // Legendary Artifact — Vehicle"
+    },
+    {
+      "name": "Jill, Shiva's Dominant // Shiva, Warden of Ice",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Noble Warrior // Legendary Enchantment Creature — Saga Elemental"
+    },
+    {
+      "name": "Jin-Gitaxias // The Great Synthesis",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Phyrexian Praetor // Enchantment — Saga"
+    },
+    {
+      "name": "Jorn, God of Winter // Kaldring, the Rimestaff",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Snow Creature — God // Legendary Snow Artifact"
+    },
+    {
+      "name": "Joshua, Phoenix's Dominant // Phoenix, Warden of Fire",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Noble Wizard // Legendary Enchantment Creature — Saga Phoenix"
+    },
+    {
+      "name": "Karvanista, Loyal Lupari // Lupari Shield",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Alien Dog Soldier // Sorcery — Adventure"
+    },
+    {
+      "name": "Katilda, Dawnhart Martyr // Katilda's Rising Dawn",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Spirit Warlock // Legendary Enchantment — Aura"
+    },
+    {
+      "name": "Kefka, Court Mage // Kefka, Ruler of Ruin",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Wizard // Legendary Creature — Avatar Wizard"
+    },
+    {
+      "name": "Kellan, Daring Traveler // Journey On",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Faerie Scout // Sorcery — Adventure"
+    },
+    {
+      "name": "Kellan, Inquisitive Prodigy // Tail the Suspect",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Faerie Detective // Sorcery — Adventure"
+    },
+    {
+      "name": "Kellan, the Fae-Blooded // Birthright Boon",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Faerie // Sorcery — Adventure"
+    },
+    {
+      "name": "Kianne, Dean of Substance // Imbraham, Dean of Theory",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Elf Druid // Legendary Creature — Bird Wizard"
+    },
+    {
+      "name": "King T'Challa // Black Panther, Hope Enduring",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Noble Hero // Legendary Creature — Human Warrior Hero"
+    },
+    {
+      "name": "Kirol, History Buff // Pack a Punch",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Vampire Cleric // Sorcery"
+    },
+    {
+      "name": "Kolvori, God of Kinship // The Ringhart Crest",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — God // Legendary Artifact"
+    },
+    {
+      "name": "Kuja, Genome Sorcerer // Trance Kuja, Fate Defied",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Mutant Wizard // Legendary Creature — Avatar Wizard"
+    },
+    {
+      "name": "Kuon, Ogre Ascendant // Kuon's Essence",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Ogre Monk // Legendary Enchantment"
+    },
+    {
+      "name": "Kytheon, Hero of Akros // Gideon, Battle-Forged",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Soldier // Legendary Planeswalker — Gideon"
+    },
+    {
+      "name": "Liliana, Heretical Healer // Liliana, Defiant Necromancer",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Cleric // Legendary Planeswalker — Liliana"
+    },
+    {
+      "name": "Lluwen, Exchange Student // Pest Friend",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Elf Druid // Sorcery"
+    },
+    {
+      "name": "Ludevic, Necrogenius // Olag, Ludevic's Hubris",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Wizard // Legendary Creature — Zombie"
+    },
+    {
+      "name": "Megatron, Tyrant // Megatron, Destructive Force",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Artifact Creature — Robot // Legendary Artifact — Vehicle"
+    },
+    {
+      "name": "Mila, Crafty Companion // Lukka, Wayward Bonder",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Fox // Legendary Planeswalker — Lukka"
+    },
+    {
+      "name": "Miles Morales // Ultimate Spider-Man",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Citizen Hero // Legendary Creature — Spider Human Hero"
+    },
+    {
+      "name": "Monica Rambeau // Photon, Living Light",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Hero // Legendary Creature — Elemental Hero"
+    },
+    {
+      "name": "Nicol Bolas, the Ravager // Nicol Bolas, the Arisen",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Elder Dragon // Legendary Planeswalker — Bolas"
+    },
+    {
+      "name": "Nissa, Vastwood Seer // Nissa, Sage Animist",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Elf Scout // Legendary Planeswalker — Nissa"
+    },
+    {
+      "name": "Norman Osborn // Green Goblin",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Scientist Villain // Legendary Creature — Goblin Human Villain"
+    },
+    {
+      "name": "Ojer Axonil, Deepest Might // Temple of Power",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — God // Land"
+    },
+    {
+      "name": "Ojer Kaslem, Deepest Growth // Temple of Cultivation",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — God // Land"
+    },
+    {
+      "name": "Ojer Pakpatiq, Deepest Epoch // Temple of Cyclical Time",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — God // Land"
+    },
+    {
+      "name": "Ojer Taq, Deepest Foundation // Temple of Civilization",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — God // Land"
+    },
+    {
+      "name": "Optimus Prime, Hero // Optimus Prime, Autobot Leader",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Artifact Creature — Robot // Legendary Artifact — Vehicle"
+    },
+    {
+      "name": "Peter Parker // Amazing Spider-Man",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Scientist Hero // Legendary Creature — Spider Human Hero"
+    },
+    {
+      "name": "Plargg, Dean of Chaos // Augusta, Dean of Order",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Orc Shaman // Legendary Creature — Human Cleric"
+    },
+    {
+      "name": "Polukranos Reborn // Polukranos, Engine of Ruin",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Hydra // Legendary Creature — Phyrexian Hydra"
+    },
+    {
+      "name": "Prowl, Stoic Strategist // Prowl, Pursuit Vehicle",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Artifact Creature — Robot // Legendary Artifact — Vehicle"
+    },
+    {
+      "name": "Ral, Monsoon Mage // Ral, Leyline Prodigy",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Wizard // Legendary Planeswalker — Ral"
+    },
+    {
+      "name": "Ratchet, Field Medic // Ratchet, Rescue Racer",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Artifact Creature — Robot // Legendary Artifact — Vehicle"
+    },
+    {
+      "name": "Reidane, God of the Worthy // Valkmira, Protector's Shield",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — God // Legendary Artifact"
+    },
+    {
+      "name": "Rona, Herald of Invasion // Rona, Tolarian Obliterator",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Wizard // Legendary Creature — Phyrexian Wizard"
+    },
+    {
+      "name": "Rune-Tail, Kitsune Ascendant // Rune-Tail's Essence",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Fox Monk // Legendary Enchantment"
+    },
+    {
+      "name": "Runo Stromkirk // Krothuss, Lord of the Deep",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Vampire Cleric // Legendary Creature — Kraken Horror"
+    },
+    {
+      "name": "Sanar, Unfinished Genius // Wild Idea",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Goblin Sorcerer // Sorcery"
+    },
+    {
+      "name": "Sasaya, Orochi Ascendant // Sasaya's Essence",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Snake Monk // Legendary Enchantment"
+    },
+    {
+      "name": "Sephiroth, Fabled SOLDIER // Sephiroth, One-Winged Angel",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Avatar Soldier // Legendary Creature — Angel Nightmare Avatar"
+    },
+    {
+      "name": "Serah Farron // Crystallized Serah",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Citizen // Legendary Artifact"
+    },
+    {
+      "name": "Shaile, Dean of Radiance // Embrose, Dean of Shadow",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Bird Cleric // Legendary Creature — Human Warlock"
+    },
+    {
+      "name": "Sheoldred // The True Scriptures",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Phyrexian Praetor // Enchantment — Saga"
+    },
+    {
+      "name": "Slicer, Hired Muscle // Slicer, High-Speed Antagonist",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Artifact Creature — Robot // Legendary Artifact — Vehicle"
+    },
+    {
+      "name": "Sorin of House Markov // Sorin, Ravenous Neonate",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Noble // Legendary Planeswalker — Sorin"
+    },
+    {
+      "name": "Soundwave, Sonic Spy // Soundwave, Superior Captain",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Artifact Creature — Robot // Legendary Artifact"
+    },
+    {
+      "name": "Starscream, Power Hungry // Starscream, Seeker Leader",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Artifact Creature — Robot // Legendary Artifact — Vehicle"
+    },
+    {
+      "name": "Sygg, Wanderwine Wisdom // Sygg, Wanderbrine Shield",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Merfolk Wizard // Legendary Creature — Merfolk Rogue"
+    },
+    {
+      "name": "Tam, Observant Sequencer // Deep Sight",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Gorgon Wizard // Sorcery"
+    },
+    {
+      "name": "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Moonfolk Wizard // Legendary Planeswalker — Tamiyo"
+    },
+    {
+      "name": "Tergrid, God of Fright // Tergrid's Lantern",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — God // Legendary Artifact"
+    },
+    {
+      "name": "Terra, Magical Adept // Esper Terra",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Wizard Warrior // Legendary Enchantment Creature — Saga Wizard"
+    },
+    {
+      "name": "Tetzin, Gnome Champion // The Golden-Gear Colossus",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Artifact Creature — Gnome // Legendary Artifact Creature — Gnome"
+    },
+    {
+      "name": "The Emperor of Palamecia // The Lord Master of Hell",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Noble Wizard // Legendary Creature — Demon Noble Wizard"
+    },
+    {
+      "name": "Tony Stark // The Invincible Iron Man",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Artificer Hero // Legendary Artifact Creature — Human Hero"
+    },
+    {
+      "name": "Toralf, God of Fury // Toralf's Hammer",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — God // Legendary Artifact — Equipment"
+    },
+    {
+      "name": "Tovolar, Dire Overlord // Tovolar, the Midnight Scourge",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Werewolf // Legendary Creature — Werewolf"
+    },
+    {
+      "name": "Trystan, Callous Cultivator // Trystan, Penitent Culler",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Elf Druid // Legendary Creature — Elf Warlock"
+    },
+    {
+      "name": "Ulrich of the Krallenhorde // Ulrich, Uncontested Alpha",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Werewolf // Legendary Creature — Werewolf"
+    },
+    {
+      "name": "Ultimecia, Time Sorceress // Ultimecia, Omnipotent",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Warlock // Legendary Creature — Nightmare Warlock"
+    },
+    {
+      "name": "Ultra Magnus, Tactician // Ultra Magnus, Armored Carrier",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Artifact Creature — Robot // Legendary Artifact — Vehicle"
+    },
+    {
+      "name": "Urabrask // The Great Work",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Phyrexian Praetor // Enchantment — Saga"
+    },
+    {
+      "name": "Uvilda, Dean of Perfection // Nassari, Dean of Expression",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Djinn Wizard // Legendary Creature — Efreet Shaman"
+    },
+    {
+      "name": "Valentin, Dean of the Vein // Lisette, Dean of the Root",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Vampire Warlock // Legendary Creature — Human Druid"
+    },
+    {
+      "name": "Valki, God of Lies // Tibalt, Cosmic Impostor",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — God // Legendary Planeswalker — Tibalt"
+    },
+    {
+      "name": "Venat, Heart of Hydaelyn // Hydaelyn, the Mothercrystal",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Elder Wizard // Legendary Creature — God"
+    },
+    {
+      "name": "Vincent Valentine // Galian Beast",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Assassin // Legendary Creature — Werewolf Beast"
+    },
+    {
+      "name": "Vorinclex // The Grand Evolution",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Phyrexian Praetor // Enchantment — Saga"
+    },
+    {
+      "name": "Zenos yae Galvus // Shinryu, Transcendent Rival",
+      "previous_oracle_text": null,
+      "previous_type_line": "Legendary Creature — Human Noble Warrior // Legendary Creature — Dragon"
+    }
+  ]
+}

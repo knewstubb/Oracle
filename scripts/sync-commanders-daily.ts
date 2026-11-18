@@ -19,6 +19,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { config } from 'dotenv';
 import { resolve } from 'path';
+import { hasCardType, hasSupertype, parseTypeLine } from '../src/lib/type-line';
 
 // Load env
 config({ path: resolve(__dirname, '../.env.local') });
@@ -90,16 +91,16 @@ function sleep(ms: number): Promise<void> {
  * Check if a card can be a commander based on type line and oracle text
  */
 function canBeCommander(card: ScryfallCard): boolean {
-  const typeLine = card.type_line.toLowerCase();
+  const parsedType = parseTypeLine(card.type_line);
   const oracleText = (card.oracle_text ?? '').toLowerCase();
   
   // Must be legendary creature (or have "can be your commander" text)
-  const isLegendaryCreature = typeLine.includes('legendary') && typeLine.includes('creature');
+  const isLegendaryCreature = hasSupertype(parsedType, 'Legendary', 'any') && hasCardType(parsedType, 'Creature', 'any');
   const hasCommanderText = oracleText.includes('can be your commander');
   
   // Planeswalkers that can be commanders
-  const isCommanderPlaneswalker = typeLine.includes('legendary') && 
-    typeLine.includes('planeswalker') && 
+  const isCommanderPlaneswalker = hasSupertype(parsedType, 'Legendary', 'any') && 
+    hasCardType(parsedType, 'Planeswalker', 'any') && 
     hasCommanderText;
   
   return isLegendaryCreature || hasCommanderText || isCommanderPlaneswalker;
@@ -375,8 +376,8 @@ async function main() {
         color_identity: (card.color_identity || []).join(''),
         commander_legal: card.legalities.commander === 'legal',
         can_be_commander: true,
-        is_legendary: card.type_line.toLowerCase().includes('legendary'),
-        is_creature: card.type_line.toLowerCase().includes('creature'),
+        is_legendary: hasSupertype(parseTypeLine(card.type_line), 'Legendary', 'any'),
+        is_creature: hasCardType(parseTypeLine(card.type_line), 'Creature', 'any'),
       });
     }
     

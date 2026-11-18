@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
+import { hasCardType, parseTypeLine } from '@/lib/type-line'
 import type { DeckCard } from '@/lib/brew-v2-types'
 
 /** Ordered bucket labels for rendering left-to-right */
@@ -11,7 +12,8 @@ export type BucketLabel = (typeof BUCKET_ORDER)[number]
 export type CurveBuckets = Record<BucketLabel, DeckCard[]>
 
 function isLand(card: DeckCard): boolean {
-  return /\bLand\b/i.test(card.type_line)
+  // Front face only: "Instant // Land" is a spell, not a land
+  return hasCardType(parseTypeLine(card.type_line), 'Land', 'front')
 }
 
 function isXCost(card: DeckCard): boolean {

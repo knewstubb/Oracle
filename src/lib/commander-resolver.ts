@@ -13,6 +13,12 @@
  */
 
 import { createAdminClient } from '@/lib/supabase';
+import { hasCardType, hasSubtype, parseTypeLine } from '@/lib/type-line';
+
+/** Card type on either face, read from the type line (never part of a subtype). */
+function isTypeOf(typeLine: string, type: string): boolean {
+  return hasCardType(parseTypeLine(typeLine), type, 'any');
+}
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Allow injecting a client for scripts, or create one for API routes
@@ -236,7 +242,7 @@ function detectKeyword(oracleText: string | null, typeLine: string): {
   }
   
   // Check if card is a Doctor (Time Lord Doctor)
-  if (typeLine.toLowerCase().includes('time lord') && text.includes('doctor')) {
+  if (hasSubtype(parseTypeLine(typeLine), 'Time Lord', 'any') && text.includes('doctor')) {
     return { keyword: 'doctor' };
   }
   
@@ -251,7 +257,7 @@ function detectKeyword(oracleText: string | null, typeLine: string): {
   }
   
   // Background type
-  if (typeLine.toLowerCase().includes('background')) {
+  if (hasSubtype(parseTypeLine(typeLine), 'Background', 'any')) {
     return { keyword: 'background' };
   }
   
@@ -421,11 +427,11 @@ export async function resolveCommander(raw: string): Promise<ResolvedCommander |
     }
     // Could be oathbreaker (planeswalker + instant/sorcery)
     else if (
-      (card1.typeLine.includes('Planeswalker') && (card2.typeLine.includes('Instant') || card2.typeLine.includes('Sorcery'))) ||
-      (card2.typeLine.includes('Planeswalker') && (card1.typeLine.includes('Instant') || card1.typeLine.includes('Sorcery')))
+      (isTypeOf(card1.typeLine, 'Planeswalker') && (isTypeOf(card2.typeLine, 'Instant') || isTypeOf(card2.typeLine, 'Sorcery'))) ||
+      (isTypeOf(card2.typeLine, 'Planeswalker') && (isTypeOf(card1.typeLine, 'Instant') || isTypeOf(card1.typeLine, 'Sorcery')))
     ) {
       commanderType = 'oathbreaker';
-      const [oathbreaker, spell] = card1.typeLine.includes('Planeswalker') ? [card1, card2] : [card2, card1];
+      const [oathbreaker, spell] = isTypeOf(card1.typeLine, 'Planeswalker') ? [card1, card2] : [card2, card1];
       commanderCards.push({
         cardName: oathbreaker.name,
         role: 'oathbreaker',

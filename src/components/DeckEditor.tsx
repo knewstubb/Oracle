@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import { X, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { parseTypeLine, primaryType } from '@/lib/type-line'
 import Image from 'next/image'
 
 export interface DeckSuggestion {
@@ -36,10 +37,7 @@ const TYPE_ORDER = [
 ]
 
 function getPrimaryType(typeLine: string): string {
-  for (const t of TYPE_ORDER) {
-    if (typeLine.toLowerCase().includes(t.toLowerCase())) return t
-  }
-  return 'Other'
+  return primaryType(parseTypeLine(typeLine))
 }
 
 function pluralizeType(type: string): string {

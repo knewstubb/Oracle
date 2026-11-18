@@ -3,6 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import { createAdminClient } from '@/lib/supabase'
+import { hasCardType, hasSubtype, hasSupertype, parseTypeLine } from '@/lib/type-line'
 
 // ---------------------------------------------------------------------------
 // Data Interfaces
@@ -347,9 +348,11 @@ class SupabaseCardRepository implements CardRepository {
       const ref = refMap.get(uc.card_name.toLowerCase())
       if (!ref) continue
       
-      // Check if type_line contains the keyword
-      const typeLine = (ref.type_line || '').toLowerCase()
-      if (!typeLine.includes(typeKeywordLower)) continue
+      // Match the keyword as a whole card type, supertype or subtype (never part of a word)
+      const parsedType = parseTypeLine(ref.type_line)
+      const wordMatches = (w: string) =>
+        hasCardType(parsedType, w, 'any') || hasSupertype(parsedType, w, 'any') || hasSubtype(parsedType, w, 'any')
+      if (!typeKeywordLower.split(/\s+/).filter(Boolean).every(wordMatches)) continue
       
       // Check color identity if filter provided
       if (colourSet) {

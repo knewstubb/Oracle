@@ -7,7 +7,7 @@
  * - `roles`: the card was checked; the list may be empty ("checked, no role found").
  */
 import { ROLE_ORDER, hasClassifiableText, isLandTypeLine, rolesForCard, type Role } from './card-roles'
-import { isBasicLand } from './basic-lands'
+import { isBasicLandCard } from './basic-lands'
 
 export type CardWindowRoles =
   | { kind: 'no_data' }
@@ -17,7 +17,7 @@ export type CardWindowRoles =
 export const WINDOW_ROLE_LABELS: Record<Role, string> = { ramp: 'Ramp', draw: 'Draw', removal: 'Removal', wipes: 'Wipes' }
 
 export function cardWindowRoles(card: { name: string; typeLine: string | null; oracleText: string | null }): CardWindowRoles {
-  if (card.typeLine ? isLandTypeLine(card.typeLine) : isBasicLand(card.name)) return { kind: 'land' }
+  if (card.typeLine ? isLandTypeLine(card.typeLine) : isBasicLandCard(card)) return { kind: 'land' }
   if (!hasClassifiableText(card)) return { kind: 'no_data' }
   const found = rolesForCard(card)
   return { kind: 'roles', roles: ROLE_ORDER.filter((r) => found.includes(r)) }

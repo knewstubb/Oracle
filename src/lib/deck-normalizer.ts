@@ -9,6 +9,7 @@ import type {
 } from '@/lib/archidekt-client'
 import { isProxyLabel } from '@/lib/archidekt-client'
 import type { MoxfieldDeckFull, MoxfieldCard } from '@/lib/moxfield-client'
+import { defaultCategoryForTypeLine } from '@/lib/type-line'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -169,16 +170,7 @@ export function normalizeArchidektDeck(
  * Moxfield doesn't have user-assigned categories, so we use the card type.
  */
 function deriveMoxfieldCategory(typeLine: string): string {
-  const front = typeLine.split(' // ')[0]
-  if (front.includes('Creature')) return 'Creature'
-  if (front.includes('Planeswalker')) return 'Planeswalker'
-  if (front.includes('Battle')) return 'Battle'
-  if (front.includes('Instant')) return 'Instant'
-  if (front.includes('Sorcery')) return 'Sorcery'
-  if (front.includes('Artifact')) return 'Artifact'
-  if (front.includes('Enchantment')) return 'Enchantment'
-  if (front.includes('Land')) return 'Land'
-  return 'Other'
+  return defaultCategoryForTypeLine(typeLine)
 }
 
 function normalizeMoxfieldCard(
@@ -269,16 +261,7 @@ export function normalizeMoxfieldDeck(
 
 // ─── Card Type Grouping ──────────────────────────────────────────────────────
 
-const TYPE_PRIORITY: CardTypeGroup[] = [
-  'Creature',
-  'Planeswalker',
-  'Battle',
-  'Instant',
-  'Sorcery',
-  'Artifact',
-  'Enchantment',
-  'Land',
-]
+const CLASSIFY_TYPES: readonly string[] = ['Creature', 'Planeswalker', 'Battle', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land']
 
 /**
  * Classify a card into a type group based on its typeLine.
@@ -286,16 +269,8 @@ const TYPE_PRIORITY: CardTypeGroup[] = [
  * For DFCs, only the front face (before " // ") is considered.
  */
 function classifyCard(typeLine: string): CardTypeGroup {
-  // For DFCs, only consider the front face
-  const frontFace = typeLine.split(' // ')[0]
-
-  for (const type of TYPE_PRIORITY) {
-    if (frontFace.includes(type)) {
-      return type
-    }
-  }
-
-  return 'Other'
+  const type = defaultCategoryForTypeLine(typeLine)
+  return CLASSIFY_TYPES.includes(type) ? (type as CardTypeGroup) : 'Other'
 }
 
 /**

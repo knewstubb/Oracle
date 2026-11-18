@@ -16,6 +16,7 @@ import {
 } from '@/lib/deck-cards-diff'
 import { createVersionSnapshot } from '@/lib/deck-versions'
 import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
+import { defaultCategoryForTypeLine } from '@/lib/type-line'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -57,16 +58,7 @@ function deriveCategory(card: NormalizedCard): string {
   if (card.isCommander) return 'Commander'
   if (card.sourceCategories.length > 0) return card.sourceCategories[0]
 
-  const typeLine = card.typeLine.split(' // ')[0] // Front face only for DFCs
-  if (typeLine.includes('Creature')) return 'Creature'
-  if (typeLine.includes('Planeswalker')) return 'Planeswalker'
-  if (typeLine.includes('Battle')) return 'Battle'
-  if (typeLine.includes('Instant')) return 'Instant'
-  if (typeLine.includes('Sorcery')) return 'Sorcery'
-  if (typeLine.includes('Artifact')) return 'Artifact'
-  if (typeLine.includes('Enchantment')) return 'Enchantment'
-  if (typeLine.includes('Land')) return 'Land'
-  return 'Other'
+  return defaultCategoryForTypeLine(card.typeLine) // Front face only for DFCs
 }
 
 /**

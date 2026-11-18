@@ -8,6 +8,7 @@
  *
  * Rate limit: 75ms between requests per Scryfall's guidelines.
  */
+import { hasCardType, hasSupertype, parseTypeLine } from './type-line'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -105,8 +106,9 @@ export async function validateCommander(cardName: string): Promise<CommanderVali
   }
 
   const typeLine = card.type_line || ''
-  const isLegendary = typeLine.includes('Legendary')
-  const isCreature = typeLine.includes('Creature')
+  const parsedType = parseTypeLine(typeLine)
+  const isLegendary = hasSupertype(parsedType, 'Legendary', 'any')
+  const isCreature = hasCardType(parsedType, 'Creature', 'any')
   const hasCommanderText = (card.oracle_text || '').toLowerCase().includes('can be your commander')
   const isCommanderLegal = card.legalities?.commander === 'legal'
 

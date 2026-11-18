@@ -8,6 +8,8 @@
  * - Collapse into a single row in the Cards tab display
  * - Don't require supply verification
  */
+import { hasSupertype, parseTypeLine } from './type-line'
+
 
 const BASIC_LAND_NAMES = new Set([
   'Plains',
@@ -47,6 +49,15 @@ const BASIC_LAND_DEFAULT_SCRYFALL_IDS: Record<string, string> = {
  */
 export function getBasicLandDefaultScryfallId(cardName: string): string | undefined {
   return BASIC_LAND_DEFAULT_SCRYFALL_IDS[cardName]
+}
+
+/**
+ * Is this card a basic land? With a type line: the Basic supertype on the FRONT face (so "Basic Land",
+ * "Basic, Snow Land" and any future basic all count). Without one: the name list above.
+ */
+export function isBasicLandCard(card: { name: string; typeLine?: string | null }): boolean {
+  if (card.typeLine) return hasSupertype(parseTypeLine(card.typeLine), 'Basic', 'front')
+  return isBasicLand(card.name)
 }
 
 /**

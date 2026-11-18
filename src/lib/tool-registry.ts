@@ -24,6 +24,7 @@ import { createAdminClient } from './supabase'
 import { fetchDeckStatuses } from './deck-list-data'
 import { deckStatusLabel } from './deck-status-label'
 import { classifyDeckCardCopy, type DeckCardCopyStatus } from './deck-chat-facts'
+import { isLegendaryCreatureLine } from './type-line'
 import { browseSpareCopies, MAX_BROWSE_LIMIT } from './spare-copy-browse'
 import { lookupOwnedCopies, MAX_LOOKUP_NAMES, type LookupClient } from './owned-copy-lookup'
 import { loadDeckHealthForChat, isHealthRole } from './deck-health-chat'
@@ -1787,9 +1788,7 @@ registry.set('card_fuzzy_lookup', {
         .maybeSingle()
 
       if (localPrinting) {
-        const isLegendary = localPrinting.type_line?.includes('Legendary')
-        const isCreature = localPrinting.type_line?.includes('Creature')
-        const commanderLegal = isLegendary && isCreature ? '✓ Valid Commander' : '✗ Not a valid commander'
+        const commanderLegal = isLegendaryCreatureLine(localPrinting.type_line) ? '✓ Valid Commander' : '✗ Not a valid commander'
 
         const lines = [
           `Resolved: "${fuzzyName}" → ${localPrinting.name}`,
@@ -1816,9 +1815,7 @@ registry.set('card_fuzzy_lookup', {
           return { content: `"${fuzzyName}" resolves to ${card.name}, but this is a digital-only card (not available in paper).`, is_error: false }
         }
         
-        const isLegendary = card.type_line?.includes('Legendary')
-        const isCreature = card.type_line?.includes('Creature')
-        const commanderLegal = isLegendary && isCreature ? '✓ Valid Commander' : '✗ Not a valid commander'
+        const commanderLegal = isLegendaryCreatureLine(card.type_line) ? '✓ Valid Commander' : '✗ Not a valid commander'
 
         const lines = [
           `Resolved: "${fuzzyName}" → ${card.name} (from Scryfall — not yet in local DB)`,

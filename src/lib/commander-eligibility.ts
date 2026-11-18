@@ -4,6 +4,7 @@
  * No card names are hard-coded.
  */
 
+import { hasCardType, hasSubtype, hasSupertype, parseTypeLine } from '@/lib/type-line'
 import { checkCommanderPair, secondSlotKindFor, type PairCardFacts } from '@/lib/commander-pairing'
 
 export interface CommanderCardFacts {
@@ -23,13 +24,13 @@ function frontFace(text: string | null): string {
 
 export function isEligibleCommander(card: CommanderCardFacts): boolean {
   if (!card.commander_legal) return false
-  const types = frontFace(card.type_line)
-  const legendary = /\bLegendary\b/.test(types)
-  if (legendary && /\bCreature\b/.test(types)) return true
+  const types = parseTypeLine(card.type_line)
+  const legendary = hasSupertype(types, 'Legendary', 'front')
+  if (legendary && hasCardType(types, 'Creature', 'front')) return true
   // Legendary Vehicles and Spacecraft with a printed power and toughness.
-  if (legendary && /\b(Vehicle|Spacecraft)\b/.test(types) && card.power != null && card.toughness != null) return true
+  if (legendary && (hasSubtype(types, 'Vehicle', 'front') || hasSubtype(types, 'Spacecraft', 'front')) && card.power != null && card.toughness != null) return true
   // Backgrounds are chosen as a second commander alongside "Choose a Background".
-  if (legendary && /\bBackground\b/.test(types)) return true
+  if (legendary && hasSubtype(types, 'Background', 'front')) return true
   if (/can be your commander/i.test(frontFace(card.oracle_text))) return true
   return card.can_be_commander === true
 }
@@ -40,8 +41,8 @@ export function isEligibleCommander(card: CommanderCardFacts): boolean {
  */
 export function isEligibleLeadCommander(card: CommanderCardFacts): boolean {
   if (!isEligibleCommander(card)) return false
-  const types = frontFace(card.type_line)
-  const background = /\bLegendary\b/.test(types) && /\bBackground\b/.test(types)
+  const types = parseTypeLine(card.type_line)
+  const background = hasSupertype(types, 'Legendary', 'front') && hasSubtype(types, 'Background', 'front')
   if (!background) return true
   // A Background that is also a legal commander in its own right (e.g. says "can be your commander") stays eligible.
   return /can be your commander/i.test(frontFace(card.oracle_text)) || card.can_be_commander === true

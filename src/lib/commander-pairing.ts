@@ -5,6 +5,8 @@
  * other, "Choose a Background" with a Background, or a Doctor with "Doctor's companion".
  */
 
+import { hasSubtype, hasSupertype, parseTypeLine } from '@/lib/type-line'
+
 export interface PairCardFacts {
   name: string
   type_line: string | null
@@ -19,7 +21,7 @@ const front = (text: string | null) => (text ?? '').split(' // ')[0]
 
 function keywordsOf(card: PairCardFacts): { set: Set<Keyword>; partnerWith: string | null } {
   const text = front(card.oracle_text)
-  const types = front(card.type_line)
+  const types = parseTypeLine(card.type_line)
   const set = new Set<Keyword>()
   let partnerWith: string | null = null
   const pw = text.match(/Partner with ([^(\n]+)/i)
@@ -31,9 +33,9 @@ function keywordsOf(card: PairCardFacts): { set: Set<Keyword>; partnerWith: stri
   }
   if (/Friends forever/i.test(text)) set.add('friends_forever')
   if (/Choose a Background/i.test(text)) set.add('background_chooser')
-  if (/\bLegendary\b/.test(types) && /\bBackground\b/.test(types)) set.add('background')
+  if (hasSupertype(types, 'Legendary', 'front') && hasSubtype(types, 'Background', 'front')) set.add('background')
   if (/Doctor's companion/i.test(text)) set.add('doctors_companion')
-  if (/\bTime Lord Doctor\b/.test(types)) set.add('doctor')
+  if (hasSubtype(types, 'Time Lord', 'front') && hasSubtype(types, 'Doctor', 'front')) set.add('doctor')
   return { set, partnerWith }
 }
 

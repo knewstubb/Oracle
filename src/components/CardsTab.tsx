@@ -12,6 +12,7 @@ import { formatPrice } from '@/lib/collection-printing-utils'
 import { CardImage } from '@/components/CardImage'
 import { cn } from '@/lib/utils'
 import { findCommanderCards, withCommanderSection } from '@/lib/commander-card-flag'
+import { parseTypeLine, primaryType } from '@/lib/type-line'
 import { parseCategoriesCapped } from '@/lib/categoryUtils'
 import type { StructuredCategories } from '@/lib/categoryUtils'
 import { useDeckCategories } from '@/hooks/useDeckCategories'
@@ -89,17 +90,13 @@ function getLocalStorageKey(deckId: number): string {
   return `cards-tab-view-mode-${deckId}`
 }
 
-/** Derive a card type group from the card name heuristic or categories */
+/**
+ * The ONE place that decides which "Group: Type" / "Sort: Type" bucket a deck card sits in:
+ * the primary type of its front face, read from the type line (never from its category name).
+ * No type line gives 'Other'.
+ */
 function getCardTypeGroup(card: DeckCard): string {
-  const primary = parseCategoriesCapped(card.categories).primary_category.toLowerCase()
-  if (primary.includes('creature')) return 'Creature'
-  if (primary.includes('instant')) return 'Instant'
-  if (primary.includes('sorcery') || primary.includes('sorceries')) return 'Sorcery'
-  if (primary.includes('artifact')) return 'Artifact'
-  if (primary.includes('enchantment')) return 'Enchantment'
-  if (primary.includes('land')) return 'Land'
-  if (primary.includes('planeswalker')) return 'Planeswalker'
-  return 'Other'
+  return primaryType(parseTypeLine(card.type_line))
 }
 
 /** Derive color identity group from card mana cost */
@@ -175,10 +172,8 @@ function sortCards(cards: DeckCard[], sortBy: SortBy): DeckCard[] {
       case 'name':
         return a.card_name.localeCompare(b.card_name)
       case 'type': {
-        const catA = parseCategoriesCapped(a.categories).primary_category
-        const catB = parseCategoriesCapped(b.categories).primary_category
-        const catCmp = catA.localeCompare(catB)
-        return catCmp !== 0 ? catCmp : a.card_name.localeCompare(b.card_name)
+        const typeCmp = typeGroupRank(getCardTypeGroup(a)) - typeGroupRank(getCardTypeGroup(b))
+        return typeCmp !== 0 ? typeCmp : a.card_name.localeCompare(b.card_name)
       }
       case 'cmc':
         return a.card_name.localeCompare(b.card_name)
@@ -204,6 +199,11 @@ function groupByCategory(cards: DeckCard[]): [string, DeckCard[]][] {
   })
 }
 
+const TYPE_GROUP_ORDER = ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land', 'Planeswalker', 'Battle', 'Kindred', 'Conspiracy', 'Dungeon', 'Phenomenon', 'Plane', 'Scheme', 'Vanguard', 'Other']
+function typeGroupRank(type: string): number {
+  const i = TYPE_GROUP_ORDER.indexOf(type)
+  return i === -1 ? 99 : i
+}
 function groupByType(cards: DeckCard[]): [string, DeckCard[]][] {
   const groups: Record<string, DeckCard[]> = {}
   for (const card of cards) {
@@ -211,12 +211,7 @@ function groupByType(cards: DeckCard[]): [string, DeckCard[]][] {
     if (!groups[type]) groups[type] = []
     groups[type].push(card)
   }
-  const typeOrder = ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land', 'Planeswalker', 'Other']
-  return Object.entries(groups).sort(([a], [b]) => {
-    const ai = typeOrder.indexOf(a)
-    const bi = typeOrder.indexOf(b)
-    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
-  })
+  return Object.entries(groups).sort(([a], [b]) => typeGroupRank(a) - typeGroupRank(b))
 }
 
 function groupByStatus(

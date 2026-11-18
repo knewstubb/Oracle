@@ -4,6 +4,7 @@
 
 import { createAdminClient } from '@/lib/supabase'
 import type { NormalizedCard } from '@/lib/deck-normalizer'
+import { defaultCategoryForTypeLine } from '@/lib/type-line'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -26,18 +27,8 @@ export interface CardRow {
  * Used as fallback when card_metadata.default_category is not set.
  */
 export function deriveDefaultCategory(typeLine: string): string {
-  // For DFCs, only consider the front face
-  const frontFace = typeLine.split(' // ')[0]
-  
-  if (frontFace.includes('Creature')) return 'Creature'
-  if (frontFace.includes('Planeswalker')) return 'Planeswalker'
-  if (frontFace.includes('Battle')) return 'Battle'
-  if (frontFace.includes('Instant')) return 'Instant'
-  if (frontFace.includes('Sorcery')) return 'Sorcery'
-  if (frontFace.includes('Artifact')) return 'Artifact'
-  if (frontFace.includes('Enchantment')) return 'Enchantment'
-  if (frontFace.includes('Land')) return 'Land'
-  return 'Other'
+  // Front face only, one shared rule (see type-line-constants PRIMARY_TYPE_ORDER)
+  return defaultCategoryForTypeLine(typeLine)
 }
 
 // ─── Main Function ───────────────────────────────────────────────────────────

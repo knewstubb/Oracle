@@ -54,6 +54,7 @@ export async function GET(
   // Fetch mana costs and prices from card_metadata for all cards in this deck
   const cardNames = (cards ?? []).map(c => c.card_name)
   const manaCostMap: Record<string, string> = {}
+  const typeLineMap: Record<string, string> = {}
   const priceMap: Record<string, number> = {}
   const rarityMap: Record<string, string> = {}
   if (cardNames.length > 0) {
@@ -68,10 +69,11 @@ export async function GET(
       const batch = lookupArray.slice(i, i + 200)
       const { data: metaRows } = await supabase
         .from('ref_cards')
-        .select('name, mana_cost, edhrec_rank')
+        .select('name, mana_cost, type_line, edhrec_rank')
         .in('name', batch)
       for (const row of metaRows ?? []) {
         if (row.mana_cost) manaCostMap[row.name] = row.mana_cost
+        if (row.type_line) typeLineMap[row.name] = row.type_line
       }
     }
 
@@ -100,6 +102,7 @@ export async function GET(
       if (name.includes(' // ') && !manaCostMap[name]) {
         const front = frontFaceName(name)
         if (manaCostMap[front]) manaCostMap[name] = manaCostMap[front]
+        if (typeLineMap[front] && !typeLineMap[name]) typeLineMap[name] = typeLineMap[front]
         if (priceMap[front] !== undefined) priceMap[name] = priceMap[front]
         if (rarityMap[front]) rarityMap[name] = rarityMap[front]
       }
@@ -109,6 +112,7 @@ export async function GET(
         const fullName = Object.keys(manaCostMap).find(k => k.startsWith(name + ' // '))
         if (fullName) {
           manaCostMap[name] = manaCostMap[fullName]
+          if (typeLineMap[fullName] && !typeLineMap[name]) typeLineMap[name] = typeLineMap[fullName]
           if (priceMap[fullName] !== undefined) priceMap[name] = priceMap[fullName]
           if (rarityMap[fullName]) rarityMap[name] = rarityMap[fullName]
         }
@@ -224,6 +228,7 @@ export async function GET(
       ? (card.ownership_status || 'original')
       : null,
     mana_cost: manaCostMap[card.card_name] || null,
+    type_line: typeLineMap[card.card_name] || null,
     price_usd: priceMap[card.card_name] ?? null,
     edition_name: card.scryfall_id ? editionMap[card.scryfall_id]?.editionName || null : null,
     rarity: rarityMap[card.card_name] || null,

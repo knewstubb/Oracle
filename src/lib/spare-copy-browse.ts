@@ -20,6 +20,7 @@
 
 import { isBasicLand } from './basic-lands'
 import { gapDetailLine } from './gap-detail-line'
+import { hasCardType, hasSubtype, hasSupertype, parseTypeLine } from './type-line'
 import { isLandTypeLine, rolesForCard, ROLE_TEXT_NEEDLES, type Role } from './card-roles'
 import { parseColourLetters } from './command-zone'
 import { loadCommanderColours, shortByOneWarning, withinIdentity, type LookupClient } from './owned-copy-lookup'
@@ -125,9 +126,18 @@ export function buildFilter(kind: string | null | undefined): { label: string; m
   }
   if (TYPE_WORDS.includes(k.replace(/s$/, ''))) {
     const w = k.replace(/s$/, '')
-    return { label: w, match: t => t.toLowerCase().includes(w) }
+    // The card TYPE, read from the type line (either face, as before), never a subtype that happens to contain the word.
+    return { label: w, match: t => hasCardType(parseTypeLine(t), w, 'any') }
   }
-  return { label: k, match: t => t.toLowerCase().includes(k) }
+  // Free text: a card type, a supertype, or a subtype the user actually typed (whole word). Never a part of a word.
+  const singular = k.replace(/s$/, '')
+  return {
+    label: k,
+    match: (t) => {
+      const parsed = parseTypeLine(t)
+      return [k, singular].some((w) => hasCardType(parsed, w, 'any') || hasSupertype(parsed, w, 'any') || hasSubtype(parsed, w, 'any'))
+    },
+  }
 }
 
 export async function browseSpareCopies(

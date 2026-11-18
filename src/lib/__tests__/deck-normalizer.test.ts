@@ -825,9 +825,8 @@ describe('groupCardsByType', () => {
     expect(grouped.groups.Enchantment).toHaveLength(0)
   })
 
-  it('classifies Artifact Land as Land (lower priority than Artifact)', () => {
-    // Actually based on priority order, Artifact comes before Land
-    // So "Artifact Land" should be classified as Artifact
+  it('classifies Artifact Land as Land (Land is first in the single type rule)', () => {
+    // Shared rule (type-line-constants PRIMARY_TYPE_ORDER): Land comes first, so "Artifact Land" is a Land.
     const card = {
       cardName: 'Seat of the Synod',
       scryfallId: 'test-id',
@@ -842,7 +841,7 @@ describe('groupCardsByType', () => {
       sourceCategories: [],
     }
     const grouped = groupCardsByType([card])
-    expect(grouped.groups.Artifact).toHaveLength(1)
-    expect(grouped.groups.Land).toHaveLength(0)
+    expect(grouped.groups.Artifact).toHaveLength(0)
+    expect(grouped.groups.Land).toHaveLength(1)
   })
 })

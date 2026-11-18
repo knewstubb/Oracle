@@ -8,7 +8,8 @@
  */
 
 import { ROLE_ORDER, rolesForCard, isLandTypeLine, hasClassifiableText, type Role } from './card-roles'
-import { isBasicLand } from './basic-lands'
+import { isBasicLandCard } from './basic-lands'
+import { allCardTypes, frontFace, parseTypeLine } from './type-line'
 import { guideTargets, type CommanderTargets, type TypeCount } from './commander-targets'
 
 export type { TypeCount } from './commander-targets'
@@ -146,7 +147,7 @@ export function classifyDeckCard(c: HealthDeckCard): CardKind {
   if (!c.inMainDeck) return { kind: 'skip' }
   const qty = c.quantity > 0 ? c.quantity : 1
   // A land is decided by the front-face type line. With no type line at all, a basic land is still a land by name.
-  if (c.typeLine ? isLandTypeLine(c.typeLine) : isBasicLand(c.cardName)) return { kind: 'land', qty }
+  if (c.typeLine ? isLandTypeLine(c.typeLine) : isBasicLandCard({ name: c.cardName, typeLine: c.typeLine })) return { kind: 'land', qty }
   if (!hasClassifiableText(c)) return { kind: 'unclassified', qty }
   return { kind: 'roles', qty, roles: rolesForCard({ name: c.cardName, typeLine: c.typeLine, oracleText: c.oracleText }) }
 }
@@ -190,8 +191,10 @@ export function countDeckTypes(cards: HealthDeckCard[]): Record<TypeCount['type'
   for (const c of cards) {
     if (!c.inMainDeck) continue
     const qty = c.quantity > 0 ? c.quantity : 1
-    const front = (c.typeLine ?? (isBasicLand(c.cardName) ? 'Basic Land' : '')).split(' // ')[0].split(/\s+[—-]\s+/)[0].toLowerCase()
-    for (const t of Object.keys(out) as Array<TypeCount['type']>) if (new RegExp(`\\b${t}\\b`).test(front)) out[t] += qty
+    const line = c.typeLine ?? (isBasicLandCard({ name: c.cardName }) ? 'Basic Land' : '')
+    // Front face only; a card adds to every card type it has (Artifact Creature counts as both).
+    const types = allCardTypes({ faces: [frontFace(parseTypeLine(line))] }).map((t) => t.toLowerCase())
+    for (const t of Object.keys(out) as Array<TypeCount['type']>) if (types.includes(t)) out[t] += qty
   }
   return out
 }

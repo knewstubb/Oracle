@@ -5,6 +5,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { ChevronUp, ChevronDown, MoreVertical } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { truncateName, formatPrice } from '@/lib/collection-printing-utils'
+import { frontFace, parseTypeLine } from '@/lib/type-line'
 import type { PrintingRowResponse } from '@/lib/collection-printing-utils'
 import type { PrintingSortField, SortDirection } from '@/lib/collection-filters'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -129,18 +130,13 @@ function formatShortDate(iso: string | null): string {
  * Extracts a short type from a full type line.
  * E.g. "Legendary Creature — Human Wizard" → "Creature"
  *      "Instant" → "Instant"
- *      "Artifact Creature — Golem" → "Artifact"
+ *      "Artifact Creature — Golem" → "Artifact Creature" (all front-face card types)
  */
 function shortType(typeLine: string | null): string {
   if (!typeLine) return '—'
-  // Remove everything after em-dash (subtypes)
-  const mainType = typeLine.split('—')[0].trim()
-  // Priority order for display
-  const priorities = ['Creature', 'Planeswalker', 'Instant', 'Sorcery', 'Enchantment', 'Artifact', 'Land', 'Battle']
-  for (const p of priorities) {
-    if (mainType.includes(p)) return p
-  }
-  return mainType.split(' ')[0] || '—'
+  // Every card type of the front face, in rules order ("Artifact Creature"), subtypes left out
+  const types = frontFace(parseTypeLine(typeLine)).cardTypes
+  return types.length > 0 ? types.join(' ') : '—'
 }
 
 /* ─── PrintingListView ──────────────────────────────────────────────── */

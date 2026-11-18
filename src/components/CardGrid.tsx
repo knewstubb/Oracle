@@ -39,6 +39,8 @@ export interface DeckCard {
   dead_weight_flag?: string | null
   dead_weight_reason?: string | null
   mana_cost?: string | null
+  /** Full type line from the card library (both faces joined by " // "). Null when the library has no row. */
+  type_line?: string | null
   price_usd?: number | null
   edition_name?: string | null
   rarity?: string | null

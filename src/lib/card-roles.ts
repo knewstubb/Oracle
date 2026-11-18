@@ -11,6 +11,8 @@
  *  - Never throws.
  */
 
+import { hasCardType, parseTypeLine } from './type-line'
+
 export type Role = 'ramp' | 'draw' | 'removal' | 'wipes'
 
 /** Fixed display order, also the tie-break order for verdicts. */
@@ -44,9 +46,9 @@ export function frontFaceTypeLine(typeLine: string | null | undefined): string {
   return typeLine.split('//')[0].trim()
 }
 
-/** True when the FRONT face is a land. A spell with a land back face ("Instant // Land") is not a land. */
+/** True when the FRONT face is a land. A spell with a land back face ("Instant // Land") is not a land. A Land Creature is a land. */
 export function isLandTypeLine(typeLine: string | null | undefined): boolean {
-  return /\bland\b/i.test(frontFaceTypeLine(typeLine))
+  return hasCardType(parseTypeLine(typeLine), 'Land', 'front')
 }
 
 /** Text of the front face only. Joined double-faced text is split on a line that is just "//". */
@@ -107,7 +109,8 @@ function isRamp(text: string, typeLine: string): boolean {
   if (MAKES_TREASURE.test(text)) return true
   // Mana from a permanent (rock, dork, ritual-on-a-stick). One-shot instants and sorceries that add mana
   // (Dark Ritual, Mana Drain's delayed mana) are not ramp.
-  const oneShot = /\b(?:instant|sorcery)\b/i.test(typeLine)
+  const parsedType = parseTypeLine(typeLine)
+  const oneShot = hasCardType(parsedType, 'Instant', 'front') || hasCardType(parsedType, 'Sorcery', 'front')
   if (!oneShot && ADDS_MANA.test(text)) return true
   if (!oneShot && hasCostReducer(text)) return true
   return false

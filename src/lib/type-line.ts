@@ -9,6 +9,7 @@
  */
 import {
   CARD_TYPES,
+  CATEGORY_DEFAULT_EXCLUDE,
   KNOWN_MULTIWORD_SUBTYPES,
   PRIMARY_TYPE_FALLBACK,
   PRIMARY_TYPE_ORDER,
@@ -155,4 +156,15 @@ export function primaryType(
 /** Basic supertype AND Land card type on the front face. */
 export function isBasicLandFace(parsed: ParsedTypeLine): boolean {
   return hasSupertype(parsed, 'Basic', 'front') && hasCardType(parsed, 'Land', 'front');
+}
+
+/** Default deck category for a card being added or imported: its primary type, never Kindred or a rare type. */
+export function defaultCategoryForTypeLine(typeLine: string | null | undefined): string {
+  return primaryType(parseTypeLine(typeLine), { exclude: CATEGORY_DEFAULT_EXCLUDE });
+}
+
+/** The existing commander rule "Legendary AND Creature", read from the supertypes and card types (either face, as before). */
+export function isLegendaryCreatureLine(typeLine: string | null | undefined): boolean {
+  const parsed = parseTypeLine(typeLine);
+  return hasSupertype(parsed, 'Legendary', 'any') && hasCardType(parsed, 'Creature', 'any');
 }

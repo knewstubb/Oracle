@@ -90,5 +90,20 @@ export const PRIMARY_TYPE_ORDER: readonly CardType[] = [
   'Vanguard',
 ];
 
+/**
+ * Types that never become a default category name when a card is added or imported
+ * (Kindred Sorcery stays "Sorcery"; the rare types fall to "Other"), so no new
+ * category names appear in decks.
+ */
+export const CATEGORY_DEFAULT_EXCLUDE: readonly CardType[] = [
+  'Kindred',
+  'Conspiracy',
+  'Dungeon',
+  'Phenomenon',
+  'Plane',
+  'Scheme',
+  'Vanguard',
+];
+
 /** Bucket used when no type in PRIMARY_TYPE_ORDER matches. */
 export const PRIMARY_TYPE_FALLBACK = 'Other';

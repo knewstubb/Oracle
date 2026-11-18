@@ -70,12 +70,13 @@ The header, sidebar, Deck health and deck-page reviews should be considered toge
 - Show commander colours consistently (done), improve sorting and allow locations to be excluded (now a separate item: a trade binder type).
 - Fill in missing card information, including checks for two-faced cards. (Approved 2026-11-18; build started.)
 - Check decks with unexpected card counts and missing brackets.
-- Warn when two decks plan the same card and you own fewer copies than the decks plan (new 2026-11-18).
 - Add a trade binder location type that Claude leaves out of suggestions by default (new 2026-11-18).
 - Add category management, including renaming, merging and suggested categories.
 - Add per-deck notes and a decision log.
 - Add strategy advice using EDHREC and combo information.
 - Log games and playgroups. Approved, but scheduled after the earlier card-information and category work.
+
+- Dropped 2026-11-18: warning when two decks plan the same single-copy card (a card on a list is only a plan).
 
 ## Parked or needing a fresh check
 

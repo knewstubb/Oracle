@@ -5,7 +5,8 @@ Task as received: build slice 2 of CC-26 (card roles and deck jobs): "Universal 
 
 ## Summary for the owner
 The card window's roles section is now called "Universal roles" and you can change it. Each role shows where it comes from: "Set by you", "Standard" (the shared list, which is empty for now) or "Worked out from card text" (today's guess). You can add a role from a list, remove one with the x ("You removed: Ramp. Restore" appears), and press Undo for 10 seconds after a change.
-To test: open Murky Business, Rocco's Secret Sauce and Arti-facts cards (for example Sol Ring or Arcane Signet in Arti-facts). Each should first show its old roles marked "Worked out from card text". Add "Tutor" and check it says "Set by you" and the old role is still there. Remove a role, check "You removed", then Restore. Close and reopen the window to check the change stayed. Then put each card back how you found it (Restore, or x on roles you added), since these writes go to your real data.
+Saving needs the database change for card roles (drafts DB-1 to DB-5) to be applied. It was checked as applied on the live project on 2026-11-18, but the files still sit in the drafts folder, not the migrations folder. If the window instead shows "Couldn't load your saved roles", with only the old guessed roles and no Add role or x, that change is not applied where you are testing, and the steps below will not work until it is.
+To test (once saving works): open Murky Business, Rocco's Secret Sauce and Arti-facts cards (for example Sol Ring or Arcane Signet in Arti-facts). Each should first show its old roles marked "Worked out from card text". Add "Tutor" and check it says "Set by you" and the old role is still there. Remove a role, check "You removed", then Restore. Close and reopen the window to check the change stayed. Then put each card back how you found it (Restore, or x on roles you added), since these writes go to your real data (when the database change is applied).
 Two decisions are yours (see Open questions): how the card-text guess and saved roles combine, and whether Undo stays.
 
 ## Changed files
@@ -33,7 +34,8 @@ Two decisions are yours (see Open questions): how the card-text guess and saved 
 ## Open questions
 1. **How the card-text guess and saved roles combine (contract and spec are silent).** Built: a guessed role shows only when nothing saved says anything about that role. For example: Sol Ring is guessed as Ramp; you add Tutor, so the window shows Ramp (worked out from card text) and Tutor (set by you); if you remove Ramp, the guess is hidden. Once the shared list holds a role for a card, that role shows as "Standard" and the guess for the same role disappears. Alternative: hide all guesses as soon as a card has any saved role. Recommendation: keep what is built.
 2. **Undo for your own role edits.** The spec (7.7) says every edit shows "Saved" and Undo for 10 seconds, and the contract says your edits are not in the Claude change log. Built to the spec: Undo replays the value the database returned. If you don't want it, remove the Undo button; nothing else depends on it.
-3. Text reading cannot produce 9 of the 13 roles, so cards keep showing only the old four until the shared list is filled (slice 8).
+3. **Applying the database change.** The app code calls database functions that exist only as drafts in the repo. The live project was checked as having them on 2026-11-18, but any other database (a fresh copy, a preview) will show the "Couldn't load your saved roles" state until the change is applied there. Applying is your decision and was not done here.
+4. Text reading cannot produce 9 of the 13 roles, so cards keep showing only the old four until the shared list is filled (slice 8).
 
 ## Verification
 - npx vitest run (full) — 310 files passed, 6 skipped; 3818 passed, 46 skipped; 0 failures

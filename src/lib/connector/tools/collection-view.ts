@@ -30,6 +30,8 @@ export interface NarrowRow {
   t_planeswalker?: boolean
   t_land?: boolean
   t_battle?: boolean
+  mana_value?: number | null
+  subtypes?: string[] | null
 }
 
 export interface DetailRow {
@@ -103,6 +105,7 @@ export interface CardKindGroup {
   name: string
   kind: 'original' | 'proxy'
   copyIds: number[]
+  manaValue: number | null // null when the card has no facts
 }
 
 /** One group = one card + one kind. Input order is kept (it is already sorted: name, card, original before proxy). */
@@ -112,10 +115,31 @@ export function groupByCardAndKind(rows: NarrowRow[]): CardKindGroup[] {
     const key = `${r.card_id}:${r.is_proxy ? 'p' : 'o'}`
     let g = map.get(key)
     if (!g) {
-      g = { cardId: r.card_id, name: r.card_name, kind: r.is_proxy ? 'proxy' : 'original', copyIds: [] }
+      g = { cardId: r.card_id, name: r.card_name, kind: r.is_proxy ? 'proxy' : 'original', copyIds: [], manaValue: r.facts_available ? (r.mana_value ?? null) : null }
       map.set(key, g)
     }
     g.copyIds.push(r.copy_id)
   }
   return [...map.values()]
+}
+/** Stable sort for search results. Ties by name, then original before proxy. Cards with no mana value (no facts) are always last, in both directions. */
+export function sortGroups(groups: CardKindGroup[], sortBy: 'name' | 'mana_value', order: 'asc' | 'desc'): CardKindGroup[] {
+  const dir = order === 'desc' ? -1 : 1
+  const byName = (a: CardKindGroup, b: CardKindGroup) =>
+    a.name < b.name ? -1 : a.name > b.name ? 1 : a.kind === b.kind ? 0 : a.kind === 'original' ? -1 : 1
+  return groups
+    .map((g, i) => ({ g, i }))
+    .sort((x, y) => {
+      if (sortBy === 'mana_value') {
+        const a = x.g.manaValue, b = y.g.manaValue
+        if (a == null && b != null) return 1
+        if (a != null && b == null) return -1
+        if (a != null && b != null && a !== b) return (a - b) * dir
+        const n = byName(x.g, y.g) // ties by name, always ascending
+        return n || x.i - y.i
+      }
+      const n = byName(x.g, y.g) * dir
+      return n || x.i - y.i
+    })
+    .map((e) => e.g)
 }

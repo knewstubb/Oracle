@@ -51,6 +51,7 @@ export interface LibCard {
   color_identity: string
   keywords?: string[] | null
   commander_legal?: boolean
+  can_be_commander?: boolean | null
 }
 
 const PRIMARY = ['Land', 'Creature', 'Planeswalker', 'Battle', 'Instant', 'Sorcery', 'Artifact', 'Enchantment']
@@ -152,7 +153,12 @@ function applyFilters(rows: Row[], q: RecordedQuery): { rows: Row[]; total: numb
     else if (f.op === 'lte') out = out.filter((r) => typeof r[a] === 'number' && (r[a] as number) <= (b as number))
     else if (f.op === 'contains') out = out.filter((r) => Array.isArray(r[a]) && asList(b).every((x) => (r[a] as unknown[]).includes(x)))
     else if (f.op === 'overlaps') out = out.filter((r) => Array.isArray(r[a]) && asList(b).some((x) => (r[a] as unknown[]).includes(x)))
-    else if (f.op === 'is') out = out.filter((r) => r[a] === null)
+    else if (f.op === 'not') {
+      const [col, op, val] = f.args as [string, string, unknown]
+      if (op === 'ilike') out = out.filter((r) => r[col] != null && !likeToRegExp(String(val)).test(String(r[col])))
+      else if (op === 'is') out = out.filter((r) => r[col] !== val)
+      else if (op === 'eq') out = out.filter((r) => r[col] !== val)
+    } else if (f.op === 'is') out = out.filter((r) => r[a] === null)
     else if (f.op === 'order') orders.push({ col: a, asc: (f.args[1] as { ascending?: boolean } | undefined)?.ascending !== false })
     else if (f.op === 'range') range = [a as unknown as number, b as number]
   }

@@ -27,7 +27,7 @@ Shape: `CardFacts` in the types file. Added as `facts` to: each `search_collecti
 | typeLine, manaCost, manaValue, colorIdentity, rulesText | `ref_cards` by name | Exact name, else front-face match (same as `fetchRefTextByName`). Not found: `available:false`, all null |
 | legality | `ref_cards.commander_legal`; when false, `ref_printings.legality_commander` | true = `legal`; false + printings say `banned` = `banned`; false otherwise = `not_legal`; no card row = `unknown` |
 | price | `ref_printings` via existing `estimatePrice` | `usd:null` when none. Label fixed: "Estimate from Scryfall". Never 0 |
-| rulesText length | cut at 300 characters (`cutText`) | Always on for `search_collection` (max 25 cards a page). On `get_deck` only when `include_rules_text:true`; default off so a 150-card page still fits the 40 KB answer cap |
+| rulesText length | cut at 300 characters (`cutText`) | On `search_collection` only when `include_rules_text` is true (default off since CC-14; max 25 cards a page). On `get_deck` only when `include_rules_text:true`; default off so a 150-card page still fits the 40 KB answer cap |
 
 Behaviour rules:
 - Read at the moment of asking. Nothing copied into `user_cards`; the empty saved type lines are left alone (brief default 4).

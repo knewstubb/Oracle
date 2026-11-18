@@ -135,11 +135,12 @@ describe('filters', () => {
     const { db } = setup([['Mystery', { deck: 'D' }], ['Other Mystery', box], ['Sol Ring', box]])
     expect((await run(db as never, { types: ['artifact'], only_free: true })).filterCoverage!.cardsWithoutFacts).toBe(1)
   })
-  it('include_rules_text false leaves rules text out', async () => {
+  it('include_rules_text defaults to off; true brings it back', async () => {
     const { db } = setup([['Sol Ring', box]])
     const r = (await run(db as never, { include_rules_text: false })) as never as { items: { facts: Record<string, unknown> }[] }
     expect('rulesText' in r.items[0].facts).toBe(false)
-    expect('rulesText' in ((await run(db as never, {})) as never as { items: { facts: Record<string, unknown> }[] }).items[0].facts).toBe(true)
+    expect('rulesText' in ((await run(db as never, {})) as never as { items: { facts: Record<string, unknown> }[] }).items[0].facts).toBe(false) // CC-14: default is off
+    expect('rulesText' in ((await run(db as never, { include_rules_text: true })) as never as { items: { facts: Record<string, unknown> }[] }).items[0].facts).toBe(true)
   })
 })
 
@@ -330,8 +331,8 @@ describe('isolation and registry', () => {
   it('search_collection shows only the new inputs; nothing else changed in the registry', () => {
     const props = Object.keys((toJsonSchema(CONNECTOR_TOOLS.find((t) => t.name === 'search_collection')!.inputSchema) as { properties: object }).properties).sort()
     expect(props).toEqual([
-      'colour_match', 'colourless', 'colours', 'include_proxies', 'include_rules_text', 'keywords', 'keywords_match', 'limit', 'location', 'mana_value_max', 'mana_value_min',
-      'offset', 'only_free', 'only_proxies', 'query', 'roles', 'roles_match', 'subtypes', 'types',
+      'can_be_commander', 'colour_match', 'colourless', 'colours', 'include_proxies', 'include_rules_text', 'keywords', 'keywords_match', 'legendary', 'limit', 'location', 'mana_value_max', 'mana_value_min',
+      'no_card_facts', 'offset', 'only_free', 'only_proxies', 'query', 'roles', 'roles_match', 'sort_by', 'sort_order', 'subtypes', 'text', 'text_match', 'types',
     ])
   })
 })

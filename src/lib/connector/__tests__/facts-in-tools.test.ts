@@ -38,7 +38,7 @@ type Found = { items: { name: string; typeLine: string | null; facts: Record<str
 describe('search_collection facts (CC-06b)', () => {
   it('Sol Ring shows type, cost, colours, legality, rules text and the estimate label', async () => {
     const { db } = searchDb(['Sol Ring'])
-    const r = (await searchCollection({ db: db as never, userId: U }, searchCollectionInput.parse({ query: 'Sol Ring' }))) as never as Found
+    const r = (await searchCollection({ db: db as never, userId: U }, searchCollectionInput.parse({ query: 'Sol Ring', include_rules_text: true }))) as never as Found
     expect(r.items[0].facts).toMatchObject({
       available: true, typeLine: 'Artifact', manaCost: '{1}', manaValue: 1, colorIdentity: '', rulesText: 'Tap: Add {C}{C}.',
       legality: 'legal', price: { usd: 1.5, label: 'Estimate from Scryfall' },

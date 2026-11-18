@@ -6,12 +6,14 @@ import { COPIES_PER_CARD_MAX, SEARCH_PAGE_MAX, fitRows } from '../limits'
 import { LookupFailed, lookupFailed, pageNote, tooLarge, type ToolContext, type ToolOutput } from './common'
 import { filterFields, refineFilters } from './collection-filters'
 import { ROLE_RULES_VERSION, classifyNames, findMatchingCopies } from './collection-query'
-import { groupByCardAndKind, locationOf, readDetail, type DetailRow } from './collection-view'
+import { groupByCardAndKind, locationOf, readDetail, sortGroups, type DetailRow } from './collection-view'
 
 export const searchCollectionInput = z
   .strictObject({
     ...filterFields,
-    include_rules_text: z.boolean().optional().describe('Include each card\'s rules text. Default true. Send false to keep pages small.'),
+    include_rules_text: z.boolean().optional().describe('Include each card\'s rules text. Default false. Send true to read rules text.'),
+    sort_by: z.enum(['name', 'mana_value']).optional().describe('Order of the results: name (default) or mana_value. Cards with no card facts always come last. Paging follows this order.'),
+    sort_order: z.enum(['asc', 'desc']).optional().describe('asc (default) or desc. Cards with no card facts stay last either way.'),
     limit: z.number().int().min(1).max(SEARCH_PAGE_MAX).optional().describe('Rows per page, 1-25. Default 25.'),
     offset: z.number().int().min(0).optional().describe('Rows to skip, for paging.'),
   })
@@ -20,12 +22,13 @@ export const searchCollectionInput = z
 export async function searchCollection(ctx: ToolContext, input: z.infer<typeof searchCollectionInput>): Promise<ToolOutput> {
   const limit = input.limit ?? SEARCH_PAGE_MAX
   const offset = input.offset ?? 0
-  const includeRulesText = input.include_rules_text ?? true
+  const includeRulesText = input.include_rules_text ?? false
 
   try {
     // One read of every matching copy (narrow columns). The count is exact because every matching row was read.
-    const match = await findMatchingCopies(ctx, input)
-    const groups = groupByCardAndKind(match.rows)
+    const sortBy = input.sort_by ?? 'name'
+    const match = await findMatchingCopies(ctx, input, sortBy === 'mana_value' ? { extraCols: ['mana_value'] } : {})
+    const groups = sortGroups(groupByCardAndKind(match.rows), sortBy, input.sort_order ?? 'asc')
     const totalCopies = match.rows.length
     const total = groups.length
     const pageGroups = groups.slice(offset, offset + limit)

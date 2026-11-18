@@ -39,7 +39,14 @@ export interface SearchCollectionInput {
   only_free?: boolean // CHANGED: copies in no deck AND not In your hand AND not Missing (was: not in any deck)
   include_proxies?: boolean // unchanged; default true
   only_proxies?: boolean // NEW; cannot be combined with include_proxies=false
-  include_rules_text?: boolean // NEW; default true (unchanged behaviour). Claude may send false to keep pages small
+  text?: string // CC-14: 1-100 chars, at most 8 words; searched in rules text (either face). Needs card facts.
+  text_match?: 'all_words' | 'phrase' // CC-14: default 'all_words' (every word somewhere, any order, partial words count); 'phrase' = the exact words in that order. Needs text.
+  legendary?: boolean // CC-14: true = type line has Legendary on either face; false = on neither face
+  can_be_commander?: boolean // CC-14: the card library's own flag; false = cannot be a commander
+  no_card_facts?: true // CC-14: only owned cards that have no card library row. Cannot be combined with any filter that needs facts.
+  include_rules_text?: boolean // CC-14: default FALSE (was true). Send true to read each card's rules text
+  sort_by?: 'name' | 'mana_value' // CC-14: default 'name'. Cards with no card facts always come last.
+  sort_order?: 'asc' | 'desc' // CC-14: default 'asc'
   limit?: number // 1-25, default 25 (unchanged)
   offset?: number // unchanged
 }
@@ -67,7 +74,7 @@ export interface SearchCollectionResult extends Paged<SearchRow> {
 }
 
 /** get_collection_summary gains optional input. With no input the answer is exactly what it is today. */
-export type SummaryGroupBy = 'type' | 'colour' | 'location' | 'kind' | 'role'
+export type SummaryGroupBy = 'type' | 'colour' | 'location' | 'kind' | 'role' | 'subtype' | 'mana_value'
 
 export interface CollectionSummaryInput {
   group_by?: SummaryGroupBy
@@ -88,10 +95,15 @@ export interface CollectionSummaryInput {
   only_free?: boolean
   include_proxies?: boolean
   only_proxies?: boolean
+  text?: string // CC-14, same meaning as search
+  text_match?: 'all_words' | 'phrase' // CC-14
+  legendary?: boolean // CC-14
+  can_be_commander?: boolean // CC-14
+  no_card_facts?: true // CC-14
 }
 
 export interface SummaryGroup {
-  label: string // "Creature", "Green", "Black/Red", "Colourless", "Korvold (deck)", "Unsorted", "In your hand", "No facts", "Original", "Proxy", and for group_by role: "Ramp", "Draw", "Removal", "Wipes", "No role"
+  label: string // CC-14: for group_by subtype "Elf", "Time Lord", "No subtype"; for mana_value "0", "1", "2" in number order, "No facts" last. "Creature", "Green", "Black/Red", "Colourless", "Korvold (deck)", "Unsorted", "In your hand", "No facts", "Original", "Proxy", and for group_by role: "Ramp", "Draw", "Removal", "Wipes", "No role"
   copies: number
   distinctCards: number
 }

@@ -43,8 +43,10 @@ describe('registered tools', () => {
     expect(d('search_collection')).toMatch(/facts/i)
     expect(d('search_collection')).toMatch(/estimate/i)
     expect(d('search_collection')).toMatch(/not free/i)
+    for (const w of ['text_match', 'legendary', 'can_be_commander', 'no_card_facts', 'sort_by', 'sort_order', 'include_rules_text true']) expect(d('search_collection')).toContain(w)
+    for (const w of ['subtype', 'mana_value', 'no_card_facts', 'text_match']) expect(d('get_collection_summary')).toContain(w)
     expect(d('get_deck')).toMatch(/include_rules_text/)
-    expect(d('get_deck')).toMatch(/estimate/i)
+    expect(d('get_deck')).toMatch(/no prices/i) // TIDY-01: get_deck says "no prices here", not "estimate"
     expect(d('get_deck_health')).toMatch(/fresh on every call/i)
     expect(d('get_deck_health')).toMatch(/saves nothing/i)
     expect(d('get_deck_health')).not.toMatch(/last saved|never runs a new check/i)

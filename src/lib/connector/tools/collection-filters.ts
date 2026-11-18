@@ -30,6 +30,11 @@ export const filterFields = {
   only_free: z.boolean().optional().describe('Only copies that are free: in no deck, not In your hand, and not Missing.'),
   include_proxies: z.boolean().optional().describe('Include proxy copies. Default true.'),
   only_proxies: z.boolean().optional().describe('Only proxy copies. Cannot be combined with include_proxies=false.'),
+  text: z.string().trim().min(1).max(100).optional().describe('Words in the card\'s rules text, either face (not case sensitive, partial words count: "counter" finds "counters"). Real rules text says "put" not "puts" and "this creature" not the card\'s name, so search for the stable words ("+1/+1 counter") rather than a sentence. Up to 8 words. Needs card facts.'),
+  text_match: z.enum(['all_words', 'phrase']).optional().describe('all_words (default): every word must appear somewhere in the rules text, in any order. phrase: the exact words in that order (never across the gap between two faces). Needs text.'),
+  legendary: z.boolean().optional().describe('true = Legendary on either face of the type line (so Legendary artifacts, vehicles and planeswalkers count). false = Legendary on neither face. Not the same as can_be_commander.'),
+  can_be_commander: z.boolean().optional().describe('true = the card library says it can be your commander (Legendary creatures and cards that say so). false = it cannot. Use this for "commander candidates" and legendary for "legendary things".'),
+  no_card_facts: z.literal(true).optional().describe('true = list only the owned cards that have no card data yet. Cannot be combined with filters that need card data (types, colours, subtypes, keywords, roles, mana value, text, legendary, can_be_commander).'),
 }
 
 /** Cross-field rules. Used as a zod superRefine, so a bad mix is INVALID_INPUT before any read happens. */
@@ -38,6 +43,9 @@ export function refineFilters(f: CollectionFilters, ctx: z.RefinementCtx): void 
   if (f.only_proxies && f.include_proxies === false) bad('only_proxies', 'only_proxies cannot be combined with include_proxies=false')
   if (f.colourless && f.colours && f.colours.length > 0) bad('colourless', 'colourless cannot be combined with colours')
   if (f.mana_value_min != null && f.mana_value_max != null && f.mana_value_min > f.mana_value_max) bad('mana_value_min', 'mana_value_min is higher than mana_value_max')
+  if (f.text && f.text.split(/\s+/).length > 8) bad('text', 'text can have at most 8 words')
+  if (f.text_match && !f.text) bad('text_match', 'text_match needs text')
+  if (f.no_card_facts && factFilterNames(f).length > 0) bad('no_card_facts', `no_card_facts cannot be combined with the ${factFilterNames(f).join(', ')} filter`)
 }
 
 export const norm = (s: string) => s.trim().toLowerCase()
@@ -51,7 +59,7 @@ export function hasColourFilter(f: CollectionFilters): boolean {
   return wantsColourless(f) || (!!f.colours && f.colours.length > 0)
 }
 
-/** Filters that need card facts (type, colour, mana value, subtype, keyword, role). A card with no library row can never match them. */
+/** Filters that need card facts (type, colour, mana value, subtype, keyword, role, legendary, rules text, commander). A card with no library row can never match them. */
 export function factFilterNames(f: CollectionFilters): string[] {
   const out: string[] = []
   if (f.types) out.push('type')
@@ -60,6 +68,9 @@ export function factFilterNames(f: CollectionFilters): string[] {
   if (f.subtypes) out.push('subtype')
   if (f.keywords) out.push('keyword')
   if (f.roles) out.push('role')
+  if (f.legendary != null) out.push('legendary')
+  if (f.text) out.push('rules text')
+  if (f.can_be_commander != null) out.push('commander')
   return out
 }
 
@@ -72,6 +83,7 @@ export function applyPushdown(q: ReadQuery, f: CollectionFilters, withFacts = tr
   if (f.only_free) out = out.eq('is_free', true)
   if (f.only_proxies) out = out.eq('is_proxy', true)
   else if (f.include_proxies === false) out = out.eq('is_proxy', false)
+  if (f.no_card_facts) out = out.eq('facts_available', false) // a fact-free filter: applies in both passes
   if (!withFacts) return out
 
   if (hasColourFilter(f)) {
@@ -96,6 +108,10 @@ export function applyPushdown(q: ReadQuery, f: CollectionFilters, withFacts = tr
     const kws = f.keywords.map(norm)
     out = (f.keywords_match ?? 'all') === 'all' ? out.contains('keywords', kws) : out.overlaps('keywords', kws)
   }
-  if (f.types || f.roles) out = out.eq('facts_available', true)
+  if (f.legendary != null) {
+    out = out.eq('facts_available', true)
+    out = f.legendary ? out.ilike('type_line', '%legendary%') : out.not('type_line', 'ilike', '%legendary%')
+  }
+  if (f.types || f.roles || f.text || f.can_be_commander != null) out = out.eq('facts_available', true)
   return out
 }

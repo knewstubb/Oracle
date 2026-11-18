@@ -5,6 +5,7 @@
 //   3. role step: classify the distinct cards with the SHARED classifier, keep the ones with the wanted roles
 // Any failed read is LookupFailed (D-030): never a short list, never "none".
 import { CLASSIFIER_VERSION, hasClassifiableText, rolesForCard, type Role } from '../../card-roles'
+import { matchesRulesText } from './rules-text-match'
 import { fetchAll, LookupFailed, type ToolContext } from './common'
 import { applyPushdown, factFilterNames, norm, type CollectionFilters } from './collection-filters'
 import { NARROW_COLS, readMatchingCopies, scopedView, type NarrowRow } from './collection-view'
@@ -74,27 +75,41 @@ function appFilter(rows: NarrowRow[], f: CollectionFilters, withFacts = true): N
   return out
 }
 
-/** Roles for these card names, from the card library text, using the one shared classifier. */
-export async function classifyNames(ctx: ToolContext, names: string[]): Promise<Map<string, RoleInfo>> {
+export interface LibraryRow {
+  name: string
+  type_line: string | null
+  oracle_text: string | null
+  can_be_commander?: boolean | null
+}
+/** One batched read of the card library by name (100 names a request, 4 at a time). Any failed read throws LookupFailed. */
+export async function readLibrary(ctx: ToolContext, names: string[]): Promise<Map<string, LibraryRow>> {
   const unique = [...new Set(names)]
   if (unique.length > ROLE_NAME_CEILING) throw new LookupFailed()
-  const out = new Map<string, RoleInfo>()
+  const out = new Map<string, LibraryRow>()
   const batches: string[][] = []
   for (let i = 0; i < unique.length; i += ROLE_BATCH) batches.push(unique.slice(i, i + ROLE_BATCH))
   for (let i = 0; i < batches.length; i += ROLE_PARALLEL) {
     const got = await Promise.all(
       batches.slice(i, i + ROLE_PARALLEL).map((batch) =>
-        fetchAll<{ name: string; type_line: string | null; oracle_text: string | null }>(() => ctx.db.select('ref_cards', 'name, type_line, oracle_text').in('name', batch)),
+        fetchAll<LibraryRow>(() => ctx.db.select('ref_cards', 'name, type_line, oracle_text, can_be_commander').in('name', batch)),
       ),
     )
-    for (const r of got.flat()) {
-      const card = { name: r.name, typeLine: r.type_line, oracleText: r.oracle_text }
-      out.set(r.name, { roles: rolesForCard(card), hasText: hasClassifiableText(card) })
-    }
+    for (const r of got.flat()) out.set(r.name, r)
   }
   return out
 }
-
+function rolesFromLibrary(lib: Map<string, LibraryRow>): Map<string, RoleInfo> {
+  const out = new Map<string, RoleInfo>()
+  for (const r of lib.values()) {
+    const card = { name: r.name, typeLine: r.type_line, oracleText: r.oracle_text }
+    out.set(r.name, { roles: rolesForCard(card), hasText: hasClassifiableText(card) })
+  }
+  return out
+}
+/** Roles for these card names, from the card library text, using the one shared classifier. */
+export async function classifyNames(ctx: ToolContext, names: string[]): Promise<Map<string, RoleInfo>> {
+  return rolesFromLibrary(await readLibrary(ctx, names))
+}
 function hasWantedRoles(info: RoleInfo | undefined, wanted: Role[], mode: 'any' | 'all'): boolean {
   if (!info || !info.hasText) return false // cannot be checked: never matched, always counted in the coverage note
   return mode === 'all' ? wanted.every((r) => info.roles.includes(r)) : wanted.some((r) => info.roles.includes(r))
@@ -118,15 +133,20 @@ export async function findMatchingCopies(ctx: ToolContext, f: CollectionFilters,
 
   let roleInfo: Map<string, RoleInfo> | undefined
   let cardsWithoutText: number | undefined
-  if (f.roles || opts.classify) {
-    roleInfo = await classifyNames(ctx, rows.filter((r) => r.facts_available).map((r) => r.card_name))
-    if (f.roles) {
-      const withFacts = rows.filter((r) => r.facts_available)
-      cardsWithoutText = new Set(withFacts.filter((r) => !roleInfo!.get(r.card_name)?.hasText).map((r) => r.card_id)).size
-      rows = withFacts.filter((r) => hasWantedRoles(roleInfo!.get(r.card_name), f.roles!, f.roles_match ?? 'any'))
-    }
+  if (f.roles || f.text || f.can_be_commander != null || opts.classify) {
+    // One library read for everything that needs it (roles, rules text, commander flag).
+    const withFacts = rows.filter((r) => r.facts_available)
+    const library = await readLibrary(ctx, withFacts.map((r) => r.card_name))
+    roleInfo = rolesFromLibrary(library)
+    const cardCount = (rs: NarrowRow[]) => new Set(rs.map((r) => r.card_id)).size
+    if (f.roles) cardsWithoutText = cardCount(withFacts.filter((r) => !roleInfo!.get(r.card_name)?.hasText))
+    else if (f.text) cardsWithoutText = cardCount(withFacts.filter((r) => library.has(r.card_name) && !library.get(r.card_name)!.oracle_text?.trim()))
+    if (f.roles || f.text || f.can_be_commander != null) rows = withFacts // rows without facts never match these filters
+    if (f.roles) rows = rows.filter((r) => hasWantedRoles(roleInfo!.get(r.card_name), f.roles!, f.roles_match ?? 'any'))
+    if (f.text) rows = rows.filter((r) => matchesRulesText(library.get(r.card_name)?.oracle_text, f.text!, f.text_match ?? 'all_words'))
+    if (f.can_be_commander != null) rows = rows.filter((r) => library.has(r.card_name) && (library.get(r.card_name)!.can_be_commander === true) === f.can_be_commander)
+    if (f.text && rows.length === 0) notes.push('No owned card has those words in its rules text. Rules text says "put" not "puts" and "this creature" not the card\'s name; try fewer or shorter words, or text_match all_words.')
   }
-
   const used = factFilterNames(f)
   let coverage: Coverage | undefined
   if (used.length > 0) {

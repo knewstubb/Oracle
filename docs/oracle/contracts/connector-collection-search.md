@@ -210,3 +210,27 @@ Cost: one extra step of at most 15 small reads; answer stays about 1 to 2 KB.
 
 ### 13.8 Locked decisions touched
 None in conflict. D-030 enforced (ceiling and failures are loud; unclassifiable cards are counted, not hidden). D-001/D-003 unchanged (read-only, oracle_id/printing_id as before).
+
+## 14. AMENDMENT 2026-11-18 (CC-14): better search for Claude, no database change
+### 14.1 What changes, in plain words
+Claude can search the words on a card ("put a +1/+1 counter"), ask for Legendary cards or commander candidates, list the owned cards that have no card data, sort results by mana value, and count the collection by creature type or by mana value in one call. Search results no longer include rules text unless Claude asks for it.
+### 14.2 Decisions (owner approved 2026-11-18)
+1. **Rules text.** `text` (1 to 100 characters, at most 8 words) with `text_match`: `all_words` (default) = every word appears somewhere in the rules text of either face, any order, not case sensitive, partial words count; `phrase` = the exact words in that order, never across the gap between two faces. A search with no result carries a hint that rules text says "put" not "puts" and "this creature" not the card's name.
+2. **Two-faced cards.** Text covers both faces. Cards with no stored text cannot match and are counted in `filterCoverage.cardsWithoutText`.
+3. **Legendary.** `legendary: true` = Legendary on either face of the type line; `false` = on neither face. `can_be_commander` is a separate filter on the library's own flag (`false` = cannot be one). Both need card facts.
+4. **Cards with no data.** Never matched by a type, colour, mana value, subtype, keyword, role, legendary, commander or text filter, and always counted in `filterCoverage`. `no_card_facts: true` lists exactly those cards. It cannot be combined with any filter that needs card data (INVALID_INPUT).
+5. **Sort (search only).** `sort_by` `name` (default) or `mana_value`; `sort_order` `asc` (default) or `desc`. Ties by name. Cards with no data come last in both directions. Sorting happens before paging.
+6. **Counts.** `get_collection_summary` `group_by` gains `subtype` (a card counts under every subtype, so groups overlap and the note says so; no subtype = "No subtype"; no data = "No facts") and `mana_value` (labels "0", "1", "2"... in number order, "No facts" last). At most 60 groups; `groupsTruncated` stays honest.
+7. **Rules text off by default** in search results (`include_rules_text` default false).
+### 14.3 Speed
+Text and commander checks reuse the one batched read of the card library that role search makes (100 names a request, 4 at a time) and only run after the database-side filters have narrowed the list. A role, text and commander filter used together share that single read. A test pins the number of requests (250 names = 3 reads). A later optional speed-up (add rules text and the commander flag to the view so one request does it) is NOT built; it would need an owner-approved view change.
+### 14.4 Why 100 owned cards have no card data (live audit 2026-11-18, read-only)
+| Cause | Cards |
+|-------|------:|
+| A. Single-faced cards released after the card library was loaded | 43 |
+| B. Two-faced cards from a new set (layout "prepare") | 22 |
+| C. Older two-faced cards (adventure 11, modal 9, transform 9, split 6) the loader skipped | 35 |
+| Total with no card library row (124 copies) | 100 |
+Name matching is not the cause (checked: full name, front name and "Front // %" all miss). Also, all 132 two-faced library rows have no rules text. The fix is a prepared data script (FEAT-002) that needs owner approval; it is not run here.
+### 14.5 Database change
+None. No migration. The live database was only read.

@@ -8,11 +8,11 @@ import { ROLE_RULES_VERSION, findMatchingCopies } from './collection-query'
 import type { NarrowRow } from './collection-view'
 
 export const GROUPS_MAX = 60
-export const GROUP_BY = ['type', 'colour', 'location', 'kind', 'role'] as const
+export const GROUP_BY = ['type', 'colour', 'location', 'kind', 'role', 'subtype', 'mana_value'] as const
 
 export const collectionSummaryInput = z
   .strictObject({
-    group_by: z.enum(GROUP_BY).optional().describe('Count the matching copies by type, colour, location, kind (original or proxy) or role. Role groups overlap: a card can have several roles.'),
+    group_by: z.enum(GROUP_BY).optional().describe('Count the matching copies by type, colour, location, kind (original or proxy) role, subtype or mana_value. Role and subtype groups overlap: a card can have several.'),
     ...filterFields,
   })
   .superRefine(refineFilters)
@@ -51,8 +51,11 @@ const EXTRA: Record<(typeof GROUP_BY)[number], string[]> = {
   location: ['place_kind', 'deck_name', 'storage_name'],
   kind: [],
   role: [],
+  subtype: ['subtypes'],
+  mana_value: ['mana_value'],
 }
 
+const titleCase = (s: string) => s.replace(/(^|\s)(\S)/g, (_m, a: string, b: string) => a + b.toUpperCase())
 const ROLE_LABEL = Object.fromEntries(ROLE_ORDER.map((r) => [r, r[0].toUpperCase() + r.slice(1)])) as Record<string, string>
 
 function hasAnyFilter(i: z.infer<typeof collectionSummaryInput>): boolean {
@@ -93,6 +96,11 @@ export async function getCollectionSummary(ctx: ToolContext, input: z.infer<type
       else if (groupBy === 'colour') add(r.facts_available ? colourLabel(r.colour_letters) : NO_FACTS, r)
       else if (groupBy === 'location') add(locationLabel(r), r)
       else if (groupBy === 'kind') add(r.is_proxy ? 'Proxy' : 'Original', r)
+      else if (groupBy === 'subtype') {
+        if (!r.facts_available) add(NO_FACTS, r)
+        else if (!r.subtypes || r.subtypes.length === 0) add('No subtype', r)
+        else for (const st of r.subtypes) add(titleCase(st), r)
+      } else if (groupBy === 'mana_value') add(r.facts_available && r.mana_value != null ? String(r.mana_value) : NO_FACTS, r)
       else {
         const info = r.facts_available ? match.roleInfo?.get(r.card_name) : undefined
         if (!info || !info.hasText) add(NO_FACTS, r) // not checked: no library row or no rules text
@@ -103,10 +111,15 @@ export async function getCollectionSummary(ctx: ToolContext, input: z.infer<type
 
     const all: SummaryGroup[] = [...tally.entries()]
       .map(([label, g]) => ({ label, copies: g.copies, distinctCards: g.cards.size }))
-      .sort((a, b) => b.copies - a.copies || a.label.localeCompare(b.label))
+      .sort(
+        groupBy === 'mana_value'
+          ? (a, b) => (a.label === NO_FACTS ? 1 : b.label === NO_FACTS ? -1 : Number(a.label) - Number(b.label))
+          : (a, b) => b.copies - a.copies || a.label.localeCompare(b.label),
+      )
     const usesRoles = groupBy === 'role' || !!filters.roles
     const notes = [
       groupBy === 'role' ? 'Role groups overlap: a card can have several roles, so the groups can add up to more than totalCopies. "No role" plus "No facts" plus the cards with any role make up the total.' : null,
+      groupBy === 'subtype' ? 'Subtype groups overlap: a card with two creature types counts under both, so the groups can add up to more than totalCopies. "No subtype" plus "No facts" plus the cards with any subtype make up the total.' : null,
       match.coverage?.note ?? null,
       ...match.notes,
     ].filter((n): n is string => !!n)

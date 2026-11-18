@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oracle · Deck left rail, Strategy window and card Tags (DV-01, DV-02, RQ-12 mockup)</title>
+<style>
+/* Proposal, awaiting owner approval. Sample data for the deck "Yedora, the Explorer"; none of it is real. */
+:root{
+  --bg-canvas:#131316;--bg-surface:#1A1A1E;--bg-hover:#212126;
+  --border-subtle:#262629;      /* decoration only */
+  --border-ctl:#8A8A93;         /* controls: 5.07:1 on surface */
+  --text:#E8E8EA;--text2:#9C9CA3;
+  --accent:#1D9E75;--accent-text:#3DC99A;--accent-bg:rgba(29,158,117,.15);
+  --on-accent:#0B0B0D;
+  --chk:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m5 12 5 5 9-10' fill='none' stroke='%23000' stroke-width='4'/%3E%3C/svg%3E");
+  --warn:#EF9F27;--warn-bg:rgba(239,159,39,.15);
+  --err:#F2766B;--err-bg:rgba(242,118,107,.14);
+  --fs-xs:12px;--fs-sm:13px;--fs-md:14px;--fs-lg:16px;--fs-xl:20px;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:#0b0b0d;color:var(--text);font:var(--fs-md)/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid #fff;outline-offset:2px;box-shadow:0 0 0 4px #000}
+svg.i{width:1.15em;height:1.15em;flex:none;vertical-align:-.2em;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.muted{color:var(--text2)}
+
+/* ---- mockup controls (not part of the app) ---- */
+.ctl{position:sticky;top:0;z-index:100;background:#000;border-bottom:1px solid var(--border-subtle);padding:10px 16px;display:flex;flex-wrap:wrap;gap:8px 18px;align-items:flex-start}
+.ctl h1{font-size:var(--fs-md);margin:0 0 2px;font-weight:600;flex-basis:100%}
+.grp{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.grp>span{font-size:var(--fs-xs);color:var(--text2);margin-right:2px}
+.seg{border:1px solid var(--border-ctl);background:var(--bg-surface);border-radius:6px;padding:6px 10px;font-size:var(--fs-sm);min-height:36px}
+.seg[aria-pressed=true]{background:var(--text);color:#111;border-color:var(--text);font-weight:600}
+.note{max-width:1100px;margin:10px auto 0;padding:0 16px;color:var(--text2);font-size:var(--fs-sm)}
+.note b{color:var(--text)}
+.note details{margin-top:6px}
+.note table{border-collapse:collapse;margin-top:6px;font-size:var(--fs-xs)}
+.note td,.note th{border:1px solid var(--border-subtle);padding:3px 8px;text-align:left}
+.stage{padding:16px;display:flex;justify-content:center}
+
+/* ---- the app frame ---- */
+.frame{position:relative;width:1280px;max-width:100%;height:880px;overflow:hidden;background:var(--bg-canvas);border:1px solid var(--border-subtle);border-radius:8px;container-type:inline-size}
+.frame.phone{width:390px;height:780px}
+.frame.grey{filter:grayscale(1)}
+.app{display:flex;flex-direction:column;height:100%}
+.topnav{display:flex;align-items:center;gap:18px;padding:0 16px;min-height:48px;border-bottom:1px solid var(--border-subtle);background:var(--bg-surface);font-size:var(--fs-sm);flex:none;overflow:hidden;white-space:nowrap}
+.topnav b{font-size:var(--fs-md)}
+.topnav .search{margin-left:auto;border:1px solid var(--border-ctl);border-radius:6px;padding:8px 12px;color:var(--text2);min-width:200px}
+.body{display:grid;grid-template-columns:304px 1fr;flex:1;min-height:0}
+
+/* ---- left rail ---- */
+.rail{overflow:auto;border-right:1px solid var(--border-subtle);background:var(--bg-surface);padding:16px;display:flex;flex-direction:column;gap:18px}
+.rail h2{margin:0 0 6px;font-size:var(--fs-xs);letter-spacing:.08em;text-transform:uppercase;color:var(--text2);font-weight:600}
+.art{aspect-ratio:488/680;width:100%;max-width:220px;margin:0 auto;border-radius:12px;border:1px solid var(--border-ctl);background:repeating-linear-gradient(135deg,#202026 0 10px,#1a1a1e 10px 20px);display:grid;place-items:center;color:var(--text2);font-size:var(--fs-sm);text-align:center;padding:8px}
+.deckname{font-size:var(--fs-xl);font-weight:650;line-height:1.2;margin:0}
+.cmdr{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cmdr small{color:var(--text2)}
+.pip{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#2c5f3f;color:#fff;font-size:11px;font-weight:700;border:1px solid #9fd8b4}
+.slotbox{margin-top:8px;border:1px dashed var(--border-ctl);border-radius:8px;padding:8px 10px;font-size:var(--fs-sm);color:var(--text2)}
+.cnt{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.cnt .n{font-size:var(--fs-xl);font-weight:650}
+.over{display:inline-flex;gap:4px;align-items:center;color:var(--warn);font-weight:600}
+.bar{height:8px;border-radius:4px;background:#2c2c32;overflow:hidden;margin:8px 0;display:flex}
+.bar i{display:block;height:100%;background:var(--accent)}
+.bar i.o{background:repeating-linear-gradient(45deg,var(--warn) 0 4px,#7a5410 4px 8px)}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;font-size:var(--fs-sm);margin:0;padding:0;list-style:none}
+.split li{display:flex;justify-content:space-between;gap:6px;min-height:24px}
+.split .z{color:var(--text2)}
+.val{margin-top:6px;font-size:var(--fs-sm)}
+.health{list-style:none;margin:0;padding:0;font-size:var(--fs-sm)}
+.health li{display:flex;align-items:center;gap:8px;min-height:30px;border-bottom:1px solid var(--border-subtle)}
+.health li:last-child{border-bottom:0}
+.health .lbl{flex:1}
+.health .ok{color:var(--accent-text);display:inline-flex;gap:4px;align-items:center}
+.health .low{color:var(--warn);display:inline-flex;gap:4px;align-items:center}
+.src{font-size:var(--fs-xs);color:var(--text2);margin-top:4px}
+.curve{display:flex;align-items:flex-end;gap:6px;height:84px}
+.curve div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px;font-size:var(--fs-xs)}
+.curve i{display:block;width:100%;background:var(--accent);border-radius:3px 3px 0 0;min-height:2px}
+.curve small{color:var(--text2)}
+.needs{display:grid;gap:8px;font-size:var(--fs-sm)}
+.needs .row{display:grid;grid-template-columns:22px 1fr;gap:8px;align-items:center}
+.needs .bars{display:grid;gap:3px}
+.needs .b{display:flex;align-items:center;gap:6px;font-size:var(--fs-xs);color:var(--text2)}
+.needs .b span.t{flex:none;width:76px}
+.needs .b i{display:block;height:6px;border-radius:3px;background:var(--accent)}
+.needs .b em{font-style:normal;color:var(--text)}
+
+/* ---- strategy block ---- */
+.sblock{display:block;width:100%;text-align:left;background:var(--bg-canvas);border:1px solid var(--border-ctl);border-radius:10px;padding:12px;min-height:44px}
+.sblock.empty{border-style:dashed}
+.sblock:hover{background:var(--bg-hover)}
+.sblock .top{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 10px;font-size:var(--fs-sm);font-weight:600;border:1px solid var(--border-ctl);background:var(--bg-surface)}
+.chip.notset{color:var(--warn);border-color:var(--warn);background:var(--warn-bg)}
+.chip.off{color:var(--text)}
+.edit{display:inline-flex;align-items:center;gap:2px;color:var(--accent-text);font-size:var(--fs-sm);font-weight:600}
+.sum{display:block;margin-top:8px;font-size:var(--fs-md)}
+.sum.prompt{font-style:italic;color:var(--text2)}
+.sk{display:block;height:12px;border-radius:6px;background:linear-gradient(90deg,#26262b,#33333a,#26262b);background-size:200% 100%;animation:sh 1.4s linear infinite;margin-top:8px}
+@keyframes sh{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.sk{animation:none}}
+.warn{display:flex;gap:8px;align-items:flex-start;margin-top:10px;border:1px solid var(--warn);background:var(--warn-bg);border-radius:8px;padding:8px 10px;color:var(--text);font-size:var(--fs-sm)}
+.warn .i{color:var(--warn);margin-top:2px}
+.warn p{margin:0}
+.warn .sub{color:var(--text2);font-size:var(--fs-xs);margin-top:2px}
+.warn strong{color:var(--warn)}
+.errbox{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--err);background:var(--err-bg);border-radius:8px;padding:10px 12px;font-size:var(--fs-sm)}
+.errbox .i{color:var(--err);margin-top:2px}
+.errbox p{margin:0}
+.loadfail{border:1px solid var(--err);border-radius:10px;padding:12px;background:var(--bg-canvas)}
+.btn{min-height:44px;min-width:44px;padding:0 16px;border-radius:8px;border:1px solid var(--border-ctl);background:var(--bg-surface);font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn:hover{background:var(--bg-hover)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary[aria-disabled=true]{background:#2c2c32;border-color:var(--border-ctl);color:var(--text2);cursor:not-allowed}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.danger{color:var(--err)}
+
+/* ---- main area ---- */
+.main{overflow:auto;display:flex;flex-direction:column;min-width:0}
+.tabsrow{display:flex;align-items:center;border-bottom:1px solid var(--border-subtle);padding:0 8px 0 12px;gap:4px;position:sticky;top:0;background:var(--bg-canvas);z-index:5}
+.tabs{display:flex;gap:2px;overflow-x:auto;flex:1;scrollbar-width:none}
+.tab{min-height:44px;padding:0 12px;background:none;border:0;border-bottom:2px solid transparent;color:var(--text2);white-space:nowrap}
+.tab[aria-current=page]{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
+.menuwrap{position:relative;flex:none}
+.menu{position:absolute;right:0;top:48px;min-width:200px;background:var(--bg-surface);border:1px solid var(--border-ctl);border-radius:10px;padding:4px;z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.menu[hidden]{display:none}
+.menu button{display:flex;align-items:center;gap:8px;width:100%;min-height:44px;padding:0 12px;border:0;background:none;text-align:left;border-radius:6px}
+.menu button:hover{background:var(--bg-hover)}
+.menu hr{border:0;border-top:1px solid var(--border-ctl);margin:4px 0}
+.menu .del{color:var(--err)}
+.tools{display:flex;gap:8px;padding:12px;flex-wrap:wrap}
+.tools .f{border:1px solid var(--border-ctl);border-radius:6px;padding:0 12px;min-height:44px;display:flex;align-items:center;color:var(--text2)}
+.tools .f.grow{flex:1;min-width:140px}
+.cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;padding:4px 12px 24px}
+.col h3{font-size:var(--fs-sm);margin:0 0 4px;color:var(--text2)}
+.crow{display:flex;justify-content:space-between;gap:8px;width:100%;min-height:44px;align-items:center;padding:0 8px;background:none;border:0;border-bottom:1px solid var(--border-subtle);text-align:left}
+.crow:hover{background:var(--bg-hover)}
+.crow .p{color:var(--text2);font-size:var(--fs-sm)}
+.whyline{display:block;color:var(--text2);font-size:var(--fs-xs)}
+.crow .l{display:block}
+.keepmark{display:inline-flex;gap:2px;align-items:center;color:var(--accent-text);font-size:var(--fs-xs);font-weight:600}
+
+/* ---- rail on a phone ---- */
+.rail-compact{display:none}
+.rail-full{display:contents}
+@container (max-width:720px){
+  .app{overflow:auto}
+  .body{display:block;flex:none}
+  .rail{overflow:visible;border-right:0;border-bottom:1px solid var(--border-subtle);padding:0}
+  .rail-compact{display:flex;align-items:center;gap:10px;padding:10px 12px;width:100%;min-height:64px;text-align:left;background:none;border:0}
+  .rail-compact .thumb{width:36px;height:50px;border-radius:5px;border:1px solid var(--border-ctl);background:repeating-linear-gradient(135deg,#202026 0 6px,#1a1a1e 6px 12px);flex:none}
+  .rail-compact .t{flex:1;min-width:0;font-size:var(--fs-sm)}
+  .rail-compact .t b{display:block;font-size:var(--fs-md)}
+  .rail-full{display:none;padding:0 16px 16px;flex-direction:column;gap:18px}
+  .rail.open .rail-full{display:flex}
+  .art{max-width:150px}
+  .main{overflow:visible}
+  .cols{grid-template-columns:1fr}
+  .topnav .search,.topnav .hide-phone{display:none}
+  .tabsrow{top:0}
+}
+
+/* ---- dialogs ---- */
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+.scrim[hidden]{display:none}
+.dlg{background:var(--bg-surface);border:1px solid var(--border-ctl);border-radius:14px;width:560px;max-width:100%;max-height:100%;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.dlg header{display:flex;justify-content:space-between;gap:12px;padding:16px 16px 8px}
+.dlg h2{margin:0;font-size:var(--fs-xl)}
+.dlg header p{margin:2px 0 0;color:var(--text2);font-size:var(--fs-sm)}
+.dlg .bd{padding:8px 16px 8px;overflow:auto;display:flex;flex-direction:column;gap:16px}
+.dlg footer{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 16px;border-top:1px solid var(--border-subtle)}
+.dlg footer .who{flex:1;min-width:180px;color:var(--text2);font-size:var(--fs-sm)}
+.dlg footer a{color:var(--accent-text);text-decoration:underline}
+.dlg a:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.fld label,.fld .lab{display:block;font-weight:600;font-size:var(--fs-sm);margin-bottom:4px}
+.fld .hint{color:var(--text2);font-size:var(--fs-xs);margin-top:4px;display:flex;justify-content:space-between;gap:8px}
+.in,.ta,.sel{width:100%;min-height:44px;background:var(--bg-canvas);border:1px solid var(--border-ctl);border-radius:8px;padding:10px 12px}
+.ta{min-height:120px;resize:vertical}
+.in::placeholder,.ta::placeholder{color:var(--text2)}
+.in[aria-disabled=true],.ta[aria-disabled=true]{opacity:1}
+.brk{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.brk button{min-height:56px;border:1px solid var(--border-ctl);background:var(--bg-canvas);border-radius:8px;padding:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;font-size:var(--fs-xs);line-height:1.2;position:relative}
+.brk button b{font-size:var(--fs-lg)}
+.brk button[aria-checked=true]{border:2px solid var(--accent-text);background:var(--accent-bg);font-weight:600}
+.brk button[aria-checked=true]::after{content:"";position:absolute;top:3px;right:3px;width:12px;height:12px;background:var(--accent-text);border-radius:50%;-webkit-mask:var(--chk) center/contain no-repeat;mask:var(--chk) center/contain no-repeat}
+.brk[aria-disabled=true] button{cursor:not-allowed}
+.clr{background:none;border:0;color:var(--accent-text);text-decoration:underline;min-height:44px;padding:0 4px}
+.discard{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--bg-canvas);border:1px solid var(--border-ctl);border-radius:8px;padding:8px 12px}
+.discard span{flex:1;min-width:160px}
+@container (max-width:720px){
+  .scrim{padding:0;align-items:flex-end}
+  .dlg{width:100%;height:100%;border-radius:0;border:0}
+  .brk{grid-template-columns:repeat(5,minmax(0,1fr))}
+  .brk button span.nm{font-size:11px}
+}
+/* card details */
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{border:1px solid var(--border-ctl);border-radius:999px;padding:3px 10px;font-size:var(--fs-sm);background:var(--bg-canvas)}
+.tagnote{color:var(--text2);font-size:var(--fs-xs);margin-top:6px}
+.cardhead{display:flex;gap:12px}
+.cardhead .art{width:96px;max-width:96px;flex:none;margin:0;font-size:11px}
+.kv{display:grid;gap:2px;font-size:var(--fs-sm)}
+.sw{display:flex;align-items:center;gap:10px;min-height:44px;background:none;border:0;padding:0;text-align:left;width:100%}
+.sw .tr{width:44px;height:26px;border-radius:13px;border:1px solid var(--border-ctl);background:var(--bg-canvas);position:relative;flex:none}
+.sw .tr::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--text2)}
+.sw[aria-checked=true] .tr{background:var(--accent-bg);border-color:var(--accent-text)}
+.sw[aria-checked=true] .tr::after{left:21px;background:var(--accent-text)}
+.sw .st{font-weight:600}
+.toast{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);background:var(--text);color:#111;border-radius:8px;padding:10px 16px;z-index:70;font-weight:600}
+.toast[hidden]{display:none}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3z"/><path d="M12 10v5M12 18v.5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></symbol>
+  <symbol id="i-off" viewBox="0 0 24 24"><path d="M3 3l18 18M8.5 8.8A10 10 0 0 0 2 11.5M5 15a10 10 0 0 1 4-2.6M12 19.5v.1M16 12.3A10 10 0 0 1 22 11.5M12 8a14 14 0 0 1 6 1.5"/></symbol>
+  <symbol id="i-err" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.1"/></symbol>
+  <symbol id="i-export" viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4M5 14v6h14v-6"/></symbol>
+  <symbol id="i-hist" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 8v4l3 2"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+</svg>
+
+<div class="ctl">
+  <h1>Oracle mockup · Deck left rail, Strategy window and card Tags. Proposal, awaiting owner approval.</h1>
+  <div class="grp" id="g-state"><span>Strategy state</span></div>
+  <div class="grp" id="g-win"><span>Window</span></div>
+  <div class="grp" id="g-screen"><span>Screen</span></div>
+  <div class="grp" id="g-width"><span>Width</span></div>
+  <div class="grp" id="g-grey"><span>Check</span></div>
+  <div class="grp" id="g-card"><span>Card (card details)</span></div>
+  <div class="grp" id="g-why"><span>Why (card details)</span></div>
+</div>
+<div class="note">
+  <b>How to review.</b> Pick a Strategy state, then open the window from the Strategy block in the left rail. Loading, Failed and Offline open the window for you. Tab, Shift+Tab and Escape work as in the app. "Phone" narrows the frame so the rail stacks and collapses; "Greyscale" proves nothing depends on colour alone. All names and numbers are sample data for Yedora, the Explorer. The mockup's calculated bracket is fixed at 4 (4 Game Changers), so a target of 3 shows the warning and a target of 4 or 5 shows nothing.
+  <details><summary>Contrast ratios checked (WCAG 2.2 AA, minimum 4.5:1 for text, 3:1 for control borders and icons)</summary>
+    <table>
+      <tr><th>Pair</th><th>Ratio</th></tr>
+      <tr><td>Text #E8E8EA on surface #1A1A1E</td><td>14.18:1</td></tr>
+      <tr><td>Secondary text #9C9CA3 on surface / canvas</td><td>6.36:1 / 6.80:1</td></tr>
+      <tr><td>Secondary text on the amber warning fill</td><td>4.84:1</td></tr>
+      <tr><td>Amber #EF9F27 on surface / on the amber fill</td><td>7.98:1 / 6.07:1</td></tr>
+      <tr><td>Green text #3DC99A on surface / on the green fill</td><td>8.28:1 / 6.82:1</td></tr>
+      <tr><td>Save label #0B0B0D on green #1D9E75 (white would be 3.39:1, so not used)</td><td>5.81:1</td></tr>
+      <tr><td>Error red #F2766B on surface</td><td>6.26:1</td></tr>
+      <tr><td>Control border #8A8A93 on surface / canvas (needs 3:1)</td><td>5.07:1 / 5.42:1</td></tr>
+      <tr><td>Focus ring white on surface</td><td>17.35:1</td></tr>
+    </table>
+  </details>
+</div>
+<div class="stage">
+<div class="frame" id="frame">
+  <div class="app" id="app">
+    <div class="topnav"><b>The Oracle</b><span>Decks</span><span>Collection</span><span class="hide-phone">Tools</span><span class="search">Search cards…</span></div>
+    <div class="body">
+      <aside class="rail" id="rail" aria-label="Deck summary">
+        <button class="rail-compact" id="railToggle" aria-expanded="false" aria-controls="railFull">
+          <span class="thumb" aria-hidden="true"></span>
+          <span class="t" id="compactText"></span>
+          <svg class="i" aria-hidden="true"><use href="#i-down"/></svg>
+          <span class="sr">Show or hide the deck summary</span>
+        </button>
+        <div class="rail-full" id="railFull">
+          <div class="art" role="img" aria-label="Commander card art placeholder">Commander<br>card art</div>
+          <h1 class="deckname" style="font-size:20px">Yedora, the Explorer</h1>
+          <section aria-labelledby="h-cmd">
+            <h2 id="h-cmd">Commander</h2>
+            <div class="cmdr"><span class="pip" aria-hidden="true">G</span><span>Yedora, Grave Gardener</span><small>Commander · Green</small></div>
+            <div class="slotbox" id="slotbox">Partner, Background or Companion slot. Shown only when the commander allows one. Yedora does not, so it is hidden here.</div>
+          </section>
+          <section aria-labelledby="h-str"><h2 id="h-str">Strategy</h2><div id="blockHost"></div></section>
+          <section aria-labelledby="h-cards">
+            <h2 id="h-cards">Cards</h2>
+            <div class="cnt"><span class="n">102 / 100</span><span class="over"><svg class="i" aria-hidden="true"><use href="#i-warn"/></svg>2 over</span></div>
+            <div class="bar" role="img" aria-label="Deck full, 2 cards over 100"><i style="width:98%"></i><i class="o" style="width:2%"></i></div>
+            <ul class="split">
+              <li><span>Original</span><b>102</b></li><li class="z"><span>Proxy</span><b>0</b></li>
+              <li class="z"><span>In other decks</span><b>0</b></li><li class="z"><span>Unowned</span><b>0</b></li>
+            </ul>
+            <div class="val">Estimated value <b>$131.98</b></div>
+          </section>
+          <section aria-labelledby="h-hl">
+            <h2 id="h-hl">Deck health</h2>
+            <ul class="health">
+              <li><span class="lbl">Ramp</span><b>18 / 15</b><span class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Met</span></li>
+              <li><span class="lbl">Draw</span><b>6 / 6</b><span class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Met</span></li>
+              <li><span class="lbl">Removal</span><b>6 / 4</b><span class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Met</span></li>
+              <li><span class="lbl">Wipes</span><b>0 / 0</b><span class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Met</span></li>
+              <li><span class="lbl">Lands</span><b>37 / 36</b><span class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Met</span></li>
+            </ul>
+            <div class="src">Targets: commander average. A group below target shows "Short" with a warning icon.</div>
+          </section>
+          <section aria-labelledby="h-mc">
+            <h2 id="h-mc">Mana curve <span class="muted" style="text-transform:none;letter-spacing:0">(sample shape)</span></h2>
+            <div class="curve" role="img" aria-label="Mana curve. Cost 0: 1. Cost 1: 9. Cost 2: 14. Cost 3: 18. Cost 4: 12. Cost 5: 8. Cost 6: 4. Cost 7 or more: 2.">
+              <div><small>1</small><i style="height:4px"></i><small>0</small></div>
+              <div><small>9</small><i style="height:30px"></i><small>1</small></div>
+              <div><small>14</small><i style="height:46px"></i><small>2</small></div>
+              <div><small>18</small><i style="height:60px"></i><small>3</small></div>
+              <div><small>12</small><i style="height:40px"></i><small>4</small></div>
+              <div><small>8</small><i style="height:26px"></i><small>5</small></div>
+              <div><small>4</small><i style="height:14px"></i><small>6</small></div>
+              <div><small>2</small><i style="height:8px"></i><small>7+</small></div>
+            </div>
+          </section>
+          <section aria-labelledby="h-cn">
+            <h2 id="h-cn">Colour needs against sources</h2>
+            <div class="needs">
+              <div class="row"><span class="pip" aria-hidden="true">G</span>
+                <div class="bars">
+                  <div class="b"><span class="t">Symbols</span><i style="width:100%;flex:1"></i><em>100%</em></div>
+                  <div class="b"><span class="t">Sources</span><i style="width:92%;flex:.92"></i><em>33 of 37</em></div>
+                </div></div>
+            </div>
+            <div class="src">Sample figures. The land maths arrive with RQ-13; this space is reserved.</div>
+          </section>
+        </div>
+      </aside>
+
+      <main class="main" id="main">
+        <div class="tabsrow">
+          <div class="tabs" role="tablist" aria-label="Deck sections">
+            <button class="tab" aria-current="page">Cards</button><button class="tab">Picklist</button><button class="tab">Workbench</button><button class="tab">Analysis</button><button class="tab">Combos</button><button class="tab">Upgrade</button><button class="tab">Strategy</button>
+          </div>
+          <div class="menuwrap">
+            <button class="btn ghost" id="menuBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="menu" aria-label="More actions"><svg class="i" aria-hidden="true"><use href="#i-dots"/></svg></button>
+            <div class="menu" id="menu" role="menu" aria-label="Deck actions" hidden>
+              <button role="menuitem"><svg class="i" aria-hidden="true"><use href="#i-export"/></svg>Export</button>
+              <button role="menuitem"><svg class="i" aria-hidden="true"><use href="#i-hist"/></svg>History</button>
+              <hr>
+              <button role="menuitem" class="del"><svg class="i" aria-hidden="true"><use href="#i-trash"/></svg>Delete deck…</button>
+            </div>
+          </div>
+        </div>
+        <div class="tools"><span class="f grow">Search this deck…</span><span class="f">Group: Category</span><span class="f">Sort: Name</span><button class="btn primary">Add card</button></div>
+        <div class="cols" id="cols"></div>
+      </main>
+    </div>
+  </div>
+
+  <div class="scrim" id="scrimS" hidden></div>
+  <div class="scrim" id="scrimC" hidden></div>
+  <div class="toast" id="toast" role="status" hidden></div>
+</div>
+</div>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+const ic=(n,c)=>`<svg class="i ${c||''}" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+const NAMES={1:'Exhibition',2:'Core',3:'Upgraded',4:'Optimized',5:'cEDH'};
+const CALC=4, CALC_WHY='4 Game Changers';
+const SUM='Cards that flip back face up for mana, with value that keeps coming back.';
+const STRAT='Wins by building a big green board of lands and utility creatures, then finishing with a large trample hit. Yedora turns face-down lands into steady mana and value. Never cut: the Treasure-making cards that fund the late game.';
+const PRE={
+  empty:{target:null,summary:'',strategy:'',playgroup:'',by:null,date:null},
+  set:{target:4,summary:SUM,strategy:STRAT,playgroup:'Friday group, mostly Bracket 3 and 4 tables',by:'Claude',date:'19 Nov'},
+  exceeded:{target:3,summary:SUM,strategy:STRAT,playgroup:'Friday group, mostly Bracket 3 and 4 tables',by:'You',date:'19 Nov'},
+  loading:{target:null,summary:'',strategy:'',playgroup:'',by:null,date:null},
+  failsave:{target:3,summary:SUM,strategy:STRAT,playgroup:'Friday group, mostly Bracket 3 and 4 tables',by:'You',date:'19 Nov'},
+  failload:{target:null,summary:'',strategy:'',playgroup:'',by:null,date:null},
+  offline:{target:3,summary:SUM,strategy:STRAT,playgroup:'Friday group, mostly Bracket 3 and 4 tables',by:'Claude',date:'19 Nov'}
+};
+const STATES=[['empty','Empty'],['set','Set'],['exceeded','Bracket exceeded'],['loading','Loading'],['failsave','Failed to save'],['failload','Failed to load'],['offline','Offline']];
+const CARDS={
+  sol:{n:'Sol Ring',t:'Artifact',tags:['ramp'],cat:'Artifact',p:'$1.50'},
+  warren:{n:'Warren Soultrader',t:'Creature',tags:['ramp','sacrifice outlet','token generator'],cat:'Creature',p:'$0.80'},
+  many:{n:'Sample card, 7 Tags',t:'Creature',tags:['card draw','fixing','ramp','recursion','sacrifice outlet','token generator','Treasure generator'],cat:'Creature',p:'$2.10'},
+  none:{n:'Sample card, no Tags',t:'Enchantment',tags:[],cat:'Enchantment',p:'$0.25'}
+};
+const S={state:'empty',saved:{...PRE.empty},open:false,screen:'deck',phone:false,railOpen:false,grey:false,card:'sol',why:'empty',keep:false,draft:null};
+let lastFocus=null;
+
+/* ---- controls ---- */
+function seg(host,items,key,fn){
+  const g=$(host);g.querySelectorAll('button').forEach(b=>b.remove());
+  items.forEach(([v,l])=>{const b=document.createElement('button');b.className='seg';b.textContent=l;b.dataset.v=v;b.addEventListener('click',()=>fn(v));g.appendChild(b)});
+}
+function paintCtl(){
+  const set=(host,val)=>document.querySelectorAll(host+' button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v==val)));
+  set('#g-state',S.state);set('#g-win',S.open?'open':'closed');set('#g-screen',S.screen);set('#g-width',S.phone?'phone':'desktop');set('#g-grey',S.grey?'grey':'colour');set('#g-card',S.card);set('#g-why',S.why);
+}
+seg('#g-state',STATES,'state',v=>preset(v));
+seg('#g-win',[['open','Open'],['closed','Closed']],'open',v=>{v==='open'?openStrategy($('#blockHost button')||$('#railToggle')):closeStrategy(true,true)});
+seg('#g-screen',[['deck','Deck page'],['card','Card details']],'screen',v=>{S.screen=v;if(v==='card'){closeStrategy(true,true);openCard(null)}else closeCard(true);paintCtl()});
+seg('#g-width',[['desktop','Desktop'],['phone','Phone']],'w',v=>{S.phone=v==='phone';$('#frame').classList.toggle('phone',S.phone);paintCtl()});
+seg('#g-grey',[['colour','Colour'],['grey','Greyscale']],'g',v=>{S.grey=v==='grey';$('#frame').classList.toggle('grey',S.grey);paintCtl()});
+seg('#g-card',[['sol','Sol Ring'],['warren','Warren Soultrader'],['many','7 Tags'],['none','No Tags']],'c',v=>{S.card=v;if(S.screen==='card')openCard(null);else paintCtl()});
+seg('#g-why',[['empty','Empty'],['you','Written by you'],['claude','Filled by Claude']],'w',v=>{S.why=v;if(S.screen==='card')openCard(null);else paintCtl()});
+
+function preset(v){
+  S.state=v;S.saved={...PRE[v]};
+  closeStrategy(false,false);
+  renderAll();
+  if(v==='loading'||v==='failsave'||v==='offline'){openStrategy(null)}
+  paintCtl();
+}
+
+/* ---- strategy block ---- */
+function warnHtml(t,withSub){
+  if(!t||CALC<=t)return '';
+  return `<span class="warn" style="display:flex"><span>${ic('warn')}</span><span><span style="display:block">Cards in this deck imply at least Bracket ${CALC}. Your target is Bracket ${t}.</span>${withSub?`<span class="sub" style="display:block">Based on: ${CALC_WHY}.</span>`:''}</span></span>`;
+}
+function blockHtml(){
+  const d=S.saved,st=S.state;
+  if(st==='loading')return `<button class="sblock" aria-haspopup="dialog" aria-busy="true" aria-disabled="true"><span class="top"><span class="chip">Loading strategy…</span></span><span class="sk" style="width:90%"></span><span class="sk" style="width:60%"></span></button>`;
+  if(st==='failload')return `<div class="loadfail" role="alert">${ic('err')} <b>Couldn't load your strategy.</b><div class="muted" style="font-size:13px;margin:4px 0 8px">Nothing was changed. Your saved strategy is safe.</div><button class="btn" id="retryLoad">Try again</button></div>`;
+  const empty=!d.target&&!d.summary;
+  const chip=d.target?`<span class="chip">Target bracket ${d.target} · ${NAMES[d.target]}</span>`:`<span class="chip notset">${ic('warn')}Target bracket: Not set</span>`;
+  const off=st==='offline'?`<span class="chip off" style="margin-top:8px">${ic('off')}Offline · showing saved copy</span>`:'';
+  const sumHtml=d.summary?`<span class="sum">${esc(d.summary)}</span>`:`<span class="sum prompt">Add a one-line summary of how this deck plays</span>`;
+  return `<button class="sblock ${empty?'empty':''}" aria-haspopup="dialog"><span class="top">${chip}<span class="edit">Edit ${ic('chev')}</span></span>${sumHtml}${warnHtml(d.target,false)}${off}</button>`;
+}
+function compactHtml(){
+  const d=S.saved;
+  const br=d.target?`Target bracket ${d.target}`:'Target bracket: Not set';
+  const w=(d.target&&CALC>d.target)?` · <span style="color:var(--warn)">${ic('warn')} Cards imply at least Bracket ${CALC}</span>`:'';
+  return `<b>Yedora, the Explorer</b>${br}${w}<br><span class="muted">102 / 100 · 2 over</span>`;
+}
+function esc(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function renderBlock(){
+  $('#blockHost').innerHTML=blockHtml();$('#compactText').innerHTML=compactHtml();
+  const b=$('#blockHost .sblock');if(b)b.addEventListener('click',e=>{if(b.getAttribute('aria-disabled')==='true')return;openStrategy(b)});
+  const r=$('#retryLoad');if(r)r.addEventListener('click',()=>toast('Retrying…  (mockup: stays failed)'));
+}
+
+/* ---- strategy modal ---- */
+function brkHtml(sel,dis){
+  return `<div class="brk" role="radiogroup" aria-labelledby="lbBrk" id="brk" ${dis?'aria-disabled="true"':''}>`+[1,2,3,4,5].map(n=>`<button type="button" role="radio" aria-checked="${sel==n}" tabindex="${(sel==n||(!sel&&n===1))?0:-1}" data-n="${n}" ${dis?'aria-disabled="true"':''}><b>${n}</b><span class="nm">${NAMES[n]}</span></button>`).join('')+`</div>`;
+}
+function modalHtml(){
+  const st=S.state,d=S.draft,load=st==='loading',off=st==='offline';
+  const ro=load?'aria-disabled="true" readonly':'';
+  const sk=(w)=>`<span class="sk" style="width:${w};height:44px;margin:0"></span>`;
+  const who=S.saved.by?`Last changed by ${S.saved.by==='You'?'you':'Claude'} · ${S.saved.date} · <a href="#" id="seeHist">See in History</a>`:'Not saved yet. Nothing in History.';
+  const banner=off?`<div class="errbox" style="border-color:var(--warn);background:var(--warn-bg)"><span style="color:var(--warn)">${ic('off')}</span><p><b>You're offline.</b> You can keep typing. Save is off until you're back online. Your text stays in this window.</p></div>`:'';
+  const fail=st==='failsave'?`<div class="errbox" role="alert">${ic('err')}<p><b>Couldn't save.</b> Your changes are still here and nothing was lost. Check your connection and select Save to try again.</p></div>`:'';
+  const disSave=load||off;
+  const saveReason=load?'Save is off while the strategy loads.':off?'Save is off while you are offline.':'';
+  return `<div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dTitle" aria-describedby="dSub" id="dlgS">
+  <header><div><h2 id="dTitle">Strategy</h2><p id="dSub">Yedora, the Explorer. Claude reads this when it advises you.</p></div><button class="btn ghost" id="xS" aria-label="Close"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button></header>
+  <div class="bd" ${load?'aria-busy="true"':''}>
+    ${banner}${fail}
+    <div class="fld"><div class="lab" id="lbBrk">Target bracket</div>${load?`<div class="brk">${[1,2,3,4,5].map(()=>sk('100%')).join('')}</div>`:brkHtml(d.target,off&&false)}
+      <div style="display:flex;justify-content:space-between;align-items:center"><span class="hint" style="margin:0">The bracket you are aiming for.</span><button type="button" class="clr" id="clrBrk" ${load?'hidden':''}>Clear target</button></div>
+      <div id="warnHost" role="status" aria-live="polite">${warnHtml(d.target,true)}</div>
+      ${off?`<div class="hint" style="justify-content:flex-start">${ic('off')}&nbsp;The card check can't update while you're offline.</div>`:''}
+    </div>
+    <div class="fld"><label for="fSum">One-line summary</label>${load?sk('100%'):`<input class="in" id="fSum" maxlength="120" value="${esc(d.summary)}" placeholder="How this deck plays, in one line" aria-describedby="sumHint">`}
+      <div class="hint" id="sumHint"><span>Shown on the deck page.</span><span id="cnt" aria-live="off">${d.summary.length} / 120</span></div></div>
+    <div class="fld"><label for="fStr">Strategy</label>${load?sk('100%'):`<textarea class="ta" id="fStr" placeholder="How the deck wins, what your commander does for it, and any cards Claude should never suggest cutting. Plain sentences are fine.">${esc(d.strategy)}</textarea>`}</div>
+    <div class="fld"><label for="fPg">Playgroup <span class="muted" style="font-weight:400">(optional)</span></label>${load?sk('100%'):`<input class="in" id="fPg" value="${esc(d.playgroup)}" placeholder="Who you usually play against">`}</div>
+    <div class="discard" id="discard" hidden role="alertdialog" aria-label="Discard changes"><span>Discard your changes?</span><button class="btn" id="keepEd">Keep editing</button><button class="btn" id="doDisc">Discard</button></div>
+  </div>
+  <footer><span class="who">${who}</span><button class="btn" id="cancelS">Cancel</button>
+    <button class="btn primary" id="saveS" ${disSave?'aria-disabled="true" aria-describedby="saveWhy"':''}>${st==='failsave'?'Try again':'Save'}</button><span class="sr" id="saveWhy">${saveReason}</span></footer></div>`;
+}
+function openStrategy(from){
+  lastFocus=from||$('#blockHost button')||document.activeElement;
+  S.open=true;S.draft={...S.saved};
+  const sc=$('#scrimS');sc.innerHTML=modalHtml();sc.hidden=false;
+  $('#app').setAttribute('inert','');
+  wireStrategy();
+  const first=$('#brk [tabindex="0"]')||$('#xS');first.focus();
+  paintCtl();
+}
+function dirty(){const a=S.draft,b=S.saved;return ['target','summary','strategy','playgroup'].some(k=>(a[k]||'')!==(b[k]||''))}
+function closeStrategy(force,noFocus){
+  if(!S.open)return;
+  if(!force&&dirty()){$('#discard').hidden=false;$('#keepEd').focus();return}
+  S.open=false;const sc=$('#scrimS');sc.hidden=true;sc.innerHTML='';
+  if(!S.open&&$('#scrimC').hidden)$('#app').removeAttribute('inert');
+  if(!noFocus&&lastFocus&&document.contains(lastFocus))lastFocus.focus();
+  paintCtl();
+}
+function wireStrategy(){
+  const sc=$('#scrimS'),d=S.draft;
+  const upd=()=>{$('#warnHost').innerHTML=warnHtml(d.target,true)};
+  const radios=[...sc.querySelectorAll('#brk [role=radio]')];
+  const pick=n=>{d.target=n;radios.forEach(r=>{const on=+r.dataset.n===n;r.setAttribute('aria-checked',on);r.tabIndex=on?0:-1});upd()};
+  radios.forEach(r=>{
+    r.addEventListener('click',()=>pick(+r.dataset.n));
+    r.addEventListener('keydown',e=>{
+      const i=radios.indexOf(r);let j=null;
+      if(e.key==='ArrowRight'||e.key==='ArrowDown')j=(i+1)%5;
+      if(e.key==='ArrowLeft'||e.key==='ArrowUp')j=(i+4)%5;
+      if(j!==null){e.preventDefault();radios[j].focus();pick(j+1)}
+    });
+  });
+  const clr=$('#clrBrk');if(clr)clr.addEventListener('click',()=>{d.target=null;radios.forEach(r=>{r.setAttribute('aria-checked','false');r.tabIndex=r.dataset.n==='1'?0:-1});upd()});
+  const sum=$('#fSum');if(sum)sum.addEventListener('input',()=>{d.summary=sum.value;const n=sum.value.length;$('#cnt').textContent=n>=120?'120 / 120 · limit reached':n+' / 120'});
+  const str=$('#fStr');if(str)str.addEventListener('input',()=>d.strategy=str.value);
+  const pg=$('#fPg');if(pg)pg.addEventListener('input',()=>d.playgroup=pg.value);
+  $('#xS').addEventListener('click',()=>closeStrategy(false));
+  $('#cancelS').addEventListener('click',()=>closeStrategy(false));
+  $('#keepEd').addEventListener('click',()=>{$('#discard').hidden=true;(sum||$('#xS')).focus()});
+  $('#doDisc').addEventListener('click',()=>closeStrategy(true));
+  const h=$('#seeHist');if(h)h.addEventListener('click',e=>{e.preventDefault();toast('Opens History for this deck (mockup)')});
+  $('#saveS').addEventListener('click',()=>{
+    if($('#saveS').getAttribute('aria-disabled')==='true')return;
+    if(S.state==='failsave'){toast('Still failing (mockup shows the failed state)');return}
+    S.saved={...d,by:'You',date:'19 Nov'};
+    S.state=!S.saved.target&&!S.saved.summary?'empty':(S.saved.target&&CALC>S.saved.target?'exceeded':'set');
+    closeStrategy(true,true);renderBlock();
+    ($('#blockHost button')||document.body).focus&&$('#blockHost button')&&$('#blockHost button').focus();
+    toast('Strategy saved');paintCtl();
+  });
+}
+
+/* ---- card details ---- */
+function openCard(from){
+  const c=CARDS[S.card];lastFocus=from||lastFocus;S.screen='card';
+  const broadFirst=[...c.tags];const shown=broadFirst.slice(0,5),extra=broadFirst.length-shown.length;
+  const whyVal=S.why==='you'?'Gives Yedora a free land drop each turn':S.why==='claude'?'Cheap ramp that turns on the face-down lands plan':'';
+  const claudeNote=S.why==='claude'?`<div class="hint" style="justify-content:flex-start;gap:6px">${ic('hist')} Added by Claude · 19 Nov · <a href="#" id="whyHist" style="color:var(--accent-text)">See in History</a></div>`:'';
+  const tagHtml=shown.length?`<div class="tags" role="list" aria-label="Tags, read-only">${shown.map(t=>`<span class="tag" role="listitem">${t}</span>`).join('')}</div>${extra>0?`<div class="tagnote">${extra} more not shown. Search your collection by Tag to find this card by them.</div>`:''}`:`<div class="muted" style="font-size:13px">No Tags yet.</div>`;
+  const cats=['Commander','Artifact','Creature','Enchantment','Instant','Sorcery','Land'];
+  const html=`<div class="dlg" role="dialog" aria-modal="true" aria-labelledby="cTitle" id="dlgC" style="width:520px">
+   <header><div><h2 id="cTitle">${c.n}</h2><p>${c.t} · In deck: Yedora, the Explorer</p></div><button class="btn ghost" id="xC" aria-label="Close"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button></header>
+   <div class="bd">
+    <div class="cardhead"><div class="art" role="img" aria-label="Card image placeholder">Card<br>image</div>
+      <div class="kv"><span><b>Status</b> Original · in this deck</span><span><b>Price</b> ${c.p}</span></div></div>
+    <div class="fld"><div class="lab" id="lbTags">Tags ${ic('lock')}<span class="sr">read-only</span></div>${tagHtml}<div class="hint" style="justify-content:flex-start">What this card does in any deck. Shared by every deck and read-only.</div></div>
+    <div class="fld"><label for="cCat">Category</label><select class="sel" id="cCat">${cats.map(x=>`<option ${x===c.cat?'selected':''}>${x}</option>`).join('')}</select><div class="hint">Your own grouping in this deck's list.</div></div>
+    <div class="fld"><label for="cWhy">Why <span class="muted" style="font-weight:400">(optional)</span></label><input class="in" id="cWhy" maxlength="120" value="${esc(whyVal)}" placeholder="Why this card is in this deck" aria-describedby="whyHint"><div class="hint" id="whyHint"><span>One line. Saves when you leave the field.</span><span id="whyCnt">${whyVal.length} / 120</span></div>${claudeNote}</div>
+    <div class="fld"><button class="sw" role="switch" aria-checked="${S.keep}" id="cKeep" aria-describedby="keepHint"><span class="tr" aria-hidden="true"></span><span><span class="st" id="keepSt">Keep: ${S.keep?'On':'Off'}</span></span></button><div class="hint" id="keepHint" style="justify-content:flex-start">Protects a pet card or combo piece. Only you can switch this.</div></div>
+   </div>
+   <footer><span class="who" id="cStatus" role="status"></span><button class="btn primary" id="cDone">Done</button></footer></div>`;
+  const sc=$('#scrimC');sc.innerHTML=html;sc.hidden=false;$('#app').setAttribute('inert','');
+  $('#xC').addEventListener('click',()=>closeCard());$('#cDone').addEventListener('click',()=>closeCard());
+  const w=$('#cWhy');w.addEventListener('input',()=>$('#whyCnt').textContent=w.value.length+' / 120');
+  w.addEventListener('blur',()=>{if(w.value!==whyVal)$('#cStatus').textContent='Why saved'});
+  const k=$('#cKeep');k.addEventListener('click',()=>{S.keep=!S.keep;k.setAttribute('aria-checked',S.keep);$('#keepSt').textContent='Keep: '+(S.keep?'On':'Off')});
+  const wh=$('#whyHist');if(wh)wh.addEventListener('click',e=>{e.preventDefault();toast('Opens History for this deck (mockup)')});
+  $('#xC').focus();paintCtl();
+}
+function closeCard(noFocus){
+  const sc=$('#scrimC');if(sc.hidden)return;
+  sc.hidden=true;sc.innerHTML='';S.screen='deck';
+  if(!S.open)$('#app').removeAttribute('inert');
+  if(!noFocus&&lastFocus&&document.contains(lastFocus))lastFocus.focus();
+  paintCtl();
+}
+
+/* ---- main list ---- */
+function renderCols(){
+  const col=(h,rows)=>`<div class="col"><h3>${h}</h3>${rows.map(r=>`<button class="crow" data-c="${r[1]}"><span class="l">${r[0]}${r[3]?`<span class="whyline">${r[3]}</span>`:''}</span><span class="p">${r[2]}</span></button>`).join('')}</div>`;
+  $('#cols').innerHTML=
+   col('Commander · 1',[['Yedora, Grave Gardener','none','$0.50']])+
+   col('Artifact · 8',[['Sol Ring','sol','$1.50','Why: Cheap ramp that turns on the face-down lands plan'],['Arcane Signet','none','$1.00']])+
+   col('Creature · 35',[['Warren Soultrader','warren','$0.80'],['Sample card, 7 Tags','many','$2.10'],['Sample card, no Tags','none','$0.25']]);
+  document.querySelectorAll('.crow').forEach(b=>b.addEventListener('click',()=>{S.card=b.dataset.c;lastFocus=b;openCard(b)}));
+}
+
+/* ---- menu ---- */
+const mb=$('#menuBtn'),mn=$('#menu');
+function menu(open){mn.hidden=!open;mb.setAttribute('aria-expanded',open);if(open)mn.querySelector('button').focus()}
+mb.addEventListener('click',()=>menu(mn.hidden));
+mn.addEventListener('keydown',e=>{
+  const it=[...mn.querySelectorAll('[role=menuitem]')],i=it.indexOf(document.activeElement);
+  if(e.key==='ArrowDown'){e.preventDefault();it[(i+1)%it.length].focus()}
+  if(e.key==='ArrowUp'){e.preventDefault();it[(i+it.length-1)%it.length].focus()}
+  if(e.key==='Escape'){e.stopPropagation();menu(false);mb.focus()}
+  if(e.key==='Tab'){menu(false)}
+});
+mn.addEventListener('click',e=>{const b=e.target.closest('button');if(b){menu(false);mb.focus();toast(b.textContent.trim()+' (mockup)')}});
+document.addEventListener('click',e=>{if(!mn.hidden&&!e.target.closest('.menuwrap'))menu(false)});
+
+/* ---- rail collapse (phone) ---- */
+$('#railToggle').addEventListener('click',()=>{S.railOpen=!S.railOpen;$('#rail').classList.toggle('open',S.railOpen);$('#railToggle').setAttribute('aria-expanded',S.railOpen); });
+function fixRail(){ /* desktop: always visible; phone: controlled by .open */  }
+
+/* ---- focus trap and Escape ---- */
+document.addEventListener('keydown',e=>{
+  const dlg=!$('#scrimC').hidden?$('#dlgC'):(!$('#scrimS').hidden?$('#dlgS'):null);
+  if(!dlg)return;
+  if(e.key==='Escape'){e.preventDefault();dlg===$('#dlgC')?closeCard():closeStrategy(false);return}
+  if(e.key==='Tab'){
+    const f=[...dlg.querySelectorAll('a[href],button,input,textarea,select,[tabindex="0"]')].filter(x=>!x.hidden&&!x.closest('[hidden]')&&x.tabIndex>=0&&x.offsetParent!==null);
+    if(!f.length)return;const a=f[0],z=f[f.length-1];
+    if(e.shiftKey&&(document.activeElement===a||!dlg.contains(document.activeElement))){e.preventDefault();z.focus()}
+    else if(!e.shiftKey&&(document.activeElement===z||!dlg.contains(document.activeElement))){e.preventDefault();a.focus()}
+  }
+});
+let tt;function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2600)}
+
+function renderAll(){renderBlock();renderCols()}
+renderAll();paintCtl();
+})();
+</script>
+</body>
+</html>

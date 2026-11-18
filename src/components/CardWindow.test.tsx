@@ -192,6 +192,25 @@ describe('card window', () => {
     expect(await screen.findByText('Lands have no roles.')).toBeInTheDocument()
   })
 
+  it('shows supertypes, card types and subtypes as separate groups, and hides an empty group', async () => {
+    rolesResponse = { ok: true, body: { kind: 'roles', roles: [], types: { supertypes: ['Legendary', 'Snow'], cardTypes: ['Artifact', 'Creature'], subtypes: [] } } }
+    renderHarness()
+    fireEvent.click(screen.getAllByTestId('card-name-button')[0])
+    const win = await screen.findByTestId('card-window')
+    const sup = await within(win).findByTestId('card-window-supertypes')
+    expect(within(sup).getByText('Supertypes')).toBeInTheDocument()
+    expect(within(sup).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Legendary', 'Snow'])
+    expect(within(within(win).getByTestId('card-window-card-types')).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Artifact', 'Creature'])
+    expect(within(win).queryByTestId('card-window-subtypes')).not.toBeInTheDocument()
+  })
+  it('makes one roles lookup for both the roles and the type groups', async () => {
+    rolesResponse = { ok: true, body: { kind: 'roles', roles: ['ramp'], types: { supertypes: [], cardTypes: ['Artifact'], subtypes: [] } } }
+    renderHarness()
+    fireEvent.click(screen.getAllByTestId('card-name-button')[0])
+    await screen.findByTestId('card-window-card-types')
+    const calls = (fetch as unknown as { mock: { calls: [string][] } }).mock.calls.filter((c) => String(c[0]).includes('/roles'))
+    expect(calls).toHaveLength(1)
+  })
   it('a click on the checkbox, quantity or status chip does not open it', async () => {
     renderHarness()
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select Arcane Signet' }))

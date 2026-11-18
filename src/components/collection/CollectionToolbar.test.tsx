@@ -322,4 +322,18 @@ describe('getPersistedViewMode', () => {
     localStorageMock.getItem.mockReturnValue('cards')
     expect(getPersistedViewMode()).toBe('grid')
   })
+  describe('Basic filter', () => {
+    it('is not shown unless the page supplies a handler', () => {
+      renderToolbar()
+      expect(screen.queryByRole('button', { name: /^Basic/ })).not.toBeInTheDocument()
+    })
+    it('toggles through onBasicOnlyChange and shows its pressed state', () => {
+      const onBasicOnlyChange = vi.fn()
+      renderToolbar({ basicOnly: false, onBasicOnlyChange })
+      const btn = screen.getByRole('button', { name: 'Basic' })
+      expect(btn).toHaveAttribute('aria-pressed', 'false')
+      fireEvent.click(btn)
+      expect(onBasicOnlyChange).toHaveBeenCalledWith(true)
+    })
+  })
 })

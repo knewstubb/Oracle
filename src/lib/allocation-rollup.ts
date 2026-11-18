@@ -16,6 +16,8 @@ import {
 } from '@/lib/allocation-candidates'
 
 const PAGE_SIZE = 1000
+const LIBRARY_BATCH = 100 // card names per card-library read, kept short so the request address stays small
+const LIBRARY_PARALLEL = 4
 
 export interface AllocationRollupRow {
   oracleId: string
@@ -109,6 +111,27 @@ async function fetchUserCards(userId: string): Promise<UserCardMeta[]> {
   return cards
 }
 
+/**
+ * Type lines from the card library (ref_cards) by card name: 100 names a request, 4 requests at a time.
+ * user_cards.type_line is empty for every owned card, so this is where the Basic check gets its data.
+ */
+async function fetchLibraryTypeLines(names: readonly string[]): Promise<Map<string, string>> {
+  const supabase = createAdminClient()
+  const out = new Map<string, string>()
+  const batches: string[][] = []
+  for (let i = 0; i < names.length; i += LIBRARY_BATCH) batches.push(names.slice(i, i + LIBRARY_BATCH))
+  for (let i = 0; i < batches.length; i += LIBRARY_PARALLEL) {
+    const got = await Promise.all(
+      batches.slice(i, i + LIBRARY_PARALLEL).map(async (batch) => {
+        const { data, error } = await supabase.from('ref_cards').select('name, type_line').in('name', batch)
+        if (error) throw new Error(`Failed to fetch ref_cards type lines: ${error.message}`)
+        return data ?? []
+      }),
+    )
+    for (const row of got.flat()) if (row.type_line) out.set(row.name, row.type_line)
+  }
+  return out
+}
 async function fetchActiveDemand(userId: string): Promise<Map<string, number>> {
   const supabase = createAdminClient()
   const demand = new Map<string, number>()
@@ -153,8 +176,13 @@ async function fetchActiveDemand(userId: string): Promise<Map<string, number>> {
  * enriched supply compute rather than the `collection_rollup` view.
  */
 export async function fetchAllocationRollup(userId: string): Promise<AllocationRollupRow[]> {
-  const cards = await fetchUserCards(userId)
-  const cardNames = Array.from(new Set(cards.map((card) => card.cardName)))
+  const userCards = await fetchUserCards(userId)
+  const cardNames = Array.from(new Set(userCards.map((card) => card.cardName)))
+  // One extra read: library type lines for the cards whose own type line is empty.
+  const named = new Set(userCards.filter((c) => c.typeLine).map((c) => c.cardName))
+  const missing = cardNames.filter((name) => !named.has(name))
+  const libraryTypeLines = missing.length > 0 ? await fetchLibraryTypeLines(missing) : new Map<string, string>()
+  const cards = userCards.map((card) => (card.typeLine ? card : { ...card, typeLine: libraryTypeLines.get(card.cardName) ?? '' }))
   const supplyByName = await fetchBatchEnrichedSupply(cardNames, userId)
   const demandByName = await fetchActiveDemand(userId)
 

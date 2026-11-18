@@ -20,7 +20,7 @@ import { CardImage } from '@/components/CardImage'
 import { CardSlotBadge } from '@/components/CardSlotBadge'
 import { CategoryTagEditor } from '@/components/CategoryTagEditor'
 import { parseCategoriesCapped, type StructuredCategories } from '@/lib/categoryUtils'
-import { WINDOW_ROLE_LABELS, type CardWindowRoles } from '@/lib/card-window-roles'
+import { WINDOW_ROLE_LABELS, type CardWindowLookup } from '@/lib/card-window-roles'
 import type { DeckCard } from '@/components/CardGrid'
 import type { CardSlotStatus, DeckCardLifecycle } from '@/lib/card-status'
 
@@ -223,6 +223,8 @@ function CardWindow({ deckId, cardId, card, lastName, status, lifecycle, availab
 
               {/* Roles, as the app works them out today */}
               <RolesSection deckId={deckId} cardId={cardId} cardName={card.card_name} />
+              {/* Supertypes, card types and subtypes, read-only, from the same lookup */}
+              <TypesSection deckId={deckId} cardId={cardId} />
 
               <p className="text-[length:var(--fs-xs)] text-muted-foreground">Jobs and strategy points are coming</p>
 
@@ -264,17 +266,21 @@ function CardWindow({ deckId, cardId, card, lastName, status, lifecycle, availab
 // ---------------------------------------------------------------------------
 // Roles (read-only for now): loads after the window is open, on its own
 // ---------------------------------------------------------------------------
-function RolesSection({ deckId, cardId, cardName }: { deckId: number; cardId: number; cardName: string }) {
-  const query = useQuery<CardWindowRoles>({
+/** One lookup for the roles and the type groups: both sections use the same query key, so it runs once. */
+function useCardWindowLookup(deckId: number, cardId: number) {
+  return useQuery<CardWindowLookup>({
     queryKey: ['card-window-roles', deckId, cardId],
     queryFn: async () => {
       const res = await fetch(`/api/decks/${deckId}/cards/${cardId}/roles`)
       if (!res.ok) throw new Error('roles lookup failed')
-      return (await res.json()) as CardWindowRoles
+      return (await res.json()) as CardWindowLookup
     },
     staleTime: 5 * 60_000,
     retry: 1,
   })
+}
+function RolesSection({ deckId, cardId, cardName }: { deckId: number; cardId: number; cardName: string }) {
+  const query = useCardWindowLookup(deckId, cardId)
   const data = query.data
   return (
     <section aria-labelledby="cw-roles">
@@ -307,6 +313,44 @@ function RolesSection({ deckId, cardId, cardName }: { deckId: number; cardId: nu
           </ul>
         )}
       </div>
+    </section>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Type line, split by the Magic rules (read-only). Shares the roles lookup; an empty group is hidden.
+// ---------------------------------------------------------------------------
+function TypesSection({ deckId, cardId }: { deckId: number; cardId: number }) {
+  const query = useCardWindowLookup(deckId, cardId)
+  if (query.isPending) {
+    return (
+      <div role="status">
+        <span className="sr-only">Checking the type line</span>
+        <Skeleton className="h-6 w-40" />
+      </div>
+    )
+  }
+  if (query.isError) return <p className="text-[length:var(--fs-sm)]">Couldn&apos;t load the type line.</p>
+  const types = query.data?.types
+  if (!types) return null
+  const groups = [
+    { id: 'supertypes', label: 'Supertypes', items: types.supertypes },
+    { id: 'card-types', label: 'Card types', items: types.cardTypes },
+    { id: 'subtypes', label: 'Subtypes', items: types.subtypes },
+  ].filter((g) => g.items.length > 0)
+  if (groups.length === 0) return null
+  return (
+    <section aria-label="Type line" data-testid="card-window-types" className="space-y-2">
+      {groups.map((g) => (
+        <div key={g.id} data-testid={`card-window-${g.id}`}>
+          <h3 className="text-[length:var(--fs-xs)] font-medium uppercase tracking-wide text-muted-foreground">{g.label}</h3>
+          <ul className="mt-1 flex flex-wrap gap-1.5 text-[length:var(--fs-sm)]" aria-label={g.label}>
+            {g.items.map((t) => (
+              <li key={t} className="rounded-full border border-[var(--border-emphasis)] px-2 py-0.5">{t}</li>
+            ))}
+          </ul>
+        </div>
+      ))}
     </section>
   )
 }

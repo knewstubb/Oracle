@@ -10,6 +10,7 @@ import { RollupListPane } from './RollupListPane'
 import { InstanceDetailPanel } from './InstanceDetailPanel'
 import { BulkActionBar } from './BulkActionBar'
 import { OVERLAY_BACKDROP } from '@/lib/overlay-classes'
+import { hasSupertype, parseTypeLine } from '@/lib/type-line'
 
 /* ─── useIsMobile Hook ──────────────────────────────────────────────── */
 
@@ -104,7 +105,7 @@ export function CollectionRollupTab() {
 
     // Basic land filter
     if (basicLandFilter) {
-      filtered = filtered.filter((r) => !r.typeLine.includes('Basic Land'))
+      filtered = filtered.filter((r) => !hasSupertype(parseTypeLine(r.typeLine), 'Basic', 'any'))
     }
 
     // Allocated filter — show only cards with allocatedCount > 0

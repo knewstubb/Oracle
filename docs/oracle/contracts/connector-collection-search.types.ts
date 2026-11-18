@@ -10,7 +10,7 @@ import type { WithFacts } from './connector-card-facts-and-deck-health.types'
 import type { Role } from '../../../src/lib/card-roles'
 export type { Role }
 
-export type CardType = 'creature' | 'instant' | 'sorcery' | 'artifact' | 'enchantment' | 'planeswalker' | 'land' | 'battle'
+export type CardType = 'creature' | 'instant' | 'sorcery' | 'artifact' | 'enchantment' | 'planeswalker' | 'land' | 'battle' | 'kindred' | 'conspiracy' | 'dungeon' | 'phenomenon' | 'plane' | 'scheme' | 'vanguard' // type-line alignment: all 15 card types
 export type Colour = 'W' | 'U' | 'B' | 'R' | 'G'
 
 /** How the colour filter reads. Default 'within'. */
@@ -24,7 +24,7 @@ export type PlaceKind = 'deck' | 'storage' | 'in_hand' | 'missing'
 /** search_collection input. Every field optional; filters combine with AND. Unknown fields are rejected (strict). */
 export interface SearchCollectionInput {
   query?: string // part of a card name, 1-100 chars (unchanged)
-  types?: CardType[] // 1-8; card has ANY of these types on either face
+  types?: CardType[] // 1-15; card has ANY of these types on either face
   colours?: Colour[] // 0-5; empty array together with colour_match 'exact' means colourless
   colour_match?: ColourMatch // default 'within'; only used when colours is given
   colourless?: boolean // shortcut for "only colourless cards"; cannot be combined with colours
@@ -42,6 +42,8 @@ export interface SearchCollectionInput {
   text?: string // CC-14: 1-100 chars, at most 8 words; searched in rules text (either face). Needs card facts.
   text_match?: 'all_words' | 'phrase' // CC-14: default 'all_words' (every word somewhere, any order, partial words count); 'phrase' = the exact words in that order. Needs text.
   legendary?: boolean // CC-14: true = type line has Legendary on either face; false = on neither face
+  basic?: boolean // type-line alignment: true = Basic supertype on either face; false = on neither
+  snow?: boolean // type-line alignment: true = Snow supertype on either face; false = on neither
   can_be_commander?: boolean // CC-14: the card library's own flag; false = cannot be a commander
   no_card_facts?: true // CC-14: only owned cards that have no card library row. Cannot be combined with any filter that needs facts.
   include_rules_text?: boolean // CC-14: default FALSE (was true). Send true to read each card's rules text
@@ -98,6 +100,8 @@ export interface CollectionSummaryInput {
   text?: string // CC-14, same meaning as search
   text_match?: 'all_words' | 'phrase' // CC-14
   legendary?: boolean // CC-14
+  basic?: boolean // type-line alignment, same meaning as search
+  snow?: boolean // type-line alignment, same meaning as search
   can_be_commander?: boolean // CC-14
   no_card_facts?: true // CC-14
 }

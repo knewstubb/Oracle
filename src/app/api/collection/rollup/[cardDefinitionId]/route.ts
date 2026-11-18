@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase'
+import { hasSupertype, parseTypeLine } from '@/lib/type-line'
 import { getOwnedValuation } from '@/lib/price-store'
 import { requireAuth } from '@/lib/auth'
 import { NextRequest } from 'next/server'
@@ -60,7 +61,7 @@ export async function GET(
     return Response.json({ error: 'Card not found' }, { status: 404 })
   }
 
-  const isBasicLand = cardDef.type_line ? /\bBasic\b/i.test(cardDef.type_line) : false
+  const isBasicLand = hasSupertype(parseTypeLine(cardDef.type_line), 'Basic', 'any') // still reads user_cards.type_line, which is empty today (open question in the task report)
 
   // Get all non-proxy collection copies for this card
   const { data: copies, error: pcErr } = await supabase

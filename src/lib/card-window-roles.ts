@@ -8,6 +8,7 @@
  */
 import { ROLE_ORDER, hasClassifiableText, isLandTypeLine, rolesForCard, type Role } from './card-roles'
 import { isBasicLandCard } from './basic-lands'
+import { allCardTypes, parseTypeLine } from './type-line'
 
 export type CardWindowRoles =
   | { kind: 'no_data' }
@@ -21,4 +22,22 @@ export function cardWindowRoles(card: { name: string; typeLine: string | null; o
   if (!hasClassifiableText(card)) return { kind: 'no_data' }
   const found = rolesForCard(card)
   return { kind: 'roles', roles: ROLE_ORDER.filter((r) => found.includes(r)) }
+}
+
+/** The card's type line split by the Magic rules: supertypes, card types (all of them, both faces), subtypes. */
+export interface CardWindowTypes {
+  supertypes: string[]
+  cardTypes: string[]
+  subtypes: string[]
+}
+/** What the roles route sends: the roles result plus the parsed type line from the same single lookup. */
+export type CardWindowLookup = CardWindowRoles & { types?: CardWindowTypes }
+const unique = (xs: string[]) => [...new Set(xs)]
+export function cardWindowTypes(typeLine: string | null | undefined): CardWindowTypes {
+  const parsed = parseTypeLine(typeLine)
+  return {
+    supertypes: unique(parsed.faces.flatMap((f) => f.supertypes)),
+    cardTypes: allCardTypes(parsed),
+    subtypes: unique(parsed.faces.flatMap((f) => f.subtypes)),
+  }
 }

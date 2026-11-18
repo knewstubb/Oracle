@@ -292,4 +292,29 @@ describe('GET /api/collection/rollup — B1 price-freshness read', () => {
       'and(facts_available.eq.true,is_colourless.eq.true)'
     )
   })
+  it('basic=true: lists only cards whose Basic supertype the parser finds (Basic, Snow Land included), with no colour filter', async () => {
+    queue('connector_collection_copies', {
+      data: [
+        { card_id: 1, card_name: 'Forest', type_line: 'Basic Land — Forest' },
+        { card_id: 2, card_name: 'Snow-Covered Swamp', type_line: 'Basic, Snow Land — Swamp' },
+        { card_id: 3, card_name: 'Basic Rock', type_line: 'Artifact — Basic' }, // text matches, supertype does not
+      ],
+      count: 3,
+      error: null,
+    })
+    queue('user_cards', {
+      data: [
+        { id: 1, card_name: 'Forest', oracle_id: 'o-1', color_identity: 'G', type_line: null },
+        { id: 2, card_name: 'Snow-Covered Swamp', oracle_id: 'o-2', color_identity: 'B', type_line: null },
+      ],
+      error: null,
+    })
+    queue('user_copies', { data: [], error: null })
+    const res = await callGET({ basic: 'true' })
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.totalCount).toBe(2)
+    expect(body.rows.map((r: { cardName: string }) => r.cardName)).toEqual(['Forest', 'Snow-Covered Swamp'])
+    expect(orCalls).toEqual([])
+  })
 })

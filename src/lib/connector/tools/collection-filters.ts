@@ -3,19 +3,26 @@
 import { z } from 'zod'
 import type { CollectionSummaryInput } from '../../../../docs/oracle/contracts/connector-collection-search.types'
 import { ROLE_ORDER, type Role } from '../../card-roles'
+import { CARD_TYPES as TYPE_LINE_CARD_TYPES } from '../../type-line-constants'
 import type { ReadQuery } from '../user-client'
 import { escapeLike } from './common'
 
 /** The filters, without paging, rules text or grouping. The summary input is the same list. */
 export type CollectionFilters = Omit<CollectionSummaryInput, 'group_by'>
 
-export const CARD_TYPES = ['creature', 'instant', 'sorcery', 'artifact', 'enchantment', 'planeswalker', 'land', 'battle'] as const
+/** Every card type of the Magic rules, lower case, from the one shared list (type-line-constants.ts). */
+export const CARD_TYPES = TYPE_LINE_CARD_TYPES.map((t) => t.toLowerCase()) as unknown as readonly [Lowercase<(typeof TYPE_LINE_CARD_TYPES)[number]>, ...Lowercase<(typeof TYPE_LINE_CARD_TYPES)[number]>[]]
+/** The original eight types that the view has a yes/no column for; used as a coarse database prefilter. */
+export const FLAG_TYPES: Record<string, string> = {
+  creature: 't_creature', instant: 't_instant', sorcery: 't_sorcery', artifact: 't_artifact',
+  enchantment: 't_enchantment', planeswalker: 't_planeswalker', land: 't_land', battle: 't_battle',
+}
 const word = z.string().trim().min(1).max(40)
 
 /** zod fields for every shared filter. Spread into a strictObject. Role names come from the shared classifier, never retyped. */
 export const filterFields = {
   query: z.string().min(1).max(100).optional().describe('Part of a card name (not case sensitive).'),
-  types: z.array(z.enum(CARD_TYPES)).min(1).max(8).optional().describe('Card types; a card matches if it has ANY of them on either face. Only these eight types exist as filters.'),
+  types: z.array(z.enum(CARD_TYPES)).min(1).max(15).optional().describe('Card types: creature, instant, sorcery, artifact, enchantment, planeswalker, land, battle, kindred, conspiracy, dungeon, phenomenon, plane, scheme, vanguard. A card matches if it has ANY of them on either face. A card with two types (an artifact creature) matches both. Supertypes such as legendary, basic and snow are separate filters.'),
   colours: z.array(z.enum(['W', 'U', 'B', 'R', 'G'])).max(5).optional().describe('Colours W U B R G. See colour_match for what they mean. Colourless cards fit "within".'),
   colour_match: z.enum(['within', 'exact', 'includes']).optional().describe('within (default): the card fits a deck of only these colours, so colourless cards are included. exact: exactly these colours (["G"] = mono-green only). includes: has at least these colours, may have more.'),
   colourless: z.boolean().optional().describe('true = only colourless cards (no colour at all). Cannot be combined with colours.'),
@@ -32,9 +39,11 @@ export const filterFields = {
   only_proxies: z.boolean().optional().describe('Only proxy copies. Cannot be combined with include_proxies=false.'),
   text: z.string().trim().min(1).max(100).optional().describe('Words in the card\'s rules text, either face (not case sensitive, partial words count: "counter" finds "counters"). Real rules text says "put" not "puts" and "this creature" not the card\'s name, so search for the stable words ("+1/+1 counter") rather than a sentence. Up to 8 words. Needs card facts.'),
   text_match: z.enum(['all_words', 'phrase']).optional().describe('all_words (default): every word must appear somewhere in the rules text, in any order. phrase: the exact words in that order (never across the gap between two faces). Needs text.'),
-  legendary: z.boolean().optional().describe('true = Legendary on either face of the type line (so Legendary artifacts, vehicles and planeswalkers count). false = Legendary on neither face. Not the same as can_be_commander.'),
+  legendary: z.boolean().optional().describe('true = the Legendary supertype on either face of the type line (so Legendary artifacts, vehicles and planeswalkers count). false = Legendary on neither face. Not the same as can_be_commander.'),
+  basic: z.boolean().optional().describe('true = only Basic cards (the Basic supertype on either face: Forest, Wastes, Snow-Covered Swamp). false = leave Basic cards out.'),
+  snow: z.boolean().optional().describe('true = only Snow cards (the Snow supertype on either face: Snow-Covered Swamp, snow creatures). false = leave Snow cards out.'),
   can_be_commander: z.boolean().optional().describe('true = the card library says it can be your commander (Legendary creatures and cards that say so). false = it cannot. Use this for "commander candidates" and legendary for "legendary things".'),
-  no_card_facts: z.literal(true).optional().describe('true = list only the owned cards that have no card data yet. Cannot be combined with filters that need card data (types, colours, subtypes, keywords, roles, mana value, text, legendary, can_be_commander).'),
+  no_card_facts: z.literal(true).optional().describe('true = list only the owned cards that have no card data yet. Cannot be combined with filters that need card data (types, colours, subtypes, keywords, roles, mana value, text, legendary, basic, snow, can_be_commander).'),
 }
 
 /** Cross-field rules. Used as a zod superRefine, so a bad mix is INVALID_INPUT before any read happens. */
@@ -69,6 +78,8 @@ export function factFilterNames(f: CollectionFilters): string[] {
   if (f.keywords) out.push('keyword')
   if (f.roles) out.push('role')
   if (f.legendary != null) out.push('legendary')
+  if (f.basic != null) out.push('basic')
+  if (f.snow != null) out.push('snow')
   if (f.text) out.push('rules text')
   if (f.can_be_commander != null) out.push('commander')
   return out
@@ -108,9 +119,16 @@ export function applyPushdown(q: ReadQuery, f: CollectionFilters, withFacts = tr
     const kws = f.keywords.map(norm)
     out = (f.keywords_match ?? 'all') === 'all' ? out.contains('keywords', kws) : out.overlaps('keywords', kws)
   }
-  if (f.legendary != null) {
+  // Coarse prefilters only. The exact decision is made in the app from the parsed type line (collection-query.ts appFilter).
+  for (const [value, word] of [[f.legendary, 'legendary'], [f.basic, 'basic'], [f.snow, 'snow']] as const) {
+    if (value == null) continue
     out = out.eq('facts_available', true)
-    out = f.legendary ? out.ilike('type_line', '%legendary%') : out.not('type_line', 'ilike', '%legendary%')
+    if (value) out = out.ilike('type_line', `%${word}%`)
+  }
+  if (f.types && f.types.length === 1 && f.types[0] !== 'kindred') {
+    // One type: the view's yes/no column for the original eight, else a text prefilter ("kindred" is skipped: old lines say Tribal).
+    const t = f.types[0]
+    out = FLAG_TYPES[t] ? out.eq(FLAG_TYPES[t], true) : out.ilike('type_line', `%${t}%`)
   }
   if (f.types || f.roles || f.text || f.can_be_commander != null) out = out.eq('facts_available', true)
   return out

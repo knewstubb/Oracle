@@ -186,3 +186,31 @@ describe('CollectionRollupTab rollup-level selection', () => {
     })
   })
 })
+describe('CollectionRollupTab Hide Basics', () => {
+  const row = (oracleId: string, cardName: string, typeLine: string) => ({ oracleId, cardName, ownedCount: 1, proxyCount: 0, allocatedCount: 0, shortfall: 0, typeLine })
+  function mockRows(rows: ReturnType<typeof row>[]) {
+    global.fetch = vi.fn((url: string | URL | Request) => {
+      const urlStr = typeof url === 'string' ? url : url.toString()
+      if (urlStr.includes('/api/collection/rollup-v2')) return Promise.resolve({ ok: true, json: async () => ({ rows }) } as Response)
+      return Promise.resolve({ ok: true, json: async () => ({}) } as Response)
+    })
+  }
+  it('hides Basic Land, Basic Snow Land (library comma form) and Wastes, and keeps other cards; the button turns it off', async () => {
+    mockRows([
+      row('o1', 'Forest', 'Basic Land — Forest'),
+      row('o2', 'Snow-Covered Swamp', 'Basic, Snow Land — Swamp'),
+      row('o3', 'Wastes', 'Basic Land —'),
+      row('o4', 'Sol Ring', 'Artifact —'),
+      row('o5', 'Ohran Frostfang', 'Snow Creature — Snake'),
+    ])
+    renderTab()
+    expect(await screen.findByText('Sol Ring')).toBeInTheDocument()
+    expect(screen.getByText('Ohran Frostfang')).toBeInTheDocument()
+    expect(screen.queryByText('Forest')).not.toBeInTheDocument()
+    expect(screen.queryByText('Snow-Covered Swamp')).not.toBeInTheDocument()
+    expect(screen.queryByText('Wastes')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Hide Basics' }))
+    expect(await screen.findByText('Snow-Covered Swamp')).toBeInTheDocument()
+    expect(screen.getByText('Forest')).toBeInTheDocument()
+  })
+})

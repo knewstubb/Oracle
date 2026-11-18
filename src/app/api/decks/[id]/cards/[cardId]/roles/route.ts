@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
 import { fetchRefTextByName } from '@/lib/ref-card-text'
-import { cardWindowRoles } from '@/lib/card-window-roles'
+import { cardWindowRoles, cardWindowTypes } from '@/lib/card-window-roles'
 
 /**
  * GET /api/decks/[id]/cards/[cardId]/roles
@@ -43,7 +43,9 @@ export async function GET(
   const { map, error: refErr } = await fetchRefTextByName(supabase, [cardName])
   if (refErr) return Response.json({ error: refErr }, { status: 500 })
   const ref = map.get(cardName)
-  return Response.json(
-    cardWindowRoles({ name: cardName, typeLine: ref?.type_line ?? null, oracleText: ref?.oracle_text ?? null })
-  )
+  // One lookup answers both the roles and the type groups the card window shows.
+  return Response.json({
+    ...cardWindowRoles({ name: cardName, typeLine: ref?.type_line ?? null, oracleText: ref?.oracle_text ?? null }),
+    types: cardWindowTypes(ref?.type_line ?? null),
+  })
 }

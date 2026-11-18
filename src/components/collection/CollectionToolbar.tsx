@@ -116,6 +116,9 @@ export interface CollectionToolbarProps {
 
   /** Which sort field set to display — 'rollup' (default) or 'printing' */
   sortContext?: 'rollup' | 'printing'
+  /** Show only Basic cards (the Basic supertype). The chip appears only when onBasicOnlyChange is given. */
+  basicOnly?: boolean
+  onBasicOnlyChange?: (basicOnly: boolean) => void
 }
 
 /* ─── Main Component ────────────────────────────────────────────────── */
@@ -136,6 +139,8 @@ export function CollectionToolbar({
   activeStatuses,
   onStatusChange,
   sortContext = 'rollup',
+  basicOnly = false,
+  onBasicOnlyChange,
 }: CollectionToolbarProps) {
   // ─── Internal debounced search ─────────────────────────────────
   const [localSearch, setLocalSearch] = useState(searchQuery)
@@ -351,6 +356,29 @@ export function CollectionToolbar({
           activeStatuses={activeStatuses}
           onStatusChange={onStatusChange}
         />
+        {onBasicOnlyChange && (
+          <button
+            type="button"
+            onClick={() => onBasicOnlyChange(!basicOnly)}
+            className={cn(
+              'shrink-0 rounded-full px-2.5 py-[4px] text-[11px] transition-colors',
+              basicOnly
+                ? 'text-[#1D9E75]'
+                : 'text-[rgba(255,255,255,0.35)] hover:bg-[rgba(255,255,255,0.05)] hover:text-[rgba(255,255,255,0.5)]'
+            )}
+            style={{
+              border: basicOnly
+                ? '0.5px solid rgba(29,158,117,0.4)'
+                : '0.5px solid rgba(255,255,255,0.1)',
+              background: basicOnly ? 'rgba(29,158,117,0.1)' : undefined,
+            }}
+            aria-label={`Basic${basicOnly ? ' (active)' : ''}`}
+            aria-pressed={basicOnly}
+            title={basicOnly ? 'Show all cards' : 'Show only Basic cards (Forest, Wastes, Snow-Covered Swamp)'}
+          >
+            Basic
+          </button>
+        )}
         </div>
       </div>
     </div>

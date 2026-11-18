@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { CollectionSummary } from '../../../../docs/oracle/contracts/claude-connector-slice-a.types'
 import type { GroupedCollectionSummary, SummaryGroup } from '../../../../docs/oracle/contracts/connector-collection-search.types'
 import { ROLE_ORDER } from '../../card-roles'
+import { parseTypeLine, primaryType } from '../../type-line'
 import { LookupFailed, lookupFailed, must, type ToolContext, type ToolOutput } from './common'
 import { filterFields, refineFilters, type CollectionFilters } from './collection-filters'
 import { ROLE_RULES_VERSION, findMatchingCopies } from './collection-query'
@@ -46,7 +47,7 @@ function locationLabel(r: NarrowRow): string {
 }
 
 const EXTRA: Record<(typeof GROUP_BY)[number], string[]> = {
-  type: ['primary_type'],
+  type: ['type_line'],
   colour: ['colour_letters'],
   location: ['place_kind', 'deck_name', 'storage_name'],
   kind: [],
@@ -92,7 +93,7 @@ export async function getCollectionSummary(ctx: ToolContext, input: z.infer<type
       g.cards.add(r.card_id)
     }
     for (const r of match.rows) {
-      if (groupBy === 'type') add(r.facts_available ? (r.primary_type ?? 'Other') : NO_FACTS, r)
+      if (groupBy === 'type') add(r.facts_available ? primaryType(parseTypeLine(r.type_line)) : NO_FACTS, r)
       else if (groupBy === 'colour') add(r.facts_available ? colourLabel(r.colour_letters) : NO_FACTS, r)
       else if (groupBy === 'location') add(locationLabel(r), r)
       else if (groupBy === 'kind') add(r.is_proxy ? 'Proxy' : 'Original', r)

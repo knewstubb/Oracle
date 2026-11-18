@@ -7,6 +7,7 @@
 import { CLASSIFIER_VERSION, hasClassifiableText, rolesForCard, type Role } from '../../card-roles'
 import { matchesRulesText } from './rules-text-match'
 import { fetchAll, LookupFailed, type ToolContext } from './common'
+import { parseTypeLine, hasCardType, hasSupertype, type ParsedTypeLine } from '../../type-line'
 import { applyPushdown, factFilterNames, norm, type CollectionFilters } from './collection-filters'
 import { NARROW_COLS, readMatchingCopies, scopedView, type NarrowRow } from './collection-view'
 
@@ -43,14 +44,10 @@ export interface MatchResult {
   notes: string[]
 }
 
-const TYPE_COL: Record<string, keyof NarrowRow> = {
-  creature: 't_creature', instant: 't_instant', sorcery: 't_sorcery', artifact: 't_artifact',
-  enchantment: 't_enchantment', planeswalker: 't_planeswalker', land: 't_land', battle: 't_battle',
-}
 
 function columnsFor(f: CollectionFilters, extra: string[] = []): string {
   const cols = new Set(NARROW_COLS.split(', '))
-  if (f.types) for (const t of f.types) cols.add(TYPE_COL[t] as string)
+  if (f.types || f.legendary != null || f.basic != null || f.snow != null) cols.add('type_line')
   if (f.location) for (const c of ['place_kind', 'deck_name', 'storage_name']) cols.add(c)
   for (const c of extra) cols.add(c)
   return [...cols].join(', ')
@@ -67,9 +64,23 @@ export function matchesLocation(r: Pick<NarrowRow, 'place_kind' | 'deck_name' | 
 
 function appFilter(rows: NarrowRow[], f: CollectionFilters, withFacts = true): NarrowRow[] {
   let out = rows
-  if (f.types && withFacts) {
-    const cols = f.types.map((t) => TYPE_COL[t])
-    out = out.filter((r) => cols.some((c) => r[c] === true))
+  if (withFacts && (f.types || f.legendary != null || f.basic != null || f.snow != null)) {
+    const parsed = new Map<string | null | undefined, ParsedTypeLine>()
+    const parse = (t: string | null | undefined) => {
+      let p = parsed.get(t)
+      if (!p) parsed.set(t, (p = parseTypeLine(t)))
+      return p
+    }
+    // Exact decision from the parsed type line, either face. A row without facts never matches.
+    out = out.filter((r) => {
+      if (!r.facts_available) return false
+      const p = parse(r.type_line)
+      if (f.types && !f.types.some((t) => hasCardType(p, t, 'any'))) return false
+      if (f.legendary != null && hasSupertype(p, 'Legendary', 'any') !== f.legendary) return false
+      if (f.basic != null && hasSupertype(p, 'Basic', 'any') !== f.basic) return false
+      if (f.snow != null && hasSupertype(p, 'Snow', 'any') !== f.snow) return false
+      return true
+    })
   }
   if (f.location) out = out.filter((r) => matchesLocation(r, f.location!))
   return out

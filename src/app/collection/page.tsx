@@ -45,6 +45,7 @@ export default function CollectionPage() {
   const [selectedColors, setSelectedColors] = useState<string[]>([])
   const [colorMode, setColorMode] = useState<ColorIdentityMode>('exact')
   const [activeStatuses, setActiveStatuses] = useState<StatusFilter[]>([])
+  const [basicOnly, setBasicOnly] = useState(false)
 
   // ─── Printing-specific sort state ──────────────────────────────
   const [printingSortField, setPrintingSortField] = useState<PrintingSortField>('cardName')
@@ -118,6 +119,11 @@ export default function CollectionPage() {
     setPrintingPage(1)
   }, [])
 
+  const handleBasicOnlyChange = useCallback((value: boolean) => {
+    setBasicOnly(value)
+    setCurrentPage(1)
+    setPrintingPage(1)
+  }, [])
   const handleIncludeProxiesChange = useCallback(() => {
     setIncludeProxies((prev) => !prev)
     setPrintingPage(1)
@@ -134,6 +140,7 @@ export default function CollectionPage() {
       sortDir: sortDirection,
       colors: selectedColors,
       colorMode,
+      basic: basicOnly,
       enabled: viewResolved && !isPrintingView,
     })
 
@@ -152,6 +159,7 @@ export default function CollectionPage() {
     colors: selectedColors,
     colorMode,
     includeProxies,
+    basic: basicOnly,
     enabled: viewResolved && isPrintingView,
   })
 
@@ -297,6 +305,8 @@ export default function CollectionPage() {
                 activeStatuses={activeStatuses}
                 onStatusChange={setActiveStatuses}
                 sortContext={isPrintingView ? 'printing' : 'rollup'}
+                basicOnly={basicOnly}
+                onBasicOnlyChange={handleBasicOnlyChange}
               />
             </div>
             {/* Proxy toggle chip */}
@@ -343,7 +353,7 @@ export default function CollectionPage() {
               <LoadingSkeleton viewMode={viewMode} />
             ) : isPrintingView ? (
               printingRows.length === 0 ? (
-                <EmptyState hasFilters={searchQuery !== '' || selectedColors.length > 0 || activeStatuses.length > 0} />
+                <EmptyState hasFilters={searchQuery !== '' || selectedColors.length > 0 || activeStatuses.length > 0 || basicOnly} />
               ) : (
                 <div className={cn("flex-1 overflow-y-auto", printingIsFetching && "opacity-70 transition-opacity")}>
                   <PrintingListView
@@ -356,7 +366,7 @@ export default function CollectionPage() {
               )
             ) : (
               rows.length === 0 ? (
-                <EmptyState hasFilters={searchQuery !== '' || selectedColors.length > 0} />
+                <EmptyState hasFilters={searchQuery !== '' || selectedColors.length > 0 || basicOnly} />
               ) : (
                 <div className={cn("flex-1 overflow-y-auto p-4", isFetching && "opacity-70 transition-opacity")}>
                   <CollectionGridView rows={rows} onExpand={expandSubgroups} />

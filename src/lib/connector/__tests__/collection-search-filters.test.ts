@@ -331,8 +331,8 @@ describe('isolation and registry', () => {
   it('search_collection shows only the new inputs; nothing else changed in the registry', () => {
     const props = Object.keys((toJsonSchema(CONNECTOR_TOOLS.find((t) => t.name === 'search_collection')!.inputSchema) as { properties: object }).properties).sort()
     expect(props).toEqual([
-      'can_be_commander', 'colour_match', 'colourless', 'colours', 'include_proxies', 'include_rules_text', 'keywords', 'keywords_match', 'legendary', 'limit', 'location', 'mana_value_max', 'mana_value_min',
-      'no_card_facts', 'offset', 'only_free', 'only_proxies', 'query', 'roles', 'roles_match', 'sort_by', 'sort_order', 'subtypes', 'text', 'text_match', 'types',
+      'basic', 'can_be_commander', 'colour_match', 'colourless', 'colours', 'include_proxies', 'include_rules_text', 'keywords', 'keywords_match', 'legendary', 'limit', 'location', 'mana_value_max', 'mana_value_min',
+      'no_card_facts', 'offset', 'only_free', 'only_proxies', 'query', 'roles', 'roles_match', 'snow', 'sort_by', 'sort_order', 'subtypes', 'text', 'text_match', 'types',
     ])
   })
 })

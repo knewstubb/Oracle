@@ -30,6 +30,8 @@ export interface CollectionPrintingsParams {
   colors?: string[]
   colorMode?: ColorIdentityMode
   includeProxies?: boolean
+  /** Only Basic cards (Basic supertype). */
+  basic?: boolean
   enabled?: boolean
 }
 
@@ -53,6 +55,7 @@ export function useCollectionPrintings(params: CollectionPrintingsParams = {}): 
     colors: colorsParam = [],
     colorMode = 'includes',
     includeProxies = false,
+    basic = false,
     enabled = true,
   } = params
 
@@ -66,11 +69,12 @@ export function useCollectionPrintings(params: CollectionPrintingsParams = {}): 
     sortDir,
     includeProxies: String(includeProxies),
     ...(search ? { search } : {}),
+    ...(basic ? { basic: 'true' } : {}),
     ...(colors.length > 0 ? { colors: colors.join(','), colorMode } : {}),
   }).toString()
 
   return useQuery<CollectionPrintingsResponse>({
-    queryKey: ['collection', 'printings', page, pageSize, search, sort, sortDir, colors.join(','), colorMode, includeProxies],
+    queryKey: ['collection', 'printings', page, pageSize, search, sort, sortDir, colors.join(','), colorMode, includeProxies, basic],
     queryFn: async ({ signal }) => {
       // signal: a request that is no longer wanted (the filter changed again) is cancelled
       const res = await fetch(`/api/collection/printings?${queryString}`, { signal })

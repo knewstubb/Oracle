@@ -14,6 +14,7 @@ import {
   matchingFactlessCopyIds,
   parseColourFilter,
 } from '@/lib/collection-colour-filter'
+import { hasSupertype, parseTypeLine } from '@/lib/type-line'
 import { NextRequest } from 'next/server'
 
 /**
@@ -30,6 +31,7 @@ import { NextRequest } from 'next/server'
  *   - colors: comma-separated color identity filter (e.g. 'B,G')
  *   - colorMode: 'exact' | 'includes' (default: 'includes')
  *   - includeProxies: 'true' | 'false' (default: 'false')
+ *   - basic: 'true' = only Basic cards
  *
  * Response: { rows, totalCount, page, pageSize, lastPriceRefresh, isPriceStale }
  *
@@ -119,6 +121,7 @@ export async function GET(request: NextRequest) {
   const sortDir = searchParams.get('sortDir') === 'desc' ? 'desc' : 'asc'
   const colors = searchParams.get('colors')?.split(',').filter(Boolean) || []
   const colorMode = searchParams.get('colorMode') || 'includes'
+  const basicOnly = searchParams.get('basic') === 'true'
   const includeProxies = searchParams.get('includeProxies') === 'true'
 
   try {
@@ -140,6 +143,8 @@ export async function GET(request: NextRequest) {
       if (!includeProxies) pageQuery = pageQuery.eq('is_proxy', false)
       if (search) pageQuery = pageQuery.ilike('card_name', `%${escapeLike(search)}%`)
       if (colourFilter) pageQuery = pageQuery.or(colourOrExpression(colourFilter, extraCopyIds))
+      // Basic is the only word of its kind in a type line, so the text prefilter is what pages the result (an exact check cannot run on a single page).
+      if (basicOnly) pageQuery = pageQuery.ilike('type_line', '%basic%')
       pageQuery = pageQuery
         .order('card_name', { ascending: sortDir === 'asc' })
         .order('copy_id', { ascending: true })
@@ -367,6 +372,7 @@ export async function GET(request: NextRequest) {
     if (colourFilter) {
       enrichedCopies = enrichedCopies.filter((c) => matchesColourFilter(c.colorIdentity, colourFilter))
     }
+    if (basicOnly) enrichedCopies = enrichedCopies.filter((c) => hasSupertype(parseTypeLine(c.typeLine), 'Basic', 'any'))
     const pageTotalCount = enrichedCopies.length
 
     if (pageTotalCount === 0) {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { cardWindowRoles } from './card-window-roles'
+import { cardWindowRoles, cardWindowTypes } from './card-window-roles'
 
 describe('cardWindowRoles', () => {
   it('gives ramp for Sol Ring text, in the fixed order', () => {
@@ -16,5 +16,15 @@ describe('cardWindowRoles', () => {
   })
   it('no card text means no data, never an empty answer', () => {
     expect(cardWindowRoles({ name: 'Mystery', typeLine: null, oracleText: null })).toEqual({ kind: 'no_data' })
+  })
+})
+describe('cardWindowTypes', () => {
+  it('splits supertypes, all card types and subtypes', () => {
+    expect(cardWindowTypes('Legendary Artifact, Creature — Golem, Soldier')).toEqual({ supertypes: ['Legendary'], cardTypes: ['Artifact', 'Creature'], subtypes: ['Golem', 'Soldier'] })
+    expect(cardWindowTypes('Basic, Snow Land — Swamp')).toEqual({ supertypes: ['Basic', 'Snow'], cardTypes: ['Land'], subtypes: ['Swamp'] })
+  })
+  it('joins both faces without repeats, and gives empty groups for a missing line', () => {
+    expect(cardWindowTypes('Creature — Human // Legendary Creature — Werewolf')).toEqual({ supertypes: ['Legendary'], cardTypes: ['Creature'], subtypes: ['Human', 'Werewolf'] })
+    expect(cardWindowTypes(null)).toEqual({ supertypes: [], cardTypes: [], subtypes: [] })
   })
 })

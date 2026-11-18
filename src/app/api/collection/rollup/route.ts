@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase'
 import { getLastRefreshTimestamp, isPriceDataStale } from '@/lib/price-store'
 import { requireAuth } from '@/lib/auth'
 import { asViewClient, colourOrExpression, matchingFactlessCopyIds, parseColourFilter } from '@/lib/collection-colour-filter'
+import { hasSupertype, parseTypeLine } from '@/lib/type-line'
 import { NextRequest } from 'next/server'
 
 /**
@@ -22,6 +23,7 @@ import { NextRequest } from 'next/server'
  *   - sortDir: 'asc' | 'desc' (default: 'asc')
  *   - colors: comma-separated color identity filter (e.g. 'B,G')
  *   - colorMode: 'exact' | 'includes' | 'at_most' (default: 'includes')
+ *   - basic: 'true' = only cards with the Basic supertype (read from the card library type line)
  *
  * Response: { rows, totalCount, page, pageSize, lastPriceRefresh, isPriceStale }
  *
@@ -118,6 +120,7 @@ export async function GET(request: NextRequest) {
   const sortDir = searchParams.get('sortDir') === 'desc' ? 'desc' : 'asc'
   const colors = searchParams.get('colors')?.split(',').filter(Boolean) || []
   const colorMode = searchParams.get('colorMode') || 'includes'
+  const basicOnly = searchParams.get('basic') === 'true'
 
   try {
     // ──── Step 1: Count + paginate cards ────────────────────
@@ -153,8 +156,8 @@ export async function GET(request: NextRequest) {
     let totalCount: number
     let cards: PageCard[]
 
-    if (!colourFilter) {
-      // No colour filter: count and page are independent, so they run together.
+    if (!colourFilter && !basicOnly) {
+      // No colour or Basic filter: count and page are independent, so they run together.
       let countQuery = supabase
         .from('user_cards')
         .select('id', { count: 'exact', head: true })
@@ -172,24 +175,25 @@ export async function GET(request: NextRequest) {
       totalCount = countRes.count ?? 0
       cards = (pageRes.data || []) as PageCard[]
     } else {
-      // Colour filter. user_cards.color_identity is empty for every card, so colour comes from the
+      // Colour and/or Basic filter. user_cards.color_identity is empty for every card, so colour comes from the
       // connector_collection_copies view (see collection-colour-filter.ts). One row per copy, so the
       // matching cards are listed in name order, de-duplicated, then paged here.
-      const extraCopyIds = await matchingFactlessCopyIds(supabase, userId, colourFilter)
+      const extraCopyIds = colourFilter ? await matchingFactlessCopyIds(supabase, userId, colourFilter) : []
       const view = asViewClient(supabase)
       const matchQuery = () => {
         let q = view
           .from('connector_collection_copies')
-          .select('card_id, card_name', { count: 'exact' })
+          .select(basicOnly ? 'card_id, card_name, type_line' : 'card_id, card_name', { count: 'exact' })
           .eq('user_id', userId)
           .eq('is_proxy', isProxyFilter)
         if (search) q = q.ilike('card_name', `%${search}%`)
+        if (basicOnly) q = q.ilike('type_line', '%basic%') // coarse; the exact Basic check is made below with the parser
+        if (colourFilter) q = q.or(colourOrExpression(colourFilter, extraCopyIds))
         return q
-          .or(colourOrExpression(colourFilter, extraCopyIds))
           .order('card_name', { ascending })
           .order('card_id', { ascending: true })
       }
-      type Match = { card_id: number; card_name: string }
+      type Match = { card_id: number; card_name: string; type_line?: string | null }
       const BATCH = 1000
       const first = await matchQuery().range(0, BATCH - 1)
       if (first.error) throw first.error
@@ -206,7 +210,8 @@ export async function GET(request: NextRequest) {
           matches.push(...((r.data ?? []) as Match[]))
         }
       }
-      const cardIds = [...new Set(matches.map((m) => m.card_id))]
+      const exact = basicOnly ? matches.filter((m) => hasSupertype(parseTypeLine(m.type_line), 'Basic', 'any')) : matches
+      const cardIds = [...new Set(exact.map((m) => m.card_id))]
       totalCount = cardIds.length
       const pageIds = cardIds.slice(offset, offset + pageSize)
       if (pageIds.length === 0) {
@@ -332,7 +337,7 @@ export async function GET(request: NextRequest) {
     }
 
     const rows: CollectionRollupRowWithPrice[] = cards.map(card => {
-      const isBasicLand = card.type_line ? /\bBasic\b/i.test(card.type_line) : false
+      const isBasicLand = hasSupertype(parseTypeLine(card.type_line), 'Basic', 'any') // reads user_cards.type_line, which is empty today (open question in the task report)
       const colorIdentity = card.color_identity
         ? card.color_identity.split(',').map((c: string) => c.trim()).filter((c: string) => c !== '')
         : []

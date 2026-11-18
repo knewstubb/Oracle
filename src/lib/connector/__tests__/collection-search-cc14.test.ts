@@ -192,3 +192,64 @@ describe('speed, failure and isolation', () => {
     for (const q of queries as RecordedQuery[]) if (q.table === 'connector_collection_copies') expect(hasEq(q, 'user_id', U), q.table).toBe(true)
   })
 })
+describe('type-line alignment: supertypes and all card types', () => {
+  const TL: LibCard[] = [
+    lc('Forest', 'Basic Land — Forest', 0, null),
+    lc('Snow-Covered Swamp', 'Basic, Snow Land — Swamp', 0, null),
+    lc('Ohran Frostfang', 'Snow Creature — Snake', 4, 'x'),
+    lc('Wastes', 'Basic Land —', 0, null),
+    lc('Back Legend', 'Creature — Human // Legendary Creature — Werewolf', 2, 'x'),
+    lc('Eldrazi Spawner', 'Kindred, Sorcery — Eldrazi', 3, 'x'),
+    lc('Golem', 'Artifact, Creature — Golem', 3, 'x'),
+    lc('Spell Land', 'Instant // Land', 2, 'x'),
+    lc('Landshark', 'Creature — Landshark', 2, 'x'),
+    lc('Plain Instant', 'Instant', 1, 'x'),
+  ]
+  const tlWorld = (extra: string[] = []) => {
+    resetIds()
+    return viewDb([...TL.map((c) => copyRow(c, { box: 'Box' })), ...extra.map((n) => copyRow(null, { name: n, box: 'Box' }))], { library: TL })
+  }
+  it('basic true is only Basic cards, including Basic, Snow Land; false leaves them out', async () => {
+    const { db } = tlWorld(['Mystery'])
+    const yes = await run(db as never, { basic: true })
+    expect(names(yes)).toEqual(['Forest', 'Snow-Covered Swamp', 'Wastes'])
+    expect(yes.filterCoverage).toMatchObject({ cardsWithoutFacts: 1 })
+    const no = await run(db as never, { basic: false })
+    expect(names(no)).toEqual(['Back Legend', 'Eldrazi Spawner', 'Golem', 'Landshark', 'Ohran Frostfang', 'Plain Instant', 'Spell Land'])
+  })
+  it('snow true and false', async () => {
+    const { db } = tlWorld()
+    expect(names(await run(db as never, { snow: true }))).toEqual(['Ohran Frostfang', 'Snow-Covered Swamp'])
+    expect(names(await run(db as never, { snow: false }))).not.toContain('Ohran Frostfang')
+    expect(names(await run(db as never, { basic: true, snow: true }))).toEqual(['Snow-Covered Swamp'])
+  })
+  it('legendary on a back face only still counts', async () => {
+    const { db } = tlWorld()
+    expect(names(await run(db as never, { legendary: true }))).toEqual(['Back Legend'])
+  })
+  it('kindred works as a type; an Artifact Creature shows under both artifact and creature', async () => {
+    const { db } = tlWorld()
+    expect(names(await run(db as never, { types: ['kindred'] }))).toEqual(['Eldrazi Spawner'])
+    expect(names(await run(db as never, { types: ['artifact'] }))).toContain('Golem')
+    expect(names(await run(db as never, { types: ['creature'] }))).toContain('Golem')
+    expect(names(await run(db as never, { types: ['sorcery'] }))).toEqual(['Eldrazi Spawner'])
+  })
+  it("'Instant // Land' matches land (either face); a subtype that contains a type word does not", async () => {
+    const { db } = tlWorld()
+    expect(names(await run(db as never, { types: ['land'] }))).toEqual(['Forest', 'Snow-Covered Swamp', 'Spell Land', 'Wastes'])
+  })
+  it('accepts all 15 types and rejects an unknown one', () => {
+    expect(() => searchCollectionInput.parse({ types: ['conspiracy', 'dungeon', 'phenomenon', 'plane', 'scheme', 'vanguard', 'kindred'] })).not.toThrow()
+    expect(() => searchCollectionInput.parse({ types: ['hero'] })).toThrow()
+  })
+  it('basic and snow need card facts and cannot be mixed with no_card_facts', () => {
+    expect(() => searchCollectionInput.parse({ basic: true, no_card_facts: true })).toThrow()
+  })
+  it('group_by type: Kindred is its own bucket and the groups add up to the total', async () => {
+    const { db } = tlWorld(['Mystery'])
+    const r = await sum(db as never, { group_by: 'type', include_proxies: true })
+    const labels = Object.fromEntries(r.groups.map((g) => [g.label, g.copies]))
+    expect(labels).toEqual({ Land: 3, Creature: 4, Kindred: 1, Instant: 2, 'No facts': 1 })
+    expect(r.groups.reduce((n, g) => n + g.copies, 0)).toBe(TL.length + 1)
+  })
+})

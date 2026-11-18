@@ -1,0 +1,371 @@
+== cluster: PostgreSQL 17.12 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.4.1.1), 64-bit port 55434 (throwaway, deleted at end)
+-- apply 00_base.sql
+-- apply 20261116130000_connector_connections.sql
+-- apply 20261116150000_ai_change_log_and_pending.sql
+-- apply 20261116150100_ai_connector_edit_rpcs.sql
+-- apply 20261116150200_ai_undo_blocker_make_original_fix.sql
+-- apply 20261116150300_ai_list_recent_changes_zone_to.sql
+-- apply 20261116190000_ai_deck_category.sql
+-- apply 20261117100000_cc13_loosen_limits.sql
+-- apply 20261023170100_set_deck_command_zone.sql
+-- apply 20261117120000_ai_change_log_allow_deck_delete.sql
+-- apply 20261117200000_cc15a_new_change_kinds.sql
+-- apply 20261117200100_cc15b_deck_create_setup.sql
+-- apply 01_seed.sql
+== apply DB-1
+-- apply 20261118120000_roles_db1_card_roles.draft.sql
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== the types file and the database agree
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== layers: baseline, owner and Claude rows merged
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== owner_set_card_role
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+                                                                             owner_set_card_role                                                                             
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ {"current": {"claude_state": null, "owner_effect": "add", "claude_effect": null}, "previous": {"claude_state": "to_look_at", "owner_effect": null, "claude_effect": "add"}}
+(1 row)
+
+                                                                                    owner_set_card_role                                                                                     
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ {"current": {"claude_state": "to_look_at", "owner_effect": "add", "claude_effect": "remove"}, "previous": {"claude_state": "to_look_at", "owner_effect": null, "claude_effect": "remove"}}
+(1 row)
+
+                                                                                owner_set_card_role                                                                                 
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ {"current": {"claude_state": "dismissed", "owner_effect": "add", "claude_effect": "add"}, "previous": {"claude_state": "dismissed", "owner_effect": null, "claude_effect": "add"}}
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+                                                                        owner_set_card_role                                                                         
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ {"current": {"claude_state": null, "owner_effect": "add", "claude_effect": null}, "previous": {"claude_state": null, "owner_effect": null, "claude_effect": null}}
+(1 row)
+
+                                                                          owner_set_card_role                                                                          
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ {"current": {"claude_state": null, "owner_effect": "remove", "claude_effect": null}, "previous": {"claude_state": null, "owner_effect": null, "claude_effect": null}}
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== RLS and grants (a second user, the anonymous role, signed-in users)
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== the change log is untouched: append-only guard, batch Undo of an old kind, deletes that cascade
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== second apply must refuse
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118120000_roles_db1_card_roles.draft.sql:36: ERROR:  roles_db1 already applied (a roles table exists)
+ chk 
+-----
+ 
+(1 row)
+
+== rollback with rows present must refuse
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118120000_roles_db1_card_roles.rollback.sql:18: ERROR:  cannot roll back: the role tables hold rows (set oracle.rollback_allow_data_loss = 'yes' in this session to delete them)
+ chk 
+-----
+ 
+(1 row)
+
+== rollback with the explicit data-loss setting
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== re-apply, use, empty, roll back without override
+-- apply 20261118120000_roles_db1_card_roles.draft.sql
+ chk 
+-----
+ 
+(1 row)
+
+-- apply 20261118120000_roles_db1_card_roles.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+
+######## RESULTS ########
+ n  |                                                                            name                                                                            | result |                                                                    detail                                                                    
+----+------------------------------------------------------------------------------------------------------------------------------------------------------------+--------+----------------------------------------------------------------------------------------------------------------------------------------------
+  1 | D1-01 both tables and the five functions exist                                                                                                             | PASS   | 
+  2 | D1-02 the shared list has no user column and ships empty                                                                                                   | PASS   | 
+  3 | D1-03 row level security is on (not forced) for both tables                                                                                                | PASS   | 
+  4 | D1-04 all 13 role names are accepted by both tables                                                                                                        | PASS   | 
+  5 | D1-05 an invented role, a bad effect, a bad proposer are rejected                                                                                          | PASS   | 
+  6 | D1-06 owner must be accepted, claude must be to_look_at or dismissed; owner rows carry no batch or deck                                                    | PASS   | 
+  7 | D1-07 one row per user, card, role and proposer (duplicate rejected; the owner row and the Claude row may sit side by side)                                | PASS   | 
+  8 | D1-10 a slot with a printing resolves by printing                                                                                                          | PASS   | 
+  9 | D1-11 a second printing of the same card resolves to the same oracle id (printing id is never a card id)                                                   | PASS   | 
+ 10 | D1-12 a bad printing text falls back to the owner's own card by name, no error                                                                             | PASS   | 
+ 11 | D1-13 an unknown card is NULL, not an error                                                                                                                | PASS   | 
+ 12 | D1-14 a name that matches two different cards of the owner is NULL (never guessed)                                                                         | PASS   | 
+ 13 | D1-15 user 2's slot of the same name resolves to user 2's own card, never user 1's                                                                         | PASS   | 
+ 14 | D1-16 user 2 asking for user 1's deck gets deck_not_found                                                                                                  | PASS   | 
+ 15 | D1-17 one query returns every slot (13 in deck 100)                                                                                                        | PASS   | 
+ 16 | D1-18 _slot_oracle_id gives the same answer for one slot                                                                                                   | PASS   | 
+ 17 | D1-08 the 13 role names in the types file equal both tables' CHECK lists exactly                                                                           | PASS   | {ramp,fixing,card_draw,card_selection,tutor,targeted_removal,board_wipe,counterspell,protection,recursion,graveyard_hate,stax_tax,hand_disru
+ 18 | D1-09 the owner function accepts exactly those 13 names (all 13 work)                                                                                      | PASS   | 
+ 19 | D1-20 the three layers merge exactly as contract section 4 (7 rows, every column)                                                                          | PASS   | 
+ 20 | D1-21 user 2 sees the shared list but none of user 1's layers                                                                                              | PASS   | 
+ 21 | D1-22 more than 500 card ids is refused (invalid_request)                                                                                                  | PASS   | 
+ 22 | D1-23 an empty or NULL list gives no rows                                                                                                                  | PASS   | 
+ 23 | D1-30 add: previous empty, current add                                                                                                                     | PASS   | {"current": {"claude_state": null, "owner_effect": "add", "claude_effect": null}, "previous": {"claude_state": null, "owner_effect": null, "
+ 24 | D1-31 remove: previous add, current remove, still one row                                                                                                  | PASS   | {"current": {"claude_state": null, "owner_effect": "remove", "claude_effect": null}, "previous": {"claude_state": null, "owner_effect": "add
+ 25 | D1-32 clear: row gone, previous says remove                                                                                                                | PASS   | {"current": {"claude_state": null, "owner_effect": null, "claude_effect": null}, "previous": {"claude_state": null, "owner_effect": "remove"
+ 26 | D1-33 refusals: unknown role, bad action, a printing id as a card id, an unknown card, NULL card                                                           | PASS   | 
+ 27 | D1-34 the owner's own set deletes a waiting Claude row with the identical value, keeps a different one and keeps a dismissed one (the memory)              | PASS   | 
+ 28 | D1-35 user 2's writes touch only user 2's rows; user 1's rows are byte for byte the same                                                                   | PASS   | 
+ 29 | D1-36 Claude never gets an owner row from an owner write, and the owner function never writes a Claude row                                                 | PASS   | 
+ 30 | D1-40 signed-in user 2 sees only their own personal rows (none of user 1's), and can read the shared list                                                  | PASS   | own 2, of user 1: 0, shared: 4
+ 31 | D1-41 signed-in user 2 cannot insert, update or delete personal rows (permission denied)                                                                   | PASS   | permission denied for table user_card_roles | permission denied for table user_card_roles | permission denied for table user_card_roles | pe
+ 32 | D1-42 signed-in users cannot insert, update or delete the shared list (only the service role can)                                                          | PASS   | permission denied for table ref_card_roles | permission denied for table ref_card_roles | permission denied for table ref_card_roles
+ 33 | D1-43 signed-in users cannot call any of the five functions                                                                                                | PASS   | permission denied for function owner_set_card_role | permission denied for function get_effective_card_roles | permission denied for functio
+ 34 | D1-44 the anonymous role can read neither table and call no function                                                                                       | PASS   | permission denied for table user_card_roles | permission denied for table ref_card_roles | permission denied for function owner_set_card_rol
+ 35 | D1-45 a signed-in session with no user id sees no personal rows                                                                                            | PASS   | 
+ 36 | D1-46 with write access wrongly granted, user 2 still changes 0 of user 1's rows (update 0, delete 0) and cannot insert as user 1 or at all (row security) | PASS   | {"ok": true, "res": 0} {"ok": true, "res": 0} new row violates row-level security policy for table "user_card_roles" new row violates row-le
+ 37 | D1-47 same for the shared list: no insert, no update, with write access wrongly granted                                                                    | PASS   | new row violates row-level security policy for table "ref_card_roles" {"ok": true, "res": 0}
+ 38 | D1-48 after all of that user 1's rows and the shared list are byte for byte unchanged                                                                      | PASS   | 
+ 39 | D1-49 grants are back to select-only for signed-in users                                                                                                   | PASS   | 
+ 40 | D1-50 an old-kind batch (2 cards) still applies after DB-1                                                                                                 | PASS   | {"ok": true, "res": {"plan": {"n": 2, "cards": [{"name": "Sol Ring", "quantity": 1}, {"name": "Arcane Signet", "quantity": 1}], "action": "d
+ 41 | D1-51 the append-only guard still stops any change to a log row other than the undo fields                                                                 | PASS   | 
+ 42 | D1-52 Claude undoes the whole old-kind batch in one go (both cards gone, both log rows stamped)                                                            | PASS   | {"ok": true, "res": {"undone": 2, "success": true}}
+ 43 | D1-53 deleting a deck keeps the personal row and clears its deck link                                                                                      | PASS   | 
+ 44 | D1-54 deleting a user removes that user's personal rows                                                                                                    | PASS   | 
+ 45 | D1-60 running DB-1 twice refuses and changes nothing                                                                                                       | PASS   | 
+ 46 | D1-61 rollback refuses while the tables hold rows (tables and functions still there)                                                                       | PASS   | 
+ 47 | D1-62 rollback with the override: tables and functions gone                                                                                                | PASS   | 
+ 48 | D1-63 rollback restores the previous state exactly (every function, grant, constraint, table and trigger fingerprint equals the one taken before DB-1)     | PASS   | 8797325131d8a83a9c6de0822dc1a46d vs 8797325131d8a83a9c6de0822dc1a46d
+ 49 | D1-64 the old connector still works after the rollback (old-kind add applies)                                                                              | PASS   | 
+ 50 | D1-65 re-apply after rollback works and the owner can set a role                                                                                           | PASS   | 
+ 51 | D1-66 rollback with empty tables needs no override and again restores the exact previous state                                                             | PASS   | 
+(51 rows)
+
+ passed | failed 
+--------+--------
+     51 |      0
+(1 row)
+

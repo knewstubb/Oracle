@@ -1,0 +1,460 @@
+== cluster: PostgreSQL 17.12 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.4.1.1), 64-bit port 55434 (throwaway, deleted at end)
+-- apply 00_base.sql
+-- apply 20261116130000_connector_connections.sql
+-- apply 20261116150000_ai_change_log_and_pending.sql
+-- apply 20261116150100_ai_connector_edit_rpcs.sql
+-- apply 20261116150200_ai_undo_blocker_make_original_fix.sql
+-- apply 20261116150300_ai_list_recent_changes_zone_to.sql
+-- apply 20261116190000_ai_deck_category.sql
+-- apply 20261117100000_cc13_loosen_limits.sql
+-- apply 20261023170100_set_deck_command_zone.sql
+-- apply 20261117120000_ai_change_log_allow_deck_delete.sql
+-- apply 20261117200000_cc15a_new_change_kinds.sql
+-- apply 20261117200100_cc15b_deck_create_setup.sql
+-- apply 01_seed.sql
+-- apply 20261118120000_roles_db1_card_roles.draft.sql
+-- apply 20261118120100_roles_db2_change_kinds.draft.sql
+== apply DB-3
+-- apply 20261118120200_roles_db3_deck_card_jobs.draft.sql
+ mkdeck 
+--------
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== the owner's own jobs
+ chk 
+-----
+ 
+(1 row)
+
+                                                                                                               owner_set_card_job                                                                                                                
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ {"current": {"owner_job": "Mana Sink", "owner_set": true, "claude_job": null, "claude_state": null, "owner_reason": null}, "previous": {"owner_job": null, "owner_set": false, "claude_job": null, "claude_state": null, "owner_reason": null}}
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+                                                                                                                         owner_set_card_job                                                                                                                          
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ {"current": {"owner_job": "Enabler", "owner_set": true, "claude_job": null, "claude_state": null, "owner_reason": "Keeps the engine running"}, "previous": {"owner_job": null, "owner_set": false, "claude_job": null, "claude_state": null, "owner_reason": null}}
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+                                                                                                             owner_set_card_job                                                                                                             
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ {"current": {"owner_job": "Flex", "owner_set": true, "claude_job": null, "claude_state": null, "owner_reason": null}, "previous": {"owner_job": null, "owner_set": false, "claude_job": null, "claude_state": null, "owner_reason": null}}
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== Claude proposes a role AND a job for one card: one request, one log row, counted once
+ age 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+                                                                                                            owner_set_card_job                                                                                                            
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ {"current": {"owner_job": null, "owner_set": true, "claude_job": null, "claude_state": null, "owner_reason": null}, "previous": {"owner_job": null, "owner_set": false, "claude_job": null, "claude_state": null, "owner_reason": null}}
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== the 120 limit with a role AND a job on every card
+ age 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ age 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ age 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== Undo of a batch with jobs
+ age 
+-----
+ 
+(1 row)
+
+                                                                                                                       owner_decide_card_job                                                                                                                        
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ {"current": {"owner_job": "Combo piece", "owner_set": true, "claude_job": null, "claude_state": null, "owner_reason": null}, "previous": {"owner_job": null, "owner_set": false, "claude_job": "Combo piece", "claude_state": "to_look_at", "owner_reason": null}}
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+                                                                                                                  owner_set_card_job                                                                                                                  
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ {"current": {"owner_job": "Flex", "owner_set": true, "claude_job": null, "claude_state": null, "owner_reason": null}, "previous": {"owner_job": null, "owner_set": false, "claude_job": "Flex", "claude_state": "to_look_at", "owner_reason": null}}
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ expire 
+--------
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ age 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== isolation: RLS, grants, the guard
+                                                                                                              owner_set_card_job                                                                                                              
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ {"current": {"owner_job": "Engine", "owner_set": true, "claude_job": null, "claude_state": null, "owner_reason": null}, "previous": {"owner_job": null, "owner_set": false, "claude_job": null, "claude_state": null, "owner_reason": null}}
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== second apply must refuse
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118120200_roles_db3_deck_card_jobs.draft.sql:27: ERROR:  roles_db3 already applied (deck_card_jobs exists)
+ chk 
+-----
+ 
+(1 row)
+
+== rollback while job log rows exist must refuse
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118120200_roles_db3_deck_card_jobs.rollback.sql:18: ERROR:  cannot roll back: a card_label log or pending row carries a job
+ chk 
+-----
+ 
+(1 row)
+
+== clear the history by hand (test only); the table still holds rows, so it must still refuse
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118120200_roles_db3_deck_card_jobs.rollback.sql:18: ERROR:  cannot roll back: deck_card_jobs holds rows (set oracle.rollback_allow_data_loss = 'yes' in this session to delete them)
+ chk 
+-----
+ 
+(1 row)
+
+== rollback with the explicit data-loss setting
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ age 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== re-apply, use, and roll back with empty tables
+-- apply 20261118120200_roles_db3_deck_card_jobs.draft.sql
+ chk 
+-----
+ 
+(1 row)
+
+-- apply 20261118120200_roles_db3_deck_card_jobs.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+
+######## RESULTS ########
+ n  |                                                                                                  name                                                                                                   | result |                                                                    detail                                                                    
+----+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------+----------------------------------------------------------------------------------------------------------------------------------------------
+  1 | E3-01 table, row security (not forced) and the functions exist                                                                                                                                          | PASS   | 
+  2 | E3-02 the table is keyed by deck and card identity: the card id is an oracle id, there is no slot column                                                                                                | PASS   | 
+  3 | E3-03 constraints: job 1 to 40 characters; a Claude row must have a job; owner rows are accepted; a Claude row may not be accepted; reason at most 200; owner rows carry no batch; one row per proposer | PASS   | 
+  4 | E3-10 set a job: trimmed, stored with the starting spelling (engine -> Engine), reason kept, previous empty                                                                                             | PASS   | {"current": {"owner_job": "Engine", "owner_set": true, "claude_job": null, "claude_state": null, "owner_reason": "Makes mana every turn"}, "
+  5 | E3-11 a custom job name takes the spelling already used in the deck (mana sink -> Mana Sink)                                                                                                            | PASS   | {"current": {"owner_job": "Mana Sink", "owner_set": true, "claude_job": null, "claude_state": null, "owner_reason": null}, "previous": {"own
+  6 | E3-12 the picker list: the seven first, then names in use (Mana Sink once)                                                                                                                              | PASS   | Engine,Enabler,Payoff,Win condition,Combo piece,Commander support,Flex,Mana Sink
+  7 | E3-13 changing a job replaces it; previous returned for the 10-second Undo; a missing reason clears the reason                                                                                          | PASS   | {"current": {"owner_job": "Payoff", "owner_set": true, "claude_job": null, "claude_state": null, "owner_reason": null}, "previous": {"owner_
+  8 | E3-14 "no job, on purpose" is a stored owner row with no job                                                                                                                                            | PASS   | {"current": {"owner_job": null, "owner_set": true, "claude_job": null, "claude_state": null, "owner_reason": null}, "previous": {"owner_job"
+  9 | E3-15 clear removes the owner row                                                                                                                                                                       | PASS   | {"current": {"owner_job": null, "owner_set": false, "claude_job": null, "claude_state": null, "owner_reason": null}, "previous": {"owner_job
+ 10 | E3-16 refusals: bad action, empty name, name over 40, reason over 200, a maybeboard card, a card not in the deck, someone else's deck                                                                   | PASS   | 
+ 11 | E3-17 a card removed from the deck: its job is not listed (the Card jobs layer joins to current cards) but the row waits                                                                                | PASS   | 
+ 12 | E3-18 re-added (new slot id, different printing): the job is back, because it is keyed by deck and card identity                                                                                        | PASS   | 
+ 13 | E3-19 a job exists in the deck about to be deleted                                                                                                                                                      | PASS   | 
+ 14 | E3-19b deleting a deck takes its jobs with it                                                                                                                                                           | PASS   | 
+ 15 | E3-1A the readers refuse another user's deck                                                                                                                                                            | PASS   | 
+ 16 | E3-20 dry run: n = 2 cards (a card with a role and a job is ONE), job spelling matched to the starting seven, nothing written                                                                           | PASS   | {"ok": true, "res": {"plan": {"n": 2, "cards": [{"job": {"name": "Engine", "reason": "Ramps into the commander", "result": "beside_yours"}, 
+ 17 | E3-21 applied: ONE log row per card (2), not one per value (3); the log row holds the role and the job                                                                                                  | PASS   | {"ok": true, "res": {"plan": {"n": 2, "cards": [{"job": {"name": "Engine", "reason": "Ramps into the commander", "result": "beside_yours"}, 
+ 18 | E3-22 Claude rows only: a waiting job row and a waiting role row, tagged with the group; no owner row written                                                                                           | PASS   | 
+ 19 | E3-23 the reader shows Claude's job as the effective one, labelled claude; owner job (Mana Sink on card 2) was replaced? no: card 2 already had the owner's Mana Sink, so Claude's Engine is BESIDE it  | PASS   | 
+ 20 | E3-24 the same request again changes nothing                                                                                                                                                            | PASS   | {"ok": false, "err": "nothing_to_change", "detail": "{\"deck\": \"Manual\", \"skipped\": [{\"why\": \"unchanged\", \"what\": \"job\", \"slot
+ 21 | E3-25 the owner said "no job" on purpose: Claude's job is stored beside it, the owner row is untouched byte for byte                                                                                    | PASS   | {"ok": true, "res": {"plan": {"n": 1, "cards": [{"job": {"name": "Payoff", "reason": null, "result": "beside_yours"}, "name": "Card 6", "rol
+ 22 | E3-26 asking for the job the owner already set (any letter case) is skipped as unchanged, the role in the same request still goes through                                                               | PASS   | {"ok": true, "res": {"plan": {"n": 1, "cards": [{"job": null, "name": "Card 3", "roles": [{"role": "fixing", "effect": "add", "result": "pro
+ 23 | E3-27 dismiss a job: the Claude row stays marked dismissed; it stops counting                                                                                                                           | PASS   | {"current": {"owner_job": null, "owner_set": false, "claude_job": "Win condition", "claude_state": "dismissed", "owner_reason": null}, "prev
+ 24 | E3-28 proposing the dismissed job again is skipped (previously_dismissed); a different reason is a different proposal                                                                                   | PASS   | {"ok": true, "res": {"plan": {"n": 1, "cards": [{"job": null, "name": "Card 7", "roles": [{"role": "ramp", "effect": "add", "result": "propo
+ 25 | E3-29 the same job in ANOTHER deck is not remembered as dismissed (jobs are per deck)                                                                                                                   | PASS   | 
+ 26 | E3-2A accept a job beside the owner's: the owner row takes Claude's value, the Claude row is gone                                                                                                       | PASS   | {"current": {"owner_job": "Engine", "owner_set": true, "claude_job": null, "claude_state": null, "owner_reason": "Ramps into the commander"}
+ 27 | E3-2B nothing waiting / bad decision / someone else's deck                                                                                                                                              | PASS   | 
+ 28 | E3-30 120 cards, each with a role and a job (240 values): applied at once, 120 log rows, 120 role rows, 120 job rows                                                                                    | PASS   | {"ok": true, "res": {"plan": {"n": 120, "cards": [{"job": {"name": "Engine", "reason": "Test", "result": "proposed"}, "name": "Big 1", "role
+ 29 | E3-31 121 cards with role and job wait (over_ten) and write nothing                                                                                                                                     | PASS   | {"ok": true, "res": {"plan": {"n": 121, "cards": [{"job": {"name": "Payoff", "reason": null, "result": "proposed"}, "name": "Big 1", "roles"
+ 30 | E3-32 approving applies all 121 roles and 121 jobs and 121 log rows                                                                                                                                     | PASS   | {"ok": true, "res": {"count": 121, "outcome": "approved", "success": true, "group_id": "856f86aa-774b-4ac9-beb1-49c3e2098462"}}
+ 31 | E3-33 a job alone (no role) is a full change: 19 cards, 19 log rows                                                                                                                                     | PASS   | {"ok": true, "res": {"plan": {"n": 19, "cards": [{"job": {"name": "Flex", "reason": null, "result": "proposed"}, "name": "Big 122", "roles":
+ 32 | E3-40 the owner accepted one job; Claude's Undo is refused changed_since (naming the card and "job"), nothing at all changes                                                                            | PASS   | {"ok": true, "res": {"refused": {"card": "Card 8", "code": "changed_since", "deck": "Manual", "what": "job"}, "success": false}}
+ 33 | E3-41 the owner's Undo restores the 2 untouched cards (roles and jobs), leaves the accepted one alone and says so                                                                                       | PASS   | {"ok": true, "res": {"undone": 2, "success": true, "left_alone": [{"card": "Card 8", "deck": "Manual", "what": "job"}]}}
+ 34 | E3-42 the dismissed job Claude had overwritten on Card 7 is back exactly as it was (the memory survives Undo)                                                                                           | PASS   | 
+ 35 | E3-43 Claude undoes a clean batch in one go (2 cards, role and job rows gone, log rows stamped claude)                                                                                                  | PASS   | {"ok": true, "res": {"undone": 2, "success": true, "left_alone": []}}
+ 36 | E3-44 the owner set the same job by hand (which removes Claude's waiting row): Claude's Undo is refused changed_since                                                                                   | PASS   | {"ok": true, "res": {"refused": {"card": "Card 4", "code": "changed_since", "deck": "Manual", "what": "job"}, "success": false}}
+ 37 | E3-45 after 7 days Undo is closed for both (window_closed)                                                                                                                                              | PASS   | 
+ 38 | E3-46 Recent changes: label_detail carries the job name for the sentence                                                                                                                                | PASS   | 
+ 39 | E3-47 accept all by batch: both jobs become the owner's                                                                                                                                                 | PASS   | {"accepted": 2}
+ 40 | E3-48 accept all by deck accepts every waiting job in that deck (140: one waiting row per card; the second batch replaced the first batch's rows) and nothing in other decks                            | PASS   | {"accepted": 140}
+ 41 | E3-49 accept-all needs a scope; another user's deck is refused                                                                                                                                          | PASS   | 
+ 42 | E3-50 signed-in user 2 sees none of user 1's jobs (row security) and can read their own                                                                                                                 | PASS   | own 1 of user 1 0
+ 43 | E3-51 signed-in users cannot insert, update or delete jobs, nor call any job function                                                                                                                   | PASS   | permission denied for table deck_card_jobs | permission denied for function owner_set_card_job | permission denied for function _ai_label_jo
+ 44 | E3-52 with write access wrongly granted, user 2 still changes 0 of user 1's rows and cannot insert (row security); data byte for byte unchanged                                                         | PASS   | {"ok": true, "res": 0}{"ok": true, "res": 0}new row violates row-level security policy for table "deck_card_jobs"
+ 45 | E3-53 the anonymous role cannot read jobs                                                                                                                                                               | PASS   | permission denied for table deck_card_jobs
+ 46 | E3-54 Claude cannot reach another user's deck or cards: user 2 with their own connection on user 1's deck, and on a job request for it                                                                  | PASS   | 
+ 47 | E3-55 the append-only guard still blocks any change to a log row that carries a job                                                                                                                     | PASS   | 
+ 48 | E3-56 deleting a deck that has job rows and card_label log rows works: jobs go with the deck, log rows stay and lose only the deck link                                                                 | PASS   | 260
+ 49 | E3-60 running DB-3 twice refuses and changes nothing                                                                                                                                                    | PASS   | 
+ 50 | E3-61 rollback refuses while a card_label log row carries a job (table and functions still there)                                                                                                       | PASS   | 
+ 51 | E3-62 rollback refuses while the jobs table holds rows                                                                                                                                                  | PASS   | 
+ 52 | E3-63 rollback with the override: table and the six functions gone                                                                                                                                      | PASS   | 
+ 53 | E3-64 rollback restores the previous state exactly (every function, grant, constraint, table and trigger fingerprint equals the one taken after DB-2)                                                   | PASS   | 5e457a9d8c72bde8701a1a3d3e1c2bf0 vs 5e457a9d8c72bde8701a1a3d3e1c2bf0
+ 54 | E3-65 after the rollback a job request is refused again (jobs_not_available) and writes nothing; role-only requests still work                                                                          | PASS   | jobs_not_available
+ 55 | E3-66 re-apply works and a role+job request applies and Claude can undo it                                                                                                                              | PASS   | 
+ 56 | E3-67 rollback with empty tables and no job log rows needs no override and again restores the exact previous state                                                                                      | PASS   | 
+(56 rows)
+
+ passed | failed 
+--------+--------
+     56 |      0
+(1 row)
+

@@ -9,7 +9,7 @@ What changed from version 2 (owner decisions of 2026-11-18, round 3):
 - **D-a, jobs and categories stay as two things** and are told apart: Category = where a card sits in the deck list, Job = why the card is in the deck. Two labelled fields with hints in the card window (6.2, 6.3, 6.7), a "Group by Category / Job" switch on the deck list (6.8), and no job clutter until Claude has proposed jobs.
 - **D-b, the Strategy tab is one tab in three layers**: Build, Your strategy, Card jobs (section 8). The separate "Commander guide" section is gone. The Build layer holds the EDHREC build picker, its guide, its typical numbers and the category manager.
 - **D-c, "rules" is now "strategy points"** everywhere. The free-text "strategy notes" box is now **Notes**. Remaining uses of the word "rules" in this spec are all about something else ("rules text" on cards, the allocation terminology rule, the Light rule, binder rules).
-- **D-d, health numbers**: the picked build's typical numbers first, then the common guide where there is no build or no number, then the deck's strategy points and jobs adjust the counts; every number names its source (section 10).
+- **D-d, health numbers**: the picked build's typical numbers first, then the commander's all-builds average, then the common guide where there is no number (brief 7d item 1, **Answered** 2026-11-18: Agree), then the deck's strategy points and jobs adjust the counts; every number names its source (section 10).
 Earlier changes, still in force: **Q6** (broad health groups), **Q8** (Claude's proposals apply at once, up to 120 cards, one-click undo of a batch).
 
 ---
@@ -44,7 +44,7 @@ A **strategy point** is a statement of the deck's strategy, with the cards or th
 
 **Category versus job, in one line each.** *Category: where it sits in the list.* *Job: why it is in the deck.* Sol Ring can be in the category "Mana Rocks" and have the job "Enabler". Section 6.7 says how the two are kept apart when their names overlap.
 
-**Roll-up:** universal roles (fine) feed health groups (broad); the numbers each group is judged against come from the picked build first, then the common guide; this deck's jobs and strategy points then adjust the counts. Category names never change a count.
+**Roll-up:** universal roles (fine) feed health groups (broad); the numbers each group is judged against come from the picked build first, then the commander's all-builds average, then the common guide; this deck's jobs and strategy points then adjust the counts. Category names never change a count.
 
 ## 3. Words used on these screens
 
@@ -272,7 +272,7 @@ The Strategy tab is the home of the deck's strategy. Version 2 put the EDHREC bu
 | Commander overview, **build picker** (a dropdown plus build chips; "General (no specific build)" is one choice), the **build's strategy guide** from EDHREC. Shown only when a commander record is linked. | **Layer 1, Build.** Same content. |
 | **Category manager** (only when a build is picked): core categories Ramp, Draw, Removal and Lands with the build's "recommended" counts and "below avg" and "above avg" markers, custom categories, overlap warnings, Add category, Sync to Archidekt. | **Layer 1, Build**, as "Categories". Same content and behaviour. |
 | **Deck Intent**: win condition, playgroup (stored as "table context"), bracket, budget, frustrations, format, and a free-text box called "strategy notes". Collapsed by default; "Configure" or "Edit" button; "Configured" badge. | **Layer 2, Your strategy.** Same fields and same save. Shown as readable text, **open by default**, with Edit. The strategy notes box is renamed **Notes**. |
-| **Notes**: a separate list of dated notes at the bottom. | Kept, moved under the Notes box in Your strategy as **Earlier notes** (owner to confirm, brief 7d item 2). |
+| **Notes**: a separate list of dated notes at the bottom. | Kept, moved under the Notes box in Your strategy as **Earlier notes** (**Answered** 2026-11-18: Agree, brief 7d item 2). |
 | Hidden on a phone | **Shown on a phone** (owner confirms, section 17). |
 | No jobs, strategy points, proposals or health | **New:** Summary line, Claude's proposals, **Strategy points** (in Your strategy), **Card jobs** (layer 3), **Deck health**. |
 | The three test decks show only the Deck Intent box and an empty Notes, because no commander record is linked. | The same decks now show all three layers, with the Build layer explaining how to link a commander (8.5). |
@@ -507,10 +507,10 @@ A strategy point is made and managed in the Your strategy layer of the Strategy 
 ### 10.1 The idea
 Health speaks the common deckbuilding language: lands, ramp, card advantage, **interaction**. Interaction is targeted removal, board wipes, counterspells and similar, counted together against one number. Fine-grained universal roles feed these broad groups. Each group has a **count** (what the deck has) and a **target** (what it is judged against). They come from different places, and **the screen always says where**:
 
-- **The target comes from, in order:** (1) the picked build's typical numbers, shown as "**from the Aggro build**"; (2) where there is no build, or the build has no number for that group, the common guide, shown as "**common guide**".
+- **The target comes from, in order:** (1) the picked build's typical numbers, shown as "**from the Aggro build**"; (2) where there is no build, or the build has no number for that group, the commander's all-builds EDHREC average, shown as "**from the all-builds average for Mendicant Core**" (**Answered** 2026-11-18, brief 7d item 1: Agree); (3) where that has no number either, the common guide, shown as "**common guide**".
 - **The count comes from** each card's universal role (or from its card text where no role is set yet), and is then **adjusted by your strategy points and jobs**, shown as "**adjusted by your strategy point**" (or "adjusted by your jobs") with the number of cards moved.
 
-[Confirmed in the app: health today picks its numbers in this order: the commander's EDHREC average deck, else an EDHREC estimate, else a general guide, and it does not look at the picked build.] [Owner choice pending, brief 7d item 1: whether a deck with no build keeps today's first two sources (the commander's all-builds EDHREC average, then the estimate) before the common guide. This spec follows the owner's order as written: no build means the common guide. If the owner says yes, those sources sit between the build and the common guide, worded "from the all-builds average for Myrkul", and nothing else changes.]
+[Confirmed in the app: health today picks its numbers in this order: the commander's EDHREC average deck, else an EDHREC estimate, else a general guide, and it does not look at the picked build.] [**Answered 2026-11-18, brief 7d item 1: Agree.** A deck with no build, or a build with no number for a group, keeps today's first two sources (the commander's all-builds EDHREC average, then the estimate) before the common guide, worded "from the all-builds average for Myrkul". The target order is build, all-builds average, common guide.]
 
 ### 10.2 The roll-up (this table is what the app and the mockup must match)
 
@@ -612,6 +612,7 @@ Empty states appear only after a successful load. A failed load never shows an e
 
 ## 13. Worked examples on the three test decks
 Real facts below were read read-only from the app's data on 2026-11-18: all three decks have no strategy text, win condition, bracket, budget or notes, and **no commander record or build linked**. Their card lists and counts are from the audit. Because there is no build, **the Build layer is empty for all three**, and health uses the common guide (10.1). Numbers marked *illustrative* show a possible state; the app works out the real figures. Card text in quotes is example wording to show the layout, not a promise of what Claude will write.
+**Update 2026-11-18 (owner answered brief 7d items 1 and 2, Agree).** The worked examples below were written with the common guide as the target for decks with no build. With the owner's answer, those decks use the commander's all-builds average first (numbers in 13.0), so the "target" figures and the words "common guide" in 13.1 to 13.3 read "from the all-builds average" where that average has a number. The Designer should refresh the examples; the Architect's contract uses the new order.
 
 **What the Strategy tab shows for a deck with no build** (all three decks today): the Build layer reads "No build yet. Link this deck's commander to see its EDHREC builds, typical numbers and starting categories. This doesn't affect Your strategy, Card jobs or health." Your strategy and Card jobs show their normal empty states (8.7, state A). Deck health says "Using the common guide" on every line.
 
@@ -626,7 +627,7 @@ Counts today against the common guide (Lands 36, Ramp 10, Card advantage 10, Int
 | Card advantage | 8 of 10 (**Light**, 2 short) | 11 of 10 | 14 of 10 |
 | Interaction (removal + wipes, up to) | 9 of 10 | 4 of 10 (**Light**, 6 short) | 3 of 10 (**Light**, 7 short) |
 
-If the owner chooses to keep the commander's all-builds average as a middle step (brief 7d item 1), the targets read as they do in the audit today instead: Murky Business 35 / 20 / 7 / 9, Rocco's Secret Sauce 35 / 22 / 7 / 6, Arti-facts 34 / 16 / 13 / 4 (lands, ramp, card advantage, interaction), each marked "from the all-builds average".
+The owner chose to keep the commander's all-builds average as a middle step (brief 7d item 1, **Answered** 2026-11-18), so with no build the targets read as they do in the audit today: Murky Business 35 / 20 / 7 / 9, Rocco's Secret Sauce 35 / 22 / 7 / 6, Arti-facts 34 / 16 / 13 / 4 (lands, ramp, card advantage, interaction), each marked "from the all-builds average".
 
 ### 13.1 Arti-facts (commander Mendicant Core, Guidelight): a strategy point that covers many cards
 
@@ -686,7 +687,7 @@ Today: 100 cards. State A (no build). Health, common guide: Lands 36 of 36, Ramp
 - **A category named like a job** ("Sacrifice payoffs" and the job "Payoff"): both stay as named, nothing merges, Claude may ask (6.7).
 - **A deck with no jobs at all:** the deck list has no "Group by" switch and no job markers (6.8). Setting the first job brings the switch in.
 - **Group by Job with cards that have no job:** they gather under "No job set" at the end, each still showing its category label.
-- **Commander linked but "General (no specific build)" picked:** the build has no numbers of its own, so health targets use the common guide and say so (or, if brief 7d item 1 is yes, the all-builds average).
+- **Commander linked but "General (no specific build)" picked:** the build has no numbers of its own, so health targets use the all-builds average (brief 7d item 1, Answered: Agree), then the common guide, and say which.
 - **A build has no wipes average:** the Interaction target uses the common guide 10 and says "common guide" for that row; the other rows still say "from the Aggro build".
 - **A build is changed after strategy points were set:** targets move, counts do not; a change notice names the new source (10.4).
 - **Linking the commander fails or finds no match:** the Build layer stays as it was and says why (8.6).
@@ -716,8 +717,8 @@ Today: 100 cards. State A (no build). Health, common guide: Lands 36 of 36, Ramp
 
 The brief's sections 7c and 7d list the owner choices; these are the behaviour details this spec adds.
 
-1. **New, from D-d: a deck with no build picked.** Should health keep today's first two sources (the commander's all-builds EDHREC average, then the estimate) before the common guide? (brief 7d-1) Recommendation: yes, labelled "from the all-builds average". This spec is written the other way (no build means the common guide, as you said) so the choice is visible. It changes only the targets shown for decks with no build.
-2. **New, from D-b: Notes.** The free-text box becomes Notes in Your strategy, and the dated list moves under it as "Earlier notes". (brief 7d-2) Recommendation: yes.
+1. **ANSWERED 2026-11-18: Agree.** **New, from D-d: a deck with no build picked.** Should health keep today's first two sources (the commander's all-builds EDHREC average, then the estimate) before the common guide? (brief 7d-1) Recommendation: yes, labelled "from the all-builds average". The owner agreed; the spec now follows it. It changes only the targets shown for decks with no build.
+2. **ANSWERED 2026-11-18: Agree.** **New, from D-b: Notes.** The free-text box becomes Notes in Your strategy, and the dated list moves under it as "Earlier notes". (brief 7d-2) Recommendation: yes.
 3. **Which number is the health target when the commander has typical numbers?** *Answered by D-d: the build first, then the common guide.* (brief 7c-1)
 4. **Do Claude's proposals count in health at once?** (brief 7c-2) Recommendation: yes, labelled; Undo removes them.
 5. **Interaction membership:** includes Hand disruption and Counterspell, excludes Graveyard hate and Stax/tax. (brief 7c-3) Recommendation: as in 10.2.

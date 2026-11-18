@@ -1,0 +1,400 @@
+== cluster: PostgreSQL 17.12 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.4.1.1), 64-bit port 55434 (throwaway, deleted at end)
+-- apply 00_base.sql
+-- apply 20261116130000_connector_connections.sql
+-- apply 20261116150000_ai_change_log_and_pending.sql
+-- apply 20261116150100_ai_connector_edit_rpcs.sql
+-- apply 20261116150200_ai_undo_blocker_make_original_fix.sql
+-- apply 20261116150300_ai_list_recent_changes_zone_to.sql
+-- apply 20261116190000_ai_deck_category.sql
+-- apply 20261117100000_cc13_loosen_limits.sql
+-- apply 20261023170100_set_deck_command_zone.sql
+-- apply 20261117120000_ai_change_log_allow_deck_delete.sql
+-- apply 20261117200000_cc15a_new_change_kinds.sql
+-- apply 20261117200100_cc15b_deck_create_setup.sql
+-- apply 01_seed.sql
+-- apply 20261118120000_roles_db1_card_roles.draft.sql
+-- apply 20261118120100_roles_db2_change_kinds.draft.sql
+== DB-2 stub: strategy points refused before DB-4
+ chk 
+-----
+ 
+(1 row)
+
+== apply DB-4
+-- apply 20261118120300_roles_db4_strategy_points.draft.sql
+ mkdeck 
+--------
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== the owner's own strategy points
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== Claude proposes strategy points
+ age 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ERROR:  syntax error at or near ":"
+LINE 2: ...er = 'owner' FROM deck_strategy_points WHERE id = :'pid1'::b...
+                                                             ^
+== refusals write nothing
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== Undo of a batch of points
+ age 
+-----
+ 
+(1 row)
+
+no rows returned for \gset
+== accept, held requests, isolation, RLS, guard
+ age 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+                                                                                                                                                                                                         owner_save_strategy_point                                                                                                                                                                                                          
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ {"current": {"id": 88, "state": "accepted", "reason": null, "deck_id": 100, "user_id": "00000000-0000-0000-0000-000000000001", "batch_id": null, "proposer": "owner", "card_type": "land", "statement": "held 5", "created_at": "2026-11-18T16:15:27.992104+13:00", "updated_at": "2026-11-18T16:15:27.992104+13:00", "covers_kind": "card_type", "effect_kind": null, "effect_group": null, "covers_oracle_ids": null}, "previous": null}
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+                                                                                                                                                                                                              owner_save_strategy_point                                                                                                                                                                                                               
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ {"current": {"id": 91, "state": "accepted", "reason": null, "deck_id": 200, "user_id": "00000000-0000-0000-0000-000000000002", "batch_id": null, "proposer": "owner", "card_type": "artifact", "statement": "User 2 point", "created_at": "2026-11-18T16:15:27.998726+13:00", "updated_at": "2026-11-18T16:15:27.998726+13:00", "covers_kind": "card_type", "effect_kind": null, "effect_group": null, "covers_oracle_ids": null}, "previous": null}
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== second apply must refuse
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118120300_roles_db4_strategy_points.draft.sql:28: ERROR:  roles_db4 already applied (deck_strategy_points exists)
+ chk 
+-----
+ 
+(1 row)
+
+== rollback while strategy_point log rows exist must refuse
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118120300_roles_db4_strategy_points.rollback.sql:17: ERROR:  cannot roll back: ai_change_log or ai_pending_changes has strategy_point rows
+ chk 
+-----
+ 
+(1 row)
+
+== rolling DB-2 back is refused while DB-4 is applied
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118120100_roles_db2_change_kinds.rollback.sql:17: ERROR:  roll back roles_db3 and roles_db4 first
+ chk 
+-----
+ 
+(1 row)
+
+== clear the history by hand (test only); the table still holds rows, so it must still refuse
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118120300_roles_db4_strategy_points.rollback.sql:17: ERROR:  cannot roll back: deck_strategy_points holds rows (set oracle.rollback_allow_data_loss = 'yes' in this session to delete them)
+ chk 
+-----
+ 
+(1 row)
+
+== rollback with the explicit data-loss setting
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ age 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== re-apply, use, and roll back with empty tables
+-- apply 20261118120300_roles_db4_strategy_points.draft.sql
+ chk 
+-----
+ 
+(1 row)
+
+-- apply 20261118120300_roles_db4_strategy_points.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+-- apply 20261118120100_roles_db2_change_kinds.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+-- apply 20261118120000_roles_db1_card_roles.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+
+######## RESULTS ########
+ n  |                                                                                                       name                                                                                                       | result |                                                                    detail                                                                    
+----+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------+----------------------------------------------------------------------------------------------------------------------------------------------
+  1 | E4-00 before DB-4 a strategy point request is refused (strategy_points_not_available) and writes nothing                                                                                                         | PASS   | 
+  2 | E4-01 table, row security (not forced) and the functions exist; the stubs are replaced                                                                                                                           | PASS   | 
+  3 | E4-02 DB-3 is not needed: a role request still works, and a job request is still refused (jobs_not_available)                                                                                                    | PASS   | 
+  4 | E4-03 constraints: statement 1 to 200 and trimmed; covers consistent; the effect is both parts or none; card types and groups from the lists; one row per sentence per deck (any letter case)                    | PASS   | 
+  5 | E4-10 create: trimmed, owner and accepted, previous empty, effect stored                                                                                                                                         | PASS   | {"current": {"id": 18, "state": "accepted", "reason": "The rocks do the work", "deck_id": 100, "user_id": "00000000-0000-0000-0000-000000000
+  6 | E4-11 a hand-picked list is stored as sorted oracle ids without repeats                                                                                                                                          | PASS   | {"current": {"id": 19, "state": "accepted", "reason": null, "deck_id": 100, "user_id": "00000000-0000-0000-0000-000000000001", "batch_id": n
+  7 | E4-12 cards picked by slot: two slots of the same card are one oracle id; a point with no effect stores none                                                                                                     | PASS   | {"current": {"id": 20, "state": "accepted", "reason": null, "deck_id": 100, "user_id": "00000000-0000-0000-0000-000000000001", "batch_id": n
+  8 | E4-13 edit: previous row returned for the 10-second Undo, the same row changes                                                                                                                                   | PASS   | {"current": {"id": 18, "state": "accepted", "reason": null, "deck_id": 100, "user_id": "00000000-0000-0000-0000-000000000001", "batch_id": n
+  9 | E4-14 refusals: empty / long statement, covers (none, two, empty list, 101 cards, not a list), unknown card type, one-sided effect, unknown group, reason over 200, unknown card, a slot that is not in the deck | PASS   | 
+ 10 | E4-15 the same sentence twice (any letter case) is refused (point_exists); someone else's deck is deck_not_found; an unknown point is point_not_found                                                            | PASS   | 
+ 11 | E4-16 delete returns the deleted row (so the route can offer Undo by saving it again); a second delete is point_not_found; user 2 cannot delete user 1's point                                                   | PASS   | {"deleted": {"id": 20, "state": "accepted", "reason": null, "deck_id": 100, "user_id": "00000000-0000-0000-0000-000000000001", "batch_id": n
+ 12 | E4-17 the reader returns every row of the deck for its owner only                                                                                                                                                | PASS   | 
+ 13 | E4-18 the 30-per-deck limit: 28 more fill the deck to 30; the 31st is refused (too_many_strategy_points) and writes nothing                                                                                      | PASS   | 
+ 14 | E4-20 dry run: would_apply, n = 3 points, covers_count 2 for the hand-picked list, nothing written                                                                                                               | PASS   | {"ok": true, "res": {"plan": {"n": 3, "cards": [{"effect": {"kind": "counts_as", "group": "card_advantage"}, "result": "proposed", "card_typ
+ 15 | E4-21 applied: 3 points, ONE log row per point (3) in one group, each row a waiting Claude row tagged with the group; the log row holds the point and its id                                                     | PASS   | {"ok": true, "res": {"plan": {"n": 3, "cards": [{"effect": {"kind": "counts_as", "group": "card_advantage"}, "result": "proposed", "card_typ
+ 16 | E4-22 the hand-picked list is stored as oracle ids, never printings                                                                                                                                              | PASS   | 
+ 17 | E4-23 the same request again: nothing_to_change, nothing written                                                                                                                                                 | PASS   | 
+ 18 | E4-30 blank sentence: bad_statement                                                                                                                                                                              | PASS   | {"ok": false, "err": "bad_statement", "detail": "{}"}
+ 19 | E4-31 no covers: bad_covers; both a type and a list: bad_covers                                                                                                                                                  | PASS   | 
+ 20 | E4-32 unknown card type: unknown_card_type; effect with a kind but no group: bad_effect; reason over 200: reason_too_long                                                                                        | PASS   | 
+ 21 | E4-33 a slot that does not match: slot_not_found; a card that cannot be identified: card_not_identified                                                                                                          | PASS   | 
+ 22 | E4-34 user 2 on user 1's deck: deck_not_found; a switched-off connection: connection_revoked; no points or points that are not a list: invalid_request                                                           | PASS   | 
+ 23 | E4-35 11 points in one request: too_many_points_in_request                                                                                                                                                       | PASS   | {"ok": false, "err": "too_many_points_in_request", "detail": "{\"max\": 10}"}
+ 24 | E4-36 one bad point among good ones refuses the whole request; nothing partly proposed                                                                                                                           | PASS   | {"ok": false, "err": "unknown_card_type", "detail": "{\"type\": \"dragon\"}"}
+ 25 | E4-37 after every refusal the data is byte for byte unchanged                                                                                                                                                    | PASS   | 
+ 26 | E4-38 the deck holds 30 points (2 + 28): 3 more are refused (too_many_strategy_points), nothing written                                                                                                          | PASS   | {"ok": false, "err": "too_many_strategy_points", "detail": "{\"max\": 30, \"deck\": \"Manual\"}"}
+ 27 | E4-50 accept turns the Claude point into the owner's in place (same row), previous returned                                                                                                                      | PASS   | {"current": {"id": 82, "state": "accepted", "reason": null, "deck_id": 100, "user_id": "00000000-0000-0000-0000-000000000001", "batch_id": n
+ 28 | E4-51 deciding on something that is not waiting is no_proposal; an unknown point is point_not_found; bad decision refused; user 2 refused                                                                        | PASS   | 
+ 29 | E4-52 accept all by batch (1 point), then by deck (the rest waiting in the deck, 1)                                                                                                                              | PASS   | {"accepted": 1}{"accepted": 1}
+ 30 | E4-53 accept-all needs a scope; another user's deck refused; another user's batch accepts 0                                                                                                                      | PASS   | 
+ 31 | E4-54 when the hourly total is used up the request waits for the owner (busy) and writes nothing                                                                                                                 | PASS   | {"ok": true, "res": {"plan": {"n": 3, "cards": [{"effect": null, "result": "proposed", "card_type": "artifact", "statement": "Held 1", "cove
+ 32 | E4-55 approving applies the 3 points, marked approved by the owner                                                                                                                                               | PASS   | {"ok": true, "res": {"count": 3, "outcome": "approved", "success": true, "group_id": "f85837d3-5d27-4a39-ba1c-bc0cff74eb00"}}
+ 33 | E4-56 Claude cannot undo a batch the owner approved (owner_only)                                                                                                                                                 | PASS   | {"ok": true, "res": {"refused": {"code": "owner_only"}, "success": false}}
+ 34 | E4-57 a held request that has gone stale (the owner has since written one of its sentences) is applied only for what still changes: Held 5 is skipped (already_exists), the other 2 are applied                  | PASS   | {"ok": true, "res": {"count": 2, "outcome": "approved", "success": true, "group_id": "aa8296d3-d3e9-44cb-8d71-de99494c98bb"}}
+ 35 | E4-60 signed-in user 2 sees only their own points (none of user 1's)                                                                                                                                             | PASS   | own 1 of user 1 0
+ 36 | E4-61 signed-in users cannot insert, update, delete points or call any strategy point function                                                                                                                   | PASS   | permission denied for table deck_strategy_points | permission denied for function owner_save_strategy_point | permission denied for function
+ 37 | E4-62 with write access wrongly granted, user 2 still changes 0 of user 1's rows and cannot insert (row security); data byte for byte unchanged                                                                  | PASS   | {"ok": true, "res": 0}{"ok": true, "res": 0}new row violates row-level security policy for table "deck_strategy_points"
+ 38 | E4-63 the anonymous role cannot read points                                                                                                                                                                      | PASS   | permission denied for table deck_strategy_points
+ 39 | E4-64 the append-only guard still blocks any change to a strategy_point log row                                                                                                                                  | PASS   | 
+ 40 | E4-65 deleting a deck that has points and strategy_point log rows works: the points go with the deck, the log row stays and loses only the deck link; its Undo says deck_gone                                    | PASS   | 
+ 41 | E4-66 a strategy point request never touches the role rows (byte for byte the same)                                                                                                                              | PASS   | 
+ 42 | E4-70 running DB-4 twice refuses and changes nothing                                                                                                                                                             | PASS   | 
+ 43 | E4-71 rollback refuses while strategy_point log rows exist (table and functions still there)                                                                                                                     | PASS   | 
+ 44 | E4-72 DB-2 rollback refuses while DB-4 is applied (the order is 4, 3, 2, 1)                                                                                                                                      | PASS   | 
+ 45 | E4-73 rollback refuses while the points table holds rows                                                                                                                                                         | PASS   | 
+ 46 | E4-74 rollback with the override: table and the seven functions gone                                                                                                                                             | PASS   | 
+ 47 | E4-75 rollback restores the previous state exactly (every function, grant, constraint, table and trigger fingerprint equals the one taken after DB-2)                                                            | PASS   | 5e457a9d8c72bde8701a1a3d3e1c2bf0 vs 5e457a9d8c72bde8701a1a3d3e1c2bf0
+ 48 | E4-76 after the rollback a strategy point request is refused again (strategy_points_not_available) and writes nothing; role requests still work                                                                  | PASS   | 
+ 49 | E4-77 re-apply works and a point request applies and Claude can undo it                                                                                                                                          | PASS   | 
+ 50 | E4-78 rollback with empty tables needs no override and again restores the exact previous state                                                                                                                   | PASS   | 
+ 51 | E4-79 then DB-2 rolls back: state equals the one after DB-1                                                                                                                                                      | PASS   | 
+ 52 | E4-7A then DB-1 rolls back: state equals the live state before the feature                                                                                                                                       | PASS   | 
+(52 rows)
+
+ passed | failed 
+--------+--------
+     52 |      0
+(1 row)
+

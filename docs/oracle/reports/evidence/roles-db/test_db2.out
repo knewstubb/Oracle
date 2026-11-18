@@ -1,0 +1,613 @@
+== cluster: PostgreSQL 17.12 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.4.1.1), 64-bit port 55434 (throwaway, deleted at end)
+-- apply 00_base.sql
+-- apply 20261116130000_connector_connections.sql
+-- apply 20261116150000_ai_change_log_and_pending.sql
+-- apply 20261116150100_ai_connector_edit_rpcs.sql
+-- apply 20261116150200_ai_undo_blocker_make_original_fix.sql
+-- apply 20261116150300_ai_list_recent_changes_zone_to.sql
+-- apply 20261116190000_ai_deck_category.sql
+-- apply 20261117100000_cc13_loosen_limits.sql
+-- apply 20261023170100_set_deck_command_zone.sql
+-- apply 20261117120000_ai_change_log_allow_deck_delete.sql
+-- apply 20261117200000_cc15a_new_change_kinds.sql
+-- apply 20261117200100_cc15b_deck_create_setup.sql
+-- apply 01_seed.sql
+-- apply 20261118120000_roles_db1_card_roles.draft.sql
+== apply DB-2
+-- apply 20261118120100_roles_db2_change_kinds.draft.sql
+ mkdeck 
+--------
+ 
+(1 row)
+
+ mkdeck 
+--------
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== old kinds still work through the new front doors
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ age 
+-----
+ 
+(1 row)
+
+== propose roles: dry run, apply, layers, repeat, beside the owner, dismissed memory
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+                                                                        owner_set_card_role                                                                         
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ {"current": {"claude_state": null, "owner_effect": "add", "claude_effect": null}, "previous": {"claude_state": null, "owner_effect": null, "claude_effect": null}}
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ age 
+-----
+ 
+(1 row)
+
+== refusals write nothing
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== the 120 limit and the count rule (one request, one log row per card)
+ age 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ age 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ age 
+-----
+ 
+(1 row)
+
+ mkdeck 
+--------
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== Undo of a batch: Claude all-or-nothing, owner partial, windows, isolation
+ age 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+                                                                           owner_decide_card_role                                                                            
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ {"current": {"claude_state": null, "owner_effect": "add", "claude_effect": null}, "previous": {"claude_state": "to_look_at", "owner_effect": null, "claude_effect": "add"}}
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ expire 
+--------
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== owner accept-all, isolation, RLS and the append-only guard
+ age 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== two sessions proposing for the same deck at the same moment
+
+
+== second apply must refuse
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118120100_roles_db2_change_kinds.draft.sql:36: ERROR:  roles_db2 already applied (_ai_plan_pre_roles exists)
+ chk 
+-----
+ 
+(1 row)
+
+== rollback while card_label rows exist must refuse
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118120100_roles_db2_change_kinds.rollback.sql:17: ERROR:  cannot roll back: ai_change_log or ai_pending_changes has rows of a roles kind
+ chk 
+-----
+ 
+(1 row)
+
+== clear the new-kind history by hand (test only), then rollback
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/supabase/drafts/20261118120100_roles_db2_change_kinds.rollback.sql:17: ERROR:  cannot roll back: ai_change_log or ai_pending_changes has rows of a roles kind
+ chk 
+-----
+ 
+(1 row)
+
+-- apply 20261118120100_roles_db2_change_kinds.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== re-apply and use
+-- apply 20261118120100_roles_db2_change_kinds.draft.sql
+ age 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+-- apply 20261118120100_roles_db2_change_kinds.rollback.sql
+== and DB-1 back out too
+-- apply 20261118120000_roles_db1_card_roles.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+
+######## RESULTS ########
+ n  |                                                                                                              name                                                                                                               | result |                                                                    detail                                                                    
+----+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------+----------------------------------------------------------------------------------------------------------------------------------------------
+  1 | E2-01 new functions exist and the four live functions are kept under *_pre_roles names                                                                                                                                          | PASS   | 
+  2 | E2-02 the log and the waiting list accept the two new names, still accept every old one, and reject an invented one                                                                                                             | PASS   | 
+  3 | E2-03 the numbers for the new kinds are exactly the contract's; the existing limits are unchanged                                                                                                                               | PASS   | {"labels_page_max": 150, "point_cards_max": 100, "reason_max_chars": 200, "job_name_max_chars": 40, "roles_per_card_max": 13, "statement_max
+  4 | E2-04 Claude may undo its own role proposals (card_label and strategy_point are not owner-only); the old owner-only list is unchanged                                                                                           | PASS   | 
+  5 | E2-05 every new function is service-role only (not executable by anon or signed-in users); the renamed functions keep the grants they had (never wider)                                                                         | PASS   | 
+  6 | E2-03b the numbers in the types file (AI_LIMITS_ROLES) equal _ai_limits_roles() exactly                                                                                                                                         | PASS   | {"job_name_max_chars": 40, "reason_max_chars": 200, "statement_max_chars": 200, "strategy_points_per_deck_max": 30, "strategy_points_per_req
+  7 | E2-10 old kind deck_add: 2 cards apply                                                                                                                                                                                          | PASS   | {"ok": true, "res": {"plan": {"n": 2, "cards": [{"name": "Sol Ring", "quantity": 1}, {"name": "Arcane Signet", "quantity": 1}], "action": "d
+  8 | E2-11 old kind deck_category applies                                                                                                                                                                                            | PASS   | {"ok": true, "res": {"plan": {"n": 1, "cards": [{"to": ["Mana Rocks"], "from": ["Ramp"], "name": "Sol Ring", "quantity": 1}], "action": "dec
+  9 | E2-12 old kind deck_category: Claude Undo restores the previous value                                                                                                                                                           | PASS   | {"ok": true, "res": {"undone": 1, "success": true}}
+ 10 | E2-13 old kind deck_zone applies and the owner can undo it                                                                                                                                                                      | PASS   | {"ok": true, "res": {"undone": 1, "success": true}}
+ 11 | E2-14 old kind deck_add: the owner undoes the whole 2-card batch                                                                                                                                                                | PASS   | {"ok": true, "res": {"undone": 2, "success": true}}
+ 12 | E2-15 old kind deck_create (CC-15): Claude refused (owner_only), the owner undoes the empty deck                                                                                                                                | PASS   | {"ok": true, "res": {"refused": {"code": "owner_only"}, "success": false}} {"ok": true, "res": {"undone": 1, "success": true}}
+ 13 | E2-16 Recent changes still lists old kinds with the old fields                                                                                                                                                                  | PASS   | 
+ 14 | E2-20 dry run says would_apply with n = 3 cards and writes nothing                                                                                                                                                              | PASS   | {"ok": true, "res": {"plan": {"n": 3, "cards": [{"job": null, "name": "Card 1", "roles": [{"role": "card_draw", "effect": "add", "result": "
+ 15 | E2-21 apply: outcome applied, 3 cards, ONE log row per card (3), one group                                                                                                                                                      | PASS   | {"ok": true, "res": {"plan": {"n": 3, "cards": [{"job": null, "name": "Card 1", "roles": [{"role": "card_draw", "effect": "add", "result": "
+ 16 | E2-22 4 Claude rows written (Card 1: ramp and card_draw, Card 2: ramp, Card 3: ramp); "remove tutor" was skipped because Card 1 has no tutor role to remove; all rows waiting, tagged with the group and the deck, no owner row | PASS   | 4
+ 17 | E2-23 the shared list was not written (still empty): Claude proposals stay in the personal layer                                                                                                                                | PASS   | 
+ 18 | E2-24 the log row names the card by oracle id (not printing), keeps the printing and the slot, and holds before / after                                                                                                         | PASS   | 
+ 19 | E2-25 merged layers: Claude's waiting roles count straight away                                                                                                                                                                 | PASS   | 
+ 20 | E2-26 sending the same request again changes nothing (nothing_to_change) and logs nothing                                                                                                                                       | PASS   | {"ok": false, "err": "nothing_to_change", "detail": "{\"deck\": \"Manual\", \"skipped\": [{\"why\": \"unchanged\", \"what\": \"card_draw\", 
+ 21 | E2-27 the owner already says Card 4 is ramp; Claude says it is not: stored BESIDE the owner's value, reported beside_yours, owner row untouched byte for byte                                                                   | PASS   | {"ok": true, "res": {"plan": {"n": 1, "cards": [{"job": null, "name": "Card 4", "roles": [{"role": "ramp", "effect": "remove", "result": "be
+ 22 | E2-27b the same "beside the owner" request again is skipped as unchanged (Claude's identical row is already waiting) and nothing is written                                                                                     | PASS   | 
+ 23 | E2-28 asking for what the owner already has is skipped as unchanged                                                                                                                                                             | PASS   | 
+ 24 | E2-29 dismiss: the Claude row stays as a marked row (the memory); previous and current returned                                                                                                                                 | PASS   | {"current": {"claude_state": "dismissed", "owner_effect": null, "claude_effect": "add"}, "previous": {"claude_state": "to_look_at", "owner_e
+ 25 | E2-30 Claude proposing the dismissed value again is skipped as previously_dismissed (in every deck: it is keyed by the card, not the deck)                                                                                      | PASS   | {"ok": true, "res": {"plan": {"n": 1, "cards": [{"job": null, "name": "Card 5", "roles": [{"role": "fixing", "effect": "add", "result": "pro
+ 26 | E2-31 accept: the owner row now holds the value, the Claude row is gone                                                                                                                                                         | PASS   | {"current": {"claude_state": null, "owner_effect": "add", "claude_effect": null}, "previous": {"claude_state": "to_look_at", "owner_effect":
+ 27 | E2-32 accept or dismiss with nothing waiting is no_proposal; bad role / decision refused                                                                                                                                        | PASS   | 
+ 28 | E2-40 slot not in the deck / name does not match: slot_not_found                                                                                                                                                                | PASS   | {"ok": false, "err": "slot_not_found", "detail": "{\"card\": \"Wrong Name\", \"deck\": \"Manual\"}"}
+ 29 | E2-41 same slot twice: duplicate_slot                                                                                                                                                                                           | PASS   | {"ok": false, "err": "duplicate_slot", "detail": "{\"card\": \"Card 6\"}"}
+ 30 | E2-42 two slots that are the same card: duplicate_card                                                                                                                                                                          | PASS   | {"ok": false, "err": "duplicate_card", "detail": "{\"card\": \"Card 1 alt\"}"}
+ 31 | E2-43 a card Oracle cannot identify: card_not_identified                                                                                                                                                                        | PASS   | {"ok": false, "err": "card_not_identified", "detail": "{\"card\": \"Mystery Card\"}"}
+ 32 | E2-44 a role that is not one of the 13: unknown_role                                                                                                                                                                            | PASS   | {"ok": false, "err": "unknown_role", "detail": "{\"card\": \"Card 6\", \"role\": \"invented\"}"}
+ 33 | E2-45 a role both added and removed: conflicting_roles                                                                                                                                                                          | PASS   | {"ok": false, "err": "conflicting_roles", "detail": "{\"card\": \"Card 6\", \"role\": \"ramp\"}"}
+ 34 | E2-46 an empty card list, a card with nothing to set, a bad deck id, roles that are not a list: invalid_request                                                                                                                 | PASS   | 
+ 35 | E2-47 user 2 asking about user 1's deck (with user 2's own connection): deck_not_found, nothing written                                                                                                                         | PASS   | {"ok": false, "err": "deck_not_found", "detail": "{\"deck_id\": 100}"}
+ 36 | E2-48 a switched-off connection: connection_revoked                                                                                                                                                                             | PASS   | {"ok": false, "err": "connection_revoked", "detail": "{}"}
+ 37 | E2-49 a job while DB-3 is not applied: jobs_not_available, and nothing is written for the roles either                                                                                                                          | PASS   | {"ok": false, "err": "jobs_not_available", "detail": "{}"}
+ 38 | E2-50 job name over 40 characters, reason over 200, job on a maybeboard card: bad_job_name, reason_too_long, slot_in_maybeboard                                                                                                 | PASS   | 
+ 39 | E2-51 201 cards: too_many_cards                                                                                                                                                                                                 | PASS   | {"ok": false, "err": "too_many_cards", "detail": "{\"max\": 200}"}
+ 40 | E2-52 one bad card among good ones: the WHOLE request is refused, nothing is partly proposed                                                                                                                                    | PASS   | {"ok": false, "err": "slot_not_found", "detail": "{\"card\": \"Nope\", \"deck\": \"Manual\"}"}
+ 41 | E2-53 after every refusal above the data is byte for byte unchanged                                                                                                                                                             | PASS   | 
+ 42 | E2-54 roles are allowed on a maybeboard card (only jobs are refused there)                                                                                                                                                      | PASS   | 
+ 43 | E2-60 120 cards apply at once: outcome applied, 120 log rows, 120 cards proposed                                                                                                                                                | PASS   | {"ok": true, "res": {"plan": {"n": 120, "cards": [{"job": null, "name": "Big 1", "roles": [{"role": "ramp", "effect": "add", "result": "prop
+ 44 | E2-61 81 more cards for the same deck within 30 minutes (120 + 81 > 200) wait for the owner: recent_total                                                                                                                       | PASS   | {"ok": true, "res": {"plan": {"n": 81, "cards": [{"job": null, "name": "Big 121", "roles": [{"role": "ramp", "effect": "add", "result": "pro
+ 45 | E2-62 121 cards do not apply: they wait as over_ten, one waiting request with card_count 121, nothing written yet                                                                                                               | PASS   | {"ok": true, "res": {"plan": {"n": 121, "cards": [{"job": null, "name": "Bgb 1", "roles": [{"role": "ramp", "effect": "add", "result": "prop
+ 46 | E2-63 approving applies all 121 (owner approved), one group, 121 log rows marked approved_by_owner, pending marked approved                                                                                                     | PASS   | {"ok": true, "res": {"count": 121, "outcome": "approved", "success": true, "group_id": "8aa9da2d-e73a-4a97-bc30-074a9b821a14"}}
+ 47 | E2-64 Claude cannot undo a batch the owner approved: owner_only, nothing changes                                                                                                                                                | PASS   | {"ok": true, "res": {"refused": {"code": "owner_only"}, "success": false}}
+ 48 | E2-65 201 cards in one request are refused outright (too_many_cards), 200 wait                                                                                                                                                  | PASS   | {"ok": false, "err": "too_many_cards", "detail": "{\"max\": 200}"}
+ 49 | E2-66 approving a held request whose card has since gone is refused (failed, slot_not_found), and nothing is written                                                                                                            | PASS   | {"ok": true, "res": {"reason": {"card": "Bgc 7", "code": "slot_not_found", "deck": "Big Bgc"}, "outcome": "failed", "success": false}}
+ 50 | E2-67 the same request waiting twice is not queued twice (duplicate flag)                                                                                                                                                       | PASS   | 
+ 51 | E2-68 per-user waiting limit applies to the new kind (20 waiting max): the 21st request is too_many_waiting                                                                                                                     | PASS   | 
+ 52 | E2-70 a 3-card batch applied (4 Claude rows, 3 log rows)                                                                                                                                                                        | PASS   | 
+ 53 | E2-71 user 2 cannot undo user 1's batch (not found / refused), nothing changes                                                                                                                                                  | PASS   | {"ok": false, "err": "change_not_found", "detail": "{}"}
+ 54 | E2-72 Undo with a switched-off connection: connection_revoked; an unknown actor: invalid_actor                                                                                                                                  | PASS   | 
+ 55 | E2-73 Claude undoes the whole batch in one go: 3 cards restored, all 3 log rows stamped by claude                                                                                                                               | PASS   | {"ok": true, "res": {"undone": 3, "success": true, "left_alone": []}}
+ 56 | E2-74 the dismissed row Claude had overwritten is back exactly as it was (the memory survives an Undo); new rows are gone                                                                                                       | PASS   | 
+ 57 | E2-75 undoing twice: already_undone                                                                                                                                                                                             | PASS   | {"ok": true, "res": {"refused": {"code": "already_undone"}, "success": false}}
+ 58 | E2-76 the owner accepted one card; Claude's Undo is refused (changed_since, naming the card) and nothing at all changes                                                                                                         | PASS   | {"ok": true, "res": {"refused": {"card": "Card 7", "code": "changed_since", "deck": "Manual", "what": "fixing"}, "success": false}}
+ 59 | E2-77 the owner's Undo restores the 2 untouched cards and reports the accepted one as left alone                                                                                                                                | PASS   | {"ok": true, "res": {"undone": 2, "success": true, "left_alone": [{"card": "Card 7", "deck": "Manual", "what": "fixing"}]}}
+ 60 | E2-78 the accepted card keeps the owner's row; the others are gone; the left-alone log row stays un-undone, the other two are stamped owner                                                                                     | PASS   | 
+ 61 | E2-79 asking again when only the touched card is left: nothing_to_undo                                                                                                                                                          | PASS   | {"ok": true, "res": {"refused": {"code": "nothing_to_undo"}, "success": false, "left_alone": [{"card": "Card 7", "deck": "Manual", "what": "
+ 62 | E2-80 after 7 days neither Claude nor the owner can undo (window_closed)                                                                                                                                                        | PASS   | {"ok": true, "res": {"refused": {"code": "window_closed"}, "success": false}}{"ok": true, "res": {"refused": {"code": "window_closed"}, "suc
+ 63 | E2-81 Recent changes: the batch shows its sentence data (label_detail), and the blocker for a batch the owner touched                                                                                                           | PASS   | 
+ 64 | E2-82 user 2's Recent changes shows none of user 1's rows                                                                                                                                                                       | PASS   | 
+ 65 | E2-90 user 2 proposes roles in their own deck (own connection): works, row belongs to user 2                                                                                                                                    | PASS   | {"ok": true, "res": {"plan": {"n": 1, "cards": [{"job": null, "name": "Card 1", "roles": [{"role": "ramp", "effect": "add", "result": "propo
+ 66 | E2-91 user 2 cannot use user 1's connection: connection_revoked, nothing written                                                                                                                                                | PASS   | {"ok": false, "err": "connection_revoked", "detail": "{}"}
+ 67 | E2-92 user 2 cannot accept user 1's proposals by deck or by batch (deck_not_found / accepts 0 of user 1's)                                                                                                                      | PASS   | 
+ 68 | E2-93 Accept all for a deck: all 121 waiting roles in deck 301 become the owner's, none left waiting there, other decks' proposals untouched                                                                                    | PASS   | {"accepted": 121}
+ 69 | E2-94 Accept all for one batch accepts only that batch (2 rows); the card-10 and card-8 rows are the owner's now                                                                                                                | PASS   | {"accepted": 2}
+ 70 | E2-95 signed-in user 2 sees only their own log rows, waiting requests and personal roles (none of user 1's)                                                                                                                     | PASS   | log 1 roles 1
+ 71 | E2-96 signed-in users cannot call any new or changed function (permission denied)                                                                                                                                               | PASS   | permission denied for function owner_decide_card_role | permission denied for function _ai_plan_card_label | permission denied for function 
+ 72 | E2-97 the append-only guard still blocks any change to a card_label log row (before, after, card, kind) but lets the undo fields be set once                                                                                    | PASS   | 
+ 73 | E2-98 deleting a deck that has card_label log rows works (the deck-clear exception passes); the rows stay and lose only the deck link                                                                                           | PASS   | 122
+ 74 | E2-99 a batch whose deck was deleted cannot be undone (deck_gone) and changes nothing                                                                                                                                           | PASS   | 
+ 75 | E2-A0 the same request from a second session while the first is still open waits, then sees the first one's rows and writes nothing (nothing_to_change)                                                                         | PASS   | 
+ 76 | E2-A1 exactly one Claude row exists for that card and role                                                                                                                                                                      | PASS   | 
+ 77 | E2-B0 running DB-2 twice refuses and changes nothing                                                                                                                                                                            | PASS   | 
+ 78 | E2-B1 rollback refuses while log rows of the new kind exist (functions still in place)                                                                                                                                          | PASS   | 
+ 79 | E2-B2 rollback still refuses while a waiting strategy_point / card_label request exists                                                                                                                                         | PASS   | 
+ 80 | E2-B3 rollback restores the previous state exactly (every function, grant, constraint, table and trigger fingerprint equals the one taken after DB-1)                                                                           | PASS   | bd88f5cbbd2722288dae52586f227bfd vs bd88f5cbbd2722288dae52586f227bfd
+ 81 | E2-B4 after the rollback the old kinds still work (add, Claude undo) and the new names are rejected by the log again                                                                                                            | PASS   | {"ok": true, "res": {"plan": {"n": 1, "cards": [{"name": "Mana Crypt", "quantity": 1}], "action": "deck_add", "deck_id": 101, "preview": {"c
+ 82 | E2-B5 the roles tables and the owner's personal roles are untouched by the DB-2 rollback (they belong to DB-1)                                                                                                                  | PASS   | 
+ 83 | E2-B6 re-apply after rollback works: a role request applies and Claude can undo it                                                                                                                                              | PASS   | 
+ 84 | E2-B7 DB-2 and then DB-1 rolled back: the database fingerprint equals the one taken before DB-1 (the live state)                                                                                                                | PASS   | 
+(84 rows)
+
+ passed | failed 
+--------+--------
+     84 |      0
+(1 row)
+

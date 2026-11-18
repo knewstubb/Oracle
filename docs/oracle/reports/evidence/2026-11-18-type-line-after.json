@@ -1,0 +1,29 @@
+{
+ "captured": "2026-11-18",
+ "source": "live Supabase, read-only EXPLAIN (ANALYZE) of SELECTs on connector_collection_copies (the unchanged view). No writes. Owner's 4,550 copies, one user.",
+ "note": "Database-side execution time in ms, excludes network and the app. 'cold' = first run after an idle period (index and table pages not in memory, planning time was also 109-129 ms); 'warm' = immediate re-run. The audit baseline was a single warm-ish run. Threshold: every query well under 2000 ms.",
+ "before_audit_baseline_ms": {
+  "creature_and_green_filtered_read": 37.5,
+  "whole_collection_narrow_read_with_primary_type": 94.0,
+  "subtype_overlap_elf_druid": 48.4,
+  "legendary_ilike_read": 29.1,
+  "detail_read_200_copies": 57.9
+ },
+ "after_same_five_queries_ms": {
+  "creature_and_green_filtered_read": {"cold": 975.4, "warm": 29.3},
+  "whole_collection_narrow_read_with_primary_type": {"cold": 976.8, "warm": 88.7},
+  "subtype_overlap_elf_druid": {"cold": 332.8, "warm": 48.7},
+  "legendary_ilike_read": {"cold": 30.3, "warm": null},
+  "detail_read_200_copies": {"cold": 8.0, "warm": null}
+ },
+ "after_new_type_line_queries_ms": {
+  "whole_collection_narrow_read_selecting_type_line_used_by_types_and_summary_by_type": {"cold": 60.3, "warm": null, "rows": 4550},
+  "basic_pushdown_ilike_basic_with_type_line": {"cold": 832.5, "warm": 58.0, "rows": 645, "plan": "seq scan on ref_cards (32,633 rows) filtered by ilike; the cold run is dominated by reading ref_cards from disk"},
+  "snow_pushdown_ilike_snow_with_type_line": {"cold": 51.9, "warm": null, "rows": 3},
+  "legendary_pushdown_ilike_legendary_with_type_line": {"cold": 27.1, "warm": null, "rows": 430}
+ },
+ "worst_case_ms": 976.8,
+ "threshold_ms": 2000,
+ "result": "PASS. Every query is under 1,000 ms even cold, and under 100 ms warm. No database change needed.",
+ "decision": "No database change. No draft, rollback or throwaway-Postgres test written."
+}

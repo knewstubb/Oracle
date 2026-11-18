@@ -350,6 +350,29 @@ Already clean: "Considering" (0 uses), "Card Kingdom" (comment only, T-47), "Mis
 5. **Should normal (nonfoil) cards show no finish label in busy lists?** Recommend yes: only Foil and Etched get a small tag; the word "Nonfoil" appears in detail panels and finish columns. Example: a deck list row reads "Sol Ring · Foil" for the foil copy and just "Sol Ring" for the normal one.
 6. **Should the collection's "Over-allocated" become the same "Short" word Reconcile uses?** Recommend yes: "Short 2" means two more originals are needed, matching Reconcile (D-037). Example: Sol Ring in three decks, one original owned → collection and Reconcile both say "Short 2".
 
+## Type line (added 2026-11-18; inserted after section 11, section numbers unchanged)
+A card's type line has a fixed order: **supertypes, then card types, then a dash, then subtypes.** The app reads it by position, so a word is a subtype because it sits after the dash, not because of what it spells.
+Example: `Legendary Creature — Elf Druid`. Legendary is the supertype, Creature is the card type, Elf and Druid are subtypes.
+| Group | Words | What it means |
+|---|---|---|
+| Supertype | Basic, Legendary, Snow (also World, Ongoing, Elite, Host) | Adds a special rule. |
+| Card type | Artifact, Battle, Creature, Enchantment, Instant, Kindred, Land, Planeswalker, Sorcery (also Conspiracy, Dungeon, Phenomenon, Plane, Scheme, Vanguard) | The main category; decides how the card is played. |
+| Subtype | Elf, Druid, Forest, Equipment, Aura... | A tag other cards can look for. |
+Rules the app follows:
+- **Legendary** means the "legend rule" (one Legendary permanent with the same name at a time). It is not a limit on copies in a deck.
+- **Basic** is a supertype. "Any number in a deck" is a separate rule: Commander decks are singleton except for basic lands. Example: Snow-Covered Swamp is `Basic, Snow Land — Swamp`, so it is Basic and Snow.
+- **Several card types are allowed.** Example: `Artifact Creature — Golem` is both an Artifact and a Creature. Counts and filters count it under both; the places that need a single group use it under Creature.
+- **Two faces** are joined by `//`. Each face is read on its own. Example: `Instant // Land` is an Instant on the front and a Land on the back, and is not a land on the battlefield.
+- **Kindred** is the current name of Tribal. Old text saying Tribal is read as Kindred.
+- Missing subtypes are normal: `Artifact —` with nothing after the dash means no subtypes.
+Where the app shows each group:
+- Collection list "Type" column: all card types of the front face (for example `Artifact Creature`).
+- Card window: three small groups, Supertypes, Card types and Subtypes (all faces).
+- Deck page "Group: Type" and deck health: one group per card, or counted under each card type (health).
+- Collection filters: `Basic` (Collection page) and `Hide Basics` (Allocation page).
+- Claude: `basic`, `snow`, `legendary`, `types` (15), `subtypes`.
+Source: the Magic Comprehensive Rules (section 205) as understood from the owner's 2026-11-18 decision. Not verified offline.
+---
 ## 12. Open questions (for Gene / Architect, not Brad)
 
 - Readiness (`readiness`, `sleevedCount`, `requiredCount`, `proxyCount`) and proxy supply are needed before V1, V4 and the Proxy available badge can be built honestly (T-28 / Phase 6). Should Phase 3 compute an interim readiness from existing counts, or ship Question 2's count-only tile?

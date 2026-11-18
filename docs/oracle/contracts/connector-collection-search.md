@@ -63,7 +63,7 @@ The view is not applied. Before the build slice that uses it can be merged, the 
 Input and output types: `connector-collection-search.types.ts`. Strict input: unknown fields rejected.
 
 ### 5.1 New and changed inputs
-- (Role filter: section 13.) `types[]` (any of eight), `colours[]` with `colour_match` (`within` default, `exact`, `includes`), `colourless`, `mana_value_min/max`, `location`, `only_proxies`, `include_rules_text`.
+- (Role filter: section 13.) `types[]` (any of fifteen card types; was eight, see section 15), `colours[]` with `colour_match` (`within` default, `exact`, `includes`), `colourless`, `mana_value_min/max`, `location`, `only_proxies`, `include_rules_text`.
 - **Colour meaning (default `within`)**: "green" returns cards you could put in a green-only deck, which includes colourless. `exact` with `["G"]` returns mono-green only. `includes` with `["G"]` returns anything containing green. `colourless: true` = no colours at all. Cannot combine `colourless` with `colours`.
 - **`location`** matches a deck name, box or binder name, or "In your hand" / "Missing", case-insensitive, exact. If nothing matches, the answer is `ok` with zero results, a note, and `knownPlaces` (up to 50 names) so Claude can retry. A name shared by a deck and a box returns both (each row shows where it is).
 - **`only_free` (behaviour change, per approved default 2)**: a copy counts only if it is in no deck and is not In your hand and not Missing. Same rule as the rest of the app. Old behaviour (only "in no deck") is gone, not kept alongside.
@@ -90,7 +90,7 @@ Input and output types: `connector-collection-search.types.ts`. Strict input: un
 
 - No input: answer unchanged (counts as today). With input: the same filters as search plus `group_by` = `type` | `colour` | `location` | `kind`.
 - Answer: `groups` (label, copies, distinctCards), largest first, at most 60 (`groupsTruncated` says when cut), plus overall `totalCopies` and `distinctCards`. About 1 to 2 KB, no paging.
-- Reads narrow columns from the same view (`fetchAll`), grouped in the app. Grouping by `type` uses `primary_type`; by `colour` uses `colour_letters` and labels like Green, Black/Red, Colourless (5-colour = "Five colour"); by `location` uses deck name, storage name, "In your hand", "Missing"; cards with no facts show as "No facts" in the type and colour groupings, so groups always add up to the total.
+- Reads narrow columns from the same view (`fetchAll`), grouped in the app. Grouping by `type` reads the card's type line and picks one type per card with the rule in section 15 (was the view's `primary_type`, eight types); by `colour` uses `colour_letters` and labels like Green, Black/Red, Colourless (5-colour = "Five colour"); by `location` uses deck name, storage name, "In your hand", "Missing"; cards with no facts show as "No facts" in the type and colour groupings, so groups always add up to the total.
 - Example (S2): `group_by: colour` returns one list, for example Colourless 446, Green 380, and so on, in one call.
 
 ## 7. Locked decisions touched
@@ -234,3 +234,24 @@ Text and commander checks reuse the one batched read of the card library that ro
 Name matching is not the cause (checked: full name, front name and "Front // %" all miss). Also, all 132 two-faced library rows have no rules text. The fix is a prepared data script (FEAT-002) that needs owner approval; it is not run here.
 ### 14.5 Database change
 None. No migration. The live database was only read.
+
+## 15. AMENDMENT 2026-11-18 (type-line alignment): search follows the Magic type line, no database change
+### 15.1 What changes, in plain words
+A type line reads in a fixed order: supertypes (Legendary, Basic, Snow), then card types (Creature, Land, ...), then a dash, then subtypes (Elf, Druid, Forest). Search and counts now read it by position, not by finding a word anywhere in the text. A subtype that happens to contain a type word can no longer be misread as a card type.
+### 15.2 Inputs
+- `basic` (true/false): Basic supertype on either face. Snow-Covered Swamp (`Basic, Snow Land`) counts. `false` = neither face.
+- `snow` (true/false): Snow supertype on either face. Snow-Covered Swamp and Ohran Frostfang count.
+- `legendary`: unchanged meaning (either face), now read from the supertype.
+- `types[]`: all 15 card types (creature, instant, sorcery, artifact, enchantment, planeswalker, land, battle, kindred, conspiracy, dungeon, phenomenon, plane, scheme, vanguard). The old word "tribal" on a card is read as Kindred.
+- `subtypes[]`: unchanged (whole word, either face). Two-word subtypes: the library writes them with a comma (`Time Lord, Doctor`), Scryfall with a space; both are read.
+- Cards with no card data never match any of these, as before.
+### 15.3 How it works
+The database still does only a coarse first cut (the existing yes/no type columns for the original eight types; a text match on the type line for basic, snow, legendary and the new types). The app then reads the exact type line of each candidate and makes the real decision. The view is unchanged. The search reads the type line column in addition to its narrow columns when one of these filters or `group_by: type` is used.
+### 15.4 Counting by type (`get_collection_summary`, `group_by: type`)
+One bucket per card, chosen from the FRONT face in this order: Land, Creature, Planeswalker, Battle, Kindred, Instant, Sorcery, Artifact, Enchantment, then the rare types (Conspiracy, Dungeon, Phenomenon, Plane, Scheme, Vanguard), then Other. Kindred comes before Instant and Sorcery so the 4 owned Kindred cards get their own bucket. Groups still add up to the total. OWNER DECISION PENDING on this order.
+Search is different: an Artifact Creature counts under BOTH `artifact` and `creature`, and a two-faced card counts under the types of either face (for example `Instant // Land` matches `land`).
+### 15.5 Speed (live read-only, 2026-11-18)
+Every query the new code issues ran in under 1 second even on a cold first run and under 100 ms warm (evidence: `docs/oracle/reports/evidence/2026-11-18-type-line-after.json`). The audit baseline was 29 to 94 ms. No database change is needed; none is drafted.
+### 15.6 Still open
+- Section 14.4 says 100 owned cards have no card data. The audit's live read on 2026-11-18 found 0 copies without card data (`copies_without_card_facts: 0`). Not corrected here: needs the owner to confirm the number first (flag for Gene).
+- Search results do not yet include parsed supertypes, card types and subtypes per card (the shared output shape has no room without changing every tool answer).

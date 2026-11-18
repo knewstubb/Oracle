@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Oracle · Card window and Strategy tab: roles, deck jobs and deck rules (CC-26 mockup)</title>
+<title>Oracle · Card window and layered Strategy tab: roles, jobs and strategy points (CC-26 mockup)</title>
 <style>
 :root{
   --bg-canvas:#131316;--bg-surface:#1A1A1E;--bg-hover:#212126;
@@ -73,8 +73,8 @@ svg.i{width:1.1em;height:1.1em;flex:none;vertical-align:-.2em;fill:none;stroke:c
 .list div span{display:block;color:var(--text2);font-size:var(--fs-sm)}
 .list div.cur{background:var(--accent-bg)}
 textarea,input[type=text]{width:100%;background:var(--bg-canvas);border:1px solid var(--border);border-radius:8px;padding:8px 10px;min-height:44px}
-.rule{border:1px solid var(--border);background:var(--bg-canvas);border-radius:8px;padding:10px 12px}
-.rule .q{font-weight:500}
+.strategy point{border:1px solid var(--border);background:var(--bg-canvas);border-radius:8px;padding:10px 12px}
+.strategy point .q{font-weight:500}
 .df{display:flex;align-items:center;gap:8px;padding:8px 16px;border-top:1px solid var(--border-subtle);color:var(--text2);font-size:var(--fs-sm)}
 .df .sp{flex:1}
 .toast{display:inline-flex;gap:10px;align-items:center;background:#000;border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:var(--fs-sm);color:var(--text)}
@@ -83,7 +83,7 @@ textarea,input[type=text]{width:100%;background:var(--bg-canvas);border:1px soli
 
 .grp-ctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .gl{font-size:var(--fs-xs);letter-spacing:.06em;text-transform:uppercase;color:var(--text2);min-width:92px}
-.tabp{background:var(--bg-canvas);border:1px solid var(--border);border-radius:10px;padding:16px 20px}
+.tabp{overflow-x:auto;background:var(--bg-canvas);border:1px solid var(--border);border-radius:10px;padding:16px 20px}
 .tabp h2.ttl{margin:0;font-size:var(--fs-xl);font-weight:600}
 .band{border-top:1px solid var(--border-subtle);padding:14px 0}
 .band h3{margin:0 0 8px;font-size:var(--fs-xs);letter-spacing:.06em;text-transform:uppercase;color:var(--text2);font-weight:600;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
@@ -127,6 +127,31 @@ table.hr td.n{text-align:right;font-variant-numeric:tabular-nums}
 .phone{width:340px;max-width:100%;border:2px solid var(--border);border-radius:22px;padding:14px;background:var(--bg-canvas)}
 .phone .prow{display:flex;justify-content:space-between;gap:8px;align-items:center;border-top:1px solid var(--border-subtle);padding:10px 0;min-height:44px;font-size:var(--fs-base)}
 .phone .prow span:last-child{color:var(--text2);font-size:var(--fs-sm)}
+
+.hint{font-size:var(--fs-sm);color:var(--text2);margin:-2px 0 6px}
+.layer{border-left:3px solid var(--border);padding:2px 0 2px 16px;margin:18px 0}
+.layer.l1{border-left-color:var(--proxy)}
+.layer.l2{border-left-color:var(--accent)}
+.layer.l3{border-left-color:var(--hand)}
+.lh{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;margin:0 0 8px}
+.lh .num{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border:1px solid var(--text2);border-radius:50%;font-size:var(--fs-sm);font-weight:600}
+.lh h3{margin:0;font-size:var(--fs-lg);font-weight:600;text-transform:none;letter-spacing:0;color:var(--text)}
+.lh .tag{color:var(--text2);font-size:var(--fs-sm)}
+.lh .sp{flex:1}
+.sub{margin:14px 0 0;padding-top:12px;border-top:1px solid var(--border-subtle)}
+.sub h4{margin:0 0 8px;font-size:var(--fs-xs);letter-spacing:.06em;text-transform:uppercase;color:var(--text2);font-weight:600;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.sub h4 .sp{flex:1}
+.stack{display:flex;flex-direction:column;gap:6px}
+.read{margin:10px 0 0;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-surface);font-size:var(--fs-sm);color:var(--text2)}
+.read b{color:var(--text)}
+.dl{border:1px solid var(--border);border-radius:10px;background:var(--bg-canvas);padding:12px 14px}
+.dl .gh{margin:10px 0 4px;font-size:var(--fs-xs);letter-spacing:.06em;text-transform:uppercase;color:var(--text2);font-weight:600;display:flex;justify-content:space-between}
+.dl .c{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--border-subtle);font-size:var(--fs-base)}
+.dl .c span:last-child{color:var(--text2);font-size:var(--fs-sm)}
+.pt{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.pt button{background:var(--bg-surface);border:0;padding:6px 14px;min-height:44px;font-size:var(--fs-sm)}
+.pt button[aria-pressed=true]{background:var(--text);color:#111}
+.grp{display:none}.grp.on{display:block}
 .two{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
 .two>*{flex:1 1 320px}
 </style>
@@ -143,25 +168,30 @@ table.hr td.n{text-align:right;font-variant-numeric:tabular-nums}
 </svg>
 
 <div class="ctl">
-  <h1>CC-26 mockup · version 2</h1>
+  <h1>CC-26 mockup · version 3</h1>
   <div class="grp-ctl" role="tablist" aria-label="Strategy tab states"><span class="gl">Strategy tab</span>
     <button class="seg" role="tab" data-s="t1" aria-selected="false">A · Empty</button>
     <button class="seg" role="tab" data-s="t2" aria-selected="false">B · Claude just proposed</button>
     <button class="seg" role="tab" data-s="t3" aria-selected="false">C · You have edited</button>
-    <button class="seg" role="tab" data-s="t4" aria-selected="false">C2 · Myrkul rule and roll-up</button>
+    <button class="seg" role="tab" data-s="t4" aria-selected="false">C2 · Myrkul strategy point and roll-up</button>
+    <button class="seg" role="tab" data-s="t6" aria-selected="false">I · Build picked</button>
     <button class="seg" role="tab" data-s="t5" aria-selected="false">E to H · Loading, failed, offline, held, phone</button>
+  </div>
+  <div class="grp-ctl" role="tablist" aria-label="Deck list"><span class="gl">Deck list</span>
+    <button class="seg" role="tab" data-s="d1" aria-selected="false">Group by Category or Job</button>
   </div>
   <div class="grp-ctl" role="tablist" aria-label="Card window states"><span class="gl">Card window</span>
     <button class="seg" role="tab" data-s="s1" aria-selected="false">1 · No roles set</button>
     <button class="seg" role="tab" data-s="s2" aria-selected="false">2 · Claude proposal applied</button>
     <button class="seg" role="tab" data-s="s3" aria-selected="false">3 · Accepted</button>
     <button class="seg" role="tab" data-s="s4" aria-selected="false">4 · You are editing</button>
-    <button class="seg" role="tab" data-s="s5" aria-selected="false">5 · Deck rule applying</button>
+    <button class="seg" role="tab" data-s="s5" aria-selected="false">5 · Strategy point applying</button>
     <button class="seg" role="tab" data-s="s6" aria-selected="false">6 · Different suggestion beside yours</button>
     <button class="seg" role="tab" data-s="s7" aria-selected="false">7 · Held above 120 cards</button>
+    <button class="seg" role="tab" data-s="s8" aria-selected="false">8 · Category and Job side by side</button>
   </div>
 </div>
-<p class="note"><b>Mockup only. Nothing is built.</b> Wording follows the draft spec <b>card-roles-and-deck-jobs</b> (version 2). Solid chips are settled (<i>Set by you</i>, <i>Standard</i>). Dashed chips with a robot are <i>Proposed by Claude</i>: already applied, already counted, not yet looked at. Card numbers on the Strategy tab are illustrative; the app works out the real ones. Buttons do nothing except the tabs above.</p>
+<p class="note"><b>Mockup only. Nothing is built.</b> Wording follows the draft spec <b>card-roles-and-deck-jobs</b> (version 3). The Strategy tab is one tab in three layers, general to specific: <b>Build</b>, <b>Your strategy</b>, <b>Card jobs</b>. Solid chips are settled (<i>Set by you</i>, <i>Standard</i>). Dashed chips with a robot are <i>Proposed by Claude</i>: already applied, already counted, not yet looked at. Card numbers on the Strategy tab are illustrative; the app works out the real ones. Buttons do nothing except the tabs above and the Group by switch on the deck list.</p>
 
 <div class="stage">
 
@@ -180,13 +210,15 @@ table.hr td.n{text-align:right;font-variant-numeric:tabular-nums}
           <p class="nt">Roles are the same in every deck. Your own category names below don't change them.</p>
         </div>
         <div class="sec">
-          <p class="st">Category in this deck</p>
+          <p class="st">Category</p>
+          <p class="hint">Category: where it sits in the list</p>
           <div>No category. <button class="link">Add a category</button></div>
           <div class="nt">Suggested: Card draw. <button class="link">Use this</button></div>
           <p class="nt">This is your name for the card in this deck. It doesn't change how the card is counted.</p>
         </div>
         <div class="sec">
-          <p class="st">Deck job</p>
+          <p class="st">Job</p>
+          <p class="hint">Job: why it is in the deck</p>
           <div>No job set. <button class="link">Set a job</button>. You can also ask Claude to propose jobs for this deck.</div>
           <div class="nt"><button class="link">See all jobs on the Strategy tab</button></div>
         </div>
@@ -195,8 +227,8 @@ table.hr td.n{text-align:right;font-variant-numeric:tabular-nums}
           <textarea rows="2" placeholder="One sentence on what this card does for this deck." aria-label="Why it is here"></textarea>
         </div>
         <div class="sec">
-          <p class="st">Deck rules that apply</p>
-          <div>No deck rules apply to this card. <button class="link">Add a rule for this card</button></div>
+          <p class="st">Strategy points that apply</p>
+          <div>No deck strategy points apply to this card. <button class="link">Add a strategy point for this card</button></div>
         </div>
         <div class="sec">
           <p class="st">Counts as</p>
@@ -222,11 +254,13 @@ table.hr td.n{text-align:right;font-variant-numeric:tabular-nums}
           <p class="nt">Standard roles come from Oracle.</p>
         </div>
         <div class="sec">
-          <p class="st">Category in this deck</p>
+          <p class="st">Category</p>
+          <p class="hint">Category: where it sits in the list</p>
           <div class="chips"><span class="chip filled">Engines <span class="lab">Set by you</span></span><button class="btn sm">Edit</button></div>
         </div>
         <div class="sec">
-          <p class="st">Deck job</p>
+          <p class="st">Job</p>
+          <p class="hint">Job: why it is in the deck</p>
           <div class="chips"><span class="chip outline"><svg class="i"><use href="#bot"/></svg>Engine</span><span class="lab">Proposed by Claude · already applied</span></div>
           <p class="reason">"Rhystic Study keeps drawing cards all game."</p>
           <div class="row"><button class="btn sm primary">Accept</button><button class="btn sm">Change</button><button class="btn sm">Dismiss</button></div>
@@ -237,8 +271,8 @@ table.hr td.n{text-align:right;font-variant-numeric:tabular-nums}
           <div>Rhystic Study keeps drawing cards all game. <span class="lab">Proposed by Claude</span></div>
         </div>
         <div class="sec">
-          <p class="st">Deck rules that apply</p>
-          <div>No deck rules apply to this card. <button class="link">Add a rule for this card</button></div>
+          <p class="st">Strategy points that apply</p>
+          <div>No deck strategy points apply to this card. <button class="link">Add a strategy point for this card</button></div>
         </div>
         <div class="sec">
           <p class="st">Counts as</p>
@@ -264,11 +298,13 @@ table.hr td.n{text-align:right;font-variant-numeric:tabular-nums}
           <p class="nt">Standard roles come from Oracle.</p>
         </div>
         <div class="sec">
-          <p class="st">Category in this deck</p>
+          <p class="st">Category</p>
+          <p class="hint">Category: where it sits in the list</p>
           <div class="chips"><span class="chip filled">Engines <span class="lab">Set by you</span></span><button class="btn sm">Edit</button></div>
         </div>
         <div class="sec">
-          <p class="st">Deck job</p>
+          <p class="st">Job</p>
+          <p class="hint">Job: why it is in the deck</p>
           <div class="chips"><span class="chip filled">Engine</span><span class="lab">Set by you</span></div>
           <p class="nt">Last changed by you · 14 Nov</p>
           <div class="nt"><button class="link">See all jobs on the Strategy tab</button></div>
@@ -278,8 +314,8 @@ table.hr td.n{text-align:right;font-variant-numeric:tabular-nums}
           <div>Draws a card whenever opponents cast spells. <span class="lab">Set by you</span></div>
         </div>
         <div class="sec">
-          <p class="st">Deck rules that apply</p>
-          <div>No deck rules apply to this card. <button class="link">Add a rule for this card</button></div>
+          <p class="st">Strategy points that apply</p>
+          <div>No deck strategy points apply to this card. <button class="link">Add a strategy point for this card</button></div>
         </div>
         <div class="sec">
           <p class="st">Counts as</p>
@@ -312,11 +348,13 @@ table.hr td.n{text-align:right;font-variant-numeric:tabular-nums}
           </div>
         </div>
         <div class="sec">
-          <p class="st">Category in this deck</p>
+          <p class="st">Category</p>
+          <p class="hint">Category: where it sits in the list</p>
           <div class="chips"><span class="chip filled">Engines <span class="lab">Set by you</span></span><button class="btn sm">Edit</button></div>
         </div>
         <div class="sec">
-          <p class="st">Deck job</p>
+          <p class="st">Job</p>
+          <p class="hint">Job: why it is in the deck</p>
           <div class="chips"><span class="sel">Engine <svg class="i"><use href="#chev"/></svg></span><span class="lab">Proposed by Claude</span></div>
           <div class="list" aria-label="Job picker">
             <div class="cur"><b>Engine</b><span>Keeps producing value</span></div>
@@ -337,8 +375,8 @@ table.hr td.n{text-align:right;font-variant-numeric:tabular-nums}
           <div class="row"><button class="btn primary">Save change</button><button class="btn">Cancel</button></div>
         </div>
         <div class="sec">
-          <p class="st">Deck rules that apply</p>
-          <div>No deck rules apply to this card. <button class="link">Add a rule for this card</button></div>
+          <p class="st">Strategy points that apply</p>
+          <div>No deck strategy points apply to this card. <button class="link">Add a strategy point for this card</button></div>
         </div>
         <div class="sec">
           <p class="st">Counts as</p>
@@ -351,8 +389,8 @@ table.hr td.n{text-align:right;font-variant-numeric:tabular-nums}
 </section>
 
 <!-- ================= STATE 5 ================= -->
-<section class="state" id="s5" aria-label="State 5: a deck rule applying">
-  <p class="cap"><b>State 5 · A deck rule applying.</b> Devoted Druid in Murky Business (commander Myrkul, Lord of Bones). The rule lives on the deck and covers two chosen cards. It adds no count, so deck health does not change.</p>
+<section class="state" id="s5" aria-label="State 5: a deck strategy point applying">
+  <p class="cap"><b>State 5 · A deck strategy point applying.</b> Devoted Druid in Murky Business (commander Myrkul, Lord of Bones). The strategy point lives on the deck and covers two chosen cards. It adds no count, so deck health does not change.</p>
   <div class="backdrop"><div class="dlg" role="dialog" aria-label="Devoted Druid">
     <div class="dh"><h2>Devoted Druid</h2><span class="badge">In deck · Original</span><button class="x" aria-label="Close"><svg class="i"><use href="#x"/></svg></button></div>
     <div class="db">
@@ -364,11 +402,13 @@ table.hr td.n{text-align:right;font-variant-numeric:tabular-nums}
           <p class="nt">Standard roles come from Oracle.</p>
         </div>
         <div class="sec">
-          <p class="st">Category in this deck</p>
+          <p class="st">Category</p>
+          <p class="hint">Category: where it sits in the list</p>
           <div class="chips"><span class="chip filled">Creature <span class="lab">Set by you</span></span><button class="btn sm">Edit</button></div>
         </div>
         <div class="sec">
-          <p class="st">Deck job</p>
+          <p class="st">Job</p>
+          <p class="hint">Job: why it is in the deck</p>
           <div class="chips"><span class="chip outline"><svg class="i"><use href="#bot"/></svg>Engine</span><span class="lab">Proposed by Claude</span></div>
           <p class="reason">"Makes mana every turn, and the counter cost is free once it is an enchantment."</p>
           <div class="row"><button class="btn sm primary">Accept</button><button class="btn sm">Change</button><button class="btn sm">Dismiss</button></div>
@@ -378,13 +418,13 @@ table.hr td.n{text-align:right;font-variant-numeric:tabular-nums}
           <div>Makes mana every turn, and the counter cost is free once it is an enchantment. <span class="lab">Proposed by Claude</span></div>
         </div>
         <div class="sec">
-          <p class="st">Deck rules that apply</p>
-          <div class="rule">
+          <p class="st">Strategy points that apply</p>
+          <div class="strategy point">
             <div class="q">A -1/-1 counter cost is free once the card is a non-creature enchantment.</div>
             <div class="row"><span class="lab">Set by you</span><span class="lab">Counts as: nothing extra</span></div>
-            <div class="row"><button class="btn sm">Edit rule</button><button class="btn sm">Stop applying to this card</button></div>
+            <div class="row"><button class="btn sm">Edit strategy point</button><button class="btn sm">Stop applying to this card</button></div>
           </div>
-          <div class="row"><button class="link">Add a rule for this card</button></div>
+          <div class="row"><button class="link">Add a strategy point for this card</button></div>
         </div>
         <div class="sec">
           <p class="st">Counts as</p>
@@ -395,190 +435,208 @@ table.hr td.n{text-align:right;font-variant-numeric:tabular-nums}
     <div class="df"><span class="sp"></span><span>Saved</span></div>
   </div></div>
 
-  <p class="cap" style="margin-top:16px"><b>Where the rule is made:</b> the Deck rules panel on the deck page. The preview line shows that health numbers don't change.</p>
-  <div class="backdrop"><div class="dlg" role="dialog" aria-label="Add rule">
-    <div class="dh"><h2 style="font-size:var(--fs-lg)">Add rule</h2><button class="x" aria-label="Close"><svg class="i"><use href="#x"/></svg></button></div>
+  <p class="cap" style="margin-top:16px"><b>Where the strategy point is made:</b> the Strategy points list in the Your strategy layer of the Strategy tab. The preview line shows that health numbers don't change.</p>
+  <div class="backdrop"><div class="dlg" role="dialog" aria-label="Add strategy point">
+    <div class="dh"><h2 style="font-size:var(--fs-lg)">Add strategy point</h2><button class="x" aria-label="Close"><svg class="i"><use href="#x"/></svg></button></div>
     <div style="padding:16px">
-      <p class="st">Rule</p>
-      <textarea rows="2" aria-label="Rule">A -1/-1 counter cost is free once the card is a non-creature enchantment.</textarea>
+      <p class="st">Strategy point</p>
+      <textarea rows="2" aria-label="Strategy point">A -1/-1 counter cost is free once the card is a non-creature enchantment.</textarea>
       <p class="st" style="margin-top:12px">Covers</p>
       <div class="chips"><span class="chip">All cards of a type</span><span class="chip filled">Chosen cards</span></div>
       <div class="chips" style="margin-top:8px"><span class="chip filled">Devoted Druid</span><span class="chip filled">Cinderhaze Wretch</span></div>
       <p class="st" style="margin-top:12px">Counts as (optional)</p>
       <div class="chips"><span class="chip filled">None</span><span class="chip">Ramp</span><span class="chip">Card draw</span><span class="chip">Targeted removal</span><span class="chip">Board wipe</span></div>
       <p class="nt" style="margin-top:12px">Covers 2 cards. Health numbers don't change.</p>
-      <div class="row"><button class="btn primary">Save rule</button><button class="btn">Cancel</button></div>
+      <div class="row"><button class="btn primary">Save strategy point</button><button class="btn">Cancel</button></div>
     </div>
   </div></div>
 </section>
 
 <!-- ================= STRATEGY A ================= -->
-<section class="state" id="t1" aria-label="Strategy tab state A: empty">
-  <p class="cap"><b>Strategy tab · State A · Empty, nothing set.</b> Arti-facts today. The three test decks have no strategy text, bracket, notes or linked commander, so this is how they really look. No proposals bar. Health uses common defaults and shows real numbers, not zeros.</p>
+<section class="state" id="t1" aria-label="Strategy tab state A: empty, no build">
+  <p class="cap"><b>Strategy tab · State A · Empty: nothing set, no build.</b> Arti-facts today. The three test decks have no strategy text, bracket, notes or linked commander, so this is how they really look. The Build layer is not hidden: it says what to do. Health uses the common guide and says so on every line. No proposals bar. Read the three layers top to bottom, general to specific.</p>
   <div class="tabp">
     <h2 class="ttl">Strategy</h2>
-      <div class="sum"><b>Arti-facts</b><span class="st-badge"><svg class="i"><use href="#hammer"/></svg>Assembling · 84/100</span></div>
-      <div class="sum src">Typical numbers are for Mendicant Core, Guidelight.</div>
-    <div class="sum src">Nothing set for this deck yet · 0 jobs · 0 rules</div>
-    <div class="band"><h3>Deck intent <span class="sp"></span><button class="btn sm">Edit</button></h3>
-      <dl class="kv"><dt>Strategy notes</dt><dd class="empty">Not set</dd><dt>Win condition</dt><dd class="empty">Not set</dd><dt>Bracket</dt><dd class="empty">Not set</dd><dt>Budget</dt><dd class="empty">Not set</dd></dl>
-      <p class="nt">Say how this deck wins and what table it is for. Claude reads this when it advises you.</p></div>
-    <div class="band"><h3>Deck jobs <span class="sp"></span><button class="btn sm primary"><svg class="i"><use href="#bot"/></svg>Ask Claude to propose</button></h3>
-      <p style="margin:0">No jobs set. A job says what a card does for this deck's plan, for example Engine or Payoff. <button class="link">Set a job in the card window</button> or ask Claude to propose jobs.</p>
+      <div class="sum"><b>Arti-facts</b><span class="st-badge"><svg class="i"><use href="#hammer"/></svg>Assembling · 84/100</span> <span>Bracket not set · No build yet</span></div>
+    <div class="sum src">Nothing set for this deck yet · No build yet · 0 jobs · 0 strategy points</div>
+    <div class="layer l1"><div class="lh"><span class="num">1</span><h3>Build</h3><span class="tag">General. "Most decks like this one are built this way."</span></div>
+      <p style="margin:0">No build yet. Link this deck's commander to see its EDHREC builds, typical numbers and starting categories. This doesn't affect Your strategy, Card jobs or health.</p>
+      <div class="row"><button class="btn sm primary">Link commander</button><span class="src">Suggested from the deck: Mendicant Core, Guidelight</span></div></div>
+    <div class="layer l2"><div class="lh"><span class="num">2</span><h3>Your strategy</h3><span class="tag">This deck. "Here is how I want to play it." Refines the build.</span><span class="sp"></span><button class="btn sm">Edit</button></div>
+      <dl class="kv"><dt>Win condition</dt><dd class="empty">Not set</dd><dt>Bracket</dt><dd class="empty">Not set</dd><dt>Playgroup</dt><dd class="empty">Not set</dd><dt>Budget</dt><dd class="empty">Not set</dd></dl>
+      <p class="nt">Say how this deck wins and what table it is for. Claude reads this when it advises you.</p>
+      <div class="sub"><h4>Strategy points <span class="sp"></span><button class="btn sm">Add strategy point</button><button class="btn sm"><svg class="i"><use href="#bot"/></svg>Ask Claude</button></h4>
+        <p style="margin:0">No strategy points yet. A strategy point is a statement of this deck's strategy that covers some cards, for example "every artifact counts as a mana source".</p></div>
+      <div class="sub"><h4>Notes</h4><p class="nt" style="margin:0">Not set. Anything else about how you want to play this deck.</p><p class="nt">Earlier notes: none yet.</p></div></div>
+    <div class="layer l3"><div class="lh"><span class="num">3</span><h3>Card jobs</h3><span class="tag">Each card. "Because of that plan, this card is here for this reason." Refines your strategy.</span><span class="sp"></span><button class="btn sm primary"><svg class="i"><use href="#bot"/></svg>Ask Claude to propose</button></div>
+      <p style="margin:0">No jobs set. A job says why a card is in this deck, for example Engine or Payoff. It is separate from a category, which is where the card sits in your list. <button class="link">Set a job in the card window</button> or ask Claude to propose jobs.</p>
       <div class="menu" aria-label="Ask Claude to propose menu">
         <div><b>Propose roles</b><span>Fills the chat with a ready message. You press Send.</span></div>
-        <div><b>Propose jobs</b></div><div><b>Propose rules</b></div><div><b>Propose everything</b></div></div>
+        <div><b>Propose jobs</b></div><div><b>Propose strategy points</b></div><div><b>Propose everything</b></div></div>
       <p class="nt">Choosing an item opens the deck chat with the message filled in. Nothing is sent until you press Send.</p></div>
-    <div class="band"><h3>Deck rules <span class="sp"></span><button class="btn sm">Add rule</button><button class="btn sm"><svg class="i"><use href="#bot"/></svg>Ask Claude</button></h3>
-      <p style="margin:0">No rules yet. A rule is a sentence that changes how several cards are read here, for example "every artifact counts as a mana source".</p></div>
-    <div class="band"><h3>Deck health</h3>
-      <p class="nt" style="margin:0 0 8px">Using common defaults. No roles, jobs or rules are set for this deck yet. Counts come from each card's universal role, or from its card text where no role exists.</p>
-      <table class="hr"><thead><tr><th>Group</th><th>Have</th><th>Typical for commander</th><th>Common guide</th><th></th><th>Where the count comes from</th></tr></thead><tbody>
-      <tr><td><b>Lands</b></td><td class="n">33</td><td class="n">34</td><td class="n">36</td><td></td><td class="src">all from land type</td></tr>
-      <tr><td><b>Ramp</b></td><td class="n">8</td><td class="n">16</td><td class="n">10</td><td><span class="light"><svg class="i"><use href="#warn"/></svg>Light</span></td><td class="src">from card text (no role set yet)</td></tr>
-      <tr><td><b>Card advantage</b></td><td class="n">14</td><td class="n">13</td><td class="n">10</td><td></td><td class="src">from card text (no role set yet)</td></tr>
-      <tr><td><b>Interaction</b></td><td class="n">3</td><td class="n">4</td><td class="n">10</td><td></td><td class="src">removal 2 + board wipe 1, from card text</td></tr>
-      </tbody></table>
-      <p class="nt">Plan and win conditions: not counted until jobs are set.</p>
+    <div class="band"><h3>Deck health <span class="lab" style="text-transform:none">reads all three layers</span></h3>
+      <p class="nt" style="margin:0 0 8px">Using the common guide. No build is picked, and no roles, jobs or strategy points are set for this deck yet. Counts come from each card's universal role, or from its card text where no role exists.</p>
+      <table class="hr"><thead><tr><th>Group</th><th>Have</th><th>Target</th><th>Target from</th><th></th><th>Where the count comes from</th></tr></thead><tbody><tr><td><b>Lands</b></td><td class="n">33</td><td class="n">36</td><td class="src">common guide</td><td><span class="light"><svg class="i"><use href="#warn"/></svg>Light</span> <span class="src">3 short</span></td><td class="src">all from land type</td></tr><tr><td><b>Ramp</b></td><td class="n">8</td><td class="n">10</td><td class="src">common guide</td><td><span class="light"><svg class="i"><use href="#warn"/></svg>Light</span> <span class="src">2 short</span></td><td class="src">from card text (no role set yet)</td></tr><tr><td><b>Card advantage</b></td><td class="n">14</td><td class="n">10</td><td class="src">common guide</td><td></td><td class="src">from card text (no role set yet)</td></tr><tr><td><b>Interaction</b></td><td class="n">3</td><td class="n">10</td><td class="src">common guide</td><td><span class="light"><svg class="i"><use href="#warn"/></svg>Light</span> <span class="src">7 short</span></td><td class="src">removal 2 + board wipe 1, from card text</td></tr><tr><td><b>Plan and win conditions</b></td><td colspan="5" class="src">Not counted until jobs are set.</td></tr></tbody></table>
       <div class="row"><button class="btn sm">How these roll up</button><button class="btn sm">Chat about this</button></div></div>
-    <div class="band"><h3>Commander guide <span class="lab">from EDHREC</span></h3>
-      <p class="nt" style="margin:0">No commander record is linked to this deck, so commander research isn't shown. This doesn't affect jobs, rules or health.</p></div>
-      <div class="band"><h3>Notes</h3><p class="nt" style="margin:0">No notes yet.</p></div>
   </div>
 
+  <div class="tabp" style="margin-top:16px"><p class="st">After pressing Link commander: a small window suggests the deck's commander</p>
+    <div class="chatbox"><input type="text" value="Mendicant Core, Guidelight" aria-label="Commander search">
+      <div class="list" style="max-width:100%"><div class="cur"><b>Mendicant Core, Guidelight</b><span>EDHREC data found. Saving links this deck to this commander. Nothing else about the deck changes.</span></div></div>
+      <div class="row"><button class="btn primary">Link commander</button><button class="btn">Cancel</button><span class="src">If nothing matches: "We couldn't find this commander in the EDHREC data. Nothing has changed."</span></div></div></div>
+
   <div class="tabp" style="margin-top:16px"><p class="st">After choosing "Propose everything": the deck chat opens with the message filled in</p>
-    <div class="chatbox"><div class="msg">Please set up Arti-facts for me: propose universal roles, a deck job and reason for each card that needs one, and any deck rules that apply. Don't change anything I set myself. Give me one summary at the end.</div>
+    <div class="chatbox"><div class="msg">Please set up Arti-facts for me: propose universal roles, a deck job and reason for each card that needs one, and any strategy points that apply. Don't change anything I set myself. Give me one summary at the end.</div>
     <div class="row"><button class="btn primary">Send</button><span class="src">You can edit the message first. Nothing has changed yet.</span></div></div></div>
 </section>
 
 <!-- ================= STRATEGY B ================= -->
 <section class="state" id="t2" aria-label="Strategy tab state B: Claude just proposed">
-  <p class="cap"><b>Strategy tab · State B · Claude has just proposed a full deck.</b> You pressed Propose everything, then Send. 51 jobs and 1 rule are already applied and counted. Nothing waits for approval.</p>
+  <p class="cap"><b>Strategy tab · State B · Claude has just proposed a full deck.</b> You pressed Propose everything, then Send. 51 jobs and 1 strategy point are already applied and counted. Nothing waits for approval. The Build layer is still empty (no commander linked), so health targets are the common guide.</p>
   <div class="tabp">
     <h2 class="ttl">Strategy</h2>
-      <div class="sum"><b>Arti-facts</b><span class="st-badge"><svg class="i"><use href="#hammer"/></svg>Assembling · 84/100</span> <span>51 jobs set (51 proposed) · 1 rule · <a href="#t2">52 to look at</a></span></div>
-      <div class="sum src">Typical numbers are for Mendicant Core, Guidelight.</div>
+      <div class="sum"><b>Arti-facts</b><span class="st-badge"><svg class="i"><use href="#hammer"/></svg>Assembling · 84/100</span> <span>51 jobs set (51 proposed) · 1 strategy point · <a href="#t2">52 to look at</a></span></div>
+      <div class="sum src">Build: none yet</div>
     <div class="band" style="border-top:0"><h3>Claude's proposals</h3>
-      <div class="pbar"><div class="t"><svg class="i" style="color:var(--hand)"><use href="#bot"/></svg><b>Today 14:02</b><span>Claude proposed 51 jobs and 1 rule</span><span class="sp"></span><span class="chip outline">52 to look at</span></div>
+      <div class="pbar"><div class="t"><svg class="i" style="color:var(--hand)"><use href="#bot"/></svg><b>Today 14:02</b><span>Claude proposed 51 jobs and 1 strategy point</span><span class="sp"></span><span class="chip outline">52 to look at</span></div>
         <div class="row"><button class="btn sm">Review</button><button class="btn sm primary">Accept all</button><button class="btn sm">Undo all</button><button class="link">Show older batches</button></div>
         <p class="nt">Claude has already applied these. Look them over and Accept what's right, or Undo all.</p></div></div>
-    <div class="band"><h3>Deck intent <span class="sp"></span><button class="btn sm">Edit</button></h3>
-      <dl class="kv"><dt>Strategy notes</dt><dd class="empty">Not set</dd><dt>Win condition</dt><dd class="empty">Not set</dd><dt>Bracket</dt><dd class="empty">Not set</dd></dl></div>
-    <div class="band"><h3>Deck jobs <span class="lab" style="text-transform:none">51 proposed by Claude · 0 set by you</span><span class="sp"></span><button class="btn sm"><svg class="i"><use href="#bot"/></svg>Ask Claude to propose</button><button class="btn sm">Filter: All</button></h3>
-      <div class="jrow"><button class="jbtn" aria-expanded="false">Engine</button><span>8</span><span class="jbar"><i style="width:24%"></i></span><span class="src">8 proposed</span></div><div class="jrow"><button class="jbtn" aria-expanded="false">Enabler</button><span>14</span><span class="jbar"><i style="width:42%"></i></span><span class="src">14 proposed</span></div><div class="jrow"><button class="jbtn" aria-expanded="false">Payoff</button><span>9</span><span class="jbar"><i style="width:27%"></i></span><span class="src">9 proposed</span></div><div class="jrow"><button class="jbtn" aria-expanded="false">Win condition</button><span>3</span><span class="jbar"><i style="width:9%"></i></span><span class="src">3 proposed</span></div><div class="jrow"><button class="jbtn" aria-expanded="false">Combo piece</button><span>4</span><span class="jbar"><i style="width:12%"></i></span><span class="src">4 proposed</span></div><div class="jrow"><button class="jbtn" aria-expanded="false">Commander support</button><span>3</span><span class="jbar"><i style="width:9%"></i></span><span class="src">3 proposed</span></div><div class="jrow"><button class="jbtn" aria-expanded="false">Flex</button><span>10</span><span class="jbar"><i style="width:30%"></i></span><span class="src">10 proposed</span></div>
-      <div class="jrow"><span>No job set</span><span>33</span><span></span><span class="src">Fine for lands and filler. Not every card needs a job.</span></div>
+    <div class="layer l1"><div class="lh"><span class="num">1</span><h3>Build</h3><span class="tag">General. "Most decks like this one are built this way."</span></div>
+      <p style="margin:0">No build yet. Link this deck's commander to see its EDHREC builds, typical numbers and starting categories. This doesn't affect Your strategy, Card jobs or health.</p>
+      <div class="row"><button class="btn sm primary">Link commander</button><span class="src">Suggested from the deck: Mendicant Core, Guidelight</span></div></div>
+    <div class="layer l2"><div class="lh"><span class="num">2</span><h3>Your strategy</h3><span class="tag">This deck. Refines the build.</span><span class="sp"></span><button class="btn sm">Edit</button></div>
+      <dl class="kv"><dt>Win condition</dt><dd class="empty">Not set</dd><dt>Bracket</dt><dd class="empty">Not set</dd><dt>Playgroup</dt><dd class="empty">Not set</dd></dl>
+      <div class="sub"><h4>Strategy points <span class="lab" style="text-transform:none">1</span><span class="sp"></span><button class="btn sm">Add strategy point</button><button class="btn sm"><svg class="i"><use href="#bot"/></svg>Ask Claude</button></h4>
+        <div class="rule"><div class="q">Every artifact counts as a mana source.</div>
+          <div class="row"><span class="chip outline"><svg class="i"><use href="#bot"/></svg>Proposed by Claude</span><span class="lab">Covers 19 cards · counts as Ramp</span></div>
+          <p class="reason">Covers 19 cards. 2 are lands (Ancient Den, Razortide Bridge) and stay in Lands. 4 are already counted as Ramp. It would also count Skullclamp and Whispersilk Cloak as mana, which may not be what you mean. Ramp would go from 8 to 21 of 10 (common guide).</p>
+          <div class="row"><button class="btn sm primary">Accept</button><button class="btn sm">Change</button><button class="btn sm">Dismiss</button></div></div>
+        <p class="nt">Copy to my other decks with this commander: coming later.</p></div>
+      <div class="sub"><h4>Notes</h4><p class="nt" style="margin:0">Not set.</p></div></div>
+    <div class="layer l3"><div class="lh"><span class="num">3</span><h3>Card jobs</h3><span class="tag">Each card. Refines your strategy.</span><span class="lab">51 proposed by Claude · 0 set by you</span><span class="sp"></span><button class="btn sm"><svg class="i"><use href="#bot"/></svg>Ask Claude to propose</button><button class="btn sm">Filter: All</button></div>
+      <div class="jrow"><button class="jbtn" aria-expanded="false">Engine</button><span>8</span><span class="jbar"><i style="width:24%"></i></span><span class="src">8 proposed</span></div><div class="jrow"><button class="jbtn" aria-expanded="false">Enabler</button><span>14</span><span class="jbar"><i style="width:42%"></i></span><span class="src">14 proposed</span></div><div class="jrow"><button class="jbtn" aria-expanded="false">Payoff</button><span>9</span><span class="jbar"><i style="width:27%"></i></span><span class="src">9 proposed</span></div><div class="jrow"><button class="jbtn" aria-expanded="false">Win condition</button><span>3</span><span class="jbar"><i style="width:9%"></i></span><span class="src">3 proposed</span></div><div class="jrow"><button class="jbtn" aria-expanded="false">Combo piece</button><span>4</span><span class="jbar"><i style="width:12%"></i></span><span class="src">4 proposed</span></div><div class="jrow"><button class="jbtn" aria-expanded="false">Commander support</button><span>3</span><span class="jbar"><i style="width:9%"></i></span><span class="src">3 proposed</span></div><div class="jrow"><button class="jbtn" aria-expanded="false">Flex</button><span>10</span><span class="jbar"><i style="width:30%"></i></span><span class="src">10 proposed</span></div><div class="jrow"><span>No job set</span><span>33</span><span></span><span class="src">Fine for lands and filler. Not every card needs a job.</span></div>
       <div class="cardrow"><span>Engine</span><span><a href="#t2">Skullclamp</a> · "Turns every creature into cards"</span><span><span class="chip outline"><svg class="i"><use href="#bot"/></svg>Proposed by Claude</span> <button class="btn sm primary">Accept</button><button class="btn sm">Change</button><button class="btn sm">Dismiss</button></span></div>
       <div class="cardrow"><span>Engine</span><span><a href="#t2">Whispersilk Cloak</a> · "Makes the commander hard to stop"</span><span><span class="chip outline"><svg class="i"><use href="#bot"/></svg>Proposed by Claude</span> <button class="btn sm primary">Accept</button><button class="btn sm">Change</button><button class="btn sm">Dismiss</button></span></div>
       <p class="nt">Maybeboard: 4 cards, 0 with a job.</p></div>
-    <div class="band"><h3>Deck rules <span class="lab" style="text-transform:none">1</span><span class="sp"></span><button class="btn sm">Add rule</button><button class="btn sm"><svg class="i"><use href="#bot"/></svg>Ask Claude</button></h3>
-      <div class="rule"><div class="q">Every artifact counts as a mana source.</div>
-        <div class="row"><span class="chip outline"><svg class="i"><use href="#bot"/></svg>Proposed by Claude</span><span class="lab">Covers 19 cards · counts as Ramp</span></div>
-        <p class="reason">Covers 19 cards. 2 are lands (Ancient Den, Razortide Bridge) and stay in Lands. 4 are already counted as Ramp. It would also count Skullclamp and Whispersilk Cloak as mana, which may not be what you mean. Ramp would go from 8 to 21 of 16 typical.</p>
-        <div class="row"><button class="btn sm primary">Accept</button><button class="btn sm">Change</button><button class="btn sm">Dismiss</button></div></div>
-      <p class="nt">Copy to my other decks with this commander: coming later.</p></div>
-    <div class="band"><h3>Deck health</h3>
-      <div class="notice">Ramp changed from 8 to 21 because of 1 new rule (Proposed by Claude). <button class="link">See what changed</button></div>
-      <p class="nt" style="margin:0 0 8px">Using what's set for this deck: 51 jobs, 1 rule. (52 are still Proposed by Claude.)</p>
-      <table class="hr"><thead><tr><th>Group</th><th>Have</th><th>Typical for commander</th><th>Common guide</th><th></th><th>Where the count comes from</th></tr></thead><tbody>
-      <tr><td><b>Lands</b></td><td class="n">33</td><td class="n">34</td><td class="n">36</td><td></td><td class="src">all from land type</td></tr>
-      <tr><td><b>Ramp</b></td><td class="n">21</td><td class="n">16</td><td class="n">10</td><td></td><td class="src">8 from roles, 13 from the proposed deck rule</td></tr>
-      <tr><td><b>Card advantage</b></td><td class="n">14</td><td class="n">13</td><td class="n">10</td><td></td><td class="src">from card text</td></tr>
-      <tr><td><b>Interaction</b></td><td class="n">3</td><td class="n">4</td><td class="n">10</td><td></td><td class="src">removal 2 + board wipe 1, from card text</td></tr>
-      <tr><td><b>Plan and win conditions</b></td><td colspan="5" class="src">Plan cards 35 · Win conditions 3 (all Proposed by Claude). No judged number.</td></tr>
-      </tbody></table>
+    <div class="band"><h3>Deck health <span class="lab" style="text-transform:none">reads all three layers</span></h3>
+      <div class="notice">Ramp changed from 8 to 21 because of 1 new strategy point (Proposed by Claude). <button class="link">See what changed</button></div>
+      <p class="nt" style="margin:0 0 8px">Using what's set for this deck: 51 jobs, 1 strategy point. Targets are from the common guide. (52 are still Proposed by Claude.)</p>
+      <table class="hr"><thead><tr><th>Group</th><th>Have</th><th>Target</th><th>Target from</th><th></th><th>Where the count comes from</th></tr></thead><tbody><tr><td><b>Lands</b></td><td class="n">33</td><td class="n">36</td><td class="src">common guide</td><td><span class="light"><svg class="i"><use href="#warn"/></svg>Light</span> <span class="src">3 short</span></td><td class="src">all from land type</td></tr><tr><td><b>Ramp</b></td><td class="n">21</td><td class="n">10</td><td class="src">common guide</td><td></td><td class="src">adjusted by your strategy point: 8 from roles, 13 from the proposed strategy point</td></tr><tr><td><b>Card advantage</b></td><td class="n">14</td><td class="n">10</td><td class="src">common guide</td><td></td><td class="src">from card text</td></tr><tr><td><b>Interaction</b></td><td class="n">3</td><td class="n">10</td><td class="src">common guide</td><td><span class="light"><svg class="i"><use href="#warn"/></svg>Light</span> <span class="src">7 short</span></td><td class="src">removal 2 + board wipe 1, from card text</td></tr><tr><td><b>Plan and win conditions</b></td><td colspan="5" class="src">Plan cards 35 · Win conditions 3 (all Proposed by Claude). No judged number.</td></tr></tbody></table>
       <div class="row"><button class="btn sm">How these roll up</button><button class="btn sm">Chat about this</button></div></div>
-    <div class="band"><h3>Commander guide</h3><p class="nt" style="margin:0">No commander record is linked to this deck.</p></div>
-    <div class="band"><h3>Notes</h3><p class="nt" style="margin:0">No notes yet.</p></div>
   </div>
 </section>
 
 <!-- ================= STRATEGY C ================= -->
 <section class="state" id="t3" aria-label="Strategy tab state C: you have edited">
-  <p class="cap"><b>Strategy tab · State C · You have edited some of it.</b> From the batch of 52: you accepted 34, changed 2 (the rule, narrowed to 3 chosen artifacts, and Whispersilk Cloak to Flex), and 15 are still to look at. One card has a different suggestion from Claude beside your value.</p>
+  <p class="cap"><b>Strategy tab · State C · You have edited some of it.</b> From the batch of 52: you accepted 34, changed 2 (the strategy point, narrowed to 3 chosen artifacts, and Whispersilk Cloak to Flex), and 15 are still to look at. One card has a different suggestion from Claude beside your value. You also filled in Your strategy.</p>
   <div class="tabp">
     <h2 class="ttl">Strategy</h2>
-      <div class="sum"><b>Arti-facts</b><span class="st-badge"><svg class="i"><use href="#hammer"/></svg>Assembling · 84/100</span> <span>51 jobs set (36 yours · 15 proposed) · 1 rule · <a href="#t3">16 to look at</a></span></div>
-      <div class="sum src">Typical numbers are for Mendicant Core, Guidelight.</div>
+      <div class="sum"><b>Arti-facts</b><span class="st-badge"><svg class="i"><use href="#hammer"/></svg>Assembling · 84/100</span> <span>51 jobs set (36 yours · 15 proposed) · 1 strategy point · <a href="#t3">16 to look at</a></span></div>
+      <div class="sum src">Build: none yet</div>
     <div class="band" style="border-top:0"><h3>Claude's proposals</h3>
-      <div class="pbar"><div class="t"><svg class="i" style="color:var(--hand)"><use href="#bot"/></svg><b>Today 14:02</b><span>Claude proposed 51 jobs and 1 rule</span><span class="sp"></span><span class="lab">Accepted 34 · Changed 2 · 15 to look at</span></div>
+      <div class="pbar"><div class="t"><svg class="i" style="color:var(--hand)"><use href="#bot"/></svg><b>Today 14:02</b><span>Claude proposed 51 jobs and 1 strategy point</span><span class="sp"></span><span class="lab">Accepted 34 · Changed 2 · 15 to look at</span></div>
         <div class="row"><button class="btn sm">Review</button><button class="btn sm primary">Accept all</button><button class="btn sm">Undo all</button></div>
         <p class="nt">Undo all puts back only the cards you haven't accepted or changed. Your accepted and changed cards stay, and Oracle tells you which.</p>
         <div class="t" style="margin-top:8px"><span>1 card has a different suggestion from Claude.</span><button class="btn sm">Review</button></div></div></div>
-    <div class="band"><h3>Deck intent <span class="sp"></span><button class="btn sm">Edit</button></h3>
-      <dl class="kv"><dt>Strategy notes</dt><dd>Win with a Mendicant Core chain, protect it with cheap artifacts.</dd><dt>Win condition</dt><dd>Combat damage with a large Mendicant Core army.</dd><dt>Bracket</dt><dd>3</dd><dt>Budget</dt><dd class="empty">Not set</dd></dl></div>
-    <div class="band"><h3>Deck jobs <span class="lab" style="text-transform:none">15 proposed by Claude · 36 set by you</span><span class="sp"></span><button class="btn sm"><svg class="i"><use href="#bot"/></svg>Ask Claude to propose</button><button class="btn sm">Filter: All</button></h3>
-      <div class="jrow"><button class="jbtn" aria-expanded="false">Engine</button><span>8</span><span class="jbar"><i style="width:24%"></i></span><span class="src">6 proposed · 2 yours</span></div><div class="jrow"><button class="jbtn" aria-expanded="false">Enabler</button><span>14</span><span class="jbar"><i style="width:42%"></i></span><span class="src">4 proposed · 10 yours</span></div><div class="jrow"><button class="jbtn" aria-expanded="false">Payoff</button><span>9</span><span class="jbar"><i style="width:27%"></i></span><span class="src">2 proposed · 7 yours</span></div><div class="jrow"><button class="jbtn" aria-expanded="false">Win condition</button><span>3</span><span class="jbar"><i style="width:9%"></i></span><span class="src">3 yours</span></div><div class="jrow"><button class="jbtn" aria-expanded="false">Combo piece</button><span>4</span><span class="jbar"><i style="width:12%"></i></span><span class="src">4 yours</span></div><div class="jrow"><button class="jbtn" aria-expanded="false">Commander support</button><span>3</span><span class="jbar"><i style="width:9%"></i></span><span class="src">3 yours</span></div><div class="jrow"><button class="jbtn" aria-expanded="false">Flex</button><span>10</span><span class="jbar"><i style="width:30%"></i></span><span class="src">10 yours</span></div>
-      <div class="jrow"><span>No job set</span><span>33</span><span></span><span class="src">Fine for lands and filler.</span></div>
+    <div class="layer l1"><div class="lh"><span class="num">1</span><h3>Build</h3><span class="tag">General. "Most decks like this one are built this way."</span></div>
+      <p style="margin:0">No build yet. Link this deck's commander to see its EDHREC builds, typical numbers and starting categories. This doesn't affect Your strategy, Card jobs or health.</p>
+      <div class="row"><button class="btn sm primary">Link commander</button><span class="src">Suggested from the deck: Mendicant Core, Guidelight</span></div></div>
+    <div class="layer l2"><div class="lh"><span class="num">2</span><h3>Your strategy</h3><span class="tag">This deck. Refines the build.</span><span class="sp"></span><button class="btn sm">Edit</button></div>
+      <dl class="kv"><dt>Win condition</dt><dd>Combat damage with a large Mendicant Core army.</dd><dt>Bracket</dt><dd>3</dd><dt>Playgroup</dt><dd class="empty">Not set</dd><dt>Budget</dt><dd class="empty">Not set</dd></dl>
+      <div class="sub"><h4>Strategy points <span class="lab" style="text-transform:none">1</span><span class="sp"></span><button class="btn sm">Add strategy point</button><button class="btn sm"><svg class="i"><use href="#bot"/></svg>Ask Claude</button></h4>
+        <div class="rule"><div class="q">These artifacts count as mana sources.</div>
+          <div class="row"><span class="chip filled">Set by you</span><span class="lab">Covers 3 chosen cards · counts as Ramp</span><button class="btn sm">Edit</button><button class="btn sm">Remove</button></div></div>
+        <p class="nt">Copy to my other decks with this commander: coming later.</p></div>
+      <div class="sub"><h4>Notes</h4><p style="margin:0">Win with a Mendicant Core chain, protect it with cheap artifacts.</p><p class="nt">Earlier notes: none yet.</p></div></div>
+    <div class="layer l3"><div class="lh"><span class="num">3</span><h3>Card jobs</h3><span class="tag">Each card. Refines your strategy.</span><span class="lab">15 proposed by Claude · 36 set by you</span><span class="sp"></span><button class="btn sm"><svg class="i"><use href="#bot"/></svg>Ask Claude to propose</button><button class="btn sm">Filter: All</button></div>
+      <div class="jrow"><button class="jbtn" aria-expanded="false">Engine</button><span>8</span><span class="jbar"><i style="width:24%"></i></span><span class="src">6 proposed · 2 yours</span></div><div class="jrow"><button class="jbtn" aria-expanded="false">Enabler</button><span>14</span><span class="jbar"><i style="width:42%"></i></span><span class="src">4 proposed · 10 yours</span></div><div class="jrow"><button class="jbtn" aria-expanded="false">Payoff</button><span>9</span><span class="jbar"><i style="width:27%"></i></span><span class="src">2 proposed · 7 yours</span></div><div class="jrow"><button class="jbtn" aria-expanded="false">Win condition</button><span>3</span><span class="jbar"><i style="width:9%"></i></span><span class="src">3 yours</span></div><div class="jrow"><button class="jbtn" aria-expanded="false">Combo piece</button><span>4</span><span class="jbar"><i style="width:12%"></i></span><span class="src">4 yours</span></div><div class="jrow"><button class="jbtn" aria-expanded="false">Commander support</button><span>3</span><span class="jbar"><i style="width:9%"></i></span><span class="src">3 yours</span></div><div class="jrow"><button class="jbtn" aria-expanded="false">Flex</button><span>10</span><span class="jbar"><i style="width:30%"></i></span><span class="src">10 yours</span></div><div class="jrow"><span>No job set</span><span>33</span><span></span><span class="src">Fine for lands and filler. Not every card needs a job.</span></div>
       <div class="cardrow"><span>Engine</span><span><a href="#t3">Skullclamp</a> · "Turns every creature into cards"</span><span><span class="chip filled">Set by you</span></span></div>
       <div class="cardrow"><span>Flex</span><span><a href="#t3">Whispersilk Cloak</a> · "Cheap protection, easy to swap"</span><span><span class="chip filled">Set by you</span> <span class="lab">Changed by you</span></span></div>
       <div class="cardrow"><span>Payoff</span><span><a href="#t3">Rhystic Study</a> · "Rewards the tax plan" <span class="lab">Set by you</span><br><svg class="i" style="color:var(--hand)"><use href="#bot"/></svg> Claude suggests: Engine</span><span><button class="btn sm">Use Claude's</button><button class="btn sm">Dismiss</button></span></div></div>
-    <div class="band"><h3>Deck rules <span class="lab" style="text-transform:none">1</span><span class="sp"></span><button class="btn sm">Add rule</button><button class="btn sm"><svg class="i"><use href="#bot"/></svg>Ask Claude</button></h3>
-      <div class="rule"><div class="q">These artifacts count as mana sources.</div>
-        <div class="row"><span class="chip filled">Set by you</span><span class="lab">Covers 3 chosen cards · counts as Ramp</span><button class="btn sm">Edit</button><button class="btn sm">Remove</button></div></div>
-      <p class="nt">Copy to my other decks with this commander: coming later.</p></div>
-    <div class="band"><h3>Deck health</h3>
-      <div class="notice">Ramp changed from 8 to 11 because of 1 new rule. <button class="link">See what changed</button></div>
-      <p class="nt" style="margin:0 0 8px">Using what's set for this deck: 51 jobs, 1 rule. (15 jobs are still Proposed by Claude.) The rest uses common defaults.</p>
-      <table class="hr"><thead><tr><th>Group</th><th>Have</th><th>Typical for commander</th><th>Common guide</th><th></th><th>Where the count comes from</th></tr></thead><tbody>
-      <tr><td><b>Lands</b></td><td class="n">33</td><td class="n">34</td><td class="n">36</td><td></td><td class="src">all from land type</td></tr>
-      <tr><td><b>Ramp</b></td><td class="n">11</td><td class="n">16</td><td class="n">10</td><td><span class="light"><svg class="i"><use href="#warn"/></svg>Light</span> <span class="src">5 short</span></td><td class="src">8 from roles, 3 from deck rules</td></tr>
-      <tr><td><b>Card advantage</b></td><td class="n">14</td><td class="n">13</td><td class="n">10</td><td></td><td class="src">from card roles</td></tr>
-      <tr><td><b>Interaction</b></td><td class="n">3</td><td class="n">4</td><td class="n">10</td><td></td><td class="src">removal 2 + board wipe 1</td></tr>
-      <tr><td><b>Plan and win conditions</b></td><td colspan="5" class="src">Plan cards 35 · Win conditions 3. No judged number.</td></tr>
-      </tbody></table>
+    <div class="band"><h3>Deck health <span class="lab" style="text-transform:none">reads all three layers</span></h3>
+      <div class="notice">Ramp changed from 8 to 11 because of 1 new strategy point. <button class="link">See what changed</button></div>
+      <p class="nt" style="margin:0 0 8px">Using what's set for this deck: 51 jobs, 1 strategy point. Targets are from the common guide. (15 jobs are still Proposed by Claude.)</p>
+      <table class="hr"><thead><tr><th>Group</th><th>Have</th><th>Target</th><th>Target from</th><th></th><th>Where the count comes from</th></tr></thead><tbody><tr><td><b>Lands</b></td><td class="n">33</td><td class="n">36</td><td class="src">common guide</td><td><span class="light"><svg class="i"><use href="#warn"/></svg>Light</span> <span class="src">3 short</span></td><td class="src">all from land type</td></tr><tr><td><b>Ramp</b></td><td class="n">11</td><td class="n">10</td><td class="src">common guide</td><td></td><td class="src">adjusted by your strategy point (+3): 8 from roles, 3 from the strategy point</td></tr><tr><td><b>Card advantage</b></td><td class="n">14</td><td class="n">10</td><td class="src">common guide</td><td></td><td class="src">from card roles</td></tr><tr><td><b>Interaction</b></td><td class="n">3</td><td class="n">10</td><td class="src">common guide</td><td><span class="light"><svg class="i"><use href="#warn"/></svg>Light</span> <span class="src">7 short</span></td><td class="src">removal 2 + board wipe 1</td></tr><tr><td><b>Plan and win conditions</b></td><td colspan="5" class="src">Plan cards 35 · Win conditions 3. No judged number.</td></tr></tbody></table>
       <details open style="margin-top:10px"><summary class="btn sm" style="display:inline-flex">How these roll up</summary>
-        <table class="hr" style="margin-top:8px"><thead><tr><th>Group</th><th>Fed by</th><th class="n">This deck</th></tr></thead><tbody>
-        <tr><td>Lands</td><td>Land cards</td><td class="n">33</td></tr>
-        <tr><td>Ramp</td><td>Ramp roles 8 + deck rule 3</td><td class="n">11</td></tr>
-        <tr><td>Card advantage</td><td>Card draw</td><td class="n">14</td></tr>
-        <tr><td rowspan="5">Interaction</td><td>Targeted removal</td><td class="n">2</td></tr>
+        <table class="hr" style="margin-top:8px"><thead><tr><th>Group</th><th>Fed by</th><th class="n">This deck</th><th>Target from</th></tr></thead><tbody>
+        <tr><td>Lands</td><td>Land cards</td><td class="n">33</td><td class="src">common guide 36</td></tr>
+        <tr><td>Ramp</td><td>Ramp roles 8 + strategy point 3</td><td class="n">11</td><td class="src">common guide 10</td></tr>
+        <tr><td>Card advantage</td><td>Card draw</td><td class="n">14</td><td class="src">common guide 10</td></tr>
+        <tr><td rowspan="5">Interaction</td><td>Targeted removal</td><td class="n">2</td><td rowspan="5" class="src">common guide 10</td></tr>
         <tr><td>Board wipe</td><td class="n">1</td></tr><tr><td>Counterspell</td><td class="n">0</td></tr><tr><td>Hand disruption</td><td class="n">0</td></tr>
         <tr><td class="src">A card counts once</td><td class="n"><b>3</b></td></tr></tbody></table>
         <p class="nt">Not counted in health: Fixing, Card selection, Tutor, Protection, Recursion, Graveyard hate, Stax/tax.</p></details></div>
-    <div class="band"><h3>Commander guide</h3><p class="nt" style="margin:0">No commander record is linked to this deck.</p></div>
-    <div class="band"><h3>Notes</h3><p class="nt" style="margin:0">No notes yet.</p></div>
   </div>
 </section>
 
 <!-- ================= STRATEGY C2 ================= -->
-<section class="state" id="t4" aria-label="Strategy tab: Myrkul rule and roll-up">
-  <p class="cap"><b>Strategy tab · Murky Business (commander Myrkul, Lord of Bones).</b> You added a rule that explains two cards but changes no count. Health says so, and the full roll-up is open with this deck's numbers.</p>
+<section class="state" id="t4" aria-label="Strategy tab: Myrkul strategy point and roll-up">
+  <p class="cap"><b>Strategy tab · Murky Business (commander Myrkul, Lord of Bones).</b> You added a strategy point that explains two cards but changes no count. No commander is linked yet, so the Build layer is empty and health uses the common guide. The full roll-up is open with this deck's numbers.</p>
   <div class="tabp">
     <h2 class="ttl">Strategy</h2>
-      <div class="sum"><b>Murky Business</b><span class="st-badge"><svg class="i"><use href="#hammer"/></svg>Assembling · 101/100</span> <span>1 job set · 1 rule · <a href="#t4">1 to look at</a></span></div>
-      <div class="sum src">Typical numbers are for Myrkul, Lord of Bones.</div>
+      <div class="sum"><b>Murky Business</b><span class="st-badge"><svg class="i"><use href="#hammer"/></svg>Assembling · 101/100</span> <span>1 job set · 1 strategy point · <a href="#t4">1 to look at</a></span></div>
+      <div class="sum src">Build: none yet</div>
     <div class="band" style="border-top:0"><h3>Claude's proposals</h3>
       <div class="pbar"><div class="t"><svg class="i" style="color:var(--hand)"><use href="#bot"/></svg><b>Today 15:10</b><span>Claude proposed 1 job</span><span class="sp"></span><span class="chip outline">1 to look at</span></div>
         <div class="row"><button class="btn sm">Review</button><button class="btn sm primary">Accept all</button><button class="btn sm">Undo all</button></div></div></div>
-    <div class="band"><h3>Deck jobs <span class="sp"></span><button class="btn sm"><svg class="i"><use href="#bot"/></svg>Ask Claude to propose</button></h3>
+    <div class="layer l1"><div class="lh"><span class="num">1</span><h3>Build</h3><span class="tag">General. "Most decks like this one are built this way."</span></div>
+      <p style="margin:0">No build yet. Link this deck's commander to see its EDHREC builds, typical numbers and starting categories. This doesn't affect Your strategy, Card jobs or health.</p>
+      <div class="row"><button class="btn sm primary">Link commander</button><span class="src">Suggested from the deck: Myrkul, Lord of Bones</span></div></div>
+    <div class="layer l2"><div class="lh"><span class="num">2</span><h3>Your strategy</h3><span class="tag">This deck. Refines the build.</span><span class="sp"></span><button class="btn sm">Edit</button></div>
+      <dl class="kv"><dt>Win condition</dt><dd class="empty">Not set</dd><dt>Bracket</dt><dd class="empty">Not set</dd></dl>
+      <div class="sub"><h4>Strategy points <span class="lab" style="text-transform:none">1</span><span class="sp"></span><button class="btn sm">Add strategy point</button><button class="btn sm"><svg class="i"><use href="#bot"/></svg>Ask Claude</button></h4>
+        <div class="rule"><div class="q">A -1/-1 counter cost is free once the card is a non-creature enchantment.</div>
+          <div class="row"><span class="chip filled">Set by you</span><span class="lab">Covers 2 cards (Devoted Druid, Cinderhaze Wretch)</span></div>
+          <div class="row"><span class="lab">Counts as: nothing extra. It explains these cards and changes no count.</span><button class="btn sm">Edit</button><button class="btn sm">Remove</button></div></div></div>
+      <div class="sub"><h4>Notes</h4><p class="nt" style="margin:0">Not set.</p></div></div>
+    <div class="layer l3"><div class="lh"><span class="num">3</span><h3>Card jobs</h3><span class="tag">Each card. Refines your strategy.</span><span class="sp"></span><button class="btn sm"><svg class="i"><use href="#bot"/></svg>Ask Claude to propose</button></div>
       <div class="jrow"><button class="jbtn" aria-expanded="false">Engine</button><span>1</span><span class="jbar"><i style="width:5%"></i></span><span class="src">1 proposed</span></div>
       <div class="cardrow"><span>Engine</span><span><a href="#t4">Devoted Druid</a> · "Makes mana every turn, and the counter cost is free once it is an enchantment."</span><span><span class="chip outline"><svg class="i"><use href="#bot"/></svg>Proposed by Claude</span> <button class="btn sm primary">Accept</button><button class="btn sm">Change</button><button class="btn sm">Dismiss</button></span></div></div>
-    <div class="band"><h3>Deck rules <span class="lab" style="text-transform:none">1</span><span class="sp"></span><button class="btn sm">Add rule</button><button class="btn sm"><svg class="i"><use href="#bot"/></svg>Ask Claude</button></h3>
-      <div class="rule"><div class="q">A -1/-1 counter cost is free once the card is a non-creature enchantment.</div>
-        <div class="row"><span class="chip filled">Set by you</span><span class="lab">Covers 2 cards (Devoted Druid, Cinderhaze Wretch)</span></div>
-        <div class="row"><span class="lab">Counts as: nothing extra. It explains these cards and changes no count.</span><button class="btn sm">Edit</button><button class="btn sm">Remove</button></div></div></div>
-    <div class="band"><h3>Deck health</h3>
-      <p class="nt" style="margin:0 0 8px">Using common defaults. 1 rule is set; it doesn't change any count. (1 job is still Proposed by Claude.)</p>
-      <table class="hr"><thead><tr><th>Group</th><th>Have</th><th>Typical for commander</th><th>Common guide</th><th></th><th>Where the count comes from</th></tr></thead><tbody>
-      <tr><td><b>Lands</b></td><td class="n">37</td><td class="n">35</td><td class="n">36</td><td></td><td class="src">all from land type</td></tr>
-      <tr><td><b>Ramp</b></td><td class="n">17</td><td class="n">20</td><td class="n">10</td><td><span class="light"><svg class="i"><use href="#warn"/></svg>Light</span> <span class="src">3 short</span></td><td class="src">all from card roles</td></tr>
-      <tr><td><b>Card advantage</b></td><td class="n">8</td><td class="n">7</td><td class="n">10</td><td></td><td class="src">all from card roles</td></tr>
-      <tr><td><b>Interaction</b></td><td class="n">9</td><td class="n">9</td><td class="n">10</td><td></td><td class="src">7 targeted removal + 2 board wipe</td></tr>
-      <tr><td><b>Plan and win conditions</b></td><td colspan="5" class="src">Plan cards 1 (Proposed by Claude). No judged number.</td></tr>
-      </tbody></table>
-      <p class="nt">Interaction is worked out from card roles and card text. Ramp is Light: 3 short of the typical 20.</p>
+    <div class="band"><h3>Deck health <span class="lab" style="text-transform:none">reads all three layers</span></h3>
+      <p class="nt" style="margin:0 0 8px">Using the common guide. 1 strategy point is set; it doesn't change any count. (1 job is still Proposed by Claude.)</p>
+      <table class="hr"><thead><tr><th>Group</th><th>Have</th><th>Target</th><th>Target from</th><th></th><th>Where the count comes from</th></tr></thead><tbody><tr><td><b>Lands</b></td><td class="n">37</td><td class="n">36</td><td class="src">common guide</td><td></td><td class="src">all from land type</td></tr><tr><td><b>Ramp</b></td><td class="n">17</td><td class="n">10</td><td class="src">common guide</td><td></td><td class="src">all from card roles</td></tr><tr><td><b>Card advantage</b></td><td class="n">8</td><td class="n">10</td><td class="src">common guide</td><td><span class="light"><svg class="i"><use href="#warn"/></svg>Light</span> <span class="src">2 short</span></td><td class="src">all from card roles</td></tr><tr><td><b>Interaction</b></td><td class="n">9</td><td class="n">10</td><td class="src">common guide</td><td></td><td class="src">7 targeted removal + 2 board wipe</td></tr><tr><td><b>Plan and win conditions</b></td><td colspan="5" class="src">Plan cards 1 (Proposed by Claude). No judged number.</td></tr></tbody></table>
       <p class="st" style="margin-top:14px">How these roll up</p>
-      <table class="hr"><thead><tr><th>Health group</th><th>Universal roles that feed it</th><th class="n">This deck</th></tr></thead><tbody>
-        <tr><td>Lands</td><td>Land cards (a land never counts as Ramp)</td><td class="n">37</td></tr>
-        <tr><td>Ramp</td><td>Ramp</td><td class="n">17</td></tr>
-        <tr><td>Card advantage</td><td>Card draw</td><td class="n">8</td></tr>
-        <tr><td rowspan="5">Interaction</td><td>Targeted removal</td><td class="n">7</td></tr>
+      <table class="hr"><thead><tr><th>Health group</th><th>Universal roles that feed it</th><th class="n">This deck</th><th>Target from</th></tr></thead><tbody>
+        <tr><td>Lands</td><td>Land cards (a land never counts as Ramp)</td><td class="n">37</td><td class="src">common guide 36</td></tr>
+        <tr><td>Ramp</td><td>Ramp</td><td class="n">17</td><td class="src">common guide 10</td></tr>
+        <tr><td>Card advantage</td><td>Card draw</td><td class="n">8</td><td class="src">common guide 10</td></tr>
+        <tr><td rowspan="5">Interaction</td><td>Targeted removal</td><td class="n">7</td><td rowspan="5" class="src">common guide 10</td></tr>
         <tr><td>Board wipe</td><td class="n">2</td></tr><tr><td>Counterspell</td><td class="n">0</td></tr><tr><td>Hand disruption</td><td class="n">0</td></tr>
         <tr><td class="src">Total (a card counts once)</td><td class="n"><b>9</b></td></tr>
-        <tr><td>Plan and win conditions</td><td>Deck jobs only: Engine, Enabler, Payoff, Combo piece. Win condition counts separately.</td><td class="n">1 + 0</td></tr></tbody></table>
+        <tr><td>Plan and win conditions</td><td>Deck jobs only: Engine, Enabler, Payoff, Combo piece. Win condition counts separately.</td><td class="n">1 + 0</td><td class="src">no judged number</td></tr></tbody></table>
       <p class="nt">Not counted in health: Fixing, Card selection, Tutor, Protection, Recursion, Graveyard hate, Stax/tax. They show in the card window only.</p></div>
-    <div class="band"><h3>Commander guide</h3><p class="nt" style="margin:0">No commander record is linked to this deck.</p></div>
-    <div class="band"><h3>Notes</h3><p class="nt" style="margin:0">No notes yet.</p></div>
+  </div>
+</section>
+
+<!-- ================= STRATEGY I ================= -->
+<section class="state" id="t6" aria-label="Strategy tab state I: a build is picked">
+  <p class="cap"><b>Strategy tab · State I · A build is picked.</b> Murky Business after you pressed Link commander and picked a build. <b>Illustrative:</b> the build name and every number in the Build layer are examples; the real ones come from EDHREC. Read the layers together: the build gives the general shape, your strategy says where this deck differs, and the card jobs say what each card is for because of that. Health targets now say where they came from.</p>
+  <div class="tabp">
+    <h2 class="ttl">Strategy</h2>
+      <div class="sum"><b>Murky Business</b><span class="st-badge"><svg class="i"><use href="#hammer"/></svg>Assembling · 101/100</span> <span>1 job set · 1 strategy point · 1 to look at</span></div>
+      <div class="sum src">Build: Aggro for Myrkul, Lord of Bones</div>
+    <div class="layer l1"><div class="lh"><span class="num">1</span><h3>Build</h3><span class="tag">General. "Most decks like this one are built this way."</span></div>
+      <div class="row" style="margin-top:0"><span class="sel">Aggro (4,210 decks) <svg class="i"><use href="#chev"/></svg></span><span class="chip">General (no specific build)</span><span class="chip filled">Aggro</span><span class="chip">Tokens</span><span class="src">23.4% of Myrkul decks</span><span class="chip">Build saved</span></div>
+      <div class="sub"><h4>Aggro strategy guide <span class="lab" style="text-transform:none">4,210 decks, from EDHREC</span></h4>
+        <p style="margin:0">Aggro builds pressure early with cheap creatures and enchantments, then turn creatures into enchantments to protect them from removal. (Example text. The real guide comes from EDHREC.)</p></div>
+      <div class="sub"><h4>Categories <span class="lab" style="text-transform:none">where cards sit in your list; your count / the build's typical</span><span class="sp"></span><button class="btn sm">Add category</button><button class="btn sm">Sync to Archidekt</button></h4>
+        <div class="stack">
+          <div class="chips"><span class="chip">Ramp · 17 / 12</span><span class="chip">Draw · 8 / 8</span><span class="chip">Removal · 7 / 6</span><span class="chip">Lands · 37 / 35</span><span class="chip">Win Condition</span><span class="chip">Creature · 21</span></div>
+        </div>
+        <p class="nt">Your count sits next to the build's typical number, as it does today. A category is where a card sits in the list; it is not a job.</p></div></div>
+    <div class="layer l2"><div class="lh"><span class="num">2</span><h3>Your strategy</h3><span class="tag">This deck. Refines the build: where your plan differs, yours applies.</span><span class="sp"></span><button class="btn sm">Edit</button></div>
+      <dl class="kv"><dt>Win condition</dt><dd>Turn my creatures into enchantments with Myrkul and win with a Bone-based army.</dd><dt>Bracket</dt><dd>3</dd></dl>
+      <div class="sub"><h4>Strategy points <span class="lab" style="text-transform:none">1</span></h4>
+        <div class="rule"><div class="q">A -1/-1 counter cost is free once the card is a non-creature enchantment.</div>
+          <div class="row"><span class="chip filled">Set by you</span><span class="lab">Covers 2 cards · counts as: nothing extra</span></div></div></div>
+      <div class="sub"><h4>Notes</h4><p class="nt" style="margin:0">Not set.</p></div></div>
+    <div class="layer l3"><div class="lh"><span class="num">3</span><h3>Card jobs</h3><span class="tag">Each card. Refines your strategy.</span></div>
+      <div class="cardrow"><span>Engine</span><span><a href="#t6">Devoted Druid</a> · "Makes mana every turn, and the counter cost is free once it is an enchantment."</span><span><span class="chip outline"><svg class="i"><use href="#bot"/></svg>Proposed by Claude</span></span></div></div>
+    <div class="band"><h3>Deck health <span class="lab" style="text-transform:none">reads all three layers</span></h3>
+      <div class="notice">Ramp target changed from 10 to 12 and Lands from 36 to 35 because you picked the Aggro build. <button class="link">See what changed</button></div>
+      <p class="nt" style="margin:0 0 8px">Targets are from the Aggro build where it has a number, and the common guide where it has none. 1 strategy point is set; it doesn't change any count.</p>
+      <table class="hr"><thead><tr><th>Group</th><th>Have</th><th>Target</th><th>Target from</th><th></th><th>Where the count comes from</th></tr></thead><tbody><tr><td><b>Lands</b></td><td class="n">37</td><td class="n">35</td><td class="src">from the Aggro build</td><td></td><td class="src">all from land type</td></tr><tr><td><b>Ramp</b></td><td class="n">17</td><td class="n">12</td><td class="src">from the Aggro build</td><td></td><td class="src">all from card roles</td></tr><tr><td><b>Card advantage</b></td><td class="n">8</td><td class="n">8</td><td class="src">from the Aggro build</td><td></td><td class="src">all from card roles</td></tr><tr><td><b>Interaction</b></td><td class="n">9</td><td class="n">10</td><td class="src">common guide (the Aggro build has no wipes number)</td><td></td><td class="src">7 targeted removal + 2 board wipe</td></tr><tr><td><b>Plan and win conditions</b></td><td colspan="5" class="src">Plan cards 1 (Proposed by Claude). No judged number.</td></tr></tbody></table>
+      <div class="row"><button class="btn sm">How these roll up</button><button class="btn sm">Chat about this</button></div></div>
   </div>
 </section>
 
@@ -588,34 +646,85 @@ table.hr td.n{text-align:right;font-variant-numeric:tabular-nums}
   <div class="two">
     <div class="tabp"><p class="st">E · Loading</p>
       <h2 class="ttl" style="font-size:var(--fs-lg)">Strategy</h2><div class="sum"><b>Rocco's Secret Sauce</b><span class="st-badge"><svg class="i"><use href="#hammer"/></svg>Checking…</span></div>
-      <div class="band"><h3>Deck jobs</h3><div class="skel" role="status" aria-label="Checking deck jobs"></div><div class="skel" style="width:70%"></div></div>
+      <div class="band"><h3>Card jobs</h3><div class="skel" role="status" aria-label="Checking card jobs"></div><div class="skel" style="width:70%"></div></div>
       <div class="band"><h3>Deck health</h3><div class="skel"></div><div class="skel" style="width:60%"></div></div></div>
     <div class="tabp"><p class="st">F · One section can't load</p>
       <h2 class="ttl" style="font-size:var(--fs-lg)">Strategy</h2>
-      <div class="band"><h3>Deck jobs</h3><p style="margin:0">Couldn't load deck jobs. Nothing has changed. <button class="link">Try again</button></p></div>
-      <div class="band"><h3>Deck rules</h3><p class="empty" style="margin:0">No rules yet.</p></div>
-      <div class="band"><h3>Deck health</h3><p style="margin:0">Showing counts from roles only. Couldn't load this deck's rules and jobs. <button class="link">Try again</button></p></div></div>
+      <div class="band"><h3>3 · Card jobs</h3><p style="margin:0">Couldn't load card jobs. Nothing has changed. <button class="link">Try again</button></p></div>
+      <div class="band"><h3>2 · Strategy points</h3><p class="empty" style="margin:0">No strategy points yet.</p></div>
+      <div class="band"><h3>1 · Build</h3><p style="margin:0">Couldn't load the Aggro guide. Nothing has changed. <button class="link">Try again</button></p></div>
+      <div class="band"><h3>Deck health</h3><p style="margin:0">Showing counts from roles only. Couldn't load this deck's strategy points and jobs. <button class="link">Try again</button></p></div></div>
     <div class="tabp"><p class="st">G · Offline</p>
       <div class="banner">You're offline. Changes can't be saved.</div>
-      <div class="pbar"><div class="t"><b>Today 14:02</b><span>Claude proposed 51 jobs and 1 rule</span></div>
+      <div class="pbar"><div class="t"><b>Today 14:02</b><span>Claude proposed 51 jobs and 1 strategy point</span></div>
         <div class="row"><button class="btn sm" disabled>Accept all</button><button class="btn sm" disabled>Undo all</button></div>
         <p class="nt">Disabled because you're offline. Nothing shows Saved when it wasn't.</p></div></div>
     <div class="tabp"><p class="st">H · Held for approval (only above 120 cards)</p>
       <div class="pbar hold"><div class="t"><b>Waiting for your approval:</b><span>150 changes</span><span class="sp"></span><button class="btn sm primary">Review in Pending</button></div>
         <p class="nt">No Accept or Undo here. The sections show what they had before.</p></div></div>
   </div>
-  <p class="cap" style="margin-top:16px"><b>Phone.</b> The Strategy tab is shown on a phone. Each section is a collapsible row with its headline numbers. Buttons are at least 44 px high.</p>
+  <p class="cap" style="margin-top:16px"><b>Phone.</b> The Strategy tab is shown on a phone. The three layers are stacked collapsible rows, each with its headline. Buttons are at least 44 px high. Shown: Arti-facts in state B.</p>
   <div class="phone" aria-label="Phone layout">
     <b>Strategy</b> <span class="st-badge"><svg class="i"><use href="#hammer"/></svg>Assembling</span>
     <div class="nt">Arti-facts · 52 to look at</div>
-    <div class="pbar" style="margin:10px 0"><b>Claude's proposals (52)</b><div class="nt">Claude proposed 51 jobs, 1 rule</div>
+    <div class="pbar" style="margin:10px 0"><b>Claude's proposals (52)</b><div class="nt">Claude proposed 51 jobs, 1 strategy point</div>
       <div class="row"><button class="btn">Review</button><button class="btn primary">Accept all</button><button class="btn">Undo all</button></div></div>
-    <div class="prow"><span>Deck intent</span><span>Not set</span></div>
-    <div class="prow"><span>Deck jobs</span><span>51 · 51 proposed</span></div>
-    <div class="prow"><span>Deck rules</span><span>1</span></div>
-    <div class="prow"><span>Deck health</span><span>Ramp: Light</span></div>
-    <div class="prow"><span>Commander guide</span><span></span></div>
-    <div class="prow"><span>Notes</span><span>0</span></div>
+    <div class="prow"><span>1 · Build</span><span>No build yet</span></div>
+    <div class="prow"><span>2 · Your strategy</span><span>1 strategy point</span></div>
+    <div class="prow"><span>3 · Card jobs</span><span>51 · 51 proposed</span></div>
+    <div class="prow"><span>Deck health</span><span>Ramp: 21 of 10</span></div>
+  </div>
+  <p class="cap" style="margin-top:16px"><b>Phone, Build layer opened.</b></p>
+  <div class="phone" aria-label="Phone layout, Build layer open">
+    <b>Strategy</b> <span class="st-badge"><svg class="i"><use href="#hammer"/></svg>Assembling</span>
+    <div class="prow" style="border-top:0"><span><b>1 · Build</b></span><span>open</span></div>
+    <p class="nt" style="margin:0">No build yet. Link this deck's commander to see its EDHREC builds, typical numbers and starting categories.</p>
+    <div class="row"><button class="btn primary">Link commander</button></div>
+    <div class="prow"><span>2 · Your strategy</span><span>1 strategy point</span></div>
+    <div class="prow"><span>3 · Card jobs</span><span>51 · 51 proposed</span></div>
+  </div>
+</section>
+
+<!-- ================= DECK LIST: GROUP BY ================= -->
+<section class="state" id="d1" aria-label="Deck list: group by Category or Job">
+  <p class="cap"><b>Deck list · Group by Category or Job.</b> The deck list can be grouped by <b>Category</b> (where a card sits in the list; the default, as today) or by <b>Job</b> (why the card is in the deck). <b>Jobs stay out of the way until Claude has proposed some.</b> The switch below works. Switching changes only the view, never a card.</p>
+  <div class="two">
+    <div>
+      <p class="st">Arti-facts today: no jobs yet</p>
+      <div class="dl" aria-label="Deck list with no jobs">
+        <div class="gh"><span>Artifact</span><span>4</span></div>
+        <div class="c"><span>Sol Ring</span><span>In deck · Original</span></div><div class="c"><span>Mind Stone</span><span>In deck · Original</span></div><div class="c"><span>Arcane Signet</span><span>In deck · Original</span></div>
+        <div class="gh"><span>Equipment</span><span>2</span></div>
+        <div class="c"><span>Skullclamp</span><span>In deck · Original</span></div><div class="c"><span>Whispersilk Cloak</span><span>In deck · Original</span></div>
+        <div class="gh"><span>Land</span><span>2</span></div>
+        <div class="c"><span>Ancient Den</span><span>In deck · Original</span></div><div class="c"><span>Razortide Bridge</span><span>In deck · Original</span></div>
+      </div>
+      <p class="nt">No Group by switch, no job headings, no "No job" markers. Nothing empty is shown. The Job field exists only in the card window and the Card jobs layer.</p>
+    </div>
+    <div>
+      <p class="st">After Claude proposed jobs: the switch appears</p>
+      <div class="row" style="margin:0 0 8px"><span class="lab">Group by</span>
+        <span class="pt" role="group" aria-label="Group by"><button type="button" id="gb-cat" aria-pressed="true">Category</button><button type="button" id="gb-job" aria-pressed="false">Job</button></span></div>
+      <div class="grp on dl" id="grp-cat" aria-label="Grouped by Category">
+        <div class="gh"><span>Artifact</span><span>3</span></div>
+        <div class="c"><span>Sol Ring</span><span>Job: Enabler</span></div><div class="c"><span>Mind Stone</span><span>Job: Enabler</span></div><div class="c"><span>Arcane Signet</span><span>Job: Enabler</span></div>
+        <div class="gh"><span>Equipment</span><span>2</span></div>
+        <div class="c"><span>Skullclamp</span><span>Job: Engine</span></div><div class="c"><span>Whispersilk Cloak</span><span>Job: Flex</span></div>
+        <div class="gh"><span>Land</span><span>2</span></div>
+        <div class="c"><span>Ancient Den</span><span></span></div><div class="c"><span>Razortide Bridge</span><span></span></div>
+      </div>
+      <div class="grp dl" id="grp-job" aria-label="Grouped by Job">
+        <div class="gh"><span>Engine</span><span>1</span></div>
+        <div class="c"><span>Skullclamp</span><span>Category: Equipment</span></div>
+        <div class="gh"><span>Enabler</span><span>3</span></div>
+        <div class="c"><span>Sol Ring</span><span>Category: Artifact</span></div><div class="c"><span>Mind Stone</span><span>Category: Artifact</span></div><div class="c"><span>Arcane Signet</span><span>Category: Artifact</span></div>
+        <div class="gh"><span>Flex</span><span>1</span></div>
+        <div class="c"><span>Whispersilk Cloak</span><span>Category: Equipment</span></div>
+        <div class="gh"><span>No job set</span><span>2</span></div>
+        <div class="c"><span>Ancient Den</span><span>Category: Land</span></div><div class="c"><span>Razortide Bridge</span><span>Category: Land</span></div>
+      </div>
+      <p class="nt">Category stays the default. Grouped by Job, each card still shows its category as a small label, so nothing about where it sits is lost. The choice is remembered for this deck on this device.</p>
+    </div>
   </div>
 </section>
 
@@ -632,9 +741,10 @@ table.hr td.n{text-align:right;font-variant-numeric:tabular-nums}
           <div class="chips"><span class="chip std">Card draw <span class="lab">Standard</span></span><button class="btn sm" aria-label="Add role"><svg class="i"><use href="#plus"/></svg>Add role</button></div>
         </div>
         <div class="sec">
-          <p class="st">Deck job</p>
+          <p class="st">Job</p>
+          <p class="hint">Job: why it is in the deck</p>
           <div class="chips"><span class="chip filled">Payoff</span><span class="lab">Set by you</span></div>
-          <div class="rule" style="margin-top:8px">
+          <div class="strategy point" style="margin-top:8px">
             <div class="chips"><svg class="i" style="color:var(--hand)"><use href="#bot"/></svg><span>Claude suggests: <b>Engine</b></span></div>
             <p class="reason">"Rhystic Study keeps drawing cards all game."</p>
             <div class="row"><button class="btn sm">Use Claude's</button><button class="btn sm">Dismiss</button></div>
@@ -664,7 +774,8 @@ table.hr td.n{text-align:right;font-variant-numeric:tabular-nums}
           <div class="chips"><span class="chip std">Card draw <span class="lab">Standard</span></span><button class="btn sm" aria-label="Add role"><svg class="i"><use href="#plus"/></svg>Add role</button></div>
         </div>
         <div class="sec">
-          <p class="st">Deck job</p>
+          <p class="st">Job</p>
+          <p class="hint">Job: why it is in the deck</p>
           <div class="banner hold">Claude proposed this as part of a larger set of 150 changes. It is waiting for your approval and has not been applied.
             <div class="row"><button class="btn sm primary">Review in Pending</button></div></div>
           <div>No job set.</div>
@@ -673,6 +784,46 @@ table.hr td.n{text-align:right;font-variant-numeric:tabular-nums}
     </div>
     <div class="df"><span class="sp"></span><span>Saved</span></div>
   </div></div>
+</section>
+
+<!-- ================= STATE 8 ================= -->
+<section class="state" id="s8" aria-label="State 8: Category and Job side by side">
+  <p class="cap"><b>State 8 · Category and Job, two clearly different fields.</b> Sol Ring in Arti-facts. <b>Category</b> is where the card sits in the deck list (your grouping). <b>Job</b> is why the card is in the deck. Each has its own heading and one-line hint, so they are never mistaken for each other. Oracle never copies one into the other.</p>
+  <div class="backdrop"><div class="dlg" role="dialog" aria-label="Sol Ring">
+    <div class="dh"><h2>Sol Ring</h2><span class="badge">In deck · Original</span><button class="x" aria-label="Close"><svg class="i"><use href="#x"/></svg></button></div>
+    <div class="db">
+      <div class="pic">Card picture</div>
+      <div>
+        <div class="sec">
+          <p class="st">Universal role</p>
+          <div class="chips"><span class="chip std">Ramp <span class="lab">Standard</span></span><button class="btn sm" aria-label="Add role"><svg class="i"><use href="#plus"/></svg>Add role</button></div>
+        </div>
+        <div class="sec">
+          <p class="st">Category</p>
+          <p class="hint">Category: where it sits in the list</p>
+          <div class="chips"><span class="chip filled">Mana Rocks <span class="lab">Set by you</span></span><button class="btn sm">Edit</button></div>
+        </div>
+        <div class="sec">
+          <p class="st">Job</p>
+          <p class="hint">Job: why it is in the deck</p>
+          <div class="chips"><span class="chip filled">Enabler</span><span class="lab">Set by you</span></div>
+          <div class="nt"><button class="link">See all jobs on the Strategy tab</button></div>
+        </div>
+        <div class="sec">
+          <p class="st">Why it is here</p>
+          <div>Makes the plan possible by paying for artifacts early. <span class="lab">Set by you</span></div>
+        </div>
+        <div class="sec">
+          <p class="st">Counts as</p>
+          <div>Ramp, from its role.</div>
+        </div>
+      </div>
+    </div>
+    <div class="df"><span class="sp"></span><span>Saved</span></div>
+  </div></div>
+  <p class="cap" style="margin-top:16px"><b>When a category is named like a job.</b> You have a category called "Sacrifice payoffs" and the job list has "Payoff". Both stay exactly as you named them, and nothing merges. Claude may notice and ask, in the chat reply and in the batch row on the Strategy tab:</p>
+  <div class="tabp"><div class="chatbox"><div class="msg">Your category "Sacrifice payoffs" looks like the job Payoff. Do you want me to propose Payoff as the job for these 9 cards? Your category stays as it is.</div>
+    <div class="row"><button class="btn primary">Yes, propose Payoff</button><button class="btn">No, keep them separate</button><span class="src">A yes sets jobs only (Proposed by Claude, undoable as one batch). A no is remembered, so Claude does not ask again.</span></div></div></div>
 </section>
 
 </div>
@@ -688,7 +839,15 @@ table.hr td.n{text-align:right;font-variant-numeric:tabular-nums}
   }
   tabs.forEach(function(t){t.addEventListener('click',function(){show(t.dataset.s)})});
   var h=location.hash.slice(1);
-  if(/^[st][1-7]$/.test(h)&&document.getElementById(h))show(h);else show('t1');
+  if(/^([st][1-8]|d1)$/.test(h)&&document.getElementById(h))show(h);else show('t1');
+  var gc=document.getElementById('gb-cat'),gj=document.getElementById('gb-job');
+  if(gc&&gj){
+    var setG=function(job){
+      gc.setAttribute('aria-pressed',job?'false':'true');gj.setAttribute('aria-pressed',job?'true':'false');
+      document.getElementById('grp-cat').classList.toggle('on',!job);document.getElementById('grp-job').classList.toggle('on',job);
+    };
+    gc.addEventListener('click',function(){setG(false)});gj.addEventListener('click',function(){setG(true)});
+  }
 })();
 </script>
 </body>

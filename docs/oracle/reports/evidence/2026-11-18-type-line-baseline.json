@@ -1,0 +1,1210 @@
+{
+ "captured": "2026-11-18",
+ "source": "live Supabase, read-only SELECTs on connector_collection_copies (the OLD view, migration 20261116200000) and ref_cards",
+ "purpose": "Baseline from the OLD code/view for the type-line alignment build to compare against. Counts are per distinct owned card ('cards') and per physical copy ('copies'). The owner is the only user.",
+ "totals": {
+  "cards": 2832,
+  "copies": 4550,
+  "copies_without_card_facts": 0
+ },
+ "old_view_type_flags_any_face_LIKE": {
+  "t_creature": {
+   "cards": 1472,
+   "copies": 1878
+  },
+  "t_instant": {
+   "cards": 346,
+   "copies": 521
+  },
+  "t_sorcery": {
+   "cards": 317,
+   "copies": 443
+  },
+  "t_artifact": {
+   "cards": 340,
+   "copies": 477
+  },
+  "t_enchantment": {
+   "cards": 238,
+   "copies": 287
+  },
+  "t_planeswalker": {
+   "cards": 23,
+   "copies": 26
+  },
+  "t_land": {
+   "cards": 306,
+   "copies": 1197
+  },
+  "t_battle": {
+   "cards": 0,
+   "copies": 0
+  },
+  "note": "A card is counted once per flag it has; flags overlap (Artifact Creature is in both). Equal to the Comprehensive-Rules reading on today's data (0 mismatches)."
+ },
+ "old_view_primary_type_front_face": {
+  "Creature": {
+   "cards": 1470,
+   "copies": 1876
+  },
+  "Land": {
+   "cards": 294,
+   "copies": 1184
+  },
+  "Instant": {
+   "cards": 338,
+   "copies": 510
+  },
+  "Sorcery": {
+   "cards": 289,
+   "copies": 395
+  },
+  "Artifact": {
+   "cards": 214,
+   "copies": 309
+  },
+  "Enchantment": {
+   "cards": 204,
+   "copies": 250
+  },
+  "Planeswalker": {
+   "cards": 23,
+   "copies": 26
+  },
+  "Battle": {
+   "cards": 0,
+   "copies": 0
+  },
+  "Other": {
+   "cards": 0,
+   "copies": 0
+  }
+ },
+ "old_legendary_ilike_whole_line": {
+  "cards": 385,
+  "copies": 430,
+  "legendary_on_back_face_only_cards": 0
+ },
+ "supertypes_any_face": {
+  "Legendary": {
+   "cards": 385,
+   "copies": 430
+  },
+  "Basic": {
+   "cards": 7,
+   "copies": 645
+  },
+  "Snow": {
+   "cards": 2,
+   "copies": 3
+  },
+  "World": {
+   "cards": 1,
+   "copies": 2
+  },
+  "Ongoing": {
+   "cards": 0,
+   "copies": 0
+  },
+  "Elite": {
+   "cards": 0,
+   "copies": 0
+  },
+  "Host": {
+   "cards": 0,
+   "copies": 0
+  }
+ },
+ "supertype_note": "Old code has no Basic or Snow flag. Basic = Forest, Island, Mountain, Plains, Swamp, Wastes ('Basic Land \u2014') and Snow-Covered Swamp ('Basic, Snow Land \u2014 Swamp'). Snow = Snow-Covered Swamp and Ohran Frostfang (Snow Creature \u2014 Snake). World = Tombstone Stairwell.",
+ "card_types_any_face_cards_copies": {
+  "Creature": [
+   1472,
+   1878
+  ],
+  "Instant": [
+   346,
+   521
+  ],
+  "Sorcery": [
+   317,
+   443
+  ],
+  "Artifact": [
+   340,
+   477
+  ],
+  "Land": [
+   306,
+   1197
+  ],
+  "Enchantment": [
+   238,
+   287
+  ],
+  "Planeswalker": [
+   23,
+   26
+  ],
+  "Kindred": [
+   4,
+   4
+  ],
+  "Battle": [
+   0,
+   0
+  ]
+ },
+ "card_type_combinations_all_faces_union_cards_copies": {
+  "Creature": [
+   1283,
+   1622
+  ],
+  "Instant": [
+   333,
+   505
+  ],
+  "Land": [
+   287,
+   1177
+  ],
+  "Sorcery": [
+   286,
+   392
+  ],
+  "Artifact": [
+   205,
+   299
+  ],
+  "Enchantment": [
+   201,
+   246
+  ],
+  "Artifact+Creature": [
+   121,
+   163
+  ],
+  "Creature+Enchantment": [
+   31,
+   33
+  ],
+  "Creature+Sorcery": [
+   26,
+   46
+  ],
+  "Planeswalker": [
+   23,
+   26
+  ],
+  "Artifact+Land": [
+   9,
+   9
+  ],
+  "Creature+Instant": [
+   8,
+   11
+  ],
+  "Instant+Land": [
+   4,
+   4
+  ],
+  "Creature+Land": [
+   3,
+   3
+  ],
+  "Artifact+Enchantment": [
+   3,
+   4
+  ],
+  "Enchantment+Land": [
+   2,
+   3
+  ],
+  "Kindred+Sorcery": [
+   2,
+   2
+  ],
+  "Instant+Sorcery": [
+   1,
+   1
+  ],
+  "Land+Sorcery": [
+   1,
+   1
+  ],
+  "Artifact+Kindred": [
+   1,
+   1
+  ],
+  "Enchantment+Kindred": [
+   1,
+   1
+  ],
+  "Artifact+Sorcery": [
+   1,
+   1
+  ]
+ },
+ "combination_note": "Union of the types on all faces of a two-faced card (so 'Creature+Sorcery' is a creature with a Sorcery back face, not one card with both types). Land+Creature on one face: 0 owned.",
+ "two_faced": {
+  "cards": 65,
+  "copies": 89,
+  "land_only_on_back_face_cards": 12,
+  "land_only_on_back_face_copies": 13
+ },
+ "subtypes_old_view_lowercase_cards_copies": {
+  "ox": [
+   2,
+   4
+  ],
+  "ape": [
+   6,
+   10
+  ],
+  "bat": [
+   1,
+   4
+  ],
+  "cat": [
+   27,
+   41
+  ],
+  "dog": [
+   16,
+   21
+  ],
+  "egg": [
+   1,
+   1
+  ],
+  "elf": [
+   71,
+   96
+  ],
+  "elk": [
+   3,
+   7
+  ],
+  "eye": [
+   1,
+   1
+  ],
+  "fox": [
+   1,
+   1
+  ],
+  "god": [
+   16,
+   18
+  ],
+  "kor": [
+   2,
+   2
+  ],
+  "myr": [
+   2,
+   2
+  ],
+  "orc": [
+   18,
+   22
+  ],
+  "rat": [
+   5,
+   5
+  ],
+  "spy": [
+   2,
+   3
+  ],
+  "ally": [
+   31,
+   39
+  ],
+  "aura": [
+   50,
+   61
+  ],
+  "azra": [
+   1,
+   1
+  ],
+  "bard": [
+   13,
+   18
+  ],
+  "bear": [
+   5,
+   5
+  ],
+  "bird": [
+   32,
+   40
+  ],
+  "boar": [
+   6,
+   6
+  ],
+  "book": [
+   7,
+   8
+  ],
+  "cave": [
+   4,
+   4
+  ],
+  "clue": [
+   1,
+   1
+  ],
+  "crab": [
+   1,
+   1
+  ],
+  "drix": [
+   5,
+   11
+  ],
+  "fish": [
+   1,
+   2
+  ],
+  "food": [
+   4,
+   4
+  ],
+  "frog": [
+   7,
+   8
+  ],
+  "gate": [
+   1,
+   1
+  ],
+  "goat": [
+   1,
+   1
+  ],
+  "hero": [
+   31,
+   39
+  ],
+  "karn": [
+   2,
+   2
+  ],
+  "kavu": [
+   8,
+   21
+  ],
+  "kaya": [
+   1,
+   1
+  ],
+  "kree": [
+   3,
+   3
+  ],
+  "mite": [
+   1,
+   1
+  ],
+  "mole": [
+   2,
+   2
+  ],
+  "monk": [
+   11,
+   14
+  ],
+  "ogre": [
+   4,
+   4
+  ],
+  "omen": [
+   6,
+   12
+  ],
+  "ooze": [
+   5,
+   5
+  ],
+  "pest": [
+   4,
+   8
+  ],
+  "plan": [
+   1,
+   1
+  ],
+  "room": [
+   3,
+   3
+  ],
+  "saga": [
+   13,
+   15
+  ],
+  "seal": [
+   1,
+   1
+  ],
+  "szat": [
+   1,
+   1
+  ],
+  "town": [
+   9,
+   10
+  ],
+  "wall": [
+   11,
+   14
+  ],
+  "wolf": [
+   3,
+   4
+  ],
+  "wurm": [
+   7,
+   9
+  ],
+  "ajani": [
+   1,
+   1
+  ],
+  "angel": [
+   13,
+   14
+  ],
+  "beast": [
+   34,
+   43
+  ],
+  "class": [
+   1,
+   1
+  ],
+  "curse": [
+   3,
+   3
+  ],
+  "demon": [
+   14,
+   14
+  ],
+  "devil": [
+   7,
+   7
+  ],
+  "djinn": [
+   5,
+   9
+  ],
+  "drake": [
+   2,
+   4
+  ],
+  "drone": [
+   3,
+   3
+  ],
+  "druid": [
+   60,
+   86
+  ],
+  "dryad": [
+   7,
+   9
+  ],
+  "dwarf": [
+   12,
+   18
+  ],
+  "elder": [
+   8,
+   9
+  ],
+  "gamma": [
+   3,
+   3
+  ],
+  "giant": [
+   11,
+   13
+  ],
+  "golem": [
+   10,
+   14
+  ],
+  "hippo": [
+   2,
+   2
+  ],
+  "horse": [
+   7,
+   8
+  ],
+  "human": [
+   313,
+   399
+  ],
+  "hydra": [
+   3,
+   3
+  ],
+  "hyena": [
+   1,
+   1
+  ],
+  "kiora": [
+   1,
+   1
+  ],
+  "mount": [
+   2,
+   2
+  ],
+  "mouse": [
+   1,
+   1
+  ],
+  "ninja": [
+   3,
+   3
+  ],
+  "nissa": [
+   2,
+   2
+  ],
+  "noble": [
+   22,
+   27
+  ],
+  "nymph": [
+   2,
+   2
+  ],
+  "otter": [
+   2,
+   2
+  ],
+  "ouphe": [
+   5,
+   5
+  ],
+  "pilot": [
+   10,
+   13
+  ],
+  "plant": [
+   18,
+   27
+  ],
+  "rebel": [
+   5,
+   6
+  ],
+  "rhino": [
+   5,
+   6
+  ],
+  "robot": [
+   32,
+   56
+  ],
+  "rogue": [
+   29,
+   39
+  ],
+  "satyr": [
+   5,
+   5
+  ],
+  "scout": [
+   36,
+   56
+  ],
+  "shade": [
+   1,
+   1
+  ],
+  "sheep": [
+   2,
+   2
+  ],
+  "sloth": [
+   2,
+   3
+  ],
+  "snail": [
+   1,
+   1
+  ],
+  "snake": [
+   15,
+   19
+  ],
+  "squid": [
+   2,
+   2
+  ],
+  "swamp": [
+   12,
+   174
+  ],
+  "troll": [
+   3,
+   4
+  ],
+  "weird": [
+   2,
+   2
+  ],
+  "whale": [
+   3,
+   5
+  ],
+  "arcane": [
+   3,
+   8
+  ],
+  "archer": [
+   6,
+   6
+  ],
+  "archon": [
+   1,
+   1
+  ],
+  "avatar": [
+   16,
+   20
+  ],
+  "badger": [
+   3,
+   6
+  ],
+  "cleric": [
+   50,
+   69
+  ],
+  "coward": [
+   1,
+   1
+  ],
+  "desert": [
+   4,
+   4
+  ],
+  "doctor": [
+   2,
+   2
+  ],
+  "dragon": [
+   68,
+   83
+  ],
+  "faerie": [
+   10,
+   15
+  ],
+  "forest": [
+   13,
+   193
+  ],
+  "fungus": [
+   5,
+   6
+  ],
+  "goblin": [
+   51,
+   65
+  ],
+  "horror": [
+   22,
+   27
+  ],
+  "insect": [
+   37,
+   55
+  ],
+  "island": [
+   11,
+   143
+  ],
+  "jackal": [
+   3,
+   3
+  ],
+  "knight": [
+   33,
+   41
+  ],
+  "kobold": [
+   1,
+   1
+  ],
+  "kraken": [
+   3,
+   3
+  ],
+  "lesson": [
+   15,
+   24
+  ],
+  "lizard": [
+   7,
+   8
+  ],
+  "monkey": [
+   2,
+   2
+  ],
+  "mutant": [
+   14,
+   20
+  ],
+  "narset": [
+   1,
+   1
+  ],
+  "pirate": [
+   12,
+   16
+  ],
+  "plains": [
+   10,
+   117
+  ],
+  "planet": [
+   1,
+   1
+  ],
+  "rabbit": [
+   2,
+   3
+  ],
+  "ranger": [
+   4,
+   6
+  ],
+  "shaman": [
+   44,
+   57
+  ],
+  "skrull": [
+   2,
+   2
+  ],
+  "sliver": [
+   61,
+   63
+  ],
+  "sphinx": [
+   3,
+   3
+  ],
+  "spider": [
+   6,
+   11
+  ],
+  "spirit": [
+   43,
+   51
+  ],
+  "teferi": [
+   1,
+   1
+  ],
+  "turtle": [
+   10,
+   13
+  ],
+  "urza's": [
+   1,
+   1
+  ],
+  "vivien": [
+   1,
+   1
+  ],
+  "vraska": [
+   2,
+   2
+  ],
+  "wizard": [
+   89,
+   107
+  ],
+  "wraith": [
+   2,
+   3
+  ],
+  "zombie": [
+   94,
+   115
+  ],
+  "advisor": [
+   17,
+   22
+  ],
+  "centaur": [
+   3,
+   3
+  ],
+  "chimera": [
+   3,
+   3
+  ],
+  "citizen": [
+   17,
+   23
+  ],
+  "cyclops": [
+   1,
+   2
+  ],
+  "eldrazi": [
+   15,
+   15
+  ],
+  "elspeth": [
+   2,
+   4
+  ],
+  "fractal": [
+   1,
+   2
+  ],
+  "giraffe": [
+   1,
+   2
+  ],
+  "glimmer": [
+   4,
+   4
+  ],
+  "gremlin": [
+   1,
+   1
+  ],
+  "inkling": [
+   1,
+   4
+  ],
+  "kithkin": [
+   3,
+   3
+  ],
+  "liliana": [
+   4,
+   5
+  ],
+  "lobster": [
+   1,
+   1
+  ],
+  "merfolk": [
+   50,
+   57
+  ],
+  "nixilis": [
+   1,
+   1
+  ],
+  "octopus": [
+   1,
+   1
+  ],
+  "peasant": [
+   7,
+   8
+  ],
+  "praetor": [
+   3,
+   3
+  ],
+  "samurai": [
+   5,
+   5
+  ],
+  "sarkhan": [
+   1,
+   1
+  ],
+  "serpent": [
+   4,
+   6
+  ],
+  "soldier": [
+   70,
+   101
+  ],
+  "soltari": [
+   1,
+   1
+  ],
+  "specter": [
+   1,
+   1
+  ],
+  "thopter": [
+   4,
+   5
+  ],
+  "unicorn": [
+   2,
+   7
+  ],
+  "vampire": [
+   33,
+   44
+  ],
+  "vehicle": [
+   10,
+   11
+  ],
+  "villain": [
+   30,
+   32
+  ],
+  "warlock": [
+   39,
+   53
+  ],
+  "warrior": [
+   95,
+   120
+  ],
+  "xenagos": [
+   1,
+   1
+  ],
+  "antelope": [
+   1,
+   1
+  ],
+  "assassin": [
+   11,
+   16
+  ],
+  "beholder": [
+   1,
+   1
+  ],
+  "dinosaur": [
+   49,
+   53
+  ],
+  "elephant": [
+   6,
+   8
+  ],
+  "gargoyle": [
+   2,
+   2
+  ],
+  "halfling": [
+   7,
+   10
+  ],
+  "illusion": [
+   5,
+   5
+  ],
+  "kangaroo": [
+   1,
+   2
+  ],
+  "minotaur": [
+   9,
+   11
+  ],
+  "mongoose": [
+   1,
+   2
+  ],
+  "moonfolk": [
+   1,
+   1
+  ],
+  "mountain": [
+   10,
+   151
+  ],
+  "nautilus": [
+   1,
+   2
+  ],
+  "pangolin": [
+   1,
+   1
+  ],
+  "scorpion": [
+   2,
+   5
+  ],
+  "skeleton": [
+   10,
+   13
+  ],
+  "sorcerer": [
+   15,
+   20
+  ],
+  "squirrel": [
+   3,
+   3
+  ],
+  "survivor": [
+   2,
+   2
+  ],
+  "treasure": [
+   1,
+   2
+  ],
+  "treefolk": [
+   12,
+   13
+  ],
+  "vedalken": [
+   6,
+   6
+  ],
+  "werewolf": [
+   2,
+   2
+  ],
+  "adventure": [
+   5,
+   7
+  ],
+  "artificer": [
+   29,
+   43
+  ],
+  "barbarian": [
+   1,
+   1
+  ],
+  "berserker": [
+   9,
+   10
+  ],
+  "cartouche": [
+   1,
+   1
+  ],
+  "construct": [
+   22,
+   24
+  ],
+  "crocodile": [
+   1,
+   1
+  ],
+  "detective": [
+   3,
+   3
+  ],
+  "elemental": [
+   39,
+   48
+  ],
+  "equipment": [
+   39,
+   53
+  ],
+  "freyalise": [
+   1,
+   1
+  ],
+  "jellyfish": [
+   7,
+   15
+  ],
+  "leviathan": [
+   3,
+   4
+  ],
+  "mercenary": [
+   3,
+   3
+  ],
+  "nightmare": [
+   6,
+   7
+  ],
+  "performer": [
+   2,
+   4
+  ],
+  "phyrexian": [
+   22,
+   25
+  ],
+  "porcupine": [
+   1,
+   1
+  ],
+  "processor": [
+   2,
+   2
+  ],
+  "scarecrow": [
+   4,
+   4
+  ],
+  "scientist": [
+   3,
+   3
+  ],
+  "trilobite": [
+   1,
+   1
+  ],
+  "aetherborn": [
+   1,
+   3
+  ],
+  "background": [
+   1,
+   1
+  ],
+  "homunculus": [
+   1,
+   1
+  ],
+  "salamander": [
+   2,
+   3
+  ],
+  "spacecraft": [
+   16,
+   20
+  ],
+  "incarnation": [
+   1,
+   1
+  ],
+  "shapeshifter": [
+   17,
+   18
+  ],
+  "assembly-worker": [
+   1,
+   1
+  ]
+ },
+ "distinct_subtypes": 236,
+ "query_timings_old_view_db_side_ms": {
+  "note": "EXPLAIN ANALYZE execution time on the live database, one run each, 2026-11-18, owner's 4,550 copies. Excludes network and the app. Planner reads the whole view for every call (no useful index on the type columns).",
+  "types_creature_and_green_filtered_read": 37.5,
+  "full_narrow_read_with_primary_type_order_by_name": 94.0,
+  "subtype_overlap_elf_or_druid": 48.4,
+  "legendary_ilike_read": 29.1,
+  "detail_read_200_copies_incl_type_line_keywords": 57.9,
+  "planning_time_each_ms": "4 to 6"
+ }
+}

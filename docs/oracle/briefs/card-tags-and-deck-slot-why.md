@@ -15,7 +15,7 @@ Each word has one place. Older words for these ideas are retired in new document
 - The app sorts cards by reading their text, and only into four groups. Claude cannot ask "which of my cards are sacrifice outlets?".
 - Of your 2,832 cards, 39% carry one of the broad Tags today's mapping supports; 4 of the 13 broad Tags have no mapping at all.
 - There is nowhere to record why a card is in a deck, or to protect a card you love from "cut" advice. No such field exists on the deck card today.
-- The card window built in CC-26 slice 2 lets you add and remove labels per user. That is not wanted.
+- The card window built in CC-26 slice 2 lets you add and remove Tags per user. That is not wanted.
 
 ## 4. Goals
 1. A shared, read-only Tag for every card where one can be found reliably.
@@ -30,7 +30,7 @@ Each word has one place. Older words for these ideas are retired in new document
 - Source order: Scryfall's own tags through the mapping first; then an AI fallback only for cards in your collection and EDHREC candidate cards that Scryfall leaves untagged, with you spot-checking a sample.
 - Plan for gaps. 2026-11 trial: 93.1% of cards carry any Scryfall tag, a draft map matched 58.3%, a 15-label list reached 13.7%. On your collection the audit estimates roughly 55 to 70% get a useful Tag from Scryfall, so about 850 to 1,250 cards go to the fallback. Cards with no Tag show none; that is allowed.
 - Uses: (a) read-only chips on card details, at most five shown, the rest findable by search; (b) a Tag filter in the collection search and in Claude's collection search tool (extends CC-14); (c) inputs to Deck health counts only where a Tag counts better than today's classifier, shown on a sample first.
-- Card details: the editable label section from slice 2 is removed. The text-reading stand-in is hidden for any card that has stored Tags.
+- Card details: the editable Tag section from slice 2 is removed. The text-reading stand-in is hidden for any card that has stored Tags.
 
 **Why and Keep.**
 - Per deck card: Category (exists), Why (one line, optional, free text), Keep (optional flag).

@@ -54,7 +54,7 @@ These are open. Each needs a decision from the owner; none is assumed here.
 3. **Does the History button open the same screen as Recent changes?** The audit found they are different screens (see decision 4 above). The owner chooses A, B or C.
 4. **Do Why and Keep already exist?** The audit found they do not (new columns on deck cards). Open: do they stay on the card slot (recommended) or per card per deck, and do they survive re-import? Does Claude ever set Keep (recommendation: no)?
 5. **Does Scryfall data expose Game Changers?** Yes, as a card flag (53 cards today, 9 owned), but the app's stored copy drops it. Open: store Scryfall's flag (recommended) or keep a dated list. That belongs to RQ-14.
-6. **What happens to the unused CC-26 database tables (applied, empty) and slice 2's editable-roles code in the card window?** Recommendation: leave the tables untouched for now and clean up later in a separate approved task with its own rehearsal; remove the editable-roles parts of the card window as part of the Tags slice. Open for the owner.
+6. **What happens to the unused CC-26 database tables (applied, empty) and slice 2's editable Tag chips in the card window?** Recommendation: leave the tables untouched for now and clean up later in a separate approved task with its own rehearsal; remove the editable parts of the card window (Set by you, Add, remove, Restore) as part of the Tags slice. Open for the owner.
 7. **Pause scope for DV-03.** Does the pause also cover the new-deck brewing chat (a second paid chat)? Recommendation: yes.
 8. **Tag list size and the AI fallback run.** Start with the 13 broad Tags and about 15 mechanic Tags; AI fallback for the remaining cards, with the owner checking a sample. Cost and run need a separate approval.
 

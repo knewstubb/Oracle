@@ -16,7 +16,7 @@ Decisions for you, recommendation first:
 7. Approve, in principle, dropping the parts of the card-roles plan (CC-26) that the new direction replaces. Recommendation: yes; the decisions file is only edited later, with your approval.
 8. Slice order. Recommendation: Strategy window, then the reason on Claude changes, then the left panel, then card Tags; the chat pause runs alongside. Reason: the window and the reason both change the same Claude-edit code, so they are tested once, and Tags has the most approval steps and nothing waits on it.
 
-Questions I have not decided for you: where the EDHREC build picker, guide and category manager end up long term; whether the History button should open the Recent changes screen (decision 4); whether Claude may set Keep; whether to store Scryfall's Game Changers flag; what to do with the unused CC-26 tables and the editable-roles code in the card window; whether the pause covers the new-deck brewing chat too. Found: Why and Keep do not exist yet, and Scryfall does expose Game Changers but the app does not store them.
+Questions I have not decided for you: where the EDHREC build picker, guide and category manager end up long term; whether the History button should open the Recent changes screen (decision 4); whether Claude may set Keep; whether to store Scryfall's Game Changers flag; what to do with the unused CC-26 tables and the editable Tag chips in the card window; whether the pause covers the new-deck brewing chat too. Found: Why and Keep do not exist yet, and Scryfall does expose Game Changers but the app does not store them.
 
 ## Changed files
 - docs/oracle/plans/2026-11-19-deck-page-tags-slice-plan.md — new: proposed slice order, dependencies, owner decisions before slice 1, open owner questions

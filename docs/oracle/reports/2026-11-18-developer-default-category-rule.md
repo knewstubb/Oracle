@@ -4,7 +4,7 @@ Status: DONE
 Task as received: make a new card's starting category follow one clear rule (owner rule decided 2026-11-18: land first, front face for double-faced cards, otherwise the "Group: Type" order; owner-set categories stay as set; no database or stored-category changes; do not touch card window, roles code, Picklist or the roles drafts).
 
 ## Summary for the owner
-When a card is added to a deck with no category, it now starts in the category of its type. Land comes first, double-faced cards use the front face, and everything else follows the same order as "Group: Type". For example: Mox Amber's cousin "Dockside Chef" style cards aside, an Artifact Land such as Darksteel Citadel starts in Land, and Malakir Rebirth // Malakir Mire starts in Instant. Categories you already set are untouched. Nothing needs your decision.
+When a card is added to a deck with no category, it now starts in the category of its type. Land comes first, double-faced cards use the front face, and everything else follows the same order as "Group: Type". For example: an Artifact Land such as Darksteel Citadel starts in Land, and Malakir Rebirth // Malakir Mire starts in Instant. Categories you already set are untouched. Nothing needs your decision.
 
 One change you may notice: cards no longer start in a guessed role such as "Ramp" (Sol Ring now starts in Artifact). Claude adding a card without naming a category now also uses the type instead of "Other".
 

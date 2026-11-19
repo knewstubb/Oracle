@@ -1,0 +1,261 @@
+== cluster: PostgreSQL 17.12 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.4.1.1), 64-bit port 55434 (throwaway, deleted at end)
+-- apply 00_base.sql
+-- apply 20261116130000_connector_connections.sql
+-- apply 20261116150000_ai_change_log_and_pending.sql
+-- apply 20261116150100_ai_connector_edit_rpcs.sql
+-- apply 20261116150200_ai_undo_blocker_make_original_fix.sql
+-- apply 20261116150300_ai_list_recent_changes_zone_to.sql
+-- apply 20261116190000_ai_deck_category.sql
+-- apply 20261117100000_cc13_loosen_limits.sql
+-- apply 20261023170100_set_deck_command_zone.sql
+-- apply 20261117120000_ai_change_log_allow_deck_delete.sql
+-- apply 20261117200000_cc15a_new_change_kinds.sql
+-- apply 20261117200100_cc15b_deck_create_setup.sql
+-- apply 01_seed.sql
+== S5 on the bare base without S3: refused, nothing changes
+   (expected) psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/strategy-autosave/supabase/drafts/20261119120000_s5_strategy_replace.draft.sql:29: ERROR:  apply 20261119100000_s3 first
+   (expected) !! FAILED: /Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/strategy-autosave/supabase/drafts/20261119120000_s5_strategy_replace.draft.sql
+ chk 
+-----
+ 
+(1 row)
+
+== S3 then S5 on the bare base: apply S5 and roll it back
+-- apply 20261119100000_s3_strategy_window_fields.draft.sql
+-- apply 20261119120000_s5_strategy_replace.draft.sql
+ chk 
+-----
+ 
+(1 row)
+
+-- apply 20261119120000_s5_strategy_replace.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+-- apply 20261119100000_s3_strategy_window_fields.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+== the live state: DB-1 to DB-5, CC-25, S3 and S4 applied
+-- apply 20261118120000_roles_db1_card_roles.draft.sql
+-- apply 20261118120100_roles_db2_change_kinds.draft.sql
+-- apply 20261118120200_roles_db3_deck_card_jobs.draft.sql
+-- apply 20261118120300_roles_db4_strategy_points.draft.sql
+-- apply 20261118120400_roles_db5_health_targets.draft.sql
+-- apply 20261118130000_cc25_trade_locations.draft.sql
+-- apply 20261119100000_s3_strategy_window_fields.draft.sql
+-- apply 20261119110000_s4_claude_change_reason.draft.sql
+ chk 
+-----
+ 
+(1 row)
+
+== apply S5 on the live state
+-- apply 20261119120000_s5_strategy_replace.draft.sql
+   (expected) psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/strategy-autosave/supabase/drafts/20261119120000_s5_strategy_replace.draft.sql:29: ERROR:  s5 already applied (ai_set_deck_setup no longer refuses a replacement) or the function is not the S3 body; stop and check the live database
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== rollback of S5 on the live state (it never refuses; no data depends on it)
+-- apply 20261119120000_s5_strategy_replace.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+   (expected) psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/strategy-autosave/supabase/drafts/20261119120000_s5_strategy_replace.rollback.sql:10: ERROR:  s5 is not applied
+ chk 
+-----
+ 
+(1 row)
+
+== re-apply, then S5 and every earlier draft rolled back in reverse, S3 last of the CC-era drafts
+-- apply 20261119120000_s5_strategy_replace.draft.sql
+ chk 
+-----
+ 
+(1 row)
+
+-- apply 20261119120000_s5_strategy_replace.rollback.sql
+-- apply 20261119100000_s3_strategy_window_fields.rollback.sql
+-- apply 20261118130000_cc25_trade_locations.rollback.sql
+-- apply 20261118120400_roles_db5_health_targets.rollback.sql
+-- apply 20261118120300_roles_db4_strategy_points.rollback.sql
+-- apply 20261118120200_roles_db3_deck_card_jobs.rollback.sql
+-- apply 20261118120100_roles_db2_change_kinds.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+
+######## RESULTS ########
+ n  |                                                                            name                                                                             | result |                                                                    detail                                                                    
+----+-------------------------------------------------------------------------------------------------------------------------------------------------------------+--------+----------------------------------------------------------------------------------------------------------------------------------------------
+  1 | V-00 S5 without S3 is refused and changes nothing                                                                                                           | PASS   | 
+  2 | V-01 S5 applies on S3 alone: the function no longer mentions the replace refusal                                                                            | PASS   | 
+  3 | V-02 S5 rolled back on S3 alone restores the S3 state EXACTLY (functions, grants, constraints, tables, columns)                                             | PASS   | 
+  4 | V-03 S3 rolled back after that restores the cc15b base exactly                                                                                              | PASS   | 
+  5 | V-10 before S5 the same replace is refused as notes_replace_refused and the text is unchanged                                                               | PASS   | notes_replace_refused
+  6 | V-11 running S5 a second time is refused; one function of that name; no table or column changed                                                             | PASS   | 
+  7 | V-12 the function keeps its grants: service role only (not anon, not signed-in users)                                                                       | PASS   | 
+  8 | V-13 Claude replaces text that does not start with the old text (base matches): applied, one log row with the old and the new text, marked as Claude        | PASS   | {"ok": true, "res": {"count": 1, "changed": {"strategy_notes": "Rewritten: Yedora is a lands deck that recurs Scute Swarm for value."}, "out
+  9 | V-14 other keys are unchanged by a text replace (summary, playgroup, bracket, budget, win condition)                                                        | PASS   | 
+ 10 | V-15 a stale strategy_notes_base is refused as notes_changed and nothing changes                                                                            | PASS   | 
+ 11 | V-16 sending the text that is already there changes nothing and writes no log row                                                                           | PASS   | {"ok": true, "res": {"count": 0, "outcome": "no_change", "success": true}}
+ 12 | V-17 over 4000 characters is refused as notes_too_long; exactly 4000 is accepted and a number is refused as bad_notes                                       | PASS   | {"ok": true, "res": {"count": 1, "changed": {"strategy_notes": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
+ 13 | V-18 Undo of a replace puts the previous text back                                                                                                          | PASS   | {"ok": true, "res": {"undone": 1, "success": true}}
+ 14 | V-19 Undo is blocked (changed_since) when the owner edited the text since; the owner's text stays                                                           | PASS   | {"ok": true, "res": {"refused": {"code": "changed_since", "deck": "Manual"}, "success": false}}
+ 15 | V-20 Claude clears the text with null: applied, text empty, log row keeps the old text                                                                      | PASS   | {"ok": true, "res": {"count": 1, "changed": {"strategy_notes": null}, "outcome": "applied", "success": true, "group_id": "3ee3aed8-4a89-4de9
+ 16 | V-21 Undo of the clear brings the text back                                                                                                                 | PASS   | {"ok": true, "res": {"undone": 1, "success": true}}
+ 17 | V-22 an empty text also clears: applied, text is empty                                                                                                      | PASS   | {"ok": true, "res": {"count": 1, "changed": {"strategy_notes": ""}, "outcome": "applied", "success": true, "group_id": "b75ef55b-6797-4863-9
+ 18 | V-23 writing into an empty text with the empty text as base applies                                                                                         | PASS   | {"ok": true, "res": {"count": 1, "changed": {"strategy_notes": "Fresh start after clearing."}, "outcome": "applied", "success": true, "group
+ 19 | V-24 a deck with no saved strategy gets its first text from Claude (row created, nothing else filled in)                                                    | PASS   | {"ok": true, "res": {"count": 1, "changed": {"strategy_notes": "First words."}, "outcome": "applied", "success": true, "group_id": "95130a7d
+ 20 | V-25 summary, playgroup and bracket still change on their own and leave the text alone                                                                      | PASS   | {"ok": true, "res": {"count": 1, "changed": {"bracket": 4, "summary": "Lands, recursion and value", "playgroup": "Casual Friday pod"}, "outc
+ 21 | V-26 text, summary, playgroup and bracket in one request: one log row holding all four                                                                      | PASS   | {"ok": true, "res": {"count": 1, "changed": {"bracket": 2, "summary": "One line", "playgroup": "Pod", "strategy_notes": "Rewritten with all 
+ 22 | V-27 bad bracket, summary and playgroup are still refused before anything changes                                                                           | PASS   | 
+ 23 | V-28 a commander change and a text replace in one request apply together                                                                                    | PASS   | {"ok": true, "res": {"count": 1, "changed": {"commander": "Card 1", "strategy_notes": "Commander and text together.", "commander_slot_id": 1
+ 24 | V-29 S4 still records a reason for the group of a text replace                                                                                              | PASS   | {"stored": true, "success": true}
+ 25 | V-30 a second user cannot replace the first user's text (deck_not_found) and nothing changes                                                                | PASS   | 
+ 26 | V-31 a revoked connection or the first user's connection used by the second user is refused                                                                 | PASS   | 
+ 27 | V-32 the second user replaces their own text; the first user's text is untouched                                                                            | PASS   | {"ok": true, "res": {"count": 1, "changed": {"strategy_notes": "Owner two text."}, "outcome": "applied", "success": true, "group_id": "48e9a
+ 28 | V-33 signed-in users and anon cannot call the function                                                                                                      | PASS   | permission denied for function ai_set_deck_setup | permission denied for function ai_set_deck_setup
+ 29 | V-34 other connector kinds still work (add a card, then Claude undoes it)                                                                                   | PASS   | 
+ 30 | V-40 S5 rolled back: the database equals the live state before S5 EXACTLY (functions, grants, constraints, tables, triggers, columns); the saved text stays | PASS   | 40b397db7e972247b789c371211ed4ae vs 40b397db7e972247b789c371211ed4ae
+ 31 | V-41 after the rollback Claude can only add to the text again (a replace is refused, an addition is accepted)                                               | PASS   | 
+ 32 | V-42 a second S5 rollback is refused and changes nothing                                                                                                    | PASS   | 
+ 33 | V-50 re-applied after a rollback: a replace applies again                                                                                                   | PASS   | {"ok": true, "res": {"count": 1, "changed": {"strategy_notes": "Second time round."}, "outcome": "applied", "success": true, "group_id": "e1
+ 34 | V-51 S5, S4, S3, CC-25 and DB-5 to DB-1 roll back in reverse and the database equals the cc15b base exactly                                                 | PASS   | 8797325131d8a83a9c6de0822dc1a46d vs 8797325131d8a83a9c6de0822dc1a46d
+(34 rows)
+
+ passed | failed 
+--------+--------
+     34 |      0
+(1 row)
+

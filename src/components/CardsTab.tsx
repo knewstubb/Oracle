@@ -18,7 +18,6 @@ import type { StructuredCategories } from '@/lib/categoryUtils'
 import { useDeckCategories } from '@/hooks/useDeckCategories'
 import { deckKeys } from '@/hooks/useDeckQueryKeys'
 import { cardStatusesQueryOptions } from '@/lib/deck-card-statuses-query'
-import { ProgressBarSkeleton } from '@/components/DeckViewSkeleton'
 import type { DeckCard } from '@/components/CardGrid'
 import type { CardSlotStatus, DeckCardLifecycle } from '@/lib/card-status'
 import { isBasicLand, isGenericSlot, isGenericSleeved, getBasicLandDefaultScryfallId } from '@/lib/basic-lands'
@@ -31,7 +30,7 @@ import { isCompanion } from '@/lib/command-zone'
 import { CommandZoneSlots } from '@/components/CommandZoneSlots'
 import { CommanderActionsProvider, useCommanderActions } from '@/hooks/useCommanderActions'
 import { actionLabel } from '@/lib/commander-card-actions'
-import { PicklistProgress, type PicklistCard } from '@/components/PicklistV2'
+import { type PicklistCard } from '@/components/PicklistV2'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -44,7 +43,6 @@ interface CardsTabProps {
   cards: DeckCard[]
   deckId: number
   scrollToCategory?: string | null
-  onViewPicklist?: () => void
   /** Maximum copies per card allowed by the deck's format (null = no limit, 1 = singleton). Defaults to 1. */
   maxCopies?: number | null
   /** The deck's commander name; finds the commander card on older decks where no card is flagged yet. */
@@ -349,14 +347,14 @@ export function CardsTab(props: CardsTabProps) {
   )
 }
 
-function CardsTabInner({ cards, deckId, scrollToCategory, onViewPicklist, maxCopies = 1, commanderName, showCommandZone = false, deckTarget }: CardsTabProps) {
+function CardsTabInner({ cards, deckId, scrollToCategory, maxCopies = 1, commanderName, showCommandZone = false, deckTarget }: CardsTabProps) {
   // ── Derived Data ─────────────────────────────────────────────────────────────
 
   const availableCategories = useDeckCategories(cards)
 
   // ── Card Statuses Query ──────────────────────────────────────────────────────
 
-  const { data: statusData, isLoading: isStatusLoading } = useQuery<CardStatusResponse>(cardStatusesQueryOptions(deckId))
+  const { data: statusData } = useQuery<CardStatusResponse>(cardStatusesQueryOptions(deckId))
 
   // ── Picklist data (for progress bar) ─────────────────────────────────────
 
@@ -798,35 +796,6 @@ function CardsTabInner({ cards, deckId, scrollToCategory, onViewPicklist, maxCop
       {/* ─── View Content Area ─────────────────────────────────────────── */}
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         <div className="mx-auto max-w-[var(--content-max-width)]">
-          {/* Progress bar - uses statusData.counts for immediate updates; placeholder reserves its space while loading */}
-          {isStatusLoading && !statusData && <ProgressBarSkeleton />}
-          {statusData?.counts && (
-            <PicklistProgress
-              counts={{
-                original: statusData.counts.original,
-                proxy: statusData.counts.proxy,
-                available: statusData.counts.available,
-                claimed: statusData.counts.claimed,
-                unowned: statusData.counts.unowned,
-                total: statusData.counts.total,
-                genericSleeved: (statusData.counts.generic_land ?? 0) - (statusData.counts.generic_unsleeved ?? 0),
-                genericUnsleeved: statusData.counts.generic_unsleeved ?? 0,
-                unsleevedGenericNames: statusData.counts.unsleevedGenericNames,
-              }}
-              action={
-                onViewPicklist && (
-                  <Button
-                    variant="outline"
-                    size="xs"
-                    onClick={onViewPicklist}
-                    className="text-[length:var(--fs-xs)]"
-                  >
-                    View Picklist
-                  </Button>
-                )
-              }
-            />
-          )}
           {tabMode === 'picklist' ? (
             <PicklistV2 deckId={deckId} />
           ) : cards.length === 0 ? (

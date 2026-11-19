@@ -70,8 +70,8 @@ export function StrategyBlock({ deckId, deckName, onSeeHistory }: StrategyBlockP
   const status = <span role="status" aria-live="polite" className="sr-only">{announce}</span>
   if (isPending && !isError) {
     return (
-      <div className="mx-auto w-full max-w-[var(--content-max-width)] px-6 pt-3">
-        <div aria-busy="true" className="w-full space-y-2 rounded-lg border border-border p-3 sm:max-w-md" data-testid="strategy-block-loading">
+      <div className="w-full">
+        <div aria-busy="true" className="w-full space-y-2 rounded-lg border border-border p-3" data-testid="strategy-block-loading">
           <p className="text-[length:var(--fs-md)] text-muted-foreground">Loading strategy…</p>
           <Skeleton className="h-3 w-4/5 motion-reduce:animate-none" />
           <Skeleton className="h-3 w-3/5 motion-reduce:animate-none" />
@@ -81,8 +81,8 @@ export function StrategyBlock({ deckId, deckName, onSeeHistory }: StrategyBlockP
   }
   if (!data) {
     return (
-      <div className="mx-auto w-full max-w-[var(--content-max-width)] px-6 pt-3">
-        <div className="flex w-full gap-2 rounded-lg border border-red-400 p-3 text-[length:var(--fs-md)] sm:max-w-md" data-testid="strategy-block-failed">
+      <div className="w-full">
+        <div className="flex w-full gap-2 rounded-lg border border-red-400 p-3 text-[length:var(--fs-md)]" data-testid="strategy-block-failed">
           <XCircle className="mt-0.5 size-5 shrink-0 text-red-300" aria-hidden="true" />
           <div className="min-w-0">
             <p className="font-medium text-red-300">Couldn&apos;t load your strategy.</p>
@@ -100,7 +100,7 @@ export function StrategyBlock({ deckId, deckName, onSeeHistory }: StrategyBlockP
   const empty = !hasBracket && !data.summary
   const warning = bracketWarning(data.bracket, data.implied)
   return (
-    <div className="mx-auto w-full max-w-[var(--content-max-width)] px-6 pt-3">
+    <div className="w-full">
       <button
         ref={blockRef}
         type="button"
@@ -108,7 +108,7 @@ export function StrategyBlock({ deckId, deckName, onSeeHistory }: StrategyBlockP
         onClick={() => setOpen(true)}
         data-testid="strategy-block"
         className={cn(
-          'flex min-h-11 w-full flex-col items-stretch gap-2 rounded-lg border p-3 text-left sm:max-w-md',
+          'flex min-h-11 w-full flex-col items-stretch gap-2 rounded-lg border p-3 text-left',
           empty ? 'border-dashed border-[#8A8A93]' : 'border-solid border-[#8A8A93]',
           FOCUS_RING,
         )}

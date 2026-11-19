@@ -3,16 +3,16 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
-import { AlertCircle, RefreshCw, ClipboardCopy } from 'lucide-react'
+import { AlertCircle, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DeckViewSkeleton } from '@/components/DeckViewSkeleton'
 import { cardStatusesQueryOptions } from '@/lib/deck-card-statuses-query'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { findCommanderCards } from '@/lib/commander-card-flag'
-import { PersistentHeader } from '@/components/PersistentHeader'
 import { LegalityBanner } from '@/components/LegalityBanner'
-import { DeleteDeckButton } from '@/components/DeleteDeckButton'
-import { HealthStrip } from '@/components/HealthStrip'
+import { BuildSelector } from '@/components/BuildSelector'
+import { DeckRail } from '@/components/deck-rail/DeckRail'
+import { DeckMenu } from '@/components/deck-rail/DeckMenu'
 import { CardsTab } from '@/components/CardsTab'
 import { AnalysisTab } from '@/components/AnalysisTab'
 import { CombosPanel } from '@/components/CombosPanel'
@@ -23,14 +23,11 @@ import { WorkbenchTab } from '@/components/WorkbenchTab'
 import { VersionHistoryPanel } from '@/components/VersionHistoryPanel'
 import { StrategyBlock } from '@/components/deck-strategy/StrategyBlock'
 import { getFormatConfig } from '@/lib/format-config'
-import { exportDeckAsText } from '@/lib/deck-export'
 import { useOracle } from '@/contexts/OracleContext'
-import { toast } from 'sonner'
 import { useDeckHoverPreload } from '@/hooks/useDeckHoverPreload'
 import type { DeckCard } from '@/components/CardGrid'
 import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
-import { Crown } from 'lucide-react'
-import { commanderChipText, isCompanion } from '@/lib/command-zone'
+import { isCompanion } from '@/lib/command-zone'
 import { ImportResultLine } from '@/components/manabox-import/ImportResult'
 
 interface Deck {
@@ -212,11 +209,16 @@ export default function DeckViewPage() {
     return primary !== 'Maybeboard' && primary !== 'Sideboard'
   })
   const totalCards = activeCards.reduce((sum, c) => sum + (c.quantity || 1), 0)
-  const proxyCount = activeCards.filter(c => c.allocation_role === 'proxy').reduce((sum, c) => sum + (c.quantity || 1), 0)
   const totalValue = activeCards.reduce((sum, c) => sum + ((c.price_usd ?? 0) * (c.quantity || 1)), 0)
 
+  const commanderCards = findCommanderCards(cards, deck.commander_name)
+  const commanderNames = getFormatConfig(deck.format).hasCommander
+    ? commanderCards.length > 0
+      ? commanderCards.map((c) => c.card_name)
+      : deck.commander_name ? [deck.commander_name] : []
+    : []
   return (
-    <div className="relative flex h-full flex-col">
+    <div className="@container relative h-full overflow-y-auto @[720px]:overflow-hidden">
       {/* Blurred commander art background with parallax — hidden on mobile */}
       {deck.commander_scryfall_id && (
         <div
@@ -244,57 +246,27 @@ export default function DeckViewPage() {
         </div>
       )}
 
-      {/* All page content — sits above the art layer */}
-      <div className="relative z-10 flex h-full flex-col">
-
-      {/* Persistent Header — sticky at top */}
-      <PersistentHeader
-        deck={deck}
+      {/* All page content — sits above the art layer. Narrow: one scrolling column. Wide: rail beside the workspace. */}
+      <div className="relative z-10 flex min-h-full flex-col @[720px]:h-full @[720px]:flex-row">
+      <DeckRail
+        deck={{
+          id: deck.id,
+          name: deck.name,
+          commander_scryfall_id: deck.commander_scryfall_id,
+          colour_identity: deck.colour_identity,
+          deck_type: deck.deck_type,
+          is_precon_mod: deck.deck_type === 'Precon Mod',
+          salt_score: deck.salt_score,
+        }}
+        commanderNames={commanderNames}
+        cards={activeCards}
         totalCards={totalCards}
+        deckSize={getFormatConfig(deck.format).deckSize}
         hasCompanion={cards.some((c) => isCompanion(c))}
-        proxyCount={proxyCount}
         totalValue={totalValue}
-        nameSlot={
-          getFormatConfig(deck.format).hasCommander ? (
-            // Read-only: the commander(s) are chosen on the cards in the Cards tab, not here.
-            findCommanderCards(cards, deck.commander_name).length > 0 || deck.commander_name ? (
-              <span
-                className="inline-flex max-w-64 items-center gap-1.5 text-[length:var(--fs-sm)] text-muted-foreground"
-                data-testid="deck-commander-chip"
-              >
-                <Crown className="size-4 shrink-0" aria-hidden="true" />
-                <span className="truncate">
-                  {commanderChipText(findCommanderCards(cards, deck.commander_name).map((c) => c.card_name)) ??
-                    commanderChipText([deck.commander_name])}
-                </span>
-              </span>
-            ) : undefined
-          ) : undefined
-        }
-        actions={
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const text = exportDeckAsText(cards)
-                navigator.clipboard.writeText(text).then(
-                  () => toast.success('Decklist copied to clipboard'),
-                  () => toast.error('Failed to copy')
-                )
-              }}
-              className="text-[length:var(--fs-md)]"
-              aria-label="Copy decklist to clipboard"
-            >
-              <ClipboardCopy className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden sm:inline">Export</span>
-            </Button>
-            <VersionHistoryPanel deckId={deck.id} deckName={deck.name} open={historyOpen} onOpenChange={setHistoryOpen} />
-            <DeleteDeckButton deckId={deck.id} deckName={deck.name} />
-          </>
-        }
+        strategySlot={<StrategyBlock deckId={deck.id} deckName={deck.name} onSeeHistory={() => setHistoryOpen(true)} />}
       />
-
+      <div className="flex min-w-0 flex-1 flex-col @[720px]:min-h-0">
       {/* Fresh import result line */}
       {importSummary && (
         <div className="mx-auto max-w-[var(--content-max-width)] px-6 pt-2">
@@ -313,10 +285,8 @@ export default function DeckViewPage() {
       {/* Legality Banner — shows if deck has illegal cards */}
       <LegalityBanner deckId={deck.id} />
 
-      {/* Strategy block (DV-02): target bracket and one-line summary; opens the Strategy window */}
-      <StrategyBlock deckId={deck.id} deckName={deck.name} onSeeHistory={() => setHistoryOpen(true)} />
 
-      {/* Tabs + Content — scrolls independently beneath sticky header+health strip */}
+      {/* Tabs + Content — scrolls independently beside the rail */}
       <Tabs
         defaultValue="cards"
         value={activeTab}
@@ -328,11 +298,11 @@ export default function DeckViewPage() {
         onScrollCapture={handleContentScroll}
       >
         <div className="shrink-0 border-b border-border px-6">
-          <div className="mx-auto max-w-[var(--content-max-width)]">
+          <div className="mx-auto flex max-w-[var(--content-max-width)] items-center gap-2">
             {/* Tab list with horizontally scrollable wrapper on mobile. The active-tab underline
                 sits 5px below the list, so the wrapper pads/offsets 8px to contain it (otherwise
                 overflow-x-auto forces a vertical scrollbar). */}
-            <div className="-mx-6 -mb-2 overflow-x-auto px-6 pb-2 [scrollbar-width:none] sm:mx-0 sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
+            <div className="-mb-2 min-w-0 flex-1 overflow-x-auto pb-2 [scrollbar-width:none] sm:overflow-visible [&::-webkit-scrollbar]:hidden">
               <TabsList variant="line" className="w-max sm:w-auto">
                 <TabsTrigger value="cards">Cards</TabsTrigger>
                 <TabsTrigger value="picklist">Picklist</TabsTrigger>
@@ -344,15 +314,16 @@ export default function DeckViewPage() {
                 <TabsTrigger value="strategy" className="hidden sm:inline-flex">Strategy</TabsTrigger>
               </TabsList>
             </div>
+            {(!deck.format || deck.format === 'commander') && <BuildSelector deckId={deck.id} />}
+            <DeckMenu deckId={deck.id} deckName={deck.name} cards={cards} onOpenHistory={() => setHistoryOpen(true)} />
           </div>
         </div>
 
-        <TabsContent value="cards" className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+        <TabsContent value="cards" className="min-h-0 flex-1 px-6 py-6 @[720px]:overflow-y-auto">
           <div className="mx-auto max-w-[var(--content-max-width)]">
             <CardsTab
               cards={cards}
               deckId={deck.id}
-              onViewPicklist={() => setActiveTab('picklist')}
               maxCopies={getFormatConfig(deck.deck_type).maxCopies}
               commanderName={deck.commander_name}
               showCommandZone={getFormatConfig(deck.format).hasCommander}
@@ -361,7 +332,7 @@ export default function DeckViewPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="workbench" className="min-h-0 flex-1 overflow-hidden">
+        <TabsContent value="workbench" className="min-h-0 flex-1 @[720px]:overflow-hidden">
           <WorkbenchTab
             deckId={deck.id}
             cards={cards}
@@ -370,7 +341,7 @@ export default function DeckViewPage() {
           />
         </TabsContent>
 
-        <TabsContent value="analysis" className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+        <TabsContent value="analysis" className="min-h-0 flex-1 px-6 py-6 @[720px]:overflow-y-auto">
           <div className="mx-auto max-w-[var(--content-max-width)]">
             <AnalysisTab
               cards={cards}
@@ -380,15 +351,15 @@ export default function DeckViewPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="combos" className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+        <TabsContent value="combos" className="min-h-0 flex-1 px-6 py-6 @[720px]:overflow-y-auto">
           <CombosPanel deckId={deck.id} />
         </TabsContent>
 
-        <TabsContent value="upgrade" className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+        <TabsContent value="upgrade" className="min-h-0 flex-1 px-6 py-6 @[720px]:overflow-y-auto">
           <UpgradeTab deckId={deck.id} />
         </TabsContent>
 
-        <TabsContent value="strategy" className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+        <TabsContent value="strategy" className="min-h-0 flex-1 px-6 py-6 @[720px]:overflow-y-auto">
           <div className="mx-auto max-w-[var(--content-max-width)]">
             <StrategyTab
               deckId={deck.id}
@@ -401,15 +372,15 @@ export default function DeckViewPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="picklist" className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+        <TabsContent value="picklist" className="min-h-0 flex-1 px-6 py-6 @[720px]:overflow-y-auto">
           <div className="mx-auto max-w-[var(--content-max-width)]">
             <PicklistV2 deckId={deck.id} />
           </div>
         </TabsContent>
       </Tabs>
 
-      {/* Health Strip — bottom of page */}
-      <HealthStrip deckId={deck.id} />
+      </div>{/* end workspace */}
+      <VersionHistoryPanel hideTrigger deckId={deck.id} deckName={deck.name} open={historyOpen} onOpenChange={setHistoryOpen} />
       </div>{/* end content wrapper (z-10) */}
     </div>
   )

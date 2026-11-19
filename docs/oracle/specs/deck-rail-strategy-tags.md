@@ -1,7 +1,7 @@
 # Spec: Deck left rail, Strategy window and card Tags (DV-01, DV-02, RQ-12)
-Role: Designer · Status: **Proposal, awaiting owner approval (Gate 3).** Nothing is built. · 2026-11-19
+Role: Designer · Status: **Proposal, awaiting owner approval (Gate 3).** Section 1a (Deck health rows, HC-01 and HC-02) added 2026-11-20; the rest is unchanged. Nothing new is built. · 2026-11-19
 Mockup: `docs/oracle/mockups/deck-rail-strategy-tags.html` (open from disk in a browser; switches for every state, phone width and greyscale; sample data for the deck Yedora, the Explorer).
-Briefs: `briefs/deck-page-left-rail-and-strategy.md`, `briefs/card-tags-and-deck-slot-why.md`, `briefs/claude-change-reason.md`. Evidence: `reports/2026-11-19-architect-audit.md`, `reports/2026-11-19-architect-conflict-list.md`. Owner direction: `.agents/tasks/planning-round-2026-11-19/owner-direction.md` (binding out-of-scope list).
+Briefs: `briefs/categories-drive-deck-health.md` (section 1a), `briefs/deck-page-left-rail-and-strategy.md`, `briefs/card-tags-and-deck-slot-why.md`, `briefs/claude-change-reason.md`. Evidence: `reports/2026-11-19-architect-audit.md`, `reports/2026-11-19-architect-conflict-list.md`. Owner direction: `.agents/tasks/planning-round-2026-11-19/owner-direction.md` (binding out-of-scope list).
 Supersedes the layout parts of `specs/card-roles-and-deck-jobs.md` (three-layer Strategy tab, Card jobs layer, strategy points, proposals bar, Group by Job). That spec is marked partly superseded only after the owner approves this one.
 
 **Binding rule for every screen here.** Nothing in the app blocks, filters or refuses a suggestion because of bracket, and no line of copy implies it. The bracket warning informs and restricts nothing.
@@ -20,13 +20,56 @@ Order, top to bottom (all sample figures from the owner's wireframe):
 | 3 | Commander | Colour badge (letter inside, never colour only), commander name, "Commander · Green". Partner, Background or Companion slot appears **only** when the commander allows one | The mockup shows the dashed slot box as an explanation; in the app it is simply absent for Yedora |
 | 4 | Strategy | The Strategy block (section 2) | Only interactive item in the rail |
 | 5 | Cards | "102 / 100"; amber icon plus "2 over" when above 100; bar (green, with a hatched amber end when over); Original, Proxy, In other decks, Unowned counts; "Estimated value $131.98" | Zero counts stay readable (secondary text, 6.36:1). Words are the existing vocabulary terms |
-| 6 | Deck health | Existing groups and targets: Ramp, Draw, Removal, Wipes, Lands as "have / target" with icon and word "Met" or "Short" | Same groups, same target sources (commander average, estimate, general guide). A one-line note names the source in use. RC-01 stays separate |
+| 6 | Deck health | Six rows with ranges and a verdict word (section 1a). **Replaces** the earlier Ramp / Draw / Removal / Wipes / Lands "have / target" rows and the "Met" / "Short" words (D-061, 2026-11-20) | Same place, same 304 px width, same fonts and colours as the rest of the rail |
 | 7 | Mana curve | Eight bars, cost 0 to 7+, count printed above each bar | Chart carries a text alternative listing every value. Marked sample shape until real data is wired |
 | 8 | Colour needs against sources | Per colour: badge, "Symbols" bar and percentage, "Sources" bar and "33 of 37" | Space reserved for RQ-13; sample figures only |
 
 **"..." menu** (Export, History, Delete deck, Delete last, separated by a rule). Placed at the right end of the tab row in the main area, so it is the same place on desktop and phone. Opens a menu: arrow keys move, Escape closes and returns focus to the button, items are 44 px high. Delete shows icon, word and red text and opens the existing confirmation; it never deletes on first click.
 
 Edge cases: a deck with no commander (brewing, none chosen yet) shows a dashed "Choose a commander" slot in place of art and commander, and the rest of the rail still works. A deck at or under 100 shows "n / 100" with no amber text. A very long deck name wraps to two lines; it is not cut off.
+
+## 1a. Deck health rows (HC-01, HC-02; D-061)
+Binding: D-061 and the owner's wording of 2026-11-20. The rail keeps its 304 px width, section order and look. Only the Deck health section changes. Mockup: switch "Health numbers for" (Yedora the Explorer, A rot to process) and "Health details panel". Real counts come from audit section g.
+
+**Header line (a button).** Icon plus "1 of 5 in range" (amber triangle when any of the five is off range, tick plus "All 5 in range" when none is). It opens the details panel overview. The count covers the five ranged rows only.
+
+**Six rows, always shown, even at 0, in this order:** Lands 35 to 38, Ramp 10 to 12, Card Advantage 10 to 12, Targeted Removal 10 to 12, Board Wipes / Mass Disruption 3 to 6, Game Plan & Win Conditions (no range).
+
+**Row layout** (one button per row, at least 44 px high, grows when text wraps): left, the name with a smaller second line; middle, the count in bold; right, the verdict as icon plus word in a 72 px column.
+- Second line for the five ranged rows: "Range 10 to 12", plus " · 6 above" or " · 4 below" when off range. "Below" is measured from the minimum, "above" from the maximum.
+- Long names wrap to two lines inside the row ("Board Wipes / Mass Disruption", "Game Plan & Win Conditions"). They are never cut.
+
+| Verdict | Rule | Icon and word | Colour |
+|---|---|---|---|
+| Light | count below the minimum | down arrow, "Light" | amber (7.98:1 on the rail) |
+| Ok | within the range, ends included | tick, "Ok" | green (8.28:1) |
+| Heavy | count above the maximum | up arrow, "Heavy" | amber (7.98:1) |
+
+Light and Heavy share amber because both mean "outside your range". The arrow direction and the word tell them apart, so nothing depends on colour. Every ratio is above 4.5:1 for text (table in the mockup). A row is never read as a failure or a block; it is information.
+
+**Game Plan & Win Conditions row.** Count in bold. The right column says "Total" in secondary text with no icon. Second line: "No range. Everything not counted above." A dashed rule above it separates it from the five. It has no verdict and is not counted in the header line. It is the number of nonland cards not counted in the other five rows. Cards Oracle cannot place (no card text yet) are included in it. The template's "about 25 to 30" appears only inside the details panel, as a quiet grey sentence ("a guide only").
+
+**Notes under the rows** (12 px, secondary text, each with an info icon, shown only when they apply except the first two):
+1. Mana sources (HC-06): "Mana sources 55: 37 lands, 18 ramp cards. An estimate." With double-faced land cards: "Mana sources 57: 37 lands, 2 double-faced, 18 ramp cards."
+2. "Ranges are the Command Zone template. Select a row for details." (replaces the old "Targets: commander average" line.)
+3. Uncategorised: "4 cards have no card text yet, so Oracle could not place them. They are counted in Game Plan & Win Conditions." Not shown at 0.
+4. Overlap: "99 cards in the list. 2 cards count in two rows, so the rows add to 101." Not shown at 0. The rows are never summed on screen without this line.
+
+**Double-faced land cards (HC-06).** The Lands row count stays the plain land count and the verdict uses it. A third line under the range reads "+ 2 double-faced". The same cards are added to mana sources. They are never added to the land count, to any row, or to the deck total.
+
+**Details panel.** Opened by any row or the header line. Same panel the old footer opened: a 420 px drawer on the right at wide widths, an 86%-high bottom sheet below 700 px (unchanged from the built panel). Focus goes to the panel title, Escape and Close return focus to the row that opened it, the page behind is inert.
+- *Overview:* a headline box ("1 of 5 in range"), one card per row (name, verdict, meter, one sentence such as "You have 18 cards, 6 above the maximum of 12."), the Game Plan card (total, no verdict), the same notes, then "For reference only: the average EDHREC deck for this commander" with the five numbers and "Not used for any verdict". Rows off range have an amber outline plus the icon and word.
+- *One row:* back button "Deck health", status line and meter, the range and its source ("Default. The Command Zone template."), the cards counted here (first six, then "and 12 more"), for a Light row the existing "cards that fill it" list unchanged, and the EDHREC reference sentence. Lands also shows mana sources and the double-faced explanation. Game Plan shows the total, the no-card-text count and the quiet template note.
+- *Meter:* a track with the range as an outlined, tinted band and the count as a white marker; the text underneath states the range and the count, so the meter is decoration. It has a text alternative.
+- No odds, no Claude rename and no "set my own range" control exist in HC-01 and HC-02.
+
+**States.** Loading: "Checking…" (polite status). Failed: red icon, "Couldn't check" and a "Try again" button (44 px), as built. Cards without text, and the existing 10 % partial-check warning in the panel, stay.
+
+**Future state, shown only so no redesign is needed (HC-05).** A range proposed by Claude: the row's second line reads "Claude proposes 14 to 18. Not confirmed.", the right column shows a dashed-circle icon and "Proposed", no verdict, count unchanged (D-061). In the panel: the proposal, Claude's one-line reason, the default range, and "Confirm 14 to 18" and "Decline" buttons that only the owner sees. An owner-set range will say "You set" in the panel's range box. None of this is in HC-01 and HC-02.
+
+**Phone (800 px and below).** Rows are identical inside the expanded rail, at full width. The collapsed 64 px row is unchanged and does not show health. The panel is the 86% bottom sheet; its cards stack in one column.
+
+**Words.** Light, Ok, Heavy (owner's words). "Short" and "Met" are no longer used for health, because "Short" already means an original-copy shortage in Reconcile (vocabulary.md). "Draw" becomes "Card Advantage", "Removal" becomes "Targeted Removal", "Wipes" becomes "Board Wipes / Mass Disruption". "Uncategorised" is used in the report; on screen the note says "could not place".
 
 ## 2. Strategy block (in the rail)
 The whole block is one `button` (`aria-haspopup="dialog"`), at least 44 px high, with the visible text as its name. It holds the target bracket chip, an "Edit" cue with a chevron, the one-line summary, and (when applicable) the warning line.
@@ -88,7 +131,7 @@ At 800 px page width and below (was 720; moved up so tablets, 768 px, get the co
 - **Modal.** `role="dialog"`, `aria-modal`, labelled by the title and described by the subtitle. Focus moves in on open, Tab and Shift+Tab cycle inside (tested in the mockup), the page behind is inert, Escape closes, focus returns to the control that opened it.
 - **Focus.** Every control shows a 2 px white outline with a 4 px black halo (17.35:1 on surface).
 - **Targets.** All buttons, bracket options, menu items, rows, links in forms and the rail toggle are at least 44 × 44 px.
-- **Not colour alone.** Warning = triangle icon + sentence. Not set chip = icon + words. Over 100 = icon + "2 over". Health = tick or warning icon + "Met"/"Short". Selected bracket = tick + thicker outline. Failed and offline = icon + words. Tested with the greyscale switch in the mockup.
+- **Not colour alone.** Warning = triangle icon + sentence. Not set chip = icon + words. Over 100 = icon + "2 over". Health = tick, down arrow or up arrow + "Ok" / "Light" / "Heavy" (section 1a). Selected bracket = tick + thicker outline. Failed and offline = icon + words. Tested with the greyscale switch in the mockup.
 - **Live regions.** Warning region and "Strategy saved" are polite; save failure is an alert. The character counter is not announced on every key.
 - **Motion.** Loading shimmer stops under reduced-motion.
 - **Contrast** (WCAG 2.2 AA, text 4.5:1, control borders and icons 3:1), calculated from the app's dark tokens:
@@ -118,6 +161,12 @@ Strategy, Target bracket, Target bracket: Not set, Add a one-line summary of how
 5. Tag order when over five: recommend broad Tags first. Alternative: alphabetical.
 6. The "Clear target" link: recommend keep, so a target can be un-set.
 7. Where the Save label is dark: recommend dark text on green for readability. Alternative: darker green with white text.
+
+## 8a. Open questions for the owner, Deck health rows
+1. Header line "1 of 5 in range": recommend keep. Alternative: no header line, rows only.
+2. Light and Heavy both amber, told apart by arrow and word: recommend keep. Alternative: Heavy in a second colour (more to tell apart in greyscale).
+3. Double-faced lands: the verdict uses the plain land count only. Recommend keep. Alternative: count each as a land for the verdict.
+4. Cards with no card text sit in Game Plan and are named in a note. Recommend keep.
 
 ## 9. Not covered here
 Build, migrations, RQ-13 and RQ-14 maths, the Picklist screens, the EDHREC build picker and category manager (they stay where they are), and the Workbench and Analysis tabs.

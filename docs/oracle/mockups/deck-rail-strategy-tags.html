@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Oracle · Deck left rail, Strategy window and card Tags (DV-01, DV-02, RQ-12 mockup)</title>
+<title>Oracle · Deck left rail, Strategy window and card Tags (DV-01, DV-02, RQ-12, HC-01, HC-02 mockup)</title>
 <style>
 /* Proposal, awaiting owner approval. Sample data for the deck "Yedora, the Explorer"; none of it is real. */
 :root{
@@ -71,12 +71,44 @@ svg.i{width:1.15em;height:1.15em;flex:none;vertical-align:-.2em;fill:none;stroke
 .split li{display:flex;justify-content:space-between;gap:6px;min-height:24px}
 .split .z{color:var(--text2)}
 .val{margin-top:6px;font-size:var(--fs-sm)}
-.health{list-style:none;margin:0;padding:0;font-size:var(--fs-sm)}
-.health li{display:flex;align-items:center;gap:8px;min-height:30px;border-bottom:1px solid var(--border-subtle)}
-.health li:last-child{border-bottom:0}
-.health .lbl{flex:1}
-.health .ok{color:var(--accent-text);display:inline-flex;gap:4px;align-items:center}
-.health .low{color:var(--warn);display:inline-flex;gap:4px;align-items:center}
+.hl-list{list-style:none;margin:0;padding:0;font-size:var(--fs-sm)}
+.hl-head{display:flex;align-items:center;gap:8px;width:100%;min-height:44px;padding:0 4px;background:none;border:0;border-radius:6px;text-align:left;font-weight:600;font-size:var(--fs-sm)}
+.hl-head:hover,.hrow:hover{background:var(--bg-hover)}
+.hrow{display:grid;grid-template-columns:minmax(0,1fr) auto 72px;gap:8px;align-items:center;width:100%;min-height:44px;padding:4px;background:none;border:0;border-bottom:1px solid var(--border-subtle);border-radius:6px;text-align:left;font-size:var(--fs-sm)}
+.hl-list li:last-child .hrow{border-bottom:0}
+.hrow .hn{display:block}
+.hrow .hs{display:block;font-size:var(--fs-xs);color:var(--text2)}
+.hrow .hc{font-variant-numeric:tabular-nums;font-size:var(--fs-md);text-align:right;min-width:24px}
+.hv{display:inline-flex;gap:4px;align-items:center;justify-content:flex-end;font-weight:600}
+.hv.ok{color:var(--accent-text)}
+.hv.light,.hv.heavy{color:var(--warn)}
+.hv.none{color:var(--text2);font-weight:400}
+.hl-list li.total{margin-top:4px;border-top:1px dashed var(--border-subtle)}
+.hl-notes{margin:6px 0 0;padding:0;list-style:none;display:grid;gap:4px;font-size:var(--fs-xs);color:var(--text2)}
+.hl-notes li{display:flex;gap:6px;align-items:flex-start}
+.hl-notes .i{margin-top:1px}
+.hl-state{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:var(--fs-sm);min-height:44px}
+/* details panel */
+.scrim.drawer{justify-content:flex-end;align-items:stretch;padding:0}
+.dlg.panel{width:420px;height:100%;border-radius:0;border-top:0;border-right:0;border-bottom:0}
+.pcard{display:block;width:100%;text-align:left;border:1px solid var(--border-ctl);border-radius:10px;padding:10px 12px;background:var(--bg-surface);min-height:44px}
+.pcard.off{border-color:var(--warn)}
+.pcard:hover{background:var(--bg-hover)}
+.pcard .r1{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.pcard .r2{margin-top:6px;font-size:var(--fs-sm)}
+.pcard .r3{font-size:var(--fs-xs);color:var(--text2)}
+.meter{position:relative;height:10px;margin:10px 0 4px;border-radius:5px;background:#2c2c32;border:1px solid var(--border-ctl)}
+.meter .band{position:absolute;top:-1px;bottom:-1px;background:var(--accent-bg);border-left:2px solid var(--accent-text);border-right:2px solid var(--accent-text)}
+.meter .mk{position:absolute;top:-5px;width:4px;height:18px;margin-left:-2px;background:var(--text);border-radius:2px;box-shadow:0 0 0 1px #000}
+.scale{display:flex;justify-content:space-between;font-size:var(--fs-xs);color:var(--text2)}
+.pbox{border:1px solid var(--border-ctl);border-radius:10px;padding:12px}
+.pbox h3{margin:0 0 4px;font-size:var(--fs-md)}
+.pbox p{margin:4px 0 0;font-size:var(--fs-sm)}
+.pbox.prop{border-style:dashed}
+.plist{margin:6px 0 0;padding:0 0 0 18px;font-size:var(--fs-sm)}
+.sec-h{margin:0 0 4px;font-size:var(--fs-sm);font-weight:600;color:var(--text2)}
+.tagfut{display:inline-flex;border:1px dashed var(--border-ctl);border-radius:999px;padding:1px 8px;font-size:var(--fs-xs);color:var(--text2);margin-left:6px}
+.backb{display:inline-flex;align-items:center;gap:4px;min-height:44px;background:none;border:0;color:var(--accent-text);font-weight:600;padding:0}
 .src{font-size:var(--fs-xs);color:var(--text2);margin-top:4px}
 .curve{display:flex;align-items:flex-end;gap:6px;height:84px}
 .curve div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px;font-size:var(--fs-xs)}
@@ -148,7 +180,7 @@ svg.i{width:1.15em;height:1.15em;flex:none;vertical-align:-.2em;fill:none;stroke
 /* ---- rail on a phone ---- */
 .rail-compact{display:none}
 .rail-full{display:contents}
-@container (max-width:720px){
+@container (max-width:800px){
   .app{overflow:auto}
   .body{display:block;flex:none}
   .rail{overflow:visible;border-right:0;border-bottom:1px solid var(--border-subtle);padding:0}
@@ -163,6 +195,8 @@ svg.i{width:1.15em;height:1.15em;flex:none;vertical-align:-.2em;fill:none;stroke
   .cols{grid-template-columns:1fr}
   .topnav .search,.topnav .hide-phone{display:none}
   .tabsrow{top:0}
+  .scrim.drawer{align-items:flex-end}
+  .dlg.panel{width:100%;height:86%;border-radius:14px 14px 0 0;border:1px solid var(--border-ctl)}
 }
 
 /* ---- dialogs ---- */
@@ -192,7 +226,7 @@ svg.i{width:1.15em;height:1.15em;flex:none;vertical-align:-.2em;fill:none;stroke
 .clr{background:none;border:0;color:var(--accent-text);text-decoration:underline;min-height:44px;padding:0 4px}
 .discard{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--bg-canvas);border:1px solid var(--border-ctl);border-radius:8px;padding:8px 12px}
 .discard span{flex:1;min-width:160px}
-@container (max-width:720px){
+@container (max-width:800px){
   .scrim{padding:0;align-items:flex-end}
   .dlg{width:100%;height:100%;border-radius:0;border:0}
   .brk{grid-template-columns:repeat(5,minmax(0,1fr))}
@@ -228,6 +262,11 @@ svg.i{width:1.15em;height:1.15em;flex:none;vertical-align:-.2em;fill:none;stroke
   <symbol id="i-export" viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4M5 14v6h14v-6"/></symbol>
   <symbol id="i-hist" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 8v4l3 2"/></symbol>
   <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+  <symbol id="i-light" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+  <symbol id="i-heavy" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+  <symbol id="i-prop" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-dasharray="3 3"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.1"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
   <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
 </svg>
 
@@ -238,11 +277,17 @@ svg.i{width:1.15em;height:1.15em;flex:none;vertical-align:-.2em;fill:none;stroke
   <div class="grp" id="g-screen"><span>Screen</span></div>
   <div class="grp" id="g-width"><span>Width</span></div>
   <div class="grp" id="g-grey"><span>Check</span></div>
+  <div class="grp" id="g-hdeck"><span>Health numbers for</span></div>
+  <div class="grp" id="g-hpanel"><span>Health details panel</span></div>
+  <div class="grp" id="g-hload"><span>Health check</span></div>
+  <div class="grp" id="g-hunc"><span>Cards without text</span></div>
+  <div class="grp" id="g-hdfc"><span>Double-faced lands</span></div>
+  <div class="grp" id="g-hprop"><span>Future: Claude proposal on Ramp</span></div>
   <div class="grp" id="g-card"><span>Card (card details)</span></div>
   <div class="grp" id="g-why"><span>Why (card details)</span></div>
 </div>
 <div class="note">
-  <b>How to review.</b> Pick a Strategy state, then open the window from the Strategy block in the left rail. Loading, Failed and Offline open the window for you. Tab, Shift+Tab and Escape work as in the app. "Phone" narrows the frame so the rail stacks and collapses; "Greyscale" proves nothing depends on colour alone. All names and numbers are sample data for Yedora, the Explorer. The mockup's calculated bracket is fixed at 4 (4 Game Changers), so a target of 3 shows the warning and a target of 4 or 5 shows nothing.
+  <b>Deck health (new, HC-01 and HC-02).</b> The rail's Deck health section now shows six rows with the Command Zone ranges, using the real counts from the audit for two decks: Yedora the Explorer and A rot to process (pick one under "Health numbers for"). Select any row, or the headline, to open the details panel (a side drawer on desktop, a bottom sheet on a phone). The other switches show states the real decks do not have today: cards without text, double-faced land cards, loading and failed checks, and, as a future state only, a proposed range from Claude. The rest of the rail (cards, art, mana curve) is still the Yedora sample. Sample card names in the panel are placeholders.<br><br><b>How to review the Strategy window and card Tags.</b> Pick a Strategy state, then open the window from the Strategy block in the left rail. Loading, Failed and Offline open the window for you. Tab, Shift+Tab and Escape work as in the app. "Phone" narrows the frame so the rail stacks and collapses; "Greyscale" proves nothing depends on colour alone. All names and numbers are sample data for Yedora, the Explorer. The mockup's calculated bracket is fixed at 4 (4 Game Changers), so a target of 3 shows the warning and a target of 4 or 5 shows nothing.
   <details><summary>Contrast ratios checked (WCAG 2.2 AA, minimum 4.5:1 for text, 3:1 for control borders and icons)</summary>
     <table>
       <tr><th>Pair</th><th>Ratio</th></tr>
@@ -253,6 +298,11 @@ svg.i{width:1.15em;height:1.15em;flex:none;vertical-align:-.2em;fill:none;stroke
       <tr><td>Green text #3DC99A on surface / on the green fill</td><td>8.28:1 / 6.82:1</td></tr>
       <tr><td>Save label #0B0B0D on green #1D9E75 (white would be 3.39:1, so not used)</td><td>5.81:1</td></tr>
       <tr><td>Error red #F2766B on surface</td><td>6.26:1</td></tr>
+      <tr><td>Health rows: amber (Light, Heavy) on the row hover fill #212126</td><td>7.37:1</td></tr>
+      <tr><td>Health rows: green (Ok) on the row hover fill</td><td>7.65:1</td></tr>
+      <tr><td>Health rows: secondary text (sub-lines, Total, Proposed) on surface / on the hover fill</td><td>6.36:1 / 5.88:1</td></tr>
+      <tr><td>Range band outline and meter border #8A8A93 on surface (needs 3:1)</td><td>5.07:1</td></tr>
+      <tr><td>Meter marker #E8E8EA on the meter track #2C2C32 (needs 3:1)</td><td>11.34:1</td></tr>
       <tr><td>Control border #8A8A93 on surface / canvas (needs 3:1)</td><td>5.07:1 / 5.42:1</td></tr>
       <tr><td>Focus ring white on surface</td><td>17.35:1</td></tr>
     </table>
@@ -289,17 +339,7 @@ svg.i{width:1.15em;height:1.15em;flex:none;vertical-align:-.2em;fill:none;stroke
             </ul>
             <div class="val">Estimated value <b>$131.98</b></div>
           </section>
-          <section aria-labelledby="h-hl">
-            <h2 id="h-hl">Deck health</h2>
-            <ul class="health">
-              <li><span class="lbl">Ramp</span><b>18 / 15</b><span class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Met</span></li>
-              <li><span class="lbl">Draw</span><b>6 / 6</b><span class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Met</span></li>
-              <li><span class="lbl">Removal</span><b>6 / 4</b><span class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Met</span></li>
-              <li><span class="lbl">Wipes</span><b>0 / 0</b><span class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Met</span></li>
-              <li><span class="lbl">Lands</span><b>37 / 36</b><span class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Met</span></li>
-            </ul>
-            <div class="src">Targets: commander average. A group below target shows "Short" with a warning icon.</div>
-          </section>
+          <section aria-labelledby="h-hl" id="healthHost"></section>
           <section aria-labelledby="h-mc">
             <h2 id="h-mc">Mana curve <span class="muted" style="text-transform:none;letter-spacing:0">(sample shape)</span></h2>
             <div class="curve" role="img" aria-label="Mana curve. Cost 0: 1. Cost 1: 9. Cost 2: 14. Cost 3: 18. Cost 4: 12. Cost 5: 8. Cost 6: 4. Cost 7 or more: 2.">
@@ -348,6 +388,7 @@ svg.i{width:1.15em;height:1.15em;flex:none;vertical-align:-.2em;fill:none;stroke
     </div>
   </div>
 
+  <div class="scrim drawer" id="scrimH" hidden></div>
   <div class="scrim" id="scrimS" hidden></div>
   <div class="scrim" id="scrimC" hidden></div>
   <div class="toast" id="toast" role="status" hidden></div>
@@ -388,7 +429,7 @@ function seg(host,items,key,fn){
 }
 function paintCtl(){
   const set=(host,val)=>document.querySelectorAll(host+' button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v==val)));
-  set('#g-state',S.state);set('#g-win',S.open?'open':'closed');set('#g-screen',S.screen);set('#g-width',S.phone?'phone':'desktop');set('#g-grey',S.grey?'grey':'colour');set('#g-card',S.card);set('#g-why',S.why);
+  set('#g-state',S.state);set('#g-win',S.open?'open':'closed');set('#g-screen',S.screen);set('#g-width',S.phone?'phone':'desktop');set('#g-grey',S.grey?'grey':'colour');set('#g-card',S.card);set('#g-why',S.why);set('#g-hdeck',H.deck);set('#g-hpanel',H.panel.startsWith('cat')?H.panel:H.panel);set('#g-hload',H.load);set('#g-hunc',H.unc);set('#g-hdfc',H.dfc);set('#g-hprop',H.prop?'on':'off');
 }
 seg('#g-state',STATES,'state',v=>preset(v));
 seg('#g-win',[['open','Open'],['closed','Closed']],'open',v=>{v==='open'?openStrategy($('#blockHost button')||$('#railToggle')):closeStrategy(true,true)});
@@ -479,7 +520,7 @@ function closeStrategy(force,noFocus){
   if(!S.open)return;
   if(!force&&dirty()){$('#discard').hidden=false;$('#keepEd').focus();return}
   S.open=false;const sc=$('#scrimS');sc.hidden=true;sc.innerHTML='';
-  if(!S.open&&$('#scrimC').hidden)$('#app').removeAttribute('inert');
+  if(!S.open&&$('#scrimC').hidden&&$('#scrimH').hidden)$('#app').removeAttribute('inert');
   if(!noFocus&&lastFocus&&document.contains(lastFocus))lastFocus.focus();
   paintCtl();
 }
@@ -547,7 +588,7 @@ function openCard(from){
 function closeCard(noFocus){
   const sc=$('#scrimC');if(sc.hidden)return;
   sc.hidden=true;sc.innerHTML='';S.screen='deck';
-  if(!S.open)$('#app').removeAttribute('inert');
+  if(!S.open&&$('#scrimH').hidden)$('#app').removeAttribute('inert');
   if(!noFocus&&lastFocus&&document.contains(lastFocus))lastFocus.focus();
   paintCtl();
 }
@@ -562,6 +603,157 @@ function renderCols(){
   document.querySelectorAll('.crow').forEach(b=>b.addEventListener('click',()=>{S.card=b.dataset.c;lastFocus=b;openCard(b)}));
 }
 
+/* ---- deck health (HC-01 / HC-02 rail rows and details panel) ---- */
+const ORDER=['lands','ramp','ca','tr','bw'];
+const LBL={lands:'Lands',ramp:'Ramp',ca:'Card Advantage',tr:'Targeted Removal',bw:'Board Wipes / Mass Disruption',gp:'Game Plan & Win Conditions'};
+const RNG={lands:[35,38],ramp:[10,12],ca:[10,12],tr:[10,12],bw:[3,6]};
+const HD={
+  yedora:{name:'Yedora the Explorer',main:101,c:{lands:37,ramp:18,ca:6,tr:6,bw:0},gp:34,overlap:0,edh:{lands:36,ramp:15,ca:6,tr:4,bw:0}},
+  rot:{name:'A rot to process',main:99,c:{lands:38,ramp:9,ca:7,tr:7,bw:3},gp:37,overlap:2,edh:{lands:35,ramp:9,ca:7,tr:2,bw:2}}
+};
+const SAMPLE_CARDS={lands:['Command Tower','Forest','Forest','Exploration Center','Fabled Passage','Lotus Cobra'],ramp:['Sol Ring','Arcane Signet','Cultivate','Kodama\'s Reach','Burnished Hart','Wayfarer\'s Bauble'],ca:['Rhystic Study','Harmonize','Return of the Wildspeaker','Garruk\'s Uprising','Guardian Project','Beast Whisperer'],tr:['Beast Within','Pongify','Reclamation Sage','Generous Gift','Krosan Grip','Nature\'s Claim'],bw:[],gp:['Yedora, Grave Gardener','Avenger of Zendikar','Craterhoof Behemoth','Omnath, Locus of Rage','Titania, Protector of Argoth','Splendid Reclamation']};
+const H={deck:'yedora',panel:'closed',load:'ok',unc:0,dfc:0,prop:false};
+const rangeTxt=r=>r[0]+' to '+r[1];
+function verdict(n,r){return n<r[0]?'light':n>r[1]?'heavy':'ok'}
+const VW={ok:'Ok',light:'Light',heavy:'Heavy'};
+const VI={ok:'check',light:'light',heavy:'heavy'};
+function delta(n,r,v){return v==='light'?(r[0]-n)+' below':v==='heavy'?(n-r[1])+' above':''}
+function rowsData(){
+  const d=HD[H.deck];
+  return ORDER.map(k=>{
+    const r=RNG[k],n=d.c[k];
+    const proposed=H.prop&&k==='ramp';
+    const v=proposed?'proposed':verdict(n,r);
+    return {k,n,r,v,proposed,pr:proposed?[14,18]:null,delta:proposed?'':delta(n,r,v)};
+  });
+}
+function vHtml(v){
+  if(v==='proposed')return `<span class="hv none">${ic('prop')}Proposed</span>`;
+  if(v==='none')return `<span class="hv none">Total</span>`;
+  return `<span class="hv ${v}">${ic(VI[v])}${VW[v]}</span>`;
+}
+function plural(n,w){return n+' '+w+(n===1?'':'s')}
+function rowAria(x){
+  if(x.k==='gp')return `${LBL.gp}: ${plural(x.n,'card')}. A total, no range and no verdict. Open details.`;
+  if(x.proposed)return `${LBL[x.k]}: ${plural(x.n,'card')}. Claude proposes ${rangeTxt(x.pr)}, not confirmed, so there is no verdict yet. Open details.`;
+  const vs=x.v==='ok'?'ok, within range':x.v==='light'?`light, ${x.delta} the minimum`:`heavy, ${x.delta} the maximum`;
+  return `${LBL[x.k]}: ${plural(x.n,'card')}, ${vs}. Range ${rangeTxt(x.r)}. Open details.`;
+}
+function railRow(x){
+  const d=HD[H.deck];
+  let sub,extra='';
+  if(x.k==='gp')sub='No range. Everything not counted above.';
+  else if(x.proposed)sub=`Claude proposes ${rangeTxt(x.pr)}. Not confirmed.`;
+  else sub='Range '+rangeTxt(x.r)+(x.delta?' · '+x.delta:'');
+  if(x.k==='lands'&&H.dfc)extra=`<span class="hs">+ ${H.dfc} double-faced</span>`;
+  const v=x.k==='gp'?'none':x.v;
+  return `<li${x.k==='gp'?' class="total"':''}><button type="button" class="hrow" data-open="${x.k}" aria-haspopup="dialog" aria-label="${rowAria(x)}"><span><span class="hn">${LBL[x.k]}</span><span class="hs">${sub}</span>${extra}</span><b class="hc">${x.n}</b>${vHtml(v)}</button></li>`;
+}
+function allRows(){
+  const d=HD[H.deck];
+  return [...rowsData(),{k:'gp',n:d.gp,v:'none'}];
+}
+function notesHtml(inPanel){
+  const d=HD[H.deck],n=[];
+  if(H.unc)n.push(`<li>${ic('info')}<span>${plural(H.unc,'card')} ${H.unc===1?'has':'have'} no card text yet, so Oracle could not place ${H.unc===1?'it':'them'}. ${H.unc===1?'It is':'They are'} counted in Game Plan & Win Conditions.</span></li>`);
+  if(d.overlap)n.push(`<li>${ic('info')}<span>${plural(d.main,'card')} in the list. ${plural(d.overlap,'card')} count in two rows, so the rows add to ${d.main+d.overlap}.</span></li>`);
+  const lands=d.c.lands,src=lands+H.dfc+d.c.ramp;
+  n.push(`<li>${ic('info')}<span>Mana sources ${src}: ${lands} lands${H.dfc?', '+H.dfc+' double-faced':''}, ${d.c.ramp} ramp cards. An estimate.</span></li>`);
+  if(!inPanel)n.push(`<li>${ic('info')}<span>Ranges are the Command Zone template. Select a row for details.</span></li>`);
+  return `<ul class="hl-notes">${n.join('')}</ul>`;
+}
+function headlineInfo(){
+  const rs=rowsData().filter(x=>!x.proposed),ok=rs.filter(x=>x.v==='ok').length;
+  const pend=rowsData().length-rs.length;
+  const txt=ok===rs.length&&!pend?`All ${rs.length} in range`:`${ok} of ${rowsData().length} in range`;
+  return {txt,allOk:ok===rs.length};
+}
+function renderHealth(){
+  const h=$('#healthHost');
+  let body;
+  if(H.load==='loading')body=`<p role="status" class="hl-state muted">Checking…</p>`;
+  else if(H.load==='fail')body=`<div role="alert" class="hl-state" style="color:var(--err)">${ic('err')}<span>Couldn't check</span><button class="btn" id="hRetry">Try again</button></div>`;
+  else{
+    const hi=headlineInfo();
+    body=`<button type="button" class="hl-head" data-open="overview" aria-haspopup="dialog">${hi.allOk?ic('check'):`<span style="color:var(--warn)">${ic('warn')}</span>`}<span>${hi.txt}</span></button>
+    <ul class="hl-list">${allRows().map(railRow).join('')}</ul>${notesHtml(false)}`;
+  }
+  h.innerHTML=`<h2 id="h-hl">Deck health</h2>${body}`;
+}
+/* details panel */
+function meterHtml(x){
+  const r=x.r;const mx=Math.max(r[1]*1.5,x.n+1,r[1]+2);
+  const pc=v=>Math.min(100,v/mx*100);
+  return `<div class="meter" role="img" aria-label="${x.n} cards. Range ${rangeTxt(r)}."><span class="band" style="left:${pc(r[0])}%;width:${pc(r[1])-pc(r[0])}%"></span><span class="mk" style="left:${pc(x.n)}%"></span></div><div class="scale"><span>0</span><span>Range ${rangeTxt(r)} · you have ${x.n}</span><span>${Math.round(mx)}</span></div>`;
+}
+function sentence(x){
+  if(x.proposed)return `You have ${plural(x.n,'card')}. Claude proposes ${rangeTxt(x.pr)}. There is no verdict until you confirm it.`;
+  if(x.v==='ok')return `You have ${plural(x.n,'card')}. That is inside the range of ${rangeTxt(x.r)}.`;
+  if(x.v==='light')return `You have ${plural(x.n,'card')}, ${x.delta} the minimum of ${x.r[0]}.`;
+  return `You have ${plural(x.n,'card')}, ${x.delta} the maximum of ${x.r[1]}.`;
+}
+function overviewHtml(){
+  const hi=headlineInfo(),d=HD[H.deck];
+  const cards=rowsData().map(x=>`<button type="button" class="pcard ${(x.v==='light'||x.v==='heavy')?'off':''}" data-open="${x.k}" aria-label="${rowAria(x)}"><span class="r1"><b>${LBL[x.k]}</b>${vHtml(x.v)}</span>${x.proposed?'':meterHtml(x)}<span class="r2" style="display:block">${sentence(x)}</span></button>`).join('');
+  const gp=`<button type="button" class="pcard" data-open="gp" aria-label="${rowAria({k:'gp',n:d.gp})}"><span class="r1"><b>${LBL.gp}</b>${vHtml('none')}</span><span class="r2" style="display:block">${plural(d.gp,'card')}. Every nonland card not counted in the five rows above. No range, no verdict.</span></button>`;
+  const e=d.edh;
+  return `<div class="bd" style="gap:10px"><div class="pbox ${hi.allOk?'':'off'}" style="${hi.allOk?'':'border-color:var(--warn)'}"><h3 style="display:flex;gap:6px;align-items:center">${hi.allOk?ic('check'):`<span style="color:var(--warn)">${ic('warn')}</span>`}${hi.txt}</h3><p>Each of the first five rows is checked against its range. Ranges are the Command Zone template for a 99-card deck.</p></div>
+  ${cards}${gp}${notesHtml(true)}
+  <div><h3 class="sec-h">For reference only: the average EDHREC deck for this commander</h3><p class="muted" style="margin:0;font-size:13px">Lands ${e.lands}, Ramp ${e.ramp}, Card Advantage ${e.ca}, Targeted Removal ${e.tr}, Board Wipes ${e.bw}. Not used for any verdict.</p></div></div>`;
+}
+function catHtml(k){
+  const d=HD[H.deck];
+  const x=k==='gp'?{k:'gp',n:d.gp}:rowsData().find(r=>r.k===k);
+  let top;
+  if(k==='gp'){
+    top=`<div class="pbox"><h3>${plural(x.n,'card')}</h3><p>Every nonland card that is not counted in Lands, Ramp, Card Advantage, Targeted Removal or Board Wipes. It is a total, so it has no range and no verdict.</p>${H.unc?`<p>${H.unc} of them have no card text yet, so Oracle could not place ${H.unc===1?'it':'them'} anywhere else.</p>`:''}<p class="muted">The Command Zone template suggests about 25 to 30 here. That is a guide only.</p></div>`;
+  }else{
+    const off=x.v==='light'||x.v==='heavy';
+    top=`<div class="pbox" style="${off?'border-color:var(--warn)':''}"><h3 style="display:flex;gap:8px;align-items:center">${x.proposed?vHtml('proposed'):vHtml(x.v)}<span style="font-weight:400">${plural(x.n,'card')}</span></h3>${x.proposed?'':meterHtml(x)}<p>${sentence(x)}</p></div>`;
+    top+=x.proposed
+      ?`<div class="pbox prop"><h3>Claude proposes ${rangeTxt(x.pr)}</h3><p>"Yedora makes extra mana from face-down lands." <span class="muted">(sample reason)</span></p><p>Not confirmed. Only you can confirm it. The default range is ${rangeTxt(x.r)}.</p><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn" data-toast="Confirmed (mockup)">Confirm ${rangeTxt(x.pr)}</button><button class="btn" data-toast="Declined (mockup)">Decline</button></div></div>`
+      :`<div class="pbox"><h3>Range: ${rangeTxt(x.r)}</h3><p>Default. The Command Zone template.</p></div>`;
+    if(k==='lands')top+=`<div class="pbox"><h3>Mana sources: ${x.n+H.dfc+d.c.ramp}</h3><p>${x.n} lands${H.dfc?`, ${H.dfc} double-faced land cards`:''} and ${d.c.ramp} ramp cards. An estimate.</p>${H.dfc?`<p class="muted">A double-faced land card counts once in mana sources and is shown beside the land count. It does not change the ${d.main} cards in the deck.</p>`:''}</div>`;
+  }
+  const names=SAMPLE_CARDS[k];
+  const lst=names.length?`<div><h3 class="sec-h">Cards counted here <span class="tagfut">sample names</span></h3><ul class="plist">${names.map(n=>`<li>${n}</li>`).join('')}</ul><p class="muted" style="font-size:13px;margin:6px 0 0">and ${Math.max(0,x.n-names.length)} more</p></div>`:`<div><h3 class="sec-h">Cards counted here</h3><p class="muted" style="font-size:13px;margin:0">None yet.</p></div>`;
+  const gap=(x.v==='light')?`<div><h3 class="sec-h">Cards that could fill it</h3><div class="pbox" style="border-style:dashed"><p class="muted" style="margin:0">The existing "cards that fill it" list opens here, unchanged.</p></div></div>`:'';
+  const ref=k==='gp'?'':`<div><h3 class="sec-h">For reference only</h3><p class="muted" style="margin:0;font-size:13px">The average EDHREC deck for this commander has ${d.edh[k]}. Not used for any verdict.</p></div>`;
+  return `<div class="bd" style="gap:12px">${top}${gap}${lst}${ref}</div>`;
+}
+function panelHtml(){
+  const k=H.panel==='overview'?null:H.panel;
+  const title=k?LBL[k]:'Deck health';
+  const back=k?`<button type="button" class="backb" id="backH">${ic('back')}Deck health</button>`:'';
+  return `<div class="dlg panel" role="dialog" aria-modal="true" aria-labelledby="hTitle" id="dlgH"><header><div>${back}<h2 id="hTitle" tabindex="-1" style="font-size:16px">${title}</h2><p>${HD[H.deck].name}</p></div><button class="btn ghost" id="xH" aria-label="Close"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button></header>${k?catHtml(k):overviewHtml()}</div>`;
+}
+let hFrom=null;
+function paintPanel(refocus){
+  const sc=$('#scrimH');
+  if(H.panel==='closed'){sc.hidden=true;sc.innerHTML='';if(!S.open&&$('#scrimC').hidden)$('#app').removeAttribute('inert');paintCtl();return}
+  sc.innerHTML=panelHtml();sc.hidden=false;$('#app').setAttribute('inert','');
+  $('#xH').addEventListener('click',()=>closePanel());
+  const b=$('#backH');if(b)b.addEventListener('click',()=>{H.panel='overview';paintPanel(true)});
+  sc.querySelectorAll('[data-open]').forEach(e=>e.addEventListener('click',()=>{H.panel=e.dataset.open;paintPanel(true)}));
+  sc.querySelectorAll('[data-toast]').forEach(e=>e.addEventListener('click',()=>toast(e.dataset.toast)));
+  if(refocus)$('#hTitle').focus();
+  paintCtl();
+}
+function openPanel(k,from){hFrom=from||hFrom;H.panel=k;paintPanel(true)}
+function closePanel(noFocus){
+  H.panel='closed';paintPanel();
+  if(!noFocus&&hFrom&&document.contains(hFrom))hFrom.focus();
+}
+$('#healthHost').addEventListener('click',e=>{
+  const o=e.target.closest('[data-open]');if(o){openPanel(o.dataset.open,o);return}
+  if(e.target.closest('#hRetry'))toast('Retrying…  (mockup: stays failed)');
+});
+seg('#g-hdeck',[['yedora','Yedora the Explorer'],['rot','A rot to process']],'hd',v=>{H.deck=v;renderHealth();if(H.panel!=='closed')paintPanel();paintCtl()});
+seg('#g-hpanel',[['closed','Closed'],['overview','Overview'],['ramp','Ramp'],['lands','Lands'],['gp','Game Plan']],'hp',v=>{v==='closed'?closePanel(true):openPanel(v,$('#healthHost button'))});
+seg('#g-hload',[['ok','Normal'],['loading','Checking'],['fail','Failed']],'hl',v=>{H.load=v;renderHealth();paintCtl()});
+seg('#g-hunc',[['0','None (as Yedora)'],['4','4 (example)']],'hu',v=>{H.unc=+v;renderHealth();if(H.panel!=='closed')paintPanel();paintCtl()});
+seg('#g-hdfc',[['0','None (as Yedora)'],['2','2 (example)']],'hf',v=>{H.dfc=+v;renderHealth();if(H.panel!=='closed')paintPanel();paintCtl()});
+seg('#g-hprop',[['off','Off (this step)'],['on','On (future)']],'hr',v=>{H.prop=v==='on';renderHealth();if(H.panel!=='closed')paintPanel();paintCtl()});
 /* ---- menu ---- */
 const mb=$('#menuBtn'),mn=$('#menu');
 function menu(open){mn.hidden=!open;mb.setAttribute('aria-expanded',open);if(open)mn.querySelector('button').focus()}
@@ -582,9 +774,9 @@ function fixRail(){ /* desktop: always visible; phone: controlled by .open */  }
 
 /* ---- focus trap and Escape ---- */
 document.addEventListener('keydown',e=>{
-  const dlg=!$('#scrimC').hidden?$('#dlgC'):(!$('#scrimS').hidden?$('#dlgS'):null);
+  const dlg=!$('#scrimC').hidden?$('#dlgC'):(!$('#scrimS').hidden?$('#dlgS'):(!$('#scrimH').hidden?$('#dlgH'):null));
   if(!dlg)return;
-  if(e.key==='Escape'){e.preventDefault();dlg===$('#dlgC')?closeCard():closeStrategy(false);return}
+  if(e.key==='Escape'){e.preventDefault();dlg===$('#dlgC')?closeCard():dlg===$('#dlgH')?closePanel():closeStrategy(false);return}
   if(e.key==='Tab'){
     const f=[...dlg.querySelectorAll('a[href],button,input,textarea,select,[tabindex="0"]')].filter(x=>!x.hidden&&!x.closest('[hidden]')&&x.tabIndex>=0&&x.offsetParent!==null);
     if(!f.length)return;const a=f[0],z=f[f.length-1];
@@ -594,7 +786,7 @@ document.addEventListener('keydown',e=>{
 });
 let tt;function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2600)}
 
-function renderAll(){renderBlock();renderCols()}
+function renderAll(){renderBlock();renderCols();renderHealth()}
 renderAll();paintCtl();
 })();
 </script>

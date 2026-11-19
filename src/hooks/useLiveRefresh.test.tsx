@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { act, render, renderHook } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
-import { DEFER_RECHECK_MS, NOTE_SHOW_MS, STRATEGY_HOLD, TYPING_IDLE_MS, useLiveDeckRefresh, useLiveUserRefresh } from './useLiveRefresh'
+import { DEFER_RECHECK_MS, NOTE_SHOW_MS, TYPING_IDLE_MS, useLiveDeckRefresh, useLiveUserRefresh } from './useLiveRefresh'
 import { CLAUDE_POLL_INTERVAL_MS, type ClaudeMarkerReply } from './useRefreshOnTabReturn'
-import { clearStale, markStale, useLiveRefreshHold, useLiveRefreshStale } from '@/lib/live-refresh-holds'
+import { STRATEGY_BUSY, setBusy } from '@/lib/live-refresh-holds'
 import * as api from '@/components/connector/api'
 vi.mock('@/components/connector/api', async (orig) => ({ ...(await orig<typeof import('@/components/connector/api')>()), fetchChangeMarker: vi.fn() }))
 const fetchMarker = vi.mocked(api.fetchChangeMarker)
@@ -35,7 +35,7 @@ describe('live refresh of an open deck', () => {
   afterEach(() => {
     vi.useRealTimers()
     document.body.innerHTML = ''
-    clearStale(STRATEGY_HOLD)
+    setBusy(STRATEGY_BUSY, false)
   })
   it('refetches nothing while the marker is the same', async () => {
     const { spy, wrapper } = setup()
@@ -138,39 +138,29 @@ describe('live refresh of an open deck', () => {
     await tick(DEFER_RECHECK_MS)
     expect(keysOf(spy).filter((k) => k === '["connector","changes","deck",7]')).toHaveLength(1)
   })
-  it('an open Strategy window is not refetched: the deck refetch skips it and the window is told to offer Refresh', async () => {
+  it('an open Strategy window is refetched with the rest of the deck, with no hold and no stale mark', async () => {
     const { spy, wrapper } = setup()
-    const seen: boolean[] = []
-    function Window() {
-      useLiveRefreshHold(STRATEGY_HOLD, true)
-      seen.push(useLiveRefreshStale(STRATEGY_HOLD))
-      return null
-    }
-    render(<Window />)
     renderHook(() => useLiveDeckRefresh(7), { wrapper })
     await claudeChanges({ marker: 'm2', actor: 'claude' })
-    expect(seen.at(-1)).toBe(true)
-    const deckCall = spy.mock.calls.map((c) => c[0] as { queryKey: unknown[]; predicate?: (q: { queryKey: unknown[] }) => boolean }).find((c) => JSON.stringify(c.queryKey) === '["decks",7]')!
-    expect(deckCall.predicate?.({ queryKey: ['decks', 7, 'strategy-window'] })).toBe(false)
-    expect(deckCall.predicate?.({ queryKey: ['decks', 7] })).toBe(true)
-    expect(deckCall.predicate?.({ queryKey: ['decks', 7, 'health'] })).toBe(true)
+    const deckCall = spy.mock.calls.map((c) => c[0] as { queryKey: unknown[]; predicate?: unknown }).find((c) => JSON.stringify(c.queryKey) === '["decks",7]')!
+    expect(deckCall.predicate).toBeUndefined() // nothing under the deck is left out, Strategy included
   })
-  it('with the Strategy window closed, Strategy refetches with the rest and nothing is marked', async () => {
+  it('waits while the Strategy window is saving, then refreshes right after', async () => {
     const { spy, wrapper } = setup()
-    const { result } = renderHook(() => useLiveRefreshStale(STRATEGY_HOLD))
+    setBusy(STRATEGY_BUSY, true)
     renderHook(() => useLiveDeckRefresh(7), { wrapper })
     await claudeChanges({ marker: 'm2', actor: 'claude' })
-    const deckCall = spy.mock.calls.map((c) => c[0] as { queryKey: unknown[]; predicate?: (q: { queryKey: unknown[] }) => boolean }).find((c) => JSON.stringify(c.queryKey) === '["decks",7]')!
-    expect(deckCall.predicate?.({ queryKey: ['decks', 7, 'strategy-window'] })).toBe(true)
-    expect(result.current).toBe(false)
+    await tick(10_000)
+    expect(spy).not.toHaveBeenCalled()
+    setBusy(STRATEGY_BUSY, false)
+    await tick(DEFER_RECHECK_MS)
+    expect(keysOf(spy)).toContain('["decks",7]')
   })
   it('does nothing without a deck id and nothing at all when the tab is hidden', async () => {
     const { wrapper } = setup()
     renderHook(() => useLiveDeckRefresh(undefined), { wrapper })
     await tick(30_000)
     expect(fetchMarker).not.toHaveBeenCalled()
-    markStale('x')
-    clearStale('x')
   })
 })
 describe('live refresh for the deck list and Recent changes', () => {

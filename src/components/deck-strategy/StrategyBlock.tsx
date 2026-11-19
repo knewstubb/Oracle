@@ -2,7 +2,7 @@
 // DV-02: the Strategy block on the deck page. The whole block is one button that opens the Strategy window.
 // Spec: docs/oracle/specs/deck-rail-strategy-tags.md section 2. (The rail does not exist yet, so for now the block sits
 // above the tabs on the existing deck page; slice 3 moves it into the rail.)
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, ChevronRight, WifiOff, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -13,10 +13,8 @@ import { bracketWarning, type StrategyWindowData } from '@/lib/deck-strategy-win
 import { StrategyWindow, type SaveResult, type WindowValues } from './StrategyWindow'
 import { useOnlineStatus } from './useOnlineStatus'
 import { FOCUS_RING } from './focus'
-import { STRATEGY_HOLD } from '@/hooks/useLiveRefresh'
-import { clearStale, useLiveRefreshHold, useLiveRefreshStale } from '@/lib/live-refresh-holds'
 export const strategyKey = (deckId: number) => [...deckKeys.detail(deckId), 'strategy-window'] as const
-const SAVE_FAILED = "Couldn't save. Your changes are still here and nothing was lost. Check your connection and select Save to try again."
+const SAVE_FAILED = "Couldn't save. Your changes are still here and nothing was lost. Check your connection. It will try again by itself."
 async function fetchStrategy(deckId: number): Promise<StrategyWindowData> {
   const res = await fetch(`/api/decks/${deckId}/strategy-window`)
   if (!res.ok) throw new Error('Failed to load strategy')
@@ -41,27 +39,13 @@ export function StrategyBlock({ deckId, deckName, onSeeHistory }: StrategyBlockP
     retry: 1,
     networkMode: 'always',
   })
-  // Live refresh: while the window is open, Claude's changes are not loaded into it (that could overwrite what is being typed).
-  useLiveRefreshHold(STRATEGY_HOLD, open)
-  const claudeChanged = useLiveRefreshStale(STRATEGY_HOLD)
-  useEffect(() => {
-    if (!open && claudeChanged) {
-      clearStale(STRATEGY_HOLD)
-      void refetch()
-    }
-  }, [open, claudeChanged, refetch])
-  const refreshFromClaude = async () => {
-    const r = await refetch()
-    clearStale(STRATEGY_HOLD)
-    return r.data
-  }
-  const save = async (values: WindowValues): Promise<SaveResult> => {
+  const save = async (changed: Partial<WindowValues>): Promise<SaveResult> => {
     let res: Response
     try {
       res = await fetch(`/api/decks/${deckId}/strategy-window`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
+        body: JSON.stringify(changed),
       })
     } catch {
       return { ok: false, error: SAVE_FAILED }
@@ -179,8 +163,6 @@ export function StrategyBlock({ deckId, deckName, onSeeHistory }: StrategyBlockP
         onClose={() => setOpen(false)}
         onSave={save}
         onSeeHistory={onSeeHistory}
-        claudeChanged={open && claudeChanged}
-        onRefreshFromClaude={refreshFromClaude}
         finalFocusRef={blockRef}
       />
     </div>

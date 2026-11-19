@@ -1,36 +1,24 @@
-// Live refresh: pieces of the screen that hold the owner's work in progress (for example the open Strategy window).
-// While a piece is held, a Claude change does not refetch it; it is marked "stale" so the piece can offer "Refresh".
-import { useEffect, useSyncExternalStore } from 'react'
-const held = new Set<string>()
-const stale = new Set<string>()
-const listeners = new Set<() => void>()
-const emit = () => listeners.forEach((l) => l())
-const subscribe = (l: () => void) => {
-  listeners.add(l)
-  return () => {
-    listeners.delete(l)
-  }
+// Live refresh: pieces of the screen that are saving right now (for example the Strategy window). While one is busy,
+// a Claude change waits and is applied right after, so a refetch never lands in the middle of a save.
+import { useEffect } from 'react'
+
+/** The Strategy window's save. */
+export const STRATEGY_BUSY = 'strategy'
+
+const busy = new Set<string>()
+
+export const isBusy = (key: string) => busy.has(key)
+
+export function setBusy(key: string, on: boolean) {
+  if (on) busy.add(key)
+  else busy.delete(key)
 }
-export const isHeld = (key: string) => held.has(key)
-export function markStale(key: string) {
-  if (stale.has(key)) return
-  stale.add(key)
-  emit()
-}
-export function clearStale(key: string) {
-  if (stale.delete(key)) emit()
-}
-/** Call from the piece that has work in progress: `active` is true while it is open. */
-export function useLiveRefreshHold(key: string, active: boolean) {
+
+/** Call from the piece that saves: `active` is true while a save is running. */
+export function useLiveRefreshBusy(key: string, active: boolean) {
   useEffect(() => {
     if (!active) return
-    held.add(key)
-    return () => {
-      held.delete(key)
-    }
+    setBusy(key, true)
+    return () => setBusy(key, false)
   }, [key, active])
-}
-/** True when Claude changed the deck while this piece was held. */
-export function useLiveRefreshStale(key: string): boolean {
-  return useSyncExternalStore(subscribe, () => stale.has(key), () => false)
 }

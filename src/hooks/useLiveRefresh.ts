@@ -6,9 +6,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { connectorKeys } from '@/components/connector/api'
 import { deckKeys } from '@/hooks/useDeckQueryKeys'
 import { useClaudeChangeWatch, type ClaudeMarkerReply } from '@/hooks/useRefreshOnTabReturn'
-import { isHeld, markStale } from '@/lib/live-refresh-holds'
-/** The deck's Strategy block (its query sits under the deck key). Held while the Strategy window is open. */
-export const STRATEGY_HOLD = 'strategy'
+import { STRATEGY_BUSY, isBusy as isSaving } from '@/lib/live-refresh-holds'
 export const TYPING_IDLE_MS = 3000
 export const DEFER_RECHECK_MS = 1500
 export const NOTE_SHOW_MS = 6000
@@ -67,7 +65,7 @@ export function useLiveDeckRefresh(deckId: number | undefined) {
   const [note, setNote] = useState<LiveNote | null>(null)
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
   useEffect(() => () => timers.current.forEach(clearTimeout), [])
-  const isBusy = useCallback(() => qc.isMutating() > 0 || typing() || document.querySelector(BLOCKING_DIALOG) !== null, [qc, typing])
+  const isBusy = useCallback(() => qc.isMutating() > 0 || isSaving(STRATEGY_BUSY) || typing() || document.querySelector(BLOCKING_DIALOG) !== null, [qc, typing])
   const defer = useDeferredApply(isBusy)
   const showNote = useCallback(() => {
     timers.current.forEach(clearTimeout)
@@ -77,13 +75,9 @@ export function useLiveDeckRefresh(deckId: number | undefined) {
   const onChange = useCallback(
     (reply: ClaudeMarkerReply) => {
       if (deckId === undefined) return
-      // Marked at once so an open Strategy window shows "Claude changed this deck. Refresh" without waiting.
-      if (isHeld(STRATEGY_HOLD)) markStale(STRATEGY_HOLD)
       defer(() => {
-        // The Strategy window is open: leave its data alone (it offers "Refresh"); everything else under the deck refetches.
-        const skipStrategy = isHeld(STRATEGY_HOLD)
-        if (skipStrategy) markStale(STRATEGY_HOLD)
-        qc.invalidateQueries({ queryKey: deckKeys.detail(deckId), predicate: (q) => !(skipStrategy && q.queryKey[2] === 'strategy-window') })
+        // The Strategy window is refetched with the rest: it keeps what the owner is typing and offers Claude's version beside it.
+        qc.invalidateQueries({ queryKey: deckKeys.detail(deckId) })
         qc.invalidateQueries({ queryKey: deckKeys.picklist(deckId) })
         qc.invalidateQueries({ queryKey: deckKeys.allocation(deckId) })
         qc.invalidateQueries({ queryKey: connectorKeys.deckChanges(deckId) })

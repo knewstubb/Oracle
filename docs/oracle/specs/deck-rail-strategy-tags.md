@@ -82,7 +82,7 @@ Opens from a card row on the Cards tab or from the collection. Read-only Tags, t
 - **Status and price** as today.
 
 ## 5. Phone layout
-At 720 px container width and below: the rail stacks above the card list and collapses to one compact row (card thumbnail, deck name, target bracket line with the warning icon and words when exceeded, "102 / 100 · 2 over", chevron). The row is a 64 px button with `aria-expanded`. Expanded, the full rail appears in the same order and scrolls with the page (no inner scroll). The tab row (with "...") follows the rail. The card list becomes one column. The Strategy window and card details become full-screen sheets; the bracket picker stays five across (numbers 20 px, names 11 px) and the footer wraps so Cancel and Save stay 44 px tall.
+At 800 px page width and below (was 720; moved up so tablets, 768 px, get the compact row): the rail stacks above the card list and collapses to one compact row (card thumbnail, deck name, target bracket line with the warning icon and words when exceeded, "102 / 100 · 2 over", chevron). The row is a 64 px button with `aria-expanded`. Expanded, the full rail appears in the same order and scrolls with the page (no inner scroll). The tab row (with "...") follows the rail. The card list becomes one column. The Strategy window and card details become full-screen sheets; the bracket picker stays five across (numbers 20 px, names 11 px) and the footer wraps so Cancel and Save stay 44 px tall.
 
 ## 6. Accessibility
 - **Modal.** `role="dialog"`, `aria-modal`, labelled by the title and described by the subtitle. Focus moves in on open, Tab and Shift+Tab cycle inside (tested in the mockup), the page behind is inert, Escape closes, focus returns to the control that opened it.

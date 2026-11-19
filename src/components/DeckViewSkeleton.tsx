@@ -47,15 +47,15 @@ function GroupsSkeleton() {
 
 export function DeckViewSkeleton() {
   return (
-    <div className="@container relative h-full overflow-y-auto bg-[var(--bg-canvas)] @[720px]:overflow-hidden" aria-busy="true" aria-label="Loading deck">
-      <div className="relative z-10 flex min-h-full flex-col @[720px]:h-full @[720px]:flex-row">
+    <div className="@container relative h-full overflow-y-auto bg-[var(--bg-canvas)] @[800px]:overflow-hidden" aria-busy="true" aria-label="Loading deck">
+      <div className="relative z-10 flex min-h-full flex-col @[800px]:h-full @[800px]:flex-row">
         {/* Rail: 64px bar at narrow widths, 304px column at wide widths */}
-        <div className="w-full shrink-0 border-b @[720px]:h-full @[720px]:w-[304px] @[720px]:border-b-0 @[720px]:border-r">
-          <div className="flex h-16 items-center gap-3 px-4 @[720px]:hidden">
+        <div className="w-full shrink-0 border-b @[800px]:h-full @[800px]:w-[304px] @[800px]:border-b-0 @[800px]:border-r">
+          <div className="flex h-16 items-center gap-3 px-4 @[800px]:hidden">
             <Skeleton className="size-9 shrink-0 rounded-full" />
             <Skeleton className="h-5 w-40" />
           </div>
-          <div className="hidden space-y-5 px-4 py-4 @[720px]:block">
+          <div className="hidden space-y-5 px-4 py-4 @[800px]:block">
             <Skeleton className="h-8 w-48" />
             <Skeleton className="h-4 w-36" />
             <Skeleton className="h-24 w-full" />
@@ -63,7 +63,7 @@ export function DeckViewSkeleton() {
             <Skeleton className="h-16 w-full" />
           </div>
         </div>
-        <div className="flex min-w-0 flex-1 flex-col @[720px]:min-h-0">
+        <div className="flex min-w-0 flex-1 flex-col @[800px]:min-h-0">
           {/* Tabs */}
           <div className="shrink-0 border-b border-border px-6">
             <div className="mx-auto flex max-w-[var(--content-max-width)] items-center gap-4 py-2">
@@ -75,7 +75,7 @@ export function DeckViewSkeleton() {
             </div>
           </div>
           {/* Cards tab: toolbar, groups */}
-          <div className="min-h-0 flex-1 px-6 py-6 @[720px]:overflow-hidden">
+          <div className="min-h-0 flex-1 px-6 py-6 @[800px]:overflow-hidden">
             <div className="mx-auto max-w-[var(--content-max-width)]">
               <div className="border-b px-4 py-3" style={{ borderColor: 'var(--border-default)' }}>
                 <div className="flex items-center gap-2 md:gap-3">

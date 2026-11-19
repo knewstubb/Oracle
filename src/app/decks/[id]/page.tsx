@@ -218,7 +218,7 @@ export default function DeckViewPage() {
       : deck.commander_name ? [deck.commander_name] : []
     : []
   return (
-    <div className="@container relative h-full overflow-y-auto @[720px]:overflow-hidden">
+    <div className="@container relative h-full overflow-y-auto @[800px]:overflow-hidden">
       {/* Blurred commander art background with parallax — hidden on mobile */}
       {deck.commander_scryfall_id && (
         <div
@@ -247,7 +247,7 @@ export default function DeckViewPage() {
       )}
 
       {/* All page content — sits above the art layer. Narrow: one scrolling column. Wide: rail beside the workspace. */}
-      <div className="relative z-10 flex min-h-full flex-col @[720px]:h-full @[720px]:flex-row">
+      <div className="relative z-10 flex min-h-full flex-col @[800px]:h-full @[800px]:flex-row">
       <DeckRail
         deck={{
           id: deck.id,
@@ -266,7 +266,7 @@ export default function DeckViewPage() {
         totalValue={totalValue}
         strategySlot={<StrategyBlock deckId={deck.id} deckName={deck.name} onSeeHistory={() => setHistoryOpen(true)} />}
       />
-      <div className="flex min-w-0 flex-1 flex-col @[720px]:min-h-0">
+      <div className="flex min-w-0 flex-1 flex-col @[800px]:min-h-0">
       {/* Fresh import result line */}
       {importSummary && (
         <div className="mx-auto max-w-[var(--content-max-width)] px-6 pt-2">
@@ -302,8 +302,8 @@ export default function DeckViewPage() {
             {/* Tab list with horizontally scrollable wrapper on mobile. The active-tab underline
                 sits 5px below the list, so the wrapper pads/offsets 8px to contain it (otherwise
                 overflow-x-auto forces a vertical scrollbar). */}
-            <div className="-mb-2 min-w-0 flex-1 overflow-x-auto pb-2 [scrollbar-width:none] sm:overflow-visible [&::-webkit-scrollbar]:hidden">
-              <TabsList variant="line" className="w-max sm:w-auto">
+            <div className="-mb-2 min-w-0 flex-1 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <TabsList variant="line" className="w-max">
                 <TabsTrigger value="cards">Cards</TabsTrigger>
                 <TabsTrigger value="picklist">Picklist</TabsTrigger>
                 {/* Non-essential tabs hidden on mobile */}
@@ -319,7 +319,7 @@ export default function DeckViewPage() {
           </div>
         </div>
 
-        <TabsContent value="cards" className="min-h-0 flex-1 px-6 py-6 @[720px]:overflow-y-auto">
+        <TabsContent value="cards" className="min-h-0 flex-1 px-6 py-6 @[800px]:overflow-y-auto">
           <div className="mx-auto max-w-[var(--content-max-width)]">
             <CardsTab
               cards={cards}
@@ -332,7 +332,7 @@ export default function DeckViewPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="workbench" className="min-h-0 flex-1 @[720px]:overflow-hidden">
+        <TabsContent value="workbench" className="min-h-0 flex-1 @[800px]:overflow-hidden">
           <WorkbenchTab
             deckId={deck.id}
             cards={cards}
@@ -341,7 +341,7 @@ export default function DeckViewPage() {
           />
         </TabsContent>
 
-        <TabsContent value="analysis" className="min-h-0 flex-1 px-6 py-6 @[720px]:overflow-y-auto">
+        <TabsContent value="analysis" className="min-h-0 flex-1 px-6 py-6 @[800px]:overflow-y-auto">
           <div className="mx-auto max-w-[var(--content-max-width)]">
             <AnalysisTab
               cards={cards}
@@ -351,15 +351,15 @@ export default function DeckViewPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="combos" className="min-h-0 flex-1 px-6 py-6 @[720px]:overflow-y-auto">
+        <TabsContent value="combos" className="min-h-0 flex-1 px-6 py-6 @[800px]:overflow-y-auto">
           <CombosPanel deckId={deck.id} />
         </TabsContent>
 
-        <TabsContent value="upgrade" className="min-h-0 flex-1 px-6 py-6 @[720px]:overflow-y-auto">
+        <TabsContent value="upgrade" className="min-h-0 flex-1 px-6 py-6 @[800px]:overflow-y-auto">
           <UpgradeTab deckId={deck.id} />
         </TabsContent>
 
-        <TabsContent value="strategy" className="min-h-0 flex-1 px-6 py-6 @[720px]:overflow-y-auto">
+        <TabsContent value="strategy" className="min-h-0 flex-1 px-6 py-6 @[800px]:overflow-y-auto">
           <div className="mx-auto max-w-[var(--content-max-width)]">
             <StrategyTab
               deckId={deck.id}
@@ -372,7 +372,7 @@ export default function DeckViewPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="picklist" className="min-h-0 flex-1 px-6 py-6 @[720px]:overflow-y-auto">
+        <TabsContent value="picklist" className="min-h-0 flex-1 px-6 py-6 @[800px]:overflow-y-auto">
           <div className="mx-auto max-w-[var(--content-max-width)]">
             <PicklistV2 deckId={deck.id} />
           </div>

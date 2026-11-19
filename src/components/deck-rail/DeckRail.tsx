@@ -39,13 +39,13 @@ export function DeckRail({ deck, commanderNames, cards, totalCards, deckSize, ha
   const isPrecon = deck.is_precon_mod || deck.deck_type === 'Precon Mod'
 
   return (
-    <aside aria-label="Deck summary" className="w-full shrink-0 border-b @[720px]:sticky @[720px]:top-0 @[720px]:h-full @[720px]:w-[304px] @[720px]:overflow-y-auto @[720px]:border-b-0 @[720px]:border-r">
+    <aside aria-label="Deck summary" className="w-full shrink-0 border-b @[800px]:sticky @[800px]:top-0 @[800px]:h-full @[800px]:w-[304px] @[800px]:overflow-y-auto @[800px]:border-b-0 @[800px]:border-r">
       <button
         type="button"
         aria-expanded={expanded}
         aria-controls="deck-rail-body"
         onClick={() => setExpanded((v) => !v)}
-        className={`flex h-16 w-full items-center gap-3 px-4 text-left @[720px]:hidden ${FOCUS_RING}`}
+        className={`flex h-16 w-full items-center gap-3 px-4 text-left @[800px]:hidden ${FOCUS_RING}`}
       >
         {hasCommander && (
           <span className="h-10 w-10 shrink-0 overflow-hidden rounded">
@@ -61,7 +61,7 @@ export function DeckRail({ deck, commanderNames, cards, totalCards, deckSize, ha
         <ChevronDown size={18} aria-hidden="true" className={expanded ? 'rotate-180' : ''} />
         <span className="sr-only">{expanded ? 'Hide deck summary' : 'Show deck summary'}</span>
       </button>
-      <div id="deck-rail-body" className={`${expanded ? 'block' : 'hidden'} space-y-5 px-4 py-4 @[720px]:block`}>
+      <div id="deck-rail-body" className={`${expanded ? 'block' : 'hidden'} space-y-5 px-4 py-4 @[800px]:block`}>
         {hasCommander ? (
           <div className="mx-auto w-full max-w-[220px] overflow-hidden rounded-lg">
             <CardImage scryfallId={deck.commander_scryfall_id!} alt={`${commanderNames[0]} card art`} width={220} height={307} noPreview className="h-auto w-full object-cover" />

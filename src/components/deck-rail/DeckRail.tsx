@@ -27,15 +27,18 @@ export interface DeckRailProps {
   totalCards: number
   deckSize: number | null
   hasCompanion?: boolean
+  /** Printing id of the second commander (partner or background), shown beside the first one's art. */
+  secondCommanderScryfallId?: string | null
   totalValue?: number
   /** The Strategy block, mounted by the page. */
   strategySlot: React.ReactNode
 }
 
-export function DeckRail({ deck, commanderNames, cards, totalCards, deckSize, hasCompanion, totalValue, strategySlot }: DeckRailProps) {
+export function DeckRail({ deck, commanderNames, cards, totalCards, deckSize, hasCompanion, secondCommanderScryfallId, totalValue, strategySlot }: DeckRailProps) {
   const [expanded, setExpanded] = useState(false)
   const { label, over } = cardCountView(totalCards, deckSize)
   const hasCommander = commanderNames.length > 0 && !!deck.commander_scryfall_id
+  const secondArt = secondCommanderScryfallId && secondCommanderScryfallId !== deck.commander_scryfall_id ? secondCommanderScryfallId : null
   const isPrecon = deck.is_precon_mod || deck.deck_type === 'Precon Mod'
 
   return (
@@ -63,8 +66,15 @@ export function DeckRail({ deck, commanderNames, cards, totalCards, deckSize, ha
       </button>
       <div id="deck-rail-body" className={`${expanded ? 'block' : 'hidden'} space-y-5 px-4 py-4 @[800px]:block`}>
         {hasCommander ? (
-          <div className="mx-auto w-full max-w-[220px] overflow-hidden rounded-lg">
-            <CardImage scryfallId={deck.commander_scryfall_id!} alt={`${commanderNames[0]} card art`} width={220} height={307} noPreview className="h-auto w-full object-cover" />
+          <div className={`mx-auto flex w-full max-w-[272px] ${secondArt ? 'gap-2' : ''}`}>
+            <div className="min-w-0 flex-1 overflow-hidden rounded-lg">
+              <CardImage scryfallId={deck.commander_scryfall_id!} alt={`${commanderNames[0]} card art`} width={secondArt ? 132 : 272} height={secondArt ? 96 : 199} artCrop noPreview className="block h-auto w-full rounded-lg object-cover" />
+            </div>
+            {secondArt && (
+              <div className="min-w-0 flex-1 overflow-hidden rounded-lg">
+                <CardImage scryfallId={secondArt} alt={`${commanderNames[1] ?? 'Partner'} card art`} width={132} height={96} artCrop noPreview className="block h-auto w-full rounded-lg object-cover" />
+              </div>
+            )}
           </div>
         ) : null}
         <div>

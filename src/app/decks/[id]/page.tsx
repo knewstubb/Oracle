@@ -263,6 +263,7 @@ export default function DeckViewPage() {
         totalCards={totalCards}
         deckSize={getFormatConfig(deck.format).deckSize}
         hasCompanion={cards.some((c) => isCompanion(c))}
+        secondCommanderScryfallId={commanderCards.find((c) => c.scryfall_id && c.scryfall_id !== deck.commander_scryfall_id)?.scryfall_id}
         totalValue={totalValue}
         strategySlot={<StrategyBlock deckId={deck.id} deckName={deck.name} onSeeHistory={() => setHistoryOpen(true)} />}
       />

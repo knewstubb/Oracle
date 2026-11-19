@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { render, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { DeckRail, type DeckRailProps } from './DeckRail'
@@ -134,6 +134,24 @@ describe('DeckRail', () => {
     await waitFor(() => expect(screen.getByText('Original')).toBeInTheDocument())
   })
 
+  it('shows only the art crop of the commander, and both arts for a partner pair', () => {
+    const { unmount } = renderRail(yedora())
+    const img = screen.getByAltText('Yedora, Grave Gardener card art') as HTMLImageElement
+    expect(img.src).toContain('/art_crop/front/a/b/abc.jpg')
+    expect(img.src).not.toContain('/normal/')
+    expect(img.className).toMatch(/\brounded-lg\b/)
+    expect(img.parentElement!.parentElement!.className).toMatch(/\brounded-lg\b/)
+    unmount()
+    renderRail(yedora({ commanderNames: ['Tymna', 'Thrasios'], secondCommanderScryfallId: 'xyz' }))
+    expect((screen.getByAltText('Tymna card art') as HTMLImageElement).src).toContain('/art_crop/front/a/b/abc.jpg')
+    expect((screen.getByAltText('Thrasios card art') as HTMLImageElement).src).toContain('/art_crop/front/x/y/xyz.jpg')
+  })
+  it('falls back to the No image box when the art fails to load', () => {
+    renderRail(yedora())
+    fireEvent.error(screen.getByAltText('Yedora, Grave Gardener card art'))
+    expect(screen.getByRole('img', { name: 'Yedora, Grave Gardener card art' })).toHaveTextContent('No image')
+    expect(screen.getByRole('img', { name: 'Yedora, Grave Gardener card art' }).className).toMatch(/\brounded-lg\b/)
+  })
   it('toggles the narrow-layout summary button', async () => {
     const user = userEvent.setup()
     renderRail(yedora())

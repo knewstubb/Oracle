@@ -132,3 +132,12 @@ describe('the Strategy window\'s "See in History" opens this History', () => {
     expect(screen.queryByRole('dialog', { name: /Strategy/ })).toBeNull()
   })
 })
+describe('hideTrigger', () => {
+  it('renders no History button, and open still shows the History window', async () => {
+    const { rerender } = render(wrap(<VersionHistoryPanel deckId={7} deckName="Yedora" hideTrigger open={false} onOpenChange={() => {}} />))
+    expect(screen.queryByRole('button', { name: 'View version history' })).toBeNull()
+    rerender(wrap(<VersionHistoryPanel deckId={7} deckName="Yedora" hideTrigger open onOpenChange={() => {}} />))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByRole('heading', { name: 'History' })).toBeInTheDocument()
+  })
+})

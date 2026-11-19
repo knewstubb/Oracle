@@ -42,6 +42,8 @@ interface VersionHistoryPanelProps {
   /** Optional: lets another part of the page (the Strategy window's "See in History") open this window. */
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  /** Render no History button: the page opens it from the deck "..." menu. */
+  hideTrigger?: boolean
 }
 
 interface VersionsResponse {
@@ -49,7 +51,7 @@ interface VersionsResponse {
   count: number
 }
 
-export function VersionHistoryPanel({ deckId, deckName, open, onOpenChange }: VersionHistoryPanelProps) {
+export function VersionHistoryPanel({ deckId, deckName, open, onOpenChange, hideTrigger }: VersionHistoryPanelProps) {
   const [ownOpen, setOwnOpen] = useState(false)
   const isOpen = open ?? ownOpen
   const setIsOpen = (next: boolean) => {
@@ -157,13 +159,13 @@ export function VersionHistoryPanel({ deckId, deckName, open, onOpenChange }: Ve
   return (
     <>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogTrigger
+        {!hideTrigger && <DialogTrigger
           className="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap border font-medium outline-none transition-all disabled:pointer-events-none disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-ring/50 text-muted-foreground bg-[var(--bg-secondary)] border-[var(--border-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] shadow-sm h-8 rounded-[var(--radius-md)] px-3 text-[length:var(--fs-md)]"
           aria-label="View version history"
         >
           <History className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">History</span>
-        </DialogTrigger>
+        </DialogTrigger>}
         <DialogContent className="max-h-[85vh] overflow-hidden flex flex-col sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">

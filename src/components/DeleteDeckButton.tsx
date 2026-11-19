@@ -12,7 +12,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
 
 interface DeleteDeckButtonProps {
@@ -20,27 +19,19 @@ interface DeleteDeckButtonProps {
   deckName: string
 }
 
-export function DeleteDeckButton({ deckId, deckName }: DeleteDeckButtonProps) {
-  const [open, setOpen] = useState(false)
-  const router = useRouter()
+interface DeleteDeckDialogProps extends DeleteDeckButtonProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
 
+/** The delete confirmation on its own, opened and closed by the caller (the deck "..." menu uses it). */
+export function DeleteDeckDialog({ deckId, deckName, open, onOpenChange }: DeleteDeckDialogProps) {
+  const router = useRouter()
   const deleteMutation = useDeleteDeck({ id: deckId, name: deckName })
+  const setOpen = onOpenChange
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!deleteMutation.isPending) setOpen(isOpen) }}>
-      <DialogTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          />
-        }
-      >
-        <Trash2 className="size-4" aria-hidden="true" />
-        <span className="sr-only">Delete deck</span>
-      </DialogTrigger>
-
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Delete &ldquo;{deckName}&rdquo;?</DialogTitle>
@@ -76,5 +67,23 @@ export function DeleteDeckButton({ deckId, deckName }: DeleteDeckButtonProps) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+export function DeleteDeckButton({ deckId, deckName }: DeleteDeckButtonProps) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+        onClick={() => setOpen(true)}
+      >
+        <Trash2 className="size-4" aria-hidden="true" />
+        <span className="sr-only">Delete deck</span>
+      </Button>
+      <DeleteDeckDialog deckId={deckId} deckName={deckName} open={open} onOpenChange={setOpen} />
+    </>
   )
 }

@@ -1,0 +1,12 @@
+Browser check, 2026-11-19. Worktree code on http://localhost:3137 (port 3000 serves the main checkout, which was left alone). Real Chrome, Playwright, signed in by the local auto-login. Deck: Yedora, the Explorer (793088939).
+The database is hosted, so no change was written. Claude's change was simulated in the browser only: the marker answer was swapped for a new marker and the deck answer for a changed one. Nothing was stored anywhere, so nothing needed undoing.
+
+Marker request: GET /api/connector/changes/marker?deckId=793088939, first call at page load.
+Real route (not simulated): deck with no Claude changes -> {"ok":true,"marker":"-|-","actor":null} (39 bytes). Whole account -> {"ok":true,"marker":"<uuid>|-","actor":"claude"} (about 90 bytes). deckId=abc -> 400.
+Simulated Claude change, deck open, hands off: note "Claude just changed this deck." + "See in History" appeared 1374 ms after the marker changed on the next check, deck refetched once, note faded away by itself.
+Same marker for 17 s: 0 deck refetches.
+Tab hidden for 20 s: 0 marker requests. Tab shown again: 1 marker request straight away.
+Strategy window open, text typed ("TYPED BY OWNER, NOT SAVED"), then Claude change: banner "Claude changed this deck. Refresh replaces what you've typed here. [Refresh]", typed text kept, 0 Strategy refetches while open.
+Marker says the owner made the change: 0 notes.
+Offline for 20 s: 0 marker requests, no error banner. Console errors: none.
+Screenshots: note.png, strategy-banner.png

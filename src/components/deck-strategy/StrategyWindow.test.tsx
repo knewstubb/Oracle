@@ -273,3 +273,31 @@ describe('Strategy window: closing', () => {
     expect(screen.queryByText('Discard your changes?')).toBeNull()
   })
 })
+describe('Strategy window: Claude changed the deck while it is open (live refresh)', () => {
+  const NEWER: StrategyWindowData = { ...SET, summary: 'Claude wrote this', updatedBy: 'claude' }
+  it('shows no banner normally, and marks itself as safe to refresh behind', async () => {
+    await setup({ data: SET })
+    expect(screen.queryByTestId('strategy-claude-changed')).toBeNull()
+    expect(dialog()).toHaveAttribute('data-live-refresh', 'allow')
+  })
+  it('shows "Claude changed this deck. Refresh" and keeps what was typed until Refresh is pressed', async () => {
+    const onRefreshFromClaude = vi.fn(async () => NEWER)
+    const { user, rerender, props } = await setup({ data: SET })
+    const summary = screen.getByRole('textbox', { name: /summary/i })
+    await user.clear(summary)
+    await user.type(summary, 'My unsaved words')
+    rerender(
+      <>
+        <button type="button">Behind the window</button>
+        <StrategyWindow {...props} data={SET} claudeChanged onRefreshFromClaude={onRefreshFromClaude} />
+      </>,
+    )
+    const banner = screen.getByTestId('strategy-claude-changed')
+    expect(banner).toHaveTextContent('Claude changed this deck.')
+    expect(banner).toHaveTextContent("Refresh replaces what you've typed here.")
+    expect(summary).toHaveValue('My unsaved words')
+    await user.click(within(banner).getByRole('button', { name: 'Refresh' }))
+    await waitFor(() => expect(summary).toHaveValue('Claude wrote this'))
+    expect(onRefreshFromClaude).toHaveBeenCalledTimes(1)
+  })
+})

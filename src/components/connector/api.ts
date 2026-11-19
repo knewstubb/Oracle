@@ -100,6 +100,14 @@ export async function fetchChanges(deckId?: number): Promise<ChangeRowData[]> {
   return list<ChangeRowData>(await request(url), 'changes', 'rows', 'data')
 }
 
+/** Live refresh: a few bytes saying whether Claude changed anything. A deck id limits it to that deck. */
+export interface ChangeMarkerReply { marker: string; actor: 'claude' | 'owner' | null }
+export async function fetchChangeMarker(deckId?: number, signal?: AbortSignal): Promise<ChangeMarkerReply> {
+  const url = deckId === undefined ? '/api/connector/changes/marker' : `/api/connector/changes/marker?deckId=${deckId}`
+  const b = await request<{ marker?: unknown; actor?: unknown }>(url, { signal, cache: 'no-store' })
+  if (typeof b?.marker !== 'string') throw new ApiError('Unexpected answer', 200, b)
+  return { marker: b.marker, actor: b.actor === 'claude' || b.actor === 'owner' ? b.actor : null }
+}
 export async function fetchPending(): Promise<PendingItem[]> {
   return list<PendingItem>(await request('/api/connector/pending'), 'pending', 'items', 'data')
 }

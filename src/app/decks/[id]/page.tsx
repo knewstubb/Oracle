@@ -22,6 +22,8 @@ import { PicklistV2 } from '@/components/PicklistV2'
 import { WorkbenchTab } from '@/components/WorkbenchTab'
 import { VersionHistoryPanel } from '@/components/VersionHistoryPanel'
 import { StrategyBlock } from '@/components/deck-strategy/StrategyBlock'
+import { LiveChangeNote } from '@/components/LiveChangeNote'
+import { useLiveDeckRefresh } from '@/hooks/useLiveRefresh'
 import { getFormatConfig } from '@/lib/format-config'
 import { useOracle } from '@/contexts/OracleContext'
 import { useDeckHoverPreload } from '@/hooks/useDeckHoverPreload'
@@ -125,6 +127,8 @@ export default function DeckViewPage() {
     enabled: !!deckId,
   })
 
+  // Live refresh: while this deck is open and the tab is visible, notice when Claude changed it and refetch quietly.
+  const live = useLiveDeckRefresh(deckId ? Number(deckId) : undefined)
   // Set Oracle context when deck data loads
   useEffect(() => {
     if (data?.deck) {
@@ -382,6 +386,7 @@ export default function DeckViewPage() {
 
       </div>{/* end workspace */}
       <VersionHistoryPanel hideTrigger deckId={deck.id} deckName={deck.name} open={historyOpen} onOpenChange={setHistoryOpen} />
+      <LiveChangeNote note={live.note} onSeeHistory={() => { live.dismissNote(); setHistoryOpen(true) }} />
       </div>{/* end content wrapper (z-10) */}
     </div>
   )

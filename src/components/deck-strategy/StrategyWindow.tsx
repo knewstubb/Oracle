@@ -26,6 +26,10 @@ export interface StrategyWindowProps {
   onSave: (values: WindowValues) => Promise<SaveResult>
   /** Called after the window has closed; opens wherever History opens today. */
   onSeeHistory: () => void
+  /** Live refresh: Claude changed this deck while the window was open. Nothing is loaded into the window until the owner presses Refresh. */
+  claudeChanged?: boolean
+  /** Loads the latest saved strategy and returns it. */
+  onRefreshFromClaude?: () => Promise<StrategyWindowData | undefined>
   finalFocusRef?: React.RefObject<HTMLElement | null>
 }
 const NOT_SAVED_YET = 'Not saved yet. Nothing in History.'
@@ -36,7 +40,7 @@ const same = (a: WindowValues, b: WindowValues) => a.bracket === b.bracket && a.
 const BTN = 'inline-flex min-h-11 min-w-11 items-center justify-center rounded-md px-4 text-[length:var(--fs-md)] font-medium'
 const FIELD = 'w-full rounded-md border border-[#8A8A93] bg-transparent px-3 py-2 text-[length:var(--fs-md)] text-foreground placeholder:text-muted-foreground'
 export function StrategyWindow(props: StrategyWindowProps) {
-  const { open, deckName, data, online, onClose, onSave, onSeeHistory, finalFocusRef } = props
+  const { open, deckName, data, online, onClose, onSave, onSeeHistory, finalFocusRef, claudeChanged, onRefreshFromClaude } = props
   const uid = useId()
   const [draft, setDraft] = useState<WindowValues>(() => fromData(data))
   const [saving, setSaving] = useState(false)
@@ -72,6 +76,18 @@ export function StrategyWindow(props: StrategyWindowProps) {
   const warning = bracketWarning(draft.bracket, data?.implied ?? null)
   const canSave = !loading && online && !saving
   const saveReason = loading ? 'Save is off while the strategy loads.' : !online ? "Save is off because you're offline." : ''
+  const [refreshing, setRefreshing] = useState(false)
+  const refreshFromClaude = async () => {
+    if (!onRefreshFromClaude || refreshing) return
+    setRefreshing(true)
+    try {
+      const fresh = await onRefreshFromClaude()
+      if (fresh) setDraft(fromData(fresh))
+    } catch {
+      /* the banner stays; try again */
+    }
+    setRefreshing(false)
+  }
   const requestClose = (after: 'close' | 'history') => {
     if (dirty) {
       setConfirmDiscard(after)
@@ -135,6 +151,7 @@ export function StrategyWindow(props: StrategyWindowProps) {
         finalFocus={finalFocusRef ?? true}
         className="max-h-[92vh] gap-4 overflow-y-auto p-5 sm:max-w-[560px] max-sm:top-0 max-sm:left-0 max-sm:h-dvh max-sm:max-h-dvh max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none"
         data-testid="strategy-window"
+        data-live-refresh="allow"
         aria-busy={loading || undefined}
       >
         <div className="flex items-start justify-between gap-3">
@@ -148,6 +165,17 @@ export function StrategyWindow(props: StrategyWindowProps) {
             <X className="size-5" aria-hidden="true" />
           </button>
         </div>
+        {claudeChanged && (
+          <div role="status" data-testid="strategy-claude-changed" className="flex flex-wrap items-center gap-2 rounded-md border border-amber-400 p-3 text-[length:var(--fs-md)] text-amber-300">
+            <AlertTriangle className="size-5 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 flex-1">
+              Claude changed this deck.{dirty ? " Refresh replaces what you've typed here." : ''}
+            </span>
+            <button type="button" onClick={() => void refreshFromClaude()} aria-disabled={refreshing} className={cn(BTN, 'border border-amber-400', FOCUS_RING)}>
+              Refresh
+            </button>
+          </div>
+        )}
         {saveError && (
           <div role="alert" className="flex gap-2 rounded-md border border-red-400 p-3 text-[length:var(--fs-md)] text-red-300">
             <XCircle className="mt-0.5 size-5 shrink-0" aria-hidden="true" />

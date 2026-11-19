@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useLiveUserRefresh } from '@/hooks/useLiveRefresh'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import { AlertCircle, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
@@ -84,6 +85,7 @@ function readGroupBy(): DeckGroupBy {
   }
 }
 
+const LIVE_KEYS = [['decks'], ['connector', 'pending-count']] as const
 export default function DashboardPage() {
   // Set Oracle context for this page
   useOracleContext({ type: 'deck-list' })

@@ -166,7 +166,7 @@ export function VersionHistoryPanel({ deckId, deckName, open, onOpenChange, hide
           <History className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">History</span>
         </DialogTrigger>}
-        <DialogContent className="max-h-[85vh] overflow-hidden flex flex-col sm:max-w-lg">
+        <DialogContent data-live-refresh="allow" className="max-h-[85vh] overflow-hidden flex flex-col sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <History className="h-5 w-5" />

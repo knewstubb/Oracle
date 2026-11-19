@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useRef, useState } from 'react'
+import { useLiveUserRefresh } from '@/hooks/useLiveRefresh'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Lock } from 'lucide-react'
 import { toast } from 'sonner'
@@ -49,8 +50,11 @@ function SkeletonRows({ label }: { label: string }) {
 
 type UndoState = { status: ChangeStatus; busy?: boolean; refusal?: UndoRefusal | null; refusalText?: string | null; undoneAt?: string }
 
+const LIVE_KEYS = [connectorKeys.changes, connectorKeys.pending, connectorKeys.pendingCount] as const
 export function RecentChangesTab() {
   const qc = useQueryClient()
+  // Live refresh: Claude's new changes and waiting requests appear without a reload.
+  useLiveUserRefresh(LIVE_KEYS)
   const changes = useQuery({ queryKey: connectorKeys.changes, queryFn: () => fetchChanges(), retry: false })
   const pending = useQuery({ queryKey: connectorKeys.pending, queryFn: fetchPending, retry: false })
 

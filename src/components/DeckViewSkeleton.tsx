@@ -1,31 +1,11 @@
 import { Skeleton } from '@/components/ui/skeleton'
 
 /**
- * Loading placeholders that mirror the real deck page (header, tabs, Cards
- * toolbar, progress bar, grouped card list, health strip) so nothing shifts
+ * Loading placeholders that mirror the real deck page (rail, tabs, Cards
+ * toolbar, grouped card list) so nothing shifts
  * when the data arrives. Keep the wrappers/spacing in sync with
  * decks/[id]/page.tsx, CardsTab and PicklistProgress.
  */
-
-/** Same box as PicklistProgress (label row + legend + 8px bar). */
-export function ProgressBarSkeleton() {
-  return (
-    <div
-      className="mb-6 rounded-lg border border-white/[0.08] px-4 py-3"
-      style={{ backgroundColor: 'rgba(26,26,30,0.5)' }}
-      aria-hidden="true"
-    >
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <Skeleton className="h-4 w-44" />
-        <Skeleton className="h-3 w-72 max-w-full" />
-      </div>
-      <div className="flex items-center gap-3">
-        <Skeleton className="h-2 flex-1 rounded-full" />
-        <Skeleton className="h-6 w-24 rounded-md" />
-      </div>
-    </div>
-  )
-}
 
 function GroupSectionSkeleton({ rows }: { rows: number }) {
   return (
@@ -67,66 +47,51 @@ function GroupsSkeleton() {
 
 export function DeckViewSkeleton() {
   return (
-    <div className="relative flex h-full flex-col bg-[var(--bg-canvas)]" aria-busy="true" aria-label="Loading deck">
-      <div className="relative z-10 flex h-full flex-col">
-        {/* Persistent header */}
-        <div className="px-6 py-4">
-          <div className="mx-auto flex max-w-[var(--content-max-width)] items-center justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-3">
-              <Skeleton className="size-9 shrink-0 rounded-full" />
-              <div className="space-y-1.5">
-                <Skeleton className="h-8 w-56" />
-                <Skeleton className="h-4 w-44" />
+    <div className="@container relative h-full overflow-y-auto bg-[var(--bg-canvas)] @[720px]:overflow-hidden" aria-busy="true" aria-label="Loading deck">
+      <div className="relative z-10 flex min-h-full flex-col @[720px]:h-full @[720px]:flex-row">
+        {/* Rail: 64px bar at narrow widths, 304px column at wide widths */}
+        <div className="w-full shrink-0 border-b @[720px]:h-full @[720px]:w-[304px] @[720px]:border-b-0 @[720px]:border-r">
+          <div className="flex h-16 items-center gap-3 px-4 @[720px]:hidden">
+            <Skeleton className="size-9 shrink-0 rounded-full" />
+            <Skeleton className="h-5 w-40" />
+          </div>
+          <div className="hidden space-y-5 px-4 py-4 @[720px]:block">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-36" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-16 w-full" />
+          </div>
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col @[720px]:min-h-0">
+          {/* Tabs */}
+          <div className="shrink-0 border-b border-border px-6">
+            <div className="mx-auto flex max-w-[var(--content-max-width)] items-center gap-4 py-2">
+              <Skeleton className="h-5 w-12" />
+              <Skeleton className="h-5 w-20" />
+              <Skeleton className="hidden h-5 w-20 sm:block" />
+              <Skeleton className="hidden h-5 w-16 sm:block" />
+              <Skeleton className="hidden h-5 w-16 sm:block" />
+            </div>
+          </div>
+          {/* Cards tab: toolbar, groups */}
+          <div className="min-h-0 flex-1 px-6 py-6 @[720px]:overflow-hidden">
+            <div className="mx-auto max-w-[var(--content-max-width)]">
+              <div className="border-b px-4 py-3" style={{ borderColor: 'var(--border-default)' }}>
+                <div className="flex items-center gap-2 md:gap-3">
+                  <Skeleton className="h-8 w-[260px] max-w-full" />
+                  <Skeleton className="h-8 w-36" />
+                  <Skeleton className="h-8 w-24 rounded-full" />
+                  <div className="flex-1" />
+                  <Skeleton className="h-8 w-28" />
+                  <Skeleton className="h-8 w-28" />
+                  <Skeleton className="h-8 w-28" />
+                </div>
+              </div>
+              <div className="px-4 py-4">
+                <GroupsSkeleton />
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-8 w-20 rounded-md" />
-              <Skeleton className="h-8 w-8 rounded-md" />
-              <Skeleton className="h-8 w-8 rounded-md" />
-            </div>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="shrink-0 border-b border-border px-6">
-          <div className="mx-auto flex max-w-[var(--content-max-width)] items-center gap-4 py-2">
-            <Skeleton className="h-5 w-12" />
-            <Skeleton className="h-5 w-20" />
-            <Skeleton className="hidden h-5 w-20 sm:block" />
-            <Skeleton className="hidden h-5 w-16 sm:block" />
-            <Skeleton className="hidden h-5 w-16 sm:block" />
-          </div>
-        </div>
-
-        {/* Cards tab: toolbar, progress bar, groups */}
-        <div className="min-h-0 flex-1 overflow-hidden px-6 py-6">
-          <div className="mx-auto max-w-[var(--content-max-width)]">
-            <div className="border-b px-4 py-3" style={{ borderColor: 'var(--border-default)' }}>
-              <div className="flex items-center gap-2 md:gap-3">
-                <Skeleton className="h-8 w-[260px] max-w-full" />
-                <Skeleton className="h-8 w-36" />
-                <Skeleton className="h-8 w-24 rounded-full" />
-                <div className="flex-1" />
-                <Skeleton className="h-8 w-28" />
-                <Skeleton className="h-8 w-28" />
-                <Skeleton className="h-8 w-28" />
-              </div>
-            </div>
-            <div className="px-4 py-4">
-              <ProgressBarSkeleton />
-              <GroupsSkeleton />
-            </div>
-          </div>
-        </div>
-
-        {/* Health strip */}
-        <div className="shrink-0 border-t px-6 py-2" style={{ borderColor: 'var(--border-default)' }}>
-          <div className="mx-auto flex max-w-[var(--content-max-width)] items-center gap-2">
-            <Skeleton className="h-7 w-20 rounded-md" />
-            <Skeleton className="h-7 w-20 rounded-md" />
-            <Skeleton className="h-7 w-24 rounded-md" />
-            <Skeleton className="h-7 w-20 rounded-md" />
-            <Skeleton className="h-7 w-24 rounded-md" />
           </div>
         </div>
       </div>

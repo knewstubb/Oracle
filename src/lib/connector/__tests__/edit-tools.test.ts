@@ -477,7 +477,9 @@ describe('CC-15 create_deck and set_deck_setup', () => {
     ['the old replace-all strategy_notes', { deck_id: 1, strategy_notes: 'replace it' }],
     ['a summary over 120', { deck_id: 1, summary: 'x'.repeat(121) }],
     ['bracket 0', { deck_id: 1, bracket: 0 }],
-    ['an added paragraph over 4000', { deck_id: 1, strategy_add: 'x'.repeat(AI_LIMITS_NEW.strategy_notes_max_chars + 1) }],
+    ['a Strategy over 4000', { deck_id: 1, strategy: 'x'.repeat(AI_LIMITS_NEW.strategy_notes_max_chars + 1), based_on: 'none' }],
+    ['a Strategy without based_on', { deck_id: 1, strategy: 'New text.' }],
+    ['the old strategy_add', { deck_id: 1, strategy_add: 'More.' }],
     ['no fields', { deck_id: 1 }],
     ['user_id', { deck_id: 1, bracket: 2, user_id: 'other' }],
   ])('set_deck_setup rejects %s and never reaches the database', async (_n, input) => {
@@ -486,16 +488,12 @@ describe('CC-15 create_deck and set_deck_setup', () => {
     expect(r.isError).toBe(true)
     expect(g.setDeckSetup).not.toHaveBeenCalled()
   })
-  it('a Strategy of exactly 4000 characters in total is accepted when Claude adds it to an empty one', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] })
-    vi.setSystemTime(new Date('2026-01-01T12:00:00Z'))
-    try {
-      const g = gw({ setDeckSetup: vi.fn(async () => ({ ok: true, data: { success: true, outcome: 'applied', group_id: G, count: 1, changed: {} } })) })
-      const r = await runTool(ctx(g), 'set_deck_setup', { reason: 'Test reason.', deck_id: 1, strategy_add: 'x'.repeat(AI_LIMITS_NEW.strategy_notes_max_chars - 'Claude, 1 Jan 2026: '.length) })
-      expect(r.isError).toBeFalsy()
-    } finally {
-      vi.useRealTimers()
-    }
+  it('a Strategy of exactly 4000 characters is accepted, and it is stored as sent with no date paragraph', async () => {
+    const g = gw({ setDeckSetup: vi.fn(async () => ({ ok: true, data: { success: true, outcome: 'applied', group_id: G, count: 1, changed: {} } })) })
+    const text = 'x'.repeat(AI_LIMITS_NEW.strategy_notes_max_chars)
+    const r = await runTool(ctx(g), 'set_deck_setup', { reason: 'Test reason.', deck_id: 1, strategy: text, based_on: 'none' })
+    expect(r.isError).toBeFalsy()
+    expect((vi.mocked(g.setDeckSetup).mock.calls[0][0].patch as { strategy_notes: string }).strategy_notes).toBe(text)
   })
   it('Claude can undo a setup change through undo_change', async () => {
     const g = gw({ undoAsClaude: vi.fn(async () => ({ ok: true, data: { success: true, undone: 1 } })) })

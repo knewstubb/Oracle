@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { BRACKETS, bracketLabel, bracketName, parseBracket } from '../deck-bracket'
-import { SUMMARY_MAX, STRATEGY_MAX, addDatedParagraph, bracketWarning, shortDateText, validateWindowInput } from '../deck-strategy-window'
+import { SUMMARY_MAX, STRATEGY_MAX, bracketWarning, shortDateText, validateWindowInput } from '../deck-strategy-window'
 describe('bracket names (number first)', () => {
   it('has the owner\'s five names in order', () => {
     expect(BRACKETS.map((b) => `${b.number} ${b.name}`)).toEqual(['1 Exhibition', '2 Core', '3 Upgraded', '4 Optimized', '5 cEDH'])
@@ -33,27 +33,7 @@ describe('the bracket warning only informs', () => {
     expect(`${w.text} ${w.basedOn}`).not.toMatch(/restrict|limit|only suggest|refus|block|filter/i)
   })
 })
-describe('Claude adds a dated paragraph and never replaces the owner\'s text', () => {
-  const day = new Date('2026-11-19T23:59:00Z')
-  it('keeps the owner\'s text exactly and adds the paragraph after it', () => {
-    const mine = 'Yedora plants lands.\nNever cut Scute Swarm.'
-    const r = addDatedParagraph(mine, 'Add a sacrifice outlet.', day)!
-    expect(r.startsWith(mine)).toBe(true)
-    expect(r).toBe(`${mine}\n\nClaude, 19 Nov 2026: Add a sacrifice outlet.`)
-  })
-  it('trailing blank space in the owner\'s text does not pile up blank lines', () => {
-    expect(addDatedParagraph('Mine.\n\n\n', 'More.', day)).toBe('Mine.\n\nClaude, 19 Nov 2026: More.')
-  })
-  it('an empty or missing Strategy gets just the paragraph', () => {
-    expect(addDatedParagraph(null, 'First.', day)).toBe('Claude, 19 Nov 2026: First.')
-    expect(addDatedParagraph('  \n', 'First.', day)).toBe('Claude, 19 Nov 2026: First.')
-  })
-  it('an empty paragraph adds nothing', () => {
-    expect(addDatedParagraph('Mine.', '   ', day)).toBeNull()
-  })
-  it('over the limit returns nothing instead of cutting the owner\'s text', () => {
-    expect(addDatedParagraph('x'.repeat(STRATEGY_MAX - 5), 'too long to fit', day)).toBeNull()
-  })
+describe('short dates', () => {
   it('the date is the UTC day', () => {
     expect(shortDateText('2026-11-19T23:59:00Z')).toBe('19 Nov')
     expect(shortDateText('nonsense')).toBe('')

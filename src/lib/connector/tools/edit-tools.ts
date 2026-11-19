@@ -17,7 +17,7 @@ import { coloursOutside, normaliseColours } from './deck-colours'
 import { getOwnedPrintingsByNames } from '../../card-data'
 import { defaultCategoryForTypeLine } from '../../type-line'
 import { BRACKET_MAX, BRACKET_MIN } from '../../deck-bracket'
-import { PLAYGROUP_MAX, STRATEGY_MAX, SUMMARY_MAX, addDatedParagraph } from '../../deck-strategy-window'
+import { PLAYGROUP_MAX, STRATEGY_MAX, SUMMARY_MAX } from '../../deck-strategy-window'
 
 const dryRun = z.boolean().optional().describe('If true, only check and describe what would happen. Nothing is changed.')
 const reason = reasonField
@@ -139,18 +139,28 @@ export const setDeckSetupInput = z
     reason,
     commander: commanderRef.optional().describe('Make this card the deck\'s commander (added as a Planned slot if it is not on the deck).'),
     summary: z.string().trim().max(SUMMARY_MAX).nullable().optional().describe(`The deck's one-line summary shown on the deck page, at most ${SUMMARY_MAX} characters, or null to clear it.`),
-    strategy_add: z
+    strategy: z
       .string()
       .trim()
       .min(1)
       .max(STRATEGY_MAX)
       .optional()
-      .describe('Text to ADD to the owner\'s Strategy. Oracle puts it after what the owner wrote as a new paragraph starting "Claude, <date>:". It never replaces or edits the owner\'s text. The Strategy as a whole stays within 4000 characters.'),
+      .describe('The whole Strategy text, as one clean piece of text. It replaces what is there now, so start from the Strategy get_deck returned, keep what still holds, and rewrite the rest. Do not append dated paragraphs. At most 4000 characters. Send based_on with it.'),
+    based_on: z
+      .string()
+      .trim()
+      .min(1)
+      .optional()
+      .describe('Required with strategy. Copy strategy.version from get_deck (the time the Strategy was last changed), or the word none when get_deck shows no Strategy yet. If the Strategy changed since you read it, the rewrite is refused and nothing is changed.'),
     playgroup: z.string().trim().max(PLAYGROUP_MAX).nullable().optional().describe(`Who the owner usually plays against, at most ${PLAYGROUP_MAX} characters, or null to clear it.`),
     bracket: z.number().int().min(BRACKET_MIN).max(BRACKET_MAX).nullable().optional().describe('The owner\'s TARGET bracket, 1 to 5 (1 Exhibition, 2 Core, 3 Upgraded, 4 Optimized, 5 cEDH), or null to clear it. When the owner has not set one, ask them; do not assume. The bracket never limits which cards you may suggest.'),
   })
-  .refine((v) => v.commander !== undefined || v.summary !== undefined || v.strategy_add !== undefined || v.playgroup !== undefined || v.bracket !== undefined, {
-    message: 'Send at least one of commander, summary, strategy_add, playgroup or bracket. Nothing was changed.',
+  .refine((v) => v.strategy === undefined || v.based_on !== undefined, {
+    message: 'Send based_on with strategy: the strategy.version from get_deck, or none when there is no Strategy yet. Nothing was changed.',
+    path: ['based_on'],
+  })
+  .refine((v) => v.commander !== undefined || v.summary !== undefined || v.strategy !== undefined || v.playgroup !== undefined || v.bracket !== undefined, {
+    message: 'Send at least one of commander, summary, strategy, playgroup or bracket. Nothing was changed.',
   })
 export const undoInput = z.strictObject({ group_id: z.uuid().describe('The group_id from an earlier result or list_recent_changes.') })
 export const changeStatusInput = z.strictObject({ pending_id: z.uuid().describe('The pending_id from an earlier result.') })
@@ -400,6 +410,14 @@ async function newFieldsReady(ctx: EditContext): Promise<boolean> {
   const r = await ctx.db.select('deck_strategy', 'summary, updated_by').eq('user_id', ctx.userId).limit(1)
   return !r.error
 }
+/** The marker from get_deck is a time. Compare as times when both parse, so a different spelling of the same moment still matches. */
+function sameVersion(current: string, sent: string | undefined): boolean {
+  if (sent === undefined) return false
+  if (current === sent) return true
+  if (current === 'none' || sent === 'none') return false
+  const a = Date.parse(current)
+  return !Number.isNaN(a) && a === Date.parse(sent)
+}
 export async function setDeckSetup(ctx: EditContext, input: z.infer<typeof setDeckSetupInput>): Promise<ToolOutput> {
   const patch: Record<string, unknown> = {}
   let warnings: string[] = []
@@ -419,15 +437,15 @@ export async function setDeckSetup(ctx: EditContext, input: z.infer<typeof setDe
   if (input.summary !== undefined) patch.summary = input.summary
   if (input.playgroup !== undefined) patch.playgroup = input.playgroup
   if (input.bracket !== undefined) patch.bracket = input.bracket
-  if (input.strategy_add !== undefined) {
-    // Claude adds to the owner's text and never replaces it. The database refuses the write if the text changed since this read.
-    const cur = await ctx.db.select('deck_strategy', 'strategy_notes').eq('user_id', ctx.userId).eq('deck_id', input.deck_id).limit(1)
+  if (input.strategy !== undefined) {
+    // Claude rewrites the whole Strategy, only when it read the latest text. The database compares again with strategy_notes_base.
+    const cur = await ctx.db.select('deck_strategy', 'strategy_notes, updated_at').eq('user_id', ctx.userId).eq('deck_id', input.deck_id).limit(1)
     if (cur.error) return editError('rpc_failed', 'Oracle could not read the current Strategy just now. Nothing was changed. Try again.', true)
-    const current = rows<{ strategy_notes: string | null }>(cur)[0]?.strategy_notes ?? null
-    const next = addDatedParagraph(current, input.strategy_add, new Date())
-    if (next === null) return editError('notes_too_long', editErrorMessage('notes_too_long', {}))
-    patch.strategy_notes = next
-    patch.strategy_notes_base = current
+    const row = rows<{ strategy_notes: string | null; updated_at: string | null }>(cur)[0]
+    const version = row?.updated_at ?? 'none'
+    if (!sameVersion(version, input.based_on)) return editError('strategy_changed', editErrorMessage('strategy_changed', {}))
+    patch.strategy_notes = input.strategy
+    patch.strategy_notes_base = row?.strategy_notes ?? null
   }
   const r = await ctx.gateway.setDeckSetup({ userId: ctx.userId, connectionId: ctx.connectionId, deckId: input.deck_id, patch })
   if (!r.ok) return fail(r)

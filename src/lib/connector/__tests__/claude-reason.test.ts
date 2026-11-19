@@ -130,10 +130,10 @@ describe('the reason is stored with every Claude write path', () => {
     expect((g.recordReason as any).mock.calls[0][0]).toEqual({ userId: U, groupId: G, reason: 'The owner asked for a Friday pod deck.' })
     expect((r.structuredContent as any).reason_note).toBeUndefined()
   })
-  it('set_deck_setup (the Strategy paragraph path from slice 1) stores the reason for its change group', async () => {
+  it('set_deck_setup (the Strategy rewrite path) stores the reason for its change group', async () => {
     const g = gw()
-    const db = mockDb((q) => ({ data: q.table === 'deck_strategy' ? [{ strategy_notes: 'Mine.' }] : [] })).db
-    const r = await runTool(ctx(g, db), 'set_deck_setup', { deck_id: 7, strategy_add: 'Too few sacrifice outlets.', reason: 'The graveyard plan needs outlets.' })
+    const db = mockDb((q) => ({ data: q.table === 'deck_strategy' ? [{ strategy_notes: 'Mine.', updated_at: '2026-11-19T10:00:00Z' }] : [] })).db
+    const r = await runTool(ctx(g, db), 'set_deck_setup', { deck_id: 7, strategy: 'Mine. Needs more sacrifice outlets.', based_on: '2026-11-19T10:00:00Z', reason: 'The graveyard plan needs outlets.' })
     expect(r.isError).toBeFalsy()
     expect((g.recordReason as any).mock.calls[0][0]).toEqual({ userId: U, groupId: G, reason: 'The graveyard plan needs outlets.' })
     // the reason is not smuggled into the Strategy text or the patch

@@ -43,18 +43,6 @@ export function shortDateText(iso: string | null | undefined): string {
   const d = new Date(iso)
   return Number.isNaN(d.getTime()) ? '' : `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`
 }
-/**
- * Claude adds to the owner's Strategy text; it never replaces it. The owner's text stays exactly as written and a dated
- * paragraph goes after it. Returns null when the paragraph is empty or the result would be over the limit.
- */
-export function addDatedParagraph(current: string | null | undefined, paragraph: string, today: Date): string | null {
-  const add = paragraph.trim()
-  if (!add) return null
-  const base = current ?? ''
-  const line = `Claude, ${longDate(today)}: ${add}`
-  const next = base.trim() === '' ? line : `${base.replace(/\s+$/, '')}\n\n${line}`
-  return next.length > STRATEGY_MAX ? null : next
-}
 /** Cleans what the window sends. Returns an error in plain words, or the values to store. */
 export function validateWindowInput(body: unknown):
   | { ok: true; values: { bracket?: number | null; summary?: string | null; strategy?: string | null; playgroup?: string | null } }

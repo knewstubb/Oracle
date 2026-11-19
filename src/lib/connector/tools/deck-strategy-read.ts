@@ -10,6 +10,9 @@ export interface DeckStrategyView {
   targetBracket: BracketInfo & { name: string | null }
   summary: string | null
   strategy: string | null
+  /** The marker to send back as based_on when rewriting the Strategy: when it was last changed, or 'none' when there is no Strategy yet. */
+  version: string
+  versionNote: string
   playgroup: string | null
   lastChanged: { by: 'owner' | 'claude' | null; at: string | null } | null
   /** Said when part of this could not be read yet (before the stored-data update). */
@@ -36,6 +39,7 @@ type StrategyRow = {
 const NEW_COLUMNS = 'bracket, strategy_notes, table_context, summary, updated_by, updated_at'
 const OLD_COLUMNS = 'bracket, strategy_notes, table_context, updated_at'
 const SUMMARY_NOT_READY = 'The one-line summary and "last changed by" are not stored yet (the owner has not applied that update), so they are empty here.'
+const VERSION_NOTE = 'To rewrite the Strategy with set_deck_setup, send this version as based_on. If the Strategy changes before you send, the rewrite is refused and nothing is changed.'
 const blank = (v: string | null | undefined) => (v && v.trim() !== '' ? v : null)
 /** The deck's strategy row. A database without the new columns still answers, with a note, never an error. */
 export async function loadDeckStrategy(ctx: ToolContext, deckId: number, bracketInfo: BracketInfo): Promise<DeckStrategyView> {
@@ -52,6 +56,8 @@ export async function loadDeckStrategy(ctx: ToolContext, deckId: number, bracket
     targetBracket: { ...bracketInfo, name: bracketName(bracketInfo.value) },
     summary: blank(row?.summary),
     strategy: blank(row?.strategy_notes),
+    version: row?.updated_at ?? 'none',
+    versionNote: VERSION_NOTE,
     playgroup: blank(row?.table_context),
     lastChanged: row?.updated_at ? { by, at: row.updated_at } : null,
     ...(canStore ? {} : { note: SUMMARY_NOT_READY }),

@@ -131,7 +131,7 @@ describe('CC-15 deck tools: owner A cannot reach owner B\'s deck', () => {
   const ctx = { db, userId: A, connectionId: 'conn-a', clientId: 'cl', clientName: 'Claude', gateway }
 
   it('set_deck_setup on B\'s deck id returns not-found, sends only A\'s user id, and changes nothing', async () => {
-    const r = await runTool(ctx, 'set_deck_setup', { reason: 'Test reason.', deck_id: B_DECK, bracket: 2, strategy_add: 'mine now' })
+    const r = await runTool(ctx, 'set_deck_setup', { reason: 'Test reason.', deck_id: B_DECK, bracket: 2, strategy: 'mine now', based_on: 'none' })
     expect(r.structuredContent).toMatchObject({ error: { code: 'deck_not_found' } })
     expect(JSON.stringify(r.structuredContent)).toMatch(/Nothing was changed/)
     expect(setDeckSetup).toHaveBeenCalledTimes(1)

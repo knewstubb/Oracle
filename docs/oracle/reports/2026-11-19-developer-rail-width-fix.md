@@ -30,6 +30,7 @@ Screenshots: docs/oracle/reports/evidence/slice-3-rail-widths/ (`<deck>-<width>.
 - Not changed: at exactly 800 px the rail shows; the spec said "720 and below" compact, so "below 800" is now the rule.
 
 ## Changed files
+- src/components/CardsTab.tsx — card search field gets a 160 px minimum width, so the toolbar wraps whole controls instead of squeezing the field to a stub (seen at 1024 with the rail). Re-captured 819 and 1024 for both decks.
 - src/app/decks/[id]/page.tsx, src/components/deck-rail/DeckRail.tsx, src/components/DeckViewSkeleton.tsx — switch 720 to 800; tab row scrolls
 - src/components/deck-rail/railBreakpoint.test.ts — new, pins the single switch point and the rail rules
 - docs/oracle/specs/deck-rail-strategy-tags.md — section 5 switch point 800
@@ -44,6 +45,8 @@ Screenshots: docs/oracle/reports/evidence/slice-3-rail-widths/ (`<deck>-<width>.
 ## Challenges to locked decisions
 - none
 
+## Design choices flagged, not changed
+- At 1024 the Strategy tab is partly cut off because the tab row scrolls sideways; it gives no hint that it scrolls.
 ## Open questions
 - none
 

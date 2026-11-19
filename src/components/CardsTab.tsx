@@ -633,7 +633,7 @@ function CardsTabInner({ cards, deckId, scrollToCategory, maxCopies = 1, command
         <div className="mx-auto flex flex-wrap max-w-[var(--content-max-width)] items-center gap-2 md:gap-3">
           {/* Tab mode segmented control */}
           {/* Search input */}
-          <div className="relative max-w-[260px] flex-1">
+          <div className="relative min-w-[160px] max-w-[260px] flex-1">
             <Search
               className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
               aria-hidden="true"

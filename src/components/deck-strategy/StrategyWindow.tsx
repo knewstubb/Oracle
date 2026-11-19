@@ -29,6 +29,8 @@ export interface StrategyWindowProps {
   onClose: () => void
   /** Saves only the fields that changed. */
   onSave: (changed: Partial<WindowValues>) => Promise<SaveResult>
+  /** Sends unsaved fields when the page is hidden, closed or left (cannot wait for an answer). */
+  onSaveOnLeave?: (changed: Partial<WindowValues>) => void
   /** Called after the window has closed; opens wherever History opens today. */
   onSeeHistory: () => void
   finalFocusRef?: React.RefObject<HTMLElement | null>
@@ -50,11 +52,12 @@ const UPDATED_BY_CLAUDE = (
 )
 
 export function StrategyWindow(props: StrategyWindowProps) {
-  const { open, deckName, data, online, onClose, onSave, onSeeHistory, finalFocusRef } = props
+  const { open, deckName, data, online, onClose, onSave, onSaveOnLeave, onSeeHistory, finalFocusRef } = props
   const uid = useId()
   const auto = useAutosave<WindowValues>({
     initial: fromData(data),
     save: onSave,
+    saveOnLeave: onSaveOnLeave,
     online,
     same: (k, a, b) => sameValue(k, a, b),
   })

@@ -19,6 +19,8 @@ export interface AutosaveOptions<V extends object> {
   online: boolean
   /** Whether two values of one field count as the same (for example when the server tidies spaces). */
   same?: (key: keyof V, a: V[keyof V], b: V[keyof V]) => boolean
+  /** Fire-and-forget send used when the page is hidden, closed or left, where waiting for an answer is not possible (a keepalive request). */
+  saveOnLeave?: (changed: Partial<V>) => void
   pauseMs?: number
   retryMs?: number
 }
@@ -180,13 +182,27 @@ export function useAutosave<V extends object>(opts: AutosaveOptions<V>) {
     if (online && diff()) void saveNowRef.current()
   }, [online, diff])
 
-  useEffect(
-    () => () => {
+  // Leaving: whatever is typed and not yet saved goes out now (page hidden or closed, or this screen going away).
+  const sendOnLeave = useCallback(() => {
+    const send = optsRef.current.saveOnLeave
+    if (!send || !optsRef.current.online) return
+    const changed = diff()
+    if (changed) send(changed)
+  }, [diff])
+  useEffect(() => {
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') sendOnLeave()
+    }
+    window.addEventListener('pagehide', sendOnLeave)
+    document.addEventListener('visibilitychange', onHide)
+    return () => {
+      window.removeEventListener('pagehide', sendOnLeave)
+      document.removeEventListener('visibilitychange', onHide)
+      sendOnLeave()
       clearTimeout(timerRef.current)
       clearTimeout(retryTimerRef.current)
-    },
-    [],
-  )
+    }
+  }, [sendOnLeave])
 
   const setField = useCallback(
     <K extends keyof V>(name: K, value: V[K]) => {

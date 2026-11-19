@@ -67,6 +67,14 @@ export function StrategyBlock({ deckId, deckName, onSeeHistory }: StrategyBlockP
     if (!notSaved || notSaved.length === 0) setAnnounce('Strategy saved')
     return { ok: true, notSaved }
   }
+  const saveOnLeave = (changed: Partial<WindowValues>) => {
+    void fetch(`/api/decks/${deckId}/strategy-window`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(changed),
+      keepalive: true,
+    }).catch(() => {})
+  }
   const status = <span role="status" aria-live="polite" className="sr-only">{announce}</span>
   if (isPending && !isError) {
     return (
@@ -162,6 +170,7 @@ export function StrategyBlock({ deckId, deckName, onSeeHistory }: StrategyBlockP
         online={online}
         onClose={() => setOpen(false)}
         onSave={save}
+        onSaveOnLeave={saveOnLeave}
         onSeeHistory={onSeeHistory}
         finalFocusRef={blockRef}
       />

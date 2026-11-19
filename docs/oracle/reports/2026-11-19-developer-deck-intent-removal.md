@@ -30,6 +30,6 @@ The "Deck Intent" section is gone from the deck's Strategy tab. Bracket, Strateg
 - Should the now-unused old endpoint and its tests be deleted in a later cleanup? It can still write win condition and budget if called directly, though no screen does.
 
 ## Verification
-- npx vitest --run: see commit message
+- npx vitest --run: 323 files passed, 6 skipped; 3988 tests passed, 46 skipped
 - npx tsc --noEmit: only existing errors in AddToPicklist.test.tsx (not touched)
 - npx eslint on changed files: no errors (one existing unused-prop warning)

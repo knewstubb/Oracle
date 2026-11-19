@@ -5,26 +5,22 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   AlertCircle,
   ChevronDown,
-  ChevronRight,
   GripVertical,
   Loader2,
   Lock,
   Pencil,
   Plus,
   RefreshCw,
-  Save,
   Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { StrategyGuide } from '@/components/StrategyGuide'
 import { CommanderOverview } from '@/components/CommanderOverview'
 import type { DeckCard } from '@/components/CardGrid'
-import { BRACKETS } from '@/lib/deck-bracket'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -37,19 +33,6 @@ interface StrategyTabProps {
   commanderId: string | null
   buildId: string | null
   cards: DeckCard[]
-}
-
-interface StrategyData {
-  configured: boolean
-  win_condition: string | null
-  table_context: string | null
-  bracket: number | null
-  budget_mode: string | null
-  budget_ceiling: number | null
-  frustration: string | null
-  strategy_notes: string | null
-  format_rules: unknown
-  updated_at?: string | null
 }
 
 interface CategoryInfo {
@@ -125,21 +108,6 @@ interface InsightsResponse {
 
 const CORE_CATEGORIES = ['Ramp', 'Draw', 'Removal', 'Lands', 'Win Condition']
 
-const BRACKET_OPTIONS = BRACKETS.map((b) => ({ value: b.number, label: `${b.number} — ${b.name}` }))
-
-const BUDGET_MODE_OPTIONS = [
-  { value: 'collection', label: 'Collection Only' },
-  { value: 'budget', label: 'Budget' },
-  { value: 'unrestricted', label: 'Unrestricted' },
-]
-
-const FORMAT_TYPE_OPTIONS = [
-  { value: 'none', label: 'None' },
-  { value: 'precon_mod', label: 'Precon Mod' },
-  { value: 'baggy_league', label: 'Baggy League' },
-  { value: 'custom', label: 'Custom' },
-]
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -213,7 +181,6 @@ function detectOverlaps(categories: CategoryInfo[]): Record<string, string> {
 export function StrategyTab({ deckId, deckType, commanderName, commanderId, buildId, cards }: StrategyTabProps) {
   const queryClient = useQueryClient()
   const [showSyncConfirm, setShowSyncConfirm] = useState(false)
-  const [isDeckIntentExpanded, setIsDeckIntentExpanded] = useState(false)
 
   // Build selector state - initialized from prop
   const [selectedBuildId, setSelectedBuildId] = useState<string | null>(buildId)
@@ -225,27 +192,6 @@ export function StrategyTab({ deckId, deckType, commanderName, commanderId, buil
     setPrevBuildId(buildId)
     setSelectedBuildId(buildId)
   }
-
-  // Deck intent form state
-  const [winCondition, setWinCondition] = useState('')
-  const [tableContext, setTableContext] = useState('')
-  const [bracket, setBracket] = useState<number | ''>('')
-  const [budgetMode, setBudgetMode] = useState('')
-  const [frustration, setFrustration] = useState('')
-  const [formatType, setFormatType] = useState('')
-  const [strategyNotes, setStrategyNotes] = useState('')
-  const [isEditing, setIsEditing] = useState(false)
-
-  // Fetch strategy data (deck intent)
-  const { data: strategy, isLoading, error } = useQuery<StrategyData>({
-    queryKey: ['decks', deckId, 'strategy'],
-    queryFn: async () => {
-      const res = await fetch(`/api/decks/${deckId}/strategy`)
-      if (!res.ok) throw new Error('Failed to load strategy')
-      return res.json()
-    },
-    staleTime: 5 * 60 * 1000,
-  })
 
   // Fetch commander builds (only if we have a commanderId)
   const { data: buildsData, isLoading: isBuildsLoading } = useQuery<BuildsResponse>({
@@ -310,30 +256,6 @@ export function StrategyTab({ deckId, deckType, commanderName, commanderId, buil
     staleTime: 5 * 60 * 1000,
   })
 
-  // Save mutation
-  const saveMutation = useMutation({
-    mutationFn: async (payload: Record<string, unknown>) => {
-      const res = await fetch(`/api/decks/${deckId}/strategy`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      if (!res.ok) {
-        const errorData = await res.json()
-        throw new Error(errorData.error || 'Failed to save strategy')
-      }
-      return res.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['decks', deckId, 'strategy'] })
-      toast.success('Strategy saved')
-      setIsEditing(false)
-    },
-    onError: (err: Error) => {
-      toast.error(err.message)
-    },
-  })
-
   // Save build_id mutation
   const saveBuildMutation = useMutation({
     mutationFn: async (newBuildId: string | null) => {
@@ -361,39 +283,6 @@ export function StrategyTab({ deckId, deckType, commanderName, commanderId, buil
   function handleBuildChange(newBuildId: string | null) {
     setSelectedBuildId(newBuildId)
     saveBuildMutation.mutate(newBuildId)
-  }
-
-  // Populate form from fetched data
-  function startEditing() {
-    if (strategy) {
-      setWinCondition(strategy.win_condition || '')
-      setTableContext(strategy.table_context || '')
-      setBracket(strategy.bracket || '')
-      setBudgetMode(strategy.budget_mode || '')
-      setFrustration(strategy.frustration || '')
-      setStrategyNotes(strategy.strategy_notes || '')
-      setFormatType(
-        strategy.format_rules &&
-        typeof strategy.format_rules === 'object' &&
-        'format_name' in (strategy.format_rules as Record<string, unknown>)
-          ? ((strategy.format_rules as Record<string, unknown>).format_name as string)
-          : 'none'
-      )
-    }
-    setIsEditing(true)
-    setIsDeckIntentExpanded(true)
-  }
-
-  function handleSave() {
-    saveMutation.mutate({
-      win_condition: winCondition || null,
-      table_context: tableContext || null,
-      bracket: bracket || null,
-      budget_mode: budgetMode || null,
-      frustration: frustration || null,
-      strategy_notes: strategyNotes || null,
-      format_rules: formatType !== 'none' ? { format_name: formatType } : null,
-    })
   }
 
   // Derive categories from cards with recommended counts from build
@@ -439,29 +328,6 @@ export function StrategyTab({ deckId, deckType, commanderName, commanderId, buil
     return result
   }, [cards, selectedBuild])
   const overlaps = useMemo(() => detectOverlaps(categories), [categories])
-
-  // -------------------------------------------------------------------------
-  // Loading / Error states
-  // -------------------------------------------------------------------------
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6 p-4 mx-auto max-w-[var(--content-max-width)]">
-        <Skeleton className="h-32 w-full rounded-lg" />
-        <Skeleton className="h-48 w-full rounded-lg" />
-        <Skeleton className="h-24 w-full rounded-lg" />
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center gap-2 p-4 text-destructive">
-        <AlertCircle className="h-4 w-4" />
-        <span className="text-[length:var(--fs-md)]">Failed to load strategy data</span>
-      </div>
-    )
-  }
 
   // -------------------------------------------------------------------------
   // Render
@@ -680,216 +546,7 @@ export function StrategyTab({ deckId, deckType, commanderName, commanderId, buil
         </section>
       )}
 
-      {/* ─── Section 5: Deck intent (collapsible) ───────────────────── */}
-      <section className="space-y-3">
-        <button
-          className="flex items-center gap-2 w-full text-left"
-          onClick={() => setIsDeckIntentExpanded(!isDeckIntentExpanded)}
-        >
-          {isDeckIntentExpanded ? (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          )}
-          <h3 className="text-[length:var(--fs-md)] font-medium">Deck Intent</h3>
-          {!isDeckIntentExpanded && strategy?.configured && (
-            <Badge variant="secondary" className="text-[length:var(--fs-xs)] px-1.5 py-0">
-              Configured
-            </Badge>
-          )}
-          {!isEditing && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="ml-auto"
-              onClick={(e) => {
-                e.stopPropagation()
-                startEditing()
-              }}
-            >
-              <Pencil className="h-3.5 w-3.5 mr-1" />
-              {strategy?.configured ? 'Edit' : 'Configure'}
-            </Button>
-          )}
-        </button>
-
-        {isDeckIntentExpanded && (
-          <div className="pl-6 space-y-4">
-            {!isEditing && !strategy?.configured && (
-              <div
-                className="rounded-lg p-6 text-center"
-                style={{
-                  background: 'rgba(255,255,255,0.02)',
-                  border: '0.5px dashed rgba(255,255,255,0.15)',
-                }}
-              >
-                <p className="text-[length:var(--fs-md)] text-muted-foreground mb-3">
-                  Configure your deck&apos;s strategic intent to drive personalised recommendations.
-                </p>
-                <Button size="sm" onClick={startEditing}>
-                  Configure Strategy
-                </Button>
-              </div>
-            )}
-
-            {!isEditing && strategy?.configured && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {strategy.win_condition && (
-                  <FieldDisplay label="Win condition" value={strategy.win_condition} fullWidth />
-                )}
-                {strategy.bracket && (
-                  <FieldDisplay
-                    label="Bracket"
-                    value={BRACKET_OPTIONS.find(b => b.value === strategy.bracket)?.label || String(strategy.bracket)}
-                  />
-                )}
-                {strategy.table_context && (
-                  <FieldDisplay label="Table context" value={strategy.table_context} />
-                )}
-                {strategy.frustration && (
-                  <FieldDisplay label="Frustrations" value={strategy.frustration} />
-                )}
-                {strategy.budget_mode && (
-                  <FieldDisplay
-                    label="Budget mode"
-                    value={BUDGET_MODE_OPTIONS.find(b => b.value === strategy.budget_mode)?.label || strategy.budget_mode}
-                  />
-                )}
-                {strategy.format_rules != null && typeof strategy.format_rules === 'object' ? (
-                  <FieldDisplay
-                    label="Format type"
-                    value={
-                      FORMAT_TYPE_OPTIONS.find(
-                        f => f.value === String((strategy.format_rules as Record<string, string>)?.format_name ?? '')
-                      )?.label || 'Custom'
-                    }
-                  />
-                ) : null}
-                {strategy.strategy_notes && (
-                  <FieldDisplay label="Strategy notes" value={strategy.strategy_notes} fullWidth />
-                )}
-              </div>
-            )}
-
-            {isEditing && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {/* Row 1 */}
-                  <FieldInput label="Win condition" fullWidth>
-                    <Textarea
-                      value={winCondition}
-                      onChange={e => setWinCondition(e.target.value)}
-                      placeholder="How does this deck win?"
-                      rows={2}
-                      className="field-input"
-                      style={fieldStyle}
-                    />
-                  </FieldInput>
-                  <FieldInput label="Bracket">
-                    <select
-                      value={bracket}
-                      onChange={e => setBracket(e.target.value ? Number(e.target.value) : '')}
-                      className="h-9 w-full rounded-md px-3 py-1 text-[length:var(--fs-md)]"
-                      style={fieldStyle}
-                    >
-                      <option value="">Select bracket...</option>
-                      {BRACKET_OPTIONS.map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                  </FieldInput>
-
-                  {/* Row 2 */}
-                  <FieldInput label="Table context">
-                    <Textarea
-                      value={tableContext}
-                      onChange={e => setTableContext(e.target.value)}
-                      placeholder="Describe your playgroup or meta"
-                      rows={2}
-                      style={fieldStyle}
-                    />
-                  </FieldInput>
-                  <FieldInput label="Frustrations">
-                    <Textarea
-                      value={frustration}
-                      onChange={e => setFrustration(e.target.value)}
-                      placeholder="What problems need solving?"
-                      rows={2}
-                      style={fieldStyle}
-                    />
-                  </FieldInput>
-
-                  {/* Row 3 */}
-                  <FieldInput label="Budget mode">
-                    <select
-                      value={budgetMode}
-                      onChange={e => setBudgetMode(e.target.value)}
-                      className="h-9 w-full rounded-md px-3 py-1 text-[length:var(--fs-md)]"
-                      style={fieldStyle}
-                    >
-                      <option value="">Select budget mode...</option>
-                      {BUDGET_MODE_OPTIONS.map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                  </FieldInput>
-                  <FieldInput label="Format type">
-                    <select
-                      value={formatType}
-                      onChange={e => setFormatType(e.target.value)}
-                      className="h-9 w-full rounded-md px-3 py-1 text-[length:var(--fs-md)]"
-                      style={fieldStyle}
-                    >
-                      {FORMAT_TYPE_OPTIONS.map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                  </FieldInput>
-
-                  {/* Row 4 */}
-                  <FieldInput label="Strategy notes" fullWidth>
-                    <Textarea
-                      value={strategyNotes}
-                      onChange={e => setStrategyNotes(e.target.value)}
-                      placeholder="Any other context about how you want to play this deck"
-                      rows={3}
-                      style={fieldStyle}
-                    />
-                  </FieldInput>
-                </div>
-
-                {/* Save button */}
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={handleSave}
-                    disabled={saveMutation.isPending}
-                    style={{ background: '#1D9E75' }}
-                    className="text-white hover:opacity-90"
-                  >
-                    {saveMutation.isPending ? (
-                      <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                    ) : (
-                      <Save className="h-3.5 w-3.5 mr-1" />
-                    )}
-                    Save
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsEditing(false)}
-                    disabled={saveMutation.isPending}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </section>
-
-      {/* ─── Section 6: Notes ───────────────────────────────────────── */}
+      {/* ─── Section 5: Notes ───────────────────────────────────────── */}
       <section className="space-y-3">
         <h3 className="text-[length:var(--fs-md)] font-medium">Notes</h3>
 
@@ -948,51 +605,8 @@ export function StrategyTab({ deckId, deckType, commanderName, commanderId, buil
   )
 }
 
-// ---------------------------------------------------------------------------
-// Field display helpers
-// ---------------------------------------------------------------------------
-
 const fieldStyle: React.CSSProperties = {
   background: 'rgba(255,255,255,0.05)',
   border: '0.5px solid rgba(255,255,255,0.1)',
   borderRadius: 6,
-}
-
-function FieldDisplay({
-  label,
-  value,
-  fullWidth,
-}: {
-  label: string
-  value: string
-  fullWidth?: boolean
-}) {
-  return (
-    <div className={fullWidth ? 'md:col-span-2' : ''}>
-      <span className="text-[11px] text-muted-foreground block mb-0.5">{label}</span>
-      <div
-        className="rounded-md px-3 py-2 text-[length:var(--fs-md)]"
-        style={fieldStyle}
-      >
-        {value}
-      </div>
-    </div>
-  )
-}
-
-function FieldInput({
-  label,
-  children,
-  fullWidth,
-}: {
-  label: string
-  children: React.ReactNode
-  fullWidth?: boolean
-}) {
-  return (
-    <div className={fullWidth ? 'md:col-span-2' : ''}>
-      <label className="text-[11px] text-muted-foreground block mb-1">{label}</label>
-      {children}
-    </div>
-  )
 }

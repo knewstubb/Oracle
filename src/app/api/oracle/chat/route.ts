@@ -12,6 +12,7 @@
  * Returns: SSE stream with text chunks and tool status notifications
  */
 
+import { aiChatPausedResponse } from '@/lib/ai-chat-switch'
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
@@ -273,6 +274,9 @@ async function findCommanderByName(
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
+  const paused = aiChatPausedResponse()
+  if (paused) return paused
+
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
   const userId = authResult.id

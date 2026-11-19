@@ -6,6 +6,7 @@ import { SmartSearch } from "@/components/SmartSearch";
 import { CardLocator } from "@/components/CardLocator";
 import { OracleSidebar } from "@/components/OracleSidebar";
 import { MainContentWrapper } from "@/components/MainContentWrapper";
+import { isAiChatEnabled } from "@/lib/ai-chat-switch";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -60,7 +61,7 @@ export default function RootLayout({
           </a>
           <TopNav />
           {/* MainContentWrapper renders PageHeader + content area with sidebar */}
-          <MainContentWrapper sidebar={<OracleSidebar />}>
+          <MainContentWrapper sidebar={isAiChatEnabled() ? <OracleSidebar /> : null}>
             {children}
           </MainContentWrapper>
           <SmartSearch />

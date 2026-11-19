@@ -7,6 +7,7 @@
 // Model selector: Requirements 4.1, 4.4, 5.4, 6.1, 8.1
 // ---------------------------------------------------------------------------
 
+import { aiChatPausedResponse } from '@/lib/ai-chat-switch'
 import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { runToolLoop } from '@/lib/tool-executor'
@@ -345,6 +346,9 @@ Respond ONLY with the JSON array. No markdown fences, no explanation.`
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest): Promise<Response> {
+  const paused = aiChatPausedResponse()
+  if (paused) return paused
+
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
 

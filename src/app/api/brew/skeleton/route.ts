@@ -6,6 +6,7 @@
 // Requirements: 11.3, 14.4, 14.5
 // ---------------------------------------------------------------------------
 
+import { aiChatPausedResponse } from '@/lib/ai-chat-switch'
 import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createAdminClient } from '@/lib/supabase'
@@ -119,6 +120,9 @@ Start with { and end with }.`
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest): Promise<Response> {
+  const paused = aiChatPausedResponse()
+  if (paused) return paused
+
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
 

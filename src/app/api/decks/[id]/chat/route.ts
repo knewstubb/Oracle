@@ -5,6 +5,7 @@
  * SSE streaming response with tool-use loop for card lookups.
  */
 
+import { aiChatPausedResponse } from '@/lib/ai-chat-switch'
 import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { runToolLoop } from '@/lib/tool-executor'
@@ -39,6 +40,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const paused = aiChatPausedResponse()
+  if (paused) return paused
+
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
   const userId = authResult.id

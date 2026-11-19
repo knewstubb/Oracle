@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useDomHost } from '@/hooks/useDomHost'
+import { isAiChatEnabled } from '@/lib/ai-chat-switch'
 import { useOracleOptional } from '@/contexts/OracleContext'
 import { healthChatQuestion } from '@/lib/deck-health-chat-question'
 import { useQuery } from '@tanstack/react-query'
@@ -41,7 +42,7 @@ export function HealthStrip({ deckId }: HealthStripProps) {
   const oracle = useOracleOptional()
   // "Chat about this": close the panel, open the Oracle chat (the same panel the footer opens) and send the question.
   // Without the chat available (isolated tests) no button is shown.
-  const onChat = oracle
+  const onChat = oracle && isAiChatEnabled()
     ? (role: HealthRoleKey | null) => {
         setPanelOpen(false)
         oracle.open()

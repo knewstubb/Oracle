@@ -3,6 +3,7 @@
 // Generate 100-card skeleton using Heavy Model + grounded data sources
 // ---------------------------------------------------------------------------
 
+import { aiChatPausedResponse } from '@/lib/ai-chat-switch'
 import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createAdminClient } from '@/lib/supabase'
@@ -52,6 +53,9 @@ interface DeckNameRow {
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
+  const paused = aiChatPausedResponse()
+  if (paused) return paused
+
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
 

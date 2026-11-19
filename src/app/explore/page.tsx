@@ -6,6 +6,7 @@ import { useOracle, useOracleContext } from '@/contexts/OracleContext'
 import { CommanderBrowser } from '@/components/explore/CommanderBrowser'
 import { SuggestedCommanders } from '@/components/explore/SuggestedCommanders'
 import { cn } from '@/lib/utils'
+import { isAiChatEnabled } from '@/lib/ai-chat-switch'
 
 // ---------------------------------------------------------------------------
 // Explore Page — Combined Forge + Exploration Landing
@@ -43,12 +44,12 @@ export default function ExplorePage() {
         {/* Holding State or Suggested Commanders */}
         {hasSuggestions ? (
           <SuggestedCommanders commanders={suggestedCommanders} />
-        ) : (
+        ) : isAiChatEnabled() ? (
           <ExploreHoldingState />
-        )}
+        ) : null}
 
         {/* Commander Browser Grid */}
-        <section className="mt-6">
+        <section className={isAiChatEnabled() ? 'mt-6' : undefined}>
           <h2 className="text-lg font-medium text-foreground mb-4">
             Browse Commanders
           </h2>

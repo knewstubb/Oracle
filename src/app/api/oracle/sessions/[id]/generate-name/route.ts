@@ -13,6 +13,7 @@
  * Returns the generated name and updates the session.
  */
 
+import { aiChatPausedResponse } from '@/lib/ai-chat-switch'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
@@ -66,6 +67,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const paused = aiChatPausedResponse()
+  if (paused) return paused
+
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
   const userId = authResult.id

@@ -3,6 +3,7 @@
 // Haiku decision extraction — accepts Sonnet response text, extracts decisions
 // ---------------------------------------------------------------------------
 
+import { aiChatPausedResponse } from '@/lib/ai-chat-switch'
 import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createAdminClient } from '@/lib/supabase'
@@ -74,6 +75,9 @@ Respond ONLY with the JSON array. No markdown fences, no explanation.`
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
+  const paused = aiChatPausedResponse()
+  if (paused) return paused
+
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
 

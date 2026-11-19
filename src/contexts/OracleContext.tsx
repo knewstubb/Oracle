@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { isAiChatEnabled } from '@/lib/ai-chat-switch'
 import type { ProposalGroup } from '@/components/ChatProposalCards'
 
 // ---------------------------------------------------------------------------
@@ -162,7 +163,7 @@ export function OracleProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Read browser-only preferences after hydration so server and client start with identical markup.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsOpen(localStorage.getItem(STORAGE_KEY_OPEN) === 'true')
+    setIsOpen(isAiChatEnabled() && localStorage.getItem(STORAGE_KEY_OPEN) === 'true')
 
     const storedWidth = localStorage.getItem(STORAGE_KEY_WIDTH)
     if (storedWidth !== null) {
@@ -186,6 +187,7 @@ export function OracleProvider({ children }: { children: ReactNode }) {
     if (typeof window === 'undefined') return
     
     function handleKeyDown(e: KeyboardEvent) {
+      if (!isAiChatEnabled()) return
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'o') {
         e.preventDefault()
         setIsOpen(prev => !prev)
@@ -219,7 +221,7 @@ export function OracleProvider({ children }: { children: ReactNode }) {
 
   /** Load or create session when context changes */
   useEffect(() => {
-    if (!isHydrated) return
+    if (!isHydrated || !isAiChatEnabled()) return
     
     const contextKey = getContextKey(activeContext)
     
@@ -328,8 +330,8 @@ export function OracleProvider({ children }: { children: ReactNode }) {
   // Sidebar controls
   // ---------------------------------------------------------------------------
 
-  const toggle = useCallback(() => setIsOpen(prev => !prev), [])
-  const open = useCallback(() => setIsOpen(true), [])
+  const toggle = useCallback(() => { if (isAiChatEnabled()) setIsOpen(prev => !prev) }, [])
+  const open = useCallback(() => { if (isAiChatEnabled()) setIsOpen(true) }, [])
   const close = useCallback(() => setIsOpen(false), [])
   
   const setWidth = useCallback((newWidth: number) => {
@@ -440,7 +442,7 @@ export function OracleProvider({ children }: { children: ReactNode }) {
   // ---------------------------------------------------------------------------
 
   const sendMessage = useCallback(async (text: string) => {
-    if (!text.trim() || isStreaming) return
+    if (!isAiChatEnabled() || !text.trim() || isStreaming) return
     
     // If no active session, try to create one inline
     let sessionToUse = activeSession

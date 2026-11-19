@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { logout } from '@/app/actions/auth'
 import { useOracle } from '@/contexts/OracleContext'
+import { isAiChatEnabled } from '@/lib/ai-chat-switch'
 import { CardDataLastUpdate } from '@/components/CardDataLastUpdate'
 import { OVERLAY_BACKDROP } from '@/lib/overlay-classes'
 
@@ -65,6 +66,7 @@ export function TopNav() {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { isOpen: oracleOpen, toggle: toggleOracle } = useOracle()
+  const aiChatEnabled = isAiChatEnabled()
 
   // Close mobile menu on navigation. Adjust during render (React's recommended
   // alternative to a state-setting effect) so it happens in the same commit.
@@ -199,18 +201,20 @@ export function TopNav() {
               <Search className="w-5 h-5" />
             </button>
 
-            <button
-              onClick={toggleOracle}
-              className={cn(
-                'md:hidden p-2 rounded-lg transition-colors',
-                oracleOpen
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-              )}
-              aria-label="Toggle Oracle assistant"
-            >
-              <MessageSquare className="w-5 h-5" />
-            </button>
+            {aiChatEnabled && (
+              <button
+                onClick={toggleOracle}
+                className={cn(
+                  'md:hidden p-2 rounded-lg transition-colors',
+                  oracleOpen
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                )}
+                aria-label="Toggle Oracle assistant"
+              >
+                <MessageSquare className="w-5 h-5" />
+              </button>
+            )}
 
             <button
               onClick={() => setMobileMenuOpen(true)}
@@ -223,19 +227,21 @@ export function TopNav() {
             <CardDataLastUpdate className="hidden md:block mr-1" />
 
             {/* Desktop: Oracle + Settings + Avatar */}
-            <button
-              onClick={toggleOracle}
-              className={cn(
-                'hidden md:flex p-2 rounded-lg transition-colors',
-                oracleOpen
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-              )}
-              aria-label="Toggle Oracle assistant"
-              title="Oracle (⌘O)"
-            >
-              <MessageSquare className="w-5 h-5" />
-            </button>
+            {aiChatEnabled && (
+              <button
+                onClick={toggleOracle}
+                className={cn(
+                  'hidden md:flex p-2 rounded-lg transition-colors',
+                  oracleOpen
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                )}
+                aria-label="Toggle Oracle assistant"
+                title="Oracle (⌘O)"
+              >
+                <MessageSquare className="w-5 h-5" />
+              </button>
+            )}
 
             <Link
               href="/settings"

@@ -3,6 +3,7 @@
 // Start a new brew session — Path A (commander) or Path B (concept)
 // ---------------------------------------------------------------------------
 
+import { aiChatPausedResponse } from '@/lib/ai-chat-switch'
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
@@ -10,6 +11,9 @@ import { buildBrewInvestigatorPrompt } from '@/lib/brew-prompts'
 import { getUserPreferences, formatPlayerContextPrompt } from '@/lib/user-preferences'
 
 export async function POST(request: NextRequest) {
+  const paused = aiChatPausedResponse()
+  if (paused) return paused
+
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
   const userId = authResult.id

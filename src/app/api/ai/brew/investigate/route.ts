@@ -3,6 +3,7 @@
 // SSE-streamed investigation exchange — supports Anthropic and Gemini models
 // ---------------------------------------------------------------------------
 
+import { aiChatPausedResponse } from '@/lib/ai-chat-switch'
 import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { GoogleGenerativeAI } from '@google/generative-ai'
@@ -34,6 +35,9 @@ interface ConversationMessage {
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest): Promise<Response> {
+  const paused = aiChatPausedResponse()
+  if (paused) return paused
+
   const authResult = await requireAuth()
   if (authResult instanceof Response) return authResult
   const userId = authResult.id

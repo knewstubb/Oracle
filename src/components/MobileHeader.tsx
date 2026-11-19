@@ -1,5 +1,6 @@
 'use client'
 
+import { isAiChatEnabled } from '@/lib/ai-chat-switch'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -30,7 +31,7 @@ const navItems = [
   { label: 'Reconcile', icon: 'compare_arrows', href: '/reconcile' },
   { label: 'Collection', icon: 'newsstand', href: '/collection' },
   { label: 'Binders', icon: 'shelves', href: '/storage' },
-  { label: 'Brew Deck', icon: 'science', href: '/new-deck' },
+  ...(isAiChatEnabled() ? [{ label: 'Brew Deck', icon: 'science', href: '/new-deck' }] : []),
   { label: 'Settings', icon: 'settings', href: '/settings' },
 ]
 

@@ -5,6 +5,7 @@ import { Ban, Clock, Loader2, Pause, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { computeDeckReadiness } from '@/lib/deck-readiness'
 import type { DeckCounts, PendingItem } from './api'
+import { ClaudeReason } from './ClaudeReason'
 import { cancelReasonText, formatClock, formatWhen } from './format'
 
 const REQUIRED_SIZE = 100 // Commander size; same default the deck state badge assumes
@@ -125,6 +126,7 @@ export function PendingCard({ item, busy = null, onApprove, onDecline, onDismiss
       <h3 id={`${listId}-t`} className="mt-2 text-[length:var(--fs-lg)] font-medium text-[var(--text-primary)]">
         {title}
       </h3>
+      <ClaudeReason reason={item.claude_reason} className="mt-1" />
 
       {isMove ? (
         <>

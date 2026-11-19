@@ -1,0 +1,282 @@
+== cluster: PostgreSQL 17.12 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.4.1.1), 64-bit port 55434 (throwaway, deleted at end)
+-- apply 00_base.sql
+-- apply 20261116130000_connector_connections.sql
+-- apply 20261116150000_ai_change_log_and_pending.sql
+-- apply 20261116150100_ai_connector_edit_rpcs.sql
+-- apply 20261116150200_ai_undo_blocker_make_original_fix.sql
+-- apply 20261116150300_ai_list_recent_changes_zone_to.sql
+-- apply 20261116190000_ai_deck_category.sql
+-- apply 20261117100000_cc13_loosen_limits.sql
+-- apply 20261023170100_set_deck_command_zone.sql
+-- apply 20261117120000_ai_change_log_allow_deck_delete.sql
+-- apply 20261117200000_cc15a_new_change_kinds.sql
+-- apply 20261117200100_cc15b_deck_create_setup.sql
+-- apply 01_seed.sql
+== S4 on the bare base (no other draft): apply and roll back
+-- apply 20261119110000_s4_claude_change_reason.draft.sql
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+   (expected) psql:/Users/bradknewstubb/Developer/Personal/oracle_app-worktrees/slice-2/supabase/drafts/20261119110000_s4_claude_change_reason.rollback.sql:18: ERROR:  cannot roll back: Claude reasons are stored (set oracle.rollback_allow_data_loss = 'yes' in this session to forget them)
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== the live state: DB-1 to DB-5, CC-25 and S3 applied
+-- apply 20261118120000_roles_db1_card_roles.draft.sql
+-- apply 20261118120100_roles_db2_change_kinds.draft.sql
+-- apply 20261118120200_roles_db3_deck_card_jobs.draft.sql
+-- apply 20261118120300_roles_db4_strategy_points.draft.sql
+-- apply 20261118120400_roles_db5_health_targets.draft.sql
+-- apply 20261118130000_cc25_trade_locations.draft.sql
+-- apply 20261119100000_s3_strategy_window_fields.draft.sql
+ mkdeck 
+--------
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== apply S4 on the live state
+-- apply 20261119110000_s4_claude_change_reason.draft.sql
+   (expected) psql:/Users/bradknewstubb/Developer/Personal/oracle_app-worktrees/slice-2/supabase/drafts/20261119110000_s4_claude_change_reason.draft.sql:37: ERROR:  s4 already applied (ai_change_reasons or _ai_submit_change_pre_reason exists)
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== rollback refuses while reasons exist; the same files roll back exactly with the data-loss answer
+   (expected) psql:/Users/bradknewstubb/Developer/Personal/oracle_app-worktrees/slice-2/supabase/drafts/20261119110000_s4_claude_change_reason.rollback.sql:18: ERROR:  cannot roll back: Claude reasons are stored (set oracle.rollback_allow_data_loss = 'yes' in this session to forget them)
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== re-apply, then every earlier draft rolled back in reverse WITH S4 still applied, S4 last
+-- apply 20261119110000_s4_claude_change_reason.draft.sql
+ chk 
+-----
+ 
+(1 row)
+
+-- apply 20261119100000_s3_strategy_window_fields.rollback.sql
+-- apply 20261118130000_cc25_trade_locations.rollback.sql
+-- apply 20261118120400_roles_db5_health_targets.rollback.sql
+-- apply 20261118120300_roles_db4_strategy_points.rollback.sql
+-- apply 20261118120200_roles_db3_deck_card_jobs.rollback.sql
+-- apply 20261118120100_roles_db2_change_kinds.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+
+######## RESULTS ########
+ n  |                                                                               name                                                                                | result |                                                                    detail                                                                    
+----+-------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------+----------------------------------------------------------------------------------------------------------------------------------------------
+  1 | Q-00 S4 applies on the cc15b base                                                                                                                                 | PASS   | 
+  2 | Q-00b on the bare base a request with a reason applies and the reason is stored                                                                                   | PASS   | {"ok": true, "res": {"plan": {"n": 1, "cards": [{"name": "Bare Card", "quantity": 1}], "action": "deck_add", "deck_id": 100, "preview": {"ca
+  3 | Q-00c the rollback refuses while a reason is stored (nothing changed)                                                                                             | PASS   | 
+  4 | Q-00e with the data-loss answer the rollback restores the base EXACTLY (functions, grants, constraints, tables, columns)                                          | PASS   | 
+  5 | Q-01 before S4: a request with a reason key applies as always (the key is ignored) and no reason is stored anywhere                                               | PASS   | {"ok": true, "res": {"plan": {"n": 1, "cards": [{"name": "Early Card", "quantity": 1}], "action": "deck_add", "deck_id": 100, "preview": {"c
+  6 | Q-01b before S4: the extra key is also ignored by the card_label plan                                                                                             | PASS   | {"ok": true, "res": {"plan": {"n": 1, "cards": [{"job": null, "name": "Card 1", "roles": [{"role": "ramp", "effect": "add", "result": "propo
+  7 | Q-02 running S4 a second time is refused and changes nothing                                                                                                      | PASS   | 
+  8 | Q-03 no existing table or column changed: ai_change_log, ai_pending_changes, deck_strategy and user_locations have the same columns as before                     | PASS   | 
+  9 | Q-03a the new table has row security (not forced), one owner-only read policy, no write for signed-in users or anon                                               | PASS   | 
+ 10 | Q-03b the new and the front-door functions run by the service role only (not anon, not signed-in users); the renamed ones keep their grants                       | PASS   | 
+ 11 | Q-03c a reason longer than 200, with a line break, empty, or with spaces around it cannot be written straight to the table                                        | PASS   | 
+ 12 | Q-04 deck_add with a reason applies and the reason is stored for that group, for this owner                                                                       | PASS   | {"ok": true, "res": {"plan": {"n": 1, "cards": [{"name": "Arcane Signet", "quantity": 1}], "action": "deck_add", "deck_id": 100, "preview": 
+ 13 | Q-05 deck_category, deck_zone and deck_remove with a reason each apply and each stores its own reason                                                             | PASS   | {"ok": true, "res": {"plan": {"n": 1, "cards": [{"to": ["Mana Rocks"], "from": ["Other"], "name": "Card 2", "quantity": 1}], "action": "deck
+ 14 | Q-05b a CC-26 kind (card_label) goes through the same front door and stores its reason                                                                            | PASS   | {"ok": true, "res": {"plan": {"n": 1, "cards": [{"job": null, "name": "Card 5", "roles": [{"role": "ramp", "effect": "add", "result": "propo
+ 15 | Q-06 spaces around a reason are trimmed; exactly 200 characters is accepted                                                                                       | PASS   | 
+ 16 | Q-07 a request with no reason key still applies (old rows and internal writers keep working) and stores no reason row                                             | PASS   | {"ok": true, "res": {"plan": {"n": 1, "cards": [{"name": "No Reason Card", "quantity": 1}], "action": "deck_add", "deck_id": 100, "preview":
+ 17 | Q-08 an empty, blank, 201-character, multi-line, tab, number, null or list reason is refused as reason_invalid and NOTHING changes                                | PASS   | 
+ 18 | Q-09 a dry run with a reason changes nothing and stores no reason                                                                                                 | PASS   | 
+ 19 | Q-10 a second owner's reason is stored under that owner                                                                                                           | PASS   | {"ok": true, "res": {"plan": {"n": 1, "cards": [{"name": "U2 Card", "quantity": 1}], "action": "deck_add", "deck_id": 200, "preview": {"card
+ 20 | Q-11 121 cards wait (hold reason over_ten, unchanged); the reason is kept in the stored request; no reason row yet; nothing removed                               | PASS   | {"ok": true, "res": {"plan": {"n": 121, "cards": [{"name": "Big 1", "quantity": 1, "was_sleeved": false}, {"name": "Big 2", "quantity": 1, "
+ 21 | Q-12 approving applies it and the reason is written for the new group; the hold reason column still says over_ten and is not the reason                           | PASS   | {"ok": true, "res": {"count": 121, "outcome": "approved", "success": true, "group_id": "7aed44d5-26fa-408d-a24c-6c74ba14bb81"}}
+ 22 | Q-13 a declined waiting request stores no reason and nothing else                                                                                                 | PASS   | {"ok": true, "res": {"plan": {"n": 125, "cards": [{"name": "Bulk 1", "quantity": 1}, {"name": "Bulk 2", "quantity": 1}, {"name": "Bulk 3", "
+ 23 | Q-14 Claude undoes a change that has a reason and one that has none; the reason row stays (history is kept)                                                       | PASS   | 
+ 24 | Q-15 the owner undoes the approved big change (all 121 back)                                                                                                      | PASS   | {"ok": true, "res": {"undone": 121, "success": true}}
+ 25 | Q-16 set deck setup then record its reason: stored for that group                                                                                                 | PASS   | {"ok": true, "res": {"count": 1, "changed": {"bracket": 4, "summary": "Landfall value", "playgroup": "Friday pod"}, "outcome": "applied", "s
+ 26 | Q-17 recording again does not overwrite (stored false); a bad reason, an unknown group and another owner's group are refused                                      | PASS   | 
+ 27 | Q-18 create deck then record its reason: stored                                                                                                                   | PASS   | {"count": 1, "deck_id": 819067203, "outcome": "applied", "success": true, "group_id": "b6e8acc7-be3c-404d-9120-ae30966a7c89"}
+ 28 | Q-19 a signed-in owner reads only their own reasons (owner two sees one row, none of owner one)                                                                   | PASS   | 1
+ 29 | Q-20 a signed-in owner cannot write a reason or call the new or front-door functions                                                                              | PASS   | permission denied for table ai_change_reasons | permission denied for table ai_change_reasons | permission denied for function ai_record_cha
+ 30 | Q-21 anon cannot read reasons                                                                                                                                     | PASS   | permission denied for table ai_change_reasons
+ 31 | Q-22 ai_list_recent_changes still works and is unchanged (no reason field; the app joins the reasons itself)                                                      | PASS   | 
+ 32 | Q-30 rollback refuses while reasons exist and changes nothing                                                                                                     | PASS   | 
+ 33 | Q-31 with the data-loss answer S4 rolls back and the database equals the live state before S4 EXACTLY (functions, grants, constraints, tables, triggers, columns) | PASS   | 0557d2734c1e86aa300a258aca0c44a1 vs 0557d2734c1e86aa300a258aca0c44a1
+ 34 | Q-32 the connector works after the rollback (add and Claude undo, old kinds and CC-26 kinds)                                                                      | PASS   | 
+ 35 | Q-40 re-applied after a rollback: a request with a reason applies and stores it                                                                                   | PASS   | 
+ 36 | Q-41 S3, CC-25 and DB-5 to DB-1 roll back with S4 still on top (they do not touch the functions S4 wraps)                                                         | PASS   | 
+ 37 | Q-42 the connector still takes a reason and applies (old kinds) on that older base                                                                                | PASS   | 
+ 38 | Q-43 S4 rolled back last: the database equals the cc15b base exactly                                                                                              | PASS   | 8797325131d8a83a9c6de0822dc1a46d vs 8797325131d8a83a9c6de0822dc1a46d
+(38 rows)
+
+ passed | failed 
+--------+--------
+     38 |      0
+(1 row)
+

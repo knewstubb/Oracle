@@ -7,6 +7,7 @@ import { editError } from '../errors'
 import { editErrorMessage, describeGroup, pendingEndedText, undoRefusalText } from '../change-sentences'
 import { groupChanges } from '../change-groups'
 import { AI_LIMITS } from '../edit-config'
+import { isMissingTable, reasonField, reasonNotStoredNote } from '../change-reason'
 import { FORMAT_DEFINITIONS, type DeckFormat } from '../../format-config'
 import type { EditContext } from '../user-client'
 import type { ChangeAction, GatewayFailure, ResolvedCard, SubmitOutcome } from '../write-types'
@@ -19,6 +20,7 @@ import { BRACKET_MAX, BRACKET_MIN } from '../../deck-bracket'
 import { PLAYGROUP_MAX, STRATEGY_MAX, SUMMARY_MAX, addDatedParagraph } from '../../deck-strategy-window'
 
 const dryRun = z.boolean().optional().describe('If true, only check and describe what would happen. Nothing is changed.')
+const reason = reasonField
 const deckId = z.number().int().positive().describe('The deck id from list_decks.')
 const slotRef = z.strictObject({
   slot_id: z.number().int().positive().describe('The slotId of the card in get_deck.'),
@@ -27,6 +29,7 @@ const slotRef = z.strictObject({
 
 export const addCardsInput = z.strictObject({
   deck_id: deckId,
+  reason,
   cards: z
     .array(
       z.strictObject({
@@ -49,10 +52,11 @@ export const addCardsInput = z.strictObject({
   dry_run: dryRun,
 })
 
-export const removeCardsInput = z.strictObject({ deck_id: deckId, slots: z.array(slotRef).min(1).max(AI_LIMITS.max_request), dry_run: dryRun })
+export const removeCardsInput = z.strictObject({ deck_id: deckId, reason, slots: z.array(slotRef).min(1).max(AI_LIMITS.max_request), dry_run: dryRun })
 
 export const setZoneInput = z.strictObject({
   deck_id: deckId,
+  reason,
   slots: z.array(slotRef).min(1).max(AI_LIMITS.max_request),
   to: z.enum(['main', 'maybeboard']).describe('Where the cards should be.'),
   dry_run: dryRun,
@@ -60,6 +64,7 @@ export const setZoneInput = z.strictObject({
 
 export const setCategoryInput = z.strictObject({
   deck_id: deckId,
+  reason,
   slots: z
     .array(
       z.strictObject({
@@ -78,6 +83,7 @@ export const setCategoryInput = z.strictObject({
 })
 
 export const addToCollectionInput = z.strictObject({
+  reason,
   name: z.string().trim().min(1).max(200).describe('Card name.'),
   finish: z.enum(['nonfoil', 'foil', 'etched']).optional().describe('Default nonfoil.'),
   printing_id: z.string().trim().min(1).max(64).optional().describe('Scryfall printing id, if a specific printing is wanted.'),
@@ -86,6 +92,7 @@ export const addToCollectionInput = z.strictObject({
 
 export const sleeveCopyInput = z.strictObject({
   deck_id: deckId,
+  reason,
   copy_id: z.number().int().positive().describe('The copyId of a free copy (from search_collection).'),
   name: z.string().trim().min(1).max(200),
   dry_run: dryRun,
@@ -93,6 +100,7 @@ export const sleeveCopyInput = z.strictObject({
 
 export const makeOriginalInput = z.strictObject({
   deck_id: deckId,
+  reason,
   slot_id: z.number().int().positive(),
   name: z.string().trim().min(1).max(200),
   original_copy_id: z.number().int().positive().describe('The copyId of a free original (not a proxy).'),
@@ -101,12 +109,14 @@ export const makeOriginalInput = z.strictObject({
 
 export const createProxyInput = z.strictObject({
   deck_id: deckId,
+  reason,
   slot_id: z.number().int().positive(),
   name: z.string().trim().min(1).max(200),
   dry_run: dryRun,
 })
 
 export const requestMoveInput = z.strictObject({
+  reason,
   copy_id: z.number().int().positive(),
   name: z.string().trim().min(1).max(200),
   to_deck_id: deckId,
@@ -117,6 +127,7 @@ const FORMATS = Object.keys(FORMAT_DEFINITIONS) as [DeckFormat, ...DeckFormat[]]
 const commanderRef = z.strictObject({ name: z.string().trim().min(1).max(200).describe('The commander card name.') })
 
 export const createDeckInput = z.strictObject({
+  reason,
   name: z.string().trim().min(1).max(100).describe('The new deck name (1 to 100 characters). Must not match another deck name, ignoring capital letters.'),
   format: z.enum(FORMATS).describe('The deck format. A commander deck needs a commander.'),
   commander: commanderRef.optional().describe('Required when format is commander.'),
@@ -125,6 +136,7 @@ export const createDeckInput = z.strictObject({
 export const setDeckSetupInput = z
   .strictObject({
     deck_id: deckId,
+    reason,
     commander: commanderRef.optional().describe('Make this card the deck\'s commander (added as a Planned slot if it is not on the deck).'),
     summary: z.string().trim().max(SUMMARY_MAX).nullable().optional().describe(`The deck's one-line summary shown on the deck page, at most ${SUMMARY_MAX} characters, or null to clear it.`),
     strategy_add: z
@@ -171,9 +183,26 @@ function shapeOutcome(o: SubmitOutcome, extra: { warnings: string[] }): ToolOutp
   return { ok: true, status: o.outcome, reason: o.reason, dry_run: true, message: o.outcome === 'would_apply' ? 'This would go through straight away. Nothing was changed.' : 'This would wait for the owner to say yes. Nothing was changed.', ...warnings }
 }
 
+/** Can the database keep a reason? Null = yes. Otherwise the plain note to add to the answer. A read that fails for another reason says "just now". */
+async function reasonStorageNote(ctx: EditContext, waiting: boolean): Promise<string | null> {
+  try {
+    const r = await ctx.db.select('ai_change_reasons', 'group_id').eq('user_id', ctx.userId).limit(1)
+    if (!r.error) return null
+    return reasonNotStoredNote(isMissingTable(r.error.message) ? 'yet' : 'now', waiting)
+  } catch {
+    return reasonNotStoredNote('now', waiting)
+  }
+}
+/** Adds `reason_note` to an answer whose change was made (or is waiting) when the reason could not be stored. A dry run stores nothing, so it never needs it. */
+async function withReasonNote(ctx: EditContext, out: ToolOutput): Promise<ToolOutput> {
+  if (out.ok === false) return out
+  if (out.status !== 'applied' && out.status !== 'pending_approval') return out
+  const note = await reasonStorageNote(ctx, out.status === 'pending_approval')
+  return note ? { ...out, reason_note: note } : out
+}
 async function submit(ctx: EditContext, action: ChangeAction, payload: Record<string, unknown>, dry: boolean | undefined, warnings: string[] = []): Promise<ToolOutput> {
   const r = await ctx.gateway.submit({ userId: ctx.userId, connectionId: ctx.connectionId, action, payload, dryRun: !!dry })
-  return r.ok ? shapeOutcome(r.data, { warnings }) : fail(r)
+  return r.ok ? withReasonNote(ctx, shapeOutcome(r.data, { warnings })) : fail(r)
 }
 
 const notFoundCard = (name: string): ToolOutput => editError('card_not_found', `Oracle could not find a card called "${name}". Nothing was changed. Check the spelling.`)
@@ -263,24 +292,24 @@ export async function addCardsToDeck(ctx: EditContext, input: z.infer<typeof add
     }
   })
   const colours = await colourCheck(ctx, input.deck_id, items.map((i) => i.card_name))
-  const out = await submit(ctx, 'deck_add', { deck_id: input.deck_id, items }, input.dry_run, [...res.warnings, ...colours.warnings])
+  const out = await submit(ctx, 'deck_add', { deck_id: input.deck_id, items, claude_reason: input.reason }, input.dry_run, [...res.warnings, ...colours.warnings])
   return colours.note && out.ok !== false ? { ...out, colour_check: colours.note } : out
 }
 
 export const removeCardsFromDeck = (ctx: EditContext, input: z.infer<typeof removeCardsInput>) =>
-  submit(ctx, 'deck_remove', { deck_id: input.deck_id, slots: input.slots.map((s) => ({ id: s.slot_id, card_name: s.name })) }, input.dry_run)
+  submit(ctx, 'deck_remove', { deck_id: input.deck_id, claude_reason: input.reason, slots: input.slots.map((s) => ({ id: s.slot_id, card_name: s.name })) }, input.dry_run)
 
 export const setCardZone = (ctx: EditContext, input: z.infer<typeof setZoneInput>) =>
-  submit(ctx, 'deck_zone', { deck_id: input.deck_id, to: input.to, slots: input.slots.map((s) => ({ id: s.slot_id, card_name: s.name })) }, input.dry_run)
+  submit(ctx, 'deck_zone', { deck_id: input.deck_id, claude_reason: input.reason, to: input.to, slots: input.slots.map((s) => ({ id: s.slot_id, card_name: s.name })) }, input.dry_run)
 
 /** The tool only sends names as written (trimmed by zod). Matching to the deck's spelling happens in the database; its report is surfaced as warnings. */
 export async function setCardCategory(ctx: EditContext, input: z.infer<typeof setCategoryInput>): Promise<ToolOutput> {
-  const payload = { deck_id: input.deck_id, slots: input.slots.map((s) => ({ id: s.slot_id, card_name: s.name, categories: s.categories })) }
+  const payload = { deck_id: input.deck_id, claude_reason: input.reason, slots: input.slots.map((s) => ({ id: s.slot_id, card_name: s.name, categories: s.categories })) }
   const r = await ctx.gateway.submit({ userId: ctx.userId, connectionId: ctx.connectionId, action: 'deck_category', payload, dryRun: !!input.dry_run })
   if (!r.ok) return fail(r)
   const plan = (r.data as { plan?: { matched?: { card: string; sent: string; used: string }[]; changes?: unknown[]; skipped?: unknown[] } }).plan
   const warnings = (plan?.matched ?? []).map((m) => `Stored '${m.sent}' as '${m.used}' on ${m.card}, which this deck already uses.`)
-  const out = shapeOutcome(r.data, { warnings })
+  const out = await withReasonNote(ctx, shapeOutcome(r.data, { warnings }))
   if (plan && (input.dry_run || r.data.outcome === 'pending') && out.ok !== false) {
     return { ...out, ...(plan.changes ? { changes: plan.changes } : {}), ...(plan.skipped?.length ? { skipped: plan.skipped } : {}) }
   }
@@ -291,17 +320,17 @@ export async function addCardToCollection(ctx: EditContext, input: z.infer<typeo
   const res = await resolveNames(ctx, [input.name], input.printing_id)
   if (!res.ok) return res.out
   const card = res.cards.get(input.name.trim())!
-  return submit(ctx, 'collection_add', { oracle_id: card.oracleId, card_name: card.name, printing_id: card.scryfallId, finish: input.finish ?? 'nonfoil' }, input.dry_run, res.warnings)
+  return submit(ctx, 'collection_add', { claude_reason: input.reason, oracle_id: card.oracleId, card_name: card.name, printing_id: card.scryfallId, finish: input.finish ?? 'nonfoil' }, input.dry_run, res.warnings)
 }
 
 export const sleeveFreeCopy = (ctx: EditContext, input: z.infer<typeof sleeveCopyInput>) =>
-  submit(ctx, 'sleeve_copy', { deck_id: input.deck_id, copy_id: input.copy_id, card_name: input.name }, input.dry_run)
+  submit(ctx, 'sleeve_copy', { claude_reason: input.reason, deck_id: input.deck_id, copy_id: input.copy_id, card_name: input.name }, input.dry_run)
 
 export const makeSlotOriginal = (ctx: EditContext, input: z.infer<typeof makeOriginalInput>) =>
-  submit(ctx, 'make_original', { deck_id: input.deck_id, slot_id: input.slot_id, card_name: input.name, original_copy_id: input.original_copy_id }, input.dry_run)
+  submit(ctx, 'make_original', { claude_reason: input.reason, deck_id: input.deck_id, slot_id: input.slot_id, card_name: input.name, original_copy_id: input.original_copy_id }, input.dry_run)
 
 export const createProxyForSlot = (ctx: EditContext, input: z.infer<typeof createProxyInput>) =>
-  submit(ctx, 'create_proxy', { deck_id: input.deck_id, slot_id: input.slot_id, card_name: input.name }, input.dry_run)
+  submit(ctx, 'create_proxy', { claude_reason: input.reason, deck_id: input.deck_id, slot_id: input.slot_id, card_name: input.name }, input.dry_run)
 
 /** Always waits for the owner. Pre-checks the name and captures where the copy is now, so a stale request fails later, not silently. */
 export async function requestCardMove(ctx: EditContext, input: z.infer<typeof requestMoveInput>): Promise<ToolOutput> {
@@ -312,7 +341,7 @@ export async function requestCardMove(ctx: EditContext, input: z.infer<typeof re
     if (!card || card.card_name.trim().toLowerCase() !== input.name.trim().toLowerCase()) return editError('wrong_card', `That copy is not a ${input.name}. Nothing was changed.`)
     const slot = rows<{ id: number; deck_id: number }>(await must(ctx.db.select('deck_cards', 'id, deck_id').eq('user_id', ctx.userId).eq('copy_id', input.copy_id).order('id', { ascending: true }).limit(1)))[0]
     if (!slot) return editError('copy_not_in_a_deck', `The copy of ${card.card_name} is not in a deck right now. Nothing was changed.`)
-    return submit(ctx, 'copy_move', { copy_id: input.copy_id, to_deck_id: input.to_deck_id, expected_source_deck_id: slot.deck_id, expected_source_slot_id: slot.id }, input.dry_run)
+    return submit(ctx, 'copy_move', { claude_reason: input.reason, copy_id: input.copy_id, to_deck_id: input.to_deck_id, expected_source_deck_id: slot.deck_id, expected_source_slot_id: slot.id }, input.dry_run)
   } catch (e) {
     if (e instanceof LookupFailed) return editError('lookup_failed', 'Oracle could not read your collection just now. Nothing was changed. Try again.', true)
     throw e
@@ -346,6 +375,7 @@ export async function createDeck(ctx: EditContext, input: z.infer<typeof createD
   }
   const r = await ctx.gateway.createDeck({ userId: ctx.userId, connectionId: ctx.connectionId, name: input.name, format: input.format, commander })
   if (!r.ok) return fail(r)
+  const note = await recordReason(ctx, r.data.group_id, input.reason)
   return {
     ok: true,
     status: 'applied',
@@ -354,9 +384,17 @@ export async function createDeck(ctx: EditContext, input: z.infer<typeof createD
     count: r.data.count,
     message: 'The deck was created, empty. Add cards with add_cards_to_deck. Only the owner can undo this, in Oracle, while the deck has no cards; Claude cannot delete a deck.',
     ...(warnings.length ? { warnings } : {}),
+    ...(note ? { reason_note: note } : {}),
   }
 }
 
+/** For the two writes that do not go through the submit function (create deck, set deck setup): store the reason right after the change. Returns the plain note when it could not be stored. */
+async function recordReason(ctx: EditContext, groupId: string, reason: string): Promise<string | null> {
+  const note = await reasonStorageNote(ctx, false)
+  if (note) return note
+  const r = await ctx.gateway.recordReason({ userId: ctx.userId, groupId, reason })
+  return r.ok ? null : reasonNotStoredNote('now', false)
+}
 /** Can the database hold the summary, the playgroup's change record and bracket 5? False until the owner applies the update. */
 async function newFieldsReady(ctx: EditContext): Promise<boolean> {
   const r = await ctx.db.select('deck_strategy', 'summary, updated_by').eq('user_id', ctx.userId).limit(1)
@@ -394,6 +432,7 @@ export async function setDeckSetup(ctx: EditContext, input: z.infer<typeof setDe
   const r = await ctx.gateway.setDeckSetup({ userId: ctx.userId, connectionId: ctx.connectionId, deckId: input.deck_id, patch })
   if (!r.ok) return fail(r)
   if (r.data.outcome === 'no_change') return { ok: true, status: 'no_change', count: 0, message: 'Everything sent was already set that way. Nothing was changed.' }
+  const note = await recordReason(ctx, r.data.group_id, input.reason)
   return {
     ok: true,
     status: 'applied',
@@ -402,6 +441,7 @@ export async function setDeckSetup(ctx: EditContext, input: z.infer<typeof setDe
     changed: r.data.changed,
     message: 'Done. Claude or the owner can undo this for 7 days, unless the same thing is changed by hand first.',
     ...(warnings.length ? { warnings } : {}),
+    ...(note ? { reason_note: note } : {}),
   }
 }
 
@@ -440,6 +480,7 @@ export async function listRecentChanges(ctx: EditContext): Promise<ToolOutput> {
     changes: groups.map((g) => ({
       group_id: g.group_id,
       summary: g.summary,
+      ...(g.claude_reason ? { reason: g.claude_reason } : {}),
       at: g.created_at,
       cards: g.cards.slice(0, 20),
       undone: g.undone_at ? { at: g.undone_at, by: g.undone_by } : null,

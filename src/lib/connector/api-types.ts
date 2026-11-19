@@ -36,6 +36,8 @@ export type UndoResponse =
 
 export interface PendingItemView {
   id: string
+  /** Claude's one-line reason for the request. Separate from `reason` (why it is waiting for your yes). */
+  claude_reason: string | null
   kind: 'big_edit' | 'copy_move'
   action: string
   reason: PendingReason

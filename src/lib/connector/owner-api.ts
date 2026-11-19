@@ -22,6 +22,7 @@ function dbFail(f: GatewayFailure): Reply<never> {
 export function pendingView(p: PendingRow): PendingItemView {
   return {
     id: p.id,
+    claude_reason: p.claude_reason ?? null,
     kind: p.kind,
     action: p.action,
     reason: p.reason,
@@ -43,10 +44,12 @@ export function pendingView(p: PendingRow): PendingItemView {
   }
 }
 
-export async function listChanges(g: Gateway, userId: string): Promise<Reply<ChangesResponse>> {
+/** All of Claude's recent changes, or only those that touch one deck (the deck page History). */
+export async function listChanges(g: Gateway, userId: string, deckId?: number): Promise<Reply<ChangesResponse>> {
   const r = await g.listRecent(userId)
   if (!r.ok) return dbFail(r)
-  return { status: 200, body: { ok: true, changes: groupChanges(r.data) } }
+  const rows = deckId === undefined ? r.data : r.data.filter((x) => x.deck_id === deckId || x.other_deck_id === deckId)
+  return { status: 200, body: { ok: true, changes: groupChanges(rows) } }
 }
 
 export async function undoChange(g: Gateway, userId: string, groupId: string): Promise<Reply<UndoResponse>> {

@@ -6,5 +6,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(req: Request) {
   const g = await guardRoute(req)
   if (!g.ok) return failJson(g)
-  return reply(await api.listChanges(g.gateway, g.userId))
+  const raw = new URL(req.url).searchParams.get('deckId')
+  if (raw !== null && !/^[1-9][0-9]{0,9}$/.test(raw)) return reply({ status: 400, body: { ok: false, error: 'That is not a deck id.', code: 'invalid_request' } })
+  return reply(await api.listChanges(g.gateway, g.userId, raw === null ? undefined : Number(raw)))
 }

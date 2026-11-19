@@ -14,6 +14,8 @@ export type { ChangeLogRow, DeckCounts, MovedSlot, PendingPreview, PendingReason
 
 /** One element of the changes route = one request (a group). Mirrors ChangeGroupView in src/lib/connector/api-types.ts. */
 export type ChangeRowData = ChangeLogRow & {
+  /** Claude's one-line reason. Missing on older changes. */
+  claude_reason?: string | null
   summary?: string | null
   consequence?: string | null
   card_count?: number
@@ -23,6 +25,8 @@ export type ChangeRowData = ChangeLogRow & {
 
 export interface PendingItem {
   id: string
+  /** Claude's one-line reason for the request (not the hold reason below). */
+  claude_reason?: string | null
   kind: 'big_edit' | 'copy_move'
   action: string
   reason: PendingReason
@@ -83,14 +87,17 @@ function list<T>(body: unknown, ...keys: string[]): T[] {
 
 export const connectorKeys = {
   changes: ['connector', 'changes'] as const,
+  deckChanges: (deckId: number) => ['connector', 'changes', 'deck', deckId] as const,
   pending: ['connector', 'pending'] as const,
   pendingCount: ['connector', 'pending-count'] as const,
   status: ['connector', 'status'] as const,
   moved: (deckId: number) => ['connector', 'moved-slots', deckId] as const,
 }
 
-export async function fetchChanges(): Promise<ChangeRowData[]> {
-  return list<ChangeRowData>(await request('/api/connector/changes'), 'changes', 'rows', 'data')
+/** Claude's recent changes. With a deck id: only the changes that touch that deck (the deck page History). */
+export async function fetchChanges(deckId?: number): Promise<ChangeRowData[]> {
+  const url = deckId === undefined ? '/api/connector/changes' : `/api/connector/changes?deckId=${deckId}`
+  return list<ChangeRowData>(await request(url), 'changes', 'rows', 'data')
 }
 
 export async function fetchPending(): Promise<PendingItem[]> {

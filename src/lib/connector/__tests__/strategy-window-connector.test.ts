@@ -96,7 +96,7 @@ describe('get_deck: deck, strategy, health, cards, in that order', () => {
   })
 })
 function gw(over: Partial<Record<keyof Gateway, unknown>> = {}): Gateway {
-  return { resolveCard: async (n: string) => ({ card: { oracleId: 'o-' + n, scryfallId: 's-' + n, name: n, setCode: 'cmm' } }), ...over } as unknown as Gateway
+  return { resolveCard: async (n: string) => ({ card: { oracleId: 'o-' + n, scryfallId: 's-' + n, name: n, setCode: 'cmm' } }), recordReason: vi.fn(async () => ({ ok: true, data: { success: true, stored: true } })), ...over } as unknown as Gateway
 }
 const applied = { ok: true, data: { success: true, outcome: 'applied', group_id: G, count: 1, changed: {} } }
 const ctx = (gateway: Gateway, db: ReturnType<typeof strategyDb>['db']) => ({ db, userId: U, connectionId: 'conn-1', clientId: 'cl', clientName: 'Claude', gateway })
@@ -107,7 +107,7 @@ describe('set_deck_setup: Claude adds a dated paragraph to the Strategy and neve
     try {
       const mine = 'Yedora turns every land into a plant.\n\nNever cut Scute Swarm.'
       const g = gw({ setDeckSetup: vi.fn(async () => applied) })
-      const r = await runTool(ctx(g, strategyDb({ strategy_notes: mine }).db), 'set_deck_setup', { deck_id: 1, strategy_add: 'Too few sacrifice outlets for the graveyard plan.' })
+      const r = await runTool(ctx(g, strategyDb({ strategy_notes: mine }).db), 'set_deck_setup', { reason: 'Test reason.', deck_id: 1, strategy_add: 'Too few sacrifice outlets for the graveyard plan.' })
       expect(r.isError).toBeFalsy()
       const patch = (g.setDeckSetup as any).mock.calls[0][0].patch
       expect(patch.strategy_notes.startsWith(mine)).toBe(true)
@@ -120,28 +120,28 @@ describe('set_deck_setup: Claude adds a dated paragraph to the Strategy and neve
   it('a second addition goes after the first and keeps everything before it', async () => {
     const first = 'Mine.\n\nClaude, 1 Nov 2026: Earlier note.'
     const g = gw({ setDeckSetup: vi.fn(async () => applied) })
-    await runTool(ctx(g, strategyDb({ strategy_notes: first }).db), 'set_deck_setup', { deck_id: 1, strategy_add: 'Later note.' })
+    await runTool(ctx(g, strategyDb({ strategy_notes: first }).db), 'set_deck_setup', { reason: 'Test reason.', deck_id: 1, strategy_add: 'Later note.' })
     const patch = (g.setDeckSetup as any).mock.calls[0][0].patch
     expect(patch.strategy_notes.startsWith(first)).toBe(true)
     expect(patch.strategy_notes).toMatch(/Later note\.$/)
   })
   it('on an empty Strategy the paragraph stands alone with no blank lines before it', async () => {
     const g = gw({ setDeckSetup: vi.fn(async () => applied) })
-    await runTool(ctx(g, strategyDb(null).db), 'set_deck_setup', { deck_id: 1, strategy_add: 'First words.' })
+    await runTool(ctx(g, strategyDb(null).db), 'set_deck_setup', { reason: 'Test reason.', deck_id: 1, strategy_add: 'First words.' })
     const patch = (g.setDeckSetup as any).mock.calls[0][0].patch
     expect(patch.strategy_notes).toMatch(/^Claude, \d{1,2} [A-Z][a-z]{2} \d{4}: First words\.$/)
     expect(patch.strategy_notes_base).toBeNull()
   })
   it('there is no way to replace the Strategy: the old strategy_notes input is refused before the database is called', async () => {
     const g = gw({ setDeckSetup: vi.fn() })
-    const r = await runTool(ctx(g, strategyDb({ strategy_notes: 'Mine.' }).db), 'set_deck_setup', { deck_id: 1, strategy_notes: 'Replaced.' })
+    const r = await runTool(ctx(g, strategyDb({ strategy_notes: 'Mine.' }).db), 'set_deck_setup', { reason: 'Test reason.', deck_id: 1, strategy_notes: 'Replaced.' })
     expect(r.isError).toBe(true)
     expect(g.setDeckSetup).not.toHaveBeenCalled()
   })
   it('a paragraph that would take the Strategy over its limit is refused and nothing is sent', async () => {
     const g = gw({ setDeckSetup: vi.fn() })
     const mine = 'x'.repeat(STRATEGY_MAX - 10)
-    const r = await runTool(ctx(g, strategyDb({ strategy_notes: mine }).db), 'set_deck_setup', { deck_id: 1, strategy_add: 'A paragraph that does not fit.' })
+    const r = await runTool(ctx(g, strategyDb({ strategy_notes: mine }).db), 'set_deck_setup', { reason: 'Test reason.', deck_id: 1, strategy_add: 'A paragraph that does not fit.' })
     expect(r.structuredContent).toMatchObject({ error: { code: 'notes_too_long' } })
     expect(JSON.stringify(r.structuredContent)).toMatch(/Nothing was changed/)
     expect(g.setDeckSetup).not.toHaveBeenCalled()
@@ -152,38 +152,38 @@ describe('set_deck_setup: Claude adds a dated paragraph to the Strategy and neve
   it('a failed read of the current Strategy changes nothing', async () => {
     const g = gw({ setDeckSetup: vi.fn() })
     const db = mockDb((q) => (q.table === 'deck_strategy' && q.columns === 'strategy_notes' ? { error: { message: 'down' } } : { data: [] })).db
-    const r = await runTool(ctx(g, db), 'set_deck_setup', { deck_id: 1, strategy_add: 'Hello.' })
+    const r = await runTool(ctx(g, db), 'set_deck_setup', { reason: 'Test reason.', deck_id: 1, strategy_add: 'Hello.' })
     expect(r.isError).toBe(true)
     expect(g.setDeckSetup).not.toHaveBeenCalled()
   })
   it('the database refusing because the owner changed the text meanwhile comes back in plain words', async () => {
     const g = gw({ setDeckSetup: async () => ({ ok: false, code: 'notes_changed', detail: {} }) })
-    const r = await runTool(ctx(g, strategyDb(null).db), 'set_deck_setup', { deck_id: 1, strategy_add: 'Hello.' })
+    const r = await runTool(ctx(g, strategyDb(null).db), 'set_deck_setup', { reason: 'Test reason.', deck_id: 1, strategy_add: 'Hello.' })
     expect(JSON.stringify(r.structuredContent)).toMatch(/changed the Strategy while this was being added.*Nothing was changed/)
   })
 })
 describe('set_deck_setup: summary, playgroup and bracket 1 to 5', () => {
   it('sends the summary and playgroup, and null clears them', async () => {
     const g = gw({ setDeckSetup: vi.fn(async () => applied) })
-    await runTool(ctx(g, strategyDb(null).db), 'set_deck_setup', { deck_id: 1, summary: 'Plants and recursion', playgroup: null, bracket: 5 })
+    await runTool(ctx(g, strategyDb(null).db), 'set_deck_setup', { reason: 'Test reason.', deck_id: 1, summary: 'Plants and recursion', playgroup: null, bracket: 5 })
     expect((g.setDeckSetup as any).mock.calls[0][0].patch).toEqual({ summary: 'Plants and recursion', playgroup: null, bracket: 5 })
   })
   it('a summary of 120 is accepted and 121 is not', async () => {
     const g = gw({ setDeckSetup: vi.fn(async () => applied) })
-    expect((await runTool(ctx(g, strategyDb(null).db), 'set_deck_setup', { deck_id: 1, summary: 'x'.repeat(120) })).isError).toBeFalsy()
-    expect((await runTool(ctx(g, strategyDb(null).db), 'set_deck_setup', { deck_id: 1, summary: 'x'.repeat(121) })).isError).toBe(true)
+    expect((await runTool(ctx(g, strategyDb(null).db), 'set_deck_setup', { reason: 'Test reason.', deck_id: 1, summary: 'x'.repeat(120) })).isError).toBeFalsy()
+    expect((await runTool(ctx(g, strategyDb(null).db), 'set_deck_setup', { reason: 'Test reason.', deck_id: 1, summary: 'x'.repeat(121) })).isError).toBe(true)
   })
   it('before the stored-data update the summary, the playgroup and bracket 5 are refused in plain words and nothing is sent', async () => {
     const g = gw({ setDeckSetup: vi.fn(async () => applied) })
     const old = strategyDb(null, { newColumns: false }).db
     for (const input of [{ summary: 'Hello' }, { playgroup: 'Friday' }, { bracket: 5 }]) {
-      const r = await runTool(ctx(g, old), 'set_deck_setup', { deck_id: 1, ...input })
+      const r = await runTool(ctx(g, old), 'set_deck_setup', { reason: 'Test reason.', deck_id: 1, ...input })
       expect(r.structuredContent).toMatchObject({ error: { code: 'strategy_fields_not_ready' } })
       expect(JSON.stringify(r.structuredContent)).toMatch(/Nothing was changed/)
     }
     expect(g.setDeckSetup).not.toHaveBeenCalled()
     // what the old database can hold still goes through
-    const ok = await runTool(ctx(g, old), 'set_deck_setup', { deck_id: 1, bracket: 4 })
+    const ok = await runTool(ctx(g, old), 'set_deck_setup', { reason: 'Test reason.', deck_id: 1, bracket: 4 })
     expect(ok.isError).toBeFalsy()
   })
 })

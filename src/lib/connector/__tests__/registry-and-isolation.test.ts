@@ -125,13 +125,13 @@ describe('CC-15 deck tools: owner A cannot reach owner B\'s deck', () => {
       : { ok: false as const, code: 'deck_not_found', detail: {} })
   const createDeck = vi.fn()
   const submit = vi.fn()
-  const gateway = { setDeckSetup, createDeck, submit, resolveCard: async (n: string) => ({ card: { oracleId: 'o', scryfallId: 's', name: n, setCode: 'x' } }) } as unknown as Gateway
+  const gateway = { setDeckSetup, createDeck, submit, recordReason: vi.fn(async () => ({ ok: true, data: { success: true, stored: true } })), resolveCard: async (n: string) => ({ card: { oracleId: 'o', scryfallId: 's', name: n, setCode: 'x' } }) } as unknown as Gateway
   // Owner B's data is present in the read database, as it would be in the shared tables.
   const db = mockDb((q) => ({ data: q.table === 'decks' ? [{ id: B_DECK, user_id: 'owner-b', name: 'B deck' }] : [] })).db
   const ctx = { db, userId: A, connectionId: 'conn-a', clientId: 'cl', clientName: 'Claude', gateway }
 
   it('set_deck_setup on B\'s deck id returns not-found, sends only A\'s user id, and changes nothing', async () => {
-    const r = await runTool(ctx, 'set_deck_setup', { deck_id: B_DECK, bracket: 2, strategy_add: 'mine now' })
+    const r = await runTool(ctx, 'set_deck_setup', { reason: 'Test reason.', deck_id: B_DECK, bracket: 2, strategy_add: 'mine now' })
     expect(r.structuredContent).toMatchObject({ error: { code: 'deck_not_found' } })
     expect(JSON.stringify(r.structuredContent)).toMatch(/Nothing was changed/)
     expect(setDeckSetup).toHaveBeenCalledTimes(1)
@@ -141,13 +141,13 @@ describe('CC-15 deck tools: owner A cannot reach owner B\'s deck', () => {
   })
   it('a user id or deck owner in the input is rejected before any database call', async () => {
     setDeckSetup.mockClear()
-    const r = await runTool(ctx, 'set_deck_setup', { deck_id: B_DECK, bracket: 2, user_id: 'owner-b' })
+    const r = await runTool(ctx, 'set_deck_setup', { reason: 'Test reason.', deck_id: B_DECK, bracket: 2, user_id: 'owner-b' })
     expect(r.isError).toBe(true)
     expect(setDeckSetup).not.toHaveBeenCalled()
   })
   it('create_deck always sends the signed-in owner, never one from the input', async () => {
     createDeck.mockResolvedValueOnce({ ok: true, data: { success: true, outcome: 'applied', group_id: 'g', deck_id: 1, count: 1 } })
-    await runTool(ctx, 'create_deck', { name: 'X', format: 'pauper' })
+    await runTool(ctx, 'create_deck', { reason: 'Test reason.', name: 'X', format: 'pauper' })
     expect(createDeck.mock.calls[0][0]).toMatchObject({ userId: A, connectionId: 'conn-a' })
   })
 })

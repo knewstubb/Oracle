@@ -51,7 +51,7 @@ type UndoState = { status: ChangeStatus; busy?: boolean; refusal?: UndoRefusal |
 
 export function RecentChangesTab() {
   const qc = useQueryClient()
-  const changes = useQuery({ queryKey: connectorKeys.changes, queryFn: fetchChanges, retry: false })
+  const changes = useQuery({ queryKey: connectorKeys.changes, queryFn: () => fetchChanges(), retry: false })
   const pending = useQuery({ queryKey: connectorKeys.pending, queryFn: fetchPending, retry: false })
 
   const [undoState, setUndoState] = useState<Record<string, UndoState>>({})
@@ -224,6 +224,7 @@ export function RecentChangesTab() {
                       key={g.groupId}
                       summary={first.summary ?? `${first.card_name}${first.deck_name ? ` in ${first.deck_name}` : ''}`}
                       consequence={first.consequence}
+                      reason={first.claude_reason}
                       deckName={first.deck_name}
                       deckId={first.deck_id}
                       cardName={first.card_name}

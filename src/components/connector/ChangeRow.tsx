@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Check, Loader2, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { UndoRefusal } from './api'
+import { ClaudeReason } from './ClaudeReason'
 import { formatClock, formatDate } from './format'
 
 export type ChangeStatus = 'done' | 'undone' | 'refused' | 'failed'
@@ -12,6 +13,8 @@ export type ChangeStatus = 'done' | 'undone' | 'refused' | 'failed'
 export interface ChangeRowProps {
   summary: string
   consequence?: string | null
+  /** Claude's one-line reason; nothing is shown when there is none. */
+  reason?: string | null
   deckName: string | null
   deckId?: number | null
   cardName: string
@@ -49,7 +52,7 @@ export function refusalWhat(r: UndoRefusal): string {
 }
 
 export function ChangeRow({
-  summary, consequence, deckName, deckId, cardName, at, client, status, busy = false, undoneAt, refusal, refusalText, cards, onUndo, actionRef,
+  summary, consequence, reason, deckName, deckId, cardName, at, client, status, busy = false, undoneAt, refusal, refusalText, cards, onUndo, actionRef,
 }: ChangeRowProps) {
   const [open, setOpen] = useState(false)
   const whyId = useId()
@@ -73,6 +76,7 @@ export function ChangeRow({
             </span>
           )}
         </p>
+        <ClaudeReason reason={reason} />
         {consequence && !undone && <p className="text-[length:var(--fs-sm)] text-[var(--text-secondary)]">{consequence}</p>}
         <p className="text-[length:var(--fs-xs)] text-[var(--text-secondary)]">
           {formatClock(at)}{client ? ` · ${client}` : ''}

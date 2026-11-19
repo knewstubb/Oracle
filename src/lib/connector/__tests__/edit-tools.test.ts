@@ -19,6 +19,7 @@ function gw(over: Partial<Record<keyof Gateway, unknown>> = {}): Gateway {
   const base: Record<string, unknown> = {
     resolveCard: async (n: string) => ({ card: { oracleId: 'o-' + n, scryfallId: 's-' + n, name: n, setCode: 'cmm' } }),
     submit: vi.fn(async () => ({ ok: true, data: { success: true, outcome: 'applied', group_id: G, count: 1 } })),
+    recordReason: vi.fn(async () => ({ ok: true, data: { success: true, stored: true } })),
     getPending: fail, listRecent: fail, undoAsClaude: fail, undoAsOwner: fail, listPending: fail, pendingCount: fail,
     approve: fail, decline: fail, movedSlots: fail, revoke: fail, activeConnection: fail, latestConnection: fail, grantAlive: fail, reenable: fail,
   }
@@ -78,11 +79,11 @@ describe('limits match the database', () => {
 describe('edit tools', () => {
   it('user id and connection id come from the token context, never from arguments', async () => {
     const g = gw()
-    const r = await runTool(ctx(g), 'add_cards_to_deck', { deck_id: 3, cards: [{ name: 'Sol Ring' }] })
+    const r = await runTool(ctx(g), 'add_cards_to_deck', { reason: 'Test reason.', deck_id: 3, cards: [{ name: 'Sol Ring' }] })
     expect(r.isError).toBeFalsy()
     expect(g.submit).toHaveBeenCalledWith({
       userId: U, connectionId: 'conn-1', action: 'deck_add', dryRun: false,
-      payload: { deck_id: 3, items: [{ card_name: 'Sol Ring', scryfall_id: 's-Sol Ring', set_code: 'cmm', oracle_id: 'o-Sol Ring', quantity: 1, categories: '["Other"]' }] },
+      payload: { deck_id: 3, claude_reason: 'Test reason.', items: [{ card_name: 'Sol Ring', scryfall_id: 's-Sol Ring', set_code: 'cmm', oracle_id: 'o-Sol Ring', quantity: 1, categories: '["Other"]' }] },
     })
   })
   it('adds the printing the owner owns, with its set code, instead of the default printing', async () => {
@@ -90,7 +91,7 @@ describe('edit tools', () => {
     try {
       const g = gw()
       const db = mockDb((q) => (q.table === 'ref_printings' ? { data: [{ scryfall_id: 's-owned', set_code: 'ltc' }] } : { data: [] })).db
-      const r = await runTool(ctx(g, db), 'add_cards_to_deck', { deck_id: 3, cards: [{ name: 'Sol Ring' }, { name: 'Cultivate' }] })
+      const r = await runTool(ctx(g, db), 'add_cards_to_deck', { reason: 'Test reason.', deck_id: 3, cards: [{ name: 'Sol Ring' }, { name: 'Cultivate' }] })
       expect(r.isError).toBeFalsy()
       const items = (g.submit as unknown as { mock: { calls: Array<[{ payload: { items: Array<Record<string, unknown>> } }]> } }).mock.calls[0][0].payload.items
       expect(items[0]).toMatchObject({ card_name: 'Sol Ring', scryfall_id: 's-owned', set_code: 'ltc' })
@@ -99,7 +100,7 @@ describe('edit tools', () => {
   })
   it.each(['user_id', 'userId', 'connection_id'])('an extra %s argument is rejected and nothing is submitted', async (key) => {
     const g = gw()
-    const r = await runTool(ctx(g), 'remove_cards_from_deck', { deck_id: 1, slots: [{ slot_id: 2, name: 'x' }], [key]: 'other' })
+    const r = await runTool(ctx(g), 'remove_cards_from_deck', { reason: 'Test reason.', deck_id: 1, slots: [{ slot_id: 2, name: 'x' }], [key]: 'other' })
     expect(r.isError).toBe(true)
     expect(g.submit).not.toHaveBeenCalled()
   })
@@ -116,38 +117,38 @@ describe('edit tools', () => {
   it('a 120-card deck build goes to the database as ONE request (one group, one Undo)', async () => {
     const g = gw()
     const cards = Array.from({ length: 120 }, (_, i) => ({ name: 'C' + i }))
-    const r = await runTool(ctx(g), 'add_cards_to_deck', { deck_id: 1, cards })
+    const r = await runTool(ctx(g), 'add_cards_to_deck', { reason: 'Test reason.', deck_id: 1, cards })
     expect(r.isError).toBeFalsy()
     expect(g.submit).toHaveBeenCalledTimes(1)
     expect((g.submit as unknown as { mock: { calls: { payload: { items: unknown[] } }[][] } }).mock.calls[0][0].payload.items).toHaveLength(120)
   })
   it('a 100-card deck given as card names with quantities is one request', async () => {
     const g = gw()
-    const r = await runTool(ctx(g), 'add_cards_to_deck', { deck_id: 1, cards: [{ name: 'Forest', quantity: 36 }, { name: 'Sol Ring' }] })
+    const r = await runTool(ctx(g), 'add_cards_to_deck', { reason: 'Test reason.', deck_id: 1, cards: [{ name: 'Forest', quantity: 36 }, { name: 'Sol Ring' }] })
     expect(r.isError).toBeFalsy()
     expect(g.submit).toHaveBeenCalledTimes(1)
   })
   it('more than 200 cards in one request is rejected before anything is looked up', async () => {
     const g = gw()
     const cards = Array.from({ length: 201 }, (_, i) => ({ name: 'C' + i }))
-    const r = await runTool(ctx(g), 'add_cards_to_deck', { deck_id: 1, cards })
+    const r = await runTool(ctx(g), 'add_cards_to_deck', { reason: 'Test reason.', deck_id: 1, cards })
     expect(r.isError).toBe(true)
     expect(g.submit).not.toHaveBeenCalled()
   })
   it('an unknown card name refuses the whole request', async () => {
     const g = gw({ resolveCard: async (n: string) => (n === 'Nope' ? { card: null, error: false } : { card: { oracleId: 'o', scryfallId: 's', name: n, setCode: 'x' } }) })
-    const r = await runTool(ctx(g), 'add_cards_to_deck', { deck_id: 1, cards: [{ name: 'Sol Ring' }, { name: 'Nope' }] })
+    const r = await runTool(ctx(g), 'add_cards_to_deck', { reason: 'Test reason.', deck_id: 1, cards: [{ name: 'Sol Ring' }, { name: 'Nope' }] })
     expect(r.structuredContent).toMatchObject({ error: { code: 'card_not_found' } })
     expect(g.submit).not.toHaveBeenCalled()
   })
   it('a pending outcome is reported as pending_approval with the pending id', async () => {
     const g = gw({ submit: async () => ({ ok: true, data: { success: true, outcome: 'pending', pending_id: G, expires_at: 'x', reason: 'over_ten' } }) })
-    const r = await runTool(ctx(g), 'remove_cards_from_deck', { deck_id: 1, slots: [{ slot_id: 2, name: 'x' }] })
+    const r = await runTool(ctx(g), 'remove_cards_from_deck', { reason: 'Test reason.', deck_id: 1, slots: [{ slot_id: 2, name: 'x' }] })
     expect(r.structuredContent).toMatchObject({ ok: true, status: 'pending_approval', pending_id: G })
   })
   it('a database refusal comes back as its specific code with "Nothing was changed"', async () => {
     const g = gw({ submit: async () => ({ ok: false, code: 'commander_slot', detail: { card: 'Korvold' } }) })
-    const r = await runTool(ctx(g), 'remove_cards_from_deck', { deck_id: 1, slots: [{ slot_id: 2, name: 'Korvold' }] })
+    const r = await runTool(ctx(g), 'remove_cards_from_deck', { reason: 'Test reason.', deck_id: 1, slots: [{ slot_id: 2, name: 'Korvold' }] })
     expect(r.isError).toBe(true)
     expect(r.structuredContent).toMatchObject({ error: { code: 'commander_slot' } })
     expect(JSON.stringify(r.structuredContent)).toMatch(/Nothing was changed/)
@@ -155,16 +156,16 @@ describe('edit tools', () => {
   it('request_card_move captures the current source slot and refuses a wrong name', async () => {
     const g = gw({ submit: vi.fn(async () => ({ ok: true, data: { success: true, outcome: 'pending', pending_id: G, expires_at: 'x', reason: 'card_move' } })) })
     const db = mockDb((q) => ({ data: q.table === 'user_copies' ? [{ id: 9, card_id: 4 }] : q.table === 'user_cards' ? [{ card_name: 'Sol Ring' }] : [{ id: 77, deck_id: 5 }] })).db
-    const ok = await runTool(ctx(g, db), 'request_card_move', { copy_id: 9, name: 'sol ring', to_deck_id: 6 })
+    const ok = await runTool(ctx(g, db), 'request_card_move', { reason: 'Test reason.', copy_id: 9, name: 'sol ring', to_deck_id: 6 })
     expect(ok.structuredContent).toMatchObject({ status: 'pending_approval' }) // an old-style waiting row still reads fine
-    expect(g.submit).toHaveBeenCalledWith(expect.objectContaining({ action: 'copy_move', payload: { copy_id: 9, to_deck_id: 6, expected_source_deck_id: 5, expected_source_slot_id: 77 } }))
-    const bad = await runTool(ctx(g, db), 'request_card_move', { copy_id: 9, name: 'Island', to_deck_id: 6 })
+    expect(g.submit).toHaveBeenCalledWith(expect.objectContaining({ action: 'copy_move', payload: { claude_reason: 'Test reason.', copy_id: 9, to_deck_id: 6, expected_source_deck_id: 5, expected_source_slot_id: 77 } }))
+    const bad = await runTool(ctx(g, db), 'request_card_move', { reason: 'Test reason.', copy_id: 9, name: 'Island', to_deck_id: 6 })
     expect(bad.structuredContent).toMatchObject({ error: { code: 'wrong_card' } })
   })
   it('request_card_move goes straight through when the database applies it', async () => {
     const g = gw({ submit: vi.fn(async () => ({ ok: true, data: { success: true, outcome: 'applied', group_id: G, count: 1 } })) })
     const db = mockDb((q) => ({ data: q.table === 'user_copies' ? [{ id: 9, card_id: 4 }] : q.table === 'user_cards' ? [{ card_name: 'Sol Ring' }] : [{ id: 77, deck_id: 5 }] })).db
-    const r = await runTool(ctx(g, db), 'request_card_move', { copy_id: 9, name: 'Sol Ring', to_deck_id: 6 })
+    const r = await runTool(ctx(g, db), 'request_card_move', { reason: 'Test reason.', copy_id: 9, name: 'Sol Ring', to_deck_id: 6 })
     expect(r.isError).toBeFalsy()
     expect(JSON.stringify(r.structuredContent)).not.toMatch(/pending_approval/)
   })
@@ -277,11 +278,11 @@ describe('set_card_category', () => {
   const slot = (categories: string[]) => ({ slot_id: 7, name: 'Sol Ring', categories })
   it('sends names trimmed but otherwise as written (no case change, no matching), mapping slot_id to id', async () => {
     const g = gw()
-    const r = await runTool(ctx(g), 'set_card_category', { deck_id: 3, slots: [slot(['  ramp ', 'Good Stuff'])] })
+    const r = await runTool(ctx(g), 'set_card_category', { reason: 'Test reason.', deck_id: 3, slots: [slot(['  ramp ', 'Good Stuff'])] })
     expect(r.isError).toBeFalsy()
     expect(g.submit).toHaveBeenCalledWith({
       userId: U, connectionId: 'conn-1', action: 'deck_category', dryRun: false,
-      payload: { deck_id: 3, slots: [{ id: 7, card_name: 'Sol Ring', categories: ['ramp', 'Good Stuff'] }] },
+      payload: { deck_id: 3, claude_reason: 'Test reason.', slots: [{ id: 7, card_name: 'Sol Ring', categories: ['ramp', 'Good Stuff'] }] },
     })
   })
   it('rejects 0 or 6 categories, empty and over-60 names, extra user id, and 201 slots', async () => {
@@ -296,23 +297,23 @@ describe('set_card_category', () => {
     ]
     for (const a of bad) expect((await runTool(ctx(g), 'set_card_category', a as Record<string, unknown>)).isError).toBe(true)
     expect(g.submit).not.toHaveBeenCalled()
-    expect((await runTool(ctx(g), 'set_card_category', { deck_id: 1, slots: [slot(['a', 'b', 'c', 'd', 'e'])] })).isError).toBeFalsy()
+    expect((await runTool(ctx(g), 'set_card_category', { reason: 'Test reason.', deck_id: 1, slots: [slot(['a', 'b', 'c', 'd', 'e'])] })).isError).toBeFalsy()
   })
   it('a dry run surfaces the database respellings as warnings, with changes and skipped', async () => {
     const plan = { matched: [{ card: 'Sol Ring', sent: 'ramp', used: 'Ramp' }], changes: [{ slot_id: 7, card_name: 'Sol Ring', from: [], to: ['Ramp'] }], skipped: [] }
     const g = gw({ submit: async () => ({ ok: true, data: { success: true, outcome: 'would_apply', reason: null, plan } }) })
-    const r = await runTool(ctx(g), 'set_card_category', { deck_id: 3, dry_run: true, slots: [slot(['ramp'])] })
+    const r = await runTool(ctx(g), 'set_card_category', { reason: 'Test reason.', deck_id: 3, dry_run: true, slots: [slot(['ramp'])] })
     expect(r.structuredContent).toMatchObject({ ok: true, status: 'would_apply', changes: plan.changes })
     expect((r.structuredContent as { warnings: string[] }).warnings).toEqual(["Stored 'ramp' as 'Ramp' on Sol Ring, which this deck already uses."])
   })
   it('over ten is reported as pending approval', async () => {
     const g = gw({ submit: async () => ({ ok: true, data: { success: true, outcome: 'pending', pending_id: G, expires_at: 'x', reason: 'over_ten' } }) })
-    const r = await runTool(ctx(g), 'set_card_category', { deck_id: 3, slots: [slot(['a'])] })
+    const r = await runTool(ctx(g), 'set_card_category', { reason: 'Test reason.', deck_id: 3, slots: [slot(['a'])] })
     expect(r.structuredContent).toMatchObject({ status: 'pending_approval', pending_id: G })
   })
   it.each(['category_reserved', 'slot_in_maybeboard', 'nothing_to_change'])('database refusal %s comes back by code with "Nothing was changed"', async (code) => {
     const g = gw({ submit: async () => ({ ok: false, code, detail: { card: 'Sol Ring', deck: 'Korvold', category: 'Maybeboard' } }) })
-    const r = await runTool(ctx(g), 'set_card_category', { deck_id: 3, slots: [slot(['a'])] })
+    const r = await runTool(ctx(g), 'set_card_category', { reason: 'Test reason.', deck_id: 3, slots: [slot(['a'])] })
     expect(r.isError).toBe(true)
     expect(r.structuredContent).toMatchObject({ error: { code } })
     expect(JSON.stringify(r.structuredContent)).toMatch(/Nothing was changed/)
@@ -329,14 +330,14 @@ describe('set_card_category', () => {
 describe('add_cards_to_deck refuses Maybeboard as a category', () => {
   it.each(['Maybeboard', 'maybeboard', ' Maybeboard ', 'MAYBEBOARD'])('refuses %j and submits nothing', async (category) => {
     const g = gw()
-    const r = await runTool(ctx(g), 'add_cards_to_deck', { deck_id: 1, cards: [{ name: 'Sol Ring', category }] })
+    const r = await runTool(ctx(g), 'add_cards_to_deck', { reason: 'Test reason.', deck_id: 1, cards: [{ name: 'Sol Ring', category }] })
     expect(r.isError).toBe(true)
     expect(JSON.stringify(r.structuredContent ?? r)).toMatch(/set_card_zone/)
     expect(g.submit).not.toHaveBeenCalled()
   })
   it('still accepts a normal category', async () => {
     const g = gw()
-    expect((await runTool(ctx(g), 'add_cards_to_deck', { deck_id: 1, cards: [{ name: 'Sol Ring', category: 'Ramp' }] })).isError).toBeFalsy()
+    expect((await runTool(ctx(g), 'add_cards_to_deck', { reason: 'Test reason.', deck_id: 1, cards: [{ name: 'Sol Ring', category: 'Ramp' }] })).isError).toBeFalsy()
   })
 })
 
@@ -349,7 +350,7 @@ describe('CC-22 card categories', () => {
       const names = (q.filters.find((f) => f.op === 'in')?.args[1] as string[] | undefined) ?? []
       return { data: names.filter((n) => n in TYPES).map((n) => ({ name: n, type_line: TYPES[n], oracle_text: null, mana_cost: null, mana_value: 0, color_identity: '', commander_legal: true })) }
     })
-    await runTool(ctx(g, db), 'add_cards_to_deck', { deck_id: 1, cards: [{ name: 'Sol Ring', category: 'Ramp' }, { name: 'Rhystic Study', category: 'Card Draw' }, { name: 'Forest' }, { name: 'Mox Opal' }, { name: 'Unknown Card' }] })
+    await runTool(ctx(g, db), 'add_cards_to_deck', { reason: 'Test reason.', deck_id: 1, cards: [{ name: 'Sol Ring', category: 'Ramp' }, { name: 'Rhystic Study', category: 'Card Draw' }, { name: 'Forest' }, { name: 'Mox Opal' }, { name: 'Unknown Card' }] })
     const items = (g.submit as ReturnType<typeof vi.fn>).mock.calls[0][0].payload.items
     expect(items.map((i: { categories: string }) => i.categories)).toEqual(['["Ramp"]', '["Card Draw"]', '["Land"]', '["Artifact"]', '["Other"]'])
   })
@@ -367,7 +368,7 @@ describe('CC-21 deck colours', () => {
     })
     return ctx(g, db)
   }
-  const add = (c: ReturnType<typeof colourCtx>, names: string[]) => runTool(c, 'add_cards_to_deck', { deck_id: 1, cards: names.map((name) => ({ name })) }).then((r) => r.structuredContent as Record<string, unknown>)
+  const add = (c: ReturnType<typeof colourCtx>, names: string[]) => runTool(c, 'add_cards_to_deck', { reason: 'Test reason.', deck_id: 1, cards: names.map((name) => ({ name })) }).then((r) => r.structuredContent as Record<string, unknown>)
   it('mono-red deck given a black card: still added, with a warning naming the card', async () => {
     const g = gw()
     const r = await add(colourCtx('R', g), ['Doom Blade'])
@@ -414,7 +415,7 @@ describe('CC-15 create_deck and set_deck_setup', () => {
   const factsDb = mockDb((q) => ({ data: q.table === 'ref_cards' ? [{ name: korvold, type_line: 'Legendary Creature', oracle_text: '', mana_cost: '{B}{R}{G}', mana_value: 3, color_identity: 'BRG', commander_legal: true }] : [] })).db
   it('creates a deck: ids and colours of the commander go to the database, user id from the token', async () => {
     const g = gw({ createDeck: vi.fn(async () => created) })
-    const r = await runTool(ctx(g, factsDb), 'create_deck', { name: 'TEST C', format: 'commander', commander: { name: korvold } })
+    const r = await runTool(ctx(g, factsDb), 'create_deck', { reason: 'Test reason.', name: 'TEST C', format: 'commander', commander: { name: korvold } })
     expect(r.isError).toBeFalsy()
     expect(g.createDeck).toHaveBeenCalledWith({
       userId: U, connectionId: 'conn-1', name: 'TEST C', format: 'commander',
@@ -424,51 +425,51 @@ describe('CC-15 create_deck and set_deck_setup', () => {
   })
   it('a Commander deck without a commander is refused before the database is called', async () => {
     const g = gw({ createDeck: vi.fn() })
-    const r = await runTool(ctx(g), 'create_deck', { name: 'TEST C', format: 'commander' })
+    const r = await runTool(ctx(g), 'create_deck', { reason: 'Test reason.', name: 'TEST C', format: 'commander' })
     expect(r.structuredContent).toMatchObject({ error: { code: 'commander_required' } })
     expect(g.createDeck).not.toHaveBeenCalled()
   })
   it('a non-Commander deck needs no commander', async () => {
     const g = gw({ createDeck: vi.fn(async () => created) })
-    const r = await runTool(ctx(g), 'create_deck', { name: 'Pauper fun', format: 'pauper' })
+    const r = await runTool(ctx(g), 'create_deck', { reason: 'Test reason.', name: 'Pauper fun', format: 'pauper' })
     expect(r.isError).toBeFalsy()
     expect(g.createDeck).toHaveBeenCalledWith(expect.objectContaining({ commander: null }))
   })
   it.each(['user_id', 'userId', 'connection_id'])('create_deck rejects an extra %s argument', async (key) => {
     const g = gw({ createDeck: vi.fn() })
-    const r = await runTool(ctx(g), 'create_deck', { name: 'x', format: 'pauper', [key]: 'other' })
+    const r = await runTool(ctx(g), 'create_deck', { reason: 'Test reason.', name: 'x', format: 'pauper', [key]: 'other' })
     expect(r.isError).toBe(true)
     expect(g.createDeck).not.toHaveBeenCalled()
   })
   it('a duplicate name is refused in plain words with "Nothing was changed"', async () => {
     const g = gw({ createDeck: async () => ({ ok: false, code: 'deck_name_taken', detail: { name: 'TEST C' } }) })
-    const r = await runTool(ctx(g), 'create_deck', { name: 'test c', format: 'pauper' })
+    const r = await runTool(ctx(g), 'create_deck', { reason: 'Test reason.', name: 'test c', format: 'pauper' })
     expect(r.structuredContent).toMatchObject({ error: { code: 'deck_name_taken' } })
     expect(JSON.stringify(r.structuredContent)).toMatch(/TEST C.*Nothing was changed/)
   })
   it('an unknown commander name refuses the request', async () => {
     const g = gw({ createDeck: vi.fn(), resolveCard: async () => ({ card: null, error: false }) })
-    const r = await runTool(ctx(g), 'create_deck', { name: 'x', format: 'commander', commander: { name: 'Nope' } })
+    const r = await runTool(ctx(g), 'create_deck', { reason: 'Test reason.', name: 'x', format: 'commander', commander: { name: 'Nope' } })
     expect(r.structuredContent).toMatchObject({ error: { code: 'card_not_found' } })
     expect(g.createDeck).not.toHaveBeenCalled()
   })
   it('sets bracket and summary in one call, sending only the keys given', async () => {
     const g = gw({ setDeckSetup: vi.fn(async () => ({ ok: true, data: { success: true, outcome: 'applied', group_id: G, count: 1, changed: { bracket: 3 } } })) })
-    const r = await runTool(ctx(g), 'set_deck_setup', { deck_id: 7, bracket: 3, summary: 'Aristocrats.' })
+    const r = await runTool(ctx(g), 'set_deck_setup', { reason: 'Test reason.', deck_id: 7, bracket: 3, summary: 'Aristocrats.' })
     expect(r.isError).toBeFalsy()
     expect(g.setDeckSetup).toHaveBeenCalledWith({ userId: U, connectionId: 'conn-1', deckId: 7, patch: { bracket: 3, summary: 'Aristocrats.' } })
     expect(r.structuredContent).toMatchObject({ status: 'applied', group_id: G })
   })
   it('bracket null clears it and is sent as null', async () => {
     const g = gw({ setDeckSetup: vi.fn(async () => ({ ok: true, data: { success: true, outcome: 'no_change', count: 0 } })) })
-    const r = await runTool(ctx(g), 'set_deck_setup', { deck_id: 7, bracket: null })
+    const r = await runTool(ctx(g), 'set_deck_setup', { reason: 'Test reason.', deck_id: 7, bracket: null })
     expect(g.setDeckSetup).toHaveBeenCalledWith(expect.objectContaining({ patch: { bracket: null } }))
     expect(r.structuredContent).toMatchObject({ status: 'no_change' })
     expect(JSON.stringify(r.structuredContent)).toMatch(/Nothing was changed/)
   })
   it('a commander in the setup is resolved to ids', async () => {
     const g = gw({ setDeckSetup: vi.fn(async () => ({ ok: true, data: { success: true, outcome: 'applied', group_id: G, count: 1, changed: {} } })) })
-    await runTool(ctx(g), 'set_deck_setup', { deck_id: 7, commander: { name: 'Prosper' } })
+    await runTool(ctx(g), 'set_deck_setup', { reason: 'Test reason.', deck_id: 7, commander: { name: 'Prosper' } })
     expect(g.setDeckSetup).toHaveBeenCalledWith(expect.objectContaining({ patch: { commander: { card_name: 'Prosper', scryfall_id: 's-Prosper', oracle_id: 'o-Prosper' } } }))
   })
   it.each([
@@ -490,7 +491,7 @@ describe('CC-15 create_deck and set_deck_setup', () => {
     vi.setSystemTime(new Date('2026-01-01T12:00:00Z'))
     try {
       const g = gw({ setDeckSetup: vi.fn(async () => ({ ok: true, data: { success: true, outcome: 'applied', group_id: G, count: 1, changed: {} } })) })
-      const r = await runTool(ctx(g), 'set_deck_setup', { deck_id: 1, strategy_add: 'x'.repeat(AI_LIMITS_NEW.strategy_notes_max_chars - 'Claude, 1 Jan 2026: '.length) })
+      const r = await runTool(ctx(g), 'set_deck_setup', { reason: 'Test reason.', deck_id: 1, strategy_add: 'x'.repeat(AI_LIMITS_NEW.strategy_notes_max_chars - 'Claude, 1 Jan 2026: '.length) })
       expect(r.isError).toBeFalsy()
     } finally {
       vi.useRealTimers()

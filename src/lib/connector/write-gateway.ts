@@ -43,6 +43,31 @@ async function rpc<T>(admin: Admin, fn: string, args: Record<string, unknown>): 
   }
 }
 
+/** The reasons for these change groups. Any problem (including the table not existing yet) is "no reasons": the list still shows. */
+async function readReasons(admin: Admin, userId: string, groupIds: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (admin as any).from('ai_change_reasons').select('group_id, reason').eq('user_id', userId).in('group_id', groupIds)
+    if (error || !Array.isArray(data)) return out
+    for (const row of data as { group_id: string; reason: string | null }[]) if (row.reason) out.set(row.group_id, row.reason)
+  } catch { /* no reasons */ }
+  return out
+}
+/** The reason Claude gave for each waiting request: it rides inside the stored request (payload.claude_reason). Works before the stored-data update too. */
+async function readPendingReasons(admin: Admin, userId: string, ids: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (admin as any).from('ai_pending_changes').select('id, payload').eq('user_id', userId).in('id', ids)
+    if (error || !Array.isArray(data)) return out
+    for (const row of data as { id: string; payload: { claude_reason?: unknown } | null }[]) {
+      const v = row.payload?.claude_reason
+      if (typeof v === 'string' && v.trim()) out.set(row.id, v.trim())
+    }
+  } catch { /* no reasons */ }
+  return out
+}
 export function createGateway(adminOverride?: Admin): Gateway {
   const admin = () => adminOverride ?? createAdminClient()
   return {
@@ -73,14 +98,25 @@ export function createGateway(adminOverride?: Admin): Gateway {
       return r.ok ? { ok: true, data: r.data?.pending ?? null } : r
     },
 
-    listRecent: (userId) => rpc<ChangeLogRow[]>(admin(), 'ai_list_recent_changes', { p_user_id: userId }),
+    recordReason: ({ userId, groupId, reason }) => rpc<{ success: boolean; stored: boolean }>(admin(), 'ai_record_change_reason', { p_user_id: userId, p_group_id: groupId, p_reason: reason }),
+    async listRecent(userId) {
+      const r = await rpc<ChangeLogRow[]>(admin(), 'ai_list_recent_changes', { p_user_id: userId })
+      if (!r.ok || !Array.isArray(r.data) || r.data.length === 0) return r
+      const reasons = await readReasons(admin(), userId, [...new Set(r.data.map((x) => x.group_id))])
+      return { ok: true, data: r.data.map((x) => (reasons.has(x.group_id) ? { ...x, claude_reason: reasons.get(x.group_id) } : x)) }
+    },
 
     undoAsClaude: (userId, connectionId, groupId) =>
       rpc<UndoResult>(admin(), 'ai_undo_group', { p_user_id: userId, p_group_id: groupId, p_actor: 'claude', p_connection_id: connectionId }),
 
     undoAsOwner: (userId, groupId) => rpc<UndoResult>(admin(), 'ai_undo_group', { p_user_id: userId, p_group_id: groupId, p_actor: 'owner' }),
 
-    listPending: (userId) => rpc<PendingRow[]>(admin(), 'ai_list_pending', { p_user_id: userId }),
+    async listPending(userId) {
+      const r = await rpc<PendingRow[]>(admin(), 'ai_list_pending', { p_user_id: userId })
+      if (!r.ok || !Array.isArray(r.data) || r.data.length === 0) return r
+      const reasons = await readPendingReasons(admin(), userId, r.data.map((x) => x.id))
+      return { ok: true, data: r.data.map((x) => (reasons.has(x.id) ? { ...x, claude_reason: reasons.get(x.id) } : x)) }
+    },
 
     pendingCount: (userId) => rpc<number>(admin(), 'ai_pending_count', { p_user_id: userId }),
 

@@ -2,7 +2,7 @@
 // tool modules can depend on this file without being able to reach the service role.
 import type {
   ChangeAction,
-  ChangeLogRow,
+  ChangeLogRow as ContractChangeLogRow,
   MovedSlot,
   PendingPreview,
   PendingReason,
@@ -14,7 +14,9 @@ import type {
 import type { DeckCreateResult, DeckSetupResult } from '../../../docs/oracle/contracts/claude-connector-cc15-deck-create.types'
 
 export type { DeckCreateResult, DeckSetupResult }
-export type { ChangeAction, ChangeLogRow, MovedSlot, PendingPreview, PendingReason, PendingStatus, SubmitOutcome, UndoRefusal, UndoResult }
+/** A log row as the contract has it, plus the one-line reason Claude gave (DV-04). Null or missing on older changes and until the stored-data update is applied. */
+export type ChangeLogRow = ContractChangeLogRow & { claude_reason?: string | null }
+export type { ChangeAction, MovedSlot, PendingPreview, PendingReason, PendingStatus, SubmitOutcome, UndoRefusal, UndoResult }
 
 /** A database refusal: `code` is the RPC's error text, `detail` its JSON detail (card, deck names etc.). */
 export interface GatewayFailure {
@@ -27,6 +29,8 @@ export type GatewayResult<T> = { ok: true; data: T } | GatewayFailure
 /** A pending request as the database stores it (payload and hash are never returned). */
 export interface PendingRow {
   id: string
+  /** The one-line reason Claude gave, kept inside the waiting request. Separate from `reason` below (why it is waiting). */
+  claude_reason?: string | null
   connection_id: string | null
   client_name: string
   kind: 'big_edit' | 'copy_move'
@@ -73,6 +77,8 @@ export interface Gateway {
   createDeck(a: { userId: string; connectionId: string; name: string; format: string; commander: { card_name: string; scryfall_id: string; oracle_id: string; colour_identity: string } | null }): Promise<GatewayResult<DeckCreateResult>>
   /** CC-15, DV-02: commander, target bracket, summary, playgroup and Strategy text (added to, never replaced). `patch` holds only the keys the caller wants changed. */
   setDeckSetup(a: { userId: string; connectionId: string; deckId: number; patch: Record<string, unknown> }): Promise<GatewayResult<DeckSetupResult>>
+  /** DV-04: store the reason for a change made by create deck or set deck setup (the others carry it inside the request). */
+  recordReason(a: { userId: string; groupId: string; reason: string }): Promise<GatewayResult<{ success: boolean; stored: boolean }>>
   getPending(userId: string, connectionId: string, pendingId: string): Promise<GatewayResult<PendingRow | null>>
   listRecent(userId: string): Promise<GatewayResult<ChangeLogRow[]>>
   undoAsClaude(userId: string, connectionId: string, groupId: string): Promise<GatewayResult<UndoResult>>

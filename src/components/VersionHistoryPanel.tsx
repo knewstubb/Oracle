@@ -27,6 +27,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
+import { DeckClaudeChanges } from '@/components/connector/DeckClaudeChanges'
 import {
   type DeckVersion,
   type VersionDiff,
@@ -163,15 +164,19 @@ export function VersionHistoryPanel({ deckId, deckName, open, onOpenChange }: Ve
           <History className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">History</span>
         </DialogTrigger>
-        <DialogContent className="max-h-[85vh] overflow-hidden flex flex-col sm:max-w-md">
+        <DialogContent className="max-h-[85vh] overflow-hidden flex flex-col sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <History className="h-5 w-5" />
-              Version History
+              History
             </DialogTitle>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto space-y-6 pr-2">
+            {/* One History per deck: Claude's changes first (with the reason and Undo), then the saved versions. */}
+            <DeckClaudeChanges deckId={deckId} deckName={deckName} enabled={isOpen} />
+            <section aria-labelledby="history-versions-h" className="space-y-6">
+            <h3 id="history-versions-h" className="text-[length:var(--fs-sm)] font-medium text-foreground">Saved versions</h3>
             {/* Create new snapshot */}
             <div className="space-y-2">
               <label
@@ -208,15 +213,13 @@ export function VersionHistoryPanel({ deckId, deckName, open, onOpenChange }: Ve
 
             {/* Version list */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-[length:var(--fs-sm)] font-medium text-foreground">
-                  Snapshots
-                </h3>
+              <div className="flex items-center justify-end">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => refetch()}
                   disabled={isLoading}
+                  aria-label="Refresh saved versions"
                   className="h-7 px-2"
                 >
                   <RefreshCw
@@ -265,6 +268,7 @@ export function VersionHistoryPanel({ deckId, deckName, open, onOpenChange }: Ve
                 </div>
               )}
             </div>
+            </section>
           </div>
         </DialogContent>
       </Dialog>

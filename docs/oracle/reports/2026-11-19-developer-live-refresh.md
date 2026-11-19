@@ -56,3 +56,6 @@ While a deck is open, Oracle now checks every 8 seconds whether Claude changed a
 - `npx eslint .` — 1 error (the known PicklistV2 "storage/missing" link) and 280 warnings; no errors in changed files
 - Browser check on http://localhost:3137 with the worktree code, real Chrome, notes in docs/oracle/reports/evidence/live-refresh/browser-check.txt: note appeared 1.4 s after the check saw a new marker and faded by itself; 0 refetches with an unchanged marker; 0 checks while hidden or offline, 1 check at once on return; Strategy window kept typed text and showed the banner with 0 Strategy refetches; no note for an owner-made change. The database is hosted, so the change was simulated in the browser (marker and deck answers swapped); nothing was written and nothing needed undoing. The real marker route was called for real: 39 and about 90 bytes, 400 for a bad deck id.
 - Not tested: a real Claude change end to end (needs the hosted database); the Recent changes and deck list pages in a browser (covered by unit tests only).
+
+## Review fix
+The deck list now actually calls the live check (DashboardPage uses useLiveUserRefresh); a test in src/app/page.test.tsx covers it. Browser-checked: not re-run; unit test only.

@@ -4,8 +4,13 @@ import { toast } from 'sonner'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import DashboardPage from './page'
 import { OracleProvider } from '@/contexts/OracleContext'
+import * as liveRefresh from '@/hooks/useLiveRefresh'
 import { PageHeaderProvider, usePageHeaderContext } from '@/contexts/PageHeaderContext'
 
+vi.mock('@/hooks/useLiveRefresh', async (orig) => {
+  const actual = await orig<typeof import('@/hooks/useLiveRefresh')>()
+  return { ...actual, useLiveUserRefresh: vi.fn(actual.useLiveUserRefresh) }
+})
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 // Mock next/image
@@ -217,6 +222,13 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('button', { name: /Retry/ })).toBeInTheDocument()
   })
 
+  it('watches for Claude changes so the deck list refreshes by itself', async () => {
+    mockDecks(makeDecks(1))
+    render(<DashboardPage />, { wrapper: createWrapper() })
+    await waitFor(() => expect(screen.getByTestId('page-header-title')).toHaveTextContent('Decks'))
+    const keys = vi.mocked(liveRefresh.useLiveUserRefresh).mock.calls.at(-1)![0]
+    expect(keys).toEqual(expect.arrayContaining([['decks']]))
+  })
   it('sets the page header title to "Decks"', async () => {
     mockDecks(makeDecks(1))
 

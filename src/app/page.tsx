@@ -89,6 +89,8 @@ const LIVE_KEYS = [['decks'], ['connector', 'pending-count']] as const
 export default function DashboardPage() {
   // Set Oracle context for this page
   useOracleContext({ type: 'deck-list' })
+  // Deck list updates by itself when Claude creates or changes a deck.
+  useLiveUserRefresh(LIVE_KEYS)
 
   const queryClient = useQueryClient()
 

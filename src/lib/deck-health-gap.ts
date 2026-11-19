@@ -14,7 +14,7 @@ import type { CommanderTargets } from './commander-targets'
 import { browseSpareCopies, MAX_BROWSE_LIMIT, type BrowseCard } from './spare-copy-browse'
 import type { LookupClient } from './owned-copy-lookup'
 import { loadHealthCards, loadTargets, type HealthClient, type LoadHealthOptions } from './deck-health-server'
-import { buildDeckHealth, cardsInRole, HEALTH_ROLE_ORDER, type HealthRoleKey, type InDeckCard } from './deck-health'
+import { buildDeckHealth, cardsInRole, HEALTH_ROLE_ORDER, type HealthRange, type HealthRoleKey, type InDeckCard } from './deck-health'
 
 export interface GapCard {
   name: string
@@ -34,8 +34,9 @@ export interface DeckHealthGap {
   role: HealthRoleKey
   label: string
   have: number
-  typical: number
-  /** Equals roles[].have for this role: the "See the N cards already in this deck" count. */
+  /** The row's range (the Command Zone default). */
+  range: HealthRange
+  /** Equals rows[].have for this role: the "See the N cards already in this deck" count. */
   inDeckCount: number
   inDeckCards: InDeckCard[]
   spare: GapCard[]
@@ -51,7 +52,7 @@ export interface DeckHealthGap {
   buyDefaultOpen: boolean
   nothingOwnedFits: boolean
   buyUnavailableReason: BuyUnavailableReason
-  /** Where the typical numbers come from: the same text as the overview panel's source line. */
+  /** The EDHREC reference label: the same text as the overview panel's reference line. */
   sourceLine: string
 }
 
@@ -107,8 +108,8 @@ export async function loadDeckGap(supabase: HealthClient, deckId: number, userId
   const { loaded, targets, buy } = deckRes as { loaded: LoadedCards; targets: CommanderTargets; buy: BuyResult }
 
   const health = buildDeckHealth(loaded.cards, targets)
-  const row = health.roles.find((r) => r.role === role)
-  if (!row) return { ok: false, status: 500, error: 'Unknown role' }
+  const row = health.rows.find((r) => r.role === role)
+  if (!row || !row.range) return { ok: false, status: 500, error: 'Unknown role' }
   const inDeckCards = cardsInRole(loaded.cards, role)
 
   if (!browsed.browse) {
@@ -123,7 +124,7 @@ export async function loadDeckGap(supabase: HealthClient, deckId: number, userId
       role,
       label: row.label,
       have: row.have,
-      typical: row.typical,
+      range: row.range,
       inDeckCount: inDeckCards.reduce((n, c) => n + c.quantity, 0),
       inDeckCards,
       spare: browse.spare.map((c) => toGapCard(c, 'SPARE')),
@@ -135,7 +136,7 @@ export async function loadDeckGap(supabase: HealthClient, deckId: number, userId
       buyDefaultOpen: nothingOwnedFits,
       nothingOwnedFits,
       buyUnavailableReason: buy.buyUnavailableReason,
-      sourceLine: health.sourceLine,
+      sourceLine: health.reference.label,
     },
   }
 }

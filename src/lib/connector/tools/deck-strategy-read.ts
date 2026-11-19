@@ -1,7 +1,7 @@
 // DV-02: what Claude reads about a deck's plan and health, ahead of the cards. get_deck returns, in this order:
 // deck, strategy, health, cards. Read-only, and every read carries the owner's user id.
 import type { BracketInfo } from '../../../../docs/oracle/contracts/connector-card-facts-and-deck-health.types'
-import type { DeckHealthResponse } from '../../deck-health'
+import { offRangeSubline, type DeckHealthResponse } from '../../deck-health'
 import { loadConnectorDeckHealth, type ConnectorHealthResult } from '../deck-health-loader'
 import { bracketName } from '../../deck-bracket'
 import { LookupFailed, rows, type ToolContext } from './common'
@@ -25,7 +25,7 @@ export type DeckHealthView =
       subline: string
       source: string
       checkState: 'full' | 'partial'
-      groups: { group: string; label: string; have: number; typical: number; state: string }[]
+      groups: { group: string; label: string; have: number; range: { min: number; max: number } | null; verdict: string | null }[]
     }
   | { status: 'unavailable'; message: string }
 type StrategyRow = {
@@ -79,9 +79,9 @@ export function shortHealth(h: DeckHealthResponse): DeckHealthView {
   return {
     status: 'computed_now',
     headline: h.verdict.headline,
-    subline: h.verdict.subline,
-    source: h.sourceLine,
+    subline: offRangeSubline(h),
+    source: h.reference.label,
     checkState: h.checkState,
-    groups: h.roles.map((x) => ({ group: x.role, label: x.label, have: x.have, typical: x.typical, state: x.state })),
+    groups: h.rows.map((x) => ({ group: x.kind, label: x.label, have: x.have, range: x.range, verdict: x.verdict })),
   }
 }

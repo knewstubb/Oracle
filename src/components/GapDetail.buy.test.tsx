@@ -24,7 +24,7 @@ const gap = (over: Partial<DeckHealthGap> = {}): DeckHealthGap => ({
   role: 'draw',
   label: 'Draw',
   have: 3,
-  typical: 10,
+  range: { min: 10, max: 12 },
   inDeckCount: 3,
   inDeckCards: [],
   spare: [],
@@ -62,9 +62,9 @@ describe('GapDetail source label', () => {
     expect((await screen.findByTestId('gap-source-line')).textContent).toBe(line)
   })
 
-  it('falls back to General guide when an older reply has no source line', async () => {
+  it('falls back to a plain no-average line when an older reply has no source line', async () => {
     renderGap(gap({ sourceLine: undefined as unknown as string }))
-    expect((await screen.findByTestId('gap-source-line')).textContent).toBe('General guide')
+    expect((await screen.findByTestId('gap-source-line')).textContent).toBe('No EDHREC average for this commander')
   })
 })
 

@@ -1,93 +1,224 @@
 import { describe, it, expect } from 'vitest'
-import { countDeckTypes, roleState, composeHealthCopy, buildDeckHealth, countRoles, GENERAL_GUIDE, type HealthDeckCard } from './deck-health'
+import {
+  countDeckTypes,
+  buildDeckHealth,
+  countRoles,
+  verdictFor,
+  isDoubleFacedLandCard,
+  HEALTH_KIND_ORDER,
+  DEFAULT_RANGES,
+  type HealthDeckCard,
+  type HealthKind,
+  type DeckHealthResponse,
+} from './deck-health'
 import { loadDeckHealth, commanderNamesFor, type HealthClient, type TargetsProvider } from './deck-health-server'
 import { guideTargets, type CommanderTargets } from './commander-targets'
+import { MAX_HEALTH_RESULT_BYTES, byteLength } from './connector/limits'
 
-describe('roleState (Light = 2 or more short)', () => {
-  it('8 typical: 7 is fine, 6 is light', () => {
-    expect(roleState(7, 8)).toBe('ok')
-    expect(roleState(6, 8)).toBe('light')
+const card = (name: string, typeLine: string, oracleText: string | null, quantity = 1): HealthDeckCard => ({
+  cardName: name,
+  quantity,
+  typeLine,
+  oracleText,
+  inMainDeck: true,
+})
+const row = (h: DeckHealthResponse, kind: HealthKind) => h.rows.find((r) => r.kind === kind)!
+const copies = (n: number, make: (i: number) => HealthDeckCard) => Array.from({ length: n }, (_, i) => make(i))
+
+describe('verdictFor: Light below the minimum, Ok inside (ends included), Heavy above the maximum', () => {
+  it.each([
+    ['lands', 34, 'light'],
+    ['lands', 35, 'ok'],
+    ['lands', 38, 'ok'],
+    ['lands', 39, 'heavy'],
+    ['ramp', 9, 'light'],
+    ['ramp', 10, 'ok'],
+    ['ramp', 12, 'ok'],
+    ['ramp', 13, 'heavy'],
+    ['card_advantage', 9, 'light'],
+    ['card_advantage', 12, 'ok'],
+    ['card_advantage', 13, 'heavy'],
+    ['targeted_removal', 10, 'ok'],
+    ['targeted_removal', 13, 'heavy'],
+    ['board_wipes', 0, 'light'],
+    ['board_wipes', 2, 'light'],
+    ['board_wipes', 3, 'ok'],
+    ['board_wipes', 6, 'ok'],
+    ['board_wipes', 7, 'heavy'],
+  ] as const)('%s with %i is %s', (kind, have, expected) => {
+    expect(verdictFor(have, DEFAULT_RANGES[kind])).toBe(expected)
   })
-  it('6 typical: 6 fine, 3 light', () => {
-    expect(roleState(6, 6)).toBe('ok')
-    expect(roleState(3, 6)).toBe('light')
-  })
-  it('typical 1 is never light', () => {
-    expect(roleState(0, 1)).toBe('ok')
-  })
-  it('over the typical count is fine', () => {
-    expect(roleState(20, 8)).toBe('ok')
+  it('one short of the minimum is Light now (the old rule needed two)', () => {
+    expect(verdictFor(9, DEFAULT_RANGES.ramp)).toBe('light')
   })
 })
 
-describe('composeHealthCopy', () => {
-  const mk = (ramp: number, draw: number, removal: number, wipes: number) =>
-    (['ramp', 'draw', 'removal', 'wipes'] as const).map((role, i) => {
-      const have = [ramp, draw, removal, wipes][i]
-      return { role, have, typical: GENERAL_GUIDE[role], state: roleState(have, GENERAL_GUIDE[role]) }
-    })
-
-  it('says Well covered with no suffix', () => {
-    const c = composeHealthCopy({ roles: mk(10, 10, 6, 2), usingGeneralGuide: true })
-    expect(c.headline).toBe('Well covered')
-  })
-  it('names the two biggest gaps', () => {
-    const c = composeHealthCopy({ roles: mk(10, 5, 1, 2), usingGeneralGuide: true })
-    expect(c.headline).toBe('Light on draw and removal (general guide)')
-    expect(c.subline).toContain('short')
-  })
-})
-
-describe('buildDeckHealth', () => {
-  const card = (name: string, typeLine: string, oracleText: string | null, quantity = 1): HealthDeckCard => ({
-    cardName: name,
-    quantity,
-    typeLine,
-    oracleText,
-    inMainDeck: true,
+describe('buildDeckHealth: the six rows', () => {
+  it('always returns the six rows in order, even for an empty deck', () => {
+    const h = buildDeckHealth([])
+    expect(h.rows.map((r) => r.kind)).toEqual([...HEALTH_KIND_ORDER])
+    expect(h.rows.map((r) => r.label)).toEqual([
+      'Lands',
+      'Ramp',
+      'Card Advantage',
+      'Targeted Removal',
+      'Board Wipes / Mass Disruption',
+      'Game Plan & Win Conditions',
+    ])
+    expect(h.rows.map((r) => r.have)).toEqual([0, 0, 0, 0, 0, 0])
+    expect(row(h, 'lands')).toMatchObject({ verdict: 'light', range: { min: 35, max: 38 }, rangeSource: 'default' })
   })
 
-  it('counts removal from real text and labels the general guide', () => {
-    const cards = Array.from({ length: 6 }, (_, i) => card(`Kill ${i}`, 'Instant', 'Destroy target creature.'))
+  it('a real-shaped deck: counts from card text, verdicts per row, Game Plan as the remainder', () => {
+    const cards: HealthDeckCard[] = [
+      card('Forest', 'Basic Land — Forest', null, 30),
+      card('Command Tower', 'Land', null, 7), // 37 lands: ok
+      ...copies(18, (i) => card(`Rock ${i}`, 'Artifact', '{T}: Add {G}.')), // 18 ramp: heavy
+      ...copies(6, (i) => card(`Brain ${i}`, 'Sorcery', 'Draw two cards.')), // 6 card advantage: light
+      ...copies(6, (i) => card(`Kill ${i}`, 'Instant', 'Destroy target creature.')), // 6 removal: light
+      ...copies(34, (i) => card(`Beater ${i}`, 'Creature — Elf', 'Trample')), // 34 game plan
+    ]
     const h = buildDeckHealth(cards)
-    expect(h.roles.find((r) => r.role === 'removal')?.have).toBe(6)
-    expect(h.sourceLine).toBe('General guide')
-    expect(h.strategy.text).toMatch(/Not set yet/)
+    expect(row(h, 'lands')).toMatchObject({ have: 37, verdict: 'ok', offBy: 0, summary: 'Range 35 to 38' })
+    expect(row(h, 'ramp')).toMatchObject({ have: 18, verdict: 'heavy', offBy: 6, summary: 'Range 10 to 12 · 6 above' })
+    expect(row(h, 'card_advantage')).toMatchObject({ have: 6, verdict: 'light', offBy: -4, summary: 'Range 10 to 12 · 4 below' })
+    expect(row(h, 'targeted_removal')).toMatchObject({ have: 6, verdict: 'light', offBy: -4 })
+    expect(row(h, 'board_wipes')).toMatchObject({ have: 0, verdict: 'light', offBy: -3, summary: 'Range 3 to 6 · 3 below' })
+    expect(row(h, 'game_plan')).toMatchObject({ have: 34 })
+    expect(h.verdict).toMatchObject({ headline: '1 of 5 in range', inRange: 1, ranged: 5 })
+    expect(h.mainDeckCount).toBe(101)
+    expect(h.rowsTotal).toBe(101)
+    expect(h.notes.overlap).toBeNull()
+    expect(h.notes.uncategorised).toBeNull()
   })
 
-  it('three removal is light', () => {
-    const cards = Array.from({ length: 3 }, (_, i) => card(`Kill ${i}`, 'Instant', 'Destroy target creature.'))
-    expect(buildDeckHealth(cards).roles.find((r) => r.role === 'removal')?.state).toBe('light')
+  it('all five in range says "All 5 in range"', () => {
+    const cards = [
+      card('Forest', 'Basic Land — Forest', null, 36),
+      ...copies(10, (i) => card(`Rock ${i}`, 'Artifact', '{T}: Add {G}.')),
+      ...copies(10, (i) => card(`Brain ${i}`, 'Sorcery', 'Draw two cards.')),
+      ...copies(10, (i) => card(`Kill ${i}`, 'Instant', 'Destroy target creature.')),
+      ...copies(3, (i) => card(`Wrath ${i}`, 'Sorcery', 'Destroy all creatures.')),
+    ]
+    const h = buildDeckHealth(cards)
+    expect(h.rows.slice(0, 5).map((r) => r.verdict)).toEqual(['ok', 'ok', 'ok', 'ok', 'ok'])
+    expect(h.verdict).toMatchObject({ headline: 'All 5 in range', inRange: 5, ranged: 5 })
   })
 
-  it('does not count lands or off-list cards', () => {
+  it('Game Plan is a plain total: no range, no verdict, and never counted in the header line', () => {
+    const h = buildDeckHealth(copies(40, (i) => card(`Beater ${i}`, 'Creature', 'Trample')))
+    const gp = row(h, 'game_plan')
+    expect(gp).toMatchObject({ have: 40, range: null, rangeSource: null, verdict: null, offBy: 0, role: null })
+    expect(gp.summary).toBe('No range. Everything not counted above.')
+    expect(gp.guide).toEqual({ min: 25, max: 30 }) // a quiet note only
+    expect(h.verdict.ranged).toBe(5)
+  })
+
+  it('Game Plan counts a card only when no other row has it (a ramp card is not in Game Plan)', () => {
+    const h = buildDeckHealth([card('Sol Ring', 'Artifact', '{T}: Add {C}{C}.'), card('Bear', 'Creature', 'Trample')])
+    expect(row(h, 'ramp').have).toBe(1)
+    expect(row(h, 'game_plan').cards).toEqual([{ name: 'Bear', quantity: 1 }])
+  })
+
+  it('cards with no card text sit in the Game Plan total and an uncategorised note says so', () => {
+    const h = buildDeckHealth([card('Ghost', 'Creature', null, 4), card('Bear', 'Creature', 'Trample', 6)])
+    expect(row(h, 'game_plan').have).toBe(10)
+    expect(h.unclassifiedCount).toBe(4)
+    expect(h.notes.uncategorised).toBe('4 cards have no card text yet, so Oracle could not place them. They are counted in Game Plan & Win Conditions.')
+    const one = buildDeckHealth([card('Ghost', 'Creature', null, 1)])
+    expect(one.notes.uncategorised).toBe('1 card has no card text yet, so Oracle could not place it. It is counted in Game Plan & Win Conditions.')
+  })
+
+  it('a card in two rows (Damn: removal and a wipe) is counted in both, the deck total stays the card count, and a note says so', () => {
+    const cards = [card('Damn', 'Sorcery', 'Destroy target creature. Overload {2}{W}{W} (You may cast this spell for its overload cost. If you do, change "target" to "each".)'), card('Bear', 'Creature', 'Trample')]
+    const h = buildDeckHealth(cards)
+    expect(row(h, 'targeted_removal').have).toBe(1)
+    expect(row(h, 'board_wipes').have).toBe(1)
+    expect(h.mainDeckCount).toBe(2)
+    expect(h.rowsTotal).toBe(3)
+    expect(h.multiRowCards).toBe(1)
+    expect(h.notes.overlap).toBe('2 cards in the list. 1 card counts in more than one row, so the rows add to 3.')
+  })
+
+  it('does not count lands or off-list cards in any row', () => {
     const cards = [card('Forest', 'Basic Land — Forest', null, 30), { ...card('X', 'Instant', 'Destroy target creature.'), inMainDeck: false }]
     const r = countRoles(cards)
     expect(r.have.removal).toBe(0)
     expect(r.have.lands).toBe(30)
     expect(r.unclassifiedCount).toBe(0)
+    expect(row(buildDeckHealth(cards), 'game_plan').have).toBe(0)
   })
 
-  it('counts lands from the front-face type line, including double-faced lands, and is Light at 2+ short', () => {
+  it('each row lists its own cards', () => {
+    const h = buildDeckHealth([card('Forest', 'Basic Land — Forest', null, 2), card('Sol Ring', 'Artifact', '{T}: Add {C}{C}.')])
+    expect(row(h, 'lands').cards).toEqual([{ name: 'Forest', quantity: 2 }])
+    expect(row(h, 'ramp').cards).toEqual([{ name: 'Sol Ring', quantity: 1 }])
+  })
+})
+
+describe('the response size', () => {
+  it('a full 101-card deck with long card names stays under the connector result limit', () => {
+    const cards = [
+      card('Forest', 'Basic Land — Forest', null, 30),
+      ...copies(7, (i) => card(`Exploration Center Of The Ancient World ${i}`, 'Land', null)),
+      ...copies(18, (i) => card(`Treasure Cruise Of The Long Lost Seas ${i}`, 'Artifact', '{T}: Add {G}.')),
+      ...copies(12, (i) => card(`Harmonize The Spirits Of The Forest ${i}`, 'Sorcery', 'Draw two cards.')),
+      ...copies(12, (i) => card(`Reclamation Of The Fallen Sages ${i}`, 'Instant', 'Destroy target creature.')),
+      ...copies(22, (i) => card(`Avenger Of The Endless Green Horde ${i}`, 'Creature — Elf', 'Trample')),
+    ]
+    const h = buildDeckHealth(cards)
+    expect(h.mainDeckCount).toBe(101)
+    expect(byteLength(h)).toBeLessThan(MAX_HEALTH_RESULT_BYTES)
+  })
+})
+
+describe('double-faced land cards', () => {
+  const dfc = (name: string) => card(`${name} // Back`, 'Sorcery // Land', 'Destroy target creature.\n//\n{T}: Add {R}.')
+  it('is true for a spell front with a land back, false for a land front or a transforming card', () => {
+    expect(isDoubleFacedLandCard({ typeLine: 'Sorcery // Land', oracleText: null })).toBe(true)
+    expect(isDoubleFacedLandCard({ typeLine: 'Instant // Land', oracleText: 'Draw a card.' })).toBe(true)
+    expect(isDoubleFacedLandCard({ typeLine: 'Land // Land', oracleText: null })).toBe(false)
+    expect(isDoubleFacedLandCard({ typeLine: 'Land', oracleText: null })).toBe(false)
+    expect(isDoubleFacedLandCard({ typeLine: 'Creature — Human // Creature — Werewolf', oracleText: null })).toBe(false)
+    expect(isDoubleFacedLandCard({ typeLine: 'Enchantment // Land', oracleText: 'At the beginning of your upkeep, you may transform this.' })).toBe(false)
+    expect(isDoubleFacedLandCard({ typeLine: null, oracleText: null })).toBe(false)
+  })
+  it('is one land beside the land line: "36 lands + 2 double-faced", in mana sources once, never in the land count', () => {
+    const cards = [card('Forest', 'Basic Land — Forest', null, 36), dfc('Smash'), dfc('Recover'), card('Bear', 'Creature', 'Trample')]
+    const h = buildDeckHealth(cards)
+    const lands = row(h, 'lands')
+    expect(lands.have).toBe(36) // plain lands only, so the verdict uses them
+    expect(lands.doubleFaced).toBe(2)
+    expect(lands.verdict).toBe('ok')
+    expect(h.manaSources).toEqual({ total: 38, lands: 36, doubleFaced: 2, ramp: 0 })
+    expect(h.notes.manaSources).toBe('Mana sources 38: 36 lands, 2 double-faced, 0 ramp cards. An estimate.')
+    expect(h.mainDeckCount).toBe(39)
+  })
+  it('a double-faced card with ramp text is one source, not two', () => {
+    const ramp = card('Spell // Land', 'Sorcery // Land', 'Search your library for a basic land card, put it onto the battlefield tapped.')
+    const h = buildDeckHealth([ramp])
+    expect(row(h, 'ramp').have).toBe(1)
+    expect(h.manaSources).toEqual({ total: 1, lands: 0, doubleFaced: 1, ramp: 0 })
+  })
+  it('mana sources without double-faced cards: "Mana sources 55: 37 lands, 18 ramp cards."', () => {
+    const cards = [card('Forest', 'Basic Land — Forest', null, 37), ...copies(18, (i) => card(`Rock ${i}`, 'Artifact', '{T}: Add {G}.'))]
+    expect(buildDeckHealth(cards).notes.manaSources).toBe('Mana sources 55: 37 lands, 18 ramp cards. An estimate.')
+  })
+  it('counts lands from the front-face type line: a spell-front double-faced card is not a land', () => {
     const cards = [
       card('Forest', 'Basic Land — Forest', null, 30),
       card('Command Tower', 'Land', null, 1),
       card('Shatterskull Smashing // Shatterskull, the Hammer Pass', 'Sorcery // Land', null, 1),
       card('Bala Ged Recovery // Bala Ged Sanctuary', 'Sorcery // Land', null, 1),
     ]
-    const h = buildDeckHealth(cards)
-    const lands = h.roles.find((r) => r.role === 'lands')!
-    expect(lands.typical).toBe(36)
-    expect(lands.have).toBe(31) // the two spell-front double-faced cards are not lands
-    expect(lands.state).toBe('light')
-    expect(h.roles).toHaveLength(5)
+    const lands = row(buildDeckHealth(cards), 'lands')
+    expect(lands.have).toBe(31)
+    expect(lands.verdict).toBe('light')
+    expect(lands.doubleFaced).toBe(2)
   })
+})
 
-  it('35 lands is fine, 34 is Light', () => {
-    expect(buildDeckHealth([card('Forest', 'Basic Land — Forest', null, 35)]).roles.find((r) => r.role === 'lands')?.state).toBe('ok')
-    expect(buildDeckHealth([card('Forest', 'Basic Land — Forest', null, 34)]).roles.find((r) => r.role === 'lands')?.state).toBe('light')
-  })
-
+describe('buildDeckHealth: partial check', () => {
   it('is partial when over 10% of the deck has no card text', () => {
     const cards = [card('Ghost', 'Creature', null, 20), card('Kill', 'Instant', 'Destroy target creature.', 80)]
     expect(buildDeckHealth(cards).checkState).toBe('partial')
@@ -146,7 +277,7 @@ describe('loadDeckHealth', () => {
     })
     const r = await loadDeckHealth(client, 5, 'u')
     expect(r.ok).toBe(true)
-    if (r.ok) expect(r.health.roles.find((x) => x.role === 'removal')?.have).toBe(1)
+    if (r.ok) expect(r.health.rows.find((x) => x.kind === 'targeted_removal')?.have).toBe(1)
   })
 
   it('returns 500, not a green result, when a read fails', async () => {
@@ -174,8 +305,8 @@ describe('loadDeckHealth', () => {
     }
     const r = await loadDeckHealth(client, 5, 'u', { recheck: true, targets })
     expect(seen).toEqual([{ names: ['Hearthhull, the Worldseed'], recheck: true }])
-    expect(r.ok && r.health.sourceLine).toBe('EDHREC average deck, 33,879 decks')
-    expect(r.ok && r.health.roles.find((x) => x.role === 'lands')?.typical).toBe(41)
+    expect(r.ok && r.health.reference.label).toBe('EDHREC average deck, 33,879 decks')
+    expect(r.ok && r.health.rows.find((x) => x.kind === 'lands')?.reference).toBe(41)
   })
 })
 
@@ -220,36 +351,31 @@ function edhrecTargets(o: { lands: number | null; removal?: number }): Commander
   }
 }
 
-describe('buildDeckHealth with commander targets', () => {
-  const card = (name: string, typeLine: string, oracleText: string | null, quantity = 1): HealthDeckCard => ({ cardName: name, quantity, typeLine, oracleText, inMainDeck: true })
-  const removal = (n: number) => Array.from({ length: n }, (_, i) => card(`Kill ${i}`, 'Instant', 'Destroy target creature.'))
-
-  it('uses the EDHREC numbers, the "Average is" wording and the source on each row', () => {
-    const h = buildDeckHealth([...removal(7), card('Forest', 'Basic Land — Forest', null, 40)], edhrecTargets({ lands: 41 }))
-    const rem = h.roles.find((r) => r.role === 'removal')!
-    expect(rem).toMatchObject({ typical: 9, have: 7, state: 'light', targetSource: 'edhrec_average', text: 'Average is 9; you have 7.' })
-    expect(h.verdict.usingGeneralGuide).toBe(false)
-    expect(h.verdict.headline).not.toContain('general guide')
-    expect(h.strategy.text).toBe('Not set yet, using typical numbers')
-    expect(h.sourceLine).toBe('EDHREC average deck, 33,879 decks')
+describe('buildDeckHealth with commander numbers: EDHREC is a reference line only', () => {
+  const removal = (n: number) => copies(n, (i) => card(`Kill ${i}`, 'Instant', 'Destroy target creature.'))
+  it('no verdict reads the EDHREC numbers: the same deck gets the same rows with or without them', () => {
+    const deck = [...removal(7), card('Forest', 'Basic Land — Forest', null, 40)]
+    const withEdhrec = buildDeckHealth(deck, edhrecTargets({ lands: 41 }))
+    const without = buildDeckHealth(deck)
+    for (const k of HEALTH_KIND_ORDER) {
+      expect(row(withEdhrec, k)).toMatchObject({ have: row(without, k).have, verdict: row(without, k).verdict, range: row(without, k).range })
+    }
+    expect(row(withEdhrec, 'targeted_removal')).toMatchObject({ have: 7, verdict: 'light', reference: 9 })
+    expect(row(withEdhrec, 'lands')).toMatchObject({ have: 40, verdict: 'heavy', reference: 41 })
+    expect(row(without, 'targeted_removal').reference).toBeNull()
   })
-
-  it('lands are commander-specific: 40 lands is fine for a 41-land commander but would be judged against 34 elsewhere', () => {
-    const cards = [card('Forest', 'Basic Land — Forest', null, 38)]
-    expect(buildDeckHealth(cards, edhrecTargets({ lands: 41 })).roles.find((r) => r.role === 'lands')).toMatchObject({ typical: 41, state: 'light' })
-    expect(buildDeckHealth(cards, edhrecTargets({ lands: 34 })).roles.find((r) => r.role === 'lands')).toMatchObject({ typical: 34, state: 'ok' })
+  it('names the reference and fills each ranged row with its average (none for Game Plan)', () => {
+    const h = buildDeckHealth([], edhrecTargets({ lands: 41 }))
+    expect(h.reference).toEqual({ available: true, label: 'EDHREC average deck, 33,879 decks' })
+    expect(h.rows.map((r) => r.reference)).toEqual([41, 19, 8, 9, 2, null])
   })
-
-  it('with no EDHREC land number, Lands uses the guide (36) and says so', () => {
-    const lands = buildDeckHealth([], edhrecTargets({ lands: null })).roles.find((r) => r.role === 'lands')!
-    expect(lands).toMatchObject({ typical: 36, targetSource: 'general_guide', text: 'Guide is 36; you have 0.' })
+  it('thin data: no EDHREC average, the card types are shown instead', () => {
+    const thin = guideTargets('General guide', { typeCounts: [{ type: 'creature', average: 25 }], label: 'EDHREC averages, 61 decks' })
+    const h = buildDeckHealth(removal(6), thin)
+    expect(h.reference.available).toBe(false)
+    expect(h.rows.every((r) => r.reference === null)).toBe(true)
+    expect(h.typeCounts).toEqual([{ type: 'creature', average: 25, have: 0 }])
   })
-
-  it('a typical of 0 is never Light and reads "Not usually played"', () => {
-    const r = buildDeckHealth([], edhrecTargets({ lands: 41, removal: 0 })).roles.find((x) => x.role === 'removal')!
-    expect(r).toMatchObject({ state: 'ok', text: 'Not usually played' })
-  })
-
   it('type counts carry what the deck has, counted from the front face', () => {
     const h = buildDeckHealth([card('Bear', 'Creature — Bear', 'x', 3), card('Forest', 'Basic Land — Forest', null, 5), card('Mutavault', 'Land', null, 1)], edhrecTargets({ lands: 41 }))
     expect(h.typeCounts).toEqual([
@@ -258,22 +384,7 @@ describe('buildDeckHealth with commander targets', () => {
     ])
     expect(h.typeCountsLabel).toBe('EDHREC averages, 33,879 decks')
   })
-
-  it('thin data: general guide, with the card types shown instead', () => {
-    const thin = guideTargets('General guide', { typeCounts: [{ type: 'creature', average: 25 }], label: 'EDHREC averages, 61 decks' })
-    const h = buildDeckHealth(removal(6), thin)
-    expect(h.verdict.usingGeneralGuide).toBe(true)
-    expect(h.sourceLine).toBe('General guide')
-    expect(h.strategy.text).toBe('Not set yet, using the general guide')
-    expect(h.roles.every((r) => r.targetSource === 'general_guide')).toBe(true)
-    expect(h.typeCounts).toEqual([{ type: 'creature', average: 25, have: 0 }])
-  })
-
-  it('EDHREC unreachable with nothing saved: says so in the source line', () => {
-    expect(buildDeckHealth([], guideTargets("General guide (couldn't reach EDHREC)")).sourceLine).toBe("General guide (couldn't reach EDHREC)")
-  })
 })
-
 describe('countDeckTypes: Land takes priority', () => {
   const card = (cardName: string, typeLine: string | null, quantity = 1): HealthDeckCard => ({ cardName, quantity, typeLine, oracleText: null, inMainDeck: true })
   it('counts an Artifact Land as a land only, and still counts an Artifact Creature as both', () => {

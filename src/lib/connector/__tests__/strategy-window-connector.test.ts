@@ -9,23 +9,21 @@ import { CONNECTOR_TOOLS } from '../tools'
 import { mockDb, type RecordedQuery } from './mock-db'
 import { AI_LIMITS_NEW } from '../edit-config'
 import { STRATEGY_MAX } from '../../deck-strategy-window'
+import { buildDeckHealth } from '../../deck-health'
 import type { Gateway } from '../write-types'
 const U = 'user-1'
 const G = '11111111-2222-4333-8444-555555555555'
 const deckRow = (bracket: string | null = null) => ({ id: 1, name: 'Yedora', commander_name: 'Yedora, Grave Gardener', format: 'commander', bracket, card_count: 99 })
 const healthOk = async () => ({
   ok: true as const,
-  health: {
-    verdict: { headline: 'Looks healthy', subline: 'Two groups are a little light.', usingGeneralGuide: false },
-    strategy: { state: 'not_set' as const, text: '' },
-    sourceLine: 'EDHREC average deck, 12,431 decks',
-    checkState: 'full' as const,
-    unclassifiedCount: 0,
-    roles: [{ role: 'ramp', label: 'Ramp', have: 9, typical: 10, targetSource: 'edhrec_average', state: 'ok', text: '' }],
-    typeCounts: [],
-    typeCountsLabel: '',
-    computedAt: '2026-11-19T00:00:00Z',
-  },
+  health: buildDeckHealth(
+    [
+      { cardName: 'Forest', quantity: 36, typeLine: 'Basic Land — Forest', oracleText: null, inMainDeck: true },
+      { cardName: 'Sol Ring', quantity: 1, typeLine: 'Artifact', oracleText: '{T}: Add {C}{C}.', inMainDeck: true },
+    ],
+    undefined,
+    new Date('2026-11-19T00:00:00Z'),
+  ),
 }) as any
 function strategyDb(row: Record<string, unknown> | null, opts: { newColumns?: boolean; deck?: ReturnType<typeof deckRow> } = {}) {
   const newColumns = opts.newColumns ?? true
@@ -71,7 +69,16 @@ describe('get_deck: deck, strategy, health, cards, in that order', () => {
   })
   it('health is the short Deck health check; a failed check says so and is never a passing result', async () => {
     const ok = await get(strategyDb(null).db)
-    expect(ok.health).toMatchObject({ status: 'computed_now', headline: 'Looks healthy', source: 'EDHREC average deck, 12,431 decks', groups: [{ group: 'ramp', have: 9, typical: 10 }] })
+    expect(ok.health).toMatchObject({ status: 'computed_now', headline: '1 of 5 in range', source: 'No EDHREC average for this commander' })
+    expect(ok.health.groups.map((g: any) => [g.group, g.have, g.verdict])).toEqual([
+      ['lands', 36, 'ok'],
+      ['ramp', 1, 'light'],
+      ['card_advantage', 0, 'light'],
+      ['targeted_removal', 0, 'light'],
+      ['board_wipes', 0, 'light'],
+      ['game_plan', 0, null],
+    ])
+    expect(ok.health.groups[0].range).toEqual({ min: 35, max: 38 })
     const bad = await get(strategyDb(null).db, (async () => ({ ok: false, status: 500, error: 'EDHREC down' })) as any)
     expect(bad.health.status).toBe('unavailable')
     expect(bad.health.message).toMatch(/not the same as healthy/)

@@ -12,6 +12,7 @@ import { loadDeckHealth, type HealthClient, type TargetsProvider } from './deck-
 import { loadDeckGap } from './deck-health-gap'
 import { composeChatAnswer, loadDeckHealthForChat, summariseGap } from './deck-health-chat'
 import { healthChatQuestion } from './deck-health-chat-question'
+import { offRangeSubline } from './deck-health'
 import {
   DECK_BUILDING_TOOLS,
   DECK_CHAT_CONTEXT,
@@ -120,28 +121,28 @@ beforeEach(() => {
 
 describe('get_deck_health returns the same numbers as the Deck health route', () => {
   for (const [name, targets] of [['EDHREC average deck', edhrecTargets], ['General guide', guideTargets('General guide')]] as const) {
-    it(`${name}: roles, typical numbers, verdict and source label match`, async () => {
+    it(`${name}: rows, verdicts and the reference label match`, async () => {
       const db = fakeDb(world())
       const route = await loadDeckHealth(db, 1, 'u1', { targets: fixedTargets(targets) })
       const chat = await loadDeckHealthForChat(db, 1, 'u1', null, { targets: fixedTargets(targets) })
       if (!route.ok || !chat.ok) throw new Error('expected ok')
       const { chatAnswer, ...chatHealth } = chat.result
       expect(withoutTime(chatHealth)).toEqual(withoutTime(route.health))
-      expect(chatAnswer.sourceLine).toBe(targets.sourceLabel)
+      expect(chatAnswer.sourceLine).toBe(route.health.reference.label)
       expect(chatAnswer.headline).toBe(route.health.verdict.headline)
-      expect(chatAnswer.subline).toBe(route.health.verdict.subline)
-      expect(chatAnswer.lightRoles.map((r) => r.role)).toEqual(route.health.roles.filter((r) => r.state === 'light').map((r) => r.role))
+      expect(chatAnswer.subline).toBe(offRangeSubline(route.health))
+      expect(chatAnswer.lightRoles.map((r) => r.role)).toEqual(route.health.rows.filter((r) => r.verdict === 'light').map((r) => r.role))
       expect(chatAnswer.closing).toBe('Prices are estimates.')
     })
   }
 
-  it('shows Light roles with the panel\'s own text and the source label in words', async () => {
+  it('shows Light rows with the panel\'s own text and the reference label in words', async () => {
     const db = fakeDb(world())
     const chat = await loadDeckHealthForChat(db, 1, 'u1', null, { targets: fixedTargets(edhrecTargets) })
     if (!chat.ok) throw new Error('expected ok')
-    const removal = chat.result.roles.find((r) => r.role === 'removal')!
-    expect(removal.state).toBe('light')
-    expect(chat.result.chatAnswer.lightRoles).toContainEqual({ role: 'removal', text: `Removal: ${removal.text}` })
+    const removal = chat.result.rows.find((r) => r.kind === 'targeted_removal')!
+    expect(removal.verdict).toBe('light')
+    expect(chat.result.chatAnswer.lightRoles).toContainEqual({ role: 'removal', text: `Targeted Removal: ${removal.text}` })
     expect(chat.result.chatAnswer.sourceLine).toBe('EDHREC average deck, 12,431 decks')
   })
 
@@ -152,7 +153,7 @@ describe('get_deck_health returns the same numbers as the Deck health route', ()
     if (!gap.ok || !chat.ok) throw new Error('expected ok')
     const d = chat.result.roleDetail!
     expect(d).toEqual(summariseGap(gap.gap))
-    expect(d.have).toBe(chat.result.roles.find((r) => r.role === 'draw')!.have)
+    expect(d.have).toBe(chat.result.rows.find((r) => r.role === 'draw')!.have)
     expect(d.spare.map((c) => c.name)).toEqual(['Spare Draw'])
     expect(d.inAnotherDeck).toEqual([{ name: 'Held Draw', deckName: 'Korvold' }])
     expect(d.buyUnavailableReason).toBe('thin_data')
@@ -170,19 +171,24 @@ describe('get_deck_health returns the same numbers as the Deck health route', ()
     expect(boom).toEqual({ ok: false, status: 500, error: 'targets down' })
   })
 
-  it('composeChatAnswer on a well covered deck lists no Light roles', () => {
+  it('composeChatAnswer on a deck with every row in range lists no Light rows', () => {
     const answer = composeChatAnswer({
-      verdict: { headline: 'Well covered', subline: '', usingGeneralGuide: false },
-      strategy: { state: 'not_set', text: '' },
-      sourceLine: 'EDHREC estimate, 900 decks',
+      verdict: { headline: 'All 5 in range', inRange: 5, ranged: 5 },
+      rows: [],
       checkState: 'full',
       unclassifiedCount: 0,
-      roles: [],
+      mainDeckCount: 0,
+      rowsTotal: 0,
+      multiRowCards: 0,
+      manaSources: { total: 0, lands: 0, doubleFaced: 0, ramp: 0 },
+      notes: { manaSources: '', uncategorised: null, overlap: null },
+      reference: { available: true, label: 'EDHREC estimate, 900 decks' },
       typeCounts: [],
       typeCountsLabel: '',
       computedAt: '',
     })
     expect(answer.lightRoles).toEqual([])
+    expect(answer.subline).toBe('')
     expect(answer.sourceLine).toBe('EDHREC estimate, 900 decks')
   })
 })
@@ -222,8 +228,8 @@ describe('get_deck_health tool: registration and read-only behaviour', () => {
     const out = JSON.parse(res.content)
     const route = await loadDeckHealth(fakeDb(world()), 1, 'u1')
     if (!route.ok) throw new Error('expected ok')
-    expect(out.roles).toEqual(route.health.roles)
-    expect(out.sourceLine).toBe(route.health.sourceLine)
+    expect(out.rows).toEqual(route.health.rows)
+    expect(out.reference).toEqual(route.health.reference)
     expect(out.chatAnswer.closing).toBe('Prices are estimates.')
     // Read-only: only selects happened, no write, rpc or delete.
     expect(state.calls.filter((c) => c !== 'select' && !c.startsWith('from:'))).toEqual([])
@@ -263,7 +269,7 @@ describe('chat wording rules', () => {
 
   it('the button questions are plain words', () => {
     expect(healthChatQuestion()).toBe('What is my deck missing? Check my deck health.')
-    expect(healthChatQuestion('removal')).toBe('How is my removal looking? What could fill the gap?')
+    expect(healthChatQuestion('removal')).toBe('How is my targeted removal looking? What could fill the gap?')
     expect(healthChatQuestion('lands')).toContain('lands')
   })
 })

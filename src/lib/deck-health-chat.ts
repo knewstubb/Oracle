@@ -12,7 +12,7 @@
 import { formatPrice } from './deck-health-buy'
 import { loadDeckGap, type DeckHealthGap } from './deck-health-gap'
 import { loadDeckHealth, type HealthClient, type LoadHealthOptions } from './deck-health-server'
-import { HEALTH_ROLE_ORDER, ROLE_LABELS, type DeckHealthResponse, type HealthRoleKey } from './deck-health'
+import { HEALTH_ROLE_ORDER, ROLE_LABELS, offRangeSubline, type DeckHealthResponse, type HealthRange, type HealthRoleKey } from './deck-health'
 
 export interface DeckHealthChatAnswer {
   headline: string
@@ -27,7 +27,7 @@ export interface DeckHealthRoleSummary {
   role: HealthRoleKey
   label: string
   have: number
-  typical: number
+  range: HealthRange
   inDeckCount: number
   sourceLine: string
   spare: Array<{ name: string; spareCopies: number }>
@@ -62,9 +62,9 @@ export function isHealthRole(raw: unknown): raw is HealthRoleKey {
 export function composeChatAnswer(health: DeckHealthResponse): DeckHealthChatAnswer {
   return {
     headline: health.verdict.headline,
-    subline: health.verdict.subline,
-    sourceLine: health.sourceLine,
-    lightRoles: health.roles.filter((r) => r.state === 'light').map((r) => ({ role: r.role, text: `${r.label}: ${r.text}` })),
+    subline: offRangeSubline(health),
+    sourceLine: health.reference.label,
+    lightRoles: health.rows.flatMap((r) => (r.verdict === 'light' && r.role ? [{ role: r.role, text: `${r.label}: ${r.text}` }] : [])),
     closing: 'Prices are estimates.',
   }
 }
@@ -74,7 +74,7 @@ export function summariseGap(gap: DeckHealthGap): DeckHealthRoleSummary {
     role: gap.role,
     label: gap.label || ROLE_LABELS[gap.role],
     have: gap.have,
-    typical: gap.typical,
+    range: gap.range,
     inDeckCount: gap.inDeckCount,
     sourceLine: gap.sourceLine,
     spare: gap.spare.slice(0, SUMMARY_CAP).map((c) => ({ name: c.name, spareCopies: c.spareCopies })),

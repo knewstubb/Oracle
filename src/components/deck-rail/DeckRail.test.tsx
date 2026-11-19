@@ -3,18 +3,17 @@ import { render, fireEvent, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { DeckRail, type DeckRailProps } from './DeckRail'
+import { buildDeckHealth } from '@/lib/deck-health'
 
 const json = (status: number, body: unknown) => ({ ok: status < 400, status, json: async () => body })
-const HEALTH = {
-  verdict: { headline: 'Ramp is short', subline: '', usingGeneralGuide: false },
-  strategy: { state: 'not_set', text: '' },
-  sourceLine: 'EDHREC average deck, 12,431 decks',
-  checkState: 'full', unclassifiedCount: 0, typeCounts: [], typeCountsLabel: '', computedAt: '2026-11-19T10:00:00Z',
-  roles: [
-    { role: 'ramp', label: 'Ramp', have: 18, typical: 15, targetSource: 'edhrec_average', state: 'ok', text: '' },
-    { role: 'draw', label: 'Draw', have: 8, typical: 10, targetSource: 'edhrec_average', state: 'light', text: '' },
-  ],
-}
+// Real-shaped numbers for Yedora, the Explorer (audit section g), built by the shared health code.
+const HEALTH = buildDeckHealth([
+  { cardName: 'Forest', quantity: 37, typeLine: 'Basic Land — Forest', oracleText: null, inMainDeck: true },
+  ...Array.from({ length: 18 }, (_, i) => ({ cardName: `Rock ${i}`, quantity: 1, typeLine: 'Artifact', oracleText: '{T}: Add {G}.', inMainDeck: true })),
+  ...Array.from({ length: 6 }, (_, i) => ({ cardName: `Brain ${i}`, quantity: 1, typeLine: 'Sorcery', oracleText: 'Draw two cards.', inMainDeck: true })),
+  ...Array.from({ length: 6 }, (_, i) => ({ cardName: `Kill ${i}`, quantity: 1, typeLine: 'Instant', oracleText: 'Destroy target creature.', inMainDeck: true })),
+  ...Array.from({ length: 34 }, (_, i) => ({ cardName: `Beater ${i}`, quantity: 1, typeLine: 'Creature — Elf', oracleText: 'Trample', inMainDeck: true })),
+])
 const STATUSES = { cards: [], counts: { total: 100, original: 80, proxy: 5, available: 3, claimed: 10, unowned: 2, generic_land: 0 } }
 let health: () => unknown
 let statuses: () => Promise<unknown>
@@ -92,22 +91,94 @@ describe('DeckRail', () => {
     expect(screen.getAllByRole('button', { name: 'Try again' }).length).toBeGreaterThan(0)
   })
 
-  it('shows health as have / target with Met or Short and the source note', async () => {
+  it('shows six health rows with Light, Ok or Heavy, a plain Game Plan total, and the notes', async () => {
     renderRail(yedora())
-    const ramp = await screen.findByRole('button', { name: /^Ramp\s*18/ })
-    expect(ramp).toHaveTextContent('18 / 15')
-    expect(ramp).toHaveTextContent('Met')
-    expect(screen.getByRole('button', { name: /^Draw\s*8/ })).toHaveTextContent('Short')
-    expect(screen.getByText('EDHREC average deck, 12,431 decks')).toBeInTheDocument()
+    const rows = await screen.findByTestId('health-rows')
+    const items = within(rows).getAllByRole('button')
+    expect(items.map((b) => b.getAttribute('data-kind'))).toEqual(['lands', 'ramp', 'card_advantage', 'targeted_removal', 'board_wipes', 'game_plan'])
+    const row = (name: RegExp) => screen.getByRole('button', { name })
+    expect(row(/^Lands: 37 cards, ok/)).toHaveTextContent('Ok')
+    expect(row(/^Ramp: 18 cards, heavy, 6 above/)).toHaveTextContent('Heavy')
+    expect(row(/^Ramp: 18 cards/)).toHaveTextContent('Range 10 to 12 · 6 above')
+    expect(row(/^Card Advantage: 6 cards, light, 4 below/)).toHaveTextContent('Light')
+    expect(row(/^Targeted Removal: 6 cards, light/)).toHaveTextContent('Range 10 to 12 · 4 below')
+    expect(row(/^Board Wipes \/ Mass Disruption: 0 cards, light, 3 below/)).toHaveTextContent('Range 3 to 6 · 3 below')
+    const gp = row(/^Game Plan & Win Conditions: 34 cards\. A total, no range and no verdict/)
+    expect(gp).toHaveTextContent('Total')
+    expect(gp).toHaveTextContent('No range. Everything not counted above.')
+    expect(gp).not.toHaveTextContent(/Light|Ok|Heavy/)
+    expect(screen.getByRole('button', { name: /1 of 5 in range/ })).toBeInTheDocument()
+    expect(screen.getByText('Mana sources 55: 37 lands, 18 ramp cards. An estimate.')).toBeInTheDocument()
+    expect(screen.getByText('Ranges are the Command Zone template. Select a row for details.')).toBeInTheDocument()
+    expect(screen.queryByText(/Well covered|short|Met\b/i)).toBeNull()
   })
-
-  it('opens the existing health details from a row', async () => {
+  it('shows the six rows even at 0 cards', async () => {
+    health = () => json(200, buildDeckHealth([]))
+    renderRail(yedora())
+    const rows = await screen.findByTestId('health-rows')
+    expect(within(rows).getAllByRole('button')).toHaveLength(6)
+    expect(screen.getByRole('button', { name: /^Board Wipes \/ Mass Disruption: 0 cards, light/ })).toBeInTheDocument()
+  })
+  it('shows the double-faced line and the uncategorised and overlap notes only when they apply', async () => {
+    health = () =>
+      json(
+        200,
+        buildDeckHealth([
+          { cardName: 'Forest', quantity: 36, typeLine: 'Basic Land — Forest', oracleText: null, inMainDeck: true },
+          { cardName: 'Smash // Sanctuary', quantity: 2, typeLine: 'Sorcery // Land', oracleText: 'Draw a card.', inMainDeck: true },
+          { cardName: 'Ghost', quantity: 1, typeLine: 'Creature', oracleText: null, inMainDeck: true },
+          { cardName: 'Damn', quantity: 1, typeLine: 'Sorcery', oracleText: 'Destroy target creature. Overload {2}{W}{W}', inMainDeck: true },
+        ]),
+      )
+    renderRail(yedora())
+    const lands = await screen.findByRole('button', { name: /^Lands: 36 cards/ })
+    expect(lands).toHaveTextContent('+ 2 double-faced')
+    expect(screen.getByText(/Mana sources 38: 36 lands, 2 double-faced/)).toBeInTheDocument()
+    expect(screen.getByText('1 card has no card text yet, so Oracle could not place it. It is counted in Game Plan & Win Conditions.')).toBeInTheDocument()
+    expect(screen.getByText(/1 card counts in more than one row, so the rows add to/)).toBeInTheDocument()
+  })
+  it('opens the details panel from a row: range, source, first six cards, "and N more", the reference, and back to the overview', async () => {
     const user = userEvent.setup()
     renderRail(yedora())
-    await user.click(await screen.findByRole('button', { name: /^Draw\s*8/ }))
-    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: /^Ramp: 18 cards/ }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByRole('heading', { name: 'Ramp' })).toBeInTheDocument()
+    expect(within(dialog).getByText('You have 18 cards, 6 above the maximum of 12.')).toBeInTheDocument()
+    expect(within(dialog).getByText('Range: 10 to 12')).toBeInTheDocument()
+    expect(within(dialog).getByText('Default. The Command Zone template.')).toBeInTheDocument()
+    expect(within(dialog).getByText('and 12 more')).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Deck health' }))
+    expect(within(dialog).getByRole('heading', { name: 'Deck health' })).toBeInTheDocument()
+    expect(within(dialog).getAllByRole('button', { name: /Open details\.$/ })).toHaveLength(6)
+    expect(within(dialog).getByText('For reference only: the average EDHREC deck for this commander')).toBeInTheDocument()
   })
-
+  it('a Light row opens the existing "cards that fill it" list inside its details', async () => {
+    const user = userEvent.setup()
+    renderRail(yedora())
+    await user.click(await screen.findByRole('button', { name: /^Card Advantage: 6 cards/ }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByRole('region', { name: 'Cards that could fill it' })).toBeInTheDocument()
+    expect(vi.mocked(fetch).mock.calls.some(([u]) => String(u).includes('/health/gap?role=draw'))).toBe(true)
+  })
+  it('the Game Plan row opens a total with the quiet template note and no range', async () => {
+    const user = userEvent.setup()
+    renderRail(yedora())
+    await user.click(await screen.findByRole('button', { name: /^Game Plan & Win Conditions: 34 cards/ }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(/It is a total, so it has no range and no verdict/)).toBeInTheDocument()
+    expect(within(dialog).getByText('The Command Zone template suggests about 25 to 30 here. That is a guide only.')).toBeInTheDocument()
+    expect(within(dialog).queryByText(/^Range:/)).toBeNull()
+  })
+  it('Escape closes the panel and focus returns to the row that opened it', async () => {
+    const user = userEvent.setup()
+    renderRail(yedora())
+    const lands = await screen.findByRole('button', { name: /^Lands: 37 cards/ })
+    await user.click(lands)
+    await screen.findByRole('dialog')
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(lands).toHaveFocus())
+  })
   it('prints every curve value in a text alternative and names cards without a cost', () => {
     renderRail(yedora())
     const chart = screen.getByRole('img', { name: /Mana curve/ })

@@ -64,7 +64,7 @@ function connectorDb(opts: { failOn?: string } = {}) {
 }
 
 describe('get_deck_health, live (CC-06d)', () => {
-  it('gives the same numbers and verdict as the Deck health screen for the same deck', async () => {
+  it('gives the same six rows, numbers and verdicts as the Deck health screen for the same deck', async () => {
     const app = await loadDeckHealth(appFake({ decks: DECKS, deck_cards: CARDS, ref_cards: REF }), 1, U, { targets: guide })
     expect(app.ok).toBe(true)
     const { db } = connectorDb()
@@ -73,6 +73,11 @@ describe('get_deck_health, live (CC-06d)', () => {
     const { computedAt: _a, ...appHealth } = (app as any).health // eslint-disable-line @typescript-eslint/no-unused-vars
     const { computedAt: _b, ...toolHealth } = r.health // eslint-disable-line @typescript-eslint/no-unused-vars
     expect(toolHealth).toEqual(appHealth) // the same answer apart from the time of the check
+    expect(toolHealth.rows).toEqual(appHealth.rows)
+    expect(toolHealth.rows.map((x: any) => x.kind)).toEqual(['lands', 'ramp', 'card_advantage', 'targeted_removal', 'board_wipes', 'game_plan'])
+    expect(toolHealth.rows.map((x: any) => x.have)).toEqual([30, 2, 0, 1, 0, 0])
+    expect(toolHealth.rows.map((x: any) => x.verdict)).toEqual(['light', 'light', 'light', 'light', 'light', null])
+    expect(toolHealth.verdict.headline).toBe('0 of 5 in range')
     expect(Number.isNaN(Date.parse(r.computedAt))).toBe(false)
   })
 
@@ -108,13 +113,15 @@ describe('get_deck_health, live (CC-06d)', () => {
     expect(r).toMatchObject({ ok: false, error: { code: 'HEALTH_FAILED' } })
   })
 
-  it('a commander with nothing saved still answers, and the source line says which guide was used', async () => {
+  it('a commander with nothing saved still answers with the six rows, and the reference line says there is no average', async () => {
     const { db } = connectorDb()
-    // The built-in connector provider, with no commander on the deck: general guide, no network.
+    // The built-in connector provider, with no commander on the deck: no EDHREC average, no network.
     const r = (await getDeckHealth({ db, userId: U }, { deck_id: 1 })) as any
     expect(r.ok).toBe(true)
-    expect(r.health.sourceLine).toBe(GUIDE_LABEL)
-    expect(r.note).toBe(GUIDE_LABEL)
+    expect(r.health.rows).toHaveLength(6)
+    expect(r.health.reference).toEqual({ available: false, label: 'No EDHREC average for this commander' })
+    expect(r.note).toMatch(/Game Plan & Win Conditions is a plain total with no range and no verdict/)
+    expect(r.note).toMatch(/EDHREC average is for reference only/)
   })
 
   it('every owner-table query carries the user id; only card library tables are shared', async () => {
@@ -129,25 +136,30 @@ describe('get_deck_health, live (CC-06d)', () => {
 })
 
 describe('get_deck_health, slow commander numbers (CC-06 follow-up)', () => {
-  it('gives up after the time limit and answers with a clearly labelled general guide, saving nothing', async () => {
+  it('gives up after the time limit and answers with the six rows and a plain no-average reference, saving nothing', async () => {
     const { db, queries } = connectorDb()
     const never = () => new Promise<never>(() => {}) // EDHREC never answers
     const r = (await getDeckHealth({ db, userId: U }, { deck_id: 1 }, never, undefined, 20)) as any
     expect(r.ok).toBe(true)
     expect(r.status).toBe('computed_now')
-    expect(r.health.sourceLine).toBe(GUIDE_TIMEOUT_LABEL)
-    expect(r.health.sourceLine).toMatch(/General guide/)
-    expect(r.health.sourceLine).toMatch(/not this commander's average/)
-    expect(r.health.sourceLine).not.toMatch(/EDHREC average deck/)
-    expect(r.note).toBe(GUIDE_TIMEOUT_LABEL) // said out loud to Claude, not silent
+    expect(GUIDE_TIMEOUT_LABEL).toMatch(/took too long/)
+    expect(r.health.rows).toHaveLength(6) // the rows never wait for EDHREC
+    expect(r.health.reference).toEqual({ available: false, label: 'No EDHREC average just now (EDHREC could not be reached)' })
+    expect(r.health.rows.every((x: any) => x.reference === null)).toBe(true)
     expect(queries.every((q) => !['insert', 'upsert', 'update', 'delete'].includes((q as any).op ?? ''))).toBe(true)
   })
 
   it('a provider that answers in time is used as normal', async () => {
     const { db } = connectorDb()
-    const quick = async () => guideTargets('EDHREC average deck, 500 decks')
+    const quick = async () => ({
+      ...guideTargets('EDHREC average deck, 500 decks'),
+      status: 'ok' as const,
+      source: 'edhrec_average' as const,
+      roles: (['ramp', 'draw', 'removal', 'wipes'] as const).map((role) => ({ role, typical: 9, cardsInRole: 9 })),
+      landsTypical: 36,
+    })
     const r = (await getDeckHealth({ db, userId: U }, { deck_id: 1 }, quick, undefined, 1000)) as any
-    expect(r.health.sourceLine).toBe('EDHREC average deck, 500 decks')
+    expect(r.health.reference.label).toBe('EDHREC average deck, 500 decks')
   })
 
   it('the time limit is about 8 seconds', () => {

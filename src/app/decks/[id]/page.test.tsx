@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { buildDeckHealth } from '@/lib/deck-health'
 
 vi.mock('next/navigation', () => ({
   useParams: () => ({ id: '7' }),
@@ -44,12 +45,10 @@ const DECK = {
   ],
   brewSessionId: null,
 }
-const HEALTH = {
-  verdict: { headline: 'Ramp is short', subline: '', usingGeneralGuide: false },
-  strategy: { state: 'not_set', text: '' }, sourceLine: 'EDHREC average deck', checkState: 'full', unclassifiedCount: 0,
-  typeCounts: [], typeCountsLabel: '', computedAt: '2026-11-19T10:00:00Z',
-  roles: [{ role: 'ramp', label: 'Ramp', have: 18, typical: 15, targetSource: 'edhrec_average', state: 'ok', text: '' }],
-}
+const HEALTH = buildDeckHealth([
+  { cardName: 'Forest', quantity: 36, typeLine: 'Basic Land — Forest', oracleText: null, inMainDeck: true },
+  { cardName: 'Sol Ring', quantity: 1, typeLine: 'Artifact', oracleText: '{T}: Add {C}{C}.', inMainDeck: true },
+])
 const STATUSES = { cards: [], counts: { total: 102, original: 80, proxy: 5, available: 3, claimed: 10, unowned: 2, generic_land: 0 } }
 const WINDOW = { configured: false, bracket: null, summary: '', strategy: '', playgroup: '', updatedBy: null, updatedAt: null, canStoreNewFields: true, implied: null }
 

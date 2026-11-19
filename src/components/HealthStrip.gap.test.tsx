@@ -18,9 +18,9 @@ const health = buildDeckHealth([
 
 const gap: DeckHealthGap = {
   role: 'draw',
-  label: 'Draw',
+  label: 'Card Advantage',
   have: 1,
-  typical: 10,
+  range: { min: 10, max: 12 },
   inDeckCount: 1,
   inDeckCards: [{ name: 'Divination', quantity: 1 }],
   spare: [{ name: 'Spare Draw', typeLine: 'Sorcery', status: 'SPARE', otherDeckName: null, spareCopies: 1, printingId: null, detailLine: null }],
@@ -53,10 +53,10 @@ describe('HealthStrip → panel → gap detail (whole path, fake network)', () =
       ),
     )
     render(<Harness />)
-    const pill = await screen.findByRole('button', { name: /^Draw 1 of 10/ })
+    const pill = await screen.findByRole('button', { name: /^Card Advantage 1, range 10 to 12, light/ })
     fireEvent.click(pill)
-    expect(await screen.findByRole('heading', { name: 'Draw' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Card Advantage' })).toBeInTheDocument()
     expect(await screen.findByText('Spare Draw')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /See the 1 draw cards already in this deck/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /See the 1 card advantage cards already in this deck/ })).toBeInTheDocument()
   })
 })

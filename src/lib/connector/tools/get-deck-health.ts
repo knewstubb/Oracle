@@ -10,6 +10,8 @@ export const getDeckHealthInput = z.strictObject({
   deck_id: z.number().int().positive().describe('The deck id from list_decks.'),
 })
 
+const NOTE =
+  'Six rows, always shown: Lands, Ramp, Card Advantage, Targeted Removal, Board Wipes / Mass Disruption and Game Plan & Win Conditions. The first five are checked against the Command Zone template ranges (Light below the minimum, Ok inside, Heavy above the maximum). Game Plan & Win Conditions is a plain total with no range and no verdict. The EDHREC average is for reference only. These are the same six rows the Deck health screen shows.'
 const FAILED = 'The deck health check could not be completed. This is not the same as healthy. Try again in a moment.'
 
 /**
@@ -34,8 +36,7 @@ export async function getDeckHealth(
     status: 'computed_now',
     computedAt: now().toISOString(),
     health: r.health,
-    // Said out loud when the commander's typical numbers are older or are the general guide.
-    ...(/out of date|couldn't reach|General guide/i.test(r.health.sourceLine) ? { note: r.health.sourceLine } : {}),
+    note: NOTE,
   }
   return result as unknown as ToolOutput
 }

@@ -25,7 +25,7 @@ const health = buildDeckHealth([
 ])
 
 const gap = {
-  role: 'draw', label: 'Draw', have: 1, typical: 10, inDeckCount: 1, inDeckCards: [{ name: 'Divination', quantity: 1 }],
+  role: 'draw', label: 'Card Advantage', have: 1, range: { min: 10, max: 12 }, inDeckCount: 1, inDeckCards: [{ name: 'Divination', quantity: 1 }],
   spare: [], inAnotherDeck: [], coloursKnown: true, spareTotal: 0, inAnotherDeckTotal: 0, buyIdeas: [], buyDefaultOpen: true,
   nothingOwnedFits: true, buyUnavailableReason: null, sourceLine: 'General guide',
 }
@@ -56,18 +56,18 @@ describe('Chat about this', () => {
   it('the role button sends a question about that role', async () => {
     stubFetch()
     render(<Harness />)
-    fireEvent.click(await screen.findByRole('button', { name: /^Draw 1 of 10/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /^Card Advantage 1, range 10 to 12, light/ }))
     fireEvent.click(await screen.findByRole('button', { name: 'Chat about this' }))
     expect(oracle.open).toHaveBeenCalledTimes(1)
-    expect(oracle.sendMessage).toHaveBeenCalledWith('How is my draw looking? What could fill the gap?')
+    expect(oracle.sendMessage).toHaveBeenCalledWith('How is my card advantage looking? What could fill the gap?')
   })
 
   it('no button when the chat is not available', async () => {
     oracle.present = false
     stubFetch()
     render(<Harness />)
-    fireEvent.click(await screen.findByRole('button', { name: /^Draw 1 of 10/ }))
-    await screen.findByRole('heading', { name: 'Draw' })
+    fireEvent.click(await screen.findByRole('button', { name: /^Card Advantage 1, range 10 to 12, light/ }))
+    await screen.findByRole('heading', { name: 'Card Advantage' })
     expect(screen.queryByRole('button', { name: 'Chat about this' })).not.toBeInTheDocument()
   })
 
@@ -76,7 +76,7 @@ describe('Chat about this', () => {
     const client = new QueryClient()
     render(
       <QueryClientProvider client={client}>
-        <DeckHealthPanel open onClose={() => {}} data={health} isLoading={false} isError={false} onRetry={() => {}} deckId={7} gapRole={null} onGapRole={() => {}} onChat={onChat} />
+        <DeckHealthPanel open onClose={() => {}} data={health} isLoading={false} isError={false} onRetry={() => {}} deckId={7} selected={null} onSelect={() => {}} onChat={onChat} />
       </QueryClientProvider>,
     )
     const btn = screen.getByRole('button', { name: 'Chat about this' })

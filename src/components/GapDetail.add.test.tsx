@@ -15,7 +15,7 @@ const gap = (over: Partial<DeckHealthGap> = {}): DeckHealthGap => ({
   role: 'draw',
   label: 'Draw',
   have: 3,
-  typical: 10,
+  range: { min: 10, max: 12 },
   inDeckCount: 3,
   inDeckCards: [],
   spare: [{ name: 'Spare Draw', typeLine: 'Sorcery', status: 'SPARE', otherDeckName: null, spareCopies: 52, printingId: null, detailLine: null }],

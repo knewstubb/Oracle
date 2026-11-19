@@ -14,7 +14,7 @@ import { HealthPill } from '@/components/HealthPill'
 import { DeckHealthButton } from '@/components/DeckHealthButton'
 import { DeckHealthPanel } from '@/components/DeckHealthPanel'
 import { deckKeys } from '@/hooks/useDeckQueryKeys'
-import type { DeckHealthResponse, HealthRoleKey } from '@/lib/deck-health'
+import type { DeckHealthResponse, HealthKind, HealthRoleKey } from '@/lib/deck-health'
 
 export interface HealthStripProps {
   deckId: number
@@ -22,10 +22,10 @@ export interface HealthStripProps {
 
 export function HealthStrip({ deckId }: HealthStripProps) {
   const [panelOpen, setPanelOpen] = useState(false)
-  const [gapRole, setGapRole] = useState<HealthRoleKey | null>(null)
+  const [selected, setSelected] = useState<HealthKind | null>(null)
 
-  const openPanel = (role: HealthRoleKey | null) => {
-    setGapRole(role)
+  const openPanel = (kind: HealthKind | null) => {
+    setSelected(kind)
     setPanelOpen(true)
   }
 
@@ -50,7 +50,7 @@ export function HealthStrip({ deckId }: HealthStripProps) {
       }
     : undefined
 
-  const anyLight = !!data && data.roles.some((r) => r.state === 'light')
+  const anyOff = !!data && data.verdict.inRange !== data.verdict.ranged
 
   // The strip lives in the app footer (shared with the Oracle chat input). If the footer slot
   // isn't on the page (e.g. in isolated tests), fall back to rendering in place.
@@ -83,18 +83,10 @@ export function HealthStrip({ deckId }: HealthStripProps) {
 
         {data && !isError && (
           <>
-            <DeckHealthButton state={anyLight ? 'light' : 'ok'} headline={data.verdict.headline} onClick={() => openPanel(null)} />
+            <DeckHealthButton state={anyOff ? 'light' : 'ok'} headline={data.verdict.headline} onClick={() => openPanel(null)} />
             <div role="group" aria-label="Role counts" className="flex items-center gap-1">
-              {data.roles.map((r) => (
-                <HealthPill
-                  key={r.role}
-                  label={r.label}
-                  have={r.have}
-                  typical={r.typical}
-                  state={r.state}
-                  isGeneralGuide={r.targetSource === 'general_guide'}
-                  onClick={() => openPanel(r.state === 'light' ? r.role : null)}
-                />
+              {data.rows.map((r) => (
+                <HealthPill key={r.kind} label={r.label} have={r.have} range={r.range} verdict={r.verdict} onClick={() => openPanel(r.kind)} />
               ))}
             </div>
           </>
@@ -118,8 +110,8 @@ export function HealthStrip({ deckId }: HealthStripProps) {
         isError={isError}
         onRetry={() => void refetch()}
         deckId={deckId}
-        gapRole={gapRole}
-        onGapRole={setGapRole}
+        selected={selected}
+        onSelect={setSelected}
         onChat={onChat}
       />
     </>

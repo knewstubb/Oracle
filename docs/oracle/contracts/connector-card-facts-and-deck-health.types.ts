@@ -42,7 +42,7 @@ export type DeckHealthToolResult =
       computedAt: string // ISO time of this check
       /** Same object the Deck health screen gets from GET /api/decks/[id]/health (DeckHealthResponse in src/lib/deck-health.ts). */
       health: unknown
-      /** Set when the commander's typical numbers could not be refreshed and an older or general guide was used. Mirrors health.sourceLine. */
+      /** Always set from HC-01: says what the six rows are and that the EDHREC average is for reference only. */
       note?: string
     }
   | { ok: false; error: 'NOT_FOUND' | 'LOOKUP_FAILED' | 'HEALTH_FAILED'; message: string }

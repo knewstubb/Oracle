@@ -105,7 +105,7 @@ describe('loadDeckGap', () => {
     const health = await loadDeckHealth(db, 1, 'u1')
     expect(gap.ok && health.ok).toBe(true)
     if (!gap.ok || !health.ok) return
-    const pill = health.health.roles.find((r) => r.role === 'draw')!.have
+    const pill = health.health.rows.find((r) => r.role === 'draw')!.have
     expect(pill).toBe(2)
     expect(gap.gap.have).toBe(pill)
     expect(gap.gap.inDeckCount).toBe(pill)
@@ -131,10 +131,10 @@ describe('loadDeckGap', () => {
     expect(gap.gap.spare.map((c) => c.name)).toEqual(['Spare Land'])
     expect(gap.gap.inDeckCount).toBe(21) // Command Tower + 20 Mountain
     expect(gap.gap.have).toBe(21)
-    expect(gap.gap.typical).toBe(36)
+    expect(gap.gap.range).toEqual({ min: 35, max: 38 })
   })
 
-  it('uses the same commander typical numbers as the health check (lands 34 for Mendicant Core)', async () => {
+  it('uses the same EDHREC reference as the health check (lands 34 for Mendicant Core), while the range stays the template', async () => {
     const db = fakeDb(world())
     const seen: string[][] = []
     const targets = async (_db: unknown, names: string[]) => {
@@ -152,8 +152,10 @@ describe('loadDeckGap', () => {
     const health = await loadDeckHealth(db, 1, 'u1', { targets })
     if (!gap.ok || !health.ok) throw new Error('expected ok')
     expect(seen[0]).toEqual(['Mendicant Core'])
-    expect(gap.gap.typical).toBe(34)
-    expect(health.health.roles.find((r) => r.role === 'lands')!.typical).toBe(34)
+    expect(gap.gap.sourceLine).toBe('EDHREC average deck, 17,659 decks')
+    expect(health.health.reference.label).toBe('EDHREC average deck, 17,659 decks')
+    expect(gap.gap.range).toEqual(health.health.rows.find((r) => r.role === 'lands')!.range)
+    expect(health.health.rows.find((r) => r.role === 'lands')!.reference).toBe(34)
   })
 
   it("another user's deck is a 404 and nothing is read from their cards", async () => {

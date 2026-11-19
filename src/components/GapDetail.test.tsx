@@ -13,7 +13,7 @@ const gap = (over: Partial<DeckHealthGap> = {}): DeckHealthGap => ({
   role: 'draw',
   label: 'Draw',
   have: 3,
-  typical: 10,
+  range: { min: 10, max: 12 },
   inDeckCount: 3,
   inDeckCards: [{ name: 'Night\'s Whisper', quantity: 1 }],
   spare: [{ name: 'Spare Draw', typeLine: 'Sorcery', status: 'SPARE', otherDeckName: null, spareCopies: 1, printingId: 'abcd1234-0000-0000-0000-000000000000', detailLine: 'Draws two cards.' }],

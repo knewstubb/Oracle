@@ -5,7 +5,7 @@ import { loadDeckHealth } from '@/lib/deck-health-server'
 
 /**
  * GET /api/decks/[id]/health
- * Deck health for one of the signed-in user's decks: four roles against the general guide.
+ * Deck health for one of the signed-in user's decks: six rows (Lands, Ramp, Card Advantage, Targeted Removal, Board Wipes / Mass Disruption, Game Plan & Win Conditions) against the Command Zone ranges.
  * Computed on request, nothing stored. Another user's deck is a 404; a failure is a real error (500), never a pass.
  */
 export async function GET(

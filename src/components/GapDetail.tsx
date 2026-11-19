@@ -21,6 +21,8 @@ export interface GapDetailProps {
   onBack: () => void
   /** Opens the Oracle chat with a question about this role. Omitted: no button. */
   onChat?: () => void
+  /** Shown inside a row's detail view: no back button, heading or count line (the row view already shows them). */
+  embedded?: boolean
 }
 
 /** Screen gives up after this long. Development gets longer: the first request also compiles the route. */
@@ -195,7 +197,7 @@ export function gapErrorReason(err: unknown): string {
   return 'unknown error'
 }
 
-export function GapDetail({ deckId, role, onBack, onChat }: GapDetailProps) {
+export function GapDetail({ deckId, role, onBack, onChat, embedded = false }: GapDetailProps) {
   const [showInDeck, setShowInDeck] = useState(false)
   const [pinned, setPinned] = useState<Record<string, GapCard>>({})
   const { data, error, isPending, isError, refetch } = useQuery<DeckHealthGap>({
@@ -240,10 +242,12 @@ export function GapDetail({ deckId, role, onBack, onChat }: GapDetailProps) {
 
   return (
     <div className="space-y-3">
-      <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2 min-h-11">
-        <ChevronLeft aria-hidden="true" />
-        Deck health
-      </Button>
+      {!embedded && (
+        <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2 min-h-11">
+          <ChevronLeft aria-hidden="true" />
+          Deck health
+        </Button>
+      )}
 
       {isLoading && (
         <div role="status" className="space-y-2">
@@ -274,15 +278,21 @@ export function GapDetail({ deckId, role, onBack, onChat }: GapDetailProps) {
       {data && (
         <>
           <div>
-            <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-              {data.label}
-            </h3>
-            <p className="text-[length:var(--fs-base)]" style={{ color: 'var(--text-primary)' }}>
-              {data.label}: {data.have} of {data.typical}
-            </p>
-            <p data-testid="gap-source-line" className="text-[length:var(--fs-sm)]" style={{ color: 'var(--text-secondary)' }}>
-              {data.sourceLine || 'General guide'}
-            </p>
+            {!embedded && (
+              <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
+                {data.label}
+              </h3>
+            )}
+            {!embedded && (
+              <>
+                <p className="text-[length:var(--fs-base)]" style={{ color: 'var(--text-primary)' }}>
+                  {data.label}: {data.have}. Range {data.range.min} to {data.range.max}.
+                </p>
+                <p className="text-[length:var(--fs-sm)]" style={{ color: 'var(--text-secondary)' }}>
+                  For reference only: <span data-testid="gap-source-line">{data.sourceLine || 'No EDHREC average for this commander'}</span>
+                </p>
+              </>
+            )}
             {onChat && (
               <Button variant="outline" size="sm" onClick={onChat} className="mt-2 h-8 px-2.5 text-[length:var(--fs-sm)]">
                 <MessageCircle aria-hidden="true" />

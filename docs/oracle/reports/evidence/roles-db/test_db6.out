@@ -25,7 +25,7 @@
 
 == DB-6 on a wrong base (DB-5 rolled back) is refused
 -- apply 20261118120400_roles_db5_health_targets.rollback.sql
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118140000_roles_db6_deck_strategy.draft.sql:41: ERROR:  apply roles_db5 first
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118140000_roles_db6_deck_strategy.draft.sql:41: ERROR:  apply roles_db5 first
  chk 
 -----
  
@@ -553,7 +553,7 @@ psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy
 
 == The one-time copy of written win conditions (DB-6b)
 -- apply 20261118140100_roles_db6b_copy_win_conditions.draft.sql
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118140100_roles_db6b_copy_win_conditions.draft.sql:41: NOTICE:  win condition copy: 3 decks copied, 1 skipped as too long (over 300 characters), 1 skipped because the deck is full, 2 have no written win condition
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118140100_roles_db6b_copy_win_conditions.draft.sql:41: NOTICE:  win condition copy: 3 decks copied, 1 skipped as too long (over 300 characters), 1 skipped because the deck is full, 2 have no written win condition
  chk 
 -----
  
@@ -570,13 +570,13 @@ psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy
 (1 row)
 
 -- apply 20261118140100_roles_db6b_copy_win_conditions.draft.sql
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118140100_roles_db6b_copy_win_conditions.draft.sql:41: NOTICE:  win condition copy: 0 decks copied, 1 skipped as too long (over 300 characters), 1 skipped because the deck is full, 2 have no written win condition
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118140100_roles_db6b_copy_win_conditions.draft.sql:41: NOTICE:  win condition copy: 0 decks copied, 1 skipped as too long (over 300 characters), 1 skipped because the deck is full, 2 have no written win condition
  chk 
 -----
  
 (1 row)
 
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118140100_roles_db6b_copy_win_conditions.rollback.sql:16: ERROR:  cannot roll back: a copied win condition was changed since the copy
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118140100_roles_db6b_copy_win_conditions.rollback.sql:16: ERROR:  cannot roll back: a copied win condition was changed since the copy
  chk 
 -----
  
@@ -589,23 +589,23 @@ psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy
 (1 row)
 
 == Rollback: refuses while rows or log rows exist; later drafts refuse while DB-6 is applied
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118140000_roles_db6_deck_strategy.rollback.sql:21: ERROR:  cannot roll back: ai_change_log or ai_pending_changes has strategy_item or job_link rows
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120400_roles_db5_health_targets.rollback.sql:19: ERROR:  roll back roles_db6 first (its front doors sit on top of DB-5's)
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120300_roles_db4_strategy_points.rollback.sql:17: ERROR:  cannot roll back: ai_change_log or ai_pending_changes has strategy_point rows
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120200_roles_db3_deck_card_jobs.rollback.sql:19: ERROR:  roll back roles_db6 first (job links need jobs)
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120100_roles_db2_change_kinds.rollback.sql:17: ERROR:  roll back roles_db5, roles_db4 and roles_db3 first
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118140000_roles_db6_deck_strategy.rollback.sql:21: ERROR:  cannot roll back: ai_change_log or ai_pending_changes has strategy_item or job_link rows
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118120400_roles_db5_health_targets.rollback.sql:19: ERROR:  roll back roles_db6 first (its front doors sit on top of DB-5's)
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118120300_roles_db4_strategy_points.rollback.sql:17: ERROR:  cannot roll back: ai_change_log or ai_pending_changes has strategy_point rows
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118120200_roles_db3_deck_card_jobs.rollback.sql:19: ERROR:  roll back roles_db6 first (job links need jobs)
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118120100_roles_db2_change_kinds.rollback.sql:17: ERROR:  roll back roles_db5, roles_db4 and roles_db3 first
  chk 
 -----
  
 (1 row)
 
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118140000_roles_db6_deck_strategy.rollback.sql:21: ERROR:  cannot roll back: ai_change_log or ai_pending_changes has strategy_item or job_link rows
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118140000_roles_db6_deck_strategy.rollback.sql:21: ERROR:  cannot roll back: ai_change_log or ai_pending_changes has strategy_item or job_link rows
  chk 
 -----
  
 (1 row)
 
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118140000_roles_db6_deck_strategy.rollback.sql:21: ERROR:  cannot roll back: deck_strategy_items or deck_job_serves holds rows (set oracle.rollback_allow_data_loss = 'yes' in this session to delete them)
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118140000_roles_db6_deck_strategy.rollback.sql:21: ERROR:  cannot roll back: deck_strategy_items or deck_job_serves holds rows (set oracle.rollback_allow_data_loss = 'yes' in this session to delete them)
  chk 
 -----
  
@@ -729,16 +729,16 @@ psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy
   72 | F6-90 120 links apply at once: 120 rows, 120 log rows, one batch                                                                                                                                                                                                            | PASS   | {"ok": true, "res": {"plan": {"n": 120, "cards": [{"result": "proposed", "serves": {"id": 33, "kind": "item"}, "slot_id": 17, "card_name": "
   73 | F6-91 121 links wait for the owner as over_ten and write nothing yet                                                                                                                                                                                                        | PASS   | {"ok": true, "res": {"plan": {"n": 121, "cards": [{"result": "proposed", "serves": {"id": 34, "kind": "item"}, "slot_id": 147, "card_name": 
   74 | F6-92 201 links are refused outright (too_many_cards)                                                                                                                                                                                                                       | PASS   | 
-  75 | F6-93 approving the held request applies the 121 links, marked approved by the owner, and Claude cannot undo an approved batch (owner_only)                                                                                                                                 | PASS   | {"ok": true, "res": {"count": 121, "outcome": "approved", "success": true, "group_id": "d1b3081a-cf13-4324-bcb3-aacb51fe24c4"}}
+  75 | F6-93 approving the held request applies the 121 links, marked approved by the owner, and Claude cannot undo an approved batch (owner_only)                                                                                                                                 | PASS   | {"ok": true, "res": {"count": 121, "outcome": "approved", "success": true, "group_id": "73a198db-e21d-4511-ac12-c580ab57e5bc"}}
   76 | F6-94 rows the owner approved do not count toward the 30-minute total, so a small follow-up request for the same deck applies at once                                                                                                                                       | PASS   | {"ok": true, "res": {"plan": {"n": 4, "cards": [{"result": "proposed", "serves": {"id": 34, "kind": "item"}, "slot_id": 268, "card_name": "H
   77 | F6-96 deleting a deck removes its items and its links (cascade)                                                                                                                                                                                                             | PASS   | 
-  78 | F6-100 no Claude numbers yet: claude_set_at is null and stale is false even though the deck has strategy                                                                                                                                                                    | PASS   | {"stale": false, "claude_set_at": null, "strategy_changed_at": "2026-11-19T10:36:20.122903+13:00"}
-  79 | F6-101 targets set after the last strategy change: not stale                                                                                                                                                                                                                | PASS   | {"stale": false, "claude_set_at": "2026-11-19T10:36:23.385357+13:00", "strategy_changed_at": "2026-11-19T10:36:23.238689+13:00"}
-  80 | F6-102 the owner edits an item after Claude set the numbers: stale                                                                                                                                                                                                          | PASS   | {"stale": true, "claude_set_at": "2026-11-19T10:36:23.385357+13:00", "strategy_changed_at": "2026-11-19T10:36:23.38778+13:00"}
-  81 | F6-103 Claude sets the numbers again: stale is cleared                                                                                                                                                                                                                      | PASS   | {"stale": false, "claude_set_at": "2026-11-19T10:36:23.388804+13:00", "strategy_changed_at": "2026-11-19T10:36:23.38778+13:00"}
-  82 | F6-104 dismissing a row or deleting an item does not mark the numbers stale (documented limit: a delete leaves no update time)                                                                                                                                              | PASS   | {"stale": false, "claude_set_at": "2026-11-19T10:36:23.388804+13:00", "strategy_changed_at": "2026-11-19T10:36:23.38778+13:00"}
-  83 | F6-105 a Notes change through the connector moves deck_strategy.updated_at and marks the numbers stale                                                                                                                                                                      | PASS   | {"stale": true, "claude_set_at": "2026-11-19T10:36:23.388804+13:00", "strategy_changed_at": "2026-11-19T10:36:23.391279+13:00"}{"count": 1, 
-  84 | F6-106 an owner-only override is not a Claude number: claude_set_at stays null and stale false                                                                                                                                                                              | PASS   | {"stale": false, "claude_set_at": null, "strategy_changed_at": "2026-11-19T10:36:20.122903+13:00"}
+  78 | F6-100 no Claude numbers yet: claude_set_at is null and stale is false even though the deck has strategy                                                                                                                                                                    | PASS   | {"stale": false, "claude_set_at": null, "strategy_changed_at": "2026-11-19T14:09:49.415355+13:00"}
+  79 | F6-101 targets set after the last strategy change: not stale                                                                                                                                                                                                                | PASS   | {"stale": false, "claude_set_at": "2026-11-19T14:09:52.674354+13:00", "strategy_changed_at": "2026-11-19T14:09:52.515672+13:00"}
+  80 | F6-102 the owner edits an item after Claude set the numbers: stale                                                                                                                                                                                                          | PASS   | {"stale": true, "claude_set_at": "2026-11-19T14:09:52.674354+13:00", "strategy_changed_at": "2026-11-19T14:09:52.677152+13:00"}
+  81 | F6-103 Claude sets the numbers again: stale is cleared                                                                                                                                                                                                                      | PASS   | {"stale": false, "claude_set_at": "2026-11-19T14:09:52.678381+13:00", "strategy_changed_at": "2026-11-19T14:09:52.677152+13:00"}
+  82 | F6-104 dismissing a row or deleting an item does not mark the numbers stale (documented limit: a delete leaves no update time)                                                                                                                                              | PASS   | {"stale": false, "claude_set_at": "2026-11-19T14:09:52.678381+13:00", "strategy_changed_at": "2026-11-19T14:09:52.677152+13:00"}
+  83 | F6-105 a Notes change through the connector moves deck_strategy.updated_at and marks the numbers stale                                                                                                                                                                      | PASS   | {"stale": true, "claude_set_at": "2026-11-19T14:09:52.678381+13:00", "strategy_changed_at": "2026-11-19T14:09:52.681113+13:00"}{"count": 1, 
+  84 | F6-106 an owner-only override is not a Claude number: claude_set_at stays null and stale false                                                                                                                                                                              | PASS   | {"stale": false, "claude_set_at": null, "strategy_changed_at": "2026-11-19T14:09:49.415355+13:00"}
   85 | F6-107 the readers are read-only and refuse another user                                                                                                                                                                                                                    | PASS   | 
   86 | F6-110 deck_add applies and Claude undoes it                                                                                                                                                                                                                                | PASS   | {"ok": true, "res": {"undone": 1, "success": true}}
   87 | F6-111 card_label (role + job) applies and Claude undoes it                                                                                                                                                                                                                 | PASS   | {"ok": true, "res": {"undone": 1, "success": true, "left_alone": []}}

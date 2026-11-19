@@ -60,10 +60,10 @@
 (1 row)
 
 == rollbacks out of order must refuse
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120000_roles_db1_card_roles.rollback.sql:18: ERROR:  roll back roles_db2 first
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120100_roles_db2_change_kinds.rollback.sql:17: ERROR:  roll back roles_db5, roles_db4 and roles_db3 first
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120200_roles_db3_deck_card_jobs.rollback.sql:19: ERROR:  roll back roles_db6 first (job links need jobs)
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120400_roles_db5_health_targets.rollback.sql:19: ERROR:  roll back roles_db6 first (its front doors sit on top of DB-5's)
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118120000_roles_db1_card_roles.rollback.sql:18: ERROR:  roll back roles_db2 first
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118120100_roles_db2_change_kinds.rollback.sql:17: ERROR:  roll back roles_db5, roles_db4 and roles_db3 first
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118120200_roles_db3_deck_card_jobs.rollback.sql:19: ERROR:  roll back roles_db6 first (job links need jobs)
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118120400_roles_db5_health_targets.rollback.sql:19: ERROR:  roll back roles_db6 first (its front doors sit on top of DB-5's)
  chk 
 -----
  

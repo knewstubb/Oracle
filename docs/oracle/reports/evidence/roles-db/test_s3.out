@@ -1,0 +1,290 @@
+== cluster: PostgreSQL 17.12 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.4.1.1), 64-bit port 55434 (throwaway, deleted at end)
+-- apply 00_base.sql
+-- apply 20261116130000_connector_connections.sql
+-- apply 20261116150000_ai_change_log_and_pending.sql
+-- apply 20261116150100_ai_connector_edit_rpcs.sql
+-- apply 20261116150200_ai_undo_blocker_make_original_fix.sql
+-- apply 20261116150300_ai_list_recent_changes_zone_to.sql
+-- apply 20261116190000_ai_deck_category.sql
+-- apply 20261117100000_cc13_loosen_limits.sql
+-- apply 20261023170100_set_deck_command_zone.sql
+-- apply 20261117120000_ai_change_log_allow_deck_delete.sql
+-- apply 20261117200000_cc15a_new_change_kinds.sql
+-- apply 20261117200100_cc15b_deck_create_setup.sql
+-- apply 01_seed.sql
+== S3 on the bare base (no CC-26 drafts): apply and roll back
+-- apply 20261119100000_s3_strategy_window_fields.draft.sql
+ chk 
+-----
+ 
+(1 row)
+
+-- apply 20261119100000_s3_strategy_window_fields.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+== the live state: DB-1 to DB-5 applied
+-- apply 20261118120000_roles_db1_card_roles.draft.sql
+-- apply 20261118120100_roles_db2_change_kinds.draft.sql
+-- apply 20261118120200_roles_db3_deck_card_jobs.draft.sql
+-- apply 20261118120300_roles_db4_strategy_points.draft.sql
+-- apply 20261118120400_roles_db5_health_targets.draft.sql
+== before S3 (what the app must live with until the owner applies it)
+ chk 
+-----
+ 
+(1 row)
+
+== apply S3 on the live state
+-- apply 20261119100000_s3_strategy_window_fields.draft.sql
+   (expected) psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261119100000_s3_strategy_window_fields.draft.sql:40: ERROR:  s3 already applied (deck_strategy.summary or updated_by exists)
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== Claude writes through ai_set_deck_setup
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== Claude only adds to the owner's Strategy text
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ mkdeck 
+--------
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== Undo, blocker, isolation, old kinds
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== rollback rules
+   (expected) psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261119100000_s3_strategy_window_fields.rollback.sql:23: ERROR:  cannot roll back: a deck has a saved summary (it would be lost)
+ chk 
+-----
+ 
+(1 row)
+
+   (expected) psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261119100000_s3_strategy_window_fields.rollback.sql:23: ERROR:  cannot roll back: a deck has a saved summary (it would be lost)
+ chk 
+-----
+ 
+(1 row)
+
+   (expected) psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261119100000_s3_strategy_window_fields.rollback.sql:23: ERROR:  cannot roll back: a deck has bracket 5 saved (the old rules stop at 4)
+ chk 
+-----
+ 
+(1 row)
+
+-- apply 20261119100000_s3_strategy_window_fields.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+-- apply 20261119100000_s3_strategy_window_fields.draft.sql
+ chk 
+-----
+ 
+(1 row)
+
+-- apply 20261119100000_s3_strategy_window_fields.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+== a live table that already has a 1-to-4 bracket CHECK (not seen in the files; the live table may have one)
+-- apply 20261119100000_s3_strategy_window_fields.draft.sql
+ chk 
+-----
+ 
+(1 row)
+
+-- apply 20261119100000_s3_strategy_window_fields.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+== then the CC-26 drafts still roll back in reverse (DB-5 to DB-1) after S3 came and went
+-- apply 20261118120400_roles_db5_health_targets.rollback.sql
+-- apply 20261118120300_roles_db4_strategy_points.rollback.sql
+-- apply 20261118120200_roles_db3_deck_card_jobs.rollback.sql
+-- apply 20261118120100_roles_db2_change_kinds.rollback.sql
+-- apply 20261118120000_roles_db1_card_roles.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+
+######## RESULTS ########
+ n  |                                                                            name                                                                             | result |                                                                    detail                                                                    
+----+-------------------------------------------------------------------------------------------------------------------------------------------------------------+--------+----------------------------------------------------------------------------------------------------------------------------------------------
+  1 | S-00 S3 applies on the cc15b base without DB-1 to DB-5                                                                                                      | PASS   | bracket:integer:YES,budget_ceiling:numeric:YES,budget_mode:text:YES,deck_id:integer:NO,format_rules:text:YES,frustration:text:YES,health_ove
+  2 | S-00a and its rollback restores that base exactly (functions, grants, constraints, columns)                                                                 | PASS   | 
+  3 | S-01 before S3: bracket 5 from Claude is refused (bad_bracket); a summary key alone is "nothing to set"; the window's old fields still save                 | PASS   | 
+  4 | S-02 running S3 a second time is refused and changes nothing                                                                                                | PASS   | 
+  5 | S-03 the two new columns are nullable text and no existing column changed                                                                                   | PASS   | bracket:integer:YES,budget_ceiling:numeric:YES,budget_mode:text:YES,deck_id:integer:NO,format_rules:text:YES,frustration:text:YES,health_ove
+  6 | S-03a ai_set_deck_setup can be run by the service role only (not anon, not signed-in users)                                                                 | PASS   | 
+  7 | S-04 summary: 120 characters ok; 121, a line break, an empty string are refused by the table                                                                | PASS   | 
+  8 | S-05 bracket 1 to 5 and empty are allowed by the table; 0 and 6 are not; updated_by only owner or claude                                                    | PASS   | 
+  9 | S-06 the row saved before S3 is unchanged by applying it (bracket 3, notes, table context; summary and updated_by empty)                                    | PASS   | 
+ 10 | S-10 bracket 5, summary and playgroup set in one change: applied, one log row with only those keys, marked changed by Claude                                | PASS   | {"ok": true, "res": {"count": 1, "changed": {"bracket": 5, "summary": "Landfall value with a graveyard engine", "playgroup": "Friday pod, ca
+ 11 | S-11 budget, win condition and frustration are untouched (parked fields)                                                                                    | PASS   | 
+ 12 | S-12 refusals write nothing: bracket 6, 0, "3"; summary 121 / with a line break / a number; playgroup 501 / a number                                        | PASS   | 
+ 13 | S-14 checked in a separate statement: after the refusals the row still holds bracket 5 and the Claude summary, and only one change is logged                | PASS   | 
+ 14 | S-13 the same summary again is no_change with no log row                                                                                                    | PASS   | 
+ 15 | S-20 an addition after the owner's words (trailing blank line aside) is applied; the owner's words are still the start of the text                          | PASS   | {"ok": true, "res": {"count": 1, "changed": {"strategy_notes": "Yedora plants lands.\n\nNever cut Scute Swarm.\n\nClaude, 19 Nov 2026: Add a
+ 16 | S-21 replacing or editing the owner's text is refused and nothing changes: a new text, the start cut, the old text edited, clearing it, the same text       | PASS   | 
+ 17 | S-22 the owner changed the text after Claude read it: refused as notes_changed, nothing changes                                                             | PASS   | 
+ 18 | S-23 a deck with no Strategy yet: Claude's first paragraph is accepted (deck 300 has no strategy row; one is made, marked Claude)                           | PASS   | {"ok": true, "res": {"count": 1, "changed": {"strategy_notes": "Claude, 19 Nov 2026: First words."}, "outcome": "applied", "success": true, 
+ 19 | S-25 checked in a separate statement: after every refusal above the Strategy text is still exactly what it was, and only the two applied changes are logged | PASS   | 
+ 20 | S-24 over 4000 characters in total is refused (notes_too_long)                                                                                              | PASS   | 
+ 21 | S-30 Recent changes shows the summary change with no Undo blocker while nothing changed by hand                                                             | PASS   | 
+ 22 | S-31 after the owner edits the summary by hand: the blocker says changed_since and Undo refuses; nothing changes                                            | PASS   | 
+ 23 | S-32 Undo of the Strategy addition (owner) puts the owner's exact words back and marks it changed by you                                                    | PASS   | {"ok": true, "res": {"undone": 1, "success": true}}
+ 24 | S-33 with the summary back as Claude left it, Claude undoes its bracket/summary/playgroup change: all three back, budget untouched                          | PASS   | {"ok": true, "res": {"undone": 1, "success": true}}
+ 25 | S-34 another owner's deck: deck_not_found and nothing changes; a switched-off connection is refused                                                         | PASS   | 
+ 26 | S-35 the old change kinds still work through the front doors with S3 in place (add a card, Claude undoes it)                                                | PASS   | 
+ 27 | S-36 a CC-26 kind still works with S3 in place (health target set and undone)                                                                               | PASS   | 
+ 28 | S-40 rollback refuses while Claude summary/playgroup changes are in the history; nothing is dropped                                                         | PASS   | 
+ 29 | S-41 rollback refuses while a deck has a saved summary (test removed the history rows first, test only)                                                     | PASS   | 
+ 30 | S-42 rollback refuses while a deck has bracket 5                                                                                                            | PASS   | 
+ 31 | S-43 rollback: functions, grants, constraints and tables equal the live state before S3; the two columns are gone                                           | PASS   | aec1f5758ffcef6c5ed5f459fe35c79b
+ 32 | S-44 rollback keeps the data that existed before S3 (bracket, notes, playgroup, budget, win condition)                                                      | PASS   | 
+ 33 | S-45 after rollback the cc15b behaviour is back: bracket 5 refused, notes replaced as before                                                                | PASS   | 
+ 34 | S-46 re-apply after rollback works (bracket 5 and a summary from Claude)                                                                                    | PASS   | 
+ 35 | S-47 second rollback again restores the live state exactly                                                                                                  | PASS   | 
+ 36 | S-50 S3 replaces the 1-to-4 check: bracket 5 is now allowed, and the old definition is kept in the new constraint's comment                                 | PASS   | 
+ 37 | S-51 rollback puts the exact 1-to-4 check back (fingerprint equal to before S3)                                                                             | PASS   | 
+ 38 | S-60 after DB-5 to DB-1 roll back, the database equals the cc15b base exactly                                                                               | PASS   | 
+(38 rows)
+
+ passed | failed 
+--------+--------
+     38 |      0
+(1 row)
+

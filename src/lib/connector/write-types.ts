@@ -71,7 +71,7 @@ export interface Gateway {
   submit(a: { userId: string; connectionId: string; action: ChangeAction; payload: Record<string, unknown>; dryRun: boolean }): Promise<GatewayResult<SubmitOutcome>>
   /** CC-15: a new deck. The commander (if any) is already resolved to ids; colourIdentity is the letters the manual create route stores. */
   createDeck(a: { userId: string; connectionId: string; name: string; format: string; commander: { card_name: string; scryfall_id: string; oracle_id: string; colour_identity: string } | null }): Promise<GatewayResult<DeckCreateResult>>
-  /** CC-15: commander, strategy notes and bracket. `patch` holds only the keys the caller wants changed. */
+  /** CC-15, DV-02: commander, target bracket, summary, playgroup and Strategy text (added to, never replaced). `patch` holds only the keys the caller wants changed. */
   setDeckSetup(a: { userId: string; connectionId: string; deckId: number; patch: Record<string, unknown> }): Promise<GatewayResult<DeckSetupResult>>
   getPending(userId: string, connectionId: string, pendingId: string): Promise<GatewayResult<PendingRow | null>>
   listRecent(userId: string): Promise<GatewayResult<ChangeLogRow[]>>

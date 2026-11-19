@@ -105,7 +105,8 @@ function deckDb() {
 describe('get_deck facts (CC-06c)', () => {
   it('creatures costing 4 or more can be answered from one get_deck call (scenario S1)', async () => {
     const { db, queries } = deckDb()
-    const r = (await getDeck({ db, userId: U }, getDeckInput.parse({ deck_id: 1 }))) as never as { mainboard: { items: { name: string; facts: { typeLine: string; manaValue: number } }[] } }
+    const noHealth = async () => ({ ok: false as const, status: 500 as const, error: 'not under test' }) // the health check reads ref_cards too; counted on its own
+    const r = (await getDeck({ db, userId: U }, getDeckInput.parse({ deck_id: 1 }), noHealth)) as never as { mainboard: { items: { name: string; facts: { typeLine: string; manaValue: number } }[] } }
     const big = r.mainboard.items.filter((i) => i.facts.typeLine.includes('Creature') && i.facts.manaValue >= 4).map((i) => i.name)
     expect(big.sort()).toEqual(['Craterhoof Behemoth', 'Hornet Queen'])
     expect(queries.filter((q) => q.table === 'ref_cards' && q.filters.some((f) => f.op === 'in')).length).toBe(1)

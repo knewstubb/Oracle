@@ -83,7 +83,7 @@ export function describeGroup(rows: ChangeLogRow[]): GroupSentence {
         consequence: 'The deck is empty. Undo removes it, but only while it has no cards.',
       }
     case 'deck_setup':
-      return { summary: `Claude changed the setup of ${deck} (commander, bracket or strategy notes).`, consequence: null }
+      return { summary: `Claude changed the setup of ${deck} (commander, target bracket, summary, Strategy or playgroup).`, consequence: null }
     default:
       return { summary: `Changed ${card}.`, consequence: null }
   }
@@ -302,13 +302,21 @@ export function editErrorMessage(code: string, d: Record<string, unknown>): stri
     case 'could_not_allocate_deck_id':
       return 'Oracle could not make the deck just now. Nothing was changed. Try again.'
     case 'nothing_to_set':
-      return 'Nothing to set: send a commander, strategy notes or a bracket. Nothing was changed.'
+      return 'Nothing to set: send a commander, summary, strategy_add, playgroup or bracket. Nothing was changed.'
     case 'bad_bracket':
-      return 'A bracket is a whole number from 1 to 4, or null to clear it. Nothing was changed.'
+      return 'A bracket is a whole number from 1 to 5, or null to clear it. Nothing was changed.'
     case 'bad_notes':
       return 'Strategy notes must be text. Nothing was changed.'
     case 'notes_too_long':
-      return `Strategy notes can be at most ${AI_LIMITS_NEW.strategy_notes_max_chars} characters. Nothing was changed.`
+      return `The Strategy can be at most ${AI_LIMITS_NEW.strategy_notes_max_chars} characters including what the owner wrote, so that paragraph does not fit. Nothing was changed. Send a shorter one.`
+    case 'notes_changed':
+      return 'The owner changed the Strategy while this was being added. Nothing was changed. Read the deck again and send the paragraph again.'
+    case 'notes_replace_refused':
+      return 'Claude adds to the owner\'s Strategy and never replaces it. Nothing was changed. Use strategy_add.'
+    case 'bad_summary':
+      return 'The summary must be one line of at most 120 characters, or null to clear it. Nothing was changed.'
+    case 'bad_playgroup':
+      return 'The playgroup must be text of at most 500 characters, or null to clear it. Nothing was changed.'
     case 'card_not_in_deck':
     case 'duplicate_card':
       return `The commander could not be set on that deck${card !== 'that card' ? ` (${card})` : ''}. Nothing was changed.`

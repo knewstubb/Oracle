@@ -10,17 +10,20 @@ const U = 'user-1'
 const deck = (id: number, bracket: string | null) => ({ id, name: `Deck ${id}`, commander_name: 'C', format: 'commander', bracket, card_count: 99 })
 
 describe('bracket rules (CC-06e)', () => {
-  it('parses only whole numbers 1 to 4', () => {
+  it('parses only whole numbers 1 to 5', () => {
     expect(parseBracket(3)).toBe(3)
     expect(parseBracket('2')).toBe(2)
     expect(parseBracket(' 4 ')).toBe(4)
-    for (const bad of [0, 5, 2.5, '', 'Bracket 3', 'high', null, undefined]) expect(parseBracket(bad as never)).toBeNull()
+    expect(parseBracket(5)).toBe(5)
+    expect(parseBracket('5')).toBe(5)
+    for (const bad of [0, 6, 2.5, '', 'Bracket 3', 'high', null, undefined]) expect(parseBracket(bad as never)).toBeNull()
   })
   it('strategy first, then the deck row, else explained as not set', () => {
     expect(resolveBracket(2, '4')).toEqual({ value: 2, source: 'deck_strategy' })
     expect(resolveBracket(null, '4')).toEqual({ value: 4, source: 'deck_row' })
     expect(resolveBracket(null, 'nonsense')).toEqual({ value: null, source: 'not_set', whyEmpty: BRACKET_WHY_EMPTY })
     expect(BRACKET_WHY_EMPTY).toMatch(/set_deck_setup/)
+    expect(BRACKET_WHY_EMPTY).toMatch(/Ask the owner/)
   })
 })
 

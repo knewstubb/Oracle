@@ -49,10 +49,10 @@ export type DeckHealthToolResult =
 
 /** Bracket as reported by list_decks / get_deck. */
 export interface BracketInfo {
-  /** 1 to 4, or null when nobody has set one. */
+  /** 1 to 5, or null when nobody has set one. (5 added 2026-11-19 with the Strategy window.) */
   value: number | null
   /** Where the number came from. */
   source: 'deck_strategy' | 'deck_row' | 'not_set'
   /** Present only when value is null. Plain words for Claude to repeat. */
-  whyEmpty?: 'Brackets are set by the owner on the Deck strategy screen in Oracle. Claude can set one with set_deck_setup. This deck has none set yet.'
+  whyEmpty?: string
 }

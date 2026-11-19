@@ -50,7 +50,7 @@ describe('registered tools', () => {
     expect(d('get_deck_health')).toMatch(/fresh on every call/i)
     expect(d('get_deck_health')).toMatch(/saves nothing/i)
     expect(d('get_deck_health')).not.toMatch(/last saved|never runs a new check/i)
-    expect(d('list_decks')).toMatch(/Deck strategy screen/)
+    expect(d('list_decks')).toMatch(/Strategy window/)
     expect(d('list_deck_cards_by_ownership')).toMatch(/facts/i)
     expect(d('get_buying_list')).toMatch(/estimate/i)
     expect(d('get_buying_list')).toMatch(/not free/i)
@@ -131,7 +131,7 @@ describe('CC-15 deck tools: owner A cannot reach owner B\'s deck', () => {
   const ctx = { db, userId: A, connectionId: 'conn-a', clientId: 'cl', clientName: 'Claude', gateway }
 
   it('set_deck_setup on B\'s deck id returns not-found, sends only A\'s user id, and changes nothing', async () => {
-    const r = await runTool(ctx, 'set_deck_setup', { deck_id: B_DECK, bracket: 2, strategy_notes: 'mine now' })
+    const r = await runTool(ctx, 'set_deck_setup', { deck_id: B_DECK, bracket: 2, strategy_add: 'mine now' })
     expect(r.structuredContent).toMatchObject({ error: { code: 'deck_not_found' } })
     expect(JSON.stringify(r.structuredContent)).toMatch(/Nothing was changed/)
     expect(setDeckSetup).toHaveBeenCalledTimes(1)

@@ -211,9 +211,9 @@ no rows returned for \gset
  
 (1 row)
 
-                                                                                                                                                                                                         owner_save_strategy_point                                                                                                                                                                                                          
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- {"current": {"id": 88, "state": "accepted", "reason": null, "deck_id": 100, "user_id": "00000000-0000-0000-0000-000000000001", "batch_id": null, "proposer": "owner", "card_type": "land", "statement": "held 5", "created_at": "2026-11-19T10:36:15.077506+13:00", "updated_at": "2026-11-19T10:36:15.077506+13:00", "covers_kind": "card_type", "effect_kind": null, "effect_group": null, "covers_oracle_ids": null}, "previous": null}
+                                                                                                                                                                                                        owner_save_strategy_point                                                                                                                                                                                                         
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ {"current": {"id": 88, "state": "accepted", "reason": null, "deck_id": 100, "user_id": "00000000-0000-0000-0000-000000000001", "batch_id": null, "proposer": "owner", "card_type": "land", "statement": "held 5", "created_at": "2026-11-19T14:09:45.93122+13:00", "updated_at": "2026-11-19T14:09:45.93122+13:00", "covers_kind": "card_type", "effect_kind": null, "effect_group": null, "covers_oracle_ids": null}, "previous": null}
 (1 row)
 
  chk 
@@ -223,7 +223,7 @@ no rows returned for \gset
 
                                                                                                                                                                                                               owner_save_strategy_point                                                                                                                                                                                                               
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- {"current": {"id": 91, "state": "accepted", "reason": null, "deck_id": 200, "user_id": "00000000-0000-0000-0000-000000000002", "batch_id": null, "proposer": "owner", "card_type": "artifact", "statement": "User 2 point", "created_at": "2026-11-19T10:36:15.082809+13:00", "updated_at": "2026-11-19T10:36:15.082809+13:00", "covers_kind": "card_type", "effect_kind": null, "effect_group": null, "covers_oracle_ids": null}, "previous": null}
+ {"current": {"id": 91, "state": "accepted", "reason": null, "deck_id": 200, "user_id": "00000000-0000-0000-0000-000000000002", "batch_id": null, "proposer": "owner", "card_type": "artifact", "statement": "User 2 point", "created_at": "2026-11-19T14:09:45.936856+13:00", "updated_at": "2026-11-19T14:09:45.936856+13:00", "covers_kind": "card_type", "effect_kind": null, "effect_group": null, "covers_oracle_ids": null}, "previous": null}
 (1 row)
 
  chk 
@@ -262,28 +262,28 @@ no rows returned for \gset
 (1 row)
 
 == second apply must refuse
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120300_roles_db4_strategy_points.draft.sql:28: ERROR:  roles_db4 already applied (deck_strategy_points exists)
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118120300_roles_db4_strategy_points.draft.sql:28: ERROR:  roles_db4 already applied (deck_strategy_points exists)
  chk 
 -----
  
 (1 row)
 
 == rollback while strategy_point log rows exist must refuse
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120300_roles_db4_strategy_points.rollback.sql:17: ERROR:  cannot roll back: ai_change_log or ai_pending_changes has strategy_point rows
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118120300_roles_db4_strategy_points.rollback.sql:17: ERROR:  cannot roll back: ai_change_log or ai_pending_changes has strategy_point rows
  chk 
 -----
  
 (1 row)
 
 == rolling DB-2 back is refused while DB-4 is applied
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120100_roles_db2_change_kinds.rollback.sql:17: ERROR:  roll back roles_db5, roles_db4 and roles_db3 first
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118120100_roles_db2_change_kinds.rollback.sql:17: ERROR:  roll back roles_db5, roles_db4 and roles_db3 first
  chk 
 -----
  
 (1 row)
 
 == clear the history by hand (test only); the table still holds rows, so it must still refuse
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120300_roles_db4_strategy_points.rollback.sql:17: ERROR:  cannot roll back: deck_strategy_points holds rows (set oracle.rollback_allow_data_loss = 'yes' in this session to delete them)
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118120300_roles_db4_strategy_points.rollback.sql:17: ERROR:  cannot roll back: deck_strategy_points holds rows (set oracle.rollback_allow_data_loss = 'yes' in this session to delete them)
  chk 
 -----
  
@@ -370,9 +370,9 @@ psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy
  29 | E4-52 accept all by batch (1 point), then by deck (the rest waiting in the deck, 1)                                                                                                                              | PASS   | {"accepted": 1}{"accepted": 1}
  30 | E4-53 accept-all needs a scope; another user's deck refused; another user's batch accepts 0                                                                                                                      | PASS   | 
  31 | E4-54 when the hourly total is used up the request waits for the owner (busy) and writes nothing                                                                                                                 | PASS   | {"ok": true, "res": {"plan": {"n": 3, "cards": [{"effect": null, "result": "proposed", "card_type": "artifact", "statement": "Held 1", "cove
- 32 | E4-55 approving applies the 3 points, marked approved by the owner                                                                                                                                               | PASS   | {"ok": true, "res": {"count": 3, "outcome": "approved", "success": true, "group_id": "0d794570-4024-4f3b-89b3-0040aebe24ba"}}
+ 32 | E4-55 approving applies the 3 points, marked approved by the owner                                                                                                                                               | PASS   | {"ok": true, "res": {"count": 3, "outcome": "approved", "success": true, "group_id": "5ee91247-79b6-422b-9d72-03ac663602f3"}}
  33 | E4-56 Claude cannot undo a batch the owner approved (owner_only)                                                                                                                                                 | PASS   | {"ok": true, "res": {"refused": {"code": "owner_only"}, "success": false}}
- 34 | E4-57 a held request that has gone stale (the owner has since written one of its sentences) is applied only for what still changes: Held 5 is skipped (already_exists), the other 2 are applied                  | PASS   | {"ok": true, "res": {"count": 2, "outcome": "approved", "success": true, "group_id": "a70951ac-0d2e-4ac1-860a-4faff964d1b2"}}
+ 34 | E4-57 a held request that has gone stale (the owner has since written one of its sentences) is applied only for what still changes: Held 5 is skipped (already_exists), the other 2 are applied                  | PASS   | {"ok": true, "res": {"count": 2, "outcome": "approved", "success": true, "group_id": "67440d37-8db4-40dd-8cfe-9efd3dcc392d"}}
  35 | E4-60 signed-in user 2 sees only their own points (none of user 1's)                                                                                                                                             | PASS   | own 1 of user 1 0
  36 | E4-61 signed-in users cannot insert, update, delete points or call any strategy point function                                                                                                                   | PASS   | permission denied for table deck_strategy_points | permission denied for function owner_save_strategy_point | permission denied for function
  37 | E4-62 with write access wrongly granted, user 2 still changes 0 of user 1's rows and cannot insert (row security); data byte for byte unchanged                                                                  | PASS   | {"ok": true, "res": 0}{"ok": true, "res": 0}new row violates row-level security policy for table "deck_strategy_points"

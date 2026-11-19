@@ -1,0 +1,202 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- test results are inspected loosely */
+// DV-02 slice 1: Claude reads the Strategy window's fields (get_deck: deck, strategy, health, cards) and writes them
+// (set_deck_setup). Rules held here: bracket-empty asks, Claude adds a dated paragraph and never replaces, nothing is
+// refused or filtered because of bracket, and an older database (no new columns yet) is told plainly.
+import { describe, it, expect, vi } from 'vitest'
+import { runTool } from '../server'
+import { getDeck, getDeckInput } from '../tools/get-deck'
+import { CONNECTOR_TOOLS } from '../tools'
+import { mockDb, type RecordedQuery } from './mock-db'
+import { AI_LIMITS_NEW } from '../edit-config'
+import { STRATEGY_MAX } from '../../deck-strategy-window'
+import type { Gateway } from '../write-types'
+const U = 'user-1'
+const G = '11111111-2222-4333-8444-555555555555'
+const deckRow = (bracket: string | null = null) => ({ id: 1, name: 'Yedora', commander_name: 'Yedora, Grave Gardener', format: 'commander', bracket, card_count: 99 })
+const healthOk = async () => ({
+  ok: true as const,
+  health: {
+    verdict: { headline: 'Looks healthy', subline: 'Two groups are a little light.', usingGeneralGuide: false },
+    strategy: { state: 'not_set' as const, text: '' },
+    sourceLine: 'EDHREC average deck, 12,431 decks',
+    checkState: 'full' as const,
+    unclassifiedCount: 0,
+    roles: [{ role: 'ramp', label: 'Ramp', have: 9, typical: 10, targetSource: 'edhrec_average', state: 'ok', text: '' }],
+    typeCounts: [],
+    typeCountsLabel: '',
+    computedAt: '2026-11-19T00:00:00Z',
+  },
+}) as any
+function strategyDb(row: Record<string, unknown> | null, opts: { newColumns?: boolean; deck?: ReturnType<typeof deckRow> } = {}) {
+  const newColumns = opts.newColumns ?? true
+  return mockDb((q: RecordedQuery) => {
+    if (q.table === 'decks') return { data: [opts.deck ?? deckRow()] }
+    if (q.table === 'deck_strategy') {
+      if (!newColumns && /summary|updated_by/.test(q.columns)) return { error: { message: 'column deck_strategy.summary does not exist' } }
+      return { data: row ? [{ deck_id: 1, ...row }] : [] }
+    }
+    return { data: [] }
+  })
+}
+const get = async (db: ReturnType<typeof strategyDb>['db'], health = healthOk) => (await getDeck({ db, userId: U }, getDeckInput.parse({ deck_id: 1 }), health)) as any
+describe('get_deck: deck, strategy, health, cards, in that order', () => {
+  it('the answer lists its parts in that order', async () => {
+    const r = await get(strategyDb({ bracket: 3, strategy_notes: 'Eat the graveyard.', table_context: 'Friday pod', summary: 'Plants and recursion', updated_by: 'owner', updated_at: '2026-11-19T10:00:00Z' }).db)
+    const keys = Object.keys(r)
+    expect(keys.indexOf('deck')).toBeLessThan(keys.indexOf('strategy'))
+    expect(keys.indexOf('strategy')).toBeLessThan(keys.indexOf('health'))
+    expect(keys.indexOf('health')).toBeLessThan(keys.indexOf('mainboard'))
+    expect(keys.filter((k) => ['deck', 'strategy', 'health', 'mainboard'].includes(k))).toEqual(['deck', 'strategy', 'health', 'mainboard'])
+  })
+  it('strategy carries the target bracket with its name, the summary, the Strategy text, the playgroup and who changed it last', async () => {
+    const r = await get(strategyDb({ bracket: 3, strategy_notes: 'Eat the graveyard.', table_context: 'Friday pod', summary: 'Plants and recursion', updated_by: 'claude', updated_at: '2026-11-19T10:00:00Z' }).db)
+    expect(r.strategy).toMatchObject({
+      targetBracket: { value: 3, name: 'Upgraded', source: 'deck_strategy' },
+      summary: 'Plants and recursion',
+      strategy: 'Eat the graveyard.',
+      playgroup: 'Friday pod',
+      lastChanged: { by: 'claude', at: '2026-11-19T10:00:00Z' },
+    })
+    expect(r.strategy.note).toBeUndefined()
+  })
+  it('bracket 5 reads as 5 cEDH', async () => {
+    const r = await get(strategyDb({ bracket: 5 }).db)
+    expect(r.strategy.targetBracket).toMatchObject({ value: 5, name: 'cEDH' })
+  })
+  it('health is the short Deck health check; a failed check says so and is never a passing result', async () => {
+    const ok = await get(strategyDb(null).db)
+    expect(ok.health).toMatchObject({ status: 'computed_now', headline: 'Looks healthy', source: 'EDHREC average deck, 12,431 decks', groups: [{ group: 'ramp', have: 9, typical: 10 }] })
+    const bad = await get(strategyDb(null).db, (async () => ({ ok: false, status: 500, error: 'EDHREC down' })) as any)
+    expect(bad.health.status).toBe('unavailable')
+    expect(bad.health.message).toMatch(/not the same as healthy/)
+    const thrown = await get(strategyDb(null).db, (async () => { throw new Error('boom') }) as any)
+    expect(thrown.health.status).toBe('unavailable')
+  })
+  it('bracket empty: Claude is told to ask the owner and not to assume, and that a bracket never limits suggestions', async () => {
+    const r = await get(strategyDb(null).db)
+    expect(r.strategy.targetBracket.value).toBeNull()
+    expect(r.strategy.targetBracket.name).toBeNull()
+    expect(r.strategy.targetBracket.whyEmpty).toMatch(/Ask the owner/)
+    expect(r.strategy.targetBracket.whyEmpty).toMatch(/instead of assuming/)
+    expect(r.strategy.targetBracket.whyEmpty).toMatch(/never limits which cards/)
+    expect(r.strategy).toMatchObject({ summary: null, strategy: null, playgroup: null, lastChanged: null })
+  })
+  it('before the stored-data update the older fields still come back, with a plain note instead of an error', async () => {
+    const r = await get(strategyDb({ bracket: 2, strategy_notes: 'Keep it fun.', table_context: null, updated_at: '2026-11-19T10:00:00Z' }, { newColumns: false }).db)
+    expect(r.ok).toBe(true)
+    expect(r.strategy).toMatchObject({ targetBracket: { value: 2, name: 'Core' }, strategy: 'Keep it fun.', summary: null, lastChanged: { by: null } })
+    expect(r.strategy.note).toMatch(/not stored yet/)
+  })
+  it('every strategy read carries the owner id', async () => {
+    const { db, queries } = strategyDb(null)
+    await get(db)
+    const sq = queries.filter((q) => q.table === 'deck_strategy' && /summary/.test(q.columns))
+    expect(sq.length).toBeGreaterThan(0)
+    for (const q of sq) expect(q.filters.some((f) => f.op === 'eq' && f.args[0] === 'user_id' && f.args[1] === U)).toBe(true)
+  })
+})
+function gw(over: Partial<Record<keyof Gateway, unknown>> = {}): Gateway {
+  return { resolveCard: async (n: string) => ({ card: { oracleId: 'o-' + n, scryfallId: 's-' + n, name: n, setCode: 'cmm' } }), ...over } as unknown as Gateway
+}
+const applied = { ok: true, data: { success: true, outcome: 'applied', group_id: G, count: 1, changed: {} } }
+const ctx = (gateway: Gateway, db: ReturnType<typeof strategyDb>['db']) => ({ db, userId: U, connectionId: 'conn-1', clientId: 'cl', clientName: 'Claude', gateway })
+describe('set_deck_setup: Claude adds a dated paragraph to the Strategy and never replaces it', () => {
+  it('the owner\'s text stays exactly as written and the new paragraph goes after it, dated', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-19T12:00:00Z'))
+    try {
+      const mine = 'Yedora turns every land into a plant.\n\nNever cut Scute Swarm.'
+      const g = gw({ setDeckSetup: vi.fn(async () => applied) })
+      const r = await runTool(ctx(g, strategyDb({ strategy_notes: mine }).db), 'set_deck_setup', { deck_id: 1, strategy_add: 'Too few sacrifice outlets for the graveyard plan.' })
+      expect(r.isError).toBeFalsy()
+      const patch = (g.setDeckSetup as any).mock.calls[0][0].patch
+      expect(patch.strategy_notes.startsWith(mine)).toBe(true)
+      expect(patch.strategy_notes).toBe(`${mine}\n\nClaude, 19 Nov 2026: Too few sacrifice outlets for the graveyard plan.`)
+      expect(patch.strategy_notes_base).toBe(mine)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+  it('a second addition goes after the first and keeps everything before it', async () => {
+    const first = 'Mine.\n\nClaude, 1 Nov 2026: Earlier note.'
+    const g = gw({ setDeckSetup: vi.fn(async () => applied) })
+    await runTool(ctx(g, strategyDb({ strategy_notes: first }).db), 'set_deck_setup', { deck_id: 1, strategy_add: 'Later note.' })
+    const patch = (g.setDeckSetup as any).mock.calls[0][0].patch
+    expect(patch.strategy_notes.startsWith(first)).toBe(true)
+    expect(patch.strategy_notes).toMatch(/Later note\.$/)
+  })
+  it('on an empty Strategy the paragraph stands alone with no blank lines before it', async () => {
+    const g = gw({ setDeckSetup: vi.fn(async () => applied) })
+    await runTool(ctx(g, strategyDb(null).db), 'set_deck_setup', { deck_id: 1, strategy_add: 'First words.' })
+    const patch = (g.setDeckSetup as any).mock.calls[0][0].patch
+    expect(patch.strategy_notes).toMatch(/^Claude, \d{1,2} [A-Z][a-z]{2} \d{4}: First words\.$/)
+    expect(patch.strategy_notes_base).toBeNull()
+  })
+  it('there is no way to replace the Strategy: the old strategy_notes input is refused before the database is called', async () => {
+    const g = gw({ setDeckSetup: vi.fn() })
+    const r = await runTool(ctx(g, strategyDb({ strategy_notes: 'Mine.' }).db), 'set_deck_setup', { deck_id: 1, strategy_notes: 'Replaced.' })
+    expect(r.isError).toBe(true)
+    expect(g.setDeckSetup).not.toHaveBeenCalled()
+  })
+  it('a paragraph that would take the Strategy over its limit is refused and nothing is sent', async () => {
+    const g = gw({ setDeckSetup: vi.fn() })
+    const mine = 'x'.repeat(STRATEGY_MAX - 10)
+    const r = await runTool(ctx(g, strategyDb({ strategy_notes: mine }).db), 'set_deck_setup', { deck_id: 1, strategy_add: 'A paragraph that does not fit.' })
+    expect(r.structuredContent).toMatchObject({ error: { code: 'notes_too_long' } })
+    expect(JSON.stringify(r.structuredContent)).toMatch(/Nothing was changed/)
+    expect(g.setDeckSetup).not.toHaveBeenCalled()
+  })
+  it('the limit equals the database limit', () => {
+    expect(STRATEGY_MAX).toBe(AI_LIMITS_NEW.strategy_notes_max_chars)
+  })
+  it('a failed read of the current Strategy changes nothing', async () => {
+    const g = gw({ setDeckSetup: vi.fn() })
+    const db = mockDb((q) => (q.table === 'deck_strategy' && q.columns === 'strategy_notes' ? { error: { message: 'down' } } : { data: [] })).db
+    const r = await runTool(ctx(g, db), 'set_deck_setup', { deck_id: 1, strategy_add: 'Hello.' })
+    expect(r.isError).toBe(true)
+    expect(g.setDeckSetup).not.toHaveBeenCalled()
+  })
+  it('the database refusing because the owner changed the text meanwhile comes back in plain words', async () => {
+    const g = gw({ setDeckSetup: async () => ({ ok: false, code: 'notes_changed', detail: {} }) })
+    const r = await runTool(ctx(g, strategyDb(null).db), 'set_deck_setup', { deck_id: 1, strategy_add: 'Hello.' })
+    expect(JSON.stringify(r.structuredContent)).toMatch(/changed the Strategy while this was being added.*Nothing was changed/)
+  })
+})
+describe('set_deck_setup: summary, playgroup and bracket 1 to 5', () => {
+  it('sends the summary and playgroup, and null clears them', async () => {
+    const g = gw({ setDeckSetup: vi.fn(async () => applied) })
+    await runTool(ctx(g, strategyDb(null).db), 'set_deck_setup', { deck_id: 1, summary: 'Plants and recursion', playgroup: null, bracket: 5 })
+    expect((g.setDeckSetup as any).mock.calls[0][0].patch).toEqual({ summary: 'Plants and recursion', playgroup: null, bracket: 5 })
+  })
+  it('a summary of 120 is accepted and 121 is not', async () => {
+    const g = gw({ setDeckSetup: vi.fn(async () => applied) })
+    expect((await runTool(ctx(g, strategyDb(null).db), 'set_deck_setup', { deck_id: 1, summary: 'x'.repeat(120) })).isError).toBeFalsy()
+    expect((await runTool(ctx(g, strategyDb(null).db), 'set_deck_setup', { deck_id: 1, summary: 'x'.repeat(121) })).isError).toBe(true)
+  })
+  it('before the stored-data update the summary, the playgroup and bracket 5 are refused in plain words and nothing is sent', async () => {
+    const g = gw({ setDeckSetup: vi.fn(async () => applied) })
+    const old = strategyDb(null, { newColumns: false }).db
+    for (const input of [{ summary: 'Hello' }, { playgroup: 'Friday' }, { bracket: 5 }]) {
+      const r = await runTool(ctx(g, old), 'set_deck_setup', { deck_id: 1, ...input })
+      expect(r.structuredContent).toMatchObject({ error: { code: 'strategy_fields_not_ready' } })
+      expect(JSON.stringify(r.structuredContent)).toMatch(/Nothing was changed/)
+    }
+    expect(g.setDeckSetup).not.toHaveBeenCalled()
+    // what the old database can hold still goes through
+    const ok = await runTool(ctx(g, old), 'set_deck_setup', { deck_id: 1, bracket: 4 })
+    expect(ok.isError).toBeFalsy()
+  })
+})
+describe('a bracket never limits, filters or refuses anything', () => {
+  it('no tool text implies suggestions are restricted by bracket, and the two bracket tools say it never limits', () => {
+    for (const t of CONNECTOR_TOOLS) expect(t.description, t.name).not.toMatch(/only suggest|restricted to|limited to the bracket|recommended for your bracket|filtered by bracket/i)
+    expect(CONNECTOR_TOOLS.find((t) => t.name === 'get_deck')!.description).toMatch(/never limits which cards/)
+    expect(CONNECTOR_TOOLS.find((t) => t.name === 'set_deck_setup')!.description).toMatch(/never limits which cards/)
+  })
+  it('no read tool takes a bracket as a filter', () => {
+    for (const t of CONNECTOR_TOOLS.filter((x) => x.name !== 'set_deck_setup')) {
+      const shape = (t.inputSchema as any)._zod?.def?.shape ?? (t.inputSchema as any).shape ?? {}
+      expect(Object.keys(shape).some((k) => /bracket/i.test(k)), t.name).toBe(false)
+    }
+  })
+})

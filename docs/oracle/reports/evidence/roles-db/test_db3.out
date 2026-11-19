@@ -337,21 +337,21 @@
 (1 row)
 
 == second apply must refuse
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120200_roles_db3_deck_card_jobs.draft.sql:27: ERROR:  roles_db3 already applied (deck_card_jobs exists)
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118120200_roles_db3_deck_card_jobs.draft.sql:27: ERROR:  roles_db3 already applied (deck_card_jobs exists)
  chk 
 -----
  
 (1 row)
 
 == rollback while job log rows exist must refuse
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120200_roles_db3_deck_card_jobs.rollback.sql:19: ERROR:  cannot roll back: a card_label log or pending row carries a job
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118120200_roles_db3_deck_card_jobs.rollback.sql:19: ERROR:  cannot roll back: a card_label log or pending row carries a job
  chk 
 -----
  
 (1 row)
 
 == clear the history by hand (test only); the table still holds rows, so it must still refuse
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy/supabase/drafts/20261118120200_roles_db3_deck_card_jobs.rollback.sql:19: ERROR:  cannot roll back: deck_card_jobs holds rows (set oracle.rollback_allow_data_loss = 'yes' in this session to delete them)
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118120200_roles_db3_deck_card_jobs.rollback.sql:19: ERROR:  cannot roll back: deck_card_jobs holds rows (set oracle.rollback_allow_data_loss = 'yes' in this session to delete them)
  chk 
 -----
  
@@ -424,7 +424,7 @@ psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/deck-strategy
  27 | E3-2B nothing waiting / bad decision / someone else's deck                                                                                                                                              | PASS   | 
  28 | E3-30 120 cards, each with a role and a job (240 values): applied at once, 120 log rows, 120 role rows, 120 job rows                                                                                    | PASS   | {"ok": true, "res": {"plan": {"n": 120, "cards": [{"job": {"name": "Engine", "reason": "Test", "result": "proposed"}, "name": "Big 1", "role
  29 | E3-31 121 cards with role and job wait (over_ten) and write nothing                                                                                                                                     | PASS   | {"ok": true, "res": {"plan": {"n": 121, "cards": [{"job": {"name": "Payoff", "reason": null, "result": "proposed"}, "name": "Big 1", "roles"
- 30 | E3-32 approving applies all 121 roles and 121 jobs and 121 log rows                                                                                                                                     | PASS   | {"ok": true, "res": {"count": 121, "outcome": "approved", "success": true, "group_id": "0796941a-cc3c-4969-96dd-fa7adf960438"}}
+ 30 | E3-32 approving applies all 121 roles and 121 jobs and 121 log rows                                                                                                                                     | PASS   | {"ok": true, "res": {"count": 121, "outcome": "approved", "success": true, "group_id": "e691d175-50fd-429e-8ba6-384ac9eb5ce9"}}
  31 | E3-33 a job alone (no role) is a full change: 19 cards, 19 log rows                                                                                                                                     | PASS   | {"ok": true, "res": {"plan": {"n": 19, "cards": [{"job": {"name": "Flex", "reason": null, "result": "proposed"}, "name": "Big 122", "roles":
  32 | E3-40 the owner accepted one job; Claude's Undo is refused changed_since (naming the card and "job"), nothing at all changes                                                                            | PASS   | {"ok": true, "res": {"refused": {"card": "Card 8", "code": "changed_since", "deck": "Manual", "what": "job"}, "success": false}}
  33 | E3-41 the owner's Undo restores the 2 untouched cards (roles and jobs), leaves the accepted one alone and says so                                                                                       | PASS   | {"ok": true, "res": {"undone": 2, "success": true, "left_alone": [{"card": "Card 8", "deck": "Manual", "what": "job"}]}}

@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
+import { BRACKET_MAX, BRACKET_MIN } from '@/lib/deck-bracket'
+import { isMissingColumn } from '@/lib/deck-strategy-window-server'
 
 const VALID_BUDGET_MODES = ['collection', 'budget', 'unrestricted']
 
@@ -109,9 +111,9 @@ export async function PUT(
   // Validate bracket if provided
   if (body.bracket !== undefined && body.bracket !== null) {
     const bracket = Number(body.bracket)
-    if (!Number.isInteger(bracket) || bracket < 1 || bracket > 4) {
+    if (!Number.isInteger(bracket) || bracket < BRACKET_MIN || bracket > BRACKET_MAX) {
       return Response.json(
-        { error: 'Bracket must be an integer between 1 and 4' },
+        { error: `Bracket must be an integer between ${BRACKET_MIN} and ${BRACKET_MAX}` },
         { status: 400 }
       )
     }
@@ -142,25 +144,27 @@ export async function PUT(
 
   const updatedAt = new Date().toISOString()
 
-  const { error: upsertErr } = await supabase
+  const record = {
+    deck_id: deckId,
+    win_condition: body.win_condition ?? null,
+    table_context: body.table_context ?? null,
+    bracket: body.bracket ?? null,
+    budget_mode: body.budget_mode ?? null,
+    budget_ceiling: body.budget_ceiling ?? null,
+    frustration: body.frustration ?? null,
+    strategy_notes: body.strategy_notes ?? null,
+    format_rules: formatRules,
+    updated_at: updatedAt,
+    user_id: userId,
+  }
+  // "Last changed by you": written when the database can hold it (the owner applies that change later).
+  const first = await supabase
     .from('deck_strategy')
-    .upsert(
-      {
-        deck_id: deckId,
-        win_condition: body.win_condition ?? null,
-        table_context: body.table_context ?? null,
-        bracket: body.bracket ?? null,
-        budget_mode: body.budget_mode ?? null,
-        budget_ceiling: body.budget_ceiling ?? null,
-        frustration: body.frustration ?? null,
-        strategy_notes: body.strategy_notes ?? null,
-        format_rules: formatRules,
-        updated_at: updatedAt,
-        user_id: userId,
-      },
-      { onConflict: 'deck_id' }
-    )
-
+    .upsert({ ...record, updated_by: 'owner' } as typeof record, { onConflict: 'deck_id' })
+  let upsertErr: { message: string; code?: string } | null = first.error
+  if (upsertErr && isMissingColumn(upsertErr)) {
+    upsertErr = (await supabase.from('deck_strategy').upsert(record, { onConflict: 'deck_id' })).error
+  }
   if (upsertErr) {
     return Response.json({ error: upsertErr.message }, { status: 500 })
   }

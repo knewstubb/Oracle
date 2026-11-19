@@ -452,11 +452,11 @@ describe('CC-15 create_deck and set_deck_setup', () => {
     expect(r.structuredContent).toMatchObject({ error: { code: 'card_not_found' } })
     expect(g.createDeck).not.toHaveBeenCalled()
   })
-  it('sets bracket and notes in one call, sending only the keys given', async () => {
+  it('sets bracket and summary in one call, sending only the keys given', async () => {
     const g = gw({ setDeckSetup: vi.fn(async () => ({ ok: true, data: { success: true, outcome: 'applied', group_id: G, count: 1, changed: { bracket: 3 } } })) })
-    const r = await runTool(ctx(g), 'set_deck_setup', { deck_id: 7, bracket: 3, strategy_notes: 'Aristocrats.' })
+    const r = await runTool(ctx(g), 'set_deck_setup', { deck_id: 7, bracket: 3, summary: 'Aristocrats.' })
     expect(r.isError).toBeFalsy()
-    expect(g.setDeckSetup).toHaveBeenCalledWith({ userId: U, connectionId: 'conn-1', deckId: 7, patch: { bracket: 3, strategy_notes: 'Aristocrats.' } })
+    expect(g.setDeckSetup).toHaveBeenCalledWith({ userId: U, connectionId: 'conn-1', deckId: 7, patch: { bracket: 3, summary: 'Aristocrats.' } })
     expect(r.structuredContent).toMatchObject({ status: 'applied', group_id: G })
   })
   it('bracket null clears it and is sent as null', async () => {
@@ -472,9 +472,11 @@ describe('CC-15 create_deck and set_deck_setup', () => {
     expect(g.setDeckSetup).toHaveBeenCalledWith(expect.objectContaining({ patch: { commander: { card_name: 'Prosper', scryfall_id: 's-Prosper', oracle_id: 'o-Prosper' } } }))
   })
   it.each([
-    ['bracket 5', { deck_id: 1, bracket: 5 }],
+    ['bracket 6', { deck_id: 1, bracket: 6 }],
+    ['the old replace-all strategy_notes', { deck_id: 1, strategy_notes: 'replace it' }],
+    ['a summary over 120', { deck_id: 1, summary: 'x'.repeat(121) }],
     ['bracket 0', { deck_id: 1, bracket: 0 }],
-    ['notes over 4000', { deck_id: 1, strategy_notes: 'x'.repeat(AI_LIMITS_NEW.strategy_notes_max_chars + 1) }],
+    ['an added paragraph over 4000', { deck_id: 1, strategy_add: 'x'.repeat(AI_LIMITS_NEW.strategy_notes_max_chars + 1) }],
     ['no fields', { deck_id: 1 }],
     ['user_id', { deck_id: 1, bracket: 2, user_id: 'other' }],
   ])('set_deck_setup rejects %s and never reaches the database', async (_n, input) => {
@@ -483,10 +485,16 @@ describe('CC-15 create_deck and set_deck_setup', () => {
     expect(r.isError).toBe(true)
     expect(g.setDeckSetup).not.toHaveBeenCalled()
   })
-  it('notes of exactly 4000 characters are accepted', async () => {
-    const g = gw({ setDeckSetup: vi.fn(async () => ({ ok: true, data: { success: true, outcome: 'applied', group_id: G, count: 1, changed: {} } })) })
-    const r = await runTool(ctx(g), 'set_deck_setup', { deck_id: 1, strategy_notes: 'x'.repeat(AI_LIMITS_NEW.strategy_notes_max_chars) })
-    expect(r.isError).toBeFalsy()
+  it('a Strategy of exactly 4000 characters in total is accepted when Claude adds it to an empty one', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-01-01T12:00:00Z'))
+    try {
+      const g = gw({ setDeckSetup: vi.fn(async () => ({ ok: true, data: { success: true, outcome: 'applied', group_id: G, count: 1, changed: {} } })) })
+      const r = await runTool(ctx(g), 'set_deck_setup', { deck_id: 1, strategy_add: 'x'.repeat(AI_LIMITS_NEW.strategy_notes_max_chars - 'Claude, 1 Jan 2026: '.length) })
+      expect(r.isError).toBeFalsy()
+    } finally {
+      vi.useRealTimers()
+    }
   })
   it('Claude can undo a setup change through undo_change', async () => {
     const g = gw({ undoAsClaude: vi.fn(async () => ({ ok: true, data: { success: true, undone: 1 } })) })

@@ -38,6 +38,9 @@ import { cn } from '@/lib/utils'
 interface VersionHistoryPanelProps {
   deckId: number
   deckName: string
+  /** Optional: lets another part of the page (the Strategy window's "See in History") open this window. */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 interface VersionsResponse {
@@ -45,8 +48,13 @@ interface VersionsResponse {
   count: number
 }
 
-export function VersionHistoryPanel({ deckId, deckName }: VersionHistoryPanelProps) {
-  const [isOpen, setIsOpen] = useState(false)
+export function VersionHistoryPanel({ deckId, deckName, open, onOpenChange }: VersionHistoryPanelProps) {
+  const [ownOpen, setOwnOpen] = useState(false)
+  const isOpen = open ?? ownOpen
+  const setIsOpen = (next: boolean) => {
+    setOwnOpen(next)
+    onOpenChange?.(next)
+  }
   const [snapshotName, setSnapshotName] = useState('')
   const [expandedVersionId, setExpandedVersionId] = useState<number | null>(null)
   const [restoreTarget, setRestoreTarget] = useState<DeckVersion | null>(null)

@@ -21,6 +21,7 @@ import { StrategyTab } from '@/components/StrategyTab'
 import { PicklistV2 } from '@/components/PicklistV2'
 import { WorkbenchTab } from '@/components/WorkbenchTab'
 import { VersionHistoryPanel } from '@/components/VersionHistoryPanel'
+import { StrategyBlock } from '@/components/deck-strategy/StrategyBlock'
 import { getFormatConfig } from '@/lib/format-config'
 import { exportDeckAsText } from '@/lib/deck-export'
 import { useOracle } from '@/contexts/OracleContext'
@@ -77,6 +78,8 @@ export default function DeckViewPage() {
   const { setContext } = useOracle()
 
   const [activeTab, setActiveTab] = useState<string>('cards')
+  // The Strategy window's "See in History" opens the same Version History window the History button opens.
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   // Parallax scroll effect for commander art background
   const [parallaxOffset, setParallaxOffset] = useState(0)
@@ -286,7 +289,7 @@ export default function DeckViewPage() {
               <ClipboardCopy className="h-4 w-4" aria-hidden="true" />
               <span className="hidden sm:inline">Export</span>
             </Button>
-            <VersionHistoryPanel deckId={deck.id} deckName={deck.name} />
+            <VersionHistoryPanel deckId={deck.id} deckName={deck.name} open={historyOpen} onOpenChange={setHistoryOpen} />
             <DeleteDeckButton deckId={deck.id} deckName={deck.name} />
           </>
         }
@@ -309,6 +312,9 @@ export default function DeckViewPage() {
 
       {/* Legality Banner — shows if deck has illegal cards */}
       <LegalityBanner deckId={deck.id} />
+
+      {/* Strategy block (DV-02): target bracket and one-line summary; opens the Strategy window */}
+      <StrategyBlock deckId={deck.id} deckName={deck.name} onSeeHistory={() => setHistoryOpen(true)} />
 
       {/* Tabs + Content — scrolls independently beneath sticky header+health strip */}
       <Tabs

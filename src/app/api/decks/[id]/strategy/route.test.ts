@@ -211,9 +211,10 @@ describe('PUT /api/decks/[id]/strategy', () => {
     expect(body.error).toBe('Invalid deck ID')
   })
 
-  it('returns 400 when bracket is outside 1-4', async () => {
+  it('returns 400 when bracket is outside 1-5 (5 cEDH is allowed since 2026-11-19)', async () => {
     mockTables['decks'] = [{ id: 1, name: 'Test Deck' }]
-    const response = await callPUT('1', { bracket: 5 })
+    expect((await callPUT('1', { bracket: 5 })).status).toBe(200)
+    const response = await callPUT('1', { bracket: 6 })
     expect(response.status).toBe(400)
     const body = await response.json()
     expect(body.error).toContain('Bracket must be')

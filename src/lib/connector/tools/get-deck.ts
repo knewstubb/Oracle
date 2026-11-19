@@ -4,6 +4,7 @@ import type { CardFacts } from '../../../../docs/oracle/contracts/connector-card
 import { DECK_CARDS_PAGE_MAX, fitRows, cutText } from '../limits'
 import { fetchCardFacts, factsFor } from './card-facts'
 import { loadStrategyBrackets } from './bracket'
+import { loadDeckHealthView, loadDeckStrategy, type HealthLoader } from './deck-strategy-read'
 import { DECK_COLUMNS, deckStatusAndSleeved, toDeckSummary, type DeckRow } from './list-decks'
 import { fetchAll, fetchAllIn, LookupFailed, lookupFailed, must, notFound, pageNote, rows, tooLarge, type ToolContext, type ToolOutput } from './common'
 
@@ -54,7 +55,8 @@ function ownership(row: DeckCardRow): DeckCardView['ownership'] {
   return s === 'original' || s === 'proxy' || s === 'not_owned' ? s : null
 }
 
-export async function getDeck(ctx: ToolContext, input: z.infer<typeof getDeckInput>): Promise<ToolOutput> {
+/** Returns, in this order: deck, strategy (the owner's plan), health, cards. `loadHealth` is replaceable for tests. */
+export async function getDeck(ctx: ToolContext, input: z.infer<typeof getDeckInput>, loadHealth?: HealthLoader): Promise<ToolOutput> {
   const limit = input.limit ?? DECK_CARDS_PAGE_MAX
   const offset = input.offset ?? 0
   try {
@@ -100,11 +102,15 @@ export async function getDeck(ctx: ToolContext, input: z.infer<typeof getDeckInp
     })
     const strategy = await loadStrategyBrackets(ctx, [input.deck_id])
     const deck = toDeckSummary(deckRow, sleevedCount, status, undefined, strategy.get(input.deck_id))
+    const strategyView = await loadDeckStrategy(ctx, input.deck_id, deck.bracketInfo)
+    const health = await loadDeckHealthView(ctx, input.deck_id, loadHealth)
     const fit = fitRows(items, (kept) => {
       const meta = pageNote(total, offset, kept.length, kept.length < items.length)
       return {
         ok: true as const,
         deck,
+        strategy: strategyView,
+        health,
         mainboard: { ok: true as const, items: kept, total, returned: kept.length, offset, truncated: meta.truncated, ...(meta.note ? { note: meta.note } : {}) },
         maybeboardCount,
       }

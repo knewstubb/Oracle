@@ -24,6 +24,7 @@ import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { StrategyGuide } from '@/components/StrategyGuide'
 import { CommanderOverview } from '@/components/CommanderOverview'
 import type { DeckCard } from '@/components/CardGrid'
+import { BRACKETS } from '@/lib/deck-bracket'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -124,12 +125,7 @@ interface InsightsResponse {
 
 const CORE_CATEGORIES = ['Ramp', 'Draw', 'Removal', 'Lands', 'Win Condition']
 
-const BRACKET_OPTIONS = [
-  { value: 1, label: '1 — Casual / Precon' },
-  { value: 2, label: '2 — Focused' },
-  { value: 3, label: '3 — Optimised' },
-  { value: 4, label: '4 — Competitive' },
-]
+const BRACKET_OPTIONS = BRACKETS.map((b) => ({ value: b.number, label: `${b.number} — ${b.name}` }))
 
 const BUDGET_MODE_OPTIONS = [
   { value: 'collection', label: 'Collection Only' },

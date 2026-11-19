@@ -66,8 +66,11 @@ export function StrategyWindow(props: StrategyWindowProps) {
   const [claudeFields, setClaudeFields] = useState<(keyof WindowValues)[]>([])
   const [rewrite, setRewrite] = useState<string | null>(null)
   const [unsaved, setUnsaved] = useState<null | 'close' | 'history'>(null)
+  // Closing while Claude's and the owner's Strategy are both waiting for a choice: the owner picks one, nothing is dropped.
+  const [choosing, setChoosing] = useState<null | 'close' | 'history'>(null)
   const radioRefs = useRef<(HTMLButtonElement | null)[]>([])
   const keepEditingRef = useRef<HTMLButtonElement | null>(null)
+  const chooseRef = useRef<HTMLButtonElement | null>(null)
   const closingRef = useRef(false)
   const hadData = useRef(data !== undefined)
   const loading = data === undefined
@@ -80,6 +83,7 @@ export function StrategyWindow(props: StrategyWindowProps) {
       setClaudeFields([])
       setRewrite(null)
       setUnsaved(null)
+      setChoosing(null)
     }
   }
   // Fresh data from the server (Claude changed the deck, or this window's own save came back): untouched fields take it,
@@ -101,6 +105,9 @@ export function StrategyWindow(props: StrategyWindowProps) {
   useEffect(() => {
     if (unsaved) keepEditingRef.current?.focus()
   }, [unsaved])
+  useEffect(() => {
+    if (choosing) chooseRef.current?.focus()
+  }, [choosing])
   const edit = <K extends keyof WindowValues>(name: K, value: WindowValues[K]) => {
     setClaudeFields((f) => f.filter((x) => x !== name))
     setField(name, value)
@@ -111,8 +118,12 @@ export function StrategyWindow(props: StrategyWindowProps) {
   }
 
   const warning = bracketWarning(draft.bracket, data?.implied ?? null)
-  const requestClose = async (after: 'close' | 'history') => {
+  const requestClose = async (after: 'close' | 'history', chosen = false) => {
     if (closingRef.current) return
+    if (rewrite !== null && !chosen) {
+      setChoosing(after)
+      return
+    }
     closingRef.current = true
     try {
       // Everything typed is sent first. If it cannot be saved, the owner decides.
@@ -126,6 +137,18 @@ export function StrategyWindow(props: StrategyWindowProps) {
     } finally {
       closingRef.current = false
     }
+  }
+  const resolveAndClose = async (mine: boolean) => {
+    const after = choosing
+    if (rewrite === null || !after) return
+    setChoosing(null)
+    if (mine) keepMine('strategy', rewrite)
+    else {
+      takeIncoming('strategy', rewrite)
+      setClaudeFields((f) => [...new Set([...f, 'strategy' as const])])
+    }
+    setRewrite(null)
+    await requestClose(after, true)
   }
   const moveBracket = (from: number, delta: number) => {
     const next = (from + delta + BRACKETS.length) % BRACKETS.length
@@ -350,6 +373,22 @@ export function StrategyWindow(props: StrategyWindowProps) {
               {updated('playgroup')}
             </div>
           </>
+        )}
+        {choosing && rewrite !== null && (
+          <div role="alertdialog" aria-label="Which Strategy do you want to keep?" data-live-refresh="allow" className="space-y-2 rounded-md border border-amber-400 p-3" data-testid="strategy-choose-on-close">
+            <p className="text-[length:var(--fs-md)]">Claude rewrote the Strategy while you were typing. Choose which version to keep. Claude&apos;s version stays in History if you keep yours.</p>
+            <div className="flex flex-wrap gap-2">
+              <button ref={chooseRef} type="button" onClick={() => setChoosing(null)} className={cn(BTN, 'border border-[#8A8A93]', FOCUS_RING)}>
+                Keep editing
+              </button>
+              <button type="button" onClick={() => void resolveAndClose(false)} className={cn(BTN, 'border border-[#8A8A93]', FOCUS_RING)}>
+                Use Claude&apos;s
+              </button>
+              <button type="button" onClick={() => void resolveAndClose(true)} className={cn(BTN, 'border border-[#8A8A93]', FOCUS_RING)}>
+                Keep mine
+              </button>
+            </div>
+          </div>
         )}
         {unsaved && (
           <div role="alertdialog" aria-label="This didn't save." data-live-refresh="allow" className="flex flex-wrap items-center gap-2 rounded-md border border-amber-400 p-3">

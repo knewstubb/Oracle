@@ -126,7 +126,7 @@ export interface DeckHealthResponse {
   /** Notes under the rows. Null when they do not apply. */
   notes: { manaSources: string; uncategorised: string | null; overlap: string | null }
   /** EDHREC's average for this commander, for reference only. Used for no verdict. */
-  reference: { available: boolean; label: string }
+  reference: { available: boolean; label: string; /** Decks behind the EDHREC average, when known. Additive; never used for a verdict. */ sample: number | null }
   typeCounts: TypeCount[]
   typeCountsLabel: string
   computedAt: string
@@ -433,6 +433,7 @@ export function buildDeckHealth(cards: HealthDeckCard[], targets: CommanderTarge
     reference: {
       available: referenceAvailable,
       label: referenceAvailable ? targets.sourceLabel : referenceMissingLabel(targets.sourceLabel),
+      sample: referenceAvailable ? targets.deckSample : null,
     },
     typeCounts: targets.typeCounts.map((t) => ({ type: t.type, average: t.average, have: deckTypes[t.type] })),
     typeCountsLabel: targets.typeCountsLabel,

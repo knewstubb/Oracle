@@ -1,11 +1,12 @@
 // Counting for the deck page left rail (mana curve, colour needs, card count).
 // No new maths: this only arranges the results of calculateCMC, analyzeColorRequirements and countLandSources.
-import { analyzeColorRequirements, calculateCMC, countLandSources } from '@/lib/mana-analysis'
+import { analyzeColorRequirements, calculateCMC, countLandSources, parseManaCost } from '@/lib/mana-analysis'
 import { isLandTypeLine } from '@/lib/card-roles'
 import { isCompanion, parseColourLetters } from '@/lib/command-zone'
 import { computeDeckReadiness } from '@/lib/deck-readiness'
 import type { LegalityIssue } from '@/lib/deck-legality'
 import type { CopySwatchKind } from '@/components/CopySwatch'
+import type { ManaLetter } from '@/lib/ui-tokens'
 
 export interface RailCard {
   card_name: string
@@ -71,6 +72,92 @@ export function colourNeeds(cards: RailCard[], colourIdentity: string | null | u
       sources: sources[c] ?? 0,
     })),
   }
+}
+
+/** Average mana value of the non-land cards with a cost on file, weighted by quantity. Null when there is none. */
+export function avgManaValue(cards: RailCard[]): number | null {
+  let total = 0
+  let n = 0
+  for (const card of cards) {
+    if (isLandTypeLine(card.type_line) || !card.mana_cost) continue
+    total += calculateCMC(card.mana_cost) * qty(card)
+    n += qty(card)
+  }
+  return n > 0 ? total / n : null
+}
+
+const MANA_ORDER: ManaLetter[] = ['W', 'U', 'B', 'R', 'G', 'C']
+
+export interface CurveColumn {
+  /** "1" to "6", "7+" (and "0" only when a zero-cost card exists). */
+  label: string
+  total: number
+  /** Cards in this column split by card colour; a multicolour card is split evenly, a colourless one is C. */
+  segments: Array<{ colour: ManaLetter; count: number }>
+}
+
+/** The curve with each bar stacked by card colour. The 0 column is dropped when it is empty. */
+export function curveByColour(cards: RailCard[]): { columns: CurveColumn[]; unknown: number } {
+  const labels = ['0', '1', '2', '3', '4', '5', '6', '7+']
+  const parts = labels.map(() => new Map<ManaLetter, number>())
+  const totals = new Array<number>(8).fill(0)
+  let unknown = 0
+  for (const card of cards) {
+    if (isLandTypeLine(card.type_line)) continue
+    if (!card.mana_cost) {
+      unknown += qty(card)
+      continue
+    }
+    const i = Math.min(calculateCMC(card.mana_cost), 7)
+    const pips = parseManaCost(card.mana_cost)
+    const colours = MANA_ORDER.filter((c) => c !== 'C' && pips[c as 'W'] > 0)
+    const split: ManaLetter[] = colours.length > 0 ? colours : ['C']
+    totals[i] += qty(card)
+    for (const c of split) parts[i].set(c, (parts[i].get(c) ?? 0) + qty(card) / split.length)
+  }
+  const columns = labels
+    .map((label, i) => ({
+      label,
+      total: totals[i],
+      segments: MANA_ORDER.filter((c) => parts[i].has(c)).map((c) => ({ colour: c, count: parts[i].get(c)! })),
+    }))
+    .filter((c, i) => !(i === 0 && c.total === 0))
+  return { columns, unknown }
+}
+
+/** Demand trailing supply by at least this many whole points shows the amber chip. */
+export const UNDER_SUPPLY_POINTS = 5
+
+export interface ColourBalanceRow {
+  colour: ManaLetter
+  /** Share of the deck's coloured pips, whole percent. */
+  demandPct: number
+  /** Share of coloured land sources over the identity colours, whole percent. */
+  supplyPct: number
+  /** Demand minus supply in points (positive = supply trails demand). */
+  gap: number
+  /** True when the gap is at least UNDER_SUPPLY_POINTS. */
+  under: boolean
+}
+
+export interface ColourBalance {
+  kind: 'colourless' | 'mono' | 'multi'
+  rows: ColourBalanceRow[]
+  /** Colours that are under-supplied, in WUBRG order. */
+  underColours: ManaLetter[]
+}
+
+/** Pips against land sources on one percent scale, built from colourNeeds. No chip when no land makes any identity colour. */
+export function colourBalance(cards: RailCard[], colourIdentity: string | null | undefined): ColourBalance {
+  const needs = colourNeeds(cards, colourIdentity)
+  if (needs.colourless) return { kind: 'colourless', rows: [], underColours: [] }
+  const sourceSum = needs.rows.reduce((n, r) => n + r.sources, 0)
+  const rows = needs.rows.map((r): ColourBalanceRow => {
+    const supplyPct = sourceSum > 0 ? Math.round((r.sources / sourceSum) * 100) : 0
+    const gap = r.symbolsPct - supplyPct
+    return { colour: r.colour as ManaLetter, demandPct: r.symbolsPct, supplyPct, gap, under: sourceSum > 0 && gap >= UNDER_SUPPLY_POINTS }
+  })
+  return { kind: rows.length === 1 ? 'mono' : 'multi', rows, underColours: rows.filter((r) => r.under).map((r) => r.colour) }
 }
 
 export function cardCountView(total: number, target: number | null | undefined): { label: string; over: number } {

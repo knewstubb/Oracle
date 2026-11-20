@@ -182,7 +182,7 @@ describe('get_deck_health returns the same numbers as the Deck health route', ()
       multiRowCards: 0,
       manaSources: { total: 0, lands: 0, doubleFaced: 0, ramp: 0 },
       notes: { manaSources: '', uncategorised: null, overlap: null },
-      reference: { available: true, label: 'EDHREC estimate, 900 decks' },
+      reference: { available: true, label: 'EDHREC estimate, 900 decks', sample: 900 },
       typeCounts: [],
       typeCountsLabel: '',
       computedAt: '',

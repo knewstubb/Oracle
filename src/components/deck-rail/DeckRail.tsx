@@ -9,8 +9,7 @@ import { cn } from '@/lib/utils'
 import { RailCommander, type RailCommanderRow } from './RailCommander'
 import { RailCards, type RailAllCard } from './RailCards'
 import { RailHealth } from './RailHealth'
-import { RailCurve } from './RailCurve'
-import { RailColourNeeds } from './RailColourNeeds'
+import { RailMana } from './RailMana'
 
 export interface DeckRailProps {
   deck: {
@@ -96,8 +95,7 @@ export function DeckRail({ deck, commanders, cards, totalCards, deckSize, allCar
           <div className="border-t border-white/[0.08] p-5">{strategySlot}</div>
           <RailCards deckId={deck.id} totalCards={totalCards} deckSize={deckSize} allCards={allCards} totalValue={totalValue} />
           <RailHealth deckId={deck.id} />
-          <RailCurve cards={cards} />
-          <RailColourNeeds cards={cards} colourIdentity={deck.colour_identity} />
+          <RailMana cards={cards} colourIdentity={deck.colour_identity} />
         </div>
       </div>
     </aside>

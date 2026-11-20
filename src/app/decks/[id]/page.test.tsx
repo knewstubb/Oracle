@@ -80,7 +80,7 @@ describe('Deck page with the left rail', () => {
     const { aside } = await renderPage()
     await within(aside).findByRole('heading', { name: 'Strategy' })
     const headings = within(aside).getAllByRole('heading').map((h) => h.textContent)
-    expect(headings).toEqual(['Yedora, the Explorer', 'Command zone', 'Strategy', 'Cards', 'Deck health', 'Mana curve', 'Colour needs against sources'])
+    expect(headings).toEqual(['Yedora, the Explorer', 'Command zone', 'Strategy', 'Cards', 'Deck health', 'Mana'])
     expect(within(aside).getByTestId('rail-count')).toHaveTextContent('102 / 100')
     expect(within(aside).getByText('2 over')).toBeInTheDocument()
     expect(await within(aside).findByTestId('health-rows')).toBeInTheDocument()

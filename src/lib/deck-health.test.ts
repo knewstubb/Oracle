@@ -366,8 +366,15 @@ describe('buildDeckHealth with commander numbers: EDHREC is a reference line onl
   })
   it('names the reference and fills each ranged row with its average (none for Game Plan)', () => {
     const h = buildDeckHealth([], edhrecTargets({ lands: 41 }))
-    expect(h.reference).toEqual({ available: true, label: 'EDHREC average deck, 33,879 decks' })
+    expect(h.reference).toEqual({ available: true, label: 'EDHREC average deck, 33,879 decks', sample: 33879 })
     expect(h.rows.map((r) => r.reference)).toEqual([41, 19, 8, 9, 2, null])
+  })
+  it('the added reference.sample changes no row: counts, ranges, verdicts and offsets are the same with or without EDHREC', () => {
+    const withEdhrec = buildDeckHealth(removal(6), edhrecTargets({ lands: 41 }))
+    const without = buildDeckHealth(removal(6))
+    const core = (h: ReturnType<typeof buildDeckHealth>) => h.rows.map((r) => [r.kind, r.have, r.range, r.verdict, r.offBy, r.summary])
+    expect(core(withEdhrec)).toEqual(core(without))
+    expect(without.reference.sample).toBeNull()
   })
   it('thin data: no EDHREC average, the card types are shown instead', () => {
     const thin = guideTargets('General guide', { typeCounts: [{ type: 'creature', average: 25 }], label: 'EDHREC averages, 61 decks' })

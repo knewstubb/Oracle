@@ -119,7 +119,7 @@ describe('get_deck_health, live (CC-06d)', () => {
     const r = (await getDeckHealth({ db, userId: U }, { deck_id: 1 })) as any
     expect(r.ok).toBe(true)
     expect(r.health.rows).toHaveLength(6)
-    expect(r.health.reference).toEqual({ available: false, label: 'No EDHREC average for this commander' })
+    expect(r.health.reference).toEqual({ available: false, label: 'No EDHREC average for this commander', sample: null })
     expect(r.note).toMatch(/Game Plan & Win Conditions is a plain total with no range and no verdict/)
     expect(r.note).toMatch(/EDHREC average is for reference only/)
   })
@@ -144,7 +144,7 @@ describe('get_deck_health, slow commander numbers (CC-06 follow-up)', () => {
     expect(r.status).toBe('computed_now')
     expect(GUIDE_TIMEOUT_LABEL).toMatch(/took too long/)
     expect(r.health.rows).toHaveLength(6) // the rows never wait for EDHREC
-    expect(r.health.reference).toEqual({ available: false, label: 'No EDHREC average just now (EDHREC could not be reached)' })
+    expect(r.health.reference).toEqual({ available: false, label: 'No EDHREC average just now (EDHREC could not be reached)', sample: null })
     expect(r.health.rows.every((x: any) => x.reference === null)).toBe(true)
     expect(queries.every((q) => !['insert', 'upsert', 'update', 'delete'].includes((q as any).op ?? ''))).toBe(true)
   })

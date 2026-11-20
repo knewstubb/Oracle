@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { manaCurveBuckets, colourNeeds, cardCountView, cardLegend, legalityView, outsideTheHundred, railBuildStatus, showsPlayableNeedsLegal, toBuyView } from './deck-rail-stats'
+import { manaCurveBuckets, avgManaValue, curveByColour, colourBalance, colourNeeds, cardCountView, cardLegend, legalityView, outsideTheHundred, railBuildStatus, showsPlayableNeedsLegal, toBuyView } from './deck-rail-stats'
 import { computeDeckReadiness } from './deck-readiness'
 
 const spell = (name: string, mana_cost: string | null, quantity = 1) => ({ card_name: name, mana_cost, type_line: 'Creature — Elf', quantity })
@@ -164,5 +164,75 @@ describe('toBuyView', () => {
     expect(toBuyView(['A', 'B'], cards)).toEqual({ count: 2, price: 10, partial: true })
     expect(toBuyView(['A'], cards)).toEqual({ count: 1, price: 10, partial: false })
     expect(toBuyView(['B'], cards)).toEqual({ count: 1, price: null, partial: false })
+  })
+})
+
+const basic = (name: string, type: string, quantity: number) => ({ card_name: name, mana_cost: null, type_line: `Basic Land — ${type}`, quantity })
+
+describe('avgManaValue', () => {
+  it('weights by quantity and leaves out lands and cards with no cost', () => {
+    // (1*2 + 4*1) / 3 = 2
+    expect(avgManaValue([spell('Elf', '{G}', 2), spell('Big', '{3}{G}'), land('Forest', 30), spell('Mystery', null, 5)])).toBe(2)
+  })
+  it('is null when there is nothing to average', () => {
+    expect(avgManaValue([land('Forest', 36)])).toBeNull()
+  })
+  it('counts a 9-cost card at 9, not at the 7+ column cap', () => {
+    expect(avgManaValue([spell('Big', '{9}')])).toBe(9)
+  })
+})
+
+describe('curveByColour', () => {
+  it('drops the 0 column when it is empty and keeps it when a free card exists', () => {
+    expect(curveByColour([spell('Elf', '{G}')]).columns.map((c) => c.label)).toEqual(['1', '2', '3', '4', '5', '6', '7+'])
+    expect(curveByColour([spell('Ornithopter', '{0}')]).columns.map((c) => c.label)[0]).toBe('0')
+  })
+  it('splits a multicolour card evenly and puts colourless cards in grey', () => {
+    const col = curveByColour([spell('Rock', '{2}', 2), spell('Gold', '{1}{W}{B}'), spell('Mono', '{1}{G}')]).columns
+    const two = col.find((c) => c.label === '2')!
+    expect(two.total).toBe(3)
+    expect(two.segments).toEqual([{ colour: 'G', count: 1 }, { colour: 'C', count: 2 }])
+    const three = col.find((c) => c.label === '3')!
+    expect(three.segments).toEqual([{ colour: 'W', count: 0.5 }, { colour: 'B', count: 0.5 }])
+  })
+  it('leaves lands out and counts costless spells as unknown', () => {
+    const r = curveByColour([land('Forest', 10), spell('Mystery', null, 2), spell('Elf', '{G}')])
+    expect(r.unknown).toBe(2)
+    expect(r.columns.reduce((n, c) => n + c.total, 0)).toBe(1)
+  })
+})
+
+describe('colourBalance', () => {
+  const lands = (g: number, w: number) => [basic('Forest', 'Forest', g), basic('Plains', 'Plains', w)]
+  it('says colourless for a deck with no colour identity', () => {
+    expect(colourBalance([spell('Rock', '{2}')], '').kind).toBe('colourless')
+  })
+  it('is mono for one colour: no chip, no split', () => {
+    const b = colourBalance([spell('Elf', '{G}', 3), ...lands(30, 0)], 'G')
+    expect(b.kind).toBe('mono')
+    expect(b.underColours).toEqual([])
+  })
+  // 50 green pips and 50 white pips against 50/50 sources is balanced; shift the lands to test the 5-point line.
+  const pips = (g: number, w: number) => [spell('Elf', '{G}', g), spell('Mage', '{W}', w)]
+  it('flags a colour whose sources trail its pips by 5 points', () => {
+    // pips 55 / 45 percent, sources 50 / 50: green trails by 5.
+    const b = colourBalance([...pips(55, 45), ...lands(50, 50)], 'GW')
+    const g = b.rows.find((r) => r.colour === 'G')!
+    expect(g).toMatchObject({ demandPct: 55, supplyPct: 50, gap: 5, under: true })
+    expect(b.underColours).toEqual(['G'])
+  })
+  it('does not flag a 4-point gap', () => {
+    const b = colourBalance([...pips(54, 46), ...lands(50, 50)], 'GW')
+    expect(b.rows.find((r) => r.colour === 'G')).toMatchObject({ gap: 4, under: false })
+    expect(b.underColours).toEqual([])
+  })
+  it('flags nothing when no land makes any identity colour (nothing to compare)', () => {
+    const b = colourBalance(pips(5, 5), 'GW')
+    expect(b.rows.every((r) => !r.under)).toBe(true)
+  })
+  it('measures sources as a share of the identity colours sources', () => {
+    const b = colourBalance([...pips(1, 1), ...lands(30, 10)], 'GW')
+    expect(b.rows.find((r) => r.colour === 'G')!.supplyPct).toBe(75)
+    expect(b.rows.find((r) => r.colour === 'W')!.supplyPct).toBe(25)
   })
 })

@@ -7,6 +7,7 @@ import { LookupFailed, lookupFailed, pageNote, tooLarge, type ToolContext, type 
 import { filterFields, refineFilters } from './collection-filters'
 import { ROLE_RULES_VERSION, classifyNames, findMatchingCopies } from './collection-query'
 import { tagFields, tagNamesByOracleId, type TagFields } from './card-tags-tool'
+import { fetchPrintingFacts, rarityField } from './card-printing-facts'
 import { groupByCardAndKind, locationOf, readDetail, sortGroups, type DetailRow } from './collection-view'
 
 export const searchCollectionInput = z
@@ -44,12 +45,14 @@ export async function searchCollection(ctx: ToolContext, input: z.infer<typeof s
     // Tags for every card on the page: one batched read, never one per card. A failed read is marked, never shown as "no Tags".
     const pageOracleIds = pageGroups.map((g) => detail.get(g.copyIds[0])?.oracle_id).filter((x): x is string => !!x)
     const tagsById = await tagNamesByOracleId(ctx, pageOracleIds)
+    // Rarity of each shown copy's printing: one batched read for the page. A failed read is marked on the copy, never guessed.
+    const rarityById = await fetchPrintingFacts(ctx, [...detail.values()].map((d) => d.printing_id).filter((x): x is string => !!x), { pauper: false })
     const items: (SearchRow & TagFields)[] = pageGroups.map((g) => {
       const copies: CopyView[] = g.copyIds
         .slice(0, COPIES_PER_CARD_MAX)
         .map((id) => detail.get(id))
         .filter((d): d is DetailRow => !!d)
-        .map((d) => ({ copyId: d.copy_id, printingId: d.printing_id, finish: d.finish, isProxy: d.is_proxy, location: locationOf(d), missing: d.missing }))
+        .map((d) => ({ copyId: d.copy_id, printingId: d.printing_id, ...rarityField(rarityById, d.printing_id), finish: d.finish, isProxy: d.is_proxy, location: locationOf(d), missing: d.missing }))
       if (copies.length !== Math.min(g.copyIds.length, COPIES_PER_CARD_MAX)) throw new LookupFailed() // a copy vanished mid-read: never a short list
       const first = detail.get(g.copyIds[0])!
       const f = factsFor(facts, g.name, includeRulesText)

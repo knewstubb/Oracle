@@ -189,6 +189,8 @@ export interface ViewDbOptions {
   locationsError?: string
   /** Stored Tags: oracle id (`o-<name>` in these tests) to Tag keys. Answers reads of ref_card_tags. */
   tags?: Record<string, string[]>
+  /** Card library printings (answers reads of ref_printings), for example { scryfall_id, oracle_id, rarity }. */
+  printings?: Row[]
   /** Called for every query on the view (after filtering), to inspect or count. */
   onView?: (q: RecordedQuery, matched: number) => void
 }
@@ -206,6 +208,7 @@ export function viewDb(view: ViewRow[], opts: ViewDbOptions = {}) {
       const all = Object.entries(opts.tags ?? {}).flatMap(([id, keys]) => keys.map((k) => ({ oracle_id: id, tag_key: k })))
       return { data: applyFilters(all, q).rows }
     }
+    if (q.table === 'ref_printings') return { data: applyFilters(opts.printings ?? [], q).rows }
     if (q.table === 'user_locations') return opts.locationsError ? { error: { message: opts.locationsError } } : { data: opts.tradePlaces ?? [] }
     if (q.table === 'ref_cards') {
       const inF = q.filters.find((f) => f.op === 'in')

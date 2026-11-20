@@ -6,9 +6,10 @@ import type { OwnershipByDeckResult, OwnershipCardView, OwnershipDeckTotals, Own
 import { DECK_CARDS_PAGE_MAX, fitRows } from '../limits'
 import type { WithFacts } from '../../../../docs/oracle/contracts/connector-card-facts-and-deck-health.types'
 import { fetchCardFacts, factsFor } from './card-facts'
+import { fetchPrintingFacts, rarityField, type PrintingFactFields } from './card-printing-facts'
 import { estimatePrice } from '../../owned-copy-lookup'
 import { isPriceDataStale } from '../../price-store'
-import { fetchAll, LookupFailed, lookupFailed, notFound, pageNote, tooLarge, escapeLike, type ToolContext, type ToolOutput } from './common'
+import { fetchAll, fetchAllIn, LookupFailed, lookupFailed, notFound, pageNote, tooLarge, escapeLike, type ToolContext, type ToolOutput } from './common'
 import { parseCategories } from './get-deck'
 
 export const listByOwnershipInput = z.strictObject({
@@ -26,6 +27,8 @@ export interface OwnershipSlotRow {
   categories: string | null
   ownership_status: string | null
   is_generic: boolean
+  copy_id?: number | null
+  scryfall_id?: string | null
 }
 
 export const PRICE_SOURCE_BASE = {
@@ -113,7 +116,7 @@ export async function listDeckCardsByOwnership(ctx: ToolContext, input: z.infer<
       ? (
           await fetchAll<OwnershipSlotRow>(() => {
             let q = ctx.db
-              .select('deck_cards', 'id, deck_id, card_name, quantity, categories, ownership_status, is_generic')
+              .select('deck_cards', 'id, deck_id, card_name, quantity, categories, ownership_status, is_generic, copy_id, scryfall_id')
               .eq('user_id', ctx.userId)
               .in('ownership_status', ['proxy', 'not_owned'])
             q = input.deck_id !== undefined ? q.eq('deck_id', input.deck_id) : q.in('deck_id', deckRows.map((d) => d.id))
@@ -167,7 +170,17 @@ export async function listDeckCardsByOwnership(ctx: ToolContext, input: z.infer<
     const pageBase = all.slice(offset, offset + limit)
     // Facts (no rules text here) for the page only; prices are the ones already loaded above, so no second price lookup.
     const facts = await fetchCardFacts(ctx, pageBase.map((c) => c.name), { includeRulesText: false, prices: price })
-    const page: (OwnershipCardView & WithFacts)[] = pageBase.map((c) => ({ ...c, facts: factsFor(facts, c.name, false) }))
+    // Rarity of the printing in each slot (the proxy copy's printing, else the printing the slot asks for), one batched read.
+    const slotById = new Map(matching.map((r) => [r.id, r]))
+    const copyIds = pageBase.map((c) => slotById.get(c.slotId)?.copy_id).filter((x): x is number => x != null)
+    const copies = copyIds.length ? await fetchAllIn<{ id: number; printing_id: string | null }>(ctx, 'user_copies', 'id, printing_id', 'id', copyIds) : []
+    const copyPrinting = new Map(copies.map((c) => [c.id, c.printing_id]))
+    const printingOf = (slotId: number) => {
+      const s = slotById.get(slotId)
+      return (s?.copy_id != null ? copyPrinting.get(s.copy_id) : null) ?? s?.scryfall_id ?? null
+    }
+    const rarityById = await fetchPrintingFacts(ctx, pageBase.map((c) => printingOf(c.slotId)).filter((x): x is string => !!x), { pauper: false })
+    const page: (OwnershipCardView & WithFacts & Pick<PrintingFactFields, 'rarity' | 'rarity_unavailable'>)[] = pageBase.map((c) => ({ ...c, ...rarityField(rarityById, printingOf(c.slotId)), facts: factsFor(facts, c.name, false) }))
     const fit = fitRows(page, (kept) => {
       const meta = pageNote(total, offset, kept.length, kept.length < page.length)
       const result: OwnershipByDeckResult = { ok: true, filter, priceSource, totals, decks, items: kept, total, returned: kept.length, offset, truncated: meta.truncated, ...(meta.note ? { note: meta.note } : {}) }

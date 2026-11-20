@@ -58,6 +58,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
     if (url.endsWith('/health')) return json(200, HEALTH)
     if (url.endsWith('/card-statuses')) return json(200, STATUSES)
+    if (url.endsWith('/legality')) return json(200, { format: 'commander', isLegal: true, issues: [] })
     if (url.endsWith('/strategy-window')) return json(200, windowData)
     if (url.endsWith('/api/decks/7')) return json(200, DECK)
     return json(200, {})
@@ -77,12 +78,13 @@ async function renderPage() {
 describe('Deck page with the left rail', () => {
   it('shows every rail section with the real deck data, and 102 / 100 as "2 over"', async () => {
     const { aside } = await renderPage()
+    await within(aside).findByRole('heading', { name: 'Strategy' })
     const headings = within(aside).getAllByRole('heading').map((h) => h.textContent)
-    expect(headings).toEqual(['Yedora, the Explorer', 'Commander', 'Cards', 'Deck health', 'Mana curve', 'Colour needs against sources'])
+    expect(headings).toEqual(['Yedora, the Explorer', 'Command zone', 'Strategy', 'Cards', 'Deck health', 'Mana curve', 'Colour needs against sources'])
     expect(within(aside).getByTestId('rail-count')).toHaveTextContent('102 / 100')
     expect(within(aside).getByText('2 over')).toBeInTheDocument()
     expect(await within(aside).findByTestId('health-rows')).toBeInTheDocument()
-    expect(within(aside).queryByText('Original')).toBeNull()
+    expect(await within(aside).findByTestId('rail-legend')).toHaveTextContent('Original')
     expect(within(aside).queryByText('Commander · Green')).toBeNull()
     expect(within(aside).getByRole('img', { name: 'Green' })).toBeInTheDocument()
   })
@@ -90,8 +92,9 @@ describe('Deck page with the left rail', () => {
   it('has the Strategy block in the rail, and it opens the Strategy window (empty)', async () => {
     const { user, aside } = await renderPage()
     const block = await within(aside).findByTestId('strategy-block')
-    expect(block.className).toMatch(/border-dashed/)
-    await user.click(block)
+    expect(within(block).getByTestId('set-bracket').className).toMatch(/border-dashed/)
+    expect(within(block).getByTestId('salt-chip')).toHaveTextContent('Salt 1.2')
+    await user.click(within(block).getByRole('button', { name: 'Edit strategy' }))
     expect(await screen.findByRole('dialog')).toBeInTheDocument()
   })
 
@@ -99,8 +102,9 @@ describe('Deck page with the left rail', () => {
     windowData = { ...WINDOW, configured: true, bracket: 4, summary: 'Plants and recursion', updatedBy: 'owner', updatedAt: '2026-11-19T10:00:00Z' }
     const { user, aside } = await renderPage()
     const block = await within(aside).findByTestId('strategy-block')
-    expect(block).toHaveTextContent('Target bracket 4')
-    await user.click(block)
+    expect(block).toHaveTextContent('Bracket 4')
+    expect(within(block).getByTestId('salt-chip')).toHaveTextContent('Salt 1.2')
+    await user.click(within(block).getByRole('button', { name: 'Edit strategy' }))
     expect(await screen.findByRole('dialog')).toBeInTheDocument()
   })
 

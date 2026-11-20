@@ -122,7 +122,7 @@ describe('the Strategy window\'s "See in History" opens this History', () => {
   it('click the link: the window closes and History opens with Claude\'s changes (reason and Undo) above the saved versions', async () => {
     const user = userEvent.setup()
     render(wrap(<Page />))
-    await user.click(await screen.findByTestId('strategy-block'))
+    await user.click(await screen.findByRole('button', { name: 'Edit strategy' }))
     await user.click(await screen.findByRole('button', { name: 'See in History' }))
     const history = await screen.findByRole('dialog', { name: /History/ })
     expect(within(history).getByRole('heading', { name: 'Changes Claude made' })).toBeInTheDocument()

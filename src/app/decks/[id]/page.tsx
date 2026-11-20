@@ -29,7 +29,8 @@ import { useOracle } from '@/contexts/OracleContext'
 import { useDeckHoverPreload } from '@/hooks/useDeckHoverPreload'
 import type { DeckCard } from '@/components/CardGrid'
 import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
-import { isCompanion } from '@/lib/command-zone'
+import { isSecondCommander, parseCommandZoneRole } from '@/lib/command-zone'
+import type { RailCommanderRow } from '@/components/deck-rail/RailCommander'
 import { ImportResultLine } from '@/components/manabox-import/ImportResult'
 
 interface Deck {
@@ -216,11 +217,19 @@ export default function DeckViewPage() {
   const totalValue = activeCards.reduce((sum, c) => sum + ((c.price_usd ?? 0) * (c.quantity || 1)), 0)
 
   const commanderCards = findCommanderCards(cards, deck.commander_name)
-  const commanderNames = getFormatConfig(deck.format).hasCommander
-    ? commanderCards.length > 0
-      ? commanderCards.map((c) => c.card_name)
-      : deck.commander_name ? [deck.commander_name] : []
-    : []
+  const hasCommanderFormat = getFormatConfig(deck.format).hasCommander
+  const commanders: RailCommanderRow[] = !hasCommanderFormat
+    ? []
+    : commanderCards.length > 0
+      ? commanderCards.map((c) => ({
+          name: c.card_name,
+          // Per-commander identity from the card library; a lone commander falls back to the deck's stored identity.
+          colourIdentity: c.color_identity ?? (commanderCards.length === 1 ? deck.colour_identity : null),
+          role: isSecondCommander(c) ? parseCommandZoneRole(c.command_zone_role) : null,
+        }))
+      : deck.commander_name
+        ? [{ name: deck.commander_name, colourIdentity: deck.colour_identity, role: null }]
+        : []
   return (
     <div className="@container relative h-full overflow-y-auto @[800px]:overflow-hidden">
       {/* Blurred commander art background with parallax — hidden on mobile */}
@@ -260,16 +269,15 @@ export default function DeckViewPage() {
           colour_identity: deck.colour_identity,
           deck_type: deck.deck_type,
           is_precon_mod: deck.deck_type === 'Precon Mod',
-          salt_score: deck.salt_score,
         }}
-        commanderNames={commanderNames}
+        commanders={commanders}
         cards={activeCards}
         totalCards={totalCards}
         deckSize={getFormatConfig(deck.format).deckSize}
-        hasCompanion={cards.some((c) => isCompanion(c))}
+        allCards={cards}
         secondCommanderScryfallId={commanderCards.find((c) => c.scryfall_id && c.scryfall_id !== deck.commander_scryfall_id)?.scryfall_id}
         totalValue={totalValue}
-        strategySlot={<StrategyBlock deckId={deck.id} deckName={deck.name} onSeeHistory={() => setHistoryOpen(true)} />}
+        strategySlot={<StrategyBlock deckId={deck.id} deckName={deck.name} saltScore={deck.salt_score} onSeeHistory={() => setHistoryOpen(true)} />}
       />
       <div className="flex min-w-0 flex-1 flex-col @[800px]:min-h-0">
       {/* Fresh import result line */}

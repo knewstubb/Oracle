@@ -20,34 +20,63 @@ afterEach(() => {
   vi.unstubAllGlobals()
   Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => true })
 })
-function renderBlock(onSeeHistory = vi.fn()) {
+function renderBlock(onSeeHistory = vi.fn(), saltScore?: number | null) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  render(
+  const { unmount } = render(
     <QueryClientProvider client={qc}>
-      <StrategyBlock deckId={7} deckName="Yedora, the Explorer" onSeeHistory={onSeeHistory} />
+      <StrategyBlock deckId={7} deckName="Yedora, the Explorer" saltScore={saltScore} onSeeHistory={onSeeHistory} />
     </QueryClientProvider>,
   )
-  return { user: userEvent.setup(), onSeeHistory, qc }
+  return { user: userEvent.setup(), onSeeHistory, qc, unmount }
 }
 describe('Strategy block', () => {
-  it('empty: dashed outline, "Target bracket: Not set" and the prompt, one button that opens a dialog', async () => {
+  it('empty: a dashed "+ Set bracket" link chip (never amber), the summary prompt, and one Edit link that opens a dialog', async () => {
     renderBlock()
     const block = await screen.findByTestId('strategy-block')
-    expect(block.tagName).toBe('BUTTON')
-    expect(block).toHaveAttribute('aria-haspopup', 'dialog')
-    expect(block.className).toMatch(/border-dashed/)
-    expect(block).toHaveTextContent('Target bracket: Not set')
+    expect(block.tagName).toBe('DIV')
+    expect(screen.getByRole('heading', { name: 'Strategy' })).toBeInTheDocument()
+    const edit = screen.getByRole('button', { name: 'Edit strategy' })
+    expect(edit).toHaveAttribute('aria-haspopup', 'dialog')
+    const set = screen.getByTestId('set-bracket')
+    expect(set).toHaveTextContent('+ Set bracket')
+    expect(set.className).toMatch(/border-dashed/)
+    expect(set.className).not.toMatch(/amber/)
+    expect(block.querySelector('[class*="amber"]')).toBeNull()
+    expect(block).not.toHaveTextContent('Not set')
     expect(block).toHaveTextContent('Add a one-line summary of how this deck plays')
-    expect(block.querySelector('svg')).not.toBeNull() // the Not set chip has an icon, not colour alone
+    await userEvent.setup().click(set)
+    expect(await screen.findByRole('dialog', { name: 'Strategy' })).toBeInTheDocument()
   })
-  it('set: solid outline, number first then the name, and the summary', async () => {
+  it('there is no whole-block button: only Edit, the set-bracket chip and the summary prompt open the window', async () => {
+    renderBlock()
+    await screen.findByTestId('strategy-block')
+    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['Edit', '+ Set bracket', 'Add a one-line summary of how this deck plays'])
+  })
+  it('set: a "Bracket 4" chip and the summary', async () => {
     getResponse = async () => json(200, SET)
     renderBlock()
     const block = await screen.findByTestId('strategy-block')
-    expect(block.className).not.toMatch(/border-dashed/)
-    expect(block.textContent).toMatch(/Target bracket 4.*Optimized/)
+    expect(screen.getByTestId('bracket-chip')).toHaveTextContent('Bracket 4')
+    expect(screen.queryByTestId('set-bracket')).toBeNull()
     expect(block).toHaveTextContent('Plants and recursion')
     expect(screen.queryByTestId('strategy-block-warning')).toBeNull()
+  })
+  it('salt chip shows with a bracket and without one, in neutral colours, and is absent without a salt score', async () => {
+    getResponse = async () => json(200, SET)
+    const first = renderBlock(vi.fn(), 0.6)
+    const chip = await screen.findByTestId('salt-chip')
+    expect(chip).toHaveTextContent('Salt 0.6')
+    expect(chip.className).not.toMatch(/amber|green|red|signal/)
+    expect(screen.getByTestId('bracket-chip')).toBeInTheDocument()
+    first.unmount()
+    getResponse = async () => json(200, EMPTY)
+    const second = renderBlock(vi.fn(), 1.7)
+    expect(await screen.findByTestId('salt-chip')).toHaveTextContent('Salt 1.7')
+    expect(screen.getByTestId('set-bracket')).toBeInTheDocument()
+    second.unmount()
+    renderBlock(vi.fn(), null)
+    await screen.findByTestId('strategy-block')
+    expect(screen.queryByTestId('salt-chip')).toBeNull()
   })
   it('bracket exceeded: the same sentence as the window, with an icon', async () => {
     getResponse = async () => json(200, { ...SET, bracket: 3, implied: { minimumBracket: 4, basedOn: '4 Game Changers' } })
@@ -85,7 +114,7 @@ describe('Strategy block', () => {
     })
     expect(block).toHaveTextContent('Offline · showing saved copy')
     expect(block).toHaveTextContent('Plants and recursion')
-    await userEvent.setup().click(block)
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Edit strategy' }))
     const dlg = await screen.findByRole('dialog', { name: 'Strategy' })
     expect(dlg).toHaveTextContent("Your changes will save when you're back online")
     expect(screen.queryByRole('button', { name: 'Save' })).toBeNull()
@@ -94,8 +123,8 @@ describe('Strategy block', () => {
     let stored = { ...EMPTY }
     putResponse = async (b) => json(200, { ...(stored = { ...stored, ...(b as object) }), configured: true, notSaved: [] })
     const { user } = renderBlock()
-    const block = await screen.findByTestId('strategy-block')
-    await user.click(block)
+    await screen.findByTestId('strategy-block')
+    await user.click(screen.getByRole('button', { name: 'Edit strategy' }))
     await screen.findByRole('dialog', { name: 'Strategy' })
     await waitFor(() => expect(screen.getByRole('radio', { name: /1Exhibition/ })).toHaveFocus())
     await user.click(screen.getByRole('radio', { name: /4Optimized/ }))
@@ -107,12 +136,12 @@ describe('Strategy block', () => {
     expect(puts()).toEqual([{ bracket: 4 }, { summary: 'Plants and recursion' }])
     expect(screen.getByTestId('strategy-block')).toHaveTextContent('Plants and recursion')
     expect(screen.getByText('Strategy saved')).toBeInTheDocument()
-    await waitFor(() => expect(screen.getByTestId('strategy-block')).toHaveFocus())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Edit strategy' })).toHaveFocus())
   })
   it('a failed save keeps the window open with everything typed and offers Keep editing', async () => {
     putResponse = async () => json(500, { error: 'db down' })
     const { user } = renderBlock()
-    await user.click(await screen.findByTestId('strategy-block'))
+    await user.click(await screen.findByRole('button', { name: 'Edit strategy' }))
     await screen.findByRole('dialog')
     await waitFor(() => expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true))
     await user.type(screen.getByLabelText('One-line summary'), 'Keep me')
@@ -125,7 +154,7 @@ describe('Strategy block', () => {
   it('bracket 5 before the stored-data update: the window says so plainly and keeps the pick', async () => {
     putResponse = async () => json(422, { code: 'bracket_5_not_stored_yet', error: "Bracket 5 can't be saved yet. Oracle's stored data still stops at 4. Pick 1 to 4 for now." })
     const { user } = renderBlock()
-    await user.click(await screen.findByTestId('strategy-block'))
+    await user.click(await screen.findByRole('button', { name: 'Edit strategy' }))
     await screen.findByRole('dialog')
     await user.click(screen.getByRole('radio', { name: /5cEDH/ }))
     expect(await screen.findByRole('alert')).toHaveTextContent("Bracket 5 can't be saved yet.")
@@ -134,7 +163,7 @@ describe('Strategy block', () => {
   it('Claude changing the Strategy while the window is open shows up in the window without a Refresh button', async () => {
     getResponse = async () => json(200, { ...SET, strategy: 'Old plan.' })
     const { user, qc } = renderBlock()
-    await user.click(await screen.findByTestId('strategy-block'))
+    await user.click(await screen.findByRole('button', { name: 'Edit strategy' }))
     await screen.findByRole('dialog')
     await act(async () => {
       getResponse = async () => json(200, { ...SET, strategy: 'Claude plan.', updatedBy: 'claude' })
@@ -147,7 +176,7 @@ describe('Strategy block', () => {
   it('See in History closes the window and opens History', async () => {
     getResponse = async () => json(200, SET)
     const { user, onSeeHistory } = renderBlock()
-    await user.click(await screen.findByTestId('strategy-block'))
+    await user.click(await screen.findByRole('button', { name: 'Edit strategy' }))
     await user.click(await screen.findByRole('button', { name: 'See in History' }))
     expect(onSeeHistory).toHaveBeenCalledTimes(1)
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())

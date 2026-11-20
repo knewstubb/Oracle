@@ -12,18 +12,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, ChevronDown, ChevronUp, Ban, Palette, Hash } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-interface LegalityIssue {
-  cardName: string
-  reason: 'banned' | 'color_identity' | 'over_limit'
-  details: string
-}
-
-interface LegalityResponse {
-  format: string
-  isLegal: boolean
-  issues: LegalityIssue[]
-}
+import { legalityQueryOptions } from '@/lib/deck-legality-query'
 
 interface LegalityBannerProps {
   deckId: number
@@ -44,16 +33,7 @@ const REASON_LABELS: Record<string, string> = {
 export function LegalityBanner({ deckId }: LegalityBannerProps) {
   const [expanded, setExpanded] = useState(false)
 
-  const { data, isLoading } = useQuery<LegalityResponse>({
-    queryKey: ['deck-legality', deckId],
-    queryFn: async () => {
-      const res = await fetch(`/api/decks/${deckId}/legality`)
-      if (!res.ok) throw new Error('Failed to check legality')
-      return res.json()
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: false,
-  })
+  const { data, isLoading } = useQuery(legalityQueryOptions(deckId))
 
   // Don't show anything while loading or if deck is legal
   if (isLoading || !data || data.isLegal) {

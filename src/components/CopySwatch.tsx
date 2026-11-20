@@ -29,7 +29,7 @@ const LABELS: Record<CopySwatchKind, string> = {
   empty: 'Empty slot',
 }
 
-function styleFor(kind: CopySwatchKind): CSSProperties {
+export function swatchStyle(kind: CopySwatchKind): CSSProperties {
   switch (kind) {
     case 'original':
       return { background: 'var(--swatch-original)', border: '1px solid var(--swatch-original)' }
@@ -55,7 +55,7 @@ export function CopySwatch({ kind, className }: { kind: CopySwatchKind; classNam
       aria-label={LABELS[kind]}
       data-swatch={kind}
       className={cn('inline-block size-3.5 shrink-0 rounded-[3px]', className)}
-      style={styleFor(kind)}
+      style={swatchStyle(kind)}
     />
   )
 }

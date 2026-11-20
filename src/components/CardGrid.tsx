@@ -41,6 +41,8 @@ export interface DeckCard {
   mana_cost?: string | null
   /** Full type line from the card library (both faces joined by " // "). Null when the library has no row. */
   type_line?: string | null
+  /** Colour identity letters from the card library (e.g. "BG"). Null when the library has no row. */
+  color_identity?: string | null
   price_usd?: number | null
   edition_name?: string | null
   rarity?: string | null

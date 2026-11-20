@@ -57,6 +57,7 @@ export async function GET(
   const typeLineMap: Record<string, string> = {}
   const priceMap: Record<string, number> = {}
   const rarityMap: Record<string, string> = {}
+  const colorIdentityMap: Record<string, string> = {}
   if (cardNames.length > 0) {
     // Build lookup names: include both full DFC names and front-face variants
     const lookupNames = new Set(cardNames)
@@ -69,11 +70,12 @@ export async function GET(
       const batch = lookupArray.slice(i, i + 200)
       const { data: metaRows } = await supabase
         .from('ref_cards')
-        .select('name, mana_cost, type_line, edhrec_rank')
+        .select('name, mana_cost, type_line, edhrec_rank, color_identity')
         .in('name', batch)
       for (const row of metaRows ?? []) {
         if (row.mana_cost) manaCostMap[row.name] = row.mana_cost
         if (row.type_line) typeLineMap[row.name] = row.type_line
+        if (row.color_identity != null) colorIdentityMap[row.name] = row.color_identity
       }
     }
 
@@ -103,6 +105,7 @@ export async function GET(
         const front = frontFaceName(name)
         if (manaCostMap[front]) manaCostMap[name] = manaCostMap[front]
         if (typeLineMap[front] && !typeLineMap[name]) typeLineMap[name] = typeLineMap[front]
+        if (colorIdentityMap[front] !== undefined && colorIdentityMap[name] === undefined) colorIdentityMap[name] = colorIdentityMap[front]
         if (priceMap[front] !== undefined) priceMap[name] = priceMap[front]
         if (rarityMap[front]) rarityMap[name] = rarityMap[front]
       }
@@ -113,6 +116,7 @@ export async function GET(
         if (fullName) {
           manaCostMap[name] = manaCostMap[fullName]
           if (typeLineMap[fullName] && !typeLineMap[name]) typeLineMap[name] = typeLineMap[fullName]
+          if (colorIdentityMap[fullName] !== undefined && colorIdentityMap[name] === undefined) colorIdentityMap[name] = colorIdentityMap[fullName]
           if (priceMap[fullName] !== undefined) priceMap[name] = priceMap[fullName]
           if (rarityMap[fullName]) rarityMap[name] = rarityMap[fullName]
         }
@@ -229,6 +233,7 @@ export async function GET(
       : null,
     mana_cost: manaCostMap[card.card_name] || null,
     type_line: typeLineMap[card.card_name] || null,
+    color_identity: colorIdentityMap[card.card_name] ?? null,
     price_usd: priceMap[card.card_name] ?? null,
     edition_name: card.scryfall_id ? editionMap[card.scryfall_id]?.editionName || null : null,
     rarity: rarityMap[card.card_name] || null,

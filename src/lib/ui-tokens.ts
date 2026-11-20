@@ -49,3 +49,6 @@ export const SWATCH_VARS = {
 export const SURFACE_VAR = '--surface-card'
 export const CANVAS_VAR = '--bg-canvas'
 export const MUTED_TEXT_VAR = '--text-secondary'
+
+/** Section label: 11px, 600, uppercase, letter-spaced, muted. Shared by every rail section and the Strategy block. */
+export const SECTION_LABEL_CLASS = 'text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--text-muted)]'

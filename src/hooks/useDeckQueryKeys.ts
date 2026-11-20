@@ -33,6 +33,8 @@ export const deckKeys = {
   /** Health metrics for a deck: ['decks', deckId, 'health'] */
   health: (deckId: string | number) => ['decks', normalizeDeckId(deckId), 'health'] as const,
 
+  /** Format legality for a deck: ['deck-legality', deckId] (same key LegalityBanner has always used) */
+  legality: (deckId: string | number) => ['deck-legality', normalizeDeckId(deckId)] as const,
   /** Picklist for a deck: ['picklist', deckId] */
   picklist: (deckId: string | number) => ['picklist', normalizeDeckId(deckId)] as const,
 

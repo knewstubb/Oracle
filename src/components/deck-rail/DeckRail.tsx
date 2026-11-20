@@ -6,8 +6,8 @@ import { cardCountView, type RailCard } from '@/lib/deck-rail-stats'
 import { FOCUS_RING } from '@/components/deck-strategy/focus'
 import { CARD_SURFACE_CLASS, CARD_SURFACE_STYLE } from '@/lib/ui-tokens'
 import { cn } from '@/lib/utils'
-import { RailCommander } from './RailCommander'
-import { RailCards } from './RailCards'
+import { RailCommander, type RailCommanderRow } from './RailCommander'
+import { RailCards, type RailAllCard } from './RailCards'
 import { RailHealth } from './RailHealth'
 import { RailCurve } from './RailCurve'
 import { RailColourNeeds } from './RailColourNeeds'
@@ -20,15 +20,15 @@ export interface DeckRailProps {
     colour_identity: string | null
     deck_type: string | null
     is_precon_mod?: boolean
-    salt_score?: number | null
   }
-  /** Commander names (second one for partner or background). Empty when no commander is chosen. */
-  commanderNames: string[]
+  /** Commanders in command-zone order (primary first; a companion is not one). Empty when no commander is chosen. */
+  commanders: RailCommanderRow[]
   /** Main-deck cards (Maybeboard and Sideboard left out), for the curve and colour needs. */
   cards: RailCard[]
   totalCards: number
   deckSize: number | null
-  hasCompanion?: boolean
+  /** Every deck row (Maybeboard and companion included) for "Outside the 100" and the buy line. */
+  allCards?: RailAllCard[]
   /** Printing id of the second commander (partner or background), shown beside the first one's art. */
   secondCommanderScryfallId?: string | null
   totalValue?: number
@@ -36,10 +36,11 @@ export interface DeckRailProps {
   strategySlot: React.ReactNode
 }
 
-export function DeckRail({ deck, commanderNames, cards, totalCards, deckSize, hasCompanion, secondCommanderScryfallId, totalValue, strategySlot }: DeckRailProps) {
+export function DeckRail({ deck, commanders, cards, totalCards, deckSize, allCards, secondCommanderScryfallId, totalValue, strategySlot }: DeckRailProps) {
   const [expanded, setExpanded] = useState(false)
   const { label, over } = cardCountView(totalCards, deckSize)
-  const hasCommander = commanderNames.length > 0 && !!deck.commander_scryfall_id
+  const commanderNames = commanders.map((c) => c.name)
+  const hasCommander = commanders.length > 0 && !!deck.commander_scryfall_id
   const secondArt = secondCommanderScryfallId && secondCommanderScryfallId !== deck.commander_scryfall_id ? secondCommanderScryfallId : null
   const isPrecon = deck.is_precon_mod || deck.deck_type === 'Precon Mod'
 
@@ -91,9 +92,9 @@ export function DeckRail({ deck, commanderNames, cards, totalCards, deckSize, ha
               </span>
             )}
           </div>
-          <RailCommander names={commanderNames} colourIdentity={deck.colour_identity} saltScore={deck.salt_score} />
+          <RailCommander commanders={commanders} combinedIdentity={deck.colour_identity ?? commanders.map((c) => c.colourIdentity ?? '').join('')} />
           <div className="border-t border-white/[0.08] p-5">{strategySlot}</div>
-          <RailCards deckId={deck.id} totalCards={totalCards} deckSize={deckSize} hasCompanion={hasCompanion} totalValue={totalValue} />
+          <RailCards deckId={deck.id} totalCards={totalCards} deckSize={deckSize} allCards={allCards} totalValue={totalValue} />
           <RailHealth deckId={deck.id} />
           <RailCurve cards={cards} />
           <RailColourNeeds cards={cards} colourIdentity={deck.colour_identity} />

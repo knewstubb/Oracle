@@ -1,31 +1,14 @@
 'use client'
 
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { ArrowLeft } from 'lucide-react'
 import type { RollupV2Response } from '@/app/api/collection/rollup-v2/route'
 import { useSelectionModel } from '@/hooks/useSelectionModel'
 import { RollupListPane } from './RollupListPane'
-import { InstanceDetailPanel } from './InstanceDetailPanel'
+import { CollectionCardDetails } from '@/components/card-details/CollectionCardDetails'
 import { BulkActionBar } from './BulkActionBar'
-import { OVERLAY_BACKDROP } from '@/lib/overlay-classes'
 import { hasSupertype, parseTypeLine } from '@/lib/type-line'
-
-/* ─── useIsMobile Hook ──────────────────────────────────────────────── */
-
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia('(max-width: 900px)').matches : false
-  )
-  useEffect(() => {
-    const mql = window.matchMedia('(max-width: 900px)')
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
-    mql.addEventListener('change', handler)
-    return () => mql.removeEventListener('change', handler)
-  }, [])
-  return isMobile
-}
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
 
@@ -38,7 +21,7 @@ type SortDirection = 'asc' | 'desc'
  * Orchestrator component for the Collection Rollup two-pane UI.
  *
  * Owns layout state (selectedOracleId, search, sort, filter) and coordinates
- * the RollupListPane (left), InstanceDetailPanel (right), and BulkActionBar (bottom).
+ * the RollupListPane, the card details window (modal), and BulkActionBar (bottom).
  *
  * Validates: Requirements 5.1, 5.2, 5.5, 10.1
  */
@@ -50,7 +33,6 @@ export function CollectionRollupTab() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const [basicLandFilter, setBasicLandFilter] = useState(true)
   const [allocatedFilter, setAllocatedFilter] = useState(false)
-  const isMobile = useIsMobile()
 
   // ─── Selection model ───────────────────────────────────────────
   const {
@@ -69,17 +51,6 @@ export function CollectionRollupTab() {
     [selection]
   )
   const queryClient = useQueryClient()
-
-  // ─── Escape closes detail panel ───────────────────────────────
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && selectedOracleId) {
-        setSelectedOracleId(null)
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [selectedOracleId])
 
   // ─── Fetch rollup data ─────────────────────────────────────────
   const { data, isLoading, error } = useQuery<RollupV2Response>({
@@ -124,7 +95,6 @@ export function CollectionRollupTab() {
   }, [data, searchQuery, basicLandFilter, allocatedFilter, sortField, sortDirection])
 
   // ─── Derived state ─────────────────────────────────────────────
-  const panelOpen = selectedOracleId !== null
   const selectedCard = rows.find((r) => r.oracleId === selectedOracleId)
 
   // ─── Handlers ──────────────────────────────────────────────────
@@ -198,14 +168,8 @@ export function CollectionRollupTab() {
   // ─── Render ────────────────────────────────────────────────────
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      {/* Two-pane grid */}
-      <div
-        className="grid min-h-0 flex-1 overflow-hidden"
-        style={{
-          gridTemplateColumns: isMobile ? '1fr' : '1fr 560px',
-        }}
-      >
-        {/* Left pane: Rollup list */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden">
+        {/* The Collection list. A card opens in the card details window (a modal), so the list uses the full width. */}
         <RollupListPane
           rows={rows}
           isLoading={isLoading}
@@ -224,70 +188,19 @@ export function CollectionRollupTab() {
           onRowClick={handleRowClick}
           onCheckboxToggle={handleCheckboxToggle}
           getTriState={getTriState}
-          isPanelOpen={!isMobile}
+          isPanelOpen={false}
         />
-
-        {/* Right pane: Detail panel — always visible on desktop */}
-        {!isMobile && (
-          selectedOracleId ? (
-            <div className="border-l border-[var(--border-subtle)] pt-[72px] overflow-hidden">
-              <InstanceDetailPanel
-                oracleId={selectedOracleId}
-                cardName={selectedCard?.cardName ?? 'Unknown'}
-                onClose={handleClosePanel}
-                isInstanceSelected={isInstanceSelected}
-                onToggleInstance={handleToggleInstance}
-              />
-            </div>
-          ) : (
-            <div className="flex items-center justify-center border-l border-[var(--border-subtle)] pt-[72px] text-[length:var(--fs-base)] text-[var(--text-tertiary)]">
-              Select a card to view details
-            </div>
-          )
-        )}
       </div>
-
-      {/* Mobile overlay: Detail panel as full-screen push */}
-      {selectedOracleId && isMobile && (
-        <div
-          className={`fixed inset-0 z-50 flex flex-col ${OVERLAY_BACKDROP}`}
-        >
-          <div
-            className="flex flex-1 flex-col overflow-hidden bg-[var(--bg-surface)]"
-          >
-            {/* Mobile header with back arrow */}
-            <div
-              className="flex items-center gap-2 border-b border-[var(--border-subtle)] px-4 py-3"
-            >
-              <button
-                type="button"
-                onClick={handleClosePanel}
-                className="rounded p-1 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface-hover)]"
-                aria-label="Back to list"
-              >
-                <ArrowLeft className="size-4" />
-              </button>
-              <span
-                className="flex-1 truncate text-[length:var(--fs-md)] font-medium text-[var(--text-primary)]"
-              >
-                {selectedCard?.cardName ?? 'Unknown'}
-              </span>
-            </div>
-
-            {/* Panel content (reuse InstanceDetailPanel without its own header) */}
-            <div className="flex-1 overflow-hidden">
-              <InstanceDetailPanel
-                oracleId={selectedOracleId}
-                cardName={selectedCard?.cardName ?? 'Unknown'}
-                onClose={handleClosePanel}
-                isInstanceSelected={isInstanceSelected}
-                onToggleInstance={handleToggleInstance}
-              />
-            </div>
-          </div>
-        </div>
+      {selectedOracleId && (
+        <CollectionCardDetails
+          key={selectedOracleId}
+          oracleId={selectedOracleId}
+          cardName={selectedCard?.cardName ?? 'Unknown'}
+          onClose={handleClosePanel}
+          isInstanceSelected={isInstanceSelected}
+          onToggleInstance={handleToggleInstance}
+        />
       )}
-
       {/* Bulk action bar */}
       {selectedCount > 0 && (
         <BulkActionBar

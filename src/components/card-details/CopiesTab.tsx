@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { CARD_DETAILS_LABELS as L, deckStateLabel, inDeckLabel } from '@/lib/card-details/labels'
+import { CARD_DETAILS_LABELS as L, conditionLabel, deckStateLabel, inDeckLabel } from '@/lib/card-details/labels'
 import type { CopyView } from '@/lib/card-details/copies'
 import type { CardDetails } from '@/lib/card-details/load'
 import { moveHereErrorMessage, movedToastText, playableWarning } from '@/lib/move-here'
@@ -140,7 +140,7 @@ export function CopiesTab({ deckId, cardId, data }: CopiesTabProps) {
                       <span className="flex items-center gap-2"><Swatch copy={c} />{whereText(c)}</span>
                     </td>
                     <td className="py-2 pr-3">{c.printing ? `${setLabel(c.printing.setCode, c.printing.collectorNumber)}${finishSuffix(c.finish)}` : '—'}</td>
-                    <td className="py-2 pr-3">{c.condition ?? '–'}</td>
+                    <td className="py-2 pr-3">{conditionLabel(c.condition)}</td>
                     <td className="py-2 pr-3">{stateText(c)}</td>
                     <td className="py-2 text-right">
                       {c.action === 'sleeve_here' && (

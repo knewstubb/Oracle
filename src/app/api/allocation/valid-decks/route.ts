@@ -2,7 +2,7 @@
  * GET /api/allocation/valid-decks?cardName=Sol+Ring
  *
  * Returns decks whose color identity is a superset of the given card's color identity.
- * Used by storage detail "Assign" buttons and InstanceDetailPanel "Reassign" actions
+ * Used by storage detail "Assign" buttons and the card details window "Move to a deck"
  * where we don't have a specific deckId context.
  *
  * Returns: Array<{ deckId, deckName, deckStatus }>

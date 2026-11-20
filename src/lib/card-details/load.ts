@@ -55,7 +55,7 @@ export interface CardDetails {
 
 type Client = RefClient
 
-function fail(what: string, error: { message: string } | null): never {
+export function fail(what: string, error: { message: string } | null): never {
   throw new Error(`${what} failed: ${error?.message ?? 'unknown'}`)
 }
 
@@ -87,7 +87,7 @@ async function resolveOracleId(
   return null
 }
 
-async function loadFacts(supabase: Client, cardName: string): Promise<CardFacts | null> {
+export async function loadFacts(supabase: Client, cardName: string): Promise<CardFacts | null> {
   const cols = 'name, oracle_text, type_line, mana_cost, mana_value, color_identity, power, toughness'
   const first = await supabase.from('ref_cards').select(cols).eq('name', cardName).limit(1)
   if (first.error) fail('card facts lookup', first.error)
@@ -113,7 +113,7 @@ async function loadFacts(supabase: Client, cardName: string): Promise<CardFacts 
   }
 }
 
-async function deckInfos(supabase: Client, deckIds: number[]): Promise<Map<number, DeckInfo>> {
+export async function deckInfos(supabase: Client, deckIds: number[]): Promise<Map<number, DeckInfo>> {
   const out = new Map<number, DeckInfo>()
   if (deckIds.length === 0) return out
   const { data: decks, error } = await supabase.from('decks').select('id, name, format').in('id', deckIds)

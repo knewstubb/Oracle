@@ -90,3 +90,15 @@ export function shapePrintings(
       FINISH_ORDER.indexOf(a.finish) - FINISH_ORDER.indexOf(b.finish),
   )
 }
+
+export type PrintingFilter = 'all' | 'own' | 'foil'
+export type PrintingSort = 'newest' | 'cheapest'
+/** The Printings tab's filter pills and sort, shared by the deck and collection windows. */
+export function filterSortPrintings(all: readonly PrintingFinishRow[], filter: PrintingFilter, sort: PrintingSort): PrintingFinishRow[] {
+  const list = all.filter((p) => (filter === 'own' ? p.owned > 0 : filter === 'foil' ? p.finish !== 'nonfoil' : true))
+  return [...list].sort((a, b) =>
+    sort === 'newest'
+      ? (b.releasedAt ?? '').localeCompare(a.releasedAt ?? '')
+      : (a.priceUsd ?? Infinity) - (b.priceUsd ?? Infinity) || (b.releasedAt ?? '').localeCompare(a.releasedAt ?? ''),
+  )
+}

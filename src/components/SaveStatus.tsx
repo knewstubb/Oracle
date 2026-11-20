@@ -12,11 +12,13 @@ export interface SaveStatusProps {
   /** Runs the save again after a failure. */
   onRetry: () => void
   className?: string
+  /** Replaces the default error line (the default talks about text). */
+  errorText?: string
 }
 
 const timeText = (d: Date) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 
-export function SaveStatus({ status, lastSavedAt, onRetry, className }: SaveStatusProps) {
+export function SaveStatus({ status, lastSavedAt, onRetry, className, errorText }: SaveStatusProps) {
   return (
     <div role="status" aria-live="polite" data-testid="save-status" className={cn('flex min-h-11 items-center gap-2 text-[length:var(--fs-sm)]', className)}>
       {status === 'saving' && (
@@ -35,7 +37,7 @@ export function SaveStatus({ status, lastSavedAt, onRetry, className }: SaveStat
         <span className="flex flex-wrap items-center gap-2 text-red-300">
           <span className="flex items-center gap-1.5">
             <XCircle className="size-4 shrink-0" aria-hidden="true" />
-            Couldn&apos;t save. Your text is still here.
+            {errorText ?? "Couldn't save. Your text is still here."}
           </span>
           <button
             type="button"

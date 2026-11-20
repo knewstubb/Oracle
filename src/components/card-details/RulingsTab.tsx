@@ -1,6 +1,6 @@
 'use client'
 import { CARD_DETAILS_LABELS as L } from '@/lib/card-details/labels'
-import type { CardDetails } from '@/lib/card-details/load'
+import type { Ruling } from '@/lib/card-details/load'
 import { TAB_BODY } from './shared'
 
 function formatDate(iso: string): string {
@@ -9,7 +9,7 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 }
 
-export function RulingsTab({ data }: { data: CardDetails }) {
+export function RulingsTab({ data }: { data: { rulings: Ruling[] } }) {
   return (
     <div className={TAB_BODY}>
       {data.rulings.length === 0 ? (

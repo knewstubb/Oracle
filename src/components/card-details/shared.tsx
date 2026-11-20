@@ -48,3 +48,5 @@ export const rowKey = (p: Pick<PrintingFinishRow, 'scryfallId' | 'finish'>) => `
 export const TAB_BODY = 'min-h-0 flex-1 overflow-auto p-4 max-sm:p-3'
 export const BTN_SM = 'inline-flex h-8 items-center justify-center rounded-md border border-[var(--border-emphasis)] px-2.5 text-[length:var(--fs-sm)] font-medium disabled:opacity-50 max-sm:h-11'
 export const SELECT = 'h-8 rounded-md border border-input bg-background px-2 text-[length:var(--fs-sm)] text-foreground max-sm:h-11'
+
+export const LEGALITY: Record<string, string> = { legal: 'Legal', not_legal: 'Not legal', banned: 'Banned', restricted: 'Restricted' }

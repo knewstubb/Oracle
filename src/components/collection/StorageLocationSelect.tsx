@@ -28,6 +28,11 @@ export interface StorageLocationSelectProps {
   assignedDeckName?: string | null
   /** Called after successful assignment to refresh parent data */
   onAssigned?: () => void
+  /** Optional status hooks so a host can show Saving / Saved / error with retry. */
+  onSaveStart?: () => void
+  onSaved?: () => void
+  /** Called when the save fails; `retry` repeats it. A failed save leaves the shown place unchanged. */
+  onSaveError?: (retry: () => void) => void
   /** Optional additional className */
   className?: string
 }
@@ -56,6 +61,9 @@ export function StorageLocationSelect({
   isAllocated,
   assignedDeckName,
   onAssigned,
+  onSaveStart,
+  onSaved,
+  onSaveError,
   className,
 }: StorageLocationSelectProps) {
   const queryClient = useQueryClient()
@@ -89,6 +97,7 @@ export function StorageLocationSelect({
     onMutate: (storageLocationId) => {
       // Optimistic update
       setOptimisticLocationId(storageLocationId)
+      onSaveStart?.()
     },
     onSuccess: () => {
       setOptimisticLocationId(undefined)
@@ -96,10 +105,12 @@ export function StorageLocationSelect({
       queryClient.invalidateQueries({ queryKey: ['collection', 'rollup-v2'] })
       queryClient.invalidateQueries({ queryKey: ['collection', 'instances'] })
       onAssigned?.()
+      onSaved?.()
     },
-    onError: () => {
+    onError: (_err, storageLocationId) => {
       // Revert optimistic update
       setOptimisticLocationId(undefined)
+      onSaveError?.(() => assignMutation.mutate(storageLocationId))
     },
   })
 

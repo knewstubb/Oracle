@@ -214,3 +214,55 @@ describe('CollectionRollupTab Hide Basics', () => {
     expect(screen.getByText('Forest')).toBeInTheDocument()
   })
 })
+
+describe('CollectionRollupTab card details window', () => {
+  const copy = (id: number) => ({
+    copyId: id, isProxy: false, finish: 'nonfoil', condition: 'near_mint', printingId: 'p1',
+    printing: { setCode: 'c21', setName: 'Commander 2021', collectorNumber: '263' }, priceUsd: 2.1,
+    storage: { id: null, name: null }, assigned: null, state: 'open',
+  })
+  beforeEach(() => {
+    const base = global.fetch
+    global.fetch = vi.fn((url: string | URL | Request, init?: RequestInit) => {
+      const urlStr = typeof url === 'string' ? url : url.toString()
+      if (urlStr.endsWith(`/api/collection/instances/${ORACLE_ID}/details`)) {
+        fetchCalls.push({ url: urlStr, init })
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            oracleId: ORACLE_ID, cardName: 'Sol Ring', facts: null, tags: [], printings: [], copies: REAL_COPY_IDS.map(copy),
+            waitingDecks: [], rulings: [], commanderLegality: 'legal', ownedCount: 2, collectionValue: 4.2, cheapest: 2.1, imageScryfallId: null,
+          }),
+        } as Response)
+      }
+      return (base as typeof fetch)(url, init)
+    }) as typeof fetch
+  })
+  async function openWindow() {
+    renderTab()
+    fireEvent.click(await screen.findByText('Sol Ring'))
+    await screen.findByRole('button', { name: 'Close card details' })
+    fireEvent.click(await screen.findByRole('tab', { name: /^Copies/ }))
+    await screen.findAllByTestId('card-details-copy-row')
+  }
+  it('opens the window from a row and keeps the Collection list in one full-width column', async () => {
+    await openWindow()
+    expect(screen.queryByText('Select a card to view details')).toBeNull()
+  })
+  it('ticking copies in the window selects those exact ids for the bulk bar, and closing keeps the selection', async () => {
+    await openWindow()
+    fireEvent.click(screen.getByLabelText(/^Select copy 205 /))
+    fireEvent.click(screen.getByLabelText(/^Select copy 101 /))
+    await waitFor(() => expect(screen.getAllByText('2 selected').length).toBeGreaterThan(0))
+    fireEvent.click(screen.getByRole('button', { name: 'Close card details' }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Close card details' })).toBeNull())
+    expect(screen.getByText('2 selected')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    const dialog = await screen.findByRole('alertdialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+    await waitFor(() => {
+      const ids = fetchCalls.filter((c) => c.url.includes('/api/collection/instances/delete')).map((c) => JSON.parse(String(c.init?.body)).physicalCopyId)
+      expect(ids.sort()).toEqual([101, 205])
+    })
+  })
+})

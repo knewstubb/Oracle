@@ -43,7 +43,7 @@ interface DeckPickerPopoverProps {
  * Reuses teal-outline button styling. Used in:
  * - StatusChipPopover's Reassign action
  * - Storage detail view's Assign button
- * - InstanceDetailPanel's Reassign action
+ * - the card details window's Add to a deck action
  */
 export function DeckPickerPopover({
   validDecks,

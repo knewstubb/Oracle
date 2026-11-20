@@ -1,0 +1,23 @@
+'use client'
+// Temporary page for the browser check (copied to src/app/zz-harness/page.tsx by the capture step, then deleted).
+import { useState } from 'react'
+import { CollectionCardDetails } from '@/components/card-details/CollectionCardDetails'
+
+export default function Page() {
+  const [open, setOpen] = useState(false)
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  return (
+    <div>
+      <button data-testid="open-details" onClick={() => setOpen(true)}>Sol Ring</button>
+      {open && (
+        <CollectionCardDetails
+          oracleId="oid-sol"
+          cardName="Sol Ring"
+          isInstanceSelected={(id) => selected.has(id)}
+          onToggleInstance={(id) => setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </div>
+  )
+}

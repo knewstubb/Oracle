@@ -65,7 +65,6 @@ describe('import modal layout (spec import-modal-redesign §3)', () => {
       'MobileCardPreview',
       'TopNav',
       'OracleSidebar',
-      'collection/CollectionRollupTab',
     ]) {
       const src = read(`src/components/${f}.tsx`)
       expect(src, f).toContain('OVERLAY_BACKDROP')

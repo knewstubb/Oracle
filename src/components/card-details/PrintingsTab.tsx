@@ -3,12 +3,10 @@ import { useMemo, useState } from 'react'
 import { formatPrice } from '@/lib/collection-printing-utils'
 import { CARD_DETAILS_LABELS as L } from '@/lib/card-details/labels'
 import type { CardDetails } from '@/lib/card-details/load'
-import type { PrintingFinishRow } from '@/lib/card-details/printings'
+import { filterSortPrintings, type PrintingFilter as Filter, type PrintingSort as Sort, type PrintingFinishRow } from '@/lib/card-details/printings'
 import { SELECT, TAB_BODY, finishSuffix, rowKey, titleCase } from './shared'
 import { useRefreshAfterChange } from './useCardDetailsData'
 
-type Filter = 'all' | 'own' | 'foil'
-type Sort = 'newest' | 'cheapest'
 
 export interface PrintingsTabProps {
   deckId: number
@@ -34,14 +32,7 @@ export function PrintingsTab({ deckId, cardId, data, onPreview }: PrintingsTabPr
   }, [all, data.slot.finish])
   const selected = pending ?? currentKey
 
-  const rows = useMemo(() => {
-    const list = all.filter((p) => (filter === 'own' ? p.owned > 0 : filter === 'foil' ? p.finish !== 'nonfoil' : true))
-    return [...list].sort((a, b) =>
-      sort === 'newest'
-        ? (b.releasedAt ?? '').localeCompare(a.releasedAt ?? '')
-        : (a.priceUsd ?? Infinity) - (b.priceUsd ?? Infinity) || (b.releasedAt ?? '').localeCompare(a.releasedAt ?? ''),
-    )
-  }, [all, filter, sort])
+  const rows = useMemo(() => filterSortPrintings(all, filter, sort), [all, filter, sort])
   const ownCount = all.filter((p) => p.owned > 0).length
 
   const choose = async (p: PrintingFinishRow) => {

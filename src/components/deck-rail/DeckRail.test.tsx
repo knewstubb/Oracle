@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { readFileSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { DeckRail, type DeckRailProps } from './DeckRail'
@@ -55,7 +57,8 @@ describe('DeckRail', () => {
     const slot = screen.getByTestId('strategy-slot')
     expect(screen.getByRole('heading', { name: 'Commander' }).compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(slot.compareDocumentPosition(screen.getByRole('heading', { name: 'Cards' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(await screen.findByText('Commander · Green')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Green' })).toBeInTheDocument()
+    expect(screen.queryByText(/Commander · /)).toBeNull()
     expect(screen.getByText('$131.98')).toBeInTheDocument()
   })
 
@@ -77,11 +80,11 @@ describe('DeckRail', () => {
     renderRail(yedora())
     const section = screen.getByRole('heading', { name: 'Cards' }).closest('section')!
     expect(within(section).getByText('Checking…')).toBeInTheDocument()
-    expect(within(section).queryByText('Original')).toBeNull()
     release(json(200, STATUSES))
-    expect(await within(section).findByText('Original')).toBeInTheDocument()
-    expect(within(section).getByText('In other decks')).toBeInTheDocument()
-    expect(within(section).getByText('85 in deck')).toBeInTheDocument()
+    await waitFor(() => expect(within(section).queryByText('Checking…')).toBeNull())
+    // The ownership rows repeated the bar and "N in deck" repeated the count: both are gone.
+    for (const gone of ['Original', 'Proxy', 'In other decks', 'Unowned', 'Available', 'Generic', '85 in deck']) expect(within(section).queryByText(gone)).toBeNull()
+    expect(within(section).queryByText(/in deck$/)).toBeNull()
   })
 
   it("says Couldn't check with Try again when statuses fail", async () => {
@@ -202,7 +205,7 @@ describe('DeckRail', () => {
     renderRail(yedora({ commanderNames: [], deck: { ...yedora().deck, commander_scryfall_id: null } }))
     expect(screen.getByText('Choose a commander')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Mana curve' })).toBeInTheDocument()
-    await waitFor(() => expect(screen.getByText('Original')).toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByText('Checking…')).toBeNull())
   })
 
   it('shows only the art crop of the commander, and both arts for a partner pair', () => {
@@ -210,8 +213,12 @@ describe('DeckRail', () => {
     const img = screen.getByAltText('Yedora, Grave Gardener card art') as HTMLImageElement
     expect(img.src).toContain('/art_crop/front/a/b/abc.jpg')
     expect(img.src).not.toContain('/normal/')
-    expect(img.className).toMatch(/\brounded-lg\b/)
-    expect(img.parentElement!.parentElement!.className).toMatch(/\brounded-lg\b/)
+    // Full-width header art: no rounding of its own, the card clips the top corners.
+    expect(img.className).not.toMatch(/\brounded/)
+    const card = screen.getByTestId('rail-card')
+    expect(card.className).toMatch(/\boverflow-hidden\b/)
+    expect(card.className).toMatch(/\brounded-lg\b/)
+    expect(screen.getByTestId('rail-art').parentElement).toBe(card)
     unmount()
     renderRail(yedora({ commanderNames: ['Tymna', 'Thrasios'], secondCommanderScryfallId: 'xyz' }))
     expect((screen.getByAltText('Tymna card art') as HTMLImageElement).src).toContain('/art_crop/front/a/b/abc.jpg')
@@ -221,7 +228,20 @@ describe('DeckRail', () => {
     renderRail(yedora())
     fireEvent.error(screen.getByAltText('Yedora, Grave Gardener card art'))
     expect(screen.getByRole('img', { name: 'Yedora, Grave Gardener card art' })).toHaveTextContent('No image')
-    expect(screen.getByRole('img', { name: 'Yedora, Grave Gardener card art' }).className).toMatch(/\brounded-lg\b/)
+  })
+  it('has no green status colour in any rail component', () => {
+    const dir = join(process.cwd(), 'src/components/deck-rail')
+    const files = readdirSync(dir).filter((f) => f.endsWith('.tsx') && !f.endsWith('.test.tsx'))
+    expect(files.length).toBeGreaterThan(5)
+    for (const f of files) expect(readFileSync(join(dir, f), 'utf8'), f).not.toContain('signal-success')
+  })
+  it('puts a shared section label style on every rail section and a Salt chip in neutral colours', () => {
+    renderRail(yedora())
+    for (const name of ['Commander', 'Cards', 'Deck health', 'Mana curve', 'Colour needs against sources']) {
+      expect(screen.getByRole('heading', { name }).className).toMatch(/text-\[11px\].*uppercase/)
+    }
+    const salt = screen.getByText(/Salt 1\.2/)
+    expect(salt.className).not.toMatch(/signal|green|amber/)
   })
   it('toggles the narrow-layout summary button', async () => {
     const user = userEvent.setup()

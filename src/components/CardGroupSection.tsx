@@ -46,6 +46,7 @@ import { isBasicLand, isGenericSlot, isGenericSleeved, getBasicLandDefaultScryfa
 import { parseLandCount } from '@/lib/generic-land-count'
 import { ManaCost } from '@/components/ManaCost'
 import { formatPrice } from '@/lib/collection-printing-utils'
+import { CARD_SURFACE_CLASS, CARD_SURFACE_STYLE } from '@/lib/ui-tokens'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -127,8 +128,8 @@ export function CardGroupSection({
   return (
     <section
       id={`category-${groupName.toLowerCase().replace(/\s+/g, '-')}`}
-      className="rounded-lg border border-white/[0.08]"
-      style={{ backgroundColor: 'rgba(26,26,30,0.5)' }}
+      className={CARD_SURFACE_CLASS}
+      style={CARD_SURFACE_STYLE}
     >
       {/* Section header */}
       <div

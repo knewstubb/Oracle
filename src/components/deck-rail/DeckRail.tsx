@@ -4,6 +4,8 @@ import { ChevronDown } from 'lucide-react'
 import { CardImage } from '@/components/CardImage'
 import { cardCountView, type RailCard } from '@/lib/deck-rail-stats'
 import { FOCUS_RING } from '@/components/deck-strategy/focus'
+import { CARD_SURFACE_CLASS, CARD_SURFACE_STYLE } from '@/lib/ui-tokens'
+import { cn } from '@/lib/utils'
 import { RailCommander } from './RailCommander'
 import { RailCards } from './RailCards'
 import { RailHealth } from './RailHealth'
@@ -42,7 +44,7 @@ export function DeckRail({ deck, commanderNames, cards, totalCards, deckSize, ha
   const isPrecon = deck.is_precon_mod || deck.deck_type === 'Precon Mod'
 
   return (
-    <aside aria-label="Deck summary" className="w-full shrink-0 border-b @[800px]:sticky @[800px]:top-0 @[800px]:h-full @[800px]:w-[304px] @[800px]:overflow-y-auto @[800px]:border-b-0 @[800px]:border-r">
+    <aside aria-label="Deck summary" className="w-full shrink-0 border-b @[800px]:sticky @[800px]:top-0 @[800px]:h-full @[800px]:w-[352px] @[800px]:overflow-y-auto @[800px]:border-b-0 @[800px]:px-6 @[800px]:pb-6 @[800px]:pt-2">
       <button
         type="button"
         aria-expanded={expanded}
@@ -64,36 +66,38 @@ export function DeckRail({ deck, commanderNames, cards, totalCards, deckSize, ha
         <ChevronDown size={18} aria-hidden="true" className={expanded ? 'rotate-180' : ''} />
         <span className="sr-only">{expanded ? 'Hide deck summary' : 'Show deck summary'}</span>
       </button>
-      <div id="deck-rail-body" className={`${expanded ? 'block' : 'hidden'} space-y-5 px-4 py-4 @[800px]:block`}>
-        {hasCommander ? (
-          <div className={`mx-auto flex w-full max-w-[272px] ${secondArt ? 'gap-2' : ''}`}>
-            <div className="min-w-0 flex-1 overflow-hidden rounded-lg">
-              <CardImage scryfallId={deck.commander_scryfall_id!} alt={`${commanderNames[0]} card art`} width={secondArt ? 132 : 272} height={secondArt ? 96 : 199} artCrop noPreview className="block h-auto w-full rounded-lg object-cover" />
-            </div>
-            {secondArt && (
-              <div className="min-w-0 flex-1 overflow-hidden rounded-lg">
-                <CardImage scryfallId={secondArt} alt={`${commanderNames[1] ?? 'Partner'} card art`} width={132} height={96} artCrop noPreview className="block h-auto w-full rounded-lg object-cover" />
+      <div id="deck-rail-body" className={`${expanded ? 'block' : 'hidden'} px-4 pb-4 @[800px]:block @[800px]:p-0`}>
+        <div className={cn(CARD_SURFACE_CLASS, 'overflow-hidden')} style={CARD_SURFACE_STYLE} data-testid="rail-card">
+          {hasCommander ? (
+            <div className="flex w-full" data-testid="rail-art">
+              <div className="min-w-0 flex-1">
+                <CardImage scryfallId={deck.commander_scryfall_id!} alt={`${commanderNames[0]} card art`} width={secondArt ? 152 : 304} height={secondArt ? 111 : 222} artCrop noPreview className="block h-auto w-full object-cover" />
               </div>
+              {secondArt && (
+                <div className="min-w-0 flex-1">
+                  <CardImage scryfallId={secondArt} alt={`${commanderNames[1] ?? 'Partner'} card art`} width={152} height={111} artCrop noPreview className="block h-auto w-full object-cover" />
+                </div>
+              )}
+            </div>
+          ) : null}
+          <div className="p-5">
+            <h1 className="break-words text-[length:var(--fs-xl)] font-semibold leading-tight">{deck.name}</h1>
+            {isPrecon && (
+              <span
+                className="mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[length:var(--fs-sm)] font-medium"
+                style={{ background: 'var(--signal-warning-bg)', color: 'var(--signal-warning)' }}
+              >
+                Precon mod
+              </span>
             )}
           </div>
-        ) : null}
-        <div>
-          <h1 className="break-words text-[length:var(--fs-xl)] font-semibold leading-tight">{deck.name}</h1>
-          {isPrecon && (
-            <span
-              className="mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[length:var(--fs-sm)] font-medium"
-              style={{ background: 'var(--signal-warning-bg)', color: 'var(--signal-warning)' }}
-            >
-              Precon mod
-            </span>
-          )}
+          <RailCommander names={commanderNames} colourIdentity={deck.colour_identity} saltScore={deck.salt_score} />
+          <div className="border-t border-white/[0.08] p-5">{strategySlot}</div>
+          <RailCards deckId={deck.id} totalCards={totalCards} deckSize={deckSize} hasCompanion={hasCompanion} totalValue={totalValue} />
+          <RailHealth deckId={deck.id} />
+          <RailCurve cards={cards} />
+          <RailColourNeeds cards={cards} colourIdentity={deck.colour_identity} />
         </div>
-        <RailCommander names={commanderNames} colourIdentity={deck.colour_identity} saltScore={deck.salt_score} />
-        {strategySlot}
-        <RailCards deckId={deck.id} totalCards={totalCards} deckSize={deckSize} hasCompanion={hasCompanion} totalValue={totalValue} />
-        <RailHealth deckId={deck.id} />
-        <RailCurve cards={cards} />
-        <RailColourNeeds cards={cards} colourIdentity={deck.colour_identity} />
       </div>
     </aside>
   )

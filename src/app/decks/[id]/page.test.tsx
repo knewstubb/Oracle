@@ -81,8 +81,10 @@ describe('Deck page with the left rail', () => {
     expect(headings).toEqual(['Yedora, the Explorer', 'Commander', 'Cards', 'Deck health', 'Mana curve', 'Colour needs against sources'])
     expect(within(aside).getByTestId('rail-count')).toHaveTextContent('102 / 100')
     expect(within(aside).getByText('2 over')).toBeInTheDocument()
-    expect(await within(aside).findByText('Original')).toBeInTheDocument()
-    expect(within(aside).getByText('Commander · Green')).toBeInTheDocument()
+    expect(await within(aside).findByTestId('health-rows')).toBeInTheDocument()
+    expect(within(aside).queryByText('Original')).toBeNull()
+    expect(within(aside).queryByText('Commander · Green')).toBeNull()
+    expect(within(aside).getByRole('img', { name: 'Green' })).toBeInTheDocument()
   })
 
   it('has the Strategy block in the rail, and it opens the Strategy window (empty)', async () => {

@@ -6,14 +6,16 @@ import type { DeckHealthResponse, HealthRow, Verdict } from '@/lib/deck-health'
 const VERDICT_WORD: Record<Verdict, string> = { light: 'Light', ok: 'Ok', heavy: 'Heavy' }
 const VERDICT_ICON = { light: ArrowDown, ok: Check, heavy: ArrowUp } as const
 
-export function verdictColour(v: Verdict | null): string {
+export function verdictColour(v: Verdict | null, neutral = false): string {
+  if (neutral) return v === 'light' ? 'var(--warn-amber)' : 'var(--text-secondary)'
   return v === 'ok' ? 'var(--signal-success)' : v === null ? 'var(--text-secondary)' : 'var(--signal-warning)'
 }
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many)
 
 /** Icon plus word ("Light", "Ok", "Heavy"). A row with no verdict (Game Plan) says "Total" in grey. */
-export function VerdictMark({ verdict, className = '' }: { verdict: Verdict | null; className?: string }) {
+/** `neutral` (the rail): no green; only Light is amber. The details panel keeps its own colours. */
+export function VerdictMark({ verdict, className = '', neutral = false }: { verdict: Verdict | null; className?: string; neutral?: boolean }) {
   if (verdict === null) {
     return (
       <span className={`inline-flex items-center justify-end gap-1 ${className}`} style={{ color: 'var(--text-secondary)' }}>
@@ -23,7 +25,7 @@ export function VerdictMark({ verdict, className = '' }: { verdict: Verdict | nu
   }
   const Icon = VERDICT_ICON[verdict]
   return (
-    <span className={`inline-flex items-center justify-end gap-1 font-semibold ${className}`} style={{ color: verdictColour(verdict) }}>
+    <span className={`inline-flex items-center justify-end gap-1 font-semibold ${className}`} style={{ color: verdictColour(verdict, neutral) }}>
       <Icon size={14} aria-hidden="true" />
       {VERDICT_WORD[verdict]}
     </span>
@@ -44,12 +46,12 @@ export function rowAriaLabel(row: HealthRow): string {
 }
 
 /** Header line over the rows: an amber triangle when any ranged row is off, a tick when all are in range. */
-export function HeaderIcon({ health }: { health: DeckHealthResponse }) {
+export function HeaderIcon({ health, neutral = false }: { health: DeckHealthResponse; neutral?: boolean }) {
   const allIn = health.verdict.inRange === health.verdict.ranged
   return allIn ? (
-    <Check size={14} aria-hidden="true" style={{ color: 'var(--signal-success)' }} />
+    <Check size={14} aria-hidden="true" style={{ color: neutral ? 'var(--text-secondary)' : 'var(--signal-success)' }} />
   ) : (
-    <AlertTriangle size={14} aria-hidden="true" style={{ color: 'var(--signal-warning)' }} />
+    <AlertTriangle size={14} aria-hidden="true" style={{ color: neutral ? 'var(--warn-amber)' : 'var(--signal-warning)' }} />
   )
 }
 

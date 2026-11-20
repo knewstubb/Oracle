@@ -51,6 +51,19 @@
   --mana-red: #D4836A;
   --mana-green: #7BC4A0;
 
+  /* ─── Deck rail (shared tokens; values mirrored in src/lib/ui-tokens.ts) ─ */
+  --surface-card: rgba(26, 26, 30, 0.5);
+  --text-muted: var(--text-secondary);
+  --warn-amber: #F2B84B;
+  --mana-fill-w: #F0E6B8;
+  --mana-fill-u: #4C9BE8;
+  --mana-fill-b: #8E7F9E;
+  --mana-fill-r: #E5604D;
+  --mana-fill-g: #3DAA6D;
+  --mana-fill-c: #9AA0A6;
+  --swatch-original: #C9CFCB;
+  --swatch-other-decks: #6E7571;
+  --swatch-unowned: var(--warn-amber);
   /* ─── Table Layout ───────────────────────────────────────────────── */
   --row-height: 44px;
   --row-h-pad: var(--space-3);

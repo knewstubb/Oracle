@@ -49,8 +49,8 @@ export function DeckViewSkeleton() {
   return (
     <div className="@container relative h-full overflow-y-auto bg-[var(--bg-canvas)] @[800px]:overflow-hidden" aria-busy="true" aria-label="Loading deck">
       <div className="relative z-10 flex min-h-full flex-col @[800px]:h-full @[800px]:flex-row">
-        {/* Rail: 64px bar at narrow widths, 304px column at wide widths */}
-        <div className="w-full shrink-0 border-b @[800px]:h-full @[800px]:w-[304px] @[800px]:border-b-0 @[800px]:border-r">
+        {/* Rail: 64px bar at narrow widths, 352px column at wide widths */}
+        <div className="w-full shrink-0 border-b @[800px]:h-full @[800px]:w-[352px] @[800px]:border-b-0 @[800px]:px-6 @[800px]:pt-2">
           <div className="flex h-16 items-center gap-3 px-4 @[800px]:hidden">
             <Skeleton className="size-9 shrink-0 rounded-full" />
             <Skeleton className="h-5 w-40" />
